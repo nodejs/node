@@ -13,32 +13,31 @@ namespace v8 {
 namespace internal {
 
 // Header of runtime functions.
-#define F(name, number_of_args, result_size)                    \
+#define F(name, number_of_args, result_size, ...)               \
   Address Runtime_##name(int args_length, Address* args_object, \
                          Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 #undef F
 
-#define P(name, number_of_args, result_size)                       \
+#define P(name, number_of_args, result_size, ...)                  \
   ObjectPair Runtime_##name(int args_length, Address* args_object, \
                             Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_PAIR(P)
 #undef P
 
-#define F(name, number_of_args, result_size)                                  \
-  {                                                                           \
-    Runtime::k##name, Runtime::RUNTIME, #name, FUNCTION_ADDR(Runtime_##name), \
-        number_of_args, result_size                                           \
-  }                                                                           \
-  ,
+// clang-format off
+#define F(name, number_of_args, result_size, ...) \
+  {                                                          \
+      Runtime::k##name, Runtime::RUNTIME,                    \
+      #name,        FUNCTION_ADDR(Runtime_##name),           \
+      number_of_args,   result_size},
 
-
-#define I(name, number_of_args, result_size)                       \
-  {                                                                \
-    Runtime::kInline##name, Runtime::INLINE, "_" #name,            \
-        FUNCTION_ADDR(Runtime_##name), number_of_args, result_size \
-  }                                                                \
-  ,
+#define I(name, number_of_args, result_size, ...) \
+  {                                                          \
+      Runtime::kInline##name, Runtime::INLINE,               \
+      "_" #name,        FUNCTION_ADDR(Runtime_##name),       \
+      number_of_args,   result_size},
+// clang-format on
 
 static const Runtime::Function kIntrinsicFunctions[] = {
     FOR_EACH_INTRINSIC(F) FOR_EACH_INLINE_INTRINSIC(I)};
@@ -311,8 +310,8 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
 
   // The default case: test functions are exposed, everything else is not.
   switch (id) {
-#define F(name, nargs, ressize) case k##name:
-#define I(name, nargs, ressize) case kInline##name:
+#define F(name, nargs, ressize, ...) case k##name:
+#define I(name, nargs, ressize, ...) case kInline##name:
     FOR_EACH_INTRINSIC_TEST(F, I)
     IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
 #undef I

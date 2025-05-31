@@ -750,7 +750,7 @@ MaybeHandle<JSAny> JsonStringifier::ApplyToJsonFunction(
   if (!IsCallable(*fun)) return object;
 
   // Call toJSON function.
-  if (IsSmi(*key)) key = factory()->NumberToString(key);
+  if (IsSmi(*key)) key = factory()->SmiToString(Cast<Smi>(*key));
   DirectHandle<Object> args[] = {key};
   ASSIGN_RETURN_ON_EXCEPTION(isolate_, object,
                              Cast<JSAny>(Execution::Call(
@@ -762,7 +762,7 @@ MaybeHandle<JSAny> JsonStringifier::ApplyReplacerFunction(
     Handle<JSAny> value, DirectHandle<Object> key,
     DirectHandle<Object> initial_holder) {
   HandleScope scope(isolate_);
-  if (IsSmi(*key)) key = factory()->NumberToString(key);
+  if (IsSmi(*key)) key = factory()->SmiToString(Cast<Smi>(*key));
   DirectHandle<Object> args[] = {key, value};
   DirectHandle<JSReceiver> holder = CurrentHolder(value, initial_holder);
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -3397,6 +3397,7 @@ bool FastJsonStringifier<Char>::AppendStringSIMD(
     const size_t char_index = block - chars + index;
     const size_t copy_length = char_index - uncopied_src_index;
     buffer_.Append(chars + uncopied_src_index, copy_length);
+    SBXCHECK_LT(found_char, 0x60);
     AppendCStringUnchecked(
         &JsonEscapeTable[found_char * kJsonEscapeTableEntrySize]);
     uncopied_src_index = char_index + 1;

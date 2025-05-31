@@ -59,6 +59,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarkingVisitor final
  protected:
   bool DeferTraceToMutatorThreadIfConcurrent(const void*, TraceCallback,
                                              size_t) final;
+  bool IsConcurrent() const final { return true; }
 };
 
 class V8_EXPORT_PRIVATE RootMarkingVisitor : public RootVisitorBase {

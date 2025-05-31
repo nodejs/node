@@ -58,10 +58,9 @@ enum InstanceType : uint16_t;
 class StringShape {
  public:
   V8_INLINE explicit StringShape(const Tagged<String> s);
-  V8_INLINE explicit StringShape(const Tagged<String> s,
-                                 PtrComprCageBase cage_base);
   V8_INLINE explicit StringShape(Tagged<Map> s);
-  V8_INLINE explicit StringShape(InstanceType t);
+  V8_INLINE bool IsOneByte() const;
+  V8_INLINE bool IsTwoByte() const;
   V8_INLINE bool IsSequential() const;
   V8_INLINE bool IsExternal() const;
   V8_INLINE bool IsCons() const;
@@ -76,24 +75,30 @@ class StringShape {
   V8_INLINE bool IsSequentialTwoByte() const;
   V8_INLINE bool IsInternalized() const;
   V8_INLINE bool IsShared() const;
-  V8_INLINE StringRepresentationTag representation_tag() const;
   V8_INLINE uint32_t encoding_tag() const;
-  V8_INLINE uint32_t representation_and_encoding_tag() const;
-  V8_INLINE uint32_t representation_encoding_and_shared_tag() const;
 #ifdef DEBUG
-  inline uint32_t type() const { return type_; }
   inline void invalidate() { valid_ = false; }
   inline bool valid() const { return valid_; }
 #else
   inline void invalidate() {}
 #endif
 
-  inline bool operator==(const StringShape& that) const {
-    return that.type_ == this->type_;
-  }
+  template <typename TDispatcher>
+  V8_INLINE auto DispatchToSpecificType(Tagged<String> str,
+                                        TDispatcher&& dispatcher) const;
+
+#ifdef DEBUG
+  inline bool IsValidFor(Tagged<String> string) const;
+#endif
 
  private:
-  uint32_t type_;
+#if V8_STATIC_ROOTS_BOOL
+  inline Tagged<Map> map_or_type() const;
+  Tagged<Map> map_;
+#else
+  inline InstanceType map_or_type() const { return type_; }
+  InstanceType type_;
+#endif
 #ifdef DEBUG
   inline void set_valid() { valid_ = true; }
   bool valid_;
@@ -527,8 +532,13 @@ V8_OBJECT class String : public Name {
                           uint32_t start, uint32_t length,
                           const SharedStringAccessGuardIfNeeded& access_guard);
 
-  // TODO(jgruber): This is an ongoing performance experiment. Once done, we'll
-  // rename this to something more appropriate.
+  // Note: this WriteToFlat variant is optimized for the common append-to-end
+  // string builder pattern. Unlike the more generic WriteToFlat, it supports
+  // only full string serialization (and *not* substring extraction).
+  //
+  // TODO(jgruber): Rename this and helper functions. Change the signature to
+  // remove src_index and length arguments, which are required to be 0 and
+  // src->length() due to the implementation.
   //
   // `src_index` and `length` always refer to the desired substring within
   // `src`. `dst` is guaranteed to fit `length`, and is written to
@@ -665,21 +675,12 @@ V8_OBJECT class String : public Name {
   // Run different behavior for each concrete string class type, to a
   // dispatcher which is overloaded on that class.
   template <typename TDispatcher>
-  V8_INLINE auto DispatchToSpecificType(TDispatcher&& dispatcher) const
-      // Help out the type deduction in case TDispatcher returns different
-      // types for different strings.
-      -> std::common_type_t<
-          decltype(dispatcher(Tagged<SeqOneByteString>{})),
-          decltype(dispatcher(Tagged<SeqTwoByteString>{})),
-          decltype(dispatcher(Tagged<ExternalOneByteString>{})),
-          decltype(dispatcher(Tagged<ExternalTwoByteString>{})),
-          decltype(dispatcher(Tagged<ThinString>{})),
-          decltype(dispatcher(Tagged<ConsString>{})),
-          decltype(dispatcher(Tagged<SlicedString>{}))>;
+  V8_INLINE auto DispatchToSpecificType(TDispatcher&& dispatcher) const;
 
   // Similar to the above, but using instance type. Since there is no
   // string to cast, the dispatcher has static methods for handling
   // each concrete type.
+  // TODO(leszeks): Remove this, preferring DispatchToSpecificType instead.
   template <typename TDispatcher, typename... TArgs>
   static inline auto DispatchToSpecificTypeWithoutCast(
       InstanceType instance_type, TArgs&&... args);
@@ -760,6 +761,7 @@ V8_OBJECT class String : public Name {
   V8_EXPORT_PRIVATE uint32_t
   ComputeAndSetRawHash(const SharedStringAccessGuardIfNeeded&);
 
+ public:
   uint32_t length_;
 } V8_OBJECT_END;
 
@@ -1026,6 +1028,9 @@ V8_OBJECT class ConsString : public String {
   V8_EXPORT_PRIVATE uint16_t
   Get(uint32_t index,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
+
+  // Prints the entire cons tree.
+  void PrintTree();
 
   // Minimum length for a cons string.
   static const uint32_t kMinLength = 13;

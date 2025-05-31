@@ -766,7 +766,7 @@ TEST(TestJSWeakRefKeepDuringJob) {
   CHECK(!IsUndefined(weak_ref->target(), isolate));
 
   // Clears the KeepDuringJob set.
-  context->GetIsolate()->ClearKeptObjects();
+  context.isolate()->ClearKeptObjects();
   heap::InvokeMajorGC(CcTest::heap());
   CHECK(IsUndefined(weak_ref->target(), isolate));
 
@@ -813,7 +813,7 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
   CHECK(!IsUndefined(weak_ref->target(), isolate));
 
   // Clears the KeepDuringJob set.
-  context->GetIsolate()->ClearKeptObjects();
+  context.isolate()->ClearKeptObjects();
   heap::SimulateIncrementalMarking(heap, true);
   heap::InvokeMajorGC(heap);
 

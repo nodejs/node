@@ -149,9 +149,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       NOOP_UNLESS_DEBUG_CODE;
 
   // Like Assert(), but always enabled.
-  void Check(Condition cond, AbortReason reason);
-
-  // Like Assert(), but always enabled.
   void Check(Condition cc, AbortReason reason, Register rs, Operand rt);
 
   // Same as Check() but expresses that the check is needed for the sandbox.
@@ -406,10 +403,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     push_helper(rs...);
   }
 
-  template <>
-  void push_helper(Register r) {
-    StoreWord(r, MemOperand(sp, 0));
-  }
+  void push_helper() {}
 
  public:
   // Push a number of registers. The leftmost register first (to the highest
@@ -554,10 +548,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     LoadWord(r, MemOperand(sp, sizeof...(rs) * kSystemPointerSize));
   }
 
-  template <>
-  void pop_helper(Register r) {
-    LoadWord(r, MemOperand(sp, 0));
-  }
+  void pop_helper() {}
 
  public:
   // Pop a number of registers. The leftmost register last (from the highest
@@ -1126,7 +1117,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // functor/function with 'Label *func(size_t index)' declaration.
   template <typename Func>
   void GenerateSwitchTable(Register index, size_t case_count,
-                           Func GetLabelFunction);
+                           Func GetLabelFunction, int case_value_base = 0,
+                           Register scratch = no_reg);
 
   // Load an object from the root table.
   void LoadRoot(Register destination, RootIndex index) final;
@@ -1968,31 +1960,42 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
 template <typename Func>
 void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
-                                         Func GetLabelFunction) {
-  // Ensure that dd-ed labels following this instruction use 8 bytes aligned
-  // addresses.
-  BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 +
-                         kSwitchTablePrologueSize);
+                                         Func GetLabelFunction,
+                                         int case_value_base,
+                                         Register scratch) {
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Register scratch2 = temps.Acquire();
-
-  Align(8);
-  // Load the address from the jump table at index and jump to it
-  auipc(scratch, 0);  // Load the current PC into scratch
-  SllWord(scratch2, index,
-          kSystemPointerSizeLog2);  // scratch2 = offset of indexth entry
-  AddWord(scratch2, scratch2,
-          scratch);  // scratch2 = (saved PC) + (offset of indexth entry)
-  LoadWord(scratch2,
-           MemOperand(scratch2,
-                      6 * kInstrSize));  // Add the size of these 6 instructions
-                                         // to the offset, then load
-  jr(scratch2);  // Jump to the address loaded from the table
-  nop();         // For 16-byte alignment
-  for (size_t index = 0; index < case_count; ++index) {
-    dd(GetLabelFunction(index));
+  Register table = scratch;
+  if (table == no_reg) {
+    table = temps.Acquire();
   }
+  Label fallthrough, jump_table;
+  if (case_value_base != 0) {
+    SubWord(index, index, Operand(case_value_base));
+  }
+  Branch(&fallthrough, Condition::Ugreater_equal, index, Operand(case_count));
+  LoadAddress(table, &jump_table);
+  CalcScaledAddress(table, table, index, kSystemPointerSizeLog2);
+  LoadWord(table, MemOperand(table, 0));
+  Jump(table);
+  // Calculate label area size and let MASM know that it will be impossible to
+  // create the trampoline within the range. That forces MASM to create the
+  // trampoline right here if necessary, i.e. if label area is too large and
+  // all unbound forward branches cannot be bound over it. Use nop() because the
+  // trampoline cannot be emitted right after Jump().
+  NOP();
+  static constexpr int mask = kInstrSize - 1;
+  int aligned_label_area_size =
+      int(case_count) * kUIntptrSize + kSystemPointerSize;
+  int instructions_per_label_area =
+      ((aligned_label_area_size + mask) & ~mask) >> kInstrSizeLog2;
+  BlockTrampolinePoolFor(instructions_per_label_area);
+  // Emit the jump table inline, under the assumption that it's not too big.
+  Align(kSystemPointerSize);
+  bind(&jump_table);
+  for (size_t i = 0; i < case_count; ++i) {
+    dd(GetLabelFunction(i));
+  }
+  bind(&fallthrough);
 }
 
 struct MoveCycleState {

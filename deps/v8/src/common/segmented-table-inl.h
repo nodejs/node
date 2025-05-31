@@ -71,20 +71,25 @@ void SegmentedTable<Entry, size>::Initialize() {
 
   if (root_space->CanAllocateSubspaces()) {
     auto subspace = root_space->AllocateSubspace(VirtualAddressSpace::kNoHint,
-                                                 kReservationSize, kSegmentSize,
+                                                 kReservationSize, kAlignment,
                                                  PagePermissions::kReadWrite);
     vas_ = subspace.release();
+    if (kUseSegmentPool) {
+      segment_pool_grow_mutex_ = new base::Mutex();
+    }
   } else {
     // This may be required on old Windows versions that don't support
     // VirtualAlloc2, which is required for subspaces. In that case, just use a
     // fully-backed emulated subspace.
     Address reservation_base = root_space->AllocatePages(
-        VirtualAddressSpace::kNoHint, kReservationSize, kSegmentSize,
+        VirtualAddressSpace::kNoHint, kReservationSize, kAlignment,
         PagePermissions::kNoAccess);
     if (reservation_base) {
       vas_ = new base::EmulatedVirtualAddressSubspace(
           root_space, reservation_base, kReservationSize, kReservationSize);
     }
+    // EmulatedVirtualAddressSubspace does not suppert AllocatePagesArray.
+    DCHECK(!kUseSegmentPool);
   }
   if (!vas_) {
     V8::FatalProcessOutOfMemory(
@@ -106,6 +111,10 @@ void SegmentedTable<Entry, size>::Initialize() {
 template <typename Entry, size_t size>
 void SegmentedTable<Entry, size>::TearDown() {
   DCHECK(is_initialized());
+
+  if (segment_pool_grow_mutex_) {
+    delete segment_pool_grow_mutex_;
+  }
 
   base_ = nullptr;
 #ifdef V8_TARGET_ARCH_64_BIT
@@ -136,6 +145,76 @@ SegmentedTable<Entry, size>::InitializeFreeList(Segment segment,
 }
 
 template <typename Entry, size_t size>
+std::optional<typename SegmentedTable<Entry, size>::Segment>
+SegmentedTable<Entry, size>::TryGetSegmentFromPool() {
+  DCHECK(kUseSegmentPool);
+  for (int i = 0; i < static_cast<int>(kSegmentPoolSize); ++i) {
+    uint32_t segment = segment_pool_[i].load(std::memory_order_relaxed);
+    if (segment != 0) {
+      if (segment_pool_[i].compare_exchange_weak(segment, 0,
+                                                 std::memory_order_acq_rel)) {
+        return Segment::At(segment);
+      } else {
+        // Retry if CAS failed. This is needed to ensure the pool really is
+        // empty when this method returns {}.
+        --i;
+      }
+    }
+  }
+  return {};
+}
+
+template <typename Entry, size_t size>
+std::optional<typename SegmentedTable<Entry, size>::Segment>
+SegmentedTable<Entry, size>::TryAllocateSegment() {
+  if constexpr (!kUseSegmentPool) {
+    Address start =
+        vas_->AllocatePages(VirtualAddressSpace::kNoHint, kSegmentSize,
+                            kSegmentSize, PagePermissions::kReadWrite);
+    if (!start) {
+      return {};
+    }
+    uint32_t offset = static_cast<uint32_t>(start - vas_->base());
+    return Segment::At(offset);
+  }
+
+  if (auto segment = TryGetSegmentFromPool()) {
+    return segment;
+  }
+
+  base::MutexGuard guard(*segment_pool_grow_mutex_);
+  // Try again to get a segment from the pool with the mutex held. Either
+  // another thread filled the pool before us and we should get a segment here,
+  // or the pool is guaranteed to be empty and we can proceed to fill it.
+  if (auto segment = TryGetSegmentFromPool()) {
+    return segment;
+  }
+
+  return FillSegmentsPool(true);
+}
+
+template <typename Entry, size_t size>
+std::optional<typename SegmentedTable<Entry, size>::Segment>
+SegmentedTable<Entry, size>::FillSegmentsPool(bool return_a_segment) {
+  std::optional<Segment> res;
+  for (size_t i = 0; i < kSegmentPoolSize; ++i) {
+    DCHECK_EQ(segment_pool_[i].load(std::memory_order_acquire), 0);
+    Address start =
+        vas_->AllocatePages(VirtualAddressSpace::kNoHint, kSegmentSize,
+                            kAlignment, PagePermissions::kReadWrite);
+    if (!start) continue;
+    uint32_t offset = static_cast<uint32_t>(start - vas_->base());
+    if (return_a_segment && i == 0) {
+      res.emplace(Segment::At(offset));
+      continue;
+    }
+    DCHECK_NE(offset, 0);
+    segment_pool_[i].store(offset, std::memory_order_release);
+  }
+  return res;
+}
+
+template <typename Entry, size_t size>
 std::pair<typename SegmentedTable<Entry, size>::Segment,
           typename SegmentedTable<Entry, size>::FreelistHead>
 SegmentedTable<Entry, size>::AllocateAndInitializeSegment() {
@@ -150,22 +229,32 @@ template <typename Entry, size_t size>
 std::optional<std::pair<typename SegmentedTable<Entry, size>::Segment,
                         typename SegmentedTable<Entry, size>::FreelistHead>>
 SegmentedTable<Entry, size>::TryAllocateAndInitializeSegment() {
-  Address start =
-      vas_->AllocatePages(VirtualAddressSpace::kNoHint, kSegmentSize,
-                          kSegmentSize, PagePermissions::kReadWrite);
-  if (!start) {
-    return {};
-  }
-  uint32_t offset = static_cast<uint32_t>((start - vas_->base()));
-  Segment segment = Segment::At(offset);
-
-  FreelistHead freelist = InitializeFreeList(segment);
-
-  return {{segment, freelist}};
+  auto segment = TryAllocateSegment();
+  if (!segment) return {};
+  DCHECK_IMPLIES(!kUseContiguousMemory,
+                 (*segment).number() > kNumReadOnlySegments);
+  FreelistHead freelist = InitializeFreeList(*segment);
+  return {{*segment, freelist}};
 }
 
 template <typename Entry, size_t size>
 void SegmentedTable<Entry, size>::FreeTableSegment(Segment segment) {
+  if (kUseSegmentPool) {
+    // Offset 0 is used as a marker for free entries. Thus we cannot store it in
+    // the pool.
+    if (segment.offset() != 0) {
+      base::MutexGuard guard(*segment_pool_grow_mutex_);
+      for (size_t i = 0; i < kSegmentPoolSize; ++i) {
+        uint32_t cur = segment_pool_[i].load(std::memory_order_relaxed);
+        if (cur == 0) {
+          if (segment_pool_[i].compare_exchange_weak(
+                  cur, segment.offset(), std::memory_order_acq_rel)) {
+            return;
+          }
+        }
+      }
+    }
+  }
   Address segment_start = vas_->base() + segment.offset();
   vas_->FreePages(segment_start, kSegmentSize);
 }

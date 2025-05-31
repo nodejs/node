@@ -3373,6 +3373,9 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammarContinuation(
     // Otherwise we'll probably overestimate the number of properties.
     if (impl()->IsThisProperty(expression)) function_state_->AddProperty();
   } else {
+    if (Token::IsLogicalAssignmentOp(op)) {
+      impl()->CountUsage(v8::Isolate::kLogicalAssignment);
+    }
     // Only initializers (i.e. no compound assignments) are allowed in patterns.
     expression_scope()->RecordPatternError(
         Scanner::Location(lhs_beg_pos, end_position()),
@@ -3506,6 +3509,7 @@ ParserBase<Impl>::ParseCoalesceExpression(ExpressionT expression) {
       y = ParseBinaryExpression(6);
     }
     if (first_nullish) {
+      impl()->CountUsage(v8::Isolate::kNullishCoalescing);
       expression =
           factory()->NewBinaryOperation(Token::kNullish, expression, y, pos);
       impl()->RecordBinaryOperationSourceRange(expression, right_range);
@@ -3768,6 +3772,10 @@ ParserBase<Impl>::ParseUnaryOrPrefixExpression() {
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseAwaitExpression() {
+  if (IsModule(function_state_->kind())) {
+    impl()->CountUsage(v8::Isolate::kTopLevelAwait);
+  }
+
   expression_scope()->RecordParameterInitializerError(
       scanner()->peek_location(),
       MessageTemplate::kAwaitExpressionFormalParameter);
@@ -5671,7 +5679,8 @@ void ParserBase<Impl>::ParseStatementList(StatementListT* body,
       if (!scope()->HasSimpleParameters()) {
         // TC39 deemed "use strict" directives to be an error when occurring
         // in the body of a function with non-simple parameter list, on
-        // 29/7/2015. https://goo.gl/ueA7Ln
+        // 29/7/2015. See:
+        // https://github.com/tc39/notes/blob/main/meetings/2015-07/july-29.md#conclusionresolution
         impl()->ReportMessageAt(token_loc,
                                 MessageTemplate::kIllegalLanguageModeDirective,
                                 "use strict");

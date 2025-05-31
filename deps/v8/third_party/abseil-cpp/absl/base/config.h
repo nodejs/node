@@ -530,13 +530,12 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 
 // ABSL_HAVE_STD_STRING_VIEW
 //
-// Checks whether C++17 std::string_view is available.
+// Deprecated: always defined to 1.
+// std::string_view was added in C++17, which means all versions of C++
+// supported by Abseil have it.
 #ifdef ABSL_HAVE_STD_STRING_VIEW
 #error "ABSL_HAVE_STD_STRING_VIEW cannot be directly set."
-#elif defined(__cpp_lib_string_view) && __cpp_lib_string_view >= 201606L
-#define ABSL_HAVE_STD_STRING_VIEW 1
-#elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#else
 #define ABSL_HAVE_STD_STRING_VIEW 1
 #endif
 
@@ -561,13 +560,10 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 // Indicates whether absl::string_view is an alias for std::string_view.
 #if !defined(ABSL_OPTION_USE_STD_STRING_VIEW)
 #error options.h is misconfigured.
-#elif ABSL_OPTION_USE_STD_STRING_VIEW == 0 || \
-    (ABSL_OPTION_USE_STD_STRING_VIEW == 2 &&  \
-     !defined(ABSL_HAVE_STD_STRING_VIEW))
+#elif ABSL_OPTION_USE_STD_STRING_VIEW == 0
 #undef ABSL_USES_STD_STRING_VIEW
 #elif ABSL_OPTION_USE_STD_STRING_VIEW == 1 || \
-    (ABSL_OPTION_USE_STD_STRING_VIEW == 2 &&  \
-     defined(ABSL_HAVE_STD_STRING_VIEW))
+    ABSL_OPTION_USE_STD_STRING_VIEW == 2
 #define ABSL_USES_STD_STRING_VIEW 1
 #else
 #error options.h is misconfigured.

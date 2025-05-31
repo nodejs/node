@@ -76,7 +76,9 @@
 #include "src/objects/js-raw-json-inl.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
+#ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/maybe-object.h"
@@ -304,6 +306,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
     case CODE_WRAPPER_TYPE:
       Cast<CodeWrapper>(*this)->CodeWrapperVerify(isolate);
+      break;
+    case DOUBLE_STRING_CACHE_TYPE:
+      Cast<DoubleStringCache>(*this)->DoubleStringCacheVerify(isolate);
       break;
 
 #define MAKE_TORQUE_CASE(Name, TYPE)          \
@@ -939,7 +944,11 @@ void TrustedByteArray::TrustedByteArrayVerify(Isolate* isolate) {
 
 void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
   for (int i = 0; i < length(); i++) {
-    if (!is_the_hole(i)) {
+    if (!is_the_hole(i)
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        && !is_undefined(i)
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    ) {
       uint64_t value = get_representation(i);
       uint64_t unexpected =
           base::bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN()) &
@@ -976,6 +985,12 @@ void ContextCell::ContextCellVerify(Isolate* isolate) {
   CHECK(IsDependentCode(dep_code));
   Object::VerifyPointer(isolate, dep_code);
   Object::VerifyPointer(isolate, tagged);
+}
+
+void DoubleStringCache::DoubleStringCacheVerify(Isolate* isolate) {
+  for (auto& e : *this) {
+    Object::VerifyPointer(isolate, e.value_.load());
+  }
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
@@ -1207,8 +1222,8 @@ void JSDate::JSDateVerify(Isolate* isolate) {
     CHECK(0 <= weekday && weekday <= 6);
   }
   if (IsSmi(cache_stamp())) {
-    CHECK(Smi::ToInt(cache_stamp()) <=
-          Smi::ToInt(isolate->date_cache()->stamp()));
+    CHECK_LE(Smi::ToInt(cache_stamp()),
+             Smi::ToInt(isolate->date_cache_stamp()));
   }
 }
 

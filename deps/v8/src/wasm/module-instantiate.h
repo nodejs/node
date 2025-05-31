@@ -40,22 +40,18 @@ struct WasmModule;
 // Calls to Wasm imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the
 // argument arity.
-// TODO(jkummerow): Merge kJSFunctionArity{Match,Mismatch}, we don't really
-// need the distinction any more.
 enum class ImportCallKind : uint8_t {
-  kLinkError,                // static Wasm->Wasm type error
-  kRuntimeTypeError,         // runtime Wasm->JS type error
-  kWasmToCapi,               // fast Wasm->C-API call
-  kWasmToJSFastApi,          // fast Wasm->JS Fast API C call
-  kWasmToWasm,               // fast Wasm->Wasm call
-  kJSFunctionArityMatch,     // fast Wasm->JS call
-  kJSFunctionArityMismatch,  // Wasm->JS, needs adapter frame
+  kLinkError,         // static Wasm->Wasm type error
+  kRuntimeTypeError,  // runtime Wasm->JS type error
+  kWasmToCapi,        // fast Wasm->C-API call
+  kWasmToJSFastApi,   // fast Wasm->JS Fast API C call
+  kWasmToWasm,        // fast Wasm->Wasm call
+  kJSFunction,        // fast Wasm->JS call
   // For everything else, there's the call builtin.
   kUseCallBuiltin
 };
 
-constexpr ImportCallKind kDefaultImportCallKind =
-    ImportCallKind::kJSFunctionArityMatch;
+constexpr ImportCallKind kDefaultImportCallKind = ImportCallKind::kJSFunction;
 
 // Resolves which import call wrapper is required for the given JS callable.
 // Provides the kind of wrapper needed, the ultimate target callable, and the
@@ -127,6 +123,8 @@ struct WrapperCompilationInfo {
   wasm::ImportCallKind import_kind = kDefaultImportCallKind;
   int expected_arity = 0;
   wasm::Suspend suspend = kNoSuspend;
+  // For js-wasm wrappers:
+  bool receiver_is_first_param = false;
 };
 
 }  // namespace wasm

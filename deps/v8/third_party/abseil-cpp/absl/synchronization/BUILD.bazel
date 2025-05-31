@@ -266,6 +266,7 @@ cc_test(
         "//absl/log",
         "//absl/log:check",
         "//absl/memory",
+        "//absl/random",
         "//absl/time",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -359,6 +360,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = [
         "no_test_wasm",
+        "noubsan",  # TODO(b/417700722):  timeouts under UBSAN.
     ],
     deps = [
         ":per_thread_sem_test_common",

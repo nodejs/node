@@ -48,7 +48,8 @@ ALL_VARIANT_FLAGS = {
         "--maglev", "--stress-maglev", "--maglev-non-eager-inlining",
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
-    "conservative_pinning": [[
+    "conservative_stack_scanning": [[
+        "--conservative-stack-scanning",
         "--scavenger-conservative-object-pinning",
         "--stress-scavenger-conservative-object-pinning"
     ]],

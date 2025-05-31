@@ -620,6 +620,9 @@ class ExceptionHandlerTrampolineBuilder {
       // to Runtime::kThrowFoo?
       DCHECK(!source->allocation().IsRegister());
 
+      // The DeoptInfoVisitor should unwrap identity nodes in frame states.
+      DCHECK(!source->Is<Identity>());
+
       switch (source->properties().value_representation()) {
         case ValueRepresentation::kTagged:
           direct_moves->RecordMove(
@@ -1892,9 +1895,24 @@ bool MaglevCodeGenerator::EmitDeopts() {
 void MaglevCodeGenerator::EmitExceptionHandlerTrampolines() {
   if (code_gen_state_.handlers().empty()) return;
   __ RecordComment("-- Exception handler trampolines");
+
+#ifdef DEBUG
+  // Exception trampolines can allocate HeapNumbers (when a Float64 value is
+  // used as input to a Tagged exception phi).
+  masm()->set_allow_allocate(true);
+#endif
+
   for (NodeBase* node : code_gen_state_.handlers()) {
+    DCHECK(node->properties().can_throw());
+    // Materializations of Phi inputs in the trampoline could allocate
+    // HeapNumbers.
+    DCHECK(node->properties().can_allocate());
     ExceptionHandlerTrampolineBuilder::Build(masm(), node);
   }
+
+#ifdef DEBUG
+  masm()->set_allow_allocate(false);
+#endif
 }
 
 void MaglevCodeGenerator::EmitMetadata() {

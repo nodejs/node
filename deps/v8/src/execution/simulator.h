@@ -116,8 +116,8 @@ class SimulatorStack : public v8::internal::AllStatic {
     return base::VectorOf(reinterpret_cast<uint8_t*>(lower_bound), size);
   }
 
-  static constexpr int JSStackLimitMargin() {
-    return wasm::StackMemory::kJSLimitOffsetKB * KB;
+  static int JSStackLimitMargin() {
+    return wasm::StackMemory::JSStackLimitMarginKB() * KB;
   }
 #endif
 

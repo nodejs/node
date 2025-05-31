@@ -129,7 +129,7 @@ class WasmValue {
 
   static WasmValue ForUintPtr(uintptr_t value) {
     using type =
-        std::conditional<kSystemPointerSize == 8, uint64_t, uint32_t>::type;
+        std::conditional_t<kSystemPointerSize == 8, uint64_t, uint32_t>;
     return WasmValue{type{value}};
   }
 

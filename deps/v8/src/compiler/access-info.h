@@ -267,6 +267,9 @@ class AccessInfoFactory final {
   std::optional<ElementAccessInfo> ConsolidateElementLoad(
       ElementAccessFeedback const& feedback) const;
   PropertyAccessInfo LookupSpecialFieldAccessor(MapRef map, NameRef name) const;
+  PropertyAccessInfo LookupSpecialFieldAccessorInHolder(
+      MapRef receiver_map, NameRef name, JSObjectRef holder,
+      PropertyDetails details, InternalIndex index) const;
   PropertyAccessInfo LookupTransition(MapRef map, NameRef name,
                                       OptionalJSObjectRef holder,
                                       PropertyAttributes attrs) const;

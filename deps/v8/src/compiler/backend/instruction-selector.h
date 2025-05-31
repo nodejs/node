@@ -1098,7 +1098,6 @@ class InstructionSelectorT final : public TurboshaftAdapter {
                        turboshaft::OpIndex frame_state);
   void VisitSelect(turboshaft::OpIndex node);
   void VisitReturn(turboshaft::OpIndex node);
-  void VisitThrow(Node* node);
   void VisitRetain(turboshaft::OpIndex node);
   void VisitUnreachable(turboshaft::OpIndex node);
   void VisitStaticAssert(turboshaft::OpIndex node);

@@ -4,6 +4,8 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include "src/codegen/flush-instruction-cache.h"
+#include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
 
 namespace v8 {
@@ -15,7 +17,16 @@ const int Deoptimizer::kLazyDeoptExitSize = 5;
 const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
 
 // static
-void Deoptimizer::PatchToJump(Address pc, Address new_pc) { UNREACHABLE(); }
+void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
+  // We'll overwrite only one instruction of 5-bytes. Give enough
+  // space not to try to grow the buffer.
+  constexpr int kSize = 64;
+  Assembler masm(
+      AssemblerOptions{},
+      ExternalAssemblerBuffer(reinterpret_cast<uint8_t*>(pc), kSize));
+  masm.jmp_rel(new_pc - pc);
+  FlushInstructionCache(pc, kSize);
+}
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return base::ReadUnalignedValue<Float32>(

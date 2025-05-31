@@ -233,7 +233,7 @@ AllocationTracker::ScriptData::ScriptData(Tagged<Script> script,
       tracker_(tracker) {
   DirectHandle<Script> script_direct_handle(script, isolate);
   auto local_script = ToApiHandle<debug::Script>(script_direct_handle);
-  script_.Reset(local_script->GetIsolate(), local_script);
+  script_.Reset(reinterpret_cast<v8::Isolate*>(isolate), local_script);
   script_.SetWeak(this, &HandleWeakScript, v8::WeakCallbackType::kParameter);
 }
 

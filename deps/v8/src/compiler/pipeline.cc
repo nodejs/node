@@ -778,11 +778,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl(
 
   if (V8_UNLIKELY(v8_flags.turbolev)) {
     if (!turboshaft_pipeline.CreateGraphWithMaglev(linkage_)) {
-      return AbortOptimization(BailoutReason::kGraphBuildingFailed);
+      return AbortOptimization(BailoutReason::kTurbofanGraphBuildingFailed);
     }
   } else {
     if (!pipeline_.CreateGraph(linkage_)) {
-      return AbortOptimization(BailoutReason::kGraphBuildingFailed);
+      return AbortOptimization(BailoutReason::kTurbofanGraphBuildingFailed);
     }
 
     // We selectively Unpark inside OptimizeTurbofanGraph.
@@ -816,13 +816,13 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   MaybeHandle<Code> maybe_code = turboshaft_pipeline.FinalizeCode();
   if (!maybe_code.ToHandle(&code)) {
     if (compilation_info()->bailout_reason() == BailoutReason::kNoReason) {
-      return AbortOptimization(BailoutReason::kCodeGenerationFailed);
+      return AbortOptimization(BailoutReason::kTurbofanCodeGenerationFailed);
     }
     return FAILED;
   }
   context = DirectHandle<NativeContext>(compilation_info()->native_context(),
                                         isolate);
-  if (context->IsDetached()) {
+  if (context->IsDetached(isolate)) {
     return AbortOptimization(BailoutReason::kDetachedNativeContext);
   }
   if (!CheckNoDeprecatedMaps(code, isolate)) {
@@ -2220,10 +2220,13 @@ const ProfileDataFromFile* ValidateProfileData(
     if (v8_flags.abort_on_bad_builtin_profile_data ||
         v8_flags.warn_about_builtin_profile_data) {
       base::EmbeddedVector<char, 256> msg;
-      SNPrintF(msg,
-               "Rejected profile data for %s due to function change. "
-               "Please use tools/builtins-pgo/generate.py to refresh it.",
-               debug_name);
+      SNPrintF(
+          msg,
+          "Rejected profile data for %s due to function change. "
+          "Please use tools/builtins-pgo/generate.py to refresh it, you can "
+          "also try adding `'checkout_pgo_profiles': True` to your .gclient "
+          "file and run `gclient sync` to download the latest PGO profiles.",
+          debug_name);
       if (v8_flags.abort_on_bad_builtin_profile_data) {
         // mksnapshot might fail here because of the following reasons:
         // * builtins were changed since the builtins profile generation,

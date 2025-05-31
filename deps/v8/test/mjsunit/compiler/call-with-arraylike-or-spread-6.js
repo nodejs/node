@@ -28,7 +28,10 @@
     },
   });
 
-  var log_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var log_got_interpreted = null;
+  log_got_interpreted = true;
 
   function log(a) {
     assertEquals(1, arguments.length);

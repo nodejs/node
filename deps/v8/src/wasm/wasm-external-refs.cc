@@ -1060,7 +1060,10 @@ Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
       return 0;
     }
     DCHECK(active_stack->IsActive());
-    if (!active_stack->Grow(current_fp)) {
+    // Grow by at least the new frame size plus the stack limit margin.
+    if (!active_stack->Grow(
+            current_fp,
+            gap + frame_size + StackMemory::JSStackLimitMarginKB() * KB)) {
       return 0;
     }
 

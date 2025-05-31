@@ -79,6 +79,10 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeTaggedToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
+    case IrOpcode::kChangeFloat64OrUndefinedToTagged: {
+      // TODO(385155404): Handle some constants here.
+      break;
+    }
     case IrOpcode::kChangeInt31ToTaggedSigned:
     case IrOpcode::kChangeInt32ToTagged: {
       Int32Matcher m(node->InputAt(0));
@@ -92,6 +96,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kTruncateTaggedToFloat64: {
       NumberMatcher m(node->InputAt(0));
       if (m.HasResolvedValue()) return ReplaceFloat64(m.ResolvedValue());
+      // TODO(385155404): Consider handling ChangeFloat64OrUndefinedToTagged
+      // here.
       if (m.IsChangeFloat64ToTagged() || m.IsChangeFloat64ToTaggedPointer()) {
         return Replace(m.node()->InputAt(0));
       }
@@ -108,6 +114,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       NumberMatcher m(node->InputAt(0));
       if (m.HasResolvedValue())
         return ReplaceInt32(DoubleToInt32(m.ResolvedValue()));
+      // TODO(385155404): Consider handling ChangeFloat64OrUndefinedToTagged
+      // here.
       if (m.IsChangeFloat64ToTagged() || m.IsChangeFloat64ToTaggedPointer()) {
         return Change(node, machine()->ChangeFloat64ToInt32(), m.InputAt(0));
       }
@@ -120,6 +128,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       NumberMatcher m(node->InputAt(0));
       if (m.HasResolvedValue())
         return ReplaceUint32(DoubleToUint32(m.ResolvedValue()));
+      // TODO(385155404): Consider handling ChangeFloat64OrUndefinedToTagged
+      // here.
       if (m.IsChangeFloat64ToTagged() || m.IsChangeFloat64ToTaggedPointer()) {
         return Change(node, machine()->ChangeFloat64ToUint32(), m.InputAt(0));
       }
@@ -140,6 +150,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
           m.IsChangeUint32ToTagged()) {
         return Replace(m.InputAt(0));
       }
+      // TODO(385155404): Consider handling ChangeFloat64OrUndefinedToTagged
+      // here.
       if (m.IsChangeFloat64ToTagged() || m.IsChangeFloat64ToTaggedPointer()) {
         return Change(node, machine()->TruncateFloat64ToWord32(), m.InputAt(0));
       }

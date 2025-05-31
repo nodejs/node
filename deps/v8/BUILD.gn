@@ -342,6 +342,10 @@ declare_args() {
   # Sets -DV8_ENABLE_SANDBOX.
   v8_enable_sandbox = ""
 
+  # Enable experimental hardware support for the V8 sandbox if available.
+  # Sets -DV8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  v8_enable_sandbox_hardware_support = false
+
   # Enable leaptiering
   v8_enable_leaptiering = true
 
@@ -457,7 +461,8 @@ declare_args() {
   v8_enable_slow_tracing = is_debug
 
   # Enable jump table switch for built-in.
-  v8_enable_builtin_jump_table_switch = v8_current_cpu == "x64"
+  v8_enable_builtin_jump_table_switch =
+      v8_current_cpu == "x64" || v8_current_cpu == "arm64"
 
   v8_shortcut_strings_in_minor_ms = false
 
@@ -514,6 +519,9 @@ declare_args() {
 
   # Deinterleaving load support.
   v8_enable_wasm_deinterleaved_mem_ops = false
+
+  # Expose F.p.caller and .arguments as own properties.
+  v8_function_arguments_caller_are_own_props = false
 }
 
 # Derived defaults.
@@ -768,11 +776,15 @@ assert(!v8_enable_pointer_compression_8gb || v8_enable_pointer_compression,
 assert(!v8_enable_sandbox || v8_enable_external_code_space,
        "The sandbox requires the external code space")
 
-assert(v8_enable_leaptiering || !v8_enable_sandbox,
-       "the sandbox requires leaptiering to be enabled")
+assert(
+    v8_enable_leaptiering,
+    "non-leaptiering is deprecated (see https://groups.google.com/g/v8-dev/c/PYk2_GGP2Wk)")
 
 assert(!v8_enable_memory_corruption_api || v8_enable_sandbox,
        "The Memory Corruption API requires the sandbox")
+
+assert(!v8_enable_sandbox_hardware_support || v8_enable_sandbox,
+       "The sandbox must be enabled to enable sandbox hardware support")
 
 assert(
     !v8_enable_pointer_compression_shared_cage || v8_enable_pointer_compression,
@@ -839,6 +851,8 @@ assert(
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
 
+is_DEBUG_defined = v8_enable_debugging_features || v8_dcheck_always_on
+
 ###############################################################################
 # Configurations
 #
@@ -853,6 +867,7 @@ config("internal_config_base") {
     ".",
     "include",
     "$target_gen_dir",
+    "$target_gen_dir/include",
   ]
 }
 
@@ -1245,6 +1260,9 @@ config("features") {
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
   }
+  if (v8_enable_temporal_support) {
+    defines += [ "V8_TEMPORAL_SUPPORT" ]
+  }
   if (v8_enable_local_handle_zapping) {
     defines += [ "ENABLE_LOCAL_HANDLE_ZAPPING" ]
   }
@@ -1384,6 +1402,9 @@ config("features") {
       defines += [ "V8_DRUMBRAKE_BOUNDS_CHECKS" ]
     }
   }
+  if (v8_enable_sandbox_hardware_support) {
+    defines += [ "V8_ENABLE_SANDBOX_HARDWARE_SUPPORT" ]
+  }
   if (v8_enable_memory_corruption_api) {
     defines += [ "V8_ENABLE_MEMORY_CORRUPTION_API" ]
   }
@@ -1449,6 +1470,9 @@ config("features") {
   }
   if (v8_target_is_simulator) {
     defines += [ "USE_SIMULATOR" ]
+  }
+  if (v8_function_arguments_caller_are_own_props) {
+    defines += [ "V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS" ]
   }
 }
 
@@ -1874,6 +1898,8 @@ if (v8_postmortem_support) {
       "src/objects/megadom-handler-inl.h",
       "src/objects/name.h",
       "src/objects/name-inl.h",
+      "src/objects/number-string-cache.h",
+      "src/objects/number-string-cache-inl.h",
       "src/objects/objects.h",
       "src/objects/objects-inl.h",
       "src/objects/oddball.h",
@@ -2098,7 +2124,6 @@ torque_files = [
   "src/objects/js-shadow-realm.tq",
   "src/objects/js-shared-array.tq",
   "src/objects/js-struct.tq",
-  "src/objects/js-temporal-objects.tq",
   "src/objects/js-weak-refs.tq",
   "src/objects/literal-objects.tq",
   "src/objects/map.tq",
@@ -2152,6 +2177,10 @@ if (v8_enable_i18n_support) {
     "src/objects/js-segmenter.tq",
     "src/objects/js-segments.tq",
   ]
+}
+
+if (v8_enable_temporal_support) {
+  torque_files += [ "src/objects/js-temporal-objects.tq" ]
 }
 
 if (v8_enable_webassembly) {
@@ -2291,6 +2320,16 @@ group("v8_maybe_icu") {
   }
 }
 
+group("v8_maybe_temporal") {
+  if (v8_enable_temporal_support) {
+    deps = [ "//third_party/rust/temporal_capi/v0_0:lib" ]
+
+    # Only needs to be depended on by targets that wish to use TEMPORAL_CAPI_VERSION_*
+    public_configs =
+        [ "//third_party/rust/temporal_capi:temporal_capi_versioning_defines" ]
+  }
+}
+
 group("v8_abseil") {
   public_deps = [ "//third_party/abseil-cpp:absl" ]
 
@@ -2321,6 +2360,7 @@ v8_source_set("torque_generated_initializers") {
     ":generate_bytecode_builtins_list",
     ":run_torque",
     ":v8_base_without_compiler",
+    ":v8_maybe_temporal",
     ":v8_tracing",
   ]
 
@@ -2367,6 +2407,7 @@ v8_source_set("torque_generated_definitions") {
     ":run_torque",
     ":v8_internal_headers",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     ":v8_tracing",
   ]
 
@@ -2456,6 +2497,10 @@ template("run_mksnapshot") {
 
     outputs = []
 
+    if (is_DEBUG_defined && name == "default") {
+      outputs += [ "$target_gen_dir/src/builtins/builtins-effects.cc" ]
+    }
+
     data = []
 
     if (current_os != "zos") {
@@ -2506,6 +2551,14 @@ template("run_mksnapshot") {
       # mksnapshot.cc). We set it here as well for clarity.
       "--no-use-ic",
     ]
+
+    if (is_DEBUG_defined && name == "default") {
+      args += [
+        "--builtins-effects-src",
+        rebase_path("$target_gen_dir/src/builtins/builtins-effects.cc",
+                    root_build_dir),
+      ]
+    }
 
     if (v8_verify_deterministic_mksnapshot) {
       # Flags that help debugging snapshot determinism.
@@ -2752,7 +2805,6 @@ if (v8_verify_builtins_compatibility) {
 action("v8_dump_build_config") {
   script = "tools/testrunner/utils/dump_build_config.py"
   outputs = [ "$root_out_dir/v8_build_config.json" ]
-  is_DEBUG_defined = v8_enable_debugging_features || v8_dcheck_always_on
   is_full_debug = v8_enable_debugging_features && !v8_optimized_debug
 
   arch = v8_target_cpu
@@ -2812,6 +2864,7 @@ action("v8_dump_build_config") {
     "has_webassembly=$v8_enable_webassembly",
     "has_wasm_interpreter=$v8_enable_drumbrake",
     "i18n=$v8_enable_i18n_support",
+    "temporal=$v8_enable_temporal_support",
     "is_android=$is_android",
     "is_ios=$is_ios",
     "js_shared_memory=$js_shared_memory",
@@ -2866,6 +2919,7 @@ generated_file("v8_generate_features_json") {
     v8_enable_gdbjit = v8_enable_gdbjit
     v8_enable_hugepage = v8_enable_hugepage
     v8_enable_i18n_support = v8_enable_i18n_support
+    v8_enable_temporal_support = v8_enable_temporal_support
     v8_enable_javascript_promise_hooks = v8_enable_javascript_promise_hooks
     v8_enable_lite_mode = v8_enable_lite_mode
     v8_enable_map_packing = v8_enable_map_packing
@@ -2900,6 +2954,7 @@ v8_source_set("v8_snapshot") {
   deps = [
     ":v8_internal_headers",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     ":v8_tracing",
   ]
   public_deps = [
@@ -2921,6 +2976,9 @@ v8_source_set("v8_snapshot") {
     } else {
       sources += [ "$target_gen_dir/embedded.s" ]
     }
+  }
+  if (is_DEBUG_defined) {
+    sources += [ "$target_gen_dir/src/builtins/builtins-effects.cc" ]
   }
 
   configs = [ ":internal_config" ]
@@ -3002,7 +3060,6 @@ v8_source_set("v8_initializers") {
     "src/builtins/builtins-string-gen.cc",
     "src/builtins/builtins-string-gen.h",
     "src/builtins/builtins-string-tsa.cc",
-    "src/builtins/builtins-temporal-gen.cc",
     "src/builtins/builtins-typed-array-gen.cc",
     "src/builtins/builtins-typed-array-gen.h",
     "src/builtins/builtins-utils-gen.h",
@@ -3058,6 +3115,10 @@ v8_source_set("v8_initializers") {
             [ "src/wasm/interpreter/arm64/interpreter-builtins-arm64.cc" ]
       }
     }
+  }
+
+  if (v8_enable_temporal_support) {
+    sources += [ "src/builtins/builtins-temporal-gen.cc" ]
   }
 
   if (v8_current_cpu == "x86") {
@@ -3125,6 +3186,7 @@ v8_source_set("v8_init") {
   deps = [
     ":v8_base_without_compiler",
     ":v8_initializers",
+    ":v8_maybe_temporal",
     ":v8_tracing",
   ]
 
@@ -3292,6 +3354,7 @@ v8_header_set("v8_shared_internal_headers") {
   ]
 
   deps = [
+    ":cppgc_headers",
     ":v8_headers",
     ":v8_libbase",
   ]
@@ -3334,8 +3397,6 @@ v8_header_set("v8_internal_headers") {
     "src/api/api-arguments-inl.h",
     "src/api/api-arguments.h",
     "src/api/api-inl.h",
-    "src/api/api-macros-undef.h",
-    "src/api/api-macros.h",
     "src/api/api-natives.h",
     "src/api/api.h",
     "src/ast/ast-function-literal-id-reindexer.h",
@@ -3354,6 +3415,7 @@ v8_header_set("v8_internal_headers") {
     "src/builtins/builtins-constructor.h",
     "src/builtins/builtins-definitions.h",
     "src/builtins/builtins-descriptors.h",
+    "src/builtins/builtins-effects-analyzer.h",
     "src/builtins/builtins-inl.h",
     "src/builtins/builtins-promise.h",
     "src/builtins/builtins-utils-inl.h",
@@ -3563,7 +3625,12 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/builtin-call-descriptors.h",
     "src/compiler/turboshaft/code-elimination-and-simplification-phase.h",
     "src/compiler/turboshaft/copying-phase.h",
-    "src/compiler/turboshaft/csa-optimize-phase.h",
+    "src/compiler/turboshaft/csa-branch-elimination-phase.h",
+    "src/compiler/turboshaft/csa-early-machine-optimization-phase.h",
+    "src/compiler/turboshaft/csa-effects-computation-phase.h",
+    "src/compiler/turboshaft/csa-late-escape-analysis-phase.h",
+    "src/compiler/turboshaft/csa-load-elimination-phase.h",
+    "src/compiler/turboshaft/csa-memory-optimization-phase.h",
     "src/compiler/turboshaft/dataview-lowering-reducer.h",
     "src/compiler/turboshaft/dead-code-elimination-reducer.h",
     "src/compiler/turboshaft/debug-feature-lowering-phase.h",
@@ -3763,6 +3830,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/finalization-registry-cleanup-task.h",
     "src/heap/free-list-inl.h",
     "src/heap/free-list.h",
+    "src/heap/gc-callbacks-inl.h",
     "src/heap/gc-callbacks.h",
     "src/heap/gc-tracer-inl.h",
     "src/heap/gc-tracer.h",
@@ -4027,8 +4095,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/js-shared-array.h",
     "src/objects/js-struct-inl.h",
     "src/objects/js-struct.h",
-    "src/objects/js-temporal-objects-inl.h",
-    "src/objects/js-temporal-objects.h",
+    "src/objects/js-temporal-helpers.h",
     "src/objects/js-weak-refs-inl.h",
     "src/objects/js-weak-refs.h",
     "src/objects/keys.h",
@@ -4170,6 +4237,7 @@ v8_header_set("v8_internal_headers") {
     "src/profiler/cpu-profiler-inl.h",
     "src/profiler/cpu-profiler.h",
     "src/profiler/heap-profiler.h",
+    "src/profiler/heap-snapshot-common.h",
     "src/profiler/heap-snapshot-generator-inl.h",
     "src/profiler/heap-snapshot-generator.h",
     "src/profiler/output-stream-writer.h",
@@ -4308,6 +4376,7 @@ v8_header_set("v8_internal_headers") {
     "src/utils/locked-queue.h",
     "src/utils/memcopy.h",
     "src/utils/ostreams.h",
+    "src/utils/output-stream.h",
     "src/utils/scoped-list.h",
     "src/utils/sha-256.h",
     "src/utils/sparse-bit-vector.h",
@@ -4335,6 +4404,13 @@ v8_header_set("v8_internal_headers") {
 
   if (v8_enable_snapshot_compression) {
     sources += [ "src/snapshot/snapshot-compression.h" ]
+  }
+
+  if (v8_enable_temporal_support) {
+    sources += [
+      "src/objects/js-temporal-objects-inl.h",
+      "src/objects/js-temporal-objects.h",
+    ]
   }
 
   if (v8_use_perfetto) {
@@ -4449,6 +4525,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/liftoff-varstate.h",
       "src/wasm/baseline/parallel-move-inl.h",
       "src/wasm/baseline/parallel-move.h",
+      "src/wasm/basic-block-calculator.h",
       "src/wasm/canonical-types.h",
       "src/wasm/code-space-access.h",
       "src/wasm/compilation-environment-inl.h",
@@ -4485,6 +4562,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/value-type.h",
       "src/wasm/wasm-arguments.h",
       "src/wasm/wasm-builtin-list.h",
+      "src/wasm/wasm-code-coverage.h",
       "src/wasm/wasm-code-manager.h",
       "src/wasm/wasm-code-pointer-table-inl.h",
       "src/wasm/wasm-code-pointer-table.h",
@@ -4493,6 +4571,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-disassembler-impl.h",
       "src/wasm/wasm-disassembler.h",
       "src/wasm/wasm-engine.h",
+      "src/wasm/wasm-export-wrapper-cache.h",
       "src/wasm/wasm-external-refs.h",
       "src/wasm/wasm-feature-flags.h",
       "src/wasm/wasm-features.h",
@@ -4959,6 +5038,8 @@ v8_header_set("v8_internal_headers") {
     ":v8_abseil",
     ":v8_heap_base_headers",
     ":v8_libbase",
+    ":v8_maybe_temporal",
+    "//third_party/simdutf:simdutf",
   ]
 }
 
@@ -5074,7 +5155,12 @@ v8_compiler_sources = [
   "src/compiler/turboshaft/build-graph-phase.cc",
   "src/compiler/turboshaft/code-elimination-and-simplification-phase.cc",
   "src/compiler/turboshaft/copying-phase.cc",
-  "src/compiler/turboshaft/csa-optimize-phase.cc",
+  "src/compiler/turboshaft/csa-branch-elimination-phase.cc",
+  "src/compiler/turboshaft/csa-early-machine-optimization-phase.cc",
+  "src/compiler/turboshaft/csa-effects-computation.cc",
+  "src/compiler/turboshaft/csa-late-escape-analysis-phase.cc",
+  "src/compiler/turboshaft/csa-load-elimination-phase.cc",
+  "src/compiler/turboshaft/csa-memory-optimization-phase.cc",
   "src/compiler/turboshaft/debug-feature-lowering-phase.cc",
   "src/compiler/turboshaft/decompression-optimization-phase.cc",
   "src/compiler/turboshaft/decompression-optimization.cc",
@@ -5264,6 +5350,7 @@ v8_source_set("v8_compiler_for_mksnapshot_source_set") {
     ":v8_base_without_compiler",
     ":v8_internal_headers",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     ":v8_shared_internal_headers",
   ]
 
@@ -5302,6 +5389,7 @@ v8_source_set("v8_compiler") {
   deps = [
     ":v8_base_without_compiler",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     ":v8_shared_internal_headers",
   ]
 
@@ -5374,6 +5462,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-dataview.cc",
     "src/builtins/builtins-date.cc",
     "src/builtins/builtins-disposable-stack.cc",
+    "src/builtins/builtins-effects-analyzer.cc",
     "src/builtins/builtins-error.cc",
     "src/builtins/builtins-function.cc",
     "src/builtins/builtins-global.cc",
@@ -5390,7 +5479,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/builtins/builtins-string.cc",
     "src/builtins/builtins-struct.cc",
     "src/builtins/builtins-symbol.cc",
-    "src/builtins/builtins-temporal.cc",
     "src/builtins/builtins-trace.cc",
     "src/builtins/builtins-typed-array.cc",
     "src/builtins/builtins-weak-refs.cc",
@@ -5645,7 +5733,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/js-segmenter.cc",
     "src/objects/js-segments.cc",
     "src/objects/js-struct.cc",
-    "src/objects/js-temporal-objects.cc",
+    "src/objects/js-temporal-helpers.cc",
     "src/objects/js-weak-refs.cc",
     "src/objects/keys.cc",
     "src/objects/literal-objects.cc",
@@ -5655,6 +5743,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/objects/map-updater.cc",
     "src/objects/map.cc",
     "src/objects/module.cc",
+    "src/objects/number-string-cache.cc",
     "src/objects/object-type.cc",
     "src/objects/objects.cc",
     "src/objects/option-utils.cc",
@@ -5754,7 +5843,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-shadow-realm.cc",
     "src/runtime/runtime-strings.cc",
     "src/runtime/runtime-symbol.cc",
-    "src/runtime/runtime-temporal.cc",
     "src/runtime/runtime-test.cc",
     "src/runtime/runtime-trace.cc",
     "src/runtime/runtime-typedarray.cc",
@@ -5813,6 +5901,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/utils/identity-map.cc",
     "src/utils/memcopy.cc",
     "src/utils/ostreams.cc",
+    "src/utils/output-stream.cc",
     "src/utils/sha-256.cc",
     "src/utils/utils.cc",
     "src/utils/version.cc",
@@ -5825,6 +5914,13 @@ v8_source_set("v8_base_without_compiler") {
 
   if (v8_enable_snapshot_compression) {
     sources += [ "src/snapshot/snapshot-compression.cc" ]
+  }
+
+  if (v8_enable_temporal_support) {
+    sources += [
+      "src/builtins/builtins-temporal.cc",
+      "src/objects/js-temporal-objects.cc",
+    ]
   }
 
   if (v8_enable_sparkplug) {
@@ -5904,6 +6000,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/baseline/liftoff-assembler.cc",
       "src/wasm/baseline/liftoff-compiler.cc",
       "src/wasm/baseline/parallel-move.cc",
+      "src/wasm/basic-block-calculator.cc",
       "src/wasm/canonical-types.cc",
       "src/wasm/code-space-access.cc",
       "src/wasm/constant-expression-interface.cc",
@@ -5929,6 +6026,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/wasm-deopt-data.cc",
       "src/wasm/wasm-disassembler.cc",
       "src/wasm/wasm-engine.cc",
+      "src/wasm/wasm-export-wrapper-cache.cc",
       "src/wasm/wasm-external-refs.cc",
       "src/wasm/wasm-features.cc",
       "src/wasm/wasm-import-wrapper-cache.cc",
@@ -6173,6 +6271,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/extension-riscv-f.cc",
       "src/codegen/riscv/extension-riscv-m.cc",
       "src/codegen/riscv/extension-riscv-v.cc",
+      "src/codegen/riscv/extension-riscv-zfh.cc",
       "src/codegen/riscv/extension-riscv-zicond.cc",
       "src/codegen/riscv/extension-riscv-zicsr.cc",
       "src/codegen/riscv/extension-riscv-zifencei.cc",
@@ -6213,6 +6312,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/codegen/riscv/extension-riscv-f.cc",
       "src/codegen/riscv/extension-riscv-m.cc",
       "src/codegen/riscv/extension-riscv-v.cc",
+      "src/codegen/riscv/extension-riscv-zfh.cc",
       "src/codegen/riscv/extension-riscv-zicond.cc",
       "src/codegen/riscv/extension-riscv-zicsr.cc",
       "src/codegen/riscv/extension-riscv-zifencei.cc",
@@ -6257,10 +6357,12 @@ v8_source_set("v8_base_without_compiler") {
     ":v8_headers",
     ":v8_heap_base",
     ":v8_libbase",
+    ":v8_maybe_temporal",
     ":v8_shared_internal_headers",
     ":v8_tracing",
     ":v8_version",
     "src/inspector:inspector",
+    "//third_party/dragonbox",
     "//third_party/fast_float",
     "//third_party/highway:libhwy",
   ]
@@ -6772,8 +6874,13 @@ v8_component("v8_libbase") {
   }
 
   if (using_sanitizer && !build_with_chromium) {
-    data_deps +=
-        [ "//build/config/clang:llvm-symbolizer_data($host_toolchain)" ]
+    if (is_linux && target_cpu == "arm64") {
+      # TODO(https://crbug.com/396446140): Switch to the symbolizer from our
+      # bundled toolchain as soon as one is available for linux-arm64.
+      data += [ "tools/sanitizers/linux/arm64/llvm-symbolizer" ]
+    } else {
+      data_deps += [ "//build/config/clang:llvm-symbolizer_data" ]
+    }
   }
 
   if (v8_use_libm_trig_functions) {
@@ -6896,6 +7003,7 @@ v8_source_set("fuzzer_support") {
     ":v8_libplatform",
     ":v8_maybe_icu",
   ]
+  deps = [ ":v8_maybe_temporal" ]
 }
 
 v8_source_set("v8_bigint") {
@@ -7221,6 +7329,7 @@ if (v8_check_header_includes) {
       ":v8_internal_headers",
       ":v8_libbase",
       ":v8_maybe_icu",
+      ":v8_maybe_temporal",
       ":v8_version",
       ":wee8",
       "src/inspector:inspector",
@@ -7312,6 +7421,7 @@ if (current_toolchain == v8_generator_toolchain) {
 if (current_toolchain == v8_snapshot_toolchain) {
   v8_executable("mksnapshot") {
     sources = [
+      "src/snapshot/builtins-effects-dummy.cc",
       "src/snapshot/embedded/embedded-empty.cc",
       "src/snapshot/embedded/embedded-file-writer.cc",
       "src/snapshot/embedded/embedded-file-writer.h",
@@ -7345,6 +7455,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_libbase",
       ":v8_libplatform",
       ":v8_maybe_icu",
+      ":v8_maybe_temporal",
       ":v8_shared_internal_headers",
       ":v8_tracing",
       "//build/win:default_exe_manifest",
@@ -7584,6 +7695,7 @@ group("v8_fuzzers") {
       data_deps += [
         ":v8_simple_wasm_compile_all_fuzzer",
         ":v8_simple_wasm_compile_fuzzer",
+        ":v8_simple_wasm_compile_revec_fuzzer",
         ":v8_simple_wasm_compile_simd_fuzzer",
         ":v8_simple_wasm_compile_wasmgc_fuzzer",
         ":v8_simple_wasm_deopt_fuzzer",
@@ -8013,6 +8125,7 @@ if (v8_enable_webassembly) {
       ":run_torque",
       ":v8_internal_headers",
       ":v8_libbase",
+      ":v8_maybe_temporal",
       ":v8_shared_internal_headers",
       ":v8_tracing",
     ]
@@ -8040,6 +8153,7 @@ if (v8_enable_webassembly) {
       ":generate_bytecode_builtins_list",
       ":run_torque",
       ":v8_internal_headers",
+      ":v8_maybe_temporal",
       ":v8_tracing",
       ":wasm_test_common",
     ]
@@ -8103,6 +8217,13 @@ if (v8_enable_webassembly) {
       sources = [
         "test/common/wasm/test-signatures.h",
         "test/fuzzer/wasm/compile-simd.cc",
+      ]
+    }
+
+    v8_wasm_fuzzer("wasm_compile_revec_fuzzer") {
+      sources = [
+        "test/common/wasm/test-signatures.h",
+        "test/fuzzer/wasm/compile-revec.cc",
       ]
     }
 

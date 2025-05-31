@@ -202,8 +202,8 @@ PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(f.__p
 PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'callee').value; })() is undefined.
 PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'caller'); })() is undefined.
 PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(arguments, 'callee'); return descriptor.get === descriptor.set; })() is true
-PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'caller'); return descriptor.get === descriptor.set; })() is true
-PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'arguments'); return descriptor.get === descriptor.set; })() is true
+PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'caller'); return descriptor.get === descriptor.set; })() is false
+PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'arguments'); return descriptor.get === descriptor.set; })() is false
 PASS 'use strict'; (function f() { for(var i in this); })(); true; is true
 PASS 'use strict'̻ threw exception SyntaxError: Invalid or unexpected token.
 PASS (function (){'use strict'̻}) threw exception SyntaxError: Invalid or unexpected token.
@@ -229,9 +229,7 @@ PASS (function () {'use strict';  try { throw 1; } catch (e) { aGlobal = true; }
 PASS try { throw 1; } catch (e) { aGlobal = true; } is true
 PASS (function () { try { throw 1; } catch (e) { aGlobal = true; }})(); aGlobal; is true
 PASS (function () {try { throw 1; } catch (e) { aGlobal = true; }})(); aGlobal; is true
-FAIL String(Object.getOwnPropertyDescriptor((function() { "use strict"; }).__proto__, "caller").get) should be function () {
-    [native code]
-}. Was function () { [native code] }.
+PASS String(Object.getOwnPropertyDescriptor((function() { "use strict"; }).__proto__, "caller").get) is 'function get caller() { [native code] }'
 PASS successfullyParsed is true
 
 TEST COMPLETE

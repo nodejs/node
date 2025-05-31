@@ -4760,9 +4760,11 @@ TEST_F(InterpreterTest, InterpreterWithNativeStack) {
       "function testInterpreterWithNativeStack(a,b) { return a + b };";
 
   i::DirectHandle<i::Object> o = v8::Utils::OpenDirectHandle(
-      *v8::Script::Compile(context(), v8::String::NewFromUtf8(
-                                          context()->GetIsolate(), source_text)
-                                          .ToLocalChecked())
+      *v8::Script::Compile(
+           context(),
+           v8::String::NewFromUtf8(reinterpret_cast<v8::Isolate*>(isolate()),
+                                   source_text)
+               .ToLocalChecked())
            .ToLocalChecked());
 
   i::DirectHandle<i::JSFunction> f = i::Cast<i::JSFunction>(o);

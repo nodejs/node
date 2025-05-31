@@ -282,7 +282,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   friend class StackLimitCheck;
   friend class InterruptsScope;
 
-  static_assert(std::is_standard_layout<ThreadLocal>::value);
+  static_assert(std::is_standard_layout_v<ThreadLocal>);
 };
 
 static_assert(StackGuard::kSizeInBytes == sizeof(StackGuard));

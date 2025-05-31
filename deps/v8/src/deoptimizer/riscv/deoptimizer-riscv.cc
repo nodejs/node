@@ -13,7 +13,18 @@ const int Deoptimizer::kLazyDeoptExitSize = 2 * kInstrSize;
 const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
 
 // static
-void Deoptimizer::PatchToJump(Address pc, Address new_pc) { UNREACHABLE(); }
+void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
+  intptr_t offset = (new_pc - pc);
+  // We'll overwrite only one instruction of 4-bytes. Give enough
+  // space not to try to grow the buffer.
+  constexpr int kSize = 128;
+  AccountingAllocator allocator;
+  Assembler masm(
+      &allocator, AssemblerOptions{},
+      ExternalAssemblerBuffer(reinterpret_cast<uint8_t*>(pc), kSize));
+  masm.j(static_cast<int>(offset));
+  FlushInstructionCache(pc, kSize);
+}
 
 Float32 RegisterValues::GetFloatRegister(unsigned n) const {
   return Float32::FromBits(

@@ -318,6 +318,94 @@ macro BufferJoin(implicit context: Context)(buffer: Buffer,
       buffer.fixedArray, buffer.index, sep, r);
 }
 
+transitioning macro FastArrayJoin(
+    implicit context: Context)(kind: constexpr ElementsKind,
+    array: FastJSArrayForRead, sep: String, lengthNumber: Number): String {
+  const elements = array.elements;
+
+  let len: uintptr = Convert<uintptr>(lengthNumber);
+
+  const separatorLength: intptr = sep.length_intptr;
+  let nofSeparators: intptr = 0;
+  let buffer: Buffer = NewBuffer(len, sep);
+
+  let nofAdditionalEmptyEntries: intptr = 0;
+  {
+    const currentLen: uintptr = Convert<uintptr>(array.length);
+    if (currentLen < len) {
+      // If the array was trimmed by a side effectful ToString(separatorObj)
+      // operation then we must iterate up to the new length and add respective
+      // number of empty enties at the end.
+      nofAdditionalEmptyEntries = Convert<intptr>(len - currentLen);
+      len = currentLen;
+    }
+  }
+
+  // 6. Let k be 0.
+  let k: uintptr = 0;
+
+  // 7. Repeat, while k < len
+  while (k < len) {
+    if (k > 0) {
+      // a. If k > 0, let R be the string-concatenation of R and sep.
+      nofSeparators = nofSeparators + 1;
+    }
+
+    // b. Let element be ? Get(O, ! ToString(k)).
+    // c. If element is undefined or null, let next be the empty String;
+    //    otherwise, let next be ? ToString(element).
+    let next: String;
+
+    if constexpr (IsDoubleElementsKind(kind)) {
+      const fixedDoubleArray: FixedDoubleArray =
+          UnsafeCast<FixedDoubleArray>(elements);
+      if constexpr (IsHoleyElementsKind(kind)) {
+        try {
+          const element: float64 =
+              fixedDoubleArray.values[k++].Value() otherwise IfUndefinedOrHole,
+                         IfUndefinedOrHole;
+          next = Float64ToString(element);
+        } label IfUndefinedOrHole {
+          continue;
+        }
+      } else {
+        const element: float64 =
+            fixedDoubleArray.values[k++].ValueUnsafeAssumeNotHole();
+        next = Float64ToString(element);
+      }
+
+    } else {
+      dcheck(IsSmiElementsKind(kind));
+      const fixedArray: FixedArray = UnsafeCast<FixedArray>(elements);
+      const element: Object = fixedArray.objects[k++];
+      if constexpr (IsHoleyElementsKind(kind)) {
+        if (element == TheHole) {
+          continue;
+        }
+      }
+      const smiValue = UnsafeCast<Smi>(element);
+      next = SmiToString(smiValue);
+    }
+
+    // d. Set R to the string-concatenation of R and next.
+    buffer.Add(next, nofSeparators, separatorLength);
+    nofSeparators = 0;
+  }
+  // Append additional number of empty entries if necessary.
+  if (nofAdditionalEmptyEntries > 0) {
+    if (k > 0) {
+      ++nofSeparators;
+    }
+    nofSeparators += nofAdditionalEmptyEntries - 1;
+  }
+
+  // Add any separators at the end.
+  buffer.AddSeparators(nofSeparators, separatorLength, true);
+
+  // 8. Return R.
+  return BufferJoin(buffer, sep);
+}
+
 transitioning macro ArrayJoinImpl<T: type>(
     implicit context: Context)(receiver: JSReceiver, sep: String,
     lengthNumber: Number, useToLocaleString: constexpr bool, locales: JSAny,
@@ -408,6 +496,9 @@ transitioning ArrayJoin<JSArray>(
     } else if (IsElementsKindLessThanOrEqual(
                    kind, ElementsKind::HOLEY_DOUBLE_ELEMENTS)) {
       loadFn = LoadJoinElement<array::FastDoubleElements>;
+    } else if (IsElementsKindLessThanOrEqual(
+                   kind, ElementsKind::LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND)) {
+      loadFn = LoadJoinElement<array::FastSmiOrObjectElements>;
     } else if (kind == ElementsKind::DICTIONARY_ELEMENTS)
       deferred {
         const dict: NumberDictionary =
@@ -621,12 +712,8 @@ macro JoinStackPopInline(implicit context: Context)(
 // Main entry point for all builtins using Array Join functionality.
 transitioning macro CycleProtectedArrayJoin<T: type>(
     implicit context: Context)(useToLocaleString: constexpr bool,
-    o: JSReceiver, len: Number, sepObj: JSAny, locales: JSAny,
+    o: JSReceiver, len: Number, sep: String, locales: JSAny,
     options: JSAny): JSAny {
-  // 3. If separator is undefined, let sep be the single-element String ",".
-  // 4. Else, let sep be ? ToString(separator).
-  const sep: String = sepObj == Undefined ? ',' : ToString_Inline(sepObj);
-
   // If the receiver is not empty and not already being joined, continue with
   // the normal join algorithm.
   if (len > 0 && JoinStackPushInline(o)) {
@@ -647,7 +734,7 @@ transitioning macro CycleProtectedArrayJoin<T: type>(
 // https://tc39.github.io/ecma262/#sec-array.prototype.join
 transitioning javascript builtin ArrayPrototypeJoin(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
-  const separator: JSAny = arguments[0];
+  const sepObj: JSAny = arguments[0];
 
   // 1. Let O be ? ToObject(this value).
   const o: JSReceiver = ToObject_Inline(context, receiver);
@@ -661,6 +748,39 @@ transitioning javascript builtin ArrayPrototypeJoin(
     ThrowTypeError(MessageTemplate::kInvalidArrayLength);
   }
 
+  // 3. If separator is undefined, let sep be the single-element String ",".
+  // 4. Else, let sep be ? ToString(separator).
+  const separator: String = sepObj == Undefined ? ',' : ToString_Inline(sepObj);
+
+  if (len == 0) return kEmptyString;
+
+  try {
+    const castResult = CastFastJSArrayForRead(o) otherwise NotFastJSArray;
+    const fastO = castResult.object;
+    const elementsKind = castResult.elementsKind;
+
+    if (IsFastSmiElementsKind(elementsKind)) {
+      if (IsHoleyFastElementsKind(elementsKind)) {
+        return FastArrayJoin(
+            ElementsKind::HOLEY_SMI_ELEMENTS, fastO, separator, len);
+      } else {
+        return FastArrayJoin(
+            ElementsKind::PACKED_SMI_ELEMENTS, fastO, separator, len);
+      }
+
+    } else if (IsDoubleElementsKind(elementsKind)) {
+      if (IsHoleyFastElementsKind(elementsKind)) {
+        return FastArrayJoin(
+            ElementsKind::HOLEY_DOUBLE_ELEMENTS, fastO, separator, len);
+      } else {
+        return FastArrayJoin(
+            ElementsKind::PACKED_DOUBLE_ELEMENTS, fastO, separator, len);
+      }
+    }
+    // Fall through.
+  } label NotFastJSArray {
+    // Fall through.
+  }
   return CycleProtectedArrayJoin<JSArray>(
       false, o, len, separator, Undefined, Undefined);
 }
@@ -709,13 +829,17 @@ transitioning javascript builtin ArrayPrototypeToString(
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.join
 transitioning javascript builtin TypedArrayPrototypeJoin(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
-  const separator: JSAny = arguments[0];
+  const sepObj: JSAny = arguments[0];
 
   // Spec: ValidateTypedArray is applied to the this value prior to evaluating
   // the algorithm.
   const length = typed_array::ValidateTypedArrayAndGetLength(
       context, receiver, '%TypedArray%.prototype.join');
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
+
+  // 3. If separator is undefined, let sep be the single-element String ",".
+  // 4. Else, let sep be ? ToString(separator).
+  const separator: String = sepObj == Undefined ? ',' : ToString_Inline(sepObj);
 
   return CycleProtectedArrayJoin<JSTypedArray>(
       false, typedArray, Convert<Number>(length), separator, Undefined,

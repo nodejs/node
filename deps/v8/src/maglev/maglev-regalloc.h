@@ -57,9 +57,9 @@ template <typename RegisterT>
 class RegisterFrameState {
  public:
   static constexpr bool kIsGeneralRegister =
-      std::is_same<Register, RegisterT>();
+      std::is_same_v<Register, RegisterT>;
   static constexpr bool kIsDoubleRegister =
-      std::is_same<DoubleRegister, RegisterT>();
+      std::is_same_v<DoubleRegister, RegisterT>;
 
   static_assert(kIsGeneralRegister || kIsDoubleRegister,
                 "RegisterFrameState should be used only for Register and "
@@ -238,7 +238,7 @@ class StraightForwardRegisterAllocator {
 
   template <typename RegisterT>
   RegisterFrameState<RegisterT>& GetRegisterFrameState() {
-    if constexpr (std::is_same<RegisterT, Register>::value) {
+    if constexpr (std::is_same_v<RegisterT, Register>) {
       return general_registers_;
     } else {
       return double_registers_;

@@ -5,6 +5,7 @@
 #include "src/wasm/stacks.h"
 
 #include "src/base/platform/platform.h"
+#include "src/execution/frames.h"
 #include "src/execution/simulator.h"
 #include "src/wasm/wasm-engine.h"
 
@@ -65,25 +66,50 @@ StackMemory::StackMemory(uint8_t* limit, size_t size)
 StackMemory::StackSegment::StackSegment(size_t pages) {
   DCHECK_GE(pages, 1);
   PageAllocator* allocator = GetPlatformPageAllocator();
-  size_ = pages * allocator->AllocatePageSize();
-  limit_ = static_cast<uint8_t*>(
-      allocator->AllocatePages(nullptr, size_, allocator->AllocatePageSize(),
-                               PageAllocator::kReadWrite));
-  if (limit_ == nullptr) {
+  size_t page_size = allocator->AllocatePageSize();
+  size_ = pages * page_size;
+  // Reserve one guard page before and after the stack memory.
+  limit_ = static_cast<uint8_t*>(allocator->AllocatePages(
+      nullptr, size_ + 2 * page_size, allocator->AllocatePageSize(),
+      PageAllocator::kNoAccess));
+  if (limit_ == nullptr || !SetPermissions(allocator, limit_ + page_size, size_,
+                                           PageAllocator::kReadWrite)) {
     V8::FatalProcessOutOfMemory(nullptr,
                                 "StackMemory::StackSegment::StackSegment");
   }
+  limit_ += page_size;
 }
 
 StackMemory::StackSegment::~StackSegment() {
   PageAllocator* allocator = GetPlatformPageAllocator();
-  if (!allocator->DecommitPages(limit_, size_)) {
+  size_t page_size = allocator->AllocatePageSize();
+  if (!allocator->DecommitPages(limit_ - page_size, size_ + 2 * page_size)) {
     V8::FatalProcessOutOfMemory(nullptr, "Decommit stack memory");
   }
 }
 
-bool StackMemory::Grow(Address current_fp) {
+void StackMemory::Iterate(v8::internal::RootVisitor* v, Isolate* isolate) {
+  for (StackFrameIterator it(isolate, this); !it.done(); it.Advance()) {
+    it.frame()->Iterate(v);
+  }
+  v->VisitRootPointer(
+      Root::kStackRoots, nullptr,
+      FullObjectSlot(reinterpret_cast<Address>(&this->current_cont_)));
+}
+
+bool StackMemory::Grow(Address current_fp, size_t min_size) {
   DCHECK(owned_);
+  while (V8_UNLIKELY(active_segment_->next_segment_ != nullptr &&
+                     active_segment_->next_segment_->size_ < min_size)) {
+    // If the next segment is too small to fit the evicted frame, remove it.
+    StackSegment* to_delete = active_segment_->next_segment_;
+    active_segment_->next_segment_ =
+        active_segment_->next_segment_->next_segment_;
+    if (active_segment_->next_segment_ != nullptr) {
+      active_segment_->next_segment_->prev_segment_ = active_segment_;
+    }
+    delete to_delete;
+  }
   if (active_segment_->next_segment_ != nullptr) {
     active_segment_ = active_segment_->next_segment_;
   } else {
@@ -91,15 +117,17 @@ bool StackMemory::Grow(Address current_fp) {
     auto page_size = allocator->AllocatePageSize();
     const size_t size_limit = RoundUp(v8_flags.stack_size * KB, page_size);
     DCHECK_GE(size_limit, size_);
-    size_t room_to_grow = size_limit - size_;
-    size_t new_size = std::min(2 * active_segment_->size_, room_to_grow);
-    if (new_size < page_size) {
-      // We cannot grow less than page size.
+    size_t room_to_grow = RoundDown(size_limit - size_, page_size);
+    min_size = RoundUp(min_size, page_size);
+    if (room_to_grow < min_size) {
       if (v8_flags.trace_wasm_stack_switching) {
         PrintF("Stack #%d reached the grow limit %zu bytes\n", id_, size_limit);
       }
       return false;
     }
+    size_t new_size =
+        std::clamp(2 * active_segment_->size_, min_size, room_to_grow);
+    DCHECK_EQ(new_size % page_size, 0);
     auto new_segment = new StackSegment(new_size / page_size);
     new_segment->prev_segment_ = active_segment_;
     active_segment_->next_segment_ = new_segment;
@@ -146,6 +174,11 @@ void StackMemory::Reset() {
   active_segment_ = first_segment_;
   size_ = active_segment_->size_;
   clear_stack_switch_info();
+  current_cont_ = {};
+}
+
+bool StackMemory::IsValidContinuation(Tagged<WasmContinuationObject> cont) {
+  return current_cont_ == cont;
 }
 
 std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {

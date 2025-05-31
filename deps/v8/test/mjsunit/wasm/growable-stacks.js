@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --experimental-wasm-growable-stacks
-// Flags: --expose-gc --wasm-stack-switching-stack-size=4
-// Flags: --wasm-staging --stack-size=400
+// Flags: --expose-gc --wasm-staging --stack-size=400
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -247,4 +246,39 @@ function growAndShrinkTwice(depth, paramType, constFn, addOp, result, heavy = fa
   let instance = builder.instantiate();
   let wrapper = WebAssembly.promising(instance.exports.test);
   assertThrowsAsync(wrapper(), RangeError, /Maximum call stack size exceeded/);
+})();
+
+// Test growing the stack for a frame larger than the next default segment size.
+(function TestVeryLargeFrame() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let main = builder.addFunction("main", kSig_v_v);
+  main.addLocals(kWasmI64, 8000);
+  main.addBody([
+  ]).exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  WebAssembly.promising(wasm.main)();
+})();
+
+(function TestMaxParameters() {
+  print(arguments.callee.name);
+  let types = [kWasmI32, kWasmI64, kWasmS128];
+  let default_value = [[kExprI32Const, 0], [kExprI64Const, 0],
+                       [kExprI32Const, 0, kSimdPrefix, kExprI32x4Splat]];
+  for (let i = 0; i < types.length; ++i) {
+    let builder = new WasmModuleBuilder();
+    let sig = builder.addType(makeSig(Array(kSpecMaxFunctionParams).fill(types[i]), []));
+    let g = builder.addFunction('g', sig).addBody([]);
+    let f = builder.addFunction('f', kSig_v_v);
+    let f_body = [];
+    for (let j = 0; j < kSpecMaxFunctionParams; j++) {
+      f_body.push(...default_value[i]);
+    }
+    f_body.push(kExprCallFunction, g.index);
+    f.addBody(f_body).exportFunc();
+    let instance = builder.instantiate();
+    WebAssembly.promising(instance.exports.f)();
+  }
 })();

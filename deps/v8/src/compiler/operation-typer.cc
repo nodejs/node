@@ -595,11 +595,22 @@ Type OperationTyper::Integral32OrMinusZeroToBigInt(Type type) {
 }
 
 Type OperationTyper::NumberSilenceNaN(Type type) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  DCHECK(type.Is(Type::NumberOrUndefined()));
+#else
   DCHECK(type.Is(Type::Number()));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   // TODO(jarin): This is a terrible hack; we definitely need a dedicated type
   // for the hole (tagged and/or double). Otherwise if the input is the hole
   // NaN constant, we'd just eliminate this node in JSTypedLowering.
-  if (type.Maybe(Type::NaN())) return Type::Number();
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  if (type.Maybe(Type::Undefined())) {
+    return Type::NumberOrUndefined();
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  if (type.Maybe(Type::NaN())) {
+    return Type::Number();
+  }
   return type;
 }
 
@@ -1342,7 +1353,11 @@ Type OperationTyper::CheckBounds(Type index, Type length) {
 Type OperationTyper::CheckFloat64Hole(Type type) {
   if (type.Maybe(Type::Hole())) {
     // Turn a "hole" into undefined.
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    type = Type::Intersect(type, Type::NumberOrUndefined(), zone());
+#else
     type = Type::Intersect(type, Type::Number(), zone());
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     type = Type::Union(type, Type::Undefined(), zone());
   }
   return type;
@@ -1350,6 +1365,10 @@ Type OperationTyper::CheckFloat64Hole(Type type) {
 
 Type OperationTyper::CheckNumber(Type type) {
   return Type::Intersect(type, Type::Number(), zone());
+}
+
+Type OperationTyper::CheckNumberOrUndefined(Type type) {
+  return Type::Intersect(type, Type::NumberOrUndefined(), zone());
 }
 
 Type OperationTyper::CheckNumberFitsInt32(Type type) {

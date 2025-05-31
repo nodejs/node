@@ -15,6 +15,20 @@ absl_source_set("sample_recorder") {
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
 
+# TODO: Re-enable once the issue with gmock activating generic gtest
+# printers hitting issues with -Wmicrosoft-cast.
+# absl_test("sample_recorder_test") {
+#   sources = [ "internal/sample_recorder_test.cc" ]
+#   deps = [
+#     ":sample_recorder",
+#     "//third_party/abseil-cpp/absl/base:core_headers",
+#     "//third_party/abseil-cpp/absl/random",
+#     "//third_party/abseil-cpp/absl/synchronization",
+#     "//third_party/abseil-cpp/absl/synchronization:thread_pool",
+#     "//third_party/abseil-cpp/absl/time",
+#   ]
+# }
+
 absl_source_set("exponential_biased") {
   sources = [ "internal/exponential_biased.cc" ]
   public = [ "internal/exponential_biased.h" ]

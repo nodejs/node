@@ -91,7 +91,12 @@ class StoreLoadInfo {
     }
 
     if (const ChangeOp* change_op = index_->TryCast<ChangeOp>()) {
-      DCHECK_EQ(change_op->kind, ChangeOp::Kind::kZeroExtend);
+      if (change_op->kind != ChangeOp::Kind::kZeroExtend) {
+        TRACE("ChangeOp kind not supported for revectorization\n");
+        SetInvalid();
+        return;
+      }
+
       index_ = &graph->Get(change_op->input());
       // If index_ is constant, add the constant to offset_ and set index_ to
       // nullptr
@@ -994,6 +999,9 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
           op1.Cast<Simd128LoadTransformOp>();
       StoreLoadInfo<Simd128LoadTransformOp> info0(&graph_, &transform_op0);
       StoreLoadInfo<Simd128LoadTransformOp> info1(&graph_, &transform_op1);
+      if (!info0.IsValid() || !info1.IsValid()) {
+        return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
+      }
       auto stride = info1 - info0;
       if (IsLoadSplat(transform_op0)) {
         TRACE("Simd128LoadTransform: LoadSplat\n");
@@ -1037,13 +1045,15 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
       }
       StoreLoadInfo<LoadOp> info0(&graph_, &load0);
       StoreLoadInfo<LoadOp> info1(&graph_, &load1);
-      auto stride = info1 - info0;
-      if (stride.has_value()) {
-        if (const int value = stride.value(); value == kSimd128Size) {
-          // TODO(jiepan) Sort load
-          return NewPackNode(node_group);
-        } else if (value == 0) {
-          return NewForcePackNode(node_group, ForcePackNode::kSplat, graph_);
+      if (info0.IsValid() && info1.IsValid()) {
+        auto stride = info1 - info0;
+        if (stride.has_value()) {
+          if (const int value = stride.value(); value == kSimd128Size) {
+            // TODO(jiepan) Sort load
+            return NewPackNode(node_group);
+          } else if (value == 0) {
+            return NewForcePackNode(node_group, ForcePackNode::kSplat, graph_);
+          }
         }
       }
       return NewForcePackNode(node_group, ForcePackNode::kGeneral, graph_);
@@ -1189,7 +1199,7 @@ PackNode* SLPTree::BuildTreeRec(const NodeGroup& node_group,
     }
 
     case Opcode::kSimd128Splat: {
-      if (op0.input(0) != op1.input(0)) {
+      if (!IsEqual(op0.input(0), op1.input(0))) {
         TRACE("Failed due to different splat input!\n");
         return nullptr;
       }
@@ -1439,7 +1449,7 @@ void WasmRevecAnalyzer::Run() {
   if (revectorizable_node_.empty()) return;
 
   // Build SIMD usemap
-  use_map_ = phase_zone_->New<SimdUseMap>(graph_, phase_zone_);
+  use_map_ = phase_zone_->New<Simd128UseMap>(graph_, phase_zone_);
   if (!DecideVectorize()) {
     revectorizable_node_.clear();
     revectorizable_intersect_node_.clear();

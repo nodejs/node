@@ -67,6 +67,7 @@ namespace internal {
   V(NotANumberOrOddball, "not a Number or Oddball")                            \
   V(NotASmi, "not a Smi")                                                      \
   V(NotAString, "not a String")                                                \
+  V(NotASeqOneByteString, "not a sequential one-byte String")                  \
   V(NotAStringOrStringWrapper, "not a String or a string wrapper")             \
   V(NotAStringWrapper, "not a string wrapper")                                 \
   V(NotASymbol, "not a Symbol")                                                \

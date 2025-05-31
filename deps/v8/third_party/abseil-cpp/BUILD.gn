@@ -102,6 +102,7 @@ group("absl_component_deps") {
     "//third_party/abseil-cpp/absl/status",
     "//third_party/abseil-cpp/absl/status:statusor",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:charset",
     "//third_party/abseil-cpp/absl/strings:cord",
     "//third_party/abseil-cpp/absl/strings:has_ostream_operator",
     "//third_party/abseil-cpp/absl/strings:str_format",
@@ -179,6 +180,7 @@ group("absl_full_deps") {
     # the flag registration mechanism is problematic in component builds.
     "//third_party/abseil-cpp/absl/flags:config",
     "//third_party/abseil-cpp/absl/flags:flag",
+    "//third_party/abseil-cpp/absl/flags:marshalling",
     "//third_party/abseil-cpp/absl/flags:parse",
     "//third_party/abseil-cpp/absl/flags:reflection",
     "//third_party/abseil-cpp/absl/flags:usage",

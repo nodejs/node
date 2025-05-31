@@ -34,7 +34,7 @@ TEST_F(AccessorTest, CachedAccessor) {
   // TurboFan support for fast accessors is not implemented; turbofanned
   // code uses the slow accessor which breaks this test's expectations.
   i::v8_flags.always_turbofan = false;
-  v8::Isolate* isolate = context()->GetIsolate();
+  v8::Isolate* isolate = this->isolate();
   v8::HandleScope scope(isolate);
 
   // Create 'foo' class, with a hidden property.
@@ -80,7 +80,7 @@ TEST_F(AccessorTest, CachedAccessor) {
 TEST_F(AccessorTest, CachedAccessorTurboFan) {
   i::v8_flags.allow_natives_syntax = true;
   // i::v8_flags.always_turbofan = false;
-  v8::Isolate* isolate = context()->GetIsolate();
+  v8::Isolate* isolate = this->isolate();
   v8::HandleScope scope(isolate);
 
   // Create 'foo' class, with a hidden property.
@@ -811,7 +811,7 @@ TEST_F(AccessorTest, BindFunctionTemplateSetNativeDataProperty) {
 namespace {
 v8::MaybeLocal<v8::Context> TestHostCreateShadowRealmContextCallback(
     v8::Local<v8::Context> initiator_context) {
-  v8::Isolate* isolate = initiator_context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::FunctionTemplate> global_constructor =
       v8::FunctionTemplate::New(isolate);
   v8::Local<v8::ObjectTemplate> global_template =

@@ -444,9 +444,8 @@ int SwissNameDictionary::GetMetaTableField(int field_index) {
 template <typename T>
 void SwissNameDictionary::SetMetaTableField(Tagged<ByteArray> meta_table,
                                             int field_index, int value) {
-  static_assert((std::is_same<T, uint8_t>::value) ||
-                (std::is_same<T, uint16_t>::value) ||
-                (std::is_same<T, uint32_t>::value));
+  static_assert((std::is_same_v<T, uint8_t>) || (std::is_same_v<T, uint16_t>) ||
+                (std::is_same_v<T, uint32_t>));
   DCHECK_LE(value, std::numeric_limits<T>::max());
   DCHECK_LT(meta_table->begin() + field_index * sizeof(T), meta_table->end());
   T* raw_data = reinterpret_cast<T*>(meta_table->begin());
@@ -457,9 +456,8 @@ void SwissNameDictionary::SetMetaTableField(Tagged<ByteArray> meta_table,
 template <typename T>
 int SwissNameDictionary::GetMetaTableField(Tagged<ByteArray> meta_table,
                                            int field_index) {
-  static_assert((std::is_same<T, uint8_t>::value) ||
-                (std::is_same<T, uint16_t>::value) ||
-                (std::is_same<T, uint32_t>::value));
+  static_assert((std::is_same_v<T, uint8_t>) || (std::is_same_v<T, uint16_t>) ||
+                (std::is_same_v<T, uint32_t>));
   DCHECK_LT(meta_table->begin() + field_index * sizeof(T), meta_table->end());
   T* raw_data = reinterpret_cast<T*>(meta_table->begin());
   return raw_data[field_index];

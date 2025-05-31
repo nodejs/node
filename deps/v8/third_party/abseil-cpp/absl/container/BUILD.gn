@@ -288,6 +288,7 @@ absl_source_set("hash_generator_testing") {
     "//third_party/abseil-cpp/absl/base:no_destructor",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/meta:type_traits",
+    "//third_party/abseil-cpp/absl/random",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
@@ -305,6 +306,7 @@ absl_source_set("hash_policy_traits") {
   public = [ "internal/hash_policy_traits.h" ]
   deps = [
     ":common_policy_traits",
+    ":container_memory",
     "//third_party/abseil-cpp/absl/meta:type_traits",
   ]
 }

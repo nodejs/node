@@ -586,12 +586,14 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       DecodeWord32<LoadHandler::KindBits>(handler_word);
 
   if (support_elements == kSupportElements) {
-    Label if_element(this), if_indexed_string(this), if_property(this),
-        if_hole(this), unimplemented_elements_kind(this),
+    Label if_element(this), if_transition(this), if_indexed_string(this),
+        if_property(this), if_hole(this), unimplemented_elements_kind(this),
         if_oob(this, Label::kDeferred), try_string_to_array_index(this),
         emit_element_load(this);
     TVARIABLE(IntPtrT, var_intptr_index);
     GotoIf(Word32Equal(handler_kind, LOAD_KIND(kElement)), &if_element);
+    GotoIf(Word32Equal(handler_kind, LOAD_KIND(kElementWithTransition)),
+           &if_transition);
 
     if (access_mode == LoadAccessMode::kHas) {
       CSA_DCHECK(this, Word32NotEqual(handler_kind, LOAD_KIND(kIndexedString)));
@@ -640,6 +642,15 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
                         &var_double_value, &unimplemented_elements_kind,
                         &if_oob, miss, exit_point, access_mode);
       }
+    }
+
+    BIND(&if_transition);
+    {
+      TNode<Uint32T> elements_kind =
+          DecodeWord32<LoadHandler::ElementsKindBits>(handler_word);
+      CallRuntime(Runtime::kTransitionElementsKindWithKind, p->context(),
+                  p->receiver(), SmiFromUint32(elements_kind));
+      Goto(&if_element);
     }
 
     BIND(&unimplemented_elements_kind);
@@ -982,6 +993,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     Label if_not_undefined(this);
     GotoIfNot(IsDoubleUndefined(var_double_value->value()), &if_not_undefined);
+    GotoIfNot(IsSetWord32<LoadHandler::AllowHandlingHole>(handler_word), miss);
     exit_point->Return(UndefinedConstant());
 
     BIND(&if_not_undefined);
@@ -2499,8 +2511,8 @@ void AccessorAssembler::EmitElementLoad(
       if (access_mode == LoadAccessMode::kHas) {
         exit_point->Return(TrueConstant());
       } else {
-        *var_double_value =
-            LoadFixedDoubleArrayElement(CAST(elements), intptr_index);
+        *var_double_value = LoadFixedDoubleArrayElement(
+            CAST(elements), intptr_index, nullptr, nullptr);
         Goto(rebox_double);
       }
     }
@@ -2509,24 +2521,13 @@ void AccessorAssembler::EmitElementLoad(
     {
       Comment("holey double elements");
       if (access_mode == LoadAccessMode::kHas) {
-        LoadFixedDoubleArrayElement(CAST(elements), intptr_index, if_hole,
-                                    MachineType::None());
+        LoadFixedDoubleArrayElement(CAST(elements), intptr_index, nullptr,
+                                    if_hole, MachineType::None());
         exit_point->Return(TrueConstant());
       } else {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-        Label if_undefined(this);
-        TNode<Float64T> value = LoadFixedDoubleArrayElementWithUndefinedCheck(
-            CAST(elements), intptr_index, &if_undefined, if_hole);
-        *var_double_value = value;
+        *var_double_value = LoadFixedDoubleArrayElement(
+            CAST(elements), intptr_index, if_hole, if_hole);
         Goto(rebox_double);
-
-        BIND(&if_undefined);
-        exit_point->Return(UndefinedConstant());
-#else
-        *var_double_value =
-            LoadFixedDoubleArrayElement(CAST(elements), intptr_index, if_hole);
-        Goto(rebox_double);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       }
     }
   }
@@ -2787,9 +2788,6 @@ void AccessorAssembler::GenericElementLoad(
                   &direct_exit);
 
   BIND(&rebox_double);
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-  GotoIf(IsDoubleUndefined(var_double_value.value()), &return_undefined);
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   Return(AllocateHeapNumberWithValue(var_double_value.value()));
 
   BIND(&if_oob);

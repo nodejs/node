@@ -18,6 +18,9 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <cerrno>
+#include <csignal>
+#include <cstring>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -292,6 +295,76 @@ TEST(StackTrace, CanonicalFrameAddresses) {
       // Make sure the addresses only appear once.
     }
   }
+}
+#endif
+
+// This test is Linux specific.
+#if defined(__linux__)
+const void* g_return_address = nullptr;
+bool g_sigusr2_raised = false;
+
+void SigUsr2Handler(int, siginfo_t*, void* uc) {
+  // Many platforms don't support this by default.
+  bool support_is_expected = false;
+  constexpr int kMaxStackDepth = 64;
+  void* result[kMaxStackDepth];
+  int depth =
+      absl::GetStackTraceWithContext(result, kMaxStackDepth, 0, uc, nullptr);
+  // Verify we can unwind past the nested signal handlers.
+  if (support_is_expected) {
+    EXPECT_THAT(absl::MakeSpan(result, static_cast<size_t>(depth)),
+                Contains(g_return_address).Times(1));
+  }
+  depth = absl::GetStackTrace(result, kMaxStackDepth, 0);
+  if (support_is_expected) {
+    EXPECT_THAT(absl::MakeSpan(result, static_cast<size_t>(depth)),
+                Contains(g_return_address).Times(1));
+  }
+  g_sigusr2_raised = true;
+}
+
+void SigUsr1Handler(int, siginfo_t*, void*) {
+  raise(SIGUSR2);
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+}
+
+ABSL_ATTRIBUTE_NOINLINE void RaiseSignal() {
+  g_return_address = __builtin_return_address(0);
+  raise(SIGUSR1);
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+}
+
+ABSL_ATTRIBUTE_NOINLINE void TestNestedSignal() {
+  constexpr size_t kAltstackSize = 1 << 14;
+  // Allocate altstack on regular stack to make sure it'll have a higher
+  // address than some of the regular stack frames.
+  char space[kAltstackSize];
+  stack_t altstack;
+  stack_t old_stack;
+  altstack.ss_sp = space;
+  altstack.ss_size = kAltstackSize;
+  altstack.ss_flags = 0;
+  ASSERT_EQ(sigaltstack(&altstack, &old_stack), 0) << strerror(errno);
+  struct sigaction act;
+  struct sigaction oldusr1act;
+  struct sigaction oldusr2act;
+  act.sa_sigaction = SigUsr1Handler;
+  act.sa_flags = SA_SIGINFO | SA_ONSTACK;
+  sigemptyset(&act.sa_mask);
+  ASSERT_EQ(sigaction(SIGUSR1, &act, &oldusr1act), 0) << strerror(errno);
+  act.sa_sigaction = SigUsr2Handler;
+  ASSERT_EQ(sigaction(SIGUSR2, &act, &oldusr2act), 0) << strerror(errno);
+  RaiseSignal();
+  ASSERT_EQ(sigaltstack(&old_stack, nullptr), 0) << strerror(errno);
+  ASSERT_EQ(sigaction(SIGUSR1, &oldusr1act, nullptr), 0) << strerror(errno);
+  ASSERT_EQ(sigaction(SIGUSR2, &oldusr2act, nullptr), 0) << strerror(errno);
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+}
+
+TEST(StackTrace, NestedSignal) {
+  // Verify we can unwind past the nested signal handlers.
+  TestNestedSignal();
+  EXPECT_TRUE(g_sigusr2_raised);
 }
 #endif
 

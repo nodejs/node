@@ -414,11 +414,13 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool IsHashTableHole() const;
   bool IsPromiseHole() const;
   bool IsNullOrUndefined() const;
+  bool IsUndefinedContextCell() const;
 
   std::optional<bool> TryGetBooleanValue(JSHeapBroker* broker) const;
   Maybe<double> OddballToNumber(JSHeapBroker* broker) const;
 
   bool should_access_heap() const;
+  bool is_read_only() const;
 
   ObjectData* data() const;
 
@@ -910,7 +912,9 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool supports_fast_array_iteration(JSHeapBroker* broker) const;
   bool supports_fast_array_resize(JSHeapBroker* broker) const;
   bool is_abandoned_prototype_map() const;
+  bool IsOneByteStringMap() const;
   bool IsTwoByteStringMap() const;
+  bool IsSeqStringMap() const;
   bool IsThinStringMap() const;
   bool IsStringWrapperMap() const;
 
@@ -927,6 +931,8 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
 #undef DEF_TESTER
 
   bool IsBooleanMap(JSHeapBroker* broker) const;
+  bool IsNullMap(JSHeapBroker* broker) const;
+  bool IsUndefinedMap(JSHeapBroker* broker) const;
 
   HeapObjectRef GetBackPointer(JSHeapBroker* broker) const;
 
@@ -1133,7 +1139,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   BytecodeArrayRef GetBytecodeArray(JSHeapBroker* broker) const;
   bool HasBreakInfo(JSHeapBroker* broker) const;
   SharedFunctionInfo::Inlineability GetInlineability(
-      JSHeapBroker* broker) const;
+      CodeKind code_kind, JSHeapBroker* broker) const;
   OptionalFunctionTemplateInfoRef function_template_info(
       JSHeapBroker* broker) const;
   ScopeInfoRef scope_info(JSHeapBroker* broker) const;
@@ -1149,8 +1155,9 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
 
-  bool IsInlineable(JSHeapBroker* broker) const {
-    return GetInlineability(broker) == SharedFunctionInfo::kIsInlineable;
+  bool IsInlineable(CodeKind code_kind, JSHeapBroker* broker) const {
+    return GetInlineability(code_kind, broker) ==
+           SharedFunctionInfo::kIsInlineable;
   }
 };
 
@@ -1174,11 +1181,11 @@ class StringRef : public NameRef {
   std::optional<double> ToNumber(JSHeapBroker* broker);
   std::optional<double> ToInt(JSHeapBroker* broker, int radix);
 
-  bool IsSeqString() const;
+  V8_EXPORT_PRIVATE bool IsSeqString() const;
   bool IsExternalString() const;
 
   bool IsContentAccessible() const;
-  bool IsOneByteRepresentation() const;
+  V8_EXPORT_PRIVATE bool IsOneByteRepresentation() const;
 
  private:
   // With concurrent inlining on, we currently support reading directly

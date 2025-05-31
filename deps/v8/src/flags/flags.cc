@@ -1161,6 +1161,9 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
 
       // https://crbug.com/366671002
       RESET_WHEN_FUZZING(stress_snapshot),
+
+      // https://crbug.com/393401455
+      RESET_WHEN_FUZZING(turboshaft),
   };
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;

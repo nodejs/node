@@ -218,6 +218,7 @@ absl_cc_library(
     absl::span
     absl::strerror
     absl::strings
+    absl::strings_internal
     absl::time
 )
 
@@ -395,6 +396,7 @@ absl_cc_library(
   DEPS
     absl::config
     absl::strings
+    absl::strings_internal
     absl::span
 )
 

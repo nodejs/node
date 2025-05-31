@@ -458,16 +458,38 @@ char NibbleToHex(uint8_t nibble) {
   return c + (mask & correction);
 }
 
+void PerformNibbleToHexAndWriteIntoStringOutPut(
+    uint8_t byte, int index, DirectHandle<SeqOneByteString> string_output) {
+  uint8_t high = byte >> 4;
+  uint8_t low = byte & 0x0F;
+
+  string_output->SeqOneByteStringSet(index++, NibbleToHex(high));
+  string_output->SeqOneByteStringSet(index, NibbleToHex(low));
+}
+
 void Uint8ArrayToHexSlow(const char* bytes, size_t length,
                          DirectHandle<SeqOneByteString> string_output) {
   int index = 0;
   for (size_t i = 0; i < length; i++) {
     uint8_t byte = bytes[i];
-    uint8_t high = byte >> 4;
-    uint8_t low = byte & 0x0F;
+    PerformNibbleToHexAndWriteIntoStringOutPut(byte, index, string_output);
+    index += 2;
+  }
+}
 
-    string_output->SeqOneByteStringSet(index++, NibbleToHex(high));
-    string_output->SeqOneByteStringSet(index++, NibbleToHex(low));
+void AtomicUint8ArrayToHexSlow(const char* bytes, size_t length,
+                               DirectHandle<SeqOneByteString> string_output) {
+  int index = 0;
+  // std::atomic_ref<T> must not have a const T, see
+  // https://cplusplus.github.io/LWG/issue3508
+  // we instead provide a mutable input, which is ok since we are only reading
+  // from it.
+  char* mutable_bytes = const_cast<char*>(bytes);
+  for (size_t i = 0; i < length; i++) {
+    uint8_t byte =
+        std::atomic_ref<char>(mutable_bytes[i]).load(std::memory_order_relaxed);
+    PerformNibbleToHexAndWriteIntoStringOutPut(byte, index, string_output);
+    index += 2;
   }
 }
 
@@ -596,11 +618,14 @@ void Uint8ArrayToHexFastWithNeon(const char* bytes, uint8_t* output,
 #endif
 }  // namespace
 
-Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length,
+Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length, bool is_shared,
                                DirectHandle<SeqOneByteString> string_output) {
+  // TODO(rezvan): Add relaxed version for simd methods to handle shared array
+  // buffers.
+
 #ifdef __SSE3__
-  if (get_vectorization_kind() == SimdKinds::kAVX2 ||
-      get_vectorization_kind() == SimdKinds::kSSE) {
+  if (!is_shared && (get_vectorization_kind() == SimdKinds::kAVX2 ||
+                     get_vectorization_kind() == SimdKinds::kSSE)) {
     {
       DisallowGarbageCollection no_gc;
       Uint8ArrayToHexFastWithSSE(bytes, string_output->GetChars(no_gc), length);
@@ -610,7 +635,7 @@ Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length,
 #endif
 
 #ifdef NEON64
-  if (get_vectorization_kind() == SimdKinds::kNeon) {
+  if (!is_shared && get_vectorization_kind() == SimdKinds::kNeon) {
     {
       DisallowGarbageCollection no_gc;
       Uint8ArrayToHexFastWithNeon(bytes, string_output->GetChars(no_gc),
@@ -620,7 +645,11 @@ Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length,
   }
 #endif
 
-  Uint8ArrayToHexSlow(bytes, length, string_output);
+  if (is_shared) {
+    AtomicUint8ArrayToHexSlow(bytes, length, string_output);
+  } else {
+    Uint8ArrayToHexSlow(bytes, length, string_output);
+  }
   return *string_output;
 }
 
@@ -1026,30 +1055,39 @@ bool Uint8ArrayFromHexWithNeon(const base::Vector<T>& input_vector,
 }  // namespace
 
 template <typename T>
-bool ArrayBufferFromHex(const base::Vector<T>& input_vector, uint8_t* buffer,
-                        size_t output_length) {
+bool ArrayBufferFromHex(const base::Vector<T>& input_vector, bool is_shared,
+                        uint8_t* buffer, size_t output_length) {
   size_t input_length = input_vector.size();
+  USE(input_length);
   DCHECK_LE(output_length, input_length / 2);
 
+  // TODO(rezvan): Add relaxed version for simd methods to handle shared array
+  // buffers.
+
 #ifdef __SSE3__
-  if (get_vectorization_kind() == SimdKinds::kAVX2 ||
-      get_vectorization_kind() == SimdKinds::kSSE) {
+  if (!is_shared && (get_vectorization_kind() == SimdKinds::kAVX2 ||
+                     get_vectorization_kind() == SimdKinds::kSSE)) {
     return Uint8ArrayFromHexWithSSE(input_vector, buffer, output_length);
   }
 #endif
 
 #ifdef NEON64
-  if (get_vectorization_kind() == SimdKinds::kNeon) {
+  if (!is_shared && get_vectorization_kind() == SimdKinds::kNeon) {
     return Uint8ArrayFromHexWithNeon(input_vector, buffer, output_length);
   }
 #endif
 
   size_t index = 0;
   std::optional<uint8_t> result = 0;
-  for (uint32_t i = 0; i < input_length; i += 2) {
+  for (uint32_t i = 0; i < output_length * 2; i += 2) {
     result = HandleRemainingHexValues(input_vector, i);
     if (result.has_value()) {
-      buffer[index++] = result.value();
+      if (is_shared) {
+        std::atomic_ref<uint8_t>(buffer[index++])
+            .store(result.value(), std::memory_order_relaxed);
+      } else {
+        buffer[index++] = result.value();
+      }
     } else {
       return false;
     }
@@ -1058,11 +1096,11 @@ bool ArrayBufferFromHex(const base::Vector<T>& input_vector, uint8_t* buffer,
 }
 
 template bool ArrayBufferFromHex(
-    const base::Vector<const uint8_t>& input_vector, uint8_t* buffer,
-    size_t output_length);
+    const base::Vector<const uint8_t>& input_vector, bool is_shared,
+    uint8_t* buffer, size_t output_length);
 template bool ArrayBufferFromHex(
-    const base::Vector<const base::uc16>& input_vector, uint8_t* buffer,
-    size_t output_length);
+    const base::Vector<const base::uc16>& input_vector, bool is_shared,
+    uint8_t* buffer, size_t output_length);
 
 #ifdef NEON64
 #undef NEON64

@@ -27,4 +27,10 @@
   'wasm/compile/*': [FAIL],
 }],  # 'wasm_random_fuzzers == False'
 
+##############################################################################
+['simulator_run and arch == ppc64', {
+  # Slow tests
+  'wasm/module/regress-406925416.wasm': [PASS, SLOW]
+}],  # 'simulator_run and arch == ppc64'
+
 ]

@@ -70,6 +70,12 @@ void WasmCodePointerTable::UpdateEntrypoint(WasmCodePointer index,
                                             Address value,
                                             uint64_t signature_hash) {
   WriteScope write_scope("WasmCodePointerTable write");
+  return UpdateEntrypointUnlocked(index, value, signature_hash);
+}
+
+void WasmCodePointerTable::UpdateEntrypointUnlocked(WasmCodePointer index,
+                                                    Address value,
+                                                    uint64_t signature_hash) {
   at(index.value()).UpdateCodePointerEntry(value, signature_hash);
 }
 

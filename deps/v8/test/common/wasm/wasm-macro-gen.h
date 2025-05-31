@@ -986,6 +986,67 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   index, value, timeout, WASM_ATOMICS_OP(op), alignment, offset
 #define WASM_ATOMICS_FENCE WASM_ATOMICS_OP(kExprAtomicFence), ZERO_OFFSET
 
+#define WASM_STRUCT_ATOMIC_GET(memory_order, typeidx, fieldidx, struct_obj) \
+  struct_obj, WASM_ATOMICS_OP(kExprStructAtomicGet), memory_order,          \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_GET_S(memory_order, typeidx, fieldidx, struct_obj) \
+  struct_obj, WASM_ATOMICS_OP(kExprStructAtomicGetS), memory_order,           \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_GET_U(memory_order, typeidx, fieldidx, struct_obj) \
+  struct_obj, WASM_ATOMICS_OP(kExprStructAtomicGetU), memory_order,           \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_SET(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicSet), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_ADD(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicAdd), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_SUB(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicSub), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_AND(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicAnd), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_OR(memory_order, typeidx, fieldidx, struct_obj, \
+                              value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicOr), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_STRUCT_ATOMIC_XOR(memory_order, typeidx, fieldidx, struct_obj, \
+                               value)                                       \
+  struct_obj, value, WASM_ATOMICS_OP(kExprStructAtomicXor), memory_order,   \
+      ToByte(typeidx), static_cast<uint8_t>(fieldidx)
+#define WASM_ARRAY_ATOMIC_GET(memory_order, typeidx, array_obj, index)  \
+  array_obj, index, WASM_ATOMICS_OP(kExprArrayAtomicGet), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_GET_S(memory_order, typeidx, array_obj, index) \
+  array_obj, index, WASM_ATOMICS_OP(kExprArrayAtomicGetS), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_GET_U(memory_order, typeidx, array_obj, index) \
+  array_obj, index, WASM_ATOMICS_OP(kExprArrayAtomicGetU), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_SET(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicSet), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_ADD(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicAdd), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_SUB(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicSub), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_AND(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicAnd), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_OR(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicOr), memory_order, \
+      ToByte(typeidx)
+#define WASM_ARRAY_ATOMIC_XOR(memory_order, typeidx, array_obj, index, value)  \
+  array_obj, index, value, WASM_ATOMICS_OP(kExprArrayAtomicXor), memory_order, \
+      ToByte(typeidx)
+
 //------------------------------------------------------------------------------
 // Sign Extension Operations.
 //------------------------------------------------------------------------------

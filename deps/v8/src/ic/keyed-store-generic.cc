@@ -497,16 +497,30 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       GotoIf(IsHeapNumber(CAST(value)), &transition_to_double);
       GotoIfNot(IsUndefined(value), &transition_to_object);
-      TryRewriteElements(receiver, receiver_map, elements, native_context,
-                         PACKED_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS, slow);
-      // Reload migrated elements.
-      TNode<FixedArrayBase> double_elements = LoadElements(receiver);
-      TNode<IntPtrT> double_offset =
-          ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, kHeaderSize);
-      // Make sure we do not store signalling NaNs into double arrays.
-      StoreNoWriteBarrier(MachineRepresentation::kWord64, double_elements,
-                          double_offset, Uint64Constant(kUndefinedNanInt64));
-      MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
+      {
+        TryRewriteElements(receiver, receiver_map, elements, native_context,
+                           PACKED_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS, slow);
+        // Reload migrated elements.
+        TNode<FixedArrayBase> double_elements = LoadElements(receiver);
+        TNode<IntPtrT> double_offset =
+            ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, kHeaderSize);
+        // Make sure we do not store signalling NaNs into double arrays.
+        if (Is64()) {
+          StoreNoWriteBarrier(MachineRepresentation::kWord64, double_elements,
+                              double_offset,
+                              Uint64Constant(kUndefinedNanInt64));
+        } else {
+          static_assert(kUndefinedNanLower32 == kUndefinedNanUpper32);
+          StoreNoWriteBarrier(MachineRepresentation::kWord32, double_elements,
+                              double_offset,
+                              Uint32Constant(kUndefinedNanLower32));
+          StoreNoWriteBarrier(
+              MachineRepresentation::kWord32, double_elements,
+              IntPtrAdd(double_offset, IntPtrConstant(kInt32Size)),
+              Uint32Constant(kUndefinedNanLower32));
+        }
+        MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
+      }
 #else
       Branch(IsHeapNumber(CAST(value)), &transition_to_double,
              &transition_to_object);
@@ -565,8 +579,9 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
         // can skip the hole check (and always assume the hole).
         if (update_length == kDontChangeLength) {
           Label found_hole(this);
-          LoadDoubleWithHoleCheck(elements, offset, &found_hole,
-                                  MachineType::None());
+          LoadDoubleWithUndefinedAndHoleCheck(elements, offset,
+                                              &hole_check_passed, &found_hole,
+                                              MachineType::None());
           Goto(&hole_check_passed);
           BIND(&found_hole);
         }
@@ -600,16 +615,21 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
       // Convert undefined to double value.
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       BIND(&undefined_value);
-      // FIXME(nicohartmann): Unify with above.
 
-      // If we're about to introduce holes, ensure holey elements.
-      if (update_length == kBumpLengthWithGap) {
-        TryChangeToHoleyMap(receiver, receiver_map, elements_kind, context,
-                            PACKED_DOUBLE_ELEMENTS, slow);
+      // If we're about to introduce undefined, ensure holey elements.
+      TryChangeToHoleyMap(receiver, receiver_map, elements_kind, context,
+                          PACKED_DOUBLE_ELEMENTS, slow);
+      if (Is64()) {
+        StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
+                            Uint64Constant(kUndefinedNanInt64));
+      } else {
+        static_assert(kUndefinedNanLower32 == kUndefinedNanUpper32);
+        StoreNoWriteBarrier(MachineRepresentation::kWord32, elements, offset,
+                            Uint32Constant(kUndefinedNanLower32));
+        StoreNoWriteBarrier(MachineRepresentation::kWord32, elements,
+                            IntPtrAdd(offset, IntPtrConstant(kInt32Size)),
+                            Uint32Constant(kUndefinedNanLower32));
       }
-      StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
-                          Uint64Constant(kUndefinedNanInt64));
-      // double_value);
       MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 

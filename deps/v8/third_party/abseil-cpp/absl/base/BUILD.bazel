@@ -682,7 +682,6 @@ cc_test(
 
 cc_test(
     name = "thread_identity_test",
-    size = "small",
     srcs = ["internal/thread_identity_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

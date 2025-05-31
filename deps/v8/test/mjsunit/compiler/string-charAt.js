@@ -22,11 +22,8 @@
   assertEquals(" ", foo(3));
   assertEquals("s", foo(10));
   assertOptimized(foo);
-  // deoptimisation happens because of
-  // index being out of bounds
   assertEquals("", foo(100));
   assertEquals("", foo(-1));
-  assertUnoptimized(foo);
 })();
 
 // Variable string and constant index
@@ -43,11 +40,8 @@
   assertEquals("e", foo("hello"));
   assertEquals("y", foo("hya"));
   assertOptimized(foo);
-  // deoptimisation happens because of
-  // index being out of bounds
   assertEquals("", foo(""));
   assertEquals("", foo("a"));
-  assertUnoptimized(foo);
 })();
 
 // Constant string and constant index

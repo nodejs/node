@@ -56,6 +56,7 @@ cc_test(
     deps = [
         ":sample_recorder",
         "//absl/base:core_headers",
+        "//absl/random",
         "//absl/synchronization",
         "//absl/synchronization:thread_pool",
         "//absl/time",

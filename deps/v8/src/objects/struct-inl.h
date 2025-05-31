@@ -33,8 +33,6 @@ void Tuple2::set_value2(Tagged<Object> value, WriteBarrierMode mode) {
   value2_.store(this, value, mode);
 }
 
-NEVER_READ_ONLY_SPACE_IMPL(AccessorPair)
-
 Tagged<Object> AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();
 }

@@ -315,6 +315,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     RegisterSnapshot& register_snapshot, Register result, Register string,
     Register index, Register scratch1, Register scratch2,
     Label* result_fits_one_byte) {
+  ASM_CODE_COMMENT(this);
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
@@ -360,9 +361,9 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     AssertObjectTypeInRange(string, FIRST_STRING_TYPE, LAST_STRING_TYPE,
                             AbortReason::kUnexpectedValue);
 
-    Ldr(scratch1.W(), FieldMemOperand(string, offsetof(String, length_)));
-    Cmp(index.W(), scratch1.W());
-    Check(lo, AbortReason::kUnexpectedValue);
+    LoadInt32(scratch1, FieldMemOperand(string, offsetof(String, length_)));
+    CompareInt32AndAssert(index, scratch1, kUnsignedLessThan,
+                          AbortReason::kUnexpectedValue);
   }
 
 #if V8_STATIC_ROOTS_BOOL
@@ -473,8 +474,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
-    Add(index, index, OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag);
-    Ldrb(result, MemOperand(string, index));
+    SeqOneByteStringCharCodeAt(result, string, index);
     B(result_fits_one_byte);
 
     bind(&two_byte_string);
@@ -538,6 +538,41 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       Mov(index, Immediate(0xdeadbeef));
     }
   }
+}
+
+void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
+                                                 Register string,
+                                                 Register index) {
+  ASM_CODE_COMMENT(this);
+  if (v8_flags.debug_code) {
+    TemporaryRegisterScope scope(this);
+    Register scratch = scope.AcquireScratch();
+
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                             LAST_STRING_TYPE);
+    Check(kUnsignedLessThanEqual, AbortReason::kUnexpectedValue);
+
+    // Check if {string} is a sequential one-byte string.
+    AndInt32(scratch, kStringRepresentationAndEncodingMask);
+    CompareInt32AndAssert(scratch, kSeqOneByteStringTag, kEqual,
+                          AbortReason::kUnexpectedValue);
+
+    LoadInt32(scratch, FieldMemOperand(string, offsetof(String, length_)));
+    CompareInt32AndAssert(index, scratch, kUnsignedLessThan,
+                          AbortReason::kUnexpectedValue);
+  }
+
+  TemporaryRegisterScope scope(this);
+  Register scratch = scope.AcquireScratch();
+  Add(scratch, index, OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag);
+  Ldrb(result, MemOperand(string, scratch));
+}
+
+void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
+  Clz(dst.W(), src.W());
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {

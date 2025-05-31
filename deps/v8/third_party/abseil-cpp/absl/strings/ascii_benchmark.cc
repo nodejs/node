@@ -16,9 +16,9 @@
 #include <array>
 #include <cctype>
 #include <cstddef>
-#include <random>
 #include <string>
 
+#include "absl/random/random.h"
 #include "absl/strings/ascii.h"
 #include "benchmark/benchmark.h"
 
@@ -27,10 +27,8 @@ namespace {
 std::array<unsigned char, 256> MakeShuffledBytes() {
   std::array<unsigned char, 256> bytes;
   for (size_t i = 0; i < 256; ++i) bytes[i] = static_cast<unsigned char>(i);
-  std::random_device rd;
-  std::seed_seq seed({rd(), rd(), rd(), rd(), rd(), rd(), rd(), rd()});
-  std::mt19937 g(seed);
-  std::shuffle(bytes.begin(), bytes.end(), g);
+  absl::InsecureBitGen gen;
+  std::shuffle(bytes.begin(), bytes.end(), gen);
   return bytes;
 }
 

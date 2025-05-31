@@ -61,6 +61,13 @@ class DifferentialFuzzSuppressions extends mutator.Mutator {
           thisMutator.annotate(path.node, 'Replaced magic string');
         }
       },
+      // Known precision differences: https://crbug.com/417981349
+      AssignmentExpression(path) {
+        if (path.node.operator == '**=') {
+          path.node.operator = '+=';
+          thisMutator.annotate(path.node, 'Replaced **=');
+        }
+      },
       // Known precision differences: https://crbug.com/380147861
       BinaryExpression(path) {
         if (path.node.operator == '**') {

@@ -18,13 +18,13 @@ using ::v8::Value;
 static v8::MaybeLocal<Value> PrepareStackTrace42(v8::Local<Context> context,
                                                  v8::Local<Value> error,
                                                  v8::Local<Array> trace) {
-  return v8::Number::New(context->GetIsolate(), 42);
+  return v8::Number::New(CcTest::isolate(), 42);
 }
 
 static v8::MaybeLocal<Value> PrepareStackTraceThrow(v8::Local<Context> context,
                                                     v8::Local<Value> error,
                                                     v8::Local<Array> trace) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::Local<String> message = v8_str("42");
   isolate->ThrowException(v8::Exception::Error(message));
   return v8::MaybeLocal<Value>();
@@ -32,7 +32,7 @@ static v8::MaybeLocal<Value> PrepareStackTraceThrow(v8::Local<Context> context,
 
 THREADED_TEST(IsolatePrepareStackTrace) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
 
   isolate->SetPrepareStackTraceCallback(PrepareStackTrace42);
@@ -45,7 +45,7 @@ THREADED_TEST(IsolatePrepareStackTrace) {
 
 THREADED_TEST(IsolatePrepareStackTraceThrow) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
 
   isolate->SetPrepareStackTraceCallback(PrepareStackTraceThrow);
@@ -78,21 +78,21 @@ static void ThrowV8Exception(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 THREADED_TEST(ExceptionCreateMessage) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
   v8::Local<String> foo_str = v8_str("foo");
   v8::Local<String> message_str = v8_str("message");
 
-  context->GetIsolate()->SetCaptureStackTraceForUncaughtExceptions(true);
+  context.isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
 
   Local<v8::FunctionTemplate> fun =
-      v8::FunctionTemplate::New(context->GetIsolate(), ThrowV8Exception);
+      v8::FunctionTemplate::New(context.isolate(), ThrowV8Exception);
   v8::Local<v8::Object> global = context->Global();
   CHECK(global
             ->Set(context.local(), v8_str("throwV8Exception"),
                   fun->GetFunction(context.local()).ToLocalChecked())
             .FromJust());
 
-  TryCatch try_catch(context->GetIsolate());
+  TryCatch try_catch(context.isolate());
   CompileRun(
       "function f1() {\n"
       "  throwV8Exception();\n"
@@ -109,7 +109,7 @@ THREADED_TEST(ExceptionCreateMessage) {
             .FromJust());
 
   v8::Local<v8::Message> message =
-      v8::Exception::CreateMessage(context->GetIsolate(), error);
+      v8::Exception::CreateMessage(context.isolate(), error);
   CHECK(!message.IsEmpty());
   CHECK_EQ(2, message->GetLineNumber(context.local()).FromJust());
   CHECK_EQ(2, message->GetStartColumn(context.local()).FromJust());
@@ -122,7 +122,7 @@ THREADED_TEST(ExceptionCreateMessage) {
   CHECK(!stackTrace.IsEmpty());
   CHECK_EQ(2, stackTrace->GetFrameCount());
 
-  context->GetIsolate()->SetCaptureStackTraceForUncaughtExceptions(false);
+  context.isolate()->SetCaptureStackTraceForUncaughtExceptions(false);
 
   // Now check message location when SetCaptureStackTraceForUncaughtExceptions
   // is false.
@@ -143,7 +143,7 @@ THREADED_TEST(ExceptionCreateMessage) {
             ->Equals(context.local(), foo_str)
             .FromJust());
 
-  message = v8::Exception::CreateMessage(context->GetIsolate(), error);
+  message = v8::Exception::CreateMessage(context.isolate(), error);
   CHECK(!message.IsEmpty());
   CHECK_EQ(2, message->GetLineNumber(context.local()).FromJust());
   CHECK_EQ(9, message->GetStartColumn(context.local()).FromJust());
@@ -158,14 +158,14 @@ THREADED_TEST(ExceptionCreateMessage) {
 // THREADED_TEST(StackTrace) {
 TEST(StackTrace) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   v8::TryCatch try_catch(isolate);
   const char* source = "function foo() { FAIL.FAIL; }; foo();";
   v8::Local<v8::String> src = v8_str(source);
   v8::Local<v8::String> origin = v8_str("stack-trace-test");
   v8::ScriptCompiler::Source script_source(src, v8::ScriptOrigin(origin));
-  CHECK(v8::ScriptCompiler::CompileUnboundScript(context->GetIsolate(),
+  CHECK(v8::ScriptCompiler::CompileUnboundScript(context.isolate(),
                                                  &script_source)
             .ToLocalChecked()
             ->BindToCurrentContext()
@@ -173,7 +173,7 @@ TEST(StackTrace) {
             .IsEmpty());
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value stack(
-      context->GetIsolate(),
+      context.isolate(),
       try_catch.StackTrace(context.local()).ToLocalChecked());
   CHECK_NOT_NULL(strstr(*stack, "at foo (stack-trace-test"));
 }
@@ -413,16 +413,14 @@ static void StackTraceForUncaughtExceptionListener(
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK_EQ(2, stack_trace->GetFrameCount());
   checkStackFrame("origin", uncaught_exception_source, nullptr, "foo", 2, 3, 19,
-                  false, false,
-                  stack_trace->GetFrame(message->GetIsolate(), 0));
+                  false, false, stack_trace->GetFrame(CcTest::isolate(), 0));
   checkStackFrame("origin", uncaught_exception_source, nullptr, "bar", 5, 3, 50,
-                  false, false,
-                  stack_trace->GetFrame(message->GetIsolate(), 1));
+                  false, false, stack_trace->GetFrame(CcTest::isolate(), 1));
 }
 
 TEST(CaptureStackTraceForUncaughtException) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   isolate->AddMessageListener(StackTraceForUncaughtExceptionListener);
   isolate->SetCaptureStackTraceForUncaughtExceptions(true);
@@ -453,7 +451,7 @@ const char uncaught_setter_exception_source[] =
 static void StackTraceForUncaughtExceptionAndSettersListener(
     v8::Local<v8::Message> message, v8::Local<Value> value) {
   CHECK(value->IsObject());
-  v8::Isolate* isolate = message->GetIsolate();
+  v8::Isolate* isolate = CcTest::isolate();
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   report_count++;
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
@@ -472,7 +470,7 @@ static void StackTraceForUncaughtExceptionAndSettersListener(
 TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
   report_count = 0;
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   v8::Local<v8::Object> object = v8::Object::New(isolate);
   isolate->AddMessageListener(StackTraceForUncaughtExceptionAndSettersListener,
@@ -518,7 +516,7 @@ const char functions_with_function_name_caller[] = "gen('foo', 3)();";
 static void StackTraceFunctionNameListener(v8::Local<v8::Message> message,
                                            v8::Local<Value>) {
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
-  v8::Isolate* isolate = message->GetIsolate();
+  v8::Isolate* isolate = CcTest::isolate();
   CHECK_EQ(5, stack_trace->GetFrameCount());
   checkStackFrame("origin", functions_with_function_name, "local/functional.sc",
                   "foo:0", 4, 7, 86, false, false,
@@ -538,7 +536,7 @@ static void StackTraceFunctionNameListener(v8::Local<v8::Message> message,
 
 TEST(GetStackTraceContainsFunctionsWithFunctionName) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   CompileRunWithOrigin(functions_with_function_name, "origin");
@@ -560,7 +558,7 @@ static void RethrowStackTraceHandler(v8::Local<v8::Message> message,
   int line_number[] = {1, 2, 5};
   for (int i = 0; i < frame_count; i++) {
     CHECK_EQ(line_number[i],
-             stack_trace->GetFrame(message->GetIsolate(), i)->GetLineNumber());
+             stack_trace->GetFrame(CcTest::isolate(), i)->GetLineNumber());
   }
 }
 
@@ -568,7 +566,7 @@ static void RethrowStackTraceHandler(v8::Local<v8::Message> message,
 // is first thrown (not where it is rethrown).
 TEST(RethrowStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   // We make sure that
   // - the stack trace of the ReferenceError in g() is reported.
@@ -603,14 +601,14 @@ static void RethrowPrimitiveStackTraceHandler(v8::Local<v8::Message> message,
   int line_number[] = {3, 7};
   for (int i = 0; i < frame_count; i++) {
     CHECK_EQ(line_number[i],
-             stack_trace->GetFrame(message->GetIsolate(), i)->GetLineNumber());
+             stack_trace->GetFrame(CcTest::isolate(), i)->GetLineNumber());
   }
 }
 
 // Test that we do not recognize identity for primitive exceptions.
 TEST(RethrowPrimitiveStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   // We do not capture stack trace for non Error objects on creation time.
   // Instead, we capture the stack trace on last throw.
@@ -636,14 +634,14 @@ static void RethrowExistingStackTraceHandler(v8::Local<v8::Message> message,
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK(!stack_trace.IsEmpty());
   CHECK_EQ(1, stack_trace->GetFrameCount());
-  CHECK_EQ(1, stack_trace->GetFrame(message->GetIsolate(), 0)->GetLineNumber());
+  CHECK_EQ(1, stack_trace->GetFrame(CcTest::isolate(), 0)->GetLineNumber());
 }
 
 // Test that the stack trace is captured when the error object is created and
 // not where it is thrown.
 TEST(RethrowExistingStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   const char* source =
       "var e = new Error();           \n"
@@ -661,14 +659,14 @@ static void RethrowBogusErrorStackTraceHandler(v8::Local<v8::Message> message,
   v8::Local<v8::StackTrace> stack_trace = message->GetStackTrace();
   CHECK(!stack_trace.IsEmpty());
   CHECK_EQ(1, stack_trace->GetFrameCount());
-  CHECK_EQ(1, stack_trace->GetFrame(message->GetIsolate(), 0)->GetLineNumber());
+  CHECK_EQ(1, stack_trace->GetFrame(CcTest::isolate(), 0)->GetLineNumber());
 }
 
 // Test that the stack trace is captured where the bogus Error object is created
 // and not where it is thrown.
 TEST(RethrowBogusErrorStackTrace) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   const char* source =
       "var e = {__proto__: new Error()} \n"
@@ -852,7 +850,7 @@ TEST(DynamicWithSourceURLInStackTrace) {
 
 TEST(DynamicWithSourceURLInStackTraceString) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
 
   const char* source =
       "function outer() {\n"
@@ -865,11 +863,11 @@ TEST(DynamicWithSourceURLInStackTraceString) {
 
   v8::base::ScopedVector<char> code(1024);
   v8::base::SNPrintF(code, source, "//# sourceURL=source_url");
-  v8::TryCatch try_catch(context->GetIsolate());
+  v8::TryCatch try_catch(context.isolate());
   CompileRunWithOrigin(code.begin(), "", 0, 0);
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value stack(
-      context->GetIsolate(),
+      context.isolate(),
       try_catch.StackTrace(context.local()).ToLocalChecked());
   CHECK_NOT_NULL(strstr(*stack, "at foo (source_url:3:5)"));
 }

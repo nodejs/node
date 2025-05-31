@@ -144,9 +144,9 @@ class LiftoffRegister {
   static constexpr int needed_bits =
       std::max(kNeedI64RegPair || kNeedS128RegPair ? kBitsPerRegPair : 0,
                kBitsPerLiftoffRegCode);
-  using storage_t = std::conditional<
+  using storage_t = std::conditional_t<
       needed_bits <= 8, uint8_t,
-      std::conditional<needed_bits <= 16, uint16_t, uint32_t>::type>::type;
+      std::conditional_t<needed_bits <= 16, uint16_t, uint32_t>>;
 
   static_assert(8 * sizeof(storage_t) >= needed_bits,
                 "chosen type is big enough");
@@ -347,9 +347,9 @@ class LiftoffRegList {
 
   static constexpr bool use_u16 = kAfterMaxLiftoffRegCode <= 16;
   static constexpr bool use_u32 = !use_u16 && kAfterMaxLiftoffRegCode <= 32;
-  using storage_t = std::conditional<
-      use_u16, uint16_t,
-      std::conditional<use_u32, uint32_t, uint64_t>::type>::type;
+  using storage_t =
+      std::conditional_t<use_u16, uint16_t,
+                         std::conditional_t<use_u32, uint32_t, uint64_t>>;
 
   static constexpr storage_t kGpMask =
       storage_t{kLiftoffAssemblerGpCacheRegs.bits()};

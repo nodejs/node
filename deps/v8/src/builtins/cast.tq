@@ -526,8 +526,13 @@ Cast<FastJSRegExp>(implicit context: Context)(o: HeapObject): FastJSRegExp
   goto CastError;
 }
 
-Cast<FastJSArray>(implicit context: Context)(o: HeapObject): FastJSArray
-    labels CastError {
+struct CastResult<T: type> {
+  object: T;
+  elementsKind: ElementsKind;
+}
+
+macro CastFastJSArray(implicit context: Context)(o: HeapObject):
+    CastResult<FastJSArray>labels CastError {
   if (IsForceSlowPath()) goto CastError;
 
   if (!Is<JSArray>(o)) goto CastError;
@@ -541,12 +546,20 @@ Cast<FastJSArray>(implicit context: Context)(o: HeapObject): FastJSArray
   if (!IsPrototypeInitialArrayPrototype(map)) goto CastError;
 
   if (IsNoElementsProtectorCellInvalid()) goto CastError;
-  return %RawDownCast<FastJSArray>(o);
+  return CastResult<FastJSArray>{
+    object: %RawDownCast<FastJSArray>(o),
+    elementsKind: elementsKind
+  };
 }
 
-Cast<FastJSArrayForRead>(
-    implicit context: Context)(o: HeapObject): FastJSArrayForRead
+Cast<FastJSArray>(implicit context: Context)(o: HeapObject): FastJSArray
     labels CastError {
+  const result = CastFastJSArray(o) otherwise CastError;
+  return result.object;
+}
+
+macro CastFastJSArrayForRead(implicit context: Context)(o: HeapObject):
+    CastResult<FastJSArrayForRead>labels CastError {
   if (!Is<JSArray>(o)) goto CastError;
 
   // Bailout if receiver has slow elements.
@@ -560,7 +573,17 @@ Cast<FastJSArrayForRead>(
   if (!IsPrototypeInitialArrayPrototype(map)) goto CastError;
 
   if (IsNoElementsProtectorCellInvalid()) goto CastError;
-  return %RawDownCast<FastJSArrayForRead>(o);
+  return CastResult<FastJSArrayForRead>{
+    object: %RawDownCast<FastJSArrayForRead>(o),
+    elementsKind: elementsKind
+  };
+}
+
+Cast<FastJSArrayForRead>(
+    implicit context: Context)(o: HeapObject): FastJSArrayForRead
+    labels CastError {
+  const result = CastFastJSArrayForRead(o) otherwise CastError;
+  return result.object;
 }
 
 Cast<FastJSArrayForCopy>(

@@ -124,6 +124,7 @@ cc_binary(
     deps = [
         ":int128",
         "//absl/base:config",
+        "//absl/random",
         "@google_benchmark//:benchmark_main",
     ],
 )

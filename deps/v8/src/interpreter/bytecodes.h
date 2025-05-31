@@ -358,6 +358,8 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
   V(CreateFunctionContext, ImplicitRegisterUse::kWriteAccumulator,             \
     OperandType::kIdx, OperandType::kUImm)                                     \
+  V(CreateFunctionContextWithCells, ImplicitRegisterUse::kWriteAccumulator,    \
+    OperandType::kIdx, OperandType::kUImm)                                     \
   V(CreateEvalContext, ImplicitRegisterUse::kWriteAccumulator,                 \
     OperandType::kIdx, OperandType::kUImm)                                     \
   V(CreateWithContext, ImplicitRegisterUse::kWriteAccumulator,                 \

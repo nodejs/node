@@ -62,7 +62,7 @@ static T ArithmeticShiftRight(T x, int shift) {
   if (x < 0) {
     // Right shift of signed values is implementation defined. Simulate a
     // true arithmetic right shift by adding leading sign bits.
-    using UnsignedT = typename std::make_unsigned<T>::type;
+    using UnsignedT = std::make_unsigned_t<T>;
     UnsignedT mask = ~(static_cast<UnsignedT>(~0) >> shift);
     return (static_cast<UnsignedT>(x) >> shift) | mask;
   } else {
@@ -90,13 +90,13 @@ T JSMin(T x, T y) {
 
 // Returns the absolute value of its argument.
 template <typename T>
-typename std::make_unsigned<T>::type Abs(T a)
-  requires std::is_signed<T>::value
+std::make_unsigned_t<T> Abs(T a)
+  requires std::is_signed_v<T>
 {
   // This is a branch-free implementation of the absolute value function and is
   // described in Warren's "Hacker's Delight", chapter 2. It avoids undefined
   // behavior with the arithmetic negation operation on signed values as well.
-  using unsignedT = typename std::make_unsigned<T>::type;
+  using unsignedT = std::make_unsigned_t<T>;
   unsignedT x = static_cast<unsignedT>(a);
   unsignedT y = static_cast<unsignedT>(a >> (sizeof(T) * 8 - 1));
   return (x ^ y) - y;
@@ -129,7 +129,7 @@ inline double Modulo(double x, double y) {
 
 template <typename T>
 T SaturateAdd(T a, T b) {
-  if (std::is_signed<T>::value) {
+  if (std::is_signed_v<T>) {
     if (a > 0 && b > 0) {
       if (a > std::numeric_limits<T>::max() - b) {
         return std::numeric_limits<T>::max();
@@ -140,7 +140,7 @@ T SaturateAdd(T a, T b) {
       }
     }
   } else {
-    CHECK(std::is_unsigned<T>::value);
+    CHECK(std::is_unsigned_v<T>);
     if (a > std::numeric_limits<T>::max() - b) {
       return std::numeric_limits<T>::max();
     }
@@ -150,7 +150,7 @@ T SaturateAdd(T a, T b) {
 
 template <typename T>
 T SaturateSub(T a, T b) {
-  if (std::is_signed<T>::value) {
+  if (std::is_signed_v<T>) {
     if (a >= 0 && b < 0) {
       if (a > std::numeric_limits<T>::max() + b) {
         return std::numeric_limits<T>::max();
@@ -161,7 +161,7 @@ T SaturateSub(T a, T b) {
       }
     }
   } else {
-    CHECK(std::is_unsigned<T>::value);
+    CHECK(std::is_unsigned_v<T>);
     if (a < b) {
       return static_cast<T>(0);
     }
@@ -176,7 +176,7 @@ T SaturateRoundingQMul(T a, T b) {
   // Specifically this supports Q7, Q15, and Q31. This follows the
   // implementation in simulator-logic-arm64.cc (sqrdmulh) to avoid overflow
   // when a == b == int32 min.
-  static_assert(std::is_integral<T>::value, "only integral types");
+  static_assert(std::is_integral_v<T>, "only integral types");
 
   constexpr int size_in_bits = sizeof(T) * 8;
   int round_const = 1 << (size_in_bits - 2);
@@ -191,10 +191,9 @@ T SaturateRoundingQMul(T a, T b) {
 // and callers can provide only Wide.
 template <typename Wide, typename Narrow>
 Wide MultiplyLong(Narrow a, Narrow b) {
-  static_assert(
-      std::is_integral<Narrow>::value && std::is_integral<Wide>::value,
-      "only integral types");
-  static_assert(std::is_signed<Narrow>::value == std::is_signed<Wide>::value,
+  static_assert(std::is_integral_v<Narrow> && std::is_integral_v<Wide>,
+                "only integral types");
+  static_assert(std::is_signed_v<Narrow> == std::is_signed_v<Wide>,
                 "both must have same signedness");
   static_assert(sizeof(Narrow) * 2 == sizeof(Wide), "only twice as long");
 
@@ -206,10 +205,9 @@ Wide MultiplyLong(Narrow a, Narrow b) {
 // and callers can provide only Wide.
 template <typename Wide, typename Narrow>
 Wide AddLong(Narrow a, Narrow b) {
-  static_assert(
-      std::is_integral<Narrow>::value && std::is_integral<Wide>::value,
-      "only integral types");
-  static_assert(std::is_signed<Narrow>::value == std::is_signed<Wide>::value,
+  static_assert(std::is_integral_v<Narrow> && std::is_integral_v<Wide>,
+                "only integral types");
+  static_assert(std::is_signed_v<Narrow> == std::is_signed_v<Wide>,
                 "both must have same signedness");
   static_assert(sizeof(Narrow) * 2 == sizeof(Wide), "only twice as long");
 
@@ -218,7 +216,7 @@ Wide AddLong(Narrow a, Narrow b) {
 
 template <typename T>
 inline T RoundingAverageUnsigned(T a, T b) {
-  static_assert(std::is_unsigned<T>::value, "Only for unsiged types");
+  static_assert(std::is_unsigned_v<T>, "Only for unsiged types");
   static_assert(sizeof(T) < sizeof(uint64_t), "Must be smaller than uint64_t");
   return (static_cast<uint64_t>(a) + static_cast<uint64_t>(b) + 1) >> 1;
 }
@@ -245,15 +243,21 @@ inline T RoundingAverageUnsigned(T a, T b) {
     LIST_MACRO(DEFINE_ONE_FIELD_OFFSET)                        \
   };
 
-#define DEFINE_ONE_FIELD_OFFSET_PURE_NAME(CamelName, Size, ...) \
+#define DEFINE_ONE_FIELD_OFFSET_PURE_NAME(CamelName, SIZE, ...) \
   k##CamelName##Offset,                                         \
-      k##CamelName##OffsetEnd = k##CamelName##Offset + (Size)-1,
+      k##CamelName##Size = (SIZE),                              \
+      k##CamelName##OffsetEnd = k##CamelName##Offset + (SIZE) - 1,
 
 #define DEFINE_FIELD_OFFSET_CONSTANTS_WITH_PURE_NAME(StartOffset, LIST_MACRO) \
   enum {                                                                      \
     LIST_MACRO##_StartOffset = StartOffset - 1,                               \
     LIST_MACRO(DEFINE_ONE_FIELD_OFFSET_PURE_NAME)                             \
   };
+
+// Defines padding field with given names which aligns next field by Alignment
+// bytes, assuming field definition macro V(CamelName, Size, hacker_name).
+#define PADDING_FIELD(Alignment, V, Name, hacker_name) \
+  V(Name, (RoundUp<Alignment>(k##Name##Offset) - k##Name##Offset), hacker_name)
 
 // Size of the field defined by DEFINE_FIELD_OFFSET_CONSTANTS
 #define FIELD_SIZE(Name) (Name##End + 1 - Name)
@@ -487,8 +491,8 @@ V8_INLINE bool SimdMemEqual(const Char* lhs, const Char* rhs, size_t count) {
 template <typename lchar, typename rchar>
 inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
                                       size_t chars) {
-  static_assert(std::is_unsigned<lchar>::value);
-  static_assert(std::is_unsigned<rchar>::value);
+  static_assert(std::is_unsigned_v<lchar>);
+  static_assert(std::is_unsigned_v<rchar>);
   if constexpr (sizeof(*lhs) == sizeof(*rhs)) {
 #if defined(__SSE3__) || defined(V8_OPTIMIZE_WITH_NEON)
     if constexpr (sizeof(*lhs) == 1) {
@@ -508,8 +512,8 @@ inline bool CompareCharsEqualUnsigned(const lchar* lhs, const rchar* rhs,
 template <typename lchar, typename rchar>
 inline bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
                               size_t chars) {
-  using ulchar = typename std::make_unsigned<lchar>::type;
-  using urchar = typename std::make_unsigned<rchar>::type;
+  using ulchar = std::make_unsigned_t<lchar>;
+  using urchar = std::make_unsigned_t<rchar>;
   return CompareCharsEqualUnsigned(reinterpret_cast<const ulchar*>(lhs),
                                    reinterpret_cast<const urchar*>(rhs), chars);
 }
@@ -518,8 +522,8 @@ inline bool CompareCharsEqual(const lchar* lhs, const rchar* rhs,
 template <typename lchar, typename rchar>
 inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
                                 size_t chars) {
-  static_assert(std::is_unsigned<lchar>::value);
-  static_assert(std::is_unsigned<rchar>::value);
+  static_assert(std::is_unsigned_v<lchar>);
+  static_assert(std::is_unsigned_v<rchar>);
   if (sizeof(*lhs) == sizeof(char) && sizeof(*rhs) == sizeof(char)) {
     // memcmp compares byte-by-byte, yielding wrong results for two-byte
     // strings on little-endian systems.
@@ -534,8 +538,8 @@ inline int CompareCharsUnsigned(const lchar* lhs, const rchar* rhs,
 
 template <typename lchar, typename rchar>
 inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
-  using ulchar = typename std::make_unsigned<lchar>::type;
-  using urchar = typename std::make_unsigned<rchar>::type;
+  using ulchar = std::make_unsigned_t<lchar>;
+  using urchar = std::make_unsigned_t<rchar>;
   return CompareCharsUnsigned(reinterpret_cast<const ulchar*>(lhs),
                               reinterpret_cast<const urchar*>(rhs), chars);
 }

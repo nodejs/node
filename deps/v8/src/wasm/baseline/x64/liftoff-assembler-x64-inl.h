@@ -304,7 +304,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     movq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), rbp);
     addq(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
          Immediate(static_cast<int32_t>(
-             stack_param_slots * kStackSlotSize +
+             stack_param_slots * kSystemPointerSize +
              CommonFrameConstants::kFixedFrameSizeAboveFp)));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
@@ -496,6 +496,16 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   LoadTaggedField(dst, src_op);
 }
 
+void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
+                                               Register offset_reg,
+                                               int32_t offset_imm,
+                                               AtomicMemoryOrder memory_order,
+                                               uint32_t* protected_load_pc,
+                                               bool needs_shift) {
+  LoadTaggedPointer(dst, src_addr, offset_reg, offset_imm, protected_load_pc,
+                    needs_shift);
+}
+
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
                                             int32_t offset_imm) {
   DCHECK_LE(0, offset_imm);
@@ -551,6 +561,14 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                    SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
+}
+
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  StoreTaggedPointer(dst_addr, offset_reg, offset_imm, src, pinned,
+                     protected_store_pc);
 }
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
@@ -1250,9 +1268,9 @@ void EmitIntDivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
                      Register rhs, Label* trap_div_by_zero,
                      Label* trap_div_unrepresentable) {
   constexpr bool needs_unrepresentable_check =
-      std::is_signed<type>::value && div_or_rem == DivOrRem::kDiv;
+      std::is_signed_v<type> && div_or_rem == DivOrRem::kDiv;
   constexpr bool special_case_minus_1 =
-      std::is_signed<type>::value && div_or_rem == DivOrRem::kRem;
+      std::is_signed_v<type> && div_or_rem == DivOrRem::kRem;
   DCHECK_EQ(needs_unrepresentable_check, trap_div_unrepresentable != nullptr);
 
 #define iop(name, ...)            \
@@ -1306,13 +1324,13 @@ void EmitIntDivOrRem(LiftoffAssembler* assm, Register dst, Register lhs,
   // Now move {lhs} into {eax}, then zero-extend or sign-extend into {edx}, then
   // do the division.
   if (lhs != rax) iop(mov, rax, lhs);
-  if (std::is_same<int32_t, type>::value) {  // i32
+  if (std::is_same_v<int32_t, type>) {  // i32
     assm->cdq();
     assm->idivl(rhs);
-  } else if (std::is_same<uint32_t, type>::value) {  // u32
+  } else if (std::is_same_v<uint32_t, type>) {  // u32
     assm->xorl(rdx, rdx);
     assm->divl(rhs);
-  } else if (std::is_same<int64_t, type>::value) {  // i64
+  } else if (std::is_same_v<int64_t, type>) {  // i64
     assm->cqo();
     assm->idivq(rhs);
   } else {  // u64
@@ -1983,29 +2001,29 @@ template <typename dst_type, typename src_type>
 inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
                                      DoubleRegister src,
                                      DoubleRegister converted_back) {
-  if (std::is_same<double, src_type>::value) {     // f64
-    if (std::is_same<int32_t, dst_type>::value) {  // f64 -> i32
+  if (std::is_same_v<double, src_type>) {     // f64
+    if (std::is_same_v<int32_t, dst_type>) {  // f64 -> i32
       __ Cvttsd2si(dst, src);
       __ Cvtlsi2sd(converted_back, dst);
-    } else if (std::is_same<uint32_t, dst_type>::value) {  // f64 -> u32
+    } else if (std::is_same_v<uint32_t, dst_type>) {  // f64 -> u32
       __ Cvttsd2siq(dst, src);
       __ movl(dst, dst);
       __ Cvtqsi2sd(converted_back, dst);
-    } else if (std::is_same<int64_t, dst_type>::value) {  // f64 -> i64
+    } else if (std::is_same_v<int64_t, dst_type>) {  // f64 -> i64
       __ Cvttsd2siq(dst, src);
       __ Cvtqsi2sd(converted_back, dst);
     } else {
       UNREACHABLE();
     }
-  } else {                                         // f32
-    if (std::is_same<int32_t, dst_type>::value) {  // f32 -> i32
+  } else {                                    // f32
+    if (std::is_same_v<int32_t, dst_type>) {  // f32 -> i32
       __ Cvttss2si(dst, src);
       __ Cvtlsi2ss(converted_back, dst);
-    } else if (std::is_same<uint32_t, dst_type>::value) {  // f32 -> u32
+    } else if (std::is_same_v<uint32_t, dst_type>) {  // f32 -> u32
       __ Cvttss2siq(dst, src);
       __ movl(dst, dst);
       __ Cvtqsi2ss(converted_back, dst);
-    } else if (std::is_same<int64_t, dst_type>::value) {  // f32 -> i64
+    } else if (std::is_same_v<int64_t, dst_type>) {  // f32 -> i64
       __ Cvttss2siq(dst, src);
       __ Cvtqsi2ss(converted_back, dst);
     } else {
@@ -2026,14 +2044,14 @@ inline void EmitTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   DoubleRegister rounded = kScratchDoubleReg;
   DoubleRegister converted_back = kScratchDoubleReg2;
 
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ Roundsd(rounded, src, kRoundToZero);
   } else {  // f32
     __ Roundss(rounded, src, kRoundToZero);
   }
   ConvertFloatToIntAndBack<dst_type, src_type>(assm, dst, rounded,
                                                converted_back);
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ Ucomisd(converted_back, rounded);
   } else {  // f32
     __ Ucomiss(converted_back, rounded);
@@ -2062,7 +2080,7 @@ inline void EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   DoubleRegister converted_back = kScratchDoubleReg2;
   DoubleRegister zero_reg = kScratchDoubleReg;
 
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ Roundsd(rounded, src, kRoundToZero);
   } else {  // f32
     __ Roundss(rounded, src, kRoundToZero);
@@ -2070,7 +2088,7 @@ inline void EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
 
   ConvertFloatToIntAndBack<dst_type, src_type>(assm, dst, rounded,
                                                converted_back);
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ Ucomisd(converted_back, rounded);
   } else {  // f32
     __ Ucomiss(converted_back, rounded);
@@ -2088,18 +2106,18 @@ inline void EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   __ xorpd(zero_reg, zero_reg);
 
   // if out-of-bounds, check if src is positive
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ Ucomisd(src, zero_reg);
   } else {  // f32
     __ Ucomiss(src, zero_reg);
   }
   __ j(above, &src_positive);
-  if (std::is_same<int32_t, dst_type>::value ||
-      std::is_same<uint32_t, dst_type>::value) {  // i32
+  if (std::is_same_v<int32_t, dst_type> ||
+      std::is_same_v<uint32_t, dst_type>) {  // i32
     __ movl(
         dst,
         Immediate(static_cast<int32_t>(std::numeric_limits<dst_type>::min())));
-  } else if (std::is_same<int64_t, dst_type>::value) {  // i64s
+  } else if (std::is_same_v<int64_t, dst_type>) {  // i64s
     __ movq(dst, Immediate64(std::numeric_limits<dst_type>::min()));
   } else {
     UNREACHABLE();
@@ -2107,12 +2125,12 @@ inline void EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   __ jmp(&done);
 
   __ bind(&src_positive);
-  if (std::is_same<int32_t, dst_type>::value ||
-      std::is_same<uint32_t, dst_type>::value) {  // i32
+  if (std::is_same_v<int32_t, dst_type> ||
+      std::is_same_v<uint32_t, dst_type>) {  // i32
     __ movl(
         dst,
         Immediate(static_cast<int32_t>(std::numeric_limits<dst_type>::max())));
-  } else if (std::is_same<int64_t, dst_type>::value) {  // i64s
+  } else if (std::is_same_v<int64_t, dst_type>) {  // i64s
     __ movq(dst, Immediate64(std::numeric_limits<dst_type>::max()));
   } else {
     UNREACHABLE();
@@ -2137,7 +2155,7 @@ inline void EmitSatTruncateFloatToUInt64(LiftoffAssembler* assm, Register dst,
   DoubleRegister zero_reg = kScratchDoubleReg;
 
   __ xorpd(zero_reg, zero_reg);
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ Ucomisd(src, zero_reg);
   } else {  // f32
     __ Ucomiss(src, zero_reg);
@@ -2145,7 +2163,7 @@ inline void EmitSatTruncateFloatToUInt64(LiftoffAssembler* assm, Register dst,
   // Check if NaN
   __ j(parity_even, &neg_or_nan);
   __ j(below, &neg_or_nan);
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ Cvttsd2uiq(dst, src, &overflow);
   } else {  // f32
     __ Cvttss2uiq(dst, src, &overflow);

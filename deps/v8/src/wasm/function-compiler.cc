@@ -21,6 +21,7 @@
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-export-wrapper-cache.h"
 
 namespace v8::internal::wasm {
 
@@ -192,13 +193,15 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
 }
 
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
-    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index)
+    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index,
+    bool receiver_is_first_param)
     : isolate_(isolate),
       sig_(sig),
       sig_index_(sig_index),
-      job_(v8_flags.wasm_jitless
-               ? nullptr
-               : compiler::NewJSToWasmCompilationJob(isolate, sig)) {
+      receiver_is_first_param_(receiver_is_first_param),
+      job_(v8_flags.wasm_jitless ? nullptr
+                                 : compiler::NewJSToWasmCompilationJob(
+                                       isolate, sig, receiver_is_first_param)) {
   if (!v8_flags.wasm_jitless) {
     OptimizedCompilationInfo* info =
         static_cast<compiler::turboshaft::TurboshaftCompilationJob*>(job_.get())
@@ -242,11 +245,9 @@ DirectHandle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                       Cast<AbstractCode>(code), name));
   }
-  // We should always have checked the cache before compiling a wrapper.
-  Tagged<WeakFixedArray> cache = isolate_->heap()->js_to_wasm_wrappers();
-  DCHECK(cache->get(sig_index_.index).IsCleared());
   // Install the compiled wrapper in the cache now.
-  cache->set(sig_index_.index, MakeWeak(code->wrapper()));
+  WasmExportWrapperCache::Put(isolate_, sig_index_, receiver_is_first_param_,
+                              code);
   Counters* counters = isolate_->counters();
   counters->wasm_generated_code_size()->Increment(code->body_size());
   counters->wasm_reloc_size()->Increment(code->relocation_size());
@@ -256,9 +257,11 @@ DirectHandle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
 
 // static
 DirectHandle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index) {
+    Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index,
+    bool receiver_is_first_param) {
   // Run the compilation unit synchronously.
-  JSToWasmWrapperCompilationUnit unit(isolate, sig, sig_index);
+  JSToWasmWrapperCompilationUnit unit(isolate, sig, sig_index,
+                                      receiver_is_first_param);
   unit.Execute();
   return unit.Finalize();
 }

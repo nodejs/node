@@ -86,9 +86,9 @@ class V8ValueStringBuilder {
 
   explicit V8ValueStringBuilder(v8::Local<v8::Context> context)
       : m_arrayLimit(maxArrayItemsLimit),
-        m_isolate(context->GetIsolate()),
-        m_visitedArrays(context->GetIsolate()),
-        m_tryCatch(context->GetIsolate()),
+        m_isolate(v8::Isolate::GetCurrent()),
+        m_visitedArrays(v8::Isolate::GetCurrent()),
+        m_tryCatch(v8::Isolate::GetCurrent()),
         m_context(context) {}
 
   bool append(v8::Local<v8::Value> value, unsigned ignoreOptions = 0) {
@@ -431,7 +431,7 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
     v8::MemorySpan<const v8::Local<v8::Value>> arguments,
     const String16& consoleContext,
     std::unique_ptr<V8StackTraceImpl> stackTrace) {
-  v8::Isolate* isolate = v8Context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
 
   std::unique_ptr<V8ConsoleMessage> message(
       new V8ConsoleMessage(V8MessageOrigin::kConsole, timestamp, String16()));

@@ -1117,7 +1117,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return 1;
     case kArchComment:
     case kArchNop:
-    case kArchThrowTerminator:
     case kArchDeoptimize:
       return 0;
     case kArchRet:

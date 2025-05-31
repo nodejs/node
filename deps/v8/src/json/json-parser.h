@@ -13,6 +13,7 @@
 #include "src/common/high-allocation-throughput-scope.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/objects.h"
 #include "src/objects/string.h"
 #include "src/roots/roots.h"
@@ -268,7 +269,7 @@ class JsonParser final {
     // the next character. The first character was compared before we jumped
     // to ScanLiteral.
     static_assert(N > 2);
-    size_t remaining = static_cast<size_t>(end_ - cursor_);
+    size_t remaining = remaining_chars();
     if (V8_LIKELY(remaining >= N - 1 &&
                   CompareCharsEqual(s + 1, cursor_ + 1, N - 2))) {
       cursor_ += N - 1;
@@ -336,6 +337,12 @@ class JsonParser final {
       Handle<Map> feedback = {});
   MaybeHandle<Object> ParseJsonArray();
   MaybeHandle<Object> ParseJsonObject(Handle<Map> feedback);
+  template <DescriptorArray::FastIterableState fast_iterable_state>
+  V8_INLINE bool ParseJsonObjectProperties(JsonContinuation* cont,
+                                           MessageTemplate first_token_msg,
+                                           Handle<DescriptorArray> descriptors);
+  V8_INLINE bool ParseJsonPropertyValue(const JsonString& key);
+  V8_INLINE bool FastKeyMatch(const uint8_t* key_chars, uint32_t key_length);
 
   template <bool should_track_json_source>
   Handle<JSObject> BuildJsonObject(const JsonContinuation& cont,
@@ -398,6 +405,8 @@ class JsonParser final {
     DCHECK_LE(cursor_, end_);
     return cursor_ == end_;
   }
+
+  size_t remaining_chars() const { return end_ - cursor_; }
 
   uint32_t position() const { return static_cast<uint32_t>(cursor_ - chars_); }
 

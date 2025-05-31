@@ -328,6 +328,10 @@ class TestCase(object):
     return self.test_config.framework_name
 
   @property
+  def fuzz_rare(self):
+    return statusfile.FUZZ_RARE in self._statusfile_outcomes
+
+  @property
   def shard_id(self):
     return self.test_config.shard_id
 

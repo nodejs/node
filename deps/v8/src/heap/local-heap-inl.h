@@ -28,25 +28,29 @@ MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 
 AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                         AllocationOrigin origin,
-                                        AllocationAlignment alignment) {
-  return heap_allocator_.AllocateRaw(size_in_bytes, type, origin, alignment);
+                                        AllocationAlignment alignment,
+                                        AllocationHint hint) {
+  return heap_allocator_.AllocateRaw(size_in_bytes, type, origin, alignment,
+                                     hint);
 }
 
 template <typename HeapAllocator::AllocationRetryMode mode>
 Tagged<HeapObject> LocalHeap::AllocateRawWith(int object_size,
                                               AllocationType type,
                                               AllocationOrigin origin,
-                                              AllocationAlignment alignment) {
+                                              AllocationAlignment alignment,
+                                              AllocationHint hint) {
   object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   return heap_allocator_.AllocateRawWith<mode>(object_size, type, origin,
-                                               alignment);
+                                               alignment, hint);
 }
 
 Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
                                      AllocationOrigin origin,
-                                     AllocationAlignment alignment) {
+                                     AllocationAlignment alignment,
+                                     AllocationHint hint) {
   return AllocateRawWith<HeapAllocator::kRetryOrFail>(object_size, type, origin,
-                                                      alignment)
+                                                      alignment, hint)
       .address();
 }
 

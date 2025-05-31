@@ -27,6 +27,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/profiling/internal/sample_recorder.h"
+#include "absl/random/random.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/synchronization/mutex.h"
@@ -439,8 +440,7 @@ TEST(HashtablezSamplerTest, MultiThreaded) {
     const size_t value_size = 13 + i % 5;
     pool.Schedule([&sampler, &stop, sampling_stride, elt_size, key_size,
                    value_size]() {
-      std::random_device rd;
-      std::mt19937 gen(rd());
+      absl::InsecureBitGen gen;
 
       std::vector<HashtablezInfo*> infoz;
       while (!stop.HasBeenNotified()) {

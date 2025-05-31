@@ -528,8 +528,15 @@ int EmitStore(MacroAssembler* masm, Operand operand, Register value,
       masm->xchgq(kScratchRegister, operand);
       break;
     case MachineRepresentation::kTagged:
-      store_instr_offset = masm->pc_offset();
-      masm->AtomicStoreTaggedField(operand, value);
+      if (COMPRESS_POINTERS_BOOL) {
+        masm->movl(kScratchRegister, value);
+        store_instr_offset = masm->pc_offset();
+        masm->xchgl(kScratchRegister, operand);
+      } else {
+        masm->movq(kScratchRegister, value);
+        store_instr_offset = masm->pc_offset();
+        masm->xchgq(kScratchRegister, operand);
+      }
       break;
     default:
       UNREACHABLE();
@@ -1344,8 +1351,8 @@ void SetupSimdImmediateInRegister(MacroAssembler* assembler, uint32_t* imms,
 
 void SetupSimd256ImmediateInRegister(MacroAssembler* assembler, uint32_t* imms,
                                      YMMRegister reg, XMMRegister scratch) {
-  bool is_splat = std::all_of(imms, imms + kSimd256Size,
-                              [imms](uint32_t v) { return v == imms[0]; });
+  bool is_splat =
+      std::all_of(imms, imms + 8, [imms](uint32_t v) { return v == imms[0]; });
   if (is_splat) {
     assembler->Move(scratch, imms[0]);
     CpuFeatureScope avx_scope(assembler, AVX2);
@@ -1648,10 +1655,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchPrepareTailCall:
       AssemblePrepareTailCall();
       break;
-    case kArchCallCFunctionWithFrameState:
     case kArchCallCFunction: {
-      int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      uint32_t param_counts = i.InputUint32(instr->InputCount() - 1);
+      int const num_gp_parameters = ParamField::decode(param_counts);
+      int const num_fp_parameters = FPParamField::decode(param_counts);
       Label return_location;
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
 #if V8_ENABLE_WEBASSEMBLY
@@ -1677,9 +1684,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       RecordSafepoint(instr->reference_map(), pc_offset);
 
-      bool const needs_frame_state =
-          (arch_opcode == kArchCallCFunctionWithFrameState);
-      if (needs_frame_state) {
+      if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
+        handlers_.push_back({nullptr, pc_offset});
+      }
+      if (instr->HasCallDescriptorFlag(CallDescriptor::kNeedsFrameState)) {
         RecordDeoptInfo(instr, pc_offset);
       }
 
@@ -1729,9 +1737,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArchDebugBreak:
       __ DebugBreak();
-      break;
-    case kArchThrowTerminator:
-      unwinding_info_writer_.MarkBlockWillExit();
       break;
     case kArchNop:
       // don't emit code for nops.

@@ -19,7 +19,7 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-duration-format-inl.h"
 #include "src/objects/js-number-format.h"
-#include "src/objects/js-temporal-objects.h"
+#include "src/objects/js-temporal-helpers.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"

@@ -56,7 +56,7 @@ class Smi : public AllStatic {
 
   template <typename E>
   static inline constexpr Tagged<Smi> FromEnum(E value)
-    requires std::is_enum<E>::value
+    requires std::is_enum_v<E>
   {
     static_assert(sizeof(E) <= sizeof(int));
     return FromInt(static_cast<int>(value));
