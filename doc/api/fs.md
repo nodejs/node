@@ -540,7 +540,7 @@ const {
 
 While the `ReadableStream` will read the file to completion, it will not
 close the `FileHandle` automatically. User code must still call the
-`fileHandle.close()` method.
+`fileHandle.close()` method unless the `autoClose` option is set to `true`.
 
 #### `filehandle.readFile(options)`
 
