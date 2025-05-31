@@ -5878,10 +5878,6 @@ See the POSIX mkdir(2) documentation for more details.
 added: v5.10.0
 changes:
   - version:
-    - TODO
-    pr-url: TODO
-    description: Added the `disposable` option.
-  - version:
     - v20.6.0
     - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
@@ -5896,8 +5892,7 @@ changes:
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-  * `disposable` {boolean} **Default:** `false`
-* Returns: {string|Object}
+* Returns: {string}
 
 Returns the created directory path.
 
@@ -5907,10 +5902,33 @@ this API: [`fs.mkdtemp()`][].
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
-When `disposable` is true, this instead returns an object with a `path`
-property holding the created directory path as well as a `remove()` method
-which will remove the directory and its contents when called. There is also a
-`[Symbol.dispose]()` method which calls `remove()`.
+
+### `fs.mkdtempDisposableSync(prefix[, options])`
+
+<!-- YAML
+added: TODO
+changes:
+  - version:
+      - TODO
+    pr-url: TODO
+    description: Initial version.  <-- this doesn't seem to be common practice but the result is that there is no pr-url for the initial feature
+-->
+
+* `prefix` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+* Returns: {object} A disposable object with a "path" property.
+
+Returns a disposable object whose `path` property holds the created directory
+path. When the object is disposed, the directory and its contents will be
+removed. The object has a `remove()` method which will perform the same task.
+
+<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+
+For detailed information, see the documentation of [`fs.mkdtemp()`][].
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use.
 
 ### `fs.opendirSync(path[, options])`
 
