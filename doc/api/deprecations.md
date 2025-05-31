@@ -2394,19 +2394,22 @@ unavailable when the [permission model][] is enabled.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58474
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22011
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:dgram` module previously contained several APIs that were never meant
 to accessed outside of Node.js core: `Socket.prototype._handle`,
 `Socket.prototype._receiving`, `Socket.prototype._bindState`,
 `Socket.prototype._queue`, `Socket.prototype._reuseAddr`,
 `Socket.prototype._healthCheck()`, `Socket.prototype._stopReceiving()`, and
-`dgram._createSocketHandle()`.
+`dgram._createSocketHandle()`. These have been removed.
 
 ### DEP0113: `Cipher.setAuthTag()`, `Decipher.getAuthTag()`
 
