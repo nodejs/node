@@ -3926,7 +3926,7 @@ The `node:_stream_duplex`, `node:_stream_passthrough`, `node:_stream_readable`, 
 `node:_stream_wrap` and `node:_stream_writable` modules are deprecated as they should be considered
 an internal nodejs implementation rather than a public facing API, use `node:stream` instead.
 
-### DEP0194: `require('node:http2').Http2Stream.priority`
+### DEP0194: HTTP/2 priority signaling
 
 <!-- YAML
 changes:
