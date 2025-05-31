@@ -7,6 +7,11 @@
 #include "simdutf.h"
 #include "util-inl.h"
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+template class node::ThreadsafeCopyOnWrite<
+    std::map<std::string, node::UnionBytes>>;
+#endif
+
 namespace node {
 namespace builtins {
 
