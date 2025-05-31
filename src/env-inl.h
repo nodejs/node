@@ -683,14 +683,6 @@ inline bool Environment::no_browser_globals() const {
 #endif
 }
 
-bool Environment::filehandle_close_warning() const {
-  return emit_filehandle_warning_;
-}
-
-void Environment::set_filehandle_close_warning(bool on) {
-  emit_filehandle_warning_ = on;
-}
-
 void Environment::set_source_maps_enabled(bool on) {
   source_maps_enabled_ = on;
 }
