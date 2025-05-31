@@ -281,7 +281,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'const fs = require("node:fs"); await Promise.resolve();',
       ]);
 
-      match(stderr, /ReferenceError: require is not defined in ES module scope/);
+      match(stderr, /ERR_AMBIGUOUS_MODULE_SYNTAX: This file cannot be parsed as either CommonJS or ES Module/);
       strictEqual(stdout, '');
       strictEqual(code, 1);
       strictEqual(signal, null);
@@ -420,6 +420,29 @@ describe('when working with Worker threads', () => {
     strictEqual(stderr, '');
     strictEqual(stdout, '');
     strictEqual(code, 0);
+    strictEqual(signal, null);
+  });
+});
+
+describe('cjs & esm ambiguous syntax case', async () => {
+  it('should throw an ambiguous syntax error when using top-level await with require', async () => {
+    const { stdout, stderr, code, signal } = await spawnPromisified(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        `await 1;\nconst fs = require('fs');`,
+      ]
+    );
+
+    match(stderr, /ERR_AMBIGUOUS_MODULE_SYNTAX/);
+    match(stderr, /This file cannot be parsed as either CommonJS or ES Module/);
+    match(stderr, /await is only valid in async functions/);
+    match(stderr, /require is not defined in ES module scope/);
+    match(stderr, /If you meant to use CommonJS/);
+    match(stderr, /If you meant to use ESM/);
+
+    strictEqual(code, 1);
     strictEqual(signal, null);
   });
 });

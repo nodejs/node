@@ -63,5 +63,5 @@ test('Worker eval commonjs typescript with --input-type=module-typescript', asyn
                                                                disableTypeScriptWarningFlag] });
   const [err] = await once(w, 'error');
   assert.strictEqual(err.name, 'ReferenceError');
-  assert.match(err.message, /require is not defined in ES module scope, you can use import instead/);
+  assert.match(err.message, /ERR_AMBIGUOUS_MODULE_SYNTAX|require is not defined in ES module scope/);
 });
