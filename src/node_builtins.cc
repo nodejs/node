@@ -64,6 +64,11 @@ BuiltinLoader::BuiltinLoader()
 #endif  // HAVE_AMARO
 }
 
+std::ranges::keys_view<std::ranges::ref_view<const BuiltinSourceMap>>
+BuiltinLoader::GetBuiltinIds() const {
+  return std::views::keys(*source_.read());
+}
+
 bool BuiltinLoader::Exists(const char* id) {
   auto source = source_.read();
   return source->find(id) != source->end();
