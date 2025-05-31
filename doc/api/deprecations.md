@@ -3138,7 +3138,7 @@ an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58531
     description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
