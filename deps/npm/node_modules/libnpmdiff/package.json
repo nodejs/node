@@ -1,6 +1,6 @@
 {
   "name": "libnpmdiff",
-  "version": "8.0.2",
+  "version": "8.0.3",
   "description": "The registry diff",
   "repository": {
     "type": "git",
@@ -47,7 +47,7 @@
     "tap": "^16.3.8"
   },
   "dependencies": {
-    "@npmcli/arborist": "^9.0.2",
+    "@npmcli/arborist": "^9.1.0",
     "@npmcli/installed-package-contents": "^3.0.0",
     "binary-extensions": "^3.0.0",
     "diff": "^7.0.0",

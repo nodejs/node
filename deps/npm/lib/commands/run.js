@@ -16,7 +16,7 @@ class RunScript extends BaseCommand {
     'script-shell',
   ]
 
-  static name = 'run-script'
+  static name = 'run'
   static usage = ['<command> [-- <args>]']
   static workspaces = true
   static ignoreImplicitWorkspace = false
@@ -201,7 +201,7 @@ class RunScript extends BaseCommand {
     }
 
     if (runScripts.length) {
-      const via = `via \`${blue('npm run-script')}\`:`
+      const via = `via \`${blue('npm run')}\`:`
       if (!cmds.length) {
         output.standard(`${title('Scripts')} available ${pkgId} ${via}`)
       } else {
