@@ -1073,6 +1073,10 @@ The `'origin'` event is only emitted when using a secure TLS connection.
 added: v8.4.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58293
+    description: The `weight` option is now ignored, setting it will trigger a
+                 runtime warning.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Following the deprecation of priority signaling as of RFC 1993,
                  `weight` option is deprecated.
@@ -1090,10 +1094,6 @@ changes:
     **Default:** `false`.
   * `parent` {number} Specifies the numeric identifier of a stream the newly
     created stream is dependent on.
-  * `weight` {number} Specifies the relative dependency of a stream in relation
-    to other streams with the same `parent`. The value is a number between `1`
-    and `256` (inclusive). This has been **deprecated** in [RFC 9113][], and
-    support for it will be removed in future versions of Node.js.
   * `waitForTrailers` {boolean} When `true`, the `Http2Stream` will emit the
     `'wantTrailers'` event after the final `DATA` frame has been sent.
   * `signal` {AbortSignal} An AbortSignal that may be used to abort an ongoing
@@ -1464,25 +1464,17 @@ numeric stream identifier.
 <!-- YAML
 added: v8.4.0
 deprecated: REPLACEME
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58293
+    description: This method no longer sets the priority of the stream. Using it
+                 now triggers a runtime warning.
 -->
 
 > Stability: 0 - Deprecated: support for priority signaling has been deprecated
 > in the [RFC 9113][] and is no longer supported in Node.js.
 
-* `options` {Object}
-  * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
-    this stream is made the sole direct dependency of the parent, with
-    all other existing dependents made a dependent of this stream. **Default:**
-    `false`.
-  * `parent` {number} Specifies the numeric identifier of a stream this stream
-    is dependent on.
-  * `weight` {number} Specifies the relative dependency of a stream in relation
-    to other streams with the same `parent`. The value is a number between `1`
-    and `256` (inclusive).
-  * `silent` {boolean} When `true`, changes the priority locally without
-    sending a `PRIORITY` frame to the connected peer.
-
-Updates the priority for this `Http2Stream` instance.
+Empty method, only there to maintain some backward compatibility.
 
 #### `http2stream.rstCode`
 
@@ -1580,6 +1572,10 @@ req.setTimeout(5000, () => req.close(NGHTTP2_CANCEL));
 added: v8.4.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58293
+    description: The `state.weight` property is now always set to 16 and
+                 `sumDependencyWeight` is always set to 0.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Following the deprecation of priority signaling as of RFC 1993,
                  `weight` and `sumDependencyWeight` options are deprecated.
@@ -1596,13 +1592,8 @@ Provides miscellaneous information about the current state of the
   * `localClose` {number} `1` if this `Http2Stream` has been closed locally.
   * `remoteClose` {number} `1` if this `Http2Stream` has been closed
     remotely.
-  * `sumDependencyWeight` {number} The sum weight of all `Http2Stream`
-    instances that depend on this `Http2Stream` as specified using
-    `PRIORITY` frames. This has been **deprecated** in [RFC 9113][], and
-    support for it will be removed in future versions of Node.js.
-  * `weight` {number} The priority weight of this `Http2Stream`. This has been
-    **deprecated** in [RFC 9113][], and support for it will be removed in future
-    versions of Node.js.
+  * `sumDependencyWeight` {number} Legacy property, always set to `0`.
+  * `weight` {number} Legacy property, always set to `16`.
 
 A current state of this `Http2Stream`.
 

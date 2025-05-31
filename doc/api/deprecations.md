@@ -3946,14 +3946,16 @@ an internal nodejs implementation rather than a public facing API, use `node:str
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58293
+    description: End-of-Life.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: End-of-Life
 
-The support for priority signaling has been deprecated in the [RFC 9113][], and
-will be removed in future versions of Node.js.
+The support for priority signaling has been removed following its deprecation in the [RFC 9113][].
 
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
