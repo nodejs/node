@@ -41,6 +41,7 @@ class Blob : public BaseObject {
   static void RevokeObjectURL(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void FastRevokeObjectURL(v8::Local<v8::Value> receiver,
                                   v8::Local<v8::Value> raw_input,
+                                  // NOLINTNEXTLINE(runtime/references) This is V8 api.
                                   v8::FastApiCallbackOptions& options);
 
   static v8::CFunction fast_revoke_object_url_method;
