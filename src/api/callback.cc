@@ -22,7 +22,9 @@ using v8::Value;
 CallbackScope::CallbackScope(Isolate* isolate,
                              Local<Object> object,
                              async_context async_context)
-  : CallbackScope(Environment::GetCurrent(isolate), object, async_context) {}
+    : CallbackScope(Environment::GetCurrent(isolate->GetCurrentContext()),
+                    object,
+                    async_context) {}
 
 CallbackScope::CallbackScope(Environment* env,
                              Local<Object> object,
@@ -76,9 +78,8 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
   // likely *are* the same, in which case we can skip the slightly more
   // expensive Environment::GetCurrent() call.
   if (env->context() != current_context) [[unlikely]] {
-    CHECK_EQ(Environment::GetCurrent(isolate), env);
+    CHECK_EQ(Environment::GetCurrent(current_context), env);
   }
-
   isolate->SetIdle(false);
 
   prior_context_frame_.Reset(

@@ -539,10 +539,9 @@ int NodePlatform::NumberOfWorkerThreads() {
 
 void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
   if (isolate_->IsExecutionTerminating()) return;
-  DebugSealHandleScope scope(isolate_);
-  Environment* env = Environment::GetCurrent(isolate_);
+  v8::HandleScope scope(isolate_);
+  Environment* env = Environment::GetCurrent(isolate_->GetCurrentContext());
   if (env != nullptr) {
-    v8::HandleScope scope(isolate_);
     InternalCallbackScope cb_scope(env, Object::New(isolate_), { 0, 0 },
                                    InternalCallbackScope::kNoFlags);
     task->Run();
