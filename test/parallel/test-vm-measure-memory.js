@@ -3,12 +3,9 @@ const common = require('../common');
 const {
   assertSummaryShape,
   assertSingleDetailedShape,
-  expectExperimentalWarning
 } = require('../common/measure-memory');
 const assert = require('assert');
 const vm = require('vm');
-
-expectExperimentalWarning();
 
 // Test eager memory measurement
 {

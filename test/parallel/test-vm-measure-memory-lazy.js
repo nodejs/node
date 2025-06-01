@@ -4,11 +4,8 @@
 const common = require('../common');
 const {
   assertSummaryShape,
-  expectExperimentalWarning
 } = require('../common/measure-memory');
 const vm = require('vm');
-
-expectExperimentalWarning();
 
 // Test lazy memory measurement - we will need to globalThis.gc()
 // or otherwise these may not resolve.

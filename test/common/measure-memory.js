@@ -1,7 +1,6 @@
 'use strict';
 
 const assert = require('assert');
-const common = require('./');
 
 // The formats could change when V8 is updated, then the tests should be
 // updated accordingly.
@@ -42,16 +41,8 @@ function assertSingleDetailedShape(result) {
   assertResultShape(result.current);
 }
 
-function expectExperimentalWarning() {
-  common.expectWarning(
-    'ExperimentalWarning',
-    'vm.measureMemory is an experimental feature and might change at any time',
-  );
-}
-
 module.exports = {
   assertSummaryShape,
   assertDetailedShape,
   assertSingleDetailedShape,
-  expectExperimentalWarning,
 };

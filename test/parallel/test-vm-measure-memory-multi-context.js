@@ -2,12 +2,10 @@
 const common = require('../common');
 const {
   assertDetailedShape,
-  expectExperimentalWarning
 } = require('../common/measure-memory');
 const vm = require('vm');
 const assert = require('assert');
 
-expectExperimentalWarning();
 {
   const arr = [];
   const count = 10;
