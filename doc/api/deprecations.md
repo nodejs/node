@@ -2847,7 +2847,7 @@ To maintain existing behavior `response.finished` should be replaced with
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58536
     description: End-of-Life.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/28396
