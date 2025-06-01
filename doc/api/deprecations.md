@@ -3809,6 +3809,21 @@ Type: Documentation-only
 The support for priority signaling has been deprecated in the [RFC 9113][], and
 will be removed in future versions of Node.js.
 
+### DEP0195: Instantiating `node:http` classes without `new`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58518
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Instantiating classes without the `new` qualifier exported by the `node:http` module is deprecated.
+It is recommended to use the `new` qualifier instead. This applies to all http classes, such as
+`OutgoingMessage`, `IncomingMessage`, `ServerResponse` and `ClientRequest`.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
