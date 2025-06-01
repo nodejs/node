@@ -12,7 +12,6 @@ process.nextTick(() => {
 });
 `, { eval: true });
 
-// Test deprecation of .terminate() with callback.
 w.on('message', common.mustCall(() => {
   setTimeout(() => w.terminate().then(common.mustCall()), 1);
 }));
