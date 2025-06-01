@@ -476,11 +476,14 @@ Reads data from the file and stores that in the given buffer.
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
 
-#### `filehandle.readableWebStream()`
+#### `filehandle.readableWebStream([options])`
 
 <!-- YAML
 added: v17.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58548
+    description: Added the `autoClose` option.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
@@ -496,6 +499,9 @@ changes:
     description: Added option to create a 'bytes' stream.
 -->
 
+* `options` {Object}
+  * `autoClose` {boolean} When true, causes the {FileHandle} to be closed when the
+    stream is closed. **Default:** `false`
 * Returns: {ReadableStream}
 
 Returns a byte-oriented `ReadableStream` that may be used to read the file's
