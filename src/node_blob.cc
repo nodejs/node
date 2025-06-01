@@ -459,14 +459,11 @@ void Blob::StoreDataObject(const FunctionCallbackInfo<Value>& args) {
         std::string(*type, type.length())));
 }
 
-void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
-  CHECK_GE(args.Length(), 1);
-  CHECK(args[0]->IsString());
-  Realm* realm = Realm::GetCurrent(args);
+void RevokeObjectURLImpl(Realm* realm, Local<String> input_str) {
   BlobBindingData* binding_data = realm->GetBindingData<BlobBindingData>();
   Isolate* isolate = realm->isolate();
 
-  Utf8Value input(isolate, args[0].As<String>());
+  Utf8Value input(isolate, input_str);
   auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
 
   if (!out) {
@@ -485,34 +482,22 @@ void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsString());
+  Realm* realm = Realm::GetCurrent(args);
+  RevokeObjectURLImpl(realm, args[0].As<String>());
+}
+
 void Blob::FastRevokeObjectURL(Local<Value> receiver,
                                Local<Value> raw_input,
                                FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("blob.revokeObjectURL");
   CHECK(raw_input->IsString());
-
   auto isolate = options.isolate;
   HandleScope handleScope(isolate);
   Realm* realm = Realm::GetCurrent(isolate->GetCurrentContext());
-  BlobBindingData* binding_data = realm->GetBindingData<BlobBindingData>();
-
-  Utf8Value input(isolate, raw_input.As<String>());
-  auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
-
-  if (!out) {
-    return;
-  }
-
-  auto pathname = out->get_pathname();
-  auto start_index = pathname.find(':');
-
-  if (start_index != std::string_view::npos && start_index != pathname.size()) {
-    auto end_index = pathname.find(':', start_index + 1);
-    if (end_index == std::string_view::npos) {
-      auto id = std::string(pathname.substr(start_index + 1));
-      binding_data->revoke_data_object(id);
-    }
-  }
+  RevokeObjectURLImpl(realm, raw_input.As<String>());
 }
 
 CFunction Blob::fast_revoke_object_url_method =
