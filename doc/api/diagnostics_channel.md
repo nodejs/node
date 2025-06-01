@@ -1252,6 +1252,13 @@ Emitted when a stream is created on the server.
 
 Emitted when a stream is started on the server.
 
+`http2.server.stream.error`
+
+* `stream` {ServerHttp2Stream}
+* `error` {Error}
+
+Emitted when an error occurs during the processing of a stream on the server.
+
 #### Modules
 
 > Stability: 1 - Experimental
