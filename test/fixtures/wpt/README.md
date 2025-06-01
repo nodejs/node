@@ -29,7 +29,7 @@ Last update:
 - resources: https://github.com/web-platform-tests/wpt/tree/1e140d63ec/resources
 - streams: https://github.com/web-platform-tests/wpt/tree/bc9dcbbf1a/streams
 - url: https://github.com/web-platform-tests/wpt/tree/9504a83e01/url
-- urlpattern: https://github.com/web-platform-tests/wpt/tree/f07d05f49c/urlpattern
+- urlpattern: https://github.com/web-platform-tests/wpt/tree/3ffda23e5a/urlpattern
 - user-timing: https://github.com/web-platform-tests/wpt/tree/5ae85bf826/user-timing
 - wasm/jsapi: https://github.com/web-platform-tests/wpt/tree/cde25e7e3c/wasm/jsapi
 - wasm/webapi: https://github.com/web-platform-tests/wpt/tree/fd1b23eeaa/wasm/webapi
