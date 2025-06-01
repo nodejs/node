@@ -266,7 +266,7 @@ export default [
       'jsdoc/require-jsdoc': 'off',
       'jsdoc/require-param-description': 'off',
       'jsdoc/require-returns-description': 'off',
-      'jsdoc/valid-types': 'off',
+      'jsdoc/valid-types': 'error',
       'jsdoc/no-defaults': 'error',
       'jsdoc/no-undefined-types': 'off',
       'jsdoc/require-param': 'off',
