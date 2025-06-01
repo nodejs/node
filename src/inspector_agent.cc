@@ -1,7 +1,10 @@
 #include "inspector_agent.h"
+#include <string>
+#include <string_view>
 
 #include "crdtp/json.h"
 #include "env-inl.h"
+#include "inspector/io_agent.h"
 #include "inspector/main_thread_interface.h"
 #include "inspector/network_inspector.h"
 #include "inspector/node_json.h"
@@ -23,6 +26,7 @@
 #include "timer_wrap-inl.h"
 #include "util-inl.h"
 #include "v8-inspector.h"
+#include "v8-isolate.h"
 #include "v8-platform.h"
 
 #include "libplatform/libplatform.h"
@@ -220,11 +224,13 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                        std::shared_ptr<WorkerManager> worker_manager,
                        std::unique_ptr<InspectorSessionDelegate> delegate,
                        std::shared_ptr<MainThreadHandle> main_thread,
-                       bool prevent_shutdown)
+                       bool prevent_shutdown,
+                       int session_id)
       : delegate_(std::move(delegate)),
         main_thread_(main_thread),
         prevent_shutdown_(prevent_shutdown),
-        retaining_context_(false) {
+        retaining_context_(false),
+        session_id_(session_id) {
     session_ = inspector->connect(CONTEXT_GROUP_ID,
                                   this,
                                   StringView(),
@@ -239,6 +245,10 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     }
     runtime_agent_ = std::make_unique<protocol::RuntimeAgent>();
     runtime_agent_->Wire(node_dispatcher_.get());
+    if (env->options()->experimental_inspector_network_resource) {
+      io_agent_ = std::make_unique<protocol::IoAgent>();
+      io_agent_->Wire(node_dispatcher_.get());
+    }
     network_inspector_ =
         std::make_unique<NetworkInspector>(env, inspector.get());
     network_inspector_->Wire(node_dispatcher_.get());
@@ -326,7 +336,6 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     return retaining_context_;
   }
 
- private:
   // v8_inspector::V8Inspector::Channel
   void sendResponse(
       int callId,
@@ -334,6 +343,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     sendMessageToFrontend(message->string());
   }
 
+ private:
   // v8_inspector::V8Inspector::Channel
   void sendNotification(
       std::unique_ptr<v8_inspector::StringBuffer> message) override {
@@ -394,11 +404,39 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     sendMessageToFrontend(json);
   }
 
+  class FallThroughRequest : public Request {
+   public:
+    explicit FallThroughRequest(int session_id,
+                                int call_id,
+                                std::string method,
+                                std::string message)
+        : session_id_(session_id),
+          call_id_(call_id),
+          method_(method),
+          message_(message) {}
+
+    void Call(MainThreadInterface* thread) override {
+      thread->inspector_agent()->FallThrough(
+          session_id_, call_id_, method_, message_);
+    }
+
+   private:
+    int session_id_;
+    int call_id_;
+    std::string method_;
+    std::string message_;
+  };
+
   // crdtp::FrontendChannel
   void FallThrough(int call_id,
                    crdtp::span<uint8_t> method,
                    crdtp::span<uint8_t> message) override {
-    DCHECK(false);
+    std::string method_str(reinterpret_cast<const char*>(method.data()),
+                           method.size());
+    std::string json;
+    ConvertCBORToJSON(message, &json);
+    main_thread_->Post(std::unique_ptr<Request>(
+        new FallThroughRequest(session_id_, call_id, method_str, json)));
   }
 
   std::unique_ptr<protocol::RuntimeAgent> runtime_agent_;
@@ -406,12 +444,14 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   std::unique_ptr<protocol::WorkerAgent> worker_agent_;
   std::shared_ptr<protocol::TargetAgent> target_agent_;
   std::unique_ptr<NetworkInspector> network_inspector_;
+  std::shared_ptr<protocol::IoAgent> io_agent_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<UberDispatcher> node_dispatcher_;
   std::shared_ptr<MainThreadHandle> main_thread_;
   bool prevent_shutdown_;
   bool retaining_context_;
+  int session_id_;
 };
 
 class SameThreadInspectorSession : public InspectorSession {
@@ -575,7 +615,8 @@ class NodeInspectorClient : public V8InspectorClient {
                                                           getWorkerManager(),
                                                           std::move(delegate),
                                                           getThreadHandle(),
-                                                          prevent_shutdown);
+                                                          prevent_shutdown,
+                                                          session_id);
     if (waiting_for_frontend_) {
       channels_[session_id]->setWaitingForDebugger();
     }
@@ -711,6 +752,10 @@ class NodeInspectorClient : public V8InspectorClient {
     for (const auto& id_channel : channels_) {
       id_channel.second->emitNotificationFromBackend(context, event, params);
     }
+  }
+
+  void emitResponse(int call_id, std::string_view params, int session_id) {
+    channels_[session_id]->sendResponse(call_id, Utf8ToStringView(params));
   }
 
   std::shared_ptr<MainThreadHandle> getThreadHandle() {
@@ -931,6 +976,20 @@ void Agent::EmitProtocolEvent(v8::Local<v8::Context> context,
                               Local<Object> params) {
   if (!env()->options()->experimental_network_inspection) return;
   client_->emitNotification(context, event, params);
+}
+
+void Agent::EmitProtocolResponse(int call_id,
+                                 std::string_view params,
+                                 int session_id) {
+  client_->emitResponse(call_id, params, session_id);
+}
+
+void Agent::EmitProtocolResponseInParent(int session_id,
+                                         std::string_view params,
+                                         int call_id) {
+  if (parent_handle_) {
+    parent_handle_->EmitProtocolResponse(session_id, params, call_id);
+  }
 }
 
 void Agent::SetupNetworkTracking(Local<Function> enable_function,
@@ -1224,6 +1283,30 @@ std::string Agent::GetWsUrl() const {
   if (io_ == nullptr)
     return "";
   return io_->GetWsUrl();
+}
+
+void Agent::FallThrough(int session_id,
+                        int call_id,
+                        std::string_view method,
+                        std::string_view message) {
+  if (fallThroughListeners_.empty()) {
+    pending_fall_through_requests_.push_back(
+        PendingFallThroughRequest(session_id, call_id, method, message));
+    return;
+  }
+  for (auto& callback : fallThroughListeners_) {
+    callback(session_id, call_id, method, message);
+  }
+}
+
+void Agent::AddFallThroughListener(fallThroughCallback fn) {
+  fallThroughListeners_.push_back(fn);
+  if (pending_fall_through_requests_.empty()) {
+    return;
+  }
+  for (auto& request : pending_fall_through_requests_) {
+    fn(request.session_id, request.call_id, request.method, request.message);
+  }
 }
 
 SameThreadInspectorSession::~SameThreadInspectorSession() {
