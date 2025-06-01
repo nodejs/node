@@ -10,7 +10,7 @@
 
 namespace node {
 
-using CFunctionCallbackWithalueAndOptions = bool (*)(
+using CFunctionCallbackWithValueAndOptions = bool (*)(
     v8::Local<v8::Value>, v8::Local<v8::Value>, v8::FastApiCallbackOptions&);
 using CFunctionCallbackWithMultipleValueAndOptions =
     bool (*)(v8::Local<v8::Value>,
@@ -103,7 +103,7 @@ class ExternalReferenceRegistry {
 #define ALLOWED_EXTERNAL_REFERENCE_TYPES(V)                                    \
   V(CFunctionA)                                                                \
   V(CFunctionCallback)                                                         \
-  V(CFunctionCallbackWithalueAndOptions)                                       \
+  V(CFunctionCallbackWithValueAndOptions)                                      \
   V(CFunctionCallbackWithMultipleValueAndOptions)                              \
   V(CFunctionCallbackWithOneByteString)                                        \
   V(CFunctionCallbackReturnBool)                                               \
