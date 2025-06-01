@@ -5,6 +5,12 @@ const assert = require('node:assert');
 
 const { internalBinding } = require('internal/test/binding');
 
+// Because registering a Blob URL requires generating a random
+// UUID, it can only be done if crypto support is enabled.
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+}
+
 const blob = new Blob([JSON.stringify({ hello: 'world' }, null, 2)], {
   type: 'application/json',
 });
