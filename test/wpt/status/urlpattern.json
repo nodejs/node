@@ -1,4 +1,7 @@
 {
+  "urlpattern-generate.tentative.any.js": {
+    "skip": "generate function is not yet included in the URLPattern spec"
+  },
   "resources/urlpattern-compare-tests.tentative.js": {
     "skip": "compareComponent function is not yet included in the URLPattern spec"
   },
