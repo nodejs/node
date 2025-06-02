@@ -9,11 +9,14 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/ic/handler-configuration.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/torque/runtime-macro-shims.h"
+#include "src/torque/runtime-support.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

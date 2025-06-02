@@ -199,6 +199,11 @@ FrameState CreateStubBuiltinContinuationFrameState(
   int stack_parameter_count =
       descriptor.GetStackParameterCount() - DeoptimizerParameterCountFor(mode);
 
+  // Deopt should just cause a crash, no need for parameter count validation.
+  if (name == Builtin::kAbort) {
+    stack_parameter_count = 0;
+  }
+
   // Ensure the parameters added by the deoptimizer are passed on the stack.
   // This check prevents using TFS builtins as continuations while doing the
   // lazy deopt. Use TFC or TFJ builtin as a lazy deopt continuation which

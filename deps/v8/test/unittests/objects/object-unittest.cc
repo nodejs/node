@@ -162,10 +162,9 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
   DirectHandle<JSFunction> function = RunJS<JSFunction>("(function(){})");
 
   DirectHandle<ScopeInfo> scope_info(function->shared()->scope_info(),
-                                     function->GetIsolate());
+                                     i_isolate());
   DirectHandle<ScopeInfo> empty_function_scope_info(
-      isolate()->empty_function()->shared()->scope_info(),
-      function->GetIsolate());
+      isolate()->empty_function()->shared()->scope_info(), i_isolate());
 
   EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
   EXPECT_EQ(scope_info->ParameterCount(),
@@ -350,11 +349,11 @@ TEST_F(ObjectTest, EnumCache) {
   // Creating the EnumCache for {c} will create a new EnumCache on the shared
   // DescriptorArray.
   DirectHandle<EnumCache> previous_enum_cache(
-      a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
+      a->map()->instance_descriptors()->enum_cache(), i_isolate());
   DirectHandle<FixedArray> previous_keys(previous_enum_cache->keys(),
-                                         a->GetIsolate());
+                                         i_isolate());
   DirectHandle<FixedArray> previous_indices(previous_enum_cache->indices(),
-                                            a->GetIsolate());
+                                            i_isolate());
   RunJS("var s = 0; for (let key in c) { s += c[key] };");
   {
     CHECK_EQ(a->map()->EnumLength(), 1);
@@ -389,10 +388,9 @@ TEST_F(ObjectTest, EnumCache) {
   // {b} can reuse the existing EnumCache, hence we only need to set the correct
   // EnumLength on the map without modifying the cache itself.
   previous_enum_cache = direct_handle(
-      a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
-  previous_keys = direct_handle(previous_enum_cache->keys(), a->GetIsolate());
-  previous_indices =
-      direct_handle(previous_enum_cache->indices(), a->GetIsolate());
+      a->map()->instance_descriptors()->enum_cache(), i_isolate());
+  previous_keys = direct_handle(previous_enum_cache->keys(), i_isolate());
+  previous_indices = direct_handle(previous_enum_cache->indices(), i_isolate());
   RunJS("var s = 0; for (let key in b) { s += b[key] };");
   {
     CHECK_EQ(a->map()->EnumLength(), 1);

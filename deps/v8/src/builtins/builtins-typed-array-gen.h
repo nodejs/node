@@ -28,8 +28,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
                                            TNode<UintPtrT> byte_offset);
 
-  TNode<BoolT> IsScriptContextCellsFlag();
-
   // Returns true if kind is either UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
   // RAB_GSAB_UINT8_ELEMENTS, or RAB_GSAB_UINT8_CLAMPED_ELEMENTS.
   TNode<BoolT> IsUint8ElementsKind(TNode<Int32T> kind);

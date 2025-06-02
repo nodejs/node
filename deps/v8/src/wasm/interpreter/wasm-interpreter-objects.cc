@@ -17,7 +17,7 @@ namespace internal {
 DirectHandle<Tuple2> WasmInterpreterObject::New(
     DirectHandle<WasmInstanceObject> instance) {
   DCHECK(v8_flags.wasm_jitless);
-  Isolate* isolate = instance->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   Factory* factory = isolate->factory();
   DirectHandle<WasmTrustedInstanceData> trusted_data(
       instance->trusted_data(isolate), isolate);

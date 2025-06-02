@@ -256,6 +256,9 @@ class V8_EXPORT Context : public Data {
   Maybe<void> DeepFreeze(DeepFreezeDelegate* delegate = nullptr);
 
   /** Returns the isolate associated with a current context. */
+  V8_DEPRECATE_SOON(
+      "Use Isolate::GetCurrent() instead, which is guaranteed to return the "
+      "same isolate since https://crrev.com/c/6458560.")
   Isolate* GetIsolate();
 
   /** Returns the microtask queue associated with a current context. */
@@ -451,8 +454,7 @@ Local<Value> Context::GetEmbedderData(int index) {
   value = I::DecompressTaggedField(embedder_data, static_cast<uint32_t>(value));
 #endif
 
-  auto isolate = reinterpret_cast<v8::Isolate*>(
-      internal::IsolateFromNeverReadOnlySpaceObject(ctx));
+  auto* isolate = I::GetCurrentIsolate();
   return Local<Value>::New(isolate, value);
 #else
   return SlowGetEmbedderData(index);
@@ -487,7 +489,7 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
   int value_offset = I::kEmbedderDataArrayHeaderSize +
                      (I::kEmbedderDataSlotSize * index) +
                      I::kEmbedderDataSlotExternalPointerOffset;
-  Isolate* isolate = I::GetIsolateForSandbox(ctx);
+  Isolate* isolate = I::GetCurrentIsolateForSandbox();
   return reinterpret_cast<void*>(
       I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
           isolate, embedder_data, value_offset));

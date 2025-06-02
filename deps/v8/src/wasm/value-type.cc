@@ -30,12 +30,6 @@ FOREACH_NUMERIC_VALUE_TYPE(CHECK_MASK)
 // Check correctness of enum conversions.
 static_assert(0 == ToZeroBasedIndex(NumericKind::kI32));
 
-// Some subtyping-related code relies on none-types having the "is_exact" bit.
-#define CHECK_EXACT(kind, ...) \
-  static_assert(IndependentHeapType{GenericKind::k##kind}.is_exact());
-FOREACH_NONE_TYPE(CHECK_EXACT)
-#undef CHECK_EXACT
-
 }  // namespace value_type_impl
 
 static_assert(kWasmBottom.is_bottom());
@@ -97,19 +91,19 @@ void PrintGenericHeaptypeName(std::ostringstream& buf, ValueTypeBase type) {
     if (kind == GenericKind::kNone) {
       // The code below would produce "noneref", and we need to keep it
       // that way for "(ref none)", so we need this special case.
-      buf << "nullref";
+      buf << (type.is_shared() ? "(shared nullref)" : "nullref");
       return;
     } else if (kind == GenericKind::kNoExn) {
-      buf << "nullexnref";
+      buf << (type.is_shared() ? "(shared nullexnref)" : "nullexnref");
       return;
     } else if (kind == GenericKind::kNoExtern) {
-      buf << "nullexternref";
+      buf << (type.is_shared() ? "(shared nullexternref)" : "nullexternref");
       return;
     } else if (kind == GenericKind::kNoFunc) {
-      buf << "nullfuncref";
+      buf << (type.is_shared() ? "(shared nullfuncref)" : "nullfuncref");
       return;
     } else if (kind == GenericKind::kNoCont) {
-      buf << "nullcontref";
+      buf << (type.is_shared() ? "(shared nullcontref)" : "nullcontref");
       return;
     }
   }
@@ -142,15 +136,15 @@ std::string ValueTypeBase::name() const {
       if (kind == GenericKind::kNone) {
         // The code below would produce "noneref", and we need to keep it
         // that way for "(ref none)", so we need this special case.
-        return "nullref";
+        return is_shared() ? "(shared nullref)" : "nullref";
       } else if (kind == GenericKind::kNoExn) {
-        return "nullexnref";
+        return is_shared() ? "(shared nullexnref)" : "nullexnref";
       } else if (kind == GenericKind::kNoExtern) {
-        return "nullexternref";
+        return is_shared() ? "(shared nullexternref)" : "nullexternref";
       } else if (kind == GenericKind::kNoFunc) {
-        return "nullfuncref";
+        return is_shared() ? "(shared nullfuncref)" : "nullfuncref";
       } else if (kind == GenericKind::kNoCont) {
-        return "nullcontref";
+        return is_shared() ? "(shared nullcontref)" : "nullcontref";
       }
     }
     bool shorthand =

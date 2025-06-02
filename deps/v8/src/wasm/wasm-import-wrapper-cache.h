@@ -19,6 +19,7 @@ namespace v8::internal::wasm {
 
 class WasmCode;
 class WasmEngine;
+class WasmImportWrapperHandle;
 
 // Implements a cache for import wrappers.
 class WasmImportWrapperCache {
@@ -53,10 +54,10 @@ class WasmImportWrapperCache {
     explicit ModificationScope(WasmImportWrapperCache* cache)
         : cache_(cache), guard_(&cache->mutex_) {}
 
-    V8_EXPORT_PRIVATE WasmCode* operator[](const CacheKey& key);
-
-    WasmCode* AddWrapper(const CacheKey& key, WasmCompilationResult result,
-                         WasmCode::Kind kind, uint64_t signature_hash);
+    WasmCode* AddWrapper(
+        WasmCompilationResult result, WasmCode::Kind kind,
+        uint64_t signature_hash,
+        std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
 
    private:
     WasmImportWrapperCache* const cache_;
@@ -70,12 +71,19 @@ class WasmImportWrapperCache {
 
   void Free(std::vector<WasmCode*>& wrappers);
 
-  // Thread-safe. Returns nullptr if the key doesn't exist in the map.
-  // Adds the returned code to the surrounding WasmCodeRefScope.
-  V8_EXPORT_PRIVATE WasmCode* MaybeGet(ImportCallKind kind,
-                                       CanonicalTypeIndex type_index,
-                                       int expected_arity,
-                                       Suspend suspend) const;
+  V8_EXPORT_PRIVATE std::shared_ptr<WasmImportWrapperHandle> Get(
+      Isolate* isolate, ImportCallKind kind, CanonicalTypeIndex type_index,
+      int expected_arity, Suspend suspend, const wasm::CanonicalSig* sig);
+
+  V8_EXPORT_PRIVATE
+  std::shared_ptr<WasmImportWrapperHandle> GetCompiled(
+      Isolate* isolate, ImportCallKind kind, CanonicalTypeIndex type_index,
+      int expected_arity, Suspend suspend, const wasm::CanonicalSig* sig);
+
+  V8_EXPORT_PRIVATE
+  std::shared_ptr<WasmImportWrapperHandle> CompileWasmJsFastCallWrapper(
+      Isolate* isolate, DirectHandle<JSReceiver> callable,
+      const wasm::CanonicalSig* sig);
 
   WasmCode* Lookup(Address pc) const;
 
@@ -83,21 +91,61 @@ class WasmImportWrapperCache {
 
   size_t EstimateCurrentMemoryConsumption() const;
 
-  // Returns nullptr if {call_target} doesn't belong to a known wrapper.
-  V8_EXPORT_PRIVATE WasmCode* FindWrapper(WasmCodePointer call_target);
+  V8_EXPORT_PRIVATE bool HasCodeForTesting(ImportCallKind kind,
+                                           CanonicalTypeIndex type_index,
+                                           int expected_arity, Suspend suspend);
 
-  WasmCode* CompileWasmImportCallWrapper(Isolate* isolate, ImportCallKind kind,
-                                         const CanonicalSig* sig,
-                                         CanonicalTypeIndex sig_index,
-                                         bool source_positions,
-                                         int expected_arity, Suspend suspend);
+#ifdef DEBUG
+  V8_EXPORT_PRIVATE bool IsCompiledWrapper(WasmCodePointer code_pointer);
+#endif
 
  private:
+  std::optional<Builtin> BuiltinForWrapper(ImportCallKind kind,
+                                           const wasm::CanonicalSig* sig,
+                                           Suspend suspend);
+
+  std::shared_ptr<WasmImportWrapperHandle> CompileWrapper(
+      Isolate* isolate, const CacheKey& cache_key,
+      const wasm::CanonicalSig* sig,
+      std::shared_ptr<WasmImportWrapperHandle> optional_handle);
+
   std::unique_ptr<WasmCodeAllocator> code_allocator_;
   mutable base::Mutex mutex_;
-  std::unordered_map<CacheKey, WasmCode*, CacheKeyHash> entry_map_;
+  std::unordered_map<CacheKey, std::weak_ptr<WasmImportWrapperHandle>,
+                     CacheKeyHash>
+      entry_map_;
+
   // Lookup support. The map key is the instruction start address.
   std::map<Address, WasmCode*> codes_;
+
+  friend class WasmImportWrapperHandle;
+};
+
+class WasmImportWrapperHandle {
+ public:
+  WasmImportWrapperHandle(Address addr, uint64_t signature_hash);
+  WasmImportWrapperHandle(WasmCode* code, Address addr,
+                          uint64_t signature_hash);
+  WasmImportWrapperHandle(const WasmImportWrapperHandle&) = delete;
+  WasmImportWrapperHandle& operator=(const WasmImportWrapperHandle&) = delete;
+
+  ~WasmImportWrapperHandle();
+
+  WasmCodePointer code_pointer() const { return code_pointer_; }
+  const WasmCode& code() const {
+    return *code_.load(std::memory_order_relaxed);
+  }
+  bool has_code() const {
+    return code_.load(std::memory_order_relaxed) != nullptr;
+  }
+
+ private:
+  void set_code(WasmCode* code);
+
+  const WasmCodePointer code_pointer_;
+  std::atomic<WasmCode*> code_ = nullptr;
+
+  friend class WasmImportWrapperCache::ModificationScope;
 };
 
 }  // namespace v8::internal::wasm

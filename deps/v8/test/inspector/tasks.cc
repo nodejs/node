@@ -45,9 +45,9 @@ void RunSimpleAsyncTask(TaskRunner* task_runner,
   class DispatchResponseTask : public TaskRunner::Task {
    public:
     explicit DispatchResponseTask(v8::Local<v8::Function> callback)
-        : context_(callback->GetIsolate(),
-                   callback->GetIsolate()->GetCurrentContext()),
-          client_callback_(callback->GetIsolate(), callback) {}
+        : context_(v8::Isolate::GetCurrent(),
+                   v8::Isolate::GetCurrent()->GetCurrentContext()),
+          client_callback_(v8::Isolate::GetCurrent(), callback) {}
     ~DispatchResponseTask() override = default;
 
    private:
@@ -89,7 +89,8 @@ void RunSimpleAsyncTask(TaskRunner* task_runner,
     std::unique_ptr<TaskRunner::Task> response_task_;
   };
 
-  v8::Local<v8::Context> context = callback->GetIsolate()->GetCurrentContext();
+  v8::Local<v8::Context> context =
+      v8::Isolate::GetCurrent()->GetCurrentContext();
   TaskRunner* response_task_runner =
       InspectorIsolateData::FromContext(context)->task_runner();
 

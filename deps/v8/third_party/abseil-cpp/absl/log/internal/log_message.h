@@ -27,12 +27,15 @@
 #ifndef ABSL_LOG_INTERNAL_LOG_MESSAGE_H_
 #define ABSL_LOG_INTERNAL_LOG_MESSAGE_H_
 
+#include <wchar.h>
+
 #include <cstddef>
 #include <ios>
 #include <memory>
 #include <ostream>
 #include <streambuf>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "absl/base/attributes.h"
@@ -158,6 +161,13 @@ class LogMessage {
   LogMessage& operator<<(const std::string& v);
   LogMessage& operator<<(absl::string_view v);
 
+  // Wide string overloads (since std::ostream does not provide them).
+  LogMessage& operator<<(const std::wstring& v);
+  LogMessage& operator<<(std::wstring_view v);
+  // `const wchar_t*` is handled by `operator<< <const wchar_t*>`.
+  LogMessage& operator<<(wchar_t* absl_nullable v);
+  LogMessage& operator<<(wchar_t v);
+
   // Handle stream manipulators e.g. std::endl.
   LogMessage& operator<<(std::ostream& (*absl_nonnull m)(std::ostream& os));
   LogMessage& operator<<(std::ios_base& (*absl_nonnull m)(std::ios_base& os));
@@ -169,17 +179,20 @@ class LogMessage {
   // this template for every value of `SIZE` encountered in each source code
   // file. That significantly increases linker input sizes. Inlining is cheap
   // because the argument to this overload is almost always a string literal so
-  // the call to `strlen` can be replaced at compile time. The overload for
-  // `char[]` below should not be inlined. The compiler typically does not have
-  // the string at compile time and cannot replace the call to `strlen` so
-  // inlining it increases the binary size. See the discussion on
+  // the call to `strlen` can be replaced at compile time. The overloads for
+  // `char[]`/`wchar_t[]` below should not be inlined. The compiler typically
+  // does not have the string at compile time and cannot replace the call to
+  // `strlen` so inlining it increases the binary size. See the discussion on
   // cl/107527369.
   template <int SIZE>
   LogMessage& operator<<(const char (&buf)[SIZE]);
+  template <int SIZE>
+  LogMessage& operator<<(const wchar_t (&buf)[SIZE]);
 
   // This prevents non-const `char[]` arrays from looking like literals.
   template <int SIZE>
   LogMessage& operator<<(char (&buf)[SIZE]) ABSL_ATTRIBUTE_NOINLINE;
+  // `wchar_t[SIZE]` is handled by `operator<< <const wchar_t*>`.
 
   // Types that support `AbslStringify()` are serialized that way.
   // Types that don't support `AbslStringify()` but do support streaming into a
@@ -243,6 +256,8 @@ class LogMessage {
   void CopyToEncodedBuffer(absl::string_view str) ABSL_ATTRIBUTE_NOINLINE;
   template <StringType str_type>
   void CopyToEncodedBuffer(char ch, size_t num) ABSL_ATTRIBUTE_NOINLINE;
+  template <StringType str_type>
+  void CopyToEncodedBuffer(std::wstring_view str) ABSL_ATTRIBUTE_NOINLINE;
 
   // Copies `field` to the encoded buffer, then appends `str` after it
   // (truncating `str` if necessary to fit).
@@ -272,6 +287,22 @@ class LogMessage {
   // uses less stack space.
   absl_nonnull std::unique_ptr<LogMessageData> data_;
 };
+
+// Explicitly specializes the generic operator<< for `const wchar_t*`
+// arguments.
+//
+// This method is used instead of a non-template `const wchar_t*` overload,
+// as the latter was found to take precedence over the array template
+// (`operator<<(const wchar_t(&)[SIZE])`) when handling string literals.
+// This specialization ensures the array template now correctly processes
+// literals.
+template <>
+LogMessage& LogMessage::operator<< <const wchar_t*>(
+    const wchar_t* absl_nullable const& v);
+
+inline LogMessage& LogMessage::operator<<(wchar_t* absl_nullable v) {
+  return operator<<(const_cast<const wchar_t*>(v));
+}
 
 // Helper class so that `AbslStringify()` can modify the LogMessage.
 class StringifySink final {
@@ -317,6 +348,12 @@ LogMessage& LogMessage::operator<<(const char (&buf)[SIZE]) {
   return *this;
 }
 
+template <int SIZE>
+LogMessage& LogMessage::operator<<(const wchar_t (&buf)[SIZE]) {
+  CopyToEncodedBuffer<StringType::kLiteral>(buf);
+  return *this;
+}
+
 // Note: the following is declared `ABSL_ATTRIBUTE_NOINLINE`
 template <int SIZE>
 LogMessage& LogMessage::operator<<(char (&buf)[SIZE]) {
@@ -358,6 +395,10 @@ LogMessage::CopyToEncodedBuffer<LogMessage::StringType::kLiteral>(char ch,
                                                                   size_t num);
 extern template void LogMessage::CopyToEncodedBuffer<
     LogMessage::StringType::kNotLiteral>(char ch, size_t num);
+extern template void LogMessage::CopyToEncodedBuffer<
+    LogMessage::StringType::kLiteral>(std::wstring_view str);
+extern template void LogMessage::CopyToEncodedBuffer<
+    LogMessage::StringType::kNotLiteral>(std::wstring_view str);
 
 // `LogMessageFatal` ensures the process will exit in failure after logging this
 // message.

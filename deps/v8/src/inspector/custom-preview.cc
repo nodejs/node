@@ -26,7 +26,7 @@ using protocol::Runtime::CustomPreview;
 namespace {
 void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
   DCHECK(tryCatch.HasCaught());
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   V8InspectorImpl* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   int contextId = InspectedContext::contextId(context);
@@ -49,14 +49,14 @@ void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch) {
 
 void reportError(v8::Local<v8::Context> context, const v8::TryCatch& tryCatch,
                  const String16& message) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   isolate->ThrowException(toV8String(isolate, message));
   reportError(context, tryCatch);
 }
 
 InjectedScript* getInjectedScript(v8::Local<v8::Context> context,
                                   int sessionId) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   V8InspectorImpl* inspector =
       static_cast<V8InspectorImpl*>(v8::debug::GetInspector(isolate));
   InspectedContext* inspectedContext =
@@ -69,7 +69,7 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
                           v8::Local<v8::Context> context,
                           v8::Local<v8::Array> jsonML, int maxDepth) {
   if (!jsonML->Length()) return true;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
 
   if (maxDepth <= 0) {
@@ -159,7 +159,7 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
 }
 
 void bodyCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Isolate* isolate = info.GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Object> bodyConfig = info.Data().As<v8::Object>();

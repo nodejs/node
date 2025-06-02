@@ -193,6 +193,8 @@ MaybeDirectHandle<Context> NewScriptContext(
   Tagged<SharedFunctionInfo> sfi = function->shared();
   Handle<Script> script(Cast<Script>(sfi->script()), isolate);
   DirectHandle<ScopeInfo> scope_info(sfi->scope_info(), isolate);
+  // Make sure this is the first time we're running this function.
+  CHECK(IsNativeContext(function->context()));
   DirectHandle<NativeContext> native_context(
       Cast<NativeContext>(function->context()), isolate);
   DirectHandle<JSGlobalObject> global_object(native_context->global_object(),
@@ -619,6 +621,10 @@ static_assert(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
                          WasmCodePointer wasm_call_target,
                          DirectHandle<Object> object_ref, Address packed_args) {
+  // Runtime code must be able to get the "current" isolate from TLS, and this
+  // must equal the isolate we execute in.
+  DCHECK_EQ(isolate, Isolate::TryGetCurrent());
+
   using WasmEntryStub = GeneratedCode<Address(
       Address target, Address object_ref, Address argv, Address c_entry_fp)>;
   WasmEntryStub stub_entry =

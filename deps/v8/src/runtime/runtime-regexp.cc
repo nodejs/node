@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include <functional>
+#include <type_traits>
 
+#include "hwy/highway.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/common/message-template.h"
@@ -2142,8 +2144,8 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   DirectHandle<String> source = args.at<String>(1);
   DirectHandle<String> flags = args.at<String>(2);
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              JSRegExp::Initialize(regexp, source, flags));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSRegExp::Initialize(isolate, regexp, source, flags));
 
   return *regexp;
 }
@@ -2164,13 +2166,92 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
     Isolate* isolate, base::Vector<const SChar> subject, const PChar pattern,
     int start_index, int* number_of_matches, int* last_match_index,
     const DisallowGarbageCollection& no_gc) {
-  for (int i = start_index; i < subject.length(); i++) {
-    // Subtle: the valid variants are {SChar,PChar} in:
-    // {uint8_t,uint8_t}, {uc16,uc16}, {uc16,uint8_t}. In the latter case,
-    // we cast the uint8_t pattern to uc16 for the comparison.
-    if (subject[i] != static_cast<const SChar>(pattern)) continue;
-    (*number_of_matches)++;
-    (*last_match_index) = i;
+  static_assert(std::is_unsigned_v<SChar>);
+  static_assert(std::is_unsigned_v<PChar>);
+  // We can utilize SIMD to check multiple characters at once.
+  // Since the pattern is a single char, we create a mask setting each lane in
+  // the vector to the pattern char.
+  // Since reductions from a vector to a general purpose register (i.e.
+  // ReduceSum in this algorithm) are expensive, we keep a count for each lane
+  // in a vector until the count could potentially overflow and only reduce to
+  // a general purpose register then. I.e. if SChar is uint8_t, we have a
+  // 16xuint8_t vector to count matches, which we reduce to an int every 255
+  // blocks.
+  namespace hw = hwy::HWY_NAMESPACE;
+  hw::ScalableTag<SChar> tag;
+  // We need a wider tag to avoid overflows on lanes when summing up submatches.
+  using WidenedTag = hw::RepartitionToWide<decltype(tag)>;
+  WidenedTag sum_tag;
+  static constexpr size_t stride = hw::Lanes(tag);
+  // Subtle: the valid variants are {SChar,PChar} in:
+  // {uint8_t,uint8_t}, {uc16,uc16}, {uc16,uint8_t}. In the latter case,
+  // we cast the uint8_t pattern to uc16 for the comparison.
+  const auto mask = hw::Set(tag, static_cast<const SChar>(pattern));
+
+  int matches = 0;
+  auto submatches = hw::Zero(tag);
+  const SChar* last_match_block = nullptr;
+  hw::Mask<decltype(tag)> last_match_vec;
+
+  const SChar* block = subject.data() + start_index;
+  const SChar* end = subject.data() + subject.length();
+
+  // ReduceSum is expensive, so we gather matches into a vector. max_count is
+  // the maximum number of matches we can count in the vector before it
+  // overflows.
+  int max_count = std::numeric_limits<SChar>::max();
+  while (block + stride * max_count <= end) {
+    for (int i = 0; i < max_count; i++, block += stride) {
+      const auto input = hw::LoadU(tag, block);
+      const auto match = input == mask;
+      // Lanes with matches have all bits set, so we subtract to increase the
+      // count by 1.
+      submatches = hw::Sub(submatches, hw::VecFromMask(tag, match));
+      if (!hw::AllFalse(tag, match)) {
+        last_match_block = block;
+        last_match_vec = match;
+      }
+    }
+    // SumsOf2 promotes the sum of 2 consecutive lanes into a wider lane.
+    auto promoted_submatches = hw::SumsOf2(submatches);
+    // Wider lane sums can be reduces without overflows.
+    matches += hw::ReduceSum(sum_tag, promoted_submatches);
+    submatches = hw::Zero(tag);
+  }
+
+  // For blocks shorter than stride * max_count, lanes in submatches can't
+  // overflow.
+  DCHECK_LT(end - block, stride * max_count);
+  for (; block + stride <= end; block += stride) {
+    const auto input = hw::LoadU(tag, block);
+    const auto match = input == mask;
+    submatches = hw::Sub(submatches, hw::VecFromMask(tag, match));
+    if (!hw::AllFalse(tag, match)) {
+      last_match_block = block;
+      last_match_vec = match;
+    }
+  }
+  auto promoted_submatches = hw::SumsOf2(submatches);
+  matches += hw::ReduceSum(sum_tag, promoted_submatches);
+
+  // Handle remaining chars.
+  // last_match_block already contains the last match position, so use a special
+  // vector with lane 0 set to extract the last_match_index later.
+  const auto scalar_last_match_vec = hw::FirstN(tag, 1);
+  for (SChar c = *block; block < end; c = *(++block)) {
+    if (c != static_cast<const SChar>(pattern)) continue;
+    matches++;
+    last_match_block = block;
+    last_match_vec = scalar_last_match_vec;
+  }
+
+  // Store results.
+  *number_of_matches += matches;
+  if (last_match_block != nullptr) {
+    DCHECK(!hw::AllFalse(tag, last_match_vec));
+    *last_match_index = static_cast<int>(
+        last_match_block + hw::FindKnownLastTrue(tag, last_match_vec) -
+        subject.data());
   }
 }
 

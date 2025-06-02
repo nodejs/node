@@ -88,13 +88,13 @@ function resetTransitionFunctions() {
 
   const array2 = [1, 2, 3];
   const result2 = foo(array2);
-  assertEquals(result, result2);
 
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedSmiElements(result2));
   assertTrue(HasHoleySmiElements(result2));
 
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -112,13 +112,13 @@ function resetTransitionFunctions() {
 
   const array2 = [1, 2, 3];
   const result2 = foo(array2);
-  assertEquals(result, result2);
 
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedSmiElements(result2));
   assertTrue(HasHoleySmiElements(result2));
 
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -136,8 +136,8 @@ function resetTransitionFunctions() {
 
   const array2 = [1, 2, , 3];
   const result2 = foo(array2);
-  assertEquals(result, result2);
   assertTrue(HasHoleySmiElements(result2));
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -155,13 +155,13 @@ function resetTransitionFunctions() {
 
   const array2 = [1, 2, 3.3];
   const result2 = foo(array2);
-  assertEquals(result, result2);
 
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedDoubleElements(result2));
   assertTrue(HasHoleyDoubleElements(result2));
 
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -179,13 +179,13 @@ function resetTransitionFunctions() {
 
   const array2 = [1, 2, 3];
   const result2 = foo(array2);
-  assertEquals(result, result2);
 
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedDoubleElements(result2));
   assertTrue(HasHoleyDoubleElements(result2));
 
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -203,8 +203,8 @@ function resetTransitionFunctions() {
 
   const array2 = [1, 2, , 3.3];
   const result2 = foo(array2);
-  assertEquals(result, result2);
   assertTrue(HasHoleyDoubleElements(result2));
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -222,8 +222,8 @@ function resetTransitionFunctions() {
 
   const array2 = [1, 2, , 3];
   const result2 = foo(array2);
-  assertEquals(result, result2);
   assertTrue(HasHoleyDoubleElements(result2));
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -241,12 +241,12 @@ function resetTransitionFunctions() {
 
   const array2 = [{a: 1}, {a: 2}, {a: 3}];
   const result2 = foo(array2);
-  assertEquals(result, result2);
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedObjectElements(result2));
   assertTrue(HasHoleyObjectElements(result2));
 
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -264,13 +264,12 @@ function resetTransitionFunctions() {
 
   const array2 = [1, 2, 3];
   const result2 = foo(array2);
-  assertEquals(result, result2);
 
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedObjectElements(result2));
   assertTrue(HasHoleyObjectElements(result2));
-
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -288,8 +287,8 @@ function resetTransitionFunctions() {
 
   const array2 = [{a: 1}, {a: 2}, , {a: 3}];
   const result2 = foo(array2);
-  assertEquals(result, result2);
   assertTrue(HasHoleyObjectElements(result2));
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -307,8 +306,8 @@ function resetTransitionFunctions() {
 
   const array2 = [1, 2, , 3];
   const result2 = foo(array2);
-  assertEquals(result, result2);
   assertTrue(HasHoleyObjectElements(result2));
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -326,13 +325,13 @@ function resetTransitionFunctions() {
   %OptimizeFunctionOnNextCall(foo);
 
   const result2 = foo(array2);
-  assertEquals(result, result2);
 
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedSmiElements(result2));
   assertTrue(HasHoleySmiElements(result2));
 
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -350,8 +349,8 @@ function resetTransitionFunctions() {
   %OptimizeFunctionOnNextCall(foo);
 
   const result2 = foo(array2);
-  assertEquals(result, result2);
   assertTrue(HasHoleySmiElements(result2));
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -372,13 +371,13 @@ function resetTransitionFunctions() {
   resetTransitionFunctions();
 
   const result2 = foo(array2);
-  assertEquals(result, result2);
 
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedDoubleElements(result2));
   assertTrue(HasHoleyDoubleElements(result2));
 
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -399,8 +398,8 @@ function resetTransitionFunctions() {
   resetTransitionFunctions();
 
   const result2 = foo(array2);
-  assertEquals(result, result2);
   assertTrue(HasHoleyDoubleElements(result2));
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -421,13 +420,13 @@ function resetTransitionFunctions() {
   resetTransitionFunctions();
 
   const result2 = foo(array2);
-  assertEquals(result, result2);
 
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedObjectElements(result2));
   assertTrue(HasHoleyObjectElements(result2));
 
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -448,8 +447,8 @@ function resetTransitionFunctions() {
   resetTransitionFunctions();
 
   const result2 = foo(array2);
-  assertEquals(result, result2);
   assertTrue(HasHoleyObjectElements(result2));
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -470,13 +469,13 @@ function resetTransitionFunctions() {
   resetTransitionFunctions();
 
   const result2 = foo(array2);
-  assertEquals(result, result2);
 
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedObjectElements(result2));
   assertTrue(HasHoleyObjectElements(result2));
 
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -497,8 +496,8 @@ function resetTransitionFunctions() {
   resetTransitionFunctions();
 
   const result2 = foo(array2);
-  assertEquals(result, result2);
   assertTrue(HasHoleyObjectElements(result2));
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -519,13 +518,13 @@ function resetTransitionFunctions() {
   resetTransitionFunctions();
 
   const result2 = foo(array2);
-  assertEquals(result, result2);
 
   // TODO(399393885): Make the optimized version use the same elements kind as
   // the unoptimized version.
   // assertTrue(HasPackedObjectElements(result2));
   assertTrue(HasHoleyObjectElements(result2));
 
+  assertEquals(result, result2);
   // The callback will deopt.
   assertUnoptimized(foo);
 })();
@@ -547,8 +546,8 @@ function resetTransitionFunctions() {
   resetTransitionFunctions();
 
   const result2 = foo(array2);
-  assertEquals(result, result2);
   assertTrue(HasHoleyObjectElements(result2));
+  assertEquals(result, result2);
   assertOptimized(foo);
 })();
 
@@ -574,8 +573,8 @@ function resetTransitionFunctions() {
   %OptimizeFunctionOnNextCall(foo);
 
   const result2 = foo(array);
-  assertEquals(result, result2);
   assertTrue(HasHoleySmiElements(result2));
+  assertEquals(result, result2);
   assertEquals(undefined, result2[2]);
 
   // Unoptimized because the array length changed during iteration.

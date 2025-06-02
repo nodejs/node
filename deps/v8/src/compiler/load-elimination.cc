@@ -393,6 +393,10 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
     // We are tracking too many objects, which leads to bad performance.
     // Delete one to avoid the map from becoming bigger.
     that->info_for_node_.erase(that->info_for_node_.begin());
+    if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+      std::cout
+          << "Bailing out in Load Elimination because of kMaxTrackedObjects\n";
+    }
   }
   object = ResolveRenames(object);
   that->info_for_node_[object] = maps;

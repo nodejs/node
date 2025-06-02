@@ -189,9 +189,7 @@ class ZoneChunkListIterator
     : public base::iterator<std::bidirectional_iterator_tag, T> {
  private:
   template <typename S>
-  using maybe_const =
-      typename std::conditional<modifiable, S,
-                                typename std::add_const<S>::type>::type;
+  using maybe_const = std::conditional_t<modifiable, S, std::add_const_t<S>>;
   using Chunk = maybe_const<typename ZoneChunkList<T>::Chunk>;
   using ChunkList = maybe_const<ZoneChunkList<T>>;
 

@@ -44,6 +44,10 @@
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 
+  # Temporal is temporarily disabled until we have enough of it reimplemented
+  # with ICU4X (b/42201538)
+  'temporal/*': [SKIP],
+
   ##############################################################################
   # Open bugs.
 
@@ -298,6 +302,7 @@
   'es6/block-conflicts-sloppy': [PASS, SLOW],
   'es6/block-conflicts': [PASS, SLOW],
   'es6/typedarray-of': [PASS, SLOW],
+  'compiler/inlining-exponential': [PASS, SLOW],
 }],  # mode == debug
 
 ['novfp3', {
@@ -335,6 +340,7 @@
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
   'wasm/atomics-memory64': [SKIP],
+  'compiler/inlining-exponential': [SKIP],
   # Profiler test is flaky on simulators.
   'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
   'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
@@ -714,7 +720,8 @@
   'regress/wasm/regress-40258436': [SKIP],
 
   # --experimental-wasm-shared
-  'wasm/shared-everything/basic': [SKIP],
+  'wasm/shared-everything/*': [SKIP],
+  'wasm/subtyping-invalid': [SKIP],
 
   # --experimental-wasm-jspi
   'regress/regress-333926321': [SKIP],
@@ -732,6 +739,8 @@
   'regress/wasm/regress-392928805': [SKIP],
   'regress/wasm/regress-406043349': [SKIP],
   'regress/wasm/regress-407298298': [SKIP],
+  'regress/wasm/regress-408254017': [SKIP],
+  'regress/wasm/regress-crbug-408253898': [SKIP],
 
   # --experimental-wasm-fp16
   'wasm/simd-fp16': [SKIP],
@@ -1015,6 +1024,7 @@
   'additive-safe-int-feedback': [SKIP],
   'regress-398879933': [SKIP],
   'regress-399698534': [SKIP],
+  'regress-414738826': [SKIP],
 
   # Needs 64-bit number register support
   'compiler/fast-api-calls-64-bit-integer-values': [SKIP],
@@ -1653,6 +1663,9 @@
   'regress/regress-524': [PASS, ['asan', SKIP]],
   'wasm/max-wasm-functions': [PASS, ['asan', SKIP]],
   'wasm/user-properties-module': [PASS, ['asan', SKIP]],
+
+  # Too slow.
+  'wasm/futex': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
@@ -1702,6 +1715,27 @@
   # BUG(v8:13882) Skipped until we have a solution.
   'compiler/osr-literals': [SKIP],
   'compiler/osr-literals-adapted': [SKIP],
+
+  # Slow tests that we only choose randomly on NumFuzz.
+  'compiler/division-by-constant': [FUZZ_RARE, PASS],
+  'compiler/inlining-exponential': [FUZZ_RARE, PASS],
+  'es6/big-weakmap': [FUZZ_RARE, PASS],
+  'harmony/atomics-waitasync-*': [FUZZ_RARE, PASS],
+  'harmony/regexp-property-*': [FUZZ_RARE, PASS],
+  'harmony/sharedarraybuffer-worker-gc-stress': [FUZZ_RARE, PASS],
+  'regress/regress-1000635': [FUZZ_RARE, PASS],
+  'regress/regress-1020031': [FUZZ_RARE, PASS],
+  'regress/regress-crbug-632800': [FUZZ_RARE, PASS],
+  'regress/regress-crbug-854299': [FUZZ_RARE, PASS],
+  'regress/wasm/regress-808848': [FUZZ_RARE, PASS],
+  'shared-memory/*': [FUZZ_RARE, PASS],
+  'typedarray-growablesharedarraybuffer-atomics': [FUZZ_RARE, PASS],
+  'wasm/atomics-memory64': [FUZZ_RARE, PASS],
+  'wasm/futex': [FUZZ_RARE, PASS],
+  'wasm/many-modules': [FUZZ_RARE, PASS],
+  'wasm/max-wasm-functions': [FUZZ_RARE, PASS],
+  'wasm/memory-resizable-buffer-array-*': [FUZZ_RARE, PASS],
+  'wasm/shared-memory*': [FUZZ_RARE, PASS],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
@@ -2074,6 +2108,7 @@
   'additive-safe-int-feedback': [SKIP],
   'regress-398879933': [SKIP],
   'regress-399698534': [SKIP],
+  'regress-414738826': [SKIP],
   # Type assertions block the propagation of word64 truncation useinfo,
   # leading to differences in representation selection.
   'compiler/bigint-multiply-truncate': [SKIP],
@@ -2253,6 +2288,7 @@
   'wasm/deopt/deopt-untagged-parameters-s128': [SKIP],
   'wasm/deopt/deopt-value-types': [SKIP],
   'wasm/exceptions-simd': [SKIP],
+  'wasm/growable-stacks': [SKIP],
   'wasm/interleaved-loads': [SKIP],
   'wasm/js-to-js': [SKIP],
   'wasm/large-struct': [SKIP],
@@ -2261,6 +2297,7 @@
   'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/shuffles': [SKIP],
   'wasm/redundant-shuffle-lanes': [SKIP],
+  'wasm/shared-everything/atomic-instructions': [SKIP],
   'wasm/simd-*': [SKIP],
   'wasm/turboshaft/array-new-unreachable': [SKIP],
   'wasm/turboshaft/reduction-shuffle': [SKIP],
@@ -2366,6 +2403,7 @@
   # These tests rely on allocation site tracking which only works in the young generation.
   'array-constructor-feedback': [SKIP],
   'wasm/generic-wrapper': [SKIP],
+  'wasm/gc-casts-invalid': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-crbug-1151890': [SKIP],
   'regress/regress-crbug-1163184': [SKIP],
@@ -2393,6 +2431,7 @@
   'regress/wasm/regress-346597059': [SKIP],
   'regress/wasm/regress-349640002': [SKIP],
   'compiler/regress-347724915': [SKIP],
+  'regress/regress-crbug-418520151': [SKIP],
 
   # TODO(v8:14581): Re-enable this test once TransitionElementsKindOrCheckMap is
   # supported by the Maglev->Turboshaft graph builder.
@@ -2624,6 +2663,7 @@
   'additive-safe-int-feedback': [SKIP],
   'regress-398879933': [SKIP],
   'regress-399698534': [SKIP],
+  'regress-414738826': [SKIP],
 }], # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)
 
 ##############################################################################
@@ -2781,11 +2821,11 @@
 }],  # cet_shadow_stack
 
 ##############################################################################
-['variant == conservative_pinning', {
+['variant == conservative_stack_scanning', {
   'regress/regress-12657': [SKIP],
   'regress/regress-678917': [SKIP],
   'maglev/regress-1407606': [SKIP],
-}],  # variant == conservative_pinning
+}],  # variant == conservative_stack_scanning
 
 ##############################################################################
 ['variant in [jit_fuzzing, jit_fuzzing_maglev]', {

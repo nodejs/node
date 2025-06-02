@@ -2561,8 +2561,8 @@ static T FPUMaxA(T a, T b) {
 
 enum class KeepSign : bool { no = false, yes };
 
-template <typename T, typename std::enable_if<std::is_floating_point<T>::value,
-                                              int>::type = 0>
+template <typename T,
+          typename std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
 T FPUCanonalizeNaNArg(T result, T arg, KeepSign keepSign = KeepSign::no) {
   DCHECK(std::isnan(arg));
   T qNaN = std::numeric_limits<T>::quiet_NaN();

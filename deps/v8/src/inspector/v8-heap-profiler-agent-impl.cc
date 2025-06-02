@@ -112,7 +112,7 @@ class InspectableHeapObject final : public V8InspectorSession::Inspectable {
   explicit InspectableHeapObject(int heapObjectId)
       : m_heapObjectId(heapObjectId) {}
   v8::Local<v8::Value> get(v8::Local<v8::Context> context) override {
-    return objectByHeapObjectId(context->GetIsolate(), m_heapObjectId);
+    return objectByHeapObjectId(v8::Isolate::GetCurrent(), m_heapObjectId);
   }
 
  private:

@@ -551,7 +551,8 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
 
 namespace {
 
-int ScriptLinePosition(DirectHandle<Script> script, int line) {
+int ScriptLinePosition(Isolate* isolate, DirectHandle<Script> script,
+                       int line) {
   if (line < 0) return -1;
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -561,7 +562,7 @@ int ScriptLinePosition(DirectHandle<Script> script, int line) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  Script::InitLineEnds(script->GetIsolate(), script);
+  Script::InitLineEnds(isolate, script);
 
   Tagged<FixedArray> line_ends_array = Cast<FixedArray>(script->line_ends());
   const int line_count = line_ends_array->length();
@@ -573,12 +574,12 @@ int ScriptLinePosition(DirectHandle<Script> script, int line) {
   return Smi::ToInt(line_ends_array->get(line - 1)) + 1;
 }
 
-int ScriptLinePositionWithOffset(DirectHandle<Script> script, int line,
-                                 int offset) {
+int ScriptLinePositionWithOffset(Isolate* isolate, DirectHandle<Script> script,
+                                 int line, int offset) {
   if (line < 0 || offset < 0) return -1;
 
   if (line == 0 || offset == 0)
-    return ScriptLinePosition(script, line) + offset;
+    return ScriptLinePosition(isolate, script, line) + offset;
 
   Script::PositionInfo info;
   if (!Script::GetPositionInfo(script, offset, &info,
@@ -587,7 +588,7 @@ int ScriptLinePositionWithOffset(DirectHandle<Script> script, int line,
   }
 
   const int total_line = info.line + line;
-  return ScriptLinePosition(script, total_line);
+  return ScriptLinePosition(isolate, script, total_line);
 }
 
 DirectHandle<Object> GetJSPositionInfo(DirectHandle<Script> script,
@@ -650,7 +651,8 @@ DirectHandle<Object> ScriptLocationFromLine(Isolate* isolate,
     if (line == 0) column -= script->column_offset();
   }
 
-  int line_position = ScriptLinePositionWithOffset(script, line, offset);
+  int line_position =
+      ScriptLinePositionWithOffset(isolate, script, line, offset);
   if (line_position < 0 || column < 0) return isolate->factory()->null_value();
 
   return GetJSPositionInfo(script, line_position + column,

@@ -55,6 +55,9 @@
     {"app_args": "--wasm-staging", "app_name": "d8", "probability": 0.25},
     {"app_args": "--stress-wasm-memory-moving", "app_name": "d8", "probability": 0.1},
     {"app_args": "--stress-scavenger-conservative-object-pinning-random", "app_name": "d8", "probability": 0.1},
+    {"app_args": "--conservative-stack-scanning", "app_name": "d8", "probability": 0.1},
     {"app_args": "--precise-object-pinning", "app_name": "d8", "probability": 0.1},
-    {"app_args": "--ephemeron-fixpoint-iterations=0", "app_name": "d8", "probability": 0.1}
+    {"app_args": "--ephemeron-fixpoint-iterations=0", "app_name": "d8", "probability": 0.1},
+    {"app_args": "--experimental-wasm-revectorize", "app_name": "d8", "probability": 0.25},
+    {"app_args": "--additive-safe-int-feedback", "app_name": "d8", "probability": 0.5}
 ]

@@ -714,8 +714,7 @@ class CFunctionBuilderWithFunction {
   // Flags in the template parameter pack are ignored.
   template <unsigned int N, CTypeInfo::Flags... Flags>
   struct GetArgBuilder<false, N, Flags...> {
-    using type =
-        typename std::tuple_element<N, std::tuple<ArgBuilders...>>::type;
+    using type = std::tuple_element_t<N, std::tuple<ArgBuilders...>>;
   };
 
   // Returns an ArgBuilder with the same base type as the one at index N,
@@ -723,10 +722,8 @@ class CFunctionBuilderWithFunction {
   template <unsigned int N, CTypeInfo::Flags... Flags>
   struct GetArgBuilder<true, N, Flags...> {
     using type = CTypeInfoBuilder<
-        typename std::tuple_element<N,
-                                    std::tuple<ArgBuilders...>>::type::BaseType,
-        std::tuple_element<N, std::tuple<ArgBuilders...>>::type::Build()
-            .GetFlags(),
+        typename std::tuple_element_t<N, std::tuple<ArgBuilders...>>::BaseType,
+        std::tuple_element_t<N, std::tuple<ArgBuilders...>>::Build().GetFlags(),
         Flags...>;
   };
 

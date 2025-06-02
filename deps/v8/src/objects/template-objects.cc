@@ -49,7 +49,7 @@ DirectHandle<JSArray> TemplateObjectDescription::GetTemplateObject(
     Isolate* isolate, DirectHandle<NativeContext> native_context,
     DirectHandle<TemplateObjectDescription> description,
     DirectHandle<SharedFunctionInfo> shared_info, int slot_id) {
-  int function_literal_id = shared_info->function_literal_id();
+  int function_literal_id = shared_info->function_literal_id(kRelaxedLoad);
 
   // Check the template weakmap to see if the template object already exists.
   DirectHandle<Script> script(Cast<Script>(shared_info->script(isolate)),

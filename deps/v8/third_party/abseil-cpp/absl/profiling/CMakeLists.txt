@@ -32,6 +32,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::random_random
     absl::sample_recorder
     absl::time
     GTest::gmock_main

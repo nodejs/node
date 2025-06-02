@@ -205,7 +205,7 @@ void createBoundFunctionProperty(
     v8::Local<v8::Value> data, const char* name, v8::FunctionCallback callback,
     v8::SideEffectType side_effect_type = v8::SideEffectType::kHasSideEffect) {
   v8::Local<v8::String> funcName =
-      toV8StringInternalized(context->GetIsolate(), name);
+      toV8StringInternalized(v8::Isolate::GetCurrent(), name);
   v8::Local<v8::Function> func;
   if (!v8::Function::New(context, callback, data, 0,
                          v8::ConstructorBehavior::kThrow, side_effect_type)
@@ -819,7 +819,7 @@ void V8Console::inspectedObject(const v8::FunctionCallbackInfo<v8::Value>& info,
 
 void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
                                     v8::Local<v8::Object> console) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::External> data = v8::External::New(isolate, this);
   console->SetAccessorProperty(
       toV8StringInternalized(isolate, "memory"),
@@ -836,7 +836,7 @@ void V8Console::installMemoryGetter(v8::Local<v8::Context> context,
 
 void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
                                             v8::Local<v8::Object> console) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::External> data = v8::External::New(isolate, this);
 
   v8::MicrotasksScope microtasksScope(context,
@@ -848,7 +848,7 @@ void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
 
 v8::Local<v8::Object> V8Console::createCommandLineAPI(
     v8::Local<v8::Context> context, int sessionId) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
@@ -1002,7 +1002,7 @@ bool IsUnsafeCommandLineAPIFn(v8::Local<v8::Value> name, v8::Isolate* isolate) {
 V8Console::CommandLineAPIScope::CommandLineAPIScope(
     v8::Local<v8::Context> context, v8::Local<v8::Object> commandLineAPI,
     v8::Local<v8::Object> global)
-    : m_isolate(context->GetIsolate()),
+    : m_isolate(v8::Isolate::GetCurrent()),
       m_context(m_isolate, context),
       m_commandLineAPI(m_isolate, commandLineAPI),
       m_global(m_isolate, global) {
@@ -1014,7 +1014,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
                            v8::PrimitiveArray::New(m_isolate, names->Length()));
 
   m_thisReference = v8::Global<v8::ArrayBuffer>(
-      m_isolate, v8::ArrayBuffer::New(context->GetIsolate(),
+      m_isolate, v8::ArrayBuffer::New(v8::Isolate::GetCurrent(),
                                       sizeof(CommandLineAPIScope*)));
   *static_cast<CommandLineAPIScope**>(
       thisReference()->GetBackingStore()->Data()) = this;
@@ -1025,7 +1025,7 @@ V8Console::CommandLineAPIScope::CommandLineAPIScope(
     if (global->Has(context, name).FromMaybe(true)) continue;
 
     const v8::SideEffectType get_accessor_side_effect_type =
-        IsUnsafeCommandLineAPIFn(name, context->GetIsolate())
+        IsUnsafeCommandLineAPIFn(name, v8::Isolate::GetCurrent())
             ? v8::SideEffectType::kHasSideEffect
             : v8::SideEffectType::kHasNoSideEffect;
     if (!global

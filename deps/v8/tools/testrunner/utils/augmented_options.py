@@ -66,6 +66,7 @@ class AugmentedOptions(optparse.Values):
       if prob:
         fuzzers.append(fuzzer.create_fuzzer_config(name, prob))
 
+    add('allocation', self.allocation_offset)
     add('compaction', self.stress_compaction)
     add('interrupt', self.stress_interrupt_budget)
     add('marking', self.stress_marking)

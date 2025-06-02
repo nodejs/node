@@ -111,7 +111,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
 
-#if defined(ABSL_HAVE_STD_STRING_VIEW) && !defined(ABSL_USES_STD_STRING_VIEW)
+#if !defined(ABSL_USES_STD_STRING_VIEW)
 #include <string_view>
 #endif
 
@@ -191,26 +191,26 @@ struct Hex {
   template <typename Int>
   explicit Hex(
       Int v, PadSpec spec = absl::kNoPad,
-      typename std::enable_if<sizeof(Int) == 1 &&
-                              !std::is_pointer<Int>::value>::type* = nullptr)
+      std::enable_if_t<sizeof(Int) == 1 && !std::is_pointer<Int>::value, bool> =
+          true)
       : Hex(spec, static_cast<uint8_t>(v)) {}
   template <typename Int>
   explicit Hex(
       Int v, PadSpec spec = absl::kNoPad,
-      typename std::enable_if<sizeof(Int) == 2 &&
-                              !std::is_pointer<Int>::value>::type* = nullptr)
+      std::enable_if_t<sizeof(Int) == 2 && !std::is_pointer<Int>::value, bool> =
+          true)
       : Hex(spec, static_cast<uint16_t>(v)) {}
   template <typename Int>
   explicit Hex(
       Int v, PadSpec spec = absl::kNoPad,
-      typename std::enable_if<sizeof(Int) == 4 &&
-                              !std::is_pointer<Int>::value>::type* = nullptr)
+      std::enable_if_t<sizeof(Int) == 4 && !std::is_pointer<Int>::value, bool> =
+          true)
       : Hex(spec, static_cast<uint32_t>(v)) {}
   template <typename Int>
   explicit Hex(
       Int v, PadSpec spec = absl::kNoPad,
-      typename std::enable_if<sizeof(Int) == 8 &&
-                              !std::is_pointer<Int>::value>::type* = nullptr)
+      std::enable_if_t<sizeof(Int) == 8 && !std::is_pointer<Int>::value, bool> =
+          true)
       : Hex(spec, static_cast<uint64_t>(v)) {}
   template <typename Pointee>
   explicit Hex(Pointee* absl_nullable v, PadSpec spec = absl::kNoPad)
@@ -262,7 +262,7 @@ struct Dec {
 
   template <typename Int>
   explicit Dec(Int v, PadSpec spec = absl::kNoPad,
-               typename std::enable_if<(sizeof(Int) <= 8)>::type* = nullptr)
+               std::enable_if_t<sizeof(Int) <= 8, bool> = true)
       : value(v >= 0 ? static_cast<uint64_t>(v)
                      : uint64_t{0} - static_cast<uint64_t>(v)),
         width(spec == absl::kNoPad       ? 1
@@ -366,7 +366,7 @@ class AlphaNum {
                ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(pc) {}
 
-#if defined(ABSL_HAVE_STD_STRING_VIEW) && !defined(ABSL_USES_STD_STRING_VIEW)
+#if !defined(ABSL_USES_STD_STRING_VIEW)
   AlphaNum(std::string_view pc  // NOLINT(runtime/explicit)
                ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(pc.data(), pc.size()) {}

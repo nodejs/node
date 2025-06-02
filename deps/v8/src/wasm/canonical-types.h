@@ -9,16 +9,18 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#include <unordered_map>
+#include <unordered_set>
 
 #include "src/base/bounds.h"
 #include "src/base/hashing.h"
+#include "src/base/platform/mutex.h"
+#include "src/wasm/struct-types.h"
 #include "src/wasm/value-type.h"
-#include "src/wasm/wasm-module.h"
 
 namespace v8::internal::wasm {
 
 class CanonicalTypeNamesProvider;
+struct WasmModule;
 
 // We use ValueType instances constructed from canonical type indices, so we
 // can't let them get bigger than what we have storage space for.

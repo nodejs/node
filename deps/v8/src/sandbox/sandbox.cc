@@ -65,6 +65,13 @@ static Address DetermineAddressSpaceLimit() {
   // configuration and there seems to be no easy way to retrieve the actual
   // number of virtual address bits from the CPU in userspace.
   hardware_virtual_address_bits = 40;
+#elif defined(V8_TARGET_OS_IOS)
+  // On iOS, we only get 64 GB of userspace virtual address space even with the
+  // "jumbo" extended virtual addressing entitlement, so assume a 37-bit virtual
+  // address space (36 bits for userspace and kernel each). Ensure that this
+  // results in `hardware_virtual_address_bits` being at least the minimum (36)
+  // otherwise we will override it with the default value (48) incorrectly.
+  hardware_virtual_address_bits = 37;
 #endif
 
   // Assume virtual address space is split 50/50 between userspace and kernel.
@@ -120,6 +127,17 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
     max_reservation_size = kSandboxMinimumReservationSize;
   }
 
+#if defined(V8_TARGET_OS_IOS)
+  // If we don't override this, we will attempt to reserve 16 GB (sandbox size)
+  // + 72 GB (guard region size) + 260 GB (trailing guard region size) which
+  // will fail since iOS only provides ~63 GB of virtual address space of which
+  // only ~51 GB can be mapped in practice. Also, the code assumes that the
+  // partially reserved sandbox mode has a reservation size strictly less than
+  // the sandbox size which is 16 GB for iOS - using `address_space_limit / 4`
+  // gives us 16 GB which won't work so use the minimum size i.e. 8 GB instead.
+  max_reservation_size = kSandboxMinimumReservationSize;
+#endif
+
   // If the maximum reservation size is less than the size of the sandbox, we
   // can only create a partially-reserved sandbox.
   bool success;
@@ -159,7 +177,9 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   SandboxHardwareSupport::TryEnable(base(), size());
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   DCHECK(initialized_);
 }

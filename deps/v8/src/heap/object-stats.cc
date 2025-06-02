@@ -867,7 +867,9 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   // FixedArray.
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->serialized_objects(),
                                  StatsEnum::SERIALIZED_OBJECTS_TYPE);
-  RecordSimpleVirtualObjectStats(HeapObject(), heap_->number_string_cache(),
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->smi_string_cache(),
+                                 StatsEnum::NUMBER_STRING_CACHE_TYPE);
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->double_string_cache(),
                                  StatsEnum::NUMBER_STRING_CACHE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->string_split_cache(),
                                  StatsEnum::STRING_SPLIT_CACHE_TYPE);

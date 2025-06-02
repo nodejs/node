@@ -205,8 +205,6 @@ class V8_EXPORT_PRIVATE ScriptSource {
  */
 class V8_EXPORT_PRIVATE Script {
  public:
-  v8::Isolate* GetIsolate() const;
-
   ScriptOriginOptions OriginOptions() const;
   bool WasCompiled() const;
   bool IsEmbedded() const;
@@ -605,7 +603,9 @@ class EphemeronTable : public v8::Object {
       v8::Local<v8::Value> value);
 
   V8_EXPORT_PRIVATE static Local<EphemeronTable> New(v8::Isolate* isolate);
-  V8_INLINE static EphemeronTable* Cast(Value* obj);
+  V8_INLINE static EphemeronTable* Cast(Value* obj) {
+    return static_cast<EphemeronTable*>(obj);
+  }
 };
 
 /**

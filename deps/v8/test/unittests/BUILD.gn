@@ -455,6 +455,7 @@ v8_source_set("v8_unittests_sources") {
     "run-all-unittests.cc",
     "runtime/runtime-debug-unittest.cc",
     "sandbox/pointer-table-unittest.cc",
+    "sandbox/sandbox-hardware-support-unittest.cc",
     "sandbox/sandbox-unittest.cc",
     "strings/char-predicates-unittest.cc",
     "strings/unicode-unittest.cc",
@@ -593,6 +594,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/turboshaft/wasm-simd-unittest.cc",
       "compiler/wasm-address-reassociation-unittest.cc",
       "objects/wasm-backing-store-unittest.cc",
+      "wasm/basic-block-calculator-unittest.cc",
       "wasm/decoder-unittest.cc",
       "wasm/function-body-decoder-unittest.cc",
       "wasm/leb-helper-unittest.cc",
@@ -819,7 +821,10 @@ v8_source_set("v8_unittests_sources") {
     if (!is_win) {
       # TODO(https://crbug.com/40941204): Using jsoncpp doesn't work on
       # Windows.
-      sources += [ "json/json-unittest.cc" ]
+      sources += [
+        "json/json-unittest.cc",
+        "profiler/heap-snapshot-unittest.cc",
+      ]
       deps += [ "//third_party/jsoncpp:jsoncpp" ]
     }
   }

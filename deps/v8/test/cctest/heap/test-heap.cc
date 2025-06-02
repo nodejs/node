@@ -520,7 +520,7 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
     HandleScope scope(isolate);
 
     // Create an Api object that is unmodified.
-    Local<v8::Function> function = FunctionTemplate::New(context->GetIsolate())
+    Local<v8::Function> function = FunctionTemplate::New(context.isolate())
                                        ->GetFunction(context.local())
                                        .ToLocalChecked();
     Local<v8::Object> i =
@@ -2199,7 +2199,7 @@ TEST(TestAlignedAllocation) {
     // Make one allocation to force allocating an allocation area. Using
     // kDoubleSize to not change space alignment
     USE(allocator->AllocateRaw(kDoubleSize, kDoubleAligned,
-                               AllocationOrigin::kRuntime));
+                               AllocationOrigin::kRuntime, AllocationHint()));
 
     // Allocate a pointer sized object that must be double aligned at an
     // aligned address.
@@ -2277,7 +2277,8 @@ TEST(TestAlignedOverAllocation) {
   // Allocate a dummy object to properly set up the linear allocation info.
   AllocationResult dummy =
       heap->allocator()->old_space_allocator()->AllocateRaw(
-          kTaggedSize, kTaggedAligned, AllocationOrigin::kRuntime);
+          kTaggedSize, kTaggedAligned, AllocationOrigin::kRuntime,
+          AllocationHint());
   CHECK(!dummy.IsFailure());
   heap->CreateFillerObjectAt(dummy.ToObjectChecked().address(), kTaggedSize);
 
@@ -2327,8 +2328,8 @@ TEST(HeapNumberAlignment) {
   Heap* heap = isolate->heap();
   HandleScope sc(isolate);
 
-  const auto required_alignment =
-      HeapObject::RequiredAlignment(*factory->heap_number_map());
+  const auto required_alignment = HeapObject::RequiredAlignment(
+      kNotInSharedSpace, *factory->heap_number_map());
   const int maximum_misalignment =
       Heap::GetMaximumFillToAlign(required_alignment);
 
@@ -3571,7 +3572,8 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector(),
+                                         CcTest::i_isolate());
   FeedbackVectorHelper feedback_helper(feedback_vector);
 
   int expected_slots = 2;
@@ -3591,7 +3593,7 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
 static void CheckVectorIC(DirectHandle<JSFunction> f, int slot_index,
                           InlineCacheState desired_state) {
   Handle<FeedbackVector> vector =
-      Handle<FeedbackVector>(f->feedback_vector(), f->GetIsolate());
+      Handle<FeedbackVector>(f->feedback_vector(), CcTest::i_isolate());
   FeedbackVectorHelper helper(vector);
   FeedbackSlot slot = helper.slot(slot_index);
   FeedbackNexus nexus(CcTest::i_isolate(), vector, slot);
@@ -3616,7 +3618,8 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
-  DirectHandle<FeedbackVector> vector(f->feedback_vector(), f->GetIsolate());
+  DirectHandle<FeedbackVector> vector(f->feedback_vector(),
+                                      CcTest::i_isolate());
   CHECK(vector->Get(FeedbackSlot(0)).IsWeakOrCleared());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
@@ -4105,7 +4108,7 @@ TEST(Regress169928) {
   AllocationResult allocation =
       CcTest::heap()->allocator()->new_space_allocator()->AllocateRaw(
           sizeof(AllocationMemento) + kTaggedSize, kTaggedAligned,
-          AllocationOrigin::kRuntime);
+          AllocationOrigin::kRuntime, AllocationHint());
   CHECK(allocation.To(&obj));
   Address addr_obj = obj.address();
   CcTest::heap()->CreateFillerObjectAt(addr_obj,
@@ -4372,7 +4375,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   IndirectHandle<AllocationSite> site;
   {
     LocalContext context;
-    v8::HandleScope scope(context->GetIsolate());
+    v8::HandleScope scope(CcTest::isolate());
 
     int count = AllocationSitesCount(heap);
     CompileRun(
@@ -5398,8 +5401,9 @@ HEAP_TEST(NumberStringCacheSize) {
   Isolate* isolate = CcTest::i_isolate();
   if (!isolate->snapshot_available()) return;
   Heap* heap = isolate->heap();
-  CHECK_EQ(Heap::kInitialNumberStringCacheSize * 2,
-           heap->number_string_cache()->length());
+  CHECK_EQ(SmiStringCache::kInitialSize, heap->smi_string_cache()->capacity());
+  CHECK_EQ(DoubleStringCache::kInitialSize,
+           heap->double_string_cache()->capacity());
 }
 
 TEST(Regress3877) {

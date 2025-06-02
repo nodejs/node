@@ -116,6 +116,17 @@ Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::TransitionAndLoadElement(
+    Isolate* isolate, ElementsKind kind_after_transition,
+    KeyedAccessLoadMode load_mode) {
+  int config = KindBits::encode(Kind::kElementWithTransition) |
+               AllowOutOfBoundsBits::encode(LoadModeHandlesOOB(load_mode)) |
+               ElementsKindBits::encode(kind_after_transition) |
+               AllowHandlingHole::encode(LoadModeHandlesHoles(load_mode)) |
+               IsJsArrayBits::encode(true);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
                                            KeyedAccessLoadMode load_mode) {
   int config = KindBits::encode(Kind::kIndexedString) |

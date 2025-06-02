@@ -7,6 +7,7 @@
 #include "src/codegen/x64/assembler-x64-inl.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
+#include "src/common/globals.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
@@ -771,6 +772,35 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
   __ Subsd(value, kScratchDoubleReg);
 }
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void Float64ToHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  // A Float64 value could contain a NaN with the bit pattern that has a special
+  // interpretation in the HoleyFloat64 representation, so we need to canicalize
+  // those before changing representation.
+  __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
+  __ Subsd(value, kScratchDoubleReg);
+}
+
+void HoleyFloat64ToFloat64OrUndefined::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void HoleyFloat64ToFloat64OrUndefined::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  Label done;
+  __ JumpIfNotHoleNan(value, kScratchRegister, &done);
+  __ Move(value, UndefinedNan());
+  __ bind(&done);
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 namespace {
 

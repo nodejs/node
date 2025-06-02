@@ -343,6 +343,7 @@ V8InitializationScope::V8InitializationScope(const char* exec_path)
   i::v8_flags.always_turbofan = false;
   i::v8_flags.allow_natives_syntax = true;
   i::v8_flags.enable_lazy_source_positions = false;
+  i::v8_flags.function_context_cells = false;
 
   // The bytecode expectations printer changes flags; this is not security
   // relevant, allow this.
@@ -492,7 +493,7 @@ std::string WriteExpectationsToString(
 
 void PrintMessage(v8::Local<v8::Message> message, v8::Local<v8::Value>) {
   std::cerr << "INFO: "
-            << *v8::String::Utf8Value(message->GetIsolate(), message->Get())
+            << *v8::String::Utf8Value(v8::Isolate::GetCurrent(), message->Get())
             << '\n';
 }
 

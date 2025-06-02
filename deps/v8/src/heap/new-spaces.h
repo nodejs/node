@@ -544,7 +544,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   size_t AddPage(PageMetadata* page) final;
   void RemovePage(PageMetadata* page) final;
-  void ReleasePage(PageMetadata* page) final;
+  void RemovePageFromSpace(PageMetadata* page) final;
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
@@ -726,7 +726,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   bool ShouldReleaseEmptyPage() {
     return paged_space_.ShouldReleaseEmptyPage();
   }
-  void ReleasePage(PageMetadata* page) { paged_space_.ReleasePage(page); }
 
   AllocatorPolicy* CreateAllocatorPolicy(MainAllocator* allocator) final;
 

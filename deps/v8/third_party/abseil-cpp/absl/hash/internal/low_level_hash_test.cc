@@ -14,7 +14,7 @@
 
 #include "absl/hash/internal/low_level_hash.h"
 
-#include <cinttypes>
+#include <cstddef>
 #include <cstdint>
 
 #include "gmock/gmock.h"
@@ -24,10 +24,6 @@
 #define UPDATE_GOLDEN 0
 
 namespace {
-
-static const uint64_t kSalt[5] = {0xa0761d6478bd642f, 0xe7037ed1a0b428dbl,
-                                  0x8ebc6af09c88c6e3, 0x589965cc75374cc3l,
-                                  0x1d8e4e27c47d124f};
 
 TEST(LowLevelHashTest, VerifyGolden) {
   constexpr size_t kNumGoldenOutputs = 94;
@@ -366,38 +362,38 @@ TEST(LowLevelHashTest, VerifyGolden) {
   GTEST_SKIP() << "We only maintain golden data for little endian systems.";
 #else
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {
-      0x59b1542b0ff6b7b8, 0x3fb979d297096db9, 0xb391802c536343a9,
-      0x94e0f7e4331081c4, 0x234d95e49e3ce30e, 0xca6351a3e568ed17,
-      0xa62fcf7fa334293d, 0xb03111035f546067, 0x97b8c861e013d558,
-      0xb6683803d9387949, 0xce5d907e0b3cb6a1, 0xab7466fae53ed201,
-      0x8f13ca3f1cac3edd, 0xa2684a99cd909a2a, 0x03194f86b9440843,
-      0xab3a745d96f75a66, 0xef2448606760ec3d, 0xd999e03247d5d5c5,
-      0x4a25ab345d53f926, 0xa511b829ce9fc919, 0x4b76517f8e806cbf,
-      0x006efd7ee09ff8d4, 0x790a4978bd0170a1, 0xc14f6e4b2dff057e,
-      0xe0d2f4ae7c836d09, 0x4e2038a491ed939d, 0x23fd6f408e9598e0,
-      0xa91cf8f1d92bcb08, 0x555cdec06df49d58, 0xe7d3e14bd6a8f3bd,
-      0x4fdd25c1e75c009a, 0x3dffb8acf1ffbd17, 0x56946f33ed73a705,
-      0x154c633d7690f3b0, 0x3e96f8e9a58a04e0, 0xb0279b244d3ccf9c,
-      0x8571e87c882b2142, 0x9d9ada45132e7b41, 0xd5667655533f1dec,
-      0x70607ace4ec36463, 0x691418d2eb63116c, 0xa70179d8e7142980,
-      0xf8388d756bea25a7, 0xe5127c736d9826de, 0x7f1c95f9b6b656b6,
-      0x66ab835b7bf4c7b3, 0xc03423b9a6db9728, 0xe88415a2b416b76d,
-      0x8afd8c14d0b56c36, 0xe9a252b3ba217dad, 0x710150f5cd87a9ff,
-      0xd66b147837fad9ae, 0x1af5f8ffbaa717a7, 0xe01f88d7a9a8ac17,
-      0xd67870a7251fde72, 0xf32b837f845a676b, 0x0827717b1ffe59f7,
-      0x80307212ca7645fb, 0xf0d22af71ea57c80, 0x459373765f2c114b,
-      0x54d26109fab9cbaf, 0xc603da4e257b93db, 0x57fa334b5689d7d5,
-      0x41cd1b2a8a91f620, 0xe1d6e7cd0fb015af, 0x8608e9035eb9d795,
-      0x45c7b9fae739fee1, 0x9f5ae4f7a6b597ee, 0xfb771b6e0017757d,
-      0x8dac6d29cfd8d027, 0x3c9ba4fb62ce6508, 0xa971fad8243844a7,
-      0xd2126f49b2ea3b64, 0x5dd78fe7ac436861, 0xfe4004a6bb3494a8,
-      0xe7c01cc63d770d7c, 0xa117075b8c801d37, 0xdf1dfe75f0e73069,
-      0x7285b39700cefb98, 0x5e97ea1aa9a670eb, 0xe21872db2b9137a3,
-      0x12630b02c6ca405e, 0xfe1f2d802151f97a, 0xb53b0ed3dea4fb02,
-      0xc6d5ed56d1dbf9fd, 0xe5b92b558a5c70cb, 0xccd6eedf97277d08,
-      0x08582fff2e1494ed, 0xa41f2b3d17f1c4c7, 0x29ec07e5ef950f3d,
-      0x96aba32565a97084, 0xf26870eca10cebcd, 0xbe1432feb4d33361,
-      0x21993a779845e6eb,
+      0x669da02f8d009e0f, 0xceb19bf2255445cd, 0x0e746992d6d43a7c,
+      0x41ed623b9dcc5fde, 0x187a5a30d7c72edc, 0x949ae2a9c1eb925a,
+      0x7e9c76a7b7c35e68, 0x4f96bf15b8309ff6, 0x26c0c1fde233732e,
+      0xb0453f72aa151615, 0xf24b621a9ce9fece, 0x99ed798408687b5f,
+      0x3b13ec1221423b66, 0xc67cf148a28afe59, 0x22f7e0173f92e3fa,
+      0x14186c5fda6683a0, 0x97d608caa2603b2c, 0xfde3b0bbba24ffa9,
+      0xb7068eb48c472c77, 0x9e34d72866b9fda0, 0xbbb99c884cdef88e,
+      0x81d3e01f472a8a1a, 0xf84f506b3b60366d, 0xfe3f42f01300db37,
+      0xe385712a51c1f836, 0x41dfd5e394245c79, 0x60855dbedadb900a,
+      0xbdb4c0aa38567476, 0x9748802e8eec02cc, 0x5ced256d257f88de,
+      0x55acccdf9a80f155, 0xa64b55b071afbbea, 0xa205bfe6c724ce4d,
+      0x69dd26ca8ac21744, 0xef80e2ff2f6a9bc0, 0xde266c0baa202c20,
+      0xfa3463080ac74c50, 0x379d968a40125c2b, 0x4cbbd0a7b3c7d648,
+      0xc92afd93f4c665d2, 0x6e28f5adb7ae38dc, 0x7c689c9c237be35e,
+      0xaea41b29bd9d0f73, 0x832cef631d77e59f, 0x70cac8e87bc37dd3,
+      0x8e8c98bbde68e764, 0xd6117aeb3ddedded, 0xd796ab808e766240,
+      0x8953d0ea1a7d9814, 0xa212eba4281b391c, 0x21a555a8939ce597,
+      0x809d31660f6d81a8, 0x2356524b20ab400f, 0x5bc611e1e49d0478,
+      0xba9c065e2f385ce2, 0xb0a0fd12f4e83899, 0x14d076a35b1ff2ca,
+      0x8acd0bb8cf9a93c0, 0xe62e8ec094039ee4, 0x38a536a7072bdc61,
+      0xca256297602524f8, 0xfc62ebfb3530caeb, 0x8d8b0c05520569f6,
+      0xbbaca65cf154c59d, 0x3739b5ada7e338d3, 0xdb9ea31f47365340,
+      0x410b5c9c1da56755, 0x7e0abc03dbd10283, 0x136f87be70ed442e,
+      0x6b727d4feddbe1e9, 0x074ebb21183b01df, 0x3fe92185b1985484,
+      0xc5d8efd3c68305ca, 0xd9bada21b17e272e, 0x64d73133e1360f83,
+      0xeb8563aa993e21f9, 0xe5e8da50cceab28f, 0x7a6f92eb3223d2f3,
+      0xbdaf98370ea9b31b, 0x1682a84457f077bc, 0x4abd2d33b6e3be37,
+      0xb35bc81a7c9d4c04, 0x3e5bde3fb7cfe63d, 0xff3abe6e2ffec974,
+      0xb8116dd26cf6feec, 0x7a77a6e4ed0cf081, 0xb71eec2d5a184316,
+      0x6fa932f77b4da817, 0x795f79b33909b2c4, 0x1b8755ef6b5eb34e,
+      0x2255b72d7d6b2d79, 0xf2bdafafa90bd50a, 0x442a578f02cb1fc8,
+      0xc25aefe55ecf83db,
   };
 #endif
 
@@ -408,7 +404,7 @@ TEST(LowLevelHashTest, VerifyGolden) {
     ASSERT_TRUE(absl::Base64Unescape(cases[i].base64_data, &str));
     ASSERT_GT(str.size(), 32);
     uint64_t h = absl::hash_internal::LowLevelHashLenGt32(
-        str.data(), str.size(), cases[i].seed, kSalt);
+        str.data(), str.size(), cases[i].seed);
     printf("0x%016" PRIx64 ", ", h);
     if (i % 3 == 2) {
       printf("\n");
@@ -424,7 +420,7 @@ TEST(LowLevelHashTest, VerifyGolden) {
     ASSERT_TRUE(absl::Base64Unescape(cases[i].base64_data, &str));
     ASSERT_GT(str.size(), 32);
     EXPECT_EQ(absl::hash_internal::LowLevelHashLenGt32(str.data(), str.size(),
-                                                       cases[i].seed, kSalt),
+                                                       cases[i].seed),
               kGolden[i]);
   }
 #endif

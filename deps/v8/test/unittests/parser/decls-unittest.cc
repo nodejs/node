@@ -435,12 +435,12 @@ class SimpleContext {
 
   void Check(const char* source, Expectations expectations,
              v8::Local<Value> value = Local<Value>()) {
-    HandleScope scope(context_->GetIsolate());
-    TryCatch catcher(context_->GetIsolate());
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    HandleScope scope(isolate);
+    TryCatch catcher(isolate);
     catcher.SetVerbose(true);
     MaybeLocal<Script> script = Script::Compile(
-        context_,
-        String::NewFromUtf8(context_->GetIsolate(), source).ToLocalChecked());
+        context_, String::NewFromUtf8(isolate, source).ToLocalChecked());
     if (expectations == EXPECT_ERROR) {
       CHECK(script.IsEmpty());
       return;

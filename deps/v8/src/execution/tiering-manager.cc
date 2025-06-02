@@ -256,7 +256,13 @@ void TrySetOsrUrgency(Isolate* isolate, Tagged<JSFunction> function,
                       int osr_urgency) {
   Tagged<SharedFunctionInfo> shared = function->shared();
   if (V8_UNLIKELY(!v8_flags.use_osr)) return;
-  if (V8_UNLIKELY(shared->optimization_disabled())) return;
+  if (V8_UNLIKELY(shared->optimization_disabled(
+          (!v8_flags.maglev ||
+           (v8_flags.turbofan && function->ActiveTierIsMaglev(isolate)))
+              ? CodeKind::TURBOFAN_JS
+              : CodeKind::MAGLEV))) {
+    return;
+  }
 
   // We've passed all checks - bump the OSR urgency.
 
@@ -322,8 +328,11 @@ void TieringManager::MaybeOptimizeFrame(Tagged<JSFunction> function,
     return;
   }
 
-  // TODO(v8:7700): Consider splitting this up for Maglev/Turbofan.
-  if (V8_UNLIKELY(function->shared()->optimization_disabled())) return;
+  if (V8_UNLIKELY(function->shared()->optimization_disabled(
+          current_code_kind == CodeKind::MAGLEV ? CodeKind::TURBOFAN_JS
+                                                : CodeKind::MAGLEV))) {
+    return;
+  }
 
   if (V8_UNLIKELY(v8_flags.always_osr)) {
     TryRequestOsrAtNextOpportunity(isolate_, function);

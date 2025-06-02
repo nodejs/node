@@ -97,17 +97,10 @@ OptimizingCompileTaskExecutor::OptimizingCompileTaskExecutor()
 
 OptimizingCompileTaskExecutor::~OptimizingCompileTaskExecutor() {
   DCHECK_EQ(input_queue_.Length(), 0);
-
-  if (job_handle_) {
-    DCHECK(job_handle_->IsValid());
-
-    // Wait for the job handle to complete, so that we know the queue
-    // pointers are safe.
-    job_handle_->Cancel();
-  }
+  DCHECK(!job_handle_);
 }
 
-void OptimizingCompileTaskExecutor::EnsureInitialized() {
+void OptimizingCompileTaskExecutor::EnsureStarted() {
   if (is_initialized_) return;
   is_initialized_ = true;
 
@@ -126,6 +119,18 @@ void OptimizingCompileTaskExecutor::EnsureInitialized() {
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
         kTaskPriority, std::make_unique<CompileTask>(this));
   }
+}
+
+void OptimizingCompileTaskExecutor::Stop() {
+  if (job_handle_) {
+    DCHECK(job_handle_->IsValid());
+
+    // Cancel all running tasks.
+    job_handle_->Cancel();
+    job_handle_.reset();
+  }
+
+  is_initialized_ = false;
 }
 
 TurbofanCompilationJob* OptimizingCompileTaskExecutor::NextInput(
@@ -337,7 +342,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
     }
     // Discard code compiled for a discarded native context without
     // finalization.
-    if (function->native_context()->global_object()->IsDetached()) {
+    if (function->native_context()->global_object()->IsDetached(isolate_)) {
       Compiler::DisposeTurbofanCompilationJob(isolate_, job.get());
       continue;
     }

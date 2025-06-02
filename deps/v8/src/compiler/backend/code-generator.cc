@@ -177,7 +177,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
                               exit->pos(), deoptimization_id);
   }
 
-  if (deopt_kind == DeoptimizeKind::kLazy) {
+  if (deopt_kind == DeoptimizeKind::kLazy ||
+      deopt_kind == DeoptimizeKind::kLazyAfterFastCall) {
     ++lazy_deopt_count_;
     masm()->BindExceptionHandler(exit->label());
   } else {
@@ -370,11 +371,18 @@ void CodeGenerator::AssembleCode() {
   auto cmp = [](const DeoptimizationExit* a, const DeoptimizationExit* b) {
     // The deoptimization exits are sorted so that lazy deopt exits appear after
     // eager deopts.
-    static_assert(static_cast<int>(DeoptimizeKind::kLazy) ==
-                      static_cast<int>(kLastDeoptimizeKind),
-                  "lazy deopts are expected to be emitted last");
-    if (a->kind() != b->kind()) {
-      return a->kind() < b->kind();
+    int a_kind_val = a->kind() == DeoptimizeKind::kEager ? 0 : 1;
+    int b_kind_val = b->kind() == DeoptimizeKind::kEager ? 0 : 1;
+
+    DCHECK_IMPLIES(a_kind_val == 1,
+                   a->kind() == DeoptimizeKind::kLazy ||
+                       a->kind() == DeoptimizeKind::kLazyAfterFastCall);
+    DCHECK_IMPLIES(b_kind_val == 1,
+                   b->kind() == DeoptimizeKind::kLazy ||
+                       b->kind() == DeoptimizeKind::kLazyAfterFastCall);
+
+    if (a_kind_val != b_kind_val) {
+      return a_kind_val < b_kind_val;
     }
     return a->pc_offset() < b->pc_offset();
   };
@@ -395,7 +403,8 @@ void CodeGenerator::AssembleCode() {
       // order, which is always the case since they are added to
       // deoptimization_exits_ in that order, and the optional sort operation
       // above preserves that order.
-      if (exit->kind() == DeoptimizeKind::kLazy) {
+      if (exit->kind() == DeoptimizeKind::kLazy ||
+          exit->kind() == DeoptimizeKind::kLazyAfterFastCall) {
         int trampoline_pc = exit->label()->pos();
         last_updated = safepoints()->UpdateDeoptimizationInfo(
             exit->pc_offset(), trampoline_pc, last_updated,

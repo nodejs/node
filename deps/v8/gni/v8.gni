@@ -52,6 +52,20 @@ declare_args() {
   # add a dependency on the ICU library.
   v8_enable_i18n_support = true
 
+  # Enable Temporal API. Enabling this feature will
+  # add a dependency on the temporal_rs library.
+  #
+  # We currently only want it enabled on d8 and chromium builds (Functionality
+  # is still not accessible unless --harmony-temporal is enabled at runtime)
+  #
+  # The Windows and Fuchsia builds for temporal_rs also currently fail,
+  # but won't once we vendor in https://github.com/boa-dev/temporal/pull/279
+  # NOTE: we check target OS, not is_win/is_fuchsia, since those will be different
+  # when doing host codegen.
+  v8_enable_temporal_support =
+      !(defined(build_with_node) && build_with_node) && target_os != "win" &&
+      target_os != "fuchsia" && target_cpu != "ppc64" && target_cpu != "s390x"
+
   # Use static libraries instead of source_sets.
   v8_static_library = false
 

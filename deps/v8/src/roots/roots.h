@@ -131,6 +131,7 @@ class RootVisitor;
   V(Map, regexp_data_map, RegExpDataMap)                                       \
   V(Map, atom_regexp_data_map, AtomRegExpDataMap)                              \
   V(Map, ir_regexp_data_map, IrRegExpDataMap)                                  \
+  V(Map, double_string_cache_map, DoubleStringCacheMap)                        \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
   V(Map, simple_name_dictionary_map, SimpleNameDictionaryMap)                  \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
@@ -150,6 +151,7 @@ class RootVisitor;
   IF_WASM(V, Map, wasm_null_map, WasmNullMap)                                  \
   IF_WASM(V, Map, wasm_resume_data_map, WasmResumeDataMap)                     \
   IF_WASM(V, Map, wasm_suspender_object_map, WasmSuspenderObjectMap)           \
+  IF_WASM(V, Map, wasm_continuation_object_map, WasmContinuationObjectMap)     \
   IF_WASM(V, Map, wasm_trusted_instance_data_map, WasmTrustedInstanceDataMap)  \
   IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
@@ -242,8 +244,11 @@ class RootVisitor;
   V(ScopeInfo, native_scope_info, NativeScopeInfo)                             \
   V(ScopeInfo, shadow_realm_scope_info, ShadowRealmScopeInfo)                  \
   V(RegisteredSymbolTable, empty_symbol_table, EmptySymbolTable)               \
+  V(ContextCell, undefined_context_cell, UndefinedContextCell)                 \
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)                                            \
+  V(FixedArray, preallocated_number_string_table,                              \
+    PreallocatedNumberStringTable)                                             \
   IF_WASM(V, HeapObject, wasm_null_padding, WasmNullPadding)                   \
   IF_WASM(V, WasmNull, wasm_null, WasmNull)
 
@@ -332,8 +337,9 @@ class RootVisitor;
     NoUndetectableObjectsProtector)                                            \
   V(PropertyCell, is_concat_spreadable_protector, IsConcatSpreadableProtector) \
   V(PropertyCell, array_species_protector, ArraySpeciesProtector)              \
-  V(PropertyCell, typed_array_length_protector, TypedArrayLengthProtector)     \
   V(PropertyCell, typed_array_species_protector, TypedArraySpeciesProtector)   \
+  V(PropertyCell, no_date_time_configuration_change_protector,                 \
+    NoDateTimeConfigurationChangeProtector)                                    \
   V(PropertyCell, promise_species_protector, PromiseSpeciesProtector)          \
   V(PropertyCell, regexp_species_protector, RegExpSpeciesProtector)            \
   V(PropertyCell, string_length_protector, StringLengthProtector)              \
@@ -379,7 +385,8 @@ class RootVisitor;
 // These root references can be updated by the mutator.
 #define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                 \
   /* Caches */                                                              \
-  V(FixedArray, number_string_cache, NumberStringCache)                     \
+  V(SmiStringCache, smi_string_cache, SmiStringCache)                       \
+  V(DoubleStringCache, double_string_cache, DoubleStringCache)              \
   /* Lists and dictionaries */                                              \
   V(RegisteredSymbolTable, public_symbol_table, PublicSymbolTable)          \
   V(RegisteredSymbolTable, api_symbol_table, ApiSymbolTable)                \
@@ -516,8 +523,11 @@ enum class RootIndex : uint16_t {
   // Heap::CreateLateReadOnlyJSReceiverMaps.
   kFirstJSReceiverMapRoot = kJSSharedArrayMap,
 
+  kSingleCharacterStringRootsCount =
+      SINGLE_CHARACTER_INTERNALIZED_STRING_LIST_GENERATOR(COUNT_ROOT, n/a),
   kFirstSingleCharacterString = kascii_nul_string,
-  kLastSingleCharacterString = kFirstSingleCharacterString + 0xff,
+  kLastSingleCharacterString =
+      kFirstSingleCharacterString + kSingleCharacterStringRootsCount - 1,
 
   // Use for fast protector update checks
   kFirstNameForProtector = kconstructor_string,
@@ -635,9 +645,8 @@ class RootsTable {
 
   static constexpr RootIndex SingleCharacterStringIndex(int c) {
     DCHECK_GE(c, 0);
-    DCHECK_LE(
-        c, static_cast<unsigned>(RootIndex::kLastSingleCharacterString) -
-               static_cast<unsigned>(RootIndex::kFirstSingleCharacterString));
+    DCHECK_LT(
+        c, static_cast<unsigned>(RootIndex::kSingleCharacterStringRootsCount));
     static_assert(static_cast<int>(RootIndex::kFirstReadOnlyRoot) == 0);
     return static_cast<RootIndex>(
         static_cast<unsigned>(RootIndex::kFirstSingleCharacterString) + c);

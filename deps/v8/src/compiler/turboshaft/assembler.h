@@ -14,6 +14,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "include/v8-primitive.h"
 #include "include/v8-source-location.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -58,7 +59,6 @@
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged.h"
 #include "src/objects/turbofan-types.h"
-#include "v8-primitive.h"
 
 #ifdef V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-objects.h"
@@ -979,8 +979,8 @@ class TSReducerBase : public Next {
 
   template <class Op, class... Args>
   OpIndex Emit(Args... args) {
-    static_assert((std::is_base_of<Operation, Op>::value));
-    static_assert(!(std::is_same<Op, Operation>::value));
+    static_assert((std::is_base_of_v<Operation, Op>));
+    static_assert(!(std::is_same_v<Op, Operation>));
     DCHECK_NOT_NULL(Asm().current_block());
     OpIndex result = Asm().output_graph().next_operation_index();
     Op& op = Asm().output_graph().template Add<Op>(args...);
@@ -2963,7 +2963,8 @@ class TurboshaftAssemblerOpInterface
     V<Rep> value = Load(object, kind, rep, access.offset);
 #ifdef V8_ENABLE_SANDBOX
     if (is_sandboxed_external) {
-      value = DecodeExternalPointer(value, access.external_pointer_tag);
+      value = V<Rep>::Cast(DecodeExternalPointer(V<Word32>::Cast(value),
+                                                 access.external_pointer_tag));
     }
     if (access.is_bounded_size_access) {
       DCHECK(!is_sandboxed_external);
@@ -3163,11 +3164,13 @@ class TurboshaftAssemblerOpInterface
   }
 
   template <typename T = HeapObject>
-  Uninitialized<T> Allocate(ConstOrV<WordPtr> size, AllocationType type) {
+  Uninitialized<T> Allocate(ConstOrV<WordPtr> size, AllocationType type,
+                            AllocationAlignment alignment) {
     static_assert(is_subtype_v<T, HeapObject>);
     DCHECK(!in_object_initialization_);
     in_object_initialization_ = true;
-    return Uninitialized<T>{ReduceIfReachableAllocate(resolve(size), type)};
+    return Uninitialized<T>{
+        ReduceIfReachableAllocate(resolve(size), type, alignment)};
   }
 
   template <typename T>
@@ -3180,14 +3183,15 @@ class TurboshaftAssemblerOpInterface
   V<HeapNumber> AllocateHeapNumberWithValue(V<Float64> value,
                                             Factory* factory) {
     auto result = __ template Allocate<HeapNumber>(
-        __ IntPtrConstant(sizeof(HeapNumber)), AllocationType::kYoung);
+        __ IntPtrConstant(sizeof(HeapNumber)), AllocationType::kYoung,
+        kTaggedAligned);
     __ InitializeField(result, AccessBuilder::ForMap(),
                        __ HeapConstant(factory->heap_number_map()));
     __ InitializeField(result, AccessBuilder::ForHeapNumberValue(), value);
     return __ FinishInitialization(std::move(result));
   }
 
-  OpIndex DecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
+  V<WordPtr> DecodeExternalPointer(V<Word32> handle, ExternalPointerTag tag) {
     return ReduceIfReachableDecodeExternalPointer(handle, tag);
   }
 
@@ -3413,7 +3417,8 @@ class TurboshaftAssemblerOpInterface
     DCHECK(frame_state.valid());
     auto arguments = std::apply(
         [](auto&&... as) {
-          return base::SmallVector<OpIndex, std::tuple_size_v<decltype(args)>>{
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t>>{
               std::forward<decltype(as)>(as)...};
         },
         args);
@@ -3705,6 +3710,13 @@ class TurboshaftAssemblerOpInterface
                                      V<JSPrimitive> object) {
     return CallBuiltin<typename BuiltinCallDescriptor::ToObject>(
         isolate, context, {object});
+  }
+  void CallBuiltin_DetachContextCell(Isolate* isolate,
+                                     V<turboshaft::FrameState> frame_state,
+                                     V<Context> context, V<Object> new_value,
+                                     ConstOrV<WordPtr> index) {
+    CallBuiltin<typename BuiltinCallDescriptor::DetachContextCell>(
+        isolate, frame_state, {context, new_value, resolve(index)});
   }
   V<Context> CallBuiltin_FastNewFunctionContextFunction(
       Isolate* isolate, V<turboshaft::FrameState> frame_state,
@@ -4918,26 +4930,50 @@ class TurboshaftAssemblerOpInterface
 
   V<Any> StructGet(V<WasmStructNullable> object, const wasm::StructType* type,
                    wasm::ModuleTypeIndex type_index, int field_index,
-                   bool is_signed, CheckForNull null_check) {
+                   bool is_signed, CheckForNull null_check,
+                   std::optional<AtomicMemoryOrder> memory_order) {
     return ReduceIfReachableStructGet(object, type, type_index, field_index,
-                                      is_signed, null_check);
+                                      is_signed, null_check, memory_order);
   }
 
   void StructSet(V<WasmStructNullable> object, V<Any> value,
                  const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
-                 int field_index, CheckForNull null_check) {
+                 int field_index, CheckForNull null_check,
+                 std::optional<AtomicMemoryOrder> memory_order) {
     ReduceIfReachableStructSet(object, value, type, type_index, field_index,
-                               null_check);
+                               null_check, memory_order);
+  }
+
+  V<Word> StructAtomicRMW(V<WasmStructNullable> object, V<Word> value,
+                          StructAtomicRMWOp::BinOp bin_op,
+                          const wasm::StructType* type,
+                          wasm::ModuleTypeIndex type_index, int field_index,
+                          CheckForNull null_check,
+                          AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableStructAtomicRMW(object, value, bin_op, type,
+                                            type_index, field_index, null_check,
+                                            memory_order);
+  }
+
+  V<Word> ArrayAtomicRMW(V<WasmArrayNullable> array, V<Word32> index,
+                         V<Word> value, ArrayAtomicRMWOp::BinOp bin_op,
+                         wasm::ValueType element_type,
+                         AtomicMemoryOrder memory_order) {
+    return ReduceIfReachableArrayAtomicRMW(array, index, value, bin_op,
+                                           element_type, memory_order);
   }
 
   V<Any> ArrayGet(V<WasmArrayNullable> array, V<Word32> index,
-                  const wasm::ArrayType* array_type, bool is_signed) {
-    return ReduceIfReachableArrayGet(array, index, array_type, is_signed);
+                  const wasm::ArrayType* array_type, bool is_signed,
+                  std::optional<AtomicMemoryOrder> memory_order) {
+    return ReduceIfReachableArrayGet(array, index, array_type, is_signed,
+                                     memory_order);
   }
 
   void ArraySet(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
-                wasm::ValueType element_type) {
-    ReduceIfReachableArraySet(array, index, value, element_type);
+                wasm::ValueType element_type,
+                std::optional<AtomicMemoryOrder> memory_order) {
+    ReduceIfReachableArraySet(array, index, value, element_type, memory_order);
   }
 
   V<Word32> ArrayLength(V<WasmArrayNullable> array, CheckForNull null_check) {

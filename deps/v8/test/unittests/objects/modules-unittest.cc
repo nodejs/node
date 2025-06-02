@@ -41,7 +41,7 @@ MaybeLocal<Module> ResolveCallback(Local<Context> context,
                                    Local<FixedArray> import_attributes,
                                    Local<Module> referrer) {
   CHECK_EQ(0, import_attributes->Length());
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./dep1.js").ToLocalChecked())) {
     return dep1_global.Get(isolate);
@@ -143,7 +143,7 @@ static v8::Global<Module> barModule_global;
 MaybeLocal<Module> ResolveCallbackWithImportAttributes(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./foo.js").ToLocalChecked())) {
     CHECK_EQ(0, import_attributes->Length());
@@ -373,7 +373,7 @@ static MaybeLocal<Module> CompileSpecifierAsModuleResolveCallback(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
   CHECK_EQ(0, import_attributes->Length());
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   ScriptOrigin origin = ModuleOrigin(
       String::NewFromUtf8(isolate, "module.js").ToLocalChecked(), isolate);
   ScriptCompiler::Source source(specifier, origin);
@@ -489,7 +489,7 @@ MaybeLocal<Module> ResolveCallbackForModuleEvaluationError2(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
   CHECK_EQ(0, import_attributes->Length());
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./failure.js").ToLocalChecked())) {
     return failure_module_global.Get(isolate);
@@ -890,7 +890,7 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
     Local<FixedArray> import_attributes) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
@@ -903,7 +903,7 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
     Local<FixedArray> import_attributes) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
@@ -1080,7 +1080,7 @@ MaybeLocal<Module> ResolveCallbackForIsGraphAsyncTopLevelAwait(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
   CHECK_EQ(0, import_attributes->Length());
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./async_leaf.js").ToLocalChecked())) {
     return async_leaf_module_global.Get(isolate);

@@ -345,7 +345,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     mov(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), ebp);
     add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
         Immediate(static_cast<int32_t>(
-            stack_param_slots * kStackSlotSize +
+            stack_param_slots * kSystemPointerSize +
             CommonFrameConstants::kFixedFrameSizeAboveFp)));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
@@ -534,6 +534,16 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
        false, false, needs_shift);
 }
 
+void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
+                                               Register offset_reg,
+                                               int32_t offset_imm,
+                                               AtomicMemoryOrder memory_order,
+                                               uint32_t* protected_load_pc,
+                                               bool needs_shift) {
+  LoadTaggedPointer(dst, src_addr, offset_reg, offset_imm, protected_load_pc,
+                    needs_shift);
+}
+
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
                                             int32_t offset) {
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
@@ -576,6 +586,14 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
+}
+
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  StoreTaggedPointer(dst_addr, offset_reg, offset_imm, src, pinned,
+                     protected_store_pc);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -2398,8 +2416,8 @@ inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
                                      DoubleRegister src,
                                      DoubleRegister converted_back,
                                      LiftoffRegList pinned) {
-  if (std::is_same<double, src_type>::value) {  // f64
-    if (std::is_signed<dst_type>::value) {      // f64 -> i32
+  if (std::is_same_v<double, src_type>) {  // f64
+    if (std::is_signed_v<dst_type>) {      // f64 -> i32
       __ cvttsd2si(dst, src);
       __ Cvtsi2sd(converted_back, dst);
     } else {  // f64 -> u32
@@ -2409,8 +2427,8 @@ inline void ConvertFloatToIntAndBack(LiftoffAssembler* assm, Register dst,
       __ Cvtui2sd(converted_back, dst,
                   CacheStatePreservingTempRegisters(assm, pinned).Acquire());
     }
-  } else {                                  // f32
-    if (std::is_signed<dst_type>::value) {  // f32 -> i32
+  } else {                             // f32
+    if (std::is_signed_v<dst_type>) {  // f32 -> i32
       __ cvttss2si(dst, src);
       __ Cvtsi2ss(converted_back, dst);
     } else {  // f32 -> u32
@@ -2438,14 +2456,14 @@ inline void EmitTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   DoubleRegister rounded = kScratchDoubleReg;
   DoubleRegister converted_back = kScratchDoubleReg2;
 
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ roundsd(rounded, src, kRoundToZero);
   } else {  // f32
     __ roundss(rounded, src, kRoundToZero);
   }
   ConvertFloatToIntAndBack<dst_type, src_type>(assm, dst, rounded,
                                                converted_back, pinned);
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ ucomisd(converted_back, rounded);
   } else {  // f32
     __ ucomiss(converted_back, rounded);
@@ -2478,7 +2496,7 @@ inline void EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   DoubleRegister zero_reg =
       pinned.set(__ GetUnusedRegister(kFpReg, pinned)).fp();
 
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ roundsd(rounded, src, kRoundToZero);
   } else {  // f32
     __ roundss(rounded, src, kRoundToZero);
@@ -2486,7 +2504,7 @@ inline void EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
 
   ConvertFloatToIntAndBack<dst_type, src_type>(assm, dst, rounded,
                                                converted_back, pinned);
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ ucomisd(converted_back, rounded);
   } else {  // f32
     __ ucomiss(converted_back, rounded);
@@ -2504,7 +2522,7 @@ inline void EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   __ Xorpd(zero_reg, zero_reg);
 
   // if out-of-bounds, check if src is positive
-  if (std::is_same<double, src_type>::value) {  // f64
+  if (std::is_same_v<double, src_type>) {  // f64
     __ ucomisd(src, zero_reg);
   } else {  // f32
     __ ucomiss(src, zero_reg);

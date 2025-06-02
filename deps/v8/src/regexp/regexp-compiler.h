@@ -17,6 +17,7 @@ namespace internal {
 
 class DynamicBitSet;
 class Isolate;
+class FixedLengthLoopState;
 
 namespace regexp_compiler_constants {
 
@@ -78,9 +79,14 @@ class QuickCheckDetails {
     base::uc32 value;
     bool determines_perfectly;
   };
-  int characters() { return characters_; }
+  int characters() const { return characters_; }
   void set_characters(int characters) { characters_ = characters; }
   Position* positions(int index) {
+    DCHECK_LE(0, index);
+    DCHECK_GT(characters_, index);
+    return positions_ + index;
+  }
+  const Position* positions(int index) const {
     DCHECK_LE(0, index);
     DCHECK_GT(characters_, index);
     return positions_ + index;
@@ -234,82 +240,50 @@ class Trace {
   // or not known.
   enum TriBool { UNKNOWN = -1, FALSE_VALUE = 0, TRUE_VALUE = 1 };
 
-  class DeferredAction {
-   public:
-    DeferredAction(ActionNode::ActionType action_type, int reg)
-        : action_type_(action_type), reg_(reg), next_(nullptr) {}
-    DeferredAction* next() { return next_; }
-    bool Mentions(int reg);
-    int reg() { return reg_; }
-    ActionNode::ActionType action_type() { return action_type_; }
-
-   private:
-    ActionNode::ActionType action_type_;
-    int reg_;
-    DeferredAction* next_;
-    friend class Trace;
-  };
-
-  class DeferredCapture : public DeferredAction {
-   public:
-    DeferredCapture(int reg, bool is_capture, Trace* trace)
-        : DeferredAction(ActionNode::STORE_POSITION, reg),
-          cp_offset_(trace->cp_offset()),
-          is_capture_(is_capture) {}
-    int cp_offset() { return cp_offset_; }
-    bool is_capture() { return is_capture_; }
-
-   private:
-    int cp_offset_;
-    bool is_capture_;
-    void set_cp_offset(int cp_offset) { cp_offset_ = cp_offset; }
-  };
-
-  class DeferredSetRegisterForLoop : public DeferredAction {
-   public:
-    DeferredSetRegisterForLoop(int reg, int value)
-        : DeferredAction(ActionNode::SET_REGISTER_FOR_LOOP, reg),
-          value_(value) {}
-    int value() { return value_; }
-
-   private:
-    int value_;
-  };
-
-  class DeferredClearCaptures : public DeferredAction {
-   public:
-    explicit DeferredClearCaptures(Interval range)
-        : DeferredAction(ActionNode::CLEAR_CAPTURES, -1), range_(range) {}
-    Interval range() { return range_; }
-
-   private:
-    Interval range_;
-  };
-
-  class DeferredIncrementRegister : public DeferredAction {
-   public:
-    explicit DeferredIncrementRegister(int reg)
-        : DeferredAction(ActionNode::INCREMENT_REGISTER, reg) {}
-  };
-
   Trace()
       : cp_offset_(0),
-        actions_(nullptr),
+        flush_budget_(100),  // Note: this is a 16 bit field.
+        at_start_(UNKNOWN),
+        has_any_actions_(false),
+        action_(nullptr),
         backtrack_(nullptr),
-        stop_node_(nullptr),
-        loop_label_(nullptr),
+        fixed_length_loop_state_(nullptr),
         characters_preloaded_(0),
         bound_checked_up_to_(0),
-        flush_budget_(100),
-        at_start_(UNKNOWN) {}
+        next_(nullptr) {}
+
+  Trace(const Trace& other) V8_NOEXCEPT
+      : cp_offset_(other.cp_offset_),
+        flush_budget_(other.flush_budget_),
+        at_start_(other.at_start_),
+        has_any_actions_(other.has_any_actions_),
+        action_(nullptr),
+        backtrack_(other.backtrack_),
+        fixed_length_loop_state_(other.fixed_length_loop_state_),
+        characters_preloaded_(other.characters_preloaded_),
+        bound_checked_up_to_(other.bound_checked_up_to_),
+        quick_check_performed_(other.quick_check_performed_),
+        next_(&other) {}
 
   // End the trace.  This involves flushing the deferred actions in the trace
   // and pushing a backtrack location onto the backtrack stack.  Once this is
   // done we can start a new trace or go to one that has already been
   // generated.
-  void Flush(RegExpCompiler* compiler, RegExpNode* successor);
-  int cp_offset() { return cp_offset_; }
-  DeferredAction* actions() { return actions_; }
+  enum FlushMode {
+    // Normal flush of the deferred actions, generates code for backtracking.
+    kFlushFull,
+    // Matching has succeeded, so current position and backtrack stack will be
+    // ignored and need not be written.
+    kFlushSuccess
+  };
+  void Flush(RegExpCompiler* compiler, RegExpNode* successor,
+             FlushMode mode = kFlushFull);
+  int cp_offset() const { return cp_offset_; }
+  // Does any trace in the chain have an action?
+  bool has_any_actions() const { return has_any_actions_; }
+  // Does this particular trace object have an action?
+  bool has_action() const { return action_ != nullptr; }
+  ActionNode* action() const { return action_; }
   // A trivial trace is one that has no deferred actions or other state that
   // affects the assumptions used when generating code.  There is no recorded
   // backtrack location in a trivial trace, so with a trivial trace we will
@@ -320,43 +294,71 @@ class Trace {
   // actions in the trace.  The location of the code generated for a node using
   // a trivial trace is recorded in a label in the node so that gotos can be
   // generated to that code.
-  bool is_trivial() {
-    return backtrack_ == nullptr && actions_ == nullptr && cp_offset_ == 0 &&
+  bool is_trivial() const {
+    return backtrack_ == nullptr && !has_any_actions_ && cp_offset_ == 0 &&
            characters_preloaded_ == 0 && bound_checked_up_to_ == 0 &&
            quick_check_performed_.characters() == 0 && at_start_ == UNKNOWN;
   }
-  TriBool at_start() { return at_start_; }
+  TriBool at_start() const { return at_start_; }
   void set_at_start(TriBool at_start) { at_start_ = at_start; }
-  Label* backtrack() { return backtrack_; }
-  Label* loop_label() { return loop_label_; }
-  RegExpNode* stop_node() { return stop_node_; }
-  int characters_preloaded() { return characters_preloaded_; }
-  int bound_checked_up_to() { return bound_checked_up_to_; }
-  int flush_budget() { return flush_budget_; }
+  Label* backtrack() const { return backtrack_; }
+  FixedLengthLoopState* fixed_length_loop_state() const {
+    return fixed_length_loop_state_;
+  }
+  int characters_preloaded() const { return characters_preloaded_; }
+  int bound_checked_up_to() const { return bound_checked_up_to_; }
+  int flush_budget() const { return flush_budget_; }
   QuickCheckDetails* quick_check_performed() { return &quick_check_performed_; }
-  bool mentions_reg(int reg);
+  bool mentions_reg(int reg) const;
   // Returns true if a deferred position store exists to the specified
   // register and stores the offset in the out-parameter.  Otherwise
   // returns false.
-  bool GetStoredPosition(int reg, int* cp_offset);
+  bool GetStoredPosition(int reg, int* cp_offset) const;
   // These set methods and AdvanceCurrentPositionInTrace should be used only on
   // new traces - the intention is that traces are immutable after creation.
-  void add_action(DeferredAction* new_action) {
-    DCHECK(new_action->next_ == nullptr);
-    new_action->next_ = actions_;
-    actions_ = new_action;
+  void add_action(ActionNode* new_action) {
+    DCHECK(action_ == nullptr);  // Otherwise we lose an action.
+    action_ = new_action;
+    has_any_actions_ = true;
   }
   void set_backtrack(Label* backtrack) { backtrack_ = backtrack; }
-  void set_stop_node(RegExpNode* node) { stop_node_ = node; }
-  void set_loop_label(Label* label) { loop_label_ = label; }
+  void set_fixed_length_loop_state(FixedLengthLoopState* state) {
+    fixed_length_loop_state_ = state;
+  }
   void set_characters_preloaded(int count) { characters_preloaded_ = count; }
   void set_bound_checked_up_to(int to) { bound_checked_up_to_ = to; }
-  void set_flush_budget(int to) { flush_budget_ = to; }
+  void set_flush_budget(int to) {
+    DCHECK(to <= UINT16_MAX);  // Flush-budget is 16 bit.
+    flush_budget_ = to;
+  }
   void set_quick_check_performed(QuickCheckDetails* d) {
     quick_check_performed_ = *d;
   }
   void InvalidateCurrentCharacter();
   void AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler);
+  const Trace* next() const { return next_; }
+
+  class ConstIterator final {
+   public:
+    ConstIterator& operator++() {
+      trace_ = trace_->next();
+      return *this;
+    }
+    bool operator==(const ConstIterator& other) const {
+      return trace_ == other.trace_;
+    }
+    const Trace* operator*() const { return trace_; }
+
+   private:
+    explicit ConstIterator(const Trace* trace) : trace_(trace) {}
+
+    const Trace* trace_;
+
+    friend class Trace;
+  };
+
+  ConstIterator begin() const { return ConstIterator(this); }
+  ConstIterator end() const { return ConstIterator(nullptr); }
 
  private:
   int FindAffectedRegisters(DynamicBitSet* affected_registers, Zone* zone);
@@ -368,26 +370,33 @@ class Trace {
                                 const DynamicBitSet& registers_to_pop,
                                 const DynamicBitSet& registers_to_clear);
   int cp_offset_;
-  DeferredAction* actions_;
+  uint16_t flush_budget_;
+  TriBool at_start_ : 8;      // Whether we are at the start of the string.
+  bool has_any_actions_ : 8;  // Whether any trace in the chain has an action.
+  ActionNode* action_;
   Label* backtrack_;
-  RegExpNode* stop_node_;
-  Label* loop_label_;
+  FixedLengthLoopState* fixed_length_loop_state_;
   int characters_preloaded_;
   int bound_checked_up_to_;
   QuickCheckDetails quick_check_performed_;
-  int flush_budget_;
-  TriBool at_start_;
+  const Trace* next_;
 };
 
-class GreedyLoopState {
+class FixedLengthLoopState {
  public:
-  explicit GreedyLoopState(bool not_at_start);
+  explicit FixedLengthLoopState(bool not_at_start,
+                                ChoiceNode* loop_choice_node);
 
-  Label* label() { return &label_; }
+  void BindStepBackwardsLabel(RegExpMacroAssembler* macro_assembler);
+  void BindLoopTopLabel(RegExpMacroAssembler* macro_assembler);
+  void GoToLoopTopLabel(RegExpMacroAssembler* macro_assembler);
+  ChoiceNode* loop_choice_node() const { return loop_choice_node_; }
   Trace* counter_backtrack_trace() { return &counter_backtrack_trace_; }
 
  private:
-  Label label_;
+  Label step_backwards_label_;
+  Label loop_top_label_;
+  ChoiceNode* loop_choice_node_;
   Trace counter_backtrack_trace_;
 };
 
@@ -526,7 +535,14 @@ class RegExpCompiler {
   RegExpMacroAssembler* macro_assembler() { return macro_assembler_; }
   EndNode* accept() { return accept_; }
 
-  static const int kMaxRecursion = 100;
+#if defined(V8_TARGET_OS_MACOS)
+  // Looks like MacOS needs a lower recursion limit since "secondary threads"
+  // get a smaller stack by default (512kB vs. 8MB).
+  // See https://crbug.com/408820921.
+  static constexpr int kMaxRecursion = 50;
+#else
+  static constexpr int kMaxRecursion = 100;
+#endif
   inline int recursion_depth() { return recursion_depth_; }
   inline void IncrementRecursionDepth() { recursion_depth_++; }
   inline void DecrementRecursionDepth() { recursion_depth_--; }

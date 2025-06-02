@@ -400,7 +400,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     PushRegisters(regs_to_save);
     Mov(WasmHandleStackOverflowDescriptor::GapRegister(), frame_size);
     Add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-        Operand(stack_param_slots * kStackSlotSize +
+        Operand(stack_param_slots * kSystemPointerSize +
                 CommonFrameConstants::kFixedFrameSizeAboveFp));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
@@ -1090,9 +1090,37 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
     case LoadType::kI64Load:
       Ldar(dst.gp().X(), src_reg);
       return;
+    case LoadType::kI32Load8S:
+      Ldarb(dst.gp().W(), src_reg);
+      sxtb(dst.gp().W(), dst.gp().W());
+      return;
+    case LoadType::kI32Load16S:
+      Ldarh(dst.gp().W(), src_reg);
+      sxth(dst.gp().W(), dst.gp().W());
+      return;
     default:
       UNREACHABLE();
   }
+}
+
+void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
+                                               Register offset_reg,
+                                               int32_t offset_imm,
+                                               AtomicMemoryOrder memory_order,
+                                               uint32_t* protected_load_pc,
+                                               bool needs_shift) {
+  UseScratchRegisterScope temps(this);
+  Register src_reg = liftoff::CalculateActualAddress(this, temps, src_addr,
+                                                     offset_reg, offset_imm);
+  if (protected_load_pc != nullptr) {
+    *protected_load_pc = pc_offset();
+  }
+#if V8_COMPRESS_POINTERS
+  Ldar(dst.W(), src_reg);
+  DecompressTagged(dst, dst);
+#else
+  Ldar(dst.X(), src_reg);
+#endif
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
@@ -1121,6 +1149,41 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
+}
+
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  UseScratchRegisterScope temps(this);
+  Register dst_reg = liftoff::CalculateActualAddress(this, temps, dst_addr,
+                                                     offset_reg, offset_imm);
+  if (protected_store_pc != nullptr) {
+    *protected_store_pc = pc_offset();
+  }
+  if (COMPRESS_POINTERS_BOOL) {
+    Stlr(src.W(), dst_reg);
+  } else {
+    Stlr(src, dst_reg);
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // The write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+  Operand offset_op = offset_reg.is_valid() ? Operand(offset_reg.W(), UXTW)
+                                            : Operand(offset_imm);
+  if (offset_reg.is_valid() && offset_imm) {
+    Register effective_offset = temps.AcquireX();
+    Add(effective_offset.W(), offset_reg.W(), offset_imm);
+    offset_op = effective_offset;
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,

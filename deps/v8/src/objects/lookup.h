@@ -15,10 +15,6 @@
 #include "src/objects/map.h"
 #include "src/objects/objects.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/value-type.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 namespace v8::internal {
 
 class PropertyKey {

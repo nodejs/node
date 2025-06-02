@@ -134,11 +134,7 @@ V8_OBJECT class MutableBigInt : public FreshlyAllocatedBigInt {
 
   static_assert(std::is_same_v<bigint::digit_t, BigIntBase::digit_t>,
                 "We must be able to call BigInt library functions");
-
-  NEVER_READ_ONLY_SPACE
 } V8_OBJECT_END;
-
-NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 
 template <>
 struct CastTraits<MutableBigInt> : public CastTraits<BigInt> {};
@@ -306,7 +302,7 @@ void MutableBigInt::Canonicalize(Tagged<MutableBigInt> result) {
   while (new_length > 0 && result->digit(new_length - 1) == 0) new_length--;
   uint32_t to_trim = old_length - new_length;
   if (to_trim != 0) {
-    Heap* heap = result->GetHeap();
+    Heap* heap = Isolate::Current()->heap();
     if (!heap->IsLargeObject(result)) {
       uint32_t old_size =
           ALIGN_TO_ALLOCATION_ALIGNMENT(BigInt::SizeFor(old_length));

@@ -337,6 +337,7 @@ bool Parser::ShortcutStringLiteralAppendExpression(Expression** x,
   }
   if ((*x)->IsConsStringLiteral()) {
     (*x)->AsLiteral()->AsConsString()->AddString(zone(), y_val);
+    (*x)->clear_parenthesized();
     return true;
   }
   return false;
@@ -819,6 +820,13 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     }
     CheckConflictingVarDeclarations(scope);
 
+    // For sloppy eval though, we clear dynamic variables created for toplevel
+    // var to avoid resolving to a variable when the variable and proxy are in
+    // the same eval execution. The variable is not available on subsequent lazy
+    // executions of functions in the eval, so this avoids inner functions from
+    // looking up different variables during eager and lazy compilation.
+    if (flags().is_eval()) outer->RemoveDynamic();
+
     if (flags().parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
       if (body.length() != 1 || !body.at(0)->IsExpressionStatement() ||
           !body.at(0)
@@ -1025,7 +1033,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
   }
 
-  int function_literal_id = shared_info->function_literal_id();
+  int function_literal_id = shared_info->function_literal_id(kRelaxedLoad);
 
   // Initialize parser state.
   info->set_function_name(ast_value_factory()->GetString(

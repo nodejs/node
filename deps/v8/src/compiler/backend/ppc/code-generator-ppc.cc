@@ -634,7 +634,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
 #define ASSEMBLE_ATOMIC_BINOP_BYTE(bin_inst, _type)                          \
   do {                                                                       \
     auto bin_op = [&](Register dst, Register lhs, Register rhs) {            \
-      if (std::is_signed<_type>::value) {                                    \
+      if (std::is_signed_v<_type>) {                                         \
         __ extsb(dst, lhs);                                                  \
         __ bin_inst(dst, dst, rhs);                                          \
       } else {                                                               \
@@ -653,7 +653,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     auto bin_op = [&](Register dst, Register lhs, Register rhs) {             \
       Register _lhs = lhs;                                                    \
       MAYBE_REVERSE_IF_WASM(dst, _lhs, reverse_op, scratch, true);            \
-      if (std::is_signed<_type>::value) {                                     \
+      if (std::is_signed_v<_type>) {                                          \
         switch (sizeof(_type)) {                                              \
           case 1:                                                             \
             UNREACHABLE();                                                    \
@@ -926,10 +926,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchPrepareCallCFunction: {
-      int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const num_fp_parameters = FPParamField::decode(instr->opcode());
-      __ PrepareCallCFunction(num_gp_parameters + num_fp_parameters,
-                              kScratchReg);
+      int const num_parameters = MiscField::decode(instr->opcode());
+      __ PrepareCallCFunction(num_parameters, kScratchReg);
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
       break;
@@ -968,10 +966,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ RecordComment(reinterpret_cast<const char*>(i.InputInt64(0)),
                        SourceLocation());
       break;
-    case kArchCallCFunctionWithFrameState:
     case kArchCallCFunction: {
-      int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const fp_param_field = FPParamField::decode(instr->opcode());
+      uint32_t param_counts = i.InputUint32(instr->InputCount() - 1);
+      int const num_gp_parameters = ParamField::decode(param_counts);
+      int const fp_param_field = FPParamField::decode(param_counts);
       int num_fp_parameters = fp_param_field;
       bool has_function_descriptor = false;
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
@@ -1030,9 +1028,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif  // V8_ENABLE_WEBASSEMBLY
       RecordSafepoint(instr->reference_map(), pc_offset);
 
-      bool const needs_frame_state =
-          (opcode == kArchCallCFunctionWithFrameState);
-      if (needs_frame_state) {
+      if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
+        handlers_.push_back({nullptr, pc_offset});
+      }
+      if (instr->HasCallDescriptorFlag(CallDescriptor::kNeedsFrameState)) {
         RecordDeoptInfo(instr, pc_offset);
       }
 
@@ -1080,7 +1079,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DebugBreak();
       break;
     case kArchNop:
-    case kArchThrowTerminator:
       // don't emit code for nops.
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;

@@ -634,9 +634,7 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
     if (stack->IsActive()) {
       continue;
     }
-    for (StackFrameIterator it(this, stack.get()); !it.done(); it.Advance()) {
-      it.frame()->Iterate(v);
-    }
+    stack->Iterate(v, this);
   }
   StackFrameIterator it(this, thread, StackFrameIterator::FirstStackOnly{});
 #else
@@ -2029,7 +2027,7 @@ void ReportBootstrappingException(DirectHandle<Object> exception,
   // builtins, print the actual source here so that line numbers match.
   if (IsString(location->script()->source())) {
     DirectHandle<String> src(Cast<String>(location->script()->source()),
-                             location->script()->GetIsolate());
+                             Isolate::Current());
     PrintF("Failing script:");
     int len = src->length();
     if (len == 0) {
@@ -2284,10 +2282,18 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
     wasm::StackMemory* active_stack = isolate_data_.active_stack();
     if (active_stack != nullptr) {
       wasm::StackMemory* parent = nullptr;
+      Tagged<HeapObject> suspender = *roots_table().active_suspender();
       while (active_stack != iter.wasm_stack()) {
         parent = active_stack->jmpbuf()->parent;
         SBXCHECK_EQ(parent->jmpbuf()->state, wasm::JumpBuffer::Inactive);
         SwitchStacks(active_stack, parent);
+        // Unconditionally update the active suspender as well. This assumes
+        // that suspenders contain exactly one stack each.
+        // Note: this is only needed for --stress-wasm-stack-switching.
+        // Otherwise the exception should have been caught by the JSPI builtin.
+        // TODO(388533754): Revisit this for core stack-switching when the
+        // suspender can encapsulate multiple stacks.
+        suspender = Tagged<WasmSuspenderObject>::cast(suspender)->parent();
         parent->jmpbuf()->state = wasm::JumpBuffer::Active;
         RetireWasmStack(active_stack);
         active_stack = parent;
@@ -2295,6 +2301,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       if (parent) {
         // We switched at least once, update the active continuation.
         isolate_data_.set_active_stack(active_stack);
+        roots_table().slot(RootIndex::kActiveSuspender).store(suspender);
       }
     }
     // The unwinder is running on the central stack. If the target frame is in a
@@ -2642,14 +2649,58 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         }
       }
 
-      case StackFrame::BUILTIN:
+      case StackFrame::BUILTIN: {
         // For builtin frames we are guaranteed not to find a handler.
         if (catchable_by_js) {
           CHECK_EQ(-1, BuiltinFrame::cast(frame)->LookupExceptionHandlerInTable(
                            nullptr, nullptr));
         }
         break;
+      }
+      case StackFrame::INTERNAL: {
+        auto code = frame->GcSafeLookupCode();
+        if (code->builtin_id() ==
+            Builtin::kDeoptimizationEntry_LazyAfterFastCall) {
+          // Deoptimization Entry builtin does the exception handling for the
+          // fast API if the fast API caller was marked for deoptimization.
+          // Therefore, even though `frame->fp()` says that we are coming from
+          // the Deoptimization Entry builtin, we have to do the stack unwinding
+          // as if we come from the fast call. The return address of the fast
+          // call is still stored in the isolate, so we can just load it from
+          // there.
+          Address fast_call_pc = isolate_data()->fast_c_call_caller_pc();
+          std::optional<Tagged<GcSafeCode>> result =
+              inner_pointer_to_code_cache()->GetCacheEntry(fast_call_pc)->code;
 
+          CHECK(!result->is_null());
+
+          Tagged<GcSafeCode> caller_code = result.value();
+          int caller_offset =
+              caller_code->GetOffsetFromInstructionStart(this, fast_call_pc);
+          // Check if there is actually an exception handler registered at the
+          // return address of the fast call. If so, then we tell the
+          // deoptimizer of the exception and just return the the Deotimization
+          // Entry. Otherwise we iterate the stack further to find a handler.
+          HandlerTable table(caller_code->UnsafeCastToCode());
+          int handler_offset = table.LookupReturn(caller_offset);
+          if (handler_offset < 0) {
+            break;
+          }
+
+          // If the target code is lazy deoptimized, we jump to the original
+          // return address, but we make a note that we are throwing, so
+          // that the deoptimizer can do the right thing.
+          int offset =
+              static_cast<int>(frame->pc() - code->instruction_start());
+          set_deoptimizer_lazy_throw(true);
+
+          return FoundHandler(iter, Context(),
+                              code->InstructionStart(this, frame->pc()), offset,
+                              code->constant_pool(), frame->sp(), frame->fp(),
+                              visited_frames);
+        }
+        break;
+      }
       case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
         // Builtin continuation frames with catch can handle exceptions.
         if (!catchable_by_js) break;
@@ -3340,31 +3391,36 @@ bool CallsCatchMethod(Isolate* isolate, Handle<BytecodeArray> bytecode_array,
     if (iterator.done()) {
       return false;
     }
-    if (iterator.current_bytecode() == Bytecode::kStaCurrentContextSlotNoCell) {
+    if (iterator.current_bytecode() == Bytecode::kStaCurrentContextSlot ||
+        iterator.current_bytecode() == Bytecode::kStaCurrentContextSlotNoCell) {
       // Step over patterns like:
-      //     StaCurrentContextSlotNoCell [x]
-      //     LdaImmutableCurrentContextSlot [x]
+      //     StaCurrentContextSlot[NoCell] [x]
+      //     LdaImmutableCurrentContextSlot/LdaCurrentContext[NoCell] [x]
       unsigned int slot = iterator.GetIndexOperand(0);
       iterator.Advance();
-      if (!iterator.done() && (iterator.current_bytecode() ==
-                                   Bytecode::kLdaImmutableCurrentContextSlot ||
-                               iterator.current_bytecode() ==
-                                   Bytecode::kLdaCurrentContextSlotNoCell)) {
+      if (!iterator.done() &&
+          (iterator.current_bytecode() ==
+               Bytecode::kLdaImmutableCurrentContextSlot ||
+           iterator.current_bytecode() == Bytecode::kLdaCurrentContextSlot ||
+           iterator.current_bytecode() ==
+               Bytecode::kLdaCurrentContextSlotNoCell)) {
         if (iterator.GetIndexOperand(0) != slot) {
           return false;
         }
         iterator.Advance();
       }
-    } else if (iterator.current_bytecode() == Bytecode::kStaContextSlotNoCell) {
+    } else if (iterator.current_bytecode() == Bytecode::kStaContextSlot ||
+               iterator.current_bytecode() == Bytecode::kStaContextSlotNoCell) {
       // Step over patterns like:
-      //     StaContextSlotNoCell r_x [y] [z]
-      //     LdaContextSlotNoCell r_x [y] [z]
+      //     StaContextSlot[NoCell] r_x [y] [z]
+      //     LdaContextSlot[NoCell] r_x [y] [z]
       int context = iterator.GetRegisterOperand(0).index();
       unsigned int slot = iterator.GetIndexOperand(1);
       unsigned int depth = iterator.GetUnsignedImmediateOperand(2);
       iterator.Advance();
       if (!iterator.done() &&
           (iterator.current_bytecode() == Bytecode::kLdaImmutableContextSlot ||
+           iterator.current_bytecode() == Bytecode::kLdaContextSlot ||
            iterator.current_bytecode() == Bytecode::kLdaContextSlotNoCell)) {
         if (iterator.GetRegisterOperand(0).index() != context ||
             iterator.GetIndexOperand(1) != slot ||
@@ -4231,9 +4287,8 @@ Isolate::Isolate(IsolateGroup* isolate_group)
   // we could also just move it to the trap handler, and implement it e.g. with
   // inline assembly. It's not clear if that's worth it.
   if (Isolate::CurrentEmbeddedBlobCodeSize()) {
-    EmbeddedData embedded_data = EmbeddedData::FromBlob();
     Address landing_pad =
-        embedded_data.InstructionStartOf(Builtin::kWasmTrapHandlerLandingPad);
+        Builtins::EmbeddedEntryOf(Builtin::kWasmTrapHandlerLandingPad);
     i::trap_handler::SetLandingPad(landing_pad);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -4333,6 +4388,10 @@ void Isolate::CheckIsolateLayout() {
       static_cast<int>(OFFSET_OF(
           Isolate, isolate_data_.continuation_preserved_embedder_data_)) ==
       Internals::kContinuationPreservedEmbedderDataOffset);
+
+  static_assert(static_cast<int>(OFFSET_OF(
+                    Isolate, isolate_data_.js_dispatch_table_base_)) ==
+                Internals::kJSDispatchTableOffset);
 
   static_assert(
       static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)) ==
@@ -4614,7 +4673,7 @@ void Isolate::Deinit() {
   external_pointer_table().TearDownSpace(
       heap()->young_external_pointer_space());
   external_pointer_table().TearDownSpace(heap()->old_external_pointer_space());
-  external_pointer_table().DetachSpaceFromReadOnlySegment(
+  external_pointer_table().DetachSpaceFromReadOnlySegments(
       heap()->read_only_external_pointer_space());
   external_pointer_table().TearDownSpace(
       heap()->read_only_external_pointer_space());
@@ -4760,6 +4819,8 @@ Isolate::~Isolate() {
 
   delete allocator_;
   allocator_ = nullptr;
+
+  DCHECK_NULL(builtins_effects_analyzer_);
 
   // Assert that |default_microtask_queue_| is the last MicrotaskQueue instance.
   DCHECK_IMPLIES(default_microtask_queue_,
@@ -5431,6 +5492,8 @@ void Isolate::VerifyStaticRoots() {
                InstanceTypeChecker::IsOneByteString(map->instance_type()));
       CHECK_EQ(InstanceTypeChecker::IsTwoByteString(map),
                InstanceTypeChecker::IsTwoByteString(map->instance_type()));
+      CHECK_EQ(InstanceTypeChecker::IsSharedString(map),
+               InstanceTypeChecker::IsSharedString(map->instance_type()));
     }
   }
 
@@ -5598,7 +5661,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     external_pointer_table().Initialize();
     external_pointer_table().InitializeSpace(
         heap()->read_only_external_pointer_space());
-    external_pointer_table().AttachSpaceToReadOnlySegment(
+    external_pointer_table().AttachSpaceToReadOnlySegments(
         heap()->read_only_external_pointer_space());
     external_pointer_table().InitializeSpace(
         heap()->young_external_pointer_space());
@@ -6065,6 +6128,11 @@ void Isolate::DumpAndResetStats() {
     wasm::GetWasmEngine()->DumpAndResetTurboStatistics();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  if (v8_flags.trace_number_string_cache) {
+    PrintNumberStringCacheStats("DumpAndResetStats", true);
+  }
+
 #if V8_RUNTIME_CALL_STATS
   if (V8_UNLIKELY(TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
@@ -6225,6 +6293,23 @@ void Isolate::set_date_cache(DateCache* date_cache) {
   date_cache_ = date_cache;
 }
 
+void Isolate::IncreaseDateCacheStampAndInvalidateProtector() {
+  // There's no need to update stamp and invalidate the protector since there
+  // were no JSDate instances created yet and thus such a configuration change
+  // is not observable anyway.
+  if (!isolate_data()->is_date_cache_used_) return;
+
+  if (isolate_data()->date_cache_stamp_ < Smi::kMaxValue) {
+    ++isolate_data()->date_cache_stamp_;
+  } else {
+    isolate_data()->date_cache_stamp_ = 1;
+  }
+
+  if (Protectors::IsNoDateTimeConfigurationChangeIntact(this)) {
+    Protectors::InvalidateNoDateTimeConfigurationChange(this);
+  }
+}
+
 Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
     Tagged<JSObject> object) {
   Tagged<Map> metamap = object->map(this)->map(this);
@@ -6266,18 +6351,9 @@ void Isolate::UpdateNoElementsProtectorOnSetElement(
 void Isolate::UpdateProtectorsOnSetPrototype(
     DirectHandle<JSObject> object, DirectHandle<Object> new_prototype) {
   UpdateNoElementsProtectorOnSetPrototype(object);
-  UpdateTypedArrayLengthLookupChainProtectorOnSetPrototype(object);
   UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(object);
   UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(object);
   UpdateStringWrapperToPrimitiveProtectorOnSetPrototype(object, new_prototype);
-}
-
-void Isolate::UpdateTypedArrayLengthLookupChainProtectorOnSetPrototype(
-    DirectHandle<JSObject> object) {
-  if ((IsJSTypedArrayPrototype(*object) || IsJSTypedArray(*object)) &&
-      Protectors::IsTypedArrayLengthLookupChainIntact(this)) {
-    Protectors::InvalidateTypedArrayLengthLookupChain(this);
-  }
 }
 
 void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
@@ -7716,6 +7792,76 @@ void Isolate::InitializeBuiltinJSDispatchTable() {
     }
   }
 #endif
+}
+
+void Isolate::PrintNumberStringCacheStats(const char* comment,
+                                          bool final_summary) {
+#define FETCH_COUNTER(name) \
+  uint32_t name = static_cast<uint32_t>(counters()->name()->Get());
+
+  FETCH_COUNTER(write_barriers)
+  FETCH_COUNTER(number_string_cache_smi_probes)
+  FETCH_COUNTER(number_string_cache_smi_misses)
+  FETCH_COUNTER(number_string_cache_double_probes)
+  FETCH_COUNTER(number_string_cache_double_misses)
+#undef FETCH_COUNTER
+
+  PrintF("=== NumberToString cache usage stats (%s):\n", comment);
+  if (final_summary && write_barriers == 0) {
+    // If write barriers count is zero, then it's most likely because
+    // builtins are compiled without --native-code-counters.
+    PrintF(
+        "=== WARNING: empty stats! Ensure gn args contain: "
+        "`v8_enable_snapshot_native_code_counters = true`\n");
+  }
+  double smi_miss_rate =
+      number_string_cache_smi_probes
+          ? static_cast<double>(number_string_cache_smi_misses) /
+                number_string_cache_smi_probes
+          : 0;
+
+  double double_miss_rate =
+      number_string_cache_double_probes
+          ? static_cast<double>(number_string_cache_double_misses) /
+                number_string_cache_double_probes
+          : 0;
+
+  PrintF("=== SmiStringCache miss rate:    %.6f (%d / %d)\n",  //
+         smi_miss_rate, number_string_cache_smi_misses,
+         number_string_cache_smi_probes);
+  PrintF("=== DoubleStringCache miss rate: %.6f (%d / %d)\n",  //
+         double_miss_rate, number_string_cache_double_misses,
+         number_string_cache_double_probes);
+
+  uint32_t smi_string_cache_capacity =
+      factory()->smi_string_cache()->capacity();
+  uint32_t smi_string_used_entries =
+      factory()->smi_string_cache()->GetUsedEntriesCount();
+
+  uint32_t double_string_cache_capacity =
+      factory()->double_string_cache()->capacity();
+  uint32_t double_string_used_entries =
+      factory()->double_string_cache()->GetUsedEntriesCount();
+
+  double smi_cache_utilization_rate =
+      static_cast<double>(smi_string_used_entries) / smi_string_cache_capacity;
+  double double_cache_utilization_rate =
+      static_cast<double>(double_string_used_entries) /
+      double_string_cache_capacity;
+  PrintF("=== SmiStringCache utilization:    %.6f (%d / %d)\n",  //
+         smi_cache_utilization_rate, smi_string_used_entries,
+         smi_string_cache_capacity);
+  PrintF("=== DoubleStringCache utilization: %.6f (%d / %d)\n",  //
+         double_cache_utilization_rate, double_string_used_entries,
+         double_string_cache_capacity);
+
+  if (final_summary) {
+    PrintF("=== --smi-string-cache-size=%d\n",
+           v8_flags.smi_string_cache_size.value());
+    PrintF("=== --double-string-cache-size=%d\n",
+           v8_flags.double_string_cache_size.value());
+  }
+  PrintF("\n");
 }
 
 }  // namespace internal

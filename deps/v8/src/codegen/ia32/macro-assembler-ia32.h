@@ -574,15 +574,18 @@ class V8_EXPORT_PRIVATE MacroAssembler
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
+  // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
+  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+#ifndef V8_ENABLE_LEAPTIERING
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure, Register scratch1,
                                            Register slot_address);
-  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, XMMRegister saved_feedback_vector,
       CodeKind current_code_kind, Label* flags_need_processing);
   void OptimizeCodeOrTailCallOptimizedCodeSlot(
       Register flags, XMMRegister saved_feedback_vector);
+#endif  // V8_ENABLE_LEAPTIERING
 
   // Abort execution if argument is not a smi, enabled via --debug-code.
   void AssertSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
