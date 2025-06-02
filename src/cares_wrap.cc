@@ -724,9 +724,9 @@ void ChannelWrap::Setup() {
   }
 
   /* We do the call to ares_init_option for caller. */
-  const int optmask =
-      ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS |
-      ARES_OPT_SOCK_STATE_CB | ARES_OPT_TRIES;
+  const int optmask = ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS |
+                      ARES_OPT_SOCK_STATE_CB | ARES_OPT_TRIES |
+                      ARES_OPT_QUERY_CACHE;
   r = ares_init_options(&channel_, &options, optmask);
 
   if (r != ARES_SUCCESS) {
