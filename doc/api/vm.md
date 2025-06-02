@@ -1211,7 +1211,7 @@ using [`vm.constants.DONT_CONTEXTIFY`][].
 added: v13.10.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58540
     description: No longer experimental.
 -->
 
