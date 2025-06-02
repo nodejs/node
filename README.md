@@ -40,7 +40,7 @@ Looking for help? Check out the
 [instructions for getting support](.github/SUPPORT.md).
 
 ## Release types
-
+//this is added for the demo pull reqest ,later it can be deleted
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
   [v22.x](https://github.com/nodejs/node/tree/v22.x)). Node.js releases a new
