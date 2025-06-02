@@ -271,7 +271,7 @@ export default [
       'jsdoc/no-undefined-types': 'off',
       'jsdoc/require-param': 'off',
       'jsdoc/check-tag-names': 'error',
-      'jsdoc/require-returns': 'off',
+      'jsdoc/require-returns': 'error',
 
       // Stylistic rules.
       '@stylistic/js/arrow-parens': 'error',

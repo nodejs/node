@@ -328,6 +328,7 @@ function getHeapSnapshotOptionTests() {
 
 /**
  * Similar to @see {validateByRetainingPathFromNodes} but creates the snapshot from scratch.
+ * @returns {object[]}
  */
 function validateByRetainingPath(...args) {
   const nodes = createJSHeapSnapshot();
