@@ -18,10 +18,16 @@ function toUcFirst(str) {
   return str[0].toUpperCase() + str.slice(1);
 }
 
+/**
+ * @returns {boolean}
+ */
 function isTarget(map, varName) {
   return map.has(varName);
 }
 
+/**
+ * @returns {boolean}
+ */
 function isIgnored(map, varName, propName) {
   return map.get(varName)?.get(propName)?.ignored ?? false;
 }
@@ -38,10 +44,7 @@ function getReportName({ name, parentName, into }) {
 
 /**
  * Get identifier of object spread assignment
- *
- * code: 'const { ownKeys } = Reflect;'
- * argument: 'ownKeys'
- * return: 'Reflect'
+ * @returns {null | object}
  */
 function getDestructuringAssignmentParent(scope, node) {
   const declaration = scope.set.get(node.name);

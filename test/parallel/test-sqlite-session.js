@@ -11,6 +11,7 @@ const { test, suite } = require('node:test');
 /**
  * Convenience wrapper around assert.deepStrictEqual that sets a null
  * prototype to the expected object.
+ * @returns {boolean}
  */
 function deepStrictEqual(t) {
   return (actual, expected, message) => {
