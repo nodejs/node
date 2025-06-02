@@ -2810,12 +2810,15 @@ an officially supported API.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58529
+    description: End-of-Life.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/29061
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 [`WriteStream.open()`][] and [`ReadStream.open()`][] are undocumented internal
 APIs that do not make sense to use in userland. File streams should always be
