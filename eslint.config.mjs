@@ -273,6 +273,7 @@ export default [
       'jsdoc/check-tag-names': 'error',
       'jsdoc/require-returns': 'error',
       'jsdoc/check-line-alignment': 'error',
+      'jsdoc/check-alignment': 'error',
 
       // Stylistic rules.
       '@stylistic/js/arrow-parens': 'error',
