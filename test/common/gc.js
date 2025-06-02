@@ -140,8 +140,8 @@ async function runAndBreathe(fn, repeat, waitTime = 20) {
  * iterating over the heap and count objects with the specified class
  * (which is checked by looking up the prototype chain).
  * @param {(i: number) => number} fn The factory receiving iteration count
- *   and returning number of objects created. The return value should be
- *   precise otherwise false negatives can be produced.
+ * and returning number of objects created. The return value should be
+ * precise otherwise false negatives can be produced.
  * @param {Function} ctor The constructor of the objects being counted.
  * @param {number} count Number of iterations that this check should be done
  * @param {number} waitTime Optional breathing time for GC.
