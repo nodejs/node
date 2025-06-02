@@ -167,3 +167,4 @@ __pycache__
 
 # === Rules for C++ development ===
 compile_commands.json
+//add this file to the root of the repository to enable C++ development in VSCode
