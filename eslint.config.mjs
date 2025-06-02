@@ -262,7 +262,7 @@ export default [
       // ESLint recommended rules that we disable.
       'no-inner-declarations': 'off',
 
-      // JSDoc rules that we enable.
+      // JSDoc rules.
       'jsdoc/require-jsdoc': 'off',
       'jsdoc/require-param-description': 'off',
       'jsdoc/require-returns-description': 'off',
