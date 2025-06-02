@@ -2608,15 +2608,18 @@ Please use `Server.prototype.setSecureContext()` instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58533
+    description: End-of-Life.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/23329
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Setting the TLS ServerName to an IP address is not permitted by
-[RFC 6066][]. This will be ignored in a future version.
+[RFC 6066][].
 
 ### DEP0124: using `REPLServer.rli`
 
