@@ -153,7 +153,9 @@ For information about the governance of the Node.js project, see
      updated. -->
 
 ### TSC (Technical Steering Committee)
+## Getting Started
 
+This project is awesome. Follow these steps to run it locally...
 #### TSC voting members
 
 <!--lint disable prohibited-strings-->
