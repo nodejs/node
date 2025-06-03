@@ -60,7 +60,6 @@ using v8::Array;
 using v8::BigInt;
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -1066,39 +1065,6 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(rc);
 }
-
-static int32_t FastInternalModuleStat(
-    Local<Value> recv,
-    Local<Value> input_,
-    // NOLINTNEXTLINE(runtime/references) This is V8 api.
-    FastApiCallbackOptions& options) {
-  // This needs a HandleScope which needs an isolate.
-  Isolate* isolate = Isolate::TryGetCurrent();
-  if (!isolate) {
-    options.fallback = true;
-    return -1;
-  }
-
-  TRACK_V8_FAST_API_CALL("fs.internalModuleStat");
-  HandleScope scope(isolate);
-
-  CHECK(input_->IsString());
-  Utf8Value input(isolate, input_.As<String>());
-
-  auto path = std::filesystem::path(input.ToStringView());
-
-  switch (std::filesystem::status(path).type()) {
-    case std::filesystem::file_type::directory:
-      return 1;
-    case std::filesystem::file_type::regular:
-      return 0;
-    default:
-      return -1;
-  }
-}
-
-v8::CFunction fast_internal_module_stat_(
-    v8::CFunction::Make(FastInternalModuleStat));
 
 constexpr bool is_uv_error_except_no_entry(int result) {
   return result < 0 && result != UV_ENOENT;
@@ -3819,11 +3785,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "rmdir", RMDir);
   SetMethod(isolate, target, "mkdir", MKDir);
   SetMethod(isolate, target, "readdir", ReadDir);
-  SetFastMethod(isolate,
-                target,
-                "internalModuleStat",
-                InternalModuleStat,
-                &fast_internal_module_stat_);
+  SetMethod(isolate, target, "internalModuleStat", InternalModuleStat);
   SetMethod(isolate, target, "stat", Stat);
   SetMethod(isolate, target, "lstat", LStat);
   SetMethod(isolate, target, "fstat", FStat);
@@ -3948,8 +3910,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(MKDir);
   registry->Register(ReadDir);
   registry->Register(InternalModuleStat);
-  registry->Register(FastInternalModuleStat);
-  registry->Register(fast_internal_module_stat_.GetTypeInfo());
   registry->Register(Stat);
   registry->Register(LStat);
   registry->Register(FStat);
