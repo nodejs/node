@@ -52,7 +52,7 @@ if (process.argv[2] === 'child') {
   child.stdout.on('data', (d) => { outData = Buffer.concat([ outData, d ]); });
 
   child.on('close', common.mustCall((code, signal) => {
-     if (signal) {
+    if (signal) {
       console.log(`Child closed with signal: ${signal}`);
     } else {
       assert.strictEqual(code, 1);
