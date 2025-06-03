@@ -1344,7 +1344,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
     if (output_type.Is(Type::SignedSmall())) {
-      op = simplified()->ChangeTaggedSignedToInt64();
+      if (output_type.IsRange() && output_type.AsRange()->Min() >= 0) {
+        node = InsertChangeTaggedSignedToInt32(node);
+        op = machine()->ChangeUint32ToUint64();
+      } else {
+        op = simplified()->ChangeTaggedSignedToInt64();
+      }
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
