@@ -13,6 +13,9 @@ opinions and compromise. The [TSC](./GOVERNANCE.md#technical-steering-committee)
 reserves the right to limit or block contributors who repeatedly act in ways
 that discourage, exhaust, or otherwise negatively affect other participants.
 
+IT IS MANDATORY FOR THE DEVELOPERS TO GO THROUGH THE COURSE COMPLETLEY
+AND UNDERSTAND EVERYTHING FROM SCRATCH.
+
 **This project has a [Code of Conduct][].**
 
 ## Table of contents
