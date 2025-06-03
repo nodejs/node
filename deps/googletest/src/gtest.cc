@@ -1488,17 +1488,17 @@ class Hunk {
   // Print a unified diff header for one hunk.
   // The format is
   //   "@@ -<left_start>,<left_length> +<right_start>,<right_length> @@"
-  // where the left/right parts are omitted if unnecessary.
+  // where the left/right lengths are omitted if unnecessary.
   void PrintHeader(std::ostream* ss) const {
-    *ss << "@@ ";
-    if (removes_) {
-      *ss << "-" << left_start_ << "," << (removes_ + common_);
+    size_t left_length = removes_ + common_;
+    size_t right_length = adds_ + common_;
+    *ss << "@@ " << "-" << left_start_;
+    if (left_length != 1) {
+      *ss << "," << left_length;
     }
-    if (removes_ && adds_) {
-      *ss << " ";
-    }
-    if (adds_) {
-      *ss << "+" << right_start_ << "," << (adds_ + common_);
+    *ss << " " << "+" << right_start_;
+    if (right_length != 1) {
+      *ss << "," << right_length;
     }
     *ss << " @@\n";
   }
