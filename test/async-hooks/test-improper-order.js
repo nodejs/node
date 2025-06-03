@@ -51,8 +51,6 @@ if (process.argv[2] === 'child') {
   child.stderr.on('data', (d) => { errData = Buffer.concat([ errData, d ]); });
   child.stdout.on('data', (d) => { outData = Buffer.concat([ outData, d ]); });
 
- 
-
   child.on('close', common.mustCall((code, signal) => {
      if (signal) {
       console.log(`Child closed with signal: ${signal}`);
