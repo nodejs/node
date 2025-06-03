@@ -281,7 +281,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
         'const fs = require("node:fs"); await Promise.resolve();',
       ]);
 
-      match(stderr, /ERR_AMBIGUOUS_MODULE_SYNTAX: This file cannot be parsed as either CommonJS or ES Module/);
+      match(stderr, /ReferenceError: require is not defined in ES module scope/);
       strictEqual(stdout, '');
       strictEqual(code, 1);
       strictEqual(signal, null);

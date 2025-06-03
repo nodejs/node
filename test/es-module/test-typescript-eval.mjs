@@ -86,7 +86,7 @@ test('expect fail eval TypeScript CommonJS syntax with input-type module-typescr
     console.log(util.styleText('red', text));`]);
 
   strictEqual(result.stdout, '');
-  match(result.stderr, /ERR_AMBIGUOUS_MODULE_SYNTAX: This file cannot be parsed as either CommonJS or ES Module/);
+  match(result.stderr, /require is not defined in ES module scope, you can use import instead/);
   strictEqual(result.code, 1);
 });
 

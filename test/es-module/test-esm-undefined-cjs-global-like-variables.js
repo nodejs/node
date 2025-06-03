@@ -6,7 +6,7 @@ const { pathToFileURL } = require('url');
 
 assert.rejects(
   import('data:text/javascript,require;'),
-  /require is not defined in ES module scope/
+  /require is not defined in ES module scope, you can use import instead$/
 ).then(common.mustCall());
 assert.rejects(
   import('data:text/javascript,exports={};'),
@@ -38,5 +38,5 @@ assert.rejects(
 
 assert.rejects(
   import('data:text/javascript,require;//.js'),
-  /^(?:(?!use the '\.cjs' file extension).)*$/s
+  /^(?!use the '\.cjs' file extension).*$/
 ).then(common.mustCall());
