@@ -1809,8 +1809,6 @@ time.
 
 ### `ERR_INPUT_TYPE_NOT_ALLOWED`
 
-> Stability: 1 - Experimental
-
 The `--input-type` flag was used to attempt to execute a file. This flag can
 only be used with input via `--eval`, `--print`, or `STDIN`.
 
@@ -3059,16 +3057,12 @@ An invalid or unknown encoding option was passed to an API.
 
 ### `ERR_UNKNOWN_FILE_EXTENSION`
 
-> Stability: 1 - Experimental
-
 An attempt was made to load a module with an unknown or unsupported file
 extension.
 
 <a id="ERR_UNKNOWN_MODULE_FORMAT"></a>
 
 ### `ERR_UNKNOWN_MODULE_FORMAT`
-
-> Stability: 1 - Experimental
 
 An attempt was made to load a module with an unknown or unsupported format.
 
@@ -3144,8 +3138,6 @@ transformation with [type-stripping][].
 <a id="ERR_USE_AFTER_CLOSE"></a>
 
 ### `ERR_USE_AFTER_CLOSE`
-
-> Stability: 1 - Experimental
 
 An attempt was made to use something that was already closed.
 
