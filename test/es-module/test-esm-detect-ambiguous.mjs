@@ -424,14 +424,14 @@ describe('when working with Worker threads', () => {
   });
 });
 
-describe('cjs & esm ambiguous syntax case', async () => {
+describe('cjs & esm ambiguous syntax case', () => {
   it('should throw an ambiguous syntax error when using top-level await with require', async () => {
     const { stderr, code, signal } = await spawnPromisified(
       process.execPath,
       [
         '--input-type=module',
         '--eval',
-        `await 1;\nconst fs = require('fs');`,
+        `await 1; const fs = require('fs');`,
       ]
     );
 
