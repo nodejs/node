@@ -1465,7 +1465,7 @@
               ],
             }, {
               'sources': [
-                '<(V8_ROOT)/src/base/debug/stack_trace_android.cc',
+                '<(V8_ROOT)/src/base/debug/stack_trace_posix.cc',
                 '<(V8_ROOT)/src/base/platform/platform-linux.cc',
               ],
             }],
