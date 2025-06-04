@@ -722,11 +722,12 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
       filename_js->IsString()) {
     node::Utf8Value filename(node_env->isolate(), filename_js);
 
-    // Turn the absolute path into a URL. Currently the absolute path is always
-    // a file system path.
-    // TODO(gabrielschulhof): Pass the `filename` through unchanged if/when we
-    // receive it as a URL already.
-    module_filename = node::url::FromFilePath(filename.ToStringView());
+    const auto filename_view = filename.ToStringView();
+    if (filename_view.find("://") != std::string_view::npos) {
+      module_filename = filename_view;
+    } else {
+      module_filename = node::url::FromFilePath(filename_view);
+    }
   }
 
   // Create a new napi_env for this specific module.
