@@ -51,12 +51,12 @@ if (process.argv[2] === 'child') {
   child.stderr.on('data', (d) => { errData = Buffer.concat([ errData, d ]); });
   child.stdout.on('data', (d) => { outData = Buffer.concat([ outData, d ]); });
 
+  child.once('exit', common.mustCall((code, signal) => {
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
+  }));
+
   child.on('close', common.mustCall((code, signal) => {
-    if (signal) {
-      console.log(`Child closed with signal: ${signal}`);
-    } else {
-      assert.strictEqual(code, 1);
-    }
     assert.match(outData.toString(), heartbeatMsg,
                  'did not crash until we reached offending line of code ' +
                  `(found ${outData})`);
