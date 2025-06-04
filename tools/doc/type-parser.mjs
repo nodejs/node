@@ -67,6 +67,9 @@ const customTypesMap = {
   'AsyncHook': 'async_hooks.html#async_hookscreatehookcallbacks',
   'AsyncResource': 'async_hooks.html#class-asyncresource',
 
+  'AsyncDisposer': 'util.html#class-utilasyncdisposer',
+  'Disposer': 'util.html#class-utildisposer',
+
   'brotli options': 'zlib.html#class-brotlioptions',
 
   'Buffer': 'buffer.html#class-buffer',
