@@ -1259,6 +1259,14 @@ Emitted when a stream is started on the server.
 
 Emitted when an error occurs during the processing of a stream on the server.
 
+`http2.server.stream.finish`
+
+* `stream` {ServerHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+* `flags` {number}
+
+Emitted when a stream is sent on the server.
+
 #### Modules
 
 > Stability: 1 - Experimental
