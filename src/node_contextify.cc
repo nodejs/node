@@ -1829,14 +1829,14 @@ static void CompileFunctionForCJSLoader(
   }
 
   Local<Value> undefined = v8::Undefined(isolate);
-  Local<Name> names[] = {
+  std::array<Local<Name>, 5> names = {
       env->cached_data_rejected_string(),
       env->source_map_url_string(),
       env->source_url_string(),
       env->function_string(),
       FIXED_ONE_BYTE_STRING(isolate, "canParseAsESM"),
   };
-  Local<Value> values[] = {
+  std::array<Local<Value>, 5> values = {
       Boolean::New(isolate, cache_rejected),
       fn.IsEmpty() ? undefined : fn->GetScriptOrigin().SourceMapUrl(),
       // ScriptOrigin::ResourceName() returns SourceURL magic comment content if
@@ -1846,7 +1846,7 @@ static void CompileFunctionForCJSLoader(
       Boolean::New(isolate, can_parse_as_esm),
   };
   Local<Object> result = Object::New(
-      isolate, v8::Null(isolate), &names[0], &values[0], arraysize(names));
+      isolate, v8::Null(isolate), &names[0], &values[0], names.size());
   args.GetReturnValue().Set(result);
 }
 
