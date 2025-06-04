@@ -1,4 +1,5 @@
 {
+  "bin": 1,
   "scripts": {
     "array": [],
     "boolean": true,
