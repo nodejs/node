@@ -3990,6 +3990,29 @@ Instantiating classes without the `new` qualifier exported by the `node:http` mo
 It is recommended to use the `new` qualifier instead. This applies to all http classes, such as
 `OutgoingMessage`, `IncomingMessage`, `ServerResponse` and `ClientRequest`.
 
+### DEP0196: Calling `node:child_process` functions with `options.shell` as an empty string
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58564
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Calling the process-spawning functions with `{ shell: '' }` is almost certainly
+unintentional, and can cause aberrant behavior.
+
+To make [`child_process.execFile`][] or [`child_process.spawn`][] invoke the
+default shell, use `{ shell: true }`. If the intention is not to invoke a shell
+(default behavior), either omit the `shell` option, or set it to `false` or a
+nullish value.
+
+To make [`child_process.exec`][] invoke the default shell, either omit the
+`shell` option, or set it to a nullish value. If the intention is not to invoke
+a shell, use [`child_process.execFile`][] instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -4018,6 +4041,7 @@ It is recommended to use the `new` qualifier instead. This applies to all http c
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
 [`buffer.subarray`]: buffer.md#bufsubarraystart-end
 [`child_process.execFile`]: child_process.md#child_processexecfilefile-args-options-callback
+[`child_process.exec`]: child_process.md#child_processexeccommand-options-callback
 [`child_process.spawn`]: child_process.md#child_processspawncommand-args-options
 [`child_process`]: child_process.md
 [`clearInterval()`]: timers.md#clearintervaltimeout
