@@ -451,8 +451,16 @@ class StatusLoader {
 
   load() {
     const dir = path.join(__dirname, '..', 'wpt');
-    const statusFile = path.join(dir, 'status', `${this.path}.json`);
-    const result = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+    let statusFile = path.join(dir, 'status', `${this.path}.json`);
+    let result;
+
+    if (fs.existsSync(statusFile)) {
+      result = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+    } else {
+      statusFile = path.join(dir, 'status', `${this.path}.cjs`);
+      result = require(statusFile);
+    }
+
     this.rules.addRules(result);
 
     const subDir = fixtures.path('wpt', this.path);

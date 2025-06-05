@@ -20,8 +20,10 @@ function run_test(algorithmNames) {
     var allTestVectors = [ // Parameters that should work for importKey / exportKey
         {name: "Ed25519", privateUsages: ["sign"], publicUsages: ["verify"]},
         {name: "Ed448", privateUsages: ["sign"], publicUsages: ["verify"]},
+        {name: "ECDSA", privateUsages: ["sign"], publicUsages: ["verify"]},
         {name: "X25519",  privateUsages: ["deriveKey", "deriveBits"], publicUsages: []},
         {name: "X448",  privateUsages: ["deriveKey", "deriveBits"], publicUsages: []},
+        {name: "ECDH",  privateUsages: ["deriveKey", "deriveBits"], publicUsages: []}
     ];
 
     var testVectors = [];
@@ -109,6 +111,10 @@ function run_test(algorithmNames) {
         return [];
     }
 
+    function isPrivateKey(data) {
+        return data.d !== undefined;
+    }
+
 // Now test for properly handling errors
 // - Unsupported algorithm
 // - Bad usages for algorithm
@@ -121,8 +127,8 @@ function run_test(algorithmNames) {
     // due to SyntaxError
     testVectors.forEach(function(vector) {
         var name = vector.name;
-        validKeyData.forEach(function(test) {
-            allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+        allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+            getValidKeyData(algorithm).forEach(function(test) {
                 invalidUsages(validUsages(vector, test.format, test.data)).forEach(function(usages) {
                     [true, false].forEach(function(extractable) {
                         testError(test.format, algorithm, test.data, name, usages, extractable, "SyntaxError", "Bad usages");
@@ -136,8 +142,8 @@ function run_test(algorithmNames) {
     // Should fail due to SyntaxError
     testVectors.forEach(function(vector) {
         var name = vector.name;
-        validKeyData.filter((test) => test.format === 'pkcs8' || (test.format === 'jwk' && test.data.d)).forEach(function(test) {
-            allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+        allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+            getValidKeyData(algorithm).filter((test) => test.format === 'pkcs8' || (test.format === 'jwk' && isPrivateKey(test.data))).forEach(function(test) {
                 [true, false].forEach(function(extractable) {
                     testError(test.format, algorithm, test.data, name, [/* Empty usages */], extractable, "SyntaxError", "Empty usages");
                 });
@@ -145,11 +151,11 @@ function run_test(algorithmNames) {
         });
     });
 
-    // Algorithms normalize okay, usages ok. The length of the key must thouw a DataError exception.
+    // Algorithms normalize okay, usages ok. The length of the key must throw a DataError exception.
     testVectors.forEach(function(vector) {
         var name = vector.name;
-        badKeyLengthData.forEach(function(test) {
-            allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+        allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+            getBadKeyLengthData(algorithm).forEach(function(test) {
                 allValidUsages(validUsages(vector, test.format, test.data)).forEach(function(usages) {
                     [true, false].forEach(function(extractable) {
                         testError(test.format, algorithm, test.data, name, usages, extractable, "DataError", "Bad key length");
@@ -159,11 +165,11 @@ function run_test(algorithmNames) {
         });
     });
 
-    // Algorithms normalize okay, usages ok and valid key. The lack of the mandatory JWK parameter must throw a syntax error.
+    // Algorithms normalize okay, usages ok and valid key. The lack of the mandatory JWK parameter must throw a DataError exception.
     testVectors.forEach(function(vector) {
         var name = vector.name;
-        missingJWKFieldKeyData.forEach(function(test) {
-            allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+        allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+           getMissingJWKFieldKeyData(algorithm).forEach(function(test) {
                 allValidUsages(validUsages(vector, 'jwk', test.data)).forEach(function(usages) {
                     [true, false].forEach(function(extractable) {
                         testError('jwk', algorithm, test.data, name, usages, extractable, "DataError", "Missing JWK '" + test.param + "' parameter");
@@ -176,13 +182,88 @@ function run_test(algorithmNames) {
     // Algorithms normalize okay, usages ok and valid key. The public key is not compatible with the private key.
     testVectors.forEach(function(vector) {
         var name = vector.name;
-        invalidJWKKeyData.forEach(function(data) {
-            allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+        allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+            getMismatchedJWKKeyData(algorithm).forEach(function(data) {
                 allValidUsages(vector.privateUsages).forEach(function(usages) {
                     [true].forEach(function(extractable) {
                         testError('jwk', algorithm, data, name, usages, extractable, "DataError", "Invalid key pair");
                     });
                 });
+            });
+        });
+    });
+
+    // Missing mandatory "name" field on algorithm
+    testVectors.forEach(function(vector) {
+        var name = vector.name;
+        // We just need *some* valid keydata, so pick the first available algorithm.
+        var algorithm = allAlgorithmSpecifiersFor(name)[0];
+        getValidKeyData(algorithm).forEach(function(test) {
+            validUsages(vector, test.format, test.data).forEach(function(usages) {
+                [true, false].forEach(function(extractable) {
+                    testError(test.format, {}, test.data, name, usages, extractable, "TypeError", "Missing algorithm name");
+                });
+            });
+        });
+    });
+
+    // The 'kty' field is not correct.
+    testVectors.forEach(function(vector) {
+        var name = vector.name;
+        allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+            getValidKeyData(algorithm).forEach(function(test) {
+                if (test.format === "jwk") {
+                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, d: test.data.d};
+                    data.kty = getMismatchedKtyField(algorithm);
+                    var usages =  validUsages(vector, 'jwk', test.data);
+                    testError('jwk', algorithm, data, name, usages, true, "DataError", "Invalid 'kty' field");
+                }
+            });
+        });
+    });
+
+    // The 'ext' field is not correct.
+    testVectors.forEach(function(vector) {
+        var name = vector.name;
+        allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+            getValidKeyData(algorithm).forEach(function(test) {
+                if (test.format === "jwk") {
+                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, d: test.data.d};
+                    data.ext = false;
+                    var usages =  validUsages(vector, 'jwk', test.data);
+                    testError('jwk', algorithm, data, name, usages, true, "DataError", "Import from a non-extractable");
+                }
+            });
+        });
+    });
+
+    // The 'use' field is incorrect.
+    testVectors.forEach(function(vector) {
+        var name = vector.name;
+        allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+            getValidKeyData(algorithm).forEach(function(test) {
+                if (test.format === "jwk") {
+                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, d: test.data.d};
+                    data.use = "invalid";
+                    var usages =  validUsages(vector, 'jwk', test.data);
+                    if (usages.length !== 0)
+                        testError('jwk', algorithm, data, name, usages, true, "DataError", "Invalid 'use' field");
+                }
+            });
+        });
+    });
+
+    // The 'crv' field is incorrect.
+    testVectors.forEach(function(vector) {
+        var name = vector.name;
+        allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+            getValidKeyData(algorithm).forEach(function(test) {
+                if (test.format === "jwk") {
+                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, d: test.data.d};
+                    data.crv = getMismatchedCrvField(algorithm)
+                    var usages =  validUsages(vector, 'jwk', test.data);
+                    testError('jwk', algorithm, data, name, usages, true, "DataError", "Invalid 'crv' field");
+                }
             });
         });
     });

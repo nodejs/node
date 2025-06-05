@@ -1,6 +1,7 @@
-// META: title=WebCryptoAPI: deriveKey() Using ECDH with CFRG Elliptic Curves
-// META: script=cfrg_curves_bits_fixtures.js
-// META: script=cfrg_curves_keys.js
+// META: title=WebCryptoAPI: deriveBits() tests for the 'length' parameter
+// META: script=derived_bits_length.js
+// META: script=derived_bits_length_vectors.js
+// META: script=derived_bits_length_testcases.js
 
 // Define subtests from a `promise_test` to ensure the harness does not
 // complete before the subtests are available. `explicit_done` cannot be used
