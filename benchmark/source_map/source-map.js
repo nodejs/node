@@ -26,7 +26,7 @@ const bench = common.createBenchmark(
       'findOrigin-sectioned',
       'findOrigin-large',
     ],
-    n: [1e5],
+    n: [10],
   },
   options,
 );
@@ -60,7 +60,6 @@ function main({ operation, n }) {
   );
 
   let sourceMap;
-  let instance;
   switch (operation) {
     case 'parse':
       bench.start();
@@ -95,73 +94,73 @@ function main({ operation, n }) {
       break;
 
     case 'findEntry':
-      instance = new SourceMap(samplePayload);
+      sourceMap = new SourceMap(samplePayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap = instance.findEntry(i, i);
+        sourceMap.findEntry(i, i);
       }
       bench.end(n);
       break;
 
     case 'findEntry-minified':
-      instance = new SourceMap(minifiedPayload);
+      sourceMap = new SourceMap(minifiedPayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap = instance.findEntry(i, i);
+        sourceMap.findEntry(i, i);
       }
       bench.end(n);
       break;
 
     case 'findEntry-sectioned':
-      instance = new SourceMap(sectionedPayload);
+      sourceMap = new SourceMap(sectionedPayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap = instance.findEntry(i, i);
+        sourceMap.findEntry(i, i);
       }
       bench.end(n);
       break;
 
     case 'findEntry-large':
-      instance = new SourceMap(largePayload);
+      sourceMap = new SourceMap(largePayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap = instance.findEntry(i, i);
+        sourceMap.findEntry(i, i);
       }
       bench.end(n);
       break;
 
     case 'findOrigin':
-      instance = new SourceMap(samplePayload);
+      sourceMap = new SourceMap(samplePayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap = instance.findOrigin(i, i);
+        sourceMap.findOrigin(i, i);
       }
       bench.end(n);
       break;
 
     case 'findOrigin-minified':
-      instance = new SourceMap(minifiedPayload);
+      sourceMap = new SourceMap(minifiedPayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap = instance.findOrigin(i, i);
+        sourceMap.findOrigin(i, i);
       }
       bench.end(n);
       break;
 
     case 'findOrigin-sectioned':
-      instance = new SourceMap(sectionedPayload);
+      sourceMap = new SourceMap(sectionedPayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap = instance.findOrigin(i, i);
+        sourceMap.findOrigin(i, i);
       }
       bench.end(n);
       break;
 
     case 'findOrigin-large':
-      instance = new SourceMap(largePayload);
+      sourceMap = new SourceMap(largePayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap = instance.findOrigin(i, i);
+        sourceMap.findOrigin(i, i);
       }
       bench.end(n);
       break;
