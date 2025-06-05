@@ -1793,7 +1793,7 @@ added:
     of the {AsyncIterator} returned. **Default:** `2048`.
   * `overflow` {string} Either `'swallow'` or `'throw'` when there are more events to be
     queued than `maxQueue` allows. `'swallow'` means overflow events are dropped and a
-    warning is emitted, while `'throw'` means to throw and exception. **Default: ** `'swallow'`.
+    warning is emitted, while `'throw'` means to throw and exception. **Default:** `'swallow'`.
 * Returns: {AsyncIterator} of objects with the properties:
   * `eventType` {string} The type of change
   * `filename` {string|Buffer|null} The name of the file changed.
