@@ -1,4 +1,8 @@
 'use strict';
+// This tests that when there is a burst of fs watch events, the events
+// emitted after the consumer receives the initial event and before the
+// control returns back to fs.watch() can be queued up and show up
+// in the next iteration.
 const common = require('../common');
 const { watch, writeFile } = require('fs/promises');
 const fs = require('fs');
