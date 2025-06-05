@@ -2974,12 +2974,15 @@ upon `require('node:module').builtinModules`.
 
 <!-- YAML
 changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/33105
+    description: End-of-Life.
   - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33126
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 `Transform._transformState` will be removed in future versions where it is
 no longer required due to simplification of the implementation.
