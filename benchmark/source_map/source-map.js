@@ -26,7 +26,7 @@ const bench = common.createBenchmark(
       'findOrigin-sectioned',
       'findOrigin-large',
     ],
-    n: [10],
+    n: [1e5],
   },
   options,
 );

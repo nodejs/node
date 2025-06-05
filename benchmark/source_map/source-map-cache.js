@@ -41,7 +41,7 @@ function main({ operation, n }) {
   switch (operation) {
     case 'findSourceMap-valid':
       bench.start();
-      maybeCacheSourceMap(validFileName, validFileContent, fakeModule, false);
+      maybeCacheSourceMap(validFileName, validFileContent, fakeModule, false, undefined, validMapFile);
 
       for (let i = 0; i < n; i++) {
         sourceMap = findSourceMap(validFileName);
