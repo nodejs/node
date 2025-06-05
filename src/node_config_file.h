@@ -33,7 +33,7 @@ class ConfigReader {
       const std::vector<std::string>& args);
 
   std::string GetNodeOptions();
-  std::vector<std::string> GetNamespaceFlags();
+  const std::vector<std::string>& GetNamespaceFlags() const;
 
   size_t GetFlagsSize();
 

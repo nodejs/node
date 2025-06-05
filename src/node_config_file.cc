@@ -261,7 +261,7 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
 
     // Check if this field is a valid namespace
     std::string namespace_name(field_name);
-    if (valid_namespaces.find(namespace_name) == valid_namespaces.end()) {
+    if (!valid_namespaces.contains(namespace_name)) {
       // If not, skip it
       continue;
     }
@@ -294,13 +294,13 @@ std::string ConfigReader::GetNodeOptions() {
   std::string acc = "";
   const size_t total_options = node_options_.size();
   acc.reserve(total_options * 2);
-  for (size_t i = 0; i < node_options_.size(); ++i) {
-    acc += " " + node_options_[i];
+  for (auto& opt : node_options_) {
+    acc += " " + opt;
   }
   return acc;
 }
 
-std::vector<std::string> ConfigReader::GetNamespaceFlags() {
+const std::vector<std::string>& ConfigReader::GetNamespaceFlags() const {
   return namespace_options_;
 }
 
