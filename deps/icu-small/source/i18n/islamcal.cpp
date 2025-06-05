@@ -202,7 +202,6 @@ IslamicCalendar* IslamicCalendar::clone() const {
 IslamicCalendar::IslamicCalendar(const Locale& aLocale, UErrorCode& success)
 :   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, success)
 {
-    setTimeInMillis(getNow(), success); // Call this again now that the vtable is set up properly.
 }
 
 IslamicCalendar::~IslamicCalendar()
@@ -444,15 +443,8 @@ int32_t yearLength(int32_t extendedYear, UErrorCode& status) {
 * Return the number of days in the given Islamic year
 * @draft ICU 2.4
 */
-int32_t IslamicCalendar::handleGetYearLength(int32_t extendedYear) const {
-    UErrorCode status = U_ZERO_ERROR;
-    int32_t length = yearLength(extendedYear, status);
-    if (U_FAILURE(status)) {
-        // fallback to normal Islamic calendar length 355 day a year if we
-        // encounter error and cannot propagate.
-        return 355;
-    }
-    return length;
+int32_t IslamicCalendar::handleGetYearLength(int32_t extendedYear, UErrorCode& status) const {
+    return yearLength(extendedYear, status);
 }
 
 //-------------------------------------------------------------------------
@@ -706,7 +698,8 @@ int32_t IslamicCivilCalendar::handleGetMonthLength(int32_t extendedYear, int32_t
 * Return the number of days in the given Islamic year
 * @draft ICU 2.4
 */
-int32_t IslamicCivilCalendar::handleGetYearLength(int32_t extendedYear) const {
+int32_t IslamicCivilCalendar::handleGetYearLength(int32_t extendedYear, UErrorCode& status) const {
+    if (U_FAILURE(status)) return 0;
     return 354 + (civilLeapYear(extendedYear) ? 1 : 0);
 }
 
@@ -872,7 +865,7 @@ int32_t IslamicUmalquraCalendar::handleGetMonthLength(int32_t extendedYear, int3
 
 int32_t IslamicUmalquraCalendar::yearLength(int32_t extendedYear, UErrorCode& status) const {
     if (extendedYear<UMALQURA_YEAR_START || extendedYear>UMALQURA_YEAR_END) {
-        return IslamicCivilCalendar::handleGetYearLength(extendedYear);
+        return IslamicCivilCalendar::handleGetYearLength(extendedYear, status);
     }
     int length = 0;
     for(int i=0; i<12; i++) {
@@ -888,15 +881,8 @@ int32_t IslamicUmalquraCalendar::yearLength(int32_t extendedYear, UErrorCode& st
 * Return the number of days in the given Islamic year
 * @draft ICU 2.4
 */
-int32_t IslamicUmalquraCalendar::handleGetYearLength(int32_t extendedYear) const {
-    UErrorCode status = U_ZERO_ERROR;
-    int32_t length = yearLength(extendedYear, status);
-    if (U_FAILURE(status)) {
-        // fallback to normal Islamic calendar length 355 day a year if we
-        // encounter error and cannot propagate.
-        return 355;
-    }
-    return length;
+int32_t IslamicUmalquraCalendar::handleGetYearLength(int32_t extendedYear, UErrorCode& status) const {
+    return yearLength(extendedYear, status);
 }
 
 /**

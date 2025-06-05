@@ -2149,7 +2149,7 @@ TZDBTimeZoneNames::TZDBTimeZoneNames(const Locale& locale)
     if (regionLen == 0) {
         UErrorCode status = U_ZERO_ERROR;
         CharString loc = ulocimp_addLikelySubtags(fLocale.getName(), status);
-        ulocimp_getSubtags(loc.data(), nullptr, nullptr, &fRegion, nullptr, nullptr, status);
+        ulocimp_getSubtags(loc.toStringPiece(), nullptr, nullptr, &fRegion, nullptr, nullptr, status);
         if (U_SUCCESS(status)) {
             useWorld = false;
         }

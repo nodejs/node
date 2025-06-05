@@ -675,14 +675,14 @@ typedef enum UProperty {
      * @stable ICU 63
      */
     UCHAR_VERTICAL_ORIENTATION=0x1018,
-#ifndef U_HIDE_DRAFT_API
     /**
      * Enumerated property Identifier_Status.
      * Used for UTS #39 General Security Profile for Identifiers
      * (https://www.unicode.org/reports/tr39/#General_Security_Profile).
-     * @draft ICU 75
+     * @stable ICU 75
      */
     UCHAR_IDENTIFIER_STATUS=0x1019,
+#ifndef U_HIDE_DRAFT_API
     /**
      * Enumerated property Indic_Conjunct_Break.
      * Used in the grapheme cluster break algorithm in UAX #29.
@@ -796,7 +796,6 @@ typedef enum UProperty {
     UCHAR_SCRIPT_EXTENSIONS=0x7000,
     /** First constant for Unicode properties with unusual value types. @stable ICU 4.6 */
     UCHAR_OTHER_PROPERTY_START=UCHAR_SCRIPT_EXTENSIONS,
-#ifndef U_HIDE_DRAFT_API
     /**
      * Miscellaneous property Identifier_Type.
      * Used for UTS #39 General Security Profile for Identifiers
@@ -808,10 +807,9 @@ typedef enum UProperty {
      *
      * @see u_hasIDType
      * @see u_getIDTypes
-     * @draft ICU 75
+     * @stable ICU 75
      */
     UCHAR_IDENTIFIER_TYPE=0x7001,
-#endif  // U_HIDE_DRAFT_API
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the last constant for Unicode properties with unusual value types.
@@ -2791,13 +2789,12 @@ typedef enum UVerticalOrientation {
     U_VO_UPRIGHT,
 } UVerticalOrientation;
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Identifier Status constants.
  * See https://www.unicode.org/reports/tr39/#Identifier_Status_and_Type.
  *
  * @see UCHAR_IDENTIFIER_STATUS
- * @draft ICU 75
+ * @stable ICU 75
  */
 typedef enum UIdentifierStatus {
     /*
@@ -2806,9 +2803,9 @@ typedef enum UIdentifierStatus {
      *     U_ID_STATUS_<Unicode Identifier_Status value name>
      */
 
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_STATUS_RESTRICTED,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_STATUS_ALLOWED,
 } UIdentifierStatus;
 
@@ -2817,7 +2814,7 @@ typedef enum UIdentifierStatus {
  * See https://www.unicode.org/reports/tr39/#Identifier_Status_and_Type.
  *
  * @see UCHAR_IDENTIFIER_TYPE
- * @draft ICU 75
+ * @stable ICU 75
  */
 typedef enum UIdentifierType {
     /*
@@ -2826,32 +2823,31 @@ typedef enum UIdentifierType {
      *     U_ID_TYPE_<Unicode Identifier_Type value name>
      */
 
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_NOT_CHARACTER,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_DEPRECATED,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_DEFAULT_IGNORABLE,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_NOT_NFKC,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_NOT_XID,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_EXCLUSION,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_OBSOLETE,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_TECHNICAL,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_UNCOMMON_USE,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_LIMITED_USE,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_INCLUSION,
-    /** @draft ICU 75 */
+    /** @stable ICU 75 */
     U_ID_TYPE_RECOMMENDED,
 } UIdentifierType;
-#endif  // U_HIDE_DRAFT_API
 
 /**
  * Check a binary Unicode property for a code point.
@@ -4057,7 +4053,6 @@ u_isIDStart(UChar32 c);
 U_CAPI UBool U_EXPORT2
 u_isIDPart(UChar32 c);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Does the set of Identifier_Type values code point c contain the given type?
  *
@@ -4069,7 +4064,7 @@ u_isIDPart(UChar32 c);
  * @param c code point
  * @param type Identifier_Type to check
  * @return true if type is in Identifier_Type(c)
- * @draft ICU 75
+ * @stable ICU 75
  */
 U_CAPI bool U_EXPORT2
 u_hasIDType(UChar32 c, UIdentifierType type);
@@ -4104,11 +4099,10 @@ u_hasIDType(UChar32 c, UIdentifierType type);
  *                   function chaining. (See User Guide for details.)
  * @return number of values in c's Identifier_Type,
  *         written to types unless U_BUFFER_OVERFLOW_ERROR indicates insufficient capacity
- * @draft ICU 75
+ * @stable ICU 75
  */
 U_CAPI int32_t U_EXPORT2
 u_getIDTypes(UChar32 c, UIdentifierType *types, int32_t capacity, UErrorCode *pErrorCode);
-#endif  // U_HIDE_DRAFT_API
 
 /**
  * Determines if the specified character should be regarded

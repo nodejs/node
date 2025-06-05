@@ -235,7 +235,7 @@ class U_I18N_API IslamicCalendar : public Calendar {
    * Return the number of days in the given Islamic year
    * @internal
    */
-  virtual int32_t handleGetYearLength(int32_t extendedYear) const override;
+  virtual int32_t handleGetYearLength(int32_t extendedYear, UErrorCode& status) const override;
     
   //-------------------------------------------------------------------------
   // Functions for converting from field values to milliseconds....
@@ -438,7 +438,7 @@ class U_I18N_API IslamicCivilCalendar : public IslamicCalendar {
    * Return the number of days in the given Islamic year
    * @internal
    */
-  virtual int32_t handleGetYearLength(int32_t extendedYear) const override;
+  virtual int32_t handleGetYearLength(int32_t extendedYear, UErrorCode& status) const override;
 
   /**
    * Override Calendar to compute several fields specific to the Islamic
@@ -621,7 +621,7 @@ class U_I18N_API IslamicUmalquraCalendar : public IslamicCivilCalendar {
    * Return the number of days in the given Islamic year
    * @internal
    */
-  virtual int32_t handleGetYearLength(int32_t extendedYear) const override;
+  virtual int32_t handleGetYearLength(int32_t extendedYear, UErrorCode& status) const override;
 
   /**
    * Override Calendar to compute several fields specific to the Islamic

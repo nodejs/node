@@ -3146,11 +3146,8 @@ ucnv_MBCSGetNextUChar(UConverterToUnicodeArgs *pArgs,
     if(c<0) {
         if(U_SUCCESS(*pErrorCode) && source==sourceLimit && lastSource<source) {
             /* incomplete character byte sequence */
-            uint8_t *bytes=cnv->toUBytes;
             cnv->toULength = static_cast<int8_t>(source - lastSource);
-            do {
-                *bytes++=*lastSource++;
-            } while(lastSource<source);
+            uprv_memcpy(cnv->toUBytes, lastSource, cnv->toULength);
             *pErrorCode=U_TRUNCATED_CHAR_FOUND;
         } else if(U_FAILURE(*pErrorCode)) {
             /* callback(illegal) */
