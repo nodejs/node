@@ -331,12 +331,10 @@ BaseObjectPtr<BaseObject> FileHandle::TransferData::Deserialize(
   return BaseObjectPtr<BaseObject> { FileHandle::New(bd, fd) };
 }
 
-// Close the file descriptor if it hasn't already been closed. A process
-// warning will be emitted using a SetImmediate to avoid calling back to
-// JS during GC. If closing the fd fails at this point, a fatal exception
-// will crash the process immediately.
+// Throw an exception if the file handle has not yet been closed.
 inline void FileHandle::Close() {
   if (closed_ || closing_) return;
+
   uv_fs_t req;
   CHECK_NE(fd_, -1);
   FS_SYNC_TRACE_BEGIN(close);
@@ -367,25 +365,17 @@ inline void FileHandle::Close() {
     return;
   }
 
-  // If the close was successful, we still want to emit a process warning
-  // to notify that the file descriptor was gc'd. We want to be noisy about
-  // this because not explicitly closing the FileHandle is a bug.
-
-  env()->SetImmediate([detail](Environment* env) {
-    ProcessEmitWarning(env,
-                       "Closing file descriptor %d on garbage collection",
-                       detail.fd);
-    if (env->filehandle_close_warning()) {
-      env->set_filehandle_close_warning(false);
-      USE(ProcessEmitDeprecationWarning(
-          env,
-          "Closing a FileHandle object on garbage collection is deprecated. "
-          "Please close FileHandle objects explicitly using "
-          "FileHandle.prototype.close(). In the future, an error will be "
-          "thrown if a file descriptor is closed during garbage collection.",
-          "DEP0137"));
-    }
-  }, CallbackFlags::kUnrefed);
+  // Even though we closed the file descriptor, we still throw an error
+  // if the FileHandle object was not closed before garbage collection.
+  // Because this method is called during garbage collection, will defer
+  // throwing the error until the next immediate queue tick so as not
+  // to interfer with the gc process.
+  env()->SetImmediate([](Environment* env) {
+    THROW_ERR_INVALID_STATE(env,
+        "FileHandle object was not closed before garbage collection. "
+        "This used to be allowed with a deprecation warning but is now "
+        "considered an error. Please close FileHandle objects explicitly.");
+  });
 }
 
 void FileHandle::CloseReq::Resolve() {
