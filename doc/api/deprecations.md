@@ -3870,6 +3870,7 @@ changes:
   - version:
     - v23.4.0
     - v22.13.0
+    - v20.19.3
     pr-url: https://github.com/nodejs/node/pull/55892
     description: Documentation-only.
 -->
