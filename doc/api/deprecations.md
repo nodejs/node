@@ -3579,7 +3579,7 @@ It is recommended to use the `new` qualifier instead. This applies to all REPL c
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.19.3
     pr-url: https://github.com/nodejs/node/pull/55892
     description: Documentation-only.
 -->
