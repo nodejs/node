@@ -27,6 +27,20 @@ test('Storage instances cannot be created in userland', async () => {
   assert.match(cp.stderr, /Error: Illegal constructor/);
 });
 
+test('emits a warning when used', async () => {
+  for (const api of ['Storage', 'localStorage', 'sessionStorage']) {
+    const cp = await spawnPromisified(process.execPath, [
+      '--localstorage-file', nextLocalStorage(),
+      '-e', api,
+    ]);
+
+    assert.strictEqual(cp.code, 0);
+    assert.strictEqual(cp.signal, null);
+    assert.strictEqual(cp.stdout, '');
+    assert.match(cp.stderr, /ExperimentalWarning: Web Storage/);
+  }
+});
+
 test('sessionStorage is not persisted', async () => {
   let cp = await spawnPromisified(process.execPath, [
     '-pe', 'sessionStorage.foo = "barbaz"',
