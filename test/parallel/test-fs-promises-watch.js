@@ -123,9 +123,24 @@ assert.rejects(
   },
   { code: 'ERR_INVALID_ARG_TYPE' }).then(common.mustCall());
 
-assert.rejects(() => watch('', { maxQueue: 'silly' }), { code: 'ERR_INVALID_ARG_TYPE' }).then(common.mustCall());
-assert.rejects(() => watch('', { overflow: 1 }), { code: 'ERR_INVALID_ARG_TYPE' }).then(common.mustCall());
-assert.rejects(() => watch('', { overflow: 'barf' }), { code: 'ERR_INVALID_ARG_TYPE' }).then(common.mustCall());
+assert.rejects(
+  async () => {
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of watch('', { maxQueue: 'silly' })) { }
+  },
+  { code: 'ERR_INVALID_ARG_TYPE' }).then(common.mustCall());
+assert.rejects(
+  async () => {
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of watch('', { overflow: 1 })) { }
+  },
+  { code: 'ERR_INVALID_ARG_VALUE' }).then(common.mustCall());
+assert.rejects(
+  async () => {
+    // eslint-disable-next-line no-unused-vars, no-empty
+    for await (const _ of watch('', { overflow: 'barf' })) { }
+  },
+  { code: 'ERR_INVALID_ARG_VALUE' }).then(common.mustCall());
 
 (async () => {
   const ac = new AbortController();
