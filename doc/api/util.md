@@ -3333,6 +3333,9 @@ deprecated: REPLACEME
 
 > Stability: 0 - Deprecated: Use [`Error.isError`][] instead.
 
+**Note:** As of Node.js v24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
+If performance is critical, consider benchmarking both in your environment.
+
 * `value` {any}
 * Returns: {boolean}
 
