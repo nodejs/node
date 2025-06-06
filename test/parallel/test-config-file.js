@@ -8,6 +8,8 @@ const { test, it, describe } = require('node:test');
 const { chmodSync, constants } = require('node:fs');
 const common = require('../common');
 
+const isRoot = process.getuid() === 0;
+
 test('should handle non existing json', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-config-file',
@@ -361,7 +363,7 @@ test('should override node.config.json when specificied', async () => {
   strictEqual(result.code, 0);
 });
 // Skip on windows because it doesn't support chmod changing read permissions
-test('should throw an error when the file is non readable', { skip: common.isWindows }, async () => {
+test('should throw an error when the file is non readable', { skip: common.isWindows || isRoot }, async () => {
   chmodSync(fixtures.path('rc/non-readable/node.config.json'), constants.O_RDONLY);
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
