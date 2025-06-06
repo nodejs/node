@@ -25,8 +25,8 @@ function main({ operation, n }) {
   const {
     setSourceMapsSupport,
     maybeCacheSourceMap,
-    findSourceMap,
   } = require('internal/source_map/source_map_cache');
+  const { findSourceMap } = require('node:module');
 
   setSourceMapsSupport(true);
   const validFileName = path.resolve(
@@ -40,8 +40,8 @@ function main({ operation, n }) {
   let sourceMap;
   switch (operation) {
     case 'findSourceMap-valid':
-      bench.start();
       maybeCacheSourceMap(validFileName, validFileContent, fakeModule, false, undefined, validMapFile);
+      bench.start();
 
       for (let i = 0; i < n; i++) {
         sourceMap = findSourceMap(validFileName);
@@ -50,7 +50,6 @@ function main({ operation, n }) {
       break;
 
     case 'findSourceMap-generated-source':
-      bench.start();
       maybeCacheSourceMap(
         validFileName,
         validFileContent,
@@ -59,6 +58,7 @@ function main({ operation, n }) {
         validFileName,
         validMapFile,
       );
+      bench.start();
 
       for (let i = 0; i < n; i++) {
         sourceMap = findSourceMap(validFileName);

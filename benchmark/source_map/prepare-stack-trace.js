@@ -2,7 +2,6 @@
 
 const common = require('../common.js');
 const assert = require('assert');
-const kIsNodeError = Symbol('kIsNodeError');
 
 const options = {
   flags: ['--expose-internals'],
@@ -11,11 +10,27 @@ const options = {
 const bench = common.createBenchmark(
   main,
   {
-    operation: ['node-error', 'non-node-error'],
+    operation: ['non-node-error'],
     n: [1e5],
   },
   options,
 );
+
+function ErrorGetCallSites() {
+  const originalStackFormatter = Error.prepareStackTrace;
+  Error.prepareStackTrace = (_err, stack) => {
+    if (stack && stack.length > 1) {
+      // Remove node:util
+      return stack.slice(1);
+    }
+    return stack;
+  };
+  const err = new Error();
+  // With the V8 Error API, the stack is not formatted until it is accessed
+  err.stack; // eslint-disable-line no-unused-expressions
+  Error.prepareStackTrace = originalStackFormatter;
+  return err.stack;
+}
 
 function main({ operation, n }) {
   const { prepareStackTraceWithSourceMaps } = require('internal/source_map/prepare_stack_trace');
@@ -23,24 +38,11 @@ function main({ operation, n }) {
     ERR_ASSERTION,
   } = require('internal/errors').codes;
 
-  const nodeError = new ERR_ASSERTION('Node error');
-  nodeError[kIsNodeError] = true;
-  // Stacktrace is not formatted until it is accessed
-  const nodeErrorStackTrace = nodeError.stack.split('\n').slice(1);
-
   const nonNodeError = new ERR_ASSERTION('non Node error');
-  const nonNodeErrorStackTrace = nonNodeError.stack.split('\n').slice(1);
+  const nonNodeErrorStackTrace = ErrorGetCallSites();
 
   let preparedStackTrace;
   switch (operation) {
-    case 'node-error':
-      bench.start();
-      for (let i = 0; i < n; i++) {
-        preparedStackTrace = prepareStackTraceWithSourceMaps(nodeError, nodeErrorStackTrace);
-      }
-      bench.end(n);
-      break;
-
     case 'non-node-error':
       bench.start();
       for (let i = 0; i < n; i++) {
