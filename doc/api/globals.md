@@ -117,6 +117,10 @@ Returns a new already aborted `AbortSignal`.
 added:
   - v17.3.0
   - v16.14.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58594
+   description: Change validation of `delay` to allow non-integer.
 -->
 
 * `delay` {number} The number of milliseconds to wait before triggering
