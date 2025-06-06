@@ -123,6 +123,14 @@ test-tls-client-mindhsize: PASS, FLAKY
 test-tls-write-error: PASS, FLAKY
 # https://github.com/nodejs/node/issues/48047
 test-http-pipeline-flood: SKIP
+# https://github.com/nodejs/node/issues/58582
+test-http-proxy-fetch: PASS, FLAKY
+test-https-proxy-fetch: PASS, FLAKY
+test-inspector-network-fetch:  PASS, FLAKY
+test-fetch:  PASS, FLAKY
+test-without-async-context-frame: PASS, FLAKY
+test-process-cpuUsage: PASS, FLAKY
+
 
 [$asan==on]
 # https://github.com/nodejs/node/issues/39655
