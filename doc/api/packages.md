@@ -433,6 +433,64 @@ subpaths where possible instead of a separate map entry per package subpath
 export. This also mirrors the requirement of using [the full specifier path][]
 in relative and absolute import specifiers.
 
+#### Path Rules and Validation for Export Targets
+
+When defining paths as targets in the [`"exports"`][] field, Node.js enforces
+several rules to ensure security, predictability, and proper encapsulation.
+Understanding these rules is crucial for authors publishing packages.
+
+**1. Targets Must Be Relative and Start with `./`**
+
+All target paths in the [`"exports"`][] map (the values associated with export
+keys) **must** be relative path strings starting with `./`.
+
+```json
+// package.json
+{
+  "name": "my-package",
+  "exports": {
+    ".": "./dist/main.js",          // Correct
+    "./feature": "./lib/feature.js", // Correct
+    // "absolute": "/dist/main.js", // Incorrect: Must start with ./
+    // "outside": "../common/util.js" // Incorrect: Must start with ./
+  }
+}
+```
+
+* **Why?**
+  * **Security:** Prevents exporting arbitrary files from outside the
+    package's own directory.
+  * **Encapsulation:** Ensures all exported paths are resolved relative to
+    the package root, making the package self-contained.
+
+**2. No Path Traversal and Invalid Segments Disallowed**
+
+Export targets **must not** resolve to a location outside the package's root
+directory. Additionally, path segments like `.` (single dot), `..` (double dot),
+or `node_modules` (and their URL-encoded equivalents) are generally disallowed
+within the `target` string after the initial `./` and in any `subpath` part
+substituted into a target pattern.
+
+```json
+// package.json
+{
+  "name": "my-package",
+  "exports": {
+    // ".": "./dist/../../elsewhere/file.js", // Invalid: path traversal
+    // ".": "././dist/main.js",             // Invalid: contains "." segment
+    // ".": "./dist/../dist/main.js",       // Invalid: contains ".." segment
+    // "./utils/./helper.js": "./utils/helper.js" // Key has invalid segment
+  }
+}
+```
+
+Node.js resolver (`lib/internal/modules/esm/resolve.js`) checks these.
+
+* **Why?**
+  * **Security:** Prevents path manipulation, obfuscation, and exposing
+    sensitive files or executing unintended code.
+  * **Consistency:** Ensures a standardized and predictable path structure.
+
 ### Exports sugar
 
 <!-- YAML
