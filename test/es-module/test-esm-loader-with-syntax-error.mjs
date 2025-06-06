@@ -13,7 +13,7 @@ describe('ESM: loader with syntax error', { concurrency: !process.env.TEST_PARAL
       path('print-error-message.js'),
     ]);
 
-    match(stderr, /SyntaxError \[Error\]:/);
+    match(stderr, /SyntaxError:/);
     ok(!stderr.includes('Bad command or file name'));
     notStrictEqual(code, 0);
   });
