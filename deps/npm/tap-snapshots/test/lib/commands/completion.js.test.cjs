@@ -88,7 +88,7 @@ Array [
     repo
     restart
     root
-    run-script
+    run
     sbom
     search
     set
@@ -135,7 +135,7 @@ Array [
     t
     ddp
     v
-    run
+    run-script
     clean-install
     clean-install-test
     x
