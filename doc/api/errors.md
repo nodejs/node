@@ -1369,8 +1369,8 @@ allowed size for a `Buffer`.
 
 ### `ERR_FS_WATCH_QUEUE_OVERFLOW`
 
-The number of file system events observed exceeded the queue available to buffer
-buffer these events.
+The number of file system events queued without being handled exceeded the size specified in
+`maxQueue` in `fs.watch()`.
 
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
