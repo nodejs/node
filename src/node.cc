@@ -910,7 +910,7 @@ static ExitCode InitializeNodeWithArgsInternal(
       default:
         UNREACHABLE();
     }
-    node_options_from_config = per_process::config_reader.AssignNodeOptions();
+    node_options_from_config = per_process::config_reader.GetNodeOptions();
     // (@marco-ippolito) Avoid reparsing the env options again
     std::vector<std::string> env_argv_from_config =
         ParseNodeOptionsEnvVar(node_options_from_config, errors);
@@ -956,7 +956,19 @@ static ExitCode InitializeNodeWithArgsInternal(
 #endif
 
   if (!(flags & ProcessInitializationFlags::kDisableCLIOptions)) {
-    const ExitCode exit_code =
+    // Parse the options coming from the config file.
+    // This is done before parsing the command line options
+    // as the cli flags are expected to override the config file ones.
+    std::vector<std::string> extra_argv =
+        per_process::config_reader.GetNamespaceFlags();
+    // [0] is expected to be the program name, fill it in from the real argv.
+    extra_argv.insert(extra_argv.begin(), argv->at(0));
+    // Parse the extra argv coming from the config file
+    ExitCode exit_code = ProcessGlobalArgsInternal(
+        &extra_argv, nullptr, errors, kDisallowedInEnvvar);
+    if (exit_code != ExitCode::kNoFailure) return exit_code;
+    // Parse options coming from the command line.
+    exit_code =
         ProcessGlobalArgsInternal(argv, exec_argv, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
   }

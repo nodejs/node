@@ -933,11 +933,19 @@ in the `$schema` must be replaced with the version of Node.js you are using.
     ],
     "watch-path": "src",
     "watch-preserve-output": true
+  },
+  "testRunner": {
+    "test-isolation": "process"
   }
 }
 ```
 
-In the `nodeOptions` field, only flags that are allowed in [`NODE_OPTIONS`][] are supported.
+The configuration file supports namespace-specific options:
+
+* The `nodeOptions` field contains CLI flags that are allowed in [`NODE_OPTIONS`][].
+
+* Namespace fields like `testRunner` contain configuration specific to that subsystem.
+
 No-op flags are not supported.
 Not all V8 flags are currently supported.
 
@@ -951,7 +959,7 @@ For example, the configuration file above is equivalent to
 the following command-line arguments:
 
 ```bash
-node --import amaro/strip --watch-path=src --watch-preserve-output
+node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolation=process
 ```
 
 The priority in configuration is as follows:
@@ -964,11 +972,10 @@ Values in the configuration file will not override the values in the environment
 variables and command-line options, but will override the values in the `NODE_OPTIONS`
 env file parsed by the `--env-file` flag.
 
-If duplicate keys are present in the configuration file, only
-the first key will be used.
+Keys cannot be duplicated within the same or different namespaces.
 
 The configuration parser will throw an error if the configuration file contains
-unknown keys or keys that cannot used in `NODE_OPTIONS`.
+unknown keys or keys that cannot be used in a namespace.
 
 Node.js will not sanitize or perform validation on the user-provided configuration,
 so **NEVER** use untrusted configuration files.
