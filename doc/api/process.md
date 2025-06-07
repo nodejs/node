@@ -4075,7 +4075,7 @@ added:
 
 * `val` {boolean}
 
-This function enables or disables the [Source Map v3][Source Map] support for
+This function enables or disables the [Source Map][] support for
 stack traces.
 
 It provides same features as launching Node.js process with commandline options
@@ -4126,7 +4126,7 @@ added:
 * {boolean}
 
 The `process.sourceMapsEnabled` property returns whether the
-[Source Map v3][Source Map] support for stack traces is enabled.
+[Source Map][] support for stack traces is enabled.
 
 ## `process.stderr`
 
@@ -4586,7 +4586,7 @@ cases:
 [Permission Model]: permissions.md#permission-model
 [Readable]: stream.md#readable-streams
 [Signal Events]: #signal-events
-[Source Map]: https://sourcemaps.info/spec.html
+[Source Map]: https://tc39.es/ecma426/
 [Stream compatibility]: stream.md#compatibility-with-older-nodejs-versions
 [TTY]: tty.md#tty
 [Writable]: stream.md#writable-streams
