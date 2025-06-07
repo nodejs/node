@@ -3454,14 +3454,14 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
   if (args[7]->IsFunction()) {
     Local<v8::Function> args_filter_fn = args[7].As<v8::Function>();
 
-    filter_fn = [env, args_filter_fn](std::string src,
-                                      std::string dest) -> bool {
+    filter_fn = [env, args_filter_fn](std::string_view src,
+                                      std::string_view dest) -> bool {
       Local<Value> argv[] = {
           String::NewFromUtf8(
-              env->isolate(), src.c_str(), v8::NewStringType::kNormal)
+              env->isolate(), src.data(), v8::NewStringType::kNormal)
               .ToLocalChecked(),
           String::NewFromUtf8(
-              env->isolate(), dest.c_str(), v8::NewStringType::kNormal)
+              env->isolate(), dest.data(), v8::NewStringType::kNormal)
               .ToLocalChecked()};
       auto result =
           args_filter_fn->Call(env->context(), Null(env->isolate()), 2, argv)
