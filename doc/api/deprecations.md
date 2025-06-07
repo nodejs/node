@@ -3583,15 +3583,18 @@ In a future version of Node.js, [`message.headers`][],
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58618
+    description: End-of-Life.
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46432
     description: Runtime-deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-In a future version of Node.js, the `asyncResource` property will no longer
-be added when a function is bound to an `AsyncResource`.
+Older versions of Node.js would add the `asyncResource` when a function is
+bound to an `AsyncResource`. It no longer does.
 
 ### DEP0173: the `assert.CallTracker` class
 
