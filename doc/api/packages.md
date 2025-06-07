@@ -442,7 +442,7 @@ Understanding these rules is crucial for authors publishing packages.
 ##### Targets must be relative URLs
 
 All target paths in the [`"exports"`][] map (the values associated with export
-keys) **must** be relative path strings starting with `./`.
+keys) must be relative URL strings starting with `./`.
 
 ```json
 // package.json
