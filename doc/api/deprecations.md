@@ -3563,7 +3563,7 @@ Type: End-of-Life
 
 [`url.parse()`][] used to accept URLs with ports that are not numbers. This
 behavior might result in host name spoofing with unexpected input. These URLs
-will throw an error as the [WHATWG URL API][] does already.
+will throw an error (which the [WHATWG URL API][] also does).
 
 ### DEP0171: Setters for `http.IncomingMessage` headers and trailers
 
