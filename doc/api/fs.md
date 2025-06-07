@@ -1589,6 +1589,9 @@ Renames `oldPath` to `newPath`.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57784
+    description: The `recursive` option is removed, use `fsPromises.rm` instead.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fsPromises.rmdir(path, { recursive: true })` on a `path`
@@ -1628,9 +1631,6 @@ changes:
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, operations are retried on failure. **Default:** `false`.
-    **Deprecated.**
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
@@ -4250,6 +4250,9 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57784
+    description: The `recursive` option is removed, use `fs.rm` instead.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -4306,9 +4309,6 @@ changes:
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, operations are retried on failure. **Default:** `false`.
-    **Deprecated.**
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
@@ -6229,6 +6229,9 @@ See the POSIX rename(2) documentation for more details.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57784
+    description: The `recursive` option is removed, use `fs.rmSync` instead.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fs.rmdirSync(path, { recursive: true })` on a `path`
@@ -6272,9 +6275,6 @@ changes:
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, operations are retried on failure. **Default:** `false`.
-    **Deprecated.**
   * `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
