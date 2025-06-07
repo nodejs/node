@@ -112,17 +112,6 @@ int nghttp3_pq_empty(const nghttp3_pq *pq);
  */
 size_t nghttp3_pq_size(const nghttp3_pq *pq);
 
-typedef int (*nghttp3_pq_item_cb)(nghttp3_pq_entry *item, void *arg);
-
-/*
- * nghttp3_pq_each applies |fun| to each item in |pq|.  The |arg| is
- * passed as arg parameter to callback function.  This function must
- * not change the ordering key.  If the return value from callback is
- * nonzero, this function returns 1 immediately without iterating
- * remaining items.  Otherwise this function returns 0.
- */
-int nghttp3_pq_each(const nghttp3_pq *pq, nghttp3_pq_item_cb fun, void *arg);
-
 /*
  * nghttp3_pq_remove removes |item| from |pq|.  |pq| must contain
  * |item| otherwise the behavior is undefined.
