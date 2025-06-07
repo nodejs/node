@@ -195,6 +195,9 @@ process.
 <!-- YAML
 added: v20.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58579
+    description: Entrypoints of your application are allowed to be read implicitly.
   - version: v22.13.0
     pr-url: https://github.com/nodejs/node/pull/56201
     description: Permission Model and --allow-fs flags are stable.
@@ -214,23 +217,20 @@ The valid arguments for the `--allow-fs-read` flag are:
 
 Examples can be found in the [File System Permissions][] documentation.
 
-The initializer module also needs to be allowed. Consider the following example:
+The initializer module and custom `--require` modules has a implicit
+read permission.
 
 ```console
-$ node --permission index.js
-
-Error: Access to this API has been restricted
-    at node:internal/main/run_main_module:23:47 {
-  code: 'ERR_ACCESS_DENIED',
-  permission: 'FileSystemRead',
-  resource: '/Users/rafaelgss/repos/os/node/index.js'
-}
+$ node --permission -r custom-require.js -r custom-require-2.js index.js
 ```
 
-The process needs to have access to the `index.js` module:
+* The `custom-require.js`, `custom-require-2.js`, and `index.js` will be
+  by default in the allowed read list.
 
-```bash
-node --permission --allow-fs-read=/path/to/index.js index.js
+```js
+process.has('fs.read', 'index.js'); // true
+process.has('fs.read', 'custom-require.js'); // true
+process.has('fs.read', 'custom-require-2.js'); // true
 ```
 
 ### `--allow-fs-write`

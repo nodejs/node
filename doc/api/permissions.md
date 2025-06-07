@@ -102,6 +102,23 @@ $ node --permission --allow-fs-read=* --allow-fs-write=* index.js
 Hello world!
 ```
 
+By default the entrypoints of your application are included
+in the allowed file system read list. For example:
+
+```console
+$ node --permission index.js
+```
+
+* `index.js` will be included in the allowed file system read list
+
+```console
+$ node -r /path/to/custom-require.js --permission index.js.
+```
+
+* `/path/to/custom-require.js` will be included in the allowed file system read
+  list.
+* `index.js` will be included in the allowed file system read list.
+
 The valid arguments for both flags are:
 
 * `*` - To allow all `FileSystemRead` or `FileSystemWrite` operations,
