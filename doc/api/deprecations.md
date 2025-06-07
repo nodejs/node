@@ -3548,6 +3548,9 @@ issued for `url.parse()` vulnerabilities.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58617
+    description: End-of-Life.
   - version:
     - v20.0.0
     pr-url: https://github.com/nodejs/node/pull/45526
@@ -3559,11 +3562,11 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-[`url.parse()`][] accepts URLs with ports that are not numbers. This behavior
-might result in host name spoofing with unexpected input. These URLs will throw
-an error in future versions of Node.js, as the [WHATWG URL API][] does already.
+[`url.parse()`][] used to accept URLs with ports that are not numbers. This
+behavior might result in host name spoofing with unexpected input. These URLs
+will throw an error (which the [WHATWG URL API][] also does).
 
 ### DEP0171: Setters for `http.IncomingMessage` headers and trailers
 
