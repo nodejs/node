@@ -204,23 +204,37 @@ added: v0.11.4
 -->
 
 * `options` {Object} Options containing connection details. Check
-  [`net.createConnection()`][] for the format of the options
-* `callback` {Function} Callback function that receives the created socket
-* Returns: {stream.Duplex}
+  [`net.createConnection()`][] for the format of the options. For custom agents,
+  this object is passed to the custom `createConnection` function.
+* `callback` {Function} (Optional, primarily for custom agents) A function to be
+  called by a custom `createConnection` implementation when the socket is
+  created, especially for asynchronous operations.
+  * `err` {Error | null} An error object if socket creation failed.
+  * `socket` {stream.Duplex} The created socket.
+* Returns: {stream.Duplex} The created socket. This is returned by the default
+  implementation or by a custom synchronous `createConnection` implementation.
+  If a custom `createConnection` uses the `callback` for asynchronous
+  operation, this return value might not be the primary way to obtain the socket.
 
 Produces a socket/stream to be used for HTTP requests.
 
-By default, this function is the same as [`net.createConnection()`][]. However,
-custom agents may override this method in case greater flexibility is desired.
+By default, this function behaves identically to [`net.createConnection(options)`][],
+synchronously returning the created socket. The optional `callback` parameter in the
+signature is **not** used by this default implementation.
 
-A socket/stream can be supplied in one of two ways: by returning the
-socket/stream from this function, or by passing the socket/stream to `callback`.
+However, custom agents may override this method to provide greater flexibility,
+for example, to create sockets asynchronously. When overriding `createConnection`:
 
-This method is guaranteed to return an instance of the {net.Socket} class,
-a subclass of {stream.Duplex}, unless the user specifies a socket
-type other than {net.Socket}.
+1.  **Synchronous socket creation**: The overriding method can return the
+    socket/stream directly.
+2.  **Asynchronous socket creation**: The overriding method can accept the `callback`
+    and pass the created socket/stream to it (e.g., `callback(null, newSocket)`).
+    If an error occurs during socket creation, it should be passed as the first
+    argument to the `callback` (e.g., `callback(err)`).
 
-`callback` has a signature of `(err, stream)`.
+The agent will call the provided `createConnection` function with `options` and
+this internal `callback`. The `callback` provided by the agent has a signature
+of `(err, stream)`.
 
 ### `agent.keepSocketAlive(socket)`
 
