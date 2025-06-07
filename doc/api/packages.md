@@ -467,7 +467,7 @@ Reasons for this behavior include:
 
 #### No path traversal or invalid segments
 
-Export targets **must not** resolve to a location outside the package's root
+Export targets must not resolve to a location outside the package's root
 directory. Additionally, path segments like `.` (single dot), `..` (double dot),
 or `node_modules` (and their URL-encoded equivalents) are generally disallowed
 within the `target` string after the initial `./` and in any `subpath` part
