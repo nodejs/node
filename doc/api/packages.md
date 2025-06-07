@@ -439,7 +439,7 @@ When defining paths as targets in the [`"exports"`][] field, Node.js enforces
 several rules to ensure security, predictability, and proper encapsulation.
 Understanding these rules is crucial for authors publishing packages.
 
-**1. Targets Must Be Relative and Start with `./`**
+##### Targets must be relative URLs
 
 All target paths in the [`"exports"`][] map (the values associated with export
 keys) **must** be relative path strings starting with `./`.
