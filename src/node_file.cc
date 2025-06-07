@@ -3428,8 +3428,9 @@ bool isInsideDir(const std::filesystem::path& src,
 }
 
 static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(args.Length(), 7);  // src, dest, force, dereference, errorOnExist,
-                               // verbatimSymlinks, preserveTimestamps
+  CHECK_EQ(args.Length(),
+           8);  // src, dest, force, dereference, errorOnExist,
+                // verbatimSymlinks, preserveTimestamps, filterFunction
 
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -3447,6 +3448,27 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
   bool error_on_exist = args[4]->IsTrue();
   bool verbatim_symlinks = args[5]->IsTrue();
   bool preserve_timestamps = args[6]->IsTrue();
+
+  std::function<bool(std::string, std::string)> filter_fn = nullptr;
+
+  if (args[7]->IsFunction()) {
+    Local<v8::Function> args_filter_fn = args[7].As<v8::Function>();
+
+    filter_fn = [env, args_filter_fn](std::string src,
+                                      std::string dest) -> bool {
+      Local<Value> argv[] = {
+          String::NewFromUtf8(
+              env->isolate(), src.c_str(), v8::NewStringType::kNormal)
+              .ToLocalChecked(),
+          String::NewFromUtf8(
+              env->isolate(), dest.c_str(), v8::NewStringType::kNormal)
+              .ToLocalChecked()};
+      auto result =
+          args_filter_fn->Call(env->context(), Null(env->isolate()), 2, argv)
+              .ToLocalChecked();
+      return result->BooleanValue(env->isolate());
+    };
+  }
 
   std::error_code error;
   std::filesystem::create_directories(*dest, error);
@@ -3473,11 +3495,21 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
                        force,
                        error_on_exist,
                        dereference,
-                       &isolate](std::filesystem::path src,
-                                 std::filesystem::path dest) {
+                       &isolate,
+                       &filter_fn](std::filesystem::path src,
+                                   std::filesystem::path dest) {
     std::error_code error;
     for (auto dir_entry : std::filesystem::directory_iterator(src)) {
       auto dest_file_path = dest / dir_entry.path().filename();
+
+      if (filter_fn) {
+        auto shouldSkip =
+            !filter_fn(dir_entry.path().c_str(), dest_file_path.c_str());
+        if (shouldSkip) {
+          continue;
+        }
+      }
+
       auto dest_str = PathToString(dest);
 
       if (dir_entry.is_symlink()) {
