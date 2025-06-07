@@ -521,6 +521,9 @@ if (!isWindows && !isInsideDirWithUnusualChars) {
   const dest = nextdir();
   mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'foo.txt'), 'foo', mustNotMutateObjectDeep({ mode: 0o444 }));
+  // Small wait to make sure that destStat.mtime.getTime() would produce a time
+  // different from srcStat.mtime.getTime() if preserveTimestamps wasn't set to true
+  await setTimeout(5);
   cpSync(src, dest, mustNotMutateObjectDeep({ preserveTimestamps: true, recursive: true }));
   assertDirEquivalent(src, dest);
   const srcStat = lstatSync(join(src, 'foo.txt'));
