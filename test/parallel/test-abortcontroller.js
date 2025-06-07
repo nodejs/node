@@ -274,3 +274,47 @@ test('abortSignal.throwIfAobrted() works as expected (3)', () => {
   throws(() => AbortSignal.abort(actualReason).throwIfAborted(), actualReason);
   Reflect.defineProperty(AbortSignal.prototype, 'reason', originalDesc);
 });
+
+test('abortSignal.timeout() works with special \'delay\' value', async () => {
+  const inputs = [
+    undefined,
+    null,
+    true,
+    false,
+    '',
+    [],
+    {},
+    NaN,
+    +Infinity,
+    -Infinity,
+    (1.0 / 0.0),      // sanity check
+    parseFloat('x'),  // NaN
+    -10,
+    -1,
+    -0.5,
+    -0.1,
+    -0.0,
+    0,
+    0.0,
+    0.1,
+    0.5,
+    1,
+    1.0,
+    2147483648,     // Browser behavior: timeouts > 2^31-1 run on next tick
+    12345678901234,  // ditto
+  ];
+
+  const signals = [];
+
+  for (let i = 0; i < inputs.length; i++) {
+    signals[i] = AbortSignal.timeout(inputs[i]);
+  }
+
+  await sleep(2);
+
+  for (let i = 0; i < inputs.length; i++) {
+    ok(signals[i].aborted);
+    ok(signals[i].reason instanceof DOMException);
+    strictEqual(signals[i].reason.name, 'TimeoutError');
+  }
+});
