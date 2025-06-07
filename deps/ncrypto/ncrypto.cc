@@ -4191,6 +4191,31 @@ DataPointer hashDigest(const Buffer<const unsigned char>& buf,
   return data.resize(result_size);
 }
 
+DataPointer xofHashDigest(const Buffer<const unsigned char>& buf,
+                          const EVP_MD* md,
+                          size_t output_length) {
+  if (md == nullptr) return {};
+
+  EVPMDCtxPointer ctx = EVPMDCtxPointer::New();
+  if (!ctx) return {};
+  if (EVP_DigestInit_ex(ctx, md, nullptr) != 1) {
+    return {};
+  }
+  if (EVP_DigestUpdate(ctx, buf.data, buf.len) != 1) {
+    return {};
+  }
+  auto data = DataPointer::Alloc(output_length);
+  if (!data) {
+    return {};
+  }
+  if (!EVP_DigestFinalXOF(
+          ctx, reinterpret_cast<unsigned char*>(data.get()), output_length)) {
+    return {};
+  }
+
+  return data;
+}
+
 // ============================================================================
 
 X509Name::X509Name() : name_(nullptr), total_(0) {}
