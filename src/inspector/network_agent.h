@@ -1,6 +1,8 @@
 #ifndef SRC_INSPECTOR_NETWORK_AGENT_H_
 #define SRC_INSPECTOR_NETWORK_AGENT_H_
 
+#include "env.h"
+#include "io_agent.h"
 #include "node/inspector/protocol/Network.h"
 
 #include <map>
@@ -32,6 +34,11 @@ class NetworkAgent : public protocol::Network::Backend {
   protocol::DispatchResponse streamResourceContent(
       const protocol::String& in_requestId,
       protocol::Binary* out_bufferedData) override;
+
+  protocol::DispatchResponse loadNetworkResource(
+      const protocol::String& in_url,
+      std::unique_ptr<protocol::Network::LoadNetworkResourcePageResult>*
+          out_resource) override;
 
   void emitNotification(v8::Local<v8::Context> context,
                         const protocol::String& event,
