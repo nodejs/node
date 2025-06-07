@@ -718,6 +718,9 @@ The `SlowBuffer` class has been removed. Please use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Runtime deprecation.
   - version: v6.12.0
     pr-url: https://github.com/nodejs/node/pull/10116
     description: A deprecation code has been assigned.
@@ -726,10 +729,10 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`ecdh.setPublicKey()`][] method is now deprecated as its inclusion in the
-API is not useful.
+The [`ecdh.setPublicKey()`][] method is now deprecated as its inclusion in
+the API is not useful.
 
 ### DEP0032: `node:domain` module
 
