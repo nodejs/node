@@ -16,7 +16,7 @@ AsyncResource::AsyncResource(Isolate* isolate,
                              Local<Object> resource,
                              const char* name,
                              async_id trigger_async_id)
-    : env_(Environment::GetCurrent(isolate)),
+    : env_(Environment::GetCurrent(isolate->GetCurrentContext())),
       resource_(isolate, resource),
       context_frame_(isolate, async_context_frame::current(isolate)) {
   CHECK_NOT_NULL(env_);
