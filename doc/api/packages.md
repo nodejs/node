@@ -453,7 +453,7 @@ keys) must be relative URL strings starting with `./`.
     "./feature": "./lib/feature.js", // Correct
     // "./origin-relative": "/dist/main.js", // Incorrect: Must start with ./
     // "./absolute": "file:///dev/null", // Incorrect: Must start with ./
-    // "outside": "../common/util.js" // Incorrect: Must start with ./
+    // "./outside": "../common/util.js" // Incorrect: Must start with ./
   }
 }
 ```
