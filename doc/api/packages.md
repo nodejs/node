@@ -461,9 +461,9 @@ keys) must be relative URL strings starting with `./`.
 Reasons for this behavior include:
 
 * **Security:** Prevents exporting arbitrary files from outside the
-    package's own directory.
+  package's own directory.
 * **Encapsulation:** Ensures all exported paths are resolved relative to
-    the package root, making the package self-contained.
+  the package root, making the package self-contained.
 
 #### No path traversal or invalid segments
 
@@ -485,11 +485,6 @@ substituted into a target pattern.
   }
 }
 ```
-
-* **Why?**
-  * **Security:** Prevents path manipulation, obfuscation, and exposing
-    sensitive files or executing unintended code.
-  * **Consistency:** Ensures a standardized and predictable path structure.
 
 ### Exports sugar
 
