@@ -1,4 +1,4 @@
-/* auto-generated on 2025-02-14 16:11:36 -0500. Do not edit! */
+/* auto-generated on 2025-03-27 15:01:10 -0400. Do not edit! */
 /* including simdjson.cpp:  */
 /* begin file simdjson.cpp */
 #define SIMDJSON_SRC_SIMDJSON_CPP
@@ -776,22 +776,22 @@ inline namespace literals {
 inline namespace string_view_literals {
 
 
-constexpr std::string_view operator "" _sv( const char* str, size_t len ) noexcept  // (1)
+constexpr std::string_view operator ""_sv( const char* str, size_t len ) noexcept  // (1)
 {
     return std::string_view{ str, len };
 }
 
-constexpr std::u16string_view operator "" _sv( const char16_t* str, size_t len ) noexcept  // (2)
+constexpr std::u16string_view operator ""_sv( const char16_t* str, size_t len ) noexcept  // (2)
 {
     return std::u16string_view{ str, len };
 }
 
-constexpr std::u32string_view operator "" _sv( const char32_t* str, size_t len ) noexcept  // (3)
+constexpr std::u32string_view operator ""_sv( const char32_t* str, size_t len ) noexcept  // (3)
 {
     return std::u32string_view{ str, len };
 }
 
-constexpr std::wstring_view operator "" _sv( const wchar_t* str, size_t len ) noexcept  // (4)
+constexpr std::wstring_view operator ""_sv( const wchar_t* str, size_t len ) noexcept  // (4)
 {
     return std::wstring_view{ str, len };
 }
@@ -2122,22 +2122,22 @@ nssv_inline_ns namespace string_view_literals {
 
 #if nssv_CONFIG_STD_SV_OPERATOR && nssv_HAVE_STD_DEFINED_LITERALS
 
-nssv_constexpr nonstd::sv_lite::string_view operator "" sv( const char* str, size_t len ) nssv_noexcept  // (1)
+nssv_constexpr nonstd::sv_lite::string_view operator ""sv( const char* str, size_t len ) nssv_noexcept  // (1)
 {
     return nonstd::sv_lite::string_view{ str, len };
 }
 
-nssv_constexpr nonstd::sv_lite::u16string_view operator "" sv( const char16_t* str, size_t len ) nssv_noexcept  // (2)
+nssv_constexpr nonstd::sv_lite::u16string_view operator ""sv( const char16_t* str, size_t len ) nssv_noexcept  // (2)
 {
     return nonstd::sv_lite::u16string_view{ str, len };
 }
 
-nssv_constexpr nonstd::sv_lite::u32string_view operator "" sv( const char32_t* str, size_t len ) nssv_noexcept  // (3)
+nssv_constexpr nonstd::sv_lite::u32string_view operator ""sv( const char32_t* str, size_t len ) nssv_noexcept  // (3)
 {
     return nonstd::sv_lite::u32string_view{ str, len };
 }
 
-nssv_constexpr nonstd::sv_lite::wstring_view operator "" sv( const wchar_t* str, size_t len ) nssv_noexcept  // (4)
+nssv_constexpr nonstd::sv_lite::wstring_view operator ""sv( const wchar_t* str, size_t len ) nssv_noexcept  // (4)
 {
     return nonstd::sv_lite::wstring_view{ str, len };
 }
@@ -2146,22 +2146,22 @@ nssv_constexpr nonstd::sv_lite::wstring_view operator "" sv( const wchar_t* str,
 
 #if nssv_CONFIG_USR_SV_OPERATOR
 
-nssv_constexpr nonstd::sv_lite::string_view operator "" _sv( const char* str, size_t len ) nssv_noexcept  // (1)
+nssv_constexpr nonstd::sv_lite::string_view operator ""_sv( const char* str, size_t len ) nssv_noexcept  // (1)
 {
     return nonstd::sv_lite::string_view{ str, len };
 }
 
-nssv_constexpr nonstd::sv_lite::u16string_view operator "" _sv( const char16_t* str, size_t len ) nssv_noexcept  // (2)
+nssv_constexpr nonstd::sv_lite::u16string_view operator ""_sv( const char16_t* str, size_t len ) nssv_noexcept  // (2)
 {
     return nonstd::sv_lite::u16string_view{ str, len };
 }
 
-nssv_constexpr nonstd::sv_lite::u32string_view operator "" _sv( const char32_t* str, size_t len ) nssv_noexcept  // (3)
+nssv_constexpr nonstd::sv_lite::u32string_view operator ""_sv( const char32_t* str, size_t len ) nssv_noexcept  // (3)
 {
     return nonstd::sv_lite::u32string_view{ str, len };
 }
 
-nssv_constexpr nonstd::sv_lite::wstring_view operator "" _sv( const wchar_t* str, size_t len ) nssv_noexcept  // (4)
+nssv_constexpr nonstd::sv_lite::wstring_view operator ""_sv( const wchar_t* str, size_t len ) nssv_noexcept  // (4)
 {
     return nonstd::sv_lite::wstring_view{ str, len };
 }
@@ -2431,7 +2431,7 @@ enum error_code {
   SUCCESS = 0,                ///< No error
   CAPACITY,                   ///< This parser can't support a document that big
   MEMALLOC,                   ///< Error allocating memory, most likely out of memory
-  TAPE_ERROR,                 ///< Something went wrong, this is a generic error
+  TAPE_ERROR,                 ///< Something went wrong, this is a generic error. Fatal/unrecoverable error.
   DEPTH_ERROR,                ///< Your document exceeds the user-specified depth limitation
   STRING_ERROR,               ///< Problem while parsing a string
   T_ATOM_ERROR,               ///< Problem while parsing an atom starting with the letter 't'
@@ -2456,12 +2456,20 @@ enum error_code {
   PARSER_IN_USE,              ///< parser is already in use.
   OUT_OF_ORDER_ITERATION,     ///< tried to iterate an array or object out of order (checked when SIMDJSON_DEVELOPMENT_CHECKS=1)
   INSUFFICIENT_PADDING,       ///< The JSON doesn't have enough padding for simdjson to safely parse it.
-  INCOMPLETE_ARRAY_OR_OBJECT, ///< The document ends early.
+  INCOMPLETE_ARRAY_OR_OBJECT, ///< The document ends early. Fatal/unrecoverable error.
   SCALAR_DOCUMENT_AS_VALUE,   ///< A scalar document is treated as a value.
   OUT_OF_BOUNDS,              ///< Attempted to access location outside of document.
   TRAILING_CONTENT,           ///< Unexpected trailing content in the JSON input
   NUM_ERROR_CODES
 };
+
+/**
+ * Some errors are fatal and invalidate the document. This function returns true if the
+ * error is fatal. It returns true for TAPE_ERROR and INCOMPLETE_ARRAY_OR_OBJECT.
+ * Once a fatal error is encountered, the on-demand document is no longer valid and
+ * processing should stop.
+ */
+ inline bool is_fatal(error_code error) noexcept;
 
 /**
  * It is the convention throughout the code that  the macro SIMDJSON_DEVELOPMENT_CHECKS determines whether
@@ -2765,14 +2773,30 @@ SIMDJSON_IMPL_CONCEPT(op_append, operator+=)
 #undef SIMDJSON_IMPL_CONCEPT
 } // namespace details
 
+
+template <typename T>
+concept string_view_like = std::is_convertible_v<T, std::string_view> &&
+                           !std::is_convertible_v<T, const char*>;
+
+template<typename T>
+concept constructible_from_string_view = std::is_constructible_v<T, std::string_view>
+                                        && !std::is_same_v<T, std::string_view>
+                                        && std::is_default_constructible_v<T>;
+
+template<typename M>
+concept string_view_keyed_map = string_view_like<typename M::key_type>
+              && requires(std::remove_cvref_t<M>& m, typename M::key_type sv, typename M::mapped_type v) {
+    { m.emplace(sv, v) } -> std::same_as<std::pair<typename M::iterator, bool>>;
+};
+
 /// Check if T is a container that we can append to, including:
 ///   std::vector, std::deque, std::list, std::string, ...
 template <typename T>
 concept appendable_containers =
-    details::supports_emplace_back<T> || details::supports_emplace<T> ||
+    (details::supports_emplace_back<T> || details::supports_emplace<T> ||
     details::supports_push_back<T> || details::supports_push<T> ||
     details::supports_add<T> || details::supports_append<T> ||
-    details::supports_insert<T>;
+    details::supports_insert<T>) && !string_view_keyed_map<T>;
 
 /// Insert into the container however possible
 template <appendable_containers T, typename... Args>
@@ -2839,6 +2863,8 @@ concept optional_type = requires(std::remove_cvref_t<T> obj) {
   };
   { static_cast<bool>(obj) } -> std::same_as<bool>; // convertible to bool
 };
+
+
 
 } // namespace concepts
 } // namespace simdjson
@@ -4511,6 +4537,11 @@ extern SIMDJSON_DLLIMPORTEXPORT const uint32_t digit_to_val32[886];
 #include <iostream>
 
 namespace simdjson {
+
+inline bool is_fatal(error_code error) noexcept {
+  return error == TAPE_ERROR || error == INCOMPLETE_ARRAY_OR_OBJECT;
+}
+
 namespace internal {
   // We store the error code so we can validate the error message is associated with the right code
   struct error_code_info {
@@ -4696,7 +4727,7 @@ namespace internal {
     { SUCCESS, "SUCCESS: No error" },
     { CAPACITY, "CAPACITY: This parser can't support a document that big" },
     { MEMALLOC, "MEMALLOC: Error allocating memory, we're most likely out of memory" },
-    { TAPE_ERROR, "TAPE_ERROR: The JSON document has an improper structure: missing or superfluous commas, braces, missing keys, etc." },
+    { TAPE_ERROR, "TAPE_ERROR: The JSON document has an improper structure: missing or superfluous commas, braces, missing keys, etc.  This is a fatal and unrecoverable error." },
     { DEPTH_ERROR, "DEPTH_ERROR: The JSON document was too deep (too many nested objects and arrays)" },
     { STRING_ERROR, "STRING_ERROR: Problem while parsing a string" },
     { T_ATOM_ERROR, "T_ATOM_ERROR: Problem while parsing an atom starting with the letter 't'" },
@@ -4721,7 +4752,7 @@ namespace internal {
     { PARSER_IN_USE, "PARSER_IN_USE: Cannot parse a new document while a document is still in use." },
     { OUT_OF_ORDER_ITERATION, "OUT_OF_ORDER_ITERATION: Objects and arrays can only be iterated when they are first encountered." },
     { INSUFFICIENT_PADDING, "INSUFFICIENT_PADDING: simdjson requires the input JSON string to have at least SIMDJSON_PADDING extra bytes allocated, beyond the string's length. Consider using the simdjson::padded_string class if needed." },
-    { INCOMPLETE_ARRAY_OR_OBJECT, "INCOMPLETE_ARRAY_OR_OBJECT: JSON document ended early in the middle of an object or array." },
+    { INCOMPLETE_ARRAY_OR_OBJECT, "INCOMPLETE_ARRAY_OR_OBJECT: JSON document ended early in the middle of an object or array. This is a fatal and unrecoverable error." },
     { SCALAR_DOCUMENT_AS_VALUE, "SCALAR_DOCUMENT_AS_VALUE: A JSON document made of a scalar (number, Boolean, null or string) is treated as a value. Use get_bool(), get_double(), etc. on the document instead. "},
     { OUT_OF_BOUNDS, "OUT_OF_BOUNDS: Attempt to access location outside of document."},
     { TRAILING_CONTENT, "TRAILING_CONTENT: Unexpected trailing content in the JSON input."}
@@ -6787,7 +6818,7 @@ public:
    * The memory allocation is strict: you
    * can you use this function to increase
    * or lower the amount of allocated memory.
-   * Passsing zero clears the memory.
+   * Passing zero clears the memory.
    */
   error_code allocate(size_t len) noexcept;
   /** @private Capacity in bytes, in terms
@@ -9185,7 +9216,7 @@ simdjson_inline bool compute_float_64(int64_t power, uint64_t i, bool negative, 
   // floor(log(5**power)/log(2))
   //
   // Note that this is not magic: 152170/(1<<16) is
-  // approximatively equal to log(5)/log(2).
+  // approximately equal to log(5)/log(2).
   // The 1<<16 value is a power of two; we could use a
   // larger power of 2 if we wanted to.
   //
@@ -15545,7 +15576,7 @@ simdjson_inline bool compute_float_64(int64_t power, uint64_t i, bool negative, 
   // floor(log(5**power)/log(2))
   //
   // Note that this is not magic: 152170/(1<<16) is
-  // approximatively equal to log(5)/log(2).
+  // approximately equal to log(5)/log(2).
   // The 1<<16 value is a power of two; we could use a
   // larger power of 2 if we wanted to.
   //
@@ -21769,7 +21800,7 @@ simdjson_inline bool compute_float_64(int64_t power, uint64_t i, bool negative, 
   // floor(log(5**power)/log(2))
   //
   // Note that this is not magic: 152170/(1<<16) is
-  // approximatively equal to log(5)/log(2).
+  // approximately equal to log(5)/log(2).
   // The 1<<16 value is a power of two; we could use a
   // larger power of 2 if we wanted to.
   //
@@ -28149,7 +28180,7 @@ simdjson_inline bool compute_float_64(int64_t power, uint64_t i, bool negative, 
   // floor(log(5**power)/log(2))
   //
   // Note that this is not magic: 152170/(1<<16) is
-  // approximatively equal to log(5)/log(2).
+  // approximately equal to log(5)/log(2).
   // The 1<<16 value is a power of two; we could use a
   // larger power of 2 if we wanted to.
   //
@@ -34891,7 +34922,7 @@ simdjson_inline bool compute_float_64(int64_t power, uint64_t i, bool negative, 
   // floor(log(5**power)/log(2))
   //
   // Note that this is not magic: 152170/(1<<16) is
-  // approximatively equal to log(5)/log(2).
+  // approximately equal to log(5)/log(2).
   // The 1<<16 value is a power of two; we could use a
   // larger power of 2 if we wanted to.
   //
@@ -41457,7 +41488,7 @@ simdjson_inline bool compute_float_64(int64_t power, uint64_t i, bool negative, 
   // floor(log(5**power)/log(2))
   //
   // Note that this is not magic: 152170/(1<<16) is
-  // approximatively equal to log(5)/log(2).
+  // approximately equal to log(5)/log(2).
   // The 1<<16 value is a power of two; we could use a
   // larger power of 2 if we wanted to.
   //
@@ -47468,7 +47499,7 @@ simdjson_inline bool compute_float_64(int64_t power, uint64_t i, bool negative, 
   // floor(log(5**power)/log(2))
   //
   // Note that this is not magic: 152170/(1<<16) is
-  // approximatively equal to log(5)/log(2).
+  // approximately equal to log(5)/log(2).
   // The 1<<16 value is a power of two; we could use a
   // larger power of 2 if we wanted to.
   //
@@ -53078,7 +53109,7 @@ simdjson_inline bool compute_float_64(int64_t power, uint64_t i, bool negative, 
   // floor(log(5**power)/log(2))
   //
   // Note that this is not magic: 152170/(1<<16) is
-  // approximatively equal to log(5)/log(2).
+  // approximately equal to log(5)/log(2).
   // The 1<<16 value is a power of two; we could use a
   // larger power of 2 if we wanted to.
   //
