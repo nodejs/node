@@ -49,8 +49,8 @@ fs.open(__filename, 'r', 0, common.mustSucceed());
 fs.open(__filename, 'r', null, common.mustSucceed());
 
 async function promise() {
-  await fs.promises.open(__filename);
-  await fs.promises.open(__filename, 'r');
+  await (await fs.promises.open(__filename)).close();
+  await (await fs.promises.open(__filename, 'r')).close();
 }
 
 promise().then(common.mustCall()).catch(common.mustNotCall());
