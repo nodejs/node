@@ -340,4 +340,4 @@ int ngtcp2_dcidtr_unused_empty(const ngtcp2_dcidtr *dtr);
  */
 int ngtcp2_dcidtr_bound_full(const ngtcp2_dcidtr *dtr);
 
-#endif /* NGTCP2_DCIDTR_H */
+#endif /* !defined(NGTCP2_DCIDTR_H) */
