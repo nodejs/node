@@ -451,7 +451,8 @@ keys) must be relative URL strings starting with `./`.
   "exports": {
     ".": "./dist/main.js",          // Correct
     "./feature": "./lib/feature.js", // Correct
-    // "absolute": "/dist/main.js", // Incorrect: Must start with ./
+    // "./origin-relative": "/dist/main.js", // Incorrect: Must start with ./
+    // "./absolute": "file:///dev/null", // Incorrect: Must start with ./
     // "outside": "../common/util.js" // Incorrect: Must start with ./
   }
 }
