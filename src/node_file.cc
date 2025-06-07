@@ -3449,7 +3449,7 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
   bool verbatim_symlinks = args[5]->IsTrue();
   bool preserve_timestamps = args[6]->IsTrue();
 
-  std::function<bool(std::string, std::string)> filter_fn = nullptr;
+  std::optional<std::function<bool(std::string, std::string)>> filter_fn;
 
   if (args[7]->IsFunction()) {
     Local<v8::Function> args_filter_fn = args[7].As<v8::Function>();
@@ -3502,12 +3502,9 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
     for (auto dir_entry : std::filesystem::directory_iterator(src)) {
       auto dest_file_path = dest / dir_entry.path().filename();
 
-      if (filter_fn) {
-        auto shouldSkip =
-            !filter_fn(dir_entry.path().c_str(), dest_file_path.c_str());
-        if (shouldSkip) {
-          continue;
-        }
+      if (filter_fn.has_value() && !filter_fn.value()(dir_entry.path().c_str(),
+                                                      dest_file_path.c_str())) {
+        continue;
       }
 
       auto dest_str = PathToString(dest);
