@@ -1,12 +1,12 @@
 node:assert:*
-    throw newErr;
-    ^
+      throw newErr;
+      ^
 
 AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
+    at new AssertionError (node:internal*assert*assertion_error:*:*)
+    at Assert.ifError (node:assert:*:*)
     at z (*if-error-has-good-stack.js:*:*)
     at y (*if-error-has-good-stack.js:*:*)
-    at x (*if-error-has-good-stack.js:*:*)
-    at Object.<anonymous> (*if-error-has-good-stack.js:*:*)
     at c (*if-error-has-good-stack.js:*:*)
     at b (*if-error-has-good-stack.js:*:*)
     at a (*if-error-has-good-stack.js:*:*)
@@ -19,7 +19,8 @@ AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
       at a (*if-error-has-good-stack.js:*:*)
       at Object.<anonymous> (*if-error-has-good-stack.js:*:*),
   expected: null,
-  operator: 'ifError'
+  operator: 'ifError',
+  diff: 'simple'
 }
 
 Node.js *
