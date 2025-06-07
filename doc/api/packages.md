@@ -458,10 +458,11 @@ keys) must be relative URL strings starting with `./`.
 }
 ```
 
-* **Why?**
-  * **Security:** Prevents exporting arbitrary files from outside the
+Reasons for this behavior include:
+
+* **Security:** Prevents exporting arbitrary files from outside the
     package's own directory.
-  * **Encapsulation:** Ensures all exported paths are resolved relative to
+* **Encapsulation:** Ensures all exported paths are resolved relative to
     the package root, making the package self-contained.
 
 #### No path traversal or invalid segments
