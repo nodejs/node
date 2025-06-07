@@ -3,6 +3,7 @@
 require('../common');
 const assert = require('assert');
 const { Assert } = require('assert');
+const { inspect } = require('util');
 const { test } = require('node:test');
 
 // Disable colored output to prevent color codes from breaking assertion
@@ -103,4 +104,94 @@ test('Assert class basic instance', () => {
     assertInstance.ok(threw);
   }
   /* eslint-enable no-restricted-syntax */
+});
+
+test('Assert class with full diff', () => {
+  const assertInstance = new Assert({ diff: 'full' });
+
+  const longStringOfAs = 'A'.repeat(1025);
+  const longStringOFBs = 'B'.repeat(1025);
+
+  assertInstance.throws(() => {
+    assertInstance.strictEqual(longStringOfAs, longStringOFBs);
+  }, (err) => {
+    assertInstance.strictEqual(err.code, 'ERR_ASSERTION');
+    assertInstance.strictEqual(err.message,
+                               `Expected values to be strictly equal:\n+ actual - expected\n\n` +
+                      `+ '${longStringOfAs}'\n- '${longStringOFBs}'\n`);
+    assertInstance.ok(inspect(err).includes(`actual: '${longStringOfAs}'`));
+    assertInstance.ok(inspect(err).includes(`expected: '${longStringOFBs}'`));
+    return true;
+  });
+
+  assertInstance.throws(() => {
+    assertInstance.notStrictEqual(longStringOfAs, longStringOfAs);
+  }, (err) => {
+    assertInstance.strictEqual(err.code, 'ERR_ASSERTION');
+    assertInstance.strictEqual(err.message,
+                               `Expected "actual" to be strictly unequal to:\n\n` +
+      `'${longStringOfAs}'`);
+    assertInstance.ok(inspect(err).includes(`actual: '${longStringOfAs}'`));
+    assertInstance.ok(inspect(err).includes(`expected: '${longStringOfAs}'`));
+    return true;
+  });
+
+  assertInstance.throws(() => {
+    assertInstance.deepEqual(longStringOfAs, longStringOFBs);
+  }, (err) => {
+    assertInstance.strictEqual(err.code, 'ERR_ASSERTION');
+    assertInstance.strictEqual(
+      err.message,
+      `Expected values to be loosely deep-equal:\n\n` +
+      `'${longStringOfAs}'\n\nshould loosely deep-equal\n\n'${longStringOFBs}'`
+    );
+    assertInstance.ok(inspect(err).includes(`actual: '${longStringOfAs}'`));
+    assertInstance.ok(inspect(err).includes(`expected: '${longStringOFBs}'`));
+    return true;
+  });
+});
+
+test('Assert class with simple diff', () => {
+  const assertInstance = new Assert({ diff: 'simple' });
+
+  const longStringOfAs = 'A'.repeat(1025);
+  const longStringOFBs = 'B'.repeat(1025);
+
+  assertInstance.throws(() => {
+    assertInstance.strictEqual(longStringOfAs, longStringOFBs);
+  }, (err) => {
+    assertInstance.strictEqual(err.code, 'ERR_ASSERTION');
+    assertInstance.strictEqual(err.message,
+                               `Expected values to be strictly equal:\n+ actual - expected\n\n` +
+                      `+ '${longStringOfAs}'\n- '${longStringOFBs}'\n`);
+    assertInstance.ok(inspect(err).includes(`actual: '${longStringOfAs.slice(0, 513)}...`));
+    assertInstance.ok(inspect(err).includes(`expected: '${longStringOFBs.slice(0, 513)}...`));
+    return true;
+  });
+
+  assertInstance.throws(() => {
+    assertInstance.notStrictEqual(longStringOfAs, longStringOfAs);
+  }, (err) => {
+    assertInstance.strictEqual(err.code, 'ERR_ASSERTION');
+    assertInstance.strictEqual(err.message,
+                               `Expected "actual" to be strictly unequal to:\n\n` +
+      `'${longStringOfAs}'`);
+    assertInstance.ok(inspect(err).includes(`actual: '${longStringOfAs.slice(0, 513)}...`));
+    assertInstance.ok(inspect(err).includes(`expected: '${longStringOfAs.slice(0, 513)}...`));
+    return true;
+  });
+
+  assertInstance.throws(() => {
+    assertInstance.deepEqual(longStringOfAs, longStringOFBs);
+  }, (err) => {
+    assertInstance.strictEqual(err.code, 'ERR_ASSERTION');
+    assertInstance.strictEqual(
+      err.message,
+      `Expected values to be loosely deep-equal:\n\n` +
+      `'${longStringOfAs.slice(0, 508)}...\n\nshould loosely deep-equal\n\n'${longStringOFBs.slice(0, 508)}...`
+    );
+    assertInstance.ok(inspect(err).includes(`actual: '${longStringOfAs.slice(0, 513)}...`));
+    assertInstance.ok(inspect(err).includes(`expected: '${longStringOFBs.slice(0, 513)}...`));
+    return true;
+  });
 });
