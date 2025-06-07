@@ -719,7 +719,7 @@ The `SlowBuffer` class has been removed. Please use
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58620
     description: Runtime deprecation.
   - version: v6.12.0
     pr-url: https://github.com/nodejs/node/pull/10116
