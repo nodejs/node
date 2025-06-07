@@ -408,7 +408,7 @@ For information about the governance of the Node.js project, see
 * [MrJithil](https://github.com/MrJithil) -
   **Jithil P Ponnan** <<jithil@outlook.com>> (he/him)
 * [panva](https://github.com/panva) -
-  **Filip Skokan** <<panva.ip@gmail.com>> (he/him)
+  **Filip Skokan** <<panva.ip@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/panva)
 * [pimterry](https://github.com/pimterry) -
   **Tim Perry** <<pimterry@gmail.com>> (he/him)
 * [pmarchini](https://github.com/pmarchini) -
