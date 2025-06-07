@@ -1,5 +1,5 @@
 /**
- * @fileoverview Iterating over arrays should be avoided because it relies on
+ * @file Iterating over arrays should be avoided because it relies on
  *               user-mutable global methods (`Array.prototype[Symbol.iterator]`
  *               and `%ArrayIteratorPrototype%.next`), we should instead use
  *               other alternatives. This file defines a rule that disallow
