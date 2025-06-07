@@ -464,7 +464,7 @@ keys) must be relative URL strings starting with `./`.
   * **Encapsulation:** Ensures all exported paths are resolved relative to
     the package root, making the package self-contained.
 
-**2. No Path Traversal or Invalid Segments**
+#### No path traversal or invalid segments
 
 Export targets **must not** resolve to a location outside the package's root
 directory. Additionally, path segments like `.` (single dot), `..` (double dot),
