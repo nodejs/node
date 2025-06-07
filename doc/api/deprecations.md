@@ -3054,7 +3054,7 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58616
     description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37302
