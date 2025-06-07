@@ -190,7 +190,7 @@
           '-Wno-unused-parameter',
           '-Wstrict-prototypes',
         ],
-        'OTHER_CFLAGS': [ '-g', '--std=gnu89' ],
+        'OTHER_CFLAGS': [ '-g', '--std=gnu11' ],
       },
       'conditions': [
         [ 'OS=="win"', {
@@ -262,7 +262,7 @@
           'cflags': [
             '-fvisibility=hidden',
             '-g',
-            '--std=gnu89',
+            '--std=gnu11',
             '-Wall',
             '-Wextra',
             '-Wno-unused-parameter',
