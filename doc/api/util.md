@@ -3655,6 +3655,89 @@ Returns `true` if the value is a built-in {WeakSet} instance.
 util.types.isWeakSet(new WeakSet());  // Returns true
 ```
 
+## Disposer APIs
+
+> Stability: 1 - Experimental
+
+### `util.asyncDisposer(onDispose)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `onDispose` {Function} A dispose function returning a promise
+* Returns: {AsyncDisposer}
+
+Create a convenient wrapper on the given async function that can be used
+with `using` declaration.
+
+If an error is thrown in the function, instead of returning a promise,
+the error will be wrapped in a rejected promise.
+
+```mjs
+{
+  await using _ = util.disposer(async function disposer() {
+    // Performing async disposing actions...
+  });
+
+  // Doing some works...
+
+} // When this scope exits, the disposer function is invoked and awaited.
+```
+
+### `util.disposer(onDispose)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `onDispose` {Function} A dispose function
+* Returns: {Disposer}
+
+Create a convenient wrapper on the given function that can be used with
+`using` declaration.
+
+```js
+{
+  using _ = util.disposer(function disposer() {
+    // Performing disposing actions...
+  });
+
+  // Doing some works...
+
+} // When this scope exits, the disposer function is invoked.
+```
+
+### Class: `util.AsyncDisposer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A convenience wrapper on an async dispose function.
+
+#### `asyncDisposer[Symbol.asyncDispose]()`
+
+Invokes the function specified in `util.asyncDisposer(onDispose)`.
+
+Multiple invocations on this method only result in a single
+invocation of the `onDispose` function.
+
+### Class: `util.Disposer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A convenience wrapper on a dispose function.
+
+#### `disposer[Symbol.dispose]()`
+
+Invokes the function specified in `util.disposer(onDispose)`.
+
+Multiple invocations on this method only result in a single
+invocation of the `onDispose` function.
+
 ## Deprecated APIs
 
 The following APIs are deprecated and should no longer be used. Existing
