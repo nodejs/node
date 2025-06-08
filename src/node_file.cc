@@ -3512,10 +3512,12 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
                                    std::filesystem::path dest) {
     std::error_code error;
     for (auto dir_entry : std::filesystem::directory_iterator(src)) {
+      auto dir_entry_path_str = PathToString(dir_entry.path());
       auto dest_file_path = dest / dir_entry.path().filename();
+      auto dest_file_path_str = PathToString(dest_file_path);
 
       if (filter_fn &&
-          !(*filter_fn)(dir_entry.path().c_str(), dest_file_path.c_str())) {
+          !(*filter_fn)(dir_entry_path_str.c_str(), dest_file_path_str.c_str())) {
         continue;
       }
 
@@ -3582,7 +3584,6 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
               }
             } else if (std::filesystem::is_regular_file(dest_file_path)) {
               if (!dereference || (!force && error_on_exist)) {
-                auto dest_file_path_str = PathToString(dest_file_path);
                 env->ThrowStdErrException(
                     std::make_error_code(std::errc::file_exists),
                     "cp",
