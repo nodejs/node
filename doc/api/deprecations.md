@@ -3983,6 +3983,20 @@ To make [`child_process.exec`][] invoke the default shell, either omit the
 `shell` option, or set it to a nullish value. If the intention is not to invoke
 a shell, use [`child_process.execFile`][] instead.
 
+### DEP0197: `util.types.isNativeError()`
+
+<!-- YAML
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58262
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError`][] instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -4001,6 +4015,7 @@ a shell, use [`child_process.execFile`][] instead.
 [`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
 [`Cipheriv`]: crypto.md#class-cipheriv
 [`Decipheriv`]: crypto.md#class-decipheriv
+[`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
@@ -4116,6 +4131,7 @@ a shell, use [`child_process.execFile`][] instead.
 [`util.isArray()`]: util.md#utilisarrayobject
 [`util.promisify`]: util.md#utilpromisifyoriginal
 [`util.toUSVString()`]: util.md#utiltousvstringstring
+[`util.types.isNativeError`]: util.md#utiltypesisnativeerrorvalue
 [`util.types`]: util.md#utiltypes
 [`util`]: util.md
 [`worker.exitedAfterDisconnect`]: cluster.md#workerexitedafterdisconnect
