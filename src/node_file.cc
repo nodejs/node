@@ -3502,8 +3502,8 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
     for (auto dir_entry : std::filesystem::directory_iterator(src)) {
       auto dest_file_path = dest / dir_entry.path().filename();
 
-      if (filter_fn && !filter_fn->(dir_entry.path().c_str(),
-                                                      dest_file_path.c_str())) {
+      if (filter_fn &&
+          !filter_fn->(dir_entry.path().c_str(), dest_file_path.c_str())) {
         continue;
       }
 
