@@ -1,3 +1,4 @@
+#include "ada.h"
 #include "async_context_frame.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
@@ -723,7 +724,7 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
     node::Utf8Value filename(node_env->isolate(), filename_js);
 
     const auto filename_view = filename.ToStringView();
-    if (filename_view.find("://") != std::string_view::npos) {
+    if (ada::can_parse(filename_view)) {
       module_filename = filename_view;
     } else {
       module_filename = node::url::FromFilePath(filename_view);
