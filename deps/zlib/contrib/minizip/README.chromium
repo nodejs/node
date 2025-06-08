@@ -34,3 +34,8 @@ Local Modifications:
   https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT section 4.6.9.
   (see crrev.com/1002476)
   0016-minizip-parse-unicode-path-extra-field.patch
+
+- Added support for zip64 archives that have extra bytes on front (for example,
+  large CRX files).
+  0018-support-prefixed-zip64.patch
+
