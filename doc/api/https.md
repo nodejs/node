@@ -138,7 +138,7 @@ See [`server.close()`][] in the `node:http` module.
 <!-- YAML
 added: v20.4.0
 changes:
- - version: REPLACEME
+ - version: v24.2.0
    pr-url: https://github.com/nodejs/node/pull/58467
    description: No longer experimental.
 -->
