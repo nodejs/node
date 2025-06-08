@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Helper functions that operate on {Digits} vectors of digits.
-
 #ifndef V8_BIGINT_VECTOR_ARITHMETIC_H_
 #define V8_BIGINT_VECTOR_ARITHMETIC_H_
+
+// Helper functions that operate on {Digits} vectors of digits.
 
 #include "src/bigint/bigint.h"
 #include "src/bigint/digit-arithmetic.h"

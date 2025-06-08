@@ -162,7 +162,6 @@ namespace internal {
   V(_, ERROR_STACK_DATA_TYPE, ErrorStackData, error_stack_data)               \
   V(_, FUNCTION_TEMPLATE_RARE_DATA_TYPE, FunctionTemplateRareData,            \
     function_template_rare_data)                                              \
-  V(_, INTERCEPTOR_INFO_TYPE, InterceptorInfo, interceptor_info)              \
   V(_, MODULE_REQUEST_TYPE, ModuleRequest, module_request)                    \
   V(_, PROMISE_CAPABILITY_TYPE, PromiseCapability, promise_capability)        \
   V(_, PROMISE_REACTION_TYPE, PromiseReaction, promise_reaction)              \
@@ -177,6 +176,7 @@ namespace internal {
   V(_, SOURCE_TEXT_MODULE_INFO_ENTRY_TYPE, SourceTextModuleInfoEntry,         \
     module_info_entry)                                                        \
   V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)               \
+  V(_, STACK_TRACE_INFO_TYPE, StackTraceInfo, stack_trace_info)               \
   V(_, TEMPLATE_OBJECT_DESCRIPTION_TYPE, TemplateObjectDescription,           \
     template_object_description)                                              \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                           \

@@ -32,6 +32,7 @@
 namespace node {
 namespace v8_utils {
 using v8::Array;
+using v8::BigInt;
 using v8::CFunction;
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -260,6 +261,12 @@ static bool FastIsStringOneByteRepresentation(Local<Value> receiver,
 CFunction fast_is_string_one_byte_representation_(
     CFunction::Make(FastIsStringOneByteRepresentation));
 
+void GetHashSeed(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  uint64_t hash_seed = isolate->GetHashSeed();
+  args.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, hash_seed));
+}
+
 static const char* GetGCTypeName(v8::GCType gc_type) {
   switch (gc_type) {
     case v8::GCType::kGCTypeScavenge:
@@ -385,23 +392,13 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
         FIXED_ONE_BYTE_STRING(isolate, "bucket_size"),
         FIXED_ONE_BYTE_STRING(isolate, "free_count"),
         FIXED_ONE_BYTE_STRING(isolate, "free_size")};
-    Local<Value> bucket_size_value;
-    if (!ToV8Value(context, space_stats.free_list_stats.bucket_size)
-             .ToLocal(&bucket_size_value)) {
-      return MaybeLocal<Object>();
-    }
-    Local<Value> free_count_value;
-    if (!ToV8Value(context, space_stats.free_list_stats.free_count)
-             .ToLocal(&free_count_value)) {
-      return MaybeLocal<Object>();
-    }
-    Local<Value> free_size_value;
-    if (!ToV8Value(context, space_stats.free_list_stats.free_size)
-             .ToLocal(&free_size_value)) {
-      return MaybeLocal<Object>();
-    }
     Local<Value> free_list_statistics_values[] = {
-        bucket_size_value, free_count_value, free_size_value};
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.bucket_size, isolate),
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.free_count, isolate),
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.free_size, isolate)};
 
     Local<Object> free_list_statistics_obj =
         Object::New(isolate,
@@ -694,6 +691,8 @@ void Initialize(Local<Object> target,
                             IsStringOneByteRepresentation,
                             &fast_is_string_one_byte_representation_);
 
+  SetMethodNoSideEffect(context, target, "getHashSeed", GetHashSeed);
+
   // GCProfiler
   Local<FunctionTemplate> t =
       NewFunctionTemplate(env->isolate(), GCProfiler::New);
@@ -721,6 +720,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(UpdateHeapCodeStatisticsBuffer);
   registry->Register(UpdateHeapSpaceStatisticsBuffer);
   registry->Register(SetFlagsFromString);
+  registry->Register(GetHashSeed);
   registry->Register(SetHeapSnapshotNearHeapLimit);
   registry->Register(GCProfiler::New);
   registry->Register(GCProfiler::Start);

@@ -2,9 +2,116 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-shared --no-experimental-wasm-inlining
+// Flags: --experimental-wasm-shared --no-wasm-inlining-call-indirect
+// Flags: --expose-gc --allow-natives-syntax
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+
+(function SharedStruct() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct(
+      [makeField(kWasmI32, true)], kNoSuperType, false, true);
+  let producer_sig = makeSig([kWasmI32], [wasmRefType(struct)]);
+  builder.addFunction("producer", producer_sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct])
+    .exportFunc();
+  let consumer_sig = makeSig([wasmRefNullType(struct)], [kWasmI32]);
+  builder.addFunction("consumer", consumer_sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructGet, struct, 0])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  let value = 42;
+
+  let struct_obj = instance.exports.producer(value);
+  assertTrue(%IsInWritableSharedSpace(struct_obj));
+  assertEquals(value, instance.exports.consumer(struct_obj));
+  gc();
+  assertEquals(value, instance.exports.consumer(struct_obj));
+})();
+
+(function SharedArray() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let array = builder.addArray(kWasmI64, true, kNoSuperType, false, true);
+  let producer_sig = makeSig([kWasmI64, kWasmI32], [wasmRefType(array)])
+  builder.addFunction("producer", producer_sig)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+              kGCPrefix, kExprArrayNew, array])
+    .exportFunc();
+  builder.addFunction("producerFixed", producer_sig)
+    .addBody([kExprLocalGet, 0,
+              kGCPrefix, kExprArrayNewFixed, array, 1])
+    .exportFunc();
+  builder.addFunction("producerDefault", producer_sig)
+    .addBody([kExprLocalGet, 1,
+              kGCPrefix, kExprArrayNewDefault, array])
+    .exportFunc();
+  let consumer_sig = makeSig([wasmRefNullType(array), kWasmI32], [kWasmI64]);
+  builder.addFunction("consumer", consumer_sig)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+              kGCPrefix, kExprArrayGet, array])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  let value = 42n;
+
+  let array_obj = instance.exports.producer(value, 100);
+  let array_obj_fixed = instance.exports.producerFixed(value, 100);
+  let array_obj_default = instance.exports.producerDefault(value, 100);
+
+  assertTrue(%IsInWritableSharedSpace(array_obj));
+  assertTrue(%IsInWritableSharedSpace(array_obj_fixed));
+  assertTrue(%IsInWritableSharedSpace(array_obj_default));
+  assertEquals(value, instance.exports.consumer(array_obj, 0));
+  assertEquals(value, instance.exports.consumer(array_obj_fixed, 0));
+  assertEquals(0n, instance.exports.consumer(array_obj_default, 0));
+  gc();
+  assertEquals(value, instance.exports.consumer(array_obj, 0));
+  assertEquals(value, instance.exports.consumer(array_obj_fixed, 0));
+  assertEquals(0n, instance.exports.consumer(array_obj_default, 0));
+})();
+
+(function SharedArrayOfStructNewFixed() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct(
+      [makeField(kWasmI64, true)], kNoSuperType, false, true);
+  let array = builder.addArray(
+      wasmRefNullType(struct), true, kNoSuperType, false, true);
+  let producer_sig = makeSig([kWasmI64, kWasmI64], [wasmRefType(array)]);
+  builder.addFunction("producer", producer_sig)
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprStructNew, struct,
+              kExprLocalGet, 1, kGCPrefix, kExprStructNew, struct,
+              kGCPrefix, kExprArrayNewFixed, array, 2])
+    .exportFunc();
+  let consumer_sig = makeSig([wasmRefNullType(array), kWasmI32], [kWasmI64]);
+  builder.addFunction("consumer", consumer_sig)
+    .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
+              kGCPrefix, kExprArrayGet, array,
+              kGCPrefix, kExprStructGet, struct, 0])
+    .exportFunc();
+
+  let instance = builder.instantiate();
+
+  let value0 = 10n;
+  let value1 = 11n;
+
+  let array_obj = instance.exports.producer(value0, value1);
+  assertTrue(%IsInWritableSharedSpace(array_obj));
+  assertEquals(value0, instance.exports.consumer(array_obj, 0));
+  assertEquals(value1, instance.exports.consumer(array_obj, 1));
+
+  gc();
+
+  assertEquals(value0, instance.exports.consumer(array_obj, 0));
+  assertEquals(value1, instance.exports.consumer(array_obj, 1));
+})();
+
+/* TODO(42204563): Reinstate these tests as we support the respective features.
 
 (function SharedGlobal() {
   print(arguments.callee.name);
@@ -34,7 +141,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let struct = builder.addStruct(
     [makeField(kWasmI32, true)], kNoSuperType, false, true);
   let global = builder.addGlobal(
-    wasmRefNullType(kWasmAnyRef, true), true, true,
+    wasmRefNullType(kWasmAnyRef).shared(), true, true,
     [kExprRefNull, kWasmSharedTypeForm, kAnyRefCode]);
 
   let side_effect = builder.addFunction("side_effect", kSig_v_v).addBody([]);
@@ -189,7 +296,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                  [kExprRefFunc, adder.index]);
 
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-               /ref.func does not have a shared type/);
+               /Shared global 0 must have shared type, actual type \(ref 0\)/);
 })();
 
 (function DataSegmentInFunction() {
@@ -288,7 +395,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let table = builder.addTable(
-    wasmRefNullType(kWasmFuncRef, true), 10, undefined,
+    wasmRefNullType(kWasmFuncRef).shared(), 10, undefined,
     [kExprRefNull, kWasmSharedTypeForm, kFuncRefCode], true);
   let sig = builder.addType(kSig_i_ii, kNoSuperType, true, true);
   let add = builder.addFunction("add", sig)
@@ -298,10 +405,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addActiveElementSegment(
     table.index, [kExprI32Const, 0],
     [[kExprRefFunc, add.index], [kExprRefFunc, mul.index]],
-    wasmRefNullType(kWasmFuncRef, true), true);
+    wasmRefNullType(kWasmFuncRef).shared(), true);
   let passive = builder.addPassiveElementSegment(
     [[kExprRefFunc, add.index], [kExprRefFunc, mul.index]],
-    wasmRefNullType(kWasmFuncRef, true), true);
+    wasmRefNullType(kWasmFuncRef).shared(), true);
 
   builder.addFunction("call", kSig_i_iii)
     .addBody([
@@ -562,3 +669,5 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0, wasm.get(array, 2));
   assertEquals(1, wasm.get(array, 3));
 })();
+
+*/

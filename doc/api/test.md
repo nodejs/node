@@ -400,7 +400,7 @@ The test runner will continue to run until the process is terminated.
 ## Global setup and teardown
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 > Stability: 1.0 - Early development
@@ -472,9 +472,12 @@ By default, Node.js will run all files matching these patterns:
 Unless [`--no-experimental-strip-types`][] is supplied, the following
 additional patterns are also matched:
 
-* `**/test/**/*-test.{cts,mts,ts}`
-* `**/test/**/*.test.{cts,mts,ts}`
-* `**/test/**/*_test.{cts,mts,ts}`
+* `**/*.test.{cts,mts,ts}`
+* `**/*-test.{cts,mts,ts}`
+* `**/*_test.{cts,mts,ts}`
+* `**/test-*.{cts,mts,ts}`
+* `**/test.{cts,mts,ts}`
+* `**/test/**/*.{cts,mts,ts}`
 
 Alternatively, one or more glob patterns can be provided as the
 final argument(s) to the Node.js command, as shown below.
@@ -983,7 +986,7 @@ added: v22.3.0
 changes:
   - version: v23.4.0
     pr-url: https://github.com/nodejs/node/pull/55897
-    description: Snapsnot testing is no longer experimental.
+    description: Snapshot testing is no longer experimental.
 -->
 
 Snapshot tests allow arbitrary values to be serialized into string values and
@@ -1043,6 +1046,10 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
+  - version: v23.0.0
+    pr-url: https://github.com/nodejs/node/pull/54548
+    description: The default reporter on non-TTY stdout is changed from `tap` to
+                 `spec`, aligning with TTY stdout.
   - version:
     - v19.9.0
     - v18.17.0
@@ -1114,6 +1121,9 @@ const customReporter = new Transform({
       case 'test:watch:drained':
         callback(null, 'test watch queue drained');
         break;
+      case 'test:watch:restarted':
+        callback(null, 'test watch restarted due to file change');
+        break;
       case 'test:start':
         callback(null, `test ${event.data.name} started`);
         break;
@@ -1159,6 +1169,9 @@ const customReporter = new Transform({
       case 'test:watch:drained':
         callback(null, 'test watch queue drained');
         break;
+      case 'test:watch:restarted':
+        callback(null, 'test watch restarted due to file change');
+        break;
       case 'test:start':
         callback(null, `test ${event.data.name} started`);
         break;
@@ -1203,6 +1216,9 @@ export default async function * customReporter(source) {
       case 'test:watch:drained':
         yield 'test watch queue drained\n';
         break;
+      case 'test:watch:restarted':
+        yield 'test watch restarted due to file change\n';
+        break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
         break;
@@ -1242,6 +1258,9 @@ module.exports = async function * customReporter(source) {
         break;
       case 'test:watch:drained':
         yield 'test watch queue drained\n';
+        break;
+      case 'test:watch:restarted':
+        yield 'test watch restarted due to file change\n';
         break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
@@ -1455,7 +1474,7 @@ added:
   - v20.13.0
 changes:
   - version:
-    - REPLACEME
+    - v24.0.0
     pr-url: https://github.com/nodejs/node/pull/56664
     description: This function no longer returns a `Promise`.
 -->
@@ -1512,7 +1531,7 @@ added:
   - v16.17.0
 changes:
   - version:
-    - REPLACEME
+    - v24.0.0
     pr-url: https://github.com/nodejs/node/pull/56664
     description: This function no longer returns a `Promise`.
   - version:
@@ -2170,7 +2189,7 @@ added:
   - v20.18.0
 changes:
   - version:
-    - REPLACEME
+    - v24.0.0
     pr-url: https://github.com/nodejs/node/pull/58007
     description: Support JSON modules.
 -->
@@ -3009,6 +3028,11 @@ defined. The corresponding declaration ordered event is `'test:start'`.
     `undefined` if the test was run through the REPL.
   * `message` {string} The diagnostic message.
   * `nesting` {number} The nesting level of the test.
+  * `level` {string} The severity level of the diagnostic message.
+    Possible values are:
+    * `'info'`: Informational messages.
+    * `'warn'`: Warnings.
+    * `'error'`: Errors.
 
 Emitted when [`context.diagnostic`][] is called.
 This event is guaranteed to be emitted in the same order as the tests are
@@ -3162,6 +3186,10 @@ generated for each test file in addition to a final cumulative summary.
 ### Event: `'test:watch:drained'`
 
 Emitted when no more tests are queued for execution in watch mode.
+
+### Event: `'test:watch:restarted'`
+
+Emitted when one or more tests are restarted due to a file change in watch mode.
 
 ## Class: `TestContext`
 
@@ -3616,7 +3644,7 @@ added:
   - v16.17.0
 changes:
   - version:
-    - REPLACEME
+    - v24.0.0
     pr-url: https://github.com/nodejs/node/pull/56664
     description: This function no longer returns a `Promise`.
   - version:

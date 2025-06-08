@@ -25,11 +25,11 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
       std::function<std::pair<TNode<JSFunction>, TNode<JSFunction>>(
           TNode<Context>, TNode<NativeContext>)>;
   TNode<Object> Await(TNode<Context> context,
-                      TNode<JSGeneratorObject> generator, TNode<Object> value,
+                      TNode<JSGeneratorObject> generator, TNode<JSAny> value,
                       TNode<JSPromise> outer_promise,
                       const CreateClosures& CreateClosures);
   TNode<Object> Await(TNode<Context> context,
-                      TNode<JSGeneratorObject> generator, TNode<Object> value,
+                      TNode<JSGeneratorObject> generator, TNode<JSAny> value,
                       TNode<JSPromise> outer_promise, RootIndex on_resolve_sfi,
                       RootIndex on_reject_sfi);
 

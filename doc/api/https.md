@@ -137,9 +137,11 @@ See [`server.close()`][] in the `node:http` module.
 
 <!-- YAML
 added: v20.4.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`server.close()`][httpsServerClose] and returns a promise that
 fulfills when the server has closed.
@@ -341,6 +343,7 @@ changes:
 * `options` {Object | string | URL} Accepts the same `options` as
   [`https.request()`][], with the method set to GET by default.
 * `callback` {Function}
+* Returns: {http.ClientRequest}
 
 Like [`http.get()`][] but for HTTPS.
 

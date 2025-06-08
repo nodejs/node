@@ -55,15 +55,6 @@
 
 namespace v8_inspector {
 
-void V8InspectorClient::consoleTime(v8::Isolate* isolate,
-                                    v8::Local<v8::String> label) {}
-
-void V8InspectorClient::consoleTimeEnd(v8::Isolate* isolate,
-                                       v8::Local<v8::String> label) {}
-
-void V8InspectorClient::consoleTimeStamp(v8::Isolate* isolate,
-                                         v8::Local<v8::String> label) {}
-
 std::unique_ptr<V8Inspector> V8Inspector::create(v8::Isolate* isolate,
                                                  V8InspectorClient* client) {
   return std::unique_ptr<V8Inspector>(new V8InspectorImpl(isolate, client));
@@ -75,10 +66,10 @@ V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
       m_client(client),
       m_debugger(new V8Debugger(isolate, this)),
       m_lastExceptionId(0),
-      m_lastContextId(0),
-      m_isolateId(generateUniqueId()) {
+      m_lastContextId(0) {
   v8::debug::SetInspector(m_isolate, this);
   v8::debug::SetConsoleDelegate(m_isolate, console());
+  v8::debug::SetIsolateId(m_isolate, generateUniqueId());
 }
 
 V8InspectorImpl::~V8InspectorImpl() {
@@ -156,6 +147,24 @@ std::unique_ptr<V8StackTrace> V8InspectorImpl::createStackTrace(
 std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
     int contextGroupId, V8Inspector::Channel* channel, StringView state,
     ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
+  return std::unique_ptr<V8InspectorSession>(connectImpl(
+      contextGroupId, channel, state, client_trust_level, pause_state));
+}
+
+std::shared_ptr<V8InspectorSession> V8InspectorImpl::connectShared(
+    int contextGroupId, V8Inspector::Channel* channel, StringView state,
+    ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
+  std::shared_ptr<V8InspectorSessionImpl> session(connectImpl(
+      contextGroupId, channel, state, client_trust_level, pause_state));
+  // TODO(crbug.com/40071155): Move to V8InspectorSessionImpl::create once the
+  // unique_ptr version is no longer required.
+  session->setWeakThis(session);
+  return session;
+}
+
+V8InspectorSessionImpl* V8InspectorImpl::connectImpl(
+    int contextGroupId, V8Inspector::Channel* channel, StringView state,
+    ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
   int sessionId = ++m_lastSessionId;
   std::shared_ptr<V8DebuggerBarrier> debuggerBarrier;
   if (pause_state == kWaitingForDebugger) {
@@ -171,12 +180,11 @@ std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
       m_debuggerBarriers.insert(it, {contextGroupId, debuggerBarrier});
     }
   }
-  std::unique_ptr<V8InspectorSessionImpl> session =
-      V8InspectorSessionImpl::create(this, contextGroupId, sessionId, channel,
-                                     state, client_trust_level,
-                                     std::move(debuggerBarrier));
-  m_sessions[contextGroupId][sessionId] = session.get();
-  return std::move(session);
+  V8InspectorSessionImpl* session = V8InspectorSessionImpl::create(
+      this, contextGroupId, sessionId, channel, state, client_trust_level,
+      std::move(debuggerBarrier));
+  m_sessions[contextGroupId][sessionId] = session;
+  return session;
 }
 
 void V8InspectorImpl::disconnect(V8InspectorSessionImpl* session) {
@@ -216,6 +224,10 @@ V8DebuggerId V8InspectorImpl::uniqueDebuggerId(int contextId) {
   if (context) unique_id = m_debugger->debuggerIdFor(context->contextGroupId());
 
   return unique_id.toV8DebuggerId();
+}
+
+uint64_t V8InspectorImpl::isolateId() {
+  return v8::debug::GetIsolateId(m_isolate);
 }
 
 void V8InspectorImpl::contextCreated(const V8ContextInfo& info) {
@@ -490,7 +502,8 @@ protocol::Response V8InspectorImpl::EvaluateScope::setTimeout(double timeout) {
     return protocol::Response::ServerError("Execution was terminated");
   }
   m_cancelToken.reset(new CancelToken());
-  v8::debug::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+  v8::debug::GetCurrentPlatform()->PostDelayedTaskOnWorkerThread(
+      v8::TaskPriority::kUserVisible,
       std::make_unique<TerminateTask>(m_isolate, m_cancelToken), timeout);
   return protocol::Response::Success();
 }

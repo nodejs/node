@@ -6,6 +6,8 @@
 #define V8_OBJECTS_ABSTRACT_CODE_INL_H_
 
 #include "src/objects/abstract-code.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/bytecode-array-inl.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/instance-type-inl.h"

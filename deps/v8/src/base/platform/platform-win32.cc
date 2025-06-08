@@ -34,6 +34,7 @@
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/timezone-cache.h"
@@ -539,8 +540,7 @@ int OS::GetCurrentProcessId() {
   return static_cast<int>(::GetCurrentProcessId());
 }
 
-
-int OS::GetCurrentThreadId() {
+int OS::GetCurrentThreadIdInternal() {
   return static_cast<int>(::GetCurrentThreadId());
 }
 
@@ -1245,20 +1245,17 @@ void OS::Abort() {
 
   switch (g_abort_mode) {
     case AbortMode::kExitWithSuccessAndIgnoreDcheckFailures:
-      _exit(0);
+      ExitProcess(0);
     case AbortMode::kExitWithFailureAndIgnoreDcheckFailures:
-      _exit(-1);
+      ExitProcess(-1);
     case AbortMode::kImmediateCrash:
       IMMEDIATE_CRASH();
     case AbortMode::kDefault:
       break;
   }
 
-  // Make the MSVCRT do a silent abort.
-  raise(SIGABRT);
-
   // Make sure function doesn't return.
-  abort();
+  ExitProcess(3);
 }
 
 

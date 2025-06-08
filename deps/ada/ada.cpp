@@ -1,4 +1,4 @@
-/* auto-generated on 2025-03-30 13:24:42 -0400. Do not edit! */
+/* auto-generated on 2025-04-28 12:16:36 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -56,8 +56,8 @@ ada_really_inline constexpr bool is_ipv4(std::string_view view) noexcept {
   }
   // We have 0x followed by some characters, we need to check that they are
   // hexadecimals.
-  return std::all_of(view.begin() + 2, view.end(),
-                     ada::unicode::is_lowercase_hex);
+  view.remove_prefix(2);
+  return std::ranges::all_of(view, ada::unicode::is_lowercase_hex);
 }
 
 // for use with path_signature, we include all characters that need percent
@@ -10421,6 +10421,8 @@ ADA_POP_DISABLE_WARNINGS
 #include <emmintrin.h>
 #endif
 
+#include <ranges>
+
 namespace ada::unicode {
 
 constexpr bool is_tabs_or_newline(char c) noexcept {
@@ -10461,8 +10463,7 @@ ada_really_inline bool has_tabs_or_newline(
     std::string_view user_input) noexcept {
   // first check for short strings in which case we do it naively.
   if (user_input.size() < 16) {  // slow path
-    return std::any_of(user_input.begin(), user_input.end(),
-                       is_tabs_or_newline);
+    return std::ranges::any_of(user_input, is_tabs_or_newline);
   }
   // fast path for long strings (expected to be common)
   size_t i = 0;
@@ -10500,8 +10501,7 @@ ada_really_inline bool has_tabs_or_newline(
     std::string_view user_input) noexcept {
   // first check for short strings in which case we do it naively.
   if (user_input.size() < 16) {  // slow path
-    return std::any_of(user_input.begin(), user_input.end(),
-                       is_tabs_or_newline);
+    return std::ranges::any_of(user_input, is_tabs_or_newline);
   }
   // fast path for long strings (expected to be common)
   size_t i = 0;
@@ -10832,10 +10832,9 @@ bool percent_encode(const std::string_view input, const uint8_t character_set[],
                     std::string& out) {
   ada_log("percent_encode ", input, " to output string while ",
           append ? "appending" : "overwriting");
-  auto pointer =
-      std::find_if(input.begin(), input.end(), [character_set](const char c) {
-        return character_sets::bit_at(character_set, c);
-      });
+  auto pointer = std::ranges::find_if(input, [character_set](const char c) {
+    return character_sets::bit_at(character_set, c);
+  });
   ada_log("percent_encode done checking, moved to ",
           std::distance(input.begin(), pointer));
 
@@ -11636,15 +11635,20 @@ ada_really_inline void parse_prepared_path(std::string_view input,
     // Note: input cannot be empty, it must at least contain one character ('.')
     // Note: we know that '\' is not present.
     if (input[0] != '.') {
-      size_t slashdot = input.find("/.");
-      if (slashdot == std::string_view::npos) {  // common case
-        trivial_path = true;
-      } else {  // uncommon
-        // only three cases matter: /./, /.. or a final /
-        trivial_path =
-            !(slashdot + 2 == input.size() || input[slashdot + 2] == '.' ||
-              input[slashdot + 2] == '/');
+      size_t slashdot = 0;
+      bool dot_is_file = true;
+      for (;;) {
+        slashdot = input.find("/.", slashdot);
+        if (slashdot == std::string_view::npos) {  // common case
+          break;
+        } else {  // uncommon
+          // only three cases matter: /./, /.. or a final /
+          slashdot += 2;
+          dot_is_file &= !(slashdot == input.size() || input[slashdot] == '.' ||
+                           input[slashdot] == '/');
+        }
       }
+      trivial_path = dot_is_file;
     }
   }
   if (trivial_path) {
@@ -11845,6 +11849,7 @@ ada_warn_unused std::string to_string(ada::state state) {
 
 #include <numeric>
 #include <algorithm>
+#include <ranges>
 #include <string>
 #include <string_view>
 
@@ -11852,8 +11857,7 @@ namespace ada {
 
 bool url::parse_opaque_host(std::string_view input) {
   ada_log("parse_opaque_host ", input, " [", input.size(), " bytes]");
-  if (std::ranges::any_of(input.begin(), input.end(),
-                          ada::unicode::is_forbidden_host_code_point)) {
+  if (std::ranges::any_of(input, ada::unicode::is_forbidden_host_code_point)) {
     return is_valid = false;
   }
 
@@ -12720,6 +12724,7 @@ bool url::set_href(const std::string_view input) {
 /* begin file src/parser.cpp */
 
 #include <limits>
+#include <ranges>
 
 
 namespace ada::parser {
@@ -13339,7 +13344,7 @@ result_type parse_url_impl(std::string_view user_input,
         // to optimize it.
         if (view.ends_with(' ')) {
           std::string modified_view =
-              std::string(view.begin(), view.end() - 1) + "%20";
+              std::string(view.substr(0, view.size() - 1)) + "%20";
           url.update_base_pathname(unicode::percent_encode(
               modified_view, character_sets::C0_CONTROL_PERCENT_ENCODE));
         } else {
@@ -13689,6 +13694,7 @@ namespace ada {
 /* end file src/url_components.cpp */
 /* begin file src/url_aggregator.cpp */
 
+#include <ranges>
 #include <string>
 #include <string_view>
 
@@ -13908,7 +13914,7 @@ bool url_aggregator::set_protocol(const std::string_view input) {
 
   if (pointer != view.end() && *pointer == ':') {
     return parse_scheme_with_colon<true>(
-        std::string_view(view.data(), pointer - view.begin() + 1));
+        view.substr(0, pointer - view.begin() + 1));
   }
   return false;
 }
@@ -14170,8 +14176,8 @@ ada_really_inline bool url_aggregator::parse_host(std::string_view input) {
   ada_log("parse_host to_ascii succeeded ", *host, " [", host->size(),
           " bytes]");
 
-  if (std::any_of(host.value().begin(), host.value().end(),
-                  ada::unicode::is_forbidden_domain_code_point)) {
+  if (std::ranges::any_of(host.value(),
+                          ada::unicode::is_forbidden_domain_code_point)) {
     return is_valid = false;
   }
 
@@ -14863,8 +14869,7 @@ bool url_aggregator::parse_opaque_host(std::string_view input) {
   ada_log("parse_opaque_host ", input, " [", input.size(), " bytes]");
   ADA_ASSERT_TRUE(validate());
   ADA_ASSERT_TRUE(!helpers::overlaps(input, buffer));
-  if (std::any_of(input.begin(), input.end(),
-                  ada::unicode::is_forbidden_host_code_point)) {
+  if (std::ranges::any_of(input, ada::unicode::is_forbidden_host_code_point)) {
     return is_valid = false;
   }
 
@@ -15093,15 +15098,20 @@ inline void url_aggregator::consume_prepared_path(std::string_view input) {
     // Note: input cannot be empty, it must at least contain one character ('.')
     // Note: we know that '\' is not present.
     if (input[0] != '.') {
-      size_t slashdot = input.find("/.");
-      if (slashdot == std::string_view::npos) {  // common case
-        trivial_path = true;
-      } else {  // uncommon
-        // only three cases matter: /./, /.. or a final /
-        trivial_path =
-            !(slashdot + 2 == input.size() || input[slashdot + 2] == '.' ||
-              input[slashdot + 2] == '/');
+      size_t slashdot = 0;
+      bool dot_is_file = true;
+      for (;;) {
+        slashdot = input.find("/.", slashdot);
+        if (slashdot == std::string_view::npos) {  // common case
+          break;
+        } else {  // uncommon
+          // only three cases matter: /./, /.. or a final /
+          slashdot += 2;
+          dot_is_file &= !(slashdot == input.size() || input[slashdot] == '.' ||
+                           input[slashdot] == '/');
+        }
       }
+      trivial_path = dot_is_file;
     }
   }
   if (trivial_path && is_at_path()) {

@@ -5,8 +5,10 @@
 #ifndef V8_HEAP_MEMORY_CHUNK_INL_H_
 #define V8_HEAP_MEMORY_CHUNK_INL_H_
 
-#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/memory-chunk.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/memory-chunk-metadata.h"
 #include "src/sandbox/check.h"
 
 namespace v8 {
@@ -16,9 +18,12 @@ MemoryChunkMetadata* MemoryChunk::Metadata() {
   // If this changes, we also need to update
   // CodeStubAssembler::PageMetadataFromMemoryChunk
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_LT(metadata_index_, kMetadataPointerTableSizeMask);
-  MemoryChunkMetadata* metadata =
-      metadata_pointer_table_[metadata_index_ & kMetadataPointerTableSizeMask];
+  DCHECK_LT(metadata_index_,
+            MemoryChunkConstants::kMetadataPointerTableSizeMask);
+  MemoryChunkMetadata** metadata_pointer_table =
+      IsolateGroup::current()->metadata_pointer_table();
+  MemoryChunkMetadata* metadata = metadata_pointer_table
+      [metadata_index_ & MemoryChunkConstants::kMetadataPointerTableSizeMask];
   // Check that the Metadata belongs to this Chunk, since an attacker with write
   // inside the sandbox could've swapped the index.
   SBXCHECK_EQ(metadata->Chunk(), this);

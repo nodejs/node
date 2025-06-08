@@ -63,14 +63,14 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
 
 constexpr size_t kMaxByteSizedLeb128 = 127;
 
+HeapType FuncHeapType(ModuleTypeIndex index) {
+  return HeapType::Index(index, kNotShared, RefTypeKind::kFunction);
+}
+
 using F = std::pair<ValueType, bool>;
 
 // Used to construct fixed-size signatures: MakeSig::Returns(...).Params(...);
 using MakeSig = FixedSizeSignature<ValueType>;
-
-enum MemoryType { kMemory32, kMemory64 };
-
-enum TableType { kTable32, kTable64 };
 
 // A helper for tests that require a module environment for functions,
 // globals, or memories.
@@ -88,22 +88,31 @@ class TestModuleBuilder {
     CHECK_LE(mod.globals.size(), kMaxByteSizedLeb128);
     return static_cast<uint8_t>(mod.globals.size() - 1);
   }
-  uint8_t AddSignature(const FunctionSig* sig,
-                       uint32_t supertype = kNoSuperType) {
+  ModuleTypeIndex AddSignature(const FunctionSig* sig,
+                               ModuleTypeIndex supertype = kNoSuperType) {
     const bool is_final = true;
     const bool is_shared = false;
     mod.AddSignatureForTesting(sig, supertype, is_final, is_shared);
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
-    return static_cast<uint8_t>(mod.types.size() - 1);
+    return ModuleTypeIndex{static_cast<uint8_t>(mod.types.size() - 1)};
+  }
+  ModuleTypeIndex AddCont(const FunctionSig* sig) {
+    const bool is_final = true;
+    const bool is_shared = false;
+    ModuleTypeIndex funIndex = AddSignature(sig);
+    mod.AddContTypeForTesting(mod.signature_zone.New<ContType>(funIndex),
+                              kNoSuperType, is_final, is_shared);
+    GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
+    return ModuleTypeIndex{static_cast<uint8_t>(mod.types.size() - 1)};
   }
   uint8_t AddFunction(const FunctionSig* sig, bool declared = true) {
-    uint8_t sig_index = AddSignature(sig);
+    ModuleTypeIndex sig_index = AddSignature(sig);
     return AddFunctionImpl(sig, sig_index, declared);
   }
-  uint8_t AddFunction(uint32_t sig_index, bool declared = true) {
+  uint8_t AddFunction(ModuleTypeIndex sig_index, bool declared = true) {
     DCHECK(mod.has_signature(sig_index));
-    return AddFunctionImpl(mod.types[sig_index].function_sig, sig_index,
+    return AddFunctionImpl(mod.type(sig_index).function_sig, sig_index,
                            declared);
   }
   uint8_t AddImport(const FunctionSig* sig) {
@@ -111,14 +120,15 @@ class TestModuleBuilder {
     mod.functions[result].imported = true;
     return result;
   }
-  uint8_t AddException(WasmTagSig* sig) {
+  uint8_t AddTag(WasmTagSig* sig) {
     mod.tags.emplace_back(sig, AddSignature(sig));
     CHECK_LE(mod.types.size(), kMaxByteSizedLeb128);
     return static_cast<uint8_t>(mod.tags.size() - 1);
   }
 
   uint8_t AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,
-                   uint32_t maximum_size, TableType table_type = kTable32) {
+                   uint32_t maximum_size,
+                   AddressType address_type = AddressType::kI32) {
     CHECK(type.is_object_reference());
     mod.tables.emplace_back();
     WasmTable& table = mod.tables.back();
@@ -126,14 +136,14 @@ class TestModuleBuilder {
     table.initial_size = initial_size;
     table.has_maximum_size = has_maximum_size;
     table.maximum_size = maximum_size;
-    table.is_table64 = table_type == kTable64;
+    table.address_type = address_type;
     return static_cast<uint8_t>(mod.tables.size() - 1);
   }
 
-  uint8_t AddStruct(std::initializer_list<F> fields,
-                    uint32_t supertype = kNoSuperType) {
-    StructType::Builder type_builder(&mod.signature_zone,
-                                     static_cast<uint32_t>(fields.size()));
+  HeapType AddStruct(std::initializer_list<F> fields,
+                     ModuleTypeIndex supertype = kNoSuperType) {
+    StructType::Builder type_builder(
+        &mod.signature_zone, static_cast<uint32_t>(fields.size()), false);
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
@@ -142,33 +152,34 @@ class TestModuleBuilder {
     mod.AddStructTypeForTesting(type_builder.Build(), supertype, is_final,
                                 is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
-    return static_cast<uint8_t>(mod.types.size() - 1);
+    ModuleTypeIndex index{static_cast<uint8_t>(mod.types.size() - 1)};
+    return HeapType::Index(index, is_shared, RefTypeKind::kStruct);
+  }
+  HeapType AddStruct(std::initializer_list<F> fields, HeapType supertype) {
+    return AddStruct(fields, supertype.ref_index());
   }
 
-  uint8_t AddArray(ValueType type, bool mutability) {
+  HeapType AddArray(ValueType type, bool mutability) {
     ArrayType* array = mod.signature_zone.New<ArrayType>(type, mutability);
     const bool is_final = true;
     const bool is_shared = false;
     mod.AddArrayTypeForTesting(array, kNoSuperType, is_final, is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
-    return static_cast<uint8_t>(mod.types.size() - 1);
+    ModuleTypeIndex index{static_cast<uint8_t>(mod.types.size() - 1)};
+    return HeapType::Index(index, is_shared, RefTypeKind::kArray);
   }
 
-  uint8_t AddMemory(MemoryType mem_indextype = kMemory32) {
-    mod.memories.push_back(WasmMemory{
-        .initial_pages = 1,
-        .maximum_pages = 100,
-        .is_memory64 = mem_indextype == kMemory64,
-    });
+  uint8_t AddMemory(AddressType address_type = AddressType::kI32) {
+    mod.memories.push_back(WasmMemory{.initial_pages = 1,
+                                      .maximum_pages = 100,
+                                      .address_type = address_type});
     CHECK_GE(kMaxUInt8, mod.memories.size());
     return static_cast<uint8_t>(mod.memories.size() - 1);
   }
 
-  uint8_t AddTable(wasm::ValueType type, TableType table_indextype = kTable32) {
-    mod.tables.push_back(WasmTable{
-        .type = type,
-        .is_table64 = table_indextype == kTable64,
-    });
+  uint8_t AddTable(wasm::ValueType type,
+                   AddressType address_type = AddressType::kI32) {
+    mod.tables.push_back(WasmTable{.type = type, .address_type = address_type});
     CHECK_GE(kMaxUInt8, mod.tables.size());
     return static_cast<uint8_t>(mod.tables.size() - 1);
   }
@@ -199,7 +210,7 @@ class TestModuleBuilder {
   WasmModule* module() { return &mod; }
 
  private:
-  uint8_t AddFunctionImpl(const FunctionSig* sig, uint32_t sig_index,
+  uint8_t AddFunctionImpl(const FunctionSig* sig, ModuleTypeIndex sig_index,
                           bool declared) {
     mod.functions.push_back(
         {sig,                                          // sig
@@ -1129,14 +1140,15 @@ TEST_F(FunctionBodyDecoderTest, Unreachable_select2) {
 }
 
 TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
-  uint8_t sig_index = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_ii());
   uint8_t function_index = builder.AddFunction(sig_index);
-  uint8_t struct_index =
+  HeapType struct_heaptype =
       builder.AddStruct({F(kWasmI32, true), F(kWasmI64, true)});
-  uint8_t array_index = builder.AddArray(kWasmI32, true);
+  ModuleTypeIndex struct_index = struct_heaptype.ref_index();
+  ModuleTypeIndex array_index = builder.AddArray(kWasmI32, true).ref_index();
 
-  ValueType struct_type = ValueType::Ref(struct_index);
-  ValueType struct_type_null = ValueType::RefNull(struct_index);
+  ValueType struct_type = ValueType::Ref(struct_heaptype);
+  ValueType struct_type_null = ValueType::RefNull(struct_heaptype);
   FunctionSig sig_v_s(0, 1, &struct_type);
   uint8_t struct_consumer = builder.AddFunction(&sig_v_s);
   uint8_t struct_consumer2 = builder.AddFunction(
@@ -1145,49 +1157,51 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprRefIsNull});
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, kExprRefAsNonNull, kExprDrop});
 
-  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprCallRef, sig_index});
-  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, WASM_REF_FUNC(function_index),
-                               kExprCallRef, sig_index});
   ExpectValidates(sigs.i_v(),
-                  {WASM_UNREACHABLE, kExprReturnCallRef, sig_index});
+                  {WASM_UNREACHABLE, kExprCallRef, ToByte(sig_index)});
+  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, WASM_REF_FUNC(function_index),
+                               kExprCallRef, ToByte(sig_index)});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_UNREACHABLE, kExprReturnCallRef, ToByte(sig_index)});
 
   ExpectValidates(sigs.v_v(),
-                  {WASM_UNREACHABLE, WASM_GC_OP(kExprStructNew), struct_index,
-                   kExprCallFunction, struct_consumer});
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprStructNew),
+                   ToByte(struct_index), kExprCallFunction, struct_consumer});
   ExpectValidates(sigs.v_v(),
                   {WASM_UNREACHABLE, WASM_I64V(42), WASM_GC_OP(kExprStructNew),
-                   struct_index, kExprCallFunction, struct_consumer});
+                   ToByte(struct_index), kExprCallFunction, struct_consumer});
   ExpectValidates(sigs.v_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprStructNewDefault),
-                   struct_index, kExprDrop});
+                   ToByte(struct_index), kExprDrop});
   ExpectValidates(sigs.v_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprStructNewDefault),
-                   struct_index, kExprCallFunction, struct_consumer});
+                   ToByte(struct_index), kExprCallFunction, struct_consumer});
 
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_GC_OP(kExprArrayNew),
-                               array_index, kExprDrop});
+                               ToByte(array_index), kExprDrop});
   ExpectValidates(sigs.v_v(),
                   {WASM_UNREACHABLE, WASM_I32V(42), WASM_GC_OP(kExprArrayNew),
-                   array_index, kExprDrop});
+                   ToByte(array_index), kExprDrop});
   ExpectValidates(sigs.v_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprArrayNewDefault),
-                   array_index, kExprDrop});
+                   ToByte(array_index), kExprDrop});
 
-  ExpectValidates(sigs.i_v(),
-                  {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest), struct_index});
+  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest),
+                               ToByte(struct_index)});
   ExpectValidates(sigs.i_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest), kEqRefCode});
 
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast),
-                               struct_index, kExprDrop});
+                               ToByte(struct_index), kExprDrop});
 
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, kExprBrOnNull, 0, WASM_DROP});
 
   ExpectValidates(&sig_v_s, {WASM_UNREACHABLE, WASM_LOCAL_GET(0), kExprBrOnNull,
                              0, kExprCallFunction, struct_consumer});
 
-  ExpectValidates(FunctionSig::Build(zone(), {struct_type}, {}),
-                  {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast), struct_index});
+  ExpectValidates(
+      FunctionSig::Build(zone(), {struct_type}, {}),
+      {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast), ToByte(struct_index)});
 
   ExpectValidates(FunctionSig::Build(zone(), {kWasmStructRef}, {}),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast), kStructRefCode});
@@ -1749,9 +1763,9 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectReturnCalls) {
   const FunctionSig* sig = sigs.i_i();
   builder.AddTable(kWasmFuncRef, 20, true, 30);
 
-  uint8_t sig0 = builder.AddSignature(sigs.i_v());
-  uint8_t sig1 = builder.AddSignature(sigs.i_i());
-  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.i_v());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex sig2 = builder.AddSignature(sigs.i_ii());
 
   ExpectValidates(sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_ZERO)});
   ExpectValidates(
@@ -1782,7 +1796,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithMismatchedSigs3) {
   const FunctionSig* sig = sigs.i_i();
   builder.AddTable(wasm::kWasmVoid);
 
-  uint8_t sig0 = builder.AddSignature(sigs.i_f());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.i_f());
 
   ExpectFailure(sig,
                 {WASM_RETURN_CALL_INDIRECT(sig0, WASM_I32V_1(17), WASM_ZERO)});
@@ -1795,7 +1809,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithMismatchedSigs3) {
   ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_I64V_1(27))});
   ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_F64(37.2))});
 
-  uint8_t sig1 = builder.AddFunction(sigs.i_d());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_d());
 
   ExpectFailure(sig,
                 {WASM_RETURN_CALL_INDIRECT(sig1, WASM_I32V_1(16), WASM_ZERO)});
@@ -1808,9 +1822,9 @@ TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithMismatchedSigs3) {
 TEST_F(FunctionBodyDecoderTest, IndirectReturnCallsWithoutTableCrash) {
   const FunctionSig* sig = sigs.i_i();
 
-  uint8_t sig0 = builder.AddSignature(sigs.i_v());
-  uint8_t sig1 = builder.AddSignature(sigs.i_i());
-  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.i_v());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex sig2 = builder.AddSignature(sigs.i_ii());
 
   ExpectFailure(sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_ZERO)});
   ExpectFailure(sig,
@@ -1872,9 +1886,9 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectCalls) {
   const FunctionSig* sig = sigs.i_i();
   builder.AddTable(kWasmFuncRef, 20, false, 20);
 
-  uint8_t sig0 = builder.AddSignature(sigs.i_v());
-  uint8_t sig1 = builder.AddSignature(sigs.i_i());
-  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.i_v());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex sig2 = builder.AddSignature(sigs.i_ii());
 
   ExpectValidates(sig, {WASM_CALL_INDIRECT(sig0, WASM_ZERO)});
   ExpectValidates(sig, {WASM_CALL_INDIRECT(sig1, WASM_I32V_1(22), WASM_ZERO)});
@@ -1901,7 +1915,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs1) {
   const FunctionSig* sig = sigs.i_i();
   builder.AddTable(wasm::kWasmVoid);
 
-  uint8_t sig0 = builder.AddSignature(sigs.i_f());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.i_f());
 
   ExpectFailure(sig, {WASM_CALL_INDIRECT(sig0, WASM_I32V_1(17), WASM_ZERO)});
   ExpectFailure(sig, {WASM_CALL_INDIRECT(sig0, WASM_I64V_1(27), WASM_ZERO)});
@@ -1919,14 +1933,15 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs2) {
-  uint8_t table_type_index = builder.AddSignature(sigs.i_i());
-  uint8_t table_index = builder.AddTable(ValueType::RefNull(table_type_index));
+  ModuleTypeIndex table_type_index = builder.AddSignature(sigs.i_i());
+  uint8_t table_index =
+      builder.AddTable(ValueType::RefNull(FuncHeapType(table_type_index)));
 
   ExpectValidates(sigs.i_v(),
                   {WASM_CALL_INDIRECT_TABLE(table_index, table_type_index,
                                             WASM_I32V_1(42), WASM_ZERO)});
 
-  uint8_t wrong_type_index = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex wrong_type_index = builder.AddSignature(sigs.i_ii());
   // Note: this would trap at runtime, but does validate.
   ExpectValidates(
       sigs.i_v(),
@@ -1943,22 +1958,26 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs2) {
 }
 
 TEST_F(FunctionBodyDecoderTest, TablesWithFunctionSubtyping) {
-  uint8_t empty_struct = builder.AddStruct({});
-  uint8_t super_struct = builder.AddStruct({F(kWasmI32, true)}, empty_struct);
-  uint8_t sub_struct =
+  HeapType empty_struct = builder.AddStruct({});
+  HeapType super_struct = builder.AddStruct({F(kWasmI32, true)}, empty_struct);
+  HeapType sub_struct =
       builder.AddStruct({F(kWasmI32, true), F(kWasmF64, true)}, super_struct);
+  ModuleTypeIndex super_struct_index = super_struct.ref_index();
 
-  uint8_t table_supertype = builder.AddSignature(
+  ModuleTypeIndex table_supertype_index = builder.AddSignature(
       FunctionSig::Build(zone(), {ValueType::RefNull(empty_struct)},
                          {ValueType::RefNull(sub_struct)}));
-  uint8_t table_type = builder.AddSignature(
+  ModuleTypeIndex table_type_index = builder.AddSignature(
       FunctionSig::Build(zone(), {ValueType::RefNull(super_struct)},
                          {ValueType::RefNull(sub_struct)}),
-      table_supertype);
+      table_supertype_index);
+  HeapType table_supertype = FuncHeapType(table_supertype_index);
+  HeapType table_type = FuncHeapType(table_type_index);
   auto function_sig =
       FunctionSig::Build(zone(), {ValueType::RefNull(sub_struct)},
                          {ValueType::RefNull(super_struct)});
-  uint8_t function_type = builder.AddSignature(function_sig, table_type);
+  ModuleTypeIndex function_type =
+      builder.AddSignature(function_sig, table_type_index);
 
   uint8_t function = builder.AddFunction(function_type);
 
@@ -1969,7 +1988,7 @@ TEST_F(FunctionBodyDecoderTest, TablesWithFunctionSubtyping) {
   ExpectValidates(
       FunctionSig::Build(zone(), {ValueType::RefNull(sub_struct)}, {}),
       {WASM_CALL_INDIRECT_TABLE(table, function_type,
-                                WASM_STRUCT_NEW_DEFAULT(super_struct),
+                                WASM_STRUCT_NEW_DEFAULT(super_struct_index),
                                 WASM_ZERO)});
 
   // table.set's subtyping works as expected.
@@ -1985,9 +2004,9 @@ TEST_F(FunctionBodyDecoderTest, TablesWithFunctionSubtyping) {
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithoutTableCrash) {
   const FunctionSig* sig = sigs.i_i();
 
-  uint8_t sig0 = builder.AddSignature(sigs.i_v());
-  uint8_t sig1 = builder.AddSignature(sigs.i_i());
-  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.i_v());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex sig2 = builder.AddSignature(sigs.i_ii());
 
   ExpectFailure(sig, {WASM_CALL_INDIRECT(sig0, WASM_ZERO)});
   ExpectFailure(sig, {WASM_CALL_INDIRECT(sig1, WASM_I32V_1(22), WASM_ZERO)});
@@ -2206,16 +2225,17 @@ TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
 }
 
 TEST_F(FunctionBodyDecoderTest, TableSet) {
-  uint8_t tab_type = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex tab_type = builder.AddSignature(sigs.i_i());
   uint8_t tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20);
   uint8_t tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30);
   uint8_t tab_func2 = builder.AddTable(kWasmFuncRef, 10, false, 20);
   uint8_t tab_ref2 = builder.AddTable(kWasmExternRef, 10, false, 20);
+  HeapType tab_heaptype = FuncHeapType(tab_type);
   uint8_t tab_typed_func =
-      builder.AddTable(ValueType::RefNull(tab_type), 10, false, 20);
+      builder.AddTable(ValueType::RefNull(tab_heaptype), 10, false, 20);
 
   ValueType sig_types[]{kWasmExternRef, kWasmFuncRef, kWasmI32,
-                        ValueType::Ref(tab_type)};
+                        ValueType::Ref(tab_heaptype)};
   FunctionSig sig(0, 4, sig_types);
   uint8_t local_ref = 0;
   uint8_t local_func = 1;
@@ -2260,16 +2280,17 @@ TEST_F(FunctionBodyDecoderTest, TableSet) {
 }
 
 TEST_F(FunctionBodyDecoderTest, TableGet) {
-  uint8_t tab_type = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex tab_type = builder.AddSignature(sigs.i_i());
   uint8_t tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20);
   uint8_t tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30);
   uint8_t tab_func2 = builder.AddTable(kWasmFuncRef, 10, false, 20);
   uint8_t tab_ref2 = builder.AddTable(kWasmExternRef, 10, false, 20);
+  HeapType tab_heaptype = FuncHeapType(tab_type);
   uint8_t tab_typed_func =
-      builder.AddTable(ValueType::RefNull(tab_type), 10, false, 20);
+      builder.AddTable(ValueType::RefNull(tab_heaptype), 10, false, 20);
 
   ValueType sig_types[]{kWasmExternRef, kWasmFuncRef, kWasmI32,
-                        ValueType::RefNull(tab_type)};
+                        ValueType::RefNull(tab_heaptype)};
   FunctionSig sig(0, 4, sig_types);
   uint8_t local_ref = 0;
   uint8_t local_func = 1;
@@ -2330,7 +2351,7 @@ TEST_F(FunctionBodyDecoderTest, MultiTableCallIndirect) {
 
   ValueType sig_types[]{kWasmExternRef, kWasmFuncRef, kWasmI32};
   FunctionSig sig(0, 3, sig_types);
-  uint8_t sig_index = builder.AddSignature(sigs.i_v());
+  uint8_t sig_index = builder.AddSignature(sigs.i_v()).index;
 
   // We can store funcref values as externref, but not the other way around.
   ExpectValidates(sigs.i_v(),
@@ -2613,11 +2634,12 @@ TEST_F(FunctionBodyDecoderTest, BrTable2b) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTableSubtyping) {
-  uint8_t supertype1 = builder.AddStruct({F(kWasmI8, true)});
-  uint8_t supertype2 =
+  HeapType supertype1 = builder.AddStruct({F(kWasmI8, true)});
+  HeapType supertype2 =
       builder.AddStruct({F(kWasmI8, true), F(kWasmI16, false)}, supertype1);
-  uint8_t subtype = builder.AddStruct(
+  HeapType sub_heaptype = builder.AddStruct(
       {F(kWasmI8, true), F(kWasmI16, false), F(kWasmI32, true)}, supertype2);
+  ModuleTypeIndex subtype = sub_heaptype.ref_index();
   ExpectValidates(
       sigs.v_v(),
       {WASM_BLOCK_R(wasm::ValueType::Ref(supertype1),
@@ -2861,9 +2883,9 @@ TEST_F(FunctionBodyDecoderTest, SelectWithType_fail) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Throw) {
-  uint8_t ex1 = builder.AddException(sigs.v_v());
-  uint8_t ex2 = builder.AddException(sigs.v_i());
-  uint8_t ex3 = builder.AddException(sigs.v_ii());
+  uint8_t ex1 = builder.AddTag(sigs.v_v());
+  uint8_t ex2 = builder.AddTag(sigs.v_i());
+  uint8_t ex3 = builder.AddTag(sigs.v_ii());
   ExpectValidates(sigs.v_v(), {kExprThrow, ex1});
   ExpectValidates(sigs.v_v(), {WASM_I32V(0), kExprThrow, ex2});
   ExpectFailure(sigs.v_v(), {WASM_F32(0.0), kExprThrow, ex2});
@@ -2873,8 +2895,8 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
 }
 
 TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
-  uint8_t ex1 = builder.AddException(sigs.v_v());
-  uint8_t ex2 = builder.AddException(sigs.v_i());
+  uint8_t ex1 = builder.AddTag(sigs.v_v());
+  uint8_t ex2 = builder.AddTag(sigs.v_i());
   ExpectValidates(sigs.i_i(), {WASM_LOCAL_GET(0), kExprThrow, ex1, WASM_NOP});
   ExpectValidates(sigs.v_i(), {WASM_LOCAL_GET(0), kExprThrow, ex2, WASM_NOP});
   ExpectValidates(sigs.i_i(), {WASM_LOCAL_GET(0), kExprThrow, ex1, WASM_ZERO});
@@ -2889,7 +2911,7 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
   WASM_FEATURE_SCOPE(legacy_eh);
-  uint8_t ex = builder.AddException(sigs.v_v());
+  uint8_t ex = builder.AddTag(sigs.v_v());
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, ex, kExprEnd});
   ExpectValidates(sigs.v_v(),
                   {WASM_TRY_OP, kExprCatch, ex, kExprCatchAll, kExprEnd});
@@ -2920,7 +2942,7 @@ TEST_F(FunctionBodyDecoderTest, Rethrow) {
 
 TEST_F(FunctionBodyDecoderTest, TryDelegate) {
   WASM_FEATURE_SCOPE(legacy_eh);
-  uint8_t ex = builder.AddException(sigs.v_v());
+  uint8_t ex = builder.AddTag(sigs.v_v());
 
   ExpectValidates(sigs.v_v(), {WASM_TRY_OP,
                                WASM_TRY_DELEGATE(WASM_STMTS(kExprThrow, ex), 0),
@@ -2963,16 +2985,18 @@ TEST_F(FunctionBodyDecoderTest, ThrowRef) {
   ExpectValidates(sigs.v_v(), {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP,
                                U32V_1(1), CatchKind::kCatchAllRef, 0, kExprEnd,
                                kExprBr, 1, kExprEnd, kExprThrowRef});
-  ExpectFailure(sigs.v_v(),
-                {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(HeapType::kExtern))),
-                 kExprThrowRef},
-                kAppendEnd,
-                "invalid type for throw_ref: expected exnref, found externref");
+  ExpectValidates(sigs.v_v(), {kExprBlock, kVoidCode, kExprUnreachable,
+                               kExprThrowRef, kExprEnd});
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(kWasmExternRef))), kExprThrowRef},
+      kAppendEnd,
+      "throw_ref[0] expected type exnref, found ref.null of type externref");
 }
 
 TEST_F(FunctionBodyDecoderTest, TryTable) {
   WASM_FEATURE_SCOPE(exnref);
-  uint8_t ex = builder.AddException(sigs.v_v());
+  uint8_t ex = builder.AddTag(sigs.v_v());
   ExpectValidates(sigs.v_v(),
                   {WASM_TRY_TABLE_OP, U32V_1(1), CatchKind::kCatch, ex,
                    U32V_1(0), kExprEnd},
@@ -2999,7 +3023,7 @@ TEST_F(FunctionBodyDecoderTest, TryTable) {
        U32V_1(1), CatchKind::kCatchAllRef, U32V_1(0), kExprEnd,
        kExprUnreachable, kExprEnd, kExprDrop},
       kAppendEnd);
-  // // Duplicate catch-all.
+  // Duplicate catch-all.
   ExpectValidates(
       sigs.v_v(),
       {kExprBlock, kExnRefCode, WASM_TRY_TABLE_OP, U32V_1(4),
@@ -3007,12 +3031,21 @@ TEST_F(FunctionBodyDecoderTest, TryTable) {
        CatchKind::kCatchAllRef, U32V_1(0), CatchKind::kCatchAllRef, U32V_1(0),
        kExprEnd, kExprUnreachable, kExprEnd, kExprDrop},
       kAppendEnd);
-  // // Catch-all before catch.
+  // Catch-all before catch.
   ExpectValidates(
       sigs.v_v(),
       {WASM_TRY_TABLE_OP, U32V_1(2), CatchKind::kCatchAll, U32V_1(0),
        CatchKind::kCatch, ex, U32V_1(0), kExprEnd, kExprUnreachable},
       kAppendEnd);
+  // Non-nullable exnref.
+  ValueType kNonNullableExnRef = ValueType::Ref(kWasmExnRef);
+  auto sig = FixedSizeSignature<ValueType>::Returns(kNonNullableExnRef);
+  ModuleTypeIndex sig_id = builder.AddSignature(&sig);
+  ExpectValidates(sigs.v_v(),
+                  {kExprBlock, ToByte(sig_id), WASM_TRY_TABLE_OP, U32V_1(1),
+                   CatchKind::kCatchRef, ex, U32V_1(0), kExprEnd,
+                   kExprUnreachable, kExprEnd, kExprDrop},
+                  kAppendEnd);
 
   constexpr uint8_t kInvalidCatchKind = kLastCatchKind + 1;
   ExpectFailure(sigs.v_v(),
@@ -3033,8 +3066,24 @@ TEST_F(FunctionBodyDecoderTest, TryTable) {
                 "catch kind generates 1 operand, target block expects 0");
 }
 
+TEST_F(FunctionBodyDecoderTest, BadTryTable) {
+  WASM_FEATURE_SCOPE(exnref);
+  WASM_FEATURE_SCOPE(wasmfx);
+  uint8_t ex = builder.AddTag(sigs.v_v());
+  uint8_t bd = builder.AddTag(sigs.i_i());
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TRY_TABLE_OP, U32V_1(1), CatchKind::kCatch, ex,
+                   U32V_1(0), kExprEnd},
+                  kAppendEnd);
+  // Using a handler tag for the exception tag
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_TABLE_OP, U32V_1(1), CatchKind::kCatch, bd, U32V_1(0),
+                 kExprEnd},
+                kAppendEnd, "tag signature 1 has non-void return");
+}
+
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
-  uint8_t sig0 = builder.AddSignature(sigs.ii_v());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.ii_v());
   ExpectValidates(
       sigs.i_ii(),
       {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprI32Add});
@@ -3055,7 +3104,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
       {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprF32Add},
       kAppendEnd, "f32.add[0] expected type f32, found block of type i32");
 
-  uint8_t sig1 = builder.AddSignature(sigs.v_i());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.v_i());
   ExpectFailure(
       sigs.v_i(),
       {WASM_LOCAL_GET(0), WASM_BLOCK(WASM_BLOCK_X(sig1, WASM_UNREACHABLE))},
@@ -3064,7 +3113,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
-  uint8_t sig0 = builder.AddSignature(sigs.ii_v());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.ii_v());
   ExpectValidates(sigs.i_ii(),
                   {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)),
                    WASM_I32_ADD(WASM_NOP, WASM_NOP)});
@@ -3082,7 +3131,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlockBr) {
-  uint8_t sig0 = builder.AddSignature(sigs.ii_v());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.ii_v());
   ExpectFailure(sigs.i_ii(), {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_BR(0)),
                               kExprI32Add});
   ExpectValidates(sigs.i_ii(), {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0),
@@ -3091,7 +3140,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlockBr) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValLoop1) {
-  uint8_t sig0 = builder.AddSignature(sigs.ii_v());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.ii_v());
   ExpectValidates(
       sigs.i_ii(),
       {WASM_LOOP_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprI32Add});
@@ -3107,7 +3156,7 @@ TEST_F(FunctionBodyDecoderTest, MultiValLoop1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValIf) {
-  uint8_t sig0 = builder.AddSignature(sigs.ii_v());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.ii_v());
   ExpectValidates(
       sigs.i_ii(),
       {WASM_IF_ELSE_X(sig0, WASM_LOCAL_GET(0),
@@ -3166,8 +3215,8 @@ TEST_F(FunctionBodyDecoderTest, MultiValIf) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockParam) {
-  uint8_t sig1 = builder.AddSignature(sigs.i_i());
-  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex sig2 = builder.AddSignature(sigs.i_ii());
   ExpectValidates(
       sigs.i_ii(),
       {WASM_LOCAL_GET(0), WASM_BLOCK_X(sig1, WASM_LOCAL_GET(1),
@@ -3192,8 +3241,8 @@ TEST_F(FunctionBodyDecoderTest, BlockParam) {
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopParam) {
-  uint8_t sig1 = builder.AddSignature(sigs.i_i());
-  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex sig2 = builder.AddSignature(sigs.i_ii());
   ExpectValidates(sigs.i_ii(), {WASM_LOCAL_GET(0),
                                 WASM_LOOP_X(sig1, WASM_LOCAL_GET(1),
                                             WASM_I32_ADD(WASM_NOP, WASM_NOP))});
@@ -3217,8 +3266,8 @@ TEST_F(FunctionBodyDecoderTest, LoopParam) {
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopParamBr) {
-  uint8_t sig1 = builder.AddSignature(sigs.i_i());
-  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex sig2 = builder.AddSignature(sigs.i_ii());
   ExpectValidates(sigs.i_ii(),
                   {WASM_LOCAL_GET(0), WASM_LOOP_X(sig1, WASM_BR(0))});
   ExpectValidates(
@@ -3238,8 +3287,8 @@ TEST_F(FunctionBodyDecoderTest, LoopParamBr) {
 }
 
 TEST_F(FunctionBodyDecoderTest, IfParam) {
-  uint8_t sig1 = builder.AddSignature(sigs.i_i());
-  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex sig2 = builder.AddSignature(sigs.i_ii());
   ExpectValidates(sigs.i_ii(),
                   {WASM_LOCAL_GET(0),
                    WASM_IF_X(sig1, WASM_LOCAL_GET(0),
@@ -3587,8 +3636,8 @@ TEST_F(FunctionBodyDecoderTest, TableInitMultiTable) {
 TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
   {
     TestModuleBuilder builder;
-    uint8_t type_index =
-        builder.AddStruct({F(kWasmI8, true), F(kWasmI16, false)});
+    ModuleTypeIndex type_index =
+        builder.AddStruct({F(kWasmI8, true), F(kWasmI16, false)}).ref_index();
     module = builder.module();
     ExpectValidates(sigs.v_v(),
                     {WASM_STRUCT_SET(type_index, 0,
@@ -3598,7 +3647,7 @@ TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
   }
   {
     TestModuleBuilder builder;
-    uint8_t type_index = builder.AddArray(kWasmI8, true);
+    ModuleTypeIndex type_index = builder.AddArray(kWasmI8, true).ref_index();
     module = builder.module();
     ExpectValidates(
         sigs.v_v(),
@@ -3608,20 +3657,30 @@ TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
   }
 }
 
-ValueType ref(uint32_t type_index) { return ValueType::Ref(type_index); }
-ValueType refNull(uint32_t type_index) {
-  return ValueType::RefNull(type_index);
+ValueType ref(HeapType type) { return ValueType::Ref(type); }
+ValueType refNull(HeapType type) { return ValueType::RefNull(type); }
+ValueType shRef(GenericKind kind) {
+  return ValueType::Generic(kind, kNonNullable, true);
+}
+ValueType shRefNull(GenericKind kind) {
+  return ValueType::Generic(kind, kNullable, true);
 }
 
 TEST_F(FunctionBodyDecoderTest, StructOrArrayNewDefault) {
   TestModuleBuilder builder;
-  uint8_t struct_index = builder.AddStruct({F(kWasmI32, true)});
-  uint8_t struct_non_def_index =
-      builder.AddStruct({F(ref(struct_index), true)});
-  uint8_t struct_immutable_index = builder.AddStruct({F(kWasmI32, false)});
-  uint8_t array_index = builder.AddArray(kWasmI32, true);
-  uint8_t array_non_def_index = builder.AddArray(ref(array_index), true);
-  uint8_t array_immutable_index = builder.AddArray(kWasmI32, false);
+  HeapType struct_type = builder.AddStruct({F(kWasmI32, true)});
+  ModuleTypeIndex struct_index = struct_type.ref_index();
+  ModuleTypeIndex struct_non_def_index =
+      builder.AddStruct({F(ref(struct_type), true)}).ref_index();
+  ModuleTypeIndex struct_immutable_index =
+      builder.AddStruct({F(kWasmI32, false)}).ref_index();
+
+  HeapType array = builder.AddArray(kWasmI32, true);
+  ModuleTypeIndex array_index = array.ref_index();
+  ModuleTypeIndex array_non_def_index =
+      builder.AddArray(ref(array), true).ref_index();
+  ModuleTypeIndex array_immutable_index =
+      builder.AddArray(kWasmI32, false).ref_index();
 
   module = builder.module();
 
@@ -3655,11 +3714,12 @@ TEST_F(FunctionBodyDecoderTest, DefaultableLocal) {
 
 TEST_F(FunctionBodyDecoderTest, NonDefaultableLocals) {
   WASM_FEATURE_SCOPE(legacy_eh);
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  ValueType rep = ref(struct_type_index);
+  HeapType struct_type = builder.AddStruct({F(kWasmI32, true)});
+  ModuleTypeIndex struct_type_index = struct_type.ref_index();
+  ValueType rep = ref(struct_type);
   FunctionSig sig(0, 1, &rep);
   AddLocals(rep, 2);
-  uint8_t ex = builder.AddException(sigs.v_v());
+  uint8_t ex = builder.AddTag(sigs.v_v());
   // Declaring non-defaultable locals is fine.
   ExpectValidates(&sig, {});
   // Loading from an uninitialized non-defaultable local fails.
@@ -3733,19 +3793,19 @@ TEST_F(FunctionBodyDecoderTest, NonDefaultableLocals) {
 TEST_F(FunctionBodyDecoderTest, RefEq) {
   WASM_FEATURE_SCOPE(exnref);
 
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
+  HeapType struct_type = builder.AddStruct({F(kWasmI32, true)});
   ValueType eqref_subtypes[] = {kWasmEqRef,
                                 kWasmI31Ref,
                                 kWasmI31Ref.AsNonNull(),
                                 kWasmEqRef.AsNonNull(),
                                 kWasmStructRef,
                                 kWasmArrayRef,
-                                refNull(HeapType::kEqShared),
-                                refNull(HeapType::kI31Shared),
-                                ref(HeapType::kStructShared),
-                                ref(HeapType::kArrayShared),
-                                ref(struct_type_index),
-                                refNull(struct_type_index)};
+                                shRefNull(GenericKind::kEq),
+                                shRefNull(GenericKind::kI31),
+                                shRef(GenericKind::kStruct),
+                                shRef(GenericKind::kArray),
+                                ref(struct_type),
+                                refNull(struct_type)};
   ValueType non_eqref_subtypes[] = {kWasmI32,
                                     kWasmI64,
                                     kWasmF32,
@@ -3755,21 +3815,26 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
                                     kWasmExternRef,
                                     kWasmAnyRef,
                                     kWasmExnRef,
-                                    ref(HeapType::kExtern),
-                                    ref(HeapType::kAny),
-                                    ref(HeapType::kFunc),
-                                    ref(HeapType::kExn),
-                                    refNull(HeapType::kExternShared),
-                                    refNull(HeapType::kAnyShared),
-                                    refNull(HeapType::kFuncShared),
-                                    refNull(HeapType::kExnShared)};
+                                    ref(kWasmExternRef),
+                                    ref(kWasmAnyRef),
+                                    ref(kWasmFuncRef),
+                                    ref(kWasmExnRef),
+                                    shRefNull(GenericKind::kExtern),
+                                    shRefNull(GenericKind::kAny),
+                                    shRefNull(GenericKind::kFunc),
+                                    shRefNull(GenericKind::kExn)};
 
   for (ValueType type1 : eqref_subtypes) {
     for (ValueType type2 : eqref_subtypes) {
       ValueType reps[] = {kWasmI32, type1, type2};
       FunctionSig sig(1, 2, reps);
-      ExpectValidates(&sig,
-                      {WASM_REF_EQ(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
+      if (type1.is_shared() == type2.is_shared()) {
+        ExpectValidates(&sig,
+                        {WASM_REF_EQ(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))});
+      } else {
+        ExpectFailure(&sig, {WASM_REF_EQ(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                      kAppendEnd, "sharedness of both operands must match");
+      }
     }
   }
 
@@ -3789,20 +3854,24 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
   }
 }
 
+// TODO(jkummerow): Drop these.
+using HeapRep = HeapType;
+HeapRep Repr(HeapType type) { return type; }
+
 TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
   WASM_FEATURE_SCOPE(exnref);
 
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  uint8_t array_type_index = builder.AddArray(kWasmI32, true);
-  uint32_t heap_types[] = {
-      struct_type_index, array_type_index,  HeapType::kExn, HeapType::kFunc,
-      HeapType::kEq,     HeapType::kExtern, HeapType::kAny, HeapType::kI31};
+  HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
+  HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
+  HeapRep heap_types[] = {struct_type_index, array_type_index, kWasmExnRef,
+                          kWasmFuncRef,      kWasmEqRef,       kWasmExternRef,
+                          kWasmAnyRef,       kWasmI31Ref};
 
   ValueType non_compatible_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
                                       kWasmS128};
 
   // It works with nullable types.
-  for (uint32_t heap_type : heap_types) {
+  for (HeapRep heap_type : heap_types) {
     ValueType reprs[] = {ValueType::Ref(heap_type),
                          ValueType::RefNull(heap_type)};
     FunctionSig sig(1, 1, reprs);
@@ -3810,7 +3879,7 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
   }
 
   // It works with non-nullable types.
-  for (uint32_t heap_type : heap_types) {
+  for (HeapRep heap_type : heap_types) {
     ValueType reprs[] = {ValueType::Ref(heap_type), ValueType::Ref(heap_type)};
     FunctionSig sig(1, 1, reprs);
     ExpectValidates(&sig, {WASM_REF_AS_NON_NULL(WASM_LOCAL_GET(0))});
@@ -3828,14 +3897,13 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
 TEST_F(FunctionBodyDecoderTest, RefNull) {
   WASM_FEATURE_SCOPE(exnref);
 
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  uint8_t array_type_index = builder.AddArray(kWasmI32, true);
-  uint32_t type_reprs[] = {
-      struct_type_index, array_type_index, HeapType::kExn,
-      HeapType::kFunc,   HeapType::kEq,    HeapType::kExtern,
-      HeapType::kAny,    HeapType::kI31,   HeapType::kNone};
+  HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
+  HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
+  HeapRep type_reprs[] = {struct_type_index, array_type_index, kWasmExnRef,
+                          kWasmFuncRef,      kWasmEqRef,       kWasmExternRef,
+                          kWasmAnyRef,       kWasmI31Ref,      kWasmNullRef};
   // It works with heap types.
-  for (uint32_t type_repr : type_reprs) {
+  for (HeapRep type_repr : type_reprs) {
     const ValueType type = ValueType::RefNull(type_repr);
     const FunctionSig sig(1, 0, &type);
     ExpectValidates(&sig, {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(type_repr)))});
@@ -3852,13 +3920,13 @@ TEST_F(FunctionBodyDecoderTest, RefIsNull) {
       sigs.i_i(), {WASM_REF_IS_NULL(WASM_LOCAL_GET(0))}, kAppendEnd,
       "ref.is_null[0] expected reference type, found local.get of type i32");
 
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  uint8_t array_type_index = builder.AddArray(kWasmI32, true);
-  uint32_t heap_types[] = {
-      struct_type_index, array_type_index, HeapType::kFunc, HeapType::kEq,
-      HeapType::kExtern, HeapType::kAny,   HeapType::kI31};
+  HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
+  HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
+  HeapRep heap_types[] = {struct_type_index, array_type_index, kWasmFuncRef,
+                          kWasmEqRef,        kWasmExternRef,   kWasmAnyRef,
+                          kWasmI31Ref};
 
-  for (uint32_t heap_type : heap_types) {
+  for (HeapRep heap_type : heap_types) {
     const ValueType types[] = {kWasmI32, ValueType::RefNull(heap_type)};
     const FunctionSig sig(1, 1, types);
     // It works for nullable references.
@@ -3875,13 +3943,13 @@ TEST_F(FunctionBodyDecoderTest, RefIsNull) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnNull) {
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  uint8_t array_type_index = builder.AddArray(kWasmI32, true);
-  uint32_t type_reprs[] = {
-      struct_type_index, array_type_index, HeapType::kFunc, HeapType::kEq,
-      HeapType::kExtern, HeapType::kAny,   HeapType::kI31,  HeapType::kNone};
+  HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
+  HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
+  HeapRep type_reprs[] = {struct_type_index, array_type_index, kWasmFuncRef,
+                          kWasmEqRef,        kWasmExternRef,   kWasmAnyRef,
+                          kWasmI31Ref,       kWasmNullRef};
 
-  for (uint32_t type_repr : type_reprs) {
+  for (HeapRep type_repr : type_reprs) {
     const ValueType reps[] = {ValueType::Ref(type_repr),
                               ValueType::RefNull(type_repr)};
     const FunctionSig sig(1, 1, reps);
@@ -3900,13 +3968,13 @@ TEST_F(FunctionBodyDecoderTest, BrOnNull) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnNonNull) {
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  uint8_t array_type_index = builder.AddArray(kWasmI32, true);
-  uint32_t type_reprs[] = {
-      struct_type_index, array_type_index, HeapType::kFunc, HeapType::kEq,
-      HeapType::kExtern, HeapType::kAny,   HeapType::kI31};
+  HeapRep struct_type_index = Repr(builder.AddStruct({F(kWasmI32, true)}));
+  HeapRep array_type_index = Repr(builder.AddArray(kWasmI32, true));
+  HeapRep type_reprs[] = {struct_type_index, array_type_index, kWasmFuncRef,
+                          kWasmEqRef,        kWasmExternRef,   kWasmAnyRef,
+                          kWasmI31Ref};
 
-  for (uint32_t type_repr : type_reprs) {
+  for (HeapRep type_repr : type_reprs) {
     const ValueType reps[] = {ValueType::Ref(type_repr),
                               ValueType::RefNull(type_repr)};
     const FunctionSig sig(1, 1, reps);
@@ -3931,12 +3999,16 @@ TEST_F(FunctionBodyDecoderTest, BrOnNonNull) {
 }
 
 TEST_F(FunctionBodyDecoderTest, GCStruct) {
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  uint8_t array_type_index = builder.AddArray(kWasmI32, true);
-  uint8_t immutable_struct_type_index = builder.AddStruct({F(kWasmI32, false)});
+  HeapType struct_heaptype = builder.AddStruct({F(kWasmI32, true)});
+  ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
+  HeapType array_type = builder.AddArray(kWasmI32, true);
+  ModuleTypeIndex array_type_index = array_type.ref_index();
+  HeapType immutable_struct_type = builder.AddStruct({F(kWasmI32, false)});
+  ModuleTypeIndex immutable_struct_type_index =
+      immutable_struct_type.ref_index();
   uint8_t field_index = 0;
 
-  ValueType struct_type = ValueType::Ref(struct_type_index);
+  ValueType struct_type = ValueType::Ref(struct_heaptype);
   ValueType reps_i_r[] = {kWasmI32, struct_type};
   ValueType reps_f_r[] = {kWasmF32, struct_type};
   const FunctionSig sig_i_r(1, 1, reps_i_r);
@@ -3947,7 +4019,8 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
   /** struct.new **/
   ExpectValidates(&sig_r_v, {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(0))});
   // Too few arguments.
-  ExpectFailure(&sig_r_v, {WASM_GC_OP(kExprStructNew), struct_type_index},
+  ExpectFailure(&sig_r_v,
+                {WASM_GC_OP(kExprStructNew), ToByte(struct_type_index)},
                 kAppendEnd,
                 "not enough arguments on the stack for struct.new "
                 "(need 1, got 0)");
@@ -4039,17 +4112,20 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
 }
 
 TEST_F(FunctionBodyDecoderTest, GCArray) {
-  uint8_t array_type_index = builder.AddArray(kWasmFuncRef, true);
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, false)});
-  uint8_t immutable_array_type_index = builder.AddArray(kWasmI32, false);
+  HeapType array_heaptype = builder.AddArray(kWasmFuncRef, true);
+  ModuleTypeIndex array_type_index = array_heaptype.ref_index();
+  HeapType struct_type = builder.AddStruct({F(kWasmI32, false)});
+  ModuleTypeIndex struct_type_index = struct_type.ref_index();
+  HeapType immutable_array_heap = builder.AddArray(kWasmI32, false);
+  ModuleTypeIndex immutable_array_type_index = immutable_array_heap.ref_index();
 
-  ValueType array_type = ValueType::Ref(array_type_index);
-  ValueType immutable_array_type = ValueType::Ref(immutable_array_type_index);
+  ValueType array_type = ValueType::Ref(array_heaptype);
+  ValueType immutable_array_type = ValueType::Ref(immutable_array_heap);
   ValueType reps_c_r[] = {kWasmFuncRef, array_type};
   ValueType reps_f_r[] = {kWasmF32, array_type};
   ValueType reps_i_r[] = {kWasmI32, array_type};
   ValueType reps_i_a[] = {kWasmI32, kWasmArrayRef};
-  ValueType reps_i_s[] = {kWasmI32, ValueType::Ref(struct_type_index)};
+  ValueType reps_i_s[] = {kWasmI32, ValueType::Ref(struct_type)};
   const FunctionSig sig_c_r(1, 1, reps_c_r);
   const FunctionSig sig_v_r(0, 1, &array_type);
   const FunctionSig sig_v_r2(0, 1, &immutable_array_type);
@@ -4065,11 +4141,12 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
                   {WASM_ARRAY_NEW(array_type_index, WASM_REF_NULL(kFuncRefCode),
                                   WASM_I32V(10))});
   // Too few arguments.
-  ExpectFailure(&sig_r_v,
-                {WASM_I32V(10), WASM_GC_OP(kExprArrayNew), array_type_index},
-                kAppendEnd,
-                "not enough arguments on the stack for array.new "
-                "(need 2, got 1)");
+  ExpectFailure(
+      &sig_r_v,
+      {WASM_I32V(10), WASM_GC_OP(kExprArrayNew), ToByte(array_type_index)},
+      kAppendEnd,
+      "not enough arguments on the stack for array.new "
+      "(need 2, got 1)");
   // Mistyped initializer.
   ExpectFailure(&sig_r_v,
                 {WASM_ARRAY_NEW(array_type_index, WASM_REF_NULL(kExternRefCode),
@@ -4181,8 +4258,10 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
 }
 
 TEST_F(FunctionBodyDecoderTest, PackedFields) {
-  uint8_t array_type_index = builder.AddArray(kWasmI8, true);
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI16, true)});
+  ModuleTypeIndex array_type_index =
+      builder.AddArray(kWasmI8, true).ref_index();
+  ModuleTypeIndex struct_type_index =
+      builder.AddStruct({F(kWasmI16, true)}).ref_index();
   uint8_t field_index = 0;
 
   // *.new with packed fields works.
@@ -4192,7 +4271,7 @@ TEST_F(FunctionBodyDecoderTest, PackedFields) {
   ExpectValidates(
       sigs.v_v(),
       {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(42)), kExprDrop});
-  // It can't unpack types other that i32.
+  // It can't unpack types other than i32.
   ExpectFailure(
       sigs.v_v(),
       {WASM_ARRAY_NEW(array_type_index, WASM_I64V(0), WASM_I32V(5)), kExprDrop},
@@ -4210,7 +4289,7 @@ TEST_F(FunctionBodyDecoderTest, PackedFields) {
   ExpectValidates(sigs.v_v(), {WASM_STRUCT_SET(struct_type_index, field_index,
                                                WASM_REF_NULL(struct_type_index),
                                                WASM_I32V(42))});
-  // It can't unpack into types other that i32.
+  // It can't unpack into types other than i32.
   ExpectFailure(
       sigs.v_v(),
       {WASM_ARRAY_SET(array_type_index, WASM_REF_NULL(array_type_index),
@@ -4261,46 +4340,35 @@ TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
 TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   WASM_FEATURE_SCOPE(exnref);
 
-  HeapType::Representation array_heap =
-      static_cast<HeapType::Representation>(builder.AddArray(kWasmI8, true));
-  HeapType::Representation super_struct_heap =
-      static_cast<HeapType::Representation>(
-          builder.AddStruct({F(kWasmI16, true)}));
+  HeapType array_heap = HeapType(builder.AddArray(kWasmI8, true));
+  HeapType super_struct_heap = HeapType(builder.AddStruct({F(kWasmI16, true)}));
 
-  HeapType::Representation sub_struct_heap =
-      static_cast<HeapType::Representation>(
-          builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}));
+  HeapType sub_struct_heap =
+      HeapType(builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}));
 
-  HeapType::Representation func_heap_1 =
-      static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_i()));
+  HeapType func_heap_1 = FuncHeapType(builder.AddSignature(sigs.i_i()));
+  HeapType func_heap_2 = FuncHeapType(builder.AddSignature(sigs.i_v()));
 
-  HeapType::Representation func_heap_2 =
-      static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_v()));
+  std::tuple<HeapType, HeapType, bool> tests[] = {
+      std::make_tuple(kWasmArrayRef, array_heap, true),
+      std::make_tuple(kWasmStructRef, super_struct_heap, true),
+      std::make_tuple(kWasmFuncRef, func_heap_1, true),
+      std::make_tuple(func_heap_1, func_heap_1, true),
+      std::make_tuple(func_heap_1, func_heap_2, true),
+      std::make_tuple(super_struct_heap, sub_struct_heap, true),
+      std::make_tuple(array_heap, sub_struct_heap, true),
+      std::make_tuple(super_struct_heap, func_heap_1, false),
+      std::make_tuple(kWasmEqRef, super_struct_heap, true),
+      std::make_tuple(kWasmExternRef, func_heap_1, false),
+      std::make_tuple(kWasmAnyRef, array_heap, true),
+      std::make_tuple(kWasmI31Ref, array_heap, true),
+      std::make_tuple(kWasmNullRef, array_heap, true),
+      std::make_tuple(kWasmNullRef, func_heap_1, false),
+      std::make_tuple(kWasmExnRef, kWasmExternRef, false),
+      std::make_tuple(kWasmExnRef, kWasmAnyRef, false),
+  };
 
-  std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
-      {
-          std::make_tuple(HeapType::kArray, array_heap, true),
-          std::make_tuple(HeapType::kStruct, super_struct_heap, true),
-          std::make_tuple(HeapType::kFunc, func_heap_1, true),
-          std::make_tuple(func_heap_1, func_heap_1, true),
-          std::make_tuple(func_heap_1, func_heap_2, true),
-          std::make_tuple(super_struct_heap, sub_struct_heap, true),
-          std::make_tuple(array_heap, sub_struct_heap, true),
-          std::make_tuple(super_struct_heap, func_heap_1, false),
-          std::make_tuple(HeapType::kEq, super_struct_heap, true),
-          std::make_tuple(HeapType::kExtern, func_heap_1, false),
-          std::make_tuple(HeapType::kAny, array_heap, true),
-          std::make_tuple(HeapType::kI31, array_heap, true),
-          std::make_tuple(HeapType::kNone, array_heap, true),
-          std::make_tuple(HeapType::kNone, func_heap_1, false),
-          std::make_tuple(HeapType::kExn, HeapType::kExtern, false),
-          std::make_tuple(HeapType::kExn, HeapType::kAny, false),
-      };
-
-  for (auto test : tests) {
-    HeapType from_heap = HeapType(std::get<0>(test));
-    HeapType to_heap = HeapType(std::get<1>(test));
-    bool should_pass = std::get<2>(test);
+  for (auto [from_heap, to_heap, should_pass] : tests) {
     SCOPED_TRACE("from_heap = " + from_heap.name() +
                  ", to_heap = " + to_heap.name());
 
@@ -4323,8 +4391,8 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
     } else {
       std::string error_message =
           "local.get of type " + cast_reps[1].name() +
-          " has to be in the same reference type hierarchy as (ref " +
-          to_heap.name() + ")";
+          " has to be in the same reference type hierarchy as " +
+          ValueType::Ref(to_heap).name();
       ExpectFailure(&test_sig,
                     {WASM_REF_TEST(WASM_LOCAL_GET(0), WASM_HEAP_TYPE(to_heap))},
                     kAppendEnd,
@@ -4347,36 +4415,40 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   }
 
   // Trivial type error.
-  ExpectFailure(sigs.v_v(),
-                {WASM_REF_TEST(WASM_I32V(1), array_heap), kExprDrop},
-                kAppendEnd,
-                "Invalid types for ref.test: i32.const of type i32 has to be "
-                "in the same reference type hierarchy as (ref 0)");
-  ExpectFailure(sigs.v_v(),
-                {WASM_REF_CAST(WASM_I32V(1), array_heap), kExprDrop},
-                kAppendEnd,
-                "Invalid types for ref.cast: i32.const of type i32 has to be "
-                "in the same reference type hierarchy as (ref 0)");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_TEST(WASM_I32V(1), array_heap.representation()), kExprDrop},
+      kAppendEnd,
+      "Invalid types for ref.test: i32.const of type i32 has to be "
+      "in the same reference type hierarchy as (ref 0)");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_CAST(WASM_I32V(1), array_heap.representation()), kExprDrop},
+      kAppendEnd,
+      "Invalid types for ref.cast: i32.const of type i32 has to be "
+      "in the same reference type hierarchy as (ref 0)");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
-  uint8_t super_struct = builder.AddStruct({F(kWasmI16, true)});
-  uint8_t sub_struct =
+  HeapType super_struct_type = builder.AddStruct({F(kWasmI16, true)});
+  ModuleTypeIndex super_struct = super_struct_type.ref_index();
+  HeapType sub_struct_type =
       builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}, super_struct);
+  ModuleTypeIndex sub_struct = sub_struct_type.ref_index();
 
-  ValueType supertype = ValueType::RefNull(super_struct);
-  ValueType subtype = ValueType::RefNull(sub_struct);
+  ValueType supertype = ValueType::RefNull(super_struct_type);
+  ValueType subtype = ValueType::RefNull(sub_struct_type);
 
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, subtype}, {supertype}),
       {WASM_I32V(42), WASM_LOCAL_GET(0),
        WASM_BR_ON_CAST(0, super_struct, sub_struct), WASM_GC_OP(kExprRefCast),
-       sub_struct});
+       ToByte(sub_struct)});
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, subtype}, {supertype}),
       {WASM_I32V(42), WASM_LOCAL_GET(0),
        WASM_BR_ON_CAST(0, super_struct, sub_struct), WASM_GC_OP(kExprRefCast),
-       sub_struct});
+       ToByte(sub_struct)});
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, supertype}, {supertype}),
       {WASM_I32V(42), WASM_LOCAL_GET(0),
@@ -4425,14 +4497,14 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, super_struct, sub_struct),
-       WASM_GC_OP(kExprRefCast), sub_struct},
+       WASM_GC_OP(kExprRefCast), ToByte(sub_struct)},
       kAppendEnd,
       "br_on_cast[0] expected type (ref null 0), found local.get of type "
       "externref");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_NULL(0, super_struct, sub_struct),
-       WASM_GC_OP(kExprRefCast), sub_struct},
+       WASM_GC_OP(kExprRefCast), ToByte(sub_struct)},
       kAppendEnd,
       "br_on_cast[0] expected type (ref null 0), found local.get of type "
       "externref");
@@ -4454,13 +4526,13 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, kExternRefCode, sub_struct),
-       WASM_GC_OP(kExprRefCast), sub_struct},
+       WASM_GC_OP(kExprRefCast), ToByte(sub_struct)},
       kAppendEnd,
       "invalid types for br_on_cast: (ref 1) is not a subtype of externref");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {kWasmExternRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_NULL(0, kExternRefCode, sub_struct),
-       WASM_GC_OP(kExprRefCast), sub_struct},
+       WASM_GC_OP(kExprRefCast), ToByte(sub_struct)},
       kAppendEnd,
       "invalid types for br_on_cast: (ref null 1) is not a subtype of "
       "externref");
@@ -4480,7 +4552,7 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
-  ValueType kNonNullableFunc = ValueType::Ref(HeapType::kFunc);
+  ValueType kNonNullableFunc = kWasmFuncRef.AsNonNull();
 
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmStructRef}, {kWasmAnyRef}),
@@ -4533,8 +4605,8 @@ TEST_F(FunctionBodyDecoderTest, BrWithBottom) {
   // Merging an unsatisfiable non-nullable (ref none) into a target that
   // expects a non-null struct is OK.
   ExpectValidates(
-      FunctionSig::Build(this->zone(), {ValueType::Ref(HeapType::kStruct)},
-                         {ValueType::Ref(HeapType::kStruct)}),
+      FunctionSig::Build(this->zone(), {ValueType::Ref(kWasmStructRef)},
+                         {ValueType::Ref(kWasmStructRef)}),
       {WASM_BR_ON_NON_NULL(0, WASM_REF_NULL(ValueTypeCode::kNoneCode)),
        WASM_LOCAL_GET(0)});
   // Merging the same value into a target that expects a value outside
@@ -4559,32 +4631,33 @@ TEST_F(FunctionBodyDecoderTest, BrWithBottom) {
 }
 
 TEST_F(FunctionBodyDecoderTest, LocalTeeTyping) {
-  uint8_t array_type = builder.AddArray(kWasmI8, true);
+  HeapType array_type = builder.AddArray(kWasmI8, true);
 
   ValueType types[] = {ValueType::Ref(array_type)};
   FunctionSig sig(1, 0, types);
 
   AddLocals(ValueType::RefNull(array_type), 1);
 
-  ExpectFailure(
-      &sig,
-      {WASM_LOCAL_TEE(0, WASM_ARRAY_NEW_DEFAULT(array_type, WASM_I32V(5)))},
-      kAppendEnd, "expected (ref 0), got (ref null 0)");
+  ExpectFailure(&sig,
+                {WASM_LOCAL_TEE(0, WASM_ARRAY_NEW_DEFAULT(
+                                       array_type.ref_index(), WASM_I32V(5)))},
+                kAppendEnd, "expected (ref 0), got (ref null 0)");
 }
 
 TEST_F(FunctionBodyDecoderTest, MergeNullableTypes) {
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  ValueType struct_type = refNull(struct_type_index);
+  HeapType struct_heap = builder.AddStruct({F(kWasmI32, true)});
+  ModuleTypeIndex struct_type_index = struct_heap.ref_index();
+  ValueType struct_type = refNull(struct_heap);
   FunctionSig loop_sig(0, 1, &struct_type);
-  uint8_t loop_sig_index = builder.AddSignature(&loop_sig);
+  ModuleTypeIndex loop_sig_index = builder.AddSignature(&loop_sig);
   // Verifies that when a loop consuming a nullable type is entered with a
   // statically known non-null value on the stack, its {start_merge_} can
   // consume null values later.
   // Regression test for crbug.com/1234453.
   ExpectValidates(sigs.v_v(),
-                  {WASM_GC_OP(kExprStructNewDefault), struct_type_index,
+                  {WASM_GC_OP(kExprStructNewDefault), ToByte(struct_type_index),
                    WASM_LOOP_X(loop_sig_index, kExprDrop, kExprRefNull,
-                               struct_type_index, kExprBr, 0)});
+                               ToByte(struct_type_index), kExprBr, 0)});
 }
 
 // This tests that num_locals_ in decoder remains consistent, even if we fail
@@ -4981,17 +5054,18 @@ class TypeReaderTest : public TestWithZone {
     Decoder decoder(start, end);
     auto [heap_type, length] =
         value_type_reader::read_heap_type<Decoder::FullValidationTag>(
-            &decoder, start, enabled_features_);
+            &decoder, start, enabled_features_, &detected_features_);
     return heap_type;
   }
 
   // This variable is modified by WASM_FEATURE_SCOPE.
   WasmEnabledFeatures enabled_features_;
+  WasmDetectedFeatures detected_features_;
 };
 
 TEST_F(TypeReaderTest, HeapTypeDecodingTest) {
-  HeapType heap_func = HeapType(HeapType::kFunc);
-  HeapType heap_bottom = HeapType(HeapType::kBottom);
+  HeapType heap_func = kWasmFuncRef;
+  HeapType heap_bottom = kWasmBottom;
 
   // 1- to 5-byte representation of kFuncRefCode.
   {
@@ -5166,7 +5240,7 @@ TEST_F(LocalDeclDecoderTest, ExnRef) {
   bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
   EXPECT_TRUE(result);
   EXPECT_EQ(1u, decls.num_locals);
-  EXPECT_EQ(kWasmExnRef, decls.local_types[0]);
+  EXPECT_EQ(decls.local_types[0], kWasmExnRef);
 }
 
 TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {
@@ -5174,7 +5248,8 @@ TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {
   const uint8_t* end = nullptr;
   LocalDeclEncoder local_decls(zone());
 
-  local_decls.AddLocals(1, ValueType::RefNull(0));
+  local_decls.AddLocals(1, ValueType::RefNull(ModuleTypeIndex{0}, kNotShared,
+                                              RefTypeKind::kStruct));
   BodyLocalDecls decls;
   bool result = DecodeLocalDecls(&decls, data, end);
   EXPECT_FALSE(result);
@@ -5260,30 +5335,22 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
 
 class FunctionBodyDecoderTestOnBothMemoryTypes
     : public FunctionBodyDecoderTestBase<
-          WithDefaultPlatformMixin<::testing::TestWithParam<MemoryType>>> {
+          WithDefaultPlatformMixin<::testing::TestWithParam<AddressType>>> {
  public:
-  FunctionBodyDecoderTestOnBothMemoryTypes() {
-    if (is_memory64()) enabled_features_.Add(WasmEnabledFeature::memory64);
-  }
-
-  bool is_memory64() const { return GetParam() == kMemory64; }
+  bool is_memory32() const { return GetParam() == AddressType::kI32; }
+  bool is_memory64() const { return GetParam() == AddressType::kI64; }
 };
 
-std::string PrintMemoryType(::testing::TestParamInfo<MemoryType> info) {
-  switch (info.param) {
-    case kMemory32:
-      return "kMemory32";
-    case kMemory64:
-      return "kMemory64";
-  }
-  UNREACHABLE();
+std::string PrintAddressType(::testing::TestParamInfo<AddressType> info) {
+  return AddressTypeToStr(info.param);
 }
 
 INSTANTIATE_TEST_SUITE_P(MemoryTypes, FunctionBodyDecoderTestOnBothMemoryTypes,
-                         ::testing::Values(kMemory32, kMemory64),
-                         PrintMemoryType);
+                         ::testing::Values(AddressType::kI32,
+                                           AddressType::kI64),
+                         PrintAddressType);
 
-TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, IndexTypes) {
+TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, AddressTypes) {
   builder.AddMemory(GetParam());
   Validate(!is_memory64(), sigs.i_v(),
            {WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)});
@@ -5298,18 +5365,18 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, IndexTypes) {
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory32) {
   // Check that with memory64 enabled, the offset is always decoded as u64, even
   // if the memory is declared as 32-bit memory.
-  builder.AddMemory(kMemory32);
+  builder.AddMemory(AddressType::kI32);
   // Offset is zero encoded in 5 bytes (always works).
   Validate(true, sigs.i_v(),
            {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO)});
-  // Offset is zero encoded in 6 bytes (works if memory64 is enabled).
-  Validate(is_memory64(), sigs.i_v(),
+  // Offset is zero encoded in 6 bytes.
+  Validate(true, sigs.i_v(),
            {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO)});
   // Same with store.
   Validate(true, sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO,
                                   WASM_ZERO)});
-  Validate(is_memory64(), sigs.v_v(),
+  Validate(true, sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO,
                                   WASM_ZERO)});
   // Offset is 2^32+2 (fails validation on memory32).
@@ -5324,28 +5391,28 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory32) {
 
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory64) {
   // Same as above, but on a 64-bit memory.
-  builder.AddMemory(kMemory64);
+  builder.AddMemory(AddressType::kI64);
   // Offset is zero encoded in 5 bytes.
   Validate(
       true, sigs.i_v(),
       {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO64)});
-  // Offset is zero encoded in 6 bytes (works if memory64 is enabled).
+  // Offset is zero encoded in 6 bytes.
   Validate(
-      is_memory64(), sigs.i_v(),
+      true, sigs.i_v(),
       {WASM_LOAD_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO64)});
   // Same with store.
   Validate(true, sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_5(0), WASM_ZERO64,
                                   WASM_ZERO)});
-  Validate(is_memory64(), sigs.v_v(),
+  Validate(true, sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO64,
                                   WASM_ZERO)});
-  // Offset is 2^32+2 (validates on memory64).
+  // Offset is 2^32+2.
   Validate(
-      is_memory64(), sigs.i_v(),
+      true, sigs.i_v(),
       {WASM_LOAD_MEM_OFFSET(MachineType::Int32(),
                             U64V_6((uint64_t{1} << 32) + 2), WASM_ZERO64)});
-  Validate(is_memory64(), sigs.v_v(),
+  Validate(true, sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(),
                                   U64V_6((uint64_t{1} << 32) + 2), WASM_ZERO64,
                                   WASM_ZERO)});
@@ -5375,21 +5442,22 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, MemoryGrow) {
 }
 
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, CopyDifferentMemTypes) {
-  MemoryType mem_type = GetParam();
-  MemoryType other_mem_type = mem_type == kMemory32 ? kMemory64 : kMemory32;
+  AddressType mem_type = GetParam();
+  AddressType other_mem_type =
+      is_memory64() ? AddressType::kI32 : AddressType::kI64;
   uint8_t memory0 = builder.AddMemory(mem_type);
   uint8_t memory1 = builder.AddMemory(other_mem_type);
 
   // Copy from memory0 to memory1 with types i32/i64/i32. Valid if memory0 is
   // 64-bit.
   Validate(
-      mem_type == kMemory64, sigs.v_v(),
+      is_memory64(), sigs.v_v(),
       {WASM_MEMORY_COPY(memory1, memory0, WASM_ZERO, WASM_ZERO64, WASM_ZERO)},
       kAppendEnd);
   // Copy from memory0 to memory1 with types i64/i32/i32. Valid if memory0 is
   // 32-bit.
   Validate(
-      mem_type == kMemory32, sigs.v_v(),
+      is_memory32(), sigs.v_v(),
       {WASM_MEMORY_COPY(memory1, memory0, WASM_ZERO64, WASM_ZERO, WASM_ZERO)},
       kAppendEnd);
   // Passing the size as i64 is always invalid because one memory is always
@@ -5398,14 +5466,14 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, CopyDifferentMemTypes) {
       sigs.v_v(),
       {WASM_MEMORY_COPY(memory1, memory0, WASM_ZERO, WASM_ZERO64, WASM_ZERO64)},
       kAppendEnd,
-      mem_type == kMemory32
+      is_memory32()
           ? "memory.copy[0] expected type i64, found i32.const of type i32"
           : "memory.copy[2] expected type i32, found i64.const of type i64");
   ExpectFailure(
       sigs.v_v(),
       {WASM_MEMORY_COPY(memory1, memory0, WASM_ZERO64, WASM_ZERO, WASM_ZERO64)},
       kAppendEnd,
-      mem_type == kMemory32
+      is_memory32()
           ? "memory.copy[2] expected type i32, found i64.const of type i64"
           : "memory.copy[0] expected type i32, found i64.const of type i64");
 }
@@ -5441,32 +5509,23 @@ TEST_F(FunctionBodyDecoderTest, ExtendedMemoryAccessImmediate) {
 
 class FunctionBodyDecoderTestTable64
     : public FunctionBodyDecoderTestBase<
-          WithDefaultPlatformMixin<::testing::TestWithParam<TableType>>> {
+          WithDefaultPlatformMixin<::testing::TestWithParam<AddressType>>> {
  public:
-  FunctionBodyDecoderTestTable64() {
-    if (is_table64()) enabled_features_.Add(WasmEnabledFeature::memory64);
-  }
-
-  bool is_table64() const { return GetParam() == kTable64; }
+  bool is_table32() const { return GetParam() == AddressType::kI32; }
+  bool is_table64() const { return GetParam() == AddressType::kI64; }
 };
 
-std::string PrintTableType(::testing::TestParamInfo<TableType> info) {
-  switch (info.param) {
-    case kTable32:
-      return "kTable32";
-    case kTable64:
-      return "kTable64";
-  }
-  UNREACHABLE();
-}
-
 INSTANTIATE_TEST_SUITE_P(Table64Tests, FunctionBodyDecoderTestTable64,
-                         ::testing::Values(kTable32, kTable64), PrintTableType);
+                         ::testing::Values(AddressType::kI32,
+                                           AddressType::kI64),
+                         PrintAddressType);
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Set) {
-  TableType table_type = GetParam();
-  uint8_t tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
-  uint8_t tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30, table_type);
+  AddressType address_type = GetParam();
+  uint8_t tab_ref1 =
+      builder.AddTable(kWasmExternRef, 10, true, 20, address_type);
+  uint8_t tab_func1 =
+      builder.AddTable(kWasmFuncRef, 20, true, 30, address_type);
 
   ValueType sig_types[]{kWasmExternRef, kWasmFuncRef};
   FunctionSig sig(0, 2, sig_types);
@@ -5481,9 +5540,11 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Set) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Get) {
-  TableType table_type = GetParam();
-  uint8_t tab_ref1 = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
-  uint8_t tab_func1 = builder.AddTable(kWasmFuncRef, 20, true, 30, table_type);
+  AddressType address_type = GetParam();
+  uint8_t tab_ref1 =
+      builder.AddTable(kWasmExternRef, 10, true, 20, address_type);
+  uint8_t tab_func1 =
+      builder.AddTable(kWasmFuncRef, 20, true, 30, address_type);
 
   ValueType sig_types[]{kWasmExternRef, kWasmFuncRef};
   FunctionSig sig(0, 2, sig_types);
@@ -5498,13 +5559,13 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Get) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64CallIndirect) {
-  TableType table_type = GetParam();
+  AddressType address_type = GetParam();
   const FunctionSig* sig = sigs.i_i();
-  builder.AddTable(kWasmFuncRef, 20, false, 20, table_type);
+  builder.AddTable(kWasmFuncRef, 20, false, 20, address_type);
 
-  uint8_t sig0 = builder.AddSignature(sigs.i_v());
-  uint8_t sig1 = builder.AddSignature(sigs.i_i());
-  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.i_v());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex sig2 = builder.AddSignature(sigs.i_ii());
 
   Validate(is_table64(), sig, {WASM_CALL_INDIRECT(sig0, WASM_ZERO64)});
   Validate(is_table64(), sig,
@@ -5515,13 +5576,13 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64CallIndirect) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64ReturnCallIndirect) {
-  TableType table_type = GetParam();
+  AddressType address_type = GetParam();
   const FunctionSig* sig = sigs.i_i();
-  builder.AddTable(kWasmFuncRef, 20, true, 30, table_type);
+  builder.AddTable(kWasmFuncRef, 20, true, 30, address_type);
 
-  uint8_t sig0 = builder.AddSignature(sigs.i_v());
-  uint8_t sig1 = builder.AddSignature(sigs.i_i());
-  uint8_t sig2 = builder.AddSignature(sigs.i_ii());
+  ModuleTypeIndex sig0 = builder.AddSignature(sigs.i_v());
+  ModuleTypeIndex sig1 = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex sig2 = builder.AddSignature(sigs.i_ii());
 
   Validate(is_table64(), sig, {WASM_RETURN_CALL_INDIRECT(sig0, WASM_ZERO64)});
   Validate(is_table64(), sig,
@@ -5532,9 +5593,10 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64ReturnCallIndirect) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Grow) {
-  TableType table_type = GetParam();
-  uint8_t tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20, table_type);
-  uint8_t tab_ref = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
+  AddressType address_type = GetParam();
+  uint8_t tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20, address_type);
+  uint8_t tab_ref =
+      builder.AddTable(kWasmExternRef, 10, true, 20, address_type);
 
   Validate(
       is_table64(), sigs.l_c(),
@@ -5545,15 +5607,16 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Grow) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Size) {
-  TableType table_type = GetParam();
-  int tab = builder.AddTable(kWasmFuncRef, 10, true, 20, table_type);
+  AddressType address_type = GetParam();
+  int tab = builder.AddTable(kWasmFuncRef, 10, true, 20, address_type);
   Validate(is_table64(), sigs.l_v(), {WASM_TABLE_SIZE(tab)});
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Fill) {
-  TableType table_type = GetParam();
-  uint8_t tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20, table_type);
-  uint8_t tab_ref = builder.AddTable(kWasmExternRef, 10, true, 20, table_type);
+  AddressType address_type = GetParam();
+  uint8_t tab_func = builder.AddTable(kWasmFuncRef, 10, true, 20, address_type);
+  uint8_t tab_ref =
+      builder.AddTable(kWasmExternRef, 10, true, 20, address_type);
   Validate(is_table64(), sigs.v_c(),
            {WASM_TABLE_FILL(tab_func, WASM_ONE64, WASM_REF_NULL(kFuncRefCode),
                             WASM_ONE64)});
@@ -5563,8 +5626,8 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Fill) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Init) {
-  TableType table_type = GetParam();
-  uint8_t tab_func = builder.AddTable(kWasmFuncRef, table_type);
+  AddressType address_type = GetParam();
+  uint8_t tab_func = builder.AddTable(kWasmFuncRef, address_type);
   uint8_t elem_seg = builder.AddPassiveElementSegment(wasm::kWasmFuncRef);
 
   Validate(
@@ -5573,8 +5636,8 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Init) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64Copy) {
-  TableType table_type = GetParam();
-  uint8_t table = builder.AddTable(wasm::kWasmVoid, table_type);
+  AddressType address_type = GetParam();
+  uint8_t table = builder.AddTable(wasm::kWasmVoid, address_type);
 
   Validate(
       is_table64(), sigs.v_v(),
@@ -5582,21 +5645,22 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64Copy) {
 }
 
 TEST_P(FunctionBodyDecoderTestTable64, Table64CopyDifferentTypes) {
-  TableType table_type = GetParam();
-  TableType other_table_type = table_type == kTable32 ? kTable64 : kTable32;
-  uint8_t table = builder.AddTable(wasm::kWasmVoid, table_type);
+  AddressType address_type = GetParam();
+  AddressType other_table_type =
+      is_table64() ? AddressType::kI32 : AddressType::kI64;
+  uint8_t table = builder.AddTable(wasm::kWasmVoid, address_type);
   uint8_t other_table = builder.AddTable(wasm::kWasmVoid, other_table_type);
 
   // Copy from `table` to `other_table` with types i32/i64/i32. Valid if `table`
   // is table64 (and hence `other_table` is table32).
   Validate(
-      table_type == kTable64, sigs.v_v(),
+      is_table64(), sigs.v_v(),
       {WASM_TABLE_COPY(other_table, table, WASM_ZERO, WASM_ZERO64, WASM_ZERO)},
       kAppendEnd);
   // Copy from `table` to `other_table` with types i64/i32/i32. Valid if `table`
   // is table32 (and hence `other_table` is table64).
   Validate(
-      table_type == kTable32, sigs.v_v(),
+      is_table32(), sigs.v_v(),
       {WASM_TABLE_COPY(other_table, table, WASM_ZERO64, WASM_ZERO, WASM_ZERO)},
       kAppendEnd);
   // Passing the size as i64 is always invalid because one table is always 32
@@ -5606,7 +5670,7 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64CopyDifferentTypes) {
       {WASM_TABLE_COPY(other_table, table, WASM_ZERO, WASM_ZERO64,
                        WASM_ZERO64)},
       kAppendEnd,
-      table_type == kTable64
+      is_table64()
           ? "table.copy[2] expected type i32, found i64.const of type i64"
           : "table.copy[0] expected type i64, found i32.const of type i32");
   ExpectFailure(
@@ -5614,9 +5678,416 @@ TEST_P(FunctionBodyDecoderTestTable64, Table64CopyDifferentTypes) {
       {WASM_TABLE_COPY(other_table, table, WASM_ZERO64, WASM_ZERO,
                        WASM_ZERO64)},
       kAppendEnd,
-      table_type == kTable32
+      is_table32()
           ? "table.copy[2] expected type i32, found i64.const of type i64"
           : "table.copy[0] expected type i32, found i64.const of type i64");
+}
+
+/*******************************************************************************
+ * WasmFx
+ ******************************************************************************/
+
+TEST_F(FunctionBodyDecoderTest, WasmContNew) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  ModuleTypeIndex void_index = builder.AddSignature(sigs.v_v());
+  uint8_t func_index = builder.AddFunction(sig_index);
+  uint8_t bad_func_index = builder.AddFunction(void_index);
+
+  ExpectValidates(sigs.v_v(), {WASM_REF_FUNC(func_index),
+                               WASM_CONT_NEW(ToByte(cont_index)), WASM_DROP});
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_FUNC(func_index), WASM_CONT_NEW(ToByte(sig_index)), WASM_DROP},
+      kAppendEnd, "invalid cont index: 2");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_FUNC(bad_func_index), WASM_CONT_NEW(ToByte(cont_index)),
+       WASM_DROP},
+      kAppendEnd,
+      "cont.new[0] expected type (ref null 0), found ref.func of type (ref 3)");
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmContBind) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex i_di_cont = builder.AddCont(sigs.i_di());
+  ModuleTypeIndex i_i_cont = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex i_di_sig = builder.AddSignature(sigs.i_di());
+  uint8_t i_di_func = builder.AddFunction(i_di_sig);
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_F64(42.0), WASM_REF_FUNC(i_di_func),
+       WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_di_cont), ToByte(i_i_cont)), WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_REF_FUNC(i_di_func), WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_di_cont), ToByte(i_di_cont)), WASM_DROP});
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmContBindNegative) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex i_di_cont = builder.AddCont(sigs.i_di());
+  ModuleTypeIndex i_i_cont = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex d_i_cont = builder.AddCont(sigs.d_i());
+  ModuleTypeIndex i_d_cont = builder.AddCont(sigs.i_d());
+  ModuleTypeIndex i_di_sig = builder.AddSignature(sigs.i_di());
+  uint8_t i_di_func = builder.AddFunction(i_di_sig);
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_REF_FUNC(i_di_func), WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_i_cont), ToByte(i_di_cont)), WASM_DROP},
+      kAppendEnd, "source cont type 3 has fewer parameters than target 1");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_I32V(42.0), WASM_REF_FUNC(i_di_func),
+       WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_di_cont), ToByte(i_i_cont)), WASM_DROP},
+      kAppendEnd, "expected type f64, found i32.const of type i32");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_F64(42.0), WASM_REF_FUNC(i_di_func),
+       WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_di_cont), ToByte(d_i_cont)), WASM_DROP},
+      kAppendEnd, "expecting returns of 1 to match returns of 5");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_F64(42.0), WASM_REF_FUNC(i_di_func),
+       WASM_CONT_NEW(ToByte(i_di_cont)),
+       WASM_CONT_BIND(ToByte(i_di_cont), ToByte(i_d_cont)), WASM_DROP},
+      kAppendEnd,
+      "parameters of new continuation 7 should be subtypes of parameters of "
+      "input continuation 1");
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmResume) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  uint8_t func_index = builder.AddFunction(sig_index);
+
+  uint8_t tag_v_v = builder.AddTag(sigs.v_v());
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+
+  ExpectValidates(sigs.v_v(), {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                               WASM_CONT_NEW(ToByte(cont_index)),
+                               WASM_RESUME(ToByte(cont_index), 0), WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK(WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                               WASM_CONT_NEW(ToByte(cont_index)),
+                               WASM_RESUME(ToByte(cont_index), 1,
+                                           WASM_ON_TAG(tag_i_i, 0),
+                                           WASM_ON_TAG(tag_v_v, 1)),
+                               WASM_RETURN0),
+                  WASM_DROP)});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME(ToByte(cont_index), 2, WASM_ON_TAG(tag_i_i, 0),
+                                WASM_SWITCH_TAG(tag_v_v)),
+                    WASM_RETURN0),
+       WASM_DROP});
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmResumeNegative) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  uint8_t func_index = builder.AddFunction(sig_index);
+
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(cont_index)),
+                 WASM_RESUME(ToByte(cont_index), 1), WASM_DROP},
+                kAppendEnd, "Invalid tag index");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                  WASM_CONT_NEW(ToByte(cont_index)),
+                  WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_i_i, 0)),
+                  WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "handler generates 1 operand, target block returns 0");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_D(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_i_i, 0)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "type error in branch[0] (expected f64, got i32)");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_F64(42.0), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(cont_index)),
+                 WASM_RESUME(ToByte(cont_index), 0), WASM_DROP},
+                kAppendEnd,
+                "resume[0] expected type i32, found f64.const of type f64");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                    WASM_CONT_NEW(ToByte(cont_index)),
+                    WASM_RESUME(ToByte(cont_index), 1, WASM_ON_TAG(tag_i_i, 2)),
+                    WASM_RETURN0),
+       WASM_DROP},
+      kAppendEnd, "invalid branch depth: 2");
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmResumeThrow) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  uint8_t ex_tag = builder.AddTag(sigs.v_i());
+  uint8_t func_index = builder.AddFunction(sig_index);
+
+  uint8_t tag_v_v = builder.AddTag(sigs.v_v());
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+
+  ExpectValidates(sigs.v_v(), {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                               WASM_CONT_NEW(ToByte(cont_index)),
+                               WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 0),
+                               WASM_DROP});
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                                WASM_CONT_NEW(ToByte(cont_index)),
+                                WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
+                                                  WASM_ON_TAG(tag_i_i, 0)),
+                                WASM_RETURN0),
+                   WASM_DROP});
+
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_BLOCK(WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                               WASM_CONT_NEW(ToByte(cont_index)),
+                               WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 2,
+                                                 WASM_ON_TAG(tag_i_i, 0),
+                                                 WASM_ON_TAG(tag_v_v, 1)),
+                               WASM_RETURN0),
+                  WASM_DROP)});
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                                WASM_CONT_NEW(ToByte(cont_index)),
+                                WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 2,
+                                                  WASM_ON_TAG(tag_i_i, 0),
+                                                  WASM_SWITCH_TAG(tag_v_v)),
+                                WASM_RETURN0),
+                   WASM_DROP});
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmResumeThrowNegative) {
+  WASM_FEATURE_SCOPE(wasmfx);
+  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  uint8_t ex_tag = builder.AddTag(sigs.v_i());
+  uint8_t d_tag = builder.AddTag(sigs.v_d());
+  uint8_t func_index = builder.AddFunction(sig_index);
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(cont_index)),
+                 WASM_RESUME_THROW(ToByte(cont_index), 10, 0), WASM_DROP},
+                kAppendEnd, "Invalid tag index");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                              WASM_CONT_NEW(ToByte(cont_index)),
+                              WASM_RESUME_THROW(ToByte(cont_index), tag_i_i, 1,
+                                                WASM_ON_TAG(tag_i_i, 0)),
+                              WASM_RETURN0),
+                 WASM_DROP},
+                kAppendEnd, "tag signature 2 has non-void return");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(43), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(cont_index)),
+                 WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
+                                   WASM_ON_TAG(tag_i_i, 0)),
+                 WASM_DROP},
+                kAppendEnd,
+                "handler generates 1 operand, target block returns 0");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42.0), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(cont_index)),
+                 WASM_RESUME_THROW(ToByte(cont_index), d_tag, 0), WASM_DROP},
+                kAppendEnd, "expected type f64, found i32.const of type i32");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_BLOCK_D(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                              WASM_CONT_NEW(ToByte(cont_index)),
+                              WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
+                                                WASM_ON_TAG(tag_i_i, 0)),
+                              WASM_RETURN0),
+                 WASM_DROP},
+                kAppendEnd, "type error in branch[0] (expected f64, got i32)");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_BLOCK_I(WASM_I32V(43), WASM_REF_FUNC(func_index),
+                              WASM_CONT_NEW(ToByte(cont_index)),
+                              WASM_RESUME_THROW(ToByte(cont_index), ex_tag, 1,
+                                                WASM_ON_TAG(tag_i_i, 2)),
+                              WASM_RETURN0),
+                 WASM_DROP},
+                kAppendEnd, "invalid branch depth: 2");
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmSuspend) {
+  WASM_FEATURE_SCOPE(wasmfx);
+
+  uint8_t tag_v_v = builder.AddTag(sigs.v_v());
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_I32V(42), WASM_SUSPEND(tag_i_i), WASM_DROP});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_I32V(42), WASM_SUSPEND(tag_v_v), WASM_DROP});
+  ExpectValidates(sigs.v_v(), {WASM_SUSPEND(tag_v_v)});
+
+  ExpectFailure(sigs.v_v(), {WASM_I32V(42), WASM_SUSPEND(12), WASM_DROP},
+                kAppendEnd, "Invalid tag index: 12");
+  ExpectFailure(
+      sigs.v_v(), {WASM_SUSPEND(tag_i_i), WASM_DROP}, kAppendEnd,
+      "not enough arguments on the stack for suspend (need 1, got 0)");
+  ExpectFailure(sigs.v_v(), {WASM_I32V(42), WASM_SUSPEND(tag_i_i)}, kAppendEnd,
+                "expected 0 elements on the stack for fallthru, found 1");
+  ExpectFailure(sigs.v_v(), {WASM_F64(42.0), WASM_SUSPEND(tag_i_i)}, kAppendEnd,
+                "suspend[0] expected type i32, found f64.const of type f64");
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmSwitch) {
+  WASM_FEATURE_SCOPE(wasmfx);
+
+  TestModuleBuilder builder;
+  uint8_t tag_d_v = builder.AddTag(sigs.d_v());
+  ModuleTypeIndex ct2_index = builder.AddCont(sigs.d_ii());
+
+  FunctionSig* ct1_sig = FunctionSig::Build(
+      zone(), {kWasmF64},
+      {kWasmI32, ValueType::RefNull(ct2_index, false, RefTypeKind::kCont)});
+
+  ModuleTypeIndex ct1_index = builder.AddCont(ct1_sig);
+
+  uint8_t func_index = builder.AddFunction(ct1_sig);
+
+  module = builder.module();
+
+  ExpectValidates(sigs.v_v(), {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                               WASM_CONT_NEW(ToByte(ct1_index)),
+                               WASM_SWITCH(ToByte(ct1_index), tag_d_v),
+                               WASM_DROP, WASM_DROP});
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmSwitchNegative) {
+  WASM_FEATURE_SCOPE(wasmfx);
+
+  TestModuleBuilder builder;
+  uint8_t tag_d_v = builder.AddTag(sigs.d_v());
+  uint8_t tag_i_v = builder.AddTag(sigs.i_v());
+  uint8_t tag_f_v = builder.AddTag(sigs.f_v());
+  ModuleTypeIndex ct2_index = builder.AddCont(sigs.d_ii());
+
+  FunctionSig* ct1_sig = FunctionSig::Build(
+      zone(), {kWasmF64},
+      {kWasmI32, ValueType::RefNull(ct2_index, false, RefTypeKind::kCont)});
+
+  ModuleTypeIndex ct1_index = builder.AddCont(ct1_sig);
+  ModuleTypeIndex ct3_index = builder.AddCont(FunctionSig::Build(
+      zone(), {kWasmI32},
+      {kWasmI32, ValueType::RefNull(ct1_index, false, RefTypeKind::kCont)}));
+  uint8_t func_index = builder.AddFunction(ct1_sig);
+
+  module = builder.module();
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_F64(42.0), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct1_index), tag_d_v), WASM_DROP, WASM_DROP},
+                kAppendEnd, "switch[0] expected type i32, found f64.const");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct2_index), tag_d_v), WASM_DROP, WASM_DROP},
+                kAppendEnd,
+                "expecting a (ref null? cont) as last parameter of type 4");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct1_index), tag_i_v), WASM_DROP, WASM_DROP},
+                kAppendEnd, "return(s) from continuation 6 do not match tag 1");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct3_index), tag_d_v), WASM_DROP, WASM_DROP},
+                kAppendEnd, "return(s) from continuation 8 do not match tag 0");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct3_index), tag_f_v), WASM_DROP, WASM_DROP},
+                kAppendEnd, "return(s) from continuation 8 do not match tag 2");
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(ct1_index)),
+                 WASM_SWITCH(ToByte(ct3_index), tag_i_v), WASM_DROP, WASM_DROP},
+                kAppendEnd,
+                "tag 1's return types should be a subtype of return "
+                "continuation 6's return types");
+}
+
+TEST_F(FunctionBodyDecoderTest, WasmNoWasmFx) {
+  ModuleTypeIndex cont_index = builder.AddCont(sigs.i_i());
+  ModuleTypeIndex sig_index = builder.AddSignature(sigs.i_i());
+  uint8_t func_index = builder.AddFunction(sig_index);
+  uint8_t tag_i_i = builder.AddTag(sigs.i_i());
+
+  ExpectFailure(sigs.v_v(),
+                {WASM_I32V(42), WASM_REF_FUNC(func_index),
+                 WASM_CONT_NEW(ToByte(cont_index)),
+                 WASM_RESUME(ToByte(cont_index), 0), WASM_DROP},
+                kAppendEnd,
+                "Invalid opcode 0xe0 (enable with --experimental-wasm-wasmfx)");
+
+  ExpectFailure(sigs.v_v(), {WASM_RESUME(ToByte(cont_index), 0), WASM_DROP},
+                kAppendEnd,
+                "Invalid opcode 0xe3 (enable with --experimental-wasm-wasmfx)");
+
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_SWITCH(ToByte(cont_index), tag_i_i), WASM_DROP, WASM_DROP},
+      kAppendEnd,
+      "Invalid opcode 0xe5 (enable with --experimental-wasm-wasmfx)");
 }
 
 #undef B1

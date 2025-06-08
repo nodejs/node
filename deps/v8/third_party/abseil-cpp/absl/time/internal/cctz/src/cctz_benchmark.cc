@@ -23,7 +23,7 @@
 #include "benchmark/benchmark.h"
 #include "absl/time/internal/cctz/include/cctz/civil_time.h"
 #include "absl/time/internal/cctz/include/cctz/time_zone.h"
-#include "time_zone_impl.h"
+#include "absl/time/internal/cctz/src/time_zone_impl.h"
 
 namespace {
 
@@ -199,6 +199,7 @@ const char* const kTimeZoneNames[] = {"Africa/Abidjan",
                                       "America/Ciudad_Juarez",
                                       "America/Coral_Harbour",
                                       "America/Costa_Rica",
+                                      "America/Coyhaique",
                                       "America/Creston",
                                       "America/Cuiaba",
                                       "America/Curacao",
@@ -215,7 +216,6 @@ const char* const kTimeZoneNames[] = {"Africa/Abidjan",
                                       "America/Fort_Nelson",
                                       "America/Fortaleza",
                                       "America/Glace_Bay",
-                                      "America/Godthab",
                                       "America/Goose_Bay",
                                       "America/Grand_Turk",
                                       "America/Grenada",

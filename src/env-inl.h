@@ -205,6 +205,15 @@ inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
 
+inline cppgc::AllocationHandle& Environment::cppgc_allocation_handle() const {
+  return isolate_->GetCppHeap()->GetAllocationHandle();
+}
+
+inline v8::ExternalMemoryAccounter* Environment::external_memory_accounter()
+    const {
+  return external_memory_accounter_;
+}
+
 inline Environment* Environment::from_timer_handle(uv_timer_t* handle) {
   return ContainerOf(&Environment::timer_handle_, handle);
 }
@@ -768,6 +777,13 @@ inline void Environment::ThrowError(
     const char* errmsg) {
   v8::HandleScope handle_scope(isolate());
   isolate()->ThrowException(fun(OneByteString(isolate(), errmsg), {}));
+}
+
+inline void Environment::ThrowStdErrException(std::error_code error_code,
+                                              const char* syscall,
+                                              const char* path) {
+  ThrowErrnoException(
+      error_code.value(), syscall, error_code.message().c_str(), path);
 }
 
 inline void Environment::ThrowErrnoException(int errorno,

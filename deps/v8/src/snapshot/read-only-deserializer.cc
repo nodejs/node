@@ -169,6 +169,7 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   ReadOnlyRoots roots(isolate());
   roots.VerifyNameForProtectorsPages();
 #ifdef DEBUG
+  roots.VerifyTypes();
   roots.VerifyNameForProtectors();
 #endif
 
@@ -201,12 +202,11 @@ class ObjectPostProcessor final {
 
   void Finalize() {
 #ifdef V8_ENABLE_SANDBOX
-    DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
     std::vector<ReadOnlyArtifacts::ExternalPointerRegistryEntry> registry;
     registry.reserve(external_pointer_slots_.size());
     for (auto& slot : external_pointer_slots_) {
       registry.emplace_back(slot.Relaxed_LoadHandle(), slot.load(isolate_),
-                            slot.tag());
+                            slot.exact_tag());
     }
 
     isolate_->read_only_artifacts()->set_external_pointer_registry(
@@ -215,6 +215,8 @@ class ObjectPostProcessor final {
   }
 #define POST_PROCESS_TYPE_LIST(V) \
   V(AccessorInfo)                 \
+  V(InterceptorInfo)              \
+  V(JSExternalObject)             \
   V(FunctionTemplateInfo)         \
   V(Code)                         \
   V(SharedFunctionInfo)
@@ -259,7 +261,8 @@ class ObjectPostProcessor final {
         slot.GetContentAsIndexAfterDeserialization(no_gc));
     Address slot_value =
         GetAnyExternalReferenceAt(encoded.index, encoded.is_api_reference);
-    slot.init(isolate_, host, slot_value);
+    DCHECK(slot.ExactTagIsKnown());
+    slot.init(isolate_, host, slot_value, slot.exact_tag());
 #ifdef V8_ENABLE_SANDBOX
     // Register these slots during deserialization s.t. later isolates (which
     // share the RO space we are currently deserializing) can properly
@@ -269,6 +272,32 @@ class ObjectPostProcessor final {
     external_pointer_slots_.emplace_back(slot);
 #endif  // V8_ENABLE_SANDBOX
   }
+  void DecodeLazilyInitializedExternalPointerSlot(Tagged<HeapObject> host,
+                                                  ExternalPointerSlot slot) {
+    // Constructing no_gc here is not the intended use pattern (instead we
+    // should pass it along the entire callchain); but there's little point of
+    // doing that here - all of the code in this file relies on GC being
+    // disabled, and that's guarded at entry points.
+    DisallowGarbageCollection no_gc;
+    auto encoded = ro::EncodedExternalReference::FromUint32(
+        slot.GetContentAsIndexAfterDeserialization(no_gc));
+    Address slot_value =
+        GetAnyExternalReferenceAt(encoded.index, encoded.is_api_reference);
+    DCHECK(slot.ExactTagIsKnown());
+    if (slot_value == kNullAddress) {
+      slot.init_lazily_initialized();
+    } else {
+      slot.init(isolate_, host, slot_value, slot.exact_tag());
+#ifdef V8_ENABLE_SANDBOX
+      // Register these slots during deserialization s.t. later isolates (which
+      // share the RO space we are currently deserializing) can properly
+      // initialize their external pointer table RO space. Note that slot values
+      // are only fully finalized at the end of deserialization, thus we only
+      // register the slot itself now and read the handle/value in Finalize.
+      external_pointer_slots_.emplace_back(slot);
+#endif  // V8_ENABLE_SANDBOX
+    }
+  }
   void PostProcessAccessorInfo(Tagged<AccessorInfo> o) {
     DecodeExternalPointerSlot(
         o, o->RawExternalPointerField(AccessorInfo::kSetterOffset,
@@ -277,6 +306,24 @@ class ObjectPostProcessor final {
                                      AccessorInfo::kMaybeRedirectedGetterOffset,
                                      kAccessorInfoGetterTag));
     if (USE_SIMULATOR_BOOL) o->init_getter_redirection(isolate_);
+  }
+  void PostProcessInterceptorInfo(Tagged<InterceptorInfo> o) {
+    const bool is_named = o->is_named();
+
+#define PROCESS_FIELD(Name, name)                            \
+  DecodeLazilyInitializedExternalPointerSlot(                \
+      o, o->RawExternalPointerField(                         \
+             InterceptorInfo::k##Name##Offset,               \
+             is_named ? kApiNamedProperty##Name##CallbackTag \
+                      : kApiIndexedProperty##Name##CallbackTag));
+
+    INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_FIELD)
+#undef PROCESS_FIELD
+  }
+  void PostProcessJSExternalObject(Tagged<JSExternalObject> o) {
+    DecodeExternalPointerSlot(
+        o, o->RawExternalPointerField(JSExternalObject::kValueOffset,
+                                      kExternalObjectValueTag));
   }
   void PostProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     DecodeExternalPointerSlot(
@@ -327,9 +374,9 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       if (InstanceTypeChecker::IsString(instance_type)) {
         Tagged<String> str = Cast<String>(o);
         str->set_raw_hash_field(Name::kEmptyHashField);
-        PushObjectToRehash(handle(str, isolate()));
+        PushObjectToRehash(direct_handle(str, isolate()));
       } else if (o->NeedsRehashing(instance_type)) {
-        PushObjectToRehash(handle(o, isolate()));
+        PushObjectToRehash(direct_handle(o, isolate()));
       }
     }
 

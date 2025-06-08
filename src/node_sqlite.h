@@ -64,6 +64,7 @@ class DatabaseSync : public BaseObject {
   static void IsTransactionGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Location(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -194,6 +195,7 @@ class Session : public BaseObject {
   template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
   static void Changeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,

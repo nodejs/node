@@ -13,6 +13,7 @@
 #include "include/cppgc/internal/pointer-policies.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/sentinel-pointer.h"
+#include "include/cppgc/tagged-member.h"
 #include "include/cppgc/type-traits.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -32,7 +33,10 @@ struct DerivedMixin : GarbageCollectedMixin {
 };
 
 struct DerivedGCed : GCed, DerivedMixin {
-  void Trace(cppgc::Visitor* v) const override { GCed::Trace(v); }
+  void Trace(cppgc::Visitor* v) const override {
+    GCed::Trace(v);
+    DerivedMixin::Trace(v);
+  }
 };
 
 // Compile tests.
@@ -105,14 +109,27 @@ using MemberWithCustomBarrier =
     BasicMember<GCed, StrongMemberTag, CustomWriteBarrierPolicy>;
 
 struct CustomCheckingPolicy {
-  static std::vector<GCed*> Cached;
+  static std::vector<UntracedMember<GCed>> Cached;
   static size_t ChecksTriggered;
-  void CheckPointer(const void* ptr) {
+  template <typename T>
+  void CheckPointer(RawPointer raw_pointer) {
+    const void* ptr = raw_pointer.Load();
+    CheckPointer(static_cast<const T*>(ptr));
+  }
+#if defined(CPPGC_POINTER_COMPRESSION)
+  template <typename T>
+  void CheckPointer(CompressedPointer compressed_pointer) {
+    const void* ptr = compressed_pointer.Load();
+    CheckPointer(static_cast<const T*>(ptr));
+  }
+#endif
+  template <typename T>
+  void CheckPointer(const T* ptr) {
     EXPECT_NE(Cached.cend(), std::find(Cached.cbegin(), Cached.cend(), ptr));
     ++ChecksTriggered;
   }
 };
-std::vector<GCed*> CustomCheckingPolicy::Cached;
+std::vector<UntracedMember<GCed>> CustomCheckingPolicy::Cached;
 size_t CustomCheckingPolicy::ChecksTriggered = 0;
 
 using MemberWithCustomChecking =
@@ -623,9 +640,9 @@ class LinkedNode final : public GarbageCollected<LinkedNode> {
 
 // The following tests create multiple heaps per thread, which is not supported
 // with pointer compression enabled.
-#if !defined(CPPGC_POINTER_COMPRESSION)
+#if !defined(CPPGC_POINTER_COMPRESSION) && defined(ENABLE_SLOW_DCHECKS)
 TEST_F(MemberHeapDeathTest, CheckForOffHeapMemberCrashesOnReassignment) {
-  std::vector<Member<LinkedNode>> off_heap_member;
+  std::vector<UntracedMember<LinkedNode>> off_heap_member;
   // Verification state is constructed on first assignment.
   off_heap_member.emplace_back(
       MakeGarbageCollected<LinkedNode>(GetAllocationHandle(), nullptr));
@@ -661,7 +678,7 @@ TEST_F(MemberHeapDeathTest, CheckForOnHeapMemberCrashesOnInitialAssignment) {
         "");
   }
 }
-#endif  // defined(CPPGC_POINTER_COMPRESSION)
+#endif  // defined(CPPGC_POINTER_COMPRESSION) && defined(ENABLE_SLOW_DCHECKS)
 
 #if defined(CPPGC_POINTER_COMPRESSION)
 TEST_F(MemberTest, CompressDecompress) {
@@ -686,6 +703,116 @@ TEST_F(MemberTest, CompressDecompress) {
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
 #endif  // V8_ENABLE_CHECKS
+
+#if defined(CPPGC_CAGED_HEAP)
+
+TEST_F(MemberTest, CompressedPointerFindCandidates) {
+  auto try_find = [](const void* candidate, const void* needle) {
+    bool found = false;
+    CompressedPointer::VisitPossiblePointers(
+        needle, [candidate, &found](const void* address) {
+          if (candidate == address) {
+            found = true;
+          }
+        });
+    return found;
+  };
+  auto compress_in_lower_halfword = [](const void* address) {
+    return reinterpret_cast<void*>(
+        static_cast<uintptr_t>(CompressedPointer::Compress(address)));
+  };
+  auto compress_in_upper_halfword = [](const void* address) {
+    return reinterpret_cast<void*>(
+        static_cast<uintptr_t>(CompressedPointer::Compress(address))
+        << (sizeof(CompressedPointer::IntegralType) * CHAR_BIT));
+  };
+  auto decompress_partially = [](const void* address) {
+    return reinterpret_cast<void*>(
+        static_cast<uintptr_t>(CompressedPointer::Compress(address))
+        << api_constants::kPointerCompressionShift);
+  };
+
+  const uintptr_t base = CagedHeapBase::GetBase();
+
+  // There's at least one page that is not used in the beginning of the cage.
+  static constexpr auto kAssumedCageRedZone = kPageSize;
+  const auto begin_needle = reinterpret_cast<void*>(base + kAssumedCageRedZone);
+  EXPECT_TRUE(try_find(begin_needle, begin_needle));
+  EXPECT_TRUE(try_find(begin_needle, compress_in_lower_halfword(begin_needle)));
+  EXPECT_TRUE(try_find(begin_needle, compress_in_upper_halfword(begin_needle)));
+  EXPECT_TRUE(try_find(begin_needle, decompress_partially(begin_needle)));
+
+  static constexpr auto kReservationSize =
+      api_constants::kCagedHeapMaxReservationSize;
+  static_assert(kReservationSize % kAllocationGranularity == 0);
+  const auto end_needle =
+      reinterpret_cast<void*>(base + kReservationSize - kAllocationGranularity);
+  EXPECT_TRUE(try_find(end_needle, end_needle));
+  EXPECT_TRUE(try_find(end_needle, compress_in_lower_halfword(end_needle)));
+  EXPECT_TRUE(try_find(end_needle, compress_in_upper_halfword(end_needle)));
+  EXPECT_TRUE(try_find(end_needle, decompress_partially(end_needle)));
+
+  static constexpr auto kMidOffset = kReservationSize / 2;
+  static_assert(kMidOffset % kAllocationGranularity == 0);
+  const auto mid_needle = reinterpret_cast<void*>(base + kMidOffset);
+  EXPECT_TRUE(try_find(mid_needle, mid_needle));
+  EXPECT_TRUE(try_find(mid_needle, compress_in_lower_halfword(mid_needle)));
+  EXPECT_TRUE(try_find(mid_needle, compress_in_upper_halfword(mid_needle)));
+  EXPECT_TRUE(try_find(mid_needle, decompress_partially(mid_needle)));
+}
+
+#endif  // defined(CPPGC_CAGED_HEAP)
+
+// Define two distinct tag types for TaggedUncompressedMember
+struct TestTag1 {};
+struct TestTag2 {};
+
+TEST_F(MemberTest, TaggedUncompressedMemberSetAsAndStateChange) {
+  auto* obj1 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  auto* obj2 = MakeGarbageCollected<GCed>(GetAllocationHandle());
+  subtle::TaggedUncompressedMember<GCed, TestTag1, TestTag2> member(TestTag1{},
+                                                                    obj1);
+
+  // Change pointer, keep TestTag1.
+  member.SetAs<TestTag1>(obj2);
+  EXPECT_TRUE(member.Is<TestTag1>());
+  EXPECT_EQ(obj2, member.GetUntagged());
+  EXPECT_EQ(obj2, member.GetAs<TestTag1>());
+
+  // Change to TestTag2 with obj1.
+  member.SetAs<TestTag2>(obj1);
+  EXPECT_TRUE(member.Is<TestTag2>());
+  EXPECT_FALSE(member.Is<TestTag1>());
+  EXPECT_EQ(obj1, member.GetUntagged());
+  EXPECT_EQ(obj1, member.GetAs<TestTag2>());
+
+  // Change back to TestTag1 with obj2.
+  member.SetAs<TestTag1>(obj2);
+  EXPECT_TRUE(member.Is<TestTag1>());
+  EXPECT_EQ(obj2, member.GetUntagged());
+}
+
+TEST_F(MemberTest, TaggedUncompressedMemberTryGetAs) {
+  auto* obj = MakeGarbageCollected<GCed>(GetAllocationHandle());
+
+  // Constructed with TestTag1.
+  subtle::TaggedUncompressedMember<GCed, TestTag1, TestTag2> member_t1(
+      TestTag1{}, obj);
+  EXPECT_EQ(obj, member_t1.TryGetAs<TestTag1>());
+  EXPECT_EQ(nullptr, member_t1.TryGetAs<TestTag2>());
+
+  // Constructed with TestTag2.
+  subtle::TaggedUncompressedMember<GCed, TestTag1, TestTag2> member_t2(
+      TestTag2{}, obj);
+  EXPECT_EQ(nullptr, member_t2.TryGetAs<TestTag1>());
+  EXPECT_EQ(obj, member_t2.TryGetAs<TestTag2>());
+
+  // Test with nullptr.
+  subtle::TaggedUncompressedMember<GCed, TestTag1, TestTag2> member_null(
+      TestTag1{}, nullptr);
+  EXPECT_EQ(nullptr, member_null.TryGetAs<TestTag1>());
+  EXPECT_EQ(nullptr, member_null.TryGetAs<TestTag2>());
+}
 
 }  // namespace internal
 }  // namespace cppgc

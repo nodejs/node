@@ -101,6 +101,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/nullability.h"
 #include "absl/base/port.h"
 #include "absl/meta/type_traits.h"
@@ -109,6 +110,10 @@
 #include "absl/strings/internal/stringify_sink.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
+
+#if defined(ABSL_HAVE_STD_STRING_VIEW) && !defined(ABSL_USES_STD_STRING_VIEW)
+#include <string_view>
+#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -208,7 +213,7 @@ struct Hex {
                               !std::is_pointer<Int>::value>::type* = nullptr)
       : Hex(spec, static_cast<uint64_t>(v)) {}
   template <typename Pointee>
-  explicit Hex(absl::Nullable<Pointee*> v, PadSpec spec = absl::kNoPad)
+  explicit Hex(Pointee* absl_nullable v, PadSpec spec = absl::kNoPad)
       : Hex(spec, reinterpret_cast<uintptr_t>(v)) {}
 
   template <typename S>
@@ -354,12 +359,18 @@ class AlphaNum {
           ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(&buf.data[0], buf.size) {}
 
-  AlphaNum(absl::Nullable<const char*> c_str  // NOLINT(runtime/explicit)
+  AlphaNum(const char* absl_nullable c_str  // NOLINT(runtime/explicit)
                ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(NullSafeStringView(c_str)) {}
   AlphaNum(absl::string_view pc  // NOLINT(runtime/explicit)
                ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(pc) {}
+
+#if defined(ABSL_HAVE_STD_STRING_VIEW) && !defined(ABSL_USES_STD_STRING_VIEW)
+  AlphaNum(std::string_view pc  // NOLINT(runtime/explicit)
+               ABSL_ATTRIBUTE_LIFETIME_BOUND)
+      : piece_(pc.data(), pc.size()) {}
+#endif  // !ABSL_USES_STD_STRING_VIEW
 
   template <typename T, typename = typename std::enable_if<
                             HasAbslStringify<T>::value>::type>
@@ -381,7 +392,7 @@ class AlphaNum {
   AlphaNum& operator=(const AlphaNum&) = delete;
 
   absl::string_view::size_type size() const { return piece_.size(); }
-  absl::Nullable<const char*> data() const { return piece_.data(); }
+  const char* absl_nullable data() const { return piece_.data(); }
   absl::string_view Piece() const { return piece_; }
 
   // Match unscoped enums.  Use integral promotion so that a `char`-backed
@@ -451,7 +462,7 @@ namespace strings_internal {
 
 // Do not call directly - this is not part of the public API.
 std::string CatPieces(std::initializer_list<absl::string_view> pieces);
-void AppendPieces(absl::Nonnull<std::string*> dest,
+void AppendPieces(std::string* absl_nonnull dest,
                   std::initializer_list<absl::string_view> pieces);
 
 template <typename Integer>
@@ -527,28 +538,28 @@ using EnableIfFastCase = T;
 
 }  // namespace strings_internal
 
-ABSL_MUST_USE_RESULT inline std::string StrCat() { return std::string(); }
+[[nodiscard]] inline std::string StrCat() { return std::string(); }
 
 template <typename T>
-ABSL_MUST_USE_RESULT inline std::string StrCat(
+[[nodiscard]] inline std::string StrCat(
     strings_internal::EnableIfFastCase<T> a) {
   return strings_internal::SingleArgStrCat(a);
 }
-ABSL_MUST_USE_RESULT inline std::string StrCat(const AlphaNum& a) {
+[[nodiscard]] inline std::string StrCat(const AlphaNum& a) {
   return std::string(a.data(), a.size());
 }
 
-ABSL_MUST_USE_RESULT std::string StrCat(const AlphaNum& a, const AlphaNum& b);
-ABSL_MUST_USE_RESULT std::string StrCat(const AlphaNum& a, const AlphaNum& b,
-                                        const AlphaNum& c);
-ABSL_MUST_USE_RESULT std::string StrCat(const AlphaNum& a, const AlphaNum& b,
-                                        const AlphaNum& c, const AlphaNum& d);
+[[nodiscard]] std::string StrCat(const AlphaNum& a, const AlphaNum& b);
+[[nodiscard]] std::string StrCat(const AlphaNum& a, const AlphaNum& b,
+                                 const AlphaNum& c);
+[[nodiscard]] std::string StrCat(const AlphaNum& a, const AlphaNum& b,
+                                 const AlphaNum& c, const AlphaNum& d);
 
 // Support 5 or more arguments
 template <typename... AV>
-ABSL_MUST_USE_RESULT inline std::string StrCat(
-    const AlphaNum& a, const AlphaNum& b, const AlphaNum& c, const AlphaNum& d,
-    const AlphaNum& e, const AV&... args) {
+[[nodiscard]] inline std::string StrCat(const AlphaNum& a, const AlphaNum& b,
+                                        const AlphaNum& c, const AlphaNum& d,
+                                        const AlphaNum& e, const AV&... args) {
   return strings_internal::CatPieces(
       {a.Piece(), b.Piece(), c.Piece(), d.Piece(), e.Piece(),
        static_cast<const AlphaNum&>(args).Piece()...});
@@ -581,18 +592,18 @@ ABSL_MUST_USE_RESULT inline std::string StrCat(
 //   absl::string_view p = s;
 //   StrAppend(&s, p);
 
-inline void StrAppend(absl::Nonnull<std::string*>) {}
-void StrAppend(absl::Nonnull<std::string*> dest, const AlphaNum& a);
-void StrAppend(absl::Nonnull<std::string*> dest, const AlphaNum& a,
+inline void StrAppend(std::string* absl_nonnull) {}
+void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a);
+void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
                const AlphaNum& b);
-void StrAppend(absl::Nonnull<std::string*> dest, const AlphaNum& a,
+void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
                const AlphaNum& b, const AlphaNum& c);
-void StrAppend(absl::Nonnull<std::string*> dest, const AlphaNum& a,
+void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
                const AlphaNum& b, const AlphaNum& c, const AlphaNum& d);
 
 // Support 5 or more arguments
 template <typename... AV>
-inline void StrAppend(absl::Nonnull<std::string*> dest, const AlphaNum& a,
+inline void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
                       const AlphaNum& b, const AlphaNum& c, const AlphaNum& d,
                       const AlphaNum& e, const AV&... args) {
   strings_internal::AppendPieces(

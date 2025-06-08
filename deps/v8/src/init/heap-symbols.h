@@ -160,7 +160,6 @@
 
 // Internalized strings to be allocated early on the read only heap
 #define IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
-  V(_, length_string, "length")                            \
   V(_, prototype_string, "prototype")                      \
   V(_, name_string, "name")                                \
   V(_, enumerable_string, "enumerable")                    \
@@ -168,10 +167,408 @@
   V(_, value_string, "value")                              \
   V(_, writable_string, "writable")
 
+// Generated with the following Python script:
+// ```
+// named_chars = {
+//     # Punctuation
+//     '!': 'exclamation_mark',
+//     '"': 'double_quotes',
+//     '#': 'hash',
+//     '$': 'dollar',
+//     '%': 'percent_sign',
+//     '&': 'ampersand',
+//     "'": 'single_quote',
+//     '(': 'open_parenthesis',
+//     ')': 'close_parenthesis',
+//     '*': 'asterisk',
+//     '+': 'plus',
+//     ',': 'comma',
+//     '-': 'minus',
+//     '.': 'dot',
+//     '/': 'slash',
+//     ':': 'colon',
+//     ';': 'semicolon',
+//     '<': 'less_than',
+//     '=': 'equals',
+//     '>': 'greater_than',
+//     '?': 'question_mark',
+//     '[': 'open_bracket',
+//     '\\': 'backslash',
+//     ']': 'close_bracket',
+//     '^': 'caret',
+//     '_': 'underscore',
+//     '`': 'backtick',
+//     '{': 'open_brace',
+//     '|': 'pipe',
+//     '}': 'close_brace',
+//     '~': 'tilde',
+//     '@': 'at_sign',
+//     ' ': 'space',
+//     # Numbers
+//     '0': 'zero',
+//     '1': 'one',
+//     '2': 'two',
+//     '3': 'three',
+//     '4': 'four',
+//     '5': 'five',
+//     '6': 'six',
+//     '7': 'seven',
+//     '8': 'eight',
+//     '9': 'nine',
+//     # Control Characters
+//     '\x00': 'ascii_nul',  # Null character
+//     '\x01': 'ascii_soh',  # Start of Heading
+//     '\x02': 'ascii_stx',  # Start of Text
+//     '\x03': 'ascii_etx',  # End of Text
+//     '\x04': 'ascii_eot',  # End of Transmission
+//     '\x05': 'ascii_enq',  # Enquiry
+//     '\x06': 'ascii_ack',  # Acknowledge
+//     '\x07': 'ascii_bel',  # Bell
+//     '\x08': 'ascii_bs',  # Backspace
+//     '\t': 'ascii_ht',  # Horizontal Tab
+//     '\n': 'ascii_lf',  # Line Feed
+//     '\x0b': 'ascii_vt',  # Vertical Tab
+//     '\x0c': 'ascii_ff',  # Form Feed
+//     '\r': 'ascii_cr',  # Carriage Return
+//     '\x0e': 'ascii_so',  # Shift Out
+//     '\x0f': 'ascii_si',  # Shift In
+//     '\x10': 'ascii_dle',  # Data Link Escape
+//     '\x11': 'ascii_dc1',  # Device Control 1
+//     '\x12': 'ascii_dc2',  # Device Control 2
+//     '\x13': 'ascii_dc3',  # Device Control 3
+//     '\x14': 'ascii_dc4',  # Device Control 4
+//     '\x15': 'ascii_nak',  # Negative Acknowledge
+//     '\x16': 'ascii_syn',  # Synchronous Idle
+//     '\x17': 'ascii_etb',  # End of Transmission Block
+//     '\x18': 'ascii_can',  # Cancel
+//     '\x19': 'ascii_em',  # End of Medium
+//     '\x1a': 'ascii_sub',  # Substitute
+//     '\x1b': 'ascii_esc',  # Escape
+//     '\x1c': 'ascii_fs',  # File Separator
+//     '\x1d': 'ascii_gs',  # Group Separator
+//     '\x1e': 'ascii_rs',  # Record Separator
+//     '\x1f': 'ascii_us',  # Unit Separator
+//     '\x7f': 'ascii_del',  # Delete
+// }
+//
+// def escape(c):
+//     if c == '\0':
+//         return "\\0"
+//     elif c == '\\':
+//         return "\\\\"
+//     elif c == '\n':
+//         return "\\n"
+//     elif c == '\t':
+//         return "\\t"
+//     elif c == '\r':
+//         return "\\r"
+//     elif c == '\v':
+//         return "\\v"
+//     elif c == '\b':
+//         return "\\b"
+//     elif c == '\f':
+//         return "\\f"
+//     elif c == '\a':
+//         return "\\a"
+//     elif c == '"':
+//         return '\\"'
+//     elif c == '\'':
+//         return "\\'"
+//     elif not c.isprintable():
+//         return f'\\x{ord(c):02x}'
+//     else:
+//         return c
+//
+// for i in range(128):
+//   c = chr(i)
+//   if c.isascii() and c.isalpha():
+//     name = c
+//   elif c in named_chars:
+//     name = named_chars[c]
+//   else:
+//     raise f"No name for 0x{i:02x}"
+//
+//   print(f"V_(_, {name}_string, \"{escape(c)}\") \\")
+// ```
+#define SINGLE_CHARACTER_ASCII_INTERNALIZED_STRING_LIST_GENERATOR(V_, _) \
+  V_(_, ascii_nul_string, "\0")                                          \
+  V_(_, ascii_soh_string, "\x01")                                        \
+  V_(_, ascii_stx_string, "\x02")                                        \
+  V_(_, ascii_etx_string, "\x03")                                        \
+  V_(_, ascii_eot_string, "\x04")                                        \
+  V_(_, ascii_enq_string, "\x05")                                        \
+  V_(_, ascii_ack_string, "\x06")                                        \
+  V_(_, ascii_bel_string, "\a")                                          \
+  V_(_, ascii_bs_string, "\b")                                           \
+  V_(_, ascii_ht_string, "\t")                                           \
+  V_(_, ascii_lf_string, "\n")                                           \
+  V_(_, ascii_vt_string, "\v")                                           \
+  V_(_, ascii_ff_string, "\f")                                           \
+  V_(_, ascii_cr_string, "\r")                                           \
+  V_(_, ascii_so_string, "\x0e")                                         \
+  V_(_, ascii_si_string, "\x0f")                                         \
+  V_(_, ascii_dle_string, "\x10")                                        \
+  V_(_, ascii_dc1_string, "\x11")                                        \
+  V_(_, ascii_dc2_string, "\x12")                                        \
+  V_(_, ascii_dc3_string, "\x13")                                        \
+  V_(_, ascii_dc4_string, "\x14")                                        \
+  V_(_, ascii_nak_string, "\x15")                                        \
+  V_(_, ascii_syn_string, "\x16")                                        \
+  V_(_, ascii_etb_string, "\x17")                                        \
+  V_(_, ascii_can_string, "\x18")                                        \
+  V_(_, ascii_em_string, "\x19")                                         \
+  V_(_, ascii_sub_string, "\x1a")                                        \
+  V_(_, ascii_esc_string, "\x1b")                                        \
+  V_(_, ascii_fs_string, "\x1c")                                         \
+  V_(_, ascii_gs_string, "\x1d")                                         \
+  V_(_, ascii_rs_string, "\x1e")                                         \
+  V_(_, ascii_us_string, "\x1f")                                         \
+  V_(_, space_string, " ")                                               \
+  V_(_, exclamation_mark_string, "!")                                    \
+  V_(_, double_quotes_string, "\"")                                      \
+  V_(_, hash_string, "#")                                                \
+  V_(_, dollar_string, "$")                                              \
+  V_(_, percent_sign_string, "%")                                        \
+  V_(_, ampersand_string, "&")                                           \
+  V_(_, single_quote_string, "\'")                                       \
+  V_(_, open_parenthesis_string, "(")                                    \
+  V_(_, close_parenthesis_string, ")")                                   \
+  V_(_, asterisk_string, "*")                                            \
+  V_(_, plus_string, "+")                                                \
+  V_(_, comma_string, ",")                                               \
+  V_(_, minus_string, "-")                                               \
+  V_(_, dot_string, ".")                                                 \
+  V_(_, slash_string, "/")                                               \
+  V_(_, zero_string, "0")                                                \
+  V_(_, one_string, "1")                                                 \
+  V_(_, two_string, "2")                                                 \
+  V_(_, three_string, "3")                                               \
+  V_(_, four_string, "4")                                                \
+  V_(_, five_string, "5")                                                \
+  V_(_, six_string, "6")                                                 \
+  V_(_, seven_string, "7")                                               \
+  V_(_, eight_string, "8")                                               \
+  V_(_, nine_string, "9")                                                \
+  V_(_, colon_string, ":")                                               \
+  V_(_, semicolon_string, ";")                                           \
+  V_(_, less_than_string, "<")                                           \
+  V_(_, equals_string, "=")                                              \
+  V_(_, greater_than_string, ">")                                        \
+  V_(_, question_mark_string, "?")                                       \
+  V_(_, at_sign_string, "@")                                             \
+  V_(_, A_string, "A")                                                   \
+  V_(_, B_string, "B")                                                   \
+  V_(_, C_string, "C")                                                   \
+  V_(_, D_string, "D")                                                   \
+  V_(_, E_string, "E")                                                   \
+  V_(_, F_string, "F")                                                   \
+  V_(_, G_string, "G")                                                   \
+  V_(_, H_string, "H")                                                   \
+  V_(_, I_string, "I")                                                   \
+  V_(_, J_string, "J")                                                   \
+  V_(_, K_string, "K")                                                   \
+  V_(_, L_string, "L")                                                   \
+  V_(_, M_string, "M")                                                   \
+  V_(_, N_string, "N")                                                   \
+  V_(_, O_string, "O")                                                   \
+  V_(_, P_string, "P")                                                   \
+  V_(_, Q_string, "Q")                                                   \
+  V_(_, R_string, "R")                                                   \
+  V_(_, S_string, "S")                                                   \
+  V_(_, T_string, "T")                                                   \
+  V_(_, U_string, "U")                                                   \
+  V_(_, V_string, "V")                                                   \
+  V_(_, W_string, "W")                                                   \
+  V_(_, X_string, "X")                                                   \
+  V_(_, Y_string, "Y")                                                   \
+  V_(_, Z_string, "Z")                                                   \
+  V_(_, open_bracket_string, "[")                                        \
+  V_(_, backslash_string, "\\")                                          \
+  V_(_, close_bracket_string, "]")                                       \
+  V_(_, caret_string, "^")                                               \
+  V_(_, underscore_string, "_")                                          \
+  V_(_, backtick_string, "`")                                            \
+  V_(_, a_string, "a")                                                   \
+  V_(_, b_string, "b")                                                   \
+  V_(_, c_string, "c")                                                   \
+  V_(_, d_string, "d")                                                   \
+  V_(_, e_string, "e")                                                   \
+  V_(_, f_string, "f")                                                   \
+  V_(_, g_string, "g")                                                   \
+  V_(_, h_string, "h")                                                   \
+  V_(_, i_string, "i")                                                   \
+  V_(_, j_string, "j")                                                   \
+  V_(_, k_string, "k")                                                   \
+  V_(_, l_string, "l")                                                   \
+  V_(_, m_string, "m")                                                   \
+  V_(_, n_string, "n")                                                   \
+  V_(_, o_string, "o")                                                   \
+  V_(_, p_string, "p")                                                   \
+  V_(_, q_string, "q")                                                   \
+  V_(_, r_string, "r")                                                   \
+  V_(_, s_string, "s")                                                   \
+  V_(_, t_string, "t")                                                   \
+  V_(_, u_string, "u")                                                   \
+  V_(_, v_string, "v")                                                   \
+  V_(_, w_string, "w")                                                   \
+  V_(_, x_string, "x")                                                   \
+  V_(_, y_string, "y")                                                   \
+  V_(_, z_string, "z")                                                   \
+  V_(_, open_brace_string, "{")                                          \
+  V_(_, pipe_string, "|")                                                \
+  V_(_, close_brace_string, "}")                                         \
+  V_(_, tilde_string, "~")                                               \
+  V_(_, ascii_del_string, "\x7f")
+
+// Generated with the following Python script:
+// ```
+// def escape(c):
+//     # Values outside of the ASCII range have to be embedded with
+//     # raw \x encoding, so that we embed them as single latin1 bytes
+//     # rather than two utf8 bytes.
+//     return f'\\x{ord(c):02x}'
+//
+// for i in range(128,256):
+//   name = f'latin1_{i:02x}'
+//   print(f"V_(_, {name}_string, \"{escape(c)}\") \\")
+// ```
+#define SINGLE_CHARACTER_INTERNALIZED_STRING_LIST_GENERATOR(V_, _) \
+  SINGLE_CHARACTER_ASCII_INTERNALIZED_STRING_LIST_GENERATOR(V_, _) \
+  V_(_, latin1_80_string, "\x80")                                  \
+  V_(_, latin1_81_string, "\x81")                                  \
+  V_(_, latin1_82_string, "\x82")                                  \
+  V_(_, latin1_83_string, "\x83")                                  \
+  V_(_, latin1_84_string, "\x84")                                  \
+  V_(_, latin1_85_string, "\x85")                                  \
+  V_(_, latin1_86_string, "\x86")                                  \
+  V_(_, latin1_87_string, "\x87")                                  \
+  V_(_, latin1_88_string, "\x88")                                  \
+  V_(_, latin1_89_string, "\x89")                                  \
+  V_(_, latin1_8a_string, "\x8a")                                  \
+  V_(_, latin1_8b_string, "\x8b")                                  \
+  V_(_, latin1_8c_string, "\x8c")                                  \
+  V_(_, latin1_8d_string, "\x8d")                                  \
+  V_(_, latin1_8e_string, "\x8e")                                  \
+  V_(_, latin1_8f_string, "\x8f")                                  \
+  V_(_, latin1_90_string, "\x90")                                  \
+  V_(_, latin1_91_string, "\x91")                                  \
+  V_(_, latin1_92_string, "\x92")                                  \
+  V_(_, latin1_93_string, "\x93")                                  \
+  V_(_, latin1_94_string, "\x94")                                  \
+  V_(_, latin1_95_string, "\x95")                                  \
+  V_(_, latin1_96_string, "\x96")                                  \
+  V_(_, latin1_97_string, "\x97")                                  \
+  V_(_, latin1_98_string, "\x98")                                  \
+  V_(_, latin1_99_string, "\x99")                                  \
+  V_(_, latin1_9a_string, "\x9a")                                  \
+  V_(_, latin1_9b_string, "\x9b")                                  \
+  V_(_, latin1_9c_string, "\x9c")                                  \
+  V_(_, latin1_9d_string, "\x9d")                                  \
+  V_(_, latin1_9e_string, "\x9e")                                  \
+  V_(_, latin1_9f_string, "\x9f")                                  \
+  V_(_, latin1_a0_string, "\xa0")                                  \
+  V_(_, latin1_a1_string, "\xa1")                                  \
+  V_(_, latin1_a2_string, "\xa2")                                  \
+  V_(_, latin1_a3_string, "\xa3")                                  \
+  V_(_, latin1_a4_string, "\xa4")                                  \
+  V_(_, latin1_a5_string, "\xa5")                                  \
+  V_(_, latin1_a6_string, "\xa6")                                  \
+  V_(_, latin1_a7_string, "\xa7")                                  \
+  V_(_, latin1_a8_string, "\xa8")                                  \
+  V_(_, latin1_a9_string, "\xa9")                                  \
+  V_(_, latin1_aa_string, "\xaa")                                  \
+  V_(_, latin1_ab_string, "\xab")                                  \
+  V_(_, latin1_ac_string, "\xac")                                  \
+  V_(_, latin1_ad_string, "\xad")                                  \
+  V_(_, latin1_ae_string, "\xae")                                  \
+  V_(_, latin1_af_string, "\xaf")                                  \
+  V_(_, latin1_b0_string, "\xb0")                                  \
+  V_(_, latin1_b1_string, "\xb1")                                  \
+  V_(_, latin1_b2_string, "\xb2")                                  \
+  V_(_, latin1_b3_string, "\xb3")                                  \
+  V_(_, latin1_b4_string, "\xb4")                                  \
+  V_(_, latin1_b5_string, "\xb5")                                  \
+  V_(_, latin1_b6_string, "\xb6")                                  \
+  V_(_, latin1_b7_string, "\xb7")                                  \
+  V_(_, latin1_b8_string, "\xb8")                                  \
+  V_(_, latin1_b9_string, "\xb9")                                  \
+  V_(_, latin1_ba_string, "\xba")                                  \
+  V_(_, latin1_bb_string, "\xbb")                                  \
+  V_(_, latin1_bc_string, "\xbc")                                  \
+  V_(_, latin1_bd_string, "\xbd")                                  \
+  V_(_, latin1_be_string, "\xbe")                                  \
+  V_(_, latin1_bf_string, "\xbf")                                  \
+  V_(_, latin1_c0_string, "\xc0")                                  \
+  V_(_, latin1_c1_string, "\xc1")                                  \
+  V_(_, latin1_c2_string, "\xc2")                                  \
+  V_(_, latin1_c3_string, "\xc3")                                  \
+  V_(_, latin1_c4_string, "\xc4")                                  \
+  V_(_, latin1_c5_string, "\xc5")                                  \
+  V_(_, latin1_c6_string, "\xc6")                                  \
+  V_(_, latin1_c7_string, "\xc7")                                  \
+  V_(_, latin1_c8_string, "\xc8")                                  \
+  V_(_, latin1_c9_string, "\xc9")                                  \
+  V_(_, latin1_ca_string, "\xca")                                  \
+  V_(_, latin1_cb_string, "\xcb")                                  \
+  V_(_, latin1_cc_string, "\xcc")                                  \
+  V_(_, latin1_cd_string, "\xcd")                                  \
+  V_(_, latin1_ce_string, "\xce")                                  \
+  V_(_, latin1_cf_string, "\xcf")                                  \
+  V_(_, latin1_d0_string, "\xd0")                                  \
+  V_(_, latin1_d1_string, "\xd1")                                  \
+  V_(_, latin1_d2_string, "\xd2")                                  \
+  V_(_, latin1_d3_string, "\xd3")                                  \
+  V_(_, latin1_d4_string, "\xd4")                                  \
+  V_(_, latin1_d5_string, "\xd5")                                  \
+  V_(_, latin1_d6_string, "\xd6")                                  \
+  V_(_, latin1_d7_string, "\xd7")                                  \
+  V_(_, latin1_d8_string, "\xd8")                                  \
+  V_(_, latin1_d9_string, "\xd9")                                  \
+  V_(_, latin1_da_string, "\xda")                                  \
+  V_(_, latin1_db_string, "\xdb")                                  \
+  V_(_, latin1_dc_string, "\xdc")                                  \
+  V_(_, latin1_dd_string, "\xdd")                                  \
+  V_(_, latin1_de_string, "\xde")                                  \
+  V_(_, latin1_df_string, "\xdf")                                  \
+  V_(_, latin1_e0_string, "\xe0")                                  \
+  V_(_, latin1_e1_string, "\xe1")                                  \
+  V_(_, latin1_e2_string, "\xe2")                                  \
+  V_(_, latin1_e3_string, "\xe3")                                  \
+  V_(_, latin1_e4_string, "\xe4")                                  \
+  V_(_, latin1_e5_string, "\xe5")                                  \
+  V_(_, latin1_e6_string, "\xe6")                                  \
+  V_(_, latin1_e7_string, "\xe7")                                  \
+  V_(_, latin1_e8_string, "\xe8")                                  \
+  V_(_, latin1_e9_string, "\xe9")                                  \
+  V_(_, latin1_ea_string, "\xea")                                  \
+  V_(_, latin1_eb_string, "\xeb")                                  \
+  V_(_, latin1_ec_string, "\xec")                                  \
+  V_(_, latin1_ed_string, "\xed")                                  \
+  V_(_, latin1_ee_string, "\xee")                                  \
+  V_(_, latin1_ef_string, "\xef")                                  \
+  V_(_, latin1_f0_string, "\xf0")                                  \
+  V_(_, latin1_f1_string, "\xf1")                                  \
+  V_(_, latin1_f2_string, "\xf2")                                  \
+  V_(_, latin1_f3_string, "\xf3")                                  \
+  V_(_, latin1_f4_string, "\xf4")                                  \
+  V_(_, latin1_f5_string, "\xf5")                                  \
+  V_(_, latin1_f6_string, "\xf6")                                  \
+  V_(_, latin1_f7_string, "\xf7")                                  \
+  V_(_, latin1_f8_string, "\xf8")                                  \
+  V_(_, latin1_f9_string, "\xf9")                                  \
+  V_(_, latin1_fa_string, "\xfa")                                  \
+  V_(_, latin1_fb_string, "\xfb")                                  \
+  V_(_, latin1_fc_string, "\xfc")                                  \
+  V_(_, latin1_fd_string, "\xfd")                                  \
+  V_(_, latin1_fe_string, "\xfe")                                  \
+  V_(_, latin1_ff_string, "\xff")
+
 #define NOT_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _)                \
   INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)                               \
+  SINGLE_CHARACTER_INTERNALIZED_STRING_LIST_GENERATOR(V, _)                   \
   V(_, add_string, "add")                                                     \
   V(_, AggregateError_string, "AggregateError")                               \
+  V(_, alphabet_string, "alphabet")                                           \
   V(_, always_string, "always")                                               \
   V(_, anonymous_string, "anonymous")                                         \
   V(_, apply_string, "apply")                                                 \
@@ -244,7 +641,6 @@
   V(_, dot_result_string, ".result")                                          \
   V(_, dot_repl_result_string, ".repl_result")                                \
   V(_, dot_static_home_object_string, ".static_home_object")                  \
-  V(_, dot_string, ".")                                                       \
   V(_, dot_switch_tag_string, ".switch_tag")                                  \
   V(_, dotAll_string, "dotAll")                                               \
   V(_, Error_string, "Error")                                                 \
@@ -321,6 +717,7 @@
   V(_, jsMemoryRange_string, "jsMemoryRange")                                 \
   V(_, keys_string, "keys")                                                   \
   V(_, largestUnit_string, "largestUnit")                                     \
+  V(_, last_chunk_handling_string, "lastChunkHandling")                       \
   V(_, lastIndex_string, "lastIndex")                                         \
   V(_, let_string, "let")                                                     \
   V(_, line_string, "line")                                                   \
@@ -371,7 +768,6 @@
   V(_, offset_string, "offset")                                               \
   V(_, offsetNanoseconds_string, "offsetNanoseconds")                         \
   V(_, ok_string, "ok")                                                       \
-  V(_, one_string, "1")                                                       \
   V(_, other_string, "other")                                                 \
   V(_, overflow_string, "overflow")                                           \
   V(_, ownKeys_string, "ownKeys")                                             \
@@ -390,6 +786,7 @@
   V(_, RangeError_string, "RangeError")                                       \
   V(_, raw_json_string, "rawJSON")                                            \
   V(_, raw_string, "raw")                                                     \
+  V(_, read_string, "read")                                                   \
   V(_, ReferenceError_string, "ReferenceError")                               \
   V(_, ReflectGet_string, "Reflect.get")                                      \
   V(_, ReflectHas_string, "Reflect.has")                                      \
@@ -434,6 +831,7 @@
   V(_, string_to_string, "[object String]")                                   \
   V(_, suppressed_string, "suppressed")                                       \
   V(_, SuppressedError_string, "SuppressedError")                             \
+  V(_, SuspendError_string, "SuspendError")                                   \
   V(_, Symbol_iterator_string, "Symbol.iterator")                             \
   V(_, Symbol_match_all_string, "Symbol.matchAll")                            \
   V(_, Symbol_replace_string, "Symbol.replace")                               \
@@ -453,6 +851,7 @@
   V(_, toString_string, "toString")                                           \
   V(_, true_string, "true")                                                   \
   V(_, total_string, "total")                                                 \
+  V(_, TypedArrayLength_string, "get TypedArray.prototype.length")            \
   V(_, TypeError_string, "TypeError")                                         \
   V(_, Uint16Array_string, "Uint16Array")                                     \
   V(_, Uint32Array_string, "Uint32Array")                                     \
@@ -473,10 +872,10 @@
   V(_, weekOfYear_string, "weekOfYear")                                       \
   V(_, with_string, "with")                                                   \
   V(_, word_string, "word")                                                   \
+  V(_, written_string, "written")                                             \
   V(_, yearMonthFromFields_string, "yearMonthFromFields")                     \
   V(_, year_string, "year")                                                   \
-  V(_, years_string, "years")                                                 \
-  V(_, zero_string, "0")
+  V(_, years_string, "years")
 
 #define INTERNALIZED_STRING_LIST_GENERATOR(V, _)           \
   EXTRA_IMPORTANT_INTERNALIZED_STRING_LIST_GENERATOR(V, _) \
@@ -518,10 +917,10 @@
   V(_, strict_function_transition_symbol)                 \
   V(_, template_literal_function_literal_id_symbol)       \
   V(_, template_literal_slot_id_symbol)                   \
+  V(_, wasm_cross_instance_call_symbol)                   \
   V(_, wasm_exception_tag_symbol)                         \
   V(_, wasm_exception_values_symbol)                      \
   V(_, wasm_uncatchable_symbol)                           \
-  V(_, wasm_wrapped_object_symbol)                        \
   V(_, wasm_debug_proxy_cache_symbol)                     \
   V(_, wasm_debug_proxy_names_symbol)
 
@@ -550,6 +949,7 @@
 // These Names have to be allocated consecutively for fast checks,
 #define INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, constructor_string, "constructor")                      \
+  V(_, length_string, "length")                                \
   V(_, next_string, "next")                                    \
   V(_, resolve_string, "resolve")                              \
   V(_, then_string, "then")                                    \
@@ -577,7 +977,6 @@
   F(MC_INCREMENTAL_EMBEDDER_TRACING)                               \
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
   F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)                              \
-  F(MC_INCREMENTAL_FINALIZE)                                       \
   F(MC_INCREMENTAL_LAYOUT_CHANGE)                                  \
   F(MC_INCREMENTAL_START)                                          \
   F(MC_INCREMENTAL_SWEEPING)
@@ -627,21 +1026,26 @@
   F(MINOR_MS_FINISH_SWEEP_ARRAY_BUFFERS)    \
   F(MINOR_MS_FINISH_ENSURE_CAPACITY)
 
-#define SCAVENGER_MAIN_THREAD_SCOPES(F)              \
-  F(SCAVENGER)                                       \
-  F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
-  F(SCAVENGER_FREE_REMEMBERED_SET)                   \
-  F(SCAVENGER_SCAVENGE)                              \
-  F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY) \
-  F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)  \
-  F(SCAVENGER_SCAVENGE_PARALLEL)                     \
-  F(SCAVENGER_SCAVENGE_PARALLEL_PHASE)               \
-  F(SCAVENGER_SCAVENGE_ROOTS)                        \
-  F(SCAVENGER_SCAVENGE_STACK_ROOTS)                  \
-  F(SCAVENGER_SCAVENGE_UPDATE_REFS)                  \
-  F(SCAVENGER_SCAVENGE_WEAK)                         \
-  F(SCAVENGER_SCAVENGE_FINALIZE)                     \
-  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)
+#define SCAVENGER_MAIN_THREAD_SCOPES(F)                 \
+  F(SCAVENGER)                                          \
+  F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)             \
+  F(SCAVENGER_FREE_REMEMBERED_SET)                      \
+  F(SCAVENGER_RESIZE_NEW_SPACE)                         \
+  F(SCAVENGER_SCAVENGE)                                 \
+  F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY)    \
+  F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)     \
+  F(SCAVENGER_SCAVENGE_PARALLEL)                        \
+  F(SCAVENGER_SCAVENGE_PARALLEL_PHASE)                  \
+  F(SCAVENGER_SCAVENGE_PIN_OBJECTS)                     \
+  F(SCAVENGER_SCAVENGE_ROOTS)                           \
+  F(SCAVENGER_SCAVENGE_STACK_ROOTS)                     \
+  F(SCAVENGER_SCAVENGE_UPDATE_REFS)                     \
+  F(SCAVENGER_SCAVENGE_WEAK)                            \
+  F(SCAVENGER_SCAVENGE_FINALIZE)                        \
+  F(SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED)   \
+  F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                      \
+  F(SCAVENGER_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL) \
+  F(SCAVENGER_TRACED_HANDLES_RESET_PARALLEL)
 
 #define MC_MAIN_THREAD_SCOPES(F)                 \
   F(MARK_COMPACTOR)                              \
@@ -675,6 +1079,7 @@
   F(MC_EVACUATE_COPY)                            \
   F(MC_EVACUATE_COPY_PARALLEL)                   \
   F(MC_EVACUATE_EPILOGUE)                        \
+  F(MC_EVACUATE_PIN_PAGES)                       \
   F(MC_EVACUATE_PROLOGUE)                        \
   F(MC_EVACUATE_REBALANCE)                       \
   F(MC_EVACUATE_UPDATE_POINTERS)                 \
@@ -717,7 +1122,6 @@
   MINOR_MS_INCREMENTAL_SCOPES(F)         \
   F(HEAP_EMBEDDER_TRACING_EPILOGUE)      \
   F(HEAP_EPILOGUE)                       \
-  F(HEAP_EPILOGUE_REDUCE_NEW_SPACE)      \
   F(HEAP_EPILOGUE_SAFEPOINT)             \
   F(HEAP_EXTERNAL_EPILOGUE)              \
   F(HEAP_EXTERNAL_NEAR_HEAP_LIMIT)       \
@@ -737,32 +1141,38 @@
   F(FULL_ARRAY_BUFFER_SWEEP)             \
   F(CONSERVATIVE_STACK_SCANNING)
 
-#define TRACER_BACKGROUND_SCOPES(F)         \
-  /* FIRST_BACKGROUND_SCOPE = */            \
-  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
-  F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)     \
-  F(BACKGROUND_COLLECTION)                  \
-  F(BACKGROUND_UNPARK)                      \
-  F(BACKGROUND_SAFEPOINT)                   \
-  F(MC_BACKGROUND_EVACUATE_COPY)            \
-  F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS) \
-  F(MC_BACKGROUND_MARKING)                  \
-  F(MC_BACKGROUND_SWEEPING)                 \
-  F(MINOR_MS_BACKGROUND_MARKING)            \
-  F(MINOR_MS_BACKGROUND_SWEEPING)           \
-  F(MINOR_MS_BACKGROUND_MARKING_CLOSURE)    \
-  /* LAST_BACKGROUND_SCOPE = */             \
-  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
+#define TRACER_BACKGROUND_SCOPES(F)                     \
+  /* FIRST_BACKGROUND_SCOPE = */                        \
+  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)                \
+  F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)                 \
+  F(BACKGROUND_COLLECTION)                              \
+  F(BACKGROUND_UNPARK)                                  \
+  F(BACKGROUND_SAFEPOINT)                               \
+  F(MC_BACKGROUND_EVACUATE_COPY)                        \
+  F(MC_BACKGROUND_EVACUATE_UPDATE_POINTERS)             \
+  F(MC_BACKGROUND_MARKING)                              \
+  F(MC_BACKGROUND_SWEEPING)                             \
+  F(MINOR_MS_BACKGROUND_MARKING)                        \
+  F(MINOR_MS_BACKGROUND_SWEEPING)                       \
+  F(MINOR_MS_BACKGROUND_MARKING_CLOSURE)                \
+  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)             \
+  F(SCAVENGER_BACKGROUND_QUARANTINED_PAGE_SWEEPING)     \
+  F(SCAVENGER_BACKGROUND_TRACED_HANDLES_RESET_PARALLEL) \
+  /* LAST_BACKGROUND_SCOPE = */                         \
+  F(SCAVENGER_BACKGROUND_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL)
 
-#define TRACER_YOUNG_EPOCH_SCOPES(F)     \
-  F(YOUNG_ARRAY_BUFFER_SWEEP)            \
-  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP) \
-  MINOR_MS_INCREMENTAL_SCOPES(F)         \
-  MINOR_MS_MAIN_THREAD_SCOPES(F)         \
-  F(MINOR_MS_BACKGROUND_MARKING)         \
-  F(MINOR_MS_BACKGROUND_SWEEPING)        \
-  F(MINOR_MS_BACKGROUND_MARKING_CLOSURE) \
-  SCAVENGER_MAIN_THREAD_SCOPES(F)        \
-  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)
+#define TRACER_YOUNG_EPOCH_SCOPES(F)                    \
+  F(YOUNG_ARRAY_BUFFER_SWEEP)                           \
+  F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)                \
+  MINOR_MS_INCREMENTAL_SCOPES(F)                        \
+  MINOR_MS_MAIN_THREAD_SCOPES(F)                        \
+  F(MINOR_MS_BACKGROUND_MARKING)                        \
+  F(MINOR_MS_BACKGROUND_SWEEPING)                       \
+  F(MINOR_MS_BACKGROUND_MARKING_CLOSURE)                \
+  SCAVENGER_MAIN_THREAD_SCOPES(F)                       \
+  F(SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL)             \
+  F(SCAVENGER_BACKGROUND_QUARANTINED_PAGE_SWEEPING)     \
+  F(SCAVENGER_BACKGROUND_TRACED_HANDLES_RESET_PARALLEL) \
+  F(SCAVENGER_BACKGROUND_TRACED_HANDLES_COMPUTE_WEAKNESS_PARALLEL)
 
 #endif  // V8_INIT_HEAP_SYMBOLS_H_

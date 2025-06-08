@@ -5,8 +5,7 @@
 #include 'src/wasm/wasm-linkage.h'
 
 namespace runtime {
-extern runtime WasmGenericJSToWasmObject(
-    Context, WasmTrustedInstanceData|Undefined, JSAny, Smi): JSAny;
+extern runtime WasmGenericJSToWasmObject(Context, JSAny, Smi): JSAny;
 extern runtime WasmGenericWasmToJSObject(Context, Object): JSAny;
 extern runtime TierUpJSToWasmWrapper(NoContext, WasmExportedFunctionData):
     JSAny;
@@ -17,6 +16,8 @@ namespace wasm {
 extern builtin JSToWasmWrapperAsm(
     RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
 extern builtin WasmReturnPromiseOnSuspendAsm(
+    RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
+extern builtin JSToWasmStressSwitchStacksAsm(
     RawPtr<intptr>, WasmImportData|WasmTrustedInstanceData, JSAny): JSAny;
 
 extern macro UniqueIntPtrConstant(constexpr intptr): intptr;
@@ -51,13 +52,13 @@ const kNumFPRegisterReturns:
     constexpr intptr generates 'arraysize(wasm::kFpReturnRegisters)';
 
 const kWasmI32Type:
-    constexpr int32 generates 'wasm::kWasmI32.raw_bit_field()';
+    constexpr uint32 generates 'wasm::kWasmI32.raw_bit_field()';
 const kWasmI64Type:
-    constexpr int32 generates 'wasm::kWasmI64.raw_bit_field()';
+    constexpr uint32 generates 'wasm::kWasmI64.raw_bit_field()';
 const kWasmF32Type:
-    constexpr int32 generates 'wasm::kWasmF32.raw_bit_field()';
+    constexpr uint32 generates 'wasm::kWasmF32.raw_bit_field()';
 const kWasmF64Type:
-    constexpr int32 generates 'wasm::kWasmF64.raw_bit_field()';
+    constexpr uint32 generates 'wasm::kWasmF64.raw_bit_field()';
 
 const kIsFpAlwaysDouble:
     constexpr bool generates 'wasm::kIsFpAlwaysDouble';
@@ -65,34 +66,32 @@ const kIsBigEndian: constexpr bool generates 'wasm::kIsBigEndian';
 const kIsBigEndianOnSim:
     constexpr bool generates 'wasm::kIsBigEndianOnSim';
 
-extern enum ValueKind extends int32 constexpr 'wasm::ValueKind' {
-  kRef,
-  kRefNull,
-  ...
-}
-
 extern enum Promise extends int32 constexpr 'wasm::Promise' {
   kPromise,
-  kNoPromise
+  kNoPromise,
+  kStressSwitch
 }
 
-extern enum HeapType extends int32
-    constexpr 'wasm::HeapType::Representation' {
+extern enum StandardType constexpr 'wasm::StandardType' {
   kExtern,
   kNoExtern,
   kString,
   kEq,
   kI31,
-  kStruct,
-  kArray,
   kAny,
-  kNone,
-  kFunc,
-  kNoFunc,
-  kExn,
-  kNoExn,
   ...
 }
+
+extern enum RefTypeKind extends uint32 constexpr 'wasm::RefTypeKind' {
+  kStruct,
+  kArray,
+  kFunction,
+  ...
+}
+
+// Needed to support `enum class`es.
+extern macro WasmBuiltinsAssembler::ToUint(constexpr StandardType): uint32;
+extern macro WasmBuiltinsAssembler::ToUint(constexpr RefTypeKind): uint32;
 
 const kWrapperBufferReturnCount: constexpr intptr
     generates 'JSToWasmWrapperFrameConstants::kWrapperBufferReturnCount';
@@ -127,13 +126,27 @@ const kWrapperBufferGPReturnRegister2: constexpr intptr
     ;
 const kWrapperBufferSize: constexpr int32
     generates 'JSToWasmWrapperFrameConstants::kWrapperBufferSize';
+const kMaxParamBufferSize: constexpr intptr
+    generates 'wasm::kGenericJSToWasmWrapperParamBufferMaxSize';
 
-const kValueTypeKindBits: constexpr int32
-    generates 'wasm::ValueType::kKindBits';
-const kValueTypeKindBitsMask: constexpr int32
-    generates 'wasm::kWasmValueKindBitsMask';
-const kValueTypeHeapTypeMask: constexpr int32
-    generates 'wasm::kWasmHeapTypeBitsMask';
+const kValueTypeIsRefBit:
+    constexpr uint32 generates 'wasm::ValueType::kIsRefBit';
+const kValueTypeHasIndexBit:
+    constexpr uint32 generates 'wasm::ValueType::kHasIndexBit';
+const kValueTypeIsNullableBit:
+    constexpr uint32 generates 'wasm::ValueType::kIsNullableBit';
+const kValueTypeIsSharedBit:
+    constexpr uint32 generates 'wasm::ValueType::kIsSharedBit';
+
+const kValueTypeRefKindBits:
+    constexpr uint32 generates 'wasm::ValueType::kRefKindBits';
+const kValueTypeRefKindShift:
+    constexpr uint32 generates 'wasm::ValueType::kRefKindShift';
+
+const kValueTypeIndexBits:
+    constexpr uint32 generates 'wasm::ValueType::kIndexBits';
+const kValueTypeIndexShift:
+    constexpr uint32 generates 'wasm::ValueType::kIndexShift';
 
 macro Bitcast<To: type, From: type>(i: From): To {
   return i;
@@ -179,7 +192,11 @@ struct Int64AsInt32Pair {
 // This is only safe to use on 32-bit platforms.
 extern macro BigIntToRawBytes(BigInt): Int64AsInt32Pair;
 
-extern macro PopAndReturn(intptr, JSAny): never;
+extern macro GenericJSToWasmWrapperParamBuffer(): RawPtr<intptr>;
+
+extern macro AllocateBuffer(intptr): RawPtr<intptr>;
+
+extern macro DeallocateBuffer(RawPtr<intptr>): void;
 
 // The ReturnSlotAllocator calculates the size of the space needed on the stack
 // for return values.
@@ -367,6 +384,10 @@ struct LocationAllocator {
         this.object, offset);
   }
 
+  macro CheckBufferOverflow(): void {
+    check(this.paramBufferEnd == 0 || this.nextStack <= this.paramBufferEnd);
+  }
+
   object: HeapObject|TaggedZeroPattern;
   remainingGPRegs: intptr;
   remainingFPRegs: intptr;
@@ -374,6 +395,9 @@ struct LocationAllocator {
   nextFPReg: intptr;
   nextStack: intptr;
   stackStart: intptr;
+  // The end of the paramBuffer. The stack buffer is not allowed to be filled
+  // beyond the buffer end.
+  paramBufferEnd: intptr;
   // Even on 32-bit platforms we always allocate 64-bit stack space at a time to
   // preserve alignment. If we allocate a 64-bit slot for a 32-bit type, then we
   // remember the second half of the 64-bit slot as `smallSlot` so that it can
@@ -387,7 +411,8 @@ struct LocationAllocator {
   smallSlotLast: bool;
 }
 
-macro LocationAllocatorForParams(paramBuffer: &intptr): LocationAllocator {
+macro LocationAllocatorForParams(
+    paramBuffer: &intptr, paramBufferSize: intptr): LocationAllocator {
   let result: LocationAllocator;
   result.object = paramBuffer.object;
   result.remainingGPRegs = UniqueIntPtrConstant(kNumGPRegisterParameters);
@@ -405,6 +430,11 @@ macro LocationAllocatorForParams(paramBuffer: &intptr): LocationAllocator {
   result.stackStart = result.nextStack;
   result.smallSlot = 0;
   result.smallSlotLast = false;
+  if (paramBufferSize > 0) {
+    result.paramBufferEnd = paramBuffer.offset + paramBufferSize;
+  } else {
+    result.paramBufferEnd = 0;
+  }
   return result;
 }
 
@@ -420,41 +450,38 @@ macro LocationAllocatorForReturns(
   result.stackStart = result.nextStack;
   result.smallSlot = 0;
   result.smallSlotLast = false;
+  // We don't know the size of the paramBuffer.
+  result.paramBufferEnd = 0;
   return result;
 }
 
+// Precondition: {targetType.is_ref()}.
 macro JSToWasmObject(
-    context: NativeContext,
-    trustedInstanceDataOrUndefined: WasmTrustedInstanceData|Undefined,
-    targetType: int32, value: JSAny): Object {
-  const heapType = (targetType >> kValueTypeKindBits) & kValueTypeHeapTypeMask;
-  const kind = targetType & kValueTypeKindBitsMask;
-  if (heapType == HeapType::kExtern) {
-    if (kind == ValueKind::kRef && value == Null) {
-      ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
-    }
-    return value;
-  }
-  if (heapType == HeapType::kString) {
-    if (TaggedIsSmi(value)) {
-      ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
-    }
-    if (IsString(UnsafeCast<HeapObject>(value))) {
-      return value;
-    }
-    if (value == Null) {
-      if (kind == ValueKind::kRef) {
+    context: NativeContext, targetType: uint32, value: JSAny): Object {
+  const isGeneric = (targetType & kValueTypeHasIndexBit) == 0;
+  if (isGeneric) {
+    const standardType =
+        (targetType & kValueTypeIndexBits) >>> kValueTypeIndexShift;
+    const isNullable = (targetType & kValueTypeIsNullableBit) != 0;
+    if (standardType == ToUint(StandardType::kExtern)) {
+      if (!isNullable && value == Null) {
         ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
-      } else {
-        dcheck(kind == ValueKind::kRefNull);
-        return kWasmNull;
+      }
+      if ((targetType & kValueTypeIsSharedBit) == 0) {
+        return value;
       }
     }
-
-    ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
+    if (standardType == ToUint(StandardType::kString)) {
+      if (TaggedIsSmi(value)) {
+        ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
+      }
+      if (IsString(UnsafeCast<HeapObject>(value))) return value;
+      if (isNullable && value == Null) return kWasmNull;
+      ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
+    }
   }
   return runtime::WasmGenericJSToWasmObject(
-      context, trustedInstanceDataOrUndefined, value, Convert<Smi>(targetType));
+      context, value, Convert<Smi>(targetType));
 }
 
 // macro for handling platform specific f32 params.
@@ -482,11 +509,12 @@ macro HandleF32Params(
 
 macro JSToWasmWrapperHelper(
     context: NativeContext, _receiver: JSAny, target: JSFunction,
-    arguments: Arguments, promise: constexpr Promise): never {
+    arguments: Arguments, promise: constexpr Promise): JSAny {
   const functionData = target.shared_function_info.wasm_exported_function_data;
 
   // Trigger a wrapper tier-up when this function got called often enough.
-  const switchStack = promise != Promise::kNoPromise;
+  const switchStack =
+      promise == Promise::kPromise || promise == Promise::kStressSwitch;
   if constexpr (!switchStack) {
     const budget: Smi =
         UnsafeCast<Smi>(functionData.wrapper_budget.value) - SmiConstant(1);
@@ -499,8 +527,6 @@ macro JSToWasmWrapperHelper(
   const sig = functionData.sig;
   const implicitArg: WasmImportData|WasmTrustedInstanceData =
       functionData.internal.implicit_arg;
-  const trustedInstanceData: WasmTrustedInstanceData =
-      functionData.instance_data;
 
   const paramCount =
       TruncateIntPtrToInt32(*GetRefAt<intptr>(sig, kWasmParameterCountOffset));
@@ -511,7 +537,7 @@ macro JSToWasmWrapperHelper(
   const reps = *GetRefAt<RawPtr>(sig, kWasmSigTypesOffset);
 
   const sigTypes = torque_internal::unsafe::NewOffHeapConstSlice(
-      %RawDownCast<RawPtr<int32>>(reps),
+      %RawDownCast<RawPtr<uint32>>(reps),
       Convert<intptr>(paramCount + returnCount));
 
   // If the return count is greater than 1, then the return values are returned
@@ -548,8 +574,7 @@ macro JSToWasmWrapperHelper(
       } else if (retType == kWasmF64Type) {
         allocator.AllocFP64();
       } else {
-        const retKind = retType & kValueTypeKindBitsMask;
-        dcheck(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
+        check((retType & kValueTypeIsRefBit) != 0);
         // Reference return values will be processed later.
         hasRefReturns = true;
       }
@@ -560,8 +585,7 @@ macro JSToWasmWrapperHelper(
       retIt = returnTypes.Iterator();
       while (!retIt.Empty()) {
         const retType = retIt.NextNotEmpty();
-        const retKind = retType & kValueTypeKindBitsMask;
-        if (retKind == ValueKind::kRef || retKind == ValueKind::kRefNull) {
+        if ((retType & kValueTypeIsRefBit) != 0) {
           allocator.AllocGP();
         }
       }
@@ -573,23 +597,51 @@ macro JSToWasmWrapperHelper(
       sigTypes, Convert<intptr>(returnCount), Convert<intptr>(paramCount))
       otherwise unreachable;
 
+  // The `paramBuffer` is a byte array that stores parameters that have already
+  // been converted to WebAssembly types. The js-to-wasm wrapper iterates over
+  // incoming parameters, converts them according to the signature, and stores
+  // the converted parameters in the `paramBuffer`. The `paramBuffer` is then
+  // passed to an assembly builtin, where the parameters get loaded from the
+  // `paramBuffer` into registers and stack slots. The `paramBuffer` is not
+  // GC-safe, which means that references stored in the `paramBuffer` don't get
+  // updated by the GC. Therefore references are not allowed to be stored in the
+  // `paramBuffer` when a GC may get triggered. This requirement is satisfied by
+  // storing converted reference parameters not immediately in the `paramBuffer`
+  // but in `convertedTagged`. Only when the last parameter has been converted
+  // an no GC can be triggered anymore do reference parameters get copied from
+  // `convertedTagged` into `paramBuffer.
   let paramBuffer: &intptr;
+  let paramBufferSize: intptr;
 
   // 10 here is an arbitrary number. The analysis of signatures of exported
   // functions of big modules showed that most signatures have a low number of
   // I32 parameters. We picked a cutoff point where for most signatures the
   // pre-allocated stack slots are sufficient without making these stack slots
   // overly big.
-  if (paramCount <= 10) {
-    // Performance optimization: we pre-allocate a stack area with 18
-    // 8-byte slots, and use this area when it is sufficient for all
-    // parameters. If the stack area is too small, we allocate a byte array
-    // below. The stack area is big enough for 10 parameters. The 10 parameters
-    // need 18 * 8 bytes because some segments of the stack area are reserved
-    // for register parameters, and there may e.g. be no FP parameters passed
-    // by register, so all 8 FP register slots would remain empty.
-    const stackSlots = %RawDownCast<RawPtr<intptr>>(
-        StackSlotPtr(144, torque_internal::SizeOf<float64>()));
+  const kMaxOnStackParamCount = 10;
+  if (paramCount <= kMaxOnStackParamCount) {
+    // Performance optimization: we pre-allocate a stack area with memory
+    // sufficient for up to 10 parameters. If the stack area is too small, we
+    // allocate a byte array below. The stack area has fixed-sized regions for
+    // register parameters, and a variable-sized region for stack parameters.
+    // One of the regions for register parameters may remain empty, e.g. because
+    // there are no FP parameters. So the memory we have to reserve is the
+    // memory for 10 64-bit parameters, plus the size of one empty region for
+    // register parameters. On all platforms there are not more than 8 parameter
+    // registers for each kind, so in total we reserve memory for 10 + 8 slots.
+    // Note: we cannot use kNumFPRegisterParameters because the parameter for
+    // StackSlotPtr has to be constexpr. Instead we use the constant `8`.
+    const kMaxFPRegParams = 8;
+    // Two padding words between the different regions.
+    const kPadding = 2;
+    dcheck(UniqueIntPtrConstant(kNumFPRegisterParameters) <= kMaxFPRegParams);
+    dcheck(UniqueIntPtrConstant(kNumGPRegisterParameters) <= kMaxFPRegParams);
+    const kSlotSize = torque_internal::SizeOf<float64>();
+    const bufferSize =
+        (kMaxOnStackParamCount + kMaxFPRegParams + kPadding) * kSlotSize;
+    const stackSlots =
+        %RawDownCast<RawPtr<intptr>>(StackSlotPtr(bufferSize, kSlotSize));
+    paramBufferSize = Convert<intptr>(bufferSize);
     paramBuffer = torque_internal::unsafe::NewOffHeapReference(stackSlots);
   } else {
     // We have to estimate the size of the byte array such that it can store
@@ -599,28 +651,36 @@ macro JSToWasmWrapperHelper(
     // we have to guess the number of parameters on the stack. On ia32 it can
     // happen that only a single parameter fits completely into a register, and
     // all other parameters end up at least partially on the stack (e.g. for a
-    // signature with only I64 parameters). To make the calculation simpler, we
-    // just assume that all parameters are on the stack.
+    // signature with only I64 parameters).
+    // In the worst case there are only parameters of one type, and the segment
+    // for register parameters of other types remains completely empty. Since
+    // the segment for fp register parameters is bigger, so for the worst case
+    // we assume that that region remains empty. Therefore the size estimate is
+    // the memory needed for all parameters (param_count * sizeof(float64)) +
+    // size of an empty fp register parameter segment (fp_reg_count *
+    // sizeof(float64)).
     const kSlotSize: intptr = torque_internal::SizeOf<float64>();
-    const bufferSize = UniqueIntPtrConstant(kNumGPRegisterParameters) *
-            Convert<intptr>(torque_internal::SizeOf<intptr>()) +
-        UniqueIntPtrConstant(kNumFPRegisterParameters) * kSlotSize +
-        Convert<intptr>(paramCount) * kSlotSize;
-    const slice = &AllocateByteArray(Convert<uintptr>(bufferSize)).bytes;
-    paramBuffer = torque_internal::unsafe::NewReference<intptr>(
-        slice.object, slice.offset);
+    // Two padding words between the different segments.
+    const kPadding = 2;
+    paramBufferSize = Convert<intptr>(
+        (UniqueIntPtrConstant(kNumFPRegisterParameters) +
+         Convert<intptr>(paramCount) + kPadding) *
+        kSlotSize);
+    const bufferOnCHeap = AllocateBuffer(paramBufferSize);
+    paramBuffer = torque_internal::unsafe::NewOffHeapReference(bufferOnCHeap);
   }
 
-  let locationAllocator = LocationAllocatorForParams(paramBuffer);
+  let locationAllocator =
+      LocationAllocatorForParams(paramBuffer, paramBufferSize);
   let hasRefParam: bool = false;
   // A storage for converted reference parameters, so that they don't get
   // garbage collected if the conversion of primitive parameters causes a GC.
   // The storage gets allocated lazily when the first reference parameter gets
   // converted to avoid performance regressions for signatures without tagged
-  // parameters. An old implementation used the `arguments` array as the storage
-  // for converted reference parameters, but this does not work because then
-  // converted reference parameters can be accessed from JavaScript using
-  // `Function.prototype.arguments`.
+  // parameters. An old implementation used the `arguments` array as the
+  // storage for converted reference parameters, but this does not work
+  // because then converted reference parameters can be accessed from
+  // JavaScript using `Function.prototype.arguments`.
   let convertedTagged: FixedArray|Smi = Convert<Smi>(0);
 
   let paramTypeIndex: int32 = 0;
@@ -662,15 +722,15 @@ macro JSToWasmWrapperHelper(
         *toHighRef = Signed(pair.high);
       }
     } else {
-      const paramKind = paramType & kValueTypeKindBitsMask;
-      dcheck(paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull);
+      check((paramType & kValueTypeIsRefBit) != 0);
       // The byte array where we store converted parameters is not GC-safe.
       // Therefore we can only copy references into this array once no GC can
       // happen anymore. Any conversion of a primitive type can execute
       // arbitrary JavaScript code and therefore also trigger GC. Therefore
       // references get copied into the array only after all parameters of
-      // primitive types are finished. For now we write the converted parameter
-      // back to the stack.
+      // primitive types are finished. For now we write the converted
+      // parameter into a temporary FixedArray, which gets allocated here
+      // lazily.
       hasRefParam = true;
       if (TaggedIsSmi(convertedTagged)) {
         convertedTagged =
@@ -678,13 +738,21 @@ macro JSToWasmWrapperHelper(
       }
       UnsafeCast<FixedArray>(convertedTagged)
           .objects[Convert<intptr>(paramIndex)] =
-          JSToWasmObject(context, trustedInstanceData, paramType, param);
+          JSToWasmObject(context, paramType, param);
     }
   }
   let suspender: JSAny = Undefined;
   if constexpr (switchStack) {
     suspender = runtime::WasmAllocateSuspender(context);
+    if (promise == Promise::kStressSwitch) {
+      // In case we have a non-JSPI test where an import returns a Promise,
+      // we don't want the import to try and suspend the wasm stack. Clear the
+      // "resume" field as a way to signal this to the import.
+      UnsafeCast<WasmSuspenderObject>(suspender).resume = Undefined;
+    }
   }
+  // TODO(ahaas): Ideally we would enter a `DisallowGarbageCollection` scope
+  // here and leave it in the assembly builtin just before we call to wasm.
   if (hasRefParam) {
     // Iterate over all parameters again and handle all those with ref types.
     let k: int32 = 0;
@@ -697,8 +765,7 @@ macro JSToWasmWrapperHelper(
     // `continue` in `for` loops.
     while (k < paramCount) {
       const paramType = *paramTypes.UncheckedAtIndex(Convert<intptr>(k));
-      const paramKind = paramType & kValueTypeKindBitsMask;
-      if (paramKind != ValueKind::kRef && paramKind != ValueKind::kRefNull) {
+      if ((paramType & kValueTypeIsRefBit) == 0) {
         k++;
         paramIndex++;
         continue;
@@ -712,8 +779,9 @@ macro JSToWasmWrapperHelper(
   }
   const paramStart = paramBuffer.GCUnsafeRawPtr();
   const paramEnd = locationAllocator.GetStackEnd();
+  locationAllocator.CheckBufferOverflow();
 
-  const callTarget = functionData.internal.call_target;
+  const callTarget = functionData.internal.raw_call_target;
 
   // We construct a state that will be passed to `JSToWasmWrapperAsm`
   // and `JSToWasmHandleReturns`. There are too many parameters to pass
@@ -728,93 +796,99 @@ macro JSToWasmWrapperHelper(
   *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferSigRepresentationArray) = reps;
   *GetRefAt<intptr>(wrapperBuffer, kWrapperBufferStackReturnBufferSize) =
       returnSize;
-  *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferCallTarget) = callTarget;
+  *GetRefAt<WasmCodePointer>(wrapperBuffer, kWrapperBufferCallTarget) =
+      callTarget;
   *GetRefAt<RawPtr<intptr>>(wrapperBuffer, kWrapperBufferParamStart) =
       paramStart;
   *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferParamEnd) = paramEnd;
 
-  // Both `trustedInstanceData` and `resultArray` get passed separately as
-  // parameters to make them GC-safe. They get passed over the stack so that
-  // they get scanned by the GC as part of the outgoing parameters of this
-  // Torque builtin.
+  // `resultArray` gets passed separately as parameter to make it GC-safe. It
+  // gets passed over the stack so that it gets scanned by the GC as part of
+  // the outgoing parameters of this Torque builtin.
   let result: JSAny;
-  if constexpr (switchStack) {
+  if constexpr (promise == Promise::kPromise) {
     result =
         WasmReturnPromiseOnSuspendAsm(wrapperBuffer, implicitArg, resultArray);
-  } else {
+  } else if (promise == Promise::kNoPromise) {
     result = JSToWasmWrapperAsm(wrapperBuffer, implicitArg, resultArray);
+  } else if (promise == Promise::kStressSwitch) {
+    result =
+        JSToWasmStressSwitchStacksAsm(wrapperBuffer, implicitArg, resultArray);
+  } else {
+    unreachable;
   }
-
-  // The normal return sequence of Torque-generated JavaScript builtins does not
-  // consider the case where the caller may push additional "undefined"
-  // parameters on the stack, and therefore does not generate code to pop these
-  // additional parameters. Here we calculate the actual number of parameters on
-  // the stack. This number is the number of actual parameters provided by the
-  // caller, which is `arguments.length`, or the number of declared arguments,
-  // if not enough actual parameters were provided, i.e.
-  // `SharedFunctionInfo::length`.
-  let popCount = arguments.length;
-  const declaredArgCount =
-      Convert<intptr>(Convert<int32>(target.shared_function_info.length));
-  if (declaredArgCount > popCount) {
-    popCount = declaredArgCount;
-  }
-  // Also pop the receiver.
-  PopAndReturn(popCount + 1, result);
+  return result;
 }
 
 transitioning javascript builtin JSToWasmWrapper(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
-    ...arguments): JSAny {
-  JSToWasmWrapperHelper(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+
+  return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kNoPromise);
 }
 
 transitioning javascript builtin WasmPromising(
-    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction)(
-    ...arguments): JSAny {
-  JSToWasmWrapperHelper(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+
+  return JSToWasmWrapperHelper(
       context, receiver, target, arguments, Promise::kPromise);
 }
 
-macro WasmToJSObject(context: NativeContext, value: Object, retType: int32):
+transitioning javascript builtin WasmStressSwitch(
+    js-implicit context: NativeContext, receiver: JSAny, target: JSFunction,
+    dispatchHandle: DispatchHandle)(...arguments): JSAny {
+  // This is a generic builtin that can be installed on functions with different
+  // parameter counts, so we need to support that.
+  SetSupportsDynamicParameterCount(target, dispatchHandle);
+
+  return JSToWasmWrapperHelper(
+      context, receiver, target, arguments, Promise::kStressSwitch);
+}
+
+// Precondition: {retType.is_ref()}.
+macro WasmToJSObject(context: NativeContext, value: Object, retType: uint32):
     JSAny {
-  const paramKind = retType & kValueTypeKindBitsMask;
-  const heapType = (retType >> kValueTypeKindBits) & kValueTypeHeapTypeMask;
-  if (paramKind == ValueKind::kRef) {
-    if (heapType == HeapType::kEq || heapType == HeapType::kI31 ||
-        heapType == HeapType::kStruct || heapType == HeapType::kArray ||
-        heapType == HeapType::kAny || heapType == HeapType::kExtern ||
-        heapType == HeapType::kString || heapType == HeapType::kNone ||
-        heapType == HeapType::kNoFunc || heapType == HeapType::kNoExtern ||
-        heapType == HeapType::kExn || heapType == HeapType::kNoExn) {
-      return UnsafeCast<JSAny>(value);
-    }
-    // TODO(ahaas): This is overly pessimistic: all module-defined struct and
-    // array types can be passed to JS as-is as well; and for function types we
-    // could at least support the fast path where the WasmExternalFunction has
-    // already been created.
-    return runtime::WasmGenericWasmToJSObject(context, value);
-  } else {
-    dcheck(paramKind == ValueKind::kRefNull);
-    if (heapType == HeapType::kExtern || heapType == HeapType::kNoExtern ||
-        heapType == HeapType::kExn || heapType == HeapType::kNoExn) {
-      return UnsafeCast<JSAny>(value);
-    }
-    if (value == kWasmNull) {
-      return Null;
-    }
-    if (heapType == HeapType::kEq || heapType == HeapType::kStruct ||
-        heapType == HeapType::kArray || heapType == HeapType::kString ||
-        heapType == HeapType::kI31 || heapType == HeapType::kAny) {
-      return UnsafeCast<JSAny>(value);
-    }
-    // TODO(ahaas): This is overly pessimistic: all module-defined struct and
-    // array types can be passed to JS as-is as well; and for function types we
-    // could at least support the fast path where the WasmExternalFunction has
-    // already been created.
-    return runtime::WasmGenericWasmToJSObject(context, value);
+  // This is cheaper than checking whether retType is nullable.
+  if (value == kWasmNull) return Null;
+  // All module-defined struct and array types can be passed to JS as-is.
+  const refKind = (retType & kValueTypeRefKindBits) >>> kValueTypeRefKindShift;
+  if (refKind == ToUint(RefTypeKind::kStruct) ||
+      refKind == ToUint(RefTypeKind::kArray)) {
+    return UnsafeCast<JSAny>(value);
   }
+  // Functions are mapped to their "external" representation, if it has
+  // already been lazily created.
+  if (refKind == ToUint(RefTypeKind::kFunction)) {
+    const wasmFunc = Cast<WasmFuncRef>(value) otherwise unreachable;
+    const maybeJsFunc = wasmFunc.internal.external;
+    if (Is<JSFunction>(maybeJsFunc)) return UnsafeCast<JSFunction>(maybeJsFunc);
+  }
+  const isGeneric = (retType & kValueTypeHasIndexBit) == 0;
+  if (isGeneric) {
+    // StandardType::kStruct and StandardType::kArray would have taken the
+    // "refKind" path above.
+    // StandardType::kNoFunc would have taken the "kWasmNull" path above.
+    // StandardType::kExn and StandardType::kNoExn are statically disallowed.
+    const kind = (retType & kValueTypeIndexBits) >>> kValueTypeIndexShift;
+    if (kind == ToUint(StandardType::kAny) ||
+        kind == ToUint(StandardType::kEq) ||
+        kind == ToUint(StandardType::kI31) ||
+        kind == ToUint(StandardType::kExtern) ||
+        kind == ToUint(StandardType::kString) ||
+        kind == ToUint(StandardType::kNoExtern)) {
+      // We don't need to check for WasmNull because we've already done that.
+      return UnsafeCast<JSAny>(value);
+    }
+  }
+  return runtime::WasmGenericWasmToJSObject(context, value);
 }
 
 builtin JSToWasmHandleReturns(
@@ -828,7 +902,7 @@ builtin JSToWasmHandleReturns(
   if (returnCount == 1) {
     const reps = *GetRefAt<RawPtr>(
         wrapperBuffer, kWrapperBufferSigRepresentationArray);
-    const retType = *GetRefAt<int32>(reps, 0);
+    const retType = *GetRefAt<uint32>(reps, 0);
     if (retType == kWasmI32Type) {
       let ret: int32;
       if constexpr (kIsBigEndian) {
@@ -871,6 +945,7 @@ builtin JSToWasmHandleReturns(
         return I32PairToBigInt(lowWord, highWord);
       }
     } else {
+      check((retType & kValueTypeIsRefBit) != 0);
       const ptr = %RawDownCast<RawPtr<uintptr>>(
           wrapperBuffer + kWrapperBufferGPReturnRegister1);
       const rawRef = *GetRefAt<uintptr>(ptr, 0);
@@ -891,7 +966,7 @@ builtin JSToWasmHandleReturns(
       wrapperBuffer, kWrapperBufferSigRepresentationArray);
 
   const retTypes = torque_internal::unsafe::NewOffHeapConstSlice(
-      %RawDownCast<RawPtr<int32>>(reps), Convert<intptr>(returnCount));
+      %RawDownCast<RawPtr<uint32>>(reps), Convert<intptr>(returnCount));
 
   const hasRefReturns = *GetRefAt<bool>(
       wrapperBuffer, kWrapperBufferRefReturnCount);
@@ -922,8 +997,7 @@ builtin JSToWasmHandleReturns(
     locationAllocator.StartRefs();
     for (let k: intptr = 0; k < Convert<intptr>(returnCount); k++) {
       const retType = *retTypes.UncheckedAtIndex(k);
-      const retKind = retType & kValueTypeKindBitsMask;
-      if (retKind == ValueKind::kRef || retKind == ValueKind::kRefNull) {
+      if ((retType & kValueTypeIsRefBit) != 0) {
         const slot = locationAllocator.GetGPSlot();
         const rawRef = *slot;
         const value: Object = BitcastWordToTagged(rawRef);
@@ -933,6 +1007,7 @@ builtin JSToWasmHandleReturns(
       }
     }
   }
+  locationAllocator.CheckBufferOverflow();
 
   locationAllocator = LocationAllocatorForReturns(
       wrapperBuffer + kWrapperBufferGPReturnRegister1,
@@ -986,10 +1061,12 @@ builtin JSToWasmHandleReturns(
       const val = *RefCast<float64>(slot);
       fixedArray.objects[k] = Convert<Number>(val);
     } else {
+      check((retType & kValueTypeIsRefBit) != 0);
       const value = fixedArray.objects[k];
       fixedArray.objects[k] = WasmToJSObject(jsContext, value, retType);
     }
   }
+  locationAllocator.CheckBufferOverflow();
 
   return resultArray;
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --sandbox-testing
+// Flags: --sandbox-testing --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -70,11 +70,9 @@ assertThrows(
 
 // Corrupt the table's type to accept putting $func0 into it.
 let t0 = getPtr(table0);
-const kRef = 10;
 const kSmiTagSize = 1;
-const kHeapTypeShift = 5;
-let expected_old_type = (($sig_i_l << kHeapTypeShift) | kRef) << kSmiTagSize;
-let new_type = (($sig_v_struct << kHeapTypeShift) | kRef) << kSmiTagSize;
+let expected_old_type = %BuildRefTypeBitfield($sig_i_l, instance) << kSmiTagSize;
+let new_type = %BuildRefTypeBitfield($sig_v_struct, instance) << kSmiTagSize;
 assertEquals(expected_old_type, getField(t0, kWasmTableObjectTypeOffset));
 setField(t0, kWasmTableObjectTypeOffset, new_type);
 
@@ -82,6 +80,6 @@ setField(t0, kWasmTableObjectTypeOffset, new_type);
 table0.set(0, func0);
 
 // If the process was still alive, this would cause the sandbox violation.
-instance.exports.boom(BigInt(Sandbox.targetPage));
+instance.exports.boom(0x414141414141n);
 
 assertUnreachable("Process should have been killed.");

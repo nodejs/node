@@ -351,13 +351,16 @@ added:
   - v21.2.0
   - v20.11.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v24.0.0
+     - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/58011
     description: This property is no longer experimental.
 -->
 
-* {string} The directory name of the current module. This is the same as the
-  [`path.dirname()`][] of the [`import.meta.filename`][].
+* {string} The directory name of the current module.
+
+This is the same as the [`path.dirname()`][] of the [`import.meta.filename`][].
 
 > **Caveat**: only present on `file:` modules.
 
@@ -368,15 +371,17 @@ added:
   - v21.2.0
   - v20.11.0
 changes:
-  - version: REPLACEME
+  - version:
+     - v24.0.0
+     - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/58011
     description: This property is no longer experimental.
 -->
 
 * {string} The full absolute path and filename of the current module, with
   symlinks resolved.
-* This is the same as the [`url.fileURLToPath()`][] of the
-  [`import.meta.url`][].
+
+This is the same as the [`url.fileURLToPath()`][] of the [`import.meta.url`][].
 
 > **Caveat** only local modules support this property. Modules not using the
 > `file:` protocol will not provide it.
@@ -393,6 +398,35 @@ This enables useful patterns such as relative file loading:
 ```js
 import { readFileSync } from 'node:fs';
 const buffer = readFileSync(new URL('./data.proto', import.meta.url));
+```
+
+### `import.meta.main`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* {boolean} `true` when the current module is the entry point of the current process; `false` otherwise.
+
+Equivalent to `require.main === module` in CommonJS.
+
+Analogous to Python's `__name__ == "__main__"`.
+
+```js
+export function foo() {
+  return 'Hello, world';
+}
+
+function main() {
+  const message = foo();
+  console.log(message);
+}
+
+if (import.meta.main) main();
+// `foo` can be imported from another module without possible side-effects from `main`
 ```
 
 ### `import.meta.resolve(specifier)`
@@ -611,6 +645,10 @@ These CommonJS variables are not available in ES modules.
 They can instead be loaded with [`module.createRequire()`][] or
 [`process.dlopen`][].
 
+#### No `require.main`
+
+To replace `require.main === module`, there is the [`import.meta.main`][] API.
+
 #### No `require.resolve`
 
 Relative resolution can be handled via `new URL('./local', import.meta.url)`.
@@ -696,7 +734,7 @@ would provide the exports interface for the instantiation of `library.wasm`.
 ### Wasm Source Phase Imports
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 The [Source Phase Imports][] proposal allows the `import source` keyword
@@ -712,13 +750,18 @@ into a new instance of `library.wasm`:
 ```js
 import source libraryModule from './library.wasm';
 
-const instance1 = await WebAssembly.instantiate(libraryModule, {
-  custom: import1,
-});
+const instance1 = await WebAssembly.instantiate(libraryModule, importObject1);
 
-const instance2 = await WebAssembly.instantiate(libraryModule, {
-  custom: import2,
-});
+const instance2 = await WebAssembly.instantiate(libraryModule, importObject2);
+```
+
+In addition to the static source phase, there is also a dynamic variant of the
+source phase via the `import.source` dynamic phase import syntax:
+
+```js
+const dynamicLibrary = await import.source('./library.wasm');
+
+const instance = await WebAssembly.instantiate(dynamicLibrary, importObject);
 ```
 
 <i id="esm_experimental_top_level_await"></i>
@@ -1171,6 +1214,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`import()`]: #import-expressions
 [`import.meta.dirname`]: #importmetadirname
 [`import.meta.filename`]: #importmetafilename
+[`import.meta.main`]: #importmetamain
 [`import.meta.resolve`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta/resolve
 [`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import

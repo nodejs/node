@@ -591,16 +591,19 @@ void JSGenericLowering::LowerJSHasContextExtension(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
+void JSGenericLowering::LowerJSLoadContextNoCell(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
 void JSGenericLowering::LowerJSLoadContext(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-
-void JSGenericLowering::LowerJSStoreContext(Node* node) {
+void JSGenericLowering::LowerJSStoreContextNoCell(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-void JSGenericLowering::LowerJSStoreScriptContext(Node* node) {
+void JSGenericLowering::LowerJSStoreContext(Node* node) {
   UNREACHABLE();  // Eliminated in context specialization.
 }
 
@@ -1165,7 +1168,7 @@ void JSGenericLowering::LowerJSGeneratorRestoreContinuation(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
-void JSGenericLowering::LowerJSGeneratorRestoreContext(Node* node) {
+void JSGenericLowering::LowerJSGeneratorRestoreContextNoCell(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
@@ -1267,9 +1270,7 @@ Zone* JSGenericLowering::zone() const { return graph()->zone(); }
 
 Isolate* JSGenericLowering::isolate() const { return jsgraph()->isolate(); }
 
-
-Graph* JSGenericLowering::graph() const { return jsgraph()->graph(); }
-
+TFGraph* JSGenericLowering::graph() const { return jsgraph()->graph(); }
 
 CommonOperatorBuilder* JSGenericLowering::common() const {
   return jsgraph()->common();

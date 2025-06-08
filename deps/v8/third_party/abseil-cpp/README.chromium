@@ -1,10 +1,10 @@
 Name: Abseil
 Short Name: absl
 URL: https://github.com/abseil/abseil-cpp
-License: Apache 2.0
+License: Apache-2.0
 License File: LICENSE
 Version: N/A
-Revision: 67d126083c1584dd7dc584d700f853afaec365ca
+Revision: e5e2a9de560c8190042bcf7a2425b2213c0a020f
 Security Critical: yes
 Shipped: yes
 
@@ -30,6 +30,16 @@ third_party/abseil-cpp/BUILD.gn target
 
 4. If abseil adds new features, update styleguide/c++/c++-features.md and add headers for that feature into exclude list in root DEPS
 
+5. Verify your roll no-ops upon `third_party/abseil-cpp/roll_abseil.py --no-branch --no-pull --no-upload --revision <Revision>`
+
+How to review a roll:
+
+1. `git cl patch <CL number>`, then verify that `third_party/abseil-cpp/roll_abseil.py --no-branch --no-pull --no-upload --revision <Revision>`
+   no-ops.
+2. Check that changes to the .def files exist, or whether there is a comment in the CL description calling out they don't change.
+3. Check that every change in BUILD.bazel is matched by a counterpart in BUILD.gn.
+
+
 Local Modifications:
 
 * absl/copts.bzl has been translated to //third_party/absl-cpp/BUILD.gn. Both
@@ -40,4 +50,4 @@ Local Modifications:
 * Patches from //third_party/abseil-cpp/patches have been applied.
 
 * Increment this number to silence presubmits about modifying files in
-  third_party when regenerating absl .def files: 2
+  third_party when regenerating absl .def files: 3

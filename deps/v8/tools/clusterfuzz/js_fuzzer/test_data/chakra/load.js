@@ -3,7 +3,12 @@
 // found in the LICENSE file.
 
 if (this.WScript && this.WScript.LoadScriptFile) {
-  WScript.LoadScriptFile("load1.js");
+  var { script } = WScript.LoadScriptFile("load1.js");
 }
 
+var { script1 } = WScript.LoadScriptFile("load1.js"),
+    { script2 } = WScript.LoadScriptFile("load1.js");
+
 console.log('load.js');
+
+script();

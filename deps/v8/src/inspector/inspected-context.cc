@@ -6,6 +6,7 @@
 
 #include "include/v8-context.h"
 #include "include/v8-inspector.h"
+#include "include/v8-platform.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/string-util.h"
@@ -13,6 +14,18 @@
 #include "src/inspector/v8-inspector-impl.h"
 
 namespace v8_inspector {
+
+// ContextCollected callbacks may invoke JS which cannot run from inside the GC.
+class InspectedContext::ContextCollectedCallbacks final : public v8::Task {
+ public:
+  explicit ContextCollectedCallbacks(InspectedContext::WeakCallbackData* data)
+      : data_(data) {}
+
+  void Run() override;
+
+ private:
+  std::unique_ptr<InspectedContext::WeakCallbackData> data_;
+};
 
 class InspectedContext::WeakCallbackData {
  public:
@@ -27,17 +40,10 @@ class InspectedContext::WeakCallbackData {
     // InspectedContext is alive here because weak handler is still alive.
     data.GetParameter()->m_context->m_weakCallbackData = nullptr;
     data.GetParameter()->m_context->m_context.Reset();
-    data.SetSecondPassCallback(&callContextCollected);
-  }
-
-  static void callContextCollected(
-      const v8::WeakCallbackInfo<WeakCallbackData>& data) {
-    // InspectedContext can be dead here since anything can happen between first
-    // and second pass callback.
-    WeakCallbackData* callbackData = data.GetParameter();
-    callbackData->m_inspector->contextCollected(callbackData->m_groupId,
-                                                callbackData->m_contextId);
-    delete callbackData;
+    v8::debug::GetCurrentPlatform()
+        ->GetForegroundTaskRunner(data.GetIsolate())
+        ->PostTask(
+            std::make_unique<ContextCollectedCallbacks>(data.GetParameter()));
   }
 
  private:
@@ -45,7 +51,13 @@ class InspectedContext::WeakCallbackData {
   V8InspectorImpl* m_inspector;
   int m_groupId;
   int m_contextId;
+
+  friend class InspectedContext::ContextCollectedCallbacks;
 };
+
+void InspectedContext::ContextCollectedCallbacks::Run() {
+  data_->m_inspector->contextCollected(data_->m_groupId, data_->m_contextId);
+}
 
 InspectedContext::InspectedContext(V8InspectorImpl* inspector,
                                    const V8ContextInfo& info, int contextId)

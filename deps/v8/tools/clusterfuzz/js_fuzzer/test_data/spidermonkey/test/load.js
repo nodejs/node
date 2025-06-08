@@ -11,5 +11,12 @@ if (!ok)
 
 print("Assertion failed: Some text");
 
+// Another check that exceptions get thrown by the main test file.
+try {
+  if (test) {
+    throw Exception();
+  }
+} catch (e){}
+
 // Check that we can load template literals with null cooked value.
 check()`\01`;

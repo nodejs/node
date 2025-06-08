@@ -234,14 +234,17 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
     }
 
     bool platform_finished = false;
-    impl_->platform->AddIsolateFinishedCallback(isolate, [](void* data) {
-      *static_cast<bool*>(data) = true;
-    }, &platform_finished);
-    impl_->platform->UnregisterIsolate(isolate);
+    impl_->platform->AddIsolateFinishedCallback(
+        isolate,
+        [](void* data) {
+          bool* ptr = static_cast<bool*>(data);
+          *ptr = true;
+        },
+        &platform_finished);
     if (impl_->snapshot_creator.has_value()) {
       impl_->snapshot_creator.reset();
     }
-    isolate->Dispose();
+    impl_->platform->DisposeIsolate(isolate);
 
     // Wait until the platform has cleaned up all relevant resources.
     while (!platform_finished)
@@ -352,11 +355,7 @@ EmbedderSnapshotData::EmbedderSnapshotData(const SnapshotData* impl,
     : impl_(impl), owns_impl_(owns_impl) {}
 
 bool EmbedderSnapshotData::CanUseCustomSnapshotPerIsolate() {
-#ifdef NODE_V8_SHARED_RO_HEAP
   return false;
-#else
-  return true;
-#endif
 }
 
 }  // namespace node

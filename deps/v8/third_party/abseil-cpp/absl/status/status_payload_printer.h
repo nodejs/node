@@ -35,8 +35,8 @@ namespace status_internal {
 // NOTE: This is an internal API and the design is subject to change in the
 // future in a non-backward-compatible way. Since it's only meant for debugging
 // purpose, you should not rely on it in any critical logic.
-using StatusPayloadPrinter = absl::Nullable<absl::optional<std::string> (*)(
-    absl::string_view, const absl::Cord&)>;
+using StatusPayloadPrinter = absl::optional<std::string> (*absl_nullable)(
+    absl::string_view, const absl::Cord&);
 
 // Sets the global payload printer. Only one printer should be set per process.
 // If multiple printers are set, it's undefined which one will be used.

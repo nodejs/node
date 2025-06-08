@@ -118,8 +118,6 @@ def QueryTryBotsForFailures(change, patchset, timeout=300):
 def main():
   parser = argparse.ArgumentParser(
       description="Bisect a roll CL using a CQ bot")
-  # TODO(leszeks): Allow bisecting two arbitrary V8 CLs instead of a specific
-  # roll.
   parser.add_argument(
       "roll",
       nargs='?',
@@ -130,6 +128,18 @@ def main():
       nargs='?',
       help="The bot to test, e.g. chromium/try/chromeos-amd64-generic-rel (default: find the most-often crashing, shortest running, existing failing bot on the given roll CL)",
       default=None)
+  parser.add_argument(
+      "-s",
+      "--start",
+      default=None,
+      help="The start V8 git commit for the bissect (the last known good commit). This is assumed to be good and is not tested. Defaults to the V8 commit as it was before the roll."
+  )
+  parser.add_argument(
+      "-e",
+      "--end",
+      default=None,
+      help="The end V8 git commit for the bisect (the first known bad commit). This is assumed to be bad and is not tested. Defaults to the V8 commit the roll is rolling to."
+  )
 
   options = parser.parse_args()
 
@@ -211,32 +221,41 @@ def main():
   print("Bisecting with bot %s" % bot)
   bot_project, bot_bucket, bot_builder = bot.split("/")
 
-  diff = gerrit_util.CallGerritApi(
-      GERRIT_HOST,
-      'changes/%s/revisions/%s/files/DEPS/diff' % (roll, patchset),
-      reqtype='GET')
-  for content in diff["content"]:
-    if "ab" in content:
-      continue
-    a = content["a"]
-    b = content["b"]
-    if len(a) == 1 and len(b) == 1:
-      version_before = re.search("'v8_revision': '([0-9a-fA-F]+)'", a[0])
-      version_after = re.search("'v8_revision': '([0-9a-fA-F]+)'", b[0])
-      if version_before and version_after:
-        version_before = version_before.group(1)
-        version_after = version_after.group(1)
-        break
-    print("Found unexpected change:")
-    print("\n".join("- " + line for line in a))
-    print("\n".join("+ " + line for line in b))
-    return 1
-  else:
-    print("Didn't find a change in DEPS")
-    return 1
+  if options.start is None or options.end is None:
+    diff = gerrit_util.CallGerritApi(
+        GERRIT_HOST,
+        'changes/%s/revisions/%s/files/DEPS/diff' % (roll, patchset),
+        reqtype='GET')
+    for content in diff["content"]:
+      if "ab" in content:
+        continue
+      a = content["a"]
+      b = content["b"]
+      if len(a) == 1 and len(b) == 1:
+        version_before = re.search("'v8_revision': '([0-9a-fA-F]+)'", a[0])
+        version_after = re.search("'v8_revision': '([0-9a-fA-F]+)'", b[0])
+        if version_before and version_after:
+          version_before = version_before.group(1)
+          version_after = version_after.group(1)
+          break
+      print("Found unexpected change:")
+      print("\n".join("- " + line for line in a))
+      print("\n".join("+ " + line for line in b))
+      return 1
+    else:
+      print("Didn't find a change in DEPS")
+      return 1
 
-  print("V8 roll:")
-  print("%s -> %s" % (version_before, version_after))
+  if options.start is not None:
+    version_before = options.start
+  if options.end is not None:
+    version_after = options.end
+
+  print("--")
+  print("Bisecting range:")
+  print("%s..%s" % (version_before, version_after))
+  print("https://chromium.googlesource.com/v8/v8/+log/%s..%s" %
+        (version_before, version_after))
 
   revision_range_log = HttpJSONQuery(
       "https://chromium.googlesource.com/v8/v8/+log/%s..%s?format=JSON" %
@@ -265,6 +284,7 @@ def main():
 
   if first_bad < last_good - 1:
     suspect_sha = None
+    print("--")
     print("Creating bisect change...")
     bisect_change = gerrit_util.CreateChange(
         GERRIT_HOST,
@@ -427,6 +447,7 @@ def main():
     assert (first_bad == 0)
     suspect_sha = suspect_shas[0]
 
+  print("--")
   print("Suspecting %s" % suspect_sha)
 
   print("Done.")

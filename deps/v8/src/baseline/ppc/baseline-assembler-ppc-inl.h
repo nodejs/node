@@ -534,8 +534,9 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   if (skip_interrupt_label) __ bge(skip_interrupt_label, cr0);
 }
 
-void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
-                                       uint32_t depth) {
+void BaselineAssembler::LdaContextSlotNoCell(Register context, uint32_t index,
+                                             uint32_t depth,
+                                             CompressionMode compression_mode) {
   ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedField(context, context, Context::kPreviousOffset);
@@ -544,8 +545,8 @@ void BaselineAssembler::LdaContextSlot(Register context, uint32_t index,
                   Context::OffsetOfElementAt(index));
 }
 
-void BaselineAssembler::StaContextSlot(Register context, Register value,
-                                       uint32_t index, uint32_t depth) {
+void BaselineAssembler::StaContextSlotNoCell(Register context, Register value,
+                                             uint32_t index, uint32_t depth) {
   ASM_CODE_COMMENT(masm_);
   for (; depth > 0; --depth) {
     LoadTaggedField(context, context, Context::kPreviousOffset);

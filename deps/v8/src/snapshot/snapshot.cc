@@ -200,10 +200,11 @@ bool Snapshot::Initialize(Isolate* isolate) {
       &shared_heap_snapshot_data, ExtractRehashability(blob));
 }
 
-MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
-    Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
+MaybeDirectHandle<Context> Snapshot::NewContextFromSnapshot(
+    Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
+    size_t context_index,
     DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
-  if (!isolate->snapshot_available()) return Handle<Context>();
+  if (!isolate->snapshot_available()) return DirectHandle<Context>();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   bool can_rehash = ExtractRehashability(blob);
@@ -257,9 +258,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
     // Clear the cached js-to-wasm wrappers.
     DirectHandle<WeakFixedArray> wrappers(
         isolate->heap()->js_to_wasm_wrappers(), isolate);
-    for (int i = 0, e = wrappers->length(); i < e; ++i) {
-      wrappers->set(i, Tagged<MaybeObject>{});
-    }
+    MemsetTagged(wrappers->RawFieldOfFirstElement(), ClearedValue(isolate),
+                 wrappers->length());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
@@ -277,7 +277,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
       if (!IsJSFunction(o, cage_base)) continue;
 
       i::Tagged<i::JSFunction> fun = i::Cast<i::JSFunction>(o);
-      fun->CompleteInobjectSlackTrackingIfActive();
+      fun->CompleteInobjectSlackTrackingIfActive(isolate);
 
       i::Tagged<i::SharedFunctionInfo> shared = fun->shared();
       if (IsScript(shared->script(cage_base), cage_base) &&
@@ -288,7 +288,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
       // Also, clear out feedback vectors and recompilable code.
       if (fun->CanDiscardCompiled(isolate)) {
-        fun->UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
+        fun->UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
       }
       if (!IsUndefined(fun->raw_feedback_cell(cage_base)->value(cage_base))) {
         fun->raw_feedback_cell(cage_base)->set_value(
@@ -362,9 +362,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     Snapshot::SerializerFlags flags(
         Snapshot::kAllowUnknownExternalReferencesForTesting |
         Snapshot::kAllowActiveIsolateForTesting |
-        ((isolate->has_shared_space() || ReadOnlyHeap::IsReadOnlySpaceShared())
-             ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
-             : 0));
+        Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting);
     std::vector<Tagged<Context>> contexts{*default_context};
     std::vector<SerializeEmbedderFieldsCallback> callbacks{
         SerializeEmbedderFieldsCallback()};
@@ -461,12 +459,8 @@ v8::StartupData Snapshot::Create(
     // The shared heap snapshot can be empty, no problem.
     // DCHECK_NE(shared_heap_serializer.TotalAllocationSize(), 0);
     int per_isolate_allocation_size = startup_serializer.TotalAllocationSize();
-    int per_process_allocation_size = 0;
-    if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
-      per_process_allocation_size += read_only_serializer.TotalAllocationSize();
-    } else {
-      per_isolate_allocation_size += read_only_serializer.TotalAllocationSize();
-    }
+    int per_process_allocation_size =
+        read_only_serializer.TotalAllocationSize();
     // TODO(jgruber): At snapshot-generation time we don't know whether the
     // shared heap snapshot will actually be shared at runtime, or if it will
     // be deserialized into each isolate. Conservatively account to per-isolate
@@ -801,7 +795,7 @@ v8::StartupData CreateSnapshotDataBlobInternal(
         !RunExtraCode(v8_isolate, context, embedded_source, "<embedded>")) {
       return {};
     }
-    creator->SetDefaultContext(Utils::OpenHandle(*context),
+    creator->SetDefaultContext(Utils::OpenDirectHandle(*context),
                                SerializeEmbedderFieldsCallback());
   }
   return creator->CreateBlob(function_code_handling, serializer_flags);
@@ -854,7 +848,7 @@ v8::StartupData WarmUpSnapshotDataBlobInternal(
   }
   {
     v8::HandleScope handle_scope(isolate);
-    isolate->ContextDisposedNotification(false);
+    isolate->ContextDisposedNotification(v8::ContextDependants::kNoDependants);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     snapshot_creator.SetDefaultContext(context);
   }
@@ -952,7 +946,8 @@ SnapshotCreatorImpl::~SnapshotCreatorImpl() {
 }
 
 void SnapshotCreatorImpl::SetDefaultContext(
-    Handle<NativeContext> context, SerializeEmbedderFieldsCallback callback) {
+    DirectHandle<NativeContext> context,
+    SerializeEmbedderFieldsCallback callback) {
   DCHECK(contexts_[kDefaultContextIndex].handle_location == nullptr);
   DCHECK(!context.is_null());
   DCHECK(!created());
@@ -963,7 +958,8 @@ void SnapshotCreatorImpl::SetDefaultContext(
 }
 
 size_t SnapshotCreatorImpl::AddContext(
-    Handle<NativeContext> context, SerializeEmbedderFieldsCallback callback) {
+    DirectHandle<NativeContext> context,
+    SerializeEmbedderFieldsCallback callback) {
   DCHECK(!context.is_null());
   DCHECK(!created());
   CHECK_EQ(isolate_, context->GetIsolate());
@@ -980,12 +976,12 @@ size_t SnapshotCreatorImpl::AddData(DirectHandle<NativeContext> context,
   DCHECK(!created());
   HandleScope scope(isolate_);
   DirectHandle<Object> obj(Tagged<Object>(object), isolate_);
-  Handle<ArrayList> list;
+  DirectHandle<ArrayList> list;
   if (!IsArrayList(context->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
   } else {
-    list = Handle<ArrayList>(Cast<ArrayList>(context->serialized_objects()),
-                             isolate_);
+    list =
+        direct_handle(Cast<ArrayList>(context->serialized_objects()), isolate_);
   }
   size_t index = static_cast<size_t>(list->length());
   list = ArrayList::Add(isolate_, list, obj);
@@ -998,11 +994,11 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
   DCHECK(!created());
   HandleScope scope(isolate_);
   DirectHandle<Object> obj(Tagged<Object>(object), isolate_);
-  Handle<ArrayList> list;
+  DirectHandle<ArrayList> list;
   if (!IsArrayList(isolate_->heap()->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
   } else {
-    list = Handle<ArrayList>(
+    list = direct_handle(
         Cast<ArrayList>(isolate_->heap()->serialized_objects()), isolate_);
   }
   size_t index = static_cast<size_t>(list->length());
@@ -1011,8 +1007,8 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
   return index;
 }
 
-Handle<NativeContext> SnapshotCreatorImpl::context_at(size_t i) const {
-  return Handle<NativeContext>(contexts_[i].handle_location);
+DirectHandle<NativeContext> SnapshotCreatorImpl::context_at(size_t i) const {
+  return DirectHandle<NativeContext>::FromSlot(contexts_[i].handle_location);
 }
 
 namespace {

@@ -5,13 +5,15 @@
 #ifndef V8_OBJECTS_STRING_FORWARDING_TABLE_INL_H_
 #define V8_OBJECTS_STRING_FORWARDING_TABLE_INL_H_
 
+#include "src/objects/string-forwarding-table.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/atomicops.h"
 #include "src/common/globals.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
-#include "src/objects/string-forwarding-table.h"
 #include "src/objects/string-inl.h"
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -71,7 +73,8 @@ class StringForwardingTable::Record final {
   // Dispose the external resource if the original string has transitioned
   // to an external string and the resource used for the transition is different
   // than the one in the record.
-  inline void DisposeUnusedExternalResource(Tagged<String> original_string);
+  inline void DisposeUnusedExternalResource(Isolate* isolate,
+                                            Tagged<String> original_string);
 
  private:
   OffHeapObjectSlot OriginalStringSlot() const {
@@ -208,10 +211,9 @@ void StringForwardingTable::Record::DisposeExternalResource() {
 }
 
 void StringForwardingTable::Record::DisposeUnusedExternalResource(
-    Tagged<String> original) {
+    Isolate* isolate, Tagged<String> original) {
 #ifdef DEBUG
-  Tagged<String> stored_original =
-      original_string(GetIsolateFromWritableObject(original));
+  Tagged<String> stored_original = original_string(isolate);
   if (IsThinString(stored_original)) {
     stored_original = Cast<ThinString>(stored_original)->actual();
   }

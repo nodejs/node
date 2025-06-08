@@ -472,8 +472,8 @@ Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
                           const Matcher<Node*>& context_matcher,
                           const Matcher<Node*>& effect_matcher,
                           const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
-                             const Matcher<Node*>& context_matcher);
+Matcher<Node*> IsLoadContextNoCell(const Matcher<ContextAccess>& access_matcher,
+                                   const Matcher<Node*>& context_matcher);
 Matcher<Node*> IsNumberToBoolean(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);

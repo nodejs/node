@@ -1,6 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef V8_OBJECTS_JS_SEGMENTS_H_
 #define V8_OBJECTS_JS_SEGMENTS_H_
 
@@ -32,16 +33,16 @@ namespace internal {
 class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
  public:
   // ecma402 #sec-createsegmentsobject
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegments> Create(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegments> Create(
       Isolate* isolate, DirectHandle<JSSegmenter> segmenter,
-      Handle<String> string);
+      DirectHandle<String> string);
 
   // ecma402 #sec-%segmentsprototype%.containing
-  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Containing(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<Object> Containing(
       Isolate* isolate, DirectHandle<JSSegments> segments_holder, double n);
 
   // ecma402 #sec-createsegmentdataobject
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegmentDataObject>
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmentDataObject>
   CreateSegmentDataObject(Isolate* isolate,
                           JSSegmenter::Granularity granularity,
                           icu::BreakIterator* break_iterator,

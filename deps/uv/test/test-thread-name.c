@@ -178,6 +178,10 @@ static void after_work_cb(uv_work_t* req, int status) {
 }
 
 TEST_IMPL(thread_name_threadpool) {
+
+#if defined(_AIX) || defined(__PASE__)
+  RETURN_SKIP("API not available on this platform");
+#endif
   uv_work_t req;
   loop = uv_default_loop();
   // Just to make sure all workers will be executed

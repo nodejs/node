@@ -42,6 +42,7 @@
 #include "src/heap/main-allocator.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/mutable-page-metadata.h"
+#include "src/heap/page-pool.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
 #include "src/objects/free-space.h"
@@ -78,6 +79,7 @@ class V8_NODISCARD TestMemoryAllocatorScope {
   MemoryAllocator* allocator() { return isolate_->heap()->memory_allocator(); }
 
   ~TestMemoryAllocatorScope() {
+    isolate_->heap()->memory_allocator()->ReleasePooledChunksImmediately();
     isolate_->heap()->memory_allocator()->TearDown();
     isolate_->heap()->memory_allocator_.swap(old_allocator_);
     isolate_->GetCodePages()->swap(code_pages_);
@@ -176,7 +178,8 @@ TEST(MutablePageMetadata) {
     // in this case.
     CodeRange* code_range =
         IsolateGroup::current()->EnsureCodeRange(code_range_size);
-    base::BoundedPageAllocator* page_allocator = code_range->page_allocator();
+    base::BoundedPageAllocator* bounded_page_allocator =
+        code_range->page_allocator();
 #else
     // With CodeRange.
     bool jitless = isolate->jitless();
@@ -206,14 +209,14 @@ TEST(MutablePageMetadata) {
         page_allocator, code_range_reservation.address(),
         code_range_reservation.size(), MemoryChunk::GetAlignmentForAllocation(),
         page_initialization_mode, page_freeing_mode);
-    base::BoundedPageAllocator* page_allocator = &code_page_allocator;
+    base::BoundedPageAllocator* bounded_page_allocator = &code_page_allocator;
 #endif
 
-    VerifyMemoryChunk(isolate, heap, page_allocator, area_size, EXECUTABLE,
-                      PageSize::kLarge, heap->code_lo_space());
+    VerifyMemoryChunk(isolate, heap, bounded_page_allocator, area_size,
+                      EXECUTABLE, PageSize::kLarge, heap->code_lo_space());
 
-    VerifyMemoryChunk(isolate, heap, page_allocator, area_size, NOT_EXECUTABLE,
-                      PageSize::kLarge, heap->lo_space());
+    VerifyMemoryChunk(isolate, heap, bounded_page_allocator, area_size,
+                      NOT_EXECUTABLE, PageSize::kLarge, heap->lo_space());
   }
 }
 
@@ -260,42 +263,45 @@ TEST(MemoryAllocator) {
 }
 
 TEST(ComputeDiscardMemoryAreas) {
-  base::AddressRegion memory_area;
+  std::optional<base::AddressRegion> discard_area;
   size_t page_size = MemoryAllocator::GetCommitPageSize();
-  size_t free_header_size = FreeSpace::kSize;
 
-  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(0, 0);
-  CHECK_EQ(memory_area.begin(), 0);
-  CHECK_EQ(memory_area.size(), 0);
+  discard_area = Sweeper::ComputeDiscardMemoryArea(0, 0);
+  CHECK(!discard_area);
 
-  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(
-      0, page_size + free_header_size);
-  CHECK_EQ(memory_area.begin(), 0);
-  CHECK_EQ(memory_area.size(), 0);
+  discard_area = Sweeper::ComputeDiscardMemoryArea(0, page_size);
+  CHECK_EQ(discard_area->begin(), 0);
+  CHECK_EQ(discard_area->size(), page_size);
 
-  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(
-      page_size - free_header_size, page_size + free_header_size);
-  CHECK_EQ(memory_area.begin(), page_size);
-  CHECK_EQ(memory_area.size(), page_size);
+  discard_area = Sweeper::ComputeDiscardMemoryArea(page_size, 2 * page_size);
+  CHECK_EQ(discard_area->begin(), page_size);
+  CHECK_EQ(discard_area->size(), page_size);
 
-  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(page_size, page_size);
-  CHECK_EQ(memory_area.begin(), 0);
-  CHECK_EQ(memory_area.size(), 0);
+  discard_area =
+      Sweeper::ComputeDiscardMemoryArea(page_size - kTaggedSize, 2 * page_size);
+  CHECK_EQ(discard_area->begin(), page_size);
+  CHECK_EQ(discard_area->size(), page_size);
 
-  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(
-      page_size / 2, page_size + page_size / 2);
-  CHECK_EQ(memory_area.begin(), page_size);
-  CHECK_EQ(memory_area.size(), page_size);
+  discard_area =
+      Sweeper::ComputeDiscardMemoryArea(page_size, 2 * page_size + kTaggedSize);
+  CHECK_EQ(discard_area->begin(), page_size);
+  CHECK_EQ(discard_area->size(), page_size);
 
-  memory_area = MemoryAllocator::ComputeDiscardMemoryArea(
-      page_size / 2, page_size + page_size / 4);
-  CHECK_EQ(memory_area.begin(), 0);
-  CHECK_EQ(memory_area.size(), 0);
+  discard_area = Sweeper::ComputeDiscardMemoryArea(page_size, page_size);
+  CHECK(!discard_area);
 
-  memory_area =
-      MemoryAllocator::ComputeDiscardMemoryArea(page_size / 2, page_size * 3);
-  CHECK_EQ(memory_area.begin(), page_size);
-  CHECK_EQ(memory_area.size(), page_size * 2);
+  discard_area = Sweeper::ComputeDiscardMemoryArea(page_size / 2,
+                                                   page_size + page_size / 2);
+  CHECK(!discard_area);
+
+  discard_area = Sweeper::ComputeDiscardMemoryArea(page_size / 2,
+                                                   page_size + page_size / 4);
+  CHECK(!discard_area);
+
+  discard_area =
+      Sweeper::ComputeDiscardMemoryArea(page_size / 2, page_size * 3);
+  CHECK_EQ(discard_area->begin(), page_size);
+  CHECK_EQ(discard_area->size(), page_size * 2);
 }
 
 TEST(SemiSpaceNewSpace) {
@@ -307,7 +313,8 @@ TEST(SemiSpaceNewSpace) {
   LinearAllocationArea allocation_info;
 
   auto new_space = std::make_unique<SemiSpaceNewSpace>(
-      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
+      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize(),
+      heap->InitialSemiSpaceSize());
   MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
                           MainAllocator::IsNewGeneration::kYes,
                           &allocation_info);
@@ -326,7 +333,7 @@ TEST(SemiSpaceNewSpace) {
   CHECK_LT(0, successful_allocations);
 
   new_space.reset();
-  memory_allocator->pool()->ReleasePooledChunks();
+  memory_allocator->ReleasePooledChunksImmediately();
 }
 
 TEST(PagedNewSpace) {
@@ -339,13 +346,12 @@ TEST(PagedNewSpace) {
   LinearAllocationArea allocation_info;
 
   auto new_space = std::make_unique<PagedNewSpace>(
-      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize());
+      heap, heap->InitialSemiSpaceSize(), heap->InitialSemiSpaceSize(),
+      heap->InitialSemiSpaceSize());
   MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
                           MainAllocator::IsNewGeneration::kYes,
                           &allocation_info);
-  CHECK(new_space->MaximumCapacity());
-  CHECK(new_space->EnsureCurrentCapacity());
-  CHECK_LT(0, new_space->TotalCapacity());
+  GrowNewSpaceToMaximumCapacity(heap);
 
   size_t successful_allocations = 0;
   while (true) {
@@ -360,7 +366,7 @@ TEST(PagedNewSpace) {
   CHECK_LT(0, successful_allocations);
 
   new_space.reset();
-  memory_allocator->pool()->ReleasePooledChunks();
+  memory_allocator->ReleasePooledChunksImmediately();
 }
 
 TEST(OldSpace) {
@@ -563,7 +569,7 @@ HEAP_TEST(Regress791582) {
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   MainAllocator* new_space_allocator = heap->allocator()->new_space_allocator();
-  GrowNewSpace(heap);
+  GrowNewSpaceToMaximumCapacity(heap);
 
   int until_page_end =
       static_cast<int>(heap->NewSpaceLimit() - heap->NewSpaceTop());
@@ -596,118 +602,6 @@ HEAP_TEST(Regress791582) {
     heap->CreateFillerObjectAt(obj.address(), 256);
   }
   new_space_allocator->RemoveAllocationObserver(&observer);
-}
-
-TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  heap::SealCurrentObjects(CcTest::heap());
-
-  // Prepare page that only contains a single object and a trailing FreeSpace
-  // filler.
-  DirectHandle<FixedArray> array =
-      isolate->factory()->NewFixedArray(128, AllocationType::kOld);
-  PageMetadata* page = PageMetadata::FromHeapObject(*array);
-
-  // Reset space so high water mark is consistent.
-  PagedSpace* old_space = CcTest::heap()->old_space();
-  CcTest::heap()->FreeMainThreadLinearAllocationAreas();
-  old_space->ResetFreeList();
-
-  Tagged<HeapObject> filler =
-      HeapObject::FromAddress(array->address() + array->Size());
-  CHECK(IsFreeSpace(filler));
-  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
-  size_t should_have_shrunk = RoundDown(
-      static_cast<size_t>(MemoryChunkLayout::AllocatableMemoryInDataPage() -
-                          array->Size()),
-      CommitPageSize());
-  CHECK_EQ(should_have_shrunk, shrunk);
-}
-
-TEST(ShrinkPageToHighWaterMarkNoFiller) {
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  heap::SealCurrentObjects(CcTest::heap());
-
-  const int kFillerSize = 0;
-  std::vector<Handle<FixedArray>> arrays =
-      heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
-  DirectHandle<FixedArray> array = arrays.back();
-  PageMetadata* page = PageMetadata::FromHeapObject(*array);
-  CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
-
-  // Reset space so high water mark and fillers are consistent.
-  PagedSpace* old_space = CcTest::heap()->old_space();
-  CcTest::heap()->FreeMainThreadLinearAllocationAreas();
-  old_space->ResetFreeList();
-
-  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
-  CHECK_EQ(0u, shrunk);
-}
-
-TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  heap::SealCurrentObjects(CcTest::heap());
-
-  const int kFillerSize = kTaggedSize;
-  std::vector<Handle<FixedArray>> arrays =
-      heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
-  DirectHandle<FixedArray> array = arrays.back();
-  PageMetadata* page = PageMetadata::FromHeapObject(*array);
-  CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
-
-  // Reset space so high water mark and fillers are consistent.
-  PagedSpace* old_space = CcTest::heap()->old_space();
-  CcTest::heap()->FreeMainThreadLinearAllocationAreas();
-  old_space->ResetFreeList();
-
-  Tagged<HeapObject> filler =
-      HeapObject::FromAddress(array->address() + array->Size());
-  CHECK_EQ(filler->map(),
-           ReadOnlyRoots(CcTest::heap()).one_pointer_filler_map());
-
-  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
-  CHECK_EQ(0u, shrunk);
-}
-
-TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  heap::SealCurrentObjects(CcTest::heap());
-
-  const int kFillerSize = 2 * kTaggedSize;
-  std::vector<Handle<FixedArray>> arrays =
-      heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
-  DirectHandle<FixedArray> array = arrays.back();
-  PageMetadata* page = PageMetadata::FromHeapObject(*array);
-  CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
-
-  // Reset space so high water mark and fillers are consistent.
-  PagedSpace* old_space = CcTest::heap()->old_space();
-  CcTest::heap()->FreeMainThreadLinearAllocationAreas();
-  old_space->ResetFreeList();
-
-  Tagged<HeapObject> filler =
-      HeapObject::FromAddress(array->address() + array->Size());
-  CHECK_EQ(filler->map(),
-           ReadOnlyRoots(CcTest::heap()).two_pointer_filler_map());
-
-  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
-  CHECK_EQ(0u, shrunk);
 }
 
 namespace {
@@ -798,19 +692,17 @@ TEST(ReadOnlySpaceMetrics_OnePage) {
   // Allocated objects size.
   CHECK_EQ(faked_space->Size(), 16);
 
-  size_t committed_memory =
-      RoundUp(MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage() +
-                  faked_space->Size(),
-              MemoryAllocator::GetCommitPageSize());
+  size_t committed_memory = RoundUp(
+      MemoryChunkLayout::ObjectStartOffsetInDataPage() + faked_space->Size(),
+      MemoryAllocator::GetCommitPageSize());
 
   // Amount of OS allocated memory.
   CHECK_EQ(faked_space->CommittedMemory(), committed_memory);
   CHECK_EQ(faked_space->CommittedPhysicalMemory(), committed_memory);
 
   // Capacity will be one OS page minus the page header.
-  CHECK_EQ(
-      faked_space->Capacity(),
-      committed_memory - MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage());
+  CHECK_EQ(faked_space->Capacity(),
+           committed_memory - MemoryChunkLayout::ObjectStartOffsetInDataPage());
 }
 
 TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
@@ -855,18 +747,16 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
   // with pointer compression.
   CHECK_EQ(faked_space->Size(), expected_size);
 
-  size_t committed_memory =
-      RoundUp(MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage() +
-                  faked_space->Size(),
-              MemoryAllocator::GetCommitPageSize());
+  size_t committed_memory = RoundUp(
+      MemoryChunkLayout::ObjectStartOffsetInDataPage() + faked_space->Size(),
+      MemoryAllocator::GetCommitPageSize());
 
   CHECK_EQ(faked_space->CommittedMemory(), committed_memory);
   CHECK_EQ(faked_space->CommittedPhysicalMemory(), committed_memory);
 
   // Capacity will be 3 OS pages minus the page header.
-  CHECK_EQ(
-      faked_space->Capacity(),
-      committed_memory - MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage());
+  CHECK_EQ(faked_space->Capacity(),
+           committed_memory - MemoryChunkLayout::ObjectStartOffsetInDataPage());
 }
 
 TEST(ReadOnlySpaceMetrics_TwoPages) {
@@ -905,9 +795,9 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
   CHECK_EQ(faked_space->Size(), object_size * 2);
 
   // Amount of OS allocated memory.
-  size_t committed_memory_per_page = RoundUp(
-      MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage() + object_size,
-      MemoryAllocator::GetCommitPageSize());
+  size_t committed_memory_per_page =
+      RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + object_size,
+              MemoryAllocator::GetCommitPageSize());
   CHECK_EQ(faked_space->CommittedMemory(), 2 * committed_memory_per_page);
   CHECK_EQ(faked_space->CommittedPhysicalMemory(),
            2 * committed_memory_per_page);
@@ -915,10 +805,9 @@ TEST(ReadOnlySpaceMetrics_TwoPages) {
   // Capacity will be the space up to the amount of committed memory minus the
   // page headers.
   size_t capacity_per_page =
-      RoundUp(
-          MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage() + object_size,
-          MemoryAllocator::GetCommitPageSize()) -
-      MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage();
+      RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage() + object_size,
+              MemoryAllocator::GetCommitPageSize()) -
+      MemoryChunkLayout::ObjectStartOffsetInDataPage();
   CHECK_EQ(faked_space->Capacity(), 2 * capacity_per_page);
 }
 

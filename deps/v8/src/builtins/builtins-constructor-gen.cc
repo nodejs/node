@@ -51,8 +51,8 @@ void Builtins::Generate_ConstructForwardAllArgs(MacroAssembler* masm) {
 }
 
 TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
@@ -63,8 +63,8 @@ TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
 }
 
 TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
@@ -77,10 +77,10 @@ TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
 }
 
 void CallOrConstructBuiltinsAssembler::BuildConstruct(
-    TNode<Object> target, TNode<Object> new_target, TNode<Int32T> argc,
+    TNode<JSAny> target, TNode<JSAny> new_target, TNode<Int32T> argc,
     const LazyNode<Context>& context,
-    const LazyNode<HeapObject>& feedback_vector, TNode<UintPtrT> slot,
-    UpdateFeedbackMode mode) {
+    const LazyNode<Union<Undefined, FeedbackVector>>& feedback_vector,
+    TNode<UintPtrT> slot, UpdateFeedbackMode mode) {
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
   TNode<Context> eager_context = context();
@@ -99,17 +99,17 @@ void CallOrConstructBuiltinsAssembler::BuildConstruct(
 }
 
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
   auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
   auto context = Parameter<Context>(Descriptor::kContext);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
 TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
+  auto spread = Parameter<JSAny>(Descriptor::kSpread);
   auto args_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -117,9 +117,9 @@ TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
+  auto spread = Parameter<JSAny>(Descriptor::kSpread);
   auto args_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
@@ -131,13 +131,13 @@ TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
+  auto spread = Parameter<JSAny>(Descriptor::kSpread);
   auto args_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto feedback_vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kVector);
   auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
 
   return BuildConstructWithSpread(
@@ -147,10 +147,10 @@ TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
 }
 
 void CallOrConstructBuiltinsAssembler::BuildConstructWithSpread(
-    TNode<Object> target, TNode<Object> new_target, TNode<Object> spread,
+    TNode<JSAny> target, TNode<JSAny> new_target, TNode<JSAny> spread,
     TNode<Int32T> argc, const LazyNode<Context>& context,
-    const LazyNode<HeapObject>& feedback_vector, TNode<TaggedIndex> slot,
-    UpdateFeedbackMode mode) {
+    const LazyNode<Union<Undefined, FeedbackVector>>& feedback_vector,
+    TNode<TaggedIndex> slot, UpdateFeedbackMode mode) {
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
   TNode<Context> eager_context = context();
@@ -167,8 +167,8 @@ void CallOrConstructBuiltinsAssembler::BuildConstructWithSpread(
 }
 
 TF_BUILTIN(ConstructForwardAllArgs_Baseline, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
   auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
 
   return BuildConstructForwardAllArgs(
@@ -178,10 +178,10 @@ TF_BUILTIN(ConstructForwardAllArgs_Baseline, CallOrConstructBuiltinsAssembler) {
 
 TF_BUILTIN(ConstructForwardAllArgs_WithFeedback,
            CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
   auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
-  auto feedback_vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   return BuildConstructForwardAllArgs(
@@ -190,9 +190,10 @@ TF_BUILTIN(ConstructForwardAllArgs_WithFeedback,
 }
 
 void CallOrConstructBuiltinsAssembler::BuildConstructForwardAllArgs(
-    TNode<Object> target, TNode<Object> new_target,
+    TNode<JSAny> target, TNode<JSAny> new_target,
     const LazyNode<Context>& context,
-    const LazyNode<HeapObject>& feedback_vector, TNode<TaggedIndex> slot) {
+    const LazyNode<Union<Undefined, FeedbackVector>>& feedback_vector,
+    TNode<TaggedIndex> slot) {
   TVARIABLE(AllocationSite, allocation_site);
   TNode<Context> eager_context = context();
 
@@ -228,8 +229,20 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     Goto(&cell_done);
 
     BIND(&one_closure);
+#ifdef V8_ENABLE_LEAPTIERING
+    // The transition from one to many closures under leap tiering requires
+    // making sure that the dispatch_handle's code isn't context specialized for
+    // the single closure. This is handled in the runtime.
+    //
+    // TODO(leszeks): We could fast path this for the case where the dispatch
+    // handle either doesn't contain any code, or that code isn't context
+    // specialized.
+    TailCallRuntime(Runtime::kNewClosure, context, shared_function_info,
+                    feedback_cell);
+#else
     StoreMapNoWriteBarrier(feedback_cell, RootIndex::kManyClosuresCellMap);
     Goto(&cell_done);
+#endif  // V8_ENABLE_LEAPTIERING
 
     BIND(&cell_done);
   }
@@ -249,7 +262,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   // as the map of the allocated object.
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   const TNode<Map> function_map =
-      CAST(LoadContextElement(native_context, function_map_index));
+      CAST(LoadContextElementNoCell(native_context, function_map_index));
 
   // Create a new closure from the given function info in new space
   TNode<IntPtrT> instance_size_in_bytes =
@@ -287,8 +300,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 #ifdef V8_ENABLE_LEAPTIERING
   TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
       feedback_cell, FeedbackCell::kDispatchHandleOffset);
-  CSA_DCHECK(this, Word32NotEqual(dispatch_handle,
-                                  Int32Constant(kNullJSDispatchHandle)));
+  CSA_DCHECK(this,
+             Word32NotEqual(dispatch_handle,
+                            Int32Constant(kNullJSDispatchHandle.value())));
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kDispatchHandleOffset,
                                  dispatch_handle);
 #else
@@ -397,7 +411,7 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
     default:
       UNREACHABLE();
   }
-  TNode<Map> map = CAST(LoadContextElement(native_context, index));
+  TNode<Map> map = CAST(LoadContextElementNoCell(native_context, index));
   // Set up the header.
   StoreMapNoWriteBarrier(function_context, map);
   TNode<IntPtrT> min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
@@ -450,7 +464,7 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     TNode<HeapObject> new_object = Allocate(JSRegExp::Size());
 
     // Initialize Object fields.
-    TNode<JSFunction> regexp_function = CAST(LoadContextElement(
+    TNode<JSFunction> regexp_function = CAST(LoadContextElementNoCell(
         LoadNativeContext(context), Context::REGEXP_FUNCTION_INDEX));
     TNode<Map> initial_map = CAST(LoadObjectField(
         regexp_function, JSFunction::kPrototypeOrInitialMapOffset));
@@ -651,7 +665,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     // Prepare for inner-allocating the AllocationMemento.
     allocation_size = IntPtrAdd(aligned_instance_size,
                                 IntPtrConstant(ALIGN_TO_ALLOCATION_ALIGNMENT(
-                                    AllocationMemento::kSize)));
+                                    sizeof(AllocationMemento))));
   }
 
   TNode<HeapObject> copy =

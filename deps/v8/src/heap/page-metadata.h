@@ -58,7 +58,8 @@ class PageMetadata : public MutablePageMetadata {
     return MemoryChunk::IsAligned(addr);
   }
 
-  static PageMetadata* ConvertNewToOld(PageMetadata* old_page);
+  static PageMetadata* ConvertNewToOld(PageMetadata* old_page,
+                                       FreeMode free_mode);
 
   V8_EXPORT_PRIVATE void MarkNeverAllocateForTesting();
   inline void MarkEvacuationCandidate();
@@ -92,8 +93,6 @@ class PageMetadata : public MutablePageMetadata {
     return categories_[type];
   }
 
-  V8_EXPORT_PRIVATE size_t ShrinkToHighWaterMark();
-
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
   void DestroyBlackArea(Address start, Address end);
 
@@ -101,7 +100,9 @@ class PageMetadata : public MutablePageMetadata {
   void AllocateFreeListCategories();
   void ReleaseFreeListCategories();
 
-  ActiveSystemPages* active_system_pages() { return active_system_pages_; }
+  ActiveSystemPages* active_system_pages() {
+    return active_system_pages_.get();
+  }
 
   template <RememberedSetType remembered_set>
   void ClearTypedSlotsInFreeMemory(const TypedSlotSet::FreeRangesMap& ranges) {
@@ -125,14 +126,6 @@ class PageMetadata : public MutablePageMetadata {
  private:
   friend class MemoryAllocator;
 };
-
-// Validate our estimates on the header size.
-static_assert(sizeof(MemoryChunkMetadata) <=
-              MemoryChunkLayout::kMemoryChunkMetadataSize);
-static_assert(sizeof(MutablePageMetadata) <=
-              MemoryChunkLayout::kMutablePageMetadataSize);
-static_assert(sizeof(PageMetadata) <=
-              MemoryChunkLayout::kMutablePageMetadataSize);
 
 }  // namespace internal
 

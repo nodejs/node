@@ -33,6 +33,7 @@
 #include "absl/base/macros.h"
 #include "absl/base/port.h"
 #include "absl/debugging/internal/address_is_readable.h"
+#include "absl/debugging/internal/addresses.h"
 #include "absl/debugging/internal/vdso_support.h"  // a no-op on non-elf or non-glibc systems
 #include "absl/debugging/stacktrace.h"
 
@@ -163,6 +164,7 @@ static uintptr_t GetFP(const void *vuc) {
 template <bool STRICT_UNWINDING, bool WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static void **NextStackFrame(void **old_fp, const void *uc,
                              size_t stack_low, size_t stack_high) {
   void **new_fp = (void **)*old_fp;
@@ -326,9 +328,11 @@ static void **NextStackFrame(void **old_fp, const void *uc,
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 ABSL_ATTRIBUTE_NOINLINE
-static int UnwindImpl(void **result, int *sizes, int max_depth, int skip_count,
-                      const void *ucp, int *min_dropped_frames) {
+static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
+                      int max_depth, int skip_count, const void *ucp,
+                      int *min_dropped_frames) {
   int n = 0;
   void **fp = reinterpret_cast<void **>(__builtin_frame_address(0));
 
@@ -349,13 +353,19 @@ static int UnwindImpl(void **result, int *sizes, int max_depth, int skip_count,
     } else {
       result[n] = *(fp + 1);
       if (IS_STACK_FRAMES) {
-        if (next_fp > fp) {
-          sizes[n] = static_cast<int>(
-              reinterpret_cast<uintptr_t>(next_fp) -
-              reinterpret_cast<uintptr_t>(fp));
-        } else {
-          // A frame-size of 0 is used to indicate unknown frame size.
-          sizes[n] = 0;
+        if (frames) {
+          frames[n] = absl::debugging_internal::StripPointerMetadata(fp) +
+                      2 * sizeof(void *) /* go past the return address */;
+        }
+        if (sizes) {
+          if (next_fp > fp) {
+            sizes[n] = static_cast<int>(
+                absl::debugging_internal::StripPointerMetadata(next_fp) -
+                absl::debugging_internal::StripPointerMetadata(fp));
+          } else {
+            // A frame-size of 0 is used to indicate unknown frame size.
+            sizes[n] = 0;
+          }
         }
       }
       n++;

@@ -16,11 +16,14 @@
 #define ABSL_HASH_INTERNAL_SPY_HASH_STATE_H_
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <ostream>
 #include <string>
 #include <vector>
 
 #include "absl/hash/hash.h"
+#include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -166,6 +169,11 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
     return hash_state;
   }
 
+  static SpyHashStateImpl combine_weakly_mixed_integer(
+      SpyHashStateImpl hash_state, WeaklyMixedInteger value) {
+    return combine(std::move(hash_state), value.value);
+  }
+
   using SpyHashStateImpl::HashStateBase::combine_contiguous;
 
   template <typename CombinerT>
@@ -196,6 +204,7 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
  private:
   template <typename U>
   friend class SpyHashStateImpl;
+  friend struct CombineRaw;
 
   struct UnorderedCombinerCallback {
     std::vector<std::string> element_hash_representations;
@@ -212,6 +221,12 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
       inner = SpyHashStateImpl<void>{};
     }
   };
+
+  // Combines raw data from e.g. integrals/floats/pointers/etc.
+  static SpyHashStateImpl combine_raw(SpyHashStateImpl state, uint64_t value) {
+    const unsigned char* data = reinterpret_cast<const unsigned char*>(&value);
+    return SpyHashStateImpl::combine_contiguous(std::move(state), data, 8);
+  }
 
   // This is true if SpyHashStateImpl<T> has been passed to a call of
   // AbslHashValue with the wrong type. This detects that the user called

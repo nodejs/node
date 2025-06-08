@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_INLINING_TREE_H_
+#define V8_WASM_INLINING_TREE_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_WASM_INLINING_TREE_H_
-#define V8_WASM_INLINING_TREE_H_
-
+#include <cinttypes>
 #include <cstdint>
 #include <queue>
 #include <vector>
@@ -84,6 +85,13 @@ class InliningTree : public ZoneObject {
   // IIUC, this limit is in place because of the encoding of inlining IDs in
   // a 6-bit bitfield in Turboshaft IR, which we should revisit.
   static constexpr int kMaxInlinedCount = 60;
+
+  // Limit the nesting depth of inlining. Inlining decisions are based on call
+  // counts. A small function with high call counts that is called recursively
+  // would be inlined until all budget is used.
+  // TODO(14108): This still might not lead to ideal results. Other options
+  // could be explored like penalizing nested inlinees.
+  static constexpr uint32_t kMaxInliningNestingDepth = 7;
 
   base::Vector<CasesPerCallSite> function_calls() { return function_calls_; }
   base::Vector<bool> has_non_inlineable_targets() {
@@ -190,12 +198,6 @@ class InliningTree : public ZoneObject {
   base::Vector<CasesPerCallSite> function_calls_{};
   base::Vector<bool> has_non_inlineable_targets_{};
 
-  // Limit the nesting depth of inlining. Inlining decisions are based on call
-  // counts. A small function with high call counts that is called recursively
-  // would be inlined until all budget is used.
-  // TODO(14108): This still might not lead to ideal results. Other options
-  // could be explored like penalizing nested inlinees.
-  static constexpr uint32_t kMaxInliningNestingDepth = 7;
   uint32_t depth_;
 
   // For tracing.
@@ -206,33 +208,33 @@ class InliningTree : public ZoneObject {
 
 void InliningTree::Inline() {
   is_inlined_ = true;
-  auto feedback =
-      data_->module->type_feedback.feedback_for_function.find(function_index_);
-  if (feedback != data_->module->type_feedback.feedback_for_function.end() &&
-      feedback->second.feedback_vector.size() ==
-          feedback->second.call_targets.size()) {
-    std::vector<CallSiteFeedback>& type_feedback =
-        feedback->second.feedback_vector;
-    feedback_found_ = true;
-    function_calls_ =
-        data_->zone->AllocateVector<CasesPerCallSite>(type_feedback.size());
-    has_non_inlineable_targets_ =
-        data_->zone->AllocateVector<bool>(type_feedback.size());
-    for (size_t i = 0; i < type_feedback.size(); i++) {
-      function_calls_[i] = data_->zone->AllocateVector<InliningTree*>(
-          type_feedback[i].num_cases());
-      has_non_inlineable_targets_[i] =
-          type_feedback[i].has_non_inlineable_targets();
-      for (int the_case = 0; the_case < type_feedback[i].num_cases();
-           the_case++) {
-        uint32_t callee_index = type_feedback[i].function_index(the_case);
-        // TODO(jkummerow): Experiment with propagating relative call counts
-        // into the nested InliningTree, and weighting scores there accordingly.
-        function_calls_[i][the_case] = data_->zone->New<InliningTree>(
-            data_, callee_index, type_feedback[i].call_count(the_case),
-            data_->module->functions[callee_index].code.length(),
-            function_index_, static_cast<int>(i), the_case, depth_ + 1);
-      }
+  auto& feedback_map = data_->module->type_feedback.feedback_for_function;
+  auto feedback_it = feedback_map.find(function_index_);
+  if (feedback_it == feedback_map.end()) return;
+  const FunctionTypeFeedback& feedback = feedback_it->second;
+  base::Vector<CallSiteFeedback> type_feedback =
+      feedback.feedback_vector.as_vector();
+  if (type_feedback.empty()) return;  // No feedback yet.
+  DCHECK_EQ(type_feedback.size(), feedback.call_targets.size());
+  feedback_found_ = true;
+  function_calls_ =
+      data_->zone->AllocateVector<CasesPerCallSite>(type_feedback.size());
+  has_non_inlineable_targets_ =
+      data_->zone->AllocateVector<bool>(type_feedback.size());
+  for (size_t i = 0; i < type_feedback.size(); i++) {
+    function_calls_[i] = data_->zone->AllocateVector<InliningTree*>(
+        type_feedback[i].num_cases());
+    has_non_inlineable_targets_[i] =
+        type_feedback[i].has_non_inlineable_targets();
+    for (int the_case = 0; the_case < type_feedback[i].num_cases();
+         the_case++) {
+      uint32_t callee_index = type_feedback[i].function_index(the_case);
+      // TODO(jkummerow): Experiment with propagating relative call counts
+      // into the nested InliningTree, and weighting scores there accordingly.
+      function_calls_[i][the_case] = data_->zone->New<InliningTree>(
+          data_, callee_index, type_feedback[i].call_count(the_case),
+          data_->module->functions[callee_index].code.length(), function_index_,
+          static_cast<int>(i), the_case, depth_ + 1);
     }
   }
 }
@@ -256,19 +258,18 @@ void InliningTree::FullyExpand() {
       queue;
   queue.push(this);
   int inlined_count = 0;
-  base::SharedMutexGuard<base::kShared> mutex_guard(
-      &data_->module->type_feedback.mutex);
+  base::MutexGuard mutex_guard(&data_->module->type_feedback.mutex);
   while (!queue.empty() && inlined_count < kMaxInlinedCount) {
     InliningTree* top = queue.top();
     if (v8_flags.trace_wasm_inlining) {
       if (top != this) {
         PrintF(
             "[function %d: in function %d, considering call #%d, case #%d, to "
-            "function %d (count=%d, size=%d, score=%lld)... ",
+            "function %d (count=%d, size=%d, score=%" PRId64 ")... ",
             data_->topmost_caller_index, top->caller_index_,
             top->feedback_slot_, static_cast<int>(top->case_),
             static_cast<int>(top->function_index_), top->call_count_,
-            top->wire_byte_size_, static_cast<long long>(top->score()));
+            top->wire_byte_size_, static_cast<int64_t>(top->score()));
       } else {
         PrintF("[function %d: expanding topmost caller... ",
                data_->topmost_caller_index);
@@ -278,6 +279,12 @@ void InliningTree::FullyExpand() {
     if (top->function_index_ < data_->module->num_imported_functions) {
       if (v8_flags.trace_wasm_inlining && top != this) {
         PrintF("imported function]\n");
+      }
+      continue;
+    }
+    if (is_asmjs_module(data_->module)) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF("cannot inline asm.js function]\n");
       }
       continue;
     }
@@ -314,21 +321,23 @@ void InliningTree::FullyExpand() {
     constexpr int kOneLessCall = 6;  // Guesstimated savings per call.
     inlined_wire_byte_count += std::max(top->wire_byte_size_ - kOneLessCall, 0);
 
-    if (top->feedback_found()) {
-      if (top->depth_ < kMaxInliningNestingDepth) {
-        if (v8_flags.trace_wasm_inlining) PrintF("queueing callees]\n");
-        for (CasesPerCallSite cases : top->function_calls_) {
-          for (InliningTree* call : cases) {
-            if (call != nullptr) {
-              queue.push(call);
-            }
+    if (!top->feedback_found()) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF("no feedback yet or no callees]\n");
+      }
+    } else if (top->depth_ < kMaxInliningNestingDepth) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF("queueing %zu callee(s)]\n", top->function_calls_.size());
+      }
+      for (CasesPerCallSite cases : top->function_calls_) {
+        for (InliningTree* call : cases) {
+          if (call != nullptr) {
+            queue.push(call);
           }
         }
-      } else if (v8_flags.trace_wasm_inlining) {
-        PrintF("max inlining depth reached]\n");
       }
-    } else {
-      if (v8_flags.trace_wasm_inlining) PrintF("feedback not found]\n");
+    } else if (v8_flags.trace_wasm_inlining) {
+      PrintF("max inlining depth reached]\n");
     }
   }
   if (v8_flags.trace_wasm_inlining && !queue.empty()) {

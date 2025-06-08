@@ -603,10 +603,10 @@ myEmitter.emit('event', 1, 2, 3, 4, 5);
 added: v6.0.0
 -->
 
-* Returns: {Array}
+* Returns: {string\[]|symbol\[]}
 
 Returns an array listing the events for which the emitter has registered
-listeners. The values in the array are strings or `Symbol`s.
+listeners.
 
 ```mjs
 import { EventEmitter } from 'node:events';
@@ -1835,7 +1835,9 @@ added:
  - v20.5.0
  - v18.18.0
 changes:
- - version: REPLACEME
+ - version:
+   - v24.0.0
+   - v22.16.0
    pr-url: https://github.com/nodejs/node/pull/57765
    description: Change stability index for this feature from Experimental to Stable.
 -->

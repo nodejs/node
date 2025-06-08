@@ -1936,9 +1936,11 @@ affects new connections to the server, not any existing connections.
 
 <!-- YAML
 added: v20.4.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`server.close()`][] and returns a promise that fulfills when the
 server has closed.
@@ -3322,13 +3324,13 @@ const server = http.createServer((req, res) => {
 });
 ```
 
-### `outgoingMessage.setTimeout(msesc[, callback])`
+### `outgoingMessage.setTimeout(msecs[, callback])`
 
 <!-- YAML
 added: v0.9.12
 -->
 
-* `msesc` {number}
+* `msecs` {number}
 * `callback` {Function} Optional function to be called when a timeout
   occurs. Same as binding to the `timeout` event.
 * Returns: {this}

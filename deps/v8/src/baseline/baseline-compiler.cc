@@ -285,15 +285,15 @@ BaselineCompiler::BaselineCompiler(
       stats_(local_isolate->runtime_call_stats()),
       shared_function_info_(shared_function_info),
       bytecode_(bytecode),
+      zone_(local_isolate->allocator(), ZONE_NAME),
       masm_(
-          local_isolate->GetMainThreadIsolateUnsafe(),
+          local_isolate->GetMainThreadIsolateUnsafe(), &zone_,
           BaselineAssemblerOptions(local_isolate->GetMainThreadIsolateUnsafe()),
           CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
       basm_(&masm_),
       iterator_(bytecode_),
-      zone_(local_isolate->allocator(), ZONE_NAME),
       labels_(zone_.AllocateArray<Label>(bytecode_->length())),
-      label_tags_(2*bytecode_->length(), &zone_) {
+      label_tags_(2 * bytecode_->length(), &zone_) {
   // Empirically determined expected size of the offset table at the 95th %ile,
   // based on the size of the bytecode, to be:
   //
@@ -350,6 +350,7 @@ MaybeHandle<Code> BaselineCompiler::Build() {
   } else {
     code_builder.set_interpreter_data(bytecode_);
   }
+  code_builder.set_parameter_count(bytecode_->parameter_count());
   return code_builder.TryBuild();
 }
 
@@ -481,9 +482,8 @@ void BaselineCompiler::VisitSingleBytecode() {
 #endif
   int offset = iterator().current_offset();
   if (IsJumpTarget(offset)) __ Bind(&labels_[offset]);
-  // Mark position as valid jump target unconditionnaly when the deoptimizer can
-  // jump to baseline code. This is required when CFI is enabled.
-  if (v8_flags.deopt_to_baseline || IsIndirectJumpTarget(offset)) {
+  // This is required when CFI is enabled.
+  if (IsIndirectJumpTarget(offset)) {
     __ JumpTarget();
   }
 
@@ -508,7 +508,7 @@ void BaselineCompiler::VisitSingleBytecode() {
     // isn't registered as writing to it. We can't do this for jumps or switches
     // though, since the control flow would not match the control flow of this
     // scope.
-    if (v8_flags.debug_code &&
+    if (v8_flags.slow_debug_code &&
         !interpreter::Bytecodes::WritesOrClobbersAccumulator(bytecode) &&
         !interpreter::Bytecodes::IsJump(bytecode) &&
         !interpreter::Bytecodes::IsSwitch(bytecode)) {
@@ -532,7 +532,7 @@ void BaselineCompiler::VisitSingleBytecode() {
 }
 
 void BaselineCompiler::VerifyFrame() {
-  if (v8_flags.debug_code) {
+  if (v8_flags.slow_debug_code) {
     ASM_CODE_COMMENT(&masm_);
     __ RecordComment(" -- Verify frame size");
     VerifyFrameSize();
@@ -615,7 +615,7 @@ Label* BaselineCompiler::BuildForwardJumpLabel() {
   return EnsureLabel(target_offset);
 }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(V8_ENABLE_CET_SHADOW_STACK)
 // Allowlist to mark builtin calls during which it is impossible that the
 // sparkplug frame would have to be deoptimized. Either because they don't
 // execute any user code, or because they would anyway replace the current
@@ -626,8 +626,8 @@ constexpr static bool BuiltinMayDeopt(Builtin id) {
     case Builtin::kBaselineOutOfLinePrologue:
     case Builtin::kIncBlockCounter:
     case Builtin::kToObject:
-    case Builtin::kStoreScriptContextSlotBaseline:
-    case Builtin::kStoreCurrentScriptContextSlotBaseline:
+    case Builtin::kStoreContextElementBaseline:
+    case Builtin::kStoreCurrentContextElementBaseline:
     // This one explicitly skips the construct if the debugger is enabled.
     case Builtin::kFindNonDefaultConstructorOrConstruct:
       return false;
@@ -635,7 +635,7 @@ constexpr static bool BuiltinMayDeopt(Builtin id) {
       return true;
   }
 }
-#endif  // DEBUG
+#endif  // DEBUG || V8_ENABLE_CET_SHADOW_STACK
 
 template <Builtin kBuiltin, typename... Args>
 void BaselineCompiler::CallBuiltin(Args... args) {
@@ -648,6 +648,11 @@ void BaselineCompiler::CallBuiltin(Args... args) {
   ASM_CODE_COMMENT(&masm_);
   detail::MoveArgumentsForBuiltin<kBuiltin>(&basm_, args...);
   __ CallBuiltin(kBuiltin);
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  if (BuiltinMayDeopt(kBuiltin)) {
+    __ MaybeEmitPlaceHolderForDeopt();
+  }
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 }
 
 template <Builtin kBuiltin, typename... Args>
@@ -668,6 +673,9 @@ void BaselineCompiler::CallRuntime(Runtime::FunctionId function, Args... args) {
   __ LoadContext(kContextRegister);
   int nargs = __ Push(args...);
   __ CallRuntime(function, nargs);
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  __ MaybeEmitPlaceHolderForDeopt();
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 }
 
 // Returns into kInterpreterAccumulatorRegister
@@ -749,18 +757,41 @@ void BaselineCompiler::VisitPopContext() {
   __ StoreContext(context);
 }
 
-void BaselineCompiler::VisitLdaContextSlot() {
+void BaselineCompiler::VisitLdaContextSlotNoCell() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register context = scratch_scope.AcquireScratch();
   LoadRegister(context, 0);
   uint32_t index = Index(1);
   uint32_t depth = Uint(2);
-  __ LdaContextSlot(context, index, depth);
+  __ LdaContextSlotNoCell(context, index, depth);
 }
 
-void BaselineCompiler::VisitLdaImmutableContextSlot() { VisitLdaContextSlot(); }
+void BaselineCompiler::VisitLdaContextSlot() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register context = scratch_scope.AcquireScratch();
+  Label done;
+  LoadRegister(context, 0);
+  uint32_t index = Index(1);
+  uint32_t depth = Uint(2);
+  __ LdaContextSlotNoCell(
+      context, index, depth,
+      BaselineAssembler::CompressionMode::kForceDecompression);
+  __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
+  __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
+                          CONTEXT_CELL_TYPE, &done, Label::kNear);
+  // TODO(victorgomes): inline trivial constant value read from context cell.
+  CallBuiltin<Builtin::kLoadFromContextCell>(
+      kInterpreterAccumulatorRegister,  // heap number
+      context,                          // context
+      Smi::FromInt(index));             // slot
+  __ Bind(&done);
+}
 
-void BaselineCompiler::VisitLdaCurrentContextSlot() {
+void BaselineCompiler::VisitLdaImmutableContextSlot() {
+  VisitLdaContextSlotNoCell();
+}
+
+void BaselineCompiler::VisitLdaCurrentContextSlotNoCell() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register context = scratch_scope.AcquireScratch();
   __ LoadContext(context);
@@ -768,11 +799,30 @@ void BaselineCompiler::VisitLdaCurrentContextSlot() {
                      Context::OffsetOfElementAt(Index(0)));
 }
 
-void BaselineCompiler::VisitLdaImmutableCurrentContextSlot() {
-  VisitLdaCurrentContextSlot();
+void BaselineCompiler::VisitLdaCurrentContextSlot() {
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register context = scratch_scope.AcquireScratch();
+  Label done;
+  uint32_t index = Index(0);
+  __ LoadContext(context);
+  __ LoadTaggedField(kInterpreterAccumulatorRegister, context,
+                     Context::OffsetOfElementAt(index));
+  __ JumpIfSmi(kInterpreterAccumulatorRegister, &done);
+  __ JumpIfObjectTypeFast(kNotEqual, kInterpreterAccumulatorRegister,
+                          CONTEXT_CELL_TYPE, &done, Label::kNear);
+  // TODO(victorgomes): inline trivial constant value read from context cell.
+  CallBuiltin<Builtin::kLoadFromContextCell>(
+      kInterpreterAccumulatorRegister,  // heap number
+      context,                          // context
+      Smi::FromInt(index));             // slot
+  __ Bind(&done);
 }
 
-void BaselineCompiler::VisitStaContextSlot() {
+void BaselineCompiler::VisitLdaImmutableCurrentContextSlot() {
+  VisitLdaCurrentContextSlotNoCell();
+}
+
+void BaselineCompiler::VisitStaContextSlotNoCell() {
   Register value = WriteBarrierDescriptor::ValueRegister();
   Register context = WriteBarrierDescriptor::ObjectRegister();
   DCHECK(!AreAliased(value, context, kInterpreterAccumulatorRegister));
@@ -780,10 +830,10 @@ void BaselineCompiler::VisitStaContextSlot() {
   LoadRegister(context, 0);
   uint32_t index = Index(1);
   uint32_t depth = Uint(2);
-  __ StaContextSlot(context, value, index, depth);
+  __ StaContextSlotNoCell(context, value, index, depth);
 }
 
-void BaselineCompiler::VisitStaCurrentContextSlot() {
+void BaselineCompiler::VisitStaCurrentContextSlotNoCell() {
   Register value = WriteBarrierDescriptor::ValueRegister();
   Register context = WriteBarrierDescriptor::ObjectRegister();
   DCHECK(!AreAliased(value, context, kInterpreterAccumulatorRegister));
@@ -793,26 +843,25 @@ void BaselineCompiler::VisitStaCurrentContextSlot() {
       context, Context::OffsetOfElementAt(Index(0)), value);
 }
 
-void BaselineCompiler::VisitStaScriptContextSlot() {
+void BaselineCompiler::VisitStaContextSlot() {
   Register value = WriteBarrierDescriptor::ValueRegister();
   Register context = WriteBarrierDescriptor::ObjectRegister();
   DCHECK(!AreAliased(value, context, kInterpreterAccumulatorRegister));
   __ Move(value, kInterpreterAccumulatorRegister);
   LoadRegister(context, 0);
   SaveAccumulatorScope accumulator_scope(this, &basm_);
-  CallBuiltin<Builtin::kStoreScriptContextSlotBaseline>(
-      context,           // context
-      value,             // value
-      IndexAsSmi(1),     // slot
-      UintAsTagged(2));  // depth
+  CallBuiltin<Builtin::kStoreContextElementBaseline>(context,        // context
+                                                     value,          // value
+                                                     IndexAsSmi(1),  // slot
+                                                     UintAsTagged(2));  // depth
 }
 
-void BaselineCompiler::VisitStaCurrentScriptContextSlot() {
+void BaselineCompiler::VisitStaCurrentContextSlot() {
   Register value = WriteBarrierDescriptor::ValueRegister();
   DCHECK(!AreAliased(value, kInterpreterAccumulatorRegister));
   SaveAccumulatorScope accumulator_scope(this, &basm_);
   __ Move(value, kInterpreterAccumulatorRegister);
-  CallBuiltin<Builtin::kStoreCurrentScriptContextSlotBaseline>(
+  CallBuiltin<Builtin::kStoreCurrentContextElementBaseline>(
       value,           // value
       IndexAsSmi(0));  // slot
 }
@@ -821,8 +870,13 @@ void BaselineCompiler::VisitLdaLookupSlot() {
   CallRuntime(Runtime::kLoadLookupSlot, Constant<Name>(0));
 }
 
+void BaselineCompiler::VisitLdaLookupContextSlotNoCell() {
+  CallBuiltin<Builtin::kLookupContextNoCellBaseline>(
+      Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
+}
+
 void BaselineCompiler::VisitLdaLookupContextSlot() {
-  CallBuiltin<Builtin::kLookupContextBaseline>(
+  CallBuiltin<Builtin::kLookupScriptContextBaseline>(
       Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
 }
 
@@ -833,6 +887,11 @@ void BaselineCompiler::VisitLdaLookupGlobalSlot() {
 
 void BaselineCompiler::VisitLdaLookupSlotInsideTypeof() {
   CallRuntime(Runtime::kLoadLookupSlotInsideTypeof, Constant<Name>(0));
+}
+
+void BaselineCompiler::VisitLdaLookupContextSlotNoCellInsideTypeof() {
+  CallBuiltin<Builtin::kLookupContextNoCellInsideTypeofBaseline>(
+      Constant<Name>(0), UintAsTagged(2), IndexAsTagged(1));
 }
 
 void BaselineCompiler::VisitLdaLookupContextSlotInsideTypeof() {
@@ -1014,6 +1073,11 @@ void BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral() {
 
 void BaselineCompiler::VisitAdd() {
   CallBuiltin<Builtin::kAdd_Baseline>(
+      RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
+}
+
+void BaselineCompiler::VisitAdd_LhsIsStringConstant_Internalize() {
+  CallBuiltin<Builtin::kAdd_LhsIsStringConstant_Internalize_Baseline>(
       RegisterOperand(0), kInterpreterAccumulatorRegister, Index(1));
 }
 
@@ -2023,13 +2087,16 @@ void BaselineCompiler::VisitJumpLoop() {
 
     __ Bind(&osr);
     Label do_osr;
-    int weight = bytecode_->length() * v8_flags.osr_to_tierup;
+    weight = bytecode_->length() * v8_flags.osr_to_tierup;
     __ Push(maybe_target_code);
     UpdateInterruptBudgetAndJumpToLabel(-weight, nullptr, &do_osr,
                                         kDisableStackCheck);
     __ Bind(&do_osr);
+    Register expected_param_count = D::ExpectedParameterCountRegister();
+    __ Move(expected_param_count, Smi::FromInt(bytecode_->parameter_count()));
     __ Pop(maybe_target_code);
-    CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
+    CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code,
+                                                      expected_param_count);
     __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, nullptr);
     __ Jump(&osr_not_armed, Label::kNear);
 

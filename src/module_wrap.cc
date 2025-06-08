@@ -309,6 +309,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       }
 
       if (that->Set(context,
+                    realm->env()->source_url_string(),
+                    module->GetUnboundModuleScript()->GetSourceURL())
+              .IsNothing()) {
+        return;
+      }
+
+      if (that->Set(context,
                     realm->env()->source_map_url_string(),
                     module->GetUnboundModuleScript()->GetSourceMappingURL())
               .IsNothing()) {
@@ -860,6 +867,16 @@ void ModuleWrap::GetStatus(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(module->GetStatus());
 }
 
+void ModuleWrap::IsGraphAsync(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+
+  Local<Module> module = obj->module_.Get(isolate);
+
+  args.GetReturnValue().Set(module->IsGraphAsync());
+}
+
 void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   ModuleWrap* obj;
@@ -1010,16 +1027,23 @@ static MaybeLocal<Promise> ImportModuleDynamicallyWithPhase(
   };
 
   Local<Value> result;
-  if (import_callback->Call(
-        context,
-        Undefined(isolate),
-        arraysize(import_args),
-        import_args).ToLocal(&result)) {
-    CHECK(result->IsPromise());
-    return handle_scope.Escape(result.As<Promise>());
+  if (!import_callback
+           ->Call(
+               context, Undefined(isolate), arraysize(import_args), import_args)
+           .ToLocal(&result)) {
+    return {};
   }
 
-  return MaybeLocal<Promise>();
+  // Wrap the returned value in a promise created in the referrer context to
+  // avoid dynamic scopes.
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) {
+    return {};
+  }
+  if (resolver->Resolve(context, result).IsNothing()) {
+    return {};
+  }
+  return handle_scope.Escape(resolver->GetPromise());
 }
 
 static MaybeLocal<Promise> ImportModuleDynamically(
@@ -1048,10 +1072,8 @@ void ModuleWrap::SetImportModuleDynamicallyCallback(
   realm->set_host_import_module_dynamically_callback(import_callback);
 
   isolate->SetHostImportModuleDynamicallyCallback(ImportModuleDynamically);
-  // TODO(guybedford): Enable this once
-  //                   https://github.com/nodejs/node/pull/56842 lands.
-  // isolate->SetHostImportModuleWithPhaseDynamicallyCallback(
-  //     ImportModuleDynamicallyWithPhase);
+  isolate->SetHostImportModuleWithPhaseDynamicallyCallback(
+      ImportModuleDynamicallyWithPhase);
 }
 
 void ModuleWrap::HostInitializeImportMetaObjectCallback(
@@ -1282,6 +1304,7 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
       isolate, tpl, "createCachedData", CreateCachedData);
   SetProtoMethodNoSideEffect(isolate, tpl, "getNamespace", GetNamespace);
   SetProtoMethodNoSideEffect(isolate, tpl, "getStatus", GetStatus);
+  SetProtoMethodNoSideEffect(isolate, tpl, "isGraphAsync", IsGraphAsync);
   SetProtoMethodNoSideEffect(isolate, tpl, "getError", GetError);
   SetConstructorFunction(isolate, target, "ModuleWrap", tpl);
   isolate_data->set_module_wrap_constructor_template(tpl);
@@ -1343,6 +1366,7 @@ void ModuleWrap::RegisterExternalReferences(
   registry->Register(GetNamespace);
   registry->Register(GetStatus);
   registry->Register(GetError);
+  registry->Register(IsGraphAsync);
 
   registry->Register(CreateRequiredModuleFacade);
 

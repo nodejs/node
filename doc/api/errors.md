@@ -1796,8 +1796,6 @@ time.
 
 ### `ERR_INPUT_TYPE_NOT_ALLOWED`
 
-> Stability: 1 - Experimental
-
 The `--input-type` flag was used to attempt to execute a file. This flag can
 only be used with input via `--eval`, `--print`, or `STDIN`.
 
@@ -2395,7 +2393,9 @@ of an asynchronous operation.
 ### `ERR_OPTIONS_BEFORE_BOOTSTRAPPING`
 
 <!-- YAML
-added: v23.10.0
+added:
+ - v23.10.0
+ - v22.16.0
 -->
 
 An attempt was made to get options before the bootstrapping was completed.
@@ -2747,7 +2747,7 @@ A file imported from a source map was not found.
 ### `ERR_SOURCE_PHASE_NOT_DEFINED`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 The provided module import does not provide a source phase imports representation for source phase
@@ -3012,6 +3012,15 @@ category.
 The `node:trace_events` module could not be loaded because Node.js was compiled
 with the `--without-v8-platform` flag.
 
+<a id="ERR_TRAILING_JUNK_AFTER_STREAM_END"></a>
+
+### `ERR_TRAILING_JUNK_AFTER_STREAM_END`
+
+Trailing junk found after the end of the compressed stream.
+This error is thrown when extra, unexpected data is detected
+after the end of a compressed stream (for example, in zlib
+or gzip decompression).
+
 <a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
 
 ### `ERR_TRANSFORM_ALREADY_TRANSFORMING`
@@ -3084,16 +3093,12 @@ An invalid or unknown encoding option was passed to an API.
 
 ### `ERR_UNKNOWN_FILE_EXTENSION`
 
-> Stability: 1 - Experimental
-
 An attempt was made to load a module with an unknown or unsupported file
 extension.
 
 <a id="ERR_UNKNOWN_MODULE_FORMAT"></a>
 
 ### `ERR_UNKNOWN_MODULE_FORMAT`
-
-> Stability: 1 - Experimental
 
 An attempt was made to load a module with an unknown or unsupported format.
 
@@ -3171,8 +3176,6 @@ transformation with [type-stripping][].
 <a id="ERR_USE_AFTER_CLOSE"></a>
 
 ### `ERR_USE_AFTER_CLOSE`
-
-> Stability: 1 - Experimental
 
 An attempt was made to use something that was already closed.
 

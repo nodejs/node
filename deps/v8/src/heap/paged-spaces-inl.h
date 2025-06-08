@@ -5,10 +5,12 @@
 #ifndef V8_HEAP_PAGED_SPACES_INL_H_
 #define V8_HEAP_PAGED_SPACES_INL_H_
 
+#include "src/heap/paged-spaces.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/paged-spaces.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 

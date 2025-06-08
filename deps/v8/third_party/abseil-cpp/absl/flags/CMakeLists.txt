@@ -45,6 +45,7 @@ absl_cc_library(
   DEPS
     absl::config
     absl::core_headers
+    absl::no_destructor
     absl::flags_path_util
     absl::strings
     absl::synchronization
@@ -68,6 +69,7 @@ absl_cc_library(
     absl::flags_path_util
     absl::flags_program_name
     absl::core_headers
+    absl::no_destructor
     absl::strings
     absl::synchronization
 )
@@ -163,6 +165,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_LINKOPTS}
   DEPS
     absl::config
+    absl::fast_type_id
     absl::flags_commandlineflag
     absl::flags_private_handle_accessor
     absl::flags_config
@@ -188,10 +191,12 @@ absl_cc_library(
   DEPS
     absl::base
     absl::config
+    absl::fast_type_id
     absl::flags_commandlineflag
     absl::flags_commandlineflag_internal
     absl::flags_config
     absl::flags_marshalling
+    absl::no_destructor
     absl::synchronization
     absl::meta
     absl::utility
@@ -215,6 +220,7 @@ absl_cc_library(
     absl::flags_internal
     absl::flags_reflection
     absl::core_headers
+    absl::nullability
     absl::strings
 )
 
@@ -259,6 +265,7 @@ absl_cc_library(
     absl::config
     absl::core_headers
     absl::flags_usage_internal
+    absl::no_destructor
     absl::raw_logging_internal
     absl::strings
     absl::synchronization
@@ -289,6 +296,7 @@ absl_cc_library(
     absl::flags_program_name
     absl::flags_reflection
     absl::flags_usage
+    absl::no_destructor
     absl::strings
     absl::synchronization
 )

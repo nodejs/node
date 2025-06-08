@@ -123,29 +123,29 @@ when no longer relevant.
 
 The goal is to raise awareness of XYZ in the JavaScript ecosystem.
 
-#### Related Links
+##### Related Links
 
-List of links with more information about the topic to provide brackground
+List of links with more information about the topic to provide background
 or the information to be shared.
 
-#### Project contacts
+##### Project contacts
 
 Add a list of GitHub handles for those within the project that
-have volunteered to be contacated when necessary by ambassadors
+have volunteered to be contacted when necessary by ambassadors
 to get more info about the message to be promoted.
 
 #### Node.js is a great choice for a JavaScript runtime
 
 ##### Goal
 
-Highlight the benefits of chosing Node.js as your backend JavaScript runtime. Focus on what is great
+Highlight the benefits of choosing Node.js as your backend JavaScript runtime. Focus on what is great
 about Node.js without drawing comparisons to alternatives. We don't want to say negative things about
 other options, only highlight what is great about Node.js as a choice.
 
 Some of the things to highlight include:
 
-* How widely it is used (you never get fired for chosing Node.js).
-* The openess of the project. It is part of the OpenJS Foundation and it's governance is set up to avoid
+* How widely it is used (you never get fired for choosing Node.js).
+* The openness of the project. It is part of the OpenJS Foundation and it's governance is set up to avoid
   any one company from dominating the project. Decisions are made by the collaborators (of which there are quite
   a few) versus a small number of people.
 * It has predictable and stable releases and has delivered on the release schedule since 2015.
@@ -157,7 +157,7 @@ Some of the things to highlight include:
 * Single threaded programming model enables very low resource consumption, making it ideal for containerised workloads.
 * Highly vibrant ecosystem with enterprise support from many vendors.
 
-#### Related Links
+##### Related Links
 
 * <https://github.com/nodejs/release>
 * <https://github.com/nodejs/node/blob/main/doc/contributing/security-release-process.md>
@@ -165,13 +165,13 @@ Some of the things to highlight include:
 * <https://github.com/mhdawson/presentations/blob/main/2024/NodeConfEU_2024-Node.js_whats_next.pdf>
   for slide  usage and topping recent surveys.
 
-#### Project contacts
+##### Project contacts
 
 * @mhdawson
 
-### How things get done in the Node.js project
+#### How things get done in the Node.js project
 
-#### Goal
+##### Goal
 
 Help people understand that no people are paid to answer their issues or
 implement their pull requests. Things get done based on what volunteers work on
@@ -182,7 +182,7 @@ Some of the things to highlight include:
 * Nobody is paid specifically to answer issues, fix bugs or implement new features.
 * No company owns/supports Node.js. Most contributions are from individuals
   as opposed to organizations. When an individual becomes a collaborator
-  the access and priviledges are granted to the indidual, their employer does
+  the access and privileges are granted to the individual, their employer does
   not gain any additional rights in the project.
 * The governance of the project is specifically designed to prevent one or
   a small number of companies from dominating the project.
@@ -198,10 +198,10 @@ Some of the things to highlight include:
 * People are volunteering their time to review your PRs and answer questions in
   the issues you open. Be mindfull of your asks for their time and acknowledge
   the gift of their time. Too many issues/PRs in a short period of time may
-  overwelm maintainers leading to less progress versus more, try to pace your
+  overwhelm maintainers leading to less progress versus more, try to pace your
   issues and PRs so that you don't have too many open at the same time. The
-  same goes for comments in discussions, try to avoid overwelming a discussion
-  with too many responses, even too much useful data can overwelm a discussion
+  same goes for comments in discussions, try to avoid overwhelming a discussion
+  with too many responses, even too much useful data can overwhelm a discussion
   leading to lower engagement.
 * While volunteers work to do the right thing for the community, the project
   does not owe anybody anything and does not tolerate abusive or
@@ -210,11 +210,11 @@ Some of the things to highlight include:
 * If you depend on timely support or an SLA, contract with a company that provides
   paid support and will prioritize your issues.
 
-#### Related Links
+##### Related Links
 
 * <https://github.com/nodejs/TSC/blob/main/TSC-Charter.md#section-3-establishment-of-the-tsc>
 
-#### Project contacts
+##### Project contacts
 
 * @mcollina
 * @mhdawson
@@ -233,7 +233,7 @@ Some of the things to highlight include:
 * The `tsconfig.json` configuration options to use in combination for type checking.
 * Updates on the implementation advancements.
 
-#### Related Links
+##### Related Links
 
 <!-- lint disable prohibited-strings remark-lint-->
 
@@ -245,6 +245,49 @@ Some of the things to highlight include:
 
 <!-- lint enable prohibited-strings remark-lint-->
 
-#### Project contacts
+##### Project contacts
 
 * @marco-ippolito
+
+#### Do I still need this dependency for my Node.js app?
+
+##### Goal
+
+Advancements over time in Node.js are improving the out of the box experience.
+New versions are released all the time across Active LTS and Current development lines.
+It's easy to miss something between the release notes and our busy work schedules.
+
+Each of these on its own is respectable, but together they make a more cohesive narrative.
+This also shows a [healthy ecosystem at work](https://brianmuenzenmeyer.com/posts/2024-do-i-need-this-node-dependency/#oss-pace-layers),
+with projects learning from one another and their users.
+
+"Recent" new or newish features, ordered by availability:
+
+| Feature                                                                                               | Introduced                                             | Release Status                                                     |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------ |
+| [testing source code](https://nodejs.org/api/test.html)                                               | [16.17.0](https://nodejs.org/en/blog/release/v16.17.0) | Stable as of 20.0.0                                                |
+| [watching source code](https://nodejs.org/api/cli.html#--watch)                                       | [16.19.0](https://nodejs.org/en/blog/release/v16.19.0) | Stable as of 20.13.0                                               |
+| [parsing arguments](https://nodejs.org/api/util.html#utilparseargsconfig)                             | [18.3.0](https://nodejs.org/en/blog/release/v18.3.0)   | Stable as of 20.0.0                                                |
+| [reading environment](https://nodejs.org/api/cli.html#--env-fileconfig)                               | [20.6.0](https://nodejs.org/en/blog/release/v20.6.0)   | Active Development                                                 |
+| [styling output](https://nodejs.org/docs/latest-v22.x/api/util.html#utilstyletextformat-text-options) | [20.12.0](https://nodejs.org/en/blog/release/v20.12.0) | Stable, as of [22.13.0](https://github.com/nodejs/node/pull/56329) |
+| [run scripts](https://nodejs.org/docs/latest/api/cli.html#--run)                                      | [22.0.0](https://nodejs.org/en/blog/release/v22.0.0)   | Stable, as of 22.0.0                                               |
+| [run TypeScript](https://nodejs.org/api/cli.html#--experimental-strip-types)                          | [22.6.0](https://nodejs.org/en/blog/release/v22.6.0)   | Active Development                                                 |
+
+##### Related Links
+
+<!-- lint disable prohibited-strings remark-lint-->
+
+* <https://brianmuenzenmeyer.com/posts/2024-do-i-need-this-node-dependency/>
+* <https://nodejs.org/api/test.html>
+* <https://nodejs.org/api/cli.html#--watch>
+* <https://nodejs.org/api/util.html#utilparseargsconfig>
+* <https://nodejs.org/api/cli.html#--env-fileconfig>
+* <https://nodejs.org/docs/latest-v22.x/api/util.html#utilstyletextformat-text-options>
+* <https://nodejs.org/api/cli.html#--run>
+* <https://nodejs.org/api/cli.html#--experimental-strip-types>
+
+<!-- lint enable prohibited-strings remark-lint-->
+
+##### Project contacts
+
+* @bmuenzenmeyer

@@ -9,6 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/handles/handles.h"
+#include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/tagged.h"
 
 namespace cppgc::internal {
@@ -16,8 +17,6 @@ class HeapBase;
 }
 
 namespace v8::internal {
-
-class JSObject;
 
 // The class is used to remember V8 to Oilpan references.
 class V8_EXPORT_PRIVATE CrossHeapRememberedSet final {
@@ -28,7 +27,8 @@ class V8_EXPORT_PRIVATE CrossHeapRememberedSet final {
   CrossHeapRememberedSet(const CrossHeapRememberedSet&) = delete;
   CrossHeapRememberedSet(CrossHeapRememberedSet&&) = delete;
 
-  void RememberReferenceIfNeeded(Isolate& isolate, Tagged<JSObject> host_obj,
+  void RememberReferenceIfNeeded(Isolate& isolate,
+                                 Tagged<CppHeapPointerWrapperObjectT> host_obj,
                                  void* cppgc_object);
   void Reset(Isolate& isolate);
 
@@ -40,8 +40,9 @@ class V8_EXPORT_PRIVATE CrossHeapRememberedSet final {
  private:
   cppgc::internal::HeapBase& heap_base_;
   // The vector keeps handles to remembered V8 objects that have outgoing
-  // references to the cppgc heap. Plese note that the handles are global.
-  std::vector<Handle<JSObject>> remembered_v8_to_cppgc_references_;
+  // references to the cppgc heap. Please note that the handles are global.
+  std::vector<IndirectHandle<CppHeapPointerWrapperObjectT>>
+      remembered_v8_to_cppgc_references_;
 };
 
 template <typename F>

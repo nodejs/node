@@ -332,7 +332,7 @@ class Stream final : public AsyncWrap,
   // The headers_ field holds a block of headers that have been received and
   // are being buffered for delivery to the JavaScript side.
   // TODO(@jasnell): Use v8::Global instead of v8::Local here.
-  std::vector<v8::Local<v8::Value>> headers_;
+  v8::LocalVector<v8::Value> headers_;
 
   // The headers_kind_ field indicates the kind of headers that are being
   // buffered.

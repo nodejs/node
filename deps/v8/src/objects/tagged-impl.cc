@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged-impl-inl.h"
@@ -22,6 +23,7 @@ namespace internal {
 
 #if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 bool CheckObjectComparisonAllowed(Address a, Address b) {
+  // LINT.IfChange(CheckObjectComparisonAllowed)
   if (!HAS_STRONG_HEAP_OBJECT_TAG(a) || !HAS_STRONG_HEAP_OBJECT_TAG(b)) {
     return true;
   }
@@ -32,11 +34,13 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
   // each other. The main legitimate case when such "mixed" comparison could
   // happen is comparing two AbstractCode objects. If that's the case one must
   // use AbstractCode's == operator instead of Object's one or SafeEquals().
-  CHECK_EQ(IsCodeSpaceObject(obj_a), IsCodeSpaceObject(obj_b));
+  CHECK_EQ(HeapLayout::InCodeSpace(obj_a), HeapLayout::InCodeSpace(obj_b));
 #ifdef V8_ENABLE_SANDBOX
-  CHECK_EQ(IsTrustedSpaceObject(obj_a), IsTrustedSpaceObject(obj_b));
+  CHECK_EQ(HeapLayout::InTrustedSpace(obj_a),
+           HeapLayout::InTrustedSpace(obj_b));
 #endif
   return true;
+  // LINT.ThenChange(src/codegen/code-stub-assembler.cc:CheckObjectComparisonAllowed)
 }
 #endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 

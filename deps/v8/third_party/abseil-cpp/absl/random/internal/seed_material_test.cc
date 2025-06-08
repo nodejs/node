@@ -15,12 +15,15 @@
 #include "absl/random/internal/seed_material.h"
 
 #include <bitset>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <random>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/types/span.h"
 
 #ifdef __ANDROID__
 // Android assert messages only go to system log, so death tests cannot inspect

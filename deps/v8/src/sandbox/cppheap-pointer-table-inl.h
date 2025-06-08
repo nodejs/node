@@ -5,8 +5,10 @@
 #ifndef V8_SANDBOX_CPPHEAP_POINTER_TABLE_INL_H_
 #define V8_SANDBOX_CPPHEAP_POINTER_TABLE_INL_H_
 
-#include "src/sandbox/compactible-external-entity-table-inl.h"
 #include "src/sandbox/cppheap-pointer-table.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/sandbox/compactible-external-entity-table-inl.h"
 
 #ifdef V8_COMPRESS_POINTERS
 
@@ -14,13 +16,18 @@ namespace v8 {
 namespace internal {
 
 void CppHeapPointerTableEntry::MakePointerEntry(Address value,
-                                                CppHeapPointerTag tag) {
+                                                CppHeapPointerTag tag,
+                                                bool mark_as_alive) {
   // Top bits must be zero, otherwise we'd loose information when shifting.
   DCHECK_EQ(0, value >> (kBitsPerSystemPointer - kCppHeapPointerPayloadShift));
   DCHECK_NE(tag, CppHeapPointerTag::kFreeEntryTag);
   DCHECK_NE(tag, CppHeapPointerTag::kEvacuationEntryTag);
 
   Payload new_payload(value, tag);
+  DCHECK(!new_payload.HasMarkBitSet());
+  if (V8_UNLIKELY(mark_as_alive)) {
+    new_payload.SetMarkBit();
+  }
   payload_.store(new_payload, std::memory_order_relaxed);
 }
 
@@ -74,12 +81,9 @@ void CppHeapPointerTableEntry::Mark() {
 
   // We don't need to perform the CAS in a loop: if the new value is not equal
   // to the old value, then the mutator must've just written a new value into
-  // the entry. This in turn must've set the marking bit already (see e.g.
-  // SetPointer()), so we don't need to do it again.
-  bool success = payload_.compare_exchange_strong(old_payload, new_payload,
-                                                  std::memory_order_relaxed);
-  DCHECK(success || old_payload.HasMarkBitSet());
-  USE(success);
+  // the entry. The mutator will also set the markbit through the write barrier.
+  payload_.compare_exchange_strong(old_payload, new_payload,
+                                   std::memory_order_relaxed);
 }
 
 void CppHeapPointerTableEntry::MakeEvacuationEntry(Address handle_location) {
@@ -127,7 +131,7 @@ CppHeapPointerHandle CppHeapPointerTable::AllocateAndInitializeEntry(
     Space* space, Address initial_value, CppHeapPointerTag tag) {
   DCHECK(space->BelongsTo(this));
   uint32_t index = AllocateEntry(space);
-  at(index).MakePointerEntry(initial_value, tag);
+  at(index).MakePointerEntry(initial_value, tag, space->allocate_black());
 
   CppHeapPointerHandle handle = IndexToHandle(index);
 

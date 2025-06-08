@@ -13,6 +13,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/base/active-system-pages.h"
@@ -20,7 +21,9 @@
 #include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/live-object-range-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-inl.h"
@@ -126,7 +129,16 @@ class Sweeper::MajorSweeperJob final : public JobTask {
   MajorSweeperJob& operator=(const MajorSweeperJob&) = delete;
 
   void Run(JobDelegate* delegate) final {
-    RunImpl(delegate, delegate->IsJoiningThread());
+    DCHECK_IMPLIES(
+        delegate->IsJoiningThread(),
+        sweeper_->heap_->IsMainThread() ||
+            (!sweeper_->heap_->isolate()->is_shared_space_isolate() &&
+             sweeper_->heap_->isolate()
+                 ->shared_space_isolate()
+                 ->heap()
+                 ->IsMainThread()));
+    RunImpl(delegate,
+            delegate->IsJoiningThread() && sweeper_->heap_->IsMainThread());
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -139,20 +151,19 @@ class Sweeper::MajorSweeperJob final : public JobTask {
   }
 
  private:
-  void RunImpl(JobDelegate* delegate, bool is_joining_thread) {
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(
-        sweeper_->heap_->isolate());
+  void RunImpl(JobDelegate* delegate, bool is_main_thread) {
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(sweeper_->heap_->isolate());
 
     DCHECK(sweeper_->major_sweeping_in_progress());
     const int offset = delegate->GetTaskId();
     DCHECK_LT(offset, concurrent_sweepers.size());
     ConcurrentMajorSweeper& concurrent_sweeper = concurrent_sweepers[offset];
     TRACE_GC_EPOCH_WITH_FLOW(
-        tracer_, sweeper_->GetTracingScope(OLD_SPACE, is_joining_thread),
-        is_joining_thread ? ThreadKind::kMain : ThreadKind::kBackground,
-        trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+        tracer_, sweeper_->GetTracingScope(OLD_SPACE, is_main_thread),
+        is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground, trace_id_,
+        TRACE_EVENT_FLAG_FLOW_IN);
     for (int i = 0; i < kNumberOfMajorSweepingSpaces; i++) {
       const AllocationSpace space_id = static_cast<AllocationSpace>(
           FIRST_SWEEPABLE_SPACE + 1 +
@@ -189,7 +200,16 @@ class Sweeper::MinorSweeperJob final : public JobTask {
   MinorSweeperJob& operator=(const MinorSweeperJob&) = delete;
 
   void Run(JobDelegate* delegate) final {
-    RunImpl(delegate, delegate->IsJoiningThread());
+    DCHECK_IMPLIES(
+        delegate->IsJoiningThread(),
+        sweeper_->heap_->IsMainThread() ||
+            (!sweeper_->heap_->isolate()->is_shared_space_isolate() &&
+             sweeper_->heap_->isolate()
+                 ->shared_space_isolate()
+                 ->heap()
+                 ->IsMainThread()));
+    RunImpl(delegate,
+            delegate->IsJoiningThread() && sweeper_->heap_->IsMainThread());
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -202,19 +222,18 @@ class Sweeper::MinorSweeperJob final : public JobTask {
   }
 
  private:
-  void RunImpl(JobDelegate* delegate, bool is_joining_thread) {
+  void RunImpl(JobDelegate* delegate, bool is_main_thread) {
     DCHECK(sweeper_->minor_sweeping_in_progress());
     const int offset = delegate->GetTaskId();
     DCHECK_LT(offset, concurrent_sweepers.size());
     ConcurrentMinorSweeper& concurrent_sweeper = concurrent_sweepers[offset];
     TRACE_GC_EPOCH_WITH_FLOW(
-        tracer_, sweeper_->GetTracingScope(NEW_SPACE, is_joining_thread),
-        is_joining_thread ? ThreadKind::kMain : ThreadKind::kBackground,
-        trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
-    // In case multi-cage pointer compression mode is enabled ensure that
-    // current thread's cage base values are properly initialized.
-    PtrComprCageAccessScope ptr_compr_cage_access_scope(
-        sweeper_->heap_->isolate());
+        tracer_, sweeper_->GetTracingScope(NEW_SPACE, is_main_thread),
+        is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground, trace_id_,
+        TRACE_EVENT_FLAG_FLOW_IN);
+    // Set the current isolate such that trusted pointer tables etc are
+    // available and the cage base is set correctly for multi-cage mode.
+    SetCurrentIsolateScope isolate_scope(sweeper_->heap_->isolate());
 
     if (!concurrent_sweeper.ConcurrentSweepSpace(delegate)) return;
     concurrent_sweeper.ConcurrentSweepPromotedPages(delegate);
@@ -377,8 +396,7 @@ void Sweeper::LocalSweeper::ParallelSweepPage(PageMetadata* page,
                                               SweepingMode sweeping_mode) {
   DCHECK(IsValidSweepingSpace(identity));
 
-  // The Scavenger may add already swept pages back.
-  if (page->SweepingDone()) return;
+  DCHECK(!page->SweepingDone());
 
   {
     base::MutexGuard guard(page->mutex());
@@ -473,15 +491,17 @@ class PromotedPageRecordMigratedSlotVisitor final
     VisitPointersImpl(host, start, end);
   }
 
-  V8_INLINE int VisitJSArrayBuffer(Tagged<Map> map,
-                                   Tagged<JSArrayBuffer> object) {
+  V8_INLINE size_t VisitJSArrayBuffer(Tagged<Map> map,
+                                      Tagged<JSArrayBuffer> object,
+                                      MaybeObjectSize maybe_object_size) {
     object->YoungMarkExtensionPromoted();
-    return NewSpaceVisitor<
-        PromotedPageRecordMigratedSlotVisitor>::VisitJSArrayBuffer(map, object);
+    return NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
+        VisitJSArrayBuffer(map, object, maybe_object_size);
   }
 
-  V8_INLINE int VisitEphemeronHashTable(Tagged<Map> map,
-                                        Tagged<EphemeronHashTable> table) {
+  V8_INLINE size_t VisitEphemeronHashTable(Tagged<Map> map,
+                                           Tagged<EphemeronHashTable> table,
+                                           MaybeObjectSize) {
     NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
         VisitMapPointerIfNeeded<VisitorId::kVisitEphemeronHashTable>(table);
     EphemeronRememberedSet::IndicesSet indices;
@@ -499,7 +519,8 @@ class PromotedPageRecordMigratedSlotVisitor final
 #endif  // THREAD_SANITIZER
       // With sticky mark-bits we don't need to update the remembered set for
       // just promoted objects, since everything is promoted.
-      if (!v8_flags.sticky_mark_bits && Heap::InYoungGeneration(key_object)) {
+      if (!v8_flags.sticky_mark_bits &&
+          HeapLayout::InYoungGeneration(key_object)) {
         indices.insert(i.as_int());
       }
     }
@@ -526,8 +547,8 @@ class PromotedPageRecordMigratedSlotVisitor final
 
  private:
   V8_INLINE void VerifyHost(Tagged<HeapObject> host) {
-    DCHECK(!InWritableSharedSpace(host));
-    DCHECK(!Heap::InYoungGeneration(host));
+    DCHECK(!HeapLayout::InWritableSharedSpace(host));
+    DCHECK(!HeapLayout::InYoungGeneration(host));
     DCHECK(!MutablePageMetadata::FromHeapObject(host)->SweepingDone());
     DCHECK_EQ(MutablePageMetadata::FromHeapObject(host), host_page_);
   }
@@ -594,6 +615,14 @@ void ZapDeadObjectsInRange(Heap* heap, Address dead_start, Address dead_end) {
 }
 
 void ZapDeadObjectsOnPage(Heap* heap, PageMetadata* p) {
+  if (!heap::ShouldZapGarbage() && !v8_flags.track_gc_object_stats) {
+    // We need to zap and create fillers on promoted pages when
+    // --track-gc-object-stats is enabled because it expects all dead objects to
+    // still be valid objects. Dead object on promoted pages may otherwise
+    // contain invalid old-to-new references to pages that are gone or were
+    // already reallocated.
+    return;
+  }
   Address dead_start = p->area_start();
   // Iterate over the page using the live objects.
   for (auto [object, size] : LiveObjectRange(p)) {
@@ -609,6 +638,7 @@ void ZapDeadObjectsOnPage(Heap* heap, PageMetadata* p) {
 void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
     MutablePageMetadata* page) {
   DCHECK(v8_flags.minor_ms);
+  DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   DCHECK_NOT_NULL(page);
   {
     base::MutexGuard guard(page->mutex());
@@ -630,8 +660,6 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPage(
            LiveObjectRange(static_cast<PageMetadata*>(page))) {
         record_visitor.Process(object);
       }
-    }
-    if (heap::ShouldZapGarbage() && !is_large_page) {
       ZapDeadObjectsOnPage(sweeper_->heap_, static_cast<PageMetadata*>(page));
     }
     page->ClearLiveness();
@@ -669,6 +697,8 @@ V8_INLINE bool ComparePagesForSweepingOrder(const PageMetadata* a,
     return a->Chunk()->IsFlagSet(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
   // We sort in descending order of live bytes, i.e., ascending order of
   // free bytes, because GetSweepingPageSafe returns pages in reverse order.
+  // This works automatically for black allocated pages, since we set live bytes
+  // for them to the area size.
   return a->live_bytes() > b->live_bytes();
 }
 }  // namespace
@@ -739,7 +769,7 @@ void ClearPromotedPages(Heap* heap, std::vector<MutablePageMetadata*> pages) {
     DCHECK(!page->SweepingDone());
     DCHECK_EQ(PageMetadata::ConcurrentSweepingState::kPendingIteration,
               page->concurrent_sweeping_state());
-    if (heap::ShouldZapGarbage() && !page->Chunk()->IsLargePage()) {
+    if (!page->Chunk()->IsLargePage()) {
       ZapDeadObjectsOnPage(heap, static_cast<PageMetadata*>(page));
     }
     page->ClearLiveness();
@@ -797,11 +827,24 @@ Sweeper::SweptList Sweeper::GetAllSweptPagesSafe(PagedSpaceBase* space) {
 void Sweeper::FinishMajorJobs() {
   if (!major_sweeping_in_progress()) return;
 
-  ForAllSweepingSpaces([this](AllocationSpace space) {
-    if (space == NEW_SPACE) return;
-    main_thread_local_sweeper_.ParallelSweepSpace(
-        space, SweepingMode::kLazyOrConcurrent);
-  });
+  {
+    const bool is_main_thread = heap_->IsMainThread();
+    DCHECK_IMPLIES(
+        !is_main_thread,
+        heap_->isolate()->shared_space_isolate()->heap()->IsMainThread());
+    TRACE_GC_EPOCH_WITH_FLOW(
+        heap_->tracer(),
+        is_main_thread ? GCTracer::Scope::MC_SWEEP
+                       : GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+        is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground,
+        major_sweeping_state_.trace_id(),
+        TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+    ForAllSweepingSpaces([this](AllocationSpace space) {
+      if (space == NEW_SPACE) return;
+      main_thread_local_sweeper_.ParallelSweepSpace(
+          space, SweepingMode::kLazyOrConcurrent);
+    });
+  }
 
   // Join all concurrent tasks.
   major_sweeping_state_.JoinSweeping();
@@ -841,25 +884,37 @@ void Sweeper::EnsureMajorCompleted() {
         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
     // Discard all pooled pages on memory-reducing GCs.
     if (major_sweeping_state_.should_reduce_memory()) {
-      heap_->memory_allocator()->pool()->ReleasePooledChunks();
+      heap_->memory_allocator()->ReleasePooledChunksImmediately();
     }
     FinishMajorJobs();
     major_sweeping_state_.FinishSweeping();
     // Sweeping should not add pages to the pool.
-    DCHECK_IMPLIES(
-        major_sweeping_state_.should_reduce_memory(),
-        heap_->memory_allocator()->pool()->NumberOfCommittedChunks() == 0);
+    DCHECK_IMPLIES(major_sweeping_state_.should_reduce_memory(),
+                   heap_->memory_allocator()->GetPooledChunksCount() == 0);
   }
 }
 
 void Sweeper::FinishMinorJobs() {
   if (!minor_sweeping_in_progress()) return;
 
-  main_thread_local_sweeper_.ParallelSweepSpace(
-      kNewSpace, SweepingMode::kLazyOrConcurrent);
-  // Array buffer sweeper may have grabbed a page for iteration to contribute.
-  // Wait until it has finished iterating.
-  main_thread_local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
+  {
+    const bool is_main_thread = heap_->IsMainThread();
+    DCHECK_IMPLIES(
+        !is_main_thread,
+        heap_->isolate()->shared_space_isolate()->heap()->IsMainThread());
+    TRACE_GC_EPOCH_WITH_FLOW(
+        heap_->tracer(),
+        is_main_thread ? GCTracer::Scope::MINOR_MS_SWEEP
+                       : GCTracer::Scope::MINOR_MS_BACKGROUND_SWEEPING,
+        is_main_thread ? ThreadKind::kMain : ThreadKind::kBackground,
+        minor_sweeping_state_.trace_id(),
+        TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+    main_thread_local_sweeper_.ParallelSweepSpace(
+        kNewSpace, SweepingMode::kLazyOrConcurrent);
+    // Array buffer sweeper may have grabbed a page for iteration to contribute.
+    // Wait until it has finished iterating.
+    main_thread_local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
+  }
 
   // Join all concurrent tasks.
   minor_sweeping_state_.JoinSweeping();
@@ -910,13 +965,9 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   }
   freed_bytes = reinterpret_cast<PagedSpaceBase*>(space)->FreeDuringSweep(
       free_start, size);
-#if !V8_OS_WIN
-  // Discarding memory on Windows does not decommit the memory and does not
-  // contribute to reduce the memory footprint. On the other hand, these calls
-  // become expensive the more memory is allocated in the system and can result
-  // in hangs. Thus, it is better to not discard on Windows.
-  if (should_reduce_memory) page->DiscardUnusedMemory(free_start, size);
-#endif  // !V8_OS_WIN
+  if (should_reduce_memory) {
+    ZeroOrDiscardUnusedMemory(page, free_start, size);
+  }
 
   if (v8_flags.sticky_mark_bits) {
     // Clear the bitmap, since fillers or slack may still be marked from black
@@ -927,6 +978,73 @@ V8_INLINE size_t Sweeper::FreeAndProcessFreedMemory(
   }
 
   return freed_bytes;
+}
+
+// static
+std::optional<base::AddressRegion> Sweeper::ComputeDiscardMemoryArea(
+    Address start, Address end) {
+  const size_t page_size = MemoryAllocator::GetCommitPageSize();
+  const Address discard_start = RoundUp(start, page_size);
+  const Address discard_end = RoundDown(end, page_size);
+
+  if (discard_start < discard_end) {
+    return base::AddressRegion(discard_start, discard_end - discard_start);
+  } else {
+    return {};
+  }
+}
+
+void Sweeper::ZeroOrDiscardUnusedMemory(PageMetadata* page, Address addr,
+                                        size_t size) {
+  if (size < FreeSpace::kSize) {
+    return;
+  }
+
+  const Address unused_start = addr + FreeSpace::kSize;
+  DCHECK(page->ContainsLimit(unused_start));
+  const Address unused_end = addr + size;
+  DCHECK(page->ContainsLimit(unused_end));
+
+  std::optional<RwxMemoryWriteScope> scope;
+  if (page->Chunk()->executable()) {
+    scope.emplace("For zeroing unused memory.");
+  }
+  const std::optional<base::AddressRegion> discard_area =
+      ComputeDiscardMemoryArea(unused_start, unused_end);
+
+#if !defined(V8_OS_WIN)
+  constexpr bool kDiscardEmptyPages = true;
+#else
+  // Discarding memory on Windows does not decommit the memory and does not
+  // contribute to reduce the memory footprint. On the other hand, these
+  // calls become expensive the more memory is allocated in the system and
+  // can result in hangs. Thus, it is better to not discard on Windows.
+  constexpr bool kDiscardEmptyPages = false;
+#endif  // !defined(V8_OS_WIN)
+
+  if (kDiscardEmptyPages && discard_area) {
+    {
+      v8::PageAllocator* page_allocator =
+          heap_->memory_allocator()->page_allocator(page->owner_identity());
+      DiscardSealedMemoryScope discard_scope("Discard unused memory");
+      CHECK(page_allocator->DiscardSystemPages(
+          reinterpret_cast<void*>(discard_area->begin()),
+          discard_area->size()));
+    }
+
+    if (v8_flags.zero_unused_memory) {
+      // Now zero unused memory right before and after the discarded OS pages to
+      // help with OS page compression.
+      memset(reinterpret_cast<void*>(unused_start), 0,
+             discard_area->begin() - unused_start);
+      memset(reinterpret_cast<void*>(discard_area->end()), 0,
+             unused_end - discard_area->end());
+    }
+  } else if (v8_flags.zero_unused_memory) {
+    // Unused memory does not span a full OS page. Simply clear all of the
+    // unused memory. This helps with OS page compression.
+    memset(reinterpret_cast<void*>(unused_start), 0, unused_end - unused_start);
+  }
 }
 
 V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
@@ -1011,6 +1129,7 @@ void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(PageMetadata* page,
 void Sweeper::RawSweep(PageMetadata* p,
                        FreeSpaceTreatmentMode free_space_treatment_mode,
                        SweepingMode sweeping_mode, bool should_reduce_memory) {
+  DCHECK_NOT_NULL(p);
   Space* space = p->owner();
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
@@ -1020,6 +1139,7 @@ void Sweeper::RawSweep(PageMetadata* p,
          (space->identity() == NEW_SPACE && v8_flags.minor_ms));
   DCHECK(!p->Chunk()->IsEvacuationCandidate());
   DCHECK(!p->SweepingDone());
+  DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   DCHECK_IMPLIES(space->identity() == NEW_SPACE,
                  !heap_->incremental_marking()->IsMinorMarking());
   DCHECK_IMPLIES(space->identity() != NEW_SPACE,
@@ -1032,8 +1152,8 @@ void Sweeper::RawSweep(PageMetadata* p,
     // Only decrement counter when we discard unused system pages.
     active_system_pages_after_sweeping = ActiveSystemPages();
     active_system_pages_after_sweeping->Init(
-        MemoryChunkLayout::kMemoryChunkHeaderSize,
-        MemoryAllocator::GetCommitPageSizeBits(), PageMetadata::kPageSize);
+        sizeof(MemoryChunk), MemoryAllocator::GetCommitPageSizeBits(),
+        PageMetadata::kPageSize);
   }
 
   // Phase 2: Free the non-live memory and clean-up the regular remembered set
@@ -1054,6 +1174,7 @@ void Sweeper::RawSweep(PageMetadata* p,
   // Iterate over the page using the live objects and free the memory before
   // the given live object.
   Address free_start = p->area_start();
+
   for (auto [object, size] : LiveObjectRange(p)) {
     DCHECK(marking_state_->IsMarked(object));
     Address free_end = object.address();
@@ -1248,6 +1369,8 @@ void Sweeper::AddNewSpacePage(PageMetadata* page) {
 
 void Sweeper::AddPageImpl(AllocationSpace space, PageMetadata* page) {
   DCHECK(heap_->IsMainThread());
+  DCHECK(page->SweepingDone());
+  DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   DCHECK(IsValidSweepingSpace(space));
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping && (space != NEW_SPACE),
                  !major_sweeping_state_.HasValidJob());
@@ -1311,6 +1434,7 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, PageMetadata* page) {
   } else {
     paged_space = heap_->paged_space(space);
   }
+
   paged_space->IncreaseAllocatedBytes(page->live_bytes(), page);
 
   // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
@@ -1320,6 +1444,7 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, PageMetadata* page) {
 }
 
 void Sweeper::PrepareToBeIteratedPromotedPage(PageMetadata* page) {
+  DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   DCHECK_EQ(OLD_SPACE, page->owner_identity());
   VerifyPreparedPage(page);
   page->set_concurrent_sweeping_state(
@@ -1431,12 +1556,12 @@ void Sweeper::SweepEmptyNewSpacePage(PageMetadata* page) {
   paged_space->RelinkFreeListCategories(page);
 
   if (heap_->ShouldReduceMemory()) {
-    page->DiscardUnusedMemory(start, size);
+    ZeroOrDiscardUnusedMemory(page, start, size);
     // Only decrement counter when we discard unused system pages.
     ActiveSystemPages active_system_pages_after_sweeping;
     active_system_pages_after_sweeping.Init(
-        MemoryChunkLayout::kMemoryChunkHeaderSize,
-        MemoryAllocator::GetCommitPageSizeBits(), PageMetadata::kPageSize);
+        sizeof(MemoryChunk), MemoryAllocator::GetCommitPageSizeBits(),
+        PageMetadata::kPageSize);
     // Decrement accounted memory for discarded memory.
     paged_space->ReduceActiveSystemPages(page,
                                          active_system_pages_after_sweeping);

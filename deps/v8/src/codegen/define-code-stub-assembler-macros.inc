@@ -12,16 +12,18 @@
 #define V8_CODEGEN_CODE_STUB_ASSEMBLER_MACROS_DEFINED 1
 
 #ifdef DEBUG
-#define CSA_CHECK(csa, x) \
-  (csa)->Check([&]() -> TNode<BoolT> { return x; }, #x, __FILE__, __LINE__)
+#define CSA_CHECK(csa, x) (csa)->Check([&]() -> TNode<BoolT> { return x; }, #x)
+#define CSA_CHECK_AT(csa, loc, x) \
+  (csa)->Check([&]() -> TNode<BoolT> { return x; }, #x, {}, loc)
 #else
 #define CSA_CHECK(csa, x) (csa)->FastCheck(x)
+#define CSA_CHECK_AT(csa, loc, x) (csa)->FastCheck(x)
 #endif
 
 // This is a check that always calls into the runtime if it aborts.
 // This also exits silently when --hole-fuzzing is enabled.
 #define CSA_HOLE_SECURITY_CHECK(csa, x) \
-  (csa)->Check([&]() -> TNode<BoolT> { return x; }, #x, __FILE__, __LINE__)
+  (csa)->Check([&]() -> TNode<BoolT> { return x; }, #x)
 
 #ifdef DEBUG
 // CSA_DCHECK_ARGS generates an
@@ -38,9 +40,11 @@
 
 // CSA_DCHECK(csa, <condition>, <extra values to print...>)
 
-#define CSA_DCHECK(csa, condition_node, ...)                         \
-  (csa)->Dcheck(condition_node, #condition_node, __FILE__, __LINE__, \
-                CSA_DCHECK_ARGS(__VA_ARGS__))
+#define CSA_DCHECK(csa, condition_node, ...) \
+  (csa)->Dcheck(condition_node, #condition_node, CSA_DCHECK_ARGS(__VA_ARGS__))
+
+#define CSA_DCHECK_AT(csa, loc, condition_node, ...) \
+  (csa)->Dcheck(condition_node, #condition_node, CSA_DCHECK_ARGS(__VA_ARGS__), loc)
 
 #define CSA_DCHECK_JS_ARGC_EQ(csa, expected)                            \
   (csa)->Dcheck(                                                        \
@@ -50,7 +54,7 @@
         return (csa)->Word32Equal(                                      \
             argc, (csa)->Int32Constant(i::JSParameterCount(expected))); \
       },                                                                \
-      "argc == " #expected, __FILE__, __LINE__,                         \
+      "argc == " #expected,                                             \
       {{SmiFromInt32((csa)->UncheckedParameter<Int32T>(                 \
             Descriptor::kJSActualArgumentsCount)),                      \
         "argc"}})
@@ -59,14 +63,15 @@
   { #name, __FILE__, __LINE__ }
 #define BIND(label) Bind(label, CSA_DEBUG_INFO(label))
 #define TYPED_VARIABLE_DEF(type, name, ...) \
-  TVariable<type> name(CSA_DEBUG_INFO(name), __VA_ARGS__)
+  TVariable<UNPAREN(type)> name(CSA_DEBUG_INFO(name), __VA_ARGS__)
 #define TYPED_VARIABLE_CONSTRUCTOR(name, ...) \
   name(CSA_DEBUG_INFO(name), __VA_ARGS__)
 #else  // DEBUG
 #define CSA_DCHECK(csa, ...) ((void)0)
+#define CSA_DCHECK_AT(csa, ...) ((void)0)
 #define CSA_DCHECK_JS_ARGC_EQ(csa, expected) ((void)0)
 #define BIND(label) Bind(label)
-#define TYPED_VARIABLE_DEF(type, name, ...) TVariable<type> name(__VA_ARGS__)
+#define TYPED_VARIABLE_DEF(type, name, ...) TVariable<UNPAREN(type)> name(__VA_ARGS__)
 #define TYPED_VARIABLE_CONSTRUCTOR(name, ...) name(__VA_ARGS__)
 #endif  // DEBUG
 

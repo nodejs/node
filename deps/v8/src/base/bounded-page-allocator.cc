@@ -88,18 +88,16 @@ void* BoundedPageAllocator::AllocatePages(void* hint, size_t size,
 
 bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
                                            PageAllocator::Permission access) {
+  MutexGuard guard(&mutex_);
+
   DCHECK(IsAligned(address, allocate_page_size_));
   DCHECK(IsAligned(size, allocate_page_size_));
 
-  {
-    MutexGuard guard(&mutex_);
+  DCHECK(region_allocator_.contains(address, size));
 
-    DCHECK(region_allocator_.contains(address, size));
-
-    if (!region_allocator_.AllocateRegionAt(address, size)) {
-      allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
-      return false;
-    }
+  if (!region_allocator_.AllocateRegionAt(address, size)) {
+    allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
+    return false;
   }
 
   void* ptr = reinterpret_cast<void*>(address);
@@ -114,24 +112,69 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
   return true;
 }
 
+bool BoundedPageAllocator::ResizeAllocationAt(
+    void* address, size_t old_size, size_t new_size,
+    PageAllocator::Permission access) {
+  MutexGuard guard(&mutex_);
+
+  const Address address_at = reinterpret_cast<Address>(address);
+  DCHECK(IsAligned(old_size, commit_page_size_));
+  DCHECK(IsAligned(new_size, commit_page_size_));
+
+  if (new_size < old_size) {
+    // Shrinking is not supported at the moment.
+    return false;
+  } else if (new_size == old_size) {
+    // Nothing to do in this case.
+    return true;
+  }
+
+  DCHECK_LT(old_size, new_size);
+
+  const Address allocated_old_size = RoundUp(old_size, allocate_page_size_);
+  const Address allocated_new_size = RoundUp(new_size, allocate_page_size_);
+
+  if (allocated_old_size < allocated_new_size) {
+    if (!region_allocator_.TryGrowRegion(address_at, allocated_new_size)) {
+      allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
+      return false;
+    }
+  }
+
+  if (!page_allocator_->SetPermissions(
+          reinterpret_cast<void*>(address_at + old_size), new_size - old_size,
+          access)) {
+    if (allocated_old_size < allocated_new_size) {
+      // This most likely means that we ran out of memory.
+      CHECK_EQ(region_allocator_.TrimRegion(address_at, allocated_old_size),
+               allocated_new_size - allocated_old_size);
+    }
+
+    allocation_status_ = AllocationStatus::kFailedToCommit;
+    return false;
+  }
+
+  allocation_status_ = AllocationStatus::kSuccess;
+  return true;
+}
+
 bool BoundedPageAllocator::ReserveForSharedMemoryMapping(void* ptr,
                                                          size_t size) {
+  MutexGuard guard(&mutex_);
+
   Address address = reinterpret_cast<Address>(ptr);
   DCHECK(IsAligned(address, allocate_page_size_));
   DCHECK(IsAligned(size, commit_page_size_));
 
-  {
-    MutexGuard guard(&mutex_);
-    DCHECK(region_allocator_.contains(address, size));
+  DCHECK(region_allocator_.contains(address, size));
 
-    // Region allocator requires page size rather than commit size so just over-
-    // allocate there since any extra space couldn't be used anyway.
-    size_t region_size = RoundUp(size, allocate_page_size_);
-    if (!region_allocator_.AllocateRegionAt(
-            address, region_size, RegionAllocator::RegionState::kExcluded)) {
-      allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
-      return false;
-    }
+  // Region allocator requires page size rather than commit size so just over-
+  // allocate there since any extra space couldn't be used anyway.
+  size_t region_size = RoundUp(size, allocate_page_size_);
+  if (!region_allocator_.AllocateRegionAt(
+          address, region_size, RegionAllocator::RegionState::kExcluded)) {
+    allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
+    return false;
   }
 
   const bool success = page_allocator_->SetPermissions(
@@ -145,25 +188,39 @@ bool BoundedPageAllocator::ReserveForSharedMemoryMapping(void* ptr,
 }
 
 bool BoundedPageAllocator::FreePages(void* raw_address, size_t size) {
-  MutexGuard guard(&mutex_);
-
+  // Careful: we are not locked here, do not touch BoundedPageAllocator
+  // metadata.
+  bool success;
   Address address = reinterpret_cast<Address>(raw_address);
-  CHECK_EQ(size, region_allocator_.FreeRegion(address));
+
+  // The operations below can be expensive, don't hold the lock while they
+  // happen. There is still potentially contention in the kernel, but at least
+  // we don't need to hold the V8-side lock.
   if (page_initialization_mode_ ==
       PageInitializationMode::kAllocatedPagesMustBeZeroInitialized) {
     DCHECK_NE(page_freeing_mode_, PageFreeingMode::kDiscard);
     // When we are required to return zero-initialized pages, we decommit the
     // pages here, which will cause any wired pages to be removed by the OS.
-    return page_allocator_->DecommitPages(raw_address, size);
+    success = page_allocator_->DecommitPages(raw_address, size);
+  } else {
+    switch (page_freeing_mode_) {
+      case PageFreeingMode::kMakeInaccessible:
+        DCHECK_EQ(page_initialization_mode_,
+                  PageInitializationMode::kAllocatedPagesCanBeUninitialized);
+        success = page_allocator_->SetPermissions(raw_address, size,
+                                                  PageAllocator::kNoAccess);
+        break;
+
+      case PageFreeingMode::kDiscard:
+        success = page_allocator_->DiscardSystemPages(raw_address, size);
+        break;
+    }
   }
-  if (page_freeing_mode_ == PageFreeingMode::kMakeInaccessible) {
-    DCHECK_EQ(page_initialization_mode_,
-              PageInitializationMode::kAllocatedPagesCanBeUninitialized);
-    return page_allocator_->SetPermissions(raw_address, size,
-                                           PageAllocator::kNoAccess);
-  }
-  CHECK_EQ(page_freeing_mode_, PageFreeingMode::kDiscard);
-  return page_allocator_->DiscardSystemPages(raw_address, size);
+
+  MutexGuard guard(&mutex_);
+  CHECK_EQ(size, region_allocator_.FreeRegion(address));
+
+  return success;
 }
 
 bool BoundedPageAllocator::ReleasePages(void* raw_address, size_t size,

@@ -5,13 +5,14 @@
 #ifndef V8_OBJECTS_SCRIPT_INL_H_
 #define V8_OBJECTS_SCRIPT_INL_H_
 
+#include "src/objects/script.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/managed.h"
 #include "src/objects/objects.h"
-#include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-inl.h"
-#include "src/objects/string.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -90,7 +91,7 @@ Tagged<FixedArray> Script::wrapped_arguments() const {
 DEF_GETTER(Script, infos, Tagged<WeakFixedArray>) {
 #if V8_ENABLE_WEBASSEMBLY
   if (type() == Type::kWasm) {
-    return ReadOnlyRoots(GetHeap()).empty_weak_fixed_array();
+    return GetReadOnlyRoots().empty_weak_fixed_array();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return TaggedField<WeakFixedArray, kInfosOffset>::load(*this);
@@ -209,6 +210,11 @@ void Script::InitLineEnds(LocalIsolate* isolate, DirectHandle<Script> script) {
 
 bool Script::HasSourceURLComment() const {
   return IsString(source_url()) && Cast<String>(source_url())->length() != 0;
+}
+
+bool Script::HasSourceMappingURLComment() const {
+  return IsString(source_mapping_url()) &&
+         Cast<String>(source_mapping_url())->length() != 0;
 }
 
 bool Script::IsMaybeUnfinalized(Isolate* isolate) const {

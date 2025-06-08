@@ -230,13 +230,7 @@ class WorkerThreadData {
         *static_cast<bool*>(data) = true;
       }, &platform_finished);
 
-      // The order of these calls is important; if the Isolate is first disposed
-      // and then unregistered, there is a race condition window in which no
-      // new Isolate at the same address can successfully be registered with
-      // the platform.
-      // (Refs: https://github.com/nodejs/node/issues/30846)
-      w_->platform_->UnregisterIsolate(isolate);
-      isolate->Dispose();
+      w_->platform_->DisposeIsolate(isolate);
 
       // Wait until the platform has cleaned up all relevant resources.
       while (!platform_finished) {

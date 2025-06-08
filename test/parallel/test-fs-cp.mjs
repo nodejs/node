@@ -15,7 +15,7 @@ const {
   writeFileSync,
 } = fs;
 import net from 'net';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
 import { setTimeout } from 'timers/promises';
 
@@ -246,6 +246,34 @@ function nextdir(dirname) {
       code: 'ERR_FS_CP_EINVAL'
     }
   );
+}
+
+// It allows cpSync copying symlinks in src to locations in dest with existing synlinks not pointing to a directory.
+{
+  const src = nextdir();
+  const dest = nextdir();
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
+  writeFileSync(`${src}/test.txt`, 'test');
+  symlinkSync(resolve(`${src}/test.txt`), join(src, 'link.txt'));
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
+}
+
+// It allows cp copying symlinks in src to locations in dest with existing synlinks not pointing to a directory.
+{
+  const src = nextdir();
+  const dest = nextdir();
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
+  writeFileSync(`${src}/test.txt`, 'test');
+  symlinkSync(resolve(`${src}/test.txt`), join(src, 'link.txt'));
+  cp(src, dest, { recursive: true },
+     mustCall((err) => {
+       assert.strictEqual(err, null);
+
+       cp(src, dest, { recursive: true }, mustCall((err) => {
+         assert.strictEqual(err, null);
+       }));
+     }));
 }
 
 // It throws error if symlink in dest points to location in src.
@@ -493,6 +521,9 @@ if (!isWindows && !isInsideDirWithUnusualChars) {
   const dest = nextdir();
   mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
   writeFileSync(join(src, 'foo.txt'), 'foo', mustNotMutateObjectDeep({ mode: 0o444 }));
+  // Small wait to make sure that destStat.mtime.getTime() would produce a time
+  // different from srcStat.mtime.getTime() if preserveTimestamps wasn't set to true
+  await setTimeout(5);
   cpSync(src, dest, mustNotMutateObjectDeep({ preserveTimestamps: true, recursive: true }));
   assertDirEquivalent(src, dest);
   const srcStat = lstatSync(join(src, 'foo.txt'));

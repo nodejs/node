@@ -125,12 +125,8 @@ static void MakeUtf8String(Isolate* isolate,
   size_t storage = (3 * value_length) + 1;
   target->AllocateSufficientStorage(storage);
 
-  // TODO(@anonrig): Use simdutf to speed up non-one-byte strings once it's
-  // implemented
-  const int flags =
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
-  const int length =
-      string->WriteUtf8(isolate, target->out(), storage, nullptr, flags);
+  size_t length = string->WriteUtf8V2(
+      isolate, target->out(), storage, String::WriteFlags::kReplaceInvalidUtf8);
   target->SetLengthAndZeroTerminate(length);
 }
 
@@ -150,12 +146,10 @@ TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
 
-  // Allocate enough space to include the null terminator
-  const size_t storage = string->Length() + 1;
-  AllocateSufficientStorage(storage);
-
-  const int flags = String::NO_NULL_TERMINATION;
-  const int length = string->Write(isolate, out(), 0, storage, flags);
+  // Allocate enough space to include the null terminator.
+  const size_t length = string->Length();
+  AllocateSufficientStorage(length + 1);
+  string->WriteV2(isolate, 0, length, out());
   SetLengthAndZeroTerminate(length);
 }
 
@@ -604,6 +598,32 @@ void SetMethodNoSideEffect(Isolate* isolate,
   that->Set(name_string, t);
 }
 
+void SetProtoDispose(v8::Isolate* isolate,
+                     v8::Local<v8::FunctionTemplate> that,
+                     v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetDispose(isolate), t);
+}
+
+void SetProtoAsyncDispose(v8::Isolate* isolate,
+                          v8::Local<v8::FunctionTemplate> that,
+                          v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetAsyncDispose(isolate), t);
+}
+
 void SetProtoMethod(v8::Isolate* isolate,
                     Local<v8::FunctionTemplate> that,
                     const std::string_view name,
@@ -726,12 +746,14 @@ RAIIIsolateWithoutEntering::RAIIIsolateWithoutEntering(const SnapshotData* data)
     SnapshotBuilder::InitializeIsolateParams(data, &params);
   }
   params.array_buffer_allocator = allocator_.get();
+  params.cpp_heap = v8::CppHeap::Create(per_process::v8_platform.Platform(),
+                                        v8::CppHeapCreateParams{{}})
+                        .release();
   Isolate::Initialize(isolate_, params);
 }
 
 RAIIIsolateWithoutEntering::~RAIIIsolateWithoutEntering() {
-  per_process::v8_platform.Platform()->UnregisterIsolate(isolate_);
-  isolate_->Dispose();
+  per_process::v8_platform.Platform()->DisposeIsolate(isolate_);
 }
 
 RAIIIsolate::RAIIIsolate(const SnapshotData* data)

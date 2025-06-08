@@ -27,7 +27,7 @@ class ClassWithName final : public GarbageCollected<ClassWithName>,
                             public NameProvider {
  public:
   explicit ClassWithName(const char* name) : name_(name) {}
-  virtual void Trace(Visitor*) const {}
+  void Trace(Visitor*) const {}
   const char* GetHumanReadableName() const final { return name_; }
 
  private:
@@ -36,7 +36,9 @@ class ClassWithName final : public GarbageCollected<ClassWithName>,
 
 }  // namespace
 
-TEST(NameTraitTest, InternalNamesHiddenInOfficialBuild) {
+class NameTraitTest : public testing::TestWithHeap {};
+
+TEST_F(NameTraitTest, InternalNamesHiddenInOfficialBuild) {
   // Use a runtime test instead of static_assert to allow local builds but block
   // enabling the feature accidentally through the waterfall.
   //
@@ -49,7 +51,7 @@ TEST(NameTraitTest, InternalNamesHiddenInOfficialBuild) {
 #endif
 }
 
-TEST(NameTraitTest, DefaultName) {
+TEST_F(NameTraitTest, DefaultName) {
   EXPECT_STREQ(
       NameProvider::SupportsCppClassNamesAsObjectNames()
           ? "cppgc::internal::(anonymous namespace)::NoName"
@@ -76,16 +78,17 @@ TEST(NameTraitTest, DefaultName) {
                    .value);
 }
 
-TEST(NameTraitTest, CustomName) {
-  ClassWithName with_name("CustomName");
+TEST_F(NameTraitTest, CustomName) {
+  ClassWithName* with_name =
+      MakeGarbageCollected<ClassWithName>(GetAllocationHandle(), "CustomName");
   EXPECT_STREQ(
       "CustomName",
       NameTrait<ClassWithName>::GetName(
-          &with_name, HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
+          with_name, HeapObjectNameForUnnamedObject::kUseClassNameIfSupported)
           .value);
   EXPECT_STREQ("CustomName",
                NameTrait<ClassWithName>::GetName(
-                   &with_name, HeapObjectNameForUnnamedObject::kUseHiddenName)
+                   with_name, HeapObjectNameForUnnamedObject::kUseHiddenName)
                    .value);
 }
 
@@ -99,13 +102,13 @@ class TraitTester : public NameTraitBase {
 
 }  // namespace
 
-TEST(NameTraitTest, NoTypeAvailable) {
+TEST_F(NameTraitTest, NoTypeAvailable) {
   HeapObjectName name = TraitTester::GetNameFromTypeSignature(nullptr);
   EXPECT_STREQ(NameProvider::kNoNameDeducible, name.value);
   EXPECT_FALSE(name.name_was_hidden);
 }
 
-TEST(NameTraitTest, ParsingPrettyFunction) {
+TEST_F(NameTraitTest, ParsingPrettyFunction) {
   // Test assumes that __PRETTY_FUNCTION__ and friends return a string
   // containing the the type as [T = <type>].
   HeapObjectName name = TraitTester::GetNameFromTypeSignature(

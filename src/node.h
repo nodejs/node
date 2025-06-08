@@ -175,35 +175,6 @@ NODE_DEPRECATED("Use UVException(isolate, ...)",
                      path);
 })
 
-/*
- * These methods need to be called in a HandleScope.
- *
- * It is preferred that you use the `MakeCallback` overloads taking
- * `async_context` arguments.
- */
-
-NODE_DEPRECATED("Use MakeCallback(..., async_context)",
-                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-                    v8::Isolate* isolate,
-                    v8::Local<v8::Object> recv,
-                    const char* method,
-                    int argc,
-                    v8::Local<v8::Value>* argv));
-NODE_DEPRECATED("Use MakeCallback(..., async_context)",
-                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-                    v8::Isolate* isolate,
-                    v8::Local<v8::Object> recv,
-                    v8::Local<v8::String> symbol,
-                    int argc,
-                    v8::Local<v8::Value>* argv));
-NODE_DEPRECATED("Use MakeCallback(..., async_context)",
-                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-                    v8::Isolate* isolate,
-                    v8::Local<v8::Object> recv,
-                    v8::Local<v8::Function> callback,
-                    int argc,
-                    v8::Local<v8::Value>* argv));
-
 }  // namespace node
 
 #include <cassert>
@@ -330,22 +301,6 @@ NODE_EXTERN int Stop(Environment* env,
                      StopFlags::Flags flags = StopFlags::kNoFlags);
 
 // Set up per-process state needed to run Node.js. This will consume arguments
-// from argv, fill exec_argv, and possibly add errors resulting from parsing
-// the arguments to `errors`. The return value is a suggested exit code for the
-// program; If it is 0, then initializing Node.js succeeded.
-// This runs a subset of the initialization performed by
-// InitializeOncePerProcess(), which supersedes this function.
-// The subset is roughly equivalent to the one given by
-// `ProcessInitializationFlags::kLegacyInitializeNodeWithArgsBehavior`.
-NODE_DEPRECATED("Use InitializeOncePerProcess() instead",
-                NODE_EXTERN int InitializeNodeWithArgs(
-                    std::vector<std::string>* argv,
-                    std::vector<std::string>* exec_argv,
-                    std::vector<std::string>* errors,
-                    ProcessInitializationFlags::Flags flags =
-                        ProcessInitializationFlags::kNoFlags));
-
-// Set up per-process state needed to run Node.js. This will consume arguments
 // from args, and return information about the initialization success,
 // including the arguments split into argv/exec_argv, a list of potential
 // errors encountered during initialization, and a potential suggested
@@ -447,8 +402,11 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
 
   // This function may only be called once per `Isolate`, and discard any
   // pending delayed tasks scheduled for that isolate.
-  // This needs to be called right before calling `Isolate::Dispose()`.
+  // This needs to be called right after calling `Isolate::Dispose()`.
   virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
+  // This disposes, unregisters and frees up an isolate that's allocated using
+  // v8::Isolate::Allocate() in the correct order to prevent race conditions.
+  void DisposeIsolate(v8::Isolate* isolate);
 
   // The platform should call the passed function once all state associated
   // with the given isolate has been cleaned up. This can, but does not have to,
@@ -489,6 +447,21 @@ struct IsolateSettings {
       allow_wasm_code_generation_callback = nullptr;
   v8::ModifyCodeGenerationFromStringsCallback2
       modify_code_generation_from_strings_callback = nullptr;
+
+  // When the settings is passed to NewIsolate():
+  // - If cpp_heap is not nullptr, this CppHeap will be used to create
+  //   the isolate and its ownership will be passed to V8.
+  // - If this is nullptr, Node.js will create a CppHeap that will be
+  //   owned by V8.
+  //
+  // When the settings is passed to SetIsolateUpForNode():
+  // cpp_heap will be ignored. Embedders must ensure that the
+  // v8::Isolate has a CppHeap attached while it's still used by
+  // Node.js, for example using v8::CreateParams.
+  //
+  // See https://issues.chromium.org/issues/42203693. In future version
+  // of V8, this CppHeap will be created by V8 if not provided.
+  v8::CppHeap* cpp_heap = nullptr;
 };
 
 // Represents a startup snapshot blob, e.g. created by passing
@@ -543,8 +516,8 @@ class EmbedderSnapshotData {
   void ToFile(FILE* out) const;
   std::vector<char> ToBlob() const;
 
-  // Returns whether custom snapshots can be used. Currently, this means
-  // that V8 was configured without the shared-readonly-heap feature.
+  // Returns whether custom snapshots can be used. Currently, this always
+  // returns false since V8 enforces shared readonly-heap.
   static bool CanUseCustomSnapshotPerIsolate();
 
   EmbedderSnapshotData(const EmbedderSnapshotData&) = delete;
@@ -830,32 +803,21 @@ NODE_EXTERN void GetNodeReport(Environment* env,
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env);
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env);
 
-NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
-    NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
-        int thread_pool_size,
-        v8::TracingController* tracing_controller));
-NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
-    NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform));
-
-// Get/set the currently active tracing controller. Using CreatePlatform()
-// will implicitly set this by default. This is global and should be initialized
-// along with the v8::Platform instance that is being used. `controller`
-// is allowed to be `nullptr`.
-// This is used for tracing events from Node.js itself. V8 uses the tracing
-// controller returned from the active `v8::Platform` instance.
+// Get/set the currently active tracing controller. Using
+// MultiIsolatePlatform::Create() will implicitly set this by default. This is
+// global and should be initialized along with the v8::Platform instance that is
+// being used. `controller` is allowed to be `nullptr`. This is used for tracing
+// events from Node.js itself. V8 uses the tracing controller returned from the
+// active `v8::Platform` instance.
 NODE_EXTERN v8::TracingController* GetTracingController();
 NODE_EXTERN void SetTracingController(v8::TracingController* controller);
 
 // Run `process.emit('beforeExit')` as it would usually happen when Node.js is
 // run in standalone mode.
 NODE_EXTERN v8::Maybe<bool> EmitProcessBeforeExit(Environment* env);
-NODE_DEPRECATED("Use Maybe version (EmitProcessBeforeExit) instead",
-    NODE_EXTERN void EmitBeforeExit(Environment* env));
 // Run `process.emit('exit')` as it would usually happen when Node.js is run
 // in standalone mode. The return value corresponds to the exit code.
 NODE_EXTERN v8::Maybe<int> EmitProcessExit(Environment* env);
-NODE_DEPRECATED("Use Maybe version (EmitProcessExit) instead",
-    NODE_EXTERN int EmitExit(Environment* env));
 
 // Runs hooks added through `AtExit()`. This is part of `FreeEnvironment()`,
 // so calling it manually is typically not necessary.

@@ -9,9 +9,9 @@
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
-#include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -21,6 +21,7 @@
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/safepoint.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/objects-inl.h"
@@ -55,20 +56,21 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   // space. No other edges indirect pointers are currently possible in shared
   // space.
   DCHECK_IMPLIES(
-      InWritableSharedSpace(host),
+      HeapLayout::InWritableSharedSpace(host),
       MemoryChunk::FromHeapObject(value)->Metadata()->owner()->identity() ==
           SHARED_TRUSTED_SPACE);
 
-  if (InReadOnlySpace(value)) return;
+  if (HeapLayout::InReadOnlySpace(value)) return;
 
-  DCHECK(!Heap::InYoungGeneration(value));
+  DCHECK(!HeapLayout::InYoungGeneration(value));
 
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
-    if (InWritableSharedSpace(value)) {
-      // A client isolate does not need a marking barrier for shared trusted
-      // objects. This is because all entries in the trusted pointer table will
-      // be marked for client isolates in the atomic pause.
+    if (HeapLayout::InWritableSharedSpace(value)) {
+      // References to the shared trusted space may only originate from the
+      // shared space.
+      CHECK(HeapLayout::InWritableSharedSpace(host));
       DCHECK(MemoryChunk::FromHeapObject(value)->IsTrusted());
+      MarkValueShared(value);
     } else {
       MarkValueLocal(value);
     }
@@ -94,18 +96,18 @@ void MarkingBarrier::WriteWithoutHost(Tagged<HeapObject> value) {
   // objects are considered local.
   if (V8_UNLIKELY(uses_shared_heap_) && !is_shared_space_isolate_) {
     // On client isolates (= worker isolates) shared values can be ignored.
-    if (InWritableSharedSpace(value)) {
+    if (HeapLayout::InWritableSharedSpace(value)) {
       return;
     }
   }
-  if (InReadOnlySpace(value)) return;
+  if (HeapLayout::InReadOnlySpace(value)) return;
   MarkValueLocal(value);
 }
 
 void MarkingBarrier::Write(Tagged<InstructionStream> host,
                            RelocInfo* reloc_info, Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(!InWritableSharedSpace(host));
+  DCHECK(!HeapLayout::InWritableSharedSpace(host));
   DCHECK(is_activated_ || shared_heap_worklists_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
@@ -126,11 +128,11 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
 void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
                            ArrayBufferExtension* extension) {
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(!InWritableSharedSpace(host));
+  DCHECK(!HeapLayout::InWritableSharedSpace(host));
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
   if (is_minor()) {
-    if (Heap::InYoungGeneration(host)) {
+    if (HeapLayout::InYoungGeneration(host)) {
       extension->YoungMark();
     }
   } else {
@@ -141,7 +143,7 @@ void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
 void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
                            int number_of_own_descriptors) {
   DCHECK(IsCurrentMarkingBarrier(descriptor_array));
-  DCHECK(IsReadOnlyHeapObject(descriptor_array->map()));
+  DCHECK(HeapLayout::InReadOnlySpace(descriptor_array->map()));
   DCHECK(MemoryChunk::FromHeapObject(descriptor_array)->IsMarking());
 
   // Only major GC uses custom liveness.
@@ -153,7 +155,8 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
   unsigned gc_epoch;
   MarkingWorklists::Local* worklist;
   if (V8_UNLIKELY(uses_shared_heap_) &&
-      InWritableSharedSpace(descriptor_array) && !is_shared_space_isolate_) {
+      HeapLayout::InWritableSharedSpace(descriptor_array) &&
+      !is_shared_space_isolate_) {
     gc_epoch = isolate()
                    ->shared_space_isolate()
                    ->heap()
@@ -163,22 +166,27 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
     worklist = &*shared_heap_worklists_;
   } else {
 #ifdef DEBUG
-    const auto target_worklist =
-        MarkingHelper::ShouldMarkObject(heap_, descriptor_array);
-    DCHECK(target_worklist);
-    DCHECK_EQ(target_worklist.value(), MarkingHelper::WorklistTarget::kRegular);
+    if (const auto target_worklist =
+            MarkingHelper::ShouldMarkObject(heap_, descriptor_array)) {
+      DCHECK_EQ(target_worklist.value(),
+                MarkingHelper::WorklistTarget::kRegular);
+    } else {
+      DCHECK(HeapLayout::InBlackAllocatedPage(descriptor_array));
+    }
 #endif  // DEBUG
     gc_epoch = major_collector_->epoch();
     worklist = current_worklists_.get();
   }
 
-  // The DescriptorArray needs to be marked black here to ensure that slots
-  // are recorded by the Scavenger in case the DescriptorArray is promoted
-  // while incremental marking is running. This is needed as the regular
-  // marking visitor does not re-process any already marked descriptors. If we
-  // don't mark it black here, the Scavenger may promote a DescriptorArray and
-  // any already marked descriptors will not have any slots recorded.
-  marking_state_.TryMark(descriptor_array);
+  if (v8_flags.black_allocated_pages) {
+    // Make sure to only mark the descriptor array for non black allocated
+    // pages. The atomic pause will fix it afterwards.
+    if (MarkingHelper::ShouldMarkObject(heap_, descriptor_array)) {
+      marking_state_.TryMark(descriptor_array);
+    }
+  } else {
+    marking_state_.TryMark(descriptor_array);
+  }
 
   // `TryUpdateIndicesToMark()` acts as a barrier that publishes the slots'
   // values corresponding to `number_of_own_descriptors`.
@@ -462,6 +470,9 @@ void MarkingBarrier::AssertMarkingIsActivated() const { DCHECK(is_activated_); }
 
 void MarkingBarrier::AssertSharedMarkingIsActivated() const {
   DCHECK(shared_heap_worklists_.has_value());
+}
+bool MarkingBarrier::IsMarked(const Tagged<HeapObject> value) const {
+  return marking_state_.IsMarked(value);
 }
 #endif  // DEBUG
 

@@ -1376,11 +1376,13 @@ void Assembler::hlt() {
 }
 
 void Assembler::endbr64() {
+#ifdef V8_ENABLE_CET_IBT
   EnsureSpace ensure_space(this);
   emit(0xF3);
   emit(0x0f);
   emit(0x1e);
   emit(0xfa);
+#endif
 }
 
 void Assembler::emit_idiv(Register src, int size) {
@@ -1650,13 +1652,14 @@ void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
   emitl(code_target_index);
 }
 
-#ifdef V8_ENABLE_CET_IBT
-
 void Assembler::jmp(Register target, bool notrack) {
   EnsureSpace ensure_space(this);
+#ifdef V8_ENABLE_CET_IBT
+  // The notrack prefix is only useful if we compile with IBT support.
   if (notrack) {
     emit(0x3e);
   }
+#endif
   // Opcode FF/4 r64.
   emit_optional_rex_32(target);
   emit(0xFF);
@@ -1665,34 +1668,17 @@ void Assembler::jmp(Register target, bool notrack) {
 
 void Assembler::jmp(Operand src, bool notrack) {
   EnsureSpace ensure_space(this);
+#ifdef V8_ENABLE_CET_IBT
+  // The notrack prefix is only useful if we compile with IBT support.
   if (notrack) {
     emit(0x3e);
   }
-  // Opcode FF/4 m64.
-  emit_optional_rex_32(src);
-  emit(0xFF);
-  emit_operand(0x4, src);
-}
-
-#else  // V8_ENABLE_CET_IBT
-
-void Assembler::jmp(Register target) {
-  EnsureSpace ensure_space(this);
-  // Opcode FF/4 r64.
-  emit_optional_rex_32(target);
-  emit(0xFF);
-  emit_modrm(0x4, target);
-}
-
-void Assembler::jmp(Operand src) {
-  EnsureSpace ensure_space(this);
-  // Opcode FF/4 m64.
-  emit_optional_rex_32(src);
-  emit(0xFF);
-  emit_operand(0x4, src);
-}
-
 #endif
+  // Opcode FF/4 m64.
+  emit_optional_rex_32(src);
+  emit(0xFF);
+  emit_operand(0x4, src);
+}
 
 void Assembler::emit_lea(Register dst, Operand src, int size) {
   EnsureSpace ensure_space(this);
@@ -4710,7 +4696,7 @@ void Assembler::WriteBuiltinJumpTableEntry(Label* label, int table_pos) {
   EnsureSpace ensure_space(this);
   CHECK(label->is_bound());
   int32_t value = label->pos() - table_pos;
-  if constexpr (V8_BUILTIN_JUMP_TABLE_INFO_BOOL) {
+  if constexpr (V8_JUMP_TABLE_INFO_BOOL) {
     builtin_jump_table_info_writer_.Add(pc_offset(), label->pos());
   }
   emitl(value);
@@ -4718,7 +4704,7 @@ void Assembler::WriteBuiltinJumpTableEntry(Label* label, int table_pos) {
 
 int Assembler::WriteBuiltinJumpTableInfos() {
   if (builtin_jump_table_info_writer_.entry_count() == 0) return 0;
-  CHECK(V8_BUILTIN_JUMP_TABLE_INFO_BOOL);
+  CHECK(V8_JUMP_TABLE_INFO_BOOL);
   int offset = pc_offset();
   builtin_jump_table_info_writer_.Emit(this);
   int size = pc_offset() - offset;

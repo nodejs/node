@@ -23,6 +23,7 @@ static_assert(
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/logging/metrics.h"
+#include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/js-objects.h"
 
 namespace v8 {
@@ -97,15 +98,6 @@ class V8_EXPORT_PRIVATE CppHeap final
         last_incremental_mark_event_;
   };
 
-  class PauseConcurrentMarkingScope final {
-   public:
-    explicit PauseConcurrentMarkingScope(CppHeap*);
-
-   private:
-    std::optional<cppgc::internal::MarkerBase::PauseConcurrentMarkingScope>
-        pause_scope_;
-  };
-
   static void InitializeOncePerProcess();
 
   static CppHeap* From(v8::CppHeap* heap) {
@@ -127,6 +119,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   const HeapBase& AsBase() const { return *this; }
 
   void AttachIsolate(Isolate* isolate);
+  void StartDetachingIsolate();
   void DetachIsolate();
 
   void Terminate();
@@ -141,10 +134,14 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   void InitializeMarking(
       CollectionType,
+      std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule = {},
       GarbageCollectionFlags = GarbageCollectionFlagValues::kNoFlags);
   void StartMarking();
-  bool AdvanceTracing(v8::base::TimeDelta max_duration);
-  bool IsTracingDone() const;
+  bool AdvanceMarking(v8::base::TimeDelta max_duration,
+                      size_t marked_bytes_limit);
+  bool IsMarkingDone() const;
+  size_t last_bytes_marked() const;
+  void ProcessCrossThreadWeakness();
   void FinishMarkingAndProcessWeakness();
   void CompactAndSweep();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
@@ -195,7 +192,8 @@ class V8_EXPORT_PRIVATE CppHeap final
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   V8_INLINE void RememberCrossHeapReferenceIfNeeded(
-      v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value);
+      v8::internal::Tagged<v8::internal::CppHeapPointerWrapperObjectT> host_obj,
+      void* value);
   template <typename F>
   inline void VisitCrossHeapRememberedSetIfNeeded(F f);
   void ResetCrossHeapRememberedSet();
@@ -204,6 +202,8 @@ class V8_EXPORT_PRIVATE CppHeap final
   void EnableDetachedGarbageCollectionsForTesting();
   void CollectGarbageForTesting(CollectionType, StackState);
   void UpdateGCCapabilitiesFromFlagsForTesting();
+
+  bool CurrentThreadIsHeapThread() const final;
 
  private:
   void UpdateGCCapabilitiesFromFlags();
@@ -272,11 +272,15 @@ class V8_EXPORT_PRIVATE CppHeap final
   std::optional<v8::base::RandomNumberGenerator> allocation_timeout_rng_;
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
+  bool already_terminated_ = false;
+  bool is_detached_ = true;
+
   friend class MetricRecorderAdapter;
 };
 
 void CppHeap::RememberCrossHeapReferenceIfNeeded(
-    v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value) {
+    v8::internal::Tagged<v8::internal::CppHeapPointerWrapperObjectT> host_obj,
+    void* value) {
   if (!generational_gc_supported()) return;
   DCHECK(isolate_);
   cross_heap_remembered_set_.RememberReferenceIfNeeded(*isolate_, host_obj,

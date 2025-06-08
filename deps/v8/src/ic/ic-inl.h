@@ -6,6 +6,7 @@
 #define V8_IC_IC_INL_H_
 
 #include "src/ic/ic.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/codegen/assembler-inl.h"
 #include "src/debug/debug.h"

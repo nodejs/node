@@ -6,7 +6,6 @@ const test = require('node:test');
 test('expected methods are on t.assert', (t) => {
   const uncopiedKeys = [
     'AssertionError',
-    'CallTracker',
     'strict',
   ];
   const assertKeys = Object.keys(assert).filter((key) => !uncopiedKeys.includes(key));

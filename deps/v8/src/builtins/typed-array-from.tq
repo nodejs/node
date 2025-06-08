@@ -14,8 +14,8 @@ const kArrayPrototypeValues: constexpr BuiltinsName
 const kSetPrototypeValues: constexpr BuiltinsName
     generates 'Builtin::kSetPrototypeValues';
 
-extern builtin IterableToList(implicit context: Context)(JSAny, JSAny):
-    JSArray;
+extern builtin IterableToList(implicit context: Context)(JSAny,
+                              JSAny): JSArray;
 
 // %TypedArray%.from ( source [ , mapfn [ , thisArg ] ] )
 // https://tc39.github.io/ecma262/#sec-%typedarray%.from

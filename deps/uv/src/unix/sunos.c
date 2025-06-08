@@ -546,8 +546,15 @@ int uv_fs_event_start(uv_fs_event_t* handle,
   }
 
   if (first_run) {
-    uv__io_init(&handle->loop->fs_event_watcher, uv__fs_event_read, portfd);
-    uv__io_start(handle->loop, &handle->loop->fs_event_watcher, POLLIN);
+    err = uv__io_init_start(handle->loop,
+                             &handle->loop->fs_event_watcher,
+                             uv__fs_event_read,
+                             portfd,
+                             POLLIN);
+    if (err)
+      uv__handle_stop(handle);
+
+    return err;
   }
 
   return 0;
@@ -826,6 +833,8 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
   uv_interface_address_t* address;
   struct ifaddrs* addrs;
   struct ifaddrs* ent;
+  size_t namelen;
+  char* name;
 
   *count = 0;
   *addresses = NULL;
@@ -834,9 +843,11 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     return UV__ERR(errno);
 
   /* Count the number of interfaces */
+  namelen = 0;
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
     if (uv__ifaddr_exclude(ent))
       continue;
+    namelen += strlen(ent->ifa_name) + 1;
     (*count)++;
   }
 
@@ -845,19 +856,22 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     return 0;
   }
 
-  *addresses = uv__malloc(*count * sizeof(**addresses));
-  if (!(*addresses)) {
+  *addresses = uv__calloc(1, *count * sizeof(**addresses) + namelen);
+  if (*addresses == NULL) {
     freeifaddrs(addrs);
     return UV_ENOMEM;
   }
 
+  name = (char*) &(*addresses)[*count];
   address = *addresses;
 
   for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
     if (uv__ifaddr_exclude(ent))
       continue;
 
-    address->name = uv__strdup(ent->ifa_name);
+    namelen = strlen(ent->ifa_name) + 1;
+    address->name = memcpy(name, ent->ifa_name, namelen);
+    name += namelen;
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
       address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
@@ -885,13 +899,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
 #endif  /* SUNOS_NO_IFADDRS */
 
 void uv_free_interface_addresses(uv_interface_address_t* addresses,
-  int count) {
-  int i;
-
-  for (i = 0; i < count; i++) {
-    uv__free(addresses[i].name);
-  }
-
+                                 int count) {
   uv__free(addresses);
 }
 

@@ -76,10 +76,10 @@ ABSL_DLL extern const char kToUpper[256];
 // Declaration for the array of characters to lower-case characters.
 ABSL_DLL extern const char kToLower[256];
 
-void AsciiStrToLower(absl::Nonnull<char*> dst, absl::Nonnull<const char*> src,
+void AsciiStrToLower(char* absl_nonnull dst, const char* absl_nullable src,
                      size_t n);
 
-void AsciiStrToUpper(absl::Nonnull<char*> dst, absl::Nonnull<const char*> src,
+void AsciiStrToUpper(char* absl_nonnull dst, const char* absl_nullable src,
                      size_t n);
 
 }  // namespace ascii_internal
@@ -139,32 +139,42 @@ inline bool ascii_isxdigit(unsigned char c) {
 //
 // Determines whether the given character can be represented as a decimal
 // digit character (i.e. {0-9}).
-inline bool ascii_isdigit(unsigned char c) { return c >= '0' && c <= '9'; }
+inline constexpr bool ascii_isdigit(unsigned char c) {
+  return c >= '0' && c <= '9';
+}
 
 // ascii_isprint()
 //
 // Determines whether the given character is printable, including spaces.
-inline bool ascii_isprint(unsigned char c) { return c >= 32 && c < 127; }
+inline constexpr bool ascii_isprint(unsigned char c) {
+  return c >= 32 && c < 127;
+}
 
 // ascii_isgraph()
 //
 // Determines whether the given character has a graphical representation.
-inline bool ascii_isgraph(unsigned char c) { return c > 32 && c < 127; }
+inline constexpr bool ascii_isgraph(unsigned char c) {
+  return c > 32 && c < 127;
+}
 
 // ascii_isupper()
 //
 // Determines whether the given character is uppercase.
-inline bool ascii_isupper(unsigned char c) { return c >= 'A' && c <= 'Z'; }
+inline constexpr bool ascii_isupper(unsigned char c) {
+  return c >= 'A' && c <= 'Z';
+}
 
 // ascii_islower()
 //
 // Determines whether the given character is lowercase.
-inline bool ascii_islower(unsigned char c) { return c >= 'a' && c <= 'z'; }
+inline constexpr bool ascii_islower(unsigned char c) {
+  return c >= 'a' && c <= 'z';
+}
 
 // ascii_isascii()
 //
 // Determines whether the given character is ASCII.
-inline bool ascii_isascii(unsigned char c) { return c < 128; }
+inline constexpr bool ascii_isascii(unsigned char c) { return c < 128; }
 
 // ascii_tolower()
 //
@@ -175,10 +185,10 @@ inline char ascii_tolower(unsigned char c) {
 }
 
 // Converts the characters in `s` to lowercase, changing the contents of `s`.
-void AsciiStrToLower(absl::Nonnull<std::string*> s);
+void AsciiStrToLower(std::string* absl_nonnull s);
 
 // Creates a lowercase string from a given absl::string_view.
-ABSL_MUST_USE_RESULT inline std::string AsciiStrToLower(absl::string_view s) {
+[[nodiscard]] inline std::string AsciiStrToLower(absl::string_view s) {
   std::string result;
   strings_internal::STLStringResizeUninitialized(&result, s.size());
   ascii_internal::AsciiStrToLower(&result[0], s.data(), s.size());
@@ -189,7 +199,7 @@ ABSL_MUST_USE_RESULT inline std::string AsciiStrToLower(absl::string_view s) {
 //
 // (Template is used to lower priority of this overload.)
 template <int&... DoNotSpecify>
-ABSL_MUST_USE_RESULT inline std::string AsciiStrToLower(std::string&& s) {
+[[nodiscard]] inline std::string AsciiStrToLower(std::string&& s) {
   std::string result = std::move(s);
   absl::AsciiStrToLower(&result);
   return result;
@@ -204,10 +214,10 @@ inline char ascii_toupper(unsigned char c) {
 }
 
 // Converts the characters in `s` to uppercase, changing the contents of `s`.
-void AsciiStrToUpper(absl::Nonnull<std::string*> s);
+void AsciiStrToUpper(std::string* absl_nonnull s);
 
 // Creates an uppercase string from a given absl::string_view.
-ABSL_MUST_USE_RESULT inline std::string AsciiStrToUpper(absl::string_view s) {
+[[nodiscard]] inline std::string AsciiStrToUpper(absl::string_view s) {
   std::string result;
   strings_internal::STLStringResizeUninitialized(&result, s.size());
   ascii_internal::AsciiStrToUpper(&result[0], s.data(), s.size());
@@ -218,7 +228,7 @@ ABSL_MUST_USE_RESULT inline std::string AsciiStrToUpper(absl::string_view s) {
 //
 // (Template is used to lower priority of this overload.)
 template <int&... DoNotSpecify>
-ABSL_MUST_USE_RESULT inline std::string AsciiStrToUpper(std::string&& s) {
+[[nodiscard]] inline std::string AsciiStrToUpper(std::string&& s) {
   std::string result = std::move(s);
   absl::AsciiStrToUpper(&result);
   return result;
@@ -226,47 +236,47 @@ ABSL_MUST_USE_RESULT inline std::string AsciiStrToUpper(std::string&& s) {
 
 // Returns absl::string_view with whitespace stripped from the beginning of the
 // given string_view.
-ABSL_MUST_USE_RESULT inline absl::string_view StripLeadingAsciiWhitespace(
-    absl::string_view str) {
+[[nodiscard]] inline absl::string_view StripLeadingAsciiWhitespace(
+    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND) {
   auto it = std::find_if_not(str.begin(), str.end(), absl::ascii_isspace);
   return str.substr(static_cast<size_t>(it - str.begin()));
 }
 
 // Strips in place whitespace from the beginning of the given string.
-inline void StripLeadingAsciiWhitespace(absl::Nonnull<std::string*> str) {
+inline void StripLeadingAsciiWhitespace(std::string* absl_nonnull str) {
   auto it = std::find_if_not(str->begin(), str->end(), absl::ascii_isspace);
   str->erase(str->begin(), it);
 }
 
 // Returns absl::string_view with whitespace stripped from the end of the given
 // string_view.
-ABSL_MUST_USE_RESULT inline absl::string_view StripTrailingAsciiWhitespace(
-    absl::string_view str) {
+[[nodiscard]] inline absl::string_view StripTrailingAsciiWhitespace(
+    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND) {
   auto it = std::find_if_not(str.rbegin(), str.rend(), absl::ascii_isspace);
   return str.substr(0, static_cast<size_t>(str.rend() - it));
 }
 
 // Strips in place whitespace from the end of the given string
-inline void StripTrailingAsciiWhitespace(absl::Nonnull<std::string*> str) {
+inline void StripTrailingAsciiWhitespace(std::string* absl_nonnull str) {
   auto it = std::find_if_not(str->rbegin(), str->rend(), absl::ascii_isspace);
   str->erase(static_cast<size_t>(str->rend() - it));
 }
 
 // Returns absl::string_view with whitespace stripped from both ends of the
 // given string_view.
-ABSL_MUST_USE_RESULT inline absl::string_view StripAsciiWhitespace(
-    absl::string_view str) {
+[[nodiscard]] inline absl::string_view StripAsciiWhitespace(
+    absl::string_view str ABSL_ATTRIBUTE_LIFETIME_BOUND) {
   return StripTrailingAsciiWhitespace(StripLeadingAsciiWhitespace(str));
 }
 
 // Strips in place whitespace from both ends of the given string
-inline void StripAsciiWhitespace(absl::Nonnull<std::string*> str) {
+inline void StripAsciiWhitespace(std::string* absl_nonnull str) {
   StripTrailingAsciiWhitespace(str);
   StripLeadingAsciiWhitespace(str);
 }
 
 // Removes leading, trailing, and consecutive internal whitespace.
-void RemoveExtraAsciiWhitespace(absl::Nonnull<std::string*> str);
+void RemoveExtraAsciiWhitespace(std::string* absl_nonnull str);
 
 ABSL_NAMESPACE_END
 }  // namespace absl

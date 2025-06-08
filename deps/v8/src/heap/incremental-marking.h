@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <optional>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
@@ -53,22 +53,6 @@ constexpr const char* ToString(StepOrigin step_origin) {
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
-  class V8_NODISCARD PauseBlackAllocationScope final {
-   public:
-    explicit PauseBlackAllocationScope(IncrementalMarking* marking);
-    ~PauseBlackAllocationScope();
-
-    PauseBlackAllocationScope(const PauseBlackAllocationScope&) = delete;
-    PauseBlackAllocationScope& operator=(const PauseBlackAllocationScope&) =
-        delete;
-
-   private:
-    IncrementalMarking* const marking_;
-    bool paused_ = false;
-  };
-
-  V8_INLINE void TransferColor(Tagged<HeapObject> from, Tagged<HeapObject> to);
-
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
   IncrementalMarking(const IncrementalMarking&) = delete;
@@ -101,10 +85,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Returns true if incremental marking was running and false otherwise.
   bool Stop();
 
-  void UpdateMarkingWorklistAfterScavenge();
-  void UpdateExternalPointerTableAfterScavenge();
-  void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
-
   // Performs incremental marking step and finalizes marking if complete.
   void AdvanceAndFinalizeIfComplete();
 
@@ -116,8 +96,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Performs incremental marking step and schedules job for finalization if
   // marking completes.
   void AdvanceOnAllocation();
-
-  bool IsAheadOfSchedule() const;
 
   bool IsCompacting() { return IsMajorMarking() && is_compacting_; }
 
@@ -141,6 +119,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
                          size_t max_bytes_to_mark = SIZE_MAX);
 
   uint64_t current_trace_id() const { return current_trace_id_.value(); }
+
+  std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule() {
+    return schedule_;
+  }
 
  private:
   class Observer final : public AllocationObserver {
@@ -179,8 +161,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool ShouldWaitForTask();
   bool TryInitializeTaskTimeout();
 
-  // Returns the actual used time.
-  v8::base::TimeDelta EmbedderStep(v8::base::TimeDelta expected_duration);
+  // Returns the actual used time and actually marked bytes.
+  std::pair<v8::base::TimeDelta, size_t> CppHeapStep(
+      v8::base::TimeDelta max_duration, size_t marked_bytes_limit);
+
   void Step(v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
             StepOrigin step_origin);
 
@@ -216,7 +200,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   std::unordered_map<MutablePageMetadata*, intptr_t,
                      base::hash<MutablePageMetadata*>>
       background_live_bytes_;
-  std::unique_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
+  std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
   std::optional<uint64_t> current_trace_id_;
 
   friend class IncrementalMarkingJob;

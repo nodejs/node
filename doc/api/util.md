@@ -973,8 +973,8 @@ The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
 and should not be depended upon programmatically. Additional `options` may be
 passed that alter the result.
-`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make
-an identifiable tag for an inspected value.
+`util.inspect()` will use the constructor's name and/or `Symbol.toStringTag`
+property to make an identifiable tag for an inspected value.
 
 ```js
 class Foo {
@@ -1884,7 +1884,7 @@ console.log(params.toString());
 
 Returns an iterator over the values of each name-value pair.
 
-### `mimeParams[@@iterator]()`
+### `mimeParams[Symbol.iterator]()`
 
 * Returns: {Iterator}
 
@@ -2408,6 +2408,9 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58437
+    description: Added the `'none'` format as a non-op format.
   - version:
     - v23.5.0
     - v22.13.0
@@ -2418,7 +2421,7 @@ changes:
     - v20.18.0
     pr-url: https://github.com/nodejs/node/pull/54389
     description: Respect isTTY and environment variables
-      such as NO_COLORS, NODE_DISABLE_COLORS, and FORCE_COLOR.
+      such as NO_COLOR, NODE_DISABLE_COLORS, and FORCE_COLOR.
 -->
 
 * `format` {string | Array} A text format or an Array
@@ -2430,7 +2433,7 @@ changes:
 
 This function returns a formatted text considering the `format` passed
 for printing in a terminal. It is aware of the terminal's capabilities
-and acts according to the configuration set via `NO_COLORS`,
+and acts according to the configuration set via `NO_COLOR`,
 `NODE_DISABLE_COLORS` and `FORCE_COLOR` environment variables.
 
 ```mjs
@@ -2482,6 +2485,8 @@ console.log(
   util.styleText(['red', 'green'], 'text'), // green
 );
 ```
+
+The special format value `none` applies no additional styling to the text.
 
 The full list of formats can be found in [modifiers][].
 
@@ -2739,7 +2744,9 @@ added:
  - v19.7.0
  - v18.16.0
 changes:
- - version: REPLACEME
+ - version:
+   - v24.0.0
+   - v22.16.0
    pr-url: https://github.com/nodejs/node/pull/57765
    description: Change stability index for this feature from Experimental to Stable.
 -->
@@ -3113,7 +3120,9 @@ For further information on `napi_create_external`, refer to
 ### `util.types.isFloat16Array(value)`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v24.0.0
+ - v22.16.0
 -->
 
 * `value` {any}
@@ -3319,7 +3328,13 @@ util.types.isModuleNamespaceObject(ns);  // Returns true
 
 <!-- YAML
 added: v10.0.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated: Use [`Error.isError`][] instead.
+
+**Note:** As of Node.js v24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
+If performance is critical, consider benchmarking both in your environment.
 
 * `value` {any}
 * Returns: {boolean}
@@ -3707,6 +3722,7 @@ util.isArray({});
 [`'warning'`]: process.md#event-warning
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
+[`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`MIMEparams`]: #class-utilmimeparams
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign

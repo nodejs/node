@@ -64,6 +64,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
   Reduction ReduceIncBlockCounter(Node* node);
+  Reduction ReduceAddLhsIsStringConstantInternalize(Node* node);
   Reduction ReduceGetImportMetaObject(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
@@ -80,7 +81,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
                    int stack_parameter_count,
                    enum FrameStateFlag frame_state_flag = kNeedsFrameState);
 
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;

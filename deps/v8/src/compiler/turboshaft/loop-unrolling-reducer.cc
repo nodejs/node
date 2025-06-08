@@ -10,6 +10,15 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/loop-finder.h"
 
+#ifdef DEBUG
+#define TRACE(x)                                                               \
+  do {                                                                         \
+    if (v8_flags.turboshaft_trace_unrolling) StdoutStream() << x << std::endl; \
+  } while (false)
+#else
+#define TRACE(x)
+#endif
+
 namespace v8::internal::compiler::turboshaft {
 
 using CmpOp = StaticCanonicalForLoopMatcher::CmpOp;
@@ -18,6 +27,8 @@ using BinOp = StaticCanonicalForLoopMatcher::BinOp;
 void LoopUnrollingAnalyzer::DetectUnrollableLoops() {
   for (const auto& [start, info] : loop_finder_.LoopHeaders()) {
     IterationCount iter_count = GetLoopIterationCount(info);
+    TRACE("LoopUnrollingAnalyzer: loop at "
+          << start->index() << " ==> iter_count=" << iter_count);
     loop_iteration_count_.insert({start, iter_count});
 
     if (ShouldFullyUnrollLoop(start) || ShouldPartiallyUnrollLoop(start)) {
@@ -115,7 +126,7 @@ bool StaticCanonicalForLoopMatcher::MatchWordBinop(
     OpIndex idx, V<Word>* left, V<Word>* right, BinOp* binop_op,
     WordRepresentation* binop_rep) const {
   WordBinopOp::Kind kind;
-  if (matcher_.MatchWordBinop(idx, left, right, &kind, binop_rep) &&
+  if (matcher_.MatchWordBinop<Word>(idx, left, right, &kind, binop_rep) &&
       BinopKindIsSupported(kind)) {
     *binop_op = BinopFromWordBinopKind(kind);
     return true;
@@ -236,7 +247,7 @@ std::ostream& operator<<(std::ostream& os, const IterationCount& count) {
   if (count.IsExact()) {
     return os << "Exact[" << count.exact_count() << "]";
   } else if (count.IsApprox()) {
-    return os << "Approx[" << count.exact_count() << "]";
+    return os << "Approx[" << count.approx_count() << "]";
   } else {
     DCHECK(count.IsUnknown());
     return os << "Unknown";

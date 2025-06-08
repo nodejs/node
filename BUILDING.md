@@ -110,7 +110,7 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                      |
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10          |
 | GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
-| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 22.04, Debian 12         |
+| GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24          |
 | GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental | Downgraded as of Node.js 12          |
 | GNU/Linux        | ppc64le >=power8 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8            |
 | GNU/Linux        | s390x            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                          |
@@ -122,6 +122,7 @@ platforms. This is true regardless of entries in the table below.
 | SmartOS          | x64              | >= 18                             | Tier 2       |                                      |
 | AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2       |                                      |
 | FreeBSD          | x64              | >= 13.2                           | Experimental |                                      |
+| OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                      |
 
 <!--lint disable final-definition-->
 
@@ -162,18 +163,17 @@ Depending on the host platform, the selection of toolchains may vary.
 
 Binaries at <https://nodejs.org/download/release/> are produced on:
 
-| Binary package          | Platform and Toolchain                                                                                        |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
-| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                                                                       |
-| darwin-x64              | macOS 13, Xcode 16 with -mmacosx-version-min=13.5                                                             |
-| darwin-arm64 (and .pkg) | macOS 13 (arm64), Xcode 16 with -mmacosx-version-min=13.5                                                     |
-| linux-arm64             | RHEL 8 with gcc-toolset-12[^6]                                                                                |
-| linux-armv7l            | Cross-compiled on RHEL 9 x64 with a [custom GCC toolchain](https://github.com/rvagg/rpi-newer-crosstools)[^7] |
-| linux-ppc64le           | RHEL 8 with gcc-toolset-12[^6]                                                                                |
-| linux-s390x             | RHEL 8 with gcc-toolset-12[^6]                                                                                |
-| linux-x64               | RHEL 8 with gcc-toolset-12[^6]                                                                                |
-| win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022                                                             |
-| win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022                                                             |
+| Binary package          | Platform and Toolchain                                    |
+| ----------------------- | --------------------------------------------------------- |
+| aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                   |
+| darwin-x64              | macOS 13, Xcode 16 with -mmacosx-version-min=13.5         |
+| darwin-arm64 (and .pkg) | macOS 13 (arm64), Xcode 16 with -mmacosx-version-min=13.5 |
+| linux-arm64             | RHEL 8 with gcc-toolset-12[^6]                            |
+| linux-ppc64le           | RHEL 8 with gcc-toolset-12[^6]                            |
+| linux-s390x             | RHEL 8 with gcc-toolset-12[^6]                            |
+| linux-x64               | RHEL 8 with gcc-toolset-12[^6]                            |
+| win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022         |
+| win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022         |
 
 <!--lint disable final-definition-->
 
@@ -184,11 +184,6 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
     and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
     distributions natively supporting GCC 8.1 or higher, such as Debian 10,
     RHEL 8 and Ubuntu 20.04.
-
-[^7]: Binaries produced on these systems are compatible with glibc >= 2.28
-    and libstdc++ >= 6.0.30 (`GLIBCXX_3.4.30`). These are available on
-    distributions natively supporting GCC 12.1 or higher, such as Debian 12,
-    Ubuntu 22.04.
 
 <!--lint enable final-definition-->
 
@@ -640,7 +635,10 @@ Refs:
   [Visual Studio 2022 (17.6 or newer)](https://visualstudio.microsoft.com/downloads/)
   or the "C++ build tools" workload from the
   [Build Tools](https://aka.ms/vs/17/release/vs_buildtools.exe),
-  with the default optional components
+  with the default optional components. Starting with Node.js v24, ClangCL is required to compile
+  on Windows. To enable it, two additional components are needed:
+  * C++ Clang Compiler for Windows (Microsoft.VisualStudio.Component.VC.Llvm.Clang)
+  * MSBuild support for LLVM toolset (Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset)
 * Basic Unix tools required for some tests,
   [Git for Windows](https://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
@@ -663,13 +661,6 @@ Optional requirements for compiling for Windows on ARM (ARM64):
   * Visual C++ compilers and libraries for ARM64
   * Visual C++ ATL for ARM64
 * Windows 10 SDK 10.0.17763.0 or newer
-
-Optional requirements for compiling with ClangCL (search for `clang` in Visual Studio
-Installer's "individual component" tab):
-
-* Visual Studio individual components
-  * C++ Clang Compiler for Windows
-  * MSBuild support for LLVM toolset
 
 NOTE: Currently we only support compiling with Clang that comes from Visual Studio.
 

@@ -7,6 +7,7 @@
 //
 // Flags: --allow-natives-syntax
 // Flags: --expose-gc --wasm-stack-switching-stack-size=100
+// Flags: --experimental-wasm-type-reflection
 
 
 // Enable the JSPI flag conditionally (as in a Chrome Origin Trial),

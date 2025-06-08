@@ -7,9 +7,10 @@
 
 #include "src/common/globals.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-graph.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/execution/isolate.h"
 #include "src/objects/oddball.h"
 
@@ -20,12 +21,12 @@ namespace compiler {
 class SimplifiedOperatorBuilder;
 class Typer;
 
-// Implements a facade on a Graph, enhancing the graph with JS-specific
+// Implements a facade on a TFGraph, enhancing the graph with JS-specific
 // notions, including various builders for operators, canonicalized global
 // constants, and various helper methods.
 class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
  public:
-  JSGraph(Isolate* isolate, Graph* graph, CommonOperatorBuilder* common,
+  JSGraph(Isolate* isolate, TFGraph* graph, CommonOperatorBuilder* common,
           JSOperatorBuilder* javascript, SimplifiedOperatorBuilder* simplified,
           MachineOperatorBuilder* machine)
       : MachineGraph(graph, common, machine),
@@ -84,6 +85,11 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   // whenever you can.
   Node* ConstantNoHole(double value);
 
+  // Creates a Constant node that holds a mutable Heap Number.
+  // This is different from ConstantNoHole, which reads the double value and
+  // creates a Constant node from it.
+  Node* ConstantMutableHeapNumber(HeapNumberRef ref, JSHeapBroker* broker);
+
   // Creates a HeapConstant node for either true or false.
   TNode<Boolean> BooleanConstant(bool is_true) {
     return is_true ? TNode<Boolean>(TrueConstant())
@@ -139,7 +145,8 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   V(NaNConstant, Number)                                      \
   V(EmptyStateValues, UntaggedT)                              \
   V(SingleDeadTypedStateValues, UntaggedT)                    \
-  V(ExternalObjectMapConstant, Map)
+  V(ExternalObjectMapConstant, Map)                           \
+  V(ContextCellMapConstant, Map)
 
 // Cached global node accessor methods.
 #define DECLARE_GETTER(name, Type) TNode<Type> name();

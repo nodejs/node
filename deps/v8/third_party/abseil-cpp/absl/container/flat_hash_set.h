@@ -62,7 +62,7 @@ struct FlatHashSetPolicy;
 // Its interface is similar to that of `std::unordered_set<T>` with the
 // following notable differences:
 //
-// * Requires keys that are CopyConstructible
+// * Requires keys that are MoveConstructible
 // * Supports heterogeneous lookup, through `find()` and `insert()`, provided
 //   that the set is provided a compatible heterogeneous hashing function and
 //   equality operator. See below for details.
@@ -102,6 +102,11 @@ struct FlatHashSetPolicy;
 // require pointer stability, consider using
 // `absl::flat_hash_set<std::unique_ptr<T>>`. If your type is not moveable and
 // you require pointer stability, consider `absl::node_hash_set` instead.
+//
+// PERFORMANCE WARNING: Erasure & sparsity can negatively affect performance:
+//  * Iteration takes O(capacity) time, not O(size).
+//  * erase() slows down begin() and ++iterator.
+//  * Capacity only shrinks on rehash() or clear() -- not on erase().
 //
 // Example:
 //

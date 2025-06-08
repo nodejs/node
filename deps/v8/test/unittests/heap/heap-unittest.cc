@@ -7,6 +7,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <utility>
 
 #include "include/v8-isolate.h"
 #include "include/v8-object.h"
@@ -15,6 +16,9 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap-controller.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-layout.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/mutable-page-metadata.h"
@@ -22,8 +26,10 @@
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/trusted-range.h"
+#include "src/objects/fixed-array.h"
+#include "src/objects/free-space-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/sandbox/external-pointer-table.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -36,27 +42,27 @@ using HeapTest = TestWithHeapInternalsAndContext;
 TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
-  v8_flags.scavenger_max_new_space_capacity_mb = 64;
 
   // Low memory
   ASSERT_EQ((v8_flags.minor_ms ? 4 : 3) * 512u * pm * KB,
             i::Heap::YoungGenerationSizeFromOldGenerationSize(128u * hlm * MB));
   // High memory
-  ASSERT_EQ(v8_flags.minor_ms ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                              : 3 * 16u / hlm * pm * MB,
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(256u * hlm * MB));
-  ASSERT_EQ(v8_flags.minor_ms ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                              : 3 * 32u / hlm * pm * MB,
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(512u * hlm * MB));
-  ASSERT_EQ(v8_flags.minor_ms ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                              : 3 * 64u / hlm * pm * MB,
-            i::Heap::YoungGenerationSizeFromOldGenerationSize(1u * hlm * GB));
+  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize() / 4) *
+                (v8_flags.minor_ms ? (2 * 4) : 3),
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(
+                V8HeapTrait::kMaxSize / 4));
+  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize() / 2) *
+                (v8_flags.minor_ms ? (2 * 2) : 3),
+            i::Heap::YoungGenerationSizeFromOldGenerationSize(
+                V8HeapTrait::kMaxSize / 2));
+  ASSERT_EQ(
+      i::Heap::DefaultMaxSemiSpaceSize() * (v8_flags.minor_ms ? 2 : 3),
+      i::Heap::YoungGenerationSizeFromOldGenerationSize(V8HeapTrait::kMaxSize));
 }
 
 TEST(Heap, GenerationSizesFromHeapSize) {
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
-  v8_flags.scavenger_max_new_space_capacity_mb = 64;
 
   size_t old, young;
 
@@ -80,40 +86,35 @@ TEST(Heap, GenerationSizesFromHeapSize) {
 
   // High memory
   i::Heap::GenerationSizesFromHeapSize(
-      256u * hlm * MB + (v8_flags.minor_ms
-                             ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                             : 3 * 16 / hlm * pm * MB),
+      V8HeapTrait::kMaxSize / 4 + (i::Heap::DefaultMaxSemiSpaceSize() / 4) *
+                                      (v8_flags.minor_ms ? (2 * 4) : 3),
       &young, &old);
-  ASSERT_EQ(256u * hlm * MB, old);
-  ASSERT_EQ(v8_flags.minor_ms ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                              : 3 * 16 / hlm * pm * MB,
+  ASSERT_EQ(V8HeapTrait::kMaxSize / 4, old);
+  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize() / 4) *
+                (v8_flags.minor_ms ? (2 * 4) : 3),
             young);
 
   i::Heap::GenerationSizesFromHeapSize(
-      512u * hlm * MB + (v8_flags.minor_ms
-                             ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                             : 3 * 32 / hlm * pm * MB),
+      V8HeapTrait::kMaxSize / 2 + (i::Heap::DefaultMaxSemiSpaceSize() / 2) *
+                                      (v8_flags.minor_ms ? (2 * 2) : 3),
       &young, &old);
-  ASSERT_EQ(512u * hlm * MB, old);
-  ASSERT_EQ(v8_flags.minor_ms ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                              : 3 * 32U / hlm * pm * MB,
+  ASSERT_EQ(V8HeapTrait::kMaxSize / 2, old);
+  ASSERT_EQ((i::Heap::DefaultMaxSemiSpaceSize() / 2) *
+                (v8_flags.minor_ms ? (2 * 2) : 3),
             young);
 
   i::Heap::GenerationSizesFromHeapSize(
-      1u * hlm * GB + (v8_flags.minor_ms
-                           ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                           : 3 * 64 / hlm * pm * MB),
+      V8HeapTrait::kMaxSize +
+          i::Heap::DefaultMaxSemiSpaceSize() * (v8_flags.minor_ms ? 2 : 3),
       &young, &old);
-  ASSERT_EQ(1u * hlm * GB, old);
-  ASSERT_EQ(v8_flags.minor_ms ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                              : 3 * 64U / hlm * pm * MB,
+  ASSERT_EQ(V8HeapTrait::kMaxSize, old);
+  ASSERT_EQ(i::Heap::DefaultMaxSemiSpaceSize() * (v8_flags.minor_ms ? 2 : 3),
             young);
 }
 
 TEST(Heap, HeapSizeFromPhysicalMemory) {
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
-  v8_flags.scavenger_max_new_space_capacity_mb = 64;
 
   // The expected value is old_generation_size + semi_space_multiplier *
   // semi_space_size.
@@ -124,21 +125,21 @@ TEST(Heap, HeapSizeFromPhysicalMemory) {
   ASSERT_EQ(128 * hlm * MB + (v8_flags.minor_ms ? 4 : 3) * 512 * pm * KB,
             i::Heap::HeapSizeFromPhysicalMemory(512u * MB));
   // High memory
-  ASSERT_EQ(256 * hlm * MB + (v8_flags.minor_ms
-                                  ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                                  : 3 * 16 / hlm * pm * MB),
-            i::Heap::HeapSizeFromPhysicalMemory(1u * GB));
-  ASSERT_EQ(512 * hlm * MB + (v8_flags.minor_ms
-                                  ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                                  : 3 * 32 / hlm * pm * MB),
-            i::Heap::HeapSizeFromPhysicalMemory(2u * GB));
   ASSERT_EQ(
-      1 * hlm * GB + (v8_flags.minor_ms ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                                        : 3 * 64 / hlm * pm * MB),
+      V8HeapTrait::kMaxSize / 4 + (i::Heap::DefaultMaxSemiSpaceSize() / 4) *
+                                      (v8_flags.minor_ms ? (2 * 4) : 3),
+      i::Heap::HeapSizeFromPhysicalMemory(1u * GB));
+  ASSERT_EQ(
+      V8HeapTrait::kMaxSize / 2 + (i::Heap::DefaultMaxSemiSpaceSize() / 2) *
+                                      (v8_flags.minor_ms ? (2 * 2) : 3),
+      i::Heap::HeapSizeFromPhysicalMemory(2u * GB));
+  ASSERT_EQ(
+      V8HeapTrait::kMaxSize +
+          i::Heap::DefaultMaxSemiSpaceSize() * (v8_flags.minor_ms ? 2 : 3),
       i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(4u) * GB));
   ASSERT_EQ(
-      1 * hlm * GB + (v8_flags.minor_ms ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
-                                        : 3 * 64 / hlm * pm * MB),
+      V8HeapTrait::kMaxSize +
+          i::Heap::DefaultMaxSemiSpaceSize() * (v8_flags.minor_ms ? 2 : 3),
       i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(8u) * GB));
 }
 
@@ -175,8 +176,9 @@ TEST_F(HeapTest, ExternalLimitDefault) {
 }
 
 TEST_F(HeapTest, ExternalLimitStaysAboveDefaultForExplicitHandling) {
-  v8_isolate()->AdjustAmountOfExternalAllocatedMemory(+10 * MB);
-  v8_isolate()->AdjustAmountOfExternalAllocatedMemory(-10 * MB);
+  v8::ExternalMemoryAccounter accounter;
+  accounter.Increase(v8_isolate(), 10 * MB);
+  accounter.Decrease(v8_isolate(), 10 * MB);
   Heap* heap = i_isolate()->heap();
   EXPECT_GE(heap->external_memory_soft_limit(), kExternalAllocationSoftLimit);
 }
@@ -234,21 +236,22 @@ TEST_F(HeapTest, HeapLayout) {
 namespace {
 void ShrinkNewSpace(NewSpace* new_space) {
   if (!v8_flags.minor_ms) {
-    SemiSpaceNewSpace::From(new_space)->Shrink();
+    new_space->heap()->ReduceNewSpaceSizeForTesting();
     return;
   }
   // MinorMS shrinks the space as part of sweeping. Here we fake a GC cycle, in
   // which we just shrink without marking or sweeping.
   PagedNewSpace* paged_new_space = PagedNewSpace::From(new_space);
   Heap* heap = paged_new_space->heap();
-  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
   GCTracer* tracer = heap->tracer();
   tracer->StartObservablePause(base::TimeTicks::Now());
   tracer->StartCycle(GarbageCollector::MARK_COMPACTOR,
                      GarbageCollectionReason::kTesting, "heap unittest",
                      GCTracer::MarkingType::kAtomic);
   tracer->StartAtomicPause();
-  paged_new_space->StartShrinking();
+  paged_new_space->StartShrinking(paged_new_space->MinimumCapacity());
   for (auto it = paged_new_space->begin();
        it != paged_new_space->end() &&
        (paged_new_space->ShouldReleaseEmptyPage());) {
@@ -273,7 +276,18 @@ void ShrinkNewSpace(NewSpace* new_space) {
   tracer->StopAtomicPause();
   tracer->StopObservablePause(GarbageCollector::MARK_COMPACTOR,
                               base::TimeTicks::Now());
-  tracer->NotifyFullSweepingCompleted();
+  if (heap->cpp_heap()) {
+    using namespace cppgc::internal;
+    StatsCollector* stats_collector =
+        CppHeap::From(heap->cpp_heap())->stats_collector();
+    stats_collector->NotifyMarkingStarted(
+        CollectionType::kMajor, cppgc::Heap::MarkingType::kAtomic,
+        MarkingConfig::IsForcedGC::kNotForced);
+    stats_collector->NotifyMarkingCompleted(0);
+    stats_collector->NotifySweepingCompleted(
+        cppgc::Heap::SweepingType::kAtomic);
+  }
+  tracer->NotifyFullSweepingCompletedAndStopCycleIfFinished();
 }
 }  // namespace
 
@@ -300,9 +314,8 @@ TEST_F(HeapTest, GrowAndShrinkNewSpace) {
   // Explicitly growing should double the space capacity.
   size_t old_capacity, new_capacity;
   old_capacity = new_space->TotalCapacity();
-  GrowNewSpace();
+  GrowNewSpaceToMaximumCapacity();
   new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(2 * old_capacity, new_capacity);
 
   old_capacity = new_space->TotalCapacity();
   {
@@ -331,7 +344,7 @@ TEST_F(HeapTest, GrowAndShrinkNewSpace) {
     // objects.
     CHECK_GE(old_capacity, new_capacity);
   } else {
-    CHECK_EQ(old_capacity, 2 * new_capacity);
+    CHECK_EQ(new_capacity, new_space->MinimumCapacity());
   }
 
   // Consecutive shrinking should not affect space capacity.
@@ -353,18 +366,13 @@ TEST_F(HeapTest, CollectingAllAvailableGarbageShrinksNewSpace) {
   v8::Isolate* iso = reinterpret_cast<v8::Isolate*>(isolate());
   v8::HandleScope scope(iso);
   NewSpace* new_space = heap()->new_space();
-  size_t old_capacity, new_capacity;
-  old_capacity = new_space->TotalCapacity();
-  GrowNewSpace();
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(2 * old_capacity, new_capacity);
+  GrowNewSpaceToMaximumCapacity();
   {
     v8::HandleScope temporary_scope(iso);
     SimulateFullSpace(new_space);
   }
   InvokeMemoryReducingMajorGCs();
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(old_capacity, new_capacity);
+  CHECK_EQ(new_space->TotalCapacity(), new_space->MinimumCapacity());
 }
 
 // Test that HAllocateObject will always return an object in new-space.
@@ -404,7 +412,7 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
   i::DirectHandle<JSReceiver> o =
       v8::Utils::OpenDirectHandle(*v8::Local<v8::Object>::Cast(res));
 
-  CHECK(Heap::InYoungGeneration(*o));
+  CHECK(HeapLayout::InYoungGeneration(*o));
 }
 
 namespace {
@@ -426,14 +434,15 @@ static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
 TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
   if (v8_flags.single_generation || v8_flags.stress_incremental_marking) return;
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.scavenger_precise_object_pinning = false;
   ManualGCScope manual_gc_scope(isolate());
   Factory* factory = isolate()->factory();
   Heap* heap = isolate()->heap();
   SealCurrentObjects();
-  HandleScope scope(isolate());
+  HandleScope handle_scope(isolate());
 
   // Create a young object and age it one generation inside the new space.
-  DirectHandle<FixedArray> arr = factory->NewFixedArray(1);
+  IndirectHandle<FixedArray> arr = factory->NewFixedArray(1);
   std::vector<Handle<FixedArray>> handles;
   if (v8_flags.minor_ms) {
     NewSpace* new_space = heap->new_space();
@@ -442,11 +451,10 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     SimulateFullSpace(new_space, &handles);
     IsolateSafepointScope scope(heap);
     // New empty pages should remain in new space.
-    new_space->Grow();
-    CHECK(new_space->EnsureCurrentCapacity());
+    GrowNewSpaceToMaximumCapacity();
   }
   InvokeMinorGC();
-  CHECK(Heap::InYoungGeneration(*arr));
+  CHECK(HeapLayout::InYoungGeneration(*arr));
 
   // Add into 'arr' a reference to an object one generation younger.
   {
@@ -457,11 +465,15 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
 
   // Promote 'arr' into old, its element is still in new, the old to new
   // refs are inserted into the remembered sets during GC.
-  InvokeMinorGC();
+  {
+    // CSS prevents promoting objects to old space.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+    InvokeMinorGC();
+  }
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   CHECK(heap->InOldSpace(*arr));
-  CHECK(heap->InYoungGeneration(arr->get(0)));
+  CHECK(HeapLayout::InYoungGeneration(arr->get(0)));
   if (v8_flags.minor_ms) {
     CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW_BACKGROUND>(*arr));
   } else {
@@ -510,7 +522,6 @@ TEST_F(HeapTest, SemiSpaceNewSpaceGrowsDuringFullGCIncrementalMarking) {
   if (!v8_flags.incremental_marking) return;
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.separate_gc_phases = true;
   ManualGCScope manual_gc_scope(isolate());
 
   HandleScope handle_scope(isolate());
@@ -586,60 +597,290 @@ TEST_F(HeapTestWithRandomGCInterval, AllocationTimeout) {
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-TEST_F(HeapTest, Regress341769455) {
-#ifdef V8_COMPRESS_POINTERS
-  if (!v8_flags.incremental_marking) return;
-  if (!v8_flags.minor_ms) return;
-  Isolate* iso = isolate();
-  bool original_concurrent_minor_ms_marking_value =
-      v8_flags.concurrent_minor_ms_marking;
-  ManualGCScope manual_gc_scope(iso);
-  v8_flags.concurrent_minor_ms_marking =
-      original_concurrent_minor_ms_marking_value;
-  Heap* heap = iso->heap();
-  HandleScope outer(iso);
-  DirectHandle<JSArrayBuffer> ab;
-  {
-    // Make sure new space is empty
-    InvokeAtomicMajorGC();
-    ab = iso->factory()
-             ->NewJSArrayBufferAndBackingStore(
-                 1, InitializedFlag::kZeroInitialized, AllocationType::kYoung)
-             .ToHandleChecked();
-    // Reset the EPT handle to null.
-    ab->init_extension();
-    // MinorMS promotes pages that haven't been allocated on since the last GC.
-    // Force a minor GC to reset the counter of bytes allocated on the page.
-    InvokeAtomicMinorGC();
-    // Set up a global to make sure the JSArrayBuffer is visited before the
-    // atomic pause.
-    Global<JSArrayBuffer> global(
-        v8_isolate(), Utils::Convert<JSArrayBuffer, JSArrayBuffer>(ab));
-    CHECK_EQ(Heap::HeapState::NOT_IN_GC, heap->gc_state());
-    CHECK(heap->incremental_marking()->IsStopped());
-    // Start incremental marking such that setting an extension (via
-    // `EnsureExtension`) triggers a write barrier.
-    v8_flags.incremental_marking = true;
-    heap->StartIncrementalMarking(GCFlag::kNoFlags,
-                                  GarbageCollectionReason::kTesting,
-                                  GCCallbackFlags::kNoGCCallbackFlags,
-                                  GarbageCollector::MINOR_MARK_SWEEPER);
-    CHECK(heap->incremental_marking()->IsMinorMarking());
-    heap->minor_mark_sweep_collector()->DrainMarkingWorklistForTesting();
-    ab->EnsureExtension();
-    heap->AppendArrayBufferExtension(*ab, ab->extension());
+namespace {
+struct CompactionDisabler {
+  CompactionDisabler() : was_enabled_(v8_flags.compact) {
+    v8_flags.compact = false;
   }
-  // Trigger a 2nd minor GC to promote the JSArrayBuffer to old space.
-  CHECK(Heap::InYoungGeneration(*ab));
-  InvokeAtomicMinorGC();
-  CHECK(!Heap::InYoungGeneration(*ab));
-  // If the EPT entry for the JSArrayBuffer wasn't promoted to the old table, a
-  // 3rd minor GC will observe it as unmarked (since the owning object is old)
-  // and free it. The major GC after it will then crash when trying to access
-  // the extension of the JSArrayBuffer although the entry has been freed.
-  InvokeAtomicMinorGC();
-  InvokeAtomicMajorGC();
-#endif  // V8_COMPRESS_POINTERS
+  ~CompactionDisabler() {
+    if (was_enabled_) {
+      v8_flags.compact = true;
+    }
+  }
+  const bool was_enabled_;
+};
+}  // namespace
+
+TEST_F(HeapTest, BlackAllocatedPages) {
+  if (!v8_flags.black_allocated_pages) return;
+  if (!v8_flags.incremental_marking) return;
+
+  // Disable compaction to test that the FreeListCategories of black allocated
+  // pages are not reset.
+  CompactionDisabler disable_compaction;
+
+  Isolate* iso = isolate();
+  ManualGCScope manual_gc_scope(iso);
+
+  auto in_free_list = [](PageMetadata* page, Address address) {
+    bool found = false;
+    page->ForAllFreeListCategories(
+        [address, &found](FreeListCategory* category) {
+          category->IterateNodesForTesting(
+              [address, &found](Tagged<FreeSpace> node) {
+                if (!found) found = node.address() == address;
+              });
+        });
+    return found;
+  };
+
+  Heap* heap = iso->heap();
+  SimulateFullSpace(heap->old_space());
+
+  // Allocate an object on a new page.
+  HandleScope scope(iso);
+  DirectHandle<FixedArray> arr =
+      iso->factory()->NewFixedArray(1, AllocationType::kOld);
+  Address next = arr->address() + arr->Size();
+
+  // Assert that the next address is in the lab.
+  const Address lab_top = heap->allocator()->old_space_allocator()->top();
+  ASSERT_EQ(lab_top, next);
+
+  auto* page = PageMetadata::FromAddress(next);
+  const size_t wasted_before_incremental_marking_start = page->wasted_memory();
+
+  heap->StartIncrementalMarking(
+      GCFlag::kNoFlags, GarbageCollectionReason::kTesting,
+      GCCallbackFlags::kNoGCCallbackFlags, GarbageCollector::MARK_COMPACTOR);
+
+  // Expect the free-space object is created.
+  auto freed = HeapObject::FromAddress(next);
+  EXPECT_TRUE(IsFreeSpaceOrFiller(freed));
+
+  // The free-space object must be accounted as wasted.
+  EXPECT_EQ(wasted_before_incremental_marking_start + freed->Size(),
+            page->wasted_memory());
+
+  // Check that the free-space object is not in freelist.
+  EXPECT_FALSE(in_free_list(page, next));
+
+  // The page allocated before incremental marking is not black.
+  EXPECT_FALSE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  // Allocate a new object on a BLACK_ALLOCATED page.
+  arr = iso->factory()->NewFixedArray(1, AllocationType::kOld);
+  next = arr->address() + arr->Size();
+
+  // Expect the page to be black.
+  page = PageMetadata::FromHeapObject(*arr);
+  EXPECT_TRUE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+
+  // Invoke GC.
+  InvokeMajorGC();
+
+  // The page is not black now.
+  EXPECT_FALSE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  // After the GC the next free-space object must be in freelist.
+  EXPECT_TRUE(in_free_list(page, next));
+}
+
+TEST_F(HeapTest, ContainsSlow) {
+  Isolate* iso = isolate();
+  ManualGCScope manual_gc_scope(iso);
+
+  Heap* heap = iso->heap();
+  SimulateFullSpace(heap->old_space());
+
+  // Allocate an object on a new page.
+  HandleScope scope(iso);
+  DirectHandle<FixedArray> arr =
+      iso->factory()->NewFixedArray(1, AllocationType::kOld);
+  CHECK(heap->old_space()->ContainsSlow(arr->address()));
+  CHECK(heap->old_space()->ContainsSlow(
+      MemoryChunk::FromAddress(arr->address())->address()));
+  CHECK(!heap->old_space()->ContainsSlow(0));
+
+  DirectHandle<FixedArray> large_arr = iso->factory()->NewFixedArray(
+      kMaxRegularHeapObjectSize + 1, AllocationType::kOld);
+  CHECK(heap->lo_space()->ContainsSlow(large_arr->address()));
+  CHECK(heap->lo_space()->ContainsSlow(
+      MemoryChunk::FromAddress(large_arr->address())->address()));
+  CHECK(!heap->lo_space()->ContainsSlow(0));
+}
+
+TEST_F(
+    HeapTest,
+    ConservativePinningScavengerDoesntMoveObjectReachableFromStackNoPromotion) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  v8_flags.scavenger_conservative_object_pinning = true;
+  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.scavenger_promote_quarantined_pages = false;
+  ManualGCScope manual_gc_scope(isolate());
+
+  IndirectHandle<HeapObject> number =
+      isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
+
+  // The conservative stack visitor will find this on the stack, so `number`
+  // will not move during GCs with stack.
+  Address number_address = number->address();
+
+  CHECK(HeapLayout::InYoungGeneration(*number));
+
+  for (int i = 0; i < 10; i++) {
+    InvokeMinorGC();
+    CHECK(HeapLayout::InYoungGeneration(*number));
+    CHECK_EQ(number_address, number->address());
+  }
+
+  // `number` is already in the intermediate generation. A stackless GC should
+  // now evacuate the object to the old generation.
+  {
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        isolate()->heap());
+    InvokeMinorGC();
+  }
+  CHECK(!HeapLayout::InYoungGeneration(*number));
+  CHECK_NE(number_address, number->address());
+}
+
+TEST_F(HeapTest,
+       ConservativePinningScavengerDoesntMoveObjectReachableFromStack) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  v8_flags.scavenger_conservative_object_pinning = true;
+  v8_flags.scavenger_precise_object_pinning = false;
+  v8_flags.scavenger_promote_quarantined_pages = true;
+  ManualGCScope manual_gc_scope(isolate());
+
+  IndirectHandle<HeapObject> number =
+      isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
+
+  // The conservative stack visitor will find this on the stack, so `number`
+  // will not move during a GC with stack.
+  Address number_address = number->address();
+
+  CHECK(HeapLayout::InYoungGeneration(*number));
+
+  InvokeMinorGC();
+  CHECK(HeapLayout::InYoungGeneration(*number));
+  CHECK_EQ(number_address, number->address());
+
+  // `number` is already in the intermediate generation. Another GC should
+  // now promote the page to the old generation, again not moving the object.
+  InvokeMinorGC();
+  CHECK(!HeapLayout::InYoungGeneration(*number));
+  CHECK_EQ(number_address, number->address());
+}
+
+TEST_F(HeapTest, ConservativePinningScavengerObjectWithSelfReference) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  v8_flags.scavenger_conservative_object_pinning = true;
+  ManualGCScope manual_gc_scope(isolate());
+
+  static constexpr int kArraySize = 10;
+  DirectHandle<FixedArray> array =
+      isolate()->factory()->NewFixedArray(kArraySize, AllocationType::kYoung);
+  CHECK(HeapLayout::InYoungGeneration(*array));
+
+  for (int i = 0; i < kArraySize; i++) {
+    array->set(i, *array);
+  }
+
+  InvokeMinorGC();
+}
+
+TEST_F(HeapTest,
+       PrecisePinningScavengerDoesntMoveObjectReachableFromHandlesNoPromotion) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  v8_flags.scavenger_precise_object_pinning = true;
+  v8_flags.scavenger_conservative_object_pinning = false;
+  v8_flags.scavenger_promote_quarantined_pages = false;
+  ManualGCScope manual_gc_scope(isolate());
+
+  v8::HandleScope handle_scope(reinterpret_cast<v8::Isolate*>(isolate()));
+  IndirectHandle<HeapObject> number =
+      isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
+
+  Address number_address = number->address();
+
+  CHECK(HeapLayout::InYoungGeneration(*number));
+
+  for (int i = 0; i < 10; i++) {
+    InvokeMinorGC();
+    CHECK(HeapLayout::InYoungGeneration(*number));
+    CHECK_EQ(number_address, number->address());
+  }
+}
+
+TEST_F(HeapTest, PrecisePinningScavengerDoesntMoveObjectReachableFromHandles) {
+  if (v8_flags.single_generation) return;
+  if (v8_flags.minor_ms) return;
+  v8_flags.scavenger_precise_object_pinning = true;
+  v8_flags.scavenger_conservative_object_pinning = false;
+  v8_flags.scavenger_promote_quarantined_pages = true;
+  ManualGCScope manual_gc_scope(isolate());
+
+  v8::HandleScope handle_scope(reinterpret_cast<v8::Isolate*>(isolate()));
+  IndirectHandle<HeapObject> number =
+      isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
+
+  Address number_address = number->address();
+
+  CHECK(HeapLayout::InYoungGeneration(*number));
+
+  InvokeMinorGC();
+  CHECK(HeapLayout::InYoungGeneration(*number));
+  CHECK_EQ(number_address, number->address());
+
+  // `number` is already in the intermediate generation. Another GC should
+  // now move it to old gen.
+  InvokeMinorGC();
+  CHECK(!HeapLayout::InYoungGeneration(*number));
+  CHECK_EQ(number_address, number->address());
+}
+
+TEST_F(HeapTest,
+       PrecisePinningFullGCDoesntMoveYoungObjectReachableFromHandles) {
+  if (v8_flags.single_generation) return;
+  v8_flags.precise_object_pinning = true;
+  ManualGCScope manual_gc_scope(isolate());
+
+  v8::HandleScope handle_scope(reinterpret_cast<v8::Isolate*>(isolate()));
+  IndirectHandle<HeapObject> number =
+      isolate()->factory()->NewHeapNumber<AllocationType::kYoung>(42);
+
+  Address number_address = number->address();
+
+  CHECK(HeapLayout::InYoungGeneration(*number));
+  InvokeMajorGC();
+  CHECK(!HeapLayout::InYoungGeneration(*number));
+
+  CHECK_EQ(number_address, number->address());
+}
+
+TEST_F(HeapTest, PrecisePinningFullGCDoesntMoveOldObjectReachableFromHandles) {
+  v8_flags.precise_object_pinning = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope(isolate());
+
+  v8::HandleScope handle_scope(reinterpret_cast<v8::Isolate*>(isolate()));
+  IndirectHandle<HeapObject> number =
+      isolate()->factory()->NewHeapNumber<AllocationType::kOld>(42);
+
+  CHECK(!HeapLayout::InYoungGeneration(*number));
+
+  Address number_address = number->address();
+
+  i::MemoryChunk::FromHeapObject(*number)->SetFlagNonExecutable(
+      i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+
+  InvokeMajorGC();
+
+  CHECK_EQ(number_address, number->address());
 }
 
 }  // namespace internal

@@ -65,7 +65,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/invoke.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
 #include "absl/meta/type_traits.h"
@@ -73,15 +72,6 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-
-// Helper macro used to prevent spelling `noexcept` in language versions older
-// than C++17, where it is not part of the type system, in order to avoid
-// compilation failures and internal compiler errors.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
-#define ABSL_INTERNAL_NOEXCEPT_SPEC(noex) noexcept(noex)
-#else
-#define ABSL_INTERNAL_NOEXCEPT_SPEC(noex)
-#endif
 
 // Defined in functional/any_invocable.h
 template <class Sig>
@@ -107,44 +97,30 @@ struct IsAnyInvocable<AnyInvocable<Sig>> : std::true_type {};
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// A type trait that tells us whether or not a target function type should be
+// A metafunction that tells us whether or not a target function type should be
 // stored locally in the small object optimization storage
 template <class T>
-using IsStoredLocally = std::integral_constant<
-    bool, sizeof(T) <= kStorageSize && alignof(T) <= kAlignment &&
-              kAlignment % alignof(T) == 0 &&
-              std::is_nothrow_move_constructible<T>::value>;
+constexpr bool IsStoredLocally() {
+  if constexpr (sizeof(T) <= kStorageSize && alignof(T) <= kAlignment &&
+                kAlignment % alignof(T) == 0) {
+    return std::is_nothrow_move_constructible<T>::value;
+  }
+  return false;
+}
 
 // An implementation of std::remove_cvref_t of C++20.
 template <class T>
 using RemoveCVRef =
     typename std::remove_cv<typename std::remove_reference<T>::type>::type;
 
-////////////////////////////////////////////////////////////////////////////////
-//
-// An implementation of the C++ standard INVOKE<R> pseudo-macro, operation is
-// equivalent to std::invoke except that it forces an implicit conversion to the
-// specified return type. If "R" is void, the function is executed and the
-// return value is simply ignored.
-template <class ReturnType, class F, class... P,
-          typename = absl::enable_if_t<std::is_void<ReturnType>::value>>
-void InvokeR(F&& f, P&&... args) {
-  absl::base_internal::invoke(std::forward<F>(f), std::forward<P>(args)...);
-}
-
-template <class ReturnType, class F, class... P,
-          absl::enable_if_t<!std::is_void<ReturnType>::value, int> = 0>
+// An implementation of std::invoke_r of C++23.
+template <class ReturnType, class F, class... P>
 ReturnType InvokeR(F&& f, P&&... args) {
-  // GCC 12 has a false-positive -Wmaybe-uninitialized warning here.
-#if ABSL_INTERNAL_HAVE_MIN_GNUC_VERSION(12, 0)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
-  return absl::base_internal::invoke(std::forward<F>(f),
-                                     std::forward<P>(args)...);
-#if ABSL_INTERNAL_HAVE_MIN_GNUC_VERSION(12, 0)
-#pragma GCC diagnostic pop
-#endif
+  if constexpr (std::is_void_v<ReturnType>) {
+    std::invoke(std::forward<F>(f), std::forward<P>(args)...);
+  } else {
+    return std::invoke(std::forward<F>(f), std::forward<P>(args)...);
+  }
 }
 
 //
@@ -198,32 +174,14 @@ union TypeErasedState {
   } remote;
 
   // Local-storage for the type-erased object when small and trivial enough
-  alignas(kAlignment) char storage[kStorageSize];
+  alignas(kAlignment) unsigned char storage[kStorageSize];
 };
 
 // A typed accessor for the object in `TypeErasedState` storage
 template <class T>
 T& ObjectInLocalStorage(TypeErasedState* const state) {
   // We launder here because the storage may be reused with the same type.
-#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606L
   return *std::launder(reinterpret_cast<T*>(&state->storage));
-#elif ABSL_HAVE_BUILTIN(__builtin_launder)
-  return *__builtin_launder(reinterpret_cast<T*>(&state->storage));
-#else
-
-  // When `std::launder` or equivalent are not available, we rely on undefined
-  // behavior, which works as intended on Abseil's officially supported
-  // platforms as of Q2 2022.
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-#endif
-  return *reinterpret_cast<T*>(&state->storage);
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-
-#endif
 }
 
 // The type for functions issuing lifetime-related operations: move and dispose
@@ -231,14 +189,14 @@ T& ObjectInLocalStorage(TypeErasedState* const state) {
 // NOTE: When specifying `FunctionToCall::`dispose, the same state must be
 // passed as both "from" and "to".
 using ManagerType = void(FunctionToCall /*operation*/,
-                         TypeErasedState* /*from*/, TypeErasedState* /*to*/)
-    ABSL_INTERNAL_NOEXCEPT_SPEC(true);
+                         TypeErasedState* /*from*/,
+                         TypeErasedState* /*to*/) noexcept(true);
 
 // The type for functions issuing the actual invocation of the object
 // A pointer to such a function is contained in each AnyInvocable instance.
 template <bool SigIsNoexcept, class ReturnType, class... P>
-using InvokerType = ReturnType(TypeErasedState*, ForwardedParameterType<P>...)
-    ABSL_INTERNAL_NOEXCEPT_SPEC(SigIsNoexcept);
+using InvokerType = ReturnType(
+    TypeErasedState*, ForwardedParameterType<P>...) noexcept(SigIsNoexcept);
 
 // The manager that is used when AnyInvocable is empty
 inline void EmptyManager(FunctionToCall /*operation*/,
@@ -275,7 +233,7 @@ template <class T>
 void LocalManagerNontrivial(FunctionToCall operation,
                             TypeErasedState* const from,
                             TypeErasedState* const to) noexcept {
-  static_assert(IsStoredLocally<T>::value,
+  static_assert(IsStoredLocally<T>(),
                 "Local storage must only be used for supported types.");
   static_assert(!std::is_trivially_copyable<T>::value,
                 "Locally stored types must be trivially copyable.");
@@ -303,7 +261,7 @@ ReturnType LocalInvoker(
     ForwardedParameterType<P>... args) noexcept(SigIsNoexcept) {
   using RawT = RemoveCVRef<QualTRef>;
   static_assert(
-      IsStoredLocally<RawT>::value,
+      IsStoredLocally<RawT>(),
       "Target object must be in local storage in order to be invoked from it.");
 
   auto& f = (ObjectInLocalStorage<RawT>)(state);
@@ -338,7 +296,7 @@ template <class T>
 void RemoteManagerNontrivial(FunctionToCall operation,
                              TypeErasedState* const from,
                              TypeErasedState* const to) noexcept {
-  static_assert(!IsStoredLocally<T>::value,
+  static_assert(!IsStoredLocally<T>(),
                 "Remote storage must only be used for types that do not "
                 "qualify for local storage.");
 
@@ -360,7 +318,7 @@ ReturnType RemoteInvoker(
     TypeErasedState* const state,
     ForwardedParameterType<P>... args) noexcept(SigIsNoexcept) {
   using RawT = RemoveCVRef<QualTRef>;
-  static_assert(!IsStoredLocally<RawT>::value,
+  static_assert(!IsStoredLocally<RawT>(),
                 "Target object must be in remote storage in order to be "
                 "invoked from it.");
 
@@ -440,13 +398,6 @@ class CoreImpl {
 
   CoreImpl() noexcept : manager_(EmptyManager), invoker_(nullptr) {}
 
-  enum class TargetType {
-    kPointer,
-    kCompatibleAnyInvocable,
-    kIncompatibleAnyInvocable,
-    kOther,
-  };
-
   // Note: QualDecayedTRef here includes the cv-ref qualifiers associated with
   // the invocation of the Invocable. The unqualified type is the target object
   // type to be stored.
@@ -454,19 +405,47 @@ class CoreImpl {
   explicit CoreImpl(TypedConversionConstruct<QualDecayedTRef>, F&& f) {
     using DecayedT = RemoveCVRef<QualDecayedTRef>;
 
-    constexpr TargetType kTargetType =
-        (std::is_pointer<DecayedT>::value ||
-         std::is_member_pointer<DecayedT>::value)
-            ? TargetType::kPointer
-        : IsCompatibleAnyInvocable<DecayedT>::value
-            ? TargetType::kCompatibleAnyInvocable
-        : IsAnyInvocable<DecayedT>::value
-            ? TargetType::kIncompatibleAnyInvocable
-            : TargetType::kOther;
-    // NOTE: We only use integers instead of enums as template parameters in
-    // order to work around a bug on C++14 under MSVC 2017.
-    // See b/236131881.
-    Initialize<kTargetType, QualDecayedTRef>(std::forward<F>(f));
+    if constexpr (std::is_pointer<DecayedT>::value ||
+                  std::is_member_pointer<DecayedT>::value) {
+      // This condition handles types that decay into pointers. This includes
+      // function references, which cannot be null. GCC warns against comparing
+      // their decayed form with nullptr (https://godbolt.org/z/9r9TMTcPK).
+      // We could work around this warning with constexpr programming, using
+      // std::is_function_v<std::remove_reference_t<F>>, but we choose to ignore
+      // it instead of writing more code.
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Waddress"
+#pragma GCC diagnostic ignored "-Wnonnull-compare"
+#endif
+      if (static_cast<DecayedT>(f) == nullptr) {
+#if !defined(__clang__) && defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+        manager_ = EmptyManager;
+        invoker_ = nullptr;
+      } else {
+        InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
+      }
+    } else if constexpr (IsCompatibleAnyInvocable<DecayedT>::value) {
+      // In this case we can "steal the guts" of the other AnyInvocable.
+      f.manager_(FunctionToCall::relocate_from_to, &f.state_, &state_);
+      manager_ = f.manager_;
+      invoker_ = f.invoker_;
+
+      f.manager_ = EmptyManager;
+      f.invoker_ = nullptr;
+    } else if constexpr (IsAnyInvocable<DecayedT>::value) {
+      if (f.HasValue()) {
+        InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
+      } else {
+        manager_ = EmptyManager;
+        invoker_ = nullptr;
+      }
+    } else {
+      InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
+    }
   }
 
   // Note: QualTRef here includes the cv-ref qualifiers associated with the
@@ -517,122 +496,43 @@ class CoreImpl {
     invoker_ = nullptr;
   }
 
-  template <TargetType target_type, class QualDecayedTRef, class F,
-            absl::enable_if_t<target_type == TargetType::kPointer, int> = 0>
-  void Initialize(F&& f) {
-// This condition handles types that decay into pointers, which includes
-// function references. Since function references cannot be null, GCC warns
-// against comparing their decayed form with nullptr.
-// Since this is template-heavy code, we prefer to disable these warnings
-// locally instead of adding yet another overload of this function.
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpragmas"
-#pragma GCC diagnostic ignored "-Waddress"
-#pragma GCC diagnostic ignored "-Wnonnull-compare"
-#endif
-    if (static_cast<RemoveCVRef<QualDecayedTRef>>(f) == nullptr) {
-#if !defined(__clang__) && defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-      manager_ = EmptyManager;
-      invoker_ = nullptr;
-      return;
-    }
-    InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
-  }
-
-  template <TargetType target_type, class QualDecayedTRef, class F,
-            absl::enable_if_t<
-                target_type == TargetType::kCompatibleAnyInvocable, int> = 0>
-  void Initialize(F&& f) {
-    // In this case we can "steal the guts" of the other AnyInvocable.
-    f.manager_(FunctionToCall::relocate_from_to, &f.state_, &state_);
-    manager_ = f.manager_;
-    invoker_ = f.invoker_;
-
-    f.manager_ = EmptyManager;
-    f.invoker_ = nullptr;
-  }
-
-  template <TargetType target_type, class QualDecayedTRef, class F,
-            absl::enable_if_t<
-                target_type == TargetType::kIncompatibleAnyInvocable, int> = 0>
-  void Initialize(F&& f) {
-    if (f.HasValue()) {
-      InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
-    } else {
-      manager_ = EmptyManager;
-      invoker_ = nullptr;
-    }
-  }
-
-  template <TargetType target_type, class QualDecayedTRef, class F,
-            typename = absl::enable_if_t<target_type == TargetType::kOther>>
-  void Initialize(F&& f) {
-    InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
-  }
-
   // Use local (inline) storage for applicable target object types.
-  template <class QualTRef, class... Args,
-            typename = absl::enable_if_t<
-                IsStoredLocally<RemoveCVRef<QualTRef>>::value>>
+  template <class QualTRef, class... Args>
   void InitializeStorage(Args&&... args) {
     using RawT = RemoveCVRef<QualTRef>;
-    ::new (static_cast<void*>(&state_.storage))
-        RawT(std::forward<Args>(args)...);
-
-    invoker_ = LocalInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
-    // We can simplify our manager if we know the type is trivially copyable.
-    InitializeLocalManager<RawT>();
+    if constexpr (IsStoredLocally<RawT>()) {
+      ::new (static_cast<void*>(&state_.storage))
+          RawT(std::forward<Args>(args)...);
+      invoker_ = LocalInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
+      // We can simplify our manager if we know the type is trivially copyable.
+      if constexpr (std::is_trivially_copyable_v<RawT>) {
+        manager_ = LocalManagerTrivial;
+      } else {
+        manager_ = LocalManagerNontrivial<RawT>;
+      }
+    } else {
+      InitializeRemoteManager<RawT>(std::forward<Args>(args)...);
+      // This is set after everything else in case an exception is thrown in an
+      // earlier step of the initialization.
+      invoker_ = RemoteInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
+    }
   }
 
-  // Use remote storage for target objects that cannot be stored locally.
-  template <class QualTRef, class... Args,
-            absl::enable_if_t<!IsStoredLocally<RemoveCVRef<QualTRef>>::value,
-                              int> = 0>
-  void InitializeStorage(Args&&... args) {
-    InitializeRemoteManager<RemoveCVRef<QualTRef>>(std::forward<Args>(args)...);
-    // This is set after everything else in case an exception is thrown in an
-    // earlier step of the initialization.
-    invoker_ = RemoteInvoker<SigIsNoexcept, ReturnType, QualTRef, P...>;
-  }
-
-  template <class T,
-            typename = absl::enable_if_t<std::is_trivially_copyable<T>::value>>
-  void InitializeLocalManager() {
-    manager_ = LocalManagerTrivial;
-  }
-
-  template <class T,
-            absl::enable_if_t<!std::is_trivially_copyable<T>::value, int> = 0>
-  void InitializeLocalManager() {
-    manager_ = LocalManagerNontrivial<T>;
-  }
-
-  template <class T>
-  using HasTrivialRemoteStorage =
-      std::integral_constant<bool, std::is_trivially_destructible<T>::value &&
-                                       alignof(T) <=
-                                           ABSL_INTERNAL_DEFAULT_NEW_ALIGNMENT>;
-
-  template <class T, class... Args,
-            typename = absl::enable_if_t<HasTrivialRemoteStorage<T>::value>>
+  template <class T, class... Args>
   void InitializeRemoteManager(Args&&... args) {
-    // unique_ptr is used for exception-safety in case construction throws.
-    std::unique_ptr<void, TrivialDeleter> uninitialized_target(
-        ::operator new(sizeof(T)), TrivialDeleter(sizeof(T)));
-    ::new (uninitialized_target.get()) T(std::forward<Args>(args)...);
-    state_.remote.target = uninitialized_target.release();
-    state_.remote.size = sizeof(T);
-    manager_ = RemoteManagerTrivial;
-  }
-
-  template <class T, class... Args,
-            absl::enable_if_t<!HasTrivialRemoteStorage<T>::value, int> = 0>
-  void InitializeRemoteManager(Args&&... args) {
-    state_.remote.target = ::new T(std::forward<Args>(args)...);
-    manager_ = RemoteManagerNontrivial<T>;
+    if constexpr (std::is_trivially_destructible_v<T> &&
+                  alignof(T) <= ABSL_INTERNAL_DEFAULT_NEW_ALIGNMENT) {
+      // unique_ptr is used for exception-safety in case construction throws.
+      std::unique_ptr<void, TrivialDeleter> uninitialized_target(
+          ::operator new(sizeof(T)), TrivialDeleter(sizeof(T)));
+      ::new (uninitialized_target.get()) T(std::forward<Args>(args)...);
+      state_.remote.target = uninitialized_target.release();
+      state_.remote.size = sizeof(T);
+      manager_ = RemoteManagerTrivial;
+    } else {
+      state_.remote.target = ::new T(std::forward<Args>(args)...);
+      manager_ = RemoteManagerNontrivial<T>;
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -734,17 +634,12 @@ using CanAssignReferenceWrapper = TrueAlias<
     absl::enable_if_t<Impl<Sig>::template CallIsNoexceptIfSigIsNoexcept<
         std::reference_wrapper<F>>::value>>;
 
-////////////////////////////////////////////////////////////////////////////////
-//
 // The constraint for checking whether or not a call meets the noexcept
-// callability requirements. This is a preprocessor macro because specifying it
+// callability requirements. We use a preprocessor macro because specifying it
 // this way as opposed to a disjunction/branch can improve the user-side error
 // messages and avoids an instantiation of std::is_nothrow_invocable_r in the
 // cases where the user did not specify a noexcept function type.
 //
-#define ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT(inv_quals, noex) \
-  ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT_##noex(inv_quals)
-
 // The disjunction below is because we can't rely on std::is_nothrow_invocable_r
 // to give the right result when ReturnType is non-moveable in toolchains that
 // don't treat non-moveable result types correctly. For example this was the
@@ -759,7 +654,7 @@ using CanAssignReferenceWrapper = TrueAlias<
               UnwrapStdReferenceWrapper<absl::decay_t<F>> inv_quals, P...>,  \
           std::is_same<                                                      \
               ReturnType,                                                    \
-              absl::base_internal::invoke_result_t<                          \
+              std::invoke_result_t<                                          \
                   UnwrapStdReferenceWrapper<absl::decay_t<F>> inv_quals,     \
                   P...>>>>::value>
 
@@ -775,13 +670,13 @@ using CanAssignReferenceWrapper = TrueAlias<
 // noex is "true" if the function type is noexcept, or false if it is not.
 //
 // The CallIsValid condition is more complicated than simply using
-// absl::base_internal::is_invocable_r because we can't rely on it to give the
-// right result when ReturnType is non-moveable in toolchains that don't treat
-// non-moveable result types correctly. For example this was the case in libc++
-// before commit c3a24882 (2022-05).
+// std::is_invocable_r because we can't rely on it to give the right result
+// when ReturnType is non-moveable in toolchains that don't treat non-moveable
+// result types correctly. For example this was the case in libc++ before commit
+// c3a24882 (2022-05).
 #define ABSL_INTERNAL_ANY_INVOCABLE_IMPL_(cv, ref, inv_quals, noex)            \
   template <class ReturnType, class... P>                                      \
-  class Impl<ReturnType(P...) cv ref ABSL_INTERNAL_NOEXCEPT_SPEC(noex)>        \
+  class Impl<ReturnType(P...) cv ref noexcept(noex)>                           \
       : public CoreImpl<noex, ReturnType, P...> {                              \
    public:                                                                     \
     /*The base class, which contains the datamembers and core operations*/     \
@@ -790,17 +685,16 @@ using CanAssignReferenceWrapper = TrueAlias<
     /*SFINAE constraint to check if F is invocable with the proper signature*/ \
     template <class F>                                                         \
     using CallIsValid = TrueAlias<absl::enable_if_t<absl::disjunction<         \
-        absl::base_internal::is_invocable_r<ReturnType,                        \
-                                            absl::decay_t<F> inv_quals, P...>, \
-        std::is_same<ReturnType,                                               \
-                     absl::base_internal::invoke_result_t<                     \
-                         absl::decay_t<F> inv_quals, P...>>>::value>>;         \
+        std::is_invocable_r<ReturnType, absl::decay_t<F> inv_quals, P...>,     \
+        std::is_same<                                                          \
+            ReturnType,                                                        \
+            std::invoke_result_t<absl::decay_t<F> inv_quals, P...>>>::value>>; \
                                                                                \
     /*SFINAE constraint to check if F is nothrow-invocable when necessary*/    \
     template <class F>                                                         \
     using CallIsNoexceptIfSigIsNoexcept =                                      \
-        TrueAlias<ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT(inv_quals,   \
-                                                                  noex)>;      \
+        TrueAlias<ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT_##noex(      \
+            inv_quals)>;                                                       \
                                                                                \
     /*Put the AnyInvocable into an empty state.*/                              \
     Impl() = default;                                                          \
@@ -822,8 +716,7 @@ using CanAssignReferenceWrapper = TrueAlias<
                                                                                \
     /*Raises a fatal error when the AnyInvocable is invoked after a move*/     \
     static ReturnType InvokedAfterMove(                                        \
-      TypeErasedState*,                                                        \
-      ForwardedParameterType<P>...) noexcept(noex) {                           \
+        TypeErasedState*, ForwardedParameterType<P>...) noexcept(noex) {       \
       ABSL_HARDENING_ASSERT(false && "AnyInvocable use-after-move");           \
       std::terminate();                                                        \
     }                                                                          \
@@ -851,18 +744,11 @@ using CanAssignReferenceWrapper = TrueAlias<
     }                                                                          \
   }
 
-// Define the `noexcept(true)` specialization only for C++17 and beyond, when
-// `noexcept` is part of the type system.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
 // A convenience macro that defines specializations for the noexcept(true) and
 // noexcept(false) forms, given the other properties.
 #define ABSL_INTERNAL_ANY_INVOCABLE_IMPL(cv, ref, inv_quals)    \
   ABSL_INTERNAL_ANY_INVOCABLE_IMPL_(cv, ref, inv_quals, false); \
   ABSL_INTERNAL_ANY_INVOCABLE_IMPL_(cv, ref, inv_quals, true)
-#else
-#define ABSL_INTERNAL_ANY_INVOCABLE_IMPL(cv, ref, inv_quals) \
-  ABSL_INTERNAL_ANY_INVOCABLE_IMPL_(cv, ref, inv_quals, false)
-#endif
 
 // Non-ref-qualified partial specializations
 ABSL_INTERNAL_ANY_INVOCABLE_IMPL(, , &);
@@ -881,8 +767,6 @@ ABSL_INTERNAL_ANY_INVOCABLE_IMPL(const, &&, const&&);
 #undef ABSL_INTERNAL_ANY_INVOCABLE_IMPL_
 #undef ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT_false
 #undef ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT_true
-#undef ABSL_INTERNAL_ANY_INVOCABLE_NOEXCEPT_CONSTRAINT
-#undef ABSL_INTERNAL_NOEXCEPT_SPEC
 
 }  // namespace internal_any_invocable
 ABSL_NAMESPACE_END

@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/compiler/const-tracking-let-helpers.h"
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-ir.h"
@@ -20,6 +19,8 @@ namespace maglev {
 using BlockConstIterator = ZoneVector<BasicBlock*>::const_iterator;
 using BlockConstReverseIterator =
     ZoneVector<BasicBlock*>::const_reverse_iterator;
+
+struct MaglevCallSiteInfo;
 
 class Graph final : public ZoneObject {
  public:
@@ -36,17 +37,22 @@ class Graph final : public ZoneObject {
         tagged_index_(zone),
         int32_(zone),
         uint32_(zone),
+        intptr_(zone),
         float_(zone),
         external_references_(zone),
         parameters_(zone),
+        inlineable_calls_(zone),
         allocations_escape_map_(zone),
         allocations_elide_map_(zone),
         register_inputs_(),
         constants_(zone),
         trusted_constants_(zone),
         inlined_functions_(zone),
+        node_buffer_(zone),
         is_osr_(is_osr),
-        scope_infos_(zone) {}
+        scope_infos_(zone) {
+    node_buffer_.reserve(32);
+  }
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
@@ -61,9 +67,39 @@ class Graph final : public ZoneObject {
 
   BasicBlock* last_block() const { return blocks_.back(); }
 
-  void Add(BasicBlock* block) { blocks_.push_back(block); }
+  void Add(BasicBlock* block) {
+    if (block->has_id()) {
+      // The inliner adds blocks multiple times.
+      DCHECK(v8_flags.maglev_non_eager_inlining ||
+             v8_flags.turbolev_non_eager_inlining);
+    } else {
+      block->set_id(max_block_id_++);
+    }
+    blocks_.push_back(block);
+  }
 
   void set_blocks(ZoneVector<BasicBlock*> blocks) { blocks_ = blocks; }
+
+  template <typename Function>
+  void IterateGraphAndSweepDeadBlocks(Function&& is_dead) {
+    auto current = blocks_.begin();
+    auto last_non_dead = current;
+    while (current != blocks_.end()) {
+      if (is_dead(*current)) {
+        (*current)->mark_dead();
+      } else {
+        if (current != last_non_dead) {
+          // Move current to last non dead position.
+          *last_non_dead = *current;
+        }
+        ++last_non_dead;
+      }
+      ++current;
+    }
+    if (current != last_non_dead) {
+      blocks_.resize(blocks_.size() - (current - last_non_dead));
+    }
+  }
 
   uint32_t tagged_stack_slots() const { return tagged_stack_slots_; }
   uint32_t untagged_stack_slots() const { return untagged_stack_slots_; }
@@ -97,17 +133,29 @@ class Graph final : public ZoneObject {
     total_inlined_bytecode_size_ += size;
   }
 
+  int total_peeled_bytecode_size() const { return total_peeled_bytecode_size_; }
+  void add_peeled_bytecode_size(int size) {
+    total_peeled_bytecode_size_ += size;
+  }
+
   ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
   ZoneVector<InitialValue*>& osr_values() { return osr_values_; }
   ZoneMap<int, SmiConstant*>& smi() { return smi_; }
   ZoneMap<int, TaggedIndexConstant*>& tagged_index() { return tagged_index_; }
   ZoneMap<int32_t, Int32Constant*>& int32() { return int32_; }
   ZoneMap<uint32_t, Uint32Constant*>& uint32() { return uint32_; }
+  ZoneMap<intptr_t, IntPtrConstant*>& intptr() { return intptr_; }
   ZoneMap<uint64_t, Float64Constant*>& float64() { return float_; }
   ZoneMap<Address, ExternalConstant*>& external_references() {
     return external_references_;
   }
   ZoneVector<InitialValue*>& parameters() { return parameters_; }
+
+  ZoneVector<MaglevCallSiteInfo*>& inlineable_calls() {
+    return inlineable_calls_;
+  }
+
+  ZoneVector<Node*>& node_buffer() { return node_buffer_; }
 
   // Running JS2, 99.99% of the cases, we have less than 2 dependencies.
   using SmallAllocationVector = SmallZoneVector<InlinedAllocation*, 2>;
@@ -154,6 +202,25 @@ class Graph final : public ZoneObject {
   void set_has_resumable_generator() { has_resumable_generator_ = true; }
   bool has_resumable_generator() const { return has_resumable_generator_; }
 
+  compiler::OptionalScopeInfoRef TryGetScopeInfoForContextLoad(
+      ValueNode* context, int offset, compiler::JSHeapBroker* broker) {
+    compiler::OptionalScopeInfoRef cur = TryGetScopeInfo(context, broker);
+    if (offset == Context::OffsetOfElementAt(Context::EXTENSION_INDEX)) {
+      return cur;
+    }
+    CHECK_EQ(offset, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+    if (cur.has_value()) {
+      cur = (*cur).OuterScopeInfo(broker);
+      while (!cur->HasContext() && cur->HasOuterScopeInfo()) {
+        cur = cur->OuterScopeInfo(broker);
+      }
+      if (cur->HasContext()) {
+        return cur;
+      }
+    }
+    return {};
+  }
+
   // Resolve the scope info of a context value.
   // An empty result means we don't statically know the context's scope.
   compiler::OptionalScopeInfoRef TryGetScopeInfo(
@@ -167,27 +234,14 @@ class Graph final : public ZoneObject {
       res = context_const->object().AsContext().scope_info(broker);
       DCHECK(res->HasContext());
     } else if (auto load = context->TryCast<LoadTaggedFieldForContextSlot>()) {
-      compiler::OptionalScopeInfoRef cur =
-          TryGetScopeInfo(load->input(0).node(), broker);
-      DCHECK(load->offset() ==
-                 Context::OffsetOfElementAt(Context::EXTENSION_INDEX) ||
-             load->offset() ==
-                 Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
-      if (load->offset() ==
-          Context::OffsetOfElementAt(Context::EXTENSION_INDEX)) {
-        res = cur;
-      } else if (load->offset() ==
-                 Context::OffsetOfElementAt(Context::PREVIOUS_INDEX)) {
-        if (cur.has_value()) {
-          cur = (*cur).OuterScopeInfo(broker);
-          while (!cur->HasContext() && cur->HasOuterScopeInfo()) {
-            cur = cur->OuterScopeInfo(broker);
-          }
-          if (cur->HasContext()) {
-            res = cur;
-          }
-        }
-      }
+      compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
+          load->input(0).node(), load->offset(), broker);
+      if (cur.has_value()) res = cur;
+    } else if (auto load_script =
+                   context->TryCast<LoadTaggedFieldForScriptContextSlot>()) {
+      compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
+          load_script->input(0).node(), load_script->offset(), broker);
+      if (cur.has_value()) res = cur;
     } else if (context->Is<InitialValue>()) {
       // We should only fail to keep track of initial contexts originating from
       // the OSR prequel.
@@ -210,6 +264,10 @@ class Graph final : public ZoneObject {
     scope_infos_[context] = scope_info;
   }
 
+  Zone* zone() const { return blocks_.zone(); }
+
+  BasicBlock::Id max_block_id() const { return max_block_id_; }
+
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
@@ -222,10 +280,12 @@ class Graph final : public ZoneObject {
   ZoneMap<int, TaggedIndexConstant*> tagged_index_;
   ZoneMap<int32_t, Int32Constant*> int32_;
   ZoneMap<uint32_t, Uint32Constant*> uint32_;
+  ZoneMap<intptr_t, IntPtrConstant*> intptr_;
   // Use the bits of the float as the key.
   ZoneMap<uint64_t, Float64Constant*> float_;
   ZoneMap<Address, ExternalConstant*> external_references_;
   ZoneVector<InitialValue*> parameters_;
+  ZoneVector<MaglevCallSiteInfo*> inlineable_calls_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_escape_map_;
   ZoneMap<InlinedAllocation*, SmallAllocationVector> allocations_elide_map_;
   RegList register_inputs_;
@@ -234,12 +294,15 @@ class Graph final : public ZoneObject {
       trusted_constants_;
   ZoneVector<OptimizedCompilationInfo::InlinedFunctionHolder>
       inlined_functions_;
+  ZoneVector<Node*> node_buffer_;
   bool has_recursive_calls_ = false;
   int total_inlined_bytecode_size_ = 0;
+  int total_peeled_bytecode_size_ = 0;
   bool is_osr_ = false;
   uint32_t object_ids_ = 0;
   bool has_resumable_generator_ = false;
   ZoneUnorderedMap<ValueNode*, compiler::OptionalScopeInfoRef> scope_infos_;
+  BasicBlock::Id max_block_id_ = 0;
 };
 
 }  // namespace maglev

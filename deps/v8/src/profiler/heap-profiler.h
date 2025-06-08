@@ -52,6 +52,8 @@ class HeapProfilerNativeMoveListener {
 };
 
 class HeapProfiler : public HeapObjectAllocationTracker {
+  using HeapSnapshotMode = v8::HeapProfiler::HeapSnapshotMode;
+
  public:
   explicit HeapProfiler(Heap* heap);
   ~HeapProfiler() override;
@@ -62,7 +64,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
       const v8::HeapProfiler::HeapSnapshotOptions options);
 
   // Implementation of --heap-snapshot-on-oom.
-  void WriteSnapshotToDiskAfterGC();
+  void WriteSnapshotToDiskAfterGC(
+      HeapSnapshotMode snapshot_mode = HeapSnapshotMode::kRegular);
   // Just takes a snapshot performing GC as part of the snapshot.
   void TakeSnapshotToFile(const v8::HeapProfiler::HeapSnapshotOptions options,
                           std::string filename);
@@ -121,7 +124,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
 
-  Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
+  DirectHandle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
   void ClearHeapObjectMap();
 
   Isolate* isolate() const;

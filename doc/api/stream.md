@@ -878,7 +878,7 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -983,9 +983,11 @@ Getter for the property `objectMode` of a given `Writable` stream.
 added:
 - v22.4.0
 - v20.16.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`writable.destroy()`][writable-destroy] with an `AbortError` and returns
 a promise that fulfills when the stream is finished.
@@ -1644,7 +1646,7 @@ the stream has not been destroyed or emitted `'error'` or `'end'`.
 <!-- YAML
 added: v16.8.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -1660,7 +1662,7 @@ added:
   - v16.7.0
   - v14.18.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -1996,9 +1998,11 @@ has less then 64 KiB of data because no `highWaterMark` option is provided to
 added:
  - v20.4.0
  - v18.18.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`readable.destroy()`][readable-destroy] with an `AbortError` and returns
 a promise that fulfills when the stream is finished.
@@ -2010,7 +2014,7 @@ added:
   - v19.1.0
   - v18.13.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -2047,7 +2051,7 @@ See [`stream.compose`][] for more information.
 <!-- YAML
 added: v16.3.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -3090,7 +3094,7 @@ Readable.from([
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3108,7 +3112,7 @@ changes:
 <!-- YAML
 added: v16.8.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3125,7 +3129,7 @@ added:
   - v17.3.0
   - v16.14.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3142,7 +3146,7 @@ added:
   - v17.4.0
   - v16.14.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3157,7 +3161,7 @@ Returns whether the stream is readable.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
@@ -3184,7 +3188,7 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3202,7 +3206,7 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3266,7 +3270,7 @@ Duplex.from([
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3349,7 +3353,7 @@ duplex.once('readable', () => console.log('readable', duplex.read()));
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->

@@ -21,7 +21,6 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::base_internal
     absl::core_headers
     absl::utility
   PUBLIC

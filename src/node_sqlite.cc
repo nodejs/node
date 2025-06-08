@@ -19,6 +19,7 @@ namespace sqlite {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::BackingStoreInitializationMode;
 using v8::BigInt;
 using v8::Boolean;
 using v8::ConstructorBehavior;
@@ -103,7 +104,8 @@ using v8::Value;
             static_cast<size_t>(sqlite3_##from##_bytes(__VA_ARGS__));          \
         auto data = reinterpret_cast<const uint8_t*>(                          \
             sqlite3_##from##_blob(__VA_ARGS__));                               \
-        auto store = ArrayBuffer::NewBackingStore((isolate), size);            \
+        auto store = ArrayBuffer::NewBackingStore(                             \
+            (isolate), size, BackingStoreInitializationMode::kUninitialized);  \
         memcpy(store->Data(), data, size);                                     \
         auto ab = ArrayBuffer::New((isolate), std::move(store));               \
         (result) = Uint8Array::New(ab, 0, size);                               \
@@ -373,7 +375,10 @@ class CustomAggregate {
       result = Local<Value>::New(isolate, agg->value);
     }
 
-    JSValueToSQLiteResult(isolate, ctx, result);
+    if (!result.IsEmpty()) {
+      JSValueToSQLiteResult(isolate, ctx, result);
+    }
+
     if (is_final) {
       DestroyAggregateData(ctx);
     }
@@ -998,6 +1003,14 @@ void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   int r = sqlite3_close_v2(db->connection_);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   db->connection_ = nullptr;
+}
+
+void DatabaseSync::Dispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::TryCatch try_catch(args.GetIsolate());
+  Close(args);
+  if (try_catch.HasCaught()) {
+    CHECK(try_catch.CanContinue());
+  }
 }
 
 void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
@@ -2572,6 +2585,7 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(
         isolate, tmpl, "patchset", Session::Changeset<sqlite3session_patchset>);
     SetProtoMethod(isolate, tmpl, "close", Session::Close);
+    SetProtoDispose(isolate, tmpl, Session::Dispose);
     env->set_sqlite_session_constructor_template(tmpl);
   }
   return tmpl;
@@ -2616,6 +2630,14 @@ void Session::Close(const FunctionCallbackInfo<Value>& args) {
   session->Delete();
 }
 
+void Session::Dispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::TryCatch try_catch(args.GetIsolate());
+  Close(args);
+  if (try_catch.HasCaught()) {
+    CHECK(try_catch.CanContinue());
+  }
+}
+
 void Session::Delete() {
   if (!database_ || !database_->connection_ || session_ == nullptr) return;
   sqlite3session_delete(session_);
@@ -2651,6 +2673,7 @@ static void Initialize(Local<Object> target,
 
   SetProtoMethod(isolate, db_tmpl, "open", DatabaseSync::Open);
   SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
+  SetProtoDispose(isolate, db_tmpl, DatabaseSync::Dispose);
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
   SetProtoMethod(isolate, db_tmpl, "function", DatabaseSync::CustomFunction);
@@ -2681,14 +2704,18 @@ static void Initialize(Local<Object> target,
                          target,
                          "StatementSync",
                          StatementSync::GetConstructorTemplate(env));
+  SetConstructorFunction(
+      context, target, "Session", Session::GetConstructorTemplate(env));
 
   target->Set(context, env->constants_string(), constants).Check();
 
   Local<Function> backup_function;
 
-  if (!Function::New(context, Backup).ToLocal(&backup_function)) {
+  if (!Function::New(context, Backup, Local<Value>(), 2)
+           .ToLocal(&backup_function)) {
     return;
   }
+  backup_function->SetName(env->backup_string());
 
   target->Set(context, env->backup_string(), backup_function).Check();
 }

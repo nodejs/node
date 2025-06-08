@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_FREE_SPACE_INL_H_
 #define V8_OBJECTS_FREE_SPACE_INL_H_
 
+#include "src/objects/free-space.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
-#include "src/objects/free-space.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -67,15 +69,7 @@ void FreeSpace::SetNext(const WritableFreeSpace& writable_free_space,
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-bool FreeSpace::IsValid() const {
-  Heap* heap = GetHeapFromWritableObject(*this);
-  Tagged<Object> free_space_map =
-      Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
-  CHECK(!heap->deserialization_complete() ||
-        map_slot().contains_map_value(free_space_map.ptr()));
-  CHECK_LE(kNextOffset + kTaggedSize, size(kRelaxedLoad));
-  return true;
-}
+bool FreeSpace::IsValid() const { return Heap::IsFreeSpaceValid(*this); }
 
 }  // namespace internal
 }  // namespace v8

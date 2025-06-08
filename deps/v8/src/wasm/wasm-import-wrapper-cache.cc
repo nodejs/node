@@ -9,9 +9,12 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/flush-instruction-cache.h"
 #include "src/common/code-memory-access-inl.h"
+#include "src/compiler/wasm-compiler.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 
 namespace v8::internal::wasm {
@@ -53,7 +56,8 @@ void WasmImportWrapperCache::LazyInitialize(Isolate* triggering_isolate) {
 }
 
 WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
-    const CacheKey& key, WasmCompilationResult result, WasmCode::Kind kind) {
+    const CacheKey& key, WasmCompilationResult result, WasmCode::Kind kind,
+    uint64_t signature_hash) {
   cache_->mutex_.AssertHeld();
   // Equivalent of NativeModule::AddCode().
   const CodeDesc& desc = result.code_desc;
@@ -71,12 +75,13 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
   const int handler_table_offset = desc.handler_table_offset;
   const int constant_pool_offset = desc.constant_pool_offset;
   const int code_comments_offset = desc.code_comments_offset;
+  const int jump_table_info_offset = desc.jump_table_info_offset;
   const int instr_size = desc.instr_size;
   {
     WritableJitAllocation jit_allocation =
         ThreadIsolation::RegisterJitAllocation(
             reinterpret_cast<Address>(code_space.begin()), code_space.size(),
-            ThreadIsolation::JitAllocationType::kWasmCode);
+            ThreadIsolation::JitAllocationType::kWasmCode, true);
     jit_allocation.CopyCode(0, desc.buffer, desc.instr_size);
 
     intptr_t delta = code_space.begin() - desc.buffer;
@@ -106,6 +111,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
                                 handler_table_offset,
                                 constant_pool_offset,
                                 code_comments_offset,
+                                jump_table_info_offset,
                                 instr_size,
                                 result.protected_instructions_data.as_vector(),
                                 reloc_info,
@@ -115,6 +121,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
                                 kind,
                                 ExecutionTier::kNone,
                                 wasm::kNotForDebugging,
+                                signature_hash,
                                 frame_has_feedback_slot};
   // The refcount of a WasmCode is initialized to 1. For wrappers, we track
   // all refcounts explicitly, i.e. there will be a call to {IncRef()} that
@@ -134,7 +141,55 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
   return code;
 }
 
+WasmCode* WasmImportWrapperCache::FindWrapper(WasmCodePointer call_target) {
+  if (call_target == kInvalidWasmCodePointer) return nullptr;
+  base::MutexGuard lock(&mutex_);
+  auto iter = codes_.find(
+      GetProcessWideWasmCodePointerTable()->GetEntrypointWithoutSignatureCheck(
+          call_target));
+  if (iter == codes_.end()) return nullptr;
+  return WasmCodeRefScope::AddRefIfNotDying(iter->second);
+}
+
+WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
+    Isolate* isolate, ImportCallKind kind, const CanonicalSig* sig,
+    CanonicalTypeIndex sig_index, bool source_positions, int expected_arity,
+    Suspend suspend) {
+  WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
+      kind, sig, source_positions, expected_arity, suspend);
+  WasmCode* wasm_code;
+  {
+    ModificationScope cache_scope(this);
+    CacheKey key(kind, sig_index, expected_arity, suspend);
+    // Now that we have the lock (in the form of the cache_scope), check
+    // again whether another thread has just created the wrapper.
+    wasm_code = cache_scope[key];
+    if (wasm_code) {
+      wasm_code = WasmCodeRefScope::AddRefIfNotDying(wasm_code);
+      if (wasm_code) return wasm_code;
+    }
+
+    wasm_code = cache_scope.AddWrapper(key, std::move(result),
+                                       WasmCode::Kind::kWasmToJsWrapper,
+                                       sig->signature_hash());
+  }
+
+  // To avoid lock order inversion, code printing must happen after the
+  // end of the {cache_scope}.
+  wasm_code->MaybePrint();
+  isolate->counters()->wasm_generated_code_size()->Increment(
+      wasm_code->instructions().length());
+  isolate->counters()->wasm_reloc_size()->Increment(
+      wasm_code->reloc_info().length());
+  if (GetWasmEngine()->LogWrapperCode(wasm_code)) {
+    // Log the code immediately in the current isolate.
+    GetWasmEngine()->LogOutstandingCodesForIsolate(isolate);
+  }
+  return wasm_code;
+}
+
 void WasmImportWrapperCache::LogForIsolate(Isolate* isolate) {
+  base::MutexGuard lock(&mutex_);
   for (const auto& entry : codes_) {
     entry.second->LogCode(isolate, "", -1);  // No source URL, no ScriptId.
   }
@@ -142,7 +197,7 @@ void WasmImportWrapperCache::LogForIsolate(Isolate* isolate) {
 
 void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
   base::MutexGuard lock(&mutex_);
-  if (entry_map_.empty() || wrappers.empty()) return;
+  if (codes_.empty() || wrappers.empty()) return;
   // {WasmCodeAllocator::FreeCode()} wants code objects to be sorted.
   std::sort(wrappers.begin(), wrappers.end(), [](WasmCode* a, WasmCode* b) {
     return a->instruction_start() < b->instruction_start();
@@ -163,6 +218,9 @@ void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
   }
   code_allocator_->FreeCode(base::VectorOf(wrappers));
   for (WasmCode* wrapper : wrappers) {
+    // TODO(407003348): Drop this check if it doesn't trigger in the wild.
+    CHECK_EQ(wrapper->ref_count_bitfield_.load(std::memory_order_acquire),
+             WasmCode::kIsDyingMask);
     delete wrapper;
   }
   // Make sure nobody tries to access stale pointers.
@@ -170,16 +228,14 @@ void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
 }
 
 WasmCode* WasmImportWrapperCache::MaybeGet(ImportCallKind kind,
-                                           uint32_t canonical_type_index,
+                                           CanonicalTypeIndex type_index,
                                            int expected_arity,
                                            Suspend suspend) const {
   base::MutexGuard lock(&mutex_);
 
-  auto it =
-      entry_map_.find({kind, canonical_type_index, expected_arity, suspend});
+  auto it = entry_map_.find({kind, type_index, expected_arity, suspend});
   if (it == entry_map_.end()) return nullptr;
-  WasmCodeRefScope::AddRef(it->second);
-  return it->second;
+  return WasmCodeRefScope::AddRefIfNotDying(it->second);
 }
 
 WasmCode* WasmImportWrapperCache::Lookup(Address pc) const {
@@ -193,11 +249,14 @@ WasmCode* WasmImportWrapperCache::Lookup(Address pc) const {
   DCHECK_EQ(candidate->instruction_start(), iter->first);
   if (!candidate->contains(pc)) return nullptr;
   WasmCodeRefScope::AddRef(candidate);
+  // Note: this function is used for iterating the stack, where dying
+  // code objects can still have their last few activations, so we
+  // must return {candidate} even if {candidate->is_dying()}.
   return candidate;
 }
 
 size_t WasmImportWrapperCache::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmImportWrapperCache, 120);
+  UPDATE_WHEN_CLASS_CHANGES(WasmImportWrapperCache, 88);
   base::MutexGuard lock(&mutex_);
   return sizeof(WasmImportWrapperCache) + ContentSize(entry_map_) +
          ContentSize(codes_);

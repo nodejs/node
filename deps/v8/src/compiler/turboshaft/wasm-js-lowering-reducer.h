@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_COMPILER_TURBOSHAFT_WASM_JS_LOWERING_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_WASM_JS_LOWERING_REDUCER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_COMPILER_TURBOSHAFT_WASM_JS_LOWERING_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_WASM_JS_LOWERING_REDUCER_H_
 
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -57,7 +57,7 @@ class WasmJSLoweringReducer : public Next {
   }
 
  private:
-  OpIndex CreateFrameStateWithUpdatedBailoutId(OpIndex frame_state) {
+  OpIndex CreateFrameStateWithUpdatedBailoutId(V<FrameState> frame_state) {
     // Create new FrameState with the correct source position (the position of
     // the trap location).
     const FrameStateOp& frame_state_op =

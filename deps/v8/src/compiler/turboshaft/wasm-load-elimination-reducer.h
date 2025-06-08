@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_COMPILER_TURBOSHAFT_WASM_LOAD_ELIMINATION_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_WASM_LOAD_ELIMINATION_REDUCER_H_
+
 #include <optional>
 
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_COMPILER_TURBOSHAFT_WASM_LOAD_ELIMINATION_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_WASM_LOAD_ELIMINATION_REDUCER_H_
 
 #include "src/base/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/analyzer-iterator.h"
@@ -45,13 +45,13 @@ static constexpr int kAssertNotNullIndex = -5;
 // All "load-like" special cases use the same fake size and type. The specific
 // values we use don't matter; for accurate alias analysis, the type should
 // be "unrelated" to any struct type.
-static constexpr uint32_t kLoadLikeType = wasm::HeapType::kExtern;
+static constexpr wasm::ModuleTypeIndex kLoadLikeType{wasm::HeapType::kExtern};
 static constexpr int kLoadLikeSize = 4;  // Chosen by fair dice roll.
 
 struct WasmMemoryAddress {
   OpIndex base;
   int32_t offset;
-  uint32_t type_index;
+  wasm::ModuleTypeIndex type_index;
   uint8_t size;
   bool mutability;
 
@@ -134,9 +134,10 @@ class WasmMemoryContentTable
     }
   }
 
-  bool TypesUnrelated(uint32_t type1, uint32_t type2) {
-    return wasm::TypesUnrelated(wasm::ValueType::Ref(type1),
-                                wasm::ValueType::Ref(type2), module_, module_);
+  bool TypesUnrelated(wasm::ModuleTypeIndex type1,
+                      wasm::ModuleTypeIndex type2) {
+    return wasm::HeapTypesUnrelated(
+        module_->heap_type(type1), module_->heap_type(type2), module_, module_);
   }
 
   void Invalidate(const StructSetOp& set) {
@@ -226,7 +227,7 @@ class WasmMemoryContentTable
                     kLoadLikeSize, mutability);
   }
 
-  OpIndex FindImpl(OpIndex object, int offset, uint32_t type_index,
+  OpIndex FindImpl(OpIndex object, int offset, wasm::ModuleTypeIndex type_index,
                    uint8_t size, bool mutability,
                    OptionalOpIndex index = OptionalOpIndex::Nullopt()) {
     WasmMemoryAddress mem{object, offset, type_index, size, mutability};
@@ -272,8 +273,8 @@ class WasmMemoryContentTable
 #endif  // DEBUG
 
  private:
-  void Insert(OpIndex base, int32_t offset, uint32_t type_index, uint8_t size,
-              bool mutability, OpIndex value) {
+  void Insert(OpIndex base, int32_t offset, wasm::ModuleTypeIndex type_index,
+              uint8_t size, bool mutability, OpIndex value) {
     DCHECK_EQ(base, ResolveBase(base));
 
     WasmMemoryAddress mem{base, offset, type_index, size, mutability};
@@ -636,6 +637,7 @@ void WasmLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
       case Opcode::kParameter:
+      case Opcode::kSetStackPointer:
         // We explicitly break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
         break;

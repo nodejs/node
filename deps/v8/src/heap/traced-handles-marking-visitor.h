@@ -8,7 +8,6 @@
 #include "src/handles/traced-handles.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/heap.h"
-#include "src/heap/mark-compact.h"
 
 namespace v8 {
 namespace internal {

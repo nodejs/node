@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class Graph;
+class TFGraph;
 class Edge;
 class Node;
 class Schedule;
@@ -27,7 +27,7 @@ class Verifier {
   Verifier(const Verifier&) = delete;
   Verifier& operator=(const Verifier&) = delete;
 
-  static void Run(Graph* graph, Typing typing = TYPED,
+  static void Run(TFGraph* graph, Typing typing = TYPED,
                   CheckInputs check_inputs = kAll,
                   CodeType code_type = kDefault);
 
