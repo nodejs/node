@@ -1048,8 +1048,8 @@ changes:
                  whether to perform path resolution for symlinks.
 -->
 
-* `src` {string|URL} source path to copy.
-* `dest` {string|URL} destination path to copy to.
+* `src` {string|URL|Buffer} source path to copy.
+* `dest` {string|URL|Buffer} destination path to copy to.
 * `options` {Object}
   * `dereference` {boolean} dereference symlinks. **Default:** `false`.
   * `errorOnExist` {boolean} when `force` is `false`, and the destination
@@ -1058,8 +1058,8 @@ changes:
     `true` to copy the item, `false` to ignore it. When ignoring a directory,
     all of its contents will be skipped as well. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
-    * `src` {string} source path to copy.
-    * `dest` {string} destination path to copy to.
+    * `src` {string|URL|Buffer} source path to copy.
+    * `dest` {string|URL|Buffer} destination path to copy to.
     * Returns: {boolean|Promise} A value that is coercible to `boolean` or
       a `Promise` that fulfils with such value.
   * `force` {boolean} overwrite existing file or directory. The copy
@@ -2479,8 +2479,8 @@ changes:
                  whether to perform path resolution for symlinks.
 -->
 
-* `src` {string|URL} source path to copy.
-* `dest` {string|URL} destination path to copy to.
+* `src` {string|URL|Buffer} source path to copy.
+* `dest` {string|URL|Buffer} destination path to copy to.
 * `options` {Object}
   * `dereference` {boolean} dereference symlinks. **Default:** `false`.
   * `errorOnExist` {boolean} when `force` is `false`, and the destination
@@ -2489,8 +2489,8 @@ changes:
     `true` to copy the item, `false` to ignore it. When ignoring a directory,
     all of its contents will be skipped as well. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
-    * `src` {string} source path to copy.
-    * `dest` {string} destination path to copy to.
+    * `src` {string|URL|Buffer} source path to copy.
+    * `dest` {string|URL|Buffer} destination path to copy to.
     * Returns: {boolean|Promise} A value that is coercible to `boolean` or
       a `Promise` that fulfils with such value.
   * `force` {boolean} overwrite existing file or directory. The copy
@@ -5535,8 +5535,8 @@ changes:
                  whether to perform path resolution for symlinks.
 -->
 
-* `src` {string|URL} source path to copy.
-* `dest` {string|URL} destination path to copy to.
+* `src` {string|URL|Buffer} source path to copy.
+* `dest` {string|URL|Buffer} destination path to copy to.
 * `options` {Object}
   * `dereference` {boolean} dereference symlinks. **Default:** `false`.
   * `errorOnExist` {boolean} when `force` is `false`, and the destination
@@ -5544,8 +5544,8 @@ changes:
   * `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. When ignoring a directory,
     all of its contents will be skipped as well. **Default:** `undefined`
-    * `src` {string} source path to copy.
-    * `dest` {string} destination path to copy to.
+    * `src` {string|URL|Buffer} source path to copy.
+    * `dest` {string|URL|Buffer} destination path to copy to.
     * Returns: {boolean} Any non-`Promise` value that is coercible
       to `boolean`.
   * `force` {boolean} overwrite existing file or directory. The copy
