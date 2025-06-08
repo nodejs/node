@@ -3456,16 +3456,28 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
 
     filter_fn = [env, args_filter_fn](std::string_view src,
                                       std::string_view dest) -> bool {
-      Local<Value> argv[] = {
-          String::NewFromUtf8(
-              env->isolate(), src.data(), v8::NewStringType::kNormal)
-              .ToLocalChecked(),
-          String::NewFromUtf8(
-              env->isolate(), dest.data(), v8::NewStringType::kNormal)
-              .ToLocalChecked()};
-      auto result =
-          args_filter_fn->Call(env->context(), Null(env->isolate()), 2, argv)
-              .ToLocalChecked();
+      Local<String> src_arg;
+      Local<String> dest_arg;
+
+      if (!String::NewFromUtf8(
+               env->isolate(), src.data(), v8::NewStringType::kNormal)
+               .ToLocal(&src_arg) ||
+          !String::NewFromUtf8(
+               env->isolate(), dest.data(), v8::NewStringType::kNormal)
+               .ToLocal(&dest_arg)) {
+        // if for some reason we fail to load the src or dest strings
+        // just skip the filtering function and allow the copy
+        return true;
+      }
+
+      Local<Value> argv[] = {src_arg, dest_arg};
+
+      Local<Value> result;
+      if (!args_filter_fn->Call(env->context(), Null(env->isolate()), 2, argv)
+               .ToLocal(&result)) {
+        // if the call failed for whatever reason allow the copy
+        return true;
+      }
       return result->BooleanValue(env->isolate());
     };
   }
