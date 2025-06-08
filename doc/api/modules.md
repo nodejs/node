@@ -1256,7 +1256,7 @@ This section was moved to
 ## Source map v3 support
 
 This section was moved to
-[Modules: `module` core module](module.md#source-map-v3-support).
+[Modules: `module` core module](module.md#source-map-support).
 
 <!-- Anchors to make sure old links find a target -->
 

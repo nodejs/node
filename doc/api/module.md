@@ -1702,7 +1702,7 @@ Running `node --import 'data:text/javascript,import { register } from "node:modu
 or `node --import ./import-map-sync-hooks.js main.js`
 should print `some module!`.
 
-## Source map v3 support
+## Source Map Support
 
 <!-- YAML
 added:
@@ -1712,13 +1712,17 @@ added:
 
 > Stability: 1 - Experimental
 
-Helpers for interacting with the source map cache. This cache is
-populated when source map parsing is enabled and
+Node.js supports TC39 ECMA-426 [Source Map][] format (it was called Source map
+revision 3 format).
+
+The APIs in this section are helpers for interacting with the source map
+cache. This cache is populated when source map parsing is enabled and
 [source map include directives][] are found in a modules' footer.
 
 To enable source map parsing, Node.js must be run with the flag
 [`--enable-source-maps`][], or with code coverage enabled by setting
-[`NODE_V8_COVERAGE=dir`][].
+[`NODE_V8_COVERAGE=dir`][], or be enabled programmatically via
+[`module.setSourceMapsSupport()`][].
 
 ```mjs
 // module.mjs
@@ -1812,7 +1816,7 @@ changes:
 
 Creates a new `sourceMap` instance.
 
-`payload` is an object with keys matching the [Source map v3 format][]:
+`payload` is an object with keys matching the [Source map format][]:
 
 * `file`: {string}
 * `version`: {number}
@@ -1903,8 +1907,8 @@ returned object contains the following keys:
 [Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
 [Permission Model]: permissions.md#permission-model
-[Source Map]: https://sourcemaps.info/spec.html
-[Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
+[Source Map]: https://tc39.es/ecma426/
+[Source map format]: https://tc39.es/ecma426/#sec-source-map-format
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [V8 code cache]: https://v8.dev/blog/code-caching-for-devs
 [`"exports"`]: packages.md#exports
@@ -1920,6 +1924,7 @@ returned object contains the following keys:
 [`module.enableCompileCache()`]: #moduleenablecompilecachecachedir
 [`module.flushCompileCache()`]: #moduleflushcompilecache
 [`module.getCompileCacheDir()`]: #modulegetcompilecachedir
+[`module.setSourceMapsSupport()`]: #modulesetsourcemapssupportenabled-options
 [`module`]: #the-module-object
 [`os.tmpdir()`]: os.md#ostmpdir
 [`registerHooks`]: #moduleregisterhooksoptions
@@ -1933,7 +1938,7 @@ returned object contains the following keys:
 [prefix-only modules]: modules.md#built-in-modules-with-mandatory-node-prefix
 [realm]: https://tc39.es/ecma262/#realm
 [resolve hook]: #resolvespecifier-context-nextresolve
-[source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
+[source map include directives]: https://tc39.es/ecma426/#sec-linking-generated-code
 [the documentation of `Worker`]: worker_threads.md#new-workerfilename-options
 [transferable objects]: worker_threads.md#portpostmessagevalue-transferlist
 [transform TypeScript features]: typescript.md#typescript-features
