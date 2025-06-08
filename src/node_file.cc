@@ -3516,9 +3516,8 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
       auto dest_file_path = dest / dir_entry.path().filename();
       auto dest_file_path_str = PathToString(dest_file_path);
 
-      if (filter_fn &&
-          !(*filter_fn)(dir_entry_path_str.c_str(),
-                        dest_file_path_str.c_str())) {
+      if (filter_fn && !(*filter_fn)(dir_entry_path_str.c_str(),
+                                     dest_file_path_str.c_str())) {
         continue;
       }
 
