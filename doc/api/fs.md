@@ -481,7 +481,7 @@ number of bytes read is zero.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.2.0
     pr-url: https://github.com/nodejs/node/pull/58548
     description: Added the `autoClose` option.
   - version: v24.0.0
@@ -866,7 +866,7 @@ added:
  - v20.4.0
  - v18.18.0
 changes:
- - version: REPLACEME
+ - version: v24.2.0
    pr-url: https://github.com/nodejs/node/pull/58467
    description: No longer experimental.
 -->
@@ -6763,7 +6763,7 @@ included in the iteration results.
 <!-- YAML
 added: v24.1.0
 changes:
- - version: REPLACEME
+ - version: v24.2.0
    pr-url: https://github.com/nodejs/node/pull/58467
    description: No longer experimental.
 -->
@@ -6776,7 +6776,7 @@ dir is closed.
 <!-- YAML
 added: v24.1.0
 changes:
- - version: REPLACEME
+ - version: v24.2.0
    pr-url: https://github.com/nodejs/node/pull/58467
    description: No longer experimental.
 -->

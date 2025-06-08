@@ -1976,7 +1976,7 @@ started, `false` if it was already started.
 ### `histogram[Symbol.dispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.2.0
 -->
 
 Disables the update interval timer when the histogram is disposed.

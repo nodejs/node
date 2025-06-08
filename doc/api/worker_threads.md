@@ -1866,7 +1866,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 ### `worker[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.2.0
 -->
 
 Calls [`worker.terminate()`][] when the dispose scope is exited.

@@ -2408,7 +2408,7 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
-  - version: REPLACEME
+  - version: v24.2.0
     pr-url: https://github.com/nodejs/node/pull/58437
     description: Added the `'none'` format as a non-op format.
   - version:
@@ -3328,7 +3328,7 @@ util.types.isModuleNamespaceObject(ns);  // Returns true
 
 <!-- YAML
 added: v10.0.0
-deprecated: REPLACEME
+deprecated: v24.2.0
 -->
 
 > Stability: 0 - Deprecated: Use [`Error.isError`][] instead.

@@ -650,7 +650,7 @@ called from within the action function for commands registered using the
 <!-- YAML
 added: v11.10.0
 changes:
-  - version: REPLACEME
+  - version: v24.2.0
     pr-url: https://github.com/nodejs/node/pull/58225
     description: Updated the `historyConfig` parameter to accept an object
                  with `filePath`, `size`, `removeHistoryDuplicates` and
