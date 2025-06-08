@@ -3,4 +3,9 @@
 require('../common');
 const assert = require('assert').strict;
 
-assert.throws(() => { throw new Error('foo'); }, { bar: true });
+assert.throws(
+  () => {
+    assert.throws(() => { throw new Error('foo'); }, { bar: true });
+  },
+  assert.AssertionError,
+);
