@@ -11,7 +11,7 @@ spawnSyncAndAssert(
   process.execPath,
   [
     '--import',
-    fixtures.path('import-require-cycle/preload.mjs'),
+    fixtures.fileURL('import-require-cycle/preload.mjs'),
     fixtures.path('import-require-cycle/c.js'),
   ],
   {
