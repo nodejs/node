@@ -3239,6 +3239,38 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static bool CopyUtimes(const std::filesystem::path& src,
+                       const std::filesystem::path& dest,
+                       Environment* env) {
+  uv_fs_t req;
+  auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+
+  auto src_path_str = PathToString(src);
+  int result = uv_fs_stat(nullptr, &req, src_path_str.c_str(), nullptr);
+  if (is_uv_error(result)) {
+    env->ThrowUVException(result, "stat", nullptr, src_path_str.c_str());
+    return false;
+  }
+
+  const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
+  const double source_atime = s->st_atim.tv_sec + s->st_atim.tv_nsec / 1e9;
+  const double source_mtime = s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
+
+  auto dest_file_path_str = PathToString(dest);
+  int utime_result = uv_fs_utime(nullptr,
+                                 &req,
+                                 dest_file_path_str.c_str(),
+                                 source_atime,
+                                 source_mtime,
+                                 nullptr);
+  if (is_uv_error(utime_result)) {
+    env->ThrowUVException(
+        utime_result, "utime", nullptr, dest_file_path_str.c_str());
+    return false;
+  }
+  return true;
+}
+
 static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -3286,22 +3318,7 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (preserve_timestamps) {
-    uv_fs_t req;
-    auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-    int result = uv_fs_stat(nullptr, &req, *src, nullptr);
-    if (is_uv_error(result)) {
-      return env->ThrowUVException(result, "stat", nullptr, *src);
-    }
-
-    const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
-    const double source_atime = s->st_atim.tv_sec + s->st_atim.tv_nsec / 1e9;
-    const double source_mtime = s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
-
-    int utime_result =
-        uv_fs_utime(nullptr, &req, *dest, source_atime, source_mtime, nullptr);
-    if (is_uv_error(utime_result)) {
-      return env->ThrowUVException(utime_result, "utime", nullptr, *dest);
-    }
+    CopyUtimes(*src, *dest, env);
   }
 }
 
@@ -3482,37 +3499,9 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
           return false;
         }
 
-        if (preserve_timestamps) {
-          uv_fs_t req;
-          auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-
-          auto dir_entry_path_str = PathToString(dir_entry.path());
-          int result =
-              uv_fs_stat(nullptr, &req, dir_entry_path_str.c_str(), nullptr);
-          if (is_uv_error(result)) {
-            env->ThrowUVException(
-                result, "stat", nullptr, dir_entry_path_str.c_str());
-            return false;
-          }
-
-          const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
-          const double source_atime =
-              s->st_atim.tv_sec + s->st_atim.tv_nsec / 1e9;
-          const double source_mtime =
-              s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
-
-          auto dest_file_path_str = PathToString(dest_file_path);
-          int utime_result = uv_fs_utime(nullptr,
-                                         &req,
-                                         dest_file_path_str.c_str(),
-                                         source_atime,
-                                         source_mtime,
-                                         nullptr);
-          if (is_uv_error(utime_result)) {
-            env->ThrowUVException(
-                utime_result, "utime", nullptr, dest_file_path_str.c_str());
-            return false;
-          }
+        if (preserve_timestamps &&
+            !CopyUtimes(dir_entry.path(), dest_file_path, env)) {
+          return false;
         }
       }
     }
