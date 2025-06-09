@@ -133,6 +133,6 @@ can be found here: <https://github.com/nodejs/security-wg/issues/1388>
 Code integrity on MacOS is not yet implemented. Currently, there is no
 timeline for implementation.
 
+[Official documentation for WDAC]: https://learn.microsoft.com/en-us/windows/security/application-security/application-control/windows-defender-application-control/
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
 [Set-AuthenticodeSignature commandlet]: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-authenticodesignature
-[Official documentation for WDAC]: https://learn.microsoft.com/en-us/windows/security/application-security/application-control/windows-defender-application-control/
