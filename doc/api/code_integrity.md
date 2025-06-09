@@ -6,6 +6,8 @@
 
 > Stability: 1.1 - Active development
 
+This feature is only available on Windows platforms.
+
 Code integrity refers to the assurance that software code has not been
 altered or tampered with in any unauthorized way. It ensures that
 the code running on a system is exactly what was intended by the developers.
@@ -39,7 +41,8 @@ a file's integrity. Application developers are responsible for generating and
 distributing the signature information for their Node.js application.
 Application developers are also expected to design their application
 in robust ways to avoid unintended code execution. This includes
-use of `eval` and loading modules outside of standard methods.
+avoiding the use of `eval` and avoiding loading modules outside
+of standard methods.
 
 Signature information for files which Node.js is intended to execute
 can be stored in a catalog file. Application developers can generate
@@ -62,7 +65,7 @@ Be sure that the catalog is generated using the final version of the files that 
 The application developer should then sign the generated catalog with their Code Signing certificate
 to ensure the catalog is not tampered with between distribution and execution.
 
-This can be done with the [Set-AuthenticodeSignature commandlet](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-authenticodesignature).
+This can be done with the [Set-AuthenticodeSignature commandlet][].
 
 ### Windows Code Integrity and System Administrators
 
@@ -70,7 +73,7 @@ This section is intended for system administrators who want to enable Node.js
 code integrity features in their environments.
 
 This section assumes familiarity with managing WDAC polcies.
-Official documentation for WDAC can be found [here](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/windows-defender-application-control/).
+[Official documentation for WDAC][].
 
 Code integrity enforcement on Windows has two toggleable settings:
 `EnforceCodeIntegrity` and `DisableInteractiveMode`. These settings are configured
@@ -131,3 +134,5 @@ Code integrity on MacOS is not yet implemented. Currently, there is no
 timeline for implementation.
 
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
+[Set-AuthenticodeSignature commandlet]: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.security/set-authenticodesignature
+[Official documentation for WDAC]: https://learn.microsoft.com/en-us/windows/security/application-security/application-control/windows-defender-application-control/
