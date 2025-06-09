@@ -120,7 +120,7 @@ added:
 changes:
  - version: REPLACEME
    pr-url: https://github.com/nodejs/node/pull/58648
-   description: Validate `delay` per its WebIDL definition
+   description: Validate `delay` per its WebIDL definition.
 -->
 
 * `delay` {number} The number of milliseconds to wait before triggering
