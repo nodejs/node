@@ -23,7 +23,10 @@ for (const mod of schemelessBlockList) {
 
 const hook = registerHooks({
   resolve: common.mustCall((specifier, context, nextResolve) => {
-    return nextResolve(specifier, context);
+    const result = nextResolve(specifier, context);
+    assert.match(result.url, /^node:/);
+    assert.strictEqual(schemelessBlockList.has(result.url.slice(5, result.url.length)), true);
+    return result;
   }, testModules.length),
   load: common.mustCall(function load(url, context, nextLoad) {
     assert.match(url, /^node:/);
