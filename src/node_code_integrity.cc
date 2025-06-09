@@ -60,7 +60,7 @@ void InitWldp(Environment* env) {
       LoadLibraryExA("wldp.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 
   if (wldp_module == nullptr) {
-    // Wldp is included on all Windows systems that are supported by Node's
+    // Wldp is included on all Windows systems that are supported by Node.js
     // If Wldp is unable to be loaded, something is very wrong with
     // the system state
     THROW_ERR_INVALID_STATE(env, "WLDP.DLL does not exist");
