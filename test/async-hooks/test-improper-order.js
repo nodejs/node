@@ -55,7 +55,7 @@ if (process.argv[2] === 'child') {
     if ((common.isAIX ||
         (common.isLinux && process.arch === 'x64')) &&
         signal === 'SIGABRT') {
-     // XXX: The child process could be aborted due to unknown reasons. Work around it.
+      // XXX: The child process could be aborted due to unknown reasons. Work around it.
     } else {
       assert.strictEqual(signal, null);
       assert.strictEqual(code, 1);
