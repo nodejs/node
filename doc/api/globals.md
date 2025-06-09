@@ -117,6 +117,10 @@ Returns a new already aborted `AbortSignal`.
 added:
   - v17.3.0
   - v16.14.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58648
+   description: Validate `delay` per its WebIDL definition
 -->
 
 * `delay` {number} The number of milliseconds to wait before triggering
