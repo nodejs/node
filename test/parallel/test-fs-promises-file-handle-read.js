@@ -54,18 +54,26 @@ async function validateLargeRead(options) {
   // from the current position in the file.
   const filePath = fixtures.path('x.txt');
   const fileHandle = await open(filePath, 'r');
-  const pos = 0xffffffff + 1; // max-uint32 + 1
-  const readHandle =
-    await read(fileHandle, Buffer.alloc(1), 0, 1, pos, options);
+  try {
+    const pos = 0xffffffff + 1; // max-uint32 + 1
+    const readHandle =
+      await read(fileHandle, Buffer.alloc(1), 0, 1, pos, options);
 
-  assert.strictEqual(readHandle.bytesRead, 0);
+    assert.strictEqual(readHandle.bytesRead, 0);
+  } finally {
+    await fileHandle.close();
+  }
 }
 
 async function validateReadNoParams() {
   const filePath = fixtures.path('x.txt');
   const fileHandle = await open(filePath, 'r');
   // Should not throw
-  await fileHandle.read();
+  try {
+    await fileHandle.read();
+  } finally {
+    await fileHandle.close();
+  }
 }
 
 // Validates that the zero position is respected after the position has been
@@ -75,15 +83,19 @@ async function validateReadWithPositionZero() {
   const opts = { useConf: true };
   const filePath = fixtures.path('x.txt');
   const fileHandle = await open(filePath, 'r');
-  const expectedSequence = ['x', 'y', 'z'];
+  try {
+    const expectedSequence = ['x', 'y', 'z'];
 
-  for (let i = 0; i < expectedSequence.length * 2; i++) {
-    const len = 1;
-    const pos = i % 3;
-    const buf = Buffer.alloc(len);
-    const { bytesRead } = await read(fileHandle, buf, 0, len, pos, opts);
-    assert.strictEqual(bytesRead, len);
-    assert.strictEqual(buf.toString(), expectedSequence[pos]);
+    for (let i = 0; i < expectedSequence.length * 2; i++) {
+      const len = 1;
+      const pos = i % 3;
+      const buf = Buffer.alloc(len);
+      const { bytesRead } = await read(fileHandle, buf, 0, len, pos, opts);
+      assert.strictEqual(bytesRead, len);
+      assert.strictEqual(buf.toString(), expectedSequence[pos]);
+    }
+  } finally {
+    await fileHandle.close();
   }
 }
 
@@ -92,24 +104,32 @@ async function validateReadLength(len) {
   const opts = { useConf: true };
   const filePath = fixtures.path('x.txt');
   const fileHandle = await open(filePath, 'r');
-  const { bytesRead } = await read(fileHandle, buf, 0, len, 0, opts);
-  assert.strictEqual(bytesRead, len);
+  try {
+    const { bytesRead } = await read(fileHandle, buf, 0, len, 0, opts);
+    assert.strictEqual(bytesRead, len);
+  } finally {
+    await fileHandle.close();
+  }
 }
 
 async function validateReadWithNoOptions(byte) {
   const buf = Buffer.alloc(byte);
   const filePath = fixtures.path('x.txt');
   const fileHandle = await open(filePath, 'r');
-  let response = await fileHandle.read(buf);
-  assert.strictEqual(response.bytesRead, byte);
-  response = await read(fileHandle, buf, 0, undefined, 0);
-  assert.strictEqual(response.bytesRead, byte);
-  response = await read(fileHandle, buf, 0, null, 0);
-  assert.strictEqual(response.bytesRead, byte);
-  response = await read(fileHandle, buf, 0, undefined, 0, { useConf: true });
-  assert.strictEqual(response.bytesRead, byte);
-  response = await read(fileHandle, buf, 0, null, 0, { useConf: true });
-  assert.strictEqual(response.bytesRead, byte);
+  try {
+    let response = await fileHandle.read(buf);
+    assert.strictEqual(response.bytesRead, byte);
+    response = await read(fileHandle, buf, 0, undefined, 0);
+    assert.strictEqual(response.bytesRead, byte);
+    response = await read(fileHandle, buf, 0, null, 0);
+    assert.strictEqual(response.bytesRead, byte);
+    response = await read(fileHandle, buf, 0, undefined, 0, { useConf: true });
+    assert.strictEqual(response.bytesRead, byte);
+    response = await read(fileHandle, buf, 0, null, 0, { useConf: true });
+    assert.strictEqual(response.bytesRead, byte);
+  } finally {
+    await fileHandle.close();
+  }
 }
 
 (async function() {
