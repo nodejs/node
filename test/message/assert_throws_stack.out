@@ -1,6 +1,6 @@
 node:assert:*
-        throw err;
-        ^
+      throw err;
+      ^
 
 AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
 + actual - expected
@@ -9,6 +9,7 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
 - Comparison {
 -   bar: true
 - }
+
     at Object.<anonymous> (*assert_throws_stack.js:*:*)
     at *
     at *
@@ -22,7 +23,7 @@ AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
   code: 'ERR_ASSERTION',
   actual: Error: foo
       at assert.throws.bar (*assert_throws_stack.js:*)
-      at #getActual (node:assert:*)
+      at getActual (node:assert:*)
       at Assert.throws (node:assert:*)
       at Object.<anonymous> (*assert_throws_stack.js:*:*)
       at *

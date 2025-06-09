@@ -61,9 +61,6 @@ Failed tests:
       *
       *
       *
-      *
-      *
-      *
       * {
     generatedMessage: true,
     code: 'ERR_ASSERTION',

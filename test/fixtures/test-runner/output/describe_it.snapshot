@@ -154,9 +154,6 @@ not ok 14 - async assertion fail
     *
     *
     *
-    *
-    *
-    *
   ...
 # Subtest: resolve pass
 ok 15 - resolve pass
