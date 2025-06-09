@@ -1,13 +1,13 @@
 Exiting with code=1
 node:assert:*
-    throw new AssertionError(this.#buildAssertionErrorOptions(obj));
-    ^
+  throw new AssertionError(_buildAssertionErrorOptions(this, obj));
+  ^
 
 AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
 
 1 !== 2
 
-    at new AssertionError (node:internal*assert*assertion_error:*:*) {
+    at Object.<anonymous> (*error_exit.js:*:*) {
   generatedMessage: true,
   code: 'ERR_ASSERTION',
   actual: 1,
