@@ -447,7 +447,8 @@ void Blob::StoreDataObject(const FunctionCallbackInfo<Value>& args) {
         std::string(*type, type.length())));
 }
 
-// TODO(@anonrig): Add V8 Fast API to the following function
+// Note: applying the V8 Fast API to the following function does not produce
+//       performance benefits (ref: https://github.com/nodejs/node/pull/58544)
 void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
