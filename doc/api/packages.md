@@ -444,6 +444,59 @@ subpaths where possible instead of a separate map entry per package subpath
 export. This also mirrors the requirement of using [the full specifier path][]
 in relative and absolute import specifiers.
 
+#### Path Rules and Validation for Export Targets
+
+When defining paths as targets in the [`"exports"`][] field, Node.js enforces
+several rules to ensure security, predictability, and proper encapsulation.
+Understanding these rules is crucial for authors publishing packages.
+
+##### Targets must be relative URLs
+
+All target paths in the [`"exports"`][] map (the values associated with export
+keys) must be relative URL strings starting with `./`.
+
+```json
+// package.json
+{
+  "name": "my-package",
+  "exports": {
+    ".": "./dist/main.js",          // Correct
+    "./feature": "./lib/feature.js", // Correct
+    // "./origin-relative": "/dist/main.js", // Incorrect: Must start with ./
+    // "./absolute": "file:///dev/null", // Incorrect: Must start with ./
+    // "./outside": "../common/util.js" // Incorrect: Must start with ./
+  }
+}
+```
+
+Reasons for this behavior include:
+
+* **Security:** Prevents exporting arbitrary files from outside the
+  package's own directory.
+* **Encapsulation:** Ensures all exported paths are resolved relative to
+  the package root, making the package self-contained.
+
+##### No path traversal or invalid segments
+
+Export targets must not resolve to a location outside the package's root
+directory. Additionally, path segments like `.` (single dot), `..` (double dot),
+or `node_modules` (and their URL-encoded equivalents) are generally disallowed
+within the `target` string after the initial `./` and in any `subpath` part
+substituted into a target pattern.
+
+```json
+// package.json
+{
+  "name": "my-package",
+  "exports": {
+    // ".": "./dist/../../elsewhere/file.js", // Invalid: path traversal
+    // ".": "././dist/main.js",             // Invalid: contains "." segment
+    // ".": "./dist/../dist/main.js",       // Invalid: contains ".." segment
+    // "./utils/./helper.js": "./utils/helper.js" // Key has invalid segment
+  }
+}
+```
+
 ### Exports sugar
 
 <!-- YAML
