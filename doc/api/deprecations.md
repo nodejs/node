@@ -3773,7 +3773,7 @@ upon `require('node:module').builtinModules`.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57643
     description: Documentation-only deprecation.
 -->
@@ -3787,7 +3787,7 @@ an internal nodejs implementation rather than a public facing API, use `node:tls
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58337
     description: Documentation-only deprecation.
 -->
@@ -3802,7 +3802,7 @@ an internal nodejs implementation rather than a public facing API, use `node:str
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Documentation-only deprecation.
 -->
@@ -3816,7 +3816,7 @@ will be removed in future versions of Node.js.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58518
     description: Documentation-only deprecation.
 -->
@@ -3831,7 +3831,7 @@ It is recommended to use the `new` qualifier instead. This applies to all http c
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58564
     description: Documentation-only deprecation.
 -->

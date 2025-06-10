@@ -2588,7 +2588,7 @@ argument.
 <!-- YAML
 added: v22.13.0
 changes:
- - version: REPLACEME
+ - version: v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57370
    description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
 -->

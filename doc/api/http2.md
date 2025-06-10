@@ -1072,7 +1072,7 @@ The `'origin'` event is only emitted when using a secure TLS connection.
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Following the deprecation of priority signaling as of RFC 1993,
                  `weight` option is deprecated.
@@ -1463,7 +1463,7 @@ numeric stream identifier.
 
 <!-- YAML
 added: v8.4.0
-deprecated: REPLACEME
+deprecated: v22.17.0
 -->
 
 > Stability: 0 - Deprecated: support for priority signaling has been deprecated
@@ -1579,7 +1579,7 @@ req.setTimeout(5000, () => req.close(NGHTTP2_CANCEL));
 <!-- YAML
 added: v8.4.0
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Following the deprecation of priority signaling as of RFC 1993,
                  `weight` and `sumDependencyWeight` options are deprecated.

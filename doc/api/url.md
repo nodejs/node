@@ -629,7 +629,7 @@ console.log(JSON.stringify(myURLs));
 <!-- YAML
 added: v16.7.0
 changes:
- - version: REPLACEME
+ - version: v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -667,7 +667,7 @@ to other workers or the main thread.
 <!-- YAML
 added: v16.7.0
 changes:
- - version: REPLACEME
+ - version: v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->

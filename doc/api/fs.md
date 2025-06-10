@@ -481,10 +481,10 @@ number of bytes read is zero.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58548
     description: Added the `autoClose` option.
   - version: v22.15.0
@@ -1082,10 +1082,10 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
   - version: v22.14.0
@@ -3138,10 +3138,10 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
   - version: v22.14.0
@@ -3592,7 +3592,7 @@ Functions based on `fs.open()` exhibit this behavior as well:
 <!-- YAML
 added: v19.8.0
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -5692,10 +5692,10 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
   - version: v22.14.0
@@ -6747,7 +6747,7 @@ included in the iteration results.
 #### `dir[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.17.0
 -->
 
 > Stability: 1 - Experimental
@@ -6758,7 +6758,7 @@ dir is closed.
 #### `dir[Symbol.Dispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.17.0
 -->
 
 > Stability: 1 - Experimental
@@ -6871,7 +6871,7 @@ added:
   - v20.12.0
   - v18.20.0
 changes:
-  - version: REPLACEME
+  - version: v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->

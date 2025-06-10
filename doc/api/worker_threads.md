@@ -1268,7 +1268,7 @@ added:
   - v18.1.0
   - v16.17.0
 changes:
- - version: REPLACEME
+ - version: v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
