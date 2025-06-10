@@ -720,8 +720,8 @@ void Assembler::bind_to(Label* L, int pos) {
             trampoline_pos = get_trampoline_entry(fixup_pos);
             CHECK_NE(trampoline_pos, kInvalidSlotPos);
           }
-          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
+          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
         }
@@ -1498,6 +1498,7 @@ void Assembler::BlockTrampolinePoolFor(int instructions) {
 }
 
 void Assembler::CheckTrampolinePool() {
+  if (trampoline_emitted_) return;
   // Some small sequences of instructions must not be broken up by the
   // insertion of a trampoline pool; such sequences are protected by setting
   // either trampoline_pool_blocked_nesting_ or no_trampoline_pool_before_,
@@ -1519,7 +1520,6 @@ void Assembler::CheckTrampolinePool() {
     return;
   }
 
-  DCHECK(!trampoline_emitted_);
   DCHECK_GE(unbound_labels_count_, 0);
   if (unbound_labels_count_ > 0) {
     // First we emit jump, then we emit trampoline pool.
