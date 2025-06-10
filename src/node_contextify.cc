@@ -1622,7 +1622,7 @@ MaybeLocal<Object> ContextifyFunction::CompileFunctionAndCacheResult(
 // While top-level `await` is not permitted in CommonJS, it returns the same
 // error message as when `await` is used in a sync function, so we don't use it
 // as a disambiguation.
-static std::vector<std::string_view> esm_syntax_error_messages = {
+static const auto esm_syntax_error_messages = std::array<std::string_view, 3>{
     "Cannot use import statement outside a module",  // `import` statements
     "Unexpected token 'export'",                     // `export` statements
     "Cannot use 'import.meta' outside a module"};    // `import.meta` references
@@ -1637,14 +1637,15 @@ static std::vector<std::string_view> esm_syntax_error_messages = {
 // - Top-level `await`: if the user writes `await` at the top level of a
 //   CommonJS module, it will throw a syntax error; but the same code is valid
 //   in ESM.
-static std::vector<std::string_view> throws_only_in_cjs_error_messages = {
-    "Identifier 'module' has already been declared",
-    "Identifier 'exports' has already been declared",
-    "Identifier 'require' has already been declared",
-    "Identifier '__filename' has already been declared",
-    "Identifier '__dirname' has already been declared",
-    "await is only valid in async functions and "
-    "the top level bodies of modules"};
+static const auto throws_only_in_cjs_error_messages =
+    std::array<std::string_view, 6>{
+        "Identifier 'module' has already been declared",
+        "Identifier 'exports' has already been declared",
+        "Identifier 'require' has already been declared",
+        "Identifier '__filename' has already been declared",
+        "Identifier '__dirname' has already been declared",
+        "await is only valid in async functions and "
+        "the top level bodies of modules"};
 
 // If cached_data is provided, it would be used for the compilation and
 // the on-disk compilation cache from NODE_COMPILE_CACHE (if configured)
