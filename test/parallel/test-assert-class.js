@@ -25,7 +25,7 @@ test('Assert constructor requires new', () => {
 });
 
 test('Assert class basic instance', () => {
-  const assertInstance = new Assert();
+  const assertInstance = new Assert({ diff: undefined });
 
   assertInstance.ok(assert.AssertionError.prototype instanceof Error,
                     'assert.AssertionError instanceof Error');
@@ -115,13 +115,6 @@ test('Assert class basic instance', () => {
     assertInstance.ok(threw);
   }
   /* eslint-enable no-restricted-syntax */
-});
-
-test('Assert class with valid diff options', () => {
-  assert.doesNotThrow(() => new Assert({ diff: 'simple' }));
-  assert.doesNotThrow(() => new Assert({ diff: 'full' }));
-  assert.doesNotThrow(() => new Assert());
-  assert.doesNotThrow(() => new Assert({ diff: undefined }));
 });
 
 test('Assert class with invalid diff option', () => {
