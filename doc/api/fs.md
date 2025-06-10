@@ -1791,6 +1791,11 @@ added:
     filename passed to the listener. **Default:** `'utf8'`.
   * `signal` {AbortSignal} An {AbortSignal} used to signal when the watcher
     should stop.
+  * `maxQueue` {number} Specifies the number of events to queue between iterations
+    of the {AsyncIterator} returned. **Default:** `2048`.
+  * `overflow` {string} Either `'ignore'` or `'throw'` when there are more events to be
+    queued than `maxQueue` allows. `'ignore'` means overflow events are dropped and a
+    warning is emitted, while `'throw'` means to throw an exception. **Default:** `'ignore'`.
 * Returns: {AsyncIterator} of objects with the properties:
   * `eventType` {string} The type of change
   * `filename` {string|Buffer|null} The name of the file changed.

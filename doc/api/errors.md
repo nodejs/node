@@ -1378,6 +1378,13 @@ allowed size for a `Buffer`.
 An invalid symlink type was passed to the [`fs.symlink()`][] or
 [`fs.symlinkSync()`][] methods.
 
+<a id="ERR_FS_WATCH_QUEUE_OVERFLOW"></a>
+
+### `ERR_FS_WATCH_QUEUE_OVERFLOW`
+
+The number of file system events queued without being handled exceeded the size specified in
+`maxQueue` in `fs.watch()`.
+
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
 ### `ERR_HTTP2_ALTSVC_INVALID_ORIGIN`
