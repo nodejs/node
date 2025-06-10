@@ -1647,11 +1647,11 @@ static const auto throws_only_in_cjs_error_messages =
         "await is only valid in async functions and "
         "the top level bodies of modules"};
 
-static std::vector<std::string_view> maybe_top_level_await_errors = {
-    // example: `func(await 1);`
-    "missing ) after argument list",
-    // example: `if(await 1)`
-    "SyntaxError: Unexpected"};
+static const auto maybe_top_level_await_errors =
+    std::array<std::string_view, 2>{// example: `func(await 1);`
+                                    "missing ) after argument list",
+                                    // example: `if(await 1)`
+                                    "SyntaxError: Unexpected"};
 
 // If cached_data is provided, it would be used for the compilation and
 // the on-disk compilation cache from NODE_COMPILE_CACHE (if configured)
