@@ -243,7 +243,7 @@ assertInstance.deepStrictEqual({ a: 1 }, { a: 2 });
 ## `assert(value[, message])`
 
 <!-- YAML
-added: v0.1.21
+added: v0.5.9
 -->
 
 * `value` {any} The input that is checked for being truthy.
