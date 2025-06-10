@@ -4937,11 +4937,22 @@ void MacroAssembler::LoadRootRegisterOffset(Register destination,
 
 void MacroAssembler::Jump(Register target, Condition cond, Register rs,
                           const Operand& rt) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
   if (cond == cc_always) {
     jr(target);
+    DEBUG_PRINTF("\tCheckTrampolinePool pc_offset:%d %d\n", pc_offset(),
+                 next_buffer_check() - ConstpoolComputesize());
+    if (!is_trampoline_emitted() && v8_flags.debug_code &&
+        pc_offset() >= (next_buffer_check() - ConstpoolComputesize())) {
+      // Debug mode will emit more instrs than Release mode.
+      // so we need to check trampoline pool before Constant pool.
+      // Here need to emit trampoline first.
+      // Jump(ra, al) will block trampoline pool for 1 instr.
+      nop();
+      CheckTrampolinePool();
+    }
     ForceConstantPoolEmissionWithoutJump();
   } else {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     BRANCH_ARGS_CHECK(cond, rs, rt);
     Branch(kInstrSize * 2, NegateCondition(cond), rs, rt);
     jr(target);
@@ -5353,9 +5364,6 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
 
 void MacroAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
   Jump(ra, cond, rs, rt);
-  if (cond == al) {
-    ForceConstantPoolEmissionWithoutJump();
-  }
 }
 
 void MacroAssembler::BranchLong(Label* L) {
