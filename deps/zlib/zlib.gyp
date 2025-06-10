@@ -139,7 +139,7 @@
         #   ],
         # }, # zlib_crc32_simd
         {
-          'target_name': 'zlib_inflate_chunk_simd',
+          'target_name': 'zlib_data_chunk_simd',
           'type': 'static_library',
           'conditions': [
             ['target_arch in "ia32 x64" and OS!="ios"', {
@@ -172,9 +172,9 @@
             'include_dirs': [ '<(ZLIB_ROOT)' ],
           },
           'sources': [
-            '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib_inflate_chunk_simd\\".*?sources = ")',
+            '<!@pymod_do_main(GN-scraper "<(ZLIB_ROOT)/BUILD.gn" "\\"zlib_data_chunk_simd\\".*?sources = ")',
           ],
-        }, # zlib_inflate_chunk_simd
+        }, # zlib_data_chunk_simd
         {
           'target_name': 'zlib',
           'type': 'static_library',
@@ -203,7 +203,7 @@
             }],
             # Incorporate optimizations where possible.
             ['(target_arch in "ia32 x64" and OS!="ios") or arm_fpu=="neon"', {
-              'dependencies': [ 'zlib_inflate_chunk_simd' ],
+              'dependencies': [ 'zlib_data_chunk_simd' ],
               'sources': [ '<(ZLIB_ROOT)/slide_hash_simd.h' ]
             }, {
               'defines': [ 'CPU_NO_SIMD' ],
