@@ -636,7 +636,7 @@ A browser-compatible implementation of {Headers}.
 added: v22.4.0
 -->
 
-> Stability: 1.0 - Early development.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of [`localStorage`][]. Data is stored
 unencrypted in the file specified by the [`--localstorage-file`][] CLI flag.
