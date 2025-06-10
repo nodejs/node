@@ -117,6 +117,24 @@ test('Assert class basic instance', () => {
   /* eslint-enable no-restricted-syntax */
 });
 
+test('Assert class with valid diff options', () => {
+  assert.doesNotThrow(() => new Assert({ diff: 'simple' }));
+  assert.doesNotThrow(() => new Assert({ diff: 'full' }));
+  assert.doesNotThrow(() => new Assert());
+  assert.doesNotThrow(() => new Assert({ diff: undefined }));
+});
+
+test('Assert class with invalid diff option', () => {
+  assert.throws(
+    () => new Assert({ diff: 'invalid' }),
+    {
+      code: 'ERR_INVALID_ARG_VALUE',
+      name: 'TypeError',
+      message: /must be one of "simple", "full"/,
+    }
+  );
+});
+
 test('Assert class with full diff', () => {
   const assertInstance = new Assert({ diff: 'full' });
 
