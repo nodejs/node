@@ -1852,14 +1852,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 added: REPLACEME
 -->
 
-Calls [`worker.terminate()`][] when the dispose scope is exited.
-
-```js
-async function example() {
-  await using worker = new Worker('for (;;) {}', { eval: true });
-  // Worker is automatically terminate when the scope is exited.
-}
-```
+Alias for [`worker.terminate()`][].
 
 ## Notes
 
