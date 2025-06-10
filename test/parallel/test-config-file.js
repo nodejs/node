@@ -1,6 +1,7 @@
 'use strict';
 
-const { spawnPromisified } = require('../common');
+const { spawnPromisified, skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const fixtures = require('../common/fixtures');
 const { match, strictEqual } = require('node:assert');
 const { test } = require('node:test');
@@ -230,6 +231,30 @@ test('host port flag should be parsed correctly', { skip: !process.features.insp
   ]);
   strictEqual(result.stderr, '');
   strictEqual(result.stdout, '65535\n');
+  strictEqual(result.code, 0);
+});
+
+test('--inspect=true should be parsed correctly', { skip: !process.features.inspector }, async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-config-file',
+    fixtures.path('rc/inspect-true.json'),
+    '-p', 'require("node:inspector").url()',
+  ]);
+  match(result.stderr, /^Debugger listening on (ws:\/\/[^\s]+)/);
+  match(result.stdout, /ws:\/\/[^\s]+/);
+  strictEqual(result.code, 0);
+});
+
+test('--inspect=false should be parsed correctly', { skip: !process.features.inspector }, async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-config-file',
+    fixtures.path('rc/inspect-false.json'),
+    '-p', 'require("node:inspector").url()',
+  ]);
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, 'undefined\n');
   strictEqual(result.code, 0);
 });
 

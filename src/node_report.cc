@@ -676,9 +676,9 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_objectend();
   }
   writer->json_objectend();
-#ifdef RUSAGE_THREAD
-  struct rusage stats;
-  if (getrusage(RUSAGE_THREAD, &stats) == 0) {
+
+  uv_rusage_t stats;
+  if (uv_getrusage_thread(&stats) == 0) {
     writer->json_objectstart("uvthreadResourceUsage");
     double user_cpu =
         stats.ru_utime.tv_sec + SEC_PER_MICROS * stats.ru_utime.tv_usec;
@@ -699,7 +699,6 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_objectend();
     writer->json_objectend();
   }
-#endif  // RUSAGE_THREAD
 }
 
 static void PrintEnvironmentVariables(JSONWriter* writer) {

@@ -110,15 +110,10 @@ suite('notEqualArrayPairs', () => {
         makeBlock(assert.deepStrictEqual, arrayPair[0], arrayPair[1]),
         assert.AssertionError
       );
-      // TODO(puskin94): remove emitWarning override once the partialDeepStrictEqual method is not experimental anymore
-      // Suppress warnings, necessary otherwise the tools/pseudo-tty.py runner will fail
-      const originalEmitWarning = process.emitWarning;
-      process.emitWarning = () => {};
       assert.throws(
         makeBlock(assert.partialDeepStrictEqual, arrayPair[0], arrayPair[1]),
         assert.AssertionError
       );
-      process.emitWarning = originalEmitWarning; // Restore original process.emitWarning
     });
   }
 });

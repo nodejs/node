@@ -1,6 +1,7 @@
 // Flags: --experimental-sqlite
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const {
   DatabaseSync,
   constants,

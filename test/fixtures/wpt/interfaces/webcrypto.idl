@@ -42,52 +42,77 @@ enum KeyFormat { "raw", "spki", "pkcs8", "jwk" };
 
 [SecureContext,Exposed=(Window,Worker)]
 interface SubtleCrypto {
-  Promise<any> encrypt(AlgorithmIdentifier algorithm,
-                       CryptoKey key,
-                       BufferSource data);
-  Promise<any> decrypt(AlgorithmIdentifier algorithm,
-                       CryptoKey key,
-                       BufferSource data);
-  Promise<any> sign(AlgorithmIdentifier algorithm,
-                    CryptoKey key,
-                    BufferSource data);
-  Promise<any> verify(AlgorithmIdentifier algorithm,
-                      CryptoKey key,
-                      BufferSource signature,
-                      BufferSource data);
-  Promise<any> digest(AlgorithmIdentifier algorithm,
-                      BufferSource data);
+  Promise<ArrayBuffer> encrypt(
+    AlgorithmIdentifier algorithm,
+    CryptoKey key,
+    BufferSource data
+  );
+  Promise<ArrayBuffer> decrypt(
+    AlgorithmIdentifier algorithm,
+    CryptoKey key,
+    BufferSource data
+  );
+  Promise<ArrayBuffer> sign(
+    AlgorithmIdentifier algorithm,
+    CryptoKey key,
+    BufferSource data
+  );
+  Promise<boolean> verify(
+    AlgorithmIdentifier algorithm,
+    CryptoKey key,
+    BufferSource signature,
+    BufferSource data
+  );
+  Promise<ArrayBuffer> digest(
+    AlgorithmIdentifier algorithm,
+    BufferSource data
+  );
 
-  Promise<any> generateKey(AlgorithmIdentifier algorithm,
-                          boolean extractable,
-                          sequence<KeyUsage> keyUsages );
-  Promise<any> deriveKey(AlgorithmIdentifier algorithm,
-                         CryptoKey baseKey,
-                         AlgorithmIdentifier derivedKeyType,
-                         boolean extractable,
-                         sequence<KeyUsage> keyUsages );
-  Promise<ArrayBuffer> deriveBits(AlgorithmIdentifier algorithm,
-                          CryptoKey baseKey,
-                          optional unsigned long? length = null);
+  Promise<(CryptoKey or CryptoKeyPair)> generateKey(
+    AlgorithmIdentifier algorithm,
+    boolean extractable,
+    sequence<KeyUsage> keyUsages
+  );
+  Promise<CryptoKey> deriveKey(
+    AlgorithmIdentifier algorithm,
+    CryptoKey baseKey,
+    AlgorithmIdentifier derivedKeyType,
+    boolean extractable,
+    sequence<KeyUsage> keyUsages
+  );
+  Promise<ArrayBuffer> deriveBits(
+    AlgorithmIdentifier algorithm,
+    CryptoKey baseKey,
+    optional unsigned long? length = null
+  );
 
-  Promise<CryptoKey> importKey(KeyFormat format,
-                         (BufferSource or JsonWebKey) keyData,
-                         AlgorithmIdentifier algorithm,
-                         boolean extractable,
-                         sequence<KeyUsage> keyUsages );
-  Promise<any> exportKey(KeyFormat format, CryptoKey key);
+  Promise<CryptoKey> importKey(
+    KeyFormat format,
+    (BufferSource or JsonWebKey) keyData,
+    AlgorithmIdentifier algorithm,
+    boolean extractable,
+    sequence<KeyUsage> keyUsages
+  );
+  Promise<(ArrayBuffer or JsonWebKey)> exportKey(
+    KeyFormat format,
+    CryptoKey key
+  );
 
-  Promise<any> wrapKey(KeyFormat format,
-                       CryptoKey key,
-                       CryptoKey wrappingKey,
-                       AlgorithmIdentifier wrapAlgorithm);
-  Promise<CryptoKey> unwrapKey(KeyFormat format,
-                         BufferSource wrappedKey,
-                         CryptoKey unwrappingKey,
-                         AlgorithmIdentifier unwrapAlgorithm,
-                         AlgorithmIdentifier unwrappedKeyAlgorithm,
-                         boolean extractable,
-                         sequence<KeyUsage> keyUsages );
+  Promise<ArrayBuffer> wrapKey(
+    KeyFormat format,
+    CryptoKey key,
+    CryptoKey wrappingKey,
+    AlgorithmIdentifier wrapAlgorithm
+  );
+  Promise<CryptoKey> unwrapKey(
+    KeyFormat format,
+    BufferSource wrappedKey,
+    CryptoKey unwrappingKey,
+    AlgorithmIdentifier unwrapAlgorithm,
+    AlgorithmIdentifier unwrappedKeyAlgorithm,
+    boolean extractable,
+    sequence<KeyUsage> keyUsages
+  );
 };
 
 dictionary RsaOtherPrimesInfo {

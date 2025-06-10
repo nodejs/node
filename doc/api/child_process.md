@@ -1446,14 +1446,21 @@ instances of `ChildProcess`.
 added: v0.7.7
 -->
 
-* `code` {number} The exit code if the child process exited on its own.
-* `signal` {string} The signal by which the child process was terminated.
+* `code` {number} The exit code if the child process exited on its own, or
+  `null` if the child process terminated due to a signal.
+* `signal` {string} The signal by which the child process was terminated, or
+  `null` if the child process did not terminated due to a signal.
 
 The `'close'` event is emitted after a process has ended _and_ the stdio
 streams of a child process have been closed. This is distinct from the
 [`'exit'`][] event, since multiple processes might share the same stdio
 streams. The `'close'` event will always emit after [`'exit'`][] was
 already emitted, or [`'error'`][] if the child process failed to spawn.
+
+If the process exited, `code` is the final exit code of the process, otherwise
+`null`. If the process terminated due to receipt of a signal, `signal` is the
+string name of the signal, otherwise `null`. One of the two will always be
+non-`null`.
 
 ```cjs
 const { spawn } = require('node:child_process');
@@ -1524,8 +1531,10 @@ See also [`subprocess.kill()`][] and [`subprocess.send()`][].
 added: v0.1.90
 -->
 
-* `code` {number} The exit code if the child process exited on its own.
-* `signal` {string} The signal by which the child process was terminated.
+* `code` {number} The exit code if the child process exited on its own, or
+  `null` if the child process terminated due to a signal.
+* `signal` {string} The signal by which the child process was terminated, or
+  `null` if the child process did not terminated due to a signal.
 
 The `'exit'` event is emitted after the child process ends. If the process
 exited, `code` is the final exit code of the process, otherwise `null`. If the

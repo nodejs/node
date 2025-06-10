@@ -23,7 +23,7 @@ std::optional<std::string_view> ConfigReader::GetDataFromArgs(
     } else if (it->starts_with(flag_path)) {
       // Case: "--experimental-config-file=foo"
       if (it->size() > flag_path.size() && (*it)[flag_path.size()] == '=') {
-        return it->substr(flag_path.size() + 1);
+        return std::string_view(*it).substr(flag_path.size() + 1);
       }
     } else if (*it == default_file || it->starts_with(default_file)) {
       has_default_config_file = true;
@@ -59,8 +59,12 @@ ParseResult ConfigReader::ParseNodeOptions(
             FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
             return ParseResult::InvalidContent;
           }
-          node_options_.push_back(it->first + "=" +
-                                  (result ? "true" : "false"));
+
+          if (result) {
+            // If the value is true, we need to set the flag
+            node_options_.push_back(it->first);
+          }
+
           break;
         }
         // String array can allow both string and array types

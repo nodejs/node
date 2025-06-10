@@ -952,6 +952,25 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
     }
 
+    // Implicit allow entrypoint to kFileSystemRead
+    if (!options_->has_eval_string && !options_->force_repl) {
+      std::string first_argv;
+      if (argv_.size() > 1) {
+        first_argv = argv_[1];
+      }
+
+      // Also implicit allow preloaded modules to kFileSystemRead
+      if (!options_->preload_cjs_modules.empty()) {
+        for (const std::string& mod : options_->preload_cjs_modules) {
+          options_->allow_fs_read.push_back(mod);
+        }
+      }
+
+      if (first_argv != "inspect") {
+        options_->allow_fs_read.push_back(first_argv);
+      }
+    }
+
     if (!options_->allow_fs_read.empty()) {
       permission()->Apply(this,
                           options_->allow_fs_read,

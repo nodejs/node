@@ -45,9 +45,7 @@ void FreeRecursivelyNode(
     }
   }
 
-  if (node->wildcard_child != nullptr) {
-    delete node->wildcard_child;
-  }
+  delete node->wildcard_child;
   delete node;
 }
 

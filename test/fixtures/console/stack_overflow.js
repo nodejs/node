@@ -26,11 +26,15 @@ Error.stackTraceLimit = 0;
 
 console.error('before');
 
+// Invalidate elements protector to force slow-path.
+// The fast-path of JSON.stringify is iterative and won't throw.
+Array.prototype[2] = 'foo';
+
 // Trigger stack overflow by stringifying a deeply nested array.
-let array = [];
-for (let i = 0; i < 100000; i++) {
-  array = [ array ];
-}
+// eslint-disable-next-line no-sparse-arrays
+let array = [,];
+for (let i = 0; i < 10000; i++)
+  array = [array];
 
 JSON.stringify(array);
 

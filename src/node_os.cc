@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "env-inl.h"
+#include "node_debug.h"
 #include "node_external_reference.h"
 #include "string_bytes.h"
 
@@ -148,12 +149,26 @@ static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(amount);
 }
 
+static double FastGetFreeMemory(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("os.freemem");
+  return static_cast<double>(uv_get_free_memory());
+}
+
+static v8::CFunction fast_get_free_memory(
+    v8::CFunction::Make(FastGetFreeMemory));
 
 static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
   double amount = static_cast<double>(uv_get_total_memory());
   args.GetReturnValue().Set(amount);
 }
 
+double FastGetTotalMemory(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("os.totalmem");
+  return static_cast<double>(uv_get_total_memory());
+}
+
+static v8::CFunction fast_get_total_memory(
+    v8::CFunction::Make(FastGetTotalMemory));
 
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -406,6 +421,14 @@ static void GetAvailableParallelism(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(parallelism);
 }
 
+uint32_t FastGetAvailableParallelism(v8::Local<v8::Value> receiver) {
+  TRACK_V8_FAST_API_CALL("os.availableParallelism");
+  return uv_available_parallelism();
+}
+
+static v8::CFunction fast_get_available_parallelism(
+    v8::CFunction::Make(FastGetAvailableParallelism));
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -414,16 +437,21 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "getHostname", GetHostname);
   SetMethod(context, target, "getLoadAvg", GetLoadAvg);
   SetMethod(context, target, "getUptime", GetUptime);
-  SetMethod(context, target, "getTotalMem", GetTotalMemory);
-  SetMethod(context, target, "getFreeMem", GetFreeMemory);
+  SetFastMethodNoSideEffect(
+      context, target, "getTotalMem", GetTotalMemory, &fast_get_total_memory);
+  SetFastMethodNoSideEffect(
+      context, target, "getFreeMem", GetFreeMemory, &fast_get_free_memory);
   SetMethod(context, target, "getCPUs", GetCPUInfo);
   SetMethod(context, target, "getInterfaceAddresses", GetInterfaceAddresses);
   SetMethod(context, target, "getHomeDirectory", GetHomeDirectory);
   SetMethod(context, target, "getUserInfo", GetUserInfo);
   SetMethod(context, target, "setPriority", SetPriority);
   SetMethod(context, target, "getPriority", GetPriority);
-  SetMethod(
-      context, target, "getAvailableParallelism", GetAvailableParallelism);
+  SetFastMethodNoSideEffect(context,
+                            target,
+                            "getAvailableParallelism",
+                            GetAvailableParallelism,
+                            &fast_get_available_parallelism);
   SetMethod(context, target, "getOSInformation", GetOSInformation);
   target
       ->Set(context,
@@ -437,7 +465,11 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetLoadAvg);
   registry->Register(GetUptime);
   registry->Register(GetTotalMemory);
+  registry->Register(FastGetTotalMemory);
+  registry->Register(fast_get_total_memory.GetTypeInfo());
   registry->Register(GetFreeMemory);
+  registry->Register(FastGetFreeMemory);
+  registry->Register(fast_get_free_memory.GetTypeInfo());
   registry->Register(GetCPUInfo);
   registry->Register(GetInterfaceAddresses);
   registry->Register(GetHomeDirectory);
@@ -445,6 +477,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetPriority);
   registry->Register(GetPriority);
   registry->Register(GetAvailableParallelism);
+  registry->Register(FastGetAvailableParallelism);
+  registry->Register(fast_get_available_parallelism.GetTypeInfo());
   registry->Register(GetOSInformation);
 }
 

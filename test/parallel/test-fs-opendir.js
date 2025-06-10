@@ -161,7 +161,7 @@ async function doAsyncIterBreakTest() {
     break;
   }
 
-  await assert.rejects(async () => dir.read(), dirclosedError);
+  await assert.rejects(dir.read(), dirclosedError);
 }
 doAsyncIterBreakTest().then(common.mustCall());
 
@@ -173,7 +173,7 @@ async function doAsyncIterReturnTest() {
     }
   })();
 
-  await assert.rejects(async () => dir.read(), dirclosedError);
+  await assert.rejects(dir.read(), dirclosedError);
 }
 doAsyncIterReturnTest().then(common.mustCall());
 
@@ -189,7 +189,7 @@ async function doAsyncIterThrowTest() {
     }
   }
 
-  await assert.rejects(async () => dir.read(), dirclosedError);
+  await assert.rejects(dir.read(), dirclosedError);
 }
 doAsyncIterThrowTest().then(common.mustCall());
 

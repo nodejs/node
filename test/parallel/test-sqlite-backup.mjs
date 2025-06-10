@@ -1,9 +1,10 @@
-import '../common/index.mjs';
+import { skipIfSQLiteMissing } from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'node:path';
-import { backup, DatabaseSync } from 'node:sqlite';
 import { describe, test } from 'node:test';
 import { writeFileSync } from 'node:fs';
+skipIfSQLiteMissing();
+const { backup, DatabaseSync } = await import('node:sqlite');
 
 let cnt = 0;
 
@@ -233,4 +234,9 @@ test('backup fails when destination cannot be opened', async (t) => {
   }, {
     message: 'unable to open database file'
   });
+});
+
+test('backup has correct name and length', (t) => {
+  t.assert.strictEqual(backup.name, 'backup');
+  t.assert.strictEqual(backup.length, 2);
 });

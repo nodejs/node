@@ -55,7 +55,6 @@ namespace node {
   V(acorn)                                                                     \
   V(simdjson)                                                                  \
   V(simdutf)                                                                   \
-  V(sqlite)                                                                    \
   V(ada)                                                                       \
   V(nbytes)                                                                    \
   NODE_VERSIONS_KEY_AMARO(V)                                                   \
@@ -86,11 +85,18 @@ namespace node {
 #define NODE_VERSIONS_KEY_QUIC(V)
 #endif
 
+#if HAVE_SQLITE
+#define NODE_VERSIONS_KEY_SQLITE(V) V(sqlite)
+#else
+#define NODE_VERSIONS_KEY_SQLITE(V)
+#endif
+
 #define NODE_VERSIONS_KEYS(V)                                                  \
   NODE_VERSIONS_KEYS_BASE(V)                                                   \
   NODE_VERSIONS_KEY_CRYPTO(V)                                                  \
   NODE_VERSIONS_KEY_INTL(V)                                                    \
-  NODE_VERSIONS_KEY_QUIC(V)
+  NODE_VERSIONS_KEY_QUIC(V)                                                    \
+  NODE_VERSIONS_KEY_SQLITE(V)
 
 class Metadata {
  public:

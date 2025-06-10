@@ -615,7 +615,6 @@ Allowed flush values.
 * `zlib.constants.Z_FULL_FLUSH`
 * `zlib.constants.Z_FINISH`
 * `zlib.constants.Z_BLOCK`
-* `zlib.constants.Z_TREES`
 
 Return codes for the compression/decompression functions. Negative
 values are errors, positive values are used for special but normal
@@ -832,6 +831,7 @@ Each Brotli-based class takes an `options` object. All options are optional.
 * `params` {Object} Key-value object containing indexed [Brotli parameters][].
 * `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
+* `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
 
 For example:
 
@@ -854,6 +854,8 @@ added:
  - v10.16.0
 -->
 
+* Extends: [`ZlibBase`][]
+
 Compress data using the Brotli algorithm.
 
 ## Class: `zlib.BrotliDecompress`
@@ -864,6 +866,8 @@ added:
  - v10.16.0
 -->
 
+* Extends: [`ZlibBase`][]
+
 Decompress data using the Brotli algorithm.
 
 ## Class: `zlib.Deflate`
@@ -872,6 +876,8 @@ Decompress data using the Brotli algorithm.
 added: v0.5.8
 -->
 
+* Extends: [`ZlibBase`][]
+
 Compress data using deflate.
 
 ## Class: `zlib.DeflateRaw`
@@ -879,6 +885,8 @@ Compress data using deflate.
 <!-- YAML
 added: v0.5.8
 -->
+
+* Extends: [`ZlibBase`][]
 
 Compress data using deflate, and do not append a `zlib` header.
 
@@ -899,6 +907,8 @@ changes:
     description: A truncated input stream will now result in an `'error'` event.
 -->
 
+* Extends: [`ZlibBase`][]
+
 Decompress a gzip stream.
 
 ## Class: `zlib.Gzip`
@@ -906,6 +916,8 @@ Decompress a gzip stream.
 <!-- YAML
 added: v0.5.8
 -->
+
+* Extends: [`ZlibBase`][]
 
 Compress data using gzip.
 
@@ -918,6 +930,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/2595
     description: A truncated input stream will now result in an `'error'` event.
 -->
+
+* Extends: [`ZlibBase`][]
 
 Decompress a deflate stream.
 
@@ -934,6 +948,8 @@ changes:
     description: A truncated input stream will now result in an `'error'` event.
 -->
 
+* Extends: [`ZlibBase`][]
+
 Decompress a raw deflate stream.
 
 ## Class: `zlib.Unzip`
@@ -941,6 +957,8 @@ Decompress a raw deflate stream.
 <!-- YAML
 added: v0.5.8
 -->
+
+* Extends: [`ZlibBase`][]
 
 Decompress either a Gzip- or Deflate-compressed stream by auto-detecting
 the header.
@@ -956,6 +974,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/24939
     description: This class was renamed from `Zlib` to `ZlibBase`.
 -->
+
+* Extends: [`stream.Transform`][]
 
 Not exported by the `node:zlib` module. It is documented here because it is the
 base class of the compressor/decompressor classes.
@@ -1061,6 +1081,7 @@ Each Zstd-based class takes an `options` object. All options are optional.
 * `params` {Object} Key-value object containing indexed [Zstd parameters][].
 * `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
+* `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
 
 For example:
 
@@ -1701,6 +1722,7 @@ Decompress a chunk of data with [`ZstdDecompress`][].
 [`InflateRaw`]: #class-zlibinflateraw
 [`Inflate`]: #class-zlibinflate
 [`Unzip`]: #class-zlibunzip
+[`ZlibBase`]: #class-zlibzlibbase
 [`ZstdCompress`]: #class-zlibzstdcompress
 [`ZstdDecompress`]: #class-zlibzstddecompress
 [`buffer.kMaxLength`]: buffer.md#bufferkmaxlength

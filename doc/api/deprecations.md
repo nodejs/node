@@ -2863,12 +2863,15 @@ upon `require('node:module').builtinModules`.
 
 <!-- YAML
 changes:
+  - version: v15.0.0
+    pr-url: https://github.com/nodejs/node/pull/33105
+    description: End-of-Life.
   - version: v14.5.0
     pr-url: https://github.com/nodejs/node/pull/33126
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 `Transform._transformState` will be removed in future versions where it is
 no longer required due to simplification of the implementation.
@@ -3766,10 +3769,92 @@ of built-in modules. This was incomplete and matched the already deprecated
 `repl._builtinLibs` ([DEP0142][]) instead it's better to rely
 upon `require('node:module').builtinModules`.
 
+### DEP0192: `require('node:_tls_common')` and `require('node:_tls_wrap')`
+
+<!-- YAML
+changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57643
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The `node:_tls_common` and `node:_tls_wrap` modules are deprecated as they should be considered
+an internal nodejs implementation rather than a public facing API, use `node:tls` instead.
+
+### DEP0193: `require('node:_stream_*')`
+
+<!-- YAML
+changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58337
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The `node:_stream_duplex`, `node:_stream_passthrough`, `node:_stream_readable`, `node:_stream_transform`,
+`node:_stream_wrap` and `node:_stream_writable` modules are deprecated as they should be considered
+an internal nodejs implementation rather than a public facing API, use `node:stream` instead.
+
+### DEP0194: HTTP/2 priority signaling
+
+<!-- YAML
+changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58313
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The support for priority signaling has been deprecated in the [RFC 9113][], and
+will be removed in future versions of Node.js.
+
+### DEP0195: Instantiating `node:http` classes without `new`
+
+<!-- YAML
+changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58518
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Instantiating classes without the `new` qualifier exported by the `node:http` module is deprecated.
+It is recommended to use the `new` qualifier instead. This applies to all http classes, such as
+`OutgoingMessage`, `IncomingMessage`, `ServerResponse` and `ClientRequest`.
+
+### DEP0196: Calling `node:child_process` functions with `options.shell` as an empty string
+
+<!-- YAML
+changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58564
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Calling the process-spawning functions with `{ shell: '' }` is almost certainly
+unintentional, and can cause aberrant behavior.
+
+To make [`child_process.execFile`][] or [`child_process.spawn`][] invoke the
+default shell, use `{ shell: true }`. If the intention is not to invoke a shell
+(default behavior), either omit the `shell` option, or set it to `false` or a
+nullish value.
+
+To make [`child_process.exec`][] invoke the default shell, either omit the
+`shell` option, or set it to a nullish value. If the intention is not to invoke
+a shell, use [`child_process.execFile`][] instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
+[RFC 9113]: https://datatracker.ietf.org/doc/html/rfc9113#section-5.3.1
 [WHATWG URL API]: url.md#the-whatwg-url-api
 [`"exports"` or `"main"` entry]: packages.md#main-entry-point-export
 [`'uncaughtException'`]: process.md#event-uncaughtexception
@@ -3796,6 +3881,7 @@ upon `require('node:module').builtinModules`.
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
 [`buffer.subarray`]: buffer.md#bufsubarraystart-end
 [`child_process.execFile`]: child_process.md#child_processexecfilefile-args-options-callback
+[`child_process.exec`]: child_process.md#child_processexeccommand-options-callback
 [`child_process.spawn`]: child_process.md#child_processspawncommand-args-options
 [`child_process`]: child_process.md
 [`clearInterval()`]: timers.md#clearintervaltimeout

@@ -78,7 +78,9 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_FS_CP_EINVAL, Error)                                                   \
   V(ERR_FS_CP_DIR_TO_NON_DIR, Error)                                           \
   V(ERR_FS_CP_NON_DIR_TO_DIR, Error)                                           \
+  V(ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY, Error)                                  \
   V(ERR_FS_EISDIR, Error)                                                      \
+  V(ERR_FS_CP_EEXIST, Error)                                                   \
   V(ERR_FS_CP_SOCKET, Error)                                                   \
   V(ERR_FS_CP_FIFO_PIPE, Error)                                                \
   V(ERR_FS_CP_UNKNOWN, Error)                                                  \

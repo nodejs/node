@@ -373,7 +373,10 @@ class CustomAggregate {
       result = Local<Value>::New(isolate, agg->value);
     }
 
-    JSValueToSQLiteResult(isolate, ctx, result);
+    if (!result.IsEmpty()) {
+      JSValueToSQLiteResult(isolate, ctx, result);
+    }
+
     if (is_final) {
       DestroyAggregateData(ctx);
     }
@@ -2687,9 +2690,11 @@ static void Initialize(Local<Object> target,
 
   Local<Function> backup_function;
 
-  if (!Function::New(context, Backup).ToLocal(&backup_function)) {
+  if (!Function::New(context, Backup, Local<Value>(), 2)
+           .ToLocal(&backup_function)) {
     return;
   }
+  backup_function->SetName(env->backup_string());
 
   target->Set(context, env->backup_string(), backup_function).Check();
 }

@@ -1040,7 +1040,7 @@ void DefineCryptoConstants(Local<Object> target) {
 #endif
 }
 
-void DefineSystemConstants(Local<Object> target) {
+void DefineFsConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_DIR);
   NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_JUNCTION);
   // file access modes
@@ -1057,10 +1057,6 @@ void DefineSystemConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, UV_DIRENT_SOCKET);
   NODE_DEFINE_CONSTANT(target, UV_DIRENT_CHAR);
   NODE_DEFINE_CONSTANT(target, UV_DIRENT_BLOCK);
-
-  // Define module specific constants
-  NODE_DEFINE_CONSTANT(target, EXTENSIONLESS_FORMAT_JAVASCRIPT);
-  NODE_DEFINE_CONSTANT(target, EXTENSIONLESS_FORMAT_WASM);
 
   NODE_DEFINE_CONSTANT(target, S_IFMT);
   NODE_DEFINE_CONSTANT(target, S_IFREG);
@@ -1249,6 +1245,12 @@ void DefineDLOpenConstants(Local<Object> target) {
 #endif
 }
 
+void DefineInternalConstants(Local<Object> target) {
+  // Define module specific constants
+  NODE_DEFINE_CONSTANT(target, EXTENSIONLESS_FORMAT_JAVASCRIPT);
+  NODE_DEFINE_CONSTANT(target, EXTENSIONLESS_FORMAT_WASM);
+}
+
 void DefineTraceConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_BEGIN);
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_END);
@@ -1323,15 +1325,20 @@ void CreatePerContextProperties(Local<Object> target,
   CHECK(trace_constants->SetPrototype(env->context(),
                                       Null(env->isolate())).FromJust());
 
+  Local<Object> internal_constants = Object::New(isolate);
+  CHECK(internal_constants->SetPrototype(env->context(),
+                                         Null(env->isolate())).FromJust());
+
   DefineErrnoConstants(err_constants);
   DefineWindowsErrorConstants(err_constants);
   DefineSignalConstants(sig_constants);
   DefinePriorityConstants(priority_constants);
-  DefineSystemConstants(fs_constants);
+  DefineFsConstants(fs_constants);
   DefineCryptoConstants(crypto_constants);
   DefineZlibConstants(zlib_constants);
   DefineDLOpenConstants(dlopen_constants);
   DefineTraceConstants(trace_constants);
+  DefineInternalConstants(internal_constants);
 
   // Define libuv constants.
   NODE_DEFINE_CONSTANT(os_constants, UV_UDP_REUSEADDR);
@@ -1376,6 +1383,11 @@ void CreatePerContextProperties(Local<Object> target,
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(isolate, "trace"),
             trace_constants)
+      .Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "internal"),
+            internal_constants)
       .Check();
 }
 

@@ -1071,9 +1071,14 @@ The `'origin'` event is only emitted when using a secure TLS connection.
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58313
+    description: Following the deprecation of priority signaling as of RFC 1993,
+                 `weight` option is deprecated.
 -->
 
-* `headers` {HTTP/2 Headers Object}
+* `headers` {HTTP/2 Headers Object} | {Array}
 
 * `options` {Object}
   * `endStream` {boolean} `true` if the `Http2Stream` _writable_ side should
@@ -1087,7 +1092,8 @@ added: v8.4.0
     created stream is dependent on.
   * `weight` {number} Specifies the relative dependency of a stream in relation
     to other streams with the same `parent`. The value is a number between `1`
-    and `256` (inclusive).
+    and `256` (inclusive). This has been **deprecated** in [RFC 9113][], and
+    support for it will be removed in future versions of Node.js.
   * `waitForTrailers` {boolean} When `true`, the `Http2Stream` will emit the
     `'wantTrailers'` event after the final `DATA` frame has been sent.
   * `signal` {AbortSignal} An AbortSignal that may be used to abort an ongoing
@@ -1457,7 +1463,11 @@ numeric stream identifier.
 
 <!-- YAML
 added: v8.4.0
+deprecated: v22.17.0
 -->
+
+> Stability: 0 - Deprecated: support for priority signaling has been deprecated
+> in the [RFC 9113][] and is no longer supported in Node.js.
 
 * `options` {Object}
   * `exclusive` {boolean} When `true` and `parent` identifies a parent Stream,
@@ -1568,6 +1578,11 @@ req.setTimeout(5000, () => req.close(NGHTTP2_CANCEL));
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version: v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58313
+    description: Following the deprecation of priority signaling as of RFC 1993,
+                 `weight` and `sumDependencyWeight` options are deprecated.
 -->
 
 Provides miscellaneous information about the current state of the
@@ -1583,8 +1598,11 @@ Provides miscellaneous information about the current state of the
     remotely.
   * `sumDependencyWeight` {number} The sum weight of all `Http2Stream`
     instances that depend on this `Http2Stream` as specified using
-    `PRIORITY` frames.
-  * `weight` {number} The priority weight of this `Http2Stream`.
+    `PRIORITY` frames. This has been **deprecated** in [RFC 9113][], and
+    support for it will be removed in future versions of Node.js.
+  * `weight` {number} The priority weight of this `Http2Stream`. This has been
+    **deprecated** in [RFC 9113][], and support for it will be removed in future
+    versions of Node.js.
 
 A current state of this `Http2Stream`.
 
@@ -2898,6 +2916,10 @@ changes:
     a server should wait when an [`'unknownProtocol'`][] is emitted. If the
     socket has not been destroyed by that time the server will destroy it.
     **Default:** `10000`.
+  * `strictFieldWhitespaceValidation` {boolean} If `true`, it turns on strict leading
+    and trailing whitespace validation for HTTP/2 header field names and values
+    as per [RFC-9113](https://www.rfc-editor.org/rfc/rfc9113.html#section-8.2.1).
+    **Default:** `true`.
   * ...: Any [`net.createServer()`][] option can be provided.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2Server}
@@ -3069,6 +3091,10 @@ changes:
     a server should wait when an [`'unknownProtocol'`][] event is emitted. If
     the socket has not been destroyed by that time the server will destroy it.
     **Default:** `10000`.
+  * `strictFieldWhitespaceValidation` {boolean} If `true`, it turns on strict leading
+    and trailing whitespace validation for HTTP/2 header field names and values
+    as per [RFC-9113](https://www.rfc-editor.org/rfc/rfc9113.html#section-8.2.1).
+    **Default:** `true`.
 * `onRequestHandler` {Function} See [Compatibility API][]
 * Returns: {Http2SecureServer}
 
@@ -3224,6 +3250,10 @@ changes:
     a server should wait when an [`'unknownProtocol'`][] event is emitted. If
     the socket has not been destroyed by that time the server will destroy it.
     **Default:** `10000`.
+  * `strictFieldWhitespaceValidation` {boolean} If `true`, it turns on strict leading
+    and trailing whitespace validation for HTTP/2 header field names and values
+    as per [RFC-9113](https://www.rfc-editor.org/rfc/rfc9113.html#section-8.2.1).
+    **Default:** `true`.
 * `listener` {Function} Will be registered as a one-time listener of the
   [`'connect'`][] event.
 * Returns: {ClientHttp2Session}
@@ -4880,6 +4910,7 @@ you need to implement any fall-back behavior yourself.
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
 [RFC 8336]: https://tools.ietf.org/html/rfc8336
 [RFC 8441]: https://tools.ietf.org/html/rfc8441
+[RFC 9113]: https://datatracker.ietf.org/doc/html/rfc9113#section-5.3.1
 [Sensitive headers]: #sensitive-headers
 [`'checkContinue'`]: #event-checkcontinue
 [`'connect'`]: #event-connect

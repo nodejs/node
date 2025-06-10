@@ -22,11 +22,7 @@
 #include "uv.h"
 #include "task.h"
 
-static void connect_4(uv_connect_t* req, int status) {
-  ASSERT_NE(status, UV_EADDRNOTAVAIL);
-}
-
-static void connect_6(uv_connect_t* req, int status) {
+static void connect_cb(uv_connect_t* req, int status) {
   ASSERT_NE(status, UV_EADDRNOTAVAIL);
 }
 
@@ -46,7 +42,7 @@ TEST_IMPL(connect_unspecified) {
   ASSERT_OK(uv_tcp_connect(&connect4,
                            &socket4,
                            (const struct sockaddr*) &addr4,
-                           connect_4));
+                           connect_cb));
 
   if (can_ipv6()) {
     ASSERT_OK(uv_tcp_init(loop, &socket6));
@@ -54,7 +50,7 @@ TEST_IMPL(connect_unspecified) {
     ASSERT_OK(uv_tcp_connect(&connect6,
                              &socket6,
                              (const struct sockaddr*) &addr6,
-                             connect_6));
+                             connect_cb));
   }
 
   ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));

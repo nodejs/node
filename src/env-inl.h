@@ -805,6 +805,13 @@ inline void Environment::ThrowError(
   isolate()->ThrowException(fun(OneByteString(isolate(), errmsg), {}));
 }
 
+inline void Environment::ThrowStdErrException(std::error_code error_code,
+                                              const char* syscall,
+                                              const char* path) {
+  ThrowErrnoException(
+      error_code.value(), syscall, error_code.message().c_str(), path);
+}
+
 inline void Environment::ThrowErrnoException(int errorno,
                                              const char* syscall,
                                              const char* message,

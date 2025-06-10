@@ -1,5 +1,6 @@
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { existsSync } = require('node:fs');
 const { join } = require('node:path');
@@ -163,7 +164,7 @@ suite('DatabaseSync() constructor', () => {
       db.exec('SELECT "foo";');
     }, {
       code: 'ERR_SQLITE_ERROR',
-      message: /no such column: "foo"/,
+      message: /no such column: "?foo"?/,
     });
   });
 

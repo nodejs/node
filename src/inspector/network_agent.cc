@@ -15,6 +15,7 @@ using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
+using v8::Uint8Array;
 using v8::Value;
 
 // Get a protocol string property from the object.
@@ -168,11 +169,23 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
     return {};
   }
 
+  protocol::String mimeType;
+  if (!ObjectGetProtocolString(context, response, "mimeType").To(&mimeType)) {
+    mimeType = protocol::String("");
+  }
+
+  protocol::String charset = protocol::String();
+  if (!ObjectGetProtocolString(context, response, "charset").To(&charset)) {
+    charset = protocol::String("");
+  }
+
   return protocol::Network::Response::create()
       .setUrl(url)
       .setStatus(status)
       .setStatusText(statusText)
       .setHeaders(std::move(headers))
+      .setMimeType(mimeType)
+      .setCharset(charset)
       .build();
 }
 
@@ -183,6 +196,7 @@ NetworkAgent::NetworkAgent(NetworkInspector* inspector,
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
   event_notifier_map_["loadingFailed"] = &NetworkAgent::loadingFailed;
   event_notifier_map_["loadingFinished"] = &NetworkAgent::loadingFinished;
+  event_notifier_map_["dataReceived"] = &NetworkAgent::dataReceived;
 }
 
 void NetworkAgent::emitNotification(v8::Local<v8::Context> context,
@@ -208,6 +222,30 @@ protocol::DispatchResponse NetworkAgent::enable() {
 
 protocol::DispatchResponse NetworkAgent::disable() {
   inspector_->Disable();
+  return protocol::DispatchResponse::Success();
+}
+
+protocol::DispatchResponse NetworkAgent::streamResourceContent(
+    const protocol::String& in_requestId, protocol::Binary* out_bufferedData) {
+  if (!requests_.contains(in_requestId)) {
+    // Request not found, ignore it.
+    return protocol::DispatchResponse::InvalidParams("Request not found");
+  }
+
+  auto& it = requests_[in_requestId];
+
+  it.is_streaming = true;
+
+  // Concat response bodies.
+  *out_bufferedData = protocol::Binary::concat(it.response_data_blobs);
+  // Clear buffered data.
+  it.response_data_blobs.clear();
+
+  if (it.is_finished) {
+    // If the request is finished, remove the entry.
+    requests_.erase(in_requestId);
+  }
+
   return protocol::DispatchResponse::Success();
 }
 
@@ -247,6 +285,12 @@ void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,
                                std::move(initiator),
                                timestamp,
                                wall_time);
+
+  if (requests_.contains(request_id)) {
+    // Duplicate entry, ignore it.
+    return;
+  }
+  requests_.emplace(request_id, RequestEntry{timestamp, false, false, {}});
 }
 
 void NetworkAgent::responseReceived(v8::Local<v8::Context> context,
@@ -295,6 +339,8 @@ void NetworkAgent::loadingFailed(v8::Local<v8::Context> context,
   }
 
   frontend_->loadingFailed(request_id, timestamp, type, error_text);
+
+  requests_.erase(request_id);
 }
 
 void NetworkAgent::loadingFinished(v8::Local<v8::Context> context,
@@ -309,6 +355,63 @@ void NetworkAgent::loadingFinished(v8::Local<v8::Context> context,
   }
 
   frontend_->loadingFinished(request_id, timestamp);
+
+  auto request_entry = requests_.find(request_id);
+  if (request_entry == requests_.end()) {
+    // No entry found. Ignore it.
+    return;
+  }
+
+  if (request_entry->second.is_streaming) {
+    // Streaming finished, remove the entry.
+    requests_.erase(request_id);
+  } else {
+    request_entry->second.is_finished = true;
+  }
+}
+
+void NetworkAgent::dataReceived(v8::Local<v8::Context> context,
+                                v8::Local<v8::Object> params) {
+  protocol::String request_id;
+  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    return;
+  }
+
+  auto request_entry = requests_.find(request_id);
+  if (request_entry == requests_.end()) {
+    // No entry found. Ignore it.
+    return;
+  }
+
+  double timestamp;
+  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    return;
+  }
+  int data_length;
+  if (!ObjectGetInt(context, params, "dataLength").To(&data_length)) {
+    return;
+  }
+  int encoded_data_length;
+  if (!ObjectGetInt(context, params, "encodedDataLength")
+           .To(&encoded_data_length)) {
+    return;
+  }
+  Local<Object> data_obj;
+  if (!ObjectGetObject(context, params, "data").ToLocal(&data_obj)) {
+    return;
+  }
+  if (!data_obj->IsUint8Array()) {
+    return;
+  }
+  Local<Uint8Array> data = data_obj.As<Uint8Array>();
+  auto data_bin = protocol::Binary::fromUint8Array(data);
+
+  if (request_entry->second.is_streaming) {
+    frontend_->dataReceived(
+        request_id, timestamp, data_length, encoded_data_length, data_bin);
+  } else {
+    requests_[request_id].response_data_blobs.push_back(data_bin);
+  }
 }
 
 }  // namespace inspector

@@ -1,11 +1,11 @@
 'use strict';
-const common = require('../common');
+const { skipIfSQLiteMissing, spawnPromisified } = require('../common');
+skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const { join } = require('node:path');
 const { readdir } = require('node:fs/promises');
 const { test, describe } = require('node:test');
-const { spawnPromisified } = common;
 let cnt = 0;
 
 tmpdir.refresh();
