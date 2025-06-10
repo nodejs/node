@@ -1,10 +1,12 @@
-import { skipIfSQLiteMissing } from '../common/index.mjs';
+import { isWindows, skipIfSQLiteMissing } from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import { writeFileSync } from 'node:fs';
 skipIfSQLiteMissing();
 const { backup, DatabaseSync } = await import('node:sqlite');
+
+const isRoot = !isWindows && process.getuid() === 0;
 
 let cnt = 0;
 
@@ -180,7 +182,7 @@ test('throws exception when trying to start backup from a closed database', (t) 
   });
 });
 
-test('database backup fails when dest file is not writable', async (t) => {
+test('database backup fails when dest file is not writable', { skip: isRoot }, async (t) => {
   const readonlyDestDb = nextDb();
   writeFileSync(readonlyDestDb, '', { mode: 0o444 });
 

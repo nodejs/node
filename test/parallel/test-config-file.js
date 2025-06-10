@@ -361,7 +361,10 @@ test('should override node.config.json when specificied', async () => {
   strictEqual(result.code, 0);
 });
 // Skip on windows because it doesn't support chmod changing read permissions
-test('should throw an error when the file is non readable', { skip: common.isWindows }, async () => {
+// Also skip if user is root because it would have read permissions anyway
+test('should throw an error when the file is non readable', {
+  skip: common.isWindows || process.getuid() === 0,
+}, async () => {
   chmodSync(fixtures.path('rc/non-readable/node.config.json'), constants.O_RDONLY);
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
