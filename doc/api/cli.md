@@ -194,7 +194,9 @@ process.
 <!-- YAML
 added: v20.0.0
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58579
     description: Entrypoints of your application are allowed to be read implicitly.
   - version:
@@ -1253,6 +1255,7 @@ Enable experimental [`Web Storage`][] support.
 <!-- YAML
 added:
   - v24.1.0
+  - v22.17.0
 -->
 
 > Stability: 1.1 - Active Development

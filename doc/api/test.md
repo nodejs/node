@@ -2290,6 +2290,7 @@ added:
 changes:
   - version:
     - v24.0.0
+    - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58007
     description: Support JSON modules.
 -->

@@ -2186,7 +2186,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57627
     description: Invalid dates are now considered equal.
-  - version: v24.0.0
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57370
     description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
 -->

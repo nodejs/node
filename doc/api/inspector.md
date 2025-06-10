@@ -514,7 +514,9 @@ inspector.Network.requestWillBeSent({
 ### `inspector.Network.dataReceived([params])`
 
 <!-- YAML
-added: v24.2.0
+added:
+ - v24.2.0
+ - v22.17.0
 -->
 
 * `params` {Object}

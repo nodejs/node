@@ -3953,7 +3953,9 @@ upon `require('node:module').builtinModules`.
 
 <!-- YAML
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57643
     description: Runtime deprecation.
 -->
@@ -3967,7 +3969,9 @@ an internal nodejs implementation rather than a public facing API, use `node:tls
 
 <!-- YAML
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58337
     description: Runtime deprecation.
 -->
@@ -3985,7 +3989,9 @@ changes:
   - version: v24.2.0
     pr-url: https://github.com/nodejs/node/pull/58293
     description: End-of-Life.
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Documentation-only deprecation.
 -->
@@ -3998,7 +4004,9 @@ The support for priority signaling has been removed following its deprecation in
 
 <!-- YAML
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58518
     description: Documentation-only deprecation.
 -->
@@ -4013,7 +4021,9 @@ It is recommended to use the `new` qualifier instead. This applies to all http c
 
 <!-- YAML
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58564
     description: Documentation-only deprecation.
 -->
