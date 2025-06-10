@@ -2,6 +2,10 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('no crypto');
+}
+
 const wsUrl = 'ws://nodejs.org';
 
 const ws = new WebSocket(wsUrl);

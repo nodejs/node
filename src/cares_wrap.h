@@ -274,7 +274,7 @@ class QueryWrap final : public AsyncWrap {
                       nullptr);
   }
 
-  SET_INSUFFICIENT_PERMISSION_ERROR_CALLBACK(permission::PermissionScope::kNet);
+  SET_INSUFFICIENT_PERMISSION_ERROR_CALLBACK(permission::PermissionScope::kNet)
 
   void ParseError(int status) {
     CHECK_NE(status, ARES_SUCCESS);
