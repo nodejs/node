@@ -82,7 +82,7 @@ exclusive ownership of the object. A disposable object can become disposed
 at any time.
 
 The `Symbol.dispose` and `Symbol.asyncDispose` methods are called in both
-successful and exceptional exits from the scopes in which the using keyword
+successful and exceptional exits from the scopes in which the `using` keyword
 is used. This means that if an exception is thrown within the scope, the
 disposal methods will still be called. However, when the disposal methods are
 called they are not aware of the context. These methods will not receive any
@@ -144,7 +144,10 @@ A disposable object can be quite simple:
 
 ```js
 class MyResource {
+  #disposed = false;
   dispose() {
+    if (this.#disposed) return;
+    this.#disposed = true;
     console.log('Resource disposed');
   }
 
@@ -399,5 +402,3 @@ class MyDisposable {
 Because of this, it is important to consider the possible relationships
 between disposable objects. For example, if one disposable object holds a
 reference to another disposable object the cleanup order may be important.
-If disposers are properly idempotent, however, this should not cause any
-issue, but it still requires careful consideration.
