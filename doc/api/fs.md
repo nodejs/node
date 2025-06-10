@@ -1312,10 +1312,6 @@ characters directly to the `prefix` string. For instance, given a directory
 
 <!-- YAML
 added: REPLACEME
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/58516
-    description: Initial version.
 -->
 
 * `prefix` {string|Buffer|URL}
@@ -5939,10 +5935,6 @@ object with an `encoding` property specifying the character encoding to use.
 
 <!-- YAML
 added: REPLACEME
-changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/58516
-    description: Initial version.
 -->
 
 * `prefix` {string|Buffer|URL}
