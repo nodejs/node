@@ -3201,6 +3201,8 @@ changes:
       If no value is provided, the size will be `1` for all the chunks.
       * `chunk` {any}
       * Returns: {number}
+  * `type` {string} Must be 'bytes' or undefined.
+    If `type` is set to 'bytes', the `strategy` option is ignored
 * Returns: {ReadableStream}
 
 ### `stream.Writable.fromWeb(writableStream[, options])`
@@ -3374,7 +3376,7 @@ duplex.write('hello');
 duplex.once('readable', () => console.log('readable', duplex.read()));
 ```
 
-### `stream.Duplex.toWeb(streamDuplex)`
+### `stream.Duplex.toWeb(streamDuplex[, options])`
 
 <!-- YAML
 added: v17.0.0
@@ -3387,6 +3389,8 @@ changes:
 -->
 
 * `streamDuplex` {stream.Duplex}
+* `options` {Object}
+  * `type` {string}
 * Returns: {Object}
   * `readable` {ReadableStream}
   * `writable` {WritableStream}
