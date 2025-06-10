@@ -1365,6 +1365,13 @@ Path is a directory.
 An attempt has been made to read a file whose size is larger than the maximum
 allowed size for a `Buffer`.
 
+<a id="ERR_FS_WATCH_QUEUE_OVERFLOW"></a>
+
+### `ERR_FS_WATCH_QUEUE_OVERFLOW`
+
+The number of file system events queued without being handled exceeded the size specified in
+`maxQueue` in `fs.watch()`.
+
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
 ### `ERR_HTTP2_ALTSVC_INVALID_ORIGIN`
