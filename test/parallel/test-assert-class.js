@@ -13,6 +13,17 @@ if (process.stdout.isTTY) {
   process.env.NODE_DISABLE_COLORS = '1';
 }
 
+test('Assert constructor requires new', () => {
+  assert.throws(
+    () => Assert(),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+      message: /Assert/,
+    }
+  );
+});
+
 test('Assert class basic instance', () => {
   const assertInstance = new Assert();
 
