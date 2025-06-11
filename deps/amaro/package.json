@@ -1,6 +1,6 @@
 {
 	"name": "amaro",
-	"version": "0.5.3",
+	"version": "1.0.0",
 	"description": "Node.js TypeScript wrapper",
 	"license": "MIT",
 	"type": "commonjs",
@@ -37,7 +37,6 @@
 	},
 	"exports": {
 		".": "./dist/index.js",
-		"./register": "./dist/register-strip.mjs",
 		"./strip": "./dist/register-strip.mjs",
 		"./transform": "./dist/register-transform.mjs"
 	},

@@ -8,7 +8,7 @@ const http2 = require('http2');
 
 common.expectWarning(
   'DeprecationWarning',
-  'Priority signaling has been deprecated as of RFC 1993.',
+  'Priority signaling has been deprecated as of RFC 9113.',
   'DEP0194');
 
 const checkWeight = (actual, expect) => {
