@@ -23,7 +23,7 @@ export default [
         },
       ],
 
-      // Typescript rules
+      // TypeScript rules
       '@typescript-eslint/no-unused-expressions': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
       // Removed since it is used on how not to use examples.
