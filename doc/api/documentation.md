@@ -36,9 +36,11 @@ The stability indexes are as follows:
 > Experimental features are subdivided into stages:
 >
 > * 1.0 - Early development. Experimental features at this stage are unfinished
->   and subject to substantial change.
+>   and subject to substantial change. APIs may be incomplete, inconsistent, or have
+>   significant breaking changes between releases.
 > * 1.1 - Active development. Experimental features at this stage are nearing
->   minimum viability.
+>   minimum viability. The core functionality is implemented but may still undergo
+>   refinement. Some breaking changes could still occur.
 > * 1.2 - Release candidate. Experimental features at this stage are hopefully
 >   ready to become stable. No further breaking changes are anticipated but may
 >   still occur in response to user feedback. We encourage user testing and
@@ -72,7 +74,20 @@ a command-line flag. Experimental features may also emit a [warning][].
 ## Stability overview
 
 <!-- STABILITY_OVERVIEW_SLOT_BEGIN -->
+API stability is a measure of how likely it is that a given feature might change in the future. Each API is labeled with a stability index that indicates its current status. You can find stability information:
 
+1. At the top of each API documentation page
+2. Within individual method and class descriptions
+3. In tables listing API properties and methods
+
+Pay close attention to "Stability: 0 - Deprecated" and "Stability: 1 - Experimental" labels when building production applications. For production environments:
+
+* Avoid using deprecated APIs as they will be removed in future versions
+* Use experimental APIs with caution and have contingency plans for breaking changes
+* Prefer stable APIs (Stability: 2) for critical application components
+* Consider providing feedback on experimental APIs to help improve them
+
+The stability index helps you make informed decisions about which Node.js features to depend on in your projects.
 <!-- STABILITY_OVERVIEW_SLOT_END -->
 
 ## JSON output
@@ -82,7 +97,16 @@ added: v0.6.12
 -->
 
 Every `.html` document has a corresponding `.json` document. This is for IDEs
-and other utilities that consume the documentation.
+and other utilities that consume the documentation. The JSON format contains the same 
+information as the HTML documentation but structured in a machine-readable format that 
+enables:
+
+* Automated documentation tooling
+* Integration with code editors for inline documentation
+* Third-party documentation viewers and search tools
+* Custom documentation processing pipelines
+
+The JSON files are generated automatically during the documentation build process.
 
 ## System calls and man pages
 
