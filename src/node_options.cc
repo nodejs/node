@@ -564,6 +564,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_webstorage,
             kAllowedInEnvvar,
             true);
+  AddAlias("--webstorage", "--experimental-webstorage");
   AddOption("--localstorage-file",
             "file used to persist localStorage data",
             &EnvironmentOptions::localstorage_file,
