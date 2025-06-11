@@ -154,7 +154,7 @@ test('should throw at unknown flag', async () => {
     fixtures.path('rc/unknown-flag.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Unknown or not allowed option some-unknown-flag/);
+  match(result.stderr, /Unknown or not allowed option some-unknown-flag for namespace nodeOptions/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 9);
 });
@@ -166,7 +166,7 @@ test('should throw at flag not available in NODE_OPTIONS', async () => {
     fixtures.path('rc/not-node-options-flag.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Unknown or not allowed option test/);
+  match(result.stderr, /Unknown or not allowed option test for namespace nodeOptions/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 9);
 });
@@ -398,7 +398,7 @@ describe('namespace-scoped options', () => {
       fixtures.path('rc/unknown-flag-namespace.json'),
       '-p', '"Hello, World!"',
     ]);
-    match(result.stderr, /Unknown or not allowed option unknown-flag/);
+    match(result.stderr, /Unknown or not allowed option unknown-flag for namespace testRunner/);
     strictEqual(result.stdout, '');
     strictEqual(result.code, 9);
   });
