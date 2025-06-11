@@ -98,10 +98,6 @@
     'gcmole%': 0,
   },
   'target_defaults': {
-    'include_dirs': [
-      '<(V8_ROOT)',
-      '<(V8_ROOT)/include',
-    ],
     'cflags!': ['-Wall', '-Wextra'],
     'conditions': [
       ['clang==0 and OS!="win"', {
