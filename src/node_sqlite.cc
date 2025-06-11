@@ -950,6 +950,22 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       allow_load_extension = allow_extension_v.As<Boolean>()->Value();
     }
 
+    Local<String> read_bigints_string =
+        FIXED_ONE_BYTE_STRING(env->isolate(), "readBigInts");
+    Local<Value> read_bigints_v;
+    if (options->Get(env->context(), read_bigints_string)
+            .ToLocal(&read_bigints_v)) {
+      if (!read_bigints_v->IsUndefined()) {
+        if (!read_bigints_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              "The \"options.readBigInts\" argument must be a boolean.");
+          return;
+        }
+        open_config.set_use_big_ints(read_bigints_v.As<Boolean>()->Value());
+      }
+    }
+
     Local<Value> timeout_v;
     if (!options->Get(env->context(), env->timeout_string())
              .ToLocal(&timeout_v)) {
@@ -1772,10 +1788,10 @@ StatementSync::StatementSync(Environment* env,
     : BaseObject(env, object), db_(std::move(db)) {
   MakeWeak();
   statement_ = stmt;
+  use_big_ints_ = db_->use_big_ints();
   // In the future, some of these options could be set at the database
   // connection level and inherited by statements to reduce boilerplate.
   return_arrays_ = false;
-  use_big_ints_ = false;
   allow_bare_named_params_ = true;
   allow_unknown_named_params_ = false;
   bare_named_params_ = std::nullopt;

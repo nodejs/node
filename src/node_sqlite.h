@@ -39,12 +39,17 @@ class DatabaseOpenConfiguration {
 
   inline int get_timeout() { return timeout_; }
 
+  inline void set_use_big_ints(bool flag) { use_big_ints_ = flag; }
+
+  inline bool get_use_big_ints() const { return use_big_ints_; }
+
  private:
   std::string location_;
   bool read_only_ = false;
   bool enable_foreign_keys_ = true;
   bool enable_dqs_ = false;
   int timeout_ = 0;
+  bool use_big_ints_ = false;
 };
 
 class StatementSync;
@@ -82,6 +87,7 @@ class DatabaseSync : public BaseObject {
   void FinalizeBackups();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
+  bool use_big_ints() const { return open_config_.get_use_big_ints(); }
   sqlite3* Connection();
 
   // In some situations, such as when using custom functions, it is possible

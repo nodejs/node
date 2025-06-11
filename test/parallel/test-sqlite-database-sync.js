@@ -174,6 +174,61 @@ suite('DatabaseSync() constructor', () => {
     t.after(() => { db.close(); });
     db.exec('SELECT "foo";');
   });
+
+  test('throws if options.readBigInts is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { readBigInts: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.readBigInts" argument must be a boolean/,
+    });
+  });
+
+  test('allows reading big integers', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { readBigInts: true });
+    t.after(() => { db.close(); });
+
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 42);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT val FROM data');
+    t.assert.strictEqual(query.setReadBigInts(true), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42n });
+
+    const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
+    t.assert.strictEqual(insert.setReadBigInts(true), undefined);
+    t.assert.deepStrictEqual(
+      insert.run(20),
+      { changes: 1n, lastInsertRowid: 20n },
+    );
+  });
+
+  test('allows reading numbers', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { readBigInts: false });
+    t.after(() => { db.close(); });
+
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 42);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT val FROM data');
+    t.assert.strictEqual(query.setReadBigInts(false), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42 });
+
+    const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
+    t.assert.strictEqual(insert.setReadBigInts(false), undefined);
+    t.assert.deepStrictEqual(
+      insert.run(20),
+      { changes: 1, lastInsertRowid: 20 },
+    );
+  });
 });
 
 suite('DatabaseSync.prototype.open()', () => {
