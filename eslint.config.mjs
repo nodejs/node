@@ -416,7 +416,7 @@ export default [
       ],
     },
   },
-  // #region Typescript rules
+  // #region TypeScript rules
   {
 
     files: ['**/*.{ts,mts,cts}'],
