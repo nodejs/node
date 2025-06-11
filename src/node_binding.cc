@@ -97,6 +97,12 @@
   V(worker)                                                                    \
   V(zlib)
 
+#define NODE_BUILTIN_OS_SPECIFIC_BINDINGS(V)
+
+#ifdef _WIN32
+#define NODE_BUILTIN_OS_SPECIFIC_BINDINGS(V) V(code_integrity)
+#endif
+
 #define NODE_BUILTIN_BINDINGS(V)                                               \
   NODE_BUILTIN_STANDARD_BINDINGS(V)                                            \
   NODE_BUILTIN_OPENSSL_BINDINGS(V)                                             \
@@ -104,7 +110,8 @@
   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
   NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
   NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
-  NODE_BUILTIN_SQLITE_BINDINGS(V)
+  NODE_BUILTIN_SQLITE_BINDINGS(V)                                              \
+  NODE_BUILTIN_OS_SPECIFIC_BINDINGS(V)
 
 // This is used to load built-in bindings. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>
