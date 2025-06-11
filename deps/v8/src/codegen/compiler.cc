@@ -56,6 +56,7 @@
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects-body-descriptors-inl.h"
+#include "src/objects/objects.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/parsing/parse-info.h"
@@ -746,7 +747,7 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
 #if V8_ENABLE_WEBASSEMBLY
     DCHECK(compilation_info->has_asm_wasm_data());
     // We should only have asm/wasm data when finalizing on the main thread.
-    DCHECK((std::is_same<IsolateT, Isolate>::value));
+    DCHECK((std::is_same_v<IsolateT, Isolate>));
     shared_info->set_asm_wasm_data(*compilation_info->asm_wasm_data());
     shared_info->set_feedback_metadata(
         ReadOnlyRoots(isolate).empty_feedback_metadata(), kReleaseStore);
@@ -820,7 +821,7 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
         job->time_taken_to_finalize());
   }
   DCHECK_IMPLIES(status == CompilationJob::RETRY_ON_MAIN_THREAD,
-                 (std::is_same<IsolateT, LocalIsolate>::value));
+                 (std::is_same_v<IsolateT, LocalIsolate>));
   return status;
 }
 
@@ -922,7 +923,7 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
 
       case CompilationJob::RETRY_ON_MAIN_THREAD:
         // This should not happen on the main thread.
-        DCHECK((!std::is_same<IsolateT, Isolate>::value));
+        DCHECK((!std::is_same_v<IsolateT, Isolate>));
         DCHECK_NOT_NULL(jobs_to_retry_finalization_on_main_thread);
 
         // Clear the literal and ParseInfo to prevent further attempts to
@@ -998,7 +999,8 @@ class OptimizedCodeCache : public AllStatic {
       // Bytecode may be different, so make sure we're at a valid OSR entry.
       SBXCHECK(it.CurrentBytecodeIsValidOSREntry());
       std::optional<Tagged<Code>> maybe_code =
-          feedback_vector->GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
+          feedback_vector->GetOptimizedOsrCode(isolate, bytecode,
+                                               it.GetSlotOperand(2));
       if (maybe_code.has_value()) code = maybe_code.value();
     } else {
 #ifdef V8_ENABLE_LEAPTIERING
@@ -1382,9 +1384,7 @@ MaybeHandle<Code> GetOrCompileOptimized(
     }
   }
 
-  // TODO(v8:7700): Distinguish between Maglev and Turbofan.
-  if (shared->optimization_disabled() &&
-      shared->disabled_optimization_reason() == BailoutReason::kNeverOptimize) {
+  if (shared->optimization_disabled(CodeKind::MAGLEV)) {
     return {};
   }
 
@@ -1584,7 +1584,7 @@ Handle<SharedFunctionInfo> GetOrCreateTopLevelSharedFunctionInfo(
   MaybeHandle<SharedFunctionInfo> maybe_shared =
       Script::FindSharedFunctionInfo(script, isolate, parse_info->literal());
   if (Handle<SharedFunctionInfo> shared; maybe_shared.ToHandle(&shared)) {
-    DCHECK_EQ(shared->function_literal_id(),
+    DCHECK_EQ(shared->function_literal_id(kRelaxedLoad),
               parse_info->literal()->function_literal_id());
     *is_compiled_scope = shared->is_compiled_scope(isolate);
     return shared;
@@ -1748,7 +1748,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       compilation_details_(nullptr),
       start_position_(shared_info->StartPosition()),
       end_position_(shared_info->EndPosition()),
-      function_literal_id_(shared_info->function_literal_id()) {
+      function_literal_id_(shared_info->function_literal_id(kRelaxedLoad)) {
   DCHECK(!shared_info->is_toplevel());
   DCHECK(!is_streaming_compilation());
 
@@ -2233,7 +2233,7 @@ class ConstantPoolPointerForwarder {
   void VisitSharedFunctionInfo(Tagged<TArray> constant_pool, int i,
                                Tagged<SharedFunctionInfo> sfi) {
     Tagged<MaybeObject> maybe_old_sfi =
-        old_script_->infos()->get(sfi->function_literal_id());
+        old_script_->infos()->get(sfi->function_literal_id(kRelaxedLoad));
     if (maybe_old_sfi.IsWeak()) {
       constant_pool->set(
           i, Cast<SharedFunctionInfo>(maybe_old_sfi.GetHeapObjectAssumeWeak()));
@@ -2346,7 +2346,7 @@ void VerifyCodeMerge(Isolate* isolate, DirectHandle<Script> script) {
           if (Is<SharedFunctionInfo>(entry)) {
             Tagged<SharedFunctionInfo> inner_sfi =
                 Cast<SharedFunctionInfo>(entry);
-            int id = inner_sfi->function_literal_id();
+            int id = inner_sfi->function_literal_id(kRelaxedLoad);
             CHECK_EQ(MakeWeak(inner_sfi), script->infos()->get(id));
             CHECK_EQ(inner_sfi->script(), *script);
           }
@@ -3284,9 +3284,22 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
   CompilationCache* compilation_cache = isolate->compilation_cache();
   InfoCellPair eval_result = compilation_cache->LookupEval(
       source, outer_info, context, language_mode, eval_cache_position);
-  DirectHandle<FeedbackCell> feedback_cell;
-  if (eval_result.has_feedback_cell()) {
-    feedback_cell = direct_handle(eval_result.feedback_cell(), isolate);
+  if (eval_result.has_js_function()) {
+    DirectHandle<JSFunction> result =
+        direct_handle(eval_result.js_function(), isolate);
+    if (v8_flags.reuse_scope_infos) {
+      CHECK_EQ(result->context()->scope_info(), context->scope_info());
+    }
+    Tagged<FeedbackCell> feedback_cell = result->raw_feedback_cell();
+    FeedbackCell::ClosureCountTransition cell_transition =
+        feedback_cell->IncrementClosureCount(isolate);
+    if (cell_transition == FeedbackCell::kOneToMany &&
+        result->code(isolate)->is_context_specialized()) {
+      result->UpdateCode(isolate,
+                         *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+    }
+    result->set_context(*context, kReleaseStore);
+    return result;
   }
 
   DirectHandle<SharedFunctionInfo> shared_info;
@@ -3358,27 +3371,19 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
 
   DirectHandle<JSFunction> result;
   if (eval_result.has_shared()) {
-    if (eval_result.has_feedback_cell()) {
-      result = Factory::JSFunctionBuilder{isolate, shared_info, context}
-                   .set_feedback_cell(feedback_cell)
-                   .set_allocation_type(AllocationType::kYoung)
-                   .Build();
-    } else {
-      result = Factory::JSFunctionBuilder{isolate, shared_info, context}
-                   .set_allocation_type(AllocationType::kYoung)
-                   .Build();
-      // TODO(mythria): I don't think we need this here. PostInstantiation
-      // already initializes feedback cell.
-      JSFunction::InitializeFeedbackCell(isolate, result, &is_compiled_scope,
-                                         true);
-      if (allow_eval_cache) {
-        // Make sure to cache this result.
-        DirectHandle<FeedbackCell> new_feedback_cell(
-            result->raw_feedback_cell(), isolate);
-        compilation_cache->UpdateEval(source, outer_info, context,
-                                      new_feedback_cell, language_mode,
-                                      eval_cache_position);
-      }
+    result = Factory::JSFunctionBuilder{isolate, shared_info, context}
+                 .set_allocation_type(AllocationType::kYoung)
+                 .Build();
+    // TODO(mythria): I don't think we need this here. PostInstantiation
+    // already initializes feedback cell.
+    JSFunction::InitializeFeedbackCell(isolate, result, &is_compiled_scope,
+                                       true);
+    if (allow_eval_cache) {
+      // Make sure to cache this result.
+      DirectHandle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
+                                                   isolate);
+      compilation_cache->UpdateEval(source, outer_info, result, language_mode,
+                                    eval_cache_position);
     }
   } else {
     result = Factory::JSFunctionBuilder{isolate, shared_info, context}
@@ -3389,12 +3394,8 @@ MaybeDirectHandle<JSFunction> Compiler::GetFunctionFromEval(
     JSFunction::InitializeFeedbackCell(isolate, result, &is_compiled_scope,
                                        true);
     if (allow_eval_cache) {
-      // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
-      // we didn't retrieve from there.
-      DirectHandle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
-                                                   isolate);
-      compilation_cache->PutEval(source, outer_info, context, shared_info,
-                                 new_feedback_cell, eval_cache_position);
+      compilation_cache->PutEval(source, outer_info, result,
+                                 eval_cache_position);
     }
   }
   CHECK(is_compiled_scope.is_compiled());
@@ -4385,7 +4386,8 @@ MaybeHandle<Code> Compiler::CompileOptimizedOSR(
   DCHECK(IsOSR(osr_offset));
 
   if (V8_UNLIKELY(isolate->serializer_enabled())) return {};
-  if (V8_UNLIKELY(function->shared()->optimization_disabled())) return {};
+  if (V8_UNLIKELY(function->shared()->optimization_disabled(code_kind)))
+    return {};
 
   // TODO(chromium:1031479): Currently, OSR triggering mechanism is tied to the
   // bytecode array. So, it might be possible to mark closure in one native
@@ -4447,8 +4449,8 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   // 3) The code may have already been invalidated due to dependency change.
   // 4) InstructionStream generation may have failed.
   if (job->state() == CompilationJob::State::kReadyToFinalize) {
-    if (shared->optimization_disabled()) {
-      job->RetryOptimization(BailoutReason::kOptimizationDisabled);
+    if (shared->optimization_disabled(CodeKind::TURBOFAN_JS)) {
+      job->RetryOptimization(shared->disabled_optimization_reason());
     } else if (job->FinalizeJob(isolate) == CompilationJob::SUCCEEDED) {
       job->RecordCompilationStats(ConcurrencyMode::kConcurrent, isolate);
       job->RecordFunctionCompilation(LogEventListener::CodeTag::kFunction,
@@ -4507,12 +4509,12 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 
   if (function->ActiveTierIsTurbofan(isolate) && !job->is_osr()) {
     function->SetTieringInProgress(isolate, false, osr_offset);
-    CompilerTracer::TraceAbortedMaglevCompile(
-        isolate, function, BailoutReason::kHigherTierAvailable);
+    CompilerTracer::TraceAbortedMaglevCompile(isolate, function,
+                                              BailoutReason::kCancelled);
     return;
   }
   // Discard code compiled for a discarded native context without finalization.
-  if (function->native_context()->global_object()->IsDetached()) {
+  if (function->native_context()->global_object()->IsDetached(isolate)) {
     CompilerTracer::TraceAbortedMaglevCompile(
         isolate, function, BailoutReason::kDetachedNativeContext);
     return;
@@ -4594,7 +4596,7 @@ void Compiler::PostInstantiation(Isolate* isolate,
 #endif  // !V8_ENABLE_LEAPTIERING
 
     if (v8_flags.always_turbofan && shared->allows_lazy_compilation() &&
-        !shared->optimization_disabled() &&
+        !shared->optimization_disabled(CodeKind::TURBOFAN_JS) &&
         !function->HasAvailableOptimizedCode(isolate)) {
       CompilerTracer::TraceMarkForAlwaysOpt(isolate, function);
       JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);

@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/objects/tagged.h"
 #include "src/utils/utils.h"
 

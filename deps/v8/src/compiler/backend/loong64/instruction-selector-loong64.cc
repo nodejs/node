@@ -132,10 +132,12 @@ class Loong64OperandGeneratorT final : public OperandGeneratorT {
 static void VisitRR(InstructionSelectorT* selector, ArchOpcode opcode,
                     OpIndex node) {
   Loong64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 1);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 static void VisitRRI(InstructionSelectorT* selector, ArchOpcode opcode,
                      OpIndex node) {
   UNIMPLEMENTED();
@@ -144,15 +146,15 @@ static void VisitRRI(InstructionSelectorT* selector, ArchOpcode opcode,
 static void VisitSimdShift(InstructionSelectorT* selector, ArchOpcode opcode,
                            OpIndex node) {
   Loong64OperandGeneratorT g(selector);
-  OpIndex rhs = selector->input_at(node, 1);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  OpIndex rhs = op.input(1);
   if (selector->Get(rhs).TryCast<ConstantOp>()) {
-    selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseRegister(selector->input_at(node, 0)),
-                   g.UseImmediate(selector->input_at(node, 1)));
+    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                   g.UseImmediate(op.input(1)));
   } else {
-    selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseRegister(selector->input_at(node, 0)),
-                   g.UseRegister(selector->input_at(node, 1)));
+    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                   g.UseRegister(op.input(1)));
   }
 }
 
@@ -161,19 +163,23 @@ static void VisitRRIR(InstructionSelectorT* selector, ArchOpcode opcode,
   UNIMPLEMENTED();
 }
 
-void VisitRRR(InstructionSelectorT* selector, ArchOpcode opcode, OpIndex node) {
-  Loong64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseRegister(selector->input_at(node, 1)));
-}
-
 static void VisitUniqueRRR(InstructionSelectorT* selector, ArchOpcode opcode,
                            OpIndex node) {
   Loong64OperandGeneratorT g(selector);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseUniqueRegister(selector->input_at(node, 0)),
-                 g.UseUniqueRegister(selector->input_at(node, 1)));
+                 g.UseUniqueRegister(op.input(0)),
+                 g.UseUniqueRegister(op.input(1)));
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+void VisitRRR(InstructionSelectorT* selector, ArchOpcode opcode, OpIndex node) {
+  Loong64OperandGeneratorT g(selector);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                 g.UseRegister(op.input(1)));
 }
 
 void VisitRRRR(InstructionSelectorT* selector, ArchOpcode opcode,
@@ -184,9 +190,10 @@ void VisitRRRR(InstructionSelectorT* selector, ArchOpcode opcode,
 static void VisitRRO(InstructionSelectorT* selector, ArchOpcode opcode,
                      OpIndex node) {
   Loong64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseOperand(selector->input_at(node, 1), opcode));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                 g.UseOperand(op.input(1), opcode));
 }
 
 struct ExtendingLoadMatcher {
@@ -352,8 +359,8 @@ void InstructionSelectorT::VisitStackSlot(OpIndex node) {
 
 void InstructionSelectorT::VisitAbortCSADcheck(OpIndex node) {
   Loong64OperandGeneratorT g(this);
-  Emit(kArchAbortCSADcheck, g.NoOutput(),
-       g.UseFixed(this->input_at(node, 0), a0));
+  const AbortCSADcheckOp& op = Cast<AbortCSADcheckOp>(node);
+  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(op.message(), a0));
 }
 
 void EmitLoad(InstructionSelectorT* selector, turboshaft::OpIndex node,
@@ -420,11 +427,13 @@ void EmitLoad(InstructionSelectorT* selector, turboshaft::OpIndex node,
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 void InstructionSelectorT::VisitStoreLane(OpIndex node) { UNREACHABLE(); }
 
 void InstructionSelectorT::VisitLoadLane(OpIndex node) { UNREACHABLE(); }
 
 void InstructionSelectorT::VisitLoadTransform(OpIndex node) { UNIMPLEMENTED(); }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
 
@@ -571,7 +580,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
   TurboshaftAdapter::StoreView store_view = this->store_view(node);
   DCHECK_EQ(store_view.displacement(), 0);
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   WriteBarrierKind write_barrier_kind =
@@ -635,7 +644,7 @@ void InstructionSelectorT::VisitStore(OpIndex node) {
 
   std::optional<int64_t> constant_index;
   if (store_view.index().valid()) {
-    OpIndex index = this->value(store_view.index());
+    OpIndex index = store_view.index().value();
     constant_index = g.GetOptionalIntegerConstant(index);
   }
   if (external_base.has_value() && constant_index.has_value() &&
@@ -947,25 +956,23 @@ void InstructionSelectorT::VisitChangeUint32ToFloat64(OpIndex node) {
 void InstructionSelectorT::VisitTruncateFloat32ToInt32(OpIndex node) {
   Loong64OperandGeneratorT g(this);
 
-  const Operation& op = this->Get(node);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionCode opcode = kLoong64Float32ToInt32;
   opcode |=
       MiscField::encode(op.Is<Opmask::kTruncateFloat32ToInt32OverflowToMin>());
-  Emit(opcode, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitTruncateFloat32ToUint32(OpIndex node) {
   Loong64OperandGeneratorT g(this);
 
-  const Operation& op = this->Get(node);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionCode opcode = kLoong64Float32ToUint32;
   if (op.Is<Opmask::kTruncateFloat32ToUint32OverflowToMin>()) {
     opcode |= MiscField::encode(true);
   }
 
-  Emit(opcode, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitChangeFloat64ToInt32(OpIndex node) {
@@ -990,13 +997,14 @@ void InstructionSelectorT::VisitTruncateFloat64ToUint32(OpIndex node) {
 
 void InstructionSelectorT::VisitTruncateFloat64ToInt64(OpIndex node) {
   Loong64OperandGeneratorT g(this);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionCode opcode = kLoong64Float64ToInt64;
-  const Operation& op = this->Get(node);
+
   if (op.Is<Opmask::kTruncateFloat64ToInt64OverflowToMin>()) {
     opcode |= MiscField::encode(true);
   }
 
-  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitTruncateFloat64ToFloat16RawBits(OpIndex node) {
@@ -1009,8 +1017,9 @@ void InstructionSelectorT::VisitChangeFloat16RawBitsToFloat64(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat32ToInt64(OpIndex node) {
   Loong64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -1025,8 +1034,9 @@ void InstructionSelectorT::VisitTryTruncateFloat32ToInt64(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToInt64(OpIndex node) {
   Loong64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -1041,8 +1051,9 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToInt64(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat32ToUint64(OpIndex node) {
   Loong64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -1057,8 +1068,9 @@ void InstructionSelectorT::VisitTryTruncateFloat32ToUint64(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToUint64(OpIndex node) {
   Loong64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -1073,8 +1085,9 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToUint64(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToInt32(OpIndex node) {
   Loong64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -1089,8 +1102,9 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToInt32(OpIndex node) {
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToUint32(OpIndex node) {
   Loong64OperandGeneratorT g(this);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
 
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -1202,11 +1216,12 @@ void InstructionSelectorT::VisitChangeUint32ToUint64(OpIndex node) {
 
 void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
   Loong64OperandGeneratorT g(this);
-  auto value = input_at(node, 0);
+  OpIndex value = Cast<ChangeOp>(node).input();
   if (CanCover(node, value)) {
     if (Get(value).Is<Opmask::kWord64ShiftRightArithmetic>()) {
-      auto shift_value = input_at(value, 1);
-      if (CanCover(value, input_at(value, 0)) &&
+      const ShiftOp& shift = Cast<ShiftOp>(value);
+      auto shift_value = shift.right();
+      if (CanCover(value, shift.left()) &&
           TryEmitExtendingLoad(this, value, node)) {
         return;
       } else if (int64_t constant;
@@ -1214,7 +1229,8 @@ void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
         if (constant >= 32 && constant <= 63) {
           // After smi untagging no need for truncate. Combine sequence.
           Emit(kLoong64Sra_d, g.DefineAsRegister(node),
-               g.UseRegister(input_at(value, 0)), g.UseImmediate(constant));
+               g.UseRegister(shift.left()),
+               g.UseImmediate(static_cast<int32_t>(constant)));
           return;
         }
       }
@@ -1305,9 +1321,10 @@ void InstructionSelectorT::VisitFloat64Div(OpIndex node) {
 
 void InstructionSelectorT::VisitFloat64Mod(OpIndex node) {
   Loong64OperandGeneratorT g(this);
-  Emit(kLoong64Float64Mod, g.DefineAsFixed(node, f0),
-       g.UseFixed(this->input_at(node, 0), f0),
-       g.UseFixed(this->input_at(node, 1), f1))
+  const FloatBinopOp& op = Cast<FloatBinopOp>(node);
+
+  Emit(kLoong64Float64Mod, g.DefineAsFixed(node, f0), g.UseFixed(op.left(), f0),
+       g.UseFixed(op.right(), f1))
       ->MarkAsCall();
 }
 
@@ -1390,17 +1407,19 @@ void InstructionSelectorT::VisitFloat64Neg(OpIndex node) {
 void InstructionSelectorT::VisitFloat64Ieee754Binop(OpIndex node,
                                                     InstructionCode opcode) {
   Loong64OperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, f0),
-       g.UseFixed(this->input_at(node, 0), f0),
-       g.UseFixed(this->input_at(node, 1), f1))
+  const FloatBinopOp& op = Cast<FloatBinopOp>(node);
+
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(op.left(), f0),
+       g.UseFixed(op.right(), f1))
       ->MarkAsCall();
 }
 
 void InstructionSelectorT::VisitFloat64Ieee754Unop(OpIndex node,
                                                    InstructionCode opcode) {
   Loong64OperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, f0),
-       g.UseFixed(this->input_at(node, 0), f0))
+  const FloatUnaryOp& op = Cast<FloatUnaryOp>(node);
+
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(op.input(), f0))
       ->MarkAsCall();
 }
 
@@ -1563,9 +1582,10 @@ void VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
                       InstructionCode opcode, FlagsContinuationT* cont,
                       bool commutative) {
   Loong64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 2);
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  auto left = op.input(0);
+  auto right = op.input(1);
 
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(right, opcode)) {
@@ -1641,14 +1661,14 @@ void VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
 void VisitFullWord32Compare(InstructionSelectorT* selector, OpIndex node,
                             InstructionCode opcode, FlagsContinuationT* cont) {
   Loong64OperandGeneratorT g(selector);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
   InstructionOperand leftOp = g.TempRegister();
   InstructionOperand rightOp = g.TempRegister();
 
-  selector->Emit(kLoong64Sll_d, leftOp,
-                 g.UseRegister(selector->input_at(node, 0)),
+  selector->Emit(kLoong64Sll_d, leftOp, g.UseRegister(op.input(0)),
                  g.TempImmediate(32));
-  selector->Emit(kLoong64Sll_d, rightOp,
-                 g.UseRegister(selector->input_at(node, 1)),
+  selector->Emit(kLoong64Sll_d, rightOp, g.UseRegister(op.input(1)),
                  g.TempImmediate(32));
 
   Instruction* instr = VisitCompare(selector, opcode, leftOp, rightOp, cont);
@@ -1753,7 +1773,7 @@ void VisitAtomicStore(InstructionSelectorT* selector, OpIndex node,
   Loong64OperandGeneratorT g(selector);
   auto store = selector->store_view(node);
   OpIndex base = store.base();
-  OpIndex index = selector->value(store.index());
+  OpIndex index = store.index().value();
   OpIndex value = store.value();
   DCHECK_EQ(store.displacement(), 0);
 
@@ -1810,7 +1830,9 @@ void VisitAtomicStore(InstructionSelectorT* selector, OpIndex node,
     }
   }
 
-  if (store_params.kind() == MemoryAccessKind::kProtectedByTrapHandler) {
+  if (store.is_store_trap_on_null()) {
+    code |= AccessModeField::encode(kMemoryAccessProtectedNullDereference);
+  } else if (store_params.kind() == MemoryAccessKind::kProtectedByTrapHandler) {
     code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
   }
 
@@ -2074,7 +2096,8 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
 
 void InstructionSelectorT::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
   Loong64OperandGeneratorT g(this);
-  InstructionOperand value_operand = g.UseRegister(this->input_at(node, 0));
+  const SwitchOp& op = Cast<SwitchOp>(node);
+  InstructionOperand value_operand = g.UseRegister(op.input());
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ ==
@@ -2495,6 +2518,8 @@ void InstructionSelectorT::VisitInt64AbsWithOverflow(OpIndex node) {
   UNREACHABLE();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+
 #define SIMD_TYPE_LIST(V) \
   V(F64x2)                \
   V(F32x4)                \
@@ -2798,40 +2823,15 @@ UNIMPLEMENTED_SIMD_FP16_OP_LIST(SIMD_VISIT_UNIMPL_FP16_OP)
 #undef SIMD_VISIT_UNIMPL_FP16_OP
 #undef UNIMPLEMENTED_SIMD_FP16_OP_LIST
 
-#if V8_ENABLE_WEBASSEMBLY
-
 void InstructionSelectorT::VisitI8x16Shuffle(OpIndex node) { UNIMPLEMENTED(); }
-
-#else
-void InstructionSelectorT::VisitI8x16Shuffle(OpIndex node) { UNREACHABLE(); }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 void InstructionSelectorT::VisitI8x16Swizzle(OpIndex node) { UNIMPLEMENTED(); }
 
 void InstructionSelectorT::VisitSetStackPointer(OpIndex node) {
   OperandGenerator g(this);
-  auto input = g.UseRegister(this->input_at(node, 0));
+  const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
+  auto input = g.UseRegister(op.value());
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
-}
-
-void InstructionSelectorT::VisitSignExtendWord8ToInt32(OpIndex node) {
-  VisitRR(this, kLoong64Ext_w_b, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord16ToInt32(OpIndex node) {
-  VisitRR(this, kLoong64Ext_w_h, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord8ToInt64(OpIndex node) {
-  VisitRR(this, kLoong64Ext_w_b, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord16ToInt64(OpIndex node) {
-  VisitRR(this, kLoong64Ext_w_h, node);
-}
-
-void InstructionSelectorT::VisitSignExtendWord32ToInt64(OpIndex node) {
-  UNIMPLEMENTED();
 }
 
 void InstructionSelectorT::VisitF32x4Pmin(OpIndex node) {
@@ -2871,6 +2871,28 @@ VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16U)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8S)
 VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U)
 #undef VISIT_EXTADD_PAIRWISE
+
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+void InstructionSelectorT::VisitSignExtendWord8ToInt32(OpIndex node) {
+  VisitRR(this, kLoong64Ext_w_b, node);
+}
+
+void InstructionSelectorT::VisitSignExtendWord16ToInt32(OpIndex node) {
+  VisitRR(this, kLoong64Ext_w_h, node);
+}
+
+void InstructionSelectorT::VisitSignExtendWord8ToInt64(OpIndex node) {
+  VisitRR(this, kLoong64Ext_w_b, node);
+}
+
+void InstructionSelectorT::VisitSignExtendWord16ToInt64(OpIndex node) {
+  VisitRR(this, kLoong64Ext_w_h, node);
+}
+
+void InstructionSelectorT::VisitSignExtendWord32ToInt64(OpIndex node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelectorT::AddOutputToSelectContinuation(OperandGenerator* g,
                                                          int first_input_index,

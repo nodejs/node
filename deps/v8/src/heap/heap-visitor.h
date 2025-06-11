@@ -57,6 +57,7 @@ class MaybeObjectSize final {
   V(CoverageInfo)                     \
   V(DataHandler)                      \
   V(DebugInfo)                        \
+  V(DoubleStringCache)                \
   V(EmbedderDataArray)                \
   V(EphemeronHashTable)               \
   V(ExternalString)                   \
@@ -98,6 +99,7 @@ class MaybeObjectSize final {
   IF_WASM(V, WasmResumeData)          \
   IF_WASM(V, WasmStruct)              \
   IF_WASM(V, WasmSuspenderObject)     \
+  IF_WASM(V, WasmContinuationObject)  \
   IF_WASM(V, WasmTypeInfo)            \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 

@@ -661,8 +661,13 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
     }
 
     case kHoleyDouble:
-      if (double_value().is_hole_nan()) {
-        // Hole NaNs that made it to here represent the undefined value.
+      if (double_value().is_hole_nan()
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+          || double_value().is_undefined_nan()
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      ) {
+        // Hole NaNs and undefined NaNs that made it to here represent the
+        // undefined value.
         return ReadOnlyRoots(isolate()).undefined_value();
       }
       // If this is not the hole nan, then this is a normal double value, so
@@ -765,7 +770,7 @@ Handle<Object> TranslatedValue::GetValue() {
       break;
     case TranslatedValue::kDouble:
     // We shouldn't have hole values by now, so treat holey double as normal
-    // double.s
+    // doubles.
     case TranslatedValue::kHoleyDouble:
       number = double_value().get_scalar();
       heap_object = isolate()->factory()->NewHeapNumber(number);
@@ -1434,6 +1439,8 @@ int TranslatedState::CreateNextTranslatedValue(
       intptr_t value = registers->GetRegister(input_reg);
       Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
+        // Need temporary access to in-sandbox memory for printing the object.
+        AllowSandboxAccess temporary_sandbox_access;
         PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
         ShortPrint(Tagged<Object>(uncompressed_value), trace_file);
@@ -1640,6 +1647,8 @@ int TranslatedState::CreateNextTranslatedValue(
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
       Address uncompressed_value = DecompressIfNeeded(value);
       if (trace_file != nullptr) {
+        // Need temporary access to in-sandbox memory for printing the object.
+        AllowSandboxAccess temporary_sandbox_access;
         PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
                uncompressed_value, slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));

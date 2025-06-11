@@ -442,13 +442,13 @@ class Assembler : public AssemblerBase {
 
   template <typename T>
   inline void xx2_form(Instr instr, T t, T b) {
-    static_assert(std::is_same<T, Simd128Register>::value ||
-                      std::is_same<T, DoubleRegister>::value,
-                  "VSX only uses FP or Vector registers.");
+    static_assert(
+        std::is_same_v<T, Simd128Register> || std::is_same_v<T, DoubleRegister>,
+        "VSX only uses FP or Vector registers.");
     // Using FP (low VSR) registers.
     int BX = 0, TX = 0;
     // Using VR (high VSR) registers when Simd registers are used.
-    if (std::is_same<T, Simd128Register>::value) {
+    if (std::is_same_v<T, Simd128Register>) {
       BX = TX = 1;
     }
 
@@ -491,13 +491,13 @@ class Assembler : public AssemblerBase {
 
   template <typename T>
   inline void xx3_form(Instr instr, T t, T a, T b) {
-    static_assert(std::is_same<T, Simd128Register>::value ||
-                      std::is_same<T, DoubleRegister>::value,
-                  "VSX only uses FP or Vector registers.");
+    static_assert(
+        std::is_same_v<T, Simd128Register> || std::is_same_v<T, DoubleRegister>,
+        "VSX only uses FP or Vector registers.");
     // Using FP (low VSR) registers.
     int AX = 0, BX = 0, TX = 0;
     // Using VR (high VSR) registers when Simd registers are used.
-    if (std::is_same<T, Simd128Register>::value) {
+    if (std::is_same_v<T, Simd128Register>) {
       AX = BX = TX = 1;
     }
 

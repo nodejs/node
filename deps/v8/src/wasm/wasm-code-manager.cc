@@ -2235,7 +2235,9 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size) {
   // When we start exposing Wasm in jitless mode, then the jitless flag
   // will have to determine whether we set kMapAsJittable or not.
   DCHECK(!v8_flags.jitless);
-  VirtualMemory mem(page_allocator, size, reinterpret_cast<void*>(hint),
+  VirtualMemory mem(page_allocator, size,
+                    PageAllocator::AllocationHint().WithAddress(
+                        reinterpret_cast<void*>(hint)),
                     allocate_page_size,
                     PageAllocator::Permission::kNoAccessWillJitLater);
   if (!mem.IsReserved()) {
@@ -2464,13 +2466,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
       critical_committed_code_space_.load()) {
     // Flush Liftoff code and record the flushed code size.
     if (v8_flags.flush_liftoff_code) {
-      auto [code_size, metadata_size] =
-          wasm::GetWasmEngine()->FlushLiftoffCode();
-      isolate->counters()->wasm_flushed_liftoff_code_size_bytes()->AddSample(
-          static_cast<int>(code_size));
-      isolate->counters()
-          ->wasm_flushed_liftoff_metadata_size_bytes()
-          ->AddSample(static_cast<int>(metadata_size));
+      wasm::GetWasmEngine()->FlushLiftoffCode();
     }
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
@@ -2739,19 +2735,14 @@ bool ShouldRemoveCode(WasmCode* code, NativeModule::RemoveFilter filter) {
 }
 }  // namespace
 
-std::pair<size_t, size_t> NativeModule::RemoveCompiledCode(
-    RemoveFilter filter) {
+void NativeModule::RemoveCompiledCode(RemoveFilter filter) {
   const uint32_t num_imports = module_->num_imported_functions;
   const uint32_t num_functions = module_->num_declared_functions;
-  size_t removed_codesize = 0;
-  size_t removed_metadatasize = 0;
   {
     base::RecursiveMutexGuard guard(&allocation_mutex_);
     for (uint32_t i = 0; i < num_functions; i++) {
       WasmCode* code = code_table_[i];
       if (code && ShouldRemoveCode(code, filter)) {
-        removed_codesize += code->instructions_size();
-        removed_metadatasize += code->EstimateCurrentMemoryConsumption();
         code_table_[i] = nullptr;
         // Add the code to the {WasmCodeRefScope}, so the ref count cannot drop
         // to zero here. It might in the {WasmCodeRefScope} destructor, though.
@@ -2771,7 +2762,6 @@ std::pair<size_t, size_t> NativeModule::RemoveCompiledCode(
       filter == RemoveFilter::kRemoveTurbofanCode) {
     compilation_state_->AllowAnotherTopTierJobForAllFunctions();
   }
-  return std::make_pair(removed_codesize, removed_metadatasize);
 }
 
 size_t NativeModule::SumLiftoffCodeSizeForTesting() const {

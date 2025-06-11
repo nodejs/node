@@ -53,10 +53,9 @@ enum class TestExecutionTier : int8_t {
   kTurbofan = static_cast<int8_t>(ExecutionTier::kTurbofan),
   kLiftoffForFuzzing
 };
-static_assert(
-    std::is_same<std::underlying_type<ExecutionTier>::type,
-                 std::underlying_type<TestExecutionTier>::type>::value,
-    "enum types match");
+static_assert(std::is_same_v<std::underlying_type_t<ExecutionTier>,
+                             std::underlying_type_t<TestExecutionTier>>,
+              "enum types match");
 
 using base::ReadLittleEndianValue;
 using base::WriteLittleEndianValue;

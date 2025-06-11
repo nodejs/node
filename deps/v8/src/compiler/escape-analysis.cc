@@ -298,10 +298,16 @@ class EscapeAnalysisTracker : public ZoneObject {
 
  private:
   friend class EscapeAnalysisResult;
-  static constexpr int kTrackingBudget = 600;
+  static constexpr int kTrackingBudget = 1300;
 
   VirtualObject* NewVirtualObject(int size) {
-    if (number_of_tracked_bytes_ + size >= kTrackingBudget) return nullptr;
+    if (number_of_tracked_bytes_ + size >= kTrackingBudget) {
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Escape Analysis because of kTrackingBudget\n";
+      }
+      return nullptr;
+    }
     number_of_tracked_bytes_ += size;
     return zone_->New<VirtualObject>(&variable_states_, next_object_id_++,
                                      size);

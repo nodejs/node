@@ -112,6 +112,8 @@ const kMaxPolymorphism:
     constexpr int31 generates 'wasm::kMaxPolymorphism';
 const kFixedFrameSizeAboveFp: constexpr int32
     generates 'CommonFrameConstants::kFixedFrameSizeAboveFp';
+const kDoubleAligned: constexpr int31 generates 'kDoubleAligned';
+const kDoubleUnaligned: constexpr int31 generates 'kDoubleUnaligned';
 
 extern macro WasmCrossInstanceCallSymbolConstant(): Symbol;
 
@@ -137,6 +139,8 @@ extern macro WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame():
     NativeContext;
 
 extern macro WasmBuiltinsAssembler::StringToFloat64(String): float64;
+
+extern macro WasmBuiltinsAssembler::InSharedSpace(HeapObject): bool;
 
 extern macro SwitchToTheCentralStackIfNeeded(): RawPtr;
 extern macro SwitchFromTheCentralStack(RawPtr): void;
@@ -516,7 +520,8 @@ builtin WasmAllocateDescriptorStruct(
 builtin WasmAllocateSharedStructWithRtt(rtt: Map, instanceSize: int32):
     HeapObject {
   const result: HeapObject = runtime::AllocateInSharedHeap(
-      LoadContextFromFrame(), SmiFromInt32(instanceSize), SmiConstant(0));
+      LoadContextFromFrame(), SmiFromInt32(instanceSize),
+      SmiConstant(kDoubleAligned));
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from
   // WasmObjects.
@@ -549,7 +554,8 @@ builtin WasmAllocateSharedArray_Uninitialized(
           Convert<intptr>(length) * Convert<intptr>(elementSize)) +
       Convert<intptr>(kWasmArrayHeaderSize);
   const result: HeapObject = runtime::AllocateInSharedHeap(
-      LoadContextFromFrame(), SmiFromIntPtr(instanceSize), SmiConstant(0));
+      LoadContextFromFrame(), SmiFromIntPtr(instanceSize),
+      SmiConstant(kDoubleUnaligned));
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;
@@ -1598,4 +1604,88 @@ builtin WasmFastApiCallTypeCheckAndUpdateIC(
 builtin WasmStringIndexOf(s: String, searchString: String, start: Smi): Smi {
   return AbstractStringIndexOf(s, searchString, SmiMax(start, 0));
 }
+
+// TODO(mliedtke): It would be nice to type the result as bool, however that is
+// not supported.
+builtin WasmLiftoffIsEqRefUnshared(obj: Object, nullSucceeds: bool): int32 {
+  try {
+    if (Is<Smi>(obj)) {
+      return 1;
+    }
+    const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
+    return Convert<int32>(
+        !InSharedSpace(heapObject) &&
+        (Is<WasmArray>(heapObject) || Is<WasmStruct>(heapObject) ||
+         (nullSucceeds && Is<WasmNull>(heapObject))));
+  } label ReturnFalse {}
+  return 0;
+}
+
+builtin WasmLiftoffIsArrayRefUnshared(obj: Object, nullSucceeds: bool): int32 {
+  try {
+    const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
+    return Convert<int32>(
+        !InSharedSpace(heapObject) && Is<WasmArray>(heapObject) ||
+        (nullSucceeds && Is<WasmNull>(heapObject)));
+  } label ReturnFalse {}
+  return 0;
+}
+
+builtin WasmLiftoffIsStructRefUnshared(obj: Object, nullSucceeds: bool):
+    int32 {
+  try {
+    const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise ReturnFalse;
+    return Convert<int32>(
+        !InSharedSpace(heapObject) && Is<WasmStruct>(heapObject) ||
+        (nullSucceeds && Is<WasmNull>(heapObject)));
+  } label ReturnFalse {}
+  return 0;
+}
+
+// Return type JSAny to be able to tail-call ThrowWasmTrapIllegalCast(). It must
+// be a tail-call as otherwise the trap can't find the WasmTrustedInstanceData
+// (which it is looking for in the caller stack frame!)
+builtin WasmLiftoffCastEqRefUnshared(obj: Object, nullSucceeds: bool): JSAny {
+  if (Is<Smi>(obj)) {
+    return SmiConstant(0);
+  }
+  const heapObject: HeapObject = UnsafeCast<HeapObject>(obj);
+  if (InSharedSpace(heapObject) ||
+      (!Is<WasmArray>(heapObject) && !Is<WasmStruct>(heapObject) &&
+       (!nullSucceeds || !Is<WasmNull>(heapObject)))) {
+    tail ThrowWasmTrapIllegalCast();
+  }
+  return SmiConstant(0);
+}
+
+builtin WasmLiftoffCastArrayRefUnshared(obj: Object, nullSucceeds: bool):
+    JSAny {
+  try {
+    const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise IllegalCast;
+    if (InSharedSpace(heapObject) ||
+        (!Is<WasmArray>(heapObject) &&
+         (!nullSucceeds || !Is<WasmNull>(heapObject)))) {
+      goto IllegalCast;
+    }
+    return SmiConstant(0);
+  } label IllegalCast {
+    tail ThrowWasmTrapIllegalCast();
+  }
+}
+
+builtin WasmLiftoffCastStructRefUnshared(obj: Object, nullSucceeds: bool):
+    JSAny {
+  try {
+    const heapObject: HeapObject = Cast<HeapObject>(obj) otherwise IllegalCast;
+    if (InSharedSpace(heapObject) ||
+        (!Is<WasmStruct>(heapObject) &&
+         (!nullSucceeds || !Is<WasmNull>(heapObject)))) {
+      goto IllegalCast;
+    }
+    return SmiConstant(0);
+  } label IllegalCast {
+    tail ThrowWasmTrapIllegalCast();
+  }
+}
+
 }  // namespace wasm

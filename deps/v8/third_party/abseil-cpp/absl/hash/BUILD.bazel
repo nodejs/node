@@ -82,6 +82,8 @@ cc_test(
     ],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
+    # TODO(b/417700722): Fix HashValueTest.PointerAlignment reporting more collisions under ubsan.
+    tags = ["noubsan"],
     deps = [
         ":hash",
         ":hash_testing",

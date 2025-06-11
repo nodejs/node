@@ -74,7 +74,7 @@ MaybeLocal<Value> CompileRun(Local<Context> context, Local<String> source) {
 MaybeLocal<Value> CompileRun(Local<Context> context, const char* source) {
   return CompileRun(
       context,
-      String::NewFromUtf8(context->GetIsolate(), source).ToLocalChecked());
+      String::NewFromUtf8(Isolate::GetCurrent(), source).ToLocalChecked());
 }
 
 void DoLoop(const FunctionCallbackInfo<Value>& info) {
@@ -343,7 +343,7 @@ void TerminateOrReturnObject(const FunctionCallbackInfo<Value>& info) {
   Local<Object> result = Object::New(info.GetIsolate());
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
   Maybe<bool> val = result->Set(
-      context, String::NewFromUtf8(context->GetIsolate(), "x").ToLocalChecked(),
+      context, String::NewFromUtf8(info.GetIsolate(), "x").ToLocalChecked(),
       Integer::New(info.GetIsolate(), 42));
   CHECK(val.FromJust());
   info.GetReturnValue().Set(result);

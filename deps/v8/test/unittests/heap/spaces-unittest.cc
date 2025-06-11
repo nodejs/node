@@ -24,8 +24,8 @@ namespace internal {
 static Tagged<HeapObject> AllocateUnaligned(MainAllocator* allocator,
                                             SpaceWithLinearArea* space,
                                             int size) {
-  AllocationResult allocation =
-      allocator->AllocateRaw(size, kTaggedAligned, AllocationOrigin::kRuntime);
+  AllocationResult allocation = allocator->AllocateRaw(
+      size, kTaggedAligned, AllocationOrigin::kRuntime, AllocationHint());
   CHECK(!allocation.IsFailure());
   Tagged<HeapObject> filler;
   CHECK(allocation.To(&filler));
@@ -36,8 +36,8 @@ static Tagged<HeapObject> AllocateUnaligned(MainAllocator* allocator,
 static Tagged<HeapObject> AllocateUnaligned(OldLargeObjectSpace* allocator,
                                             OldLargeObjectSpace* space,
                                             int size) {
-  AllocationResult allocation =
-      allocator->AllocateRaw(space->heap()->main_thread_local_heap(), size);
+  AllocationResult allocation = allocator->AllocateRaw(
+      space->heap()->main_thread_local_heap(), size, AllocationHint());
   CHECK(!allocation.IsFailure());
   Tagged<HeapObject> filler;
   CHECK(allocation.To(&filler));
@@ -78,7 +78,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
     Tagged<HeapObject> object =
         allocator
             .AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned,
-                         AllocationOrigin::kGC)
+                         AllocationOrigin::kGC, AllocationHint())
             .ToObjectChecked();
     heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize);
   }

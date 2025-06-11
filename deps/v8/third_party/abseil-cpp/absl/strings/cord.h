@@ -755,7 +755,7 @@ class Cord {
   // NOTE: This routine is reasonably efficient. It is roughly
   // logarithmic based on the number of chunks that make up the cord. Still,
   // if you need to iterate over the contents of a cord, you should
-  // use a CharIterator/ChunkIterator rather than call operator[] or Get()
+  // use a CharIterator/ChunkIterator rather than call operator[]
   // repeatedly in a loop.
   char operator[](size_t i) const;
 

@@ -161,6 +161,12 @@ class LoadStoreSimplificationReducer : public Next,
     if (!CanEncodeOffset(offset, kind.tagged_base) ||
         (kind.is_atomic &&
          !CanEncodeAtomic(index, element_size_log2, offset))) {
+      if (kind.tagged_base) {
+        kind.tagged_base = false;
+        DCHECK_LE(std::numeric_limits<int32_t>::min() + kHeapObjectTag, offset);
+        offset -= kHeapObjectTag;
+        base = __ BitcastHeapObjectToWordPtr(base);
+      }
       // If an index is present, the element_size_log2 is changed to zero.
       // So any load follows the form *(base + offset). To simplify
       // instruction selection, both static and dynamic offsets are stored in

@@ -86,11 +86,11 @@ class NodeInfo {
   }
 
   NodeType type() const { return type_; }
-  NodeType CombineType(NodeType other) {
-    return type_ = maglev::CombineType(type_, other);
-  }
   NodeType IntersectType(NodeType other) {
     return type_ = maglev::IntersectType(type_, other);
+  }
+  NodeType UnionType(NodeType other) {
+    return type_ = maglev::UnionType(type_, other);
   }
 
   // Optional alternative nodes with the equivalent value but a different
@@ -169,7 +169,7 @@ class NodeInfo {
   // being a node info that is the subset of information valid in both inputs.
   void MergeWith(const NodeInfo& other, Zone* zone,
                  bool& any_merged_map_is_unstable) {
-    IntersectType(other.type_);
+    UnionType(other.type_);
     alternative_.MergeWith(other.alternative_);
     if (possible_maps_are_known_) {
       if (other.possible_maps_are_known_) {
@@ -195,6 +195,7 @@ class NodeInfo {
     if (!any_map_is_unstable_) return;
     possible_maps_.clear();
     possible_maps_are_known_ = false;
+    type_ = MakeTypeStable(type_);
     any_map_is_unstable_ = false;
   }
 
@@ -228,8 +229,7 @@ class NodeInfo {
     if (possible_maps.size()) {
       NodeType expected = StaticTypeForMap(*possible_maps.begin(), broker);
       for (auto map : possible_maps) {
-        expected =
-            maglev::IntersectType(StaticTypeForMap(map, broker), expected);
+        expected = maglev::UnionType(StaticTypeForMap(map, broker), expected);
       }
       // Ensure the claimed type is not narrower than what can be learned from
       // the map checks.
@@ -238,10 +238,15 @@ class NodeInfo {
       DCHECK_EQ(possible_type, NodeType::kUnknown);
     }
 #endif
-    CombineType(possible_type);
+    IntersectType(possible_type);
   }
 
   bool any_map_is_unstable() const { return any_map_is_unstable_; }
+
+  void set_node_type_is_unstable() {
+    // Re-use any_map_is_unstable to signal that the node type is unstable.
+    any_map_is_unstable_ = true;
+  }
 
  private:
   NodeType type_ = NodeType::kUnknown;
@@ -332,7 +337,7 @@ struct KnownNodeAspects {
     auto info_it = FindInfo(node);
     if (IsValid(info_it)) return &info_it->second;
     auto res = &node_infos.emplace(node, NodeInfo()).first->second;
-    res->CombineType(StaticTypeForNode(broker, isolate, node));
+    res->IntersectType(StaticTypeForNode(broker, isolate, node));
     return res;
   }
 

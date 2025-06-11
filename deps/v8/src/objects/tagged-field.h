@@ -174,11 +174,11 @@ template <typename T, int kFieldOffset = 0,
           typename CompressionScheme = V8HeapCompressionScheme>
 class TaggedField : public AllStatic {
  public:
-  static_assert(is_taggable_v<T> || std::is_same<MapWord, T>::value,
+  static_assert(is_taggable_v<T> || std::is_same_v<MapWord, T>,
                 "T must be strong or weak tagged type or MapWord");
 
   // True for Smi fields.
-  static constexpr bool kIsSmi = std::is_same<Smi, T>::value;
+  static constexpr bool kIsSmi = std::is_same_v<Smi, T>;
 
   // True for HeapObject and MapWord fields. The latter may look like a Smi
   // if it contains forwarding pointer but still requires tagged pointer

@@ -339,7 +339,8 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
     case TypeDefinition::kStruct: {
       const StructType* original_type = type.struct_type;
       CanonicalStructType::Builder builder(&zone_, original_type->field_count(),
-                                           original_type->is_descriptor());
+                                           original_type->is_descriptor(),
+                                           original_type->is_shared());
       for (uint32_t i = 0; i < original_type->field_count(); i++) {
         builder.AddField(CanonicalizeValueType(original_type->field(i)),
                          original_type->mutability(i),
@@ -419,26 +420,22 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
   Heap* heap = isolate->heap();
   // {2 * (id + 1)} needs to fit in an int.
   CHECK_LE(id.index, kMaxInt / 2 - 1);
-  // Canonical types and wrappers are zero-indexed.
+  // Canonical types are zero-indexed.
   const int length = id.index + 1;
   // The fast path is non-handlified.
   Tagged<WeakFixedArray> old_rtts_raw = heap->wasm_canonical_rtts();
-  Tagged<WeakFixedArray> old_wrappers_raw = heap->js_to_wasm_wrappers();
 
-  // Fast path: Lengths are sufficient.
+  // Fast path: length is sufficient.
   int old_length = old_rtts_raw->length();
-  DCHECK_EQ(old_length, old_wrappers_raw->length());
   if (old_length >= length) return;
 
-  // Allocate bigger WeakFixedArrays for rtts and wrappers. Grow them
-  // exponentially.
+  // Allocate a bigger WeakFixedArray, growing exponentially.
   const int new_length = std::max(old_length * 3 / 2, length);
   CHECK_LT(old_length, new_length);
 
   // Allocation can invalidate previous unhandled pointers.
   DirectHandle<WeakFixedArray> old_rtts{old_rtts_raw, isolate};
-  DirectHandle<WeakFixedArray> old_wrappers{old_wrappers_raw, isolate};
-  old_rtts_raw = old_wrappers_raw = {};
+  old_rtts_raw = {};
 
   // We allocate the WeakFixedArray filled with undefined values, as we cannot
   // pass the cleared value in a handle (see https://crbug.com/364591622). We
@@ -448,20 +445,14 @@ void TypeCanonicalizer::PrepareForCanonicalTypeId(Isolate* isolate,
   WeakFixedArray::CopyElements(isolate, *new_rtts, 0, *old_rtts, 0, old_length);
   MemsetTagged(new_rtts->RawFieldOfFirstElement() + old_length,
                ClearedValue(isolate), new_length - old_length);
-  DirectHandle<WeakFixedArray> new_wrappers =
-      WeakFixedArray::New(isolate, new_length, AllocationType::kOld);
-  WeakFixedArray::CopyElements(isolate, *new_wrappers, 0, *old_wrappers, 0,
-                               old_length);
-  MemsetTagged(new_wrappers->RawFieldOfFirstElement() + old_length,
-               ClearedValue(isolate), new_length - old_length);
-  heap->SetWasmCanonicalRttsAndJSToWasmWrappers(*new_rtts, *new_wrappers);
+  heap->SetWasmCanonicalRtts(*new_rtts);
 }
 
 // static
 void TypeCanonicalizer::ClearWasmCanonicalTypesForTesting(Isolate* isolate) {
   ReadOnlyRoots roots(isolate);
-  isolate->heap()->SetWasmCanonicalRttsAndJSToWasmWrappers(
-      roots.empty_weak_fixed_array(), roots.empty_weak_fixed_array());
+  isolate->heap()->SetWasmCanonicalRtts(roots.empty_weak_fixed_array());
+  isolate->heap()->SetJSToWasmWrappers(roots.empty_weak_fixed_array());
 }
 
 bool TypeCanonicalizer::IsFunctionSignature(CanonicalTypeIndex index) const {

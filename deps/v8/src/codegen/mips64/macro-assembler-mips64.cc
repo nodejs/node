@@ -4922,7 +4922,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   ASM_CODE_COMMENT(this);
 
   Register index = destination;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   dsrl(index, dispatch_handle, kJSDispatchHandleShift);
   dsll(destination, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, destination);
@@ -4936,7 +4937,7 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
 
   // MSARegister index = MSARegister::from_code(destination.code());
   Register index = destination;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   dsrl(index, dispatch_handle, kJSDispatchHandleShift);
   dsll(destination, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, destination);
@@ -4952,7 +4953,7 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
 
   // MSARegister index = MSARegister::from_code(parameter_count.code());
   Register index = parameter_count;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   dsrl(index, dispatch_handle, kJSDispatchHandleShift);
   dsll(parameter_count, index, kJSDispatchTableEntrySizeLog2);
   Daddu(scratch, scratch, parameter_count);
@@ -5679,7 +5680,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   Ld(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   if (v8_flags.debug_code) {
-    li(scratch, Operand(Context::kInvalidContext));
+    li(scratch, Operand(Context::kNoContext));
     Sd(scratch, ExternalReferenceAsOperand(context_address, no_reg));
   }
 

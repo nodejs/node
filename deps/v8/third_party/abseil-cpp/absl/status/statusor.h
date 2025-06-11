@@ -520,8 +520,8 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
   // REQUIRES: `this->ok() == true`, otherwise the behavior is undefined.
   //
   // Use `this->ok()` to verify that there is a current value.
-  const T* operator->() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
-  T* operator->() ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  const T* absl_nonnull operator->() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  T* absl_nonnull operator->() ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
   // StatusOr<T>::value_or()
   //

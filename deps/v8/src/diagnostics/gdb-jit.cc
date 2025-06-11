@@ -1084,8 +1084,6 @@ class DebugInfoSection : public DebugSection {
       w->Write<uint8_t>(DW_OP_reg6);  // and here on x64.
 #elif V8_TARGET_ARCH_ARM
       UNIMPLEMENTED();
-#elif V8_TARGET_ARCH_MIPS
-      UNIMPLEMENTED();
 #elif V8_TARGET_ARCH_MIPS64
       UNIMPLEMENTED();
 #elif V8_TARGET_ARCH_LOONG64

@@ -253,6 +253,17 @@ class V8_EXPORT IsolateGroup {
     return !operator==(other);
   }
 
+#ifdef V8_ENABLE_SANDBOX
+  /**
+   * Whether the sandbox of the isolate group contains a given pointer.
+   * Will always return true if the sandbox is not enabled.
+   */
+  bool SandboxContains(void* pointer) const;
+  VirtualAddressSpace* GetSandboxAddressSpace();
+#else
+  V8_INLINE bool SandboxContains(void* pointer) const { return true; }
+#endif
+
  private:
   friend class Isolate;
   friend class ArrayBuffer::Allocator;
@@ -634,6 +645,13 @@ class V8_EXPORT Isolate {
     kFloat16Array = 165,
     kExplicitResourceManagement = 166,
     kWasmBranchHinting = 167,
+    kWasmMultiValue = 168,
+    kUint8ArrayToFromBase64AndHex = 169,
+    kAtomicsPause = 170,
+    kTopLevelAwait = 171,
+    kLogicalAssignment = 172,
+    kNullishCoalescing = 173,
+    kInvalidatedNoDateTimeConfigurationChangeProtector = 174,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -937,13 +955,30 @@ class V8_EXPORT Isolate {
    * Returns the value that was set or restored by
    * SetContinuationPreservedEmbedderData(), if any.
    */
+  V8_DEPRECATE_SOON("Use GetContinuationPreservedEmbedderDataV2 instead")
   Local<Value> GetContinuationPreservedEmbedderData();
 
   /**
    * Sets a value that will be stored on continuations and reset while the
    * continuation runs.
    */
+  V8_DEPRECATE_SOON("Use SetContinuationPreservedEmbedderDataV2 instead")
   void SetContinuationPreservedEmbedderData(Local<Value> data);
+
+  /**
+   * Returns the value set by `SetContinuationPreservedEmbedderDataV2()` or
+   * restored during microtask execution for the currently running continuation,
+   * if any. Returns undefiend if no continuation preserved embedder data was
+   * set.
+   */
+  Local<Data> GetContinuationPreservedEmbedderDataV2();
+
+  /**
+   * Sets a value that will be stored on continuations and restored while the
+   * continuation runs. If `data` is empty, the continuation preserved embedder
+   * data is set to undefined.
+   */
+  void SetContinuationPreservedEmbedderDataV2(Local<Data> data);
 
   /**
    * Get statistics about the heap memory usage.

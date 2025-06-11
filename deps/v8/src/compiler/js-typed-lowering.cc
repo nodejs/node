@@ -1682,6 +1682,7 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
   JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
                         BranchSemantics::kJS);
   gasm.InitializeEffectControl(effect, control);
@@ -1709,50 +1710,9 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
             gasm.LoadMap(TNode<HeapObject>::UncheckedCast(old_value));
         gasm.If(gasm.IsContextCellMap(old_value_map))
             .Then([&] {
-              TNode<ContextCell> cell =
-                  TNode<ContextCell>::UncheckedCast(old_value);
-              TNode<Int32T> state = gasm.LoadField<Int32T>(
-                  AccessBuilder::ForContextCellState(), cell);
-              gasm
-                  .MachineIf(gasm.Word32Equal(
-                      state, gasm.Int32Constant(ContextCell::kFloat64)))
-                  .Then([&] {
-                    Node* number_value = gasm.CheckNumber(new_value);
-                    gasm.StoreField(AccessBuilder::ForContextCellFloat64Value(),
-                                    cell, number_value);
-                  })
-                  .Else([&] {
-                    gasm
-                        .MachineIf(gasm.Word32Equal(
-                            state, gasm.Int32Constant(ContextCell::kInt32)))
-                        .Then([&] {
-                          Node* number_value =
-                              gasm.CheckNumberFitsInt32(new_value);
-                          gasm.StoreField(
-                              AccessBuilder::ForContextCellInt32Value(), cell,
-                              number_value);
-                        })
-                        .Else([&] {
-                          gasm
-                              .MachineIf(gasm.Word32Equal(
-                                  state, gasm.Int32Constant(ContextCell::kSmi)))
-                              .Then([&] {
-                                Node* smi_value = gasm.CheckSmi(new_value);
-                                gasm.StoreField(
-                                    AccessBuilder::ForContextCellTaggedValue(),
-                                    cell, smi_value);
-                              })
-                              .Else([&] {
-                                TNode<Object> tagged_value = gasm.LoadField<
-                                    Object>(
-                                    AccessBuilder::ForContextCellTaggedValue(),
-                                    cell);
-                                gasm.CheckIf(gasm.ReferenceEqual(tagged_value,
-                                                                 new_value),
-                                             DeoptimizeReason::kWrongValue);
-                              });
-                        });
-                  });
+              gasm.DetachContextCell(context, new_value,
+                                     static_cast<int>(access.index()),
+                                     frame_state);
             })
             .Else([&] {
               gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),

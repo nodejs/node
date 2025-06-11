@@ -2814,7 +2814,23 @@ IGNITION_HANDLER(CreateFunctionContext, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
   SetAccumulator(constructor_assembler.FastNewFunctionContext(
-      scope_info, slots, context, FUNCTION_SCOPE));
+      scope_info, slots, context, FUNCTION_SCOPE,
+      ContextMode::kNoContextCells));
+  Dispatch();
+}
+
+// CreateFunctionContext <scope_info_idx> <slots>
+//
+// Creates a new context with number of |slots| for the function closure.
+IGNITION_HANDLER(CreateFunctionContextWithCells, InterpreterAssembler) {
+  TNode<UintPtrT> scope_info_idx = BytecodeOperandIdx(0);
+  TNode<ScopeInfo> scope_info = CAST(LoadConstantPoolEntry(scope_info_idx));
+  TNode<Uint32T> slots = BytecodeOperandUImm(1);
+  TNode<Context> context = GetContext();
+  ConstructorBuiltinsAssembler constructor_assembler(state());
+  SetAccumulator(constructor_assembler.FastNewFunctionContext(
+      scope_info, slots, context, FUNCTION_SCOPE,
+      ContextMode::kHasContextCells));
   Dispatch();
 }
 
@@ -2828,7 +2844,7 @@ IGNITION_HANDLER(CreateEvalContext, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
   SetAccumulator(constructor_assembler.FastNewFunctionContext(
-      scope_info, slots, context, EVAL_SCOPE));
+      scope_info, slots, context, EVAL_SCOPE, ContextMode::kNoContextCells));
   Dispatch();
 }
 

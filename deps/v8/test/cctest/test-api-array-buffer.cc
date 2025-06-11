@@ -73,7 +73,7 @@ std::shared_ptr<v8::BackingStore> Externalize(Local<v8::SharedArrayBuffer> ab) {
 
 THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 1024);
@@ -107,7 +107,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
 
 THREADED_TEST(ArrayBuffer_ApiMaybeNew) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   // Reasonable-sized ArrayBuffer.
@@ -341,7 +341,7 @@ TEST(ArrayBuffer_TotalSize) {
 
 THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::Value> result = CompileRun(
@@ -380,7 +380,7 @@ THREADED_TEST(ArrayBuffer_JSInternalToExternal) {
 
 THREADED_TEST(ArrayBuffer_DisableDetach) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 100);
@@ -394,7 +394,7 @@ THREADED_TEST(ArrayBuffer_DisableDetach) {
 
 THREADED_TEST(ArrayBuffer_DetachingApi) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::ArrayBuffer> buffer = v8::ArrayBuffer::New(isolate, 1024);
@@ -443,7 +443,7 @@ THREADED_TEST(ArrayBuffer_DetachingApi) {
 
 THREADED_TEST(ArrayBuffer_DetachingScript) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   CompileRun(
@@ -494,7 +494,7 @@ THREADED_TEST(ArrayBuffer_DetachingScript) {
 
 THREADED_TEST(ArrayBuffer_WasDetached) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
@@ -506,7 +506,7 @@ THREADED_TEST(ArrayBuffer_WasDetached) {
 
 THREADED_TEST(ArrayBuffer_NonDetachableWasDetached) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   CompileRun(R"JS(
@@ -525,7 +525,7 @@ THREADED_TEST(ArrayBuffer_NonDetachableWasDetached) {
 
 THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 2);
@@ -546,7 +546,7 @@ THREADED_TEST(ArrayBuffer_ExternalizeEmpty) {
 
 THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::SharedArrayBuffer> ab = v8::SharedArrayBuffer::New(isolate, 1024);
@@ -580,7 +580,7 @@ THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
 
 THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::Value> result = CompileRun(
@@ -620,7 +620,7 @@ THREADED_TEST(SharedArrayBuffer_JSInternalToExternal) {
 
 THREADED_TEST(SkipArrayBufferBackingStoreDuringGC) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   void* buffer = CcTest::array_buffer_allocator()->Allocate(100);
@@ -648,7 +648,7 @@ THREADED_TEST(SkipArrayBufferBackingStoreDuringGC) {
 
 THREADED_TEST(SkipArrayBufferDuringScavenge) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   // Make sure the pointer looks like a heap object
@@ -674,7 +674,7 @@ THREADED_TEST(SkipArrayBufferDuringScavenge) {
 
 THREADED_TEST(Regress1006600) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::Value> ab = CompileRunChecked(isolate, "new ArrayBuffer()");
@@ -685,7 +685,7 @@ THREADED_TEST(Regress1006600) {
 
 THREADED_TEST(ArrayBuffer_NewBackingStore) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   std::shared_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewBackingStore(isolate, 100);
@@ -698,7 +698,7 @@ THREADED_TEST(ArrayBuffer_NewBackingStore) {
 
 THREADED_TEST(ArrayBuffer_NewResizableBackingStore) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   std::shared_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewResizableBackingStore(32, 1024);
@@ -713,7 +713,7 @@ THREADED_TEST(ArrayBuffer_NewResizableBackingStore) {
 
 THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   std::shared_ptr<v8::BackingStore> backing_store =
       v8::SharedArrayBuffer::NewBackingStore(isolate, 100);
@@ -727,7 +727,7 @@ THREADED_TEST(SharedArrayBuffer_NewBackingStore) {
 
 THREADED_TEST(SharedArrayBuffer_NewBackingStore_Unreasonable) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   std::unique_ptr<v8::BackingStore> backing_store =
       v8::SharedArrayBuffer::NewBackingStore(
@@ -739,7 +739,7 @@ THREADED_TEST(SharedArrayBuffer_NewBackingStore_Unreasonable) {
 
 THREADED_TEST(ArrayBuffer_NewBackingStore_Unreasonable) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   std::unique_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewBackingStore(
@@ -795,7 +795,7 @@ TEST(SharedArrayBuffer_NewBackingStore_CustomDeleter) {
 
 TEST(ArrayBuffer_NewBackingStore_EmptyDeleter) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   size_t size = 100;
   void* buffer = CcTest::array_buffer_allocator()->Allocate(size);
@@ -815,7 +815,7 @@ TEST(ArrayBuffer_NewBackingStore_EmptyDeleter) {
 
 TEST(SharedArrayBuffer_NewBackingStore_EmptyDeleter) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   size_t size = 100;
   void* buffer = CcTest::array_buffer_allocator()->Allocate(size);
@@ -835,7 +835,7 @@ TEST(SharedArrayBuffer_NewBackingStore_EmptyDeleter) {
 
 THREADED_TEST(BackingStore_NotShared) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 8);
   CHECK(!ab->GetBackingStore()->IsShared());
@@ -852,7 +852,7 @@ THREADED_TEST(BackingStore_NotShared) {
 
 THREADED_TEST(BackingStore_Shared) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   Local<v8::SharedArrayBuffer> ab = v8::SharedArrayBuffer::New(isolate, 8);
   CHECK(ab->GetBackingStore()->IsShared());
@@ -873,7 +873,7 @@ THREADED_TEST(ArrayBuffer_NewBackingStore_NullData) {
   // into that TypedArray at index 0 is expected to be a no-op, reading from
   // that TypedArray at index 0 should result in the default value '0'.
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
   std::unique_ptr<v8::BackingStore> backing_store =
       v8::ArrayBuffer::NewBackingStore(nullptr, 0,
@@ -1025,7 +1025,7 @@ TEST(BackingStore_ReleaseAllocator_NullptrBackingStore) {
 
 TEST(ArrayBuffer_Resizable) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   const char rab_source[] = "new ArrayBuffer(32, { maxByteLength: 1024 });";
@@ -1046,7 +1046,7 @@ TEST(ArrayBuffer_Resizable) {
 
 TEST(ArrayBuffer_FixedLength) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   // Fixed-length ArrayBuffers' byte length are equal to their max byte length.
@@ -1066,7 +1066,7 @@ TEST(ArrayBuffer_FixedLength) {
 
 THREADED_TEST(ArrayBuffer_DataApiWithEmptyExternal) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
@@ -1092,7 +1092,7 @@ THREADED_TEST(ArrayBuffer_DataApiWithEmptyExternal) {
 namespace {
 void TestArrayBufferViewGetContent(const char* source, void* expected) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   auto view = v8::Local<v8::ArrayBufferView>::Cast(CompileRun(source));

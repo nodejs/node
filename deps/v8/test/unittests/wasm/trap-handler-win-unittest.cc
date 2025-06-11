@@ -34,7 +34,8 @@ class ExceptionHandlerFallbackTest : public v8::TestWithPlatform {
     v8::PageAllocator* page_allocator = i::GetPlatformPageAllocator();
     // We only need a single page.
     size_t size = page_allocator->AllocatePageSize();
-    void* hint = page_allocator->GetRandomMmapAddr();
+    auto hint = v8::PageAllocator::AllocationHint().WithAddress(
+        page_allocator->GetRandomMmapAddr());
     i::VirtualMemory mem(page_allocator, size, hint, size);
     g_start_address = mem.address();
     // Set the permissions of the memory to no-access.

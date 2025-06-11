@@ -268,7 +268,7 @@ V8_INLINE size_t hash_value(std::tuple<T...> const& v) {
 
 template <typename T>
 V8_INLINE size_t hash_value(T v)
-  requires std::is_enum<T>::value
+  requires std::is_enum_v<T>
 {
   return hash_value(static_cast<std::underlying_type_t<T>>(v));
 }

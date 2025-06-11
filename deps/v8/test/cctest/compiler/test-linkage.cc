@@ -51,7 +51,7 @@ TEST(TestLinkageCreate) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + b");
   Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
-  OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
+  OptimizedCompilationInfo info(handles.main_zone(), handles.main_isolate(),
                                 shared, function, CodeKind::TURBOFAN_JS);
   auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
   CHECK(call_descriptor);
@@ -68,7 +68,7 @@ TEST(TestLinkageJSFunctionIncoming) {
         *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
     Handle<SharedFunctionInfo> shared(function->shared(),
                                       handles.main_isolate());
-    OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
+    OptimizedCompilationInfo info(handles.main_zone(), handles.main_isolate(),
                                   shared, function, CodeKind::TURBOFAN_JS);
     auto call_descriptor = Linkage::ComputeIncoming(info.zone(), &info);
     CHECK(call_descriptor);
@@ -85,7 +85,7 @@ TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
   Handle<SharedFunctionInfo> shared(function->shared(), handles.main_isolate());
-  OptimizedCompilationInfo info(handles.main_zone(), function->GetIsolate(),
+  OptimizedCompilationInfo info(handles.main_zone(), handles.main_isolate(),
                                 shared, function, CodeKind::TURBOFAN_JS);
 
   for (int i = 0; i < 32; i++) {

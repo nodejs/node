@@ -2829,7 +2829,7 @@ void Simulator::TraceRegWr(T value, TraceType t) {
 template <typename T>
 void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
   if (v8_flags.trace_sim) {
-    if (std::is_integral<T>::value) {
+    if (std::is_integral_v<T>) {
       switch (sizeof(T)) {
         case 1:
           SNPrintF(trace_buf_,
@@ -2862,12 +2862,12 @@ void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
         default:
           UNREACHABLE();
       }
-    } else if (std::is_same<float, T>::value) {
+    } else if (std::is_same_v<float, T>) {
       SNPrintF(trace_buf_,
                "%016" REGIx_FORMAT "    (%" PRId64
                ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
                reg_value, icount_, static_cast<float>(value), addr);
-    } else if (std::is_same<double, T>::value) {
+    } else if (std::is_same_v<double, T>) {
       SNPrintF(trace_buf_,
                "%016" REGIx_FORMAT "    (%" PRId64
                ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
@@ -2925,7 +2925,7 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
                  static_cast<uint16_t>(value), addr);
         break;
       case 4:
-        if (std::is_integral<T>::value) {
+        if (std::is_integral_v<T>) {
           SNPrintF(trace_buf_,
                    "                    (%" PRIu64 ")    int32:%" PRId32
                    " uint32:%" PRIu32 " --> [addr: %" REGIx_FORMAT "]",
@@ -2940,7 +2940,7 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
         }
         break;
       case 8:
-        if (std::is_integral<T>::value) {
+        if (std::is_integral_v<T>) {
           SNPrintF(trace_buf_,
                    "                    (%" PRIu64 ")    int64:%" PRId64
                    " uint64:%" PRIu64 " --> [addr: %" REGIx_FORMAT "]",
@@ -3028,7 +3028,7 @@ void Simulator::WriteMem(sreg_t addr, T value, Instruction* instr) {
   }
 #endif
   T* ptr = reinterpret_cast<T*>(addr);
-  if (!std::is_same<double, T>::value) {
+  if (!std::is_same_v<double, T>) {
     TraceMemWr(addr, value);
   } else {
     TraceMemWrDouble(addr, value);
@@ -4072,10 +4072,9 @@ double Simulator::RoundF2FHelper(double input_val, int rmode) {
 // are out-of-range, underflow, or NaN, and set appropriate fflags
 template <typename I_TYPE, typename F_TYPE>
 I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
-  DCHECK(std::is_integral<I_TYPE>::value);
+  DCHECK(std::is_integral_v<I_TYPE>);
 
-  DCHECK((std::is_same<F_TYPE, float>::value ||
-          std::is_same<F_TYPE, double>::value));
+  DCHECK((std::is_same_v<F_TYPE, float> || std::is_same_v<F_TYPE, double>));
 
   I_TYPE max_i = std::numeric_limits<I_TYPE>::max();
   I_TYPE min_i = std::numeric_limits<I_TYPE>::min();
@@ -4111,7 +4110,7 @@ I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
   // point is within the max range, we compare against (max_i+1) which would
   // have a single 1 w/ many trailing zeros
   float max_i_plus_1 =
-      std::is_same<uint64_t, I_TYPE>::value
+      std::is_same_v<uint64_t, I_TYPE>
           ? 0x1p64f  // uint64_t::max + 1 cannot be represented in integers,
                      // so use its float representation directly
           : static_cast<float>(static_cast<uint64_t>(max_i) + 1);
@@ -4127,8 +4126,7 @@ I_TYPE Simulator::RoundF2IHelper(F_TYPE original, int rmode) {
     return min_i;
   }
 
-  F_TYPE underflow_fval =
-      std::is_same<F_TYPE, float>::value ? FLT_MIN : DBL_MIN;
+  F_TYPE underflow_fval = std::is_same_v<F_TYPE, float> ? FLT_MIN : DBL_MIN;
   if (rounded < underflow_fval && rounded > -underflow_fval && rounded != 0) {
     set_fflags(kUnderflow);
   }
@@ -4158,7 +4156,7 @@ static int64_t FclassHelper(T value) {
 
 template <typename T>
 bool Simulator::CompareFHelper(T input1, T input2, FPUCondition cc) {
-  DCHECK(std::is_floating_point<T>::value);
+  DCHECK(std::is_floating_point_v<T>);
   bool result = false;
   switch (cc) {
     case LT:
@@ -4588,7 +4586,7 @@ void Simulator::DecodeRVRFPType() {
       }
       break;
     }
-    case RO_FMV: {  // RO_FCLASS_S
+    case RO_FMV_X_W: {  // RO_FCLASS_S
       switch (instr_.Funct3Value()) {
         case 0b000: {
           if (instr_.Rs2Value() == 0b00000) {

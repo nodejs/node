@@ -72,7 +72,7 @@ class CWasmEntryArgTester {
     // Check the result.
     ReturnType result = packer.Pop<ReturnType>();
     ReturnType expected = expected_fn_(args...);
-    if (std::is_floating_point<ReturnType>::value) {
+    if (std::is_floating_point_v<ReturnType>) {
       CHECK_DOUBLE_EQ(expected, result);
     } else {
       CHECK_EQ(expected, result);

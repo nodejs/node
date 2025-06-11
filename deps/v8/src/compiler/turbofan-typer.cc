@@ -2171,6 +2171,8 @@ Type Typer::Visitor::TypeJSCallRuntime(Node* node) {
   return Type::Any();
 }
 
+Type Typer::Visitor::TypeJSDetachContextCell(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeJSForInEnumerate(Node* node) {
   return Type::OtherInternal();
 }
@@ -2450,6 +2452,10 @@ Type Typer::Visitor::TypeCheckNumber(Node* node) {
   return typer_->operation_typer_.CheckNumber(Operand(node, 0));
 }
 
+Type Typer::Visitor::TypeCheckNumberOrUndefined(Node* node) {
+  return typer_->operation_typer_.CheckNumberOrUndefined(Operand(node, 0));
+}
+
 Type Typer::Visitor::TypeCheckNumberFitsInt32(Node* node) {
   return typer_->operation_typer_.CheckNumberFitsInt32(Operand(node, 0));
 }
@@ -2490,6 +2496,15 @@ Type Typer::Visitor::TypeCheckFloat64Hole(Node* node) {
 
 Type Typer::Visitor::TypeChangeFloat64HoleToTagged(Node* node) {
   return typer_->operation_typer_.CheckFloat64Hole(Operand(node, 0));
+}
+
+Type Typer::Visitor::TypeChangeFloat64OrUndefinedOrHoleToTagged(Node* node) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  Type arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::NumberOrUndefinedOrHole(), zone());
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 }
 
 Type Typer::Visitor::TypeCheckNotTaggedHole(Node* node) {

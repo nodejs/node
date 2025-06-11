@@ -17,8 +17,10 @@
 
 #include <cstddef>
 #include <cstring>
+#include <string_view>
 
 #include "absl/base/config.h"
+#include "absl/strings/internal/utf8.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 
@@ -32,6 +34,32 @@ inline size_t AppendTruncated(absl::string_view src, absl::Span<char> &dst) {
   memcpy(dst.data(), src.data(), src.size());
   dst.remove_prefix(src.size());
   return src.size();
+}
+// Likewise, but it also takes a wide character string and transforms it into a
+// UTF-8 encoded byte string regardless of the current locale.
+// - On platforms where `wchar_t` is 2 bytes (e.g., Windows), the input is
+//   treated as UTF-16.
+// - On platforms where `wchar_t` is 4 bytes (e.g., Linux, macOS), the input
+//   is treated as UTF-32.
+inline size_t AppendTruncated(std::wstring_view src, absl::Span<char> &dst) {
+  absl::strings_internal::ShiftState state;
+  size_t total_bytes_written = 0;
+  for (const wchar_t wc : src) {
+    // If the destination buffer might not be large enough to write the next
+    // character, stop.
+    if (dst.size() < absl::strings_internal::kMaxEncodedUTF8Size) break;
+    size_t bytes_written =
+        absl::strings_internal::WideToUtf8(wc, dst.data(), state);
+    if (bytes_written == static_cast<size_t>(-1)) {
+      // Invalid character. Encode REPLACEMENT CHARACTER (U+FFFD) instead.
+      constexpr wchar_t kReplacementCharacter = L'\uFFFD';
+      bytes_written = absl::strings_internal::WideToUtf8(kReplacementCharacter,
+                                                         dst.data(), state);
+    }
+    dst.remove_prefix(bytes_written);
+    total_bytes_written += bytes_written;
+  }
+  return total_bytes_written;
 }
 // Likewise, but `n` copies of `c`.
 inline size_t AppendTruncated(char c, size_t n, absl::Span<char> &dst) {

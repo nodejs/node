@@ -134,6 +134,7 @@ void ImplementationVisitor::BeginGeneratedFiles() {
              << SourceFileMap::PathFromV8RootWithoutExtension(source)
              << "-inl.h\"\n\n";
         file << "#include \"torque-generated/class-verifiers.h\"\n";
+        file << "#include \"src/objects/objects-inl.h\"\n\n";
         file << "#include \"src/objects/instance-type-inl.h\"\n\n";
       }
       if (contains_class_asserts.count(source) != 0) {
@@ -177,8 +178,13 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   std::ostream& header = debug_macros_h_;
 
   source << "#include \"torque-generated/debug-macros.h\"\n\n";
+  source << "\n";
+  source << "// The following includes are here to provide some constants "
+            "definitions.\n";
   source << "#include \"src/objects/swiss-name-dictionary.h\"\n";
   source << "#include \"src/objects/ordered-hash-table.h\"\n";
+  source << "#include \"src/objects/prototype-info.h\"\n";
+  source << "\n";
   source << "#include \"src/torque/runtime-support.h\"\n";
   source << "#include \"tools/debug_helper/debug-macro-shims.h\"\n";
   source << "#include \"include/v8-internal.h\"\n";
@@ -4186,10 +4192,10 @@ void CppClassGenerator::GenerateClass() {
   hdr_ << template_decl() << "\n";
   hdr_ << "class " << gen_name_ << " : public P {\n";
   hdr_ << "  static_assert(\n"
-       << "      std::is_same<" << name_ << ", D>::value,\n"
+       << "      std::is_same_v<" << name_ << ", D>,\n"
        << "      \"Use this class as direct base for " << name_ << ".\");\n";
   hdr_ << "  static_assert(\n"
-       << "      std::is_same<" << super_->name() << ", P>::value,\n"
+       << "      std::is_same_v<" << super_->name() << ", P>,\n"
        << "      \"Pass in " << super_->name()
        << " as second template parameter for " << gen_name_ << ".\");\n\n";
   hdr_ << " public: \n";
@@ -4424,7 +4430,7 @@ void CppClassGenerator::GenerateClassConstructors() {
   hdr_ << "  template <class DAlias = D>\n";
   hdr_ << "  constexpr " << gen_name_ << "() : P() {\n";
   hdr_ << "    static_assert(\n";
-  hdr_ << "        std::is_base_of<" << gen_name_ << ", DAlias>::value,\n";
+  hdr_ << "        std::is_base_of_v<" << gen_name_ << ", DAlias>,\n";
   hdr_ << "        \"class " << gen_name_
        << " should be used as direct base for " << name_ << ".\");\n";
   hdr_ << "  }\n\n";

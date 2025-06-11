@@ -370,13 +370,6 @@ DirectHandle<Map> Map::AddMissingTransitionsForTesting(
   return AddMissingTransitions(isolate, split_map, descriptors);
 }
 
-InstanceType Map::instance_type() const {
-  // TODO(solanes, v8:7790, v8:11353, v8:11945): Make this and the setter
-  // non-atomic when TSAN sees the map's store synchronization.
-  return static_cast<InstanceType>(
-      RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
-}
-
 void Map::set_instance_type(InstanceType value) {
   RELAXED_WRITE_UINT16_FIELD(*this, kInstanceTypeOffset, value);
 }
@@ -603,6 +596,26 @@ bool Map::TryGetPrototypeInfo(Tagged<PrototypeInfo>* result) const {
   return true;
 }
 
+// static
+bool Map::TryGetValidityCellHolderMap(
+    Tagged<Map> map, Isolate* isolate,
+    Tagged<Map>* out_validity_cell_holder_map) {
+  if (map->is_prototype_map()) {
+    // For prototype maps we can use their validity cell for guarding changes.
+    *out_validity_cell_holder_map = map;
+    return true;
+  }
+  // For non-prototype maps we use prototype's map's validity cell.
+  Tagged<Object> maybe_prototype =
+      map->GetPrototypeChainRootMap(isolate)->prototype();
+
+  if (!IsJSObjectThatCanBeTrackedAsPrototype(maybe_prototype)) {
+    return false;
+  }
+  *out_validity_cell_holder_map = Cast<JSObject>(maybe_prototype)->map();
+  return true;
+}
+
 void Map::set_elements_kind(ElementsKind elements_kind) {
   CHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
   set_bit_field2(
@@ -744,6 +757,12 @@ bool Map::CanTransition() const {
 
 bool IsBooleanMap(Tagged<Map> map) {
   return map == GetReadOnlyRoots().boolean_map();
+}
+
+bool IsNullMap(Tagged<Map> map) { return map == GetReadOnlyRoots().null_map(); }
+
+bool IsUndefinedMap(Tagged<Map> map) {
+  return map == GetReadOnlyRoots().undefined_map();
 }
 
 bool IsNullOrUndefinedMap(Tagged<Map> map) {
@@ -1040,8 +1059,6 @@ int Map::SlackForArraySize(int old_size, int size_limit) {
 int Map::InstanceSizeFromSlack(int slack) const {
   return instance_size() - slack * kTaggedSize;
 }
-
-NEVER_READ_ONLY_SPACE_IMPL(NormalizedMapCache)
 
 int NormalizedMapCache::GetIndex(Isolate* isolate, Tagged<Map> map,
                                  Tagged<HeapObject> prototype) {

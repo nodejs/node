@@ -33,13 +33,7 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
  public:
   MaglevCompilationHandleScope(Isolate* isolate,
                                maglev::MaglevCompilationInfo* info)
-      : info_(info),
-        persistent_(isolate)
-#ifdef V8_ENABLE_MAGLEV
-        ,
-        exported_info_(info)
-#endif
-  {
+      : info_(info), persistent_(isolate) {
     info->ReopenAndCanonicalizeHandlesInNewScope(isolate);
   }
 
@@ -50,9 +44,6 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
  private:
   maglev::MaglevCompilationInfo* const info_;
   PersistentHandlesScope persistent_;
-#ifdef V8_ENABLE_MAGLEV
-  ExportedMaglevCompilationInfo exported_info_;
-#endif
 };
 
 static bool SpecializeToFunctionContext(
@@ -185,7 +176,7 @@ void MaglevCompilationInfo::set_canonical_handles(
 }
 
 bool MaglevCompilationInfo::is_detached() {
-  return toplevel_function_->context()->IsDetached();
+  return toplevel_function_->context()->IsDetached(Isolate::Current());
 }
 
 std::unique_ptr<CanonicalHandlesMap>

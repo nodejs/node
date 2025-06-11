@@ -201,7 +201,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   PageMetadata* InitializePage(MutablePageMetadata* chunk) override;
 
-  virtual void ReleasePage(PageMetadata* page);
+  virtual void RemovePageFromSpace(PageMetadata* page);
 
   // Adds the page to this space and returns the number of bytes added to the
   // free list of the space.
@@ -310,7 +310,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     return committed_physical_memory_.load(std::memory_order_relaxed);
   }
 
-  void ReleasePageImpl(PageMetadata* page, MemoryAllocator::FreeMode free_mode);
+  void RemovePageFromSpaceImpl(PageMetadata* page);
 
   void AddPageImpl(PageMetadata* page);
 
@@ -451,8 +451,6 @@ class V8_EXPORT_PRIVATE OldSpace : public PagedSpace {
 
   void AddPromotedPage(PageMetadata* page, FreeMode free_mode);
 
-  void ReleasePage(PageMetadata* page) override;
-
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
       return heap()->OldArrayBufferBytes();
@@ -529,8 +527,6 @@ class SharedSpace final : public PagedSpace {
   explicit SharedSpace(Heap* heap)
       : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
-
-  void ReleasePage(PageMetadata* page) override;
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer) return 0;

@@ -136,6 +136,29 @@ FullObjectSlot Arguments<T>::slot_from_address_at(int index, int offset) const {
 
 #endif  // V8_RUNTIME_CALL_STATS
 
+namespace detail {
+// The RUNTIME_FUNCTION_RETURNS_TYPE macro doesn't know the Runtime::kFoo name
+// of the runtime function it's used for since it's only passed Runtime_Foo as
+// "Name". RuntimeFunctionFullName is a trick to get from Runtime_Foo to
+// Runtime::kFoo, in order to figure out if Runtime::kFoo can trigger GC.
+enum class RuntimeFunctionFullName {
+#define F(name, ...) kRuntime_##name,
+  FOR_EACH_INTRINSIC(F)
+#undef F
+};
+
+constexpr bool RuntimeFunctionFullNameCanTriggerGC(
+    RuntimeFunctionFullName function_name) {
+  switch (function_name) {
+#define CASE(name, ...)                          \
+  case RuntimeFunctionFullName::kRuntime_##name: \
+    return Runtime::kCanTriggerGC[static_cast<int>(Runtime::k##name)];
+    FOR_EACH_INTRINSIC(CASE)
+#undef CASE
+  }
+}
+}  // namespace detail
+
 #define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)   \
   static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,    \
                                                  Isolate* isolate);        \
@@ -146,7 +169,13 @@ FullObjectSlot Arguments<T>::slot_from_address_at(int index, int offset) const {
     CLOBBER_DOUBLE_REGISTERS();                                            \
     TEST_AND_CALL_RCS(Name)                                                \
     RuntimeArguments args(args_length, args_object);                       \
-    return Convert(__RT_impl_##Name(args, isolate));                       \
+    if constexpr (detail::RuntimeFunctionFullNameCanTriggerGC(             \
+                      detail::RuntimeFunctionFullName::k##Name)) {         \
+      return Convert(__RT_impl_##Name(args, isolate));                     \
+    } else {                                                               \
+      DisallowGarbageCollection no_gc;                                     \
+      return Convert(__RT_impl_##Name(args, isolate));                     \
+    }                                                                      \
   }                                                                        \
                                                                            \
   static InternalType __RT_impl_##Name(RuntimeArguments args, Isolate* isolate)

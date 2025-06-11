@@ -101,17 +101,14 @@ TestingModuleBuilder::TestingModuleBuilder(
                                 sig_index, WellKnownImport::kUninstantiated);
     ImportCallKind kind = resolved.kind();
     DirectHandle<JSReceiver> callable = resolved.callable();
-    WasmCode* import_wrapper = GetWasmImportWrapperCache()->MaybeGet(
-        kind, sig_index, static_cast<int>(sig->parameter_count()), kNoSuspend);
-    if (import_wrapper == nullptr) {
-      import_wrapper = CompileImportWrapperForTest(
-          isolate_, native_module_, kind, sig, sig_index,
-          static_cast<int>(sig->parameter_count()), kNoSuspend);
-    }
+    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
+        GetWasmImportWrapperCache()->GetCompiled(
+            isolate, kind, sig_index, static_cast<int>(sig->parameter_count()),
+            kNoSuspend, sig);
 
     ImportedFunctionEntry(trusted_instance_data_, maybe_import_index)
-        .SetCompiledWasmToJs(isolate_, callable, import_wrapper,
-                             resolved.suspend(), sig, sig_index);
+        .SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),
+                          resolved.suspend(), sig, sig_index);
   }
 }
 
@@ -304,22 +301,20 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
           test_module_->canonical_sig_id(function.sig_index);
       FunctionTargetAndImplicitArg entry(isolate_, trusted_instance_data_,
                                          function.func_index);
-      if (function_index < test_module_->num_imported_functions &&
-          trusted_instance_data_->dispatch_table_for_imports()->IsAWrapper(
-              function_index)) {
-        uint64_t signature_hash = SignatureHasher::Hash(function.sig);
+      auto maybe_wrapper =
+          function_index < test_module_->num_imported_functions
+              ? trusted_instance_data_->dispatch_table_for_imports()
+                    ->MaybeGetWrapperHandle(function_index)
+              : std::nullopt;
+
+      if (maybe_wrapper) {
         trusted_instance_data_->dispatch_table(table_index)
-            ->SetForWrapper(
-                i, Cast<WasmImportData>(*entry.implicit_arg()),
-                wasm::GetProcessWideWasmCodePointerTable()->GetEntrypoint(
-                    entry.call_target(), signature_hash),
-                sig_id, signature_hash,
+            ->SetForWrapper(i, Cast<WasmImportData>(*entry.implicit_arg()),
+                            std::move(*maybe_wrapper), sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                function.func_index,
+                            function.func_index,
 #endif  // !V8_ENABLE_DRUMBRAKE
-                wasm::GetWasmImportWrapperCache()->FindWrapper(
-                    entry.call_target()),
-                WasmDispatchTable::kNewEntry);
+                            WasmDispatchTable::kNewEntry);
       } else {
         trusted_instance_data_->dispatch_table(table_index)
             ->SetForNonWrapper(

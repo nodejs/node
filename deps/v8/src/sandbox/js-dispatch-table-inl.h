@@ -23,12 +23,16 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
                                           uint16_t parameter_count,
                                           bool mark_as_alive) {
   DCHECK_EQ(object & kHeapObjectTag, 0);
-#if !defined(__illumos__) || !defined(V8_TARGET_ARCH_64_BIT)
-  DCHECK_EQ((object << kObjectPointerShift) >> kObjectPointerShift, object);
-#endif /* __illumos__ */
+  DCHECK_EQ((((object - kObjectPointerOffset) << kObjectPointerShift) >>
+             kObjectPointerShift) +
+                kObjectPointerOffset,
+            object);
+  DCHECK_EQ((object - kObjectPointerOffset) + kObjectPointerOffset, object);
+  DCHECK_LT((object - kObjectPointerOffset),
+            1ULL << ((sizeof(encoded_word_) * 8) - kObjectPointerShift));
 
-  Address payload =
-      (object << kObjectPointerShift) | (parameter_count & kParameterCountMask);
+  Address payload = ((object - kObjectPointerOffset) << kObjectPointerShift) |
+                    (parameter_count & kParameterCountMask);
   DCHECK(!(payload & kMarkingBit));
   if (mark_as_alive) payload |= kMarkingBit;
 #ifdef V8_TARGET_ARCH_32_BIT
@@ -51,14 +55,8 @@ Address JSDispatchEntry::GetCodePointer() const {
   // and so may be 0 or 1 here. As the return value is a tagged pointer, the
   // bit must be 1 when returned, so we need to set it here.
   Address payload = encoded_word_.load(std::memory_order_relaxed);
-#if defined(__illumos__) && defined(V8_TARGET_ARCH_64_BIT)
-  // Unsigned types won't sign-extend on shift-right, but we need to do
-  // this with illumos VA48 addressing.
-  return (Address)((intptr_t)payload >> (int)kObjectPointerShift) |
-    kHeapObjectTag;
-#else
-  return (payload >> kObjectPointerShift) | kHeapObjectTag;
-#endif /* __illumos__ */
+  return ((payload >> kObjectPointerShift) + kObjectPointerOffset) |
+         kHeapObjectTag;
 }
 
 Tagged<Code> JSDispatchEntry::GetCode() const {
@@ -109,7 +107,7 @@ void JSDispatchTable::SetCodeAndEntrypointNoWriteBarrier(
   DCHECK(!HeapLayout::InYoungGeneration(new_code));
 
   uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  DCHECK_GE(index, kEndOfReadOnlyIndex);
   CFIMetadataWriteScope write_scope("JSDispatchTable update");
   at(index).SetCodeAndEntrypointPointer(new_code.ptr(), new_entrypoint);
 }
@@ -119,7 +117,7 @@ void JSDispatchTable::SetTieringRequest(JSDispatchHandle handle,
                                         Isolate* isolate) {
   DCHECK(IsValidTieringBuiltin(builtin));
   uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  DCHECK_GE(index, kEndOfReadOnlyIndex);
   CFIMetadataWriteScope write_scope("JSDispatchTable update");
   at(index).SetEntrypointPointer(
       isolate->builtin_entry_table()[static_cast<uint32_t>(builtin)]);
@@ -127,7 +125,7 @@ void JSDispatchTable::SetTieringRequest(JSDispatchHandle handle,
 
 bool JSDispatchTable::IsTieringRequested(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  DCHECK_GE(index, kEndOfReadOnlyIndex);
   Address entrypoint = at(index).GetEntrypoint();
   Address code_entrypoint = at(index).GetCode()->instruction_start();
   return code_entrypoint != entrypoint;
@@ -137,7 +135,7 @@ bool JSDispatchTable::IsTieringRequested(JSDispatchHandle handle,
                                          TieringBuiltin builtin,
                                          Isolate* isolate) {
   uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  DCHECK_GE(index, kEndOfReadOnlyIndex);
   Address entrypoint = at(index).GetEntrypoint();
   Address code_entrypoint = at(index).GetCode()->instruction_start();
   if (entrypoint == code_entrypoint) return false;
@@ -147,7 +145,7 @@ bool JSDispatchTable::IsTieringRequested(JSDispatchHandle handle,
 
 void JSDispatchTable::ResetTieringRequest(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
-  DCHECK_GE(index, kEndOfInternalReadOnlySegment);
+  DCHECK_GE(index, kEndOfReadOnlyIndex);
   CFIMetadataWriteScope write_scope("JSDispatchTable update");
   at(index).SetEntrypointPointer(at(index).GetCode()->instruction_start());
 }
@@ -187,7 +185,9 @@ void JSDispatchEntry::SetCodeAndEntrypointPointer(Address new_object,
   Address parameter_count = old_payload & kParameterCountMask;
   // We want to preserve the marking bit of the entry. Since that happens to
   // be the tag bit of the pointer, we need to explicitly clear it here.
-  Address object = (new_object << kObjectPointerShift) & ~kMarkingBit;
+  Address object =
+      ((new_object - kObjectPointerOffset) << kObjectPointerShift) &
+      ~kMarkingBit;
   Address new_payload = object | marking_bit | parameter_count;
   encoded_word_.store(new_payload, std::memory_order_relaxed);
   entrypoint_.store(new_entrypoint, std::memory_order_relaxed);
@@ -214,12 +214,7 @@ void JSDispatchEntry::MakeFreelistEntry(uint32_t next_entry_index) {
 bool JSDispatchEntry::IsFreelistEntry() const {
 #ifdef V8_TARGET_ARCH_64_BIT
   auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
-#ifdef __illumos__
-  // See the illumos definition of kFreeEntryTag for why we have to do this.
-  return (entrypoint & 0xffff000000000000ull) == kFreeEntryTag;
-#else
   return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
-#endif /* __illumos__ */
 #else
   return next_free_entry_.load(std::memory_order_relaxed) != 0;
 #endif
@@ -277,7 +272,7 @@ void JSDispatchTable::Mark(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
 
   // The read-only space is immortal and cannot be written to.
-  if (index < kEndOfInternalReadOnlySegment) return;
+  if (index < kEndOfReadOnlyIndex) return;
 
   CFIMetadataWriteScope write_scope("JSDispatchTable write");
   at(index).Mark();

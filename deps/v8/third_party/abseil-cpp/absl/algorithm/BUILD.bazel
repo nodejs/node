@@ -83,6 +83,7 @@ cc_test(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/memory",
+        "//absl/random",
         "//absl/types:span",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

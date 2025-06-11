@@ -478,6 +478,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kCreateBlockContext:
     case Bytecode::kCreateCatchContext:
     case Bytecode::kCreateFunctionContext:
+    case Bytecode::kCreateFunctionContextWithCells:
     case Bytecode::kCreateEvalContext:
     case Bytecode::kCreateWithContext:
     // Literals.
@@ -652,7 +653,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kDataViewPrototypeGetFloat64:
     case Builtin::kDataViewPrototypeGetBigInt64:
     case Builtin::kDataViewPrototypeGetBigUint64:
-    // Boolean bulitins.
+    // Boolean builtins.
     case Builtin::kBooleanConstructor:
     case Builtin::kBooleanPrototypeToString:
     case Builtin::kBooleanPrototypeValueOf:
@@ -867,6 +868,12 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kFastFunctionPrototypeBind:
     case Builtin::kFunctionPrototypeCall:
     case Builtin::kFunctionPrototypeApply:
+#ifndef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
+    case Builtin::kFunctionPrototypeLegacyArgumentsGetter:
+    case Builtin::kFunctionPrototypeLegacyArgumentsSetter:
+    case Builtin::kFunctionPrototypeLegacyCallerGetter:
+    case Builtin::kFunctionPrototypeLegacyCallerSetter:
+#endif  // !V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
     // Error builtins.
     case Builtin::kErrorConstructor:
     // RegExp builtins.

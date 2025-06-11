@@ -390,7 +390,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
 
 TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
     TNode<ScopeInfo> scope_info, TNode<Uint32T> slots, TNode<Context> context,
-    ScopeType scope_type) {
+    ScopeType scope_type, ContextMode context_mode) {
   TNode<IntPtrT> slots_intptr = Signed(ChangeUint32ToWord(slots));
   TNode<IntPtrT> size = ElementOffsetFromIndex(slots_intptr, PACKED_ELEMENTS,
                                                Context::kTodoHeaderSize);
@@ -425,16 +425,57 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
                                  context);
 
   // Initialize the varrest of the slots to undefined.
-  TNode<Oddball> undefined = UndefinedConstant();
-  TNode<IntPtrT> start_offset = IntPtrConstant(Context::kTodoHeaderSize);
-  CodeStubAssembler::VariableList vars(0, zone());
-  BuildFastLoop<IntPtrT>(
-      vars, start_offset, size,
-      [=, this](TNode<IntPtrT> offset) {
-        StoreObjectFieldNoWriteBarrier(function_context, offset, undefined);
-      },
-      kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
-  return function_context;
+  TNode<Object> undefined = UndefinedConstant();
+  if (context_mode == ContextMode::kHasContextCells) {
+    TVARIABLE(IntPtrT, offset, IntPtrConstant(Context::kTodoHeaderSize));
+    TNode<IntPtrT> local_count = LoadScopeInfoContextLocalCount(scope_info);
+
+    Label extension_field_done(this);
+    GotoIfNot(LoadScopeInfoHasExtensionField(scope_info),
+              &extension_field_done);
+    StoreObjectFieldNoWriteBarrier(function_context, Context::kExtensionOffset,
+                                   undefined);
+    offset = IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize));
+    Goto(&extension_field_done);
+    BIND(&extension_field_done);
+
+    CodeStubAssembler::VariableList vars({&offset}, zone());
+    BuildFastLoop<IntPtrT>(
+        vars, IntPtrConstant(0), local_count,
+        [&](TNode<IntPtrT> index) {
+          TNode<Object> init_value =
+              GetFunctionContextSlotInitialValue(scope_info, index);
+          StoreObjectFieldNoWriteBarrier(function_context, offset.value(),
+                                         init_value);
+          offset = IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize));
+        },
+        1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+
+    Label done(this);
+    GotoIf(IntPtrEqual(offset.value(), size), &done);
+    // We store another undefined for function variables that are stored in the
+    // last slot of the context.
+    StoreObjectFieldNoWriteBarrier(function_context, offset.value(), undefined);
+    // Check that this is indeed the last slot.
+    CSA_DCHECK(this, IntPtrEqual(
+                         IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize)),
+                         size));
+    Goto(&done);
+
+    BIND(&done);
+    return function_context;
+  } else {
+    DCHECK_EQ(context_mode, ContextMode::kNoContextCells);
+    TNode<IntPtrT> start_offset = IntPtrConstant(Context::kTodoHeaderSize);
+    CodeStubAssembler::VariableList vars(0, zone());
+    BuildFastLoop<IntPtrT>(
+        vars, start_offset, size,
+        [=, this](TNode<IntPtrT> offset) {
+          StoreObjectFieldNoWriteBarrier(function_context, offset, undefined);
+        },
+        kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+    return function_context;
+  }
 }
 
 TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(

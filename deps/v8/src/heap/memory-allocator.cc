@@ -92,8 +92,8 @@ void MemoryAllocator::FreeMemoryRegion(v8::PageAllocator* page_allocator,
 
 Address MemoryAllocator::AllocateAlignedMemory(
     size_t chunk_size, size_t area_size, size_t alignment,
-    AllocationSpace space, Executability executable, void* hint,
-    VirtualMemory* controller) {
+    AllocationSpace space, Executability executable, void* address_hint,
+    VirtualMemory* controller, PageSize page_size, AllocationHint hint) {
   DCHECK_EQ(space == CODE_SPACE || space == CODE_LO_SPACE,
             executable == EXECUTABLE);
   v8::PageAllocator* page_allocator = this->page_allocator(space);
@@ -103,8 +103,14 @@ Address MemoryAllocator::AllocateAlignedMemory(
       executable == EXECUTABLE
           ? MutablePageMetadata::GetCodeModificationPermission()
           : PageAllocator::kReadWrite;
-  VirtualMemory reservation(page_allocator, chunk_size, hint, alignment,
-                            permissions);
+
+  v8::PageAllocator::AllocationHint page_allocation_hint =
+      v8::PageAllocator::AllocationHint().WithAddress(address_hint);
+  if (hint.MayGrow()) {
+    page_allocation_hint = page_allocation_hint.WithMayGrow();
+  }
+  VirtualMemory reservation(page_allocator, chunk_size, page_allocation_hint,
+                            alignment, permissions);
   if (!reservation.IsReserved()) return HandleAllocationFailure(executable);
 
   // We cannot use the last chunk in the address space because we would
@@ -116,8 +122,8 @@ Address MemoryAllocator::AllocateAlignedMemory(
     CHECK(reserved_chunk_at_virtual_memory_limit_);
 
     // Retry reserve virtual memory.
-    reservation =
-        VirtualMemory(page_allocator, chunk_size, hint, alignment, permissions);
+    reservation = VirtualMemory(page_allocator, chunk_size,
+                                page_allocation_hint, alignment, permissions);
     if (!reservation.IsReserved()) return HandleAllocationFailure(executable);
   }
 
@@ -165,8 +171,8 @@ std::optional<MemoryAllocator::MemoryChunkAllocationResult>
 MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
                                               size_t area_size,
                                               Executability executable,
-                                              Address hint,
-                                              PageSize page_size) {
+                                              Address hint, PageSize page_size,
+                                              AllocationHint allocation_hint) {
 #ifndef V8_COMPRESS_POINTERS
   // When pointer compression is enabled, spaces are expected to be at a
   // predictable address (see mkgrokdump) so we don't supply a hint and rely on
@@ -185,7 +191,7 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
   Address base = AllocateAlignedMemory(
       chunk_size, area_size, MemoryChunk::GetAlignmentForAllocation(),
       space->identity(), executable, reinterpret_cast<void*>(hint),
-      &reservation);
+      &reservation, page_size, allocation_hint);
   if (base == kNullAddress) return {};
 
   size_ += reservation.size();
@@ -347,10 +353,6 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
     case FreeMode::kImmediately:
       PerformFreeMemory(chunk_metadata);
       break;
-    case FreeMode::kPostpone:
-      // Record page to be freed later.
-      queued_pages_to_be_freed_.push_back(chunk_metadata);
-      break;
     case FreeMode::kPool:
       // Ensure that we only ever put pages with their markbits cleared into the
       // pool. This is necessary because `PreFreeMemory` doesn't clear the
@@ -378,8 +380,8 @@ PageMetadata* MemoryAllocator::AllocatePage(
   }
 
   if (!chunk_info) {
-    chunk_info =
-        AllocateUninitializedChunk(space, size, executable, PageSize::kRegular);
+    chunk_info = AllocateUninitializedChunk(
+        space, size, executable, PageSize::kRegular, AllocationHint());
   }
 
   if (!chunk_info) return nullptr;
@@ -433,7 +435,7 @@ ReadOnlyPageMetadata* MemoryAllocator::AllocateReadOnlyPage(
   size_t size = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE);
   std::optional<MemoryChunkAllocationResult> chunk_info =
       AllocateUninitializedChunkAt(space, size, NOT_EXECUTABLE, hint,
-                                   PageSize::kRegular);
+                                   PageSize::kRegular, AllocationHint());
   if (!chunk_info) {
     return nullptr;
   }
@@ -444,9 +446,11 @@ ReadOnlyPageMetadata* MemoryAllocator::AllocateReadOnlyPage(
 
   new (chunk_info->chunk) MemoryChunk(metadata->InitialFlags(), metadata);
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
   SandboxHardwareSupport::NotifyReadOnlyPageCreated(
       metadata->ChunkAddress(), metadata->size(),
       PageAllocator::Permission::kReadWrite);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   return metadata;
 }
@@ -457,11 +461,13 @@ MemoryAllocator::RemapSharedPage(
   return shared_memory->RemapTo(reinterpret_cast<void*>(new_address));
 }
 
-LargePageMetadata* MemoryAllocator::AllocateLargePage(
-    LargeObjectSpace* space, size_t object_size, Executability executable) {
+LargePageMetadata* MemoryAllocator::AllocateLargePage(LargeObjectSpace* space,
+                                                      size_t object_size,
+                                                      Executability executable,
+                                                      AllocationHint hint) {
   std::optional<MemoryChunkAllocationResult> chunk_info =
       AllocateUninitializedChunk(space, object_size, executable,
-                                 PageSize::kLarge);
+                                 PageSize::kLarge, hint);
 
   if (!chunk_info) return nullptr;
 
@@ -644,13 +650,6 @@ void MemoryAllocator::RecordMemoryChunkDestroyed(const MemoryChunk* chunk) {
     USE(size);
     DCHECK_EQ(1u, size);
   }
-}
-
-void MemoryAllocator::ReleaseQueuedPages() {
-  for (auto* chunk : queued_pages_to_be_freed_) {
-    PerformFreeMemory(chunk);
-  }
-  queued_pages_to_be_freed_.clear();
 }
 
 // static

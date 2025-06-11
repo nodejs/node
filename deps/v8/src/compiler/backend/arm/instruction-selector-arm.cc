@@ -92,16 +92,18 @@ namespace {
 void VisitRR(InstructionSelectorT* selector, InstructionCode opcode,
              OpIndex node) {
   ArmOperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 1);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void VisitRRR(InstructionSelectorT* selector, InstructionCode opcode,
               OpIndex node) {
   ArmOperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseRegister(selector->input_at(node, 1)));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                 g.UseRegister(op.input(1)));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -281,8 +283,9 @@ void VisitBinop(InstructionSelectorT* selector, OpIndex node,
                 FlagsContinuationT* cont) {
   using OpIndex = OpIndex;
   ArmOperandGeneratorT g(selector);
-  OpIndex lhs = selector->input_at(node, 0);
-  OpIndex rhs = selector->input_at(node, 1);
+  const Operation& op = selector->Get(node);
+  OpIndex lhs = op.input(0);
+  OpIndex rhs = op.input(1);
   InstructionOperand inputs[3];
   size_t input_count = 0;
   InstructionOperand outputs[1];
@@ -356,19 +359,21 @@ void VisitDiv(InstructionSelectorT* selector, OpIndex node,
               ArchOpcode div_opcode, ArchOpcode f64i32_opcode,
               ArchOpcode i32f64_opcode) {
   ArmOperandGeneratorT g(selector);
+  const WordBinopOp& binop = selector->Cast<WordBinopOp>(node);
   EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode,
-          g.DefineAsRegister(node), g.UseRegister(selector->input_at(node, 0)),
-          g.UseRegister(selector->input_at(node, 1)));
+          g.DefineAsRegister(node), g.UseRegister(binop.left()),
+          g.UseRegister(binop.right()));
 }
 
 void VisitMod(InstructionSelectorT* selector, OpIndex node,
               ArchOpcode div_opcode, ArchOpcode f64i32_opcode,
               ArchOpcode i32f64_opcode) {
   ArmOperandGeneratorT g(selector);
+  const WordBinopOp& binop = selector->Cast<WordBinopOp>(node);
   InstructionOperand div_operand = g.TempRegister();
   InstructionOperand result_operand = g.DefineAsRegister(node);
-  InstructionOperand left_operand = g.UseRegister(selector->input_at(node, 0));
-  InstructionOperand right_operand = g.UseRegister(selector->input_at(node, 1));
+  InstructionOperand left_operand = g.UseRegister(binop.left());
+  InstructionOperand right_operand = g.UseRegister(binop.right());
   EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode, div_operand,
           left_operand, right_operand);
   if (selector->IsSupported(ARMv7)) {
@@ -483,16 +488,15 @@ void EmitStore(InstructionSelectorT* selector, InstructionCode opcode,
 void VisitPairAtomicBinOp(InstructionSelectorT* selector, OpIndex node,
                           ArchOpcode opcode) {
   ArmOperandGeneratorT g(selector);
-  using OpIndex = OpIndex;
-  OpIndex base = selector->input_at(node, 0);
-  OpIndex index = selector->input_at(node, 1);
-  OpIndex value = selector->input_at(node, 2);
-  OpIndex value_high = selector->input_at(node, 3);
+  const AtomicWord32PairOp& pair_binop =
+      selector->Cast<AtomicWord32PairOp>(node);
   AddressingMode addressing_mode = kMode_Offset_RR;
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
   InstructionOperand inputs[] = {
-      g.UseUniqueRegister(value), g.UseUniqueRegister(value_high),
-      g.UseUniqueRegister(base), g.UseUniqueRegister(index)};
+      g.UseUniqueRegister(pair_binop.value_low().value()),
+      g.UseUniqueRegister(pair_binop.value_high().value()),
+      g.UseUniqueRegister(pair_binop.base()),
+      g.UseUniqueRegister(pair_binop.index().value())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   InstructionOperand temps[6];
@@ -532,7 +536,7 @@ void InstructionSelectorT::VisitStackSlot(OpIndex node) {
 void InstructionSelectorT::VisitAbortCSADcheck(OpIndex node) {
   ArmOperandGeneratorT g(this);
   Emit(kArchAbortCSADcheck, g.NoOutput(),
-       g.UseFixed(this->input_at(node, 0), r1));
+       g.UseFixed(Cast<AbortCSADcheckOp>(node).message(), r1));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -760,7 +764,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
   ArmOperandGeneratorT g(selector);
   auto store_view = selector->store_view(node);
   OpIndex base = store_view.base();
-  OpIndex index = selector->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
@@ -875,8 +879,8 @@ void InstructionSelectorT::VisitUnalignedLoad(OpIndex node) {
   auto load = this->load_view(node);
   MachineRepresentation load_rep = load.loaded_rep().representation();
   ArmOperandGeneratorT g(this);
-  OpIndex base = this->input_at(node, 0);
-  OpIndex index = this->input_at(node, 1);
+  OpIndex base = load.base();
+  OpIndex index = load.index();
 
   InstructionCode opcode = kArmLdr;
   // Only floating point loads need to be specially handled; integer loads
@@ -940,7 +944,7 @@ void InstructionSelectorT::VisitUnalignedStore(OpIndex node) {
   ArmOperandGeneratorT g(this);
   auto store_view = this->store_view(node);
   OpIndex base = store_view.base();
-  OpIndex index = this->value(store_view.index());
+  OpIndex index = store_view.index().value();
   OpIndex value = store_view.value();
 
   InstructionOperand inputs[4];
@@ -1309,16 +1313,17 @@ void InstructionSelectorT::VisitWord32Sar(OpIndex node) {
 
 void InstructionSelectorT::VisitInt32PairAdd(OpIndex node) {
   ArmOperandGeneratorT g(this);
+  const Word32PairBinopOp& pair_binop = Cast<Word32PairBinopOp>(node);
 
   OptionalOpIndex projection1 = FindProjection(node, 1);
   if (projection1.valid()) {
     // We use UseUniqueRegister here to avoid register sharing with the output
     // registers.
     InstructionOperand inputs[] = {
-        g.UseRegister(this->input_at(node, 0)),
-        g.UseUniqueRegister(this->input_at(node, 1)),
-        g.UseRegister(this->input_at(node, 2)),
-        g.UseUniqueRegister(this->input_at(node, 3))};
+        g.UseRegister(pair_binop.left_low()),
+        g.UseUniqueRegister(pair_binop.left_high()),
+        g.UseRegister(pair_binop.right_low()),
+        g.UseUniqueRegister(pair_binop.right_high())};
 
     InstructionOperand outputs[] = {g.DefineAsRegister(node),
                                     g.DefineAsRegister(projection1.value())};
@@ -1328,23 +1333,24 @@ void InstructionSelectorT::VisitInt32PairAdd(OpIndex node) {
     // The high word of the result is not used, so we emit the standard 32 bit
     // instruction.
     Emit(kArmAdd | AddressingModeField::encode(kMode_Operand2_R),
-         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 2)));
+         g.DefineSameAsFirst(node), g.UseRegister(pair_binop.left_low()),
+         g.UseRegister(pair_binop.right_low()));
   }
 }
 
 void InstructionSelectorT::VisitInt32PairSub(OpIndex node) {
   ArmOperandGeneratorT g(this);
+  const Word32PairBinopOp& pair_binop = Cast<Word32PairBinopOp>(node);
 
   OptionalOpIndex projection1 = FindProjection(node, 1);
   if (projection1.valid()) {
     // We use UseUniqueRegister here to avoid register sharing with the output
     // register.
     InstructionOperand inputs[] = {
-        g.UseRegister(this->input_at(node, 0)),
-        g.UseUniqueRegister(this->input_at(node, 1)),
-        g.UseRegister(this->input_at(node, 2)),
-        g.UseUniqueRegister(this->input_at(node, 3))};
+        g.UseRegister(pair_binop.left_low()),
+        g.UseUniqueRegister(pair_binop.left_high()),
+        g.UseRegister(pair_binop.right_low()),
+        g.UseUniqueRegister(pair_binop.right_high())};
 
     InstructionOperand outputs[] = {g.DefineAsRegister(node),
                                     g.DefineAsRegister(projection1.value())};
@@ -1354,20 +1360,21 @@ void InstructionSelectorT::VisitInt32PairSub(OpIndex node) {
     // The high word of the result is not used, so we emit the standard 32 bit
     // instruction.
     Emit(kArmSub | AddressingModeField::encode(kMode_Operand2_R),
-         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 2)));
+         g.DefineSameAsFirst(node), g.UseRegister(pair_binop.left_low()),
+         g.UseRegister(pair_binop.right_low()));
   }
 }
 
 void InstructionSelectorT::VisitInt32PairMul(OpIndex node) {
   ArmOperandGeneratorT g(this);
+  const Word32PairBinopOp& pair_binop = Cast<Word32PairBinopOp>(node);
   OptionalOpIndex projection1 = FindProjection(node, 1);
   if (projection1.valid()) {
     InstructionOperand inputs[] = {
-        g.UseUniqueRegister(this->input_at(node, 0)),
-        g.UseUniqueRegister(this->input_at(node, 1)),
-        g.UseUniqueRegister(this->input_at(node, 2)),
-        g.UseUniqueRegister(this->input_at(node, 3))};
+        g.UseUniqueRegister(pair_binop.left_low()),
+        g.UseUniqueRegister(pair_binop.left_high()),
+        g.UseUniqueRegister(pair_binop.right_low()),
+        g.UseUniqueRegister(pair_binop.right_high())};
 
     InstructionOperand outputs[] = {g.DefineAsRegister(node),
                                     g.DefineAsRegister(projection1.value())};
@@ -1377,8 +1384,8 @@ void InstructionSelectorT::VisitInt32PairMul(OpIndex node) {
     // The high word of the result is not used, so we emit the standard 32 bit
     // instruction.
     Emit(kArmMul | AddressingModeField::encode(kMode_Operand2_R),
-         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 2)));
+         g.DefineSameAsFirst(node), g.UseRegister(pair_binop.left_low()),
+         g.UseRegister(pair_binop.right_low()));
   }
 }
 
@@ -1387,10 +1394,11 @@ namespace {
 void VisitWord32PairShift(InstructionSelectorT* selector,
                           InstructionCode opcode, OpIndex node) {
   ArmOperandGeneratorT g(selector);
+  const Word32PairBinopOp& pair_binop = selector->Cast<Word32PairBinopOp>(node);
   // We use g.UseUniqueRegister here to guarantee that there is
   // no register aliasing of input registers with output registers.
   InstructionOperand shift_operand;
-  OpIndex shift_by = selector->input_at(node, 2);
+  OpIndex shift_by = pair_binop.right_low();
   int64_t unused;
   if (selector->MatchSignedIntegralConstant(shift_by, &unused)) {
     shift_operand = g.UseImmediate(shift_by);
@@ -1398,9 +1406,9 @@ void VisitWord32PairShift(InstructionSelectorT* selector,
     shift_operand = g.UseUniqueRegister(shift_by);
   }
 
-  InstructionOperand inputs[] = {
-      g.UseUniqueRegister(selector->input_at(node, 0)),
-      g.UseUniqueRegister(selector->input_at(node, 1)), shift_operand};
+  InstructionOperand inputs[] = {g.UseUniqueRegister(pair_binop.left_low()),
+                                 g.UseUniqueRegister(pair_binop.left_high()),
+                                 shift_operand};
 
   OptionalOpIndex projection1 = selector->FindProjection(node, 1);
 
@@ -1588,12 +1596,13 @@ namespace {
 void EmitInt32MulWithOverflow(InstructionSelectorT* selector, OpIndex node,
                               FlagsContinuationT* cont) {
   ArmOperandGeneratorT g(selector);
-  OpIndex lhs = selector->input_at(node, 0);
-  OpIndex rhs = selector->input_at(node, 1);
+  const OverflowCheckedBinopOp& binop =
+      selector->Cast<OverflowCheckedBinopOp>(node);
   InstructionOperand result_operand = g.DefineAsRegister(node);
   InstructionOperand temp_operand = g.TempRegister();
   InstructionOperand outputs[] = {result_operand, temp_operand};
-  InstructionOperand inputs[] = {g.UseRegister(lhs), g.UseRegister(rhs)};
+  InstructionOperand inputs[] = {g.UseRegister(binop.left()),
+                                 g.UseRegister(binop.right())};
   selector->Emit(kArmSmull, 2, outputs, 2, inputs);
 
   // result operand needs shift operator.
@@ -1608,7 +1617,7 @@ void EmitInt32MulWithOverflow(InstructionSelectorT* selector, OpIndex node,
 
 void InstructionSelectorT::VisitInt32Mul(OpIndex node) {
   ArmOperandGeneratorT g(this);
-  const WordBinopOp& mul = this->Get(node).template Cast<WordBinopOp>();
+  const WordBinopOp& mul = Cast<WordBinopOp>(node);
   int32_t constant_rhs;
   if (this->MatchIntegralWord32Constant(mul.right(), &constant_rhs) &&
       constant_rhs > 0) {
@@ -1810,18 +1819,18 @@ void InstructionSelectorT::VisitFloat64Sub(OpIndex node) {
 
 void InstructionSelectorT::VisitFloat64Mod(OpIndex node) {
   ArmOperandGeneratorT g(this);
-  Emit(kArmVmodF64, g.DefineAsFixed(node, d0),
-       g.UseFixed(this->input_at(node, 0), d0),
-       g.UseFixed(this->input_at(node, 1), d1))
+  const FloatBinopOp& binop = Cast<FloatBinopOp>(node);
+  Emit(kArmVmodF64, g.DefineAsFixed(node, d0), g.UseFixed(binop.left(), d0),
+       g.UseFixed(binop.right(), d1))
       ->MarkAsCall();
 }
 
 void InstructionSelectorT::VisitFloat64Ieee754Binop(OpIndex node,
                                                     InstructionCode opcode) {
   ArmOperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, d0),
-       g.UseFixed(this->input_at(node, 0), d0),
-       g.UseFixed(this->input_at(node, 1), d1))
+  const FloatBinopOp& binop = Cast<FloatBinopOp>(node);
+  Emit(opcode, g.DefineAsFixed(node, d0), g.UseFixed(binop.left(), d0),
+       g.UseFixed(binop.right(), d1))
       ->MarkAsCall();
 }
 
@@ -1829,7 +1838,7 @@ void InstructionSelectorT::VisitFloat64Ieee754Unop(OpIndex node,
                                                    InstructionCode opcode) {
   ArmOperandGeneratorT g(this);
   Emit(opcode, g.DefineAsFixed(node, d0),
-       g.UseFixed(this->input_at(node, 0), d0))
+       g.UseFixed(Cast<FloatUnaryOp>(node).input(), d0))
       ->MarkAsCall();
 }
 
@@ -2037,8 +2046,9 @@ void MaybeReplaceCmpZeroWithFlagSettingBinop(InstructionSelectorT* selector,
 void VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
                       InstructionCode opcode, FlagsContinuationT* cont) {
   ArmOperandGeneratorT g(selector);
-  OpIndex lhs = selector->input_at(node, 0);
-  OpIndex rhs = selector->input_at(node, 1);
+  const Operation& op = selector->Get(node);
+  OpIndex lhs = op.input(0);
+  OpIndex rhs = op.input(1);
   InstructionOperand inputs[3];
   size_t input_count = 0;
   InstructionOperand outputs[2];
@@ -2240,7 +2250,8 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
 
 void InstructionSelectorT::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
   ArmOperandGeneratorT g(this);
-  InstructionOperand value_operand = g.UseRegister(this->input_at(node, 0));
+  InstructionOperand value_operand =
+      g.UseRegister(Cast<SwitchOp>(node).input());
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ ==
@@ -2550,12 +2561,11 @@ VISIT_ATOMIC_BINOP(Xor)
 
 void InstructionSelectorT::VisitWord32AtomicPairLoad(OpIndex node) {
   ArmOperandGeneratorT g(this);
-  OpIndex base = this->input_at(node, 0);
-  OpIndex index = this->input_at(node, 1);
+  const AtomicWord32PairOp& pair_op = Cast<AtomicWord32PairOp>(node);
   InstructionOperand inputs[3];
   size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseUniqueRegister(pair_op.base());
+  inputs[input_count++] = g.UseUniqueRegister(pair_op.index().value());
   InstructionOperand temps[1];
   size_t temp_count = 0;
   InstructionOperand outputs[2];
@@ -2619,14 +2629,12 @@ void InstructionSelectorT::VisitWord32AtomicPairXor(OpIndex node) {
 
 void InstructionSelectorT::VisitWord32AtomicPairExchange(OpIndex node) {
   ArmOperandGeneratorT g(this);
-  OpIndex base = this->input_at(node, 0);
-  OpIndex index = this->input_at(node, 1);
-  OpIndex value = this->input_at(node, 2);
-  OpIndex value_high = this->input_at(node, 3);
+  const AtomicWord32PairOp& pair_op = Cast<AtomicWord32PairOp>(node);
   AddressingMode addressing_mode = kMode_Offset_RR;
-  InstructionOperand inputs[] = {
-      g.UseFixed(value, r0), g.UseFixed(value_high, r1),
-      g.UseUniqueRegister(base), g.UseUniqueRegister(index)};
+  InstructionOperand inputs[] = {g.UseFixed(pair_op.value_low().value(), r0),
+                                 g.UseFixed(pair_op.value_high().value(), r1),
+                                 g.UseUniqueRegister(pair_op.base()),
+                                 g.UseUniqueRegister(pair_op.index().value())};
   InstructionCode code = kArmWord32AtomicPairExchange |
                          AddressingModeField::encode(addressing_mode);
   OptionalOpIndex projection0 = FindProjection(node, 0);
@@ -2654,16 +2662,15 @@ void InstructionSelectorT::VisitWord32AtomicPairExchange(OpIndex node) {
 void InstructionSelectorT::VisitWord32AtomicPairCompareExchange(OpIndex node) {
   ArmOperandGeneratorT g(this);
   AddressingMode addressing_mode = kMode_Offset_RR;
+  const AtomicWord32PairOp& pair_op = Cast<AtomicWord32PairOp>(node);
 
-  const size_t expected_offset = 4;
-  const size_t value_offset = 2;
   InstructionOperand inputs[] = {
-      g.UseFixed(this->input_at(node, expected_offset), r4),
-      g.UseFixed(this->input_at(node, expected_offset + 1), r5),
-      g.UseFixed(this->input_at(node, value_offset), r8),
-      g.UseFixed(this->input_at(node, value_offset + 1), r9),
-      g.UseUniqueRegister(this->input_at(node, 0)),
-      g.UseUniqueRegister(this->input_at(node, 1))};
+      g.UseFixed(pair_op.expected_low().value(), r4),
+      g.UseFixed(pair_op.expected_high().value(), r5),
+      g.UseFixed(pair_op.value_low().value(), r8),
+      g.UseFixed(pair_op.value_high().value(), r9),
+      g.UseUniqueRegister(pair_op.base()),
+      g.UseUniqueRegister(pair_op.index().value())};
   InstructionCode code = kArmWord32AtomicPairCompareExchange |
                          AddressingModeField::encode(addressing_mode);
   OptionalOpIndex projection0 = FindProjection(node, 0);
@@ -2829,32 +2836,32 @@ void InstructionSelectorT::VisitWord32AtomicPairCompareExchange(OpIndex node) {
 #if V8_ENABLE_WEBASSEMBLY
 void InstructionSelectorT::VisitI32x4DotI16x8S(OpIndex node) {
   ArmOperandGeneratorT g(this);
+  const Simd128BinopOp& binop = Cast<Simd128BinopOp>(node);
   Emit(kArmI32x4DotI16x8S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)),
-       g.UseUniqueRegister(this->input_at(node, 1)));
+       g.UseUniqueRegister(binop.left()), g.UseUniqueRegister(binop.right()));
 }
 
 void InstructionSelectorT::VisitI16x8DotI8x16I7x16S(OpIndex node) {
   ArmOperandGeneratorT g(this);
+  const Simd128BinopOp& binop = Cast<Simd128BinopOp>(node);
   Emit(kArmI16x8DotI8x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)),
-       g.UseUniqueRegister(this->input_at(node, 1)));
+       g.UseUniqueRegister(binop.left()), g.UseUniqueRegister(binop.right()));
 }
 
 void InstructionSelectorT::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
   ArmOperandGeneratorT g(this);
+  const Simd128TernaryOp& ternary = Cast<Simd128TernaryOp>(node);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kArmI32x4DotI8x16AddS, g.DefineSameAsInput(node, 2),
-       g.UseUniqueRegister(this->input_at(node, 0)),
-       g.UseUniqueRegister(this->input_at(node, 1)),
-       g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), temps);
+       g.UseUniqueRegister(ternary.first()),
+       g.UseUniqueRegister(ternary.second()),
+       g.UseUniqueRegister(ternary.third()), arraysize(temps), temps);
 }
 
 void InstructionSelectorT::VisitS128Const(OpIndex node) {
   ArmOperandGeneratorT g(this);
   uint32_t val[kSimd128Size / sizeof(uint32_t)];
-  const Simd128ConstantOp& constant =
-      this->Get(node).template Cast<Simd128ConstantOp>();
+  const Simd128ConstantOp& constant = Cast<Simd128ConstantOp>(node);
   memcpy(val, constant.value, kSimd128Size);
   // If all bytes are zeros, avoid emitting code for generic constants.
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
@@ -3065,15 +3072,16 @@ void InstructionSelectorT::VisitI64x2ReplaceLaneI32Pair(OpIndex node) {
 void InstructionSelectorT::VisitI64x2Neg(OpIndex node) {
   ArmOperandGeneratorT g(this);
   Emit(kArmI64x2Neg, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)));
+       g.UseUniqueRegister(Cast<Simd128UnaryOp>(node).input()));
 }
 
 void InstructionSelectorT::VisitI64x2Mul(OpIndex node) {
   ArmOperandGeneratorT g(this);
   InstructionOperand temps[] = {g.TempSimd128Register()};
+  const Simd128BinopOp& binop = Cast<Simd128BinopOp>(node);
   Emit(kArmI64x2Mul, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)),
-       g.UseUniqueRegister(this->input_at(node, 1)), arraysize(temps), temps);
+       g.UseUniqueRegister(binop.left()), g.UseUniqueRegister(binop.right()),
+       arraysize(temps), temps);
 }
 
 void InstructionSelectorT::VisitF32x4Sqrt(OpIndex node) {
@@ -3081,24 +3089,24 @@ void InstructionSelectorT::VisitF32x4Sqrt(OpIndex node) {
   // Use fixed registers in the lower 8 Q-registers so we can directly access
   // mapped registers S0-S31.
   Emit(kArmF32x4Sqrt, g.DefineAsFixed(node, q0),
-       g.UseFixed(this->input_at(node, 0), q0));
+       g.UseFixed(Cast<Simd128UnaryOp>(node).input(), q0));
 }
 
 void InstructionSelectorT::VisitF32x4Div(OpIndex node) {
   ArmOperandGeneratorT g(this);
+  const Simd128BinopOp& binop = Cast<Simd128BinopOp>(node);
   // Use fixed registers in the lower 8 Q-registers so we can directly access
   // mapped registers S0-S31.
-  Emit(kArmF32x4Div, g.DefineAsFixed(node, q0),
-       g.UseFixed(this->input_at(node, 0), q0),
-       g.UseFixed(this->input_at(node, 1), q1));
+  Emit(kArmF32x4Div, g.DefineAsFixed(node, q0), g.UseFixed(binop.left(), q0),
+       g.UseFixed(binop.right(), q1));
 }
 
 void InstructionSelectorT::VisitS128Select(OpIndex node) {
   ArmOperandGeneratorT g(this);
+  const Simd128TernaryOp& ternary = Cast<Simd128TernaryOp>(node);
   Emit(kArmS128Select, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)),
-       g.UseRegister(this->input_at(node, 2)));
+       g.UseRegister(ternary.first()), g.UseRegister(ternary.second()),
+       g.UseRegister(ternary.third()));
 }
 
 void InstructionSelectorT::VisitI8x16RelaxedLaneSelect(OpIndex node) {
@@ -3117,13 +3125,14 @@ void InstructionSelectorT::VisitI64x2RelaxedLaneSelect(OpIndex node) {
   VisitS128Select(node);
 }
 
-#define VISIT_SIMD_QFMOP(op)                            \
-  void InstructionSelectorT::Visit##op(OpIndex node) {  \
-    ArmOperandGeneratorT g(this);                       \
-    Emit(kArm##op, g.DefineAsRegister(node),            \
-         g.UseUniqueRegister(this->input_at(node, 0)),  \
-         g.UseUniqueRegister(this->input_at(node, 1)),  \
-         g.UseUniqueRegister(this->input_at(node, 2))); \
+#define VISIT_SIMD_QFMOP(op)                                        \
+  void InstructionSelectorT::Visit##op(OpIndex node) {              \
+    ArmOperandGeneratorT g(this);                                   \
+    const Simd128TernaryOp& ternary = Cast<Simd128TernaryOp>(node); \
+    Emit(kArm##op, g.DefineAsRegister(node),                        \
+         g.UseUniqueRegister(ternary.first()),                      \
+         g.UseUniqueRegister(ternary.second()),                     \
+         g.UseUniqueRegister(ternary.third()));                     \
   }
 VISIT_SIMD_QFMOP(F64x2Qfma)
 VISIT_SIMD_QFMOP(F64x2Qfms)
@@ -3291,17 +3300,17 @@ void InstructionSelectorT::VisitI8x16Shuffle(OpIndex node) {
 
 void InstructionSelectorT::VisitSetStackPointer(OpIndex node) {
   OperandGenerator g(this);
-  auto input = g.UseRegister(this->input_at(node, 0));
+  auto input = g.UseRegister(Cast<SetStackPointerOp>(node).value());
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
 void InstructionSelectorT::VisitI8x16Swizzle(OpIndex node) {
   ArmOperandGeneratorT g(this);
+  const Simd128BinopOp& binop = Cast<Simd128BinopOp>(node);
   // We don't want input 0 (the table) to be the same as output, since we will
   // modify output twice (low and high), and need to keep the table the same.
   Emit(kArmI8x16Swizzle, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)));
+       g.UseUniqueRegister(binop.left()), g.UseRegister(binop.right()));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3309,13 +3318,13 @@ void InstructionSelectorT::VisitI8x16Swizzle(OpIndex node) {
 void InstructionSelectorT::VisitSignExtendWord8ToInt32(OpIndex node) {
   ArmOperandGeneratorT g(this);
   Emit(kArmSxtb, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)), g.TempImmediate(0));
+       g.UseRegister(Cast<WordUnaryOp>(node).input()), g.TempImmediate(0));
 }
 
 void InstructionSelectorT::VisitSignExtendWord16ToInt32(OpIndex node) {
   ArmOperandGeneratorT g(this);
   Emit(kArmSxth, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)), g.TempImmediate(0));
+       g.UseRegister(Cast<WordUnaryOp>(node).input()), g.TempImmediate(0));
 }
 
 void InstructionSelectorT::VisitInt32AbsWithOverflow(OpIndex node) {
@@ -3332,7 +3341,7 @@ void VisitBitMask(InstructionSelectorT* selector, OpIndex node) {
   ArmOperandGeneratorT g(selector);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)), arraysize(temps),
+                 g.UseRegister(selector->Get(node).input(0)), arraysize(temps),
                  temps);
 }
 }  // namespace
@@ -3358,19 +3367,20 @@ namespace {
 void VisitF32x4PminOrPmax(InstructionSelectorT* selector, ArchOpcode opcode,
                           OpIndex node) {
   ArmOperandGeneratorT g(selector);
+  const Simd128BinopOp& binop = selector->Cast<Simd128BinopOp>(node);
   // Need all unique registers because we first compare the two inputs, then
   // we need the inputs to remain unchanged for the bitselect later.
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseUniqueRegister(selector->input_at(node, 0)),
-                 g.UseUniqueRegister(selector->input_at(node, 1)));
+                 g.UseUniqueRegister(binop.left()),
+                 g.UseUniqueRegister(binop.right()));
 }
 
 void VisitF64x2PminOrPMax(InstructionSelectorT* selector, ArchOpcode opcode,
                           OpIndex node) {
   ArmOperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineSameAsFirst(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseRegister(selector->input_at(node, 1)));
+  const Simd128BinopOp& binop = selector->Cast<Simd128BinopOp>(node);
+  selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(binop.left()),
+                 g.UseRegister(binop.right()));
 }
 }  // namespace
 
@@ -3438,37 +3448,37 @@ VISIT_EXTADD_PAIRWISE(I32x4ExtAddPairwiseI16x8U, NeonU16)
 void InstructionSelectorT::VisitF64x2ConvertLowI32x4S(OpIndex node) {
   ArmOperandGeneratorT g(this);
   Emit(kArmF64x2ConvertLowI32x4S, g.DefineAsRegister(node),
-       g.UseFixed(this->input_at(node, 0), q0));
+       g.UseFixed(Cast<Simd128UnaryOp>(node).input(), q0));
 }
 
 void InstructionSelectorT::VisitF64x2ConvertLowI32x4U(OpIndex node) {
   ArmOperandGeneratorT g(this);
   Emit(kArmF64x2ConvertLowI32x4U, g.DefineAsRegister(node),
-       g.UseFixed(this->input_at(node, 0), q0));
+       g.UseFixed(Cast<Simd128UnaryOp>(node).input(), q0));
 }
 
 void InstructionSelectorT::VisitI32x4TruncSatF64x2SZero(OpIndex node) {
   ArmOperandGeneratorT g(this);
   Emit(kArmI32x4TruncSatF64x2SZero, g.DefineAsFixed(node, q0),
-       g.UseUniqueRegister(this->input_at(node, 0)));
+       g.UseUniqueRegister(Cast<Simd128UnaryOp>(node).input()));
 }
 
 void InstructionSelectorT::VisitI32x4TruncSatF64x2UZero(OpIndex node) {
   ArmOperandGeneratorT g(this);
   Emit(kArmI32x4TruncSatF64x2UZero, g.DefineAsFixed(node, q0),
-       g.UseUniqueRegister(this->input_at(node, 0)));
+       g.UseUniqueRegister(Cast<Simd128UnaryOp>(node).input()));
 }
 
 void InstructionSelectorT::VisitF32x4DemoteF64x2Zero(OpIndex node) {
   ArmOperandGeneratorT g(this);
   Emit(kArmF32x4DemoteF64x2Zero, g.DefineAsFixed(node, q0),
-       g.UseUniqueRegister(this->input_at(node, 0)));
+       g.UseUniqueRegister(Cast<Simd128UnaryOp>(node).input()));
 }
 
 void InstructionSelectorT::VisitF64x2PromoteLowF32x4(OpIndex node) {
   ArmOperandGeneratorT g(this);
   Emit(kArmF64x2PromoteLowF32x4, g.DefineAsRegister(node),
-       g.UseFixed(this->input_at(node, 0), q0));
+       g.UseFixed(Cast<Simd128UnaryOp>(node).input(), q0));
 }
 
 void InstructionSelectorT::VisitI32x4RelaxedTruncF64x2SZero(OpIndex node) {
@@ -3488,18 +3498,18 @@ void InstructionSelectorT::VisitTruncateFloat32ToInt32(OpIndex node) {
     opcode |= MiscField::encode(true);
   }
   Emit(opcode, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(Cast<ChangeOp>(node).input()));
 }
 
 void InstructionSelectorT::VisitTruncateFloat32ToUint32(OpIndex node) {
   ArmOperandGeneratorT g(this);
-  const Operation& op = this->Get(node);
+  const ChangeOp& change = Cast<ChangeOp>(node);
   InstructionCode opcode = kArmVcvtU32F32;
-  if (op.Is<Opmask::kTruncateFloat32ToUint32OverflowToMin>()) {
+  if (change.Is<Opmask::kTruncateFloat32ToUint32OverflowToMin>()) {
     opcode |= MiscField::encode(true);
   }
 
-  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(change.input()));
 }
 
 void InstructionSelectorT::AddOutputToSelectContinuation(OperandGenerator* g,

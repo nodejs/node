@@ -566,6 +566,8 @@ void Deserializer<Isolate>::PostProcessNewJSReceiver(
                                     : ResizableFlag::kNotResizable;
       buffer->Setup(shared, resizable, bs, main_thread_isolate());
     }
+  } else if (InstanceTypeChecker::IsJSDate(instance_type)) {
+    Cast<JSDate>(*obj)->UpdateFieldsAfterDeserialization(main_thread_isolate());
   }
 }
 
@@ -800,8 +802,12 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   //     before fields with objects.
   //     - We ensure this is the case by DCHECKing on object allocation that the
   //       previously allocated object has a valid size (see `Allocate`).
+
+  const InSharedSpace in_shared_space =
+      IsSharedAllocationType(allocation) ? kInSharedSpace : kNotInSharedSpace;
   Tagged<HeapObject> raw_obj =
-      Allocate(allocation, size_in_bytes, HeapObject::RequiredAlignment(*map));
+      Allocate(allocation, size_in_bytes,
+               HeapObject::RequiredAlignment(in_shared_space, *map));
   raw_obj->set_map_after_allocation(isolate_, *map);
   MemsetTagged(raw_obj->RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);

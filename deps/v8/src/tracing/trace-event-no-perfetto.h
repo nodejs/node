@@ -743,13 +743,6 @@
       TRACE_EVENT_PHASE_SNAPSHOT_OBJECT, category_group, name,        \
       id, TRACE_EVENT_FLAG_NONE, "snapshot", snapshot)
 
-#define TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID_AND_TIMESTAMP(                     \
-    category_group, name, id, timestamp, snapshot)                             \
-  INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                          \
-      TRACE_EVENT_PHASE_SNAPSHOT_OBJECT, category_group, name,                 \
-      id, TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_NONE, \
-      "snapshot", snapshot)
-
 #define TRACE_EVENT_OBJECT_DELETED_WITH_ID(category_group, name, id) \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID(                                  \
       TRACE_EVENT_PHASE_DELETE_OBJECT, category_group, name, id,     \

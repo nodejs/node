@@ -201,8 +201,8 @@ shouldBeUndefined("(function f(arg){'use strict'; return Object.getOwnPropertyDe
 shouldBeUndefined("(function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'callee').value; })()");
 shouldBeUndefined("(function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'caller'); })()");
 shouldBeTrue("(function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(arguments, 'callee'); return descriptor.get === descriptor.set; })()");
-shouldBeTrue("(function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'caller'); return descriptor.get === descriptor.set; })()");
-shouldBeTrue("(function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'arguments'); return descriptor.get === descriptor.set; })()");
+shouldBeFalse("(function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'caller'); return descriptor.get === descriptor.set; })()");
+shouldBeFalse("(function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'arguments'); return descriptor.get === descriptor.set; })()");
 shouldBeTrue("'use strict'; (function f() { for(var i in this); })(); true;")
 
 shouldBeSyntaxError("'use strict'\u033b");
@@ -229,4 +229,4 @@ aGlobal = false;
 shouldBeTrue("(function () {try { throw 1; } catch (e) { aGlobal = true; }})(); aGlobal;");
 
 // Make sure this doesn't crash!
-shouldBe('String(Object.getOwnPropertyDescriptor((function() { "use strict"; }).__proto__, "caller").get)', "'function () {\\n    [native code]\\n}'");
+shouldBe('String(Object.getOwnPropertyDescriptor((function() { "use strict"; }).__proto__, "caller").get)', "'function get caller() { [native code] }'");

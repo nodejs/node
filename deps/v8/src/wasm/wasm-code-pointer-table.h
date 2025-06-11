@@ -106,6 +106,8 @@ class V8_EXPORT_PRIVATE WasmCodePointerTable
   // `WriteScope` while calling it.
   inline void UpdateEntrypoint(WasmCodePointer index, Address value,
                                uint64_t signature_hash);
+  inline void UpdateEntrypointUnlocked(WasmCodePointer index, Address value,
+                                       uint64_t signature_hash);
   inline void SetEntrypointAndSignature(WasmCodePointer index, Address value,
                                         uint64_t signature_hash);
   inline void SetEntrypointWithWriteScope(WasmCodePointer index, Address value,

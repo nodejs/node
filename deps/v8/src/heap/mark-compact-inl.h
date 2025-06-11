@@ -15,6 +15,8 @@
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
+#include "src/heap/memory-chunk.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/remembered-set-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/transitions.h"
@@ -37,6 +39,20 @@ void MarkCompactCollector::MarkRootObject(
   DCHECK(ReadOnlyHeap::Contains(obj) || heap_->Contains(obj));
   MarkingHelper::TryMarkAndPush(heap_, local_marking_worklists_.get(),
                                 marking_state_, target_worklist, obj);
+  if (V8_UNLIKELY(in_conservative_stack_scanning_)) {
+    DCHECK_EQ(root, Root::kStackRoots);
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
+    if (chunk->IsEvacuationCandidate()) {
+      DCHECK(!chunk->InYoungGeneration());
+      ReportAbortedEvacuationCandidateDueToFlags(
+          PageMetadata::cast(chunk->Metadata()), chunk);
+    } else if (chunk->InYoungGeneration() && !chunk->IsLargePage()) {
+      DCHECK(chunk->IsToPage());
+      if (!chunk->IsQuarantined()) {
+        chunk->SetFlagNonExecutable(MemoryChunk::IS_QUARANTINED);
+      }
+    }
+  }
 }
 
 // static

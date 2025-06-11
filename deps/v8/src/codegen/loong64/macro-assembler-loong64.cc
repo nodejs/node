@@ -419,7 +419,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   ASM_CODE_COMMENT(this);
 
   Register index = destination;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   srli_d(index, dispatch_handle, kJSDispatchHandleShift);
   slli_d(destination, index, kJSDispatchTableEntrySizeLog2);
   Add_d(scratch, scratch, destination);
@@ -431,7 +431,7 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
   DCHECK(!AreAliased(destination, scratch));
   ASM_CODE_COMMENT(this);
 
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   // WARNING: This offset calculation is only safe if we have already stored a
   // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
   // keeping the dispatch entry alive) _and_ because the entrypoints are not
@@ -450,7 +450,7 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
   ASM_CODE_COMMENT(this);
 
   Register index = destination;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   srli_d(index, dispatch_handle, kJSDispatchHandleShift);
   slli_d(destination, index, kJSDispatchTableEntrySizeLog2);
   Add_d(scratch, scratch, destination);
@@ -465,7 +465,7 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   ASM_CODE_COMMENT(this);
 
   Register index = parameter_count;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld_d(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   srli_d(index, dispatch_handle, kJSDispatchHandleShift);
   slli_d(parameter_count, index, kJSDispatchTableEntrySizeLog2);
   Add_d(scratch, scratch, parameter_count);
@@ -4206,7 +4206,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   Ld_d(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   if (v8_flags.debug_code) {
-    li(scratch, Operand(Context::kInvalidContext));
+    li(scratch, Operand(Context::kNoContext));
     St_d(scratch, ExternalReferenceAsOperand(context_address, no_reg));
   }
 
@@ -5277,6 +5277,7 @@ void MacroAssembler::DecompressProtected(const Register& destination,
 
 void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
                                                   const MemOperand& src) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src);
   dbar(0);
@@ -5286,12 +5287,15 @@ void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
   }
 }
 
-void MacroAssembler::AtomicDecompressTagged(Register dst,
-                                            const MemOperand& src) {
+int MacroAssembler::AtomicDecompressTagged(Register dst,
+                                           const MemOperand& src) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Ld_wu(dst, src);
+  int pc_offset_of_load = pc_offset() - kInstrSize;
   dbar(0);
   Add_d(dst, kPtrComprCageBaseRegister, dst);
+  return pc_offset_of_load;
 }
 
 // Calls an API function. Allocates HandleScope, extracts returned value

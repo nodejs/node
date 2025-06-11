@@ -49,9 +49,6 @@ class CpuSampler : public sampler::Sampler {
           ProfilerStats::Reason::kIsolateNotLocked);
       return;
     }
-#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-    i::RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
-#endif
     TickSample* sample = processor_->StartTickSample();
     if (sample == nullptr) {
       ProfilerStats::Instance()->AddReason(
@@ -243,7 +240,7 @@ void SamplingEventsProcessor::SymbolizeAndAddToProfiles(
   Symbolizer::SymbolizedSample symbolized =
       symbolizer_->SymbolizeTickSample(tick_sample);
   profiles_->AddPathToCurrentProfiles(
-      tick_sample.timestamp, symbolized.stack_trace, symbolized.src_line,
+      tick_sample.timestamp, symbolized.stack_trace, symbolized.src_pos,
       tick_sample.update_stats_, tick_sample.sampling_interval_,
       tick_sample.state, tick_sample.embedder_state,
       reinterpret_cast<Address>(tick_sample.context),
@@ -426,6 +423,10 @@ void ProfilerCodeObserver::LogBuiltins() {
   DCHECK(builtins->is_initialized());
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
+#if V8_ENABLE_WEBASSEMBLY
+    // We add the embedded data entry below.
+    if (builtin == Builtin::kWasmToJsWrapperCSA) continue;
+#endif
     CodeEventsContainer evt_rec(CodeEventRecord::Type::kReportBuiltin);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
     Tagged<Code> code = builtins->code(builtin);
@@ -434,6 +435,18 @@ void ProfilerCodeObserver::LogBuiltins() {
     rec->builtin = builtin;
     CodeEventHandlerInternal(evt_rec);
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  // We can call the WasmToJS wrapper from the embedded blob
+  CodeEventsContainer evt_rec(CodeEventRecord::Type::kReportBuiltin);
+  ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
+  rec->instruction_start =
+      Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperCSA);
+  rec->instruction_size =
+      EmbeddedData::FromBlob().InstructionSizeOf(Builtin::kWasmToJsWrapperCSA);
+  rec->builtin = Builtin::kWasmToJsWrapperCSA;
+  CodeEventHandlerInternal(evt_rec);
+#endif
 }
 
 int CpuProfiler::GetProfilesCount() {

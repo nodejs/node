@@ -1231,7 +1231,7 @@ void Decoder::DecodeRFPType(Instruction* instr) {
       }
       break;
     }
-    case RO_FMV: {  // RO_FCLASS_S
+    case RO_FMV_X_W: {  // RO_FCLASS_S
       if (instr->Rs2Value() != 0b00000) {
         UNSUPPORTED_RISCV();
       }
@@ -1354,15 +1354,19 @@ void Decoder::DecodeRFPType(Instruction* instr) {
     }
     case (RO_FCVT_S_D & kRFPTypeMask): {
       if (instr->Rs2Value() == 0b00001) {
-        Format(instr, "fcvt.s.d  ['frm] 'fd, 'fs1");
+        Format(instr, "fcvt.s.d ['frm] 'fd, 'fs1");
+      } else if (instr->Rs2Value() == 0b00010) {
+        Format(instr, "fcvt.s.h ['frm] 'fd, 'fs1");
       } else {
         UNSUPPORTED_RISCV();
       }
       break;
     }
-    case RO_FCVT_D_S: {
+    case RO_FCVT_D_S: {  // RO_FCVT_D_H
       if (instr->Rs2Value() == 0b00000) {
-        Format(instr, "fcvt.d.s  'fd, 'fs1");
+        Format(instr, "fcvt.d.s ['frm] 'fd, 'fs1");
+      } else if (instr->Rs2Value() == 0b00010) {
+        Format(instr, "fcvt.d.h ['frm] 'fd, 'fs1");
       } else {
         UNSUPPORTED_RISCV();
       }
@@ -1454,6 +1458,161 @@ void Decoder::DecodeRFPType(Instruction* instr) {
       break;
     }
 #endif /* V8_TARGET_ARCH_64_BIT */
+    // TODO(riscv): Add macro for RISCV ZFH extension
+    case RO_FADD_H:
+      Format(instr, "fadd.h    'fd, 'fs1, 'fs2");
+      break;
+    case RO_FSUB_H:
+      Format(instr, "fsub.h    'fd, 'fs1, 'fs2");
+      break;
+    case RO_FMUL_H:
+      Format(instr, "fmul.h    'fd, 'fs1, 'fs2");
+      break;
+    case RO_FDIV_H:
+      Format(instr, "fdiv.h    'fd, 'fs1, 'fs2");
+      break;
+    case RO_FSQRT_H:
+      Format(instr, "fsqrt.h   'fd, 'fs1");
+      break;
+    case RO_FSGNJ_H: {  // RO_FSGNJN_H  RO_FSGNJX_H
+      switch (instr->Funct3Value()) {
+        case 0b000:  // RO_FSGNJ_H
+          if (instr->Rs1Value() == instr->Rs2Value())
+            Format(instr, "fmv.h     'fd, 'fs1");
+          else
+            Format(instr, "fsgnj.h   'fd, 'fs1, 'fs2");
+          break;
+        case 0b001:  // RO_FSGNJN_H
+          if (instr->Rs1Value() == instr->Rs2Value())
+            Format(instr, "fneg.h    'fd, 'fs1");
+          else
+            Format(instr, "fsgnjn.h  'fd, 'fs1, 'fs2");
+          break;
+        case 0b010:  // RO_FSGNJX_H
+          if (instr->Rs1Value() == instr->Rs2Value())
+            Format(instr, "fabs.h    'fd, 'fs1");
+          else
+            Format(instr, "fsgnjx.h  'fd, 'fs1, 'fs2");
+          break;
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FMIN_H: {  // RO_FMAX_H
+      switch (instr->Funct3Value()) {
+        case 0b000:  // RO_FMIN_H
+          Format(instr, "fmin.h    'fd, 'fs1, 'fs2");
+          break;
+        case 0b001:  // RO_FMAX_H
+          Format(instr, "fmax.h    'fd, 'fs1, 'fs2");
+          break;
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FCVT_W_H: {  // RO_FCVT_WU_H , 64F RO_FCVT_L_H RO_FCVT_LU_H
+      switch (instr->Rs2Value()) {
+        case 0b00000:  // RO_FCVT_W_H
+          Format(instr, "fcvt.w.h ['frm] 'rd, 'fs1");
+          break;
+        case 0b00001:  // RO_FCVT_WU_H
+          Format(instr, "fcvt.wu.h ['frm] 'rd, 'fs1");
+          break;
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010:  // RO_FCVT_L_H
+          Format(instr, "fcvt.l.h ['frm] 'rd, 'fs1");
+          break;
+        case 0b00011:  // RO_FCVT_LU_H
+          Format(instr, "fcvt.lu.h ['frm] 'rd, 'fs1");
+          break;
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FCVT_S_H: {
+      if (instr->Rs2Value() == 0b00010) {
+        Format(instr, "fcvt.s.h ['frm] 'fd, 'fs1");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FCVT_H_S: {
+      if (instr->Rs2Value() == 0b00000) {
+        Format(instr, "fcvt.h.s ['frm] 'fd, 'fs1");
+      } else if (instr->Rs2Value() == 0b00001) {
+        Format(instr, "fcvt.h.d ['frm] 'fd, 'fs1");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FMV_X_H: {  // RO_FCLASS_H
+      if (instr->Rs2Value() != 0b00000) {
+        UNSUPPORTED_RISCV();
+      }
+      switch (instr->Funct3Value()) {
+        case 0b000:  // RO_FMV_X_H
+          Format(instr, "fmv.x.h   'rd, 'fs1");
+          break;
+        case 0b001:  // RO_FCLASS_H
+          Format(instr, "fclass.h  'rd, 'fs1");
+          break;
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FLE_H: {  // RO_FEQ_H RO_FLT_H RO_FLE_H
+      switch (instr->Funct3Value()) {
+        case 0b010:  // RO_FEQ_H
+          Format(instr, "feq.h     'rd, 'fs1, 'fs2");
+          break;
+        case 0b001:  // RO_FLT_H
+          Format(instr, "flt.h     'rd, 'fs1, 'fs2");
+          break;
+        case 0b000:  // RO_FLE_H
+          Format(instr, "fle.h     'rd, 'fs1, 'fs2");
+          break;
+        default:
+          UNSUPPORTED_RISCV();
+      }
+      break;
+    }
+    case RO_FCVT_H_W: {  // RO_FCVT_H_WU , 64F RO_FCVT_H_L RO_FCVT_H_LU
+      switch (instr->Rs2Value()) {
+        case 0b00000:  // RO_FCVT_H_W
+          Format(instr, "fcvt.h.w ['frm] 'fd, 'rs1");
+          break;
+        case 0b00001:  // RO_FCVT_H_WU
+          Format(instr, "fcvt.h.wu ['frm] 'fd, 'rs1");
+          break;
+#ifdef V8_TARGET_ARCH_64_BIT
+        case 0b00010:  // RO_FCVT_H_L
+          Format(instr, "fcvt.h.l ['frm] 'fd, 'rs1");
+          break;
+        case 0b00011:  // RO_FCVT_H_LU
+          Format(instr, "fcvt.h.lu ['frm] 'fd, 'rs1");
+          break;
+#endif /* V8_TARGET_ARCH_64_BIT */
+        default: {
+          UNSUPPORTED_RISCV();
+        }
+      }
+      break;
+    }
+    case RO_FMV_H_X: {
+      if (instr->Funct3Value() == 0b000) {
+        Format(instr, "fmv.h.x   'fd, 'rs1");
+      } else {
+        UNSUPPORTED_RISCV();
+      }
+      break;
+    }
     default: {
       UNSUPPORTED_RISCV();
     }
@@ -1487,6 +1646,19 @@ void Decoder::DecodeR4Type(Instruction* instr) {
       break;
     case RO_FNMADD_D:
       Format(instr, "fnmadd.d  'fd, 'fs1, 'fs2, 'fs3");
+      break;
+    // TODO(riscv): use ZFH Extension macro block
+    case RO_FMADD_H:
+      Format(instr, "fmadd.h   'fd, 'fs1, 'fs2, 'fs3");
+      break;
+    case RO_FMSUB_H:
+      Format(instr, "fmsub.h   'fd, 'fs1, 'fs2, 'fs3");
+      break;
+    case RO_FNMSUB_H:
+      Format(instr, "fnmsub.h   'fd, 'fs1, 'fs2, 'fs3");
+      break;
+    case RO_FNMADD_H:
+      Format(instr, "fnmadd.h   'fd, 'fs1, 'fs2, 'fs3");
       break;
     default:
       UNSUPPORTED_RISCV();
@@ -1802,6 +1974,9 @@ void Decoder::DecodeIType(Instruction* instr) {
     case RO_FLW:
       Format(instr, "flw       'fd, 'imm12('rs1)");
       break;
+    case RO_FLH:
+      Format(instr, "flh       'fd, 'imm12('rs1)");
+      break;
     // TODO(riscv): use D Extension macro block
     case RO_FLD:
       Format(instr, "fld       'fd, 'imm12('rs1)");
@@ -1839,6 +2014,9 @@ void Decoder::DecodeSType(Instruction* instr) {
     // TODO(riscv): use F Extension macro block
     case RO_FSW:
       Format(instr, "fsw       'fs2, 'offS('rs1)");
+      break;
+    case RO_FSH:
+      Format(instr, "fsh       'fs2, 'offS('rs1)");
       break;
     // TODO(riscv): use D Extension macro block
     case RO_FSD:

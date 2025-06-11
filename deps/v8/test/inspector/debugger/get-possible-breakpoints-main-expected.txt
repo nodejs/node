@@ -95,10 +95,17 @@ function testForLoop() {
 |R|}
 
 function testForOfLoop() {
-  for (var |C|k of |_|[]) {}
-  for (var |C|k of |_|[1]) |_|k;
+  for (var |_|k of |_|[]) {}
+  for (var |_|k of |_|[1]) |_|k;
   var a = |_|[];
-  for (var |C|k of |_|a) {}
+  for (var |_|k of |_|a) {}
+|R|}
+
+async function testPromiseForAwaitLoop() {
+  for await (var |_|k of |_|[]) { }
+  for await (var |_|k of |_|[Promise.|C|resolve(1)]) |_|k;
+  var a = |_|[];
+  for await (var |_|k of |_|a) {}
 |R|}
 
 function testForInLoop() {

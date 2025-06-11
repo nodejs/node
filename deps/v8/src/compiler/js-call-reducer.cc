@@ -88,6 +88,7 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Boolean> ReduceStringPrototypeEndsWith(StringRef search_element_string);
   TNode<String> ReduceStringPrototypeCharAt();
   TNode<String> ReduceStringPrototypeCharAt(StringRef s, uint32_t index);
+  TNode<Number> ReduceStringPrototypeCharCodeAt();
   TNode<String> ReduceStringPrototypeSlice();
   TNode<Object> ReduceJSCallMathMinMaxWithArrayLike(Builtin builtin);
 
@@ -173,8 +174,13 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Object> ConvertHoleToUndefined(TNode<Object> value, ElementsKind kind) {
     DCHECK(IsHoleyElementsKind(kind));
     if (kind == HOLEY_DOUBLE_ELEMENTS) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      return AddNode<Number>(graph()->NewNode(
+          simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), value));
+#else
       return AddNode<Number>(
           graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(), value));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     }
     return ConvertTaggedHoleToUndefined(value);
   }
@@ -712,9 +718,23 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
         static_cast<unsigned>(
             function_template_info_.c_functions(broker()).size()));
 
-    Node* continuation_frame_state = CreateInlinedApiFunctionFrameState(
-        jsgraph(), shared_, target_, ContextInput(), receiver_,
-        FrameStateInput());
+    // LINT.IfChange
+    // TODO(crbug.com/418936518): Support deopt for functions with return value.
+    Node* error_message = jsgraph()->SmiConstant(
+        static_cast<int>(AbortReason::kUnsupportedDeopt));
+    Node* continuation_frame_state =
+        c_function_.signature->ReturnInfo().GetType() == CTypeInfo::Type::kVoid
+            ? CreateInlinedApiFunctionFrameState(jsgraph(), shared_, target_,
+                                                 ContextInput(), receiver_,
+                                                 FrameStateInput())
+            : CreateStubBuiltinContinuationFrameState(
+                  jsgraph(), Builtin::kAbort, ContextInput(), &error_message, 1,
+                  FrameStateInput(), ContinuationFrameStateMode::LAZY);
+    // The `DeoptimizationEntry_LazyAfterFastCall` builtin currently sets the
+    // return value unconditionally to `undefined`. If a continuation builtin is
+    // set up here, then the entry builtin should not overwrite the return
+    // value.
+    // LINT.ThenChange(/src/builtins/x64/builtins-x64.cc:DeoptAfterFastCallSetReturnValue)
 
     // Callback data value for fast Api calls. Unlike slow Api calls, the fast
     // variant passes callback data directly.
@@ -1174,12 +1194,36 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt() {
   TNode<Number> index_smi = CheckSmi(index);
   TNode<Number> length = StringLength(receiver_string);
 
-  TNode<Number> bounded_index = CheckBounds(index_smi, length);
+  // TODO(olivf): Have some feedback on the access to know if the access happens
+  // OOB or not.
+  return SelectIf<String>(NumberLessThan(index_smi, ZeroConstant()))
+      .Then(_ { return EmptyStringConstant(); })
+      .Else(_ {
+        return SelectIf<String>(NumberLessThan(index_smi, length))
+            .Then(_ {
+              return StringFromSingleCharCode(TNode<Number>::UncheckedCast(
+                  StringCharCodeAt(receiver_string,
+                                   TypeGuard(Type::Unsigned32(), index_smi))));
+            })
+            .Else(_ { return EmptyStringConstant(); })
+            .ExpectTrue()
+            .Value();
+      })
+      .ExpectFalse()
+      .Value();
+}
 
-  Node* result = StringCharCodeAt(receiver_string, bounded_index);
-  TNode<String> result_string =
-      StringFromSingleCharCode(TNode<Number>::UncheckedCast(result));
-  return result_string;
+TNode<Number> JSCallReducerAssembler::ReduceStringPrototypeCharCodeAt() {
+  TNode<Object> receiver = ReceiverInput();
+  TNode<Object> index = ArgumentOrZero(0);
+
+  TNode<String> receiver_string = CheckString(receiver);
+  TNode<Number> index_smi = CheckSmi(index);
+  TNode<Number> length = StringLength(receiver_string);
+
+  TNode<Number> bounded_index = CheckBounds(index_smi, length);
+  return TNode<Number>::UncheckedCast(
+      (StringCharCodeAt(receiver_string, bounded_index)));
 }
 
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
@@ -1949,8 +1993,18 @@ IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeFilter(
   TNode<Object> this_arg = ArgumentOrUndefined(1);
 
   // The output array is packed (filter doesn't visit holes).
-  const ElementsKind packed_kind = GetPackedElementsKind(kind);
-  TNode<JSArray> a = AllocateEmptyJSArray(packed_kind, native_context);
+  ElementsKind filtered_kind = GetPackedElementsKind(kind);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  if (kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
+    // Array may contain double-encoded undefineds that may be preserved by
+    // the filter operation, so the output has to be holey, too.
+    // TODO(nicohartmann, 385155404): We can consider starting with a
+    // PACKED_DOUBLE_ELEMENTS and only transition to holey, when we actually
+    // encounter an undefined.
+    filtered_kind = ElementsKind::HOLEY_DOUBLE_ELEMENTS;
+  }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  TNode<JSArray> a = AllocateEmptyJSArray(filtered_kind, native_context);
 
   TNode<Number> original_length = LoadJSArrayLength(receiver, kind);
 
@@ -3822,8 +3876,9 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   JSCallNode n(node);
   const CallParameters& p = n.Parameters();
 
-  // Avoid deoptimization loops
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+  // Avoid deoptimization loops if feedback says we should be conservative.
+  if (p.feedback().IsValid() &&
+      p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
 
@@ -3845,6 +3900,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   wasm::NativeModule* native_module = instance_data->native_module();
   const wasm::WasmModule* wasm_module = native_module->module();
   int wasm_function_index = function_data->function_index();
+  bool receiver_is_first_param = function_data->receiver_is_first_param() != 0;
 
   if (wasm_module_for_inlining_ == nullptr) {
     wasm_module_for_inlining_ = wasm_module;
@@ -3858,13 +3914,20 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
       javascript()->CallWasm(wasm_module, wasm_signature, wasm_function_index,
                              shared, native_module, p.feedback());
 
-  // Remove additional inputs
   size_t actual_arity = n.ArgumentCount();
   DCHECK(JSCallNode::kFeedbackVectorIsLastInput);
   DCHECK_EQ(actual_arity + JSWasmCallNode::kExtraInputCount - 1,
             n.FeedbackVectorIndex());
   size_t expected_arity = wasm_signature->parameter_count();
 
+  // Duplicate the receiver into the first argument slot if requested.
+  if (receiver_is_first_param) {
+    node->InsertInput(graph()->zone(), n.FirstArgumentIndex(),
+                      node->InputAt(n.ReceiverIndex()));
+    actual_arity++;
+  }
+
+  // Remove additional inputs.
   while (actual_arity > expected_arity) {
     int removal_index =
         static_cast<int>(n.FirstArgumentIndex() + expected_arity);
@@ -3873,7 +3936,7 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
     actual_arity--;
   }
 
-  // Add missing inputs
+  // Add missing inputs.
   while (actual_arity < expected_arity) {
     int insertion_index = n.ArgumentIndex(n.ArgumentCount());
     node->InsertInput(graph()->zone(), insertion_index,
@@ -4143,7 +4206,12 @@ bool IsCallWithArrayLikeOrSpread(Node* node) {
 Node* JSCallReducer::ConvertHoleToUndefined(Node* value, ElementsKind kind) {
   DCHECK(IsHoleyElementsKind(kind));
   if (kind == HOLEY_DOUBLE_ELEMENTS) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    return graph()->NewNode(
+        simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), value);
+#else
     return graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(), value);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
   return graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value);
 }
@@ -4948,6 +5016,22 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kDataViewPrototypeSetBigUint64:
       return ReduceDataViewAccess(node, DataViewAccess::kSet,
                                   ExternalArrayType::kExternalBigUint64Array);
+
+    case Builtin::kDatePrototypeGetFullYear:
+      return ReduceDatePrototypeGetField(node, JSDate::kYear);
+    case Builtin::kDatePrototypeGetMonth:
+      return ReduceDatePrototypeGetField(node, JSDate::kMonth);
+    case Builtin::kDatePrototypeGetDate:
+      return ReduceDatePrototypeGetField(node, JSDate::kDay);
+    case Builtin::kDatePrototypeGetDay:
+      return ReduceDatePrototypeGetField(node, JSDate::kWeekday);
+    case Builtin::kDatePrototypeGetHours:
+      return ReduceDatePrototypeGetField(node, JSDate::kHour);
+    case Builtin::kDatePrototypeGetMinutes:
+      return ReduceDatePrototypeGetField(node, JSDate::kMinute);
+    case Builtin::kDatePrototypeGetSeconds:
+      return ReduceDatePrototypeGetField(node, JSDate::kSecond);
+
     case Builtin::kTypedArrayPrototypeByteLength:
       return ReduceArrayBufferViewByteLengthAccessor(node, JS_TYPED_ARRAY_TYPE,
                                                      builtin);
@@ -5059,11 +5143,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtin::kStringPrototypeCharAt:
       return ReduceStringPrototypeCharAt(node);
     case Builtin::kStringPrototypeCharCodeAt:
-      return ReduceStringPrototypeStringAt(simplified()->StringCharCodeAt(),
-                                           node);
+      return ReduceStringPrototypeStringCharCodeAt(node);
     case Builtin::kStringPrototypeCodePointAt:
-      return ReduceStringPrototypeStringAt(simplified()->StringCodePointAt(),
-                                           node);
+      return ReduceStringPrototypeStringCodePointAt(node);
     case Builtin::kStringPrototypeSubstring:
       return ReduceStringPrototypeSubstring(node);
     case Builtin::kStringPrototypeSlice:
@@ -6566,12 +6648,6 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
     return inference.NoChange();
   }
 
-  if (IsFloat16TypedArrayElementsKind(elements_kind)) {
-    // TODO(v8:14212): Allow optimizing Float16 typed arrays here, once they are
-    // supported in the rest of the compiler.
-    return inference.NoChange();
-  }
-
   // Since the map inference was done relative to {iterator_effect} rather than
   // {effect}, we need to guard the use of the map(s) even when the inference
   // was reliable.
@@ -6763,11 +6839,20 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
 }
 
 // ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
+Reduction JSCallReducer::ReduceStringPrototypeStringCharCodeAt(Node* node) {
+  JSCallNode n(node);
+  CallParameters const& p = n.Parameters();
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  JSCallReducerAssembler a(this, node);
+  Node* subgraph = a.ReduceStringPrototypeCharCodeAt();
+  return ReplaceWithSubgraph(&a, subgraph);
+}
+
 // ES6 section 21.1.3.3 String.prototype.codePointAt ( pos )
-Reduction JSCallReducer::ReduceStringPrototypeStringAt(
-    const Operator* string_access_operator, Node* node) {
-  DCHECK(string_access_operator->opcode() == IrOpcode::kStringCharCodeAt ||
-         string_access_operator->opcode() == IrOpcode::kStringCodePointAt);
+Reduction JSCallReducer::ReduceStringPrototypeStringCodePointAt(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -6792,8 +6877,8 @@ Reduction JSCallReducer::ReduceStringPrototypeStringAt(
                                     index, receiver_length, effect, control);
 
   // Return the character from the {receiver} as single character string.
-  Node* value = effect = graph()->NewNode(string_access_operator, receiver,
-                                          index, effect, control);
+  Node* value = effect = graph()->NewNode(simplified()->StringCodePointAt(),
+                                          receiver, index, effect, control);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
@@ -8628,6 +8713,45 @@ Reduction JSCallReducer::ReduceDatePrototypeGetTime(Node* node) {
                        receiver, effect, control);
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
+}
+
+// https://tc39.es/ecma262/#sec-date.prototype.getdate
+// https://tc39.es/ecma262/#sec-date.prototype.getday
+// https://tc39.es/ecma262/#sec-date.prototype.getfullyear
+// https://tc39.es/ecma262/#sec-date.prototype.gethours
+// https://tc39.es/ecma262/#sec-date.prototype.getminutes
+// https://tc39.es/ecma262/#sec-date.prototype.getmonth
+// https://tc39.es/ecma262/#sec-date.prototype.getseconds
+Reduction JSCallReducer::ReduceDatePrototypeGetField(Node* node,
+                                                     JSDate::FieldIndex field) {
+  DCHECK_LT(field, JSDate::kFirstUncachedField);
+  if (!v8_flags.turbofan_inline_date_accessors) return NoChange();
+
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
+
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(JS_DATE_TYPE)) {
+    return NoChange();
+  }
+
+  if (!dependencies()->DependOnNoDateTimeConfigurationChangeProtector()) {
+    return NoChange();
+  }
+
+#define __ gasm.
+  JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
+                        BranchSemantics::kJS);
+  gasm.InitializeEffectControl(effect, control);
+
+  Node* value =
+      __ LoadField<Object>(AccessBuilder::ForJSDateField(field),
+                           TNode<HeapObject>::UncheckedCast(receiver));
+
+  ReplaceWithValue(node, value, gasm.effect(), gasm.control());
+  return Replace(value);
+#undef __
 }
 
 // ES6 section 20.3.3.1 Date.now ( )

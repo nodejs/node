@@ -344,10 +344,10 @@ void CopyChars(DstType* dst, const SrcType* src, size_t count) V8_NONNULL(1, 2);
 
 template <typename SrcType, typename DstType>
 void CopyChars(DstType* dst, const SrcType* src, size_t count) {
-  static_assert(std::is_integral<SrcType>::value);
-  static_assert(std::is_integral<DstType>::value);
-  using SrcTypeUnsigned = typename std::make_unsigned<SrcType>::type;
-  using DstTypeUnsigned = typename std::make_unsigned<DstType>::type;
+  static_assert(std::is_integral_v<SrcType>);
+  static_assert(std::is_integral_v<DstType>);
+  using SrcTypeUnsigned = std::make_unsigned_t<SrcType>;
+  using DstTypeUnsigned = std::make_unsigned_t<DstType>;
 
 #ifdef DEBUG
   // Check for no overlap, otherwise {std::copy_n} cannot be used.

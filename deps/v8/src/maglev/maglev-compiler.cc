@@ -292,7 +292,7 @@ std::pair<MaybeHandle<Code>, BailoutReason> MaglevCompiler::GenerateCode(
           ->shared_function_info()
           .object()
           ->set_maglev_compilation_failed(true);
-      return {{}, BailoutReason::kCodeGenerationFailed};
+      return {{}, BailoutReason::kMaglevCodeGenerationFailed};
     }
   }
 

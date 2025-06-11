@@ -107,12 +107,12 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& info) {
 // Use the API to create a JSFunction object that calls the above C++ function.
 void CreateFramePointerGrabberConstructor(v8::Local<v8::Context> context,
                                           const char* constructor_name) {
-    Local<v8::FunctionTemplate> constructor_template =
-        v8::FunctionTemplate::New(context->GetIsolate(), construct_call);
-    constructor_template->SetClassName(v8_str("FPGrabber"));
-    Local<Function> fun =
-        constructor_template->GetFunction(context).ToLocalChecked();
-    context->Global()->Set(context, v8_str(constructor_name), fun).FromJust();
+  Local<v8::FunctionTemplate> constructor_template =
+      v8::FunctionTemplate::New(CcTest::isolate(), construct_call);
+  constructor_template->SetClassName(v8_str("FPGrabber"));
+  Local<Function> fun =
+      constructor_template->GetFunction(context).ToLocalChecked();
+  context->Global()->Set(context, v8_str(constructor_name), fun).FromJust();
 }
 
 

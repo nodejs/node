@@ -32,6 +32,8 @@ extern class ContextCell extends HeapObject {
   double_value: float64;
 }
 
+extern enum ContextMode extends uint32 { kNoContextCells, kHasContextCells }
+
 extern operator '.int32_value' macro LoadContextCellInt32Value(ContextCell):
     int32;
 extern operator '.int32_value=' macro StoreContextCellInt32Value(
@@ -58,8 +60,8 @@ extern class WithContext extends Context generates 'TNode<Context>';
 extern class FunctionContext extends Context generates 'TNode<Context>';
 
 extern macro IsEmptyDependentCode(Object): bool;
+extern macro IsUndefinedContextCell(Object): bool;
 extern macro TryFloat64ToInt32(float64): int32 labels Failed;
-extern macro IsScriptContextCellsFlag(): bool;
 const kInitialContextSlotValue: Smi = 0;
 
 @export
@@ -85,7 +87,7 @@ macro AllocateSyntheticFunctionContext(
 }
 
 macro HasContextCells(c: Context): bool {
-  return IsScriptContextCellsFlag() && Is<ScriptContext>(c);
+  return c.GetScopeInfo().flags.has_context_cells;
 }
 
 extern class NativeContext extends Context;
@@ -314,6 +316,22 @@ builtin StoreContextElementBaseline(
   return Undefined;
 }
 
+builtin DetachContextCell(
+    theContext: Object, newValue: JSAny, i: intptr): Object {
+  // We should only call this builtin if the slot contains a context cell.
+  const c = UnsafeCast<Context>(theContext);
+  const cell = Cast<ContextCell>(c.elements[i]) otherwise unreachable;
+  if (IsUndefinedContextCell(cell)) {
+    c.elements[i] = newValue;
+    return Undefined;
+  }
+  NotifyContextCellStateWillChange(cell);
+  cell.tagged_value = kZero;
+  c.elements[i] = newValue;
+  cell.state = kContextCellDetached;
+  return Undefined;
+}
+
 namespace runtime {
 extern runtime NotifyContextCellStateWillChange(NoContext, ContextCell): JSAny;
 }  // namespace runtime
@@ -345,12 +363,8 @@ macro TransitionContextCellToUntagged(
 macro StoreScriptContextElementImpl(
     c: Context, index: intptr, newValue: Object): void {
   const oldValue = c.elements[index];
-  if (!HasContextCells(c)) {
-    c.elements[index] = newValue;
-    return;
-  }
 
-  if (oldValue == TheHole) {
+  if (oldValue == TheHole && HasContextCells(c)) {
     // Setting the initial value.
     c.elements[index] = AllocateContextCell(newValue);
     return;
@@ -358,6 +372,16 @@ macro StoreScriptContextElementImpl(
 
   if (!Is<ContextCell>(oldValue)) {
     c.elements[index] = newValue;
+    return;
+  }
+
+  if (IsUndefinedContextCell(oldValue)) {
+    if (newValue == Undefined) return;
+    if (newValue == TheHole) {
+      c.elements[index] = newValue;
+      return;
+    }
+    c.elements[index] = AllocateContextCell(newValue);
     return;
   }
 

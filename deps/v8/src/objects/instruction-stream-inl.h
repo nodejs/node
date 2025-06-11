@@ -22,7 +22,6 @@
 namespace v8::internal {
 
 OBJECT_CONSTRUCTORS_IMPL(InstructionStream, TrustedObject)
-NEVER_READ_ONLY_SPACE_IMPL(InstructionStream)
 
 uint32_t InstructionStream::body_size() const {
   return ReadField<uint32_t>(kBodySizeOffset);

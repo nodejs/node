@@ -1,3 +1,7 @@
+include_rules = [
+  "+third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0"
+]
+
 specific_include_rules = {
   "deoptimization-data.cc": [
     "+third_party/zlib",

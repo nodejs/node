@@ -204,7 +204,7 @@ static inline V ReadMaybeUnalignedValue(Address p) {
 #endif
   // Bug(v8:8875) Double fields may be unaligned.
   constexpr bool unaligned_double_field =
-      std::is_same<V, double>::value && kDoubleSize > kTaggedSize;
+      std::is_same_v<V, double> && kDoubleSize > kTaggedSize;
   if (unaligned_double_field || v8_pointer_compression_unaligned) {
     return base::ReadUnalignedValue<V>(p);
   } else {
@@ -222,7 +222,7 @@ static inline void WriteMaybeUnalignedValue(Address p, V value) {
 #endif
   // Bug(v8:8875) Double fields may be unaligned.
   constexpr bool unaligned_double_field =
-      std::is_same<V, double>::value && kDoubleSize > kTaggedSize;
+      std::is_same_v<V, double> && kDoubleSize > kTaggedSize;
   if (unaligned_double_field || v8_pointer_compression_unaligned) {
     base::WriteUnalignedValue<V>(p, value);
   } else {

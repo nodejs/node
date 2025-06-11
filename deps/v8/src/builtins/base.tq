@@ -280,6 +280,7 @@ extern class EphemeronHashTable extends HashTable;
 type ObjectHashTable extends HashTable
     generates 'TNode<ObjectHashTable>' constexpr 'ObjectHashTable';
 extern class NumberDictionary extends HashTable;
+extern class DoubleStringCache extends HeapObject;
 
 type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
 type RawPtr<To: type> extends RawPtr;
@@ -637,6 +638,7 @@ extern macro ToStringStringConstant(): String;
 extern macro ToStringTagSymbolConstant(): PublicSymbol;
 extern macro TrueConstant(): True;
 extern macro UndefinedConstant(): Undefined;
+extern macro UndefinedContextCellConstant(): ContextCell;
 extern macro ValueOfStringConstant(): String;
 extern macro InvalidDispatchHandleConstant(): DispatchHandle;
 
@@ -654,6 +656,7 @@ const kReturnString: String = ReturnStringConstant();
 const kSizeString: String = SizeStringConstant();
 const kHasString: String = HasStringConstant();
 const kKeysString: String = KeysStringConstant();
+const kUndefinedContextCell: ContextCell = UndefinedContextCellConstant();
 
 const kNaN: NaN = NanConstant();
 const kZero: Zero = %RawDownCast<Zero>(SmiConstant(0));
@@ -933,6 +936,8 @@ extern macro StringFromSingleCharCode(char8): String;
 extern macro StringFromSingleCharCode(char16): String;
 
 extern macro NumberToString(Number): String;
+extern macro SmiToString(Smi): String;
+extern macro Float64ToString(float64): String;
 extern macro StringToNumber(String): Number;
 extern transitioning macro NonNumberToNumber(
     implicit context: Context)(JSAnyNotNumber): Number;
@@ -991,7 +996,9 @@ extern macro IsElementsKindInRange(
 
 extern macro IsFastElementsKind(constexpr ElementsKind): constexpr bool;
 extern macro IsFastPackedElementsKind(constexpr ElementsKind): constexpr bool;
+extern macro IsSmiElementsKind(constexpr ElementsKind): constexpr bool;
 extern macro IsDoubleElementsKind(constexpr ElementsKind): constexpr bool;
+extern macro IsHoleyElementsKind(constexpr ElementsKind): constexpr bool;
 
 extern macro GetNonRabGsabElementsKind(ElementsKind): ElementsKind;
 
@@ -1498,12 +1505,17 @@ extern macro IsFastSmiElementsKind(ElementsKind): bool;
 extern macro IsHoleyFastElementsKind(ElementsKind): bool;
 
 macro FastHoleyElementsKind(kind: ElementsKind): ElementsKind {
-  if (kind == ElementsKind::PACKED_SMI_ELEMENTS) {
+  if (kind == ElementsKind::PACKED_SMI_ELEMENTS ||
+      kind == ElementsKind::HOLEY_SMI_ELEMENTS) {
     return ElementsKind::HOLEY_SMI_ELEMENTS;
-  } else if (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+  } else if (
+      kind == ElementsKind::PACKED_DOUBLE_ELEMENTS ||
+      kind == ElementsKind::HOLEY_DOUBLE_ELEMENTS) {
     return ElementsKind::HOLEY_DOUBLE_ELEMENTS;
   }
-  dcheck(kind == ElementsKind::PACKED_ELEMENTS);
+  dcheck(
+      kind == ElementsKind::PACKED_ELEMENTS ||
+      kind == ElementsKind::HOLEY_ELEMENTS);
   return ElementsKind::HOLEY_ELEMENTS;
 }
 

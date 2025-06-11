@@ -10,6 +10,7 @@
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "include/v8-profiler.h"
@@ -23,6 +24,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/string.h"
 #include "src/objects/visitors.h"
+#include "src/profiler/heap-snapshot-common.h"
 #include "src/profiler/strings-storage.h"
 #include "src/strings/string-hasher.h"
 
@@ -470,6 +472,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                                          Tagged<JSWeakCollection> collection);
   void ExtractEphemeronHashTableReferences(HeapEntry* entry,
                                            Tagged<EphemeronHashTable> table);
+  void ExtractJSDisposableStackReferences(
+      HeapEntry* entry, Tagged<JSDisposableStackBase> disposable_stack);
   void ExtractContextReferences(HeapEntry* entry, Tagged<Context> context);
   void ExtractMapReferences(HeapEntry* entry, Tagged<Map> map);
   void ExtractSharedFunctionInfoReferences(HeapEntry* entry,
@@ -524,6 +528,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                                    int field_offset = -1);
   void ExtractElementReferences(Tagged<JSObject> js_obj, HeapEntry* entry);
   void ExtractInternalReferences(Tagged<JSObject> js_obj, HeapEntry* entry);
+  void ExtractCppHeapExternalReferences(HeapEntry* entry,
+                                        Tagged<CppHeapExternalObject> obj);
 
 #if V8_ENABLE_WEBASSEMBLY
   void ExtractWasmStructReferences(Tagged<WasmStruct> obj, HeapEntry* entry);
@@ -706,6 +712,14 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
 
   Heap* heap() const { return heap_; }
 
+  UnorderedCppHeapExternalObjectSet& GetCppHeapExternalObjects() {
+    return cpp_heap_external_objects_;
+  }
+
+  UnorderedCppHeapExternalObjectSet TakeCppHeapExternalObjects() {
+    return std::move(cpp_heap_external_objects_);
+  }
+
  private:
   bool FillReferences();
   void ProgressStep() override;
@@ -724,6 +738,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   uint32_t progress_total_;
   Heap* heap_;
   cppgc::EmbedderStackState stack_state_;
+  UnorderedCppHeapExternalObjectSet cpp_heap_external_objects_;
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
   std::unordered_map<HeapEntry*, HeapThing> reverse_entries_map_;

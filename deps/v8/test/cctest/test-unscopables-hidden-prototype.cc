@@ -21,7 +21,7 @@ static void Cleanup() {
 
 TEST(Unscopables) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> current_context = isolate->GetCurrentContext();
 

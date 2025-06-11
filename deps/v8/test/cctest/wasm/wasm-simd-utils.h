@@ -208,8 +208,8 @@ void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                          Int64ShiftOp expected_op);
 
 // Generic expected value functions.
-template <typename T, typename = typename std::enable_if<
-                          std::is_floating_point<T>::value>::type>
+template <typename T,
+          typename = typename std::enable_if_t<std::is_floating_point_v<T>>>
 T Negate(T a) {
   return -a;
 }

@@ -427,7 +427,7 @@ Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
     if (index != Context::kNotFound) {
       DCHECK(holder.is_identical_to(context));
-      context->SetNoCell(index, *value);
+      Context::Set(context, index, value, isolate);
       return ReadOnlyRoots(isolate).undefined_value();
     }
 
@@ -771,7 +771,6 @@ RUNTIME_FUNCTION(Runtime_PushBlockContext) {
   return *isolate->factory()->NewBlockContext(current, scope_info);
 }
 
-
 RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -806,7 +805,6 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }
-
 
 namespace {
 
@@ -878,7 +876,6 @@ MaybeDirectHandle<Object> LoadLookupSlot(
 
 }  // namespace
 
-
 RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -887,14 +884,12 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
                            LoadLookupSlot(isolate, name, kThrowOnError));
 }
 
-
 RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<String> name = args.at<String>(0);
   RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(isolate, name, kDontThrow));
 }
-
 
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   HandleScope scope(isolate);
@@ -996,7 +991,6 @@ MaybeDirectHandle<Object> StoreLookupSlot(
 
 }  // namespace
 
-
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -1050,7 +1044,11 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   CHECK(found);
   DirectHandle<Context> script_context(
       script_contexts->get(lookup_result.context_index), isolate);
-  Context::Set(script_context, lookup_result.slot_index, value, isolate);
+  if (lookup_result.mode == VariableMode::kConst) {
+    script_context->SetNoCell(lookup_result.slot_index, *value);
+  } else {
+    Context::Set(script_context, lookup_result.slot_index, value, isolate);
+  }
   return *value;
 }
 

@@ -862,7 +862,9 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
 
 (function ReduceNonCallableOpt() {
   let done = false;
-  let f = (a, current) => {
+  // Introduce an indirection, so that we don't depend on ContextCells constness.
+  let f = null;
+  f = (a, current) => {
     return a + Number(current);
   };
   let array = [1,'2',3];
@@ -1220,7 +1222,9 @@ assertEquals(undefined, Object.preventExtensions(arr).reduceRight(function(val) 
 
 (function ReduceNonCallableOpt() {
   let done = false;
-  let f = (a, current) => {
+  // Introduce an indirection, so that we don't depend on ContextCells constness.
+  let f = null;
+  f = (a, current) => {
     return a + Number(current);
   };
   let array = [1,'2',3];

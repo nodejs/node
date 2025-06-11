@@ -52,9 +52,10 @@ struct StructType {
       mutabilities[i] = field_types[i].mutability;
     }
     bool is_descriptor = false;  // TODO(403372470): Add support.
+    bool is_shared = false;      // TODO(42204563): Add support.
     builder->AddStructType(
         zone->New<wasm::StructType>(field_count, kNoOffsets, reps, mutabilities,
-                                    is_descriptor),
+                                    is_descriptor, is_shared),
         kNotFinal, kNoSupertype);
   }
 

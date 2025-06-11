@@ -231,8 +231,6 @@ enum ContextLookupFlags {
   V(JS_WEAK_REF_FUNCTION_INDEX, JSFunction, js_weak_ref_fun)                   \
   V(JS_FINALIZATION_REGISTRY_FUNCTION_INDEX, JSFunction,                       \
     js_finalization_registry_fun)                                              \
-  V(JS_TEMPORAL_CALENDAR_FUNCTION_INDEX, JSFunction,                           \
-    temporal_calendar_function)                                                \
   V(JS_TEMPORAL_DURATION_FUNCTION_INDEX, JSFunction,                           \
     temporal_duration_function)                                                \
   V(JS_TEMPORAL_INSTANT_FUNCTION_INDEX, JSFunction, temporal_instant_function) \
@@ -482,8 +480,6 @@ enum ContextLookupFlags {
 
 class Context : public TorqueGeneratedContext<Context, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   using TorqueGeneratedContext::length;      // Non-atomic.
   using TorqueGeneratedContext::set_length;  // Non-atomic.
   DECL_RELAXED_INT_ACCESSORS(length)
@@ -590,7 +586,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
       RAB_GSAB_UINT8_ARRAY_MAP_INDEX;
 
   static const int kNoContext = 0;
-  static const int kInvalidContext = 1;
 
   // Direct slot access.
   DECL_ACCESSORS(scope_info, Tagged<ScopeInfo>)
@@ -630,7 +625,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   // Compute the native context.
   inline Tagged<NativeContext> native_context() const;
-  inline bool IsDetached() const;
+  inline bool IsDetached(Isolate* isolate) const;
 
   // Predicates for context types.  IsNativeContext is already defined on
   // Object.
@@ -730,6 +725,10 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   friend class compiler::ContextRef;
   friend class JavaScriptFrame;
   friend class V8HeapExplorer;
+
+#ifdef OBJECT_PRINT
+  void PrintContextWithHeader(std::ostream& os, const char* type);
+#endif
 
  private:
 #ifdef DEBUG

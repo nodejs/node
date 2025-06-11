@@ -459,7 +459,7 @@ AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
 
 AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
                                             AllocationAlignment alignment) {
-  return USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
+  return alignment != kTaggedAligned
              ? AllocateRawAligned(size_in_bytes, alignment)
              : AllocateRawUnaligned(size_in_bytes);
 }

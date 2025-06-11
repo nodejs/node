@@ -162,12 +162,11 @@ void CompilationCacheScript::Put(
 
 void CompilationCacheEval::UpdateEval(
     DirectHandle<String> source, DirectHandle<SharedFunctionInfo> outer_info,
-    DirectHandle<NativeContext> native_context,
-    DirectHandle<FeedbackCell> feedback_cell, LanguageMode language_mode,
+    DirectHandle<JSFunction> js_function, LanguageMode language_mode,
     int position) {
   DirectHandle<CompilationCacheTable> table = GetTable();
-  CompilationCacheTable::UpdateEval(table, source, outer_info, native_context,
-                                    feedback_cell, language_mode, position);
+  CompilationCacheTable::UpdateEval(table, source, outer_info, js_function,
+                                    language_mode, position);
 }
 
 InfoCellPair CompilationCacheEval::Lookup(
@@ -188,14 +187,11 @@ InfoCellPair CompilationCacheEval::Lookup(
 
 void CompilationCacheEval::Put(DirectHandle<String> source,
                                DirectHandle<SharedFunctionInfo> outer_info,
-                               DirectHandle<SharedFunctionInfo> function_info,
-                               DirectHandle<NativeContext> native_context,
-                               DirectHandle<FeedbackCell> feedback_cell,
+                               DirectHandle<JSFunction> js_function,
                                int position) {
   DirectHandle<CompilationCacheTable> table = GetTable();
-  table_ =
-      *CompilationCacheTable::PutEval(table, source, outer_info, function_info,
-                                      native_context, feedback_cell, position);
+  table_ = *CompilationCacheTable::PutEval(table, source, outer_info,
+                                           js_function, position);
 }
 
 MaybeDirectHandle<RegExpData> CompilationCacheRegExp::Lookup(
@@ -251,19 +247,15 @@ CompilationCacheScript::LookupResult CompilationCache::LookupScript(
 
 void CompilationCache::UpdateEval(DirectHandle<String> source,
                                   DirectHandle<SharedFunctionInfo> outer_info,
-                                  DirectHandle<Context> context,
-                                  DirectHandle<FeedbackCell> new_feedback_cell,
+                                  DirectHandle<JSFunction> js_function,
                                   LanguageMode language_mode, int position) {
-  DirectHandle<NativeContext> maybe_native_context;
-  if (TryCast<NativeContext>(context, &maybe_native_context)) {
-    eval_global_.UpdateEval(source, outer_info, maybe_native_context,
-                            new_feedback_cell, language_mode, position);
+  if (IsNativeContext(js_function->context())) {
+    eval_global_.UpdateEval(source, outer_info, js_function, language_mode,
+                            position);
   } else {
     DCHECK_NE(position, kNoSourcePosition);
-    DirectHandle<NativeContext> native_context(context->native_context(),
-                                               isolate());
-    eval_contextual_.UpdateEval(source, outer_info, native_context,
-                                new_feedback_cell, language_mode, position);
+    eval_contextual_.UpdateEval(source, outer_info, js_function, language_mode,
+                                position);
   }
 }
 
@@ -313,27 +305,21 @@ void CompilationCache::PutScript(
 
 void CompilationCache::PutEval(DirectHandle<String> source,
                                DirectHandle<SharedFunctionInfo> outer_info,
-                               DirectHandle<Context> context,
-                               DirectHandle<SharedFunctionInfo> function_info,
-                               DirectHandle<FeedbackCell> feedback_cell,
+                               DirectHandle<JSFunction> js_function,
                                int position) {
   if (!IsEnabledScriptAndEval()) return;
 
   const char* cache_type;
-  DirectHandle<NativeContext> maybe_native_context;
-  if (TryCast<NativeContext>(context, &maybe_native_context)) {
-    eval_global_.Put(source, outer_info, function_info, maybe_native_context,
-                     feedback_cell, position);
+  if (IsNativeContext(js_function->context())) {
+    eval_global_.Put(source, outer_info, js_function, position);
     cache_type = "eval-global";
   } else {
     DCHECK_NE(position, kNoSourcePosition);
-    DirectHandle<NativeContext> native_context(context->native_context(),
-                                               isolate());
-    eval_contextual_.Put(source, outer_info, function_info, native_context,
-                         feedback_cell, position);
+    eval_contextual_.Put(source, outer_info, js_function, position);
     cache_type = "eval-contextual";
   }
-  LOG(isolate(), CompilationCacheEvent("put", cache_type, *function_info));
+  LOG(isolate(),
+      CompilationCacheEvent("put", cache_type, js_function->shared()));
 }
 
 void CompilationCache::PutRegExp(DirectHandle<String> source,

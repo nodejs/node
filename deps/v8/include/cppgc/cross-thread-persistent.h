@@ -149,7 +149,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
             typename MemberStorageType,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   BasicCrossThreadPersistent(
       internal::BasicMember<U, MemberBarrierPolicy, MemberWeaknessTag,
                             MemberCheckingPolicy, MemberStorageType>
@@ -168,7 +168,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
   // Heterogeneous ctor.
   template <typename U, typename OtherWeaknessPolicy,
             typename OtherLocationPolicy, typename OtherCheckingPolicy,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   BasicCrossThreadPersistent(
       const BasicCrossThreadPersistent<U, OtherWeaknessPolicy,
                                        OtherLocationPolicy,
@@ -194,7 +194,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
 
   template <typename U, typename OtherWeaknessPolicy,
             typename OtherLocationPolicy, typename OtherCheckingPolicy,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   BasicCrossThreadPersistent& operator=(
       const BasicCrossThreadPersistent<U, OtherWeaknessPolicy,
                                        OtherLocationPolicy,
@@ -232,7 +232,7 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
             typename MemberStorageType,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   BasicCrossThreadPersistent& operator=(
       internal::BasicMember<U, MemberBarrierPolicy, MemberWeaknessTag,
                             MemberCheckingPolicy, MemberStorageType>
@@ -338,8 +338,8 @@ class BasicCrossThreadPersistent final : public CrossThreadPersistentBase,
   }
 
   template <typename U = T,
-            typename = typename std::enable_if<!BasicCrossThreadPersistent<
-                U, WeaknessPolicy>::IsStrongPersistent::value>::type>
+            typename = std::enable_if_t<!BasicCrossThreadPersistent<
+                U, WeaknessPolicy>::IsStrongPersistent::value>>
   BasicCrossThreadPersistent<U, internal::StrongCrossThreadPersistentPolicy>
   Lock() const {
     return BasicCrossThreadPersistent<

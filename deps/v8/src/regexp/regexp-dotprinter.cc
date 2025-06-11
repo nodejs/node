@@ -200,16 +200,19 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
   os_ << "  n" << that << " [";
   switch (that->action_type_) {
     case ActionNode::SET_REGISTER_FOR_LOOP:
-      os_ << "label=\"$" << that->data_.u_store_register.reg
-          << ":=" << that->data_.u_store_register.value << "\", shape=octagon";
+      os_ << "label=\"$" << that->register_from() << ":=" << that->value()
+          << "\", shape=octagon";
       break;
     case ActionNode::INCREMENT_REGISTER:
-      os_ << "label=\"$" << that->data_.u_increment_register.reg
-          << "++\", shape=octagon";
+      os_ << "label=\"$" << that->register_from() << "++\", shape=octagon";
       break;
-    case ActionNode::STORE_POSITION:
-      os_ << "label=\"$" << that->data_.u_position_register.reg
-          << ":=$pos\", shape=octagon";
+    case ActionNode::CLEAR_POSITION:
+      os_ << "label=\"$" << that->register_from()
+          << ":=$pos c\", shape=octagon";
+      break;
+    case ActionNode::RESTORE_POSITION:
+      os_ << "label=\"$" << that->register_from()
+          << ":=$pos r\", shape=octagon";
       break;
     case ActionNode::BEGIN_POSITIVE_SUBMATCH:
       os_ << "label=\"$" << that->data_.u_submatch.current_position_register
@@ -229,9 +232,8 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
           << "?\", shape=septagon";
       break;
     case ActionNode::CLEAR_CAPTURES: {
-      os_ << "label=\"clear $" << that->data_.u_clear_captures.range_from
-          << " to $" << that->data_.u_clear_captures.range_to
-          << "\", shape=septagon";
+      os_ << "label=\"clear $" << that->register_from() << " to $"
+          << that->register_to() << "\", shape=septagon";
       break;
     }
     case ActionNode::MODIFY_FLAGS: {

@@ -26,11 +26,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Module)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ScriptOrModule)
 
-NEVER_READ_ONLY_SPACE_IMPL(Module)
-NEVER_READ_ONLY_SPACE_IMPL(ModuleRequest)
-NEVER_READ_ONLY_SPACE_IMPL(SourceTextModule)
-NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
-
 BOOL_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
                HasToplevelAwaitBit::kShift)
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluation_ordinal,

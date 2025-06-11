@@ -16,6 +16,18 @@ void LoopFinder::Run() {
   }
 }
 
+void LoopFinder::CollectLoopInfo(const Block* block, LoopInfo* info) {
+  if (!config_.contains(ConfigFlags::kFindCalls)) return;
+  if (info->has_any_call) return;
+
+  for (const Operation& op : input_graph_->operations(*block)) {
+    if (op.Is<CallOp>()) {
+      info->has_any_call = true;
+      return;
+    }
+  }
+}
+
 // Update the `parent_loops_` of all of the blocks that are inside of the loop
 // that starts on `header`.
 LoopFinder::LoopInfo LoopFinder::VisitLoop(const Block* header) {
@@ -32,6 +44,7 @@ LoopFinder::LoopInfo LoopFinder::VisitLoop(const Block* header) {
   info.start = header;
   info.end = backedge;
   info.block_count = 1;
+  CollectLoopInfo(header, &info);
 
   queue_.clear();
   queue_.push_back(backedge);
@@ -57,6 +70,7 @@ LoopFinder::LoopInfo LoopFinder::VisitLoop(const Block* header) {
     info.block_count++;
     info.op_count += curr->OpCountUpperBound();
     loop_headers_[curr->index()] = header;
+    CollectLoopInfo(curr, &info);
     const Block* pred_start = curr->LastPredecessor();
     if (curr->IsLoop()) {
       // Skipping the backedge of inner loops since we don't want to visit inner

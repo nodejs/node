@@ -19,10 +19,9 @@ class Register;
 
 template <typename RegisterT>
 class RegListBase {
-  using num_registers_sized_storage_t = typename std::conditional<
+  using num_registers_sized_storage_t = std::conditional_t<
       RegisterT::kNumRegisters <= 16, uint16_t,
-      typename std::conditional<RegisterT::kNumRegisters <= 32, uint32_t,
-                                uint64_t>::type>::type;
+      std::conditional_t<RegisterT::kNumRegisters <= 32, uint32_t, uint64_t>>;
   static_assert(RegisterT::kNumRegisters <= 64);
 
  public:
@@ -31,9 +30,9 @@ class RegListBase {
 
 #ifdef V8_TARGET_ARCH_ARM64
   // On ARM64 the sp register has the special value 63 (kSPRegInternalCode)
-  using storage_t = typename std::conditional<
-      std::is_same<RegisterT, v8::internal::Register>::value, uint64_t,
-      num_registers_sized_storage_t>::type;
+  using storage_t = typename std::conditional_t<
+      std::is_same_v<RegisterT, v8::internal::Register>, uint64_t,
+      num_registers_sized_storage_t>;
 #else
   using storage_t = num_registers_sized_storage_t;
 #endif

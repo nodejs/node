@@ -33,8 +33,8 @@ namespace {
 
 class MemoryAllocationPermissionsTest : public TestWithPlatform {
   static void SignalHandler(int signal, siginfo_t* info, void*) {
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-    RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
+#if V8_HAS_PKU_SUPPORT
+    base::MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler();
 #endif
     siglongjmp(continuation_, 1);
   }
@@ -103,8 +103,8 @@ class MemoryAllocationPermissionsTest : public TestWithPlatform {
     v8::PageAllocator* page_allocator =
         v8::internal::GetPlatformPageAllocator();
     const size_t page_size = page_allocator->AllocatePageSize();
-    int* buffer = static_cast<int*>(AllocatePages(
-        page_allocator, nullptr, page_size, page_size, permission));
+    int* buffer = static_cast<int*>(
+        AllocatePages(page_allocator, page_size, page_size, permission));
     ProbeMemory(buffer, MemoryAction::kRead, can_read);
     ProbeMemory(buffer, MemoryAction::kWrite, can_write);
     FreePages(page_allocator, buffer, page_size);
@@ -142,18 +142,21 @@ TEST_F(AllocationTest, AllocateAndFree) {
 
   // A large allocation, aligned at native allocation granularity.
   const size_t kAllocationSize = 1 * v8::internal::MB;
-  void* mem_addr = v8::internal::AllocatePages(
-      page_allocator, page_allocator->GetRandomMmapAddr(), kAllocationSize,
-      page_size, PageAllocator::Permission::kReadWrite);
+  void* mem_addr =
+      v8::internal::AllocatePages(page_allocator, kAllocationSize, page_size,
+                                  PageAllocator::Permission::kReadWrite,
+                                  PageAllocator::AllocationHint().WithAddress(
+                                      page_allocator->GetRandomMmapAddr()));
   CHECK_NOT_NULL(mem_addr);
   v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize);
 
   // A large allocation, aligned significantly beyond native granularity.
   const size_t kBigAlignment = 64 * v8::internal::MB;
   void* aligned_mem_addr = v8::internal::AllocatePages(
-      page_allocator,
-      AlignedAddress(page_allocator->GetRandomMmapAddr(), kBigAlignment),
-      kAllocationSize, kBigAlignment, PageAllocator::Permission::kReadWrite);
+      page_allocator, kAllocationSize, kBigAlignment,
+      PageAllocator::Permission::kReadWrite,
+      PageAllocator::AllocationHint().WithAddress(
+          AlignedAddress(page_allocator->GetRandomMmapAddr(), kBigAlignment)));
   CHECK_NOT_NULL(aligned_mem_addr);
   CHECK_EQ(aligned_mem_addr, AlignedAddress(aligned_mem_addr, kBigAlignment));
   v8::internal::FreePages(page_allocator, aligned_mem_addr, kAllocationSize);
@@ -163,9 +166,11 @@ TEST_F(AllocationTest, ReserveMemory) {
   v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
   size_t page_size = v8::internal::AllocatePageSize();
   const size_t kAllocationSize = 1 * v8::internal::MB;
-  void* mem_addr = v8::internal::AllocatePages(
-      page_allocator, page_allocator->GetRandomMmapAddr(), kAllocationSize,
-      page_size, PageAllocator::Permission::kReadWrite);
+  void* mem_addr =
+      v8::internal::AllocatePages(page_allocator, kAllocationSize, page_size,
+                                  PageAllocator::Permission::kReadWrite,
+                                  PageAllocator::AllocationHint().WithAddress(
+                                      page_allocator->GetRandomMmapAddr()));
   CHECK_NE(0, page_size);
   CHECK_NOT_NULL(mem_addr);
   size_t commit_size = page_allocator->CommitPageSize();
@@ -184,9 +189,9 @@ TEST_F(AllocationTest, ResizeMemory) {
   constexpr size_t kReservationSize = 10 * PageMetadata::kPageSize;
   size_t page_size = v8::internal::AllocatePageSize();
 
-  VirtualMemory reservation(page_allocator, kReservationSize, nullptr,
-                            PageMetadata::kPageSize,
-                            PageAllocator::Permission::kReadWrite);
+  VirtualMemory reservation(
+      page_allocator, kReservationSize, v8::PageAllocator::AllocationHint(),
+      PageMetadata::kPageSize, PageAllocator::Permission::kReadWrite);
 
   base::BoundedPageAllocator bpa(
       page_allocator, reservation.address(), kReservationSize,

@@ -1097,18 +1097,17 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
         // `TryMergeLoop`. Some types which are known to cause issues are
         // generalized here.
         NodeType initial_optimistic_type = unmerged_type;
-        if (!IsEmptyNodeType(CombineType(unmerged_type, NodeType::kString))) {
+        if (!IsEmptyNodeType(IntersectType(unmerged_type, NodeType::kString))) {
           // Make sure we don't depend on something being an internalized string
           // in particular, by making the type cover all String subtypes.
-          initial_optimistic_type =
-              IntersectType(unmerged_type, NodeType::kString);
+          initial_optimistic_type = UnionType(unmerged_type, NodeType::kString);
         }
         result->set_type(initial_optimistic_type);
       }
     } else {
       if (optimistic_loop_phis) {
         if (NodeInfo* node_info = known_node_aspects_->TryGetInfoFor(result)) {
-          node_info->IntersectType(unmerged_type);
+          node_info->UnionType(unmerged_type);
         }
         result->merge_type(unmerged_type);
       }
@@ -1219,9 +1218,9 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
                                  predecessors_[i]);
     }
     result->set_input(i, tagged);
-    type = IntersectType(type, merged_type != NodeType::kUnknown
-                                   ? merged_type
-                                   : AlternativeType(alt));
+    type = UnionType(type, merged_type != NodeType::kUnknown
+                               ? merged_type
+                               : AlternativeType(alt));
     i++;
   }
   DCHECK_EQ(i, predecessors_so_far_);
@@ -1239,7 +1238,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     DCHECK(result->is_unmerged_loop_phi());
     UpdateLoopPhiType(result, type);
   } else {
-    result->set_type(IntersectType(type, unmerged_type));
+    result->set_type(UnionType(type, unmerged_type));
   }
 
   phis_.Add(result);
@@ -1323,7 +1322,7 @@ MergePointInterpreterFrameState::MergeVirtualObjectValue(
     result->set_input(i, unmerged);
   }
 
-  result->set_type(IntersectType(merged_type, unmerged_type));
+  result->set_type(UnionType(merged_type, unmerged_type));
 
   phis_.Add(result);
   return result;

@@ -19,6 +19,7 @@
 #include "src/base/vector.h"
 #include "src/common/simd128.h"
 #include "src/logging/counters.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/interpreter/instruction-handlers.h"
 #include "src/wasm/interpreter/wasm-interpreter-objects.h"

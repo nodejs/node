@@ -247,7 +247,7 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
     DirectHandle<NativeContext> context,
     DirectHandle<DictionaryTemplateInfo> self,
     const MemorySpan<MaybeLocal<Value>>& property_values) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<FixedArray> property_names(self->property_names(), isolate);
 
   const int property_names_len = property_names->length();

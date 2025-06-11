@@ -330,7 +330,7 @@ class MaglevEarlyLoweringReducer : public Next {
     Uninitialized<PropertyArray> new_property_array =
         __ template Allocate<PropertyArray>(
             __ IntPtrConstant(PropertyArray::SizeFor(new_length)),
-            AllocationType::kYoung);
+            AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(new_property_array, AccessBuilder::ForMap(),
                        __ HeapConstant(factory_->property_array_map()));
 

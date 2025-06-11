@@ -118,17 +118,21 @@ void OffHeapInstructionStream::CreateOffHeapOffHeapInstructionStream(
   void* const requested_allocation_code_address =
       AlignedAddress(isolate->heap()->GetRandomMmapAddr(), alignment);
   const uint32_t allocation_code_size = RoundUp(d.code_size(), alignment);
-  uint8_t* allocated_code_bytes = static_cast<uint8_t*>(AllocatePages(
-      page_allocator, requested_allocation_code_address, allocation_code_size,
-      alignment, PageAllocator::kReadWrite));
+  uint8_t* allocated_code_bytes = static_cast<uint8_t*>(
+      AllocatePages(page_allocator, allocation_code_size, alignment,
+                    PageAllocator::kReadWrite,
+                    v8::PageAllocator::AllocationHint().WithAddress(
+                        requested_allocation_code_address)));
   CHECK_NOT_NULL(allocated_code_bytes);
 
   void* const requested_allocation_data_address =
       AlignedAddress(isolate->heap()->GetRandomMmapAddr(), alignment);
   const uint32_t allocation_data_size = RoundUp(d.data_size(), alignment);
-  uint8_t* allocated_data_bytes = static_cast<uint8_t*>(AllocatePages(
-      page_allocator, requested_allocation_data_address, allocation_data_size,
-      alignment, PageAllocator::kReadWrite));
+  uint8_t* allocated_data_bytes = static_cast<uint8_t*>(
+      AllocatePages(page_allocator, allocation_data_size, alignment,
+                    PageAllocator::kReadWrite,
+                    v8::PageAllocator::AllocationHint().WithAddress(
+                        requested_allocation_data_address)));
   CHECK_NOT_NULL(allocated_data_bytes);
 
   // Copy the embedded blob into the newly allocated backing store. Switch

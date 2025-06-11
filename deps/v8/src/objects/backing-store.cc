@@ -325,16 +325,19 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #ifdef V8_ENABLE_SANDBOX
   CHECK_WITH_MSG(isolate || Sandbox::current(),
+#else
+  CHECK_WITH_MSG(isolate || IsolateGroup::current(),
+#endif
                  "One must enter an v8::Isolate before allocating resizable "
                  "array backing stores");
 #endif
-#endif
-  PageAllocator* page_allocator =
-      isolate ? isolate->isolate_group()->GetBackingStorePageAllocator()
-              : GetArrayBufferPageAllocator();
+  IsolateGroup* group =
+      isolate ? isolate->isolate_group() : IsolateGroup::current();
+  PageAllocator* page_allocator = group ? group->GetBackingStorePageAllocator()
+                                        : GetArrayBufferPageAllocator();
   auto allocate_pages = [&] {
-    allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
-                                    page_size, PageAllocator::kNoAccess);
+    allocation_base = AllocatePages(page_allocator, reservation_size, page_size,
+                                    PageAllocator::kNoAccess);
     return allocation_base != nullptr;
   };
   if (!gc_retry(allocate_pages)) {

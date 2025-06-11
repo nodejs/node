@@ -578,12 +578,12 @@ IrregexpInterpreter::Result RawMatch(
       ADVANCE_CURRENT_POSITION(LoadPacked24Signed(insn));
       DISPATCH();
     }
-    BYTECODE(CHECK_GREEDY) {
+    BYTECODE(CHECK_FIXED_LENGTH) {
       if (current == backtrack_stack.peek()) {
         SET_PC_FROM_OFFSET(Load32Aligned(pc + 4));
         backtrack_stack.pop();
       } else {
-        ADVANCE(CHECK_GREEDY);
+        ADVANCE(CHECK_FIXED_LENGTH);
       }
       DISPATCH();
     }

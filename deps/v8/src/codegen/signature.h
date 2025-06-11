@@ -87,7 +87,7 @@ class Signature : public ZoneObject {
     DCHECK_EQ(kReturnCountOffset, offsetof(Signature, return_count_));
     DCHECK_EQ(kParameterCountOffset, offsetof(Signature, parameter_count_));
     DCHECK_EQ(kRepsOffset, offsetof(Signature, reps_));
-    static_assert(std::is_standard_layout<Signature<T>>::value);
+    static_assert(std::is_standard_layout_v<Signature<T>>);
   }
 
   size_t return_count() const { return return_count_; }

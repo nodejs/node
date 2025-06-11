@@ -27,6 +27,7 @@ Check that exceptionThrown is supported by test runner.
             exceptionId : <exceptionId>
             executionContextId : <executionContextId>
             lineNumber : 1
+            scriptId : <scriptId>
             stackTrace : {
                 callFrames : [
                     [0] : {
@@ -95,6 +96,7 @@ Check that exceptionThrown is supported by test runner.
             exceptionId : <exceptionId>
             executionContextId : <executionContextId>
             lineNumber : 1
+            scriptId : <scriptId>
             stackTrace : {
                 callFrames : [
                     [0] : {

@@ -99,6 +99,7 @@ cc_test(
         "//absl/base:core_headers",
         "//absl/hash:hash_testing",
         "//absl/numeric:int128",
+        "//absl/random",
         "//absl/strings:str_format",
         "//absl/time/internal/cctz:time_zone",
         "@googletest//:gtest",

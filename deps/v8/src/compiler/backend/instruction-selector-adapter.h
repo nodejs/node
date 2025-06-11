@@ -377,28 +377,6 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     return LoadView(graph_, node).is_protected(&traps_on_null);
   }
 
-#if !(defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32))
-  int value_input_count(turboshaft::OpIndex node) const {
-    return graph_->Get(node).input_count;
-  }
-  turboshaft::OpIndex input_at(turboshaft::OpIndex node, size_t index) const {
-    return graph_->Get(node).input(index);
-  }
-  base::Vector<const turboshaft::OpIndex> inputs(
-      turboshaft::OpIndex node) const {
-    return graph_->Get(node).inputs();
-  }
-  turboshaft::Opcode opcode(turboshaft::OpIndex node) const {
-    return graph_->Get(node).opcode;
-  }
-#endif
-
-  uint32_t id(turboshaft::OpIndex node) const { return node.id(); }
-  static turboshaft::OpIndex value(turboshaft::OptionalOpIndex node) {
-    DCHECK(node.valid());
-    return node.value();
-  }
-
  private:
   turboshaft::Graph* graph_;
 };

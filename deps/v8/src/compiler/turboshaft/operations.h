@@ -38,7 +38,6 @@
 #include "src/flags/flags.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #endif
 
@@ -140,8 +139,10 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(WasmTypeAnnotation)                   \
   V(StructGet)                            \
   V(StructSet)                            \
+  V(StructAtomicRMW)                      \
   V(ArrayGet)                             \
   V(ArraySet)                             \
+  V(ArrayAtomicRMW)                       \
   V(ArrayLength)                          \
   V(WasmAllocateArray)                    \
   V(WasmAllocateStruct)                   \
@@ -818,17 +819,6 @@ struct OpEffects {
     // hoisted.
     return IsSubsetOf(OpEffects().CanReadMemory());
   }
-  // Operations that can be eliminated via value numbering, which means that if
-  // there are two identical operations where one dominates the other, then the
-  // second can be replaced with the first one. This is safe for deopting or
-  // throwing operations, because the absence of read effects guarantees
-  // deterministic behavior.
-  bool repetition_is_eliminatable() const {
-    return IsSubsetOf(OpEffects()
-                          .CanDependOnChecks()
-                          .CanChangeControlFlow()
-                          .CanAllocateWithoutIdentity());
-  }
   bool can_read_mutable_memory() const {
     return produces.load_heap_memory | produces.load_off_heap_memory;
   }
@@ -1172,11 +1162,11 @@ struct OperationT : Operation {
   }
 
   explicit OperationT(size_t input_count) : Operation(opcode, input_count) {
-    static_assert((std::is_base_of<OperationT, Derived>::value));
+    static_assert((std::is_base_of_v<OperationT, Derived>));
 #if !V8_CC_MSVC
-    static_assert(std::is_trivially_copyable<Derived>::value);
+    static_assert(std::is_trivially_copyable_v<Derived>);
 #endif  // !V8_CC_MSVC
-    static_assert(std::is_trivially_destructible<Derived>::value);
+    static_assert(std::is_trivially_destructible_v<Derived>);
   }
   explicit OperationT(ShadowyOpIndexVectorWrapper inputs)
       : OperationT(inputs.size()) {
@@ -2405,9 +2395,9 @@ struct TryChangeOp : FixedArityOperationT<1, TryChangeOp> {
     return InputsRepFactory::SingleRep(from);
   }
 
-  OpIndex input() const { return Base::input(0); }
+  V<Float> input() const { return Base::input<Float>(0); }
 
-  TryChangeOp(OpIndex input, Kind kind, FloatRepresentation from,
+  TryChangeOp(V<Float> input, Kind kind, FloatRepresentation from,
               WordRepresentation to)
       : Base(input), kind(kind), from(from), to(to) {}
 
@@ -3502,6 +3492,7 @@ struct StoreOp : OperationT<StoreOp> {
 
 struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
   AllocationType type;
+  AllocationAlignment alignment;
 
   static constexpr OpEffects effects =
       OpEffects()
@@ -3523,11 +3514,20 @@ struct AllocateOp : FixedArityOperationT<1, AllocateOp> {
 
   V<WordPtr> size() const { return input<WordPtr>(0); }
 
-  AllocateOp(V<WordPtr> size, AllocationType type) : Base(size), type(type) {}
+  AllocateOp(V<WordPtr> size, AllocationType type,
+             AllocationAlignment alignment)
+      : Base(size), type(type), alignment(alignment) {}
 
   void PrintOptions(std::ostream& os) const;
 
-  auto options() const { return std::tuple{type}; }
+  auto options() const { return std::tuple{type, alignment}; }
+
+  void Validate(const Graph& graph) const {
+    // Operations with different alignment than kTaggedAligned are currently
+    // only supported for shared old space allocations from wasm.
+    DCHECK_IMPLIES(alignment != kTaggedAligned,
+                   type == AllocationType::kSharedOld);
+  }
 };
 
 struct DecodeExternalPointerOp
@@ -3548,9 +3548,9 @@ struct DecodeExternalPointerOp
     return MaybeRepVector<MaybeRegisterRepresentation::Word32()>();
   }
 
-  OpIndex handle() const { return input(0); }
+  V<Word32> handle() const { return input<Word32>(0); }
 
-  DecodeExternalPointerOp(OpIndex handle, ExternalPointerTagRange tag_range)
+  DecodeExternalPointerOp(V<Word32> handle, ExternalPointerTagRange tag_range)
       : Base(handle), tag_range(tag_range) {}
 
   void Validate(const Graph& graph) const { DCHECK(!tag_range.IsEmpty()); }
@@ -3738,9 +3738,9 @@ struct FrameStateOp : OperationT<FrameStateOp> {
     return {};
   }
 
-  OpIndex parent_frame_state() const {
+  V<FrameState> parent_frame_state() const {
     DCHECK(inlined);
-    return input(0);
+    return input<FrameState>(0);
   }
   base::Vector<const OpIndex> state_values() const {
     base::Vector<const OpIndex> result = inputs();
@@ -4105,9 +4105,6 @@ struct CallOp : OperationT<CallOp> {
   base::Vector<const OpIndex> arguments() const {
     return inputs().SubVector(1 + HasFrameState(), input_count);
   }
-  // Returns true if this call is a JS (but not wasm) stack check.
-  V8_EXPORT_PRIVATE bool IsStackCheck(const Graph& graph, JSHeapBroker* broker,
-                                      StackCheckKind kind) const;
 
   CallOp(V<CallTarget> callee, OptionalV<FrameState> frame_state,
          base::Vector<const OpIndex> arguments,
@@ -4133,11 +4130,7 @@ struct CallOp : OperationT<CallOp> {
               base::VectorOf(mapped_arguments), descriptor, Effects());
   }
 
-  void Validate(const Graph& graph) const {
-    if (frame_state().valid()) {
-      DCHECK(Get(graph, frame_state().value()).Is<FrameStateOp>());
-    }
-  }
+  V8_EXPORT_PRIVATE void Validate(const Graph& graph) const;
 
   static CallOp& New(Graph* graph, V<CallTarget> callee,
                      OptionalV<FrameState> frame_state,
@@ -4611,6 +4604,7 @@ struct ObjectIsOp : FixedArityOperationT<1, ObjectIsOp> {
     kInternalizedString,
     kNonCallable,
     kNumber,
+    kNumberOrUndefined,
     kNumberFitsInt32,
     kNumberOrBigInt,
     kReceiver,
@@ -4769,6 +4763,10 @@ struct ConvertUntaggedToJSPrimitiveOp
   enum class InputInterpretation : uint8_t {
     kSigned,
     kUnsigned,
+    kDouble,
+    kDoubleOrHole,
+    kDoubleOrUndefined,
+    kDoubleOrUndefinedOrHole,
     kCharCode,
     kCodePoint,
   };
@@ -4798,7 +4796,14 @@ struct ConvertUntaggedToJSPrimitiveOp
         kind(kind),
         input_rep(input_rep),
         input_interpretation(input_interpretation),
-        minus_zero_mode(minus_zero_mode) {}
+        minus_zero_mode(minus_zero_mode) {
+    DCHECK_EQ(input_rep == RegisterRepresentation::Float64(),
+              (input_interpretation ==
+               any_of(InputInterpretation::kDouble,
+                      InputInterpretation::kDoubleOrHole,
+                      InputInterpretation::kDoubleOrUndefined,
+                      InputInterpretation::kDoubleOrUndefinedOrHole)));
+  }
 
   void Validate(const Graph& graph) const {
     switch (kind) {
@@ -4906,6 +4911,10 @@ struct ConvertJSPrimitiveToUntaggedOp
     kUint32,
     kBit,
     kFloat64,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    kFloat64OrUndefined,
+    kFloat64WithSilencedNaNOrUndefined,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   };
   enum class InputAssumptions : uint8_t {
     kBoolean,
@@ -4931,6 +4940,10 @@ struct ConvertJSPrimitiveToUntaggedOp
       case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
       case UntaggedKind::kFloat64:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      case UntaggedKind::kFloat64OrUndefined:
+      case UntaggedKind::kFloat64WithSilencedNaNOrUndefined:
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
         return RepVector<RegisterRepresentation::Float64()>();
     }
   }
@@ -7061,6 +7074,7 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   const wasm::StructType* type;
   wasm::ModuleTypeIndex type_index;
   int field_index;
+  std::optional<AtomicMemoryOrder> memory_order;
 
   OpEffects Effects() const {
     OpEffects result =
@@ -7072,20 +7086,28 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
       // This may trap.
       result = result.CanLeaveCurrentFunction();
     }
+    if (memory_order.has_value()) {
+      // Pretending that the op can write prevents reordering.
+      result = result.CanWriteMemory();
+    }
     return result;
   }
 
   StructGetOp(V<WasmStructNullable> object, const wasm::StructType* type,
               wasm::ModuleTypeIndex type_index, int field_index, bool is_signed,
-              CheckForNull null_check)
+              CheckForNull null_check,
+              std::optional<AtomicMemoryOrder> memory_order)
       : Base(object),
         is_signed(is_signed),
         null_check(null_check),
         type(type),
         type_index(type_index),
-        field_index(field_index) {}
+        field_index(field_index),
+        memory_order(memory_order) {}
 
   V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
+
+  bool is_atomic() const { return memory_order.has_value(); }
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return base::VectorOf(&RepresentationFor(type->field(field_index)), 1);
@@ -7102,8 +7124,11 @@ struct StructGetOp : FixedArityOperationT<1, StructGetOp> {
   }
 
   auto options() const {
-    return std::tuple{type, type_index, field_index, is_signed, null_check};
+    return std::tuple{type,      type_index, field_index,
+                      is_signed, null_check, memory_order};
   }
+
+  void PrintOptions(std::ostream& os) const;
 };
 
 struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
@@ -7113,6 +7138,7 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   // lookups later.
   wasm::ModuleTypeIndex type_index;
   int field_index;
+  std::optional<AtomicMemoryOrder> memory_order;
 
   OpEffects Effects() const {
     OpEffects result =
@@ -7129,12 +7155,14 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
 
   StructSetOp(V<WasmStructNullable> object, V<Any> value,
               const wasm::StructType* type, wasm::ModuleTypeIndex type_index,
-              int field_index, CheckForNull null_check)
+              int field_index, CheckForNull null_check,
+              std::optional<AtomicMemoryOrder> memory_order)
       : Base(object, value),
         null_check(null_check),
         type(type),
         type_index(type_index),
-        field_index(field_index) {}
+        field_index(field_index),
+        memory_order(memory_order) {}
 
   V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
   V<Any> value() const { return input(1); }
@@ -7154,13 +7182,73 @@ struct StructSetOp : FixedArityOperationT<2, StructSetOp> {
   }
 
   auto options() const {
-    return std::tuple{type, type_index, field_index, null_check};
+    return std::tuple{type, type_index, field_index, null_check, memory_order};
+  }
+
+  void PrintOptions(std::ostream& os) const;
+};
+
+struct StructAtomicRMWOp : FixedArityOperationT<2, StructAtomicRMWOp> {
+  using BinOp = AtomicRMWOp::BinOp;
+  BinOp bin_op;
+  CheckForNull null_check;
+  const wasm::StructType* type;
+  wasm::ModuleTypeIndex type_index;
+  int field_index;
+  AtomicMemoryOrder memory_order;
+
+  OpEffects Effects() const {
+    OpEffects result =
+        OpEffects()
+            // This should not float above a protective null check.
+            .CanDependOnChecks()
+            .CanReadMemory()
+            .CanWriteMemory();
+    if (null_check == kWithNullCheck) {
+      // This may trap.
+      result = result.CanLeaveCurrentFunction();
+    }
+    return result;
+  }
+
+  StructAtomicRMWOp(V<WasmStructNullable> object, V<Word> value, BinOp bin_op,
+                    const wasm::StructType* type,
+                    wasm::ModuleTypeIndex type_index, int field_index,
+                    CheckForNull null_check, AtomicMemoryOrder memory_order)
+      : Base(object, value),
+        bin_op(bin_op),
+        null_check(null_check),
+        type(type),
+        type_index(type_index),
+        field_index(field_index),
+        memory_order(memory_order) {}
+
+  V<WasmStructNullable> object() const { return input<WasmStructNullable>(0); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(&RepresentationFor(type->field(field_index)), 1);
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InitVectorOf(storage, {RegisterRepresentation::Tagged(),
+                                  RepresentationFor(type->field(field_index))});
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK_LT(field_index, type->field_count());
+  }
+
+  auto options() const {
+    return std::tuple{bin_op,      type,       type_index,
+                      field_index, null_check, memory_order};
   }
 };
 
 struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
   bool is_signed;
   const wasm::ArrayType* array_type;
+  std::optional<AtomicMemoryOrder> memory_order;
 
   // ArrayGetOp may never trap as it is always protected by a length check.
   static constexpr OpEffects effects =
@@ -7170,8 +7258,12 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
           .CanReadMemory();
 
   ArrayGetOp(V<WasmArrayNullable> array, V<Word32> index,
-             const wasm::ArrayType* array_type, bool is_signed)
-      : Base(array, index), is_signed(is_signed), array_type(array_type) {}
+             const wasm::ArrayType* array_type, bool is_signed,
+             std::optional<AtomicMemoryOrder> memory_order)
+      : Base(array, index),
+        is_signed(is_signed),
+        array_type(array_type),
+        memory_order(memory_order) {}
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
@@ -7186,13 +7278,15 @@ struct ArrayGetOp : FixedArityOperationT<2, ArrayGetOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-
-  auto options() const { return std::tuple{array_type, is_signed}; }
+  auto options() const {
+    return std::tuple{array_type, is_signed, memory_order};
+  }
   void PrintOptions(std::ostream& os) const;
 };
 
 struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
   wasm::ValueType element_type;
+  std::optional<AtomicMemoryOrder> memory_order;
 
   // ArraySetOp may never trap as it is always protected by a length check.
   static constexpr OpEffects effects =
@@ -7202,8 +7296,11 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
           .CanWriteMemory();
 
   ArraySetOp(V<WasmArrayNullable> array, V<Word32> index, V<Any> value,
-             wasm::ValueType element_type)
-      : Base(array, index, value), element_type(element_type) {}
+             wasm::ValueType element_type,
+             std::optional<AtomicMemoryOrder> memory_order)
+      : Base(array, index, value),
+        element_type(element_type),
+        memory_order(memory_order) {}
 
   V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
   V<Word32> index() const { return input<Word32>(1); }
@@ -7218,8 +7315,54 @@ struct ArraySetOp : FixedArityOperationT<3, ArraySetOp> {
                                   RepresentationFor(element_type)});
   }
 
+  auto options() const { return std::tuple{element_type, memory_order}; }
+  void PrintOptions(std::ostream& os) const;
+};
 
-  auto options() const { return std::tuple{element_type}; }
+struct ArrayAtomicRMWOp : FixedArityOperationT<3, ArrayAtomicRMWOp> {
+  using BinOp = AtomicRMWOp::BinOp;
+  BinOp bin_op;
+  wasm::ValueType element_type;
+  AtomicMemoryOrder memory_order;
+
+  OpEffects Effects() const {
+    return OpEffects()
+        // This should not float above a protective null check.
+        .CanDependOnChecks()
+        .CanReadMemory()
+        .CanWriteMemory();
+  }
+
+  ArrayAtomicRMWOp(V<WasmArrayNullable> array, V<Word32> index, V<Word> value,
+                   BinOp bin_op, wasm::ValueType element_type,
+                   AtomicMemoryOrder memory_order)
+      : Base(array, index, value),
+        bin_op(bin_op),
+        element_type(element_type),
+        memory_order(memory_order) {}
+
+  V<WasmArrayNullable> array() const { return input<WasmArrayNullable>(0); }
+  V<Word32> index() const { return input<Word32>(1); }
+  V<Word> value() const { return input<Word>(2); }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return base::VectorOf(&RepresentationFor(element_type), 1);
+  }
+
+  base::Vector<const MaybeRegisterRepresentation> inputs_rep(
+      ZoneVector<MaybeRegisterRepresentation>& storage) const {
+    return InitVectorOf(storage, {RegisterRepresentation::Tagged(),
+                                  RegisterRepresentation::Word32(),
+                                  RepresentationFor(element_type)});
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(element_type == wasm::kWasmI32 || element_type == wasm::kWasmI64);
+  }
+
+  auto options() const {
+    return std::tuple{bin_op, element_type, memory_order};
+  }
 };
 
 struct ArrayLengthOp : FixedArityOperationT<1, ArrayLengthOp> {
@@ -9159,6 +9302,10 @@ inline OpEffects Operation::Effects() const {
       return Cast<StructGetOp>().Effects();
     case Opcode::kStructSet:
       return Cast<StructSetOp>().Effects();
+    case Opcode::kStructAtomicRMW:
+      return Cast<StructAtomicRMWOp>().Effects();
+    case Opcode::kArrayAtomicRMW:
+      return Cast<ArrayAtomicRMWOp>().Effects();
     case Opcode::kArrayLength:
       return Cast<ArrayLengthOp>().Effects();
     case Opcode::kSimd128LaneMemory:
@@ -9299,6 +9446,8 @@ constexpr size_t input_count(const wasm::ArrayType*) { return 0; }
 constexpr size_t input_count(wasm::ValueType) { return 0; }
 constexpr size_t input_count(WasmTypeCheckConfig) { return 0; }
 constexpr size_t input_count(wasm::ModuleTypeIndex) { return 0; }
+constexpr size_t input_count(std::optional<AtomicMemoryOrder>) { return 0; }
+
 #endif
 
 // All parameters that are OpIndex-like (ie, OpIndex, and OpIndex containers)

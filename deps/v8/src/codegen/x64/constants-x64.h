@@ -21,6 +21,10 @@ constexpr int kRootRegisterBias = 128;
 // between all Code objects in the range.
 constexpr size_t kMaxPCRelativeCodeRangeInMB = 2048;
 
+// The maximum size of the stack restore after a fast API call that pops the
+// stack parameters of the call off the stack.
+constexpr size_t kMaxSizeOfMoveAfterFastCall = 8;
+
 }  // namespace internal
 }  // namespace v8
 

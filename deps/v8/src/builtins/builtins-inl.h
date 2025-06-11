@@ -239,6 +239,13 @@ constexpr Builtin Builtins::InterpreterPushArgsThenConstruct(
 
 // static
 Address Builtins::EntryOf(Builtin builtin, Isolate* isolate) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+  // We don't use the isolate-specific copy of the WasmToJS wrapper; use
+  // EmbeddedEntryOf() instead to get the isolate-independent copy.
+  DCHECK(builtin != Builtin::kWasmToJsWrapperCSA &&
+         builtin != Builtin::kWasmToJsWrapperAsm &&
+         builtin != Builtin::kWasmToJsWrapperInvalidSig);
+#endif
   return isolate->builtin_entry_table()[Builtins::ToInt(builtin)];
 }
 

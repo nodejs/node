@@ -59,8 +59,8 @@ struct ZoneTypeTraits<true> {
 // of zone pointers.
 // TODO(ishell): Re-enable once compressed pointers are supported in containers.
 // static_assert(
-//     std::is_trivially_copyable<
-//         ZoneTypeTraits<COMPRESS_ZONES_BOOL>::Ptr<int>>::value,
+//     std::is_trivially_copyable_v<
+//         ZoneTypeTraits<COMPRESS_ZONES_BOOL>::Ptr<int>>,
 //     "ZoneTypeTraits<COMPRESS_ZONES_BOOL>::Ptr<T> must be trivially
 //     copyable");
 

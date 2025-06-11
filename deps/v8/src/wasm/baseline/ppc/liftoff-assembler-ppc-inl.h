@@ -249,7 +249,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     PushRegisters(regs_to_save);
     mov(WasmHandleStackOverflowDescriptor::GapRegister(), Operand(frame_size));
     AddS64(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-           Operand(stack_param_slots * kStackSlotSize +
+           Operand(stack_param_slots * kSystemPointerSize +
                    CommonFrameConstants::kFixedFrameSizeAboveFp));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
@@ -464,6 +464,28 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   LoadTaggedField(dst, MemOperand(src_addr, offset_reg, offset_imm), r0);
 }
 
+void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
+                                               Register offset_reg,
+                                               int32_t offset_imm,
+                                               AtomicMemoryOrder memory_order,
+                                               uint32_t* protected_load_pc,
+                                               bool needs_shift) {
+  unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
+  if (offset_reg != no_reg && shift_amount != 0) {
+    ShiftLeftU64(ip, offset_reg, Operand(shift_amount));
+    offset_reg = ip;
+  }
+  if (protected_load_pc) *protected_load_pc = pc_offset();
+#if V8_COMPRESS_POINTERS
+  LoadU32(dst, MemOperand(src_addr, offset_reg, offset_imm), r0);
+  lwsync();
+  DecompressTagged(dst, dst);
+#else
+  LoadU64(dst, MemOperand(src_addr, offset_reg, offset_imm), r0);
+  lwsync();
+#endif
+}
+
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
                                             int32_t offset) {
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
@@ -498,6 +520,41 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   StoreTaggedField(src, dst_op, r0);
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
+
+  Label exit;
+  // NOTE: to_condition(kZero) is the equality condition (eq)
+  // This line verifies the masked address is equal to dst_addr,
+  // not that it is zero!
+  CheckPageFlag(dst_addr, ip, MemoryChunk::kPointersFromHereAreInterestingMask,
+                to_condition(kZero), &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, ip, MemoryChunk::kPointersToHereAreInterestingMask, eq,
+                &exit);
+  mov(ip, Operand(offset_imm));
+  add(ip, ip, dst_addr);
+  if (offset_reg != no_reg) {
+    add(ip, ip, offset_reg);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, ip, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
+}
+
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  MemOperand dst_op = MemOperand(dst_addr, offset_reg, offset_imm);
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+  lwsync();
+  if (COMPRESS_POINTERS_BOOL) {
+    StoreU32(src, dst_op, r0);
+  } else {
+    StoreU64(src, dst_op, r0);
+  }
+  sync();
+
+  if (v8_flags.disable_write_barriers) return;
 
   Label exit;
   // NOTE: to_condition(kZero) is the equality condition (eq)

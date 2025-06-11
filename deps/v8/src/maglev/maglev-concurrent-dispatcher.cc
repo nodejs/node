@@ -21,6 +21,7 @@
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-pipeline-statistics.h"
 #include "src/objects/js-function-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/locked-queue-inl.h"
 
@@ -73,13 +74,6 @@ class V8_NODISCARD LocalIsolateScope final {
 };
 
 }  // namespace
-
-Zone* ExportedMaglevCompilationInfo::zone() const { return info_->zone(); }
-
-void ExportedMaglevCompilationInfo::set_canonical_handles(
-    std::unique_ptr<CanonicalHandlesMap>&& canonical_handles) {
-  info_->set_canonical_handles(std::move(canonical_handles));
-}
 
 // static
 std::unique_ptr<MaglevCompilationJob> MaglevCompilationJob::New(
@@ -137,7 +131,7 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
   LocalIsolateScope scope{info(), local_isolate};
   if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
     EndPhaseKind();
-    bailout_reason_ = BailoutReason::kGraphBuildingFailed;
+    bailout_reason_ = BailoutReason::kMaglevGraphBuildingFailed;
     return CompilationJob::FAILED;
   }
   EndPhaseKind();
@@ -245,7 +239,8 @@ uint64_t MaglevCompilationJob::trace_id() const {
   return reinterpret_cast<uint64_t>(this) ^
          reinterpret_cast<uint64_t>(info_.get()) ^
          info_->toplevel_function().address() ^
-         info_->toplevel_function()->shared()->function_literal_id();
+         info_->toplevel_function()->shared()->function_literal_id(
+             kRelaxedLoad);
 }
 
 void MaglevCompilationJob::BeginPhaseKind(const char* name) {

@@ -5096,12 +5096,13 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #undef VECTOR_ADD_SUB_SATURATE
-#define VECTOR_FP_ROUNDING(type, op)                       \
-  int t = instr->RTValue();                                \
-  int b = instr->RBValue();                                \
-  FOR_EACH_LANE(i, type) {                                 \
-    type b_val = get_simd_register_by_lane<type>(b, i);    \
-    set_simd_register_by_lane<type>(t, i, std::op(b_val)); \
+#define VECTOR_FP_ROUNDING(type, op)                                           \
+  int t = instr->RTValue();                                                    \
+  int b = instr->RBValue();                                                    \
+  FOR_EACH_LANE(i, type) {                                                     \
+    type b_val = get_simd_register_by_lane<type>(b, i);                        \
+    set_simd_register_by_lane<type>(t, i,                                      \
+                                    std::isnan(b_val) ? NAN : std::op(b_val)); \
   }
     case XVRDPIP: {
       VECTOR_FP_ROUNDING(double, ceil)

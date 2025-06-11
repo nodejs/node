@@ -63,14 +63,16 @@ namespace internal {
 // that string types map to address ranges of maps.
 #define STRING_TYPE_LIST(V)                                                    \
   /* Start sequential strings*/                                                \
-  V(SEQ_TWO_BYTE_STRING_TYPE, kVariableSizeSentinel, seq_two_byte_string,      \
-    SeqTwoByteString)                                                          \
-  V(SEQ_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel, seq_one_byte_string,      \
-    SeqOneByteString)                                                          \
+  /* Start shared sequential strings*/                                         \
   V(SHARED_SEQ_TWO_BYTE_STRING_TYPE, kVariableSizeSentinel,                    \
     shared_seq_two_byte_string, SharedSeqTwoByteString)                        \
   V(SHARED_SEQ_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel,                    \
     shared_seq_one_byte_string, SharedSeqOneByteString)                        \
+  /* End shared sequential strings*/                                           \
+  V(SEQ_TWO_BYTE_STRING_TYPE, kVariableSizeSentinel, seq_two_byte_string,      \
+    SeqTwoByteString)                                                          \
+  V(SEQ_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel, seq_one_byte_string,      \
+    SeqOneByteString)                                                          \
   /* Start internalized strings*/                                              \
   V(INTERNALIZED_TWO_BYTE_STRING_TYPE, kVariableSizeSentinel,                  \
     internalized_two_byte_string, InternalizedTwoByteString)                   \
@@ -96,6 +98,7 @@ namespace internal {
     uncached_external_two_byte_string, UncachedExternalTwoByteString)          \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE, sizeof(UncachedExternalString),    \
     uncached_external_one_byte_string, UncachedExternalOneByteString)          \
+  /* Start shared external strings*/                                           \
   V(SHARED_UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE,                             \
     sizeof(UncachedExternalString), shared_uncached_external_two_byte_string,  \
     SharedUncachedExternalTwoByteString)                                       \
@@ -103,14 +106,15 @@ namespace internal {
     sizeof(UncachedExternalString), shared_uncached_external_one_byte_string,  \
     SharedUncachedExternalOneByteString)                                       \
   /* End uncached external strings*/                                           \
-  V(EXTERNAL_TWO_BYTE_STRING_TYPE, sizeof(ExternalTwoByteString),              \
-    external_two_byte_string, ExternalTwoByteString)                           \
-  V(EXTERNAL_ONE_BYTE_STRING_TYPE, sizeof(ExternalOneByteString),              \
-    external_one_byte_string, ExternalOneByteString)                           \
   V(SHARED_EXTERNAL_TWO_BYTE_STRING_TYPE, sizeof(ExternalTwoByteString),       \
     shared_external_two_byte_string, SharedExternalTwoByteString)              \
   V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE, sizeof(ExternalOneByteString),       \
     shared_external_one_byte_string, SharedExternalOneByteString)              \
+  /* End shared external strings*/                                             \
+  V(EXTERNAL_TWO_BYTE_STRING_TYPE, sizeof(ExternalTwoByteString),              \
+    external_two_byte_string, ExternalTwoByteString)                           \
+  V(EXTERNAL_ONE_BYTE_STRING_TYPE, sizeof(ExternalOneByteString),              \
+    external_one_byte_string, ExternalOneByteString)                           \
   /* End external strings*/                                                    \
                                                                                \
   V(CONS_TWO_BYTE_STRING_TYPE, sizeof(ConsString), cons_two_byte_string,       \

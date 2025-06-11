@@ -122,6 +122,11 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   void GenerateStringEqual(TNode<String> left, TNode<String> right,
                            TNode<IntPtrT> length);
+  template <typename SeqStringT, typename CharT>
+  void GenerateSeqStringRelationalComparison(TNode<String> left,
+                                             TNode<String> right,
+                                             Label* if_less, Label* if_equal,
+                                             Label* if_greater);
   void GenerateStringRelationalComparison(TNode<String> left,
                                           TNode<String> right,
                                           StringComparison op);

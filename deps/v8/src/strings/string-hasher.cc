@@ -27,7 +27,7 @@ struct ConvertTo8BitHashReader {
     __m128i x = _mm_loadu_si128(reinterpret_cast<const __m128i*>(p));
     return _mm_cvtsi128_si64(_mm_packus_epi16(x, x));
 #elif defined(__ARM_NEON__)
-    int16x8_t x;
+    uint16x8_t x;
     memcpy(&x, p, sizeof(x));
     return vget_lane_u64(vreinterpret_u64_u8(vmovn_u16(x)), 0);
 #else
@@ -48,9 +48,9 @@ struct ConvertTo8BitHashReader {
     __m128i x = _mm_loadu_si64(reinterpret_cast<const __m128i*>(p));
     return _mm_cvtsi128_si64(_mm_packus_epi16(x, x));
 #elif defined(__ARM_NEON__)
-    int8x8_t x;
+    uint16x4_t x;
     memcpy(&x, p, sizeof(x));
-    int16x8_t x_wide = vcombine_u64(x, x);
+    uint16x8_t x_wide = vcombine_u16(x, x);
     return vget_lane_u32(vreinterpret_u32_u8(vmovn_u16(x_wide)), 0);
 #else
     return (uint64_t{p[0]}) | (uint64_t{p[1]} << 8) | (uint64_t{p[2]} << 16) |

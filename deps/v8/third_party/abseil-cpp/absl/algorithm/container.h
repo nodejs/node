@@ -44,7 +44,6 @@
 #include <cassert>
 #include <iterator>
 #include <numeric>
-#include <random>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
@@ -76,8 +75,8 @@ using ContainerIter = decltype(begin(std::declval<C&>()));
 // An MSVC bug involving template parameter substitution requires us to use
 // decltype() here instead of just std::pair.
 template <typename C1, typename C2>
-using ContainerIterPairType =
-    decltype(std::make_pair(ContainerIter<C1>(), ContainerIter<C2>()));
+using ContainerIterPairType = decltype(std::make_pair(
+    std::declval<ContainerIter<C1>>(), std::declval<ContainerIter<C2>>()));
 
 template <typename C>
 using ContainerDifferenceType = decltype(std::distance(
@@ -847,25 +846,9 @@ template <typename C, typename OutputIterator, typename Distance,
           typename UniformRandomBitGenerator>
 OutputIterator c_sample(const C& c, OutputIterator result, Distance n,
                         UniformRandomBitGenerator&& gen) {
-#if defined(__cpp_lib_sample) && __cpp_lib_sample >= 201603L
   return std::sample(container_algorithm_internal::c_begin(c),
                      container_algorithm_internal::c_end(c), result, n,
                      std::forward<UniformRandomBitGenerator>(gen));
-#else
-  // Fall back to a stable selection-sampling implementation.
-  auto first = container_algorithm_internal::c_begin(c);
-  Distance unsampled_elements = c_distance(c);
-  n = (std::min)(n, unsampled_elements);
-  for (; n != 0; ++first) {
-    Distance r =
-        std::uniform_int_distribution<Distance>(0, --unsampled_elements)(gen);
-    if (r < n) {
-      *result++ = *first;
-      --n;
-    }
-  }
-  return result;
-#endif
 }
 
 //------------------------------------------------------------------------------

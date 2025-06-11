@@ -496,7 +496,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
 
   static constexpr uint32_t kMinimalRefsBucketCount = 8;
   static_assert(base::bits::IsPowerOfTwo(kMinimalRefsBucketCount));
-  static constexpr uint32_t kInitialRefsBucketCount = 1024;
+  static constexpr uint32_t kInitialRefsBucketCount = 16;
   static_assert(base::bits::IsPowerOfTwo(kInitialRefsBucketCount));
 };
 

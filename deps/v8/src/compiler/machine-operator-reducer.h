@@ -179,7 +179,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   // size of lhs, with the sizes being different for
   // Word32Equal(TruncateInt64ToInt32(lhs), rhs).
   template <typename WordNAdapter, typename uintN_t,
-            typename intN_t = typename std::make_signed<uintN_t>::type>
+            typename intN_t = std::make_signed_t<uintN_t>>
   std::optional<std::pair<Node*, uintN_t>> ReduceWordEqualForConstantRhs(
       Node* lhs, uintN_t rhs);
 

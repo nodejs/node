@@ -94,30 +94,33 @@ namespace {
 void VisitRR(InstructionSelectorT* selector, InstructionCode opcode,
              OpIndex node) {
   PPCOperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 1);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void VisitRRR(InstructionSelectorT* selector, InstructionCode opcode,
               OpIndex node) {
   PPCOperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseRegister(selector->input_at(node, 1)));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                 g.UseRegister(op.input(1)));
 }
 
 void VisitRRO(InstructionSelectorT* selector, InstructionCode opcode,
               OpIndex node, ImmediateMode operand_mode) {
   PPCOperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.UseOperand(selector->input_at(node, 1), operand_mode));
+  const Operation& op = selector->Get(node);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+                 g.UseOperand(op.input(1), operand_mode));
 }
 
 void VisitTryTruncateDouble(InstructionSelectorT* selector,
                             InstructionCode opcode, OpIndex node) {
   PPCOperandGeneratorT g(selector);
-  InstructionOperand inputs[] = {g.UseRegister(selector->input_at(node, 0))};
+  const Operation& op = selector->Get(node);
+  InstructionOperand inputs[] = {g.UseRegister(op.input(0))};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -135,14 +138,14 @@ void VisitBinop(InstructionSelectorT* selector, OpIndex node,
                 InstructionCode opcode, ImmediateMode operand_mode,
                 FlagsContinuationT* cont) {
   PPCOperandGeneratorT g(selector);
+  const Operation& op = selector->Get(node);
   InstructionOperand inputs[4];
   size_t input_count = 0;
   InstructionOperand outputs[2];
   size_t output_count = 0;
 
-  inputs[input_count++] = g.UseRegister(selector->input_at(node, 0));
-  inputs[input_count++] =
-      g.UseOperand(selector->input_at(node, 1), operand_mode);
+  inputs[input_count++] = g.UseRegister(op.input(0));
+  inputs[input_count++] = g.UseOperand(op.input(1), operand_mode);
 
   if (cont->IsDeoptimize()) {
     // If we can deoptimize as a result of the binop, we need to make sure that
@@ -183,8 +186,8 @@ void InstructionSelectorT::VisitStackSlot(OpIndex node) {
 
 void InstructionSelectorT::VisitAbortCSADcheck(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kArchAbortCSADcheck, g.NoOutput(),
-       g.UseFixed(this->input_at(node, 0), r4));
+  const AbortCSADcheckOp& op = Cast<AbortCSADcheckOp>(node);
+  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(op.input(0), r4));
 }
 
 ArchOpcode SelectLoadOpcode(MemoryRepresentation loaded_rep,
@@ -380,7 +383,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
   PPCOperandGeneratorT g(selector);
   auto store_view = selector->store_view(node);
   OpIndex base = store_view.base();
-  OpIndex offset = selector->value(store_view.index());
+  OpIndex offset = store_view.index().value();
   OpIndex value = store_view.value();
   bool is_atomic = store_view.is_atomic();
 
@@ -463,7 +466,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
         const Operation& reverse_op = selector->Get(value);
         if (reverse_op.Is<Opmask::kWord32ReverseBytes>()) {
           opcode = kPPC_StoreByteRev32;
-          value = selector->input_at(value, 0);
+          value = reverse_op.input(0);
           mode = kNoImmediate;
         }
         break;
@@ -475,7 +478,7 @@ void VisitStoreCommon(InstructionSelectorT* selector, OpIndex node,
         const Operation& reverse_op = selector->Get(value);
         if (reverse_op.Is<Opmask::kWord64ReverseBytes>()) {
           opcode = kPPC_StoreByteRev64;
-          value = selector->input_at(value, 0);
+          value = reverse_op.input(0);
           mode = kNoImmediate;
         }
         break;
@@ -1033,26 +1036,26 @@ void InstructionSelectorT::VisitWord64Ror(OpIndex node) {
 
 void InstructionSelectorT::VisitWord32Clz(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kPPC_Cntlz32, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  const Operation& op = this->Get(node);
+  Emit(kPPC_Cntlz32, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitWord64Clz(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kPPC_Cntlz64, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  const Operation& op = this->Get(node);
+  Emit(kPPC_Cntlz64, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitWord32Popcnt(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kPPC_Popcnt32, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  const Operation& op = this->Get(node);
+  Emit(kPPC_Popcnt32, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitWord64Popcnt(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kPPC_Popcnt64, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  const Operation& op = this->Get(node);
+  Emit(kPPC_Popcnt64, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitWord32Ctz(OpIndex node) { UNREACHABLE(); }
@@ -1085,8 +1088,9 @@ void InstructionSelectorT::VisitWord64ReverseBytes(OpIndex node) {
       return;
     }
   }
+  const Operation& op = this->Get(node);
   Emit(kPPC_ByteRev64, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)), 1, temp);
+       g.UseUniqueRegister(op.input(0)), 1, temp);
 }
 
 void InstructionSelectorT::VisitWord32ReverseBytes(OpIndex node) {
@@ -1106,14 +1110,16 @@ void InstructionSelectorT::VisitWord32ReverseBytes(OpIndex node) {
       return;
     }
   }
+  const Operation& op = this->Get(node);
   Emit(kPPC_ByteRev32, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)));
+       g.UseUniqueRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitSimd128ReverseBytes(OpIndex node) {
   PPCOperandGeneratorT g(this);
+  const Operation& op = this->Get(node);
   Emit(kPPC_LoadReverseSimd128RR, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitInt32Add(OpIndex node) {
@@ -1152,8 +1158,10 @@ void VisitCompare(InstructionSelectorT* selector, InstructionCode opcode,
 void EmitInt32MulWithOverflow(InstructionSelectorT* selector, OpIndex node,
                               FlagsContinuationT* cont) {
   PPCOperandGeneratorT g(selector);
-  OpIndex lhs = selector->input_at(node, 0);
-  OpIndex rhs = selector->input_at(node, 1);
+  const OverflowCheckedBinopOp& op =
+      selector->Get(node).Cast<OverflowCheckedBinopOp>();
+  OpIndex lhs = op.input(0);
+  OpIndex rhs = op.input(1);
   InstructionOperand result_operand = g.DefineAsRegister(node);
   InstructionOperand high32_operand = g.TempRegister();
   InstructionOperand temp_operand = g.TempRegister();
@@ -1175,8 +1183,10 @@ void EmitInt32MulWithOverflow(InstructionSelectorT* selector, OpIndex node,
 void EmitInt64MulWithOverflow(InstructionSelectorT* selector, OpIndex node,
                               FlagsContinuationT* cont) {
   PPCOperandGeneratorT g(selector);
-  OpIndex lhs = selector->input_at(node, 0);
-  OpIndex rhs = selector->input_at(node, 1);
+  const OverflowCheckedBinopOp& op =
+      selector->Cast<OverflowCheckedBinopOp>(node);
+  OpIndex lhs = op.input(0);
+  OpIndex rhs = op.input(1);
   InstructionOperand result = g.DefineAsRegister(node);
   InstructionOperand left = g.UseRegister(lhs);
   InstructionOperand high = g.TempRegister();
@@ -1202,30 +1212,30 @@ void InstructionSelectorT::VisitInt64Mul(OpIndex node) {
 
 void InstructionSelectorT::VisitInt32MulHigh(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kPPC_MulHigh32, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)));
+  const WordBinopOp& op = Cast<WordBinopOp>(node);
+  Emit(kPPC_MulHigh32, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+       g.UseRegister(op.input(1)));
 }
 
 void InstructionSelectorT::VisitUint32MulHigh(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kPPC_MulHighU32, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)));
+  const WordBinopOp& op = Cast<WordBinopOp>(node);
+  Emit(kPPC_MulHighU32, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+       g.UseRegister(op.input(1)));
 }
 
 void InstructionSelectorT::VisitInt64MulHigh(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kPPC_MulHighS64, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)));
+  const WordBinopOp& op = Cast<WordBinopOp>(node);
+  Emit(kPPC_MulHighS64, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+       g.UseRegister(op.input(1)));
 }
 
 void InstructionSelectorT::VisitUint64MulHigh(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kPPC_MulHighU64, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)));
+  const WordBinopOp& op = Cast<WordBinopOp>(node);
+  Emit(kPPC_MulHighU64, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+       g.UseRegister(op.input(1)));
 }
 
 void InstructionSelectorT::VisitInt32Div(OpIndex node) {
@@ -1395,25 +1405,23 @@ void InstructionSelectorT::VisitRoundFloat64ToInt32(OpIndex node) {
 
 void InstructionSelectorT::VisitTruncateFloat32ToInt32(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  const Operation& op = this->Get(node);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionCode opcode = kPPC_Float32ToInt32;
   if (op.Is<Opmask::kTruncateFloat32ToInt32OverflowToMin>()) {
     opcode |= MiscField::encode(true);
   }
-  Emit(opcode, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitTruncateFloat32ToUint32(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  const Operation& op = this->Get(node);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionCode opcode = kPPC_Float32ToUint32;
   if (op.Is<Opmask::kTruncateFloat32ToUint32OverflowToMin>()) {
     opcode |= MiscField::encode(true);
   }
 
-  Emit(opcode, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
@@ -1494,9 +1502,9 @@ void InstructionSelectorT::VisitFloat64Div(OpIndex node) {
 
 void InstructionSelectorT::VisitFloat64Mod(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kPPC_ModDouble, g.DefineAsFixed(node, d1),
-       g.UseFixed(this->input_at(node, 0), d1),
-       g.UseFixed(this->input_at(node, 1), d2))
+  const FloatBinopOp& op = Cast<FloatBinopOp>(node);
+  Emit(kPPC_ModDouble, g.DefineAsFixed(node, d1), g.UseFixed(op.input(0), d1),
+       g.UseFixed(op.input(1), d2))
       ->MarkAsCall();
 }
 
@@ -1535,17 +1543,17 @@ void InstructionSelectorT::VisitFloat32Sqrt(OpIndex node) {
 void InstructionSelectorT::VisitFloat64Ieee754Unop(OpIndex node,
                                                    InstructionCode opcode) {
   PPCOperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, d1),
-       g.UseFixed(this->input_at(node, 0), d1))
+  const FloatUnaryOp& op = Cast<FloatUnaryOp>(node);
+  Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(op.input(), d1))
       ->MarkAsCall();
 }
 
 void InstructionSelectorT::VisitFloat64Ieee754Binop(OpIndex node,
                                                     InstructionCode opcode) {
   PPCOperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, d1),
-       g.UseFixed(this->input_at(node, 0), d1),
-       g.UseFixed(this->input_at(node, 1), d2))
+  const FloatBinopOp& op = Cast<FloatBinopOp>(node);
+  Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(op.input(0), d1),
+       g.UseFixed(op.input(1), d2))
       ->MarkAsCall();
 }
 
@@ -1667,8 +1675,9 @@ void VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
                       InstructionCode opcode, FlagsContinuationT* cont,
                       bool commutative, ImmediateMode immediate_mode) {
   PPCOperandGeneratorT g(selector);
-  OpIndex lhs = selector->input_at(node, 0);
-  OpIndex rhs = selector->input_at(node, 1);
+  const Operation& op = selector->Get(node);
+  OpIndex lhs = op.input(0);
+  OpIndex rhs = op.input(1);
 
   // Match immediates on left or right side of comparison.
   if (g.CanBeImmediate(rhs, immediate_mode)) {
@@ -1700,8 +1709,9 @@ void VisitWord64Compare(InstructionSelectorT* selector, OpIndex node,
 void VisitFloat32Compare(InstructionSelectorT* selector, OpIndex node,
                          FlagsContinuationT* cont) {
   PPCOperandGeneratorT g(selector);
-  OpIndex lhs = selector->input_at(node, 0);
-  OpIndex rhs = selector->input_at(node, 1);
+  const Operation& op = selector->Get(node);
+  OpIndex lhs = op.input(0);
+  OpIndex rhs = op.input(1);
   VisitCompare(selector, kPPC_CmpDouble, g.UseRegister(lhs), g.UseRegister(rhs),
                cont);
 }
@@ -1710,8 +1720,9 @@ void VisitFloat32Compare(InstructionSelectorT* selector, OpIndex node,
 void VisitFloat64Compare(InstructionSelectorT* selector, OpIndex node,
                          FlagsContinuationT* cont) {
   PPCOperandGeneratorT g(selector);
-  OpIndex lhs = selector->input_at(node, 0);
-  OpIndex rhs = selector->input_at(node, 1);
+  const Operation& op = selector->Get(node);
+  OpIndex lhs = op.input(0);
+  OpIndex rhs = op.input(1);
   VisitCompare(selector, kPPC_CmpDouble, g.UseRegister(lhs), g.UseRegister(rhs),
                cont);
 }
@@ -1827,7 +1838,8 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
 
 void InstructionSelectorT::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
   PPCOperandGeneratorT g(this);
-  InstructionOperand value_operand = g.UseRegister(this->input_at(node, 0));
+  const SwitchOp& op = Cast<SwitchOp>(node);
+  InstructionOperand value_operand = g.UseRegister(op.input());
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ ==
@@ -2023,14 +2035,16 @@ bool InstructionSelectorT::IsTailCallAddressImmediate() { return false; }
 
 void InstructionSelectorT::VisitFloat64ExtractLowWord32(OpIndex node) {
   PPCOperandGeneratorT g(this);
+  const Operation& op = this->Get(node);
   Emit(kPPC_DoubleExtractLowWord32, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitFloat64ExtractHighWord32(OpIndex node) {
   PPCOperandGeneratorT g(this);
+  const Operation& op = this->Get(node);
   Emit(kPPC_DoubleExtractHighWord32, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(op.input(0)));
 }
 
 void InstructionSelectorT::VisitBitcastWord32PairToFloat64(OpIndex node) {
@@ -2486,11 +2500,12 @@ void InstructionSelectorT::VisitInt64AbsWithOverflow(OpIndex node) {
   V(S128Not)                   \
   V(V128AnyTrue)
 
-#define SIMD_VISIT_SPLAT(Type, T, LaneSize)                                 \
-  void InstructionSelectorT::Visit##Type##Splat(OpIndex node) {             \
-    PPCOperandGeneratorT g(this);                                           \
-    Emit(kPPC_##T##Splat | LaneSizeField::encode(LaneSize),                 \
-         g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0))); \
+#define SIMD_VISIT_SPLAT(Type, T, LaneSize)                     \
+  void InstructionSelectorT::Visit##Type##Splat(OpIndex node) { \
+    PPCOperandGeneratorT g(this);                               \
+    const Operation& op = this->Get(node);                      \
+    Emit(kPPC_##T##Splat | LaneSizeField::encode(LaneSize),     \
+         g.DefineAsRegister(node), g.UseRegister(op.input(0))); \
   }
 SIMD_VISIT_SPLAT(F64x2, F, 64)
 SIMD_VISIT_SPLAT(F32x4, F, 32)
@@ -2507,7 +2522,7 @@ SIMD_VISIT_SPLAT(I8x16, I, 8)
     const Operation& op = this->Get(node);                                  \
     lane = op.template Cast<Simd128ExtractLaneOp>().lane;                   \
     Emit(kPPC_##T##ExtractLane##Sign | LaneSizeField::encode(LaneSize),     \
-         g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)),  \
+         g.DefineAsRegister(node), g.UseRegister(op.input(0)),              \
          g.UseImmediate(lane));                                             \
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, F, , 64)
@@ -2520,15 +2535,15 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, I, U, 8)
 SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-#define SIMD_VISIT_REPLACE_LANE(Type, T, LaneSize)                          \
-  void InstructionSelectorT::Visit##Type##ReplaceLane(OpIndex node) {       \
-    PPCOperandGeneratorT g(this);                                           \
-    int32_t lane;                                                           \
-    const Operation& op = this->Get(node);                                  \
-    lane = op.template Cast<Simd128ReplaceLaneOp>().lane;                   \
-    Emit(kPPC_##T##ReplaceLane | LaneSizeField::encode(LaneSize),           \
-         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)), \
-         g.UseImmediate(lane), g.UseRegister(this->input_at(node, 1)));     \
+#define SIMD_VISIT_REPLACE_LANE(Type, T, LaneSize)                    \
+  void InstructionSelectorT::Visit##Type##ReplaceLane(OpIndex node) { \
+    PPCOperandGeneratorT g(this);                                     \
+    int32_t lane;                                                     \
+    const Operation& op = this->Get(node);                            \
+    lane = op.template Cast<Simd128ReplaceLaneOp>().lane;             \
+    Emit(kPPC_##T##ReplaceLane | LaneSizeField::encode(LaneSize),     \
+         g.DefineSameAsFirst(node), g.UseRegister(op.input(0)),       \
+         g.UseImmediate(lane), g.UseRegister(op.input(1)));           \
   }
 SIMD_VISIT_REPLACE_LANE(F64x2, F, 64)
 SIMD_VISIT_REPLACE_LANE(F32x4, F, 32)
@@ -2538,35 +2553,34 @@ SIMD_VISIT_REPLACE_LANE(I16x8, I, 16)
 SIMD_VISIT_REPLACE_LANE(I8x16, I, 8)
 #undef SIMD_VISIT_REPLACE_LANE
 
-#define SIMD_VISIT_BINOP(Opcode)                                           \
-  void InstructionSelectorT::Visit##Opcode(OpIndex node) {                 \
-    PPCOperandGeneratorT g(this);                                          \
-    InstructionOperand temps[] = {g.TempRegister()};                       \
-    Emit(kPPC_##Opcode, g.DefineAsRegister(node),                          \
-         g.UseRegister(this->input_at(node, 0)),                           \
-         g.UseRegister(this->input_at(node, 1)), arraysize(temps), temps); \
+#define SIMD_VISIT_BINOP(Opcode)                                              \
+  void InstructionSelectorT::Visit##Opcode(OpIndex node) {                    \
+    PPCOperandGeneratorT g(this);                                             \
+    const Operation& op = this->Get(node);                                    \
+    InstructionOperand temps[] = {g.TempRegister()};                          \
+    Emit(kPPC_##Opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)), \
+         g.UseRegister(op.input(1)), arraysize(temps), temps);                \
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
 
-#define SIMD_VISIT_UNOP(Opcode)                            \
-  void InstructionSelectorT::Visit##Opcode(OpIndex node) { \
-    PPCOperandGeneratorT g(this);                          \
-    Emit(kPPC_##Opcode, g.DefineAsRegister(node),          \
-         g.UseRegister(this->input_at(node, 0)));          \
+#define SIMD_VISIT_UNOP(Opcode)                                                \
+  void InstructionSelectorT::Visit##Opcode(OpIndex node) {                     \
+    PPCOperandGeneratorT g(this);                                              \
+    const Operation& op = this->Get(node);                                     \
+    Emit(kPPC_##Opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0))); \
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_VISIT_QFMOP(Opcode)                           \
-  void InstructionSelectorT::Visit##Opcode(OpIndex node) { \
-    PPCOperandGeneratorT g(this);                          \
-    Emit(kPPC_##Opcode, g.DefineSameAsFirst(node),         \
-         g.UseRegister(this->input_at(node, 0)),           \
-         g.UseRegister(this->input_at(node, 1)),           \
-         g.UseRegister(this->input_at(node, 2)));          \
+#define SIMD_VISIT_QFMOP(Opcode)                                               \
+  void InstructionSelectorT::Visit##Opcode(OpIndex node) {                     \
+    PPCOperandGeneratorT g(this);                                              \
+    const Operation& op = this->Get(node);                                     \
+    Emit(kPPC_##Opcode, g.DefineSameAsFirst(node), g.UseRegister(op.input(0)), \
+         g.UseRegister(op.input(1)), g.UseRegister(op.input(2)));              \
   }
 SIMD_VISIT_QFMOP(F64x2Qfma)
 SIMD_VISIT_QFMOP(F64x2Qfms)
@@ -2666,8 +2680,9 @@ void InstructionSelectorT::VisitI8x16Shuffle(OpIndex node) {
 
 void InstructionSelectorT::VisitSetStackPointer(OpIndex node) {
   OperandGenerator g(this);
+  const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
   // TODO(miladfarca): Optimize by using UseAny.
-  auto input = g.UseRegister(this->input_at(node, 0));
+  auto input = g.UseRegister(op.input(0));
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 
@@ -2682,10 +2697,9 @@ void InstructionSelectorT::VisitS128Zero(OpIndex node) {
 
 void InstructionSelectorT::VisitS128Select(OpIndex node) {
   PPCOperandGeneratorT g(this);
-  Emit(kPPC_S128Select, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)),
-       g.UseRegister(this->input_at(node, 2)));
+  const Simd128TernaryOp& op = Cast<Simd128TernaryOp>(node);
+  Emit(kPPC_S128Select, g.DefineAsRegister(node), g.UseRegister(op.input(0)),
+       g.UseRegister(op.input(1)), g.UseRegister(op.input(2)));
 }
 
 // This is a replica of SimdShuffle::Pack4Lanes. However, above function will
@@ -2728,17 +2742,17 @@ void InstructionSelectorT::VisitS128Const(OpIndex node) {
 
 void InstructionSelectorT::VisitI16x8DotI8x16I7x16S(OpIndex node) {
   PPCOperandGeneratorT g(this);
+  const Operation& op = this->Get(node);
   Emit(kPPC_I16x8DotI8x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)),
-       g.UseUniqueRegister(this->input_at(node, 1)));
+       g.UseUniqueRegister(op.input(0)), g.UseUniqueRegister(op.input(1)));
 }
 
 void InstructionSelectorT::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
   PPCOperandGeneratorT g(this);
+  const Simd128TernaryOp& op = Cast<Simd128TernaryOp>(node);
   Emit(kPPC_I32x4DotI8x16AddS, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)),
-       g.UseUniqueRegister(this->input_at(node, 1)),
-       g.UseUniqueRegister(this->input_at(node, 2)));
+       g.UseUniqueRegister(op.input(0)), g.UseUniqueRegister(op.input(1)),
+       g.UseUniqueRegister(op.input(2)));
 }
 
 void InstructionSelectorT::EmitPrepareResults(

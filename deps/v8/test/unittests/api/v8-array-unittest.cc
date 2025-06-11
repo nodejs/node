@@ -5,6 +5,7 @@
 #include "include/v8-container.h"
 #include "include/v8-primitive.h"
 #include "include/v8-value.h"
+#include "test/unittests/interpreter/interpreter-tester.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -159,6 +160,37 @@ TEST_F(ArrayTest, IterateEarlyTermination) {
     return CbResult::kBreak;
   };
   CHECK(array->Iterate(context(), break_callback, nullptr).IsJust());
+}
+
+TEST_F(ArrayTest, IterateWithUndefined) {
+  Local<Array> array = internal::interpreter::CompileRun(
+                           "(function() { return [0.2,undefined,8.1]; })()")
+                           .As<Array>();
+  CHECK(array->IsArray());
+
+  struct Data {
+    Local<Context> context;
+  };
+  Data data{context()};
+  Array::IterationCallback callback = [](uint32_t index, Local<Value> element,
+                                         void* data) -> CbResult {
+    Data* d = reinterpret_cast<Data*>(data);
+    switch (index) {
+      case 0:
+        CHECK_EQ(element->NumberValue(d->context).FromJust(), 0.2);
+        break;
+      case 1:
+        CHECK(element->IsUndefined());
+        break;
+      case 2:
+        CHECK_EQ(element->NumberValue(d->context).FromJust(), 8.1);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    return CbResult::kContinue;
+  };
+  CHECK(array->Iterate(context(), callback, &data).IsJust());
 }
 
 }  // namespace

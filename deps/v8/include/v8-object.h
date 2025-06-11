@@ -795,8 +795,14 @@ class V8_EXPORT Object : public Value {
   /**
    * Return the isolate to which the Object belongs to.
    */
+  V8_DEPRECATE_SOON(
+      "Use Isolate::GetCurrent() instead, which is guaranteed to return the "
+      "same isolate since https://crrev.com/c/6458560.")
   Isolate* GetIsolate();
 
+  V8_DEPRECATE_SOON(
+      "Use Isolate::GetCurrent() instead, which is guaranteed to return the "
+      "same isolate since https://crrev.com/c/6458560.")
   V8_INLINE static Isolate* GetIsolate(const TracedReference<Object>& handle) {
     return handle.template value<Object>()->GetIsolate();
   }
@@ -871,8 +877,7 @@ Local<Data> Object::GetInternalField(int index) {
     value = I::DecompressTaggedField(obj, static_cast<uint32_t>(value));
 #endif
 
-    auto isolate = reinterpret_cast<v8::Isolate*>(
-        internal::IsolateFromNeverReadOnlySpaceObject(obj));
+    auto* isolate = I::GetCurrentIsolate();
     return Local<Data>::New(isolate, value);
   }
 #endif
@@ -913,7 +918,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
     int offset = I::kJSAPIObjectWithEmbedderSlotsHeaderSize +
                  (I::kEmbedderDataSlotSize * index) +
                  I::kEmbedderDataSlotExternalPointerOffset;
-    Isolate* isolate = I::GetIsolateForSandbox(obj);
+    Isolate* isolate = I::GetCurrentIsolateForSandbox();
     A value =
         I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
             isolate, obj, offset);

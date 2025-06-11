@@ -261,17 +261,18 @@ static void **NextStackFrame(void **old_fp, const void *uc,
   // it's supposed to.
   if (STRICT_UNWINDING &&
       (!WITH_CONTEXT || uc == nullptr || new_fp_u != GetFP(uc))) {
-    // With the stack growing downwards, older stack frame must be
-    // at a greater address that the current one.
-    if (new_fp_u <= old_fp_u) return nullptr;
-
+    // With the stack growing downwards, older stack frame should be
+    // at a greater address that the current one. However if we get multiple
+    // signals handled on altstack the new frame pointer might return to the
+    // main stack, but be different than the value from the most recent
+    // ucontext.
     // If we get a very large frame size, it may be an indication that we
     // guessed frame pointers incorrectly and now risk a paging fault
     // dereferencing a wrong frame pointer. Or maybe not because large frames
     // are possible as well. The main stack is assumed to be readable,
     // so we assume the large frame is legit if we know the real stack bounds
     // and are within the stack.
-    if (new_fp_u - old_fp_u > kMaxFrameBytes) {
+    if (new_fp_u <= old_fp_u || new_fp_u - old_fp_u > kMaxFrameBytes) {
       if (stack_high < kUnknownStackEnd &&
           static_cast<size_t>(getpagesize()) < stack_low) {
         // Stack bounds are known.

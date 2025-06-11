@@ -26,7 +26,7 @@ void SetupIsolateDelegate::SetupBuiltins(Isolate* isolate,
     CHECK(isolate->snapshot_available());
     return;
   }
-  SetupBuiltinsInternal(isolate);
+  SetupBuiltinsInternal(isolate, /* compute_builtns_effects */ true);
 #ifdef DEBUG
   DebugEvaluate::VerifyTransitiveBuiltins(isolate);
 #endif  // DEBUG

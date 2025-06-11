@@ -126,6 +126,17 @@ let __callGC;
   };
 })();
 
+// Limit number of times we call SetAllocationTimeout as above.
+let __callSetAllocationTimeout;
+(function() {
+  let countCalls = 0;
+  __callSetAllocationTimeout = function(timeout, inline) {
+    if (countCalls++ < 20) {
+      %SetAllocationTimeout(-1, timeout, inline);
+    }
+  };
+})();
+
 let __dummy;
 (function() {
   const handler = {

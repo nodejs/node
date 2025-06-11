@@ -80,6 +80,9 @@ class Float64 {
   uint64_t get_bits() const { return bit_pattern_; }
   double get_scalar() const { return base::bit_cast<double>(bit_pattern_); }
   bool is_hole_nan() const { return bit_pattern_ == kHoleNanInt64; }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  bool is_undefined_nan() const { return bit_pattern_ == kUndefinedNanInt64; }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   bool is_nan() const {
     // Even though {get_scalar()} might flip the quiet NaN bit, it's ok here,
     // because this does not change the is_nan property.

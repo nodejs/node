@@ -62,13 +62,13 @@ overloaded(Ts...) -> overloaded<Ts...>;
 // disabled by setting {remove_array_extend} to false.
 template <typename T, bool remove_array_extend = true>
 struct pass_value_or_ref {
-  using noref_t = typename std::remove_reference<T>::type;
-  using decay_t = typename std::conditional<
-      std::is_array<noref_t>::value && !remove_array_extend, noref_t,
-      typename std::decay<noref_t>::type>::type;
-  using type = typename std::conditional<std::is_scalar<decay_t>::value ||
-                                             std::is_array<decay_t>::value,
-                                         decay_t, const decay_t&>::type;
+  using noref_t = std::remove_reference_t<T>;
+  using decay_t =
+      std::conditional_t<std::is_array_v<noref_t> && !remove_array_extend,
+                         noref_t, std::decay_t<noref_t>>;
+  using type =
+      std::conditional_t<std::is_scalar_v<decay_t> || std::is_array_v<decay_t>,
+                         decay_t, const decay_t&>;
 };
 
 template <typename T, typename TStream = std::ostream>

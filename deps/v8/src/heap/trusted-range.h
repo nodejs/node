@@ -5,9 +5,9 @@
 #ifndef V8_HEAP_TRUSTED_RANGE_H_
 #define V8_HEAP_TRUSTED_RANGE_H_
 
+#include "include/v8-internal.h"
 #include "src/common/globals.h"
 #include "src/utils/allocation.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {

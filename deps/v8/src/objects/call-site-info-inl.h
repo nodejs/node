@@ -21,7 +21,6 @@ namespace internal {
 #include "torque-generated/src/objects/call-site-info-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(CallSiteInfo)
-NEVER_READ_ONLY_SPACE_IMPL(CallSiteInfo)
 
 #if V8_ENABLE_WEBASSEMBLY
 BOOL_GETTER(CallSiteInfo, flags, IsWasm, IsWasmBit::kShift)

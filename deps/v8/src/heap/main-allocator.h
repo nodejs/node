@@ -118,31 +118,36 @@ class PagedNewSpaceAllocatorPolicy final : public AllocatorPolicy {
 
 class LinearAreaOriginalData {
  public:
-  Address get_original_top_acquire() const {
-    return original_top_.load(std::memory_order_acquire);
-  }
-  Address get_original_limit_relaxed() const {
-    return original_limit_.load(std::memory_order_relaxed);
+  // Loads top and limit fields using the synchronization protocol without
+  // holding the mutex lock. Note that in the returned (top, limit) pair, top
+  // and limit might not actually belong together for brief moments when
+  // changing LABs. It could happen that the LAB is invalid (limit<top) or that
+  // the LAB is longer than needed (when old limit <= new limit). However, this
+  // is fine for concurrent marking which would just push a few more objects to
+  // the "on_hold" queue then necessary.
+  //
+  // If top and limit need to be consistent with respect to each other use
+  // GetTopAndLimitLocked() instead.
+  std::pair<Address, Address> GetTopAndLimit() const {
+    // The order of the two loads is important. See SetTopAndLimit().
+    auto top = original_top_.load(std::memory_order_acquire);
+    auto limit = original_limit_.load(std::memory_order_relaxed);
+    return std::make_pair(top, limit);
   }
 
-  void set_original_top_release(Address top) {
-    original_top_.store(top, std::memory_order_release);
-  }
-  void set_original_limit_relaxed(Address limit) {
-    original_limit_.store(limit, std::memory_order_relaxed);
-  }
+  // Same as GetTopAndLimit() but also locks the mutex.
+  std::pair<Address, Address> GetTopAndLimitLocked() const;
 
-  base::Mutex* linear_area_lock() { return &linear_area_lock_; }
+  void SetTopAndLimit(Address top, Address limit);
 
  private:
   // The top and the limit at the time of setting the linear allocation area.
-  // These values can be accessed by background tasks. Protected by
-  // pending_allocation_mutex_.
+  // These values can be accessed by background tasks. Protected by mutex_.
   std::atomic<Address> original_top_ = 0;
   std::atomic<Address> original_limit_ = 0;
 
   // Protects original_top_ and original_limit_.
-  base::Mutex linear_area_lock_;
+  mutable base::Mutex mutex_;
 };
 
 class MainAllocator {
@@ -179,12 +184,8 @@ class MainAllocator {
     return allocation_info_->limit_address();
   }
 
-  Address original_top_acquire() const {
-    return linear_area_original_data().get_original_top_acquire();
-  }
-
-  Address original_limit_relaxed() const {
-    return linear_area_original_data().get_original_limit_relaxed();
+  std::pair<Address, Address> GetOriginalTopAndLimit() const {
+    return linear_area_original_data().GetTopAndLimit();
   }
 
   void MoveOriginalTopForward();
@@ -208,7 +209,7 @@ class MainAllocator {
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
-              AllocationOrigin origin);
+              AllocationOrigin origin, AllocationHint hint);
 
   V8_WARN_UNUSED_RESULT V8_EXPORT_PRIVATE AllocationResult
   AllocateRawForceAlignmentForTesting(int size_in_bytes,
@@ -335,6 +336,8 @@ class MainAllocator {
   // collected in worker isolates).
   bool in_gc_for_space() const;
 
+  Address extended_limit() const { return extended_limit_; }
+
   bool supports_extending_lab() const { return supports_extending_lab_; }
 
   V8_EXPORT_PRIVATE bool is_main_thread() const;
@@ -358,6 +361,11 @@ class MainAllocator {
   LinearAllocationArea* const allocation_info_;
   // This memory is used if no LinearAllocationArea& is passed in as argument.
   LinearAllocationArea owned_allocation_info_;
+  // Some spaces support "extending" of LABs (see supports_extending_lab()).
+  // This helps to avoid fragmentation on pages due to LAB allocation. It is
+  // also a fast path for allocation that avoids free list allocation.
+  Address extended_limit_;
+
   std::optional<LinearAreaOriginalData> linear_area_original_data_;
   std::unique_ptr<AllocatorPolicy> allocator_policy_;
 

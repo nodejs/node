@@ -587,7 +587,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     PushRegisters(regs_to_save);
     mov(WasmHandleStackOverflowDescriptor::GapRegister(), Operand(frame_size));
     add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
-        Operand(stack_param_slots * kStackSlotSize +
+        Operand(stack_param_slots * kSystemPointerSize +
                 CommonFrameConstants::kFixedFrameSizeAboveFp));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
     safepoint_table_builder->DefineSafepoint(this);
@@ -898,6 +898,16 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   liftoff::LoadInternal(this, LiftoffRegister(dst), src_addr, offset_reg,
                         offset_imm, LoadType::kI32Load, protected_load_pc,
                         needs_shift);
+}
+
+void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
+                                               Register offset_reg,
+                                               int32_t offset_imm,
+                                               AtomicMemoryOrder memory_order,
+                                               uint32_t* protected_load_pc,
+                                               bool needs_shift) {
+  AtomicLoad(LiftoffRegister(dst), src_addr, offset_reg, offset_imm,
+             LoadType::kI32Load, {}, false);
 }
 
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
@@ -1286,6 +1296,14 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
   Store(dst_addr, offset_reg, offset_imm, src, type, pinned, nullptr, true);
   dmb(ISH);
   return;
+}
+
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  AtomicStore(dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
+              StoreType::kI32Store, pinned, false);
 }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,

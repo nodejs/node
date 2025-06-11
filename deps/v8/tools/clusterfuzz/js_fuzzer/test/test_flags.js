@@ -19,12 +19,7 @@ const sandbox = sinon.createSandbox();
 describe('Flag loading', () => {
   beforeEach(() => {
     helpers.deterministicRandom(sandbox);
-
-    // Zero settings for all mutators.
-    this.settings = scriptMutator.defaultSettings();
-    for (const key of Object.keys(this.settings)) {
-      this.settings[key] = 0.0;
-    }
+    this.settings = helpers.zeroSettings();
   });
 
   afterEach(() => {

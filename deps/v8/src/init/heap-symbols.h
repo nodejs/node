@@ -165,7 +165,8 @@
   V(_, enumerable_string, "enumerable")                    \
   V(_, configurable_string, "configurable")                \
   V(_, value_string, "value")                              \
-  V(_, writable_string, "writable")
+  V(_, writable_string, "writable")                        \
+  V(_, length_string, "length")
 
 // Generated with the following Python script:
 // ```
@@ -949,7 +950,6 @@
 // These Names have to be allocated consecutively for fast checks,
 #define INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
   V(_, constructor_string, "constructor")                      \
-  V(_, length_string, "length")                                \
   V(_, next_string, "next")                                    \
   V(_, resolve_string, "resolve")                              \
   V(_, then_string, "then")                                    \

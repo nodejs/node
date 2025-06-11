@@ -43,7 +43,9 @@ Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber() {
   static_assert(sizeof(HeapNumber) <= kMaxRegularHeapObjectSize);
   Tagged<Map> map = read_only_roots().heap_number_map();
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
-      sizeof(HeapNumber), allocation, map, kDoubleUnaligned);
+      sizeof(HeapNumber), allocation, map,
+      USE_ALLOCATION_ALIGNMENT_HEAP_NUMBER_BOOL ? kDoubleUnaligned
+                                                : kTaggedAligned);
   return handle(Cast<HeapNumber>(result), isolate());
 }
 
@@ -457,7 +459,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfoForLiteral(
   Handle<SharedFunctionInfo> shared =
       NewSharedFunctionInfo(literal->GetName(isolate()), {},
                             Builtin::kCompileLazy, 0, kDontAdapt, kind);
-  shared->set_function_literal_id(literal->function_literal_id());
+  shared->set_function_literal_id(literal->function_literal_id(),
+                                  kRelaxedStore);
   literal->set_shared_function_info(shared);
   SharedFunctionInfo::InitFromFunctionLiteral(isolate(), literal, is_toplevel);
   shared->SetScript(isolate(), read_only_roots(), *script,
@@ -806,7 +809,8 @@ FactoryBase<Impl>::NewOneByteInternalizedStringFromTwoByte(
 template <typename Impl>
 template <typename SeqStringT>
 MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
-    int length, Tagged<Map> map, AllocationType allocation) {
+    int length, Tagged<Map> map, AllocationType allocation,
+    AllocationHint hint) {
   DCHECK(SeqStringT::IsCompatibleMap(map, read_only_roots()));
   DCHECK_IMPLIES(!StringShape(map).IsShared(),
                  RefineAllocationTypeForInPlaceInternalizableString(
@@ -818,8 +822,8 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   int size = SeqStringT::SizeFor(length);
   DCHECK_GE(ObjectTraits<SeqStringT>::kMaxSize, size);
 
-  Tagged<SeqStringT> string =
-      Cast<SeqStringT>(AllocateRawWithImmortalMap(size, allocation, map));
+  Tagged<SeqStringT> string = Cast<SeqStringT>(AllocateRawWithImmortalMap(
+      size, allocation, map, AllocationAlignment::kTaggedAligned, hint));
   DisallowGarbageCollection no_gc;
   string->clear_padding_destructively(length);
   string->set_length(length);
@@ -830,20 +834,22 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
 
 template <typename Impl>
 MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
-    int length, AllocationType allocation) {
+    int length, AllocationType allocation, AllocationHint hint) {
   Tagged<Map> map = read_only_roots().seq_one_byte_string_map();
   return NewRawStringWithMap<SeqOneByteString>(
       length, map,
-      RefineAllocationTypeForInPlaceInternalizableString(allocation, map));
+      RefineAllocationTypeForInPlaceInternalizableString(allocation, map),
+      hint);
 }
 
 template <typename Impl>
 MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
-    int length, AllocationType allocation) {
+    int length, AllocationType allocation, AllocationHint hint) {
   Tagged<Map> map = read_only_roots().seq_two_byte_string_map();
   return NewRawStringWithMap<SeqTwoByteString>(
       length, map,
-      RefineAllocationTypeForInPlaceInternalizableString(allocation, map));
+      RefineAllocationTypeForInPlaceInternalizableString(allocation, map),
+      hint);
 }
 
 template <typename Impl>
@@ -851,7 +857,7 @@ MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawSharedOneByteString(
     int length) {
   return NewRawStringWithMap<SeqOneByteString>(
       length, read_only_roots().shared_seq_one_byte_string_map(),
-      AllocationType::kSharedOld);
+      AllocationType::kSharedOld, AllocationHint());
 }
 
 template <typename Impl>
@@ -859,7 +865,7 @@ MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawSharedTwoByteString(
     int length) {
   return NewRawStringWithMap<SeqTwoByteString>(
       length, read_only_roots().shared_seq_two_byte_string_map(),
-      AllocationType::kSharedOld);
+      AllocationType::kSharedOld, AllocationHint());
 }
 
 template <typename Impl>
@@ -1022,23 +1028,37 @@ Handle<String> FactoryBase<Impl>::NumberToString(DirectHandle<Object> number,
 
   double double_value = Cast<HeapNumber>(number)->value();
   // Try to canonicalize doubles.
-  int smi_value;
-  if (DoubleToSmiInteger(double_value, &smi_value)) {
-    return SmiToString(Smi::FromInt(smi_value), mode);
-  }
-  return HeapNumberToString(Cast<HeapNumber>(number), double_value, mode);
+  return DoubleToString(double_value, true, mode);
 }
 
 template <typename Impl>
-Handle<String> FactoryBase<Impl>::HeapNumberToString(
-    DirectHandle<HeapNumber> number, double value, NumberCacheMode mode) {
-  int hash = mode == NumberCacheMode::kIgnore
-                 ? 0
-                 : impl()->NumberToStringCacheHash(value);
+Handle<String> FactoryBase<Impl>::DoubleToString(double value,
+                                                 bool canonicalize,
+                                                 NumberCacheMode mode) {
+  if (canonicalize) {
+    // Try to canonicalize doubles.
+    int smi_value;
+    if (DoubleToSmiInteger(value, &smi_value)) {
+      return SmiToString(Smi::FromInt(smi_value), mode);
+    }
+  }
 
-  if (mode == NumberCacheMode::kBoth) {
-    Handle<Object> cached = impl()->NumberToStringCacheGet(*number, hash);
-    if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
+  // LocalFactory does not have access to number string cache, only
+  // main thread Factory does (since it's a mutable root).
+  constexpr bool kCanUseCache = std::is_same_v<Impl, Factory>;
+
+  InternalIndex entry = InternalIndex::NotFound();
+  uint64_t value_bits = 0;
+  if constexpr (kCanUseCache) {
+    if (mode != NumberCacheMode::kIgnore) {
+      value_bits = base::bit_cast<uint64_t>(value);
+      entry = DoubleStringCache::GetEntryFor(isolate(), value_bits);
+    }
+    if (mode == NumberCacheMode::kBoth) {
+      Handle<Object> cached =
+          DoubleStringCache::Get(isolate(), entry, value_bits);
+      if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
+    }
   }
 
   Handle<String> result;
@@ -1052,8 +1072,10 @@ Handle<String> FactoryBase<Impl>::HeapNumberToString(
     std::string_view string = DoubleToStringView(value, buffer);
     result = StringViewToString(this, string, mode);
   }
-  if (mode != NumberCacheMode::kIgnore) {
-    impl()->NumberToStringCacheSet(number, hash, result);
+  if constexpr (kCanUseCache) {
+    if (mode != NumberCacheMode::kIgnore) {
+      DoubleStringCache::Set(isolate(), entry, value_bits, result);
+    }
   }
   return result;
 }
@@ -1061,27 +1083,45 @@ Handle<String> FactoryBase<Impl>::HeapNumberToString(
 template <typename Impl>
 inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
                                                      NumberCacheMode mode) {
-  int hash = mode == NumberCacheMode::kIgnore
-                 ? 0
-                 : impl()->NumberToStringCacheHash(number);
+  // LINT.IfChange(CheckPreallocatedNumberStrings)
+  {
+    DCHECK_EQ(kPreallocatedNumberStringTableSize,
+              preallocated_number_string_table()->length());
+    int index = number.value();
+    if (static_cast<unsigned>(index) < kPreallocatedNumberStringTableSize) {
+      return handle(
+          Cast<String>(preallocated_number_string_table()->get(index)),
+          isolate());
+    }
+  }
+  // LINT.ThenChange(/src/codegen/code-stub-assembler.cc:CheckPreallocatedNumberStrings)
 
-  if (mode == NumberCacheMode::kBoth) {
-    Handle<Object> cached = impl()->NumberToStringCacheGet(number, hash);
-    if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
+  // LocalFactory does not have access to the number_string_cache, only
+  // main thread Factory does (since it's a mutable root).
+  constexpr bool kCanUseCache = std::is_same_v<Impl, Factory>;
+
+  InternalIndex entry = InternalIndex::NotFound();
+  if constexpr (kCanUseCache) {
+    if (mode != NumberCacheMode::kIgnore) {
+      entry = SmiStringCache::GetEntryFor(isolate(), number);
+    }
+    if (mode == NumberCacheMode::kBoth) {
+      Handle<Object> cached = SmiStringCache::Get(isolate(), entry, number);
+      if (!IsUndefined(*cached, isolate())) return Cast<String>(cached);
+    }
   }
 
   Handle<String> result;
-  if (number == Smi::zero()) {
-    result = zero_string();
-  } else {
+  {
     char arr[kNumberToStringBufferSize];
     base::Vector<char> buffer(arr, arraysize(arr));
     std::string_view string = IntToStringView(number.value(), buffer);
     result = StringViewToString(this, string, mode);
   }
-  if (mode != NumberCacheMode::kIgnore) {
-    impl()->NumberToStringCacheSet(direct_handle(number, isolate()), hash,
-                                   result);
+  if constexpr (kCanUseCache) {
+    if (mode != NumberCacheMode::kIgnore) {
+      SmiStringCache::Set(isolate(), entry, number, result);
+    }
   }
 
   // Compute the hash here (rather than letting the caller take care of it) so
@@ -1281,21 +1321,23 @@ Tagged<HeapObject> FactoryBase<Impl>::NewWithImmortalMap(
 template <typename Impl>
 Tagged<HeapObject> FactoryBase<Impl>::AllocateRawWithImmortalMap(
     int size, AllocationType allocation, Tagged<Map> map,
-    AllocationAlignment alignment) {
+    AllocationAlignment alignment, AllocationHint hint) {
   // TODO(delphick): Potentially you could also pass an immortal immovable Map
   // from OLD_SPACE here, like external_map or message_object_map, but currently
   // no one does so this check is sufficient.
   DCHECK(ReadOnlyHeap::Contains(map));
-  Tagged<HeapObject> result = AllocateRaw(size, allocation, alignment);
+  Tagged<HeapObject> result = AllocateRaw(size, allocation, alignment, hint);
   DisallowGarbageCollection no_gc;
   result->set_map_after_allocation(isolate(), map, SKIP_WRITE_BARRIER);
   return result;
 }
 
 template <typename Impl>
-Tagged<HeapObject> FactoryBase<Impl>::AllocateRaw(
-    int size, AllocationType allocation, AllocationAlignment alignment) {
-  return impl()->AllocateRaw(size, allocation, alignment);
+Tagged<HeapObject> FactoryBase<Impl>::AllocateRaw(int size,
+                                                  AllocationType allocation,
+                                                  AllocationAlignment alignment,
+                                                  AllocationHint hint) {
+  return impl()->AllocateRaw(size, allocation, alignment, hint);
 }
 
 template <typename Impl>

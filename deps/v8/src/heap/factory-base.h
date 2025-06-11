@@ -340,9 +340,11 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      int length, AllocationType allocation = AllocationType::kYoung,
+      AllocationHint hint = AllocationHint());
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
-      int length, AllocationType allocation = AllocationType::kYoung);
+      int length, AllocationType allocation = AllocationType::kYoung,
+      AllocationHint hint = AllocationHint());
   // Create a new cons string object which consists of a pair of strings.
   template <template <typename> typename HandleType>
     requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
@@ -357,8 +359,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   V8_WARN_UNUSED_RESULT Handle<String> NumberToString(
       DirectHandle<Object> number,
       NumberCacheMode mode = NumberCacheMode::kBoth);
-  V8_WARN_UNUSED_RESULT Handle<String> HeapNumberToString(
-      DirectHandle<HeapNumber> number, double value,
+  V8_WARN_UNUSED_RESULT Handle<String> DoubleToString(
+      double value, bool canonicalize = true,
       NumberCacheMode mode = NumberCacheMode::kBoth);
   V8_WARN_UNUSED_RESULT Handle<String> SmiToString(
       Tagged<Smi> number, NumberCacheMode mode = NumberCacheMode::kBoth);
@@ -425,7 +427,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Tagged<HeapObject> AllocateRawWithImmortalMap(
       int size, AllocationType allocation, Tagged<Map> map,
-      AllocationAlignment alignment = kTaggedAligned);
+      AllocationAlignment alignment = kTaggedAligned,
+      AllocationHint hint = AllocationHint());
   Tagged<HeapObject> NewWithImmortalMap(Tagged<Map> map,
                                         AllocationType allocation);
 
@@ -443,23 +446,25 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
   template <typename SeqStringT>
-  MaybeHandle<SeqStringT> NewRawStringWithMap(int length, Tagged<Map> map,
-                                              AllocationType allocation);
+  MaybeHandle<SeqStringT> NewRawStringWithMap(
+      int length, Tagged<Map> map, AllocationType allocation,
+      AllocationHint hint = AllocationHint());
 
  private:
   Impl* impl() { return static_cast<Impl*>(this); }
   auto isolate() { return impl()->isolate(); }
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }
 
-  Tagged<HeapObject> AllocateRaw(
-      int size, AllocationType allocation,
-      AllocationAlignment alignment = kTaggedAligned);
+  Tagged<HeapObject> AllocateRaw(int size, AllocationType allocation,
+                                 AllocationAlignment alignment = kTaggedAligned,
+                                 AllocationHint hint = AllocationHint());
 
   friend TorqueGeneratedFactory<Impl>;
   template <class Derived, class Shape, class Super>
   friend class TaggedArrayBase;
   template <class Derived, class Shape, class Super>
   friend class PrimitiveArrayBase;
+  friend class DoubleStringCache;
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)

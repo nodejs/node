@@ -48,23 +48,23 @@ TEST(ProfileNodeFindOrAddChild) {
   ProfileTree tree(CcTest::i_isolate());
   ProfileNode* node = tree.root();
   CodeEntry entry1(i::LogEventListener::CodeTag::kFunction, "aaa");
-  ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
+  ProfileNode* childNode1 = node->FindOrAddChild(&entry1, LineAndColumn{});
   CHECK(childNode1);
-  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1, LineAndColumn{}));
   CodeEntry entry2(i::LogEventListener::CodeTag::kFunction, "bbb");
-  ProfileNode* childNode2 = node->FindOrAddChild(&entry2);
+  ProfileNode* childNode2 = node->FindOrAddChild(&entry2, LineAndColumn{});
   CHECK(childNode2);
   CHECK_NE(childNode1, childNode2);
-  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
-  CHECK_EQ(childNode2, node->FindOrAddChild(&entry2));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1, LineAndColumn{}));
+  CHECK_EQ(childNode2, node->FindOrAddChild(&entry2, LineAndColumn{}));
   CodeEntry entry3(i::LogEventListener::CodeTag::kFunction, "ccc");
-  ProfileNode* childNode3 = node->FindOrAddChild(&entry3);
+  ProfileNode* childNode3 = node->FindOrAddChild(&entry3, LineAndColumn{});
   CHECK(childNode3);
   CHECK_NE(childNode1, childNode3);
   CHECK_NE(childNode2, childNode3);
-  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
-  CHECK_EQ(childNode2, node->FindOrAddChild(&entry2));
-  CHECK_EQ(childNode3, node->FindOrAddChild(&entry3));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1, LineAndColumn{}));
+  CHECK_EQ(childNode2, node->FindOrAddChild(&entry2, LineAndColumn{}));
+  CHECK_EQ(childNode3, node->FindOrAddChild(&entry3, LineAndColumn{}));
 }
 
 TEST(ProfileNodeFindOrAddChildWithLineNumber) {
@@ -72,17 +72,17 @@ TEST(ProfileNodeFindOrAddChildWithLineNumber) {
   ProfileTree tree(CcTest::i_isolate());
   ProfileNode* root = tree.root();
   CodeEntry a(i::LogEventListener::CodeTag::kFunction, "a");
-  ProfileNode* a_node = root->FindOrAddChild(&a, -1);
+  ProfileNode* a_node = root->FindOrAddChild(&a, LineAndColumn{-1});
 
   // a --(22)--> child1
   //   --(23)--> child1
 
   CodeEntry child1(i::LogEventListener::CodeTag::kFunction, "child1");
-  ProfileNode* child1_node = a_node->FindOrAddChild(&child1, 22);
+  ProfileNode* child1_node = a_node->FindOrAddChild(&child1, LineAndColumn{22});
   CHECK(child1_node);
-  CHECK_EQ(child1_node, a_node->FindOrAddChild(&child1, 22));
+  CHECK_EQ(child1_node, a_node->FindOrAddChild(&child1, LineAndColumn{22}));
 
-  ProfileNode* child2_node = a_node->FindOrAddChild(&child1, 23);
+  ProfileNode* child2_node = a_node->FindOrAddChild(&child1, LineAndColumn{23});
   CHECK(child2_node);
   CHECK_NE(child1_node, child2_node);
 }
@@ -93,15 +93,15 @@ TEST(ProfileNodeFindOrAddChildForSameFunction) {
   ProfileTree tree(CcTest::i_isolate());
   ProfileNode* node = tree.root();
   CodeEntry entry1(i::LogEventListener::CodeTag::kFunction, aaa);
-  ProfileNode* childNode1 = node->FindOrAddChild(&entry1);
+  ProfileNode* childNode1 = node->FindOrAddChild(&entry1, LineAndColumn{});
   CHECK(childNode1);
-  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry1, LineAndColumn{}));
   // The same function again.
   CodeEntry entry2(i::LogEventListener::CodeTag::kFunction, aaa);
-  CHECK_EQ(childNode1, node->FindOrAddChild(&entry2));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry2, LineAndColumn{}));
   // Now with a different security token.
   CodeEntry entry3(i::LogEventListener::CodeTag::kFunction, aaa);
-  CHECK_EQ(childNode1, node->FindOrAddChild(&entry3));
+  CHECK_EQ(childNode1, node->FindOrAddChild(&entry3, LineAndColumn{}));
 }
 
 
@@ -202,19 +202,18 @@ TEST(ProfileTreeAddPathFromEndWithLineNumbers) {
   ProfileTree tree(CcTest::i_isolate());
   ProfileTreeTestHelper helper(&tree);
 
-  ProfileStackTrace path = {{&c, 5}, {&b, 3}, {&a, 1}};
-  tree.AddPathFromEnd(path, v8::CpuProfileNode::kNoLineNumberInfo, true,
+  ProfileStackTrace path = {{&c, {5}}, {&b, {3}}, {&a, {1}}};
+  tree.AddPathFromEnd(path, LineAndColumn{}, true,
                       v8::CpuProfilingMode::kCallerLineNumbers);
 
-  ProfileNode* a_node =
-      tree.root()->FindChild(&a, v8::CpuProfileNode::kNoLineNumberInfo);
+  ProfileNode* a_node = tree.root()->FindChild(&a, LineAndColumn{});
   tree.Print();
   CHECK(a_node);
 
-  ProfileNode* b_node = a_node->FindChild(&b, 1);
+  ProfileNode* b_node = a_node->FindChild(&b, {1});
   CHECK(b_node);
 
-  ProfileNode* c_node = b_node->FindChild(&c, 3);
+  ProfileNode* c_node = b_node->FindChild(&c, {3});
   CHECK(c_node);
 }
 
@@ -501,10 +500,10 @@ TEST(SampleIds) {
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   auto symbolized = symbolizer.SymbolizeTickSample(sample1);
-  profiles.AddPathToCurrentProfiles(
-      sample1.timestamp, symbolized.stack_trace, symbolized.src_line, true,
-      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY, kNullAddress,
-      kNullAddress, 1);
+  profiles.AddPathToCurrentProfiles(sample1.timestamp, symbolized.stack_trace,
+                                    symbolized.src_pos, true, base::TimeDelta(),
+                                    StateTag::JS, EmbedderStateTag::EMPTY,
+                                    kNullAddress, kNullAddress, 1);
 
   TickSample sample2;
   sample2.timestamp = v8::base::TimeTicks::Now();
@@ -514,10 +513,10 @@ TEST(SampleIds) {
   sample2.stack[2] = ToPointer(0x1620);
   sample2.frames_count = 3;
   symbolized = symbolizer.SymbolizeTickSample(sample2);
-  profiles.AddPathToCurrentProfiles(
-      sample2.timestamp, symbolized.stack_trace, symbolized.src_line, true,
-      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY, kNullAddress,
-      kNullAddress, 2);
+  profiles.AddPathToCurrentProfiles(sample2.timestamp, symbolized.stack_trace,
+                                    symbolized.src_pos, true, base::TimeDelta(),
+                                    StateTag::JS, EmbedderStateTag::EMPTY,
+                                    kNullAddress, kNullAddress, 2);
 
   TickSample sample3;
   sample3.timestamp = v8::base::TimeTicks::Now();
@@ -526,10 +525,10 @@ TEST(SampleIds) {
   sample3.stack[1] = ToPointer(0x1610);
   sample3.frames_count = 2;
   symbolized = symbolizer.SymbolizeTickSample(sample3);
-  profiles.AddPathToCurrentProfiles(
-      sample3.timestamp, symbolized.stack_trace, symbolized.src_line, true,
-      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY, kNullAddress,
-      kNullAddress, 3);
+  profiles.AddPathToCurrentProfiles(sample3.timestamp, symbolized.stack_trace,
+                                    symbolized.src_pos, true, base::TimeDelta(),
+                                    StateTag::JS, EmbedderStateTag::EMPTY,
+                                    kNullAddress, kNullAddress, 3);
 
   CpuProfile* profile = profiles.StopProfiling(id);
   unsigned nodeId = 1;
@@ -667,9 +666,9 @@ TEST_WITH_PLATFORM(MaxSamplesCallback, MockPlatform) {
   sample1.stack[0] = ToPointer(0x1510);
   sample1.frames_count = 1;
   auto symbolized = symbolizer.SymbolizeTickSample(sample1);
-  profiles.AddPathToCurrentProfiles(
-      sample1.timestamp, symbolized.stack_trace, symbolized.src_line, true,
-      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
+  profiles.AddPathToCurrentProfiles(sample1.timestamp, symbolized.stack_trace,
+                                    symbolized.src_pos, true, base::TimeDelta(),
+                                    StateTag::JS, EmbedderStateTag::EMPTY);
   CHECK_EQ(0, platform.posted_count());
   TickSample sample2;
   sample2.timestamp = v8::base::TimeTicks::Now();
@@ -678,9 +677,9 @@ TEST_WITH_PLATFORM(MaxSamplesCallback, MockPlatform) {
   sample2.stack[1] = ToPointer(0x1760);
   sample2.frames_count = 2;
   symbolized = symbolizer.SymbolizeTickSample(sample2);
-  profiles.AddPathToCurrentProfiles(
-      sample2.timestamp, symbolized.stack_trace, symbolized.src_line, true,
-      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
+  profiles.AddPathToCurrentProfiles(sample2.timestamp, symbolized.stack_trace,
+                                    symbolized.src_pos, true, base::TimeDelta(),
+                                    StateTag::JS, EmbedderStateTag::EMPTY);
   CHECK_EQ(1, platform.posted_count());
   TickSample sample3;
   sample3.timestamp = v8::base::TimeTicks::Now();
@@ -690,9 +689,9 @@ TEST_WITH_PLATFORM(MaxSamplesCallback, MockPlatform) {
   sample3.stack[2] = ToPointer(0x1740);
   sample3.frames_count = 3;
   symbolized = symbolizer.SymbolizeTickSample(sample3);
-  profiles.AddPathToCurrentProfiles(
-      sample3.timestamp, symbolized.stack_trace, symbolized.src_line, true,
-      base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
+  profiles.AddPathToCurrentProfiles(sample3.timestamp, symbolized.stack_trace,
+                                    symbolized.src_pos, true, base::TimeDelta(),
+                                    StateTag::JS, EmbedderStateTag::EMPTY);
   CHECK_EQ(1, platform.posted_count());
 
   // Teardown
@@ -722,7 +721,7 @@ TEST(NoSamples) {
   sample1.frames_count = 1;
   auto symbolized = symbolizer.SymbolizeTickSample(sample1);
   profiles.AddPathToCurrentProfiles(
-      v8::base::TimeTicks::Now(), symbolized.stack_trace, symbolized.src_line,
+      v8::base::TimeTicks::Now(), symbolized.stack_trace, symbolized.src_pos,
       true, base::TimeDelta(), StateTag::JS, EmbedderStateTag::EMPTY);
 
   CpuProfile* profile = profiles.StopProfiling(id);
@@ -890,7 +889,7 @@ int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
   CodeEntry* func_entry = instruction_stream_map->FindEntry(
       func->abstract_code(isolate)->InstructionStart(cage_base));
   if (!func_entry) FATAL("%s", name);
-  return func_entry->line_number();
+  return func_entry->line_and_column().line;
 }
 
 TEST(LineNumber) {

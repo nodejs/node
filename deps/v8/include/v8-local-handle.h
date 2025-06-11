@@ -42,6 +42,7 @@ class BasicTracedReference;
 template <class F>
 class TracedReference;
 
+class ArrayBuffer;
 class Boolean;
 class Context;
 class EscapableHandleScope;
@@ -62,6 +63,8 @@ template <class F>
 class Traced;
 class TypecheckWitness;
 class Utils;
+class Uint32;
+class Value;
 
 namespace debug {
 class ConsoleCallArguments;
@@ -78,6 +81,25 @@ class SamplingHeapProfiler;
 namespace api_internal {
 // Called when ToLocalChecked is called on an empty Local.
 V8_EXPORT void ToLocalEmpty();
+
+#ifdef V8_ENABLE_CHECKS
+template <typename T, typename V = Value>
+void TypeCheckLocal(V* value) {
+  // If `T` does not provide a `Cast` method we cannot check anything.
+  if constexpr (requires { T::Cast(value); }) {
+    // TODO(419454582): Remove all these exceptions.
+    if (std::is_same_v<Array, T> && value->IsArgumentsObject()) return;
+    if (std::is_same_v<ArrayBuffer, T> && value->IsSharedArrayBuffer()) return;
+    if (std::is_same_v<Object, T> && value->IsNull()) return;
+    if (std::is_same_v<Object, T> && value->IsString()) return;
+    if (std::is_same_v<Object, T> && value->IsUndefined()) return;
+    if (std::is_same_v<Uint32, T> && value->IsInt32()) return;
+    if (std::is_same_v<Object, T> && value->IsNumber()) return;
+    // Execute the actual check (part of the cast).
+    T::Cast(value);
+  }
+}
+#endif
 }  // namespace api_internal
 
 /**
@@ -164,7 +186,11 @@ class LocalBase : public api_internal::DirectHandleBase {
 
   V8_INLINE LocalBase() = default;
 
-  V8_INLINE explicit LocalBase(internal::Address ptr) : DirectHandleBase(ptr) {}
+  V8_INLINE explicit LocalBase(internal::Address ptr) : DirectHandleBase(ptr) {
+#ifdef V8_ENABLE_CHECKS
+    if (!IsEmpty()) api_internal::TypeCheckLocal<T>(value<Value>());
+#endif
+  }
 
   template <typename S>
   V8_INLINE LocalBase(const LocalBase<S>& other) : DirectHandleBase(other) {}
@@ -200,7 +226,11 @@ class LocalBase : public api_internal::IndirectHandleBase {
   V8_INLINE LocalBase() = default;
 
   V8_INLINE explicit LocalBase(internal::Address* location)
-      : IndirectHandleBase(location) {}
+      : IndirectHandleBase(location) {
+#ifdef V8_ENABLE_CHECKS
+    if (!IsEmpty()) api_internal::TypeCheckLocal<T>(value<Value>());
+#endif
+  }
 
   template <typename S>
   V8_INLINE LocalBase(const LocalBase<S>& other) : IndirectHandleBase(other) {}

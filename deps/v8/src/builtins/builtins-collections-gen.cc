@@ -541,14 +541,17 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedArrayElement(
 TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
     TNode<HeapObject> elements, TNode<IntPtrT> index) {
   TVARIABLE(Object, entry);
-  Label if_hole(this, Label::kDeferred), next(this);
-  TNode<Float64T> element =
-      LoadFixedDoubleArrayElement(CAST(elements), index, &if_hole);
+  Label if_hole_or_undefined(this, Label::kDeferred), next(this);
+  TNode<Float64T> element = LoadFixedDoubleArrayElement(
+      CAST(elements), index, &if_hole_or_undefined, &if_hole_or_undefined);
   {  // not hole
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    CSA_DCHECK(this, Word32Equal(Int32Constant(0), IsDoubleUndefined(element)));
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     entry = AllocateHeapNumberWithValue(element);
     Goto(&next);
   }
-  BIND(&if_hole);
+  BIND(&if_hole_or_undefined);
   {
     entry = UndefinedConstant();
     Goto(&next);

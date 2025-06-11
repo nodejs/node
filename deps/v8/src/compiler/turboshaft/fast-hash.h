@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_FAST_HASH_H_
 #define V8_COMPILER_TURBOSHAFT_FAST_HASH_H_
 
+#include <optional>
 #include <tuple>
 
 #include "src/base/hashing.h"
@@ -27,11 +28,18 @@ V8_INLINE size_t fast_hash_combine(T const& v, Ts const&... vs);
 template <class T>
 struct fast_hash {
   size_t operator()(const T& v) const {
-    if constexpr (std::is_enum<T>::value) {
+    if constexpr (std::is_enum_v<T>) {
       return static_cast<size_t>(v);
     } else {
       return base::hash<T>()(v);
     }
+  }
+};
+
+template <typename T>
+struct fast_hash<std::optional<T>> {
+  size_t operator()(const std::optional<T>& v) const {
+    return v.has_value() ? (fast_hash()(*v) << 1) + 1 : 0;
   }
 };
 

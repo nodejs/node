@@ -711,7 +711,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator*) V8_WARN_UNUSED_RESULT;
 
 AbortReason AbortReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
-DeoptimizeReason DeoptimizeReasonOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+SilenceNanMode SilenceNanModeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class NewArgumentsElementsParameters {
  public:
@@ -881,7 +881,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NumberToUint8Clamped();
   const Operator* Integral32OrMinusZeroToBigInt();
 
-  const Operator* NumberSilenceNaN();
+  const Operator* NumberSilenceNaN(
+      SilenceNanMode mode = SilenceNanMode::kSilenceUndefined);
 
   const Operator* BigIntAdd();
   const Operator* BigIntSubtract();
@@ -996,7 +997,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeUint64ToTagged();
   const Operator* ChangeFloat64ToTagged(CheckForMinusZeroMode);
   const Operator* ChangeFloat64ToTaggedPointer();
+  const Operator* ChangeFloat64OrUndefinedToTagged(CheckForMinusZeroMode);
   const Operator* ChangeFloat64HoleToTagged();
+  const Operator* ChangeFloat64OrUndefinedOrHoleToTagged();
   const Operator* ChangeTaggedToBit();
   const Operator* ChangeBitToTagged();
   const Operator* TruncateBigIntToWord64();
@@ -1004,6 +1007,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeUint64ToBigInt();
   const Operator* TruncateTaggedToWord32();
   const Operator* TruncateTaggedToFloat64();
+  const Operator* TruncateTaggedToFloat64PreserveUndefined();
   const Operator* TruncateTaggedToBit();
   const Operator* TruncateTaggedPointerToBit();
 
@@ -1029,6 +1033,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                             const FeedbackSource& = FeedbackSource());
   const Operator* CheckNotTaggedHole();
   const Operator* CheckNumber(const FeedbackSource& feedback);
+  const Operator* CheckNumberOrUndefined(const FeedbackSource& feedback);
   const Operator* CheckNumberFitsInt32(const FeedbackSource& feedback);
   const Operator* CheckReceiver();
   const Operator* CheckReceiverOrNullOrUndefined();

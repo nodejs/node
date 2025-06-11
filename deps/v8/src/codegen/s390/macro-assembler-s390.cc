@@ -1664,7 +1664,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   LoadU64(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
 #ifdef DEBUG
-  mov(scratch, Operand(Context::kInvalidContext));
+  mov(scratch, Operand(Context::kNoContext));
   StoreU64(scratch, ExternalReferenceAsOperand(context_address, no_reg));
 #endif
 
@@ -2120,30 +2120,6 @@ void MacroAssembler::AssertFeedbackVector(Register object) {
 }
 #endif  // V8_ENABLE_DEBUG_CODE
 
-// Optimized code is good, get it into the closure and link the closure
-// into the optimized functions list, then tail call the optimized code.
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure, Register scratch1,
-    Register slot_address) {
-#ifdef V8_ENABLE_LEAPTIERING
-  UNREACHABLE();
-#else
-  DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
-  DCHECK_EQ(closure, kJSFunctionRegister);
-  DCHECK(!AreAliased(optimized_code, closure));
-  // Store code entry in the closure.
-  StoreTaggedField(optimized_code,
-                   FieldMemOperand(closure, JSFunction::kCodeOffset), r0);
-  // Write barrier clobbers scratch1 below.
-  Register value = scratch1;
-  mov(value, optimized_code);
-
-  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
-                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
-                   SmiCheck::kOmit);
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
@@ -2161,7 +2137,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
          kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+#ifndef V8_ENABLE_LEAPTIERING
     mov(r4, r2);
+#endif
 
     // Restore target function, new target and actual argument count.
     Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
@@ -2169,10 +2147,34 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     SmiUntag(kJavaScriptCallArgCountRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
+#ifdef V8_ENABLE_LEAPTIERING
+  JumpJSFunction(kJavaScriptCallTargetRegister);
+#else
   JumpCodeObject(r4);
+#endif
 }
 
 #ifndef V8_ENABLE_LEAPTIERING
+
+// Optimized code is good, get it into the closure and link the closure
+// into the optimized functions list, then tail call the optimized code.
+void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
+    Register optimized_code, Register closure, Register scratch1,
+    Register slot_address) {
+  DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
+  DCHECK_EQ(closure, kJSFunctionRegister);
+  DCHECK(!AreAliased(optimized_code, closure));
+  // Store code entry in the closure.
+  StoreTaggedField(optimized_code,
+                   FieldMemOperand(closure, JSFunction::kCodeOffset), r0);
+  // Write barrier clobbers scratch1 below.
+  Register value = scratch1;
+  mov(value, optimized_code);
+
+  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
+                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
+                   SmiCheck::kOmit);
+}
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
@@ -2696,9 +2698,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     dest = r6;
   }
 #else
-  // Just call directly. The function called cannot cause a GC, or
-  // allow preemption, so the return address in the link register
-  // stays correct.
   Register dest = function;
   if (ABI_CALL_VIA_IP) {
     Move(ip, function);
@@ -2738,15 +2737,7 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   bind(&get_pc);
   if (return_label) bind(return_label);
 
-  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
-    // We don't unset the PC; the FP is the source of truth.
-    Register zero_scratch = r0;
-    lghi(zero_scratch, Operand::Zero());
-
-    StoreU64(zero_scratch,
-             ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
-  }
-
+  int before_offset = pc_offset();
   int stack_passed_arguments =
       CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
   int stack_space = kNumRequiredStackFrameSlots + stack_passed_arguments;
@@ -2754,7 +2745,21 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     // Load the original stack pointer (pre-alignment) from the stack
     LoadU64(sp, MemOperand(sp, stack_space * kSystemPointerSize));
   } else {
-    la(sp, MemOperand(sp, stack_space * kSystemPointerSize));
+    // Using agfi to match the instruction size kMaxSizeOfMoveAfterFastCall.
+    agfi(sp, Operand(stack_space * kSystemPointerSize));
+  }
+  // We assume that the move instruction uses kMaxSizeOfMoveAfterFastCall
+  // bytes. When we patch in the deopt trampoline, we patch it in after the
+  // move instruction, so that the stack has been restored correctly.
+  CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
+
+  if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    // We don't unset the PC; the FP is the source of truth.
+    Register zero_scratch = r0;
+    lghi(zero_scratch, Operand::Zero());
+
+    StoreU64(zero_scratch,
+             ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
   }
 
   return call_pc_offset;
@@ -5047,7 +5052,9 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   ASM_CODE_COMMENT(this);
 
   Register index = destination;
-  Move(scratch, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  LoadU64(scratch,
+          ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   ShiftRightU64(index, dispatch_handle, Operand(kJSDispatchHandleShift));
   ShiftLeftU64(index, index, Operand(kJSDispatchTableEntrySizeLog2));
   AddS64(scratch, scratch, index);
@@ -5278,9 +5285,13 @@ void MacroAssembler::CountLeadingZerosU32(Register dst, Register src,
 
 void MacroAssembler::CountLeadingZerosU64(Register dst, Register src,
                                           Register scratch_pair) {
-  flogr(scratch_pair,
-        src);  // will modify a register pair scratch and scratch + 1
-  mov(dst, scratch_pair);
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT4)) {
+    clzg(dst, src);
+  } else {
+    flogr(scratch_pair,
+          src);  // will modify a register pair scratch and scratch + 1
+    mov(dst, scratch_pair);
+  }
 }
 
 void MacroAssembler::CountTrailingZerosU32(Register dst, Register src,
@@ -5306,22 +5317,26 @@ void MacroAssembler::CountTrailingZerosU32(Register dst, Register src,
 
 void MacroAssembler::CountTrailingZerosU64(Register dst, Register src,
                                            Register scratch_pair) {
-  Register scratch0 = scratch_pair;
-  Register scratch1 = Register::from_code(scratch_pair.code() + 1);
-  DCHECK(!AreAliased(dst, scratch0, scratch1));
-  DCHECK(!AreAliased(src, scratch0, scratch1));
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT4)) {
+    ctzg(dst, src);
+  } else {
+    Register scratch0 = scratch_pair;
+    Register scratch1 = Register::from_code(scratch_pair.code() + 1);
+    DCHECK(!AreAliased(dst, scratch0, scratch1));
+    DCHECK(!AreAliased(src, scratch0, scratch1));
 
-  Label done;
-  // Check if src is all zeros.
-  ltgr(scratch1, src);
-  mov(dst, Operand(64));
-  beq(&done);
-  lcgr(scratch0, scratch1);
-  ngr(scratch0, scratch1);
-  flogr(scratch0, scratch0);
-  mov(dst, Operand(63));
-  SubS64(dst, scratch0);
-  bind(&done);
+    Label done;
+    // Check if src is all zeros.
+    ltgr(scratch1, src);
+    mov(dst, Operand(64));
+    beq(&done);
+    lcgr(scratch0, scratch1);
+    ngr(scratch0, scratch1);
+    flogr(scratch0, scratch0);
+    mov(dst, Operand(63));
+    SubS64(dst, scratch0);
+    bind(&done);
+  }
 }
 
 void MacroAssembler::AtomicCmpExchangeHelper(Register addr, Register output,
@@ -5900,16 +5915,20 @@ SIMD_QFM_LIST(EMIT_SIMD_QFM)
 void MacroAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
                               Simd128Register src2, Register scratch1,
                               Register scratch2, Register scratch3) {
-  Register scratch_1 = scratch1;
-  Register scratch_2 = scratch2;
-  for (int i = 0; i < 2; i++) {
-    vlgv(scratch_1, src1, MemOperand(r0, i), Condition(3));
-    vlgv(scratch_2, src2, MemOperand(r0, i), Condition(3));
-    MulS64(scratch_1, scratch_2);
-    scratch_1 = scratch2;
-    scratch_2 = scratch3;
+  if (CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_3)) {
+    vml(dst, src1, src2, Condition(0), Condition(0), Condition(3));
+  } else {
+    Register scratch_1 = scratch1;
+    Register scratch_2 = scratch2;
+    for (int i = 0; i < 2; i++) {
+      vlgv(scratch_1, src1, MemOperand(r0, i), Condition(3));
+      vlgv(scratch_2, src2, MemOperand(r0, i), Condition(3));
+      MulS64(scratch_1, scratch_2);
+      scratch_1 = scratch2;
+      scratch_2 = scratch3;
+    }
+    vlvgp(dst, scratch1, scratch2);
   }
-  vlvgp(dst, scratch1, scratch2);
 }
 
 void MacroAssembler::F64x2Ne(Simd128Register dst, Simd128Register src1,

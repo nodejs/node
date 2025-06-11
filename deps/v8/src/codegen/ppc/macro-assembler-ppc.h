@@ -328,7 +328,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
   template <class _type>
   void ExtendValue(Register dst, Register value) {
-    if (std::is_signed<_type>::value) {
+    if (std::is_signed_v<_type>) {
       SignedExtend<_type>(dst, value);
     } else {
       ZeroExtend<_type>(dst, value);
@@ -353,7 +353,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
       default:
         UNREACHABLE();
     }
-    if (std::is_signed<_type>::value) {
+    if (std::is_signed_v<_type>) {
       SignedExtend<_type>(output, output);
     }
   }
@@ -1757,15 +1757,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
+  // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
+  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+#ifndef V8_ENABLE_LEAPTIERING
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure, Register scratch1,
                                            Register slot_address);
-  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
   void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
                                                Register feedback_vector);
+#endif  // V8_ENABLE_LEAPTIERING
 
   // ---------------------------------------------------------------------------
   // Runtime calls

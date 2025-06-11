@@ -629,8 +629,8 @@ namespace {
 // Exclude those from being tested. Currently this is only used for f32x4, f64x2
 // relaxed min and max.
 template <typename T>
-typename std::enable_if<std::is_floating_point<T>::value, bool>::type
-ShouldSkipTestingConstants(WasmOpcode opcode, T lhs, T rhs) {
+std::enable_if_t<std::is_floating_point_v<T>, bool> ShouldSkipTestingConstants(
+    WasmOpcode opcode, T lhs, T rhs) {
   bool has_nan = std::isnan(lhs) || std::isnan(rhs);
   bool zeroes_of_opposite_signs =
       (lhs == 0 && rhs == 0 && (std::signbit(lhs) != std::signbit(rhs)));

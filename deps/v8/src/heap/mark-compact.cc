@@ -346,7 +346,9 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 
   // Don't compact shared space when CSS is enabled, since there may be
   // DirectHandles on stacks of client isolates.
-  if (!v8_flags.conservative_stack_scanning && heap_->shared_space()) {
+  if ((heap_->ConservativeStackScanningModeForMajorGC() !=
+       Heap::StackScanMode::kFull) &&
+      heap_->shared_space()) {
     CollectEvacuationCandidates(heap_->shared_space());
   }
 
@@ -764,7 +766,7 @@ void MarkCompactCollector::Prepare() {
 #ifdef DEBUG
   DCHECK(state_ == IDLE);
   state_ = PREPARE_GC;
-#endif
+#endif  // DEBUG
 
   DCHECK(!sweeper_->sweeping_in_progress());
 
@@ -784,9 +786,13 @@ void MarkCompactCollector::Prepare() {
     new_space->GarbageCollectionPrologue();
   }
   if (heap_->use_new_space()) {
-    DCHECK_EQ(
-        heap_->allocator()->new_space_allocator()->top(),
-        heap_->allocator()->new_space_allocator()->original_top_acquire());
+#ifdef DEBUG
+    Address original_top = heap_->allocator()
+                               ->new_space_allocator()
+                               ->GetOriginalTopAndLimit()
+                               .first;
+    DCHECK_EQ(heap_->allocator()->new_space_allocator()->top(), original_top);
+#endif  // DEBUG
   }
 }
 
@@ -905,7 +911,11 @@ void MarkCompactCollector::Finish() {
   sweeper_->StartMajorSweeperTasks();
 
   // Release empty pages now, when the pointer-update phase is done.
-  heap_->memory_allocator()->ReleaseQueuedPages();
+  for (MutablePageMetadata* page : queued_pages_to_be_freed_) {
+    heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
+                                    page);
+  }
+  queued_pages_to_be_freed_.clear();
 
   // Shrink pages if possible after processing and filtering slots.
   ShrinkPagesToObjectSizes(heap_, heap_->lo_space());
@@ -1596,11 +1606,14 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 #endif  // DEBUG
 
     Tagged<Map> map = object->map(cage_base());
-    AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
     AllocationResult allocation;
     if (target_space == OLD_SPACE && ShouldPromoteIntoSharedHeap(map)) {
+      AllocationAlignment alignment =
+          HeapObject::RequiredAlignment(SHARED_SPACE, map);
       allocation = local_allocator_->Allocate(SHARED_SPACE, size, alignment);
     } else {
+      AllocationAlignment alignment =
+          HeapObject::RequiredAlignment(target_space, map);
       allocation = local_allocator_->Allocate(target_space, size, alignment);
     }
     if (allocation.To(target_object)) {
@@ -1701,14 +1714,16 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   inline AllocationSpace AllocateTargetObject(
       Tagged<HeapObject> old_object, int size,
       Tagged<HeapObject>* target_object) {
-    AllocationAlignment alignment =
-        HeapObject::RequiredAlignment(old_object->map());
     AllocationSpace space_allocated_in = NEW_SPACE;
+    AllocationAlignment alignment =
+        HeapObject::RequiredAlignment(space_allocated_in, old_object->map());
     AllocationResult allocation =
         local_allocator_->Allocate(NEW_SPACE, size, alignment);
     if (allocation.IsFailure()) {
-      allocation = AllocateInOldSpace(size, alignment);
       space_allocated_in = OLD_SPACE;
+      alignment =
+          HeapObject::RequiredAlignment(space_allocated_in, old_object->map());
+      allocation = AllocateInOldSpace(size, alignment);
     }
     bool ok = allocation.To(target_object);
     DCHECK(ok);
@@ -1872,6 +1887,8 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor) {
 void MarkCompactCollector::MarkRootsFromConservativeStack(
     RootVisitor* root_visitor) {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::CONSERVATIVE_STACK_SCANNING);
+  DCHECK(!in_conservative_stack_scanning_);
+  in_conservative_stack_scanning_ = true;
   heap_->IterateConservativeStackRoots(root_visitor,
                                        Heap::IterateRootsMode::kMainIsolate);
 
@@ -1886,6 +1903,7 @@ void MarkCompactCollector::MarkRootsFromConservativeStack(
               v, Heap::IterateRootsMode::kClientIsolate);
         });
   }
+  in_conservative_stack_scanning_ = false;
 }
 
 void MarkCompactCollector::MarkObjectsFromClientHeaps() {
@@ -4890,7 +4908,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
 };
 
 void MarkCompactCollector::PinPreciseRootsIfNeeded() {
-  if (!v8_flags.precise_object_pinning) {
+  if (!heap_->ShouldUsePrecisePinningForMajorGC()) {
     return;
   }
 
@@ -5072,7 +5090,7 @@ void MarkCompactCollector::Evacuate() {
         DCHECK(p->SweepingDone());
         PagedNewSpace* space = heap_->paged_new_space();
         if (space->ShouldReleaseEmptyPage()) {
-          space->ReleasePage(p);
+          ReleasePage(space->paged_space(), p);
         } else {
           sweeper_->SweepEmptyNewSpacePage(p);
         }
@@ -5948,10 +5966,37 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
     p->SetLiveBytes(0);
     CHECK(p->SweepingDone());
-    space->ReleasePage(p);
+    ReleasePage(space, p);
   }
   old_space_evacuation_pages_.clear();
   compacting_ = false;
+}
+
+void MarkCompactCollector::ReleasePage(PagedSpaceBase* space,
+                                       PageMetadata* page) {
+  space->RemovePageFromSpace(page);
+
+  switch (space->identity()) {
+    case SHARED_SPACE: {
+      // Old-to-new slots in old objects may be overwritten with references to
+      // shared objects. Postpone releasing empty pages so that updating
+      // old-to-new slots in dead old objects may access the dead shared
+      // objects.
+      queued_pages_to_be_freed_.push_back(page);
+      break;
+    }
+
+    case OLD_SPACE:
+    case NEW_SPACE: {
+      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, page);
+      break;
+    }
+
+    default: {
+      heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
+                                       page);
+    }
+  }
 }
 
 void MarkCompactCollector::StartSweepNewSpace() {
@@ -5974,7 +6019,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
     }
 
     if (paged_space->ShouldReleaseEmptyPage()) {
-      paged_space->ReleasePage(p);
+      ReleasePage(paged_space, p);
     } else {
       empty_new_space_pages_to_be_swept_.push_back(p);
     }
@@ -6038,7 +6083,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
           PrintIsolate(heap_->isolate(), "sweeping: released page: %p",
                        static_cast<void*>(p));
         }
-        space->ReleasePage(p);
+        ReleasePage(space, p);
         continue;
       }
       unused_page_present = true;
@@ -6076,10 +6121,7 @@ bool ShouldPostponeFreeingEmptyPages(LargeObjectSpace* space) {
 void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   PtrComprCageBase cage_base(heap_->isolate());
   size_t surviving_object_size = 0;
-  const MemoryAllocator::FreeMode free_mode =
-      ShouldPostponeFreeingEmptyPages(space)
-          ? MemoryAllocator::FreeMode::kPostpone
-          : MemoryAllocator::FreeMode::kImmediately;
+  const bool postpone_freeing = ShouldPostponeFreeingEmptyPages(space);
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
     DCHECK(!current->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
@@ -6087,8 +6129,12 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     if (!marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.
       space->RemovePage(current);
-      heap_->memory_allocator()->Free(free_mode, current);
-
+      if (postpone_freeing) {
+        queued_pages_to_be_freed_.push_back(current);
+      } else {
+        heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
+                                        current);
+      }
       continue;
     }
     if (!v8_flags.sticky_mark_bits) {
@@ -6103,6 +6149,8 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
 
 void MarkCompactCollector::Sweep() {
   DCHECK(!sweeper_->sweeping_in_progress());
+  DCHECK(queued_pages_to_be_freed_.empty());
+
   sweeper_->InitializeMajorSweeping();
 
   TRACE_GC_EPOCH_WITH_FLOW(

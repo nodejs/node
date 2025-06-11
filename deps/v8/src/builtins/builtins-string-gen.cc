@@ -687,6 +687,105 @@ TF_BUILTIN(SubString, StringBuiltinsAssembler) {
   Return(SubString(string, SmiUntag(from), SmiUntag(to)));
 }
 
+template <typename SeqStringT, typename CharT>
+void StringBuiltinsAssembler::GenerateSeqStringRelationalComparison(
+    TNode<String> lhs, TNode<String> rhs, Label* if_less, Label* if_equal,
+    Label* if_greater) {
+  TNode<IntPtrT> lhs_length = LoadStringLengthAsWord(lhs);
+  TNode<IntPtrT> rhs_length = LoadStringLengthAsWord(rhs);
+
+  TNode<IntPtrT> length = IntPtrMin(lhs_length, rhs_length);
+
+  // Loop over the {lhs} and {rhs} strings to see if they are equal.
+  constexpr int kBeginOffset =
+      OFFSET_OF_DATA_START(SeqStringT) - kHeapObjectTag;
+  TNode<IntPtrT> begin = IntPtrConstant(kBeginOffset);
+  TNode<IntPtrT> end;
+  TVARIABLE(IntPtrT, var_offset, begin);
+  Label chunk_loop(this, &var_offset), char_loop(this, &var_offset);
+  Label if_done(this);
+
+  int char_size;
+  if constexpr (std::is_same_v<SeqStringT, SeqOneByteString>) {
+    static_assert(std::is_same_v<CharT, Uint8T>);
+    char_size = 1;
+    end = IntPtrAdd(begin, length);
+  } else {
+    static_assert(std::is_same_v<SeqStringT, SeqTwoByteString>);
+    static_assert(std::is_same_v<CharT, Uint16T>);
+    char_size = 2;
+    end = IntPtrAdd(begin, IntPtrAdd(length, length));
+  }
+
+  // Unrolled first iteration.
+  GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &if_done);
+
+  constexpr int kChunkSize = kTaggedSize;
+  static_assert(
+      kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord64) ||
+      kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32));
+  if (kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32)) {
+    TNode<Uint32T> lhs_chunk = Load<Uint32T>(lhs, IntPtrConstant(kBeginOffset));
+    TNode<Uint32T> rhs_chunk = Load<Uint32T>(rhs, IntPtrConstant(kBeginOffset));
+    GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+  } else {
+    TNode<Uint64T> lhs_chunk = Load<Uint64T>(lhs, IntPtrConstant(kBeginOffset));
+    TNode<Uint64T> rhs_chunk = Load<Uint64T>(rhs, IntPtrConstant(kBeginOffset));
+    GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+  }
+
+  var_offset = IntPtrConstant(OFFSET_OF_DATA_START(SeqStringT) -
+                              kHeapObjectTag + kChunkSize);
+
+  Goto(&chunk_loop);
+
+  // Try skipping over chunks of kChunkSize identical characters.
+  // This depends on padding (between strings' lengths and the actual end
+  // of the heap object) being zeroed out.
+  BIND(&chunk_loop);
+  {
+    GotoIf(IntPtrGreaterThanOrEqual(var_offset.value(), end), &if_done);
+
+    if (kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32)) {
+      TNode<Uint32T> lhs_chunk = Load<Uint32T>(lhs, var_offset.value());
+      TNode<Uint32T> rhs_chunk = Load<Uint32T>(rhs, var_offset.value());
+      GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+    } else {
+      TNode<Uint64T> lhs_chunk = Load<Uint64T>(lhs, var_offset.value());
+      TNode<Uint64T> rhs_chunk = Load<Uint64T>(rhs, var_offset.value());
+      GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+    }
+
+    var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(kChunkSize));
+    Goto(&chunk_loop);
+  }
+
+  BIND(&char_loop);
+  {
+    GotoIf(WordEqual(var_offset.value(), end), &if_done);
+
+    TNode<CharT> lhs_char = Load<CharT>(lhs, var_offset.value());
+    TNode<CharT> rhs_char = Load<CharT>(rhs, var_offset.value());
+
+    Label if_charsdiffer(this);
+    GotoIf(Word32NotEqual(lhs_char, rhs_char), &if_charsdiffer);
+
+    var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(char_size));
+    Goto(&char_loop);
+
+    BIND(&if_charsdiffer);
+    Branch(Uint32LessThan(lhs_char, rhs_char), if_less, if_greater);
+  }
+
+  BIND(&if_done);
+  {
+    // All characters up to the min length are equal, decide based on
+    // string length.
+    GotoIf(IntPtrEqual(lhs_length, rhs_length), if_equal);
+    Branch(IntPtrLessThan(lhs_length, rhs_length), if_less, if_greater);
+  }
+}
+
 void StringBuiltinsAssembler::GenerateStringRelationalComparison(
     TNode<String> left, TNode<String> right, StringComparison op) {
   TVARIABLE(String, var_left, left);
@@ -712,113 +811,41 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
       lhs_instance_type, Word32Shl(rhs_instance_type, Int32Constant(8)));
 
   // Check that both {lhs} and {rhs} are flat one-byte strings.
-  int const kBothSeqOneByteStringMask =
-      kStringEncodingMask | kStringRepresentationMask |
-      ((kStringEncodingMask | kStringRepresentationMask) << 8);
+  int const kBothStringRepresentationAndEncodingMask =
+      kStringRepresentationAndEncodingMask |
+      (kStringRepresentationAndEncodingMask << 8);
   int const kBothSeqOneByteStringTag =
-      kOneByteStringTag | kSeqStringTag |
-      ((kOneByteStringTag | kSeqStringTag) << 8);
-  Label if_bothonebyteseqstrings(this), if_notbothonebyteseqstrings(this);
-  Branch(Word32Equal(Word32And(both_instance_types,
-                               Int32Constant(kBothSeqOneByteStringMask)),
-                     Int32Constant(kBothSeqOneByteStringTag)),
-         &if_bothonebyteseqstrings, &if_notbothonebyteseqstrings);
+      kSeqOneByteStringTag | (kSeqOneByteStringTag << 8);
+  int const kBothSeqTwoByteStringTag =
+      kSeqTwoByteStringTag | (kSeqTwoByteStringTag << 8);
+  Label if_bothonebyteseqstrings(this), if_bothtwobytesseqstrings(this),
+      if_notbothseqstrings(this);
+  TNode<Int32T> both_string_tags =
+      Word32And(both_instance_types,
+                Int32Constant(kBothStringRepresentationAndEncodingMask));
+  GotoIf(Word32Equal(both_string_tags, Int32Constant(kBothSeqOneByteStringTag)),
+         &if_bothonebyteseqstrings);
+  Branch(Word32Equal(both_string_tags, Int32Constant(kBothSeqTwoByteStringTag)),
+         &if_bothtwobytesseqstrings, &if_notbothseqstrings);
 
   BIND(&if_bothonebyteseqstrings);
   {
-    TNode<IntPtrT> lhs_length = LoadStringLengthAsWord(lhs);
-    TNode<IntPtrT> rhs_length = LoadStringLengthAsWord(rhs);
-
-    TNode<IntPtrT> length = IntPtrMin(lhs_length, rhs_length);
-
-    // Loop over the {lhs} and {rhs} strings to see if they are equal.
-    constexpr int kBeginOffset =
-        OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag;
-    TNode<IntPtrT> begin = IntPtrConstant(kBeginOffset);
-    TNode<IntPtrT> end = IntPtrAdd(begin, length);
-    TVARIABLE(IntPtrT, var_offset, begin);
-    Label chunk_loop(this, &var_offset), char_loop(this, &var_offset);
-    Label if_done(this);
-
-    // Unrolled first iteration.
-    GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &if_done);
-
-    constexpr int kChunkSize = kTaggedSize;
-    static_assert(
-        kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord64) ||
-        kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32));
-    if (kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32)) {
-      TNode<Uint32T> lhs_chunk =
-          Load<Uint32T>(lhs, IntPtrConstant(kBeginOffset));
-      TNode<Uint32T> rhs_chunk =
-          Load<Uint32T>(rhs, IntPtrConstant(kBeginOffset));
-      GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
-    } else {
-      TNode<Uint64T> lhs_chunk =
-          Load<Uint64T>(lhs, IntPtrConstant(kBeginOffset));
-      TNode<Uint64T> rhs_chunk =
-          Load<Uint64T>(rhs, IntPtrConstant(kBeginOffset));
-      GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
-    }
-
-    var_offset = IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
-                                kHeapObjectTag + kChunkSize);
-
-    Goto(&chunk_loop);
-
-    // Try skipping over chunks of kChunkSize identical characters.
-    // This depends on padding (between strings' lengths and the actual end
-    // of the heap object) being zeroed out.
-    BIND(&chunk_loop);
-    {
-      GotoIf(IntPtrGreaterThanOrEqual(var_offset.value(), end), &if_done);
-
-      if (kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32)) {
-        TNode<Uint32T> lhs_chunk = Load<Uint32T>(lhs, var_offset.value());
-        TNode<Uint32T> rhs_chunk = Load<Uint32T>(rhs, var_offset.value());
-        GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
-      } else {
-        TNode<Uint64T> lhs_chunk = Load<Uint64T>(lhs, var_offset.value());
-        TNode<Uint64T> rhs_chunk = Load<Uint64T>(rhs, var_offset.value());
-        GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
-      }
-
-      var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(kChunkSize));
-      Goto(&chunk_loop);
-    }
-
-    BIND(&char_loop);
-    {
-      GotoIf(WordEqual(var_offset.value(), end), &if_done);
-
-      TNode<Uint8T> lhs_char = Load<Uint8T>(lhs, var_offset.value());
-      TNode<Uint8T> rhs_char = Load<Uint8T>(rhs, var_offset.value());
-
-      Label if_charsdiffer(this);
-      GotoIf(Word32NotEqual(lhs_char, rhs_char), &if_charsdiffer);
-
-      var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(1));
-      Goto(&char_loop);
-
-      BIND(&if_charsdiffer);
-      Branch(Uint32LessThan(lhs_char, rhs_char), &if_less, &if_greater);
-    }
-
-    BIND(&if_done);
-    {
-      // All characters up to the min length are equal, decide based on
-      // string length.
-      GotoIf(IntPtrEqual(lhs_length, rhs_length), &if_equal);
-      Branch(IntPtrLessThan(lhs_length, rhs_length), &if_less, &if_greater);
-    }
+    GenerateSeqStringRelationalComparison<SeqOneByteString, Uint8T>(
+        lhs, rhs, &if_less, &if_equal, &if_greater);
   }
 
-  BIND(&if_notbothonebyteseqstrings);
+  BIND(&if_bothtwobytesseqstrings);
+  {
+    GenerateSeqStringRelationalComparison<SeqTwoByteString, Uint16T>(
+        lhs, rhs, &if_less, &if_equal, &if_greater);
+  }
+
+  BIND(&if_notbothseqstrings);
   {
     // Try to unwrap indirect strings, restart the above attempt on success.
     MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
                               rhs_instance_type, &restart);
-    // TODO(bmeurer): Add support for two byte string relational comparisons.
+
     switch (op) {
       case StringComparison::kLessThan:
         TailCallRuntime(Runtime::kStringLessThan, NoContextConstant(), lhs,

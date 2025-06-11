@@ -527,9 +527,17 @@ class BaseTestRunner(object):
       ])
 
   def _get_external_symbolizer_option(self):
-    external_symbolizer_path = (
-        self.basedir / 'third_party' / 'llvm-build' / 'Release+Asserts' /
-        'bin' / 'llvm-symbolizer')
+    # TODO(https://crbug.com/396446140): Switch to the symbolizer from our
+    # bundled toolchain as soon as one is available for linux-arm64.
+    if (utils.GuessOS() == 'linux' and self.build_config.arch == 'arm64' and
+        not self.build_config.simulator_run):
+      external_symbolizer_path = (
+          self.basedir / 'tools' / 'sanitizers' / 'linux' / 'arm64' /
+          'llvm-symbolizer')
+    else:
+      external_symbolizer_path = (
+          self.basedir / 'third_party' / 'llvm-build' / 'Release+Asserts' /
+          'bin' / 'llvm-symbolizer')
 
     if utils.IsWindows():
       external_symbolizer_path = external_symbolizer_path.with_suffix('.exe')

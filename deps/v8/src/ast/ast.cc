@@ -202,7 +202,8 @@ Handle<String> FunctionLiteral::GetInferredName(Isolate* isolate) {
 void FunctionLiteral::set_shared_function_info(
     Handle<SharedFunctionInfo> shared_function_info) {
   DCHECK(shared_function_info_.is_null());
-  CHECK_EQ(shared_function_info->function_literal_id(), function_literal_id_);
+  CHECK_EQ(shared_function_info->function_literal_id(kRelaxedLoad),
+           function_literal_id_);
   shared_function_info_ = shared_function_info;
 }
 

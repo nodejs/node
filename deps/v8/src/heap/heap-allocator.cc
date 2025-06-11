@@ -68,21 +68,22 @@ void HeapAllocator::SetReadOnlySpace(ReadOnlySpace* read_only_space) {
 
 AllocationResult HeapAllocator::AllocateRawLargeInternal(
     int size_in_bytes, AllocationType allocation, AllocationOrigin origin,
-    AllocationAlignment alignment) {
+    AllocationAlignment alignment, AllocationHint hint) {
   DCHECK_GT(size_in_bytes, heap_->MaxRegularHeapObjectSize(allocation));
   switch (allocation) {
     case AllocationType::kYoung:
-      return new_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
+      return new_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
     case AllocationType::kOld:
-      return lo_space()->AllocateRaw(local_heap_, size_in_bytes);
+      return lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
     case AllocationType::kCode:
-      return code_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
+      return code_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
     case AllocationType::kSharedOld:
-      return shared_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
+      return shared_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
     case AllocationType::kTrusted:
-      return trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
+      return trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
     case AllocationType::kSharedTrusted:
-      return shared_trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
+      return shared_trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes,
+                                                    hint);
     case AllocationType::kMap:
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
@@ -114,12 +115,12 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
 
 AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
-    AllocationAlignment alignment) {
+    AllocationAlignment alignment, AllocationHint hint) {
   auto Allocate = [&](AllocationType allocation) {
-    return AllocateRaw(size, allocation, origin, alignment);
+    return AllocateRaw(size, allocation, origin, alignment, hint);
   };
   auto RetryAllocate = [&](AllocationType allocation) {
-    return RetryAllocateRaw(size, allocation, origin, alignment);
+    return RetryAllocateRaw(size, allocation, origin, alignment, hint);
   };
 
   return AllocateRawWithLightRetrySlowPath(Allocate, RetryAllocate, allocation);
@@ -142,12 +143,12 @@ void HeapAllocator::CollectGarbage(AllocationType allocation) {
 
 AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
-    AllocationAlignment alignment) {
+    AllocationAlignment alignment, AllocationHint hint) {
   auto Allocate = [&](AllocationType allocation) {
-    return AllocateRaw(size, allocation, origin, alignment);
+    return AllocateRaw(size, allocation, origin, alignment, hint);
   };
   auto RetryAllocate = [&](AllocationType allocation) {
-    return RetryAllocateRaw(size, allocation, origin, alignment);
+    return RetryAllocateRaw(size, allocation, origin, alignment, hint);
   };
   return AllocateRawWithRetryOrFailSlowPath(Allocate, RetryAllocate,
                                             allocation);
@@ -166,15 +167,17 @@ void HeapAllocator::CollectAllAvailableGarbage(AllocationType allocation) {
   }
 }
 
-AllocationResult HeapAllocator::RetryAllocateRaw(
-    int size_in_bytes, AllocationType allocation, AllocationOrigin origin,
-    AllocationAlignment alignment) {
+AllocationResult HeapAllocator::RetryAllocateRaw(int size_in_bytes,
+                                                 AllocationType allocation,
+                                                 AllocationOrigin origin,
+                                                 AllocationAlignment alignment,
+                                                 AllocationHint hint) {
   // Initially flags on the LocalHeap are always disabled. They are only
   // active while this method is running.
   DCHECK(!local_heap_->IsRetryOfFailedAllocation());
   local_heap_->SetRetryOfFailedAllocation(true);
   AllocationResult result =
-      AllocateRaw(size_in_bytes, allocation, origin, alignment);
+      AllocateRaw(size_in_bytes, allocation, origin, alignment, hint);
   local_heap_->SetRetryOfFailedAllocation(false);
   return result;
 }

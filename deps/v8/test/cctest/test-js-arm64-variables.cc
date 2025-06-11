@@ -45,7 +45,7 @@ static void ExpectInt32(Local<v8::Context> context, int32_t expected,
 // Global variables.
 TEST(global_variables) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
 "var x = 0;"
 "function f0() { return x; }"
@@ -57,7 +57,7 @@ TEST(global_variables) {
 // Parameters.
 TEST(parameters) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
 "function f1(x) { return x; }"
 "f1(1);");
@@ -68,7 +68,7 @@ TEST(parameters) {
 // Stack-allocated locals.
 TEST(stack_allocated_locals) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
 "function f2() { var x = 2; return x; }"
 "f2();");
@@ -79,7 +79,7 @@ TEST(stack_allocated_locals) {
 // Context-allocated locals.  Local function forces x into f3's context.
 TEST(context_allocated_locals) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
 "function f3(x) {"
 "  function g() { return x; }"
@@ -93,7 +93,7 @@ TEST(context_allocated_locals) {
 // Local function reads x from an outer context.
 TEST(read_from_outer_context) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
 "function f4(x) {"
 "  function g() { return x; }"
@@ -107,7 +107,7 @@ TEST(read_from_outer_context) {
 // Local function reads x from an outer context.
 TEST(lookup_slots) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
 "function f5(x) {"
 "  with ({}) return x;"

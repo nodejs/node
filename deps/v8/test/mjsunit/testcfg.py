@@ -127,13 +127,13 @@ class TestCase(testcase.D8TestCase):
     return self._source_flags
 
   def _get_files_params(self):
-    files = list(self._source_files)
+    files = []
     if not self.test_config.no_harness:
       files += self._mjsunit_files
+    files += list(self._source_files)
     files += self._files_suffix
     if self.test_config.isolates:
       files += ['--isolate'] + files
-
     return files
 
   def _get_cmd_env(self):

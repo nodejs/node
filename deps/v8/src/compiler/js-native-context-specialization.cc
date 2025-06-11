@@ -177,14 +177,9 @@ Reduction JSNativeContextSpecialization::ReduceJSToString(Node* node) {
   // regressions and the stronger optimization should be re-implemented.
   NumberMatcher number_matcher(input);
   if (number_matcher.HasResolvedValue()) {
-    DirectHandle<Object> num_obj =
-        broker()
-            ->local_isolate_or_isolate()
-            ->factory()
-            ->NewNumber<AllocationType::kOld>(number_matcher.ResolvedValue());
     Handle<String> num_str =
-        broker()->local_isolate_or_isolate()->factory()->NumberToString(
-            num_obj);
+        broker()->local_isolate_or_isolate()->factory()->DoubleToString(
+            number_matcher.ResolvedValue());
     Node* reduced = graph()->NewNode(
         common()->HeapConstant(broker()->CanonicalPersistentHandle(num_str)));
 
@@ -202,11 +197,6 @@ Handle<String> JSNativeContextSpecialization::CreateStringConstant(Node* node) {
   DCHECK(IrOpcode::IsConstantOpcode(node->opcode()));
   NumberMatcher number_matcher(node);
   if (number_matcher.HasResolvedValue()) {
-    DirectHandle<Object> num_obj =
-        broker()
-            ->local_isolate_or_isolate()
-            ->factory()
-            ->NewNumber<AllocationType::kOld>(number_matcher.ResolvedValue());
     // Note that we do not store the result of NumberToString in
     // {created_strings_}, because the latter is used to know if strings are
     // safe to be used in the background, but we always have as additional
@@ -214,8 +204,8 @@ Handle<String> JSNativeContextSpecialization::CreateStringConstant(Node* node) {
     // case), and if this node is a kHeapNumber, then we know that we must have
     // created the string, and that there it is safe to read. So, we don't need
     // {created_strings_} in that case.
-    return broker()->local_isolate_or_isolate()->factory()->NumberToString(
-        num_obj);
+    return broker()->local_isolate_or_isolate()->factory()->DoubleToString(
+        number_matcher.ResolvedValue());
   } else {
     HeapObjectMatcher matcher(node);
     if (matcher.HasResolvedValue() && matcher.Ref(broker()).IsString()) {
@@ -1369,12 +1359,13 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     if (feedback.immutable()) return NoChange();
     Node* effect = n.effect();
     Node* control = n.control();
+    Node* frame_state = n.frame_state();
     Node* script_context =
         jsgraph()->ConstantNoHole(feedback.script_context(), broker());
     if (v8_flags.script_context_cells) {
       effect = control =
           graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
-                           value, script_context, effect, control);
+                           value, script_context, frame_state, effect, control);
     } else {
       effect = graph()->NewNode(
           javascript()->StoreContextNoCell(0, feedback.slot_index()), value,
@@ -1599,7 +1590,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Check for the monomorphic cases.
   if (access_infos.size() == 1) {
-    PropertyAccessInfo access_info = access_infos.front();
+    const PropertyAccessInfo& access_info = access_infos.front();
     if (receiver != lookup_start_object) {
       // Super property access. lookup_start_object is a JSReceiver or
       // null. It can't be a number, a string etc. So trying to build the
@@ -2361,7 +2352,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   // Check for the monomorphic case.
   PropertyAccessBuilder access_builder(jsgraph(), broker());
   if (access_infos.size() == 1) {
-    ElementAccessInfo access_info = access_infos.front();
+    const ElementAccessInfo& access_info = access_infos.front();
 
     if (!access_info.transition_sources().empty()) {
       DCHECK_EQ(access_info.lookup_start_object_maps().size(), 1);
@@ -3088,7 +3079,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
       }
 
     } else {
-      const ZoneVector<MapRef> maps = access_info.lookup_start_object_maps();
+      const ZoneVector<MapRef>& maps = access_info.lookup_start_object_maps();
       DCHECK_EQ(maps.size(), 1);
       value = graph()->NewNode(
           simplified()->TypedArrayLength(maps[0].elements_kind()),
@@ -3475,6 +3466,12 @@ JSNativeContextSpecialization::BuildElementAccess(
   MachineType element_machine_type = MachineType::AnyTagged();
   if (IsDoubleElementsKind(elements_kind)) {
     element_type = Type::Number();
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+      element_type =
+          Type::Union(element_type, Type::Undefined(), graph()->zone());
+    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     element_machine_type = MachineType::Float64();
   } else if (IsSmiElementsKind(elements_kind)) {
     element_type = Type::SignedSmall();
@@ -3537,8 +3534,13 @@ JSNativeContextSpecialization::BuildElementAccess(
           // Return the signaling NaN hole directly if all uses are
           // truncating.
           if (LoadModeHandlesHoles(keyed_mode.load_mode())) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            vtrue = graph()->NewNode(
+                simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), vtrue);
+#else
             vtrue = graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(),
                                      vtrue);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
           } else {
             vtrue = etrue = graph()->NewNode(
                 simplified()->CheckFloat64Hole(
@@ -3587,8 +3589,13 @@ JSNativeContextSpecialization::BuildElementAccess(
           if (LoadModeHandlesHoles(keyed_mode.load_mode())) {
             // Return the signaling NaN hole directly if all uses are
             // truncating.
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            value = graph()->NewNode(
+                simplified()->ChangeFloat64OrUndefinedOrHoleToTagged(), value);
+#else
             value = graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(),
                                      value);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
           } else {
             value = effect = graph()->NewNode(
                 simplified()->CheckFloat64Hole(
@@ -3683,10 +3690,25 @@ JSNativeContextSpecialization::BuildElementAccess(
       value = effect = graph()->NewNode(
           simplified()->CheckSmi(FeedbackSource()), value, effect, control);
     } else if (IsDoubleElementsKind(elements_kind)) {
-      value = effect = graph()->NewNode(
-          simplified()->CheckNumber(FeedbackSource()), value, effect, control);
-      // Make sure we do not store signalling NaNs into double arrays.
-      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+        value = effect = graph()->NewNode(
+            simplified()->CheckNumberOrUndefined(FeedbackSource()), value,
+            effect, control);
+        // Make sure we do not store signalling NaNs other than undefined.
+        value = graph()->NewNode(
+            simplified()->NumberSilenceNaN(SilenceNanMode::kPreserveUndefined),
+            value);
+      } else {
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        value = effect =
+            graph()->NewNode(simplified()->CheckNumber(FeedbackSource()), value,
+                             effect, control);
+        // Make sure we do not store signalling NaNs into double arrays.
+        value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     }
 
     // Ensure that copy-on-write backing store is writable.

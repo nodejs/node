@@ -118,7 +118,7 @@ struct UnsignedOrFloatForSize;
 template <typename Numeric>
   requires(std::integral<Numeric>)
 struct UnsignedOrFloatForSize<Numeric> {
-  using type = typename std::make_unsigned<Numeric>::type;
+  using type = std::make_unsigned_t<Numeric>;
 };
 
 template <typename Numeric>
@@ -135,7 +135,7 @@ struct UnsignedOrFloatForSize<Numeric> {
 template <typename T>
   requires(std::integral<T>)
 constexpr T NegateWrapper(T value) {
-  using UnsignedT = typename std::make_unsigned<T>::type;
+  using UnsignedT = std::make_unsigned_t<T>;
   // This will compile to a NEG on Intel, and is normal negation on ARM.
   return static_cast<T>(UnsignedT(0) - static_cast<UnsignedT>(value));
 }
@@ -148,7 +148,7 @@ constexpr T NegateWrapper(T value) {
 
 template <typename T>
   requires(std::integral<T>)
-constexpr typename std::make_unsigned<T>::type InvertWrapper(T value) {
+constexpr std::make_unsigned_t<T> InvertWrapper(T value) {
   return ~value;
 }
 

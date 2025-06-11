@@ -34,11 +34,12 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
       uint32_t backtrack_limit = kNoBacktrackLimit);
 
   static MaybeDirectHandle<JSRegExp> Initialize(
-      DirectHandle<JSRegExp> regexp, DirectHandle<String> source, Flags flags,
+      Isolate* isolate, DirectHandle<JSRegExp> regexp,
+      DirectHandle<String> source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
   static MaybeDirectHandle<JSRegExp> Initialize(
-      DirectHandle<JSRegExp> regexp, DirectHandle<String> source,
-      DirectHandle<String> flags_string);
+      Isolate* isolate, DirectHandle<JSRegExp> regexp,
+      DirectHandle<String> source, DirectHandle<String> flags_string);
 
   DECL_ACCESSORS(last_index, Tagged<Object>)
 

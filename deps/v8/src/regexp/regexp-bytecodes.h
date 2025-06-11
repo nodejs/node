@@ -53,7 +53,7 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
   /* 0x00 - 0x07:   0x10 (fixed) Bytecode                                   */ \
   /* 0x08 - 0x1F:   0x00 (unused) Padding                                   */ \
   /* 0x20 - 0x3F:   Address of bytecode to jump to                          */ \
-  V(GOTO, 16, 8) /* bc8 pad24 addr32                           */              \
+  V(GOTO, 16, 8) /* bc8 pad24 addr32                                        */ \
   /* Check if offset is in range and load character at given offset.        */ \
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x11 (fixed) Bytecode                                   */ \
@@ -64,22 +64,22 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x12 (fixed) Bytecode                                   */ \
   /* 0x08 - 0x1F:   Offset from current position                            */ \
-  V(LOAD_CURRENT_CHAR_UNCHECKED, 18, 4)    /* bc8 offset24 */                  \
-  V(LOAD_2_CURRENT_CHARS, 19, 8)           /* bc8 offset24 addr32 */           \
-  V(LOAD_2_CURRENT_CHARS_UNCHECKED, 20, 4) /* bc8 offset24 */                  \
-  V(LOAD_4_CURRENT_CHARS, 21, 8)           /* bc8 offset24 addr32 */           \
-  V(LOAD_4_CURRENT_CHARS_UNCHECKED, 22, 4) /* bc8 offset24 */                  \
-  V(CHECK_4_CHARS, 23, 12) /* bc8 pad24 uint32 addr32                    */    \
+  V(LOAD_CURRENT_CHAR_UNCHECKED, 18, 4)    /* bc8 offset24                  */ \
+  V(LOAD_2_CURRENT_CHARS, 19, 8)           /* bc8 offset24 addr32           */ \
+  V(LOAD_2_CURRENT_CHARS_UNCHECKED, 20, 4) /* bc8 offset24                  */ \
+  V(LOAD_4_CURRENT_CHARS, 21, 8)           /* bc8 offset24 addr32           */ \
+  V(LOAD_4_CURRENT_CHARS_UNCHECKED, 22, 4) /* bc8 offset24                  */ \
+  V(CHECK_4_CHARS, 23, 12)                 /* bc8 pad24 uint32 addr32       */ \
   /* Check if current character is equal to a given character               */ \
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x19 (fixed) Bytecode                                   */ \
   /* 0x08 - 0x0F:   0x00 (unused) Padding                                   */ \
   /* 0x10 - 0x1F:   Character to check                                      */ \
   /* 0x20 - 0x3F:   Address of bytecode when matched                        */ \
-  V(CHECK_CHAR, 24, 8) /* bc8 pad8 uint16 addr32                     */        \
-  V(CHECK_NOT_4_CHARS, 25, 12) /* bc8 pad24 uint32 addr32 */                   \
-  V(CHECK_NOT_CHAR, 26, 8) /* bc8 pad8 uint16 addr32                     */    \
-  V(AND_CHECK_4_CHARS, 27, 16) /* bc8 pad24 uint32 uint32 addr32 */            \
+  V(CHECK_CHAR, 24, 8)         /* bc8 pad8 uint16 addr32                    */ \
+  V(CHECK_NOT_4_CHARS, 25, 12) /* bc8 pad24 uint32 addr32                   */ \
+  V(CHECK_NOT_CHAR, 26, 8)     /* bc8 pad8 uint16 addr32                    */ \
+  V(AND_CHECK_4_CHARS, 27, 16) /* bc8 pad24 uint32 uint32 addr32            */ \
   /* Checks if the current character combined with mask (bitwise and)       */ \
   /* matches a character (e.g. used when two characters in a disjunction    */ \
   /* differ by only a single bit                                            */ \
@@ -89,14 +89,14 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
   /* 0x10 - 0x1F:   Character to match against (after mask aplied)          */ \
   /* 0x20 - 0x3F:   Bitmask bitwise and combined with current character     */ \
   /* 0x40 - 0x5F:   Address of bytecode when matched                        */ \
-  V(AND_CHECK_CHAR, 28, 12)        /* bc8 pad8 uint16 uint32 addr32      */    \
-  V(AND_CHECK_NOT_4_CHARS, 29, 16) /* bc8 pad24 uint32 uint32 addr32 */        \
-  V(AND_CHECK_NOT_CHAR, 30, 12)    /* bc8 pad8 uint16 uint32 addr32 */         \
+  V(AND_CHECK_CHAR, 28, 12)        /* bc8 pad8 uint16 uint32 addr32         */ \
+  V(AND_CHECK_NOT_4_CHARS, 29, 16) /* bc8 pad24 uint32 uint32 addr32        */ \
+  V(AND_CHECK_NOT_CHAR, 30, 12)    /* bc8 pad8 uint16 uint32 addr32         */ \
   V(MINUS_AND_CHECK_NOT_CHAR, 31,                                              \
-    12) /* bc8 pad8 base::uc16 base::uc16 base::uc16 addr32 */                 \
-  V(CHECK_CHAR_IN_RANGE, 32, 12) /* bc8 pad24 base::uc16 base::uc16 addr32 */  \
+    12) /* bc8 pad8 base::uc16 base::uc16 base::uc16 addr32                 */ \
+  V(CHECK_CHAR_IN_RANGE, 32, 12) /* bc8 pad24 base::uc16 base::uc16 addr32  */ \
   V(CHECK_CHAR_NOT_IN_RANGE, 33,                                               \
-    12) /* bc8 pad24 base::uc16 base::uc16 addr32 */                           \
+    12) /* bc8 pad24 base::uc16 base::uc16 addr32                           */ \
   /* Checks if the current character matches any of the characters encoded  */ \
   /* in a bit table. Similar to/inspired by boyer moore string search       */ \
   /* Bit Layout:                                                            */ \
@@ -104,40 +104,40 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
   /* 0x08 - 0x1F:   0x00 (unused) Padding                                   */ \
   /* 0x20 - 0x3F:   Address of bytecode when bit is set                     */ \
   /* 0x40 - 0xBF:   Bit table                                               */ \
-  V(CHECK_BIT_IN_TABLE, 34, 24) /* bc8 pad24 addr32 bits128           */       \
-  V(CHECK_LT, 35, 8) /* bc8 pad8 base::uc16 addr32                       */    \
-  V(CHECK_GT, 36, 8) /* bc8 pad8 base::uc16 addr32                       */    \
-  V(CHECK_NOT_BACK_REF, 37, 8)         /* bc8 reg_idx24 addr32 */              \
-  V(CHECK_NOT_BACK_REF_NO_CASE, 38, 8) /* bc8 reg_idx24 addr32 */              \
+  V(CHECK_BIT_IN_TABLE, 34, 24)        /* bc8 pad24 addr32 bits128          */ \
+  V(CHECK_LT, 35, 8)                   /* bc8 pad8 base::uc16 addr32        */ \
+  V(CHECK_GT, 36, 8)                   /* bc8 pad8 base::uc16 addr32        */ \
+  V(CHECK_NOT_BACK_REF, 37, 8)         /* bc8 reg_idx24 addr32              */ \
+  V(CHECK_NOT_BACK_REF_NO_CASE, 38, 8) /* bc8 reg_idx24 addr32              */ \
   V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE, 39, 8)                                 \
-  V(CHECK_NOT_BACK_REF_BACKWARD, 40, 8)         /* bc8 reg_idx24 addr32 */     \
-  V(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD, 41, 8) /* bc8 reg_idx24 addr32 */     \
+  V(CHECK_NOT_BACK_REF_BACKWARD, 40, 8)         /* bc8 reg_idx24 addr32     */ \
+  V(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD, 41, 8) /* bc8 reg_idx24 addr32     */ \
   V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD, 42, 8)                        \
-  V(CHECK_NOT_REGS_EQUAL, 43, 12) /* bc8 regidx24 reg_idx32 addr32 */          \
-  V(CHECK_REGISTER_LT, 44, 12)    /* bc8 reg_idx24 value32 addr32 */           \
-  V(CHECK_REGISTER_GE, 45, 12)    /* bc8 reg_idx24 value32 addr32 */           \
-  V(CHECK_REGISTER_EQ_POS, 46, 8) /* bc8 reg_idx24 addr32 */                   \
-  V(CHECK_AT_START, 47, 8) /* bc8 pad24 addr32                           */    \
-  V(CHECK_NOT_AT_START, 48, 8) /* bc8 offset24 addr32 */                       \
+  V(CHECK_NOT_REGS_EQUAL, 43, 12) /* bc8 regidx24 reg_idx32 addr32          */ \
+  V(CHECK_REGISTER_LT, 44, 12)    /* bc8 reg_idx24 value32 addr32           */ \
+  V(CHECK_REGISTER_GE, 45, 12)    /* bc8 reg_idx24 value32 addr32           */ \
+  V(CHECK_REGISTER_EQ_POS, 46, 8) /* bc8 reg_idx24 addr32                   */ \
+  V(CHECK_AT_START, 47, 8)        /* bc8 pad24 addr32                       */ \
+  V(CHECK_NOT_AT_START, 48, 8)    /* bc8 offset24 addr32                    */ \
   /* Checks if the current position matches top of backtrack stack          */ \
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x31 (fixed) Bytecode                                   */ \
   /* 0x08 - 0x1F:   0x00 (unused) Padding                                   */ \
   /* 0x20 - 0x3F:   Address of bytecode when current matches tos            */ \
-  V(CHECK_GREEDY, 49, 8) /* bc8 pad24 addr32                           */      \
+  V(CHECK_FIXED_LENGTH, 49, 8) /* bc8 pad24 addr32                          */ \
   /* Advance character pointer by given offset and jump to another bytecode.*/ \
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x32 (fixed) Bytecode                                   */ \
   /* 0x08 - 0x1F:   Number of characters to advance                         */ \
   /* 0x20 - 0x3F:   Address of bytecode to jump to                          */ \
-  V(ADVANCE_CP_AND_GOTO, 50, 8) /* bc8 offset24 addr32                    */   \
-  V(SET_CURRENT_POSITION_FROM_END, 51, 4) /* bc8 idx24 */                      \
+  V(ADVANCE_CP_AND_GOTO, 50, 8)           /* bc8 offset24 addr32            */ \
+  V(SET_CURRENT_POSITION_FROM_END, 51, 4) /* bc8 idx24                      */ \
   /* Checks if current position + given offset is in range.                 */ \
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x34 (fixed) Bytecode                                   */ \
   /* 0x08 - 0x1F:   Offset from current position                            */ \
   /* 0x20 - 0x3F:   Address of bytecode when position is out of range       */ \
-  V(CHECK_CURRENT_POSITION, 52, 8) /* bc8 idx24 addr32                     */  \
+  V(CHECK_CURRENT_POSITION, 52, 8) /* bc8 idx24 addr32                      */ \
   /* Combination of:                                                        */ \
   /* LOAD_CURRENT_CHAR, CHECK_BIT_IN_TABLE and ADVANCE_CP_AND_GOTO          */ \
   /* Emitted by RegExpBytecodePeepholeOptimization.                         */ \

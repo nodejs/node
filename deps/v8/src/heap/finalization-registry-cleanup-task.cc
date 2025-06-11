@@ -42,6 +42,9 @@ void FinalizationRegistryCleanupTask::RunInternal() {
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8",
                                 "V8.FinalizationRegistryCleanupTask");
 
+  // First clear that the task is posted in case of early returns below.
+  heap_->set_is_finalization_registry_cleanup_task_posted(false);
+
   HandleScope handle_scope(isolate);
   DirectHandle<JSFinalizationRegistry> finalization_registry;
   // There could be no dirty FinalizationRegistries. When a context is disposed
@@ -93,7 +96,6 @@ void FinalizationRegistryCleanupTask::RunInternal() {
   }
 
   // Repost if there are remaining dirty FinalizationRegistries.
-  heap_->set_is_finalization_registry_cleanup_task_posted(false);
   heap_->PostFinalizationRegistryCleanupTaskIfNeeded();
 }
 

@@ -813,10 +813,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchPrepareTailCall:
       AssemblePrepareTailCall();
       break;
-    case kArchCallCFunctionWithFrameState:
     case kArchCallCFunction: {
-      int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      uint32_t param_counts = i.InputUint32(instr->InputCount() - 1);
+      int const num_gp_parameters = ParamField::decode(param_counts);
+      int const num_fp_parameters = FPParamField::decode(param_counts);
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
       Label return_location;
 #if V8_ENABLE_WEBASSEMBLY
@@ -843,9 +843,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       RecordSafepoint(instr->reference_map(), pc_offset);
 
-      bool const needs_frame_state =
-          (arch_opcode == kArchCallCFunctionWithFrameState);
-      if (needs_frame_state) {
+      if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
+        handlers_.push_back({nullptr, pc_offset});
+      }
+      if (instr->HasCallDescriptorFlag(CallDescriptor::kNeedsFrameState)) {
         RecordDeoptInfo(instr, pc_offset);
       }
 
@@ -895,7 +896,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                        SourceLocation());
       break;
     case kArchNop:
-    case kArchThrowTerminator:
       // don't emit code for nops.
       break;
     case kArchDeoptimize: {
@@ -919,16 +919,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    case kArchStackPointerGreaterThan: {
-      Register lhs_register = sp;
-      uint32_t offset;
-      if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
-        lhs_register = i.TempRegister(1);
-        __ Sub_d(lhs_register, sp, offset);
-      }
-      __ Sltu(i.TempRegister(0), i.InputRegister(0), lhs_register);
+    case kArchStackPointerGreaterThan:
+      // Pseudo-instruction used for cmp/branch. No codes emitted here.
       break;
-    }
     case kArchStackCheckOffset:
       __ Move(i.OutputRegister(), Smi::FromInt(GetStackCheckOffset()));
       break;
@@ -989,6 +982,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchAtomicStoreWithWriteBarrier: {
+      MacroAssembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
       // Indirect pointer writes must use a different opcode.
       DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
@@ -998,7 +992,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       auto ool = zone()->New<OutOfLineRecordWrite>(
           this, object, Operand(offset), value, mode, DetermineStubCallMode());
-      __ AtomicStoreTaggedField(value, MemOperand(object, offset));
+      MemOperand dst_op = MemOperand(object, offset);
+      __ dbar(0);
+      if (COMPRESS_POINTERS_BOOL) {
+        __ St_w(value, dst_op);
+      } else {
+        __ St_d(value, dst_op);
+      }
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr,
+                             __ pc_offset() - kInstrSize);
       // Skip the write barrier if the value is a Smi. However, this is only
       // valid if the value isn't an indirect pointer. Otherwise the value will
       // be a pointer table index, which will always look like a Smi (but
@@ -1806,9 +1808,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64AtomicLoadDecompressTaggedSigned:
       __ AtomicDecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kLoong64AtomicLoadDecompressTagged:
-      __ AtomicDecompressTagged(i.OutputRegister(), i.MemoryOperand());
+    case kLoong64AtomicLoadDecompressTagged: {
+      const int pc_offset =
+          __ AtomicDecompressTagged(i.OutputRegister(), i.MemoryOperand());
+      RecordTrapInfoIfNeeded(zone(), this, opcode, instr, pc_offset);
       break;
+    }
     case kLoong64AtomicStoreCompressTagged: {
       size_t index = 0;
       MemOperand mem = i.MemoryOperand(&index);
@@ -2269,10 +2274,13 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
     Condition cc = FlagsConditionToConditionCmp(condition);
     DCHECK((cc == ls) || (cc == hi));
-    if (cc == ls) {
-      __ xori(i.TempRegister(0), i.TempRegister(0), 1);
+    Register lhs_register = sp;
+    uint32_t offset;
+    if (gen->ShouldApplyOffsetToStackCheck(instr, &offset)) {
+      lhs_register = i.TempRegister(1);
+      __ Sub_d(lhs_register, sp, offset);
     }
-    __ Branch(tlabel, ne, i.TempRegister(0), Operand(zero_reg));
+    __ Branch(tlabel, cc, lhs_register, Operand(i.InputRegister(0)));
   } else if (instr->arch_opcode() == kLoong64Float32Cmp ||
              instr->arch_opcode() == kLoong64Float64Cmp) {
     bool predicate;
@@ -2406,8 +2414,15 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   } else if (instr->arch_opcode() == kArchStackPointerGreaterThan) {
     Condition cc = FlagsConditionToConditionCmp(condition);
     DCHECK((cc == ls) || (cc == hi));
+    Register lhs_register = sp;
+    uint32_t offset;
+    if (ShouldApplyOffsetToStackCheck(instr, &offset)) {
+      lhs_register = i.TempRegister(1);
+      __ Sub_d(lhs_register, sp, offset);
+    }
+    __ sltu(i.OutputRegister(), i.InputRegister(0), lhs_register);
     if (cc == ls) {
-      __ xori(i.OutputRegister(), i.TempRegister(0), 1);
+      __ xori(i.OutputRegister(), i.OutputRegister(), 1);
     }
     return;
   } else {

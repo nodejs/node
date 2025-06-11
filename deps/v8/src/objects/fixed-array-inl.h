@@ -393,7 +393,10 @@ constexpr int TaggedArrayBase<D, S, P>::NewCapacityForIndex(int index,
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
-NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
+inline int WeakArrayList::capacity(RelaxedLoadTag) const {
+  int value = TaggedField<Smi>::Relaxed_Load(*this, kCapacityOffset).value();
+  return value;
+}
 
 bool FixedArray::is_the_hole(Isolate* isolate, int index) {
   return IsTheHole(get(index), isolate);
@@ -437,7 +440,9 @@ Handle<FixedArray> FixedArray::Resize(Isolate* isolate,
   return ys;
 }
 
-inline int WeakArrayList::AllocatedSize() const { return SizeFor(capacity()); }
+inline int WeakArrayList::AllocatedSize() const {
+  return SizeFor(capacity(kRelaxedLoad));
+}
 
 template <class D, class S, class P>
 bool PrimitiveArrayBase<D, S, P>::IsInBounds(int index) const {
@@ -566,9 +571,6 @@ Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
 
 void FixedDoubleArray::set(int index, double value) {
   if (std::isnan(value)) {
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    DCHECK(!IsUndefinedNan(value));
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     value = std::numeric_limits<double>::quiet_NaN();
   }
   values()[index].set_value(value);
@@ -841,13 +843,13 @@ Address FixedIntegerArrayBase<T, Base>::get_element_address(int index) const {
 
 template <typename T, typename Base>
 T FixedIntegerArrayBase<T, Base>::get(int index) const {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
   return base::ReadUnalignedValue<T>(get_element_address(index));
 }
 
 template <typename T, typename Base>
 void FixedIntegerArrayBase<T, Base>::set(int index, T value) {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
   return base::WriteUnalignedValue<T>(get_element_address(index), value);
 }
 

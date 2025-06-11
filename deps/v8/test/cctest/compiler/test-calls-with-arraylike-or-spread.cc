@@ -17,7 +17,7 @@ void CompileRunWithNodeObserver(const std::string& js_code,
                                 IrOpcode::Value updated_call_opcode1,
                                 IrOpcode::Value updated_call_opcode2) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8_flags.allow_natives_syntax = true;
@@ -144,7 +144,7 @@ static void SumF(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 TEST(ReduceCAPICallWithArrayLike) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   v8_flags.allow_natives_syntax = true;

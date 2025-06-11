@@ -51,7 +51,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   set_raw_outer_scope_info_or_feedback_metadata(ro_roots.the_hole_value(),
                                                 SKIP_WRITE_BARRIER);
   set_script(ro_roots.undefined_value(), kReleaseStore, SKIP_WRITE_BARRIER);
-  set_function_literal_id(kInvalidInfoId);
+  set_function_literal_id(kInvalidInfoId, kRelaxedStore);
   set_unique_id(unique_id);
 
   // Set integer fields (smi or int, depending on the architecture).
@@ -250,7 +250,8 @@ void SharedFunctionInfo::CopyFrom(Tagged<SharedFunctionInfo> other,
   set_expected_nof_properties(other->expected_nof_properties());
   set_flags2(other->flags2());
   set_flags(other->flags(kRelaxedLoad), kRelaxedStore);
-  set_function_literal_id(other->function_literal_id());
+  set_function_literal_id(other->function_literal_id(kRelaxedLoad),
+                          kRelaxedStore);
   set_unique_id(other->unique_id());
   set_age(0);
 
@@ -280,7 +281,8 @@ bool SharedFunctionInfo::HasDebugInfo(Isolate* isolate) const {
 int SharedFunctionInfo::UniqueIdInScript() const {
   // Script scopes start "before" the script to avoid clashing with a scope that
   // starts on character 0.
-  if (function_literal_id() == kFunctionLiteralIdTopLevel) return -2;
+  if (function_literal_id(kRelaxedLoad) == kFunctionLiteralIdTopLevel)
+    return -2;
   // Wrapped functions start before the function body, but after the script
   // start, to avoid clashing with a scope starting on character 0.
   if (syntax_kind() == FunctionSyntaxKind::kWrapped) return -1;
@@ -545,7 +547,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(IsolateT* isolate,
   {
     DisallowGarbageCollection no_gc;
     Tagged<SharedFunctionInfo> raw_sfi = *lit->shared_function_info();
-    DCHECK_EQ(raw_sfi->function_literal_id(), lit->function_literal_id());
+    DCHECK_EQ(raw_sfi->function_literal_id(kRelaxedLoad),
+              lit->function_literal_id());
     // When adding fields here, make sure DeclarationScope::AnalyzePartially is
     // updated accordingly.
     raw_sfi->set_internal_formal_parameter_count(

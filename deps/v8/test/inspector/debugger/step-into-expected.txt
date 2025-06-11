@@ -332,11 +332,6 @@ function testForOfLoop() {
   for (var k of [1]) k;
 
 break at:
-function testForOfLoop() {
-  for (var #k of []) {}
-  for (var k of [1]) k;
-
-break at:
   for (var k of []) {}
   for (var k of #[1]) k;
   var a = [];
@@ -352,11 +347,6 @@ break at:
   var a = [];
 
 break at:
-  for (var k of []) {}
-  for (var #k of [1]) k;
-  var a = [];
-
-break at:
   for (var k of [1]) k;
   var a = #[];
   for (var k of a) {}
@@ -367,14 +357,16 @@ break at:
 }
 
 break at:
-  var a = [];
-  for (var #k of a) {}
-}
-
-break at:
   for (var k of a) {}
 #}
 
+
+
+Running test: testPromiseForAwaitLoop
+break at:
+async function testPromiseForAwaitLoop() {
+  for await (var k of #[]) { }
+  for await (var k of [Promise.resolve(1)]) k;
 
 
 Running test: testForInLoop
@@ -389,18 +381,8 @@ break at:
   for (var k in o) k;
 
 break at:
-  var o = {};
-  for (var #k in o) {}
-  for (var k in o) k;
-
-break at:
   for (var k in o) {}
   for (var k in #o) k;
-  for (var k in { a:1 }) {}
-
-break at:
-  for (var k in o) {}
-  for (var #k in o) k;
   for (var k in { a:1 }) {}
 
 break at:
@@ -426,11 +408,6 @@ break at:
 break at:
   for (var k in { a:1 }) {}
   for (var k in { a:1 }) #k;
-}
-
-break at:
-  for (var k in { a:1 }) {}
-  for (var #k in { a:1 }) k;
 }
 
 break at:

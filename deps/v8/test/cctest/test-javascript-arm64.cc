@@ -36,7 +36,7 @@ namespace test_javascript_arm64 {
 static void ExpectBoolean(Local<v8::Context> context, bool expected,
                           Local<Value> result) {
   CHECK(result->IsBoolean());
-  CHECK_EQ(expected, result->BooleanValue(context->GetIsolate()));
+  CHECK_EQ(expected, result.As<v8::Boolean>()->Value());
 }
 
 static void ExpectInt32(Local<v8::Context> context, int32_t expected,
@@ -61,7 +61,7 @@ static void ExpectUndefined(Local<Value> result) {
 
 TEST(simple_value) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun("0x271828;");
   ExpectInt32(env.local(), 0x271828, result);
 }
@@ -69,7 +69,7 @@ TEST(simple_value) {
 
 TEST(global_variable) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun("var my_global_var = 0x123; my_global_var;");
   ExpectInt32(env.local(), 0x123, result);
 }
@@ -77,7 +77,7 @@ TEST(global_variable) {
 
 TEST(simple_function_call) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
       "function foo() { return 0x314; }"
       "foo();");
@@ -87,7 +87,7 @@ TEST(simple_function_call) {
 
 TEST(binary_op) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result = CompileRun(
       "function foo() {"
       "  var a = 0x1200;"
@@ -144,7 +144,7 @@ static void if_comparison_helper(Local<v8::Context> context, char const* op,
 
 TEST(if_comparison) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
 
   if_comparison_helper(env.local(), "<", 1, 0, 0);
   if_comparison_helper(env.local(), "<=", 1, 1, 0);
@@ -159,7 +159,7 @@ TEST(if_comparison) {
 
 TEST(unary_plus) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result;
   // SMI
   result = CompileRun("var a = 1234; +a");
@@ -181,7 +181,7 @@ TEST(unary_plus) {
 
 TEST(unary_minus) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result;
   result = CompileRun("var a = 1234; -a");
   ExpectInt32(env.local(), -1234, result);
@@ -198,7 +198,7 @@ TEST(unary_minus) {
 
 TEST(unary_void) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result;
   result = CompileRun("var a = 1234; void (a);");
   ExpectUndefined(result);
@@ -211,7 +211,7 @@ TEST(unary_void) {
 
 TEST(unary_not) {
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
+  v8::HandleScope scope(env.isolate());
   Local<Value> result;
   result = CompileRun("var a = 1234; !a");
   ExpectBoolean(env.local(), false, result);

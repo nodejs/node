@@ -49,6 +49,9 @@ V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
 V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     Zone*, base::Vector<const uint8_t> data, std::vector<std::string>& callees,
     std::vector<std::string>& inlinees);
+
+V8_EXPORT_PRIVATE base::Vector<uint8_t> GenerateWasmModuleForRevec(
+    Zone*, base::Vector<const uint8_t> data);
 #endif
 
 }  // namespace v8::internal::wasm::fuzzing

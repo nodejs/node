@@ -29,7 +29,6 @@
 #include "src/objects/templates-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -155,6 +154,12 @@ bool SharedFunctionInfo::HasTrustedData() const {
   return !IsTrustedPointerFieldEmpty(kTrustedFunctionDataOffset);
 }
 
+bool SharedFunctionInfo::HasUnpublishedTrustedData(
+    IsolateForSandbox isolate) const {
+  return IsTrustedPointerFieldUnpublished(kTrustedFunctionDataOffset,
+                                          kUnknownIndirectPointerTag, isolate);
+}
+
 bool SharedFunctionInfo::HasUntrustedData() const { return !HasTrustedData(); }
 
 Tagged<Object> SharedFunctionInfo::GetTrustedData(
@@ -232,6 +237,8 @@ RENAME_PRIMITIVE_TORQUE_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                                   function_token_offset, uint16_t)
 
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
+RELAXED_INT32_ACCESSORS(SharedFunctionInfo, function_literal_id,
+                        kFunctionLiteralIdOffset)
 int32_t SharedFunctionInfo::relaxed_flags() const {
   return flags(kRelaxedLoad);
 }
@@ -313,7 +320,7 @@ bool SharedFunctionInfo::AreSourcePositionsAvailable(IsolateT* isolate) const {
 
 template <typename IsolateT>
 SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
-    IsolateT* isolate) const {
+    CodeKind code_kind, IsolateT* isolate) const {
   if (!IsScript(script())) return kHasNoScript;
 
   if (isolate->is_precise_binary_code_coverage() &&
@@ -345,7 +352,7 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
     }
   }
 
-  if (optimization_disabled()) return kHasOptimizationDisabled;
+  if (optimization_disabled(code_kind)) return kHasOptimizationDisabled;
 
   return kIsInlineable;
 }
@@ -402,8 +409,19 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, live_edited,
                     SharedFunctionInfo::LiveEditedBit)
 
-bool SharedFunctionInfo::optimization_disabled() const {
-  return disabled_optimization_reason() != BailoutReason::kNoReason;
+bool SharedFunctionInfo::optimization_disabled(CodeKind kind) const {
+  switch (kind) {
+    case CodeKind::MAGLEV:
+      return IsTerminalBailoutReasonForMaglev(disabled_optimization_reason());
+    case CodeKind::TURBOFAN_JS:
+      return IsTerminalBailoutReasonForTurbofan(disabled_optimization_reason());
+    default:
+      UNREACHABLE();
+  }
+}
+
+bool SharedFunctionInfo::all_optimization_disabled() const {
+  return IsTerminalBailoutReason(disabled_optimization_reason());
 }
 
 BailoutReason SharedFunctionInfo::disabled_optimization_reason() const {
@@ -719,6 +737,17 @@ IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
 
   DCHECK_IMPLIES(!retain_code_.is_null(), is_compiled());
   DCHECK_EQ(shared->is_compiled(), is_compiled());
+}
+
+IsBaselineCompiledScope::IsBaselineCompiledScope(
+    const Tagged<SharedFunctionInfo> shared, Isolate* isolate) {
+  Tagged<Object> data_obj = shared->GetTrustedData();
+  if (IsCode(data_obj)) {
+    Tagged<Code> code = Cast<Code>(data_obj);
+    DCHECK_EQ(code->kind(), CodeKind::BASELINE);
+    retain_code_ = handle(code, isolate);
+    is_compiled_ = true;
+  }
 }
 
 bool SharedFunctionInfo::has_simple_parameters() {

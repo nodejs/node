@@ -17,7 +17,6 @@
 #include "src/wasm/constant-expression-interface.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/module-decoder.h"
-#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/well-known-imports.h"
@@ -37,6 +36,8 @@ constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 constexpr char kBuildIdString[] = "build_id";
+// TODO(403372470): Rename to "descriptors" when finalized.
+constexpr char kDescriptorsString[] = "experimental-descriptors";
 
 inline const char* ExternalKindName(ImportExportKindCode kind) {
   switch (kind) {
@@ -145,7 +146,8 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder,
       {base::StaticCharVector(kDebugInfoString), kDebugInfoSectionCode},
       {base::StaticCharVector(kExternalDebugInfoString),
        kExternalDebugInfoSectionCode},
-      {base::StaticCharVector(kBuildIdString), kBuildIdSectionCode}};
+      {base::StaticCharVector(kBuildIdString), kBuildIdSectionCode},
+      {base::StaticCharVector(kDescriptorsString), kDescriptorsSectionCode}};
 
   auto name_vec = base::Vector<const char>::cast(
       base::VectorOf(section_name_start, string.length()));
@@ -513,6 +515,9 @@ class ModuleDecoderImpl : public Decoder {
           consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
         }
         break;
+      case kDescriptorsSectionCode:
+        DecodeDescriptorsSection();
+        break;
       case kDataCountSectionCode:
         DecodeDataCountSection();
         break;
@@ -555,9 +560,9 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  TypeDefinition consume_base_type_definition(bool is_descriptor) {
+  TypeDefinition consume_base_type_definition(bool is_descriptor,
+                                              bool is_shared) {
     const bool is_final = true;
-    const bool shared = false;
     uint8_t kind = consume_u8(" kind", tracer_);
     if (tracer_) {
       tracer_->Description(": ");
@@ -571,17 +576,17 @@ class ModuleDecoderImpl : public Decoder {
           return {};
         }
 
-        return {sig, kNoSuperType, is_final, shared};
+        return {sig, kNoSuperType, is_final, is_shared};
       }
       case kWasmStructTypeCode: {
         module_->is_wasm_gc = true;
         const StructType* type =
-            consume_struct(&module_->signature_zone, is_descriptor);
+            consume_struct(&module_->signature_zone, is_descriptor, is_shared);
         if (type == nullptr) {
           CHECK(!ok());
           return {};
         }
-        return {type, kNoSuperType, is_final, shared};
+        return {type, kNoSuperType, is_final, is_shared};
       }
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
@@ -590,7 +595,7 @@ class ModuleDecoderImpl : public Decoder {
           CHECK(!ok());
           return {};
         }
-        return {type, kNoSuperType, is_final, shared};
+        return {type, kNoSuperType, is_final, is_shared};
       }
       case kWasmContTypeCode: {
         if (!enabled_features_.has_wasmfx()) {
@@ -609,7 +614,7 @@ class ModuleDecoderImpl : public Decoder {
         }
 
         ContType* type = module_->signature_zone.New<ContType>(hp.ref_index());
-        return {type, kNoSuperType, is_final, shared};
+        return {type, kNoSuperType, is_final, is_shared};
       }
       default:
         if (tracer_) tracer_->NextLine();
@@ -618,7 +623,7 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  TypeDefinition consume_described_type(bool is_descriptor) {
+  TypeDefinition consume_described_type(bool is_descriptor, bool is_shared) {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmDescriptorCode) {
       if (!enabled_features_.has_custom_descriptors()) {
@@ -635,7 +640,8 @@ class ModuleDecoderImpl : public Decoder {
         return {};
       }
       if (tracer_) tracer_->NextLine();
-      TypeDefinition type = consume_base_type_definition(is_descriptor);
+      TypeDefinition type =
+          consume_base_type_definition(is_descriptor, is_shared);
       if (type.kind != TypeDefinition::kStruct) {
         error(pos - 1, "'descriptor' may only be used with structs");
         return {};
@@ -643,11 +649,12 @@ class ModuleDecoderImpl : public Decoder {
       type.descriptor = ModuleTypeIndex{descriptor};
       return type;
     } else {
-      return consume_base_type_definition(is_descriptor);
+      return consume_base_type_definition(is_descriptor, is_shared);
     }
   }
 
-  TypeDefinition consume_describing_type(size_t current_type_index) {
+  TypeDefinition consume_describing_type(size_t current_type_index,
+                                         bool is_shared) {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmDescribesCode) {
       if (!enabled_features_.has_custom_descriptors()) {
@@ -664,7 +671,7 @@ class ModuleDecoderImpl : public Decoder {
         return {};
       }
       if (tracer_) tracer_->NextLine();
-      TypeDefinition type = consume_described_type(true);
+      TypeDefinition type = consume_described_type(true, is_shared);
       if (type.kind != TypeDefinition::kStruct) {
         error(pos - 1, "'describes' may only be used with structs");
         return {};
@@ -672,14 +679,14 @@ class ModuleDecoderImpl : public Decoder {
       type.describes = ModuleTypeIndex{describes};
       return type;
     } else {
-      return consume_described_type(false);
+      return consume_described_type(false, is_shared);
     }
   }
 
   TypeDefinition consume_shared_type(size_t current_type_index) {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kSharedFlagCode) {
-      if (!v8_flags.experimental_wasm_shared) {
+      if (!enabled_features_.has_shared()) {
         errorf(pc() - 1,
                "unknown type form: %d, enable with --experimental-wasm-shared",
                kind);
@@ -687,17 +694,17 @@ class ModuleDecoderImpl : public Decoder {
       }
       module_->has_shared_part = true;
       consume_bytes(1, " shared", tracer_);
-      TypeDefinition type = consume_describing_type(current_type_index);
+      TypeDefinition type = consume_describing_type(current_type_index, true);
+      DCHECK(type.is_shared);
       if (type.kind == TypeDefinition::kFunction ||
           type.kind == TypeDefinition::kCont) {
         // TODO(42204563): Support shared functions/continuations.
         error(pc() - 1, "shared functions/continuations are not supported yet");
         return {};
       }
-      type.is_shared = true;
       return type;
     } else {
-      return consume_describing_type(current_type_index);
+      return consume_describing_type(current_type_index, false);
     }
   }
 
@@ -795,7 +802,7 @@ class ModuleDecoderImpl : public Decoder {
             value_type_reader::Populate(&storage[j], module);
             ValueType type = storage[j];
             if (is_shared && !type.is_shared()) {
-              DCHECK(v8_flags.experimental_wasm_shared);
+              DCHECK(enabled_features_.has_shared());
               uint32_t retcount =
                   static_cast<uint32_t>(type_def.function_sig->return_count());
               const char* param_or_return =
@@ -914,8 +921,7 @@ class ModuleDecoderImpl : public Decoder {
         errorf("type %u extends final type %u", i, explicit_super.index);
         return;
       }
-      if (!ValidSubtypeDefinition(ModuleTypeIndex{i}, explicit_super, module,
-                                  module)) {
+      if (!ValidSubtypeDefinition(ModuleTypeIndex{i}, explicit_super, module)) {
         errorf("type %u has invalid explicit supertype %u", i,
                explicit_super.index);
         return;
@@ -977,10 +983,10 @@ class ModuleDecoderImpl : public Decoder {
           WasmTable* table = &module_->tables.back();
           consume_table_flags(table);
           DCHECK_IMPLIES(table->shared,
-                         v8_flags.experimental_wasm_shared || !ok());
-          if (table->shared && v8_flags.experimental_wasm_shared) {
+                         enabled_features_.has_shared() || !ok());
+          if (table->shared && enabled_features_.has_shared()) {
             module_->has_shared_part = true;
-            if (!IsShared(type, module_.get())) {
+            if (!type.is_shared()) {
               errorf(type_position,
                      "Shared table %i must have shared element type, actual "
                      "type %s",
@@ -1029,7 +1035,7 @@ class ModuleDecoderImpl : public Decoder {
           ValueType type = consume_value_type(module_.get());
           auto [mutability, shared] = consume_global_flags();
           if (V8_UNLIKELY(failed())) break;
-          if (V8_UNLIKELY(shared && !IsShared(type, module_.get()))) {
+          if (V8_UNLIKELY(shared && !type.is_shared())) {
             error("shared imported global must have shared type");
             break;
           }
@@ -1142,10 +1148,10 @@ class ModuleDecoderImpl : public Decoder {
       table->type = table_type;
 
       consume_table_flags(table);
-      DCHECK_IMPLIES(table->shared, v8_flags.experimental_wasm_shared || !ok());
-      if (table->shared && v8_flags.experimental_wasm_shared) {
+      DCHECK_IMPLIES(table->shared, enabled_features_.has_shared() || !ok());
+      if (table->shared && enabled_features_.has_shared()) {
         module_->has_shared_part = true;
-        if (!IsShared(table_type, module_.get())) {
+        if (!table_type.is_shared()) {
           errorf(
               type_position,
               "Shared table %i must have shared element type, actual type %s",
@@ -1225,21 +1231,24 @@ class ModuleDecoderImpl : public Decoder {
       ValueType type = consume_value_type(module_.get());
       auto [mutability, shared] = consume_global_flags();
       if (failed()) return;
-      if (shared && !IsShared(type, module_.get())) {
-        CHECK(v8_flags.experimental_wasm_shared);
+      if (shared && !type.is_shared()) {
+        CHECK(enabled_features_.has_shared());
         errorf(pos, "Shared global %i must have shared type, actual type %s",
                i + imported_globals, type.name().c_str());
         return;
       }
       // Validation that {type} and {shared} are compatible will happen in
       // {consume_init_expr}.
-      ConstantExpression init = consume_init_expr(module_.get(), type, shared);
+      bool ends_with_struct_new = false;
+      ConstantExpression init =
+          consume_init_expr(module_.get(), type, shared, &ends_with_struct_new);
       module_->globals.push_back(
           WasmGlobal{.type = type,
                      .mutability = mutability,
                      .init = init,
                      .index = 0,  // set later in CalculateGlobalOffsets
-                     .shared = shared});
+                     .shared = shared,
+                     .initializer_ends_with_struct_new = ends_with_struct_new});
       if (shared) module_->has_shared_part = true;
     }
   }
@@ -1571,6 +1580,16 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
     // Skip the whole names section in the outer decoder.
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeDescriptorsSection() {
+    if (enabled_features_.has_custom_descriptors() &&
+        !has_seen_unordered_section(kDescriptorsSectionCode)) {
+      set_seen_unordered_section(kDescriptorsSectionCode);
+      module_->descriptors_section = {buffer_offset_,
+                                      static_cast<uint32_t>(end_ - start_)};
+    }
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 
@@ -2196,12 +2215,9 @@ class ModuleDecoderImpl : public Decoder {
         if (!limits.has_maximum()) {
           error(pc() - 1, "shared memory must have a maximum defined");
         }
-        if (v8_flags.experimental_wasm_shared) {
-          error(pc() - 1,
-                "shared memories are not supported with "
-                "--experimental-wasm-shared yet.");
-        }
-      } else if (!v8_flags.experimental_wasm_shared) {  // table
+        // TODO(42204563): Implement proper handling of shared memories when
+        // Shared Everything is enabled.
+      } else if (!enabled_features_.has_shared()) {  // table
         error(pc() - 1, "invalid table limits flags");
       } else {
         // TODO(42204563): Support shared tables.
@@ -2254,7 +2270,7 @@ class ModuleDecoderImpl : public Decoder {
       if (shared) tracer_->Description(" shared");
       tracer_->Description(mutability ? " mutable" : " immutable");
     }
-    if (shared && !v8_flags.experimental_wasm_shared) {
+    if (shared && !enabled_features_.has_shared()) {
       errorf(pc() - 1, "invalid global flags 0x%x", flags);
       return {false, false};
     }
@@ -2327,7 +2343,8 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   ConstantExpression consume_init_expr(WasmModule* module, ValueType expected,
-                                       bool is_shared) {
+                                       bool is_shared,
+                                       bool* ends_with_struct_new = nullptr) {
     // The error message mimics the one generated by the {WasmFullDecoder}.
 #define TYPE_CHECK(found)                                                \
   if (V8_UNLIKELY(!IsSubtypeOf(found, expected, module))) {              \
@@ -2375,7 +2392,8 @@ class ModuleDecoderImpl : public Decoder {
           ModuleTypeIndex functype{module->functions[index].sig_index};
           bool functype_is_shared = module->type(functype).is_shared;
           ValueType type = ValueType::Ref(functype, functype_is_shared,
-                                          RefTypeKind::kFunction);
+                                          RefTypeKind::kFunction)
+                               .AsExactIfEnabled(enabled_features_);
           TYPE_CHECK(type)
           if (V8_UNLIKELY(is_shared && !type.is_shared())) {
             error(pc(), "ref.func does not have a shared type");
@@ -2400,8 +2418,7 @@ class ModuleDecoderImpl : public Decoder {
         value_type_reader::Populate(&type, module);
         if (V8_LIKELY(lookahead(1 + length, kExprEnd))) {
           TYPE_CHECK(ValueType::RefNull(type))
-          if (V8_UNLIKELY(is_shared &&
-                          !IsShared(ValueType::RefNull(type), module))) {
+          if (V8_UNLIKELY(is_shared && !type.is_shared())) {
             error(pc(), "ref.null does not have a shared type");
             return {};
           }
@@ -2461,6 +2478,10 @@ class ModuleDecoderImpl : public Decoder {
 
       result = ConstantExpression::WireBytes(
           offset, static_cast<uint32_t>(decoder.end() - decoder.start()));
+
+      if (ends_with_struct_new) {
+        *ends_with_struct_new = decoder.interface().ends_with_struct_new();
+      }
     }
 
     // We reset the zone here; its memory is not used anymore, and we do not
@@ -2554,6 +2575,9 @@ class ModuleDecoderImpl : public Decoder {
     // Parse return types.
     uint32_t return_count =
         consume_count("return count", kV8MaxWasmFunctionReturns);
+    if (return_count > 1) {
+      detected_features_->add_multi_value();
+    }
     // Now that we know the param count and the return count, we can allocate
     // the permanent storage.
     ValueType* sig_storage =
@@ -2569,7 +2593,8 @@ class ModuleDecoderImpl : public Decoder {
     return zone->New<FunctionSig>(return_count, param_count, sig_storage);
   }
 
-  const StructType* consume_struct(Zone* zone, bool is_descriptor) {
+  const StructType* consume_struct(Zone* zone, bool is_descriptor,
+                                   bool is_shared) {
     uint32_t field_count =
         consume_count(", field count", kV8MaxWasmStructFields);
     if (failed()) return nullptr;
@@ -2582,8 +2607,8 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (failed()) return nullptr;
     uint32_t* offsets = zone->AllocateArray<uint32_t>(field_count);
-    StructType* result = zone->New<StructType>(field_count, offsets, fields,
-                                               mutabilities, is_descriptor);
+    StructType* result = zone->New<StructType>(
+        field_count, offsets, fields, mutabilities, is_descriptor, is_shared);
     result->InitializeOffsets();
     return result;
   }
@@ -2634,7 +2659,7 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     bool is_shared = flag & kSharedFlag;
-    if (is_shared && !v8_flags.experimental_wasm_shared) {
+    if (is_shared && !enabled_features_.has_shared()) {
       errorf(pos, "illegal flag value %u", flag);
       return {};
     }
@@ -2783,7 +2808,7 @@ class ModuleDecoderImpl : public Decoder {
 
     bool is_shared = flag & 0b1000;
 
-    if (V8_UNLIKELY(is_shared && !v8_flags.experimental_wasm_shared)) {
+    if (V8_UNLIKELY(is_shared && !enabled_features_.has_shared())) {
       errorf(pos, "illegal flag value %u.", flag);
       return {};
     }
@@ -2835,7 +2860,7 @@ class ModuleDecoderImpl : public Decoder {
         ValueType::Ref(func->sig_index, module->type(func->sig_index).is_shared,
                        RefTypeKind::kFunction);
     if (V8_LIKELY(expected == kWasmFuncRef &&
-                  !v8_flags.experimental_wasm_shared)) {
+                  !enabled_features_.has_shared())) {
       DCHECK(module->type(func->sig_index).kind == TypeDefinition::kFunction);
       DCHECK(IsSubtypeOf(entry_type, expected, module));
     } else if (V8_UNLIKELY(!IsSubtypeOf(entry_type, expected, module))) {
@@ -2879,6 +2904,468 @@ class ModuleDecoderImpl : public Decoder {
   // after the functions have been decoded this is translated to pairs of module
   // offsets and mark ids.
   std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> inst_traces_;
+};
+
+// Convenient interface for iterating over a "descriptors" custom section.
+// In the interest of efficiency, this is designed for disciplined callers:
+// the order in which public methods should be called is not arbitrary, but
+// should follow the order in which things appear in the section. That allows
+// this class to avoid building up large caches, and instead use a streaming
+// approach.
+// The general flow is that callers follow a pattern of:
+//     while (dsi.has_foo()) { Foo f = dsi.NextFoo(); }
+// where the values of "foo" should be chosen in the right order, and the
+// type "Foo" is typically one of the subclasses of {Entry}.
+// After every operation that decodes wire bytes, an error check should be
+// performed using the `ok()` accessor.
+class DescriptorsSectionIterator : public Decoder {
+ public:
+  DescriptorsSectionIterator(base::Vector<const uint8_t> wire_bytes,
+                             uint32_t start_offset, uint32_t end_offset)
+      : Decoder(wire_bytes.begin() + start_offset,
+                wire_bytes.begin() + end_offset, start_offset) {
+    // Version.
+    uint32_t version = consume_u32v("version");
+    if (!ok()) return;
+    if (version != 0) {
+      errorf(start_, "unsupported descriptors section version: %u", version);
+      return;
+    }
+
+    // Module name.
+    module_name_ = consume_string("module name");
+    if (!ok()) return;
+
+    NextSubsection();
+  }
+
+  WireBytesRef module_name() const { return module_name_; }
+
+  struct Method {
+    enum Kind : uint8_t { kMethod, kGetter, kSetter };
+
+    Kind kind;
+    bool is_static;
+    WireBytesRef name;
+    uint32_t index;
+  };
+
+  // "Entry" is the abstract super class of the various actual kinds of entries.
+  // It contains all implementations used by more than one subclass; which
+  // implies that no subclass uses all provided methods. DCHECKs provide some
+  // guardrails for correct usage.
+  class Entry {
+   public:
+    bool ok() { return decoder_->ok(); }
+
+    bool has_export() const { return state_ == State::kExports; }
+    bool has_method() const { return state_ == State::kMethods; }
+    bool has_constructor() const { return state_ == State::kConstructor; }
+    bool has_static() const { return state_ == State::kStatics; }
+
+    uint32_t NextExport(uint32_t max_index) {
+      DCHECK(has_export());
+      const uint8_t* pos = decoder_->pc();
+      uint32_t exp = consume_u32v("export index");
+      if (!ok()) return exp;
+      if (exp >= max_index) {
+        decoder_->errorf(pos, "import index %u is out of range", exp);
+        return exp;
+      }
+      nested_index_++;
+      DCHECK_LE(nested_index_, num_nested_);
+      if (nested_index_ == num_nested_) Finish();
+      return exp;
+    }
+
+    Method NextMethod(uint32_t max_index) {
+      DCHECK(has_method());
+      Method method = NextMethodImpl(max_index, false);
+      if (nested_index_ == num_nested_) ProceedToConstructor();
+      return method;
+    }
+
+    std::pair<WireBytesRef, uint32_t> Constructor(uint32_t max_index) {
+      DCHECK(has_constructor());
+      WireBytesRef name = decoder_->consume_string("name");
+      if (!ok()) return {};
+      const uint8_t* pos = decoder_->pc();
+      uint32_t index = decoder_->consume_u32v("index");
+      CheckIndex(pos, index, max_index);
+      ProceedToStatics();
+      return {name, index};
+    }
+
+    Method NextStatic(uint32_t max_index) {
+      DCHECK(has_static());
+      Method static_method = NextMethodImpl(max_index, true);
+      if (nested_index_ == num_nested_) Finish();
+      return static_method;
+    }
+
+    // Can be be an overestimate when there's a getter and a setter for the
+    // same property.
+    uint32_t estimated_number_of_methods() const {
+      DCHECK(has_method());
+      return num_nested();
+    }
+    uint32_t estimated_number_of_statics() const {
+      DCHECK(has_static());
+      return num_nested();
+    }
+
+   protected:
+    enum class State {
+      kParentOrImport,  // Whatever the first thing is.
+      kExports,
+      kMethods,
+      kConstructor,
+      kStatics,
+      kFinished,
+    };
+
+    explicit Entry(DescriptorsSectionIterator* decoder) : decoder_(decoder) {}
+
+    Method NextMethodImpl(uint32_t max_index, bool is_static) {
+      const uint8_t* pos = decoder_->pc();
+      uint8_t kind = decoder_->consume_u8("kind");
+      if (kind > 2) {
+        decoder_->errorf(pos, "invalid method kind %u", kind);
+        return {};
+      }
+      if (!ok()) return {};
+      WireBytesRef name = decoder_->consume_string("name");
+      if (!ok()) return {};
+      pos = decoder_->pc();
+      uint32_t index = decoder_->consume_u32v("index");
+      CheckIndex(pos, index, max_index);
+      nested_index_++;
+      DCHECK_LE(nested_index_, num_nested_);
+      return {static_cast<Method::Kind>(kind), is_static, name, index};
+    }
+
+    void CheckIndex(const uint8_t* pos, uint32_t index, uint32_t max) {
+      if (V8_LIKELY(index < max)) return;
+      using DS = DescriptorsSectionIterator::State;
+      DS parent_state = decoder_->state_;
+      bool is_export_index = parent_state == DS::kInProtoConfig;
+      const char* index_kind = is_export_index ? "export" : "function";
+      decoder_->errorf(pos, "%s index %u out of range", index_kind, index);
+    }
+
+    void ProceedToExports() {
+      if (!ok()) return;
+      state_ = State::kExports;
+      num_nested_ = consume_u32v("number of exports");
+      nested_index_ = 0;
+      if (num_nested_ == 0) Finish();
+    }
+
+    void ProceedToMethods() {
+      if (!ok()) return;
+      state_ = State::kMethods;
+      num_nested_ = consume_u32v("number of methods");
+      nested_index_ = 0;
+      if (num_nested_ == 0) ProceedToConstructor();
+    }
+
+    void ProceedToConstructor() {
+      if (!ok()) return;
+      state_ = State::kConstructor;
+      const uint8_t* pos = decoder_->pc();
+      uint32_t has_constructor = consume_u32v("constructor");
+      if (has_constructor == 0) return Finish();
+      if (has_constructor > 1) {
+        decoder_->error(pos, "at most one constructor allowed");
+      }
+    }
+
+    void ProceedToStatics() {
+      if (!ok()) return;
+      state_ = State::kStatics;
+      num_nested_ = consume_u32v("number of statics");
+      nested_index_ = 0;
+      if (num_nested_ == 0) Finish();
+    }
+
+    WireBytesRef consume_string(const char* description) {
+      return decoder_->consume_string(description);
+    }
+    uint32_t consume_u32v(const char* description) {
+      return decoder_->consume_u32v(description);
+    }
+    DescriptorsSectionIterator* decoder() const { return decoder_; }
+    State state() const { return state_; }
+    uint32_t num_nested() const { return num_nested_; }
+
+   private:
+    void Finish() {
+      state_ = State::kFinished;
+      decoder_->FinishEntry();
+    }
+
+    DescriptorsSectionIterator* decoder_;
+    State state_{State::kParentOrImport};
+    uint32_t num_nested_{0};
+    uint32_t nested_index_{0};
+  };  // class Entry
+
+  class ImportEntry : public Entry {
+   public:
+    WireBytesRef name() {
+      DCHECK_EQ(state(), State::kParentOrImport);
+      WireBytesRef name = consume_string("import name");
+      ProceedToExports();
+      return name;
+    }
+
+   private:
+    friend class DescriptorsSectionIterator;
+
+    explicit ImportEntry(DescriptorsSectionIterator* decoder)
+        : Entry(decoder) {}
+  };  // class ImportEntry
+
+  class DeclEntry : public Entry {
+   public:
+    bool has_parent() const { return state() == State::kParentOrImport; }
+
+    uint32_t Parent(uint32_t current_index) {
+      DCHECK_EQ(state(), State::kParentOrImport);
+      const uint8_t* pos = decoder()->pc();
+      uint32_t result = consume_u32v("parent");
+      if (result >= current_index) {
+        decoder()->errorf(pos, "parent index %u must be lower than %u", result,
+                          current_index);
+        return result;
+      }
+      ProceedToExports();
+      return result;
+    }
+
+   private:
+    friend class DescriptorsSectionIterator;
+
+    explicit DeclEntry(DescriptorsSectionIterator* decoder) : Entry(decoder) {
+      const uint8_t* pos = decoder->pc();
+      uint32_t num_parents = consume_u32v("number of parents");
+      if (num_parents > 1) {
+        decoder->errorf(pos, "invalid parent count %u", num_parents);
+        return;
+      }
+      if (num_parents == 0) ProceedToExports();
+    }
+  };  // class DeclEntry
+
+  class ProtoConfig : public Entry {
+   public:
+    uint32_t import_index() const { return import_index_; }
+
+   private:
+    friend class DescriptorsSectionIterator;
+
+    ProtoConfig(DescriptorsSectionIterator* decoder, uint32_t max_import_index)
+        : Entry(decoder) {
+      const uint8_t* pos = decoder->pc();
+      import_index_ = consume_u32v("import index");
+      if (import_index_ > max_import_index) {
+        decoder->errorf(pos, "import index %u is out of range", import_index_);
+      }
+      ProceedToMethods();
+    }
+
+    uint32_t import_index_;
+  };  // class ProtoConfig
+
+  class GlobalEntry : public Entry {
+   public:
+    uint32_t global_index() const { return global_index_; }
+
+    bool has_parent() const { return state() == State::kParentOrImport; }
+    uint32_t Parent() {
+      DCHECK_EQ(state(), State::kParentOrImport);
+      const uint8_t* pos = decoder()->pc();
+      uint32_t result = consume_u32v("parent");
+      if (result >= global_index_) {
+        decoder()->errorf(pos, "parent index %u must be lower than %u", result,
+                          global_index_);
+        return result;
+      }
+      ProceedToMethods();
+      return result;
+    }
+
+   private:
+    friend class DescriptorsSectionIterator;
+
+    GlobalEntry(DescriptorsSectionIterator* decoder, uint32_t max_global_index)
+        : Entry(decoder) {
+      const uint8_t* pos = decoder->pc();
+      global_index_ = consume_u32v("global index");
+      if (global_index_ > max_global_index) {
+        decoder->errorf(pos, "global index %u is out of range", global_index_);
+        return;
+      }
+      if (global_index_ < decoder->next_min_global_index_) {
+        decoder->errorf(pos, "global index %u is not in ascending order",
+                        global_index_);
+        return;
+      }
+      decoder->next_min_global_index_ = global_index_ + 1;
+      pos = decoder->pc();
+      uint32_t num_parents = consume_u32v("parent count");
+      if (num_parents > 1) {
+        decoder->errorf(pos, "invalid parent count %u", num_parents);
+        return;
+      }
+      if (num_parents == 0) ProceedToMethods();
+    }
+
+    uint32_t global_index_;
+  };  // class GlobalEntry
+
+  bool has_import_entry() { return state_ == State::kImportEntries; }
+  ImportEntry NextImportEntry() {
+    DCHECK(has_import_entry());
+    state_ = State::kInImportEntry;
+    return ImportEntry(this);
+  }
+
+  bool has_decl_entry() { return state_ == State::kDeclEntries; }
+  DeclEntry NextDeclEntry() {
+    DCHECK(has_decl_entry());
+    state_ = State::kInDeclEntry;
+    return DeclEntry(this);
+  }
+
+  bool has_proto_config() { return state_ == State::kProtoConfigs; }
+  ProtoConfig NextProtoConfig(uint32_t max_import_index) {
+    DCHECK(has_proto_config());
+    state_ = State::kInProtoConfig;
+    return ProtoConfig(this, max_import_index);
+  }
+
+  bool has_global_entry() { return state_ == State::kGlobalEntries; }
+  GlobalEntry NextGlobalEntry(uint32_t max_global_index) {
+    DCHECK(has_global_entry());
+    state_ = State::kInGlobalEntry;
+    return GlobalEntry(this, max_global_index);
+  }
+
+  void SkipToGlobalEntries() {
+    while (state_ < State::kGlobalEntries) SkipCurrentSubsection();
+  }
+  void SkipToProtoConfigs() {
+    while (state_ < State::kProtoConfigs) SkipCurrentSubsection();
+  }
+
+  // Call this after initialization, before iterating over entries.
+  uint32_t NumImportAndDeclEntries() const {
+    static_assert(State::kGlobalEntries > State::kDeclEntries);
+    static_assert(State::kDeclEntries > State::kImportEntries);
+    if (state_ >= State::kGlobalEntries || !ok()) return 0;
+    if (state_ == State::kDeclEntries) return num_entries_;
+    DCHECK_EQ(state_, State::kImportEntries);
+    uint32_t num_import_entries = num_entries_;
+    // Use a separate decoder because we have to both rewind (to be able to
+    // skip the importdecls section) and jump forward (to the vector length
+    // of the declentries section).
+    const uint8_t* next_subsection = start_ + next_subsection_start_position_;
+    if (next_subsection >= end_) return num_import_entries;
+    Decoder d(next_subsection, end_,
+              buffer_offset_ + next_subsection_start_position_);
+    uint8_t subsection = d.consume_u8("second subsection");
+    if (!d.ok() || subsection != kDeclEntriesCode) return num_import_entries;
+    d.consume_u32v("subsection length");
+    if (!d.ok()) return num_import_entries;
+    uint32_t num_decl_entries = d.consume_u32v("number of decl entries");
+    if (!d.ok()) return num_import_entries;
+    return num_import_entries + num_decl_entries;
+  }
+
+ private:
+  static constexpr uint8_t kImportEntriesCode = 0;
+  static constexpr uint8_t kDeclEntriesCode = 1;
+  static constexpr uint8_t kGlobalEntriesCode = 2;
+  static constexpr uint8_t kOffsetEntriesCode = 3;
+  static constexpr uint8_t kProtoConfigsCode = 4;
+
+  static constexpr uint8_t kStateBlocked = 0b1000'0000;
+  enum class State : uint8_t {
+    kUninitialized,
+    kImportEntries,
+    kDeclEntries,
+    kGlobalEntries,
+    kOffsetEntries,
+    kProtoConfigs,
+    kFinished,
+
+    kInImportEntry = kImportEntries | kStateBlocked,
+    kInDeclEntry = kDeclEntries | kStateBlocked,
+    kInGlobalEntry = kGlobalEntries | kStateBlocked,
+    kInOffsetEntry = kOffsetEntries | kStateBlocked,
+    kInProtoConfig = kProtoConfigs | kStateBlocked,
+  };
+
+  WireBytesRef consume_string(const char* description) {
+    return wasm::consume_string(this, unibrow::Utf8Variant::kLossyUtf8,
+                                description);
+  }
+
+  void NextSubsection() {
+    if (!more()) {
+      state_ = State::kFinished;
+      return;
+    }
+    const uint8_t* pos = pc_;
+    uint8_t subsection_id = consume_u8("subsection ID");
+    DCHECK(ok());  // Reading one byte can't fail after {more()}.
+
+#define SUBSECTION(Name)                                              \
+  if (subsection_id == k##Name##Code) {                               \
+    if (state_ >= State::k##Name) {                                   \
+      return error(pos, "invalid subsection order");                  \
+    }                                                                 \
+    state_ = State::k##Name;                                          \
+    index_ = 0;                                                       \
+    uint32_t subsection_length = consume_u32v("subsection length");   \
+    if (!ok()) return;                                                \
+    next_subsection_start_position_ = position() + subsection_length; \
+    num_entries_ = consume_u32v("number of " #Name);                  \
+    if (!ok()) return;                                                \
+    if (num_entries_ == 0) return NextSubsection();                   \
+    return;                                                           \
+  }
+    SUBSECTION(ImportEntries)
+    SUBSECTION(DeclEntries)
+    SUBSECTION(GlobalEntries)
+    SUBSECTION(OffsetEntries)
+    SUBSECTION(ProtoConfigs)
+#undef SUBSECTION
+
+    state_ = State::kFinished;
+    errorf(pos, "invalid subsection ID %u", subsection_id);
+  }
+
+  void SkipCurrentSubsection() {
+    DCHECK_GE(next_subsection_start_position_, position());
+    consume_bytes(next_subsection_start_position_ - position());
+    NextSubsection();
+  }
+
+  void FinishEntry() {
+    state_ = static_cast<State>(static_cast<uint8_t>(state_) &
+                                static_cast<uint8_t>(~kStateBlocked));
+    index_++;
+    if (index_ == num_entries_) NextSubsection();
+  }
+
+  State state_{State::kUninitialized};
+  uint32_t num_entries_{0};
+  uint32_t index_{0};
+  uint32_t next_subsection_start_position_{0};
+  uint32_t next_min_global_index_{0};  // For checking ascending order.
+  WireBytesRef module_name_;
 };
 
 }  // namespace v8::internal::wasm

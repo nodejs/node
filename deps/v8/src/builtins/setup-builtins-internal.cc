@@ -4,6 +4,7 @@
 
 #include <fstream>
 
+#include "src/builtins/builtins-effects-analyzer.h"
 #include "src/builtins/builtins-inl.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
@@ -373,9 +374,15 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
 }
 
 // static
-void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
+void SetupIsolateDelegate::SetupBuiltinsInternal(
+    Isolate* isolate, bool compute_builtins_effects) {
   Builtins* builtins = isolate->builtins();
   DCHECK(!builtins->initialized_);
+
+  BuiltinsEffectsAnalyzer* builtins_effects_analyzer = nullptr;
+  if (compute_builtins_effects) {
+    builtins_effects_analyzer = BuiltinsEffectsAnalyzer::Setup(isolate);
+  }
 
   if (v8_flags.dump_builtins_hashes_to_file) {
     // Create an empty file.
@@ -488,6 +495,11 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   scheduler.AwaitAndFinalizeCurrentBatch(isolate);
   CHECK_EQ(Builtins::kBuiltinCount, builtins_built_without_job_count +
                                         scheduler.builtins_installed_count());
+
+  if (compute_builtins_effects) {
+    DCHECK_NOT_NULL(builtins_effects_analyzer);
+    builtins_effects_analyzer->Finalize();
+  }
 
   // Add the generated builtins to the isolate.
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;

@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "include/v8-profiler.h"
+#include "src/base/hashing.h"
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
 #include "src/execution/vm-state.h"
@@ -28,6 +29,11 @@ namespace internal {
 
 struct TickSample;
 
+struct LineAndColumn {
+  int line = v8::CpuProfileNode::kNoLineNumberInfo;
+  int column = v8::CpuProfileNode::kNoColumnNumberInfo;
+};
+
 // Provides a mapping from the offsets within generated code or a bytecode array
 // to the source line and inlining id.
 class V8_EXPORT_PRIVATE SourcePositionTable : public Malloced {
@@ -36,8 +42,11 @@ class V8_EXPORT_PRIVATE SourcePositionTable : public Malloced {
   SourcePositionTable(const SourcePositionTable&) = delete;
   SourcePositionTable& operator=(const SourcePositionTable&) = delete;
 
-  void SetPosition(int pc_offset, int line, int inlining_id);
+  void SetPosition(int pc_offset, LineAndColumn line_and_column,
+                   int inlining_id);
   int GetSourceLineNumber(int pc_offset) const;
+  int GetSourceColumnNumber(int pc_offset) const;
+  LineAndColumn GetSourceLineAndColumn(int pc_offset) const;
   int GetInliningId(int pc_offset) const;
 
   size_t Size() const;
@@ -50,15 +59,19 @@ class V8_EXPORT_PRIVATE SourcePositionTable : public Malloced {
     }
     int pc_offset;
     int line_number;
+    int column_number;
     int inlining_id;
   };
+
+  const SourcePositionTuple& GetTuple(int pc_offset) const;
+
   // This is logically a map, but we store it as a vector of tuples, sorted by
   // the pc offset, so that we can save space and look up items using binary
   // search.
   std::vector<SourcePositionTuple> pc_offsets_to_lines_;
 };
 
-struct CodeEntryAndLineNumber;
+struct CodeEntryAndPosition;
 
 class CodeEntry {
  public:
@@ -68,8 +81,7 @@ class CodeEntry {
   // StringsStorage instance. These must be freed via ReleaseStrings.
   inline CodeEntry(LogEventListener::CodeTag tag, const char* name,
                    const char* resource_name = CodeEntry::kEmptyResourceName,
-                   int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
-                   int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
+                   LineAndColumn line_and_column = {},
                    std::unique_ptr<SourcePositionTable> line_info = nullptr,
                    bool is_shared_cross_origin = false,
                    CodeType code_type = CodeType::JS);
@@ -84,8 +96,7 @@ class CodeEntry {
 
   const char* name() const { return name_; }
   const char* resource_name() const { return resource_name_; }
-  int line_number() const { return line_number_; }
-  int column_number() const { return column_number_; }
+  LineAndColumn line_and_column() const { return line_and_column_; }
   const SourcePositionTable* line_info() const { return line_info_.get(); }
   int script_id() const { return script_id_; }
   void set_script_id(int script_id) { script_id_ = script_id; }
@@ -144,10 +155,10 @@ class CodeEntry {
   // counted, and managed by an InstructionStreamMap.
   bool is_ref_counted() const { return RefCountedField::decode(bit_field_); }
 
-  uint32_t GetHash() const;
+  size_t GetHash() const;
   bool IsSameFunctionAs(const CodeEntry* entry) const;
 
-  int GetSourceLine(int pc_offset) const;
+  LineAndColumn GetSourcePosition(int pc_offset) const;
 
   struct Equals {
     bool operator()(const CodeEntry* lhs, const CodeEntry* rhs) const {
@@ -160,10 +171,8 @@ class CodeEntry {
 
   void SetInlineStacks(
       std::unordered_set<CodeEntry*, Hasher, Equals> inline_entries,
-      std::unordered_map<int, std::vector<CodeEntryAndLineNumber>>
-          inline_stacks);
-  const std::vector<CodeEntryAndLineNumber>* GetInlineStack(
-      int pc_offset) const;
+      std::unordered_map<int, std::vector<CodeEntryAndPosition>> inline_stacks);
+  const std::vector<CodeEntryAndPosition>* GetInlineStack(int pc_offset) const;
 
   LogEventListener::Event event() const {
     return EventField::decode(bit_field_);
@@ -206,7 +215,7 @@ class CodeEntry {
     const char* deopt_reason_ = kNoDeoptReason;
     const char* bailout_reason_ = kEmptyBailoutReason;
     int deopt_id_ = kNoDeoptimizationId;
-    std::unordered_map<int, std::vector<CodeEntryAndLineNumber>> inline_stacks_;
+    std::unordered_map<int, std::vector<CodeEntryAndPosition>> inline_stacks_;
     std::unordered_set<CodeEntry*, Hasher, Equals> inline_entries_;
     std::vector<CpuProfileDeoptFrame> deopt_inlined_frames_;
   };
@@ -245,8 +254,7 @@ class CodeEntry {
   std::atomic<std::size_t> ref_count_ = {0};
   const char* name_;
   const char* resource_name_;
-  int line_number_;
-  int column_number_;
+  LineAndColumn line_and_column_;
   int script_id_;
   int position_;
   std::unique_ptr<SourcePositionTable> line_info_;
@@ -255,12 +263,12 @@ class CodeEntry {
   Address* heap_object_location_ = nullptr;
 };
 
-struct CodeEntryAndLineNumber {
+struct CodeEntryAndPosition {
   CodeEntry* code_entry;
-  int line_number;
+  LineAndColumn line_and_column;
 };
 
-using ProfileStackTrace = std::vector<CodeEntryAndLineNumber>;
+using ProfileStackTrace = std::vector<CodeEntryAndPosition>;
 
 // Filters stack frames from sources other than a target native context.
 class ContextFilter {
@@ -292,31 +300,30 @@ class ProfileTree;
 class V8_EXPORT_PRIVATE ProfileNode {
  public:
   inline ProfileNode(ProfileTree* tree, CodeEntry* entry, ProfileNode* parent,
-                     int line_number = 0);
+                     LineAndColumn line_and_column = {});
   ~ProfileNode();
   ProfileNode(const ProfileNode&) = delete;
   ProfileNode& operator=(const ProfileNode&) = delete;
 
-  ProfileNode* FindChild(
-      CodeEntry* entry,
-      int line_number = v8::CpuProfileNode::kNoLineNumberInfo);
-  ProfileNode* FindOrAddChild(CodeEntry* entry, int line_number = 0);
+  ProfileNode* FindChild(CodeEntry* entry, LineAndColumn line_and_column = {});
+  ProfileNode* FindOrAddChild(CodeEntry* entry, LineAndColumn line_and_column);
   void IncrementSelfTicks() { ++self_ticks_; }
   void IncreaseSelfTicks(unsigned amount) { self_ticks_ += amount; }
-  void IncrementLineTicks(int src_line);
+  void IncrementLineAndColumnTicks(LineAndColumn line_and_column);
 
   CodeEntry* entry() const { return entry_; }
   unsigned self_ticks() const { return self_ticks_; }
   const std::vector<ProfileNode*>* children() const { return &children_list_; }
   unsigned id() const { return id_; }
   ProfileNode* parent() const { return parent_; }
-  int line_number() const {
-    return line_number_ != 0 ? line_number_ : entry_->line_number();
+  LineAndColumn line_and_column() const {
+    return line_and_column_.line != 0 ? line_and_column_
+                                      : entry_->line_and_column();
   }
   CpuProfileNode::SourceType source_type() const;
 
   unsigned int GetHitLineCount() const {
-    return static_cast<unsigned int>(line_ticks_.size());
+    return static_cast<unsigned int>(line_and_column_ticks_.size());
   }
   bool GetLineTicks(v8::CpuProfileNode::LineTick* entries,
                     unsigned int length) const;
@@ -330,29 +337,32 @@ class V8_EXPORT_PRIVATE ProfileNode {
 
  private:
   struct Equals {
-    bool operator()(CodeEntryAndLineNumber lhs,
-                    CodeEntryAndLineNumber rhs) const {
+    bool operator()(CodeEntryAndPosition lhs, CodeEntryAndPosition rhs) const {
       return lhs.code_entry->IsSameFunctionAs(rhs.code_entry) &&
-             lhs.line_number == rhs.line_number;
+             lhs.line_and_column.line == rhs.line_and_column.line &&
+             lhs.line_and_column.column == rhs.line_and_column.column;
     }
   };
   struct Hasher {
-    std::size_t operator()(CodeEntryAndLineNumber pair) const {
-      return pair.code_entry->GetHash() ^ ComputeUnseededHash(pair.line_number);
+    std::size_t operator()(CodeEntryAndPosition pair) const {
+      base::Hasher hasher(pair.code_entry->GetHash());
+      hasher.Add(pair.line_and_column.line);
+      hasher.Add(pair.line_and_column.column);
+      return hasher.hash();
     }
   };
 
   ProfileTree* tree_;
   CodeEntry* entry_;
   unsigned self_ticks_;
-  std::unordered_map<CodeEntryAndLineNumber, ProfileNode*, Hasher, Equals>
+  std::unordered_map<CodeEntryAndPosition, ProfileNode*, Hasher, Equals>
       children_;
-  int line_number_;
+  LineAndColumn line_and_column_;
   std::vector<ProfileNode*> children_list_;
   ProfileNode* parent_;
   unsigned id_;
-  // maps line number --> number of ticks
-  std::unordered_map<int, int> line_ticks_;
+  // maps line and column --> number of ticks
+  std::unordered_map<std::pair<int, int>, int> line_and_column_ticks_;
 
   std::vector<CpuProfileDeoptInfo> deopt_infos_;
 };
@@ -368,13 +378,11 @@ class V8_EXPORT_PRIVATE ProfileTree {
 
   using ProfilingMode = v8::CpuProfilingMode;
 
+  ProfileNode* AddPathFromEnd(const std::vector<CodeEntry*>& path,
+                              LineAndColumn src_pos = {},
+                              bool update_stats = true);
   ProfileNode* AddPathFromEnd(
-      const std::vector<CodeEntry*>& path,
-      int src_line = v8::CpuProfileNode::kNoLineNumberInfo,
-      bool update_stats = true);
-  ProfileNode* AddPathFromEnd(
-      const ProfileStackTrace& path,
-      int src_line = v8::CpuProfileNode::kNoLineNumberInfo,
+      const ProfileStackTrace& path, LineAndColumn src_pos = {},
       bool update_stats = true,
       ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers);
   ProfileNode* root() const { return root_; }
@@ -411,7 +419,7 @@ class CpuProfile {
   struct SampleInfo {
     ProfileNode* node;
     base::TimeTicks timestamp;
-    int line;
+    LineAndColumn line_and_column;
     StateTag state_tag;
     EmbedderStateTag embedder_state_tag;
     const std::optional<uint64_t> trace_id;
@@ -429,7 +437,7 @@ class CpuProfile {
   V8_EXPORT_PRIVATE bool CheckSubsample(base::TimeDelta sampling_interval);
   // Add pc -> ... -> main() call path to the profile.
   void AddPath(base::TimeTicks timestamp, const ProfileStackTrace& path,
-               int src_line, bool update_stats,
+               LineAndColumn src_pos, bool update_stats,
                base::TimeDelta sampling_interval, StateTag state,
                EmbedderStateTag embedder_state,
                const std::optional<uint64_t> trace_id = std::nullopt);
@@ -573,8 +581,9 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(
-      base::TimeTicks timestamp, const ProfileStackTrace& path, int src_line,
-      bool update_stats, base::TimeDelta sampling_interval, StateTag state,
+      base::TimeTicks timestamp, const ProfileStackTrace& path,
+      LineAndColumn src_pos, bool update_stats,
+      base::TimeDelta sampling_interval, StateTag state,
       EmbedderStateTag embedder_state_tag,
       Address native_context_address = kNullAddress,
       Address native_embedder_context_address = kNullAddress,

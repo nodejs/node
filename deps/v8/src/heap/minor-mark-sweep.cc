@@ -696,7 +696,8 @@ void MinorMarkSweepCollector::MarkRootsFromConservativeStack(
 
   MinorMSConservativeStackVisitor stack_visitor(heap_->isolate(), root_visitor);
 
-  heap_->IterateConservativeStackRoots(&stack_visitor);
+  heap_->IterateConservativeStackRoots(&stack_visitor,
+                                       Heap::StackScanMode::kFull);
 }
 
 void MinorMarkSweepCollector::MarkLiveObjects() {
@@ -944,7 +945,8 @@ bool MinorMarkSweepCollector::StartSweepNewSpace() {
     intptr_t live_bytes_on_page = p->live_bytes();
     if (live_bytes_on_page == 0) {
       if (paged_space->ShouldReleaseEmptyPage()) {
-        paged_space->ReleasePage(p);
+        paged_space->RemovePageFromSpace(p);
+        heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kPool, p);
       } else {
         sweeper()->SweepEmptyNewSpacePage(p);
       }

@@ -394,6 +394,62 @@ TEST_F(WasmModuleVerifyTest, FuncRefGlobal) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, ExactFuncRefGlobal) {
+  // Same as above, but now the globals have exact reference types.
+  WASM_FEATURE_SCOPE(custom_descriptors);
+  static const uint8_t data[] = {
+      // sig#0 ---------------------------------------------------------------
+      TYPE_SECTION_ONE_SIG_VOID_VOID,
+      // funcs ---------------------------------------------------------------
+      TWO_EMPTY_FUNCTIONS(SIG_INDEX(0)),
+      SECTION(Global,                       // --
+              ENTRY_COUNT(2),               // --
+              kRefNullCode,                 // ref null
+              kExactCode,                   // exact
+              0,                            // type index
+              0,                            // immutable
+              WASM_REF_NULL(kNoFuncCode),   // ref.null nofunc
+              kExprEnd,                     // end
+              kRefCode,                     // ref
+              kExactCode,                   // exact
+              0,                            // type index
+              0,                            // immutable
+              WASM_INIT_EXPR_REF_FUNC(1)),  // init
+      SECTION(Element,                      // section name
+              ENTRY_COUNT(2),               // entry count
+              DECLARATIVE,                  // flags 0
+              kExternalFunction,            // type
+              ENTRY_COUNT(1),               // func entry count
+              FUNC_INDEX(0),                // func index
+              DECLARATIVE_WITH_ELEMENTS,    // flags 1
+              kFuncRefCode,                 // local type
+              ENTRY_COUNT(1),               // func ref count
+              REF_FUNC_ELEMENT(1)),         // func ref
+      TWO_EMPTY_BODIES};
+  {
+    // Should decode to two globals.
+    ModuleResult result = DecodeModule(base::ArrayVector(data));
+    EXPECT_OK(result);
+    EXPECT_EQ(2u, result.value()->globals.size());
+    EXPECT_EQ(2u, result.value()->functions.size());
+    EXPECT_EQ(0u, result.value()->data_segments.size());
+
+    ModuleTypeIndex index{0};
+    ValueType null_type =
+        ValueType::RefNull(index, false, RefTypeKind::kFunction).AsExact();
+    ValueType non_null_type =
+        ValueType::Ref(index, false, RefTypeKind::kFunction).AsExact();
+
+    const WasmGlobal* global = &result.value()->globals[0];
+    EXPECT_EQ(null_type, global->type);
+    EXPECT_FALSE(global->mutability);
+
+    global = &result.value()->globals[1];
+    EXPECT_EQ(non_null_type, global->type);
+    EXPECT_FALSE(global->mutability);
+  }
+}
+
 TEST_F(WasmModuleVerifyTest, InvalidFuncRefGlobal) {
   static const uint8_t data[] = {
       // sig#0 ---------------------------------------------------------------

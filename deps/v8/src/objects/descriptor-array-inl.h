@@ -232,7 +232,9 @@ void DescriptorArray::SetKey(InternalIndex descriptor_number,
   EntryKeyField::Relaxed_Store(*this, entry_offset, key);
   WRITE_BARRIER(*this, entry_offset + kEntryKeyOffset, key);
   // Conservatively assume that the new key might break fast iteration.
-  set_fast_iterable(FastIterableState::kUnknown);
+  // If the key was already known to be slow, it will stay slow.
+  set_fast_iterable_if(FastIterableState::kUnknown,
+                       FastIterableState::kJsonFast);
 }
 
 int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
@@ -328,7 +330,7 @@ void DescriptorArray::Set(InternalIndex descriptor_number, Tagged<Name> key,
   SetDetails(descriptor_number, details);
   SetValue(descriptor_number, value);
   // Resetting the fast iterable state is bottlenecked in SetKey().
-  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
+  DCHECK_NE(fast_iterable(), FastIterableState::kJsonFast);
 }
 
 void DescriptorArray::Set(InternalIndex descriptor_number, Descriptor* desc) {
@@ -336,7 +338,7 @@ void DescriptorArray::Set(InternalIndex descriptor_number, Descriptor* desc) {
   Tagged<MaybeObject> value = *desc->GetValue();
   Set(descriptor_number, key, value, desc->GetDetails());
   // Resetting the fast iterable state is bottlenecked in SetKey().
-  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
+  DCHECK_NE(fast_iterable(), FastIterableState::kJsonFast);
 }
 
 void DescriptorArray::Append(Descriptor* desc) {
@@ -362,7 +364,7 @@ void DescriptorArray::Append(Descriptor* desc) {
   SetSortedKey(insertion, descriptor_number);
 
   // Resetting the fast iterable state is bottlenecked in SetKey().
-  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
+  DCHECK_NE(fast_iterable(), FastIterableState::kJsonFast);
 
   if (V8_LIKELY(collision_hash != desc_hash)) return;
 

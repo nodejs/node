@@ -32,8 +32,8 @@ bool V8_EXPORT_PRIVATE CheckObjectComparisonAllowed(Address a, Address b);
 template <HeapObjectReferenceType kRefType, typename StorageType>
 class TaggedImpl {
  public:
-  static_assert(std::is_same<StorageType, Address>::value ||
-                    std::is_same<StorageType, Tagged_t>::value,
+  static_assert(std::is_same_v<StorageType, Address> ||
+                    std::is_same_v<StorageType, Tagged_t>,
                 "StorageType must be either Address or Tagged_t");
 
   // True for those TaggedImpl instantiations that represent uncompressed
@@ -54,13 +54,11 @@ class TaggedImpl {
   // the object's page header. Use SafeEquals() instead.
   template <HeapObjectReferenceType kOtherRefType, typename U>
   constexpr bool operator==(TaggedImpl<kOtherRefType, U> other) const {
-    static_assert(
-        std::is_same<U, Address>::value || std::is_same<U, Tagged_t>::value,
-        "U must be either Address or Tagged_t");
+    static_assert(std::is_same_v<U, Address> || std::is_same_v<U, Tagged_t>,
+                  "U must be either Address or Tagged_t");
 #if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
     // When comparing two full pointer values ensure that it's allowed.
-    if (std::is_same<StorageType, Address>::value &&
-        std::is_same<U, Address>::value) {
+    if (std::is_same_v<StorageType, Address> && std::is_same_v<U, Address>) {
       SLOW_DCHECK(CheckObjectComparisonAllowed(ptr_, other.ptr()));
     }
 #endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
@@ -72,13 +70,11 @@ class TaggedImpl {
   // the object's page header. Use SafeEquals() instead.
   template <HeapObjectReferenceType kOtherRefType, typename U>
   constexpr bool operator!=(TaggedImpl<kOtherRefType, U> other) const {
-    static_assert(
-        std::is_same<U, Address>::value || std::is_same<U, Tagged_t>::value,
-        "U must be either Address or Tagged_t");
+    static_assert(std::is_same_v<U, Address> || std::is_same_v<U, Tagged_t>,
+                  "U must be either Address or Tagged_t");
 #if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
     // When comparing two full pointer values ensure that it's allowed.
-    if (std::is_same<StorageType, Address>::value &&
-        std::is_same<U, Address>::value) {
+    if (std::is_same_v<StorageType, Address> && std::is_same_v<U, Address>) {
       SLOW_DCHECK(CheckObjectComparisonAllowed(ptr_, other.ptr()));
     }
 #endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
@@ -92,7 +88,7 @@ class TaggedImpl {
   template <HeapObjectReferenceType kOtherRefType>
   constexpr bool SafeEquals(
       TaggedImpl<kOtherRefType, StorageType> other) const {
-    static_assert(std::is_same<StorageType, Address>::value,
+    static_assert(std::is_same_v<StorageType, Address>,
                   "Safe comparison is allowed only for full tagged values");
     if (V8_EXTERNAL_CODE_SPACE_BOOL || V8_ENABLE_SANDBOX_BOOL) {
       return ptr_ == other.ptr();
@@ -104,7 +100,7 @@ class TaggedImpl {
   constexpr bool operator<(TaggedImpl other) const {
 #if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
     // When comparing two full pointer values ensure that it's allowed.
-    if (std::is_same<StorageType, Address>::value) {
+    if (std::is_same_v<StorageType, Address>) {
       SLOW_DCHECK(CheckObjectComparisonAllowed(ptr_, other.ptr()));
     }
 #endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)

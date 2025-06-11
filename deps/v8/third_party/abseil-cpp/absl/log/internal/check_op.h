@@ -224,7 +224,7 @@ inline void MakeCheckOpValueString(std::ostream& os, const T& v) {
 void MakeCheckOpValueString(std::ostream& os, char v);
 void MakeCheckOpValueString(std::ostream& os, signed char v);
 void MakeCheckOpValueString(std::ostream& os, unsigned char v);
-void MakeCheckOpValueString(std::ostream& os, const void* p);
+void MakeCheckOpValueString(std::ostream& os, const void* absl_nullable p);
 
 namespace detect_specialization {
 
@@ -266,8 +266,9 @@ float operator<<(std::ostream&, float value);
 double operator<<(std::ostream&, double value);
 long double operator<<(std::ostream&, long double value);
 bool operator<<(std::ostream&, bool value);
-const void* operator<<(std::ostream&, const void* value);
-const void* operator<<(std::ostream&, std::nullptr_t);
+const void* absl_nullable operator<<(std::ostream&,
+                                     const void* absl_nullable value);
+const void* absl_nullable operator<<(std::ostream&, std::nullptr_t);
 
 // These `char` overloads are specified like this in the standard, so we have to
 // write them exactly the same to ensure the call is ambiguous.
@@ -281,13 +282,14 @@ signed char operator<<(std::basic_ostream<char, Traits>&, signed char);
 template <typename Traits>
 unsigned char operator<<(std::basic_ostream<char, Traits>&, unsigned char);
 template <typename Traits>
-const char* operator<<(std::basic_ostream<char, Traits>&, const char*);
+const char* absl_nonnull operator<<(std::basic_ostream<char, Traits>&,
+                                    const char* absl_nonnull);
 template <typename Traits>
-const signed char* operator<<(std::basic_ostream<char, Traits>&,
-                              const signed char*);
+const signed char* absl_nonnull operator<<(std::basic_ostream<char, Traits>&,
+                                           const signed char* absl_nonnull);
 template <typename Traits>
-const unsigned char* operator<<(std::basic_ostream<char, Traits>&,
-                                const unsigned char*);
+const unsigned char* absl_nonnull operator<<(std::basic_ostream<char, Traits>&,
+                                             const unsigned char* absl_nonnull);
 
 // This overload triggers when the call is not ambiguous.
 // It means that T is being printed with some overload not on this list.
@@ -312,7 +314,8 @@ class StringifySink {
 
   void Append(absl::string_view text);
   void Append(size_t length, char ch);
-  friend void AbslFormatFlush(StringifySink* sink, absl::string_view text);
+  friend void AbslFormatFlush(StringifySink* absl_nonnull sink,
+                              absl::string_view text);
 
  private:
   std::ostream& os_;
@@ -376,10 +379,12 @@ ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(char);
 ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(unsigned char);
 ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const std::string&);
 ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const absl::string_view&);
-ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const char*);
-ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const signed char*);
-ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const unsigned char*);
-ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const void*);
+ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const char* absl_nonnull);
+ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(
+    const signed char* absl_nonnull);
+ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(
+    const unsigned char* absl_nonnull);
+ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN(const void* absl_nonnull);
 #undef ABSL_LOG_INTERNAL_DEFINE_MAKE_CHECK_OP_STRING_EXTERN
 
 // `ABSL_LOG_INTERNAL_CHECK_OP_IMPL_RESULT` skips formatting the Check_OP result

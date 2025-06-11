@@ -861,7 +861,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                            const MemOperand& field_operand);
 
   void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
-  void AtomicDecompressTagged(Register dst, const MemOperand& src);
+  // Returns the pc offset of the atomic load instruction.
+  int AtomicDecompressTagged(Register dst, const MemOperand& src);
 
   // ---------------------------------------------------------------------------
   // V8 Sandbox support

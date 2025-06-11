@@ -49,8 +49,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
   rec->instruction_start = code->InstructionStart(cage_base);
   rec->entry =
       code_entries_.Create(tag, GetName(name), CodeEntry::kEmptyResourceName,
-                           CpuProfileNode::kNoLineNumberInfo,
-                           CpuProfileNode::kNoColumnNumberInfo, nullptr);
+                           LineAndColumn{}, nullptr);
   rec->instruction_size = code->InstructionSize(cage_base);
   weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
@@ -65,8 +64,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
   rec->instruction_start = code->InstructionStart(cage_base);
   rec->entry =
       code_entries_.Create(tag, GetName(*name), CodeEntry::kEmptyResourceName,
-                           CpuProfileNode::kNoLineNumberInfo,
-                           CpuProfileNode::kNoColumnNumberInfo, nullptr);
+                           LineAndColumn{}, nullptr);
   rec->instruction_size = code->InstructionSize(cage_base);
   weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);
@@ -83,8 +81,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
   rec->entry =
       code_entries_.Create(tag, GetName(shared->DebugNameCStr().get()),
                            GetName(InferScriptName(*script_name, *shared)),
-                           CpuProfileNode::kNoLineNumberInfo,
-                           CpuProfileNode::kNoColumnNumberInfo, nullptr);
+                           LineAndColumn{}, nullptr);
   rec->entry->FillFunctionInfo(*shared);
   rec->instruction_size = code->InstructionSize(cage_base);
   weak_code_registry_.Track(rec->entry, code);
@@ -118,7 +115,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
   PtrComprCageBase cage_base(isolate_);
   rec->instruction_start = abstract_code->InstructionStart(cage_base);
   std::unique_ptr<SourcePositionTable> line_table;
-  std::unordered_map<int, std::vector<CodeEntryAndLineNumber>> inline_stacks;
+  std::unordered_map<int, std::vector<CodeEntryAndPosition>> inline_stacks;
   std::unordered_set<CodeEntry*, CodeEntry::Hasher, CodeEntry::Equals>
       cached_inline_entries;
   bool is_shared_cross_origin = false;
@@ -159,8 +156,11 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
       }
 
       if (inlining_id == SourcePosition::kNotInlined) {
-        int line_number = script->GetLineNumber(position) + 1;
-        line_table->SetPosition(code_offset, line_number, inlining_id);
+        Script::PositionInfo info;
+        script->GetPositionInfo(position, &info,
+                                Script::OffsetFlag::kWithOffset);
+        line_table->SetPosition(code_offset, {info.line + 1, info.column + 1},
+                                inlining_id);
       } else {
         DCHECK(!is_baseline);
         DCHECK(IsCode(*abstract_code, cage_base));
@@ -172,17 +172,21 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
         // When we have an inlining id and we are doing cross-script inlining,
         // then the script of the inlined frames may be different to the script
         // of |shared|.
-        int line_number = stack.front().line + 1;
-        line_table->SetPosition(code_offset, line_number, inlining_id);
+        LineAndColumn line_and_column{stack.front().line + 1,
+                                      stack.front().column + 1};
+        line_table->SetPosition(code_offset, line_and_column, inlining_id);
 
-        std::vector<CodeEntryAndLineNumber> inline_stack;
+        std::vector<CodeEntryAndPosition> inline_stack;
         for (SourcePositionInfo& pos_info : stack) {
           if (pos_info.position.ScriptOffset() == kNoSourcePosition) continue;
           if (pos_info.script.is_null()) continue;
 
-          line_number =
-              pos_info.script->GetLineNumber(pos_info.position.ScriptOffset()) +
-              1;
+          Script::PositionInfo script_pos_info;
+          pos_info.script->GetPositionInfo(pos_info.position.ScriptOffset(),
+                                           &script_pos_info,
+                                           Script::OffsetFlag::kWithOffset);
+          line_and_column = {script_pos_info.line + 1,
+                             script_pos_info.column + 1};
 
           const char* resource_name =
               (IsName(pos_info.script->name()))
@@ -201,8 +205,8 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
 
           CodeEntry* inline_entry = code_entries_.Create(
               tag, GetFunctionName(*pos_info.shared), resource_name,
-              start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
-              inline_is_shared_cross_origin);
+              LineAndColumn{start_pos_info.line + 1, start_pos_info.column + 1},
+              nullptr, inline_is_shared_cross_origin);
           inline_entry->FillFunctionInfo(*pos_info.shared);
 
           // Create a canonical CodeEntry for each inlined frame and then reuse
@@ -210,17 +214,18 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
           CodeEntry* cached_entry = GetOrInsertCachedEntry(
               &cached_inline_entries, inline_entry, code_entries_);
 
-          inline_stack.push_back({cached_entry, line_number});
+          inline_stack.push_back({cached_entry, line_and_column});
         }
         DCHECK(!inline_stack.empty());
         inline_stacks.emplace(inlining_id, std::move(inline_stack));
       }
     }
   }
-  rec->entry = code_entries_.Create(
-      tag, GetFunctionName(*shared),
-      GetName(InferScriptName(*script_name, *shared)), line, column,
-      std::move(line_table), is_shared_cross_origin);
+  rec->entry =
+      code_entries_.Create(tag, GetFunctionName(*shared),
+                           GetName(InferScriptName(*script_name, *shared)),
+                           LineAndColumn{line, column}, std::move(line_table),
+                           is_shared_cross_origin);
   if (!inline_stacks.empty()) {
     rec->entry->SetInlineStacks(std::move(cached_inline_entries),
                                 std::move(inline_stacks));
@@ -240,9 +245,9 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = code->instruction_start();
-  rec->entry = code_entries_.Create(tag, GetName(name), GetName(source_url), 1,
-                                    code_offset + 1, nullptr, true,
-                                    CodeEntry::CodeType::WASM);
+  rec->entry = code_entries_.Create(tag, GetName(name), GetName(source_url),
+                                    LineAndColumn{1, code_offset + 1}, nullptr,
+                                    true, CodeEntry::CodeType::WASM);
   rec->entry->set_script_id(script_id);
   rec->entry->set_position(code_offset);
   rec->instruction_size = code->instructions().length();
@@ -292,8 +297,7 @@ void ProfilerListener::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
   rec->instruction_start = code->InstructionStart(cage_base);
   rec->entry = code_entries_.Create(
       LogEventListener::CodeTag::kRegExp, GetConsName("RegExp: ", *source),
-      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, nullptr);
+      CodeEntry::kEmptyResourceName, LineAndColumn{}, nullptr);
   rec->instruction_size = code->InstructionSize(cage_base);
   weak_code_registry_.Track(rec->entry, code);
   DispatchCodeEvent(evt_rec);

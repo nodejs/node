@@ -20,7 +20,6 @@
   V(MapIteratorProtector, map_iterator_protector, MapIteratorProtector)       \
   V(NoElementsProtector, no_elements_protector, NoElementsProtector)          \
   V(MegaDOMProtector, mega_dom_protector, MegaDOMProtector)                   \
-  V(NumberStringCache, number_string_cache, NumberStringCache)                \
   V(NumberStringNotRegexpLikeProtector,                                       \
     number_string_not_regexp_like_protector,                                  \
     NumberStringNotRegexpLikeProtector)                                       \
@@ -35,8 +34,6 @@
     StringIteratorProtector)                                                  \
   V(StringWrapperToPrimitiveProtector, string_wrapper_to_primitive_protector, \
     StringWrapperToPrimitiveProtector)                                        \
-  V(TypedArrayLengthProtector, typed_array_length_protector,                  \
-    TypedArrayLengthProtector)                                                \
   V(TypedArraySpeciesProtector, typed_array_species_protector,                \
     TypedArraySpeciesProtector)                                               \
   BUILTINS_WITH_SFI_OBJECT_LIST(V)
@@ -157,6 +154,7 @@
   V(undefined_to_string, undefined_to_string, UndefinedToString)             \
   V(UndefinedValue, undefined_value, Undefined)                              \
   V(uninitialized_symbol, uninitialized_symbol, UninitializedSymbol)         \
+  V(UndefinedContextCell, undefined_context_cell, UndefinedContextCell)      \
   V(valueOf_string, valueOf_string, ValueOfString)                           \
   V(wasm_cross_instance_call_symbol, wasm_cross_instance_call_symbol,        \
     WasmCrossInstanceCallSymbol)                                             \

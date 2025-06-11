@@ -18,11 +18,17 @@ namespace v8::internal::compiler {
 /**** Helpers ****/
 
 namespace {
+bool TypesUnrelated(wasm::ValueType type1, wasm::ValueType type2,
+                    const wasm::WasmModule* module) {
+  return !wasm::IsSubtypeOf(type1, type2, module) &&
+         !wasm::IsSubtypeOf(type2, type1, module);
+}
+
 bool TypesUnrelated(Node* lhs, Node* rhs) {
   wasm::TypeInModule type1 = NodeProperties::GetType(lhs).AsWasm();
   wasm::TypeInModule type2 = NodeProperties::GetType(rhs).AsWasm();
-  return wasm::TypesUnrelated(type1.type, type2.type, type1.module,
-                              type2.module);
+  DCHECK_EQ(type1.module, type2.module);
+  return TypesUnrelated(type1.type, type2.type, type1.module);
 }
 
 bool IsFresh(Node* node) {
@@ -110,9 +116,7 @@ std::tuple<Node*, Node*> WasmLoadElimination::TruncateAndExtendOrType(
 
   wasm::TypeInModule node_type = value_type.AsWasm();
 
-  // TODO(12166): Adapt this if cross-module inlining is allowed.
-  if (wasm::TypesUnrelated(node_type.type, field_type, node_type.module,
-                           node_type.module)) {
+  if (TypesUnrelated(node_type.type, field_type, node_type.module)) {
     // Unrelated types can occur as a result of unreachable code.
     // Example: Storing a value x of type A in a struct, then casting the struct
     // to a different struct type to then load type B from the same offset

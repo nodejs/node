@@ -85,6 +85,7 @@ class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor
  protected:
   bool DeferTraceToMutatorThreadIfConcurrent(const void*, cppgc::TraceCallback,
                                              size_t) final;
+  bool IsConcurrent() const final { return true; }
 
  private:
   // Visitor owns the local worklist. All remaining items are published on

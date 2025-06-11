@@ -293,7 +293,8 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
     CSA_DCHECK(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
     TNode<Int32T> length =
         LoadAndUntagToWord32ObjectField(array_receiver, JSArray::kLengthOffset);
-    Label return_undefined(this), fast_elements(this);
+    Label pop_and_return_undefined(this), return_undefined(this),
+        fast_elements(this);
 
     // 2) Ensure that the length is writable.
     EnsureArrayLengthWritable(context, LoadMap(array_receiver), &runtime);
@@ -329,10 +330,22 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
       TNode<FixedDoubleArray> elements_known_double_array =
           ReinterpretCast<FixedDoubleArray>(elements);
       TNode<Float64T> value = LoadFixedDoubleArrayElement(
-          elements_known_double_array, new_length_intptr, &return_undefined);
+          elements_known_double_array, new_length_intptr,
+          &pop_and_return_undefined, &return_undefined);
 
       StoreFixedDoubleArrayHole(elements_known_double_array, new_length_intptr);
       args.PopAndReturn(AllocateHeapNumberWithValue(value));
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      BIND(&pop_and_return_undefined);
+      {
+        StoreFixedDoubleArrayHole(elements_known_double_array,
+                                  new_length_intptr);
+        Goto(&return_undefined);
+      }
+#else
+      DCHECK(!pop_and_return_undefined.is_used());
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     }
 
     BIND(&fast_elements);
@@ -1087,8 +1100,8 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
     Label continue_loop(this);
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
-    TNode<Float64T> element_k =
-        LoadFixedDoubleArrayElement(elements, index_var.value());
+    TNode<Float64T> element_k = LoadFixedDoubleArrayElement(
+        elements, index_var.value(), nullptr, nullptr);
     Branch(Float64Equal(element_k, search_num.value()), &return_found,
            &continue_loop);
     BIND(&continue_loop);
@@ -1102,8 +1115,8 @@ void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(
     Label continue_loop(this);
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
-    TNode<Float64T> element_k =
-        LoadFixedDoubleArrayElement(elements, index_var.value());
+    TNode<Float64T> element_k = LoadFixedDoubleArrayElement(
+        elements, index_var.value(), nullptr, nullptr);
     BranchIfFloat64IsNaN(element_k, &return_found, &continue_loop);
     BIND(&continue_loop);
     Increment(&index_var);
@@ -1185,8 +1198,8 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
 
     // No need for hole checking here; the following Float64Equal will
     // return 'not equal' for holes anyway.
-    TNode<Float64T> element_k =
-        LoadFixedDoubleArrayElement(elements, index_var.value());
+    TNode<Float64T> element_k = LoadFixedDoubleArrayElement(
+        elements, index_var.value(), nullptr, nullptr);
 
     Branch(Float64Equal(element_k, search_num.value()), &return_found,
            &continue_loop);
@@ -1204,8 +1217,7 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
 
     // Load double value or continue if it's the hole NaN.
     TNode<Float64T> element_k = LoadFixedDoubleArrayElement(
-        elements, index_var.value(), &continue_loop);
-
+        elements, index_var.value(), &continue_loop, &continue_loop);
     BranchIfFloat64IsNaN(element_k, &return_found, &continue_loop);
     BIND(&continue_loop);
     Increment(&index_var);
@@ -1222,14 +1234,9 @@ void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(
     // go to `return_found`. For double holes, go to `return_found` only if we
     // check for existance of undefined. When computing the index, holes are
     // ignored (we don't pass a label).
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
-    LoadFixedDoubleArrayElementWithUndefinedCheck(
+    LoadFixedDoubleArrayElement(
         elements, index_var.value(), &return_found,
         (variant == kIncludes ? &return_found : nullptr), MachineType::None());
-#else
-    LoadFixedDoubleArrayElement(elements, index_var.value(), &return_found,
-                                MachineType::None());
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
     Increment(&index_var);
     Goto(&hole_loop);

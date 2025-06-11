@@ -112,14 +112,12 @@ MaybeDirectHandle<Object> HasEnumerableProperty(
 
 }  // namespace
 
-
 RUNTIME_FUNCTION(Runtime_ForInEnumerate) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSReceiver> receiver = args.at<JSReceiver>(0);
   RETURN_RESULT_OR_FAILURE(isolate, Enumerate(isolate, receiver));
 }
-
 
 RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   HandleScope scope(isolate);

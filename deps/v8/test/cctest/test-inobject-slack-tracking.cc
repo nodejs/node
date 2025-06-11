@@ -128,7 +128,7 @@ TEST(JSObjectBasic) {
   DirectHandle<JSObject> obj = RunI<JSObject>(new_A_script);
 
   CHECK(func->has_initial_map());
-  DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+  DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
   // One instance created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -189,7 +189,7 @@ TEST(JSObjectComplex) {
   DirectHandle<JSObject> obj5 = CompileRunI<JSObject>("new A(5);");
 
   CHECK(func->has_initial_map());
-  DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+  DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
   // Three instances created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 3,
@@ -274,7 +274,7 @@ TEST(JSGeneratorObjectBasic) {
   DirectHandle<JSObject> obj = RunI<JSObject>(new_A_script);
 
   CHECK(func->has_initial_map());
-  DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+  DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
   // One instance created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -350,10 +350,10 @@ TEST(SubclassBasicNoBaseClassInstances) {
   DirectHandle<JSObject> obj = RunI<JSObject>(new_B_script);
 
   CHECK(a_func->has_initial_map());
-  DirectHandle<Map> a_initial_map(a_func->initial_map(), a_func->GetIsolate());
+  DirectHandle<Map> a_initial_map(a_func->initial_map(), CcTest::i_isolate());
 
   CHECK(b_func->has_initial_map());
-  DirectHandle<Map> b_initial_map(b_func->initial_map(), a_func->GetIsolate());
+  DirectHandle<Map> b_initial_map(b_func->initial_map(), CcTest::i_isolate());
 
   // Zero instances of A created.
   CHECK_EQ(Map::kSlackTrackingCounterStart,
@@ -445,10 +445,10 @@ TEST(SubclassBasic) {
   DirectHandle<JSObject> b_obj = RunI<JSObject>(new_B_script);
 
   CHECK(a_func->has_initial_map());
-  DirectHandle<Map> a_initial_map(a_func->initial_map(), a_func->GetIsolate());
+  DirectHandle<Map> a_initial_map(a_func->initial_map(), CcTest::i_isolate());
 
   CHECK(b_func->has_initial_map());
-  DirectHandle<Map> b_initial_map(b_func->initial_map(), a_func->GetIsolate());
+  DirectHandle<Map> b_initial_map(b_func->initial_map(), CcTest::i_isolate());
 
   // One instance of a base class created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -568,7 +568,7 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
     DirectHandle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+    DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
     // If the object is slow-mode already, bail out.
     if (obj->map()->is_dictionary_map()) continue;
@@ -678,7 +678,7 @@ TEST(InobjectPropetiesCountOverflowInSubclass) {
     DirectHandle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+    DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
     // There must be no slack left.
     CHECK_EQ(JSObject::kMaxInstanceSize, obj->map()->instance_size());
@@ -864,7 +864,7 @@ TEST(SlowModeSubclass) {
     DirectHandle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+    DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
     // Object should go dictionary mode.
     CHECK_EQ(JSObject::kHeaderSize, obj->map()->instance_size());
@@ -930,7 +930,7 @@ static void TestSubclassBuiltin(const char* subclass_name,
   RunI<JSObject>(new_script);
 
   CHECK(func->has_initial_map());
-  DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+  DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
   CHECK_EQ(instance_type, initial_map->instance_type());
 
@@ -1251,7 +1251,7 @@ TEST(SubclassTranspiledClassHierarchy) {
   RunI<JSObject>(new_script);
 
   CHECK(func->has_initial_map());
-  DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+  DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
   CHECK_EQ(JS_OBJECT_TYPE, initial_map->instance_type());
 

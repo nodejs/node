@@ -224,6 +224,8 @@ class SingleValueFeedback : public ProcessedFeedback {
       : ProcessedFeedback(K, slot_kind), value_(value) {
     DCHECK(
         (K == kBinaryOperation && slot_kind == FeedbackSlotKind::kBinaryOp) ||
+        (K == kBinaryOperation &&
+         slot_kind == FeedbackSlotKind::kStringAddAndInternalize) ||
         (K == kTypeOf && slot_kind == FeedbackSlotKind::kTypeOf) ||
         (K == kCompareOperation && slot_kind == FeedbackSlotKind::kCompareOp) ||
         (K == kForIn && slot_kind == FeedbackSlotKind::kForIn) ||

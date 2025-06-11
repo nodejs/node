@@ -653,7 +653,7 @@ class WasmRevecAnalyzer {
   ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>
       revectorizable_intersect_node_;
   bool should_reduce_;
-  SimdUseMap* use_map_;
+  Simd128UseMap* use_map_;
 };
 
 template <class Next>
@@ -664,6 +664,10 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
   OpIndex GetExtractOpIfNeeded(const PackNode* pnode, OpIndex ig_index,
                                OpIndex og_index) {
+    if (__ template MapToNewGraph<true>(ig_index).valid()) {
+      // The op is already emitted during emitting force pack node input trees.
+      return OpIndex::Invalid();
+    }
     const auto lane = base::checked_cast<uint8_t>(
         std::find(pnode->nodes().begin(), pnode->nodes().end(), ig_index) -
         pnode->nodes().begin());
@@ -1269,8 +1273,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     }
 
     if (__ template MapToNewGraph<true>(ig_index).valid()) {
-      // The op is already emitted during emitting force pack right node input
-      // trees.
+      // The op is already emitted during emitting force pack node input trees.
       return OpIndex::Invalid();
     }
 

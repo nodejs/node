@@ -256,10 +256,8 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
 #if V8_ENABLE_WEBASSEMBLY
     // Clear the cached js-to-wasm wrappers.
-    DirectHandle<WeakFixedArray> wrappers(
-        isolate->heap()->js_to_wasm_wrappers(), isolate);
-    MemsetTagged(wrappers->RawFieldOfFirstElement(), ClearedValue(isolate),
-                 wrappers->length());
+    isolate->heap()->SetJSToWasmWrappers(
+        ReadOnlyRoots(isolate).empty_weak_fixed_array());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
@@ -951,7 +949,7 @@ void SnapshotCreatorImpl::SetDefaultContext(
   DCHECK(contexts_[kDefaultContextIndex].handle_location == nullptr);
   DCHECK(!context.is_null());
   DCHECK(!created());
-  CHECK_EQ(isolate_, context->GetIsolate());
+  CHECK(isolate_->heap()->Contains(*context));
   contexts_[kDefaultContextIndex].handle_location =
       isolate_->global_handles()->Create(*context).location();
   contexts_[kDefaultContextIndex].callback = callback;
@@ -962,7 +960,7 @@ size_t SnapshotCreatorImpl::AddContext(
     SerializeEmbedderFieldsCallback callback) {
   DCHECK(!context.is_null());
   DCHECK(!created());
-  CHECK_EQ(isolate_, context->GetIsolate());
+  CHECK(isolate_->heap()->Contains(*context));
   size_t index = contexts_.size() - kFirstAddtlContextIndex;
   contexts_.emplace_back(
       isolate_->global_handles()->Create(*context).location(), callback);
@@ -971,7 +969,7 @@ size_t SnapshotCreatorImpl::AddContext(
 
 size_t SnapshotCreatorImpl::AddData(DirectHandle<NativeContext> context,
                                     Address object) {
-  CHECK_EQ(isolate_, context->GetIsolate());
+  CHECK(isolate_->heap()->Contains(*context));
   DCHECK_NE(object, kNullAddress);
   DCHECK(!created());
   HandleScope scope(isolate_);

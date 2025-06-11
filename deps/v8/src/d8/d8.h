@@ -401,8 +401,7 @@ class ShellOptions {
   // repeated flags for identical boolean values. We allow exceptions for flags
   // with enum-like arguments since their conflicts can also be specified
   // completely.
-  template <class T,
-            bool kAllowIdenticalAssignment = std::is_same<T, bool>::value>
+  template <class T, bool kAllowIdenticalAssignment = std::is_same_v<T, bool>>
   class DisallowReassignment {
    public:
     DisallowReassignment(const char* name, T value)

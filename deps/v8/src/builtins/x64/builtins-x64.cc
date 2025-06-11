@@ -450,6 +450,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   ExternalReference context_address = ExternalReference::Create(
       IsolateAddressId::kContextAddress, masm->isolate());
   __ Load(kScratchRegister, context_address);
+
   static constexpr int kOffsetToContextSlot = -2 * kSystemPointerSize;
   __ movq(Operand(rbp, kOffsetToContextSlot), kScratchRegister);
 
@@ -618,6 +619,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     ExternalReference context_address = ExternalReference::Create(
         IsolateAddressId::kContextAddress, masm->isolate());
     __ movq(rsi, masm->ExternalReferenceAsOperand(context_address));
+#ifdef DEBUG
+    __ Move(__ ExternalReferenceAsOperand(context_address),
+            Context::kNoContext);
+#endif  // DEBUG
 
     // Push the function onto the stack.
     __ Push(rdi);
@@ -5078,6 +5083,56 @@ void Builtins::Generate_DeoptimizationEntry_Eager(MacroAssembler* masm) {
 
 void Builtins::Generate_DeoptimizationEntry_Lazy(MacroAssembler* masm) {
   Generate_DeoptimizationEntry(masm, DeoptimizeKind::kLazy);
+}
+
+void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
+    MacroAssembler* masm) {
+  // The deoptimizer may have been triggered right after the return of a fast
+  // API call. In that case, exception handling and possible stack unwinding
+  // did not happen yet.
+  // We check here if a there is a pending exception by comparing the
+  // exception stored in the isolate with the no-exception sentinel
+  // (the_hole_value). If there is an exception, we call PropagateException to
+  // trigger stack unwinding.
+  Label no_exception;
+  __ movq(rax, __ ExternalReferenceAsOperand(ExternalReference::Create(
+                   IsolateAddressId::kExceptionAddress, __ isolate())));
+  __ CompareRoot(rax, RootIndex::kTheHoleValue);
+
+  __ j(equal, &no_exception);
+
+  __ EnterFrame(StackFrame::INTERNAL);
+  const RegList kCalleeSaveRegisters = {C_CALL_CALLEE_SAVE_REGISTERS};
+  const DoubleRegList kCalleeSaveFPRegisters = {
+      C_CALL_CALLEE_SAVE_FP_REGISTERS};
+  __ PushAll(kCalleeSaveFPRegisters);
+  __ PushAll(kCalleeSaveRegisters);
+  __ Move(kContextRegister, Context::kNoContext);
+  // We have to reset IsolateData::fast_c_call_caller_fp(), because otherwise
+  // the  stack unwinder thinks that we are still within the fast C call.
+  if (v8_flags.debug_code) {
+    __ movq(rax,
+            __ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
+    __ testq(rax, rax);
+    __ Assert(not_equal, AbortReason::kFastCallFallbackInvalid);
+  }
+  __ movq(__ ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP),
+          Immediate(0));
+  __ CallRuntime(Runtime::FunctionId::kPropagateException);
+  __ PopAll(kCalleeSaveRegisters);
+  __ PopAll(kCalleeSaveFPRegisters);
+  __ LeaveFrame(StackFrame::INTERNAL);
+
+  __ bind(&no_exception);
+  // LINT.IfChange(DeoptAfterFastCallSetReturnValue)
+  // Deoptimization expects that the return value of the API call is in the
+  // return register. As we only allow deoptimization if the return type is
+  // void, the return value is always `undefined`.
+  // TODO(crbug.com/418936518): Handle the return value in an actual
+  // deoptimization continuation.
+  __ LoadRoot(kReturnRegister0, RootIndex::kUndefinedValue);
+  // LINT.ThenChange()
+  __ TailCallBuiltin(Builtin::kDeoptimizationEntry_Lazy);
 }
 
 // If there is baseline code on the shared function info, converts an

@@ -1333,6 +1333,9 @@ void FreeCachesOnMemoryPressure(Isolate* isolate) {
   isolate->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   isolate->ClearSerializerData();
   isolate->compilation_cache()->Clear();
+
+  // TODO(ishell): consider trimming number to string caches to initial size.
+
   if (v8_flags.discard_memory_pool_before_memory_pressure_gcs) {
     IsolateGroup::current()->page_pool()->ReleaseImmediately();
   }
@@ -1535,7 +1538,7 @@ void Heap::SetOldGenerationAndGlobalMaximumSize(
 
 void Heap::SetOldGenerationAndGlobalAllocationLimit(
     size_t new_old_generation_allocation_limit,
-    size_t new_global_allocation_limit) {
+    size_t new_global_allocation_limit, const char* reason) {
   CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
 #if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
@@ -1551,6 +1554,14 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
                                          std::memory_order_relaxed);
   global_allocation_limit_.store(new_global_allocation_limit,
                                  std::memory_order_relaxed);
+  if (v8_flags.trace_gc_nvp) [[unlikely]] {
+    isolate()->PrintWithTimestamp(
+        "action=SetOldGenerationAndGlobalAllocationLimit "
+        "old_generation_allocation_limit=%zu global_allocation_limit=%zu "
+        "reason=%s\n",
+        new_old_generation_allocation_limit, new_global_allocation_limit,
+        reason);
+  }
 }
 
 void Heap::ResetOldGenerationAndGlobalAllocationLimit() {
@@ -1867,6 +1878,8 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
     tracer()->ResetSurvivalEvents();
     if (!initial_size_overwritten_) {
       ResetOldGenerationAndGlobalAllocationLimit();
+    } else if (preconfigured_old_generation_size_) {
+      EnsureMinimumRemainingAllocationLimit(initial_old_generation_size_);
     }
     if (memory_reducer_) {
       memory_reducer_->NotifyPossibleGarbage();
@@ -2033,18 +2046,53 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
   }
 }
 
-void Heap::MoveRange(Tagged<HeapObject> dst_object, const ObjectSlot dst_slot,
-                     const ObjectSlot src_slot, int len,
-                     WriteBarrierMode mode) {
-  DCHECK_NE(len, 0);
-  DCHECK_NE(dst_object->map(), ReadOnlyRoots(this).fixed_cow_array_map());
-  const ObjectSlot dst_end(dst_slot + len);
+namespace {
+
+template <typename TSlot, typename AtomicOp, typename NonAtomicOp>
+void CopyOrMoveRangeImpl(Heap* heap, Tagged<HeapObject> dst_object,
+                         const TSlot dst_slot, const TSlot src_slot, int len,
+                         WriteBarrierMode mode, AtomicOp atomic_op,
+                         NonAtomicOp non_atomic_op) {
+  DCHECK_GT(len, 0);
+  DCHECK_NE(dst_object->map(), ReadOnlyRoots(heap).fixed_cow_array_map());
+
+  MemoryChunk* dst_chunk = MemoryChunk::FromHeapObject(dst_object);
+  // Young generation object with marking being off, we can use plain memcopy
+  // without write barriers.
+  if (!dst_chunk->IsFlagSet(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING)) {
+    non_atomic_op(dst_slot, src_slot, len);
+    return;
+  }
+
+  const TSlot dst_end(dst_slot + len);
+  // Falling through here means either old generation object or marking being
+  // on.
+  DCHECK_IMPLIES(heap->sweeper()->IsIteratingPromotedPages(),
+                 v8_flags.minor_ms);
+  if ((heap->incremental_marking()->IsMarking() &&
+       v8_flags.concurrent_marking) ||
+      (v8_flags.minor_ms && heap->sweeper()->IsIteratingPromotedPages())) {
+    atomic_op(dst_slot, dst_end, src_slot, len);
+  } else {
+    non_atomic_op(dst_slot, src_slot, len);
+  }
+  if (mode == SKIP_WRITE_BARRIER) {
+    return;
+  }
+  WriteBarrier::ForRange(heap, dst_object, dst_slot, dst_end);
+}
+
+}  // namespace
+
+template <typename TSlot>
+void Heap::MoveRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
+                     const TSlot src_slot, int len, WriteBarrierMode mode) {
   // Ensure no range overflow.
-  DCHECK(dst_slot < dst_end);
+  DCHECK(dst_slot < TSlot(dst_slot + len));
   DCHECK(src_slot < src_slot + len);
 
-  if ((v8_flags.concurrent_marking && incremental_marking()->IsMarking()) ||
-      (v8_flags.minor_ms && sweeper()->IsIteratingPromotedPages())) {
+  const auto atomic_callback = [](TSlot dst_slot, TSlot dst_end, TSlot src_slot,
+                                  int len) {
     if (dst_slot < src_slot) {
       // Copy tagged values forward using relaxed load/stores that do not
       // involve value decompression.
@@ -2068,37 +2116,29 @@ void Heap::MoveRange(Tagged<HeapObject> dst_object, const ObjectSlot dst_slot,
         --src;
       }
     }
-  } else {
+  };
+  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot, int len) {
     MemMove(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
-  }
-  if (mode == SKIP_WRITE_BARRIER) {
-    return;
-  }
-  WriteBarrier::ForRange(this, dst_object, dst_slot, dst_end);
+  };
+  CopyOrMoveRangeImpl(this, dst_object, dst_slot, src_slot, len, mode,
+                      atomic_callback, non_atomic_callback);
 }
 
-// Instantiate Heap::CopyRange().
-template V8_EXPORT_PRIVATE void Heap::CopyRange<ObjectSlot>(
+template V8_EXPORT_PRIVATE void Heap::MoveRange<ObjectSlot>(
     Tagged<HeapObject> dst_object, ObjectSlot dst_slot, ObjectSlot src_slot,
     int len, WriteBarrierMode mode);
-template V8_EXPORT_PRIVATE void Heap::CopyRange<MaybeObjectSlot>(
+template V8_EXPORT_PRIVATE void Heap::MoveRange<MaybeObjectSlot>(
     Tagged<HeapObject> dst_object, MaybeObjectSlot dst_slot,
     MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
 
 template <typename TSlot>
 void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
                      const TSlot src_slot, int len, WriteBarrierMode mode) {
-  DCHECK_NE(len, 0);
-
-  DCHECK_NE(dst_object->map(), ReadOnlyRoots(this).fixed_cow_array_map());
-  const TSlot dst_end(dst_slot + len);
   // Ensure ranges do not overlap.
-  DCHECK(dst_end <= src_slot || (src_slot + len) <= dst_slot);
+  DCHECK(TSlot(dst_slot + len) <= src_slot || (src_slot + len) <= dst_slot);
 
-  if ((v8_flags.concurrent_marking && incremental_marking()->IsMarking()) ||
-      (v8_flags.minor_ms && sweeper()->IsIteratingPromotedPages())) {
-    // Copy tagged values using relaxed load/stores that do not involve value
-    // decompression.
+  const auto atomic_callback = [](TSlot dst_slot, TSlot dst_end, TSlot src_slot,
+                                  int len) {
     const AtomicSlot atomic_dst_end(dst_end);
     AtomicSlot dst(dst_slot);
     AtomicSlot src(src_slot);
@@ -2107,14 +2147,20 @@ void Heap::CopyRange(Tagged<HeapObject> dst_object, const TSlot dst_slot,
       ++dst;
       ++src;
     }
-  } else {
+  };
+  const auto non_atomic_callback = [](TSlot dst_slot, TSlot src_slot, int len) {
     MemCopy(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
-  }
-  if (mode == SKIP_WRITE_BARRIER) {
-    return;
-  }
-  WriteBarrier::ForRange(this, dst_object, dst_slot, dst_end);
+  };
+  CopyOrMoveRangeImpl(this, dst_object, dst_slot, src_slot, len, mode,
+                      atomic_callback, non_atomic_callback);
 }
+
+template V8_EXPORT_PRIVATE void Heap::CopyRange<ObjectSlot>(
+    Tagged<HeapObject> dst_object, ObjectSlot dst_slot, ObjectSlot src_slot,
+    int len, WriteBarrierMode mode);
+template V8_EXPORT_PRIVATE void Heap::CopyRange<MaybeObjectSlot>(
+    Tagged<HeapObject> dst_object, MaybeObjectSlot dst_slot,
+    MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
 
 bool Heap::CollectionRequested() {
   return collection_barrier_->WasGCRequested();
@@ -2683,7 +2729,9 @@ void Heap::MarkCompactPrologue() {
   RegExpResultsCache::Clear(regexp_multiple_cache());
   RegExpResultsCache_MatchGlobalAtom::Clear(this);
 
-  FlushNumberStringCache();
+  // Flush the number to string caches.
+  smi_string_cache()->Clear();
+  double_string_cache()->Clear();
 }
 
 void Heap::Scavenge() {
@@ -3136,13 +3184,28 @@ void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
   }
 }
 
-void Heap::FlushNumberStringCache() {
-  // Flush the number to string cache.
-  int len = number_string_cache()->length();
-  ReadOnlyRoots roots{isolate()};
-  for (int i = 0; i < len; i++) {
-    number_string_cache()->set(i, roots.undefined_value(), SKIP_WRITE_BARRIER);
-  }
+// Increases V8 and global allocation limits (if necessary) such that there is
+// at least |at_least_remaining| of memory left before triggering GCs. When
+// there is more memory available then that, the limits remain as-is.
+void Heap::EnsureMinimumRemainingAllocationLimit(size_t at_least_remaining) {
+  base::MutexGuard guard(old_space()->mutex());
+  size_t new_old_generation_allocation_limit =
+      std::max(OldGenerationConsumedBytes() + at_least_remaining,
+               old_generation_allocation_limit());
+  new_old_generation_allocation_limit =
+      std::max(new_old_generation_allocation_limit, min_old_generation_size());
+  new_old_generation_allocation_limit =
+      std::min(new_old_generation_allocation_limit, max_old_generation_size());
+
+  size_t new_global_allocation_limit = std::max(
+      GlobalConsumedBytes() + GlobalMemorySizeFromV8Size(at_least_remaining),
+      global_allocation_limit());
+  new_global_allocation_limit =
+      std::max(new_global_allocation_limit, min_global_memory_size_);
+  new_global_allocation_limit =
+      std::min(new_global_allocation_limit, max_global_memory_size_);
+  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
+                                           new_global_allocation_limit);
 }
 
 namespace {
@@ -4222,12 +4285,7 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
 void Heap::EagerlyFreeExternalMemoryAndWasmCode() {
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.flush_liftoff_code) {
-    // Flush Liftoff code and record the flushed code size.
-    auto [code_size, metadata_size] = wasm::GetWasmEngine()->FlushLiftoffCode();
-    isolate_->counters()->wasm_flushed_liftoff_code_size_bytes()->AddSample(
-        static_cast<int>(code_size));
-    isolate_->counters()->wasm_flushed_liftoff_metadata_size_bytes()->AddSample(
-        static_cast<int>(metadata_size));
+    wasm::GetWasmEngine()->FlushLiftoffCode();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   CompleteArrayBufferSweeping(this);
@@ -4482,6 +4540,17 @@ bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
       return read_only_space_->ContainsSlow(addr);
   }
   UNREACHABLE();
+}
+
+bool Heap::CanReferenceHeapObject(Tagged<HeapObject> obj) {
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
+  // Objects in read-only space are allowed to be used in any isolate.
+  if (chunk->InReadOnlySpace()) return true;
+  Heap* obj_heap = chunk->GetHeap();
+  Heap* expected_heap = chunk->InWritableSharedSpace()
+                            ? isolate()->shared_space_isolate()->heap()
+                            : this;
+  return obj_heap == expected_heap;
 }
 
 bool Heap::IsValidAllocationSpace(AllocationSpace space) {
@@ -4851,7 +4920,11 @@ void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
 
 void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
                                          IterateRootsMode roots_mode) {
-  if (!v8_flags.conservative_stack_scanning || !IsGCWithStack()) return;
+  const StackScanMode stack_scan_mode =
+      ConservativeStackScanningModeForMajorGC();
+  DCHECK_IMPLIES(stack_scan_mode == Heap::StackScanMode::kSelective,
+                 IsGCWithStack());
+  if ((stack_scan_mode == StackScanMode::kNone) || !IsGCWithStack()) return;
 
   // In case of a shared GC, we're interested in the main isolate for CSS.
   Isolate* main_isolate = roots_mode == IterateRootsMode::kClientIsolate
@@ -4859,13 +4932,24 @@ void Heap::IterateConservativeStackRoots(RootVisitor* root_visitor,
                               : isolate();
 
   ConservativeStackVisitor stack_visitor(main_isolate, root_visitor);
-  IterateConservativeStackRoots(&stack_visitor);
+
+  IterateConservativeStackRoots(&stack_visitor, stack_scan_mode);
 }
 
 void Heap::IterateConservativeStackRoots(
-    ::heap::base::StackVisitor* stack_visitor) {
+    ::heap::base::StackVisitor* stack_visitor, StackScanMode stack_scan_mode) {
   DCHECK(IsGCWithStack());
+  DCHECK_NE(stack_scan_mode, StackScanMode::kNone);
 
+  if (stack_scan_mode == StackScanMode::kSelective) {
+    DCHECK(IsGCWithMainThreadStack());
+    DCHECK(selective_stack_scan_start_address_.has_value());
+    stack().IteratePointersFromAddressUntilMarker(
+        stack_visitor, selective_stack_scan_start_address_.value());
+    return;
+  }
+
+  DCHECK_EQ(stack_scan_mode, StackScanMode::kFull);
   if (IsGCWithMainThreadStack()) {
     stack().IteratePointersUntilMarker(stack_visitor);
   }
@@ -5070,9 +5154,15 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
     }
     return std::nullopt;
   }();
+  DCHECK(!preconfigured_old_generation_size_);
   if (initial_old_generation_size.has_value()) {
     initial_size_overwritten_ = true;
     initial_old_generation_size_ = *initial_old_generation_size;
+  } else if (v8_flags.preconfigured_old_space_size > 0) {
+    initial_size_overwritten_ = true;
+    initial_old_generation_size_ =
+        static_cast<size_t>(v8_flags.preconfigured_old_space_size) * MB;
+    preconfigured_old_generation_size_ = true;
   } else {
     initial_old_generation_size_ = kMaxInitialOldGenerationSize;
     if (constraints.initial_old_generation_size_in_bytes() > 0) {
@@ -5084,7 +5174,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints,
       std::min(initial_old_generation_size_, max_old_generation_size() / 2);
   initial_old_generation_size_ =
       RoundDown<PageMetadata::kPageSize>(initial_old_generation_size_);
-  if (initial_size_overwritten_) {
+  if (initial_size_overwritten_ && !preconfigured_old_generation_size_) {
     // If the embedder pre-configures the initial old generation size,
     // then allow V8 to skip full GCs below that threshold.
     min_old_generation_size_ = initial_old_generation_size_;
@@ -7523,6 +7613,29 @@ CodePageMemoryModificationScopeForDebugging::
     ~CodePageMemoryModificationScopeForDebugging() {}
 
 #endif
+
+ConservativePinningScope::ConservativePinningScope(Heap* heap) : heap_(heap) {
+  DCHECK(::heap::base::Stack::IsOnCurrentStack(this));
+  DCHECK(!heap_->selective_stack_scan_start_address_.has_value());
+  // `frame_address` should be higher than `this`, but we observed that this
+  // may not hold in some cases (e.g. due to missing inlining or unexpected
+  // frame layouts). In such cases, we scan the stack either from the last
+  // c_entry_fp or the whole stack.
+  const Address c_entry_fp = *heap_->isolate()->c_entry_fp_address();
+  const void* frame_address =
+      (c_entry_fp == kNullAddress)
+          ? static_cast<void*>(v8::base::Stack::GetStackStart())
+          : reinterpret_cast<const void*>(c_entry_fp);
+  // The stack segment covered by this scope should include the scope itself.
+  DCHECK_NOT_NULL(frame_address);
+  DCHECK_LE(this, frame_address);
+  DCHECK(::heap::base::Stack::IsOnCurrentStack(frame_address));
+  heap_->selective_stack_scan_start_address_ = frame_address;
+}
+ConservativePinningScope::~ConservativePinningScope() {
+  DCHECK(heap_->selective_stack_scan_start_address_.has_value());
+  heap_->selective_stack_scan_start_address_.reset();
+}
 
 #include "src/objects/object-macros-undef.h"
 

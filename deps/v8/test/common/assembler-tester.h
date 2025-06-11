@@ -23,7 +23,8 @@ class TestingAssemblerBuffer : public AssemblerBuffer {
     size_t alloc_size = RoundUp(requested, page_size);
     CHECK_GE(kMaxInt, alloc_size);
     reservation_ = VirtualMemory(
-        GetPlatformPageAllocator(), alloc_size, address, page_size,
+        GetPlatformPageAllocator(), alloc_size,
+        v8::PageAllocator::AllocationHint().WithAddress(address), page_size,
         jit_permission == JitPermission::kNoJit
             ? v8::PageAllocator::Permission::kNoAccess
             : v8::PageAllocator::Permission::kNoAccessWillJitLater);

@@ -232,6 +232,16 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
        false, false, needs_shift);
 }
 
+void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
+                                               Register offset_reg,
+                                               int32_t offset_imm,
+                                               AtomicMemoryOrder memory_order,
+                                               uint32_t* protected_load_pc,
+                                               bool needs_shift) {
+  LoadTaggedPointer(dst, src_addr, offset_reg, offset_imm, protected_load_pc,
+                    needs_shift);
+}
+
 void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
                                             int32_t offset) {
   static_assert(!V8_ENABLE_SANDBOX_BOOL);
@@ -292,6 +302,14 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                   : Operand(actual_offset_reg),
       SaveFPRegsMode::kSave, StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
+}
+
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  AtomicStore(dst_addr, offset_reg, offset_imm, LiftoffRegister(src),
+              StoreType::kI32Store, pinned, false);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -671,6 +689,8 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
     case LoadType::kI32Load8U:
     case LoadType::kI32Load16U:
     case LoadType::kI32Load:
+    case LoadType::kI32Load8S:
+    case LoadType::kI32Load16S:
       dst_reg = dst.gp();
       break;
     case LoadType::kI64Load8U:
@@ -694,6 +714,16 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
       fence(PSR | PSW, PSR | PSW);
       lhu(dst_reg, src_reg, 0);
       fence(PSR, PSR | PSW);
+      return;
+    case LoadType::kI32Load8S:
+      fence(PSR | PSW, PSR | PSW);
+      lb(dst_reg, src_reg, 0);
+      fence(PSR | PSW, PSR | PSW);
+      return;
+    case LoadType::kI32Load16S:
+      fence(PSR | PSW, PSR | PSW);
+      lh(dst_reg, src_reg, 0);
+      fence(PSR | PSW, PSR | PSW);
       return;
     case LoadType::kI32Load:
     case LoadType::kI64Load32U:

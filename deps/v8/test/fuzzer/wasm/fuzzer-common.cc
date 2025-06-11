@@ -131,9 +131,8 @@ DirectHandle<WasmModuleObject> CompileReferenceModule(
 
 #if V8_ENABLE_DRUMBRAKE
 void ClearJsToWasmWrappersForTesting(Isolate* isolate) {
-  for (int i = 0; i < isolate->heap()->js_to_wasm_wrappers()->length(); i++) {
-    isolate->heap()->js_to_wasm_wrappers()->set(i, ClearedValue(isolate));
-  }
+  isolate->heap()->SetJSToWasmWrappers(
+      ReadOnlyRoots(isolate).empty_weak_fixed_array());
 }
 
 int ExecuteAgainstReference(Isolate* isolate,
@@ -158,8 +157,10 @@ int ExecuteAgainstReference(Isolate* isolate,
   DirectHandle<WasmInstanceObject> instance_ref;
 
   // Before execution, there should be no dangling nondeterminism registered on
-  // the engine.
+  // the engine, no pending exception, and no termination request.
   DCHECK(!WasmEngine::had_nondeterminism());
+  DCHECK(!isolate->has_exception());
+  DCHECK(!isolate->stack_guard()->CheckTerminateExecution());
 
   // Try to instantiate the reference instance, return if it fails.
   {
@@ -190,12 +191,15 @@ int ExecuteAgainstReference(Isolate* isolate,
   auto heap_limit_callback = [](void* raw_data, size_t current_limit,
                                 size_t initial_limit) -> size_t {
     OomCallbackData* data = reinterpret_cast<OomCallbackData*>(raw_data);
+    if (data->heap_limit_reached) return initial_limit;
     data->heap_limit_reached = true;
-    data->isolate->TerminateExecution();
+    // We can not throw an exception directly at this point, so request
+    // termination on the next stack check.
+    data->isolate->stack_guard()->RequestTerminateExecution();
     data->initial_limit = initial_limit;
-    // Return a slightly raised limit, just to make it to the next
-    // interrupt check point, where execution will terminate.
-    return initial_limit * 1.25;
+    // Return a generously raised limit to maximize the chance to make it to the
+    // next interrupt check point, where execution will terminate.
+    return initial_limit * 4;
   };
   isolate->heap()->AddNearHeapLimitCallback(heap_limit_callback,
                                             &oom_callback_data);
@@ -224,7 +228,7 @@ int ExecuteAgainstReference(Isolate* isolate,
                                                oom_callback_data.initial_limit);
   if (oom_callback_data.heap_limit_reached) {
     execute = false;
-    isolate->CancelTerminateExecution();
+    isolate->stack_guard()->ClearTerminateExecution();
   }
 
 #if V8_ENABLE_DRUMBRAKE
@@ -360,7 +364,7 @@ std::vector<uint8_t> CreateDummyModuleWireBytes(Zone* zone) {
   const bool is_final = true;
   builder.AddRecursiveTypeGroup(0, 2);
   builder.AddArrayType(zone->New<ArrayType>(kWasmF32, true), is_final);
-  StructType::Builder struct_builder(zone, 2, false);
+  StructType::Builder struct_builder(zone, 2, false, false);
   struct_builder.AddField(kWasmI64, false);
   struct_builder.AddField(kWasmExternRef, false);
   builder.AddStructType(struct_builder.Build(), !is_final);
@@ -409,6 +413,11 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
 
       // See https://crbug.com/335082212.
       v8_flags.wasm_inlining_call_indirect = true;
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+      // Fuzz revectorization, which is otherwise still considered experimental.
+      v8_flags.experimental_wasm_revectorize = true;
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
       // Enforce implications from enabling features.
       FlagList::EnforceFlagImplications();

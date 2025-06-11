@@ -11,6 +11,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
@@ -112,6 +113,9 @@ class DataRange {
       : data_(data), rng_(seed == -1 ? get<int64_t>() : seed) {}
   DataRange(const DataRange&) = delete;
   DataRange& operator=(const DataRange&) = delete;
+  // To generate wasm simd opcodes that can be merged into 256-bit in revec
+  // phase.
+  DataRange clone() const { return DataRange(data_, rng_.initial_seed()); }
 
   // Don't accidentally pass DataRange by value. This will reuse bytes and might
   // lead to OOM because the end might not be reached.
@@ -3781,7 +3785,9 @@ class ModuleGen {
                                     kNumDefaultArrayTypes};
         num_fields += builder_->GetStructType(supertype)->field_count();
       }
-      StructType::Builder struct_builder(zone_, num_fields, false);
+      // TODO(403372470): Add support for custom descriptors.
+      // TODO(42204563): Add support for shared structs.
+      StructType::Builder struct_builder(zone_, num_fields, false, false);
 
       // Add all fields from super type.
       uint32_t field_index = 0;
@@ -4539,7 +4545,8 @@ base::Vector<uint8_t> GenerateWasmModuleForInitExpressions(
       num_fields += builder.GetStructType(supertype)->field_count();
     }
     // TODO(403372470): Add support for custom descriptors.
-    StructType::Builder struct_builder(zone, num_fields, false);
+    // TODO(42204563): Add support for shared structs.
+    StructType::Builder struct_builder(zone, num_fields, false, false);
 
     // Add all fields from super type.
     uint32_t field_index = 0;
@@ -4989,6 +4996,223 @@ base::Vector<uint8_t> GenerateWasmModuleForDeopt(
     size_t len = base::SNPrintF(buffer, "callee_%i", i);
     builder.AddExport({buffer.begin(), len}, f);
     callees.emplace_back(buffer.begin(), len);
+  }
+
+  ZoneBuffer buffer{zone};
+  builder.WriteTo(&buffer);
+  return base::VectorOf(buffer);
+}
+
+base::Vector<uint8_t> GenerateWasmModuleForRevec(
+    Zone* zone, base::Vector<const uint8_t> data) {
+  constexpr WasmModuleGenerationOptions options = {
+      {WasmModuleGenerationOption::kGenerateSIMD}};
+  WasmModuleBuilder builder(zone);
+
+  // Split input data in two parts:
+  // - One for the "module" (types, globals, ..)
+  // - One for all the function bodies
+  // This prevents using a too large portion on the module resulting in
+  // uninteresting function bodies.
+  DataRange module_range(data);
+  DataRange functions_range = module_range.split();
+  std::vector<ModuleTypeIndex> function_signatures;
+
+  // At least 1 function is needed.
+  int max_num_functions = MaxNumOfFunctions();
+  CHECK_GE(max_num_functions, 1);
+  uint8_t num_functions = 1 + (module_range.get<uint8_t>() % max_num_functions);
+
+  constexpr uint8_t kNumStructs = 0;
+  constexpr uint8_t kNumArrays = 0;
+  constexpr uint16_t kNumTypes = kNumStructs + kNumArrays;
+  std::vector<ModuleTypeIndex> array_types;
+  std::vector<ModuleTypeIndex> struct_types;
+
+  uint8_t num_signatures = num_functions;
+  ModuleGen gen_module(zone, options, &builder, &module_range, num_functions,
+                       kNumStructs, kNumArrays, num_signatures);
+
+  gen_module.GenerateRandomMemories();
+
+  // We keep the signature for the first (main) function constant.
+  constexpr bool kIsFinal = true;
+  auto kMainFnSig = FixedSizeSignature<ValueType>::Returns(kWasmI32).Params(
+      kWasmI32, kWasmI32, kWasmI32);
+  function_signatures.push_back(
+      builder.ForceAddSignature(&kMainFnSig, kIsFinal));
+
+  // Other function signatures: return void with random params.
+  constexpr base::Vector<const ValueType> kNoReturnType;
+  for (int i = 1; i < num_signatures; ++i) {
+    const FunctionSig* function_sig = CreateSignature(
+        builder.zone(),
+        base::VectorOf(GenerateTypes(options, &module_range, kNumTypes)),
+        kNoReturnType);
+    function_signatures.push_back(
+        builder.ForceAddSignature(function_sig, kIsFinal));
+  }
+
+  // Add exceptions.
+  int num_exceptions = 1 + (module_range.get<uint8_t>() % kMaxExceptions);
+  gen_module.GenerateRandomExceptions(num_exceptions);
+
+  StringImports strings = StringImports();
+
+  // Generate function declarations before tables. This will be needed once we
+  // have typed-function tables.
+  std::vector<WasmFunctionBuilder*> functions;
+  functions.reserve(num_functions);
+  for (uint8_t i = 0; i < num_functions; i++) {
+    functions.push_back(builder.AddFunction(function_signatures[i]));
+  }
+
+  gen_module.GenerateRandomTables(array_types, struct_types);
+
+  // Add globals.
+  auto [globals, mutable_globals] =
+      gen_module.GenerateRandomGlobals(array_types, struct_types);
+
+  // Add passive data segments.
+  int num_data_segments = module_range.get<uint8_t>() % kMaxPassiveDataSegments;
+  for (int i = 0; i < num_data_segments; i++) {
+    GeneratePassiveDataSegment(&module_range, &builder);
+  }
+
+  // Generate function bodies.
+  // Revec uses two contiguous S128Store instructions as seeds, the two
+  // instructions share the same memory_index/alignment/index, the values to be
+  // stored should be generated from the same DataRange. The second offset is 16
+  // bytes larger than the first offset.
+  for (int i = 0; i < num_functions; ++i) {
+    WasmFunctionBuilder* f = functions[i];
+    // On the last function don't split the DataRange but just use the
+    // existing DataRange.
+    DataRange function_range = i != num_functions - 1
+                                   ? functions_range.split()
+                                   : std::move(functions_range);
+    BodyGen gen_body(options, f, function_signatures, globals, mutable_globals,
+                     struct_types, array_types, strings, &function_range);
+    const FunctionSig* sig = f->signature();
+    base::Vector<const ValueType> return_types(sig->returns().begin(),
+                                               sig->return_count());
+    gen_body.InitializeNonDefaultableLocals(&function_range);
+
+    // Atomic operations need to be aligned exactly to their max alignment.
+    const uint8_t align = function_range.getPseudoRandom<uint8_t>() % (4 + 1);
+
+    // Only memory0 is supported in revec for now.
+    constexpr uint8_t kMemoryIndex0 = 0;
+
+    uint64_t offset = function_range.get<uint16_t>();
+    // With a 1/256 chance generate potentially very large offsets.
+    if ((offset & 0xff) == 0xff) {
+      offset = f->builder()->IsMemory64(kMemoryIndex0)
+                   ? function_range.getPseudoRandom<uint64_t>() & 0x1ffffffff
+                   : function_range.getPseudoRandom<uint32_t>();
+    }
+
+    auto first_data = function_range.split();
+
+    // === The first store. ===
+    // Generate the index.
+    uint32_t index;
+    if (f->builder()->IsMemory64(kMemoryIndex0)) {
+      index = f->AddLocal(kWasmI64);
+      gen_body.Generate<kI64>(&first_data);
+    } else {
+      index = f->AddLocal(kWasmI32);
+      gen_body.Generate<kI32>(&first_data);
+    }
+    f->EmitTeeLocal(index);
+
+    // Generate the S128 value to be stored.
+    // With 50% chance generated from the same sequence.
+    DataRange store2_range = function_range.get<bool>()
+                                 ? function_range.clone()
+                                 : function_range.split();
+
+    gen_body.Generate<kS128>(&function_range);
+
+    // Format of the instruction (supports multi-memory):
+    // memory_op (align | 0x40) memory_index offset
+    f->EmitWithPrefix(kExprS128StoreMem);
+    f->EmitU32V(align | 0x40);
+    f->EmitU32V(kMemoryIndex0);
+    f->EmitU64V(offset);
+
+    // === The second store. ===
+    // Share the same index, value generated from same
+    // DataRange and offset is 16 larger.
+    f->EmitGetLocal(index);
+    gen_body.Generate<kS128>(&store2_range);
+
+    f->EmitWithPrefix(kExprS128StoreMem);
+    f->EmitU32V(align | 0x40);
+    f->EmitU32V(kMemoryIndex0);
+
+    uint64_t offset2;
+    // offset + 16 shouldn't exceed the 32-bit range.
+    if (!f->builder()->IsMemory64(kMemoryIndex0) &&
+        offset + 16 >= std::numeric_limits<uint32_t>::max()) {
+      offset2 = offset - 16;
+    } else {
+      offset2 = offset + 16;
+    }
+    f->EmitU64V(offset2);
+
+    // int32_t main(int32_t, int32_t, int32_t)
+    // S128 a = load(index + offset)
+    // S128 b = load(index + offset2)
+    // S128 c = a ^ b
+    // return lane(c, 0) ^ lane(c, 1) ^ lane(c, 2) ^ lane(c, 3)
+    if (i == 0) {
+      // a = load(index + offset)
+      f->EmitGetLocal(index);
+      f->EmitWithPrefix(kExprS128LoadMem);
+      f->EmitU32V(align | 0x40);
+      f->EmitU32V(kMemoryIndex0);
+      f->EmitU64V(offset);
+
+      // b = load(index + offset2)
+      f->EmitGetLocal(index);
+      f->EmitWithPrefix(kExprS128LoadMem);
+      f->EmitU32V(align | 0x40);
+      f->EmitU32V(kMemoryIndex0);
+      f->EmitU64V(offset2);
+
+      // c = a ^ b
+      f->EmitWithPrefix(kExprS128Xor);
+
+      uint32_t xor_result = f->AddLocal(kWasmS128);
+      f->EmitTeeLocal(xor_result);
+      f->EmitWithPrefix(kExprI32x4ExtractLane);
+      f->EmitByte(0);
+
+      f->EmitGetLocal(xor_result);
+      f->EmitWithPrefix(kExprI32x4ExtractLane);
+      f->EmitByte(1);
+
+      // lane(c, 0) ^ lane(c, 1)
+      f->Emit(kExprI32Xor);
+
+      f->EmitGetLocal(xor_result);
+      f->EmitWithPrefix(kExprI32x4ExtractLane);
+      f->EmitByte(2);
+
+      f->EmitGetLocal(xor_result);
+      f->EmitWithPrefix(kExprI32x4ExtractLane);
+      f->EmitByte(3);
+
+      // lane(c, 2) ^ lane(c, 3)
+      f->Emit(kExprI32Xor);
+
+      // lane(c, 0) ^ lane(c, 1) ^ lane(c, 2) ^ lane(c, 3)
+      f->Emit(kExprI32Xor);
+    }
+
+    f->Emit(kExprEnd);
+    if (i == 0) builder.AddExport(base::CStrVector("main"), f);
   }
 
   ZoneBuffer buffer{zone};

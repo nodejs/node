@@ -335,7 +335,7 @@ namespace {
 // FloatType comes later so caller can rely on template argument deduction and
 // just pass IntType.
 template <typename IntType, typename FloatType>
-typename std::enable_if<std::is_floating_point<FloatType>::value, bool>::type
+typename std::enable_if_t<std::is_floating_point_v<FloatType>, bool>
 ShouldSkipTestingConstant(FloatType x) {
   return std::isnan(x) || !base::IsValueInRangeForNumericType<IntType>(x) ||
          !PlatformCanRepresent(x);

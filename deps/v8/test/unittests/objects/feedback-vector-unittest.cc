@@ -750,7 +750,7 @@ TEST_F(FeedbackVectorTest, VectorStoreICBasic) {
       "f(a);");
   DirectHandle<JSFunction> f = GetFunction("f");
   // There should be one IC slot.
-  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), i_isolate());
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(1, helper.slot_count());
   FeedbackSlot slot(0);
@@ -775,7 +775,7 @@ TEST_F(FeedbackVectorTest, DefineNamedOwnIC) {
       "f(3);");
   DirectHandle<JSFunction> f = GetFunction("f");
   // There should be one IC slot.
-  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), f->GetIsolate());
+  Handle<FeedbackVector> feedback_vector(f->feedback_vector(), i_isolate());
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(2, helper.slot_count());
   CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLiteral);

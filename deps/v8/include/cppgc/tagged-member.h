@@ -28,7 +28,7 @@ namespace cppgc::subtle {
 //   TaggedUncompressedMember<Node, ParentTag, ShadowHostTag>
 //       m(ParentTag{}, parent);
 template <typename Pointee, typename Tag1, typename Tag2>
-struct TaggedUncompressedMember final {
+class TaggedUncompressedMember final {
   CPPGC_DISALLOW_NEW();
   static constexpr uintptr_t kTagBit = 0b1;
   static_assert(kTagBit < internal::api_constants::kAllocationGranularity,
@@ -98,7 +98,9 @@ struct TaggedUncompressedMember final {
     // Construct an untagged pointer and pass it to Visitor::Trace(). The plugin
     // would warn that ptr_ is untraced, which is why CPPGC_PLUGIN_IGNORE is
     // used.
-    UncompressedMember<Pointee> temp(GetUntagged());
+    auto* untagged = reinterpret_cast<Pointee*>(
+        reinterpret_cast<uintptr_t>(ptr_.GetRawAtomic()) & ~kTagBit);
+    UncompressedMember<Pointee> temp(untagged);
     v->Trace(temp);
   }
 

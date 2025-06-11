@@ -126,6 +126,7 @@ static void **NextStackFrame(void **old_frame_pointer, const void *uc,
       if (pre_signal_frame_pointer >= old_frame_pointer) {
         new_frame_pointer = pre_signal_frame_pointer;
       }
+    }
   }
 #endif
 
@@ -133,17 +134,13 @@ static void **NextStackFrame(void **old_frame_pointer, const void *uc,
   if ((reinterpret_cast<uintptr_t>(new_frame_pointer) & 7) != 0)
     return nullptr;
 
-  // Check that alleged frame pointer is actually readable. This is to
-  // prevent "double fault" in case we hit the first fault due to e.g.
-  // stack corruption.
-  if (!absl::debugging_internal::AddressIsReadable(
-          new_frame_pointer))
-    return nullptr;
-  }
-
+  uintptr_t new_fp_comparable = reinterpret_cast<uintptr_t>(new_frame_pointer);
   // Only check the size if both frames are in the same stack.
-  if (InsideSignalStack(new_frame_pointer, stack_info) ==
-      InsideSignalStack(old_frame_pointer, stack_info)) {
+  const bool old_inside_signal_stack =
+      InsideSignalStack(old_frame_pointer, stack_info);
+  const bool new_inside_signal_stack =
+      InsideSignalStack(new_frame_pointer, stack_info);
+  if (new_inside_signal_stack == old_inside_signal_stack) {
     // Check frame size.  In strict mode, we assume frames to be under
     // 100,000 bytes.  In non-strict mode, we relax the limit to 1MB.
     const size_t max_size = STRICT_UNWINDING ? 100000 : 1000000;
@@ -157,16 +154,15 @@ static void **NextStackFrame(void **old_frame_pointer, const void *uc,
     if (frame_size > max_size) {
       size_t stack_low = stack_info->stack_low;
       size_t stack_high = stack_info->stack_high;
-      if (InsideSignalStack(new_frame_pointer, stack_info)) {
+      if (new_inside_signal_stack) {
         stack_low = stack_info->sig_stack_low;
         stack_high = stack_info->sig_stack_high;
       }
       if (stack_high < kUnknownStackEnd &&
           static_cast<size_t>(getpagesize()) < stack_low) {
-        const uintptr_t new_fp_u =
-            reinterpret_cast<uintptr_t>(new_frame_pointer);
         // Stack bounds are known.
-        if (!(stack_low < new_fp_u && new_fp_u <= stack_high)) {
+        if (!(stack_low < new_fp_comparable &&
+              new_fp_comparable <= stack_high)) {
           // new_frame_pointer is not within a known stack.
           return nullptr;
         }
@@ -176,8 +172,19 @@ static void **NextStackFrame(void **old_frame_pointer, const void *uc,
       }
     }
   }
+  // New frame pointer is valid if it is inside either known stack or readable.
+  // This assumes that everything within either known stack is readable. Outside
+  // either known stack but readable is unexpected, and possibly corrupt, but
+  // for now assume it is valid. If it isn't actually valid, the next frame will
+  // be corrupt and we will detect that next iteration.
+  if (new_inside_signal_stack ||
+      (new_fp_comparable >= stack_info->stack_low &&
+       new_fp_comparable < stack_info->stack_high) ||
+      absl::debugging_internal::AddressIsReadable(new_frame_pointer)) {
+    return new_frame_pointer;
+  }
 
-  return new_frame_pointer;
+  return nullptr;
 }
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>

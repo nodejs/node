@@ -86,7 +86,7 @@ class WasmGCTester {
                         ModuleTypeIndex supertype = kNoSuperType,
                         bool is_final = false) {
     StructType::Builder type_builder(
-        &zone_, static_cast<uint32_t>(fields.size()), false);
+        &zone_, static_cast<uint32_t>(fields.size()), false, false);
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }

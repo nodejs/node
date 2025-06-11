@@ -62,7 +62,7 @@ void InspectedContext::ContextCollectedCallbacks::Run() {
 InspectedContext::InspectedContext(V8InspectorImpl* inspector,
                                    const V8ContextInfo& info, int contextId)
     : m_inspector(inspector),
-      m_context(info.context->GetIsolate(), info.context),
+      m_context(inspector->isolate(), info.context),
       m_contextId(contextId),
       m_contextGroupId(info.contextGroupId),
       m_origin(toString16(info.origin)),
@@ -77,12 +77,10 @@ InspectedContext::InspectedContext(V8InspectorImpl* inspector,
                     v8::WeakCallbackType::kParameter);
 
   v8::Context::Scope contextScope(info.context);
-  v8::HandleScope handleScope(info.context->GetIsolate());
+  v8::HandleScope handleScope(inspector->isolate());
   v8::Local<v8::Object> global = info.context->Global();
   v8::Local<v8::Value> console;
-  if (!global
-           ->Get(info.context,
-                 toV8String(info.context->GetIsolate(), "console"))
+  if (!global->Get(info.context, toV8String(inspector->isolate(), "console"))
            .ToLocal(&console) ||
       !console->IsObject()) {
     return;

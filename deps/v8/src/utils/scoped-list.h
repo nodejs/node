@@ -30,9 +30,8 @@ template <typename T, typename TBacking = T>
 class V8_NODISCARD ScopedList final {
   // The backing can either be the same type as the list type, or, for pointers,
   // we additionally allow a void* backing store.
-  static_assert((std::is_same<TBacking, T>::value) ||
-                    (std::is_same<TBacking, void*>::value &&
-                     std::is_pointer<T>::value),
+  static_assert((std::is_same_v<TBacking, T>) ||
+                    (std::is_same_v<TBacking, void*> && std::is_pointer_v<T>),
                 "Incompatible combination of T and TBacking types");
 
  public:

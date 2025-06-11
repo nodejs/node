@@ -148,6 +148,7 @@ namespace internal {
   V(UnaryOp_Baseline)                                \
   V(UnaryOp_WithFeedback)                            \
   V(Void)                                            \
+  IF_WASM(V, WasmAllocateShared)                     \
   V(WasmDummy)                                       \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
@@ -863,6 +864,19 @@ class AllocateDescriptor
 
   static constexpr auto registers();
 };
+
+#if V8_ENABLE_WEBASSEMBLY
+class WasmAllocateSharedDescriptor
+    : public StaticCallInterfaceDescriptor<WasmAllocateSharedDescriptor> {
+ public:
+  INTERNAL_DESCRIPTOR()
+  DEFINE_PARAMETERS_NO_CONTEXT(kRequestedSize, kAlignment)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // result 1
+                                    MachineType::IntPtr(),  // kRequestedSize
+                                    MachineType::TaggedSigned())  // kAlignment
+  DECLARE_DESCRIPTOR(WasmAllocateSharedDescriptor)
+};
+#endif
 
 class NewHeapNumberDescriptor
     : public StaticCallInterfaceDescriptor<NewHeapNumberDescriptor> {

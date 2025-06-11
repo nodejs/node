@@ -412,9 +412,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
         Address new_large_object = kNullAddress;
 
         if (new_space_allocator) {
-          // The order of the two loads is important.
-          new_space_top = new_space_allocator->original_top_acquire();
-          new_space_limit = new_space_allocator->original_limit_relaxed();
+          std::tie(new_space_top, new_space_limit) =
+              new_space_allocator->GetOriginalTopAndLimit();
         }
 
         if (heap_->new_lo_space()) {
@@ -500,8 +499,8 @@ V8_INLINE bool IsYoungObjectInLab(MainAllocator* new_space_allocator,
                                   NewLargeObjectSpace* new_lo_space,
                                   Tagged<HeapObject> heap_object) {
   // The order of the two loads is important.
-  Address new_space_top = new_space_allocator->original_top_acquire();
-  Address new_space_limit = new_space_allocator->original_limit_relaxed();
+  auto [new_space_top, new_space_limit] =
+      new_space_allocator->GetOriginalTopAndLimit();
   Address new_large_object = new_lo_space->pending_object();
 
   Address addr = heap_object.address();

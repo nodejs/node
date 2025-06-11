@@ -18,12 +18,12 @@ class FileCheckOutProc(base.OutProc):
   def _is_failure_output(self, output):
     cmd = ["vpython3", "-m", "filecheck", str(self._js_file)]
     # Note that we encode the input again because on Windows providing
-    # > input=output.stdout, encoding="ascii", text=True
+    # > input=output.stdout, encoding="utf-8", text=True
     # creates some issues with the filecheck CHECK-NEXT directive (maybe
     # something goes wrong in terms of new lines)...
     res = subprocess.run(
         cmd,
-        input=output.stdout.encode("ascii"),
+        input=output.stdout.encode("utf-8"),
         capture_output=True,
         shell=platform.system() == 'Windows')
     if res.returncode != 0 and "FileCheck failed" not in output.stderr:

@@ -303,7 +303,6 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 #endif
 
   std::atomic<int> reference_count_{1};
-  int isolate_count_{0};
   v8::PageAllocator* page_allocator_ = nullptr;
 
 #ifdef V8_COMPRESS_POINTERS

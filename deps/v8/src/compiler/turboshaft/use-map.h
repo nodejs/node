@@ -5,11 +5,13 @@
 #ifndef V8_COMPILER_TURBOSHAFT_USE_MAP_H_
 #define V8_COMPILER_TURBOSHAFT_USE_MAP_H_
 
+#include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/sidetable.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-typedef bool (*FunctionType)(const Operation& op, Zone* zone);
+typedef bool (*FunctionType)(const Graph& graph, const Operation& op,
+                             Zone* zone);
 
 // UseMap computes uses of all operations of the given turboshaft graph. It
 // provides a mapping from `OpIndex` to its `uses`.
@@ -28,7 +30,9 @@ class UseMap {
 
   UseMap(const Graph& graph, Zone* zone)
       : UseMap(graph, zone,
-               [](const Operation& op, Zone* zone) { return false; }) {}
+               [](const Graph& graph, const Operation& op, Zone* zone) {
+                 return false;
+               }) {}
 
   base::Vector<const OpIndex> uses(OpIndex index) const;
 
@@ -40,23 +44,44 @@ class UseMap {
   ZoneVector<ZoneVector<OpIndex>> saturated_uses_;
 };
 
-// SimdUseMap computes uses of SIMD operations of the given turboshaft graph and
-// skip other operations.
-class SimdUseMap : public UseMap, public NON_EXPORTED_BASE(ZoneObject) {
+// Simd128UseMap computes uses of revectorizable Simd128 operations of the given
+// turboshaft graph and skips other operations.
+class Simd128UseMap : public UseMap, public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  SimdUseMap(const Graph& graph, Zone* zone)
-      : UseMap(graph, zone, [](const Operation& op, Zone* zone) {
-          if (op.outputs_rep().size() == 1 &&
-              op.outputs_rep()[0] == RegisterRepresentation::Simd128()) {
-            return false;
-          }
+  Simd128UseMap(const Graph& graph, Zone* zone)
+      : UseMap(
+            graph, zone,
+            [](const Graph& graph, const Operation& op, Zone* zone) {
+              auto has_revectorizable_simd128_output = [](const Operation& op) {
+                // Revectorizable Simd128 operations only have single output.
+                return op.outputs_rep().size() == 1 &&
+                       op.outputs_rep()[0] == RegisterRepresentation::Simd128();
+              };
 
-          ZoneVector<MaybeRegisterRepresentation> storage(zone);
-          for (auto rep : op.inputs_rep(storage)) {
-            if (rep == MaybeRegisterRepresentation::Simd128()) return false;
-          }
-          return true;
-        }) {}
+              if (has_revectorizable_simd128_output(op)) return false;
+
+              // Identify input_reps of ReturnOp (which doesn't track
+              // inputs_rep, except for the Word32 popcount input).
+              if (const ReturnOp* ret_op = op.TryCast<ReturnOp>()) {
+                for (auto input : ret_op->return_values()) {
+                  const Operation& input_op = graph.Get(input);
+                  if (has_revectorizable_simd128_output(input_op)) return false;
+                }
+                return true;
+              }
+
+              ZoneVector<MaybeRegisterRepresentation> storage(zone);
+              for (auto rep : op.inputs_rep(storage)) {
+                if (rep == MaybeRegisterRepresentation::Simd128()) return false;
+              }
+
+              SLOW_DCHECK(std::none_of(
+                  op.inputs().begin(), op.inputs().end(),
+                  [&](const OpIndex input) {
+                    return has_revectorizable_simd128_output(graph.Get(input));
+                  }));
+              return true;
+            }) {}
 };
 
 }  // namespace v8::internal::compiler::turboshaft

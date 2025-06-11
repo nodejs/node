@@ -39,9 +39,10 @@ const int Deoptimizer::kAdaptShadowStackOffsetToSubtract = 0;
 
 // static
 void Deoptimizer::PatchToJump(Address pc, Address new_pc) {
-  if (!Assembler::IsNop(pc)) {
-    // The place holder could be already patched.
-    DCHECK(Assembler::IsJmpRel(pc));
+  if (Assembler::IsJmpRel(pc)) {
+    // The place holder has been patched already.
+    // TODO(ahaas): Check that the offset in the jump in `pc` matches the offset
+    // of a jump to `new_pc`.
     return;
   }
 

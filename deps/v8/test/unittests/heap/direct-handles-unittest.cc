@@ -331,4 +331,18 @@ TEST_F(DirectHandlesContainerTest, SmallVectorBig) {
   VerifyNoRemainingDirectHandles();
 }
 
+using DirectHandleVectorTest = DirectHandlesTest;
+
+TEST_F(DirectHandleVectorTest, UninitializedMinorGC) {
+  HandleScope scope(isolate());
+  i::DirectHandleVector<i::String> vec(i_isolate(), 10);
+  InvokeMinorGC(i_isolate());
+}
+
+TEST_F(DirectHandleVectorTest, UninitializedMajorGC) {
+  HandleScope scope(isolate());
+  i::DirectHandleVector<i::String> vec(i_isolate(), 10);
+  InvokeMajorGC(i_isolate());
+}
+
 }  // namespace v8

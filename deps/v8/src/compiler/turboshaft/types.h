@@ -121,7 +121,7 @@ struct Payload_OutlineSet {
 
 template <typename T>
 T next_smaller(T v)
-  requires std::is_floating_point<T>::value
+  requires std::is_floating_point_v<T>
 {
   DCHECK(!std::isnan(v));
   DCHECK_LT(-std::numeric_limits<T>::infinity(), v);
@@ -130,7 +130,7 @@ T next_smaller(T v)
 
 template <typename T>
 T next_larger(T v)
-  requires std::is_floating_point<T>::value
+  requires std::is_floating_point_v<T>
 {
   DCHECK(!std::isnan(v));
   DCHECK_LT(v, std::numeric_limits<T>::infinity());
@@ -139,7 +139,7 @@ T next_larger(T v)
 
 template <typename T>
 T next_smaller(T v)
-  requires std::is_integral<T>::value
+  requires std::is_integral_v<T>
 {
   DCHECK_LT(std::numeric_limits<T>::min(), v);
   return v - 1;
@@ -147,7 +147,7 @@ T next_smaller(T v)
 
 template <typename T>
 T next_larger(T v)
-  requires std::is_integral<T>::value
+  requires std::is_integral_v<T>
 {
   DCHECK_LT(v, std::numeric_limits<T>::max());
   return v + 1;

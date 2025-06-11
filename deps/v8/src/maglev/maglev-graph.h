@@ -233,12 +233,13 @@ class Graph final : public ZoneObject {
     if (auto context_const = context->TryCast<Constant>()) {
       res = context_const->object().AsContext().scope_info(broker);
       DCHECK(res->HasContext());
-    } else if (auto load = context->TryCast<LoadTaggedFieldForContextSlot>()) {
+    } else if (auto load =
+                   context->TryCast<LoadTaggedFieldForContextSlotNoCells>()) {
       compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
           load->input(0).node(), load->offset(), broker);
       if (cur.has_value()) res = cur;
     } else if (auto load_script =
-                   context->TryCast<LoadTaggedFieldForScriptContextSlot>()) {
+                   context->TryCast<LoadTaggedFieldForContextSlot>()) {
       compiler::OptionalScopeInfoRef cur = TryGetScopeInfoForContextLoad(
           load_script->input(0).node(), load_script->offset(), broker);
       if (cur.has_value()) res = cur;

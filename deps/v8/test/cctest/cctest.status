@@ -878,9 +878,10 @@
 
 ##############################################################################
 
-['variant == conservative_pinning', {
+['variant == conservative_stack_scanning', {
   'test-run-wasm-64/RunWasmLiftoff_I64WasmRunner': [SLOW],
   'test-run-wasm-64/RunWasmTurbofan_I64WasmRunner': [SLOW],
   'test-strings/Traverse': [SLOW],
-}],  # variant == conservative_pinning
+}],  # variant == conservative_stack_scanning
+
 ]

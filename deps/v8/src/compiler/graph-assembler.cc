@@ -525,6 +525,15 @@ void JSGraphAssembler::Assert(TNode<Word32T> cond, const char* condition_string,
       cond, effect(), control()));
 }
 
+void JSGraphAssembler::DetachContextCell(TNode<Object> context,
+                                         TNode<Object> new_value, int index,
+                                         FrameState frame_state) {
+  AddNode<Object>(graph()->NewNode(javascript()->DetachContextCell(index),
+                                   context, new_value, NoContextConstant(),
+                                   static_cast<Node*>(frame_state), effect(),
+                                   control()));
+}
+
 TNode<Boolean> JSGraphAssembler::NumberIsFloat64Hole(TNode<Number> value) {
   return AddNode<Boolean>(
       graph()->NewNode(simplified()->NumberIsFloat64Hole(), value));

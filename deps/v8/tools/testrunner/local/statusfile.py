@@ -49,11 +49,16 @@ SLOW = "SLOW"
 NO_VARIANTS = "NO_VARIANTS"
 FAIL_PHASE_ONLY = "FAIL_PHASE_ONLY"
 
+# Modifier for cases to choose rarely (only available with num-fuzz).
+FUZZ_RARE = "FUZZ_RARE"
+
 ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
-for key in [SKIP, FAIL, PASS, CRASH, HEAVY, SLOW, FAIL_OK, NO_VARIANTS,
-            FAIL_SLOPPY, ALWAYS, FAIL_PHASE_ONLY]:
+for key in [
+    SKIP, FAIL, PASS, CRASH, HEAVY, SLOW, FAIL_OK, NO_VARIANTS, FAIL_SLOPPY,
+    ALWAYS, FAIL_PHASE_ONLY, FUZZ_RARE
+]:
   KEYWORDS[key] = key
 
 # Support arches, modes to be written as keywords instead of strings.

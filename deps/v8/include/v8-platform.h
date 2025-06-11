@@ -500,10 +500,47 @@ class PageAllocator {
   };
 
   /**
+   * Optional hints for AllocatePages().
+   */
+  class AllocationHint final {
+   public:
+    AllocationHint() = default;
+
+    V8_WARN_UNUSED_RESULT constexpr AllocationHint WithAddress(
+        void* address) const {
+      return AllocationHint(address, may_grow_);
+    }
+
+    V8_WARN_UNUSED_RESULT constexpr AllocationHint WithMayGrow() const {
+      return AllocationHint(address_, true);
+    }
+
+    bool MayGrow() const { return may_grow_; }
+    void* Address() const { return address_; }
+
+   private:
+    constexpr AllocationHint(void* address, bool may_grow)
+        : address_(address), may_grow_(may_grow) {}
+
+    void* address_ = nullptr;
+    bool may_grow_ = false;
+  };
+
+  /**
    * Allocates memory in range with the given alignment and permission.
    */
   virtual void* AllocatePages(void* address, size_t length, size_t alignment,
                               Permission permissions) = 0;
+
+  /**
+   * Allocates memory in range with the given alignment and permission. In
+   * addition to AllocatePages it allows to pass in allocation hints. The
+   * underlying implementation may not make use of hints.
+   */
+  virtual void* AllocatePages(size_t length, size_t alignment,
+                              Permission permissions, AllocationHint hint) {
+    return AllocatePages(hint.Address(), length, alignment, permissions);
+  }
 
   /**
    * Resizes the previously allocated memory at the given address. Returns true
@@ -665,14 +702,6 @@ class ThreadIsolatedAllocator {
    * Return the pkey used to implement the thread isolation if Type == kPkey.
    */
   virtual int Pkey() const { return -1; }
-
-  /**
-   * Per-thread permissions can be reset on signal handler entry. Even reading
-   * ThreadIsolated memory will segfault in that case.
-   * Call this function on signal handler entry to ensure that read permissions
-   * are restored.
-   */
-  static void SetDefaultPermissionsForSignalHandler();
 };
 
 // Opaque type representing a handle to a shared memory region.

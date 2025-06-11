@@ -574,9 +574,9 @@ void GCTracer::NotifyFullSweepingCompletedAndStopCycleIfFinished() {
 
 void GCTracer::NotifyYoungSweepingCompleted() {
   DCHECK(Event::IsYoungGenerationEvent(current_.type));
-  if (v8_flags.verify_heap) {
-    // If heap verification is enabled, sweeping finalization can also be
-    // triggered from inside a full GC cycle's atomic pause.
+  if (v8_flags.verify_heap || v8_flags.code_stats) {
+    // If heap verification or code stats are enabled, sweeping finalization can
+    // also be triggered from inside a full GC cycle's atomic pause.
     DCHECK(current_.type == Event::Type::MINOR_MARK_SWEEPER ||
            current_.type == Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER ||
            current_.type == Event::Type::SCAVENGER);

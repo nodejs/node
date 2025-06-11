@@ -19,8 +19,8 @@ namespace {
 // ===========================================================================
 // == ia32 ===================================================================
 // ===========================================================================
-#define CALLEE_SAVE_REGISTERS esi, edi, ebx
-#define CALLEE_SAVE_FP_REGISTERS
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_X64
 // ===========================================================================
@@ -33,17 +33,16 @@ namespace {
 #define PARAM_REGISTERS rcx, rdx, r8, r9
 #define FP_PARAM_REGISTERS xmm0, xmm1, xmm2, xmm3
 #define FP_RETURN_REGISTER xmm0
-#define CALLEE_SAVE_REGISTERS rbx, rdi, rsi, r12, r13, r14, r15
-#define CALLEE_SAVE_FP_REGISTERS \
-  xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #else  // V8_TARGET_OS_WIN
 // == x64 other ==============================================================
 #define PARAM_REGISTERS rdi, rsi, rdx, rcx, r8, r9
 #define FP_PARAM_REGISTERS xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
 #define FP_RETURN_REGISTER xmm0
-#define CALLEE_SAVE_REGISTERS rbx, r12, r13, r14, r15
-#define CALLEE_SAVE_FP_REGISTERS
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 #endif  // V8_TARGET_OS_WIN
 
 #elif V8_TARGET_ARCH_ARM
@@ -51,8 +50,8 @@ namespace {
 // == arm ====================================================================
 // ===========================================================================
 #define PARAM_REGISTERS r0, r1, r2, r3
-#define CALLEE_SAVE_REGISTERS r4, r5, r6, r7, r8, r9, r10
-#define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_ARM64
 // ===========================================================================
@@ -61,9 +60,8 @@ namespace {
 #define PARAM_REGISTERS x0, x1, x2, x3, x4, x5, x6, x7
 #define FP_PARAM_REGISTERS d0, d1, d2, d3, d4, d5, d6, d7
 #define FP_RETURN_REGISTER d0
-#define CALLEE_SAVE_REGISTERS x19, x20, x21, x22, x23, x24, x25, x26, x27, x28
-
-#define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_MIPS64
 // ===========================================================================
@@ -95,13 +93,8 @@ namespace {
 #define STACK_SHADOW_WORDS 14
 #endif
 #define PARAM_REGISTERS r3, r4, r5, r6, r7, r8, r9, r10
-#define CALLEE_SAVE_REGISTERS                                                \
-  r14, r15, r16, r17, r18, r19, r20, r21, r22, r23, r24, r25, r26, r27, r28, \
-      r29, r30
-
-#define CALLEE_SAVE_FP_REGISTERS                                             \
-  d14, d15, d16, d17, d18, d19, d20, d21, d22, d23, d24, d25, d26, d27, d28, \
-      d29, d30, d31
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_S390X
 // ===========================================================================
@@ -109,8 +102,8 @@ namespace {
 // ===========================================================================
 #define STACK_SHADOW_WORDS 20
 #define PARAM_REGISTERS r2, r3, r4, r5, r6
-#define CALLEE_SAVE_REGISTERS r6, r7, r8, r9, r10, ip, r13
-#define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
 // ===========================================================================
@@ -120,9 +113,8 @@ namespace {
 #define FP_PARAM_REGISTERS fa0, fa1, fa2, fa3, fa4, fa5, fa6, fa7
 // fp is not part of CALLEE_SAVE_REGISTERS (similar to how MIPS64 or PPC defines
 // it)
-#define CALLEE_SAVE_REGISTERS s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11
-#define CALLEE_SAVE_FP_REGISTERS \
-  fs0, fs1, fs2, fs3, fs4, fs5, fs6, fs7, fs8, fs9, fs10, fs11
+#define CALLEE_SAVE_REGISTERS C_CALL_CALLEE_SAVE_REGISTERS
+#define CALLEE_SAVE_FP_REGISTERS C_CALL_CALLEE_SAVE_FP_REGISTERS
 #else
 // ===========================================================================
 // == unknown ================================================================

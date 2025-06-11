@@ -411,8 +411,7 @@ MaybeDirectHandle<Map> SharedStructTypeRegistry::CheckIfEntryMatches(
           Cast<NumberDictionary>(
               existing_map->instance_descriptors()->GetStrongValue(isolate, i)),
           isolate);
-      if (static_cast<int>(element_names.size()) !=
-          elements_template->NumberOfElements()) {
+      if (element_names.size() != elements_template->NumberOfElements()) {
         return MaybeDirectHandle<Map>();
       }
       for (int element : element_names) {

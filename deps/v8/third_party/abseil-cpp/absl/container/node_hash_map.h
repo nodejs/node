@@ -110,18 +110,18 @@ class NodeHashMapPolicy;
 //   absl::node_hash_map<std::string, std::string> ducks =
 //     {{"a", "huey"}, {"b", "dewey"}, {"c", "louie"}};
 //
-//  // Insert a new element into the node hash map
-//  ducks.insert({"d", "donald"}};
+//   // Insert a new element into the node hash map
+//   ducks.insert({"d", "donald"}};
 //
-//  // Force a rehash of the node hash map
-//  ducks.rehash(0);
+//   // Force a rehash of the node hash map
+//   ducks.rehash(0);
 //
-//  // Find the element with the key "b"
-//  std::string search_key = "b";
-//  auto result = ducks.find(search_key);
-//  if (result != ducks.end()) {
-//    std::cout << "Result: " << result->second << std::endl;
-//  }
+//   // Find the element with the key "b"
+//   std::string search_key = "b";
+//   auto result = ducks.find(search_key);
+//   if (result != ducks.end()) {
+//     std::cout << "Result: " << result->second << std::endl;
+//   }
 template <class Key, class Value, class Hash = DefaultHashContainerHash<Key>,
           class Eq = DefaultHashContainerEq<Key>,
           class Alloc = std::allocator<std::pair<const Key, Value>>>
@@ -153,9 +153,9 @@ class ABSL_ATTRIBUTE_OWNER node_hash_map
   //
   // * Copy assignment operator
   //
-  //  // Hash functor and Comparator are copied as well
-  //  absl::node_hash_map<int, std::string> map4;
-  //  map4 = map3;
+  //   // Hash functor and Comparator are copied as well
+  //   absl::node_hash_map<int, std::string> map4;
+  //   map4 = map3;
   //
   // * Move constructor
   //

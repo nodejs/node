@@ -72,9 +72,9 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   answer |= 1u << ZBS;
 #endif  // def __riscv_zbs
 
-#if (defined _riscv_zicond)
+#if (defined __riscv_zicond)
   answer |= 1u << ZICOND;
-#endif  // def _riscv_zicond
+#endif  // def __riscv_zicond
   return answer;
 }
 
@@ -720,8 +720,8 @@ void Assembler::bind_to(Label* L, int pos) {
             trampoline_pos = get_trampoline_entry(fixup_pos);
             CHECK_NE(trampoline_pos, kInvalidSlotPos);
           }
-          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
+          CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
           target_at_put(fixup_pos, trampoline_pos, false);
           fixup_pos = trampoline_pos;
         }

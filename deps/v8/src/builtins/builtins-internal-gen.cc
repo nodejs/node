@@ -1347,8 +1347,7 @@ TF_BUILTIN(AllocateInYoungGeneration, CodeStubAssembler) {
   auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
   CSA_CHECK(this, IsValidPositiveSmi(requested_size));
 
-  TNode<Smi> allocation_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
+  TNode<Smi> allocation_flags = SmiConstant(Smi::FromInt(kTaggedAligned));
   TailCallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
                   SmiFromIntPtr(requested_size), allocation_flags);
 }
@@ -1357,8 +1356,7 @@ TF_BUILTIN(AllocateInOldGeneration, CodeStubAssembler) {
   auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
   CSA_CHECK(this, IsValidPositiveSmi(requested_size));
 
-  TNode<Smi> runtime_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
+  TNode<Smi> runtime_flags = SmiConstant(Smi::FromInt(kTaggedAligned));
   TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
                   SmiFromIntPtr(requested_size), runtime_flags);
 }
@@ -1368,8 +1366,7 @@ TF_BUILTIN(WasmAllocateInYoungGeneration, CodeStubAssembler) {
   auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
   CSA_CHECK(this, IsValidPositiveSmi(requested_size));
 
-  TNode<Smi> allocation_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
+  TNode<Smi> allocation_flags = SmiConstant(Smi::FromInt(kTaggedAligned));
   TailCallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
                   SmiFromIntPtr(requested_size), allocation_flags);
 }
@@ -1378,20 +1375,17 @@ TF_BUILTIN(WasmAllocateInOldGeneration, CodeStubAssembler) {
   auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
   CSA_CHECK(this, IsValidPositiveSmi(requested_size));
 
-  TNode<Smi> runtime_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
+  TNode<Smi> runtime_flags = SmiConstant(Smi::FromInt(kTaggedAligned));
   TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
                   SmiFromIntPtr(requested_size), runtime_flags);
 }
 
 TF_BUILTIN(WasmAllocateInSharedHeap, CodeStubAssembler) {
   auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
+  auto alignment = Parameter<Smi>(Descriptor::kAlignment);
   CSA_CHECK(this, IsValidPositiveSmi(requested_size));
-
-  TNode<Smi> runtime_flags =
-      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
   TailCallRuntime(Runtime::kAllocateInSharedHeap, NoContextConstant(),
-                  SmiFromIntPtr(requested_size), runtime_flags);
+                  SmiFromIntPtr(requested_size), alignment);
 }
 #endif
 

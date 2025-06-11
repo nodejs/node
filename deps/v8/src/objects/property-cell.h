@@ -44,7 +44,7 @@ class PropertyCell
   inline void Transition(PropertyDetails new_details,
                          DirectHandle<Object> new_value);
   // For protectors:
-  void InvalidateProtector();
+  void InvalidateProtector(Isolate* isolate);
 
   static PropertyCellType InitialType(Isolate* isolate, Tagged<Object> value);
 

@@ -376,7 +376,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   DCHECK(!AreAliased(destination, dispatch_handle, scratch));
   ASM_CODE_COMMENT(this);
 
-  Move(scratch, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  ldr(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   static_assert(kJSDispatchHandleShift == 0);
   add(scratch, scratch,
       Operand(dispatch_handle, LSL, kJSDispatchTableEntrySizeLog2));
@@ -1628,7 +1629,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   ER context_address = ER::Create(IsolateAddressId::kContextAddress, isolate());
   ldr(cp, ExternalReferenceAsOperand(context_address, no_reg));
 #ifdef DEBUG
-  mov(scratch, Operand(Context::kInvalidContext));
+  mov(scratch, Operand(Context::kNoContext));
   str(scratch, ExternalReferenceAsOperand(context_address, no_reg));
 #endif
 
@@ -2093,21 +2094,6 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
 }
 #endif  // V8_ENABLE_DEBUG_CODE
 
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_LEAPTIERING
-  UNREACHABLE();
-#else
-  DCHECK(!AreAliased(optimized_code, closure));
-  // Store code entry in the closure.
-  str(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
-  RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
-                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
-                   SmiCheck::kOmit);
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
@@ -2125,7 +2111,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
          kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+#ifndef V8_ENABLE_LEAPTIERING
     mov(r2, r0);
+#endif
 
     // Restore target function, new target and actual argument count.
     Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
@@ -2133,10 +2121,25 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     SmiUntag(kJavaScriptCallArgCountRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
+#ifdef V8_ENABLE_LEAPTIERING
+  JumpJSFunction(kJavaScriptCallTargetRegister);
+#else
   JumpCodeObject(r2);
+#endif
 }
 
 #ifndef V8_ENABLE_LEAPTIERING
+
+void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
+    Register optimized_code, Register closure) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(optimized_code, closure));
+  // Store code entry in the closure.
+  str(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
+  RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
+                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
+                   SmiCheck::kOmit);
+}
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
@@ -2871,13 +2874,27 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
     Pop(pc_scratch);
   }
 
-  // Just call directly. The function called cannot cause a GC, or
-  // allow preemption, so the return address in the link register
-  // stays correct.
-  Call(function);
-  int call_pc_offset = pc_offset();
-  bind(&get_pc);
-  if (return_label) bind(return_label);
+  int call_pc_offset;
+  {
+    BlockConstPoolScope block_const_pool_scope(this);
+    Call(function);
+    call_pc_offset = pc_offset();
+    bind(&get_pc);
+    if (return_label) bind(return_label);
+
+    int before_offset = pc_offset();
+    int stack_passed_arguments =
+        CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
+    if (ActivationFrameAlignment() > kPointerSize) {
+      ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
+    } else {
+      add(sp, sp, Operand(stack_passed_arguments * kPointerSize));
+    }
+    // We assume that the move instruction uses kMaxSizeOfMoveAfterFastCall
+    // bytes. When we patch in the deopt trampoline, we patch it in after the
+    // move instruction, so that the stack has been restored correctly.
+    CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
+  }
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
@@ -2889,14 +2906,6 @@ int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
         ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
 
     Pop(zero_scratch);
-  }
-
-  int stack_passed_arguments =
-      CalculateStackPassedWords(num_reg_arguments, num_double_arguments);
-  if (ActivationFrameAlignment() > kPointerSize) {
-    ldr(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
-  } else {
-    add(sp, sp, Operand(stack_passed_arguments * kPointerSize));
   }
 
   return call_pc_offset;

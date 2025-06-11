@@ -647,11 +647,15 @@ FieldAccess AccessBuilder::ForJSDateValue() {
 
 // static
 FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
-  FieldAccess access = {
-      kTaggedBase,         JSDate::kYearOffset + index * kTaggedSize,
-      MaybeHandle<Name>(), OptionalMapRef(),
-      Type::Number(),      MachineType::AnyTagged(),
-      kFullWriteBarrier,   "JSDateField"};
+  DCHECK_LT(index, JSDate::kFirstUncachedField);
+  FieldAccess access = {kTaggedBase,
+                        JSDate::kYearOffset + index * kTaggedSize,
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        TypeCache::Get()->kJSDateFields[index],
+                        MachineType::AnyTagged(),
+                        kFullWriteBarrier,
+                        "JSDateField"};
   return access;
 }
 
@@ -1241,7 +1245,11 @@ ElementAccess AccessBuilder::ForFixedArrayElement(ElementsKind kind) {
       access.machine_type = MachineType::Float64();
       break;
     case HOLEY_DOUBLE_ELEMENTS:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      access.type = Type::NumberOrUndefinedOrHole();
+#else
       access.type = Type::NumberOrHole();
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       access.write_barrier_kind = kNoWriteBarrier;
       access.machine_type = MachineType::Float64();
       break;

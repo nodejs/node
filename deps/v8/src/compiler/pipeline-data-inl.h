@@ -50,7 +50,7 @@ inline Maybe<OuterContext> GetModuleContext(OptimizedCompilationInfo* info) {
   while (!IsNativeContext(*current)) {
     if (current->IsModuleContext()) {
       return Just(OuterContext(
-          info->CanonicalHandle(current, current->GetIsolate()), distance));
+          info->CanonicalHandle(current, Isolate::Current()), distance));
     }
     current = current->previous();
     distance++;

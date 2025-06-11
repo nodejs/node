@@ -117,8 +117,8 @@ class ABSL_ATTRIBUTE_OWNER btree_map
   //
   // * Copy assignment operator
   //
-  //  absl::btree_map<int, std::string> map4;
-  //  map4 = map3;
+  //   absl::btree_map<int, std::string> map4;
+  //   map4 = map3;
   //
   // * Move constructor
   //
@@ -555,8 +555,8 @@ class ABSL_ATTRIBUTE_OWNER btree_multimap
   //
   // * Copy assignment operator
   //
-  //  absl::btree_multimap<int, std::string> map4;
-  //  map4 = map3;
+  //   absl::btree_multimap<int, std::string> map4;
+  //   map4 = map3;
   //
   // * Move constructor
   //

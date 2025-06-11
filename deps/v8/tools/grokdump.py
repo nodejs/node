@@ -195,6 +195,9 @@ MAGIC_MARKER_PAIRS = (
 )
 # See StackTraceFailureMessage in isolate.h
 STACK_TRACE_MARKER = 0xdecade30
+STACK_TRACE_MID_MARKER = 0xdecade33
+STACK_TRACE_END_MARKER = 0xdecade36
+STACK_TRACE_OLD_END_MARKER = 0xdecade31
 # See FailureMessage in logging.cc
 ERROR_MESSAGE_MARKER = 0xdecade10
 
@@ -1231,6 +1234,9 @@ class HeapObject(object):
       return self.heap.SmiUntag(field_value)
     return None
 
+  def Uint32Field(self, offset):
+    return self.heap.reader.ReadU32(self.address + offset)
+
 
 class Map(HeapObject):
   def Decode(self, offset, size, value):
@@ -1353,7 +1359,7 @@ class String(HeapObject):
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
-    self.length = self.SmiField(self.LengthOffset())
+    self.length = self.Uint32Field(self.LengthOffset())
 
   def GetChars(self):
     return "?string?"
@@ -2276,16 +2282,50 @@ class InspectionPadawan(object):
   def TryExtractStackTrace(self, slot, start, end, print_message):
     ptr_size = self.reader.MachinePointerSize()
     assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
-    end_marker = STACK_TRACE_MARKER + 1
+    # Look for the mid marker after the start slot.
+    mid_slot = self.reader.FindPtr(STACK_TRACE_MID_MARKER, start + ptr_size,
+                                   start + ptr_size * 100)
+    if not mid_slot:
+      return self.TryExtractOldStackTrace(slot, start, end, print_message)
+    end_search = mid_slot + (32 * 1024) + (4 * ptr_size)
+    end_slot = self.reader.FindPtr(STACK_TRACE_END_MARKER, end_search,
+                                   end_search + ptr_size * 512)
+    if not end_slot:
+      return start
+
+    print("Stack Message (start=%s):" % self.heap.FormatIntPtr(slot))
+    value = self.reader.ReadUIntPtr(slot)
+    print(" %s: %s" % ("isolate".rjust(14), self.heap.FormatIntPtr(value)))
+    slot += ptr_size
+    i = 0
+    while slot < mid_slot:
+      value = self.reader.ReadUIntPtr(slot)
+      print(" %s: %s" % ("ptr%d" % i, self.heap.FormatIntPtr(value)))
+      slot += ptr_size
+      i += 1
+    slot = mid_slot + ptr_size
+    for i in range(4):
+      value = self.reader.ReadUIntPtr(slot)
+      print(" %s: %s" % ("codeObject%d" % i, self.heap.FormatIntPtr(value)))
+      slot += ptr_size
+    print("  message start: %s" % self.heap.FormatIntPtr(slot))
+    stack_start = end_slot + ptr_size
+    print("  stack_start:   %s" % self.heap.FormatIntPtr(stack_start))
+    (message_start, message) = self.FindFirstAsciiString(slot)
+    self.FormatStackTrace(message, print_message)
+    return stack_start
+
+  def TryExtractOldStackTrace(self, slot, start, end, print_message):
+    ptr_size = self.reader.MachinePointerSize()
+    assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
     header_size = 10
     # Look for the end marker after the fields and the message buffer.
     end_search = start + (32 * 1024) + (header_size * ptr_size)
-    end_slot = self.reader.FindPtr(end_marker, end_search,
+    end_slot = self.reader.FindPtr(STACK_TRACE_OLD_END_MARKER, end_search,
                                    end_search + ptr_size * 512)
     if not end_slot:
       return start
     print("Stack Message (start=%s):" % self.heap.FormatIntPtr(slot))
-    slot += ptr_size
     for name in ("isolate", "ptr1", "ptr2", "ptr3", "ptr4", "ptr5", "ptr6",
                  "codeObject1", "codeObject2", "codeObject3", "codeObject4"):
       value = self.reader.ReadUIntPtr(slot)
@@ -2957,11 +2997,59 @@ class InspectionWebFormatter(object):
   def output_stack_trace(self, f, slot, start, end, print_message):
     ptr_size = self.reader.MachinePointerSize()
     assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
-    end_marker = STACK_TRACE_MARKER + 1
+    # Look for the mid marker after the start slot.
+    mid_slot = self.reader.FindPtr(STACK_TRACE_MID_MARKER, start + ptr_size,
+                                   start + ptr_size * 100)
+    if not mid_slot:
+      return self.output_old_stack_trace(f, slot, start, end, print_message)
+    end_search = mid_slot + (32 * 1024) + (4 * ptr_size)
+    end_slot = self.reader.FindPtr(STACK_TRACE_END_MARKER, end_search,
+                                   end_search + ptr_size * 512)
+    if not end_slot:
+      return start
+
+    f.write("<h3>PushStackTraceAndDie Stack Message (start=%s):</h3>" %
+            self.format_address(slot))
+    slot += ptr_size
+    value = self.reader.ReadUIntPtr(slot)
+    f.write(f"<b>isolate</b>: {self.format_address(value)}<br>")
+    slot += ptr_size
+    i = 0
+    while slot < mid_slot:
+      value = self.reader.ReadUIntPtr(slot)
+      try:
+        obj = self.format_object(value)
+      except Exception as e:
+        obj = str(e)
+      f.write(f"<b>ptr{i}</b>: {self.format_address(value)} {obj}<br>")
+      slot += ptr_size
+      i += 1
+    slot = mid_slot + ptr_size
+    for i in range(4):
+      value = self.reader.ReadUIntPtr(slot)
+      try:
+        obj = self.format_object(value)
+      except Exception as e:
+        obj = str(e)
+      f.write(f"<b>codeObject{i}</b>: {self.format_address(value)} {obj}<br>")
+      slot += ptr_size
+    f.write("<b>message start</b>: %s<br>" % self.format_address(slot))
+    stack_start = end_slot + ptr_size
+    f.write("<b>stack_start</b>:   %s<br>" % self.format_address(stack_start))
+    (message_start, message) = self.padawan.FindFirstAsciiString(slot)
+    if print_message and message is not None:
+      f.write("<a href='#eom'>Scroll to end of message...</a><br>")
+      self.output_stack_trace_message(f, message)
+      f.write("<span id=eom></span>")
+    return stack_start
+
+  def output_old_stack_trace(self, f, slot, start, end, print_message):
+    ptr_size = self.reader.MachinePointerSize()
+    assert self.reader.ReadUIntPtr(slot) & 0xFFFFFFFF == STACK_TRACE_MARKER
     header_size = 10
     # Look for the end marker after the fields and the message buffer.
     end_search = start + (32 * 1024) + (header_size * ptr_size)
-    end_slot = self.reader.FindPtr(end_marker, end_search,
+    end_slot = self.reader.FindPtr(STACK_TRACE_OLD_END_MARKER, end_search,
                                    end_search + ptr_size * 512)
     if not end_slot:
       return start

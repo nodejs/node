@@ -93,6 +93,8 @@ namespace internal {
   V(kUnexpectedStackPointer, "The stack pointer is not the expected value")    \
   V(kUnexpectedValue, "Unexpected value")                                      \
   V(kUninhabitableType, "Uninhabitable type")                                  \
+  V(kUnsupportedDeopt,                                                         \
+    "Lazy deopt after a fast API call with return value is unsupported")       \
   V(kUnsupportedModuleOperation, "Unsupported module operation")               \
   V(kUnsupportedNonPrimitiveCompare, "Unsupported non-primitive compare")      \
   V(kWrongAddressOrValuePassedToRecordWrite,                                   \
@@ -118,23 +120,34 @@ namespace internal {
   V(kFastCallFallbackInvalid, "Fast call fallback returned incorrect type")    \
   V(k32BitValueInRegisterIsNotSignExtended,                                    \
     "32 bit value in register is not sign-extended")
+
+#define TERMINAL_BAILOUT_MESSAGES_LIST(V)                                  \
+  V(kFunctionTooBig, "Function is too big to be optimized")                \
+  V(kTooManyArguments, "Function contains a call with too many arguments") \
+  V(kNativeFunctionLiteral, "Native function literal")                     \
+  V(kNeverOptimize, "Optimization is always disabled")
+
+#define TERMINAL_TURBOFAN_BAILOUT_MESSAGES_LIST(V)  \
+  V(kTurbofanGraphBuildingFailed,                   \
+    "Turbofan optimized graph construction failed") \
+  V(kTurbofanCodeGenerationFailed, "Turbofan code generation failed")
+
+#define TERMINAL_MAGLEV_BAILOUT_MESSAGES_LIST(V)                              \
+  V(kMaglevGraphBuildingFailed, "Maglev optimized graph construction failed") \
+  V(kMaglevCodeGenerationFailed, "Maglev code generation failed")
+
 #define BAILOUT_MESSAGES_LIST(V)                                             \
   V(kNoReason, "no reason")                                                  \
                                                                              \
+  TERMINAL_BAILOUT_MESSAGES_LIST(V)                                          \
+  TERMINAL_MAGLEV_BAILOUT_MESSAGES_LIST(V)                                   \
+  TERMINAL_TURBOFAN_BAILOUT_MESSAGES_LIST(V)                                 \
   V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change")  \
-  V(kCancelled, "Job got cancelled")                                         \
   V(kConcurrentMapDeprecation, "Maps became deprecated during optimization") \
-  V(kCodeGenerationFailed, "Code generation failed")                         \
   V(kFunctionBeingDebugged, "Function is being debugged")                    \
-  V(kGraphBuildingFailed, "Optimized graph construction failed")             \
-  V(kFunctionTooBig, "Function is too big to be optimized")                  \
-  V(kTooManyArguments, "Function contains a call with too many arguments")   \
-  V(kLiveEdit, "LiveEdit")                                                   \
-  V(kNativeFunctionLiteral, "Native function literal")                       \
-  V(kOptimizationDisabled, "Optimization disabled")                          \
-  V(kHigherTierAvailable, "A higher tier is already available")              \
   V(kDetachedNativeContext, "The native context is detached")                \
-  V(kNeverOptimize, "Optimization is always disabled")
+  V(kCancelled, "Job got cancelled")                                         \
+  V(kLiveEdit, "LiveEdit")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
 enum class BailoutReason : uint8_t {
@@ -149,6 +162,41 @@ enum class AbortReason : uint8_t {
 const char* GetBailoutReason(BailoutReason reason);
 const char* GetAbortReason(AbortReason reason);
 bool IsValidAbortReason(int reason_id);
+
+inline bool IsTerminalBailoutReason(BailoutReason reason) {
+  switch (reason) {
+#define CASE(name, _) case BailoutReason::name:
+    TERMINAL_BAILOUT_MESSAGES_LIST(CASE)
+#undef CASE
+    return true;
+    default:
+      return false;
+  }
+}
+
+inline bool IsTerminalBailoutReasonForMaglev(BailoutReason reason) {
+  switch (reason) {
+#define CASE(name, _) case BailoutReason::name:
+    TERMINAL_BAILOUT_MESSAGES_LIST(CASE)
+    TERMINAL_MAGLEV_BAILOUT_MESSAGES_LIST(CASE)
+#undef CASE
+    return true;
+    default:
+      return false;
+  }
+}
+
+inline bool IsTerminalBailoutReasonForTurbofan(BailoutReason reason) {
+  switch (reason) {
+#define CASE(name, _) case BailoutReason::name:
+    TERMINAL_BAILOUT_MESSAGES_LIST(CASE)
+    TERMINAL_MAGLEV_BAILOUT_MESSAGES_LIST(CASE)
+#undef CASE
+    return true;
+    default:
+      return false;
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

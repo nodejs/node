@@ -601,6 +601,15 @@ class WasmCodeAllocator {
 
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
+  class V8_NODISCARD NativeModuleAllocationLockScope {
+   public:
+    explicit NativeModuleAllocationLockScope(NativeModule* module)
+        : lock_(module->allocation_mutex_) {}
+
+   private:
+    base::RecursiveMutexGuard lock_;
+  };
+
   static constexpr ExternalPointerTag kManagedTag = kWasmNativeModuleTag;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_ARM64 || \
@@ -839,10 +848,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
     kRemoveTurbofanCode,
     kRemoveAllCode,
   };
-  // Remove all compiled code based on the `filter` from the {NativeModule},
-  // replace it with {CompileLazy} builtins and return the sizes of the removed
-  // (executable) code and the removed metadata.
-  std::pair<size_t, size_t> RemoveCompiledCode(RemoveFilter filter);
+  // Remove all compiled code based on the `filter` from the {NativeModule} and
+  // replace it with {CompileLazy} builtins.
+  void RemoveCompiledCode(RemoveFilter filter);
 
   // Returns the code size of all Liftoff compiled functions.
   size_t SumLiftoffCodeSizeForTesting() const;

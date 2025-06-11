@@ -18,7 +18,10 @@
 // Test deopt when array map changes.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c;

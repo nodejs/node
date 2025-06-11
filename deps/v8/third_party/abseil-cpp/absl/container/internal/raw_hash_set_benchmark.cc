@@ -172,8 +172,7 @@ struct string_generator {
 //
 // On a table of size N, keep deleting the LRU entry and add a random one.
 void BM_CacheInSteadyState(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   string_generator gen{12};
   StringTable t;
   std::deque<std::string> keys;
@@ -250,8 +249,7 @@ void BM_EndComparison(benchmark::State& state) {
 BENCHMARK(BM_EndComparison);
 
 void BM_Iteration(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   string_generator gen{12};
   StringTable t;
 
@@ -293,8 +291,7 @@ BENCHMARK(BM_Iteration)
     ->ArgPair(1000, 10);
 
 void BM_CopyCtorSparseInt(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   IntTable t;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
 
@@ -312,8 +309,7 @@ void BM_CopyCtorSparseInt(benchmark::State& state) {
 BENCHMARK(BM_CopyCtorSparseInt)->Range(1, 4096);
 
 void BM_CopyCtorInt(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   IntTable t;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
 
@@ -330,8 +326,7 @@ void BM_CopyCtorInt(benchmark::State& state) {
 BENCHMARK(BM_CopyCtorInt)->Range(0, 4096);
 
 void BM_CopyCtorString(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   StringTable t;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
 
@@ -348,8 +343,7 @@ void BM_CopyCtorString(benchmark::State& state) {
 BENCHMARK(BM_CopyCtorString)->Range(0, 4096);
 
 void BM_CopyAssign(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   IntTable t;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
   while (t.size() < state.range(0)) {
@@ -365,8 +359,7 @@ void BM_CopyAssign(benchmark::State& state) {
 BENCHMARK(BM_CopyAssign)->Range(128, 4096);
 
 void BM_RangeCtor(benchmark::State& state) {
-  std::random_device rd;
-  std::mt19937 rng(rd());
+  absl::InsecureBitGen rng;
   std::uniform_int_distribution<uint64_t> dist(0, ~uint64_t{});
   std::vector<int> values;
   const size_t desired_size = state.range(0);

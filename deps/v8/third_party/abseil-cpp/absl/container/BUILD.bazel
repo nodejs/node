@@ -494,6 +494,7 @@ cc_library(
         "//absl/base:no_destructor",
         "//absl/memory",
         "//absl/meta:type_traits",
+        "//absl/random",
         "//absl/strings",
     ],
 )
@@ -529,6 +530,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":common_policy_traits",
+        ":container_memory",
         "//absl/meta:type_traits",
     ],
 )
@@ -625,6 +627,7 @@ cc_test(
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/profiling:sample_recorder",
+        "//absl/random",
         "//absl/synchronization",
         "//absl/synchronization:thread_pool",
         "//absl/time",
@@ -785,6 +788,7 @@ cc_test(
         "//absl/memory",
         "//absl/meta:type_traits",
         "//absl/numeric:int128",
+        "//absl/random",
         "//absl/strings",
         "//absl/types:optional",
         "@googletest//:gtest",

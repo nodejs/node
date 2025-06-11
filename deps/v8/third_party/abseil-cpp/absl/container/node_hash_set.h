@@ -108,16 +108,16 @@ struct NodeHashSetPolicy;
 //   absl::node_hash_set<std::string> ducks =
 //     {"huey", "dewey", "louie"};
 //
-//  // Insert a new element into the node hash set
-//  ducks.insert("donald");
+//   // Insert a new element into the node hash set
+//   ducks.insert("donald");
 //
-//  // Force a rehash of the node hash set
-//  ducks.rehash(0);
+//   // Force a rehash of the node hash set
+//   ducks.rehash(0);
 //
-//  // See if "dewey" is present
-//  if (ducks.contains("dewey")) {
-//    std::cout << "We found dewey!" << std::endl;
-//  }
+//   // See if "dewey" is present
+//   if (ducks.contains("dewey")) {
+//     std::cout << "We found dewey!" << std::endl;
+//   }
 template <class T, class Hash = DefaultHashContainerHash<T>,
           class Eq = DefaultHashContainerEq<T>, class Alloc = std::allocator<T>>
 class ABSL_ATTRIBUTE_OWNER node_hash_set
@@ -147,9 +147,9 @@ class ABSL_ATTRIBUTE_OWNER node_hash_set
   //
   // * Copy assignment operator
   //
-  //  // Hash functor and Comparator are copied as well
-  //  absl::node_hash_set<std::string> set4;
-  //  set4 = set3;
+  //   // Hash functor and Comparator are copied as well
+  //   absl::node_hash_set<std::string> set4;
+  //   set4 = set3;
   //
   // * Move constructor
   //

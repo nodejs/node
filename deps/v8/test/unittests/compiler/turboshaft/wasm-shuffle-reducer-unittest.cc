@@ -299,7 +299,7 @@ TEST_F(ReducerTest, BinaryExtLowUnaryShuffle) {
   }
 }
 
-#if V8_ENABLE_WASM_INTERLEAVED_MEM_OPS
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 namespace {
 auto ShuffleKind = Simd128ShuffleOp::Kind::kI8x16;
@@ -331,6 +331,30 @@ TEST_F(ReducerTest, LoadInterleaveTwo) {
   EXPECT_TRUE(analyzer.ShouldReduce());
 }
 
+TEST_F(ReducerTest, LoadInterleaveTwoNegativeDiffOffset) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    auto index = __ BitcastTaggedToWordPtr(Asm.GetParameter(1));
+    auto ld0 = __ Load(base, index, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 0);
+    auto ld1 = __ Load(base, index, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), kSimd128Size);
+    auto even_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_even);
+    auto odd_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_odd);
+    __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
+                              Simd128BinopOp::Kind::kF64x2Add));
+  });
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+  // TODO(sparker): This should expect TRUE when absolute difference
+  // between loads offsets in deinterleaved load reduction is implemented.
+}
+
 TEST_F(ReducerTest, LoadInterleaveTwoNoIndex) {
   auto test = CreateFromGraph(1, [](auto& Asm) {
     auto ld0 = __ Load(Asm.GetParameter(0), {}, LoadOp::Kind::TaggedBase(),
@@ -340,9 +364,9 @@ TEST_F(ReducerTest, LoadInterleaveTwoNoIndex) {
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), kSimd128Size);
     auto even_shuffle =
-        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_even);
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_even);
     auto odd_shuffle =
-        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_odd);
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_odd);
     __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
                               Simd128BinopOp::Kind::kF64x2Mul));
   });
@@ -361,15 +385,38 @@ TEST_F(ReducerTest, LoadInterleaveTwoWrongIndex) {
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), kSimd128Size);
     auto even_shuffle =
-        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_even);
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_even);
     auto odd_shuffle =
-        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_odd);
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_odd);
     __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
                               Simd128BinopOp::Kind::kF64x2Mul));
   });
   WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
   analyzer.Run();
   EXPECT_FALSE(analyzer.ShouldReduce());
+}
+
+TEST_F(ReducerTest, LoadInterleaveNoIndexNegativeDiffOffset) {
+  auto test = CreateFromGraph(2, [](auto& Asm) {
+    auto base = __ BitcastTaggedToWordPtr(Asm.GetParameter(0));
+    auto ld0 = __ Load(base, {}, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), 0);
+    auto ld1 = __ Load(base, {}, LoadOp::Kind::Protected(),
+                       MemoryRepresentation::Simd128(),
+                       RegisterRepresentation::Simd128(), kSimd128Size);
+    auto even_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_even);
+    auto odd_shuffle =
+        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_odd);
+    __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
+                              Simd128BinopOp::Kind::kF64x2Add));
+  });
+  WasmShuffleAnalyzer analyzer(test.zone(), test.graph());
+  analyzer.Run();
+  EXPECT_FALSE(analyzer.ShouldReduce());
+  // TODO(sparker): This should expect TRUE when absolute difference
+  // between loads offsets in deinterleaved load reduction is implemented.
 }
 
 TEST_F(ReducerTest, LoadInterleaveTwoNoIndexWrongOffset) {
@@ -449,9 +496,9 @@ TEST_F(ReducerTest, LoadInterleaveTwoNoIndexCantReschedule) {
                        MemoryRepresentation::Simd128(),
                        RegisterRepresentation::Simd128(), kSimd128Size);
     auto even_shuffle =
-        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_even);
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_even);
     auto odd_shuffle =
-        __ Simd128Shuffle(ld1, ld0, ShuffleKind, shuffle_bytes_odd);
+        __ Simd128Shuffle(ld0, ld1, ShuffleKind, shuffle_bytes_odd);
     __ Return(__ Simd128Binop(even_shuffle, odd_shuffle,
                               Simd128BinopOp::Kind::kF64x2Mul));
   });
@@ -493,7 +540,7 @@ TEST_F(ReducerTest, LoadInterleaveTwoWrongBlocks) {
   EXPECT_FALSE(analyzer.ShouldReduce());
 }
 
-#endif  // V8_ENABLE_WASM_INTERLEAVED_MEM_OPS
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 

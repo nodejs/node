@@ -2237,7 +2237,7 @@ void MacroAssembler::AlignedStoreHelper(Reg_T value, const MemOperand& rs,
   if (NeedAdjustBaseAndOffset(source)) {
     Register scratch = temps.Acquire();
     // make sure scratch does not overwrite value
-    if (std::is_same<Reg_T, Register>::value) {
+    if (std::is_same_v<Reg_T, Register>) {
       DCHECK(scratch.code() != value.code());
     }
     DCHECK(scratch != rs.rm());
@@ -3384,7 +3384,7 @@ void MacroAssembler::RoundHelper(FPURegister dst, FPURegister src,
   UseScratchRegisterScope temps(this);
   Register scratch2 = temps.Acquire();
 
-  DCHECK((std::is_same<float, F>::value) || (std::is_same<double, F>::value));
+  DCHECK((std::is_same_v<float, F>) || (std::is_same_v<double, F>));
   // Need at least two FPRs, so check against dst == src == fpu_scratch
   DCHECK(!(dst == src && dst == fpu_scratch));
 
@@ -3400,7 +3400,7 @@ void MacroAssembler::RoundHelper(FPURegister dst, FPURegister src,
     UseScratchRegisterScope temps2(this);
     Register scratch = temps2.Acquire();
     // extract exponent value of the source floating-point to scratch
-    if (std::is_same<F, double>::value) {
+    if (std::is_same_v<F, double>) {
       fmv_x_d(scratch, src);
     } else {
       fmv_x_w(scratch, src);
@@ -3412,7 +3412,7 @@ void MacroAssembler::RoundHelper(FPURegister dst, FPURegister src,
   // in mantissa, the result is the same as src, so move src to dest  (to avoid
   // generating another branch)
   if (dst != src) {
-    if (std::is_same<F, double>::value) {
+    if (std::is_same_v<F, double>) {
       fmv_d(dst, src);
     } else {
       fmv_s(dst, src);
@@ -3429,7 +3429,7 @@ void MacroAssembler::RoundHelper(FPURegister dst, FPURegister src,
     // payload is 1. In RISC-V, feq_d will set scratch to 0 if src is a NaN. If
     // src is not a NaN, branch to the label and do nothing, but if it is,
     // fmin_d will set dst to the canonical NaN.
-    if (std::is_same<F, double>::value) {
+    if (std::is_same_v<F, double>) {
       feq_d(scratch, src, src);
       bnez(scratch, &not_NaN);
       fmin_d(dst, src, src);
@@ -3468,7 +3468,7 @@ void MacroAssembler::RoundHelper(FPURegister dst, FPURegister src,
   {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    if (std::is_same<F, double>::value) {
+    if (std::is_same_v<F, double>) {
       fcvt_l_d(scratch, src, frm);
       fcvt_d_l(dst, scratch, frm);
     } else {
@@ -3483,7 +3483,7 @@ void MacroAssembler::RoundHelper(FPURegister dst, FPURegister src,
   // Therefore, we use sign-bit injection to produce +/-0 correctly. Instead of
   // testing for zero w/ a branch, we just insert sign-bit for everyone on this
   // path (this is where old_src is needed)
-  if (std::is_same<F, double>::value) {
+  if (std::is_same_v<F, double>) {
     fsgnj_d(dst, dst, old_src);
   } else {
     fsgnj_s(dst, dst, old_src);
@@ -3593,7 +3593,7 @@ template <typename F>
 void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
                                  VRegister v_scratch, FPURoundingMode frm,
                                  bool keep_nan_same) {
-  VU.set(scratch, std::is_same<F, float>::value ? E32 : E64, m1);
+  VU.set(scratch, std::is_same_v<F, float> ? E32 : E64, m1);
   // if src is NaN/+-Infinity/+-Zero or if the exponent is larger than # of bits
   // in mantissa, the result is the same as src, so move src to dest  (to avoid
   // generating another branch)
@@ -3645,7 +3645,7 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
   if (!keep_nan_same) {
     vmfeq_vv(v0, src, src);
     vnot_vv(v0, v0);
-    if (std::is_same<F, float>::value) {
+    if (std::is_same_v<F, float>) {
       fmv_w_x(kScratchDoubleReg, zero_reg);
     } else {
 #ifdef V8_TARGET_ARCH_RISCV64
@@ -4940,7 +4940,6 @@ void MacroAssembler::Jump(Register target, Condition cond, Register rs,
   BlockTrampolinePoolScope block_trampoline_pool(this);
   if (cond == cc_always) {
     jr(target);
-    ForceConstantPoolEmissionWithoutJump();
   } else {
     BRANCH_ARGS_CHECK(cond, rs, rt);
     Branch(kInstrSize * 2, NegateCondition(cond), rs, rt);
@@ -5353,9 +5352,6 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target) {
 
 void MacroAssembler::Ret(Condition cond, Register rs, const Operand& rt) {
   Jump(ra, cond, rs, rt);
-  if (cond == al) {
-    ForceConstantPoolEmissionWithoutJump();
-  }
 }
 
 void MacroAssembler::BranchLong(Label* L) {
@@ -5472,34 +5468,9 @@ void MacroAssembler::LoadAddress(Register dst, Label* target,
 void MacroAssembler::Switch(Register scratch, Register value,
                             int case_value_base, Label** labels,
                             int num_labels) {
-  Register table = scratch;
-  Label fallthrough, jump_table;
-  if (case_value_base != 0) {
-    SubWord(value, value, Operand(case_value_base));
-  }
-  Branch(&fallthrough, Condition::Ugreater_equal, value, Operand(num_labels));
-  LoadAddress(table, &jump_table);
-  CalcScaledAddress(table, table, value, kSystemPointerSizeLog2);
-  LoadWord(table, MemOperand(table, 0));
-  Jump(table);
-  // Calculate label area size and let MASM know that it will be impossible to
-  // create the trampoline within the range. That forces MASM to create the
-  // trampoline right here if necessary, i.e. if label area is too large and
-  // all unbound forward branches cannot be bound over it. Use nop() because the
-  // trampoline cannot be emitted right after Jump().
-  NOP();
-  static constexpr int mask = kInstrSize - 1;
-  int aligned_label_area_size = num_labels * kUIntptrSize + kSystemPointerSize;
-  int instructions_per_label_area =
-      ((aligned_label_area_size + mask) & ~mask) >> kInstrSizeLog2;
-  BlockTrampolinePoolFor(instructions_per_label_area);
-  // Emit the jump table inline, under the assumption that it's not too big.
-  Align(kSystemPointerSize);
-  bind(&jump_table);
-  for (int i = 0; i < num_labels; ++i) {
-    dd(labels[i]);
-  }
-  bind(&fallthrough);
+  GenerateSwitchTable(
+      value, num_labels, [&labels](auto i) { return labels[i]; },
+      case_value_base, scratch);
 }
 
 void MacroAssembler::Push(Tagged<Smi> smi) {
@@ -6793,7 +6764,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
   LoadWord(cp, ExternalReferenceAsOperand(context_address, no_reg));
 
   if (v8_flags.debug_code) {
-    li(scratch, Operand(Context::kInvalidContext));
+    li(scratch, Operand(Context::kNoContext));
     StoreWord(scratch, ExternalReferenceAsOperand(context_address, no_reg));
   }
 
@@ -7130,11 +7101,10 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
 template <typename F_TYPE>
 void MacroAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
                                        FPURegister src2, MaxMinKind kind) {
-  DCHECK((std::is_same<F_TYPE, float>::value) ||
-         (std::is_same<F_TYPE, double>::value));
+  DCHECK((std::is_same_v<F_TYPE, float>) || (std::is_same_v<F_TYPE, double>));
 
   if (src1 == src2 && dst != src1) {
-    if (std::is_same<float, F_TYPE>::value) {
+    if (std::is_same_v<float, F_TYPE>) {
       fmv_s(dst, src1);
     } else {
       fmv_d(dst, src1);
@@ -7150,7 +7120,7 @@ void MacroAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
   // JS semantics.
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  if (std::is_same<float, F_TYPE>::value) {
+  if (std::is_same_v<float, F_TYPE>) {
     CompareIsNotNanF32(scratch, src1, src2);
   } else {
     CompareIsNotNanF64(scratch, src1, src2);
@@ -7158,13 +7128,13 @@ void MacroAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
   BranchFalseF(scratch, &nan);
 
   if (kind == MaxMinKind::kMax) {
-    if (std::is_same<float, F_TYPE>::value) {
+    if (std::is_same_v<float, F_TYPE>) {
       fmax_s(dst, src1, src2);
     } else {
       fmax_d(dst, src1, src2);
     }
   } else {
-    if (std::is_same<float, F_TYPE>::value) {
+    if (std::is_same_v<float, F_TYPE>) {
       fmin_s(dst, src1, src2);
     } else {
       fmin_d(dst, src1, src2);
@@ -7174,7 +7144,7 @@ void MacroAssembler::FloatMinMaxHelper(FPURegister dst, FPURegister src1,
 
   bind(&nan);
   // if any operand is NaN, return NaN (fadd returns NaN if any operand is NaN)
-  if (std::is_same<float, F_TYPE>::value) {
+  if (std::is_same_v<float, F_TYPE>) {
     fadd_s(dst, src1, src2);
   } else {
     fadd_d(dst, src1, src2);
@@ -7347,24 +7317,36 @@ int MacroAssembler::CallCFunctionHelper(
     }
   }
 
-  Call(function);
-  int call_pc_offset = pc_offset();
-  bind(&get_pc);
-  if (return_location) bind(return_location);
+  int call_pc_offset;
+  {
+    BlockPoolsScope block_const_pool_scope(this);
+    Call(function);
+    call_pc_offset = pc_offset();
+    bind(&get_pc);
+    if (return_location) bind(return_location);
+    int before_offset = pc_offset();
+    // Remove frame bought in PrepareCallCFunction
+    int stack_passed_arguments =
+        CalculateStackPassedDWords(num_reg_arguments, num_double_arguments);
+    if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
+      LoadWord(sp, MemOperand(sp, stack_passed_arguments * kSystemPointerSize));
+    } else {
+      AddWord(sp, sp, Operand(stack_passed_arguments * kSystemPointerSize));
+    }
+    if (kMaxSizeOfMoveAfterFastCall > pc_offset() - before_offset) {
+      nop();
+    }
+    // We assume that with the nop padding, the move instruction uses
+    // kMaxSizeOfMoveAfterFastCall bytes. When we patch in the deopt trampoline,
+    // we patch it in after the move instruction, so that the stack has been
+    // restored correctly.
+    CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
+  }
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
     StoreWord(zero_reg,
               ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP));
-  }
-
-  // Remove frame bought in PrepareCallCFunction
-  int stack_passed_arguments =
-      CalculateStackPassedDWords(num_reg_arguments, num_double_arguments);
-  if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
-    LoadWord(sp, MemOperand(sp, stack_passed_arguments * kSystemPointerSize));
-  } else {
-    AddWord(sp, sp, Operand(stack_passed_arguments * kSystemPointerSize));
   }
 
   return call_pc_offset;
@@ -7655,7 +7637,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
   DCHECK(!AreAliased(destination, scratch));
   ASM_CODE_COMMENT(this);
   Register index = destination;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  LoadWord(scratch,
+           ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
 #ifdef V8_TARGET_ARCH_RISCV32
   static_assert(kJSDispatchHandleShift == 0);
   SllWord(index, dispatch_handle, kJSDispatchTableEntrySizeLog2);
@@ -7672,7 +7655,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
     Register destination, JSDispatchHandle dispatch_handle, Register scratch) {
   DCHECK(!AreAliased(destination, scratch));
   ASM_CODE_COMMENT(this);
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  LoadWord(scratch,
+           ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   // WARNING: This offset calculation is only safe if we have already stored a
   // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
   // keeping the dispatch entry alive) _and_ because the entrypoints are not
@@ -7693,7 +7677,7 @@ void MacroAssembler::LoadParameterCountFromJSDispatchTable(
   Register index = destination;
   SrlWord(index, dispatch_handle, kJSDispatchHandleShift);
   SllWord(index, index, kJSDispatchTableEntrySizeLog2);
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   AddWord(scratch, scratch, index);
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
   Lhu(destination, MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
@@ -7705,7 +7689,7 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   DCHECK(!AreAliased(entrypoint, parameter_count, scratch));
   ASM_CODE_COMMENT(this);
   Register index = parameter_count;
-  li(scratch, ExternalReference::js_dispatch_table_address());
+  Ld(scratch, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   SrlWord(index, dispatch_handle, kJSDispatchHandleShift);
   SllWord(index, index, kJSDispatchTableEntrySizeLog2);
   AddWord(scratch, scratch, index);
@@ -7768,9 +7752,9 @@ void MacroAssembler::AtomicStoreTaggedField(Register src, const MemOperand& dst,
   AddWord(scratch, dst.rm(), dst.offset());
   trapper(pc_offset());
   if (COMPRESS_POINTERS_BOOL) {
-    amoswap_w(true, true, zero_reg, src, scratch);
+    amoswap_w(true, true, zero_reg, scratch, src);
   } else {
-    amoswap_d(true, true, zero_reg, src, scratch);
+    amoswap_d(true, true, zero_reg, scratch, src);
   }
 }
 
@@ -7826,6 +7810,7 @@ void MacroAssembler::DecompressProtected(const Register& destination,
 void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
                                                   const MemOperand& src,
                                                   Trapper&& trapper) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Lwu(dst, src, std::forward<Trapper>(trapper));
   sync();
@@ -7838,6 +7823,7 @@ void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
 
 void MacroAssembler::AtomicDecompressTagged(Register dst, const MemOperand& src,
                                             Trapper&& trapper) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   ASM_CODE_COMMENT(this);
   Lwu(dst, src, std::forward<Trapper>(trapper));
   sync();

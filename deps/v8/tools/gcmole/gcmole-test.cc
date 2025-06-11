@@ -361,5 +361,19 @@ void TestVariableScopeInsideIf(Isolate* isolate) {
   }
 }
 
+void TestConservativePinningScope(Isolate* isolate) {
+  ConservativePinningScope pinning_scope(isolate->heap());
+  Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  CauseGCRaw(raw_obj, isolate);
+  Print(raw_obj);
+}
+
+void TestConservativePinningScopeWitness(
+    Isolate* isolate, ConservativePinningScope& pinning_scope_witness) {
+  Tagged<JSObject> raw_obj = *isolate->factory()->NewJSObjectWithNullProto();
+  CauseGCRaw(raw_obj, isolate);
+  Print(raw_obj);
+}
+
 }  // namespace internal
 }  // namespace v8

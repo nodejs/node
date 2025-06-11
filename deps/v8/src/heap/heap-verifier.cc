@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef VERIFY_HEAP
+
 #include "src/heap/heap-verifier.h"
 
 #include <optional>
@@ -35,7 +37,10 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/string-table.h"
 
-#ifdef VERIFY_HEAP
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-export-wrapper-cache.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
@@ -356,15 +361,7 @@ void HeapVerification::Verify() {
     CHECK(maybe_rtt.IsWeak());
     CHECK(IsMap(maybe_rtt.GetHeapObjectAssumeWeak()));
   }
-
-  // js_to_wasm_wrappers holds weak references to code or cleared values.
-  Tagged<WeakFixedArray> wrappers = heap()->js_to_wasm_wrappers();
-  for (int i = 0, e = wrappers->length(); i < e; ++i) {
-    Tagged<MaybeObject> maybe_wrapper = wrappers->get(i);
-    if (maybe_wrapper.IsCleared()) continue;
-    CHECK(maybe_wrapper.IsWeak());
-    CHECK(IsCodeWrapper(maybe_wrapper.GetHeapObjectAssumeWeak()));
-  }
+  wasm::WasmExportWrapperCache::Verify(heap());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // The heap verifier can't deal with partially deserialized objects, so

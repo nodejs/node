@@ -15,12 +15,14 @@
 
 #include <math.h>
 
+#include <cstring>
 #include <iomanip>
 #include <ios>
 #include <limits>
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #ifdef __ANDROID__
@@ -28,6 +30,7 @@
 #endif
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/log/check.h"
 #include "absl/log/internal/test_matchers.h"
 #include "absl/log/log.h"
@@ -44,6 +47,7 @@ using ::absl::log_internal::MatchesOstream;
 using ::absl::log_internal::RawEncodedMessage;
 using ::absl::log_internal::TextMessage;
 using ::absl::log_internal::TextPrefix;
+using ::testing::_;
 using ::testing::AllOf;
 using ::testing::AnyOf;
 using ::testing::Each;
@@ -122,6 +126,33 @@ TYPED_TEST(CharLogFormatTest, Unprintable) {
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
+}
+
+TEST(WideCharLogFormatTest, Printable) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("€")),
+                                    ENCODED_MESSAGE(HasValues(
+                                        ElementsAre(ValueWithStr(Eq("€"))))))));
+
+  test_sink.StartCapturingLogs();
+  const wchar_t value = L'\u20AC';
+  LOG(INFO) << value;
+}
+
+TEST(WideCharLogFormatTest, Unprintable) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  // Using NEL (Next Line) Unicode character (U+0085).
+  // It is encoded as "\xC2\x85" in UTF-8.
+  constexpr wchar_t wide_value = L'\u0085';
+  constexpr char value[] = "\xC2\x85";
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << wide_value;
 }
 
 template <typename T>
@@ -635,7 +666,7 @@ TYPED_TEST(FloatingPointLogFormatTest, NegativeNaN) {
 
 template <typename T>
 class VoidPtrLogFormatTest : public testing::Test {};
-using VoidPtrTypes = Types<void *, const void *>;
+using VoidPtrTypes = Types<void*, const void*>;
 TYPED_TEST_SUITE(VoidPtrLogFormatTest, VoidPtrTypes);
 
 TYPED_TEST(VoidPtrLogFormatTest, Null) {
@@ -676,11 +707,10 @@ TYPED_TEST(VoidPtrLogFormatTest, NonNull) {
 
 template <typename T>
 class VolatilePtrLogFormatTest : public testing::Test {};
-using VolatilePtrTypes =
-    Types<volatile void*, const volatile void*, volatile char*,
-          const volatile char*, volatile signed char*,
-          const volatile signed char*, volatile unsigned char*,
-          const volatile unsigned char*>;
+using VolatilePtrTypes = Types<
+    volatile void*, const volatile void*, volatile char*, const volatile char*,
+    volatile signed char*, const volatile signed char*, volatile unsigned char*,
+    const volatile unsigned char*, volatile wchar_t*, const volatile wchar_t*>;
 TYPED_TEST_SUITE(VolatilePtrLogFormatTest, VolatilePtrTypes);
 
 TYPED_TEST(VolatilePtrLogFormatTest, Null) {
@@ -784,6 +814,38 @@ TYPED_TEST(CharPtrLogFormatTest, NonNull) {
   LOG(INFO) << value;
 }
 
+template <typename T>
+class WideCharPtrLogFormatTest : public testing::Test {};
+using WideCharPtrTypes = Types<wchar_t, const wchar_t>;
+TYPED_TEST_SUITE(WideCharPtrLogFormatTest, WideCharPtrTypes);
+
+TYPED_TEST(WideCharPtrLogFormatTest, Null) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  TypeParam* const value = nullptr;
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("(null)")),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq("(null)"))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideCharPtrLogFormatTest, NonNull) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  TypeParam data[] = {'v', 'a', 'l', 'u', 'e', '\0'};
+  TypeParam* const value = data;
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("value")),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq("value"))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
 TEST(BoolLogFormatTest, True) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
 
@@ -836,6 +898,17 @@ TEST(LogFormatTest, StringLiteral) {
   LOG(INFO) << "value";
 }
 
+TEST(LogFormatTest, WideStringLiteral) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("value")),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithLiteral(Eq("value"))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << L"value";
+}
+
 TEST(LogFormatTest, CharArray) {
   absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
 
@@ -852,6 +925,193 @@ TEST(LogFormatTest, CharArray) {
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << value;
+}
+
+TEST(LogFormatTest, WideCharArray) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  wchar_t value[] = L"value";
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("value")),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq("value"))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+// Comprehensive test string for validating wchar_t to UTF-8 conversion.
+// See details in absl/strings/internal/utf8_test.cc.
+//
+// clang-format off
+#define ABSL_LOG_INTERNAL_WIDE_LITERAL L"Holá €1 你好 שָׁלוֹם 👍🏻🇺🇸👩‍❤️‍💋‍👨 中"
+#define ABSL_LOG_INTERNAL_UTF8_LITERAL u8"Holá €1 你好 שָׁלוֹם 👍🏻🇺🇸👩‍❤️‍💋‍👨 中"
+// clang-format on
+
+absl::string_view GetUtf8TestString() {
+  // `u8""` forces UTF-8 encoding; MSVC will default to e.g. CP1252 (and warn)
+  // without it. However, the resulting character type differs between pre-C++20
+  // (`char`) and C++20 (`char8_t`). So we reinterpret_cast to `char*` and wrap
+  // it in a `string_view`.
+  static const absl::string_view kUtf8TestString(
+      reinterpret_cast<const char*>(ABSL_LOG_INTERNAL_UTF8_LITERAL),
+      sizeof(ABSL_LOG_INTERNAL_UTF8_LITERAL) - 1);
+  return kUtf8TestString;
+}
+
+template <typename T>
+class WideStringLogFormatTest : public testing::Test {};
+using StringTypes =
+    Types<std::wstring, const std::wstring, wchar_t[], const wchar_t*>;
+TYPED_TEST_SUITE(WideStringLogFormatTest, StringTypes);
+
+TYPED_TEST(WideStringLogFormatTest, NonLiterals) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  TypeParam value = ABSL_LOG_INTERNAL_WIDE_LITERAL;
+  absl::string_view utf8_value = GetUtf8TestString();
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TEST(WideStringLogFormatTest, StringView) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  std::wstring_view value = ABSL_LOG_INTERNAL_WIDE_LITERAL;
+  absl::string_view utf8_value = GetUtf8TestString();
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TEST(WideStringLogFormatTest, Literal) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  absl::string_view utf8_value = GetUtf8TestString();
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithLiteral(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << ABSL_LOG_INTERNAL_WIDE_LITERAL;
+}
+
+#undef ABSL_LOG_INTERNAL_WIDE_LITERAL
+#undef ABSL_LOG_INTERNAL_UTF8_LITERAL
+
+TYPED_TEST(WideStringLogFormatTest, IsolatedLowSurrogatesAreReplaced) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  TypeParam value = L"AAA \xDC00 BBB";
+  // NOLINTNEXTLINE(readability/utf8)
+  absl::string_view utf8_value = "AAA � BBB";
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideStringLogFormatTest,
+           DISABLED_IsolatedHighSurrogatesAreReplaced) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  TypeParam value = L"AAA \xD800 BBB";
+  // NOLINTNEXTLINE(readability/utf8)
+  absl::string_view utf8_value = "AAA � BBB";
+  // Currently, this is "AAA \xF0\x90 BBB".
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideStringLogFormatTest,
+           DISABLED_ConsecutiveHighSurrogatesAreReplaced) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  TypeParam value = L"AAA \xD800\xD800 BBB";
+  // NOLINTNEXTLINE(readability/utf8)
+  absl::string_view utf8_value = "AAA �� BBB";
+  // Currently, this is "AAA \xF0\x90\xF0\x90 BBB".
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideStringLogFormatTest,
+           DISABLED_HighHighLowSurrogateSequencesAreReplaced) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  TypeParam value = L"AAA \xD800\xD800\xDC00 BBB";
+  // NOLINTNEXTLINE(readability/utf8)
+  absl::string_view utf8_value = "AAA �𐀀 BBB";
+  // Currently, this is "AAA \xF0\x90𐀀 BBB".
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideStringLogFormatTest,
+           DISABLED_TrailingHighSurrogatesAreReplaced) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  TypeParam value = L"AAA \xD800";
+  // NOLINTNEXTLINE(readability/utf8)
+  absl::string_view utf8_value = "AAA �";
+  // Currently, this is "AAA \xF0\x90".
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq(utf8_value)),
+                                    ENCODED_MESSAGE(HasValues(ElementsAre(
+                                        ValueWithStr(Eq(utf8_value))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TYPED_TEST(WideStringLogFormatTest, EmptyWideString) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  TypeParam value = L"";
+
+  EXPECT_CALL(test_sink, Send(AllOf(TextMessage(Eq("")),
+                                    ENCODED_MESSAGE(HasValues(
+                                        ElementsAre(ValueWithStr(Eq(""))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << value;
+}
+
+TEST(WideStringLogFormatTest, MixedNarrowAndWideStrings) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  EXPECT_CALL(test_sink, Log(_, _, "1234"));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << "1" << L"2" << "3" << L"4";
 }
 
 class CustomClass {};
@@ -1673,6 +1933,29 @@ TEST(StructuredLoggingOverflowTest, TruncatesStrings) {
 
   test_sink.StartCapturingLogs();
   LOG(INFO) << std::string(2 * absl::log_internal::kLogMessageBufferSize, 'x');
+}
+
+TEST(StructuredLoggingOverflowTest, TruncatesWideStrings) {
+  absl::ScopedMockLog test_sink(absl::MockLogDefault::kDisallowUnexpected);
+
+  // This message is too long and should be truncated to some unspecified size
+  // no greater than the buffer size but not too much less either.  It should be
+  // truncated rather than discarded.
+  EXPECT_CALL(
+      test_sink,
+      Send(AllOf(
+          TextMessage(AllOf(
+              SizeIs(AllOf(Ge(absl::log_internal::kLogMessageBufferSize - 256),
+                           Le(absl::log_internal::kLogMessageBufferSize))),
+              Each(Eq('x')))),
+          ENCODED_MESSAGE(HasOneStrThat(AllOf(
+              SizeIs(AllOf(Ge(absl::log_internal::kLogMessageBufferSize - 256),
+                           Le(absl::log_internal::kLogMessageBufferSize))),
+              Each(Eq('x'))))))));
+
+  test_sink.StartCapturingLogs();
+  LOG(INFO) << std::wstring(2 * absl::log_internal::kLogMessageBufferSize,
+                            L'x');
 }
 
 struct StringLike {

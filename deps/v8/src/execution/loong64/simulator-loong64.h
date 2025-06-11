@@ -25,8 +25,7 @@ int Compare(const T& a, const T& b) {
 }
 
 // Returns the negative absolute value of its argument.
-template <typename T,
-          typename = typename std::enable_if<std::is_signed<T>::value>::type>
+template <typename T, typename = typename std::enable_if_t<std::is_signed_v<T>>>
 T Nabs(T a) {
   return a < 0 ? a : -a;
 }
@@ -386,14 +385,12 @@ class Simulator : public SimulatorBase {
 
   // Read floating point return values.
   template <typename T>
-  typename std::enable_if<std::is_floating_point<T>::value, T>::type
-  ReadReturn() {
+  typename std::enable_if_t<std::is_floating_point_v<T>, T> ReadReturn() {
     return static_cast<T>(get_fpu_register_double(f0));
   }
   // Read non-float return values.
   template <typename T>
-  typename std::enable_if<!std::is_floating_point<T>::value, T>::type
-  ReadReturn() {
+  typename std::enable_if_t<!std::is_floating_point_v<T>, T> ReadReturn() {
     return ConvertReturn<T>(get_register(a0));
   }
 

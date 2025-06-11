@@ -43,7 +43,9 @@ class JSInliningHeuristic final : public AdvancedReducer {
         max_inlined_bytecode_size_cumulative_(
             v8_flags.max_inlined_bytecode_size_cumulative),
         max_inlined_bytecode_size_absolute_(
-            v8_flags.max_inlined_bytecode_size_absolute) {
+            v8_flags.max_inlined_bytecode_size_absolute),
+        max_inlined_bytecode_size_small_total_(
+            v8_flags.max_inlined_bytecode_size_small_total) {
     DCHECK_EQ(mode == kWasmWrappersOnly || mode == kWasmFullInlining,
               wasm_module != nullptr && js_wasm_calls_sidetable != nullptr);
   }
@@ -57,7 +59,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   void Finalize() final;
 
   int total_inlined_bytecode_size() const {
-    return total_inlined_bytecode_size_;
+    return total_inlined_bytecode_size_ + total_ignored_bytecode_size_;
   }
 
  private:
@@ -82,6 +84,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
     Node* node = nullptr;     // The call site at which to inline.
     CallFrequency frequency;  // Relative frequency of this call site.
     int total_size = 0;
+    int own_size = 0;
     bool has_heapnumber_params = false;
   };
 
@@ -128,9 +131,11 @@ class JSInliningHeuristic final : public AdvancedReducer {
   JSHeapBroker* const broker_;
   OptimizedCompilationInfo* info_;
   int total_inlined_bytecode_size_ = 0;
+  int total_ignored_bytecode_size_ = 0;
   const Mode mode_;
   const int max_inlined_bytecode_size_cumulative_;
   const int max_inlined_bytecode_size_absolute_;
+  const int max_inlined_bytecode_size_small_total_;
 };
 
 }  // namespace compiler

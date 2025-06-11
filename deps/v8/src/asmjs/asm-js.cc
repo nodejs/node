@@ -126,7 +126,7 @@ bool AreStdlibMembersValid(Isolate* isolate, DirectHandle<JSReceiver> stdlib,
 void Report(Handle<Script> script, int position, base::Vector<const char> text,
             MessageTemplate message_template,
             v8::Isolate::MessageErrorLevel level) {
-  Isolate* isolate = script->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   MessageLocation location(script, position, position);
   DirectHandle<String> text_object =
       isolate->factory()->InternalizeUtf8String(text);

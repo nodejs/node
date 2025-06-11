@@ -113,10 +113,10 @@ Handle<FixedArray> KeyAccumulator::GetKeys(GetKeysConversion convert) {
   DCHECK(ContainsOnlyValidKeys(result));
 
   if (try_prototype_info_cache_ && !first_prototype_map_.is_null()) {
-    Cast<PrototypeInfo>(first_prototype_map_->prototype_info())
-        ->set_prototype_chain_enum_cache(*result);
-    Map::GetOrCreatePrototypeChainValidityCell(
-        direct_handle(receiver_->map(), isolate_), isolate_);
+    DirectHandle<PrototypeInfo> prototype_info;
+    Map::GetOrCreatePrototypeChainValidityCell(first_prototype_map_, isolate_,
+                                               &prototype_info);
+    prototype_info->set_prototype_chain_enum_cache(*result);
     DCHECK(first_prototype_map_->IsPrototypeValidityCellValid());
   }
   return result;

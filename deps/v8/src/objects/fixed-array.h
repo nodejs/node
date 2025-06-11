@@ -76,7 +76,7 @@ struct TaggedArrayHeaderHelper<
     Shape, Super, std::void_t<typename Shape::template ExtraFields<Super>>> {
   using BaseHeader = ArrayHeaderBase<Super, Shape::kLengthEqualsCapacity>;
   using type = typename Shape::template ExtraFields<BaseHeader>;
-  static_assert(std::is_base_of<BaseHeader, type>::value);
+  static_assert(std::is_base_of_v<BaseHeader, type>);
 };
 template <class Shape, class Super>
 using TaggedArrayHeader = typename TaggedArrayHeaderHelper<Shape, Super>::type;
@@ -90,7 +90,7 @@ using TaggedArrayHeader = typename TaggedArrayHeaderHelper<Shape, Super>::type;
 // Shap using V8_ARRAY_EXTRA_FIELDS.
 V8_OBJECT template <class Derived, class ShapeT, class Super = HeapObjectLayout>
 class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
-  static_assert(std::is_base_of<HeapObjectLayout, Super>::value);
+  static_assert(std::is_base_of_v<HeapObjectLayout, Super>);
   using ElementT = typename ShapeT::ElementT;
 
   static_assert(sizeof(TaggedMember<ElementT>) == kTaggedSize);
@@ -384,7 +384,7 @@ class FixedArrayBase : public detail::ArrayHeaderBase<HeapObjectLayout, true> {
 V8_OBJECT
 template <class Derived, class ShapeT, class Super = HeapObjectLayout>
 class PrimitiveArrayBase : public detail::ArrayHeaderBase<Super, true> {
-  static_assert(std::is_base_of<HeapObjectLayout, Super>::value);
+  static_assert(std::is_base_of_v<HeapObjectLayout, Super>);
 
   using ElementT = typename ShapeT::ElementT;
   static_assert(!is_subtype_v<ElementT, Object>);
@@ -587,7 +587,6 @@ V8_OBJECT class ProtectedWeakFixedArray
 class WeakArrayList
     : public TorqueGeneratedWeakArrayList<WeakArrayList, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
   DECL_PRINTER(WeakArrayList)
 
   V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
@@ -623,6 +622,9 @@ class WeakArrayList
   inline void Set(int index, Tagged<MaybeObject> value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Set(int index, Tagged<Smi> value);
+
+  using TorqueGeneratedWeakArrayList<WeakArrayList, HeapObject>::capacity;
+  inline int capacity(RelaxedLoadTag) const;
 
   static constexpr int SizeForCapacity(int capacity) {
     return SizeFor(capacity);
@@ -837,7 +839,7 @@ class TrustedByteArray
 V8_OBJECT
 template <typename T, typename Base>
 class FixedIntegerArrayBase : public Base {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
 
  public:
   // {MoreArgs...} allows passing the `AllocationType` if `Base` is `ByteArray`.

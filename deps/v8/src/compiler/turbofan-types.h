@@ -189,6 +189,7 @@ namespace compiler {
   V(NumberOrOddballOrHole,        kNumberOrOddball| kHole ) \
   V(NumericOrString,              kNumeric | kString) \
   V(NumberOrUndefined,            kNumber | kUndefined) \
+  V(NumberOrUndefinedOrHole,      kNumberOrUndefined | kHole) \
   V(PlainPrimitive,               kNumber | kString | kBoolean | \
                                   kNullOrUndefined) \
   V(NonBigIntPrimitive,           kSymbol | kPlainPrimitive) \

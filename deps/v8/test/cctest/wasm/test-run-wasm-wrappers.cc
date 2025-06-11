@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/wasm/wasm-export-wrapper-cache.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -13,6 +14,37 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+// static
+int WasmExportWrapperCache::CountWrappersForTesting(Isolate* isolate) {
+  int num_wrappers = 0;
+  Tagged<WeakFixedArray> wrappers = isolate->heap()->js_to_wasm_wrappers();
+  for (int i = kReservedSlots, e = wrappers->length(); i < e;
+       i += kSlotsPerEntry) {
+    // Each entry consists of two array slots, for key and value:
+    // If the key is Smi(kUnused), then the value is also Smi(kUnused).
+    // Otherwise the key is Smi(hash) for a non-negative "hash" (sig index
+    // plus receiver-is-first-param bit), and the value is either a weak
+    // code wrapper or cleared.
+    Tagged<MaybeObject> key = wrappers->get(i);
+    CHECK(key.IsSmi());
+    Tagged<MaybeObject> value = wrappers->get(i + 1);
+    if (value.IsSmi()) {
+      CHECK_EQ(key.ToSmi().value(), kUnused);
+      CHECK_EQ(value.ToSmi().value(), kUnused);
+      continue;
+    }
+    if (value.IsCleared()) continue;
+    CHECK(value.IsWeak());
+    CHECK(IsCodeWrapper(value.GetHeapObjectAssumeWeak()));
+    Tagged<Code> code =
+        Cast<CodeWrapper>(value.GetHeapObjectAssumeWeak())->code(isolate);
+    CHECK_EQ(CodeKind::JS_TO_WASM_FUNCTION, code->kind());
+    ++num_wrappers;
+  }
+  return num_wrappers;
+}
+
 namespace test_run_wasm_wrappers {
 
 using testing::CompileAndInstantiateForTesting;
@@ -377,24 +409,6 @@ TEST(WrapperReplacement_IndirectExport) {
 
 TEST(JSToWasmWrapperGarbageCollection) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  auto NumCompiledJSToWasmWrappers = [isolate]() {
-    int num_wrappers = 0;
-    Tagged<WeakFixedArray> wrappers = isolate->heap()->js_to_wasm_wrappers();
-    for (int i = 0, e = wrappers->length(); i < e; ++i) {
-      // Entries are either weak code wrappers, cleared entries, or undefined.
-      Tagged<MaybeObject> maybe_wrapper = wrappers->get(i);
-      if (maybe_wrapper.IsCleared()) continue;
-      CHECK(maybe_wrapper.IsWeak());
-      CHECK(IsCodeWrapper(maybe_wrapper.GetHeapObjectAssumeWeak()));
-      Tagged<Code> code =
-          Cast<CodeWrapper>(maybe_wrapper.GetHeapObjectAssumeWeak())
-              ->code(isolate);
-      CHECK_EQ(CodeKind::JS_TO_WASM_FUNCTION, code->kind());
-      ++num_wrappers;
-    }
-    return num_wrappers;
-  };
-
   {
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -409,7 +423,7 @@ TEST(JSToWasmWrapperGarbageCollection) {
     f->EmitCode({WASM_ONE, WASM_END});
 
     // Before compilation there should be no compiled wrappers.
-    CHECK_EQ(0, NumCompiledJSToWasmWrappers());
+    CHECK_EQ(0, WasmExportWrapperCache::CountWrappersForTesting(isolate));
 
     // Compile the module.
     DirectHandle<WasmInstanceObject> instance =
@@ -417,7 +431,7 @@ TEST(JSToWasmWrapperGarbageCollection) {
 
     // If the generic wrapper is disabled, this should have compiled a wrapper.
     CHECK_EQ(v8_flags.wasm_generic_wrapper ? 0 : 1,
-             NumCompiledJSToWasmWrappers());
+             WasmExportWrapperCache::CountWrappersForTesting(isolate));
 
     // Get the exported function and the function data.
     DirectHandle<WasmExportedFunction> main_function =
@@ -434,7 +448,7 @@ TEST(JSToWasmWrapperGarbageCollection) {
     SmiCall(isolate, main_function, {}, 1);
 
     // There should be exactly one compiled wrapper now.
-    CHECK_EQ(1, NumCompiledJSToWasmWrappers());
+    CHECK_EQ(1, WasmExportWrapperCache::CountWrappersForTesting(isolate));
   }
 
   // After GC all compiled wrappers must be cleared again.
@@ -446,7 +460,7 @@ TEST(JSToWasmWrapperGarbageCollection) {
     Cleanup();
   }
 
-  CHECK_EQ(0, NumCompiledJSToWasmWrappers());
+  CHECK_EQ(0, WasmExportWrapperCache::CountWrappersForTesting(isolate));
 }
 #endif
 

@@ -467,8 +467,8 @@ void LocalHeap::RemoveGCEpilogueCallback(GCEpilogueCallback* callback,
 
 void LocalHeap::Iterate(RootVisitor* visitor) {
   handles_->Iterate(visitor);
-  if (roots_provider_) {
-    roots_provider_->Iterate(visitor);
+  for (GCRootsProvider* provider : roots_providers_) {
+    provider->Iterate(visitor);
   }
 }
 

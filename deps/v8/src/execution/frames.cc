@@ -72,6 +72,21 @@ Address AddressOf(const StackHandler* handler) {
 
 }  // namespace
 
+#if V8_ENABLE_WEBASSEMBLY
+bool IsWasmToJsWrapperCSA(Address pc) {
+  // The WasmToJsWrapper can also be called from the embedded data directly.
+  size_t builtin_size =
+      EmbeddedData::FromBlob().InstructionSizeOf(Builtin::kWasmToJsWrapperCSA);
+  Address wrapper_addr =
+      Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperCSA);
+  if (pc >= wrapper_addr && pc < wrapper_addr + builtin_size) {
+    return true;
+  }
+
+  return false;
+}
+#endif
+
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
 class StackHandlerIterator {
@@ -887,12 +902,9 @@ StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
     case StackFrame::NUMBER_OF_TYPES:
     case StackFrame::TURBOFAN_JS:
     case StackFrame::TURBOFAN_STUB_WITH_CONTEXT:
-#if V8_ENABLE_WEBASSEMBLY
-#if !V8_ENABLE_DRUMBRAKE
+#if V8_ENABLE_WEBASSEMBLY && !V8_ENABLE_DRUMBRAKE
     case StackFrame::C_WASM_ENTRY:
-#endif  // !V8_ENABLE_DRUMBRAKE
-    case StackFrame::WASM_TO_JS_FUNCTION:
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_ENABLE_WEBASSEMBLY && !V8_ENABLE_DRUMBRAKE
       return StackFrame::NATIVE;
   }
   UNREACHABLE();
@@ -944,7 +956,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
   const intptr_t marker = Memory<intptr_t>(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
   switch (lookup_result.value()->kind()) {
-    case CodeKind::BUILTIN: {
+    case CodeKind::BUILTIN:
+    case CodeKind::FOR_TESTING: {
       if (StackFrame::IsTypeMarker(marker)) break;
       return ComputeBuiltinFrameType(lookup_result.value());
     }
@@ -980,7 +993,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
     case CodeKind::WASM_TO_JS_FUNCTION:
-      return StackFrame::WASM_TO_JS_FUNCTION;
+      // Should have been found by the WasmCode lookup above.
+      UNREACHABLE();
     case CodeKind::WASM_FUNCTION:
     case CodeKind::WASM_TO_CAPI_FUNCTION:
       // These never appear as on-heap Code objects.
@@ -994,7 +1008,6 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CodeKind::BYTECODE_HANDLER:
-    case CodeKind::FOR_TESTING:
     case CodeKind::REGEXP:
     case CodeKind::INTERPRETED_FUNCTION:
       // Fall back to the marker.
@@ -1017,9 +1030,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
   // fast_c_call_caller_pc_address, for which authentication does not work.
   const Address pc = StackFrame::unauthenticated_pc(state->pc_address);
 #if V8_ENABLE_WEBASSEMBLY
-  Tagged<Code> wrapper =
-      isolate()->builtins()->code(Builtin::kWasmToJsWrapperCSA);
-  if (pc >= wrapper->instruction_start() && pc <= wrapper->instruction_end()) {
+  if (IsWasmToJsWrapperCSA(pc)) {
     return StackFrame::WASM_TO_JS;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1955,17 +1966,6 @@ void TypedFrame::IterateParamsOfGenericWasmToJSWrapper(RootVisitor* v) const {
   }
 }
 
-void TypedFrame::IterateParamsOfOptimizedWasmToJSWrapper(RootVisitor* v) const {
-  Tagged<GcSafeCode> code = GcSafeLookupCode();
-  if (code->wasm_js_tagged_parameter_count() > 0) {
-    FullObjectSlot tagged_parameter_base(&Memory<Address>(caller_sp()));
-    tagged_parameter_base += code->wasm_js_first_tagged_parameter();
-    FullObjectSlot tagged_parameter_limit =
-        tagged_parameter_base + code->wasm_js_tagged_parameter_count();
-    v->VisitRootPointers(Root::kStackRoots, nullptr, tagged_parameter_base,
-                         tagged_parameter_limit);
-  }
-}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void TypedFrame::Iterate(RootVisitor* v) const {
@@ -1999,11 +1999,10 @@ void TypedFrame::Iterate(RootVisitor* v) const {
 #if V8_ENABLE_WEBASSEMBLY
   bool is_generic_wasm_to_js =
       code->is_builtin() && code->builtin_id() == Builtin::kWasmToJsWrapperCSA;
-  bool is_optimized_wasm_to_js = this->type() == WASM_TO_JS_FUNCTION;
+  // Optimized wasm-to-js frames map to the WasmFrame type.
+  DCHECK_NE(this->type(), WASM_TO_JS);
   if (is_generic_wasm_to_js) {
     IterateParamsOfGenericWasmToJSWrapper(v);
-  } else if (is_optimized_wasm_to_js) {
-    IterateParamsOfOptimizedWasmToJSWrapper(v);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK(code->is_turbofanned());
@@ -2250,10 +2249,7 @@ bool CommonFrame::HasTaggedOutgoingParams(
       wasm::GetWasmCodeManager()->LookupCode(isolate(), callee_pc());
   if (wasm_callee) return false;
 
-  Tagged<Code> wrapper =
-      isolate()->builtins()->code(Builtin::kWasmToJsWrapperCSA);
-  if (callee_pc() >= wrapper->instruction_start() &&
-      callee_pc() <= wrapper->instruction_end()) {
+  if (IsWasmToJsWrapperCSA(callee_pc())) {
     return false;
   }
   return code_lookup->has_tagged_outgoing_params();
@@ -2444,9 +2440,9 @@ void JavaScriptFrame::GetFunctions(
   DCHECK(functions->empty());
   std::vector<Tagged<SharedFunctionInfo>> raw_functions;
   GetFunctions(&raw_functions);
+  Isolate* isolate = Isolate::Current();
   for (const auto& raw_function : raw_functions) {
-    functions->push_back(
-        Handle<SharedFunctionInfo>(raw_function, function()->GetIsolate()));
+    functions->push_back(Handle<SharedFunctionInfo>(raw_function, isolate));
   }
 }
 
@@ -3038,7 +3034,8 @@ FrameSummaries OptimizedJSFrame::Summarize() const {
   // Delegate to JS frame in absence of deoptimization info.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   DirectHandle<Code> code(LookupCode(), isolate());
-  if (code->kind() == CodeKind::BUILTIN) {
+  if (code->kind() == CodeKind::BUILTIN ||
+      code->kind() == CodeKind::FOR_TESTING) {
     return JavaScriptFrame::Summarize();
   }
 
@@ -3530,11 +3527,7 @@ bool WasmFrame::at_to_number_conversion() const {
     return pos == 1;
   }
 
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
-      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(callee_pc());
-  CHECK(entry->code.has_value());
-  Tagged<GcSafeCode> code = entry->code.value();
-  if (code->builtin_id() != Builtin::kWasmToJsWrapperCSA) {
+  if (!IsWasmToJsWrapperCSA(callee_pc())) {
     return false;
   }
 

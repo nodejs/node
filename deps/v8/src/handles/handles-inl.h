@@ -275,6 +275,7 @@ HandleType<T> HandleScope::CloseAndEscape(HandleType<T> handle_value) {
 
 Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
   DCHECK(AllowHandleAllocation::IsAllowed());
+  DCHECK_EQ(isolate, Isolate::TryGetCurrent());
 #ifdef DEBUG
   if (!AllowHandleUsageOnAllThreads::IsAllowed()) {
     DCHECK(isolate->main_thread_local_heap()->IsRunning());
@@ -282,7 +283,16 @@ Address* HandleScope::CreateHandle(Isolate* isolate, Address value) {
         isolate->thread_id() == ThreadId::Current(),
         "main-thread handle can only be created on the main thread.");
   }
-#endif
+  // We should only allocate handles for objects that can be referenced from the
+  // isolate's heap.
+#ifdef ENABLE_SLOW_DCHECKS
+  if (!HAS_SMI_TAG(value)) {
+    DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(value));
+    Tagged<HeapObject> obj = UncheckedCast<HeapObject>(Tagged<Object>{value});
+    SLOW_DCHECK(isolate->heap()->CanReferenceHeapObject(obj));
+  }
+#endif  // ENABLE_SLOW_DCHECKS
+#endif  // DEBUG
   HandleScopeData* data = isolate->handle_scope_data();
   Address* result = data->next;
   if (V8_UNLIKELY(result == data->limit)) {

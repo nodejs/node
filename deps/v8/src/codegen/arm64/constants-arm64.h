@@ -2612,6 +2612,10 @@ using UnallocatedOp = uint32_t;
 constexpr UnallocatedOp UnallocatedFixed = 0x00000000;
 constexpr UnallocatedOp UnallocatedFMask = 0x00000000;
 
+// The maximum size of the stack restore after a fast API call that pops the
+// stack parameters of the call off the stack.
+constexpr int kMaxSizeOfMoveAfterFastCall = 4;
+
 }  // namespace internal
 }  // namespace v8
 

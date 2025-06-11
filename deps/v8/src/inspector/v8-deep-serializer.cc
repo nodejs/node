@@ -21,7 +21,7 @@ namespace {
 using protocol::Response;
 std::unique_ptr<protocol::Value> DescriptionForDate(
     v8::Local<v8::Context> context, v8::Local<v8::Date> date) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::TryCatch tryCatch(isolate);
 
   v8::Local<v8::String> dateISOString = date->ToISOString();
@@ -58,7 +58,7 @@ Response SerializeRegexp(v8::Local<v8::RegExp> value,
 
   resultValue->setValue(protocol::String("pattern"),
                         protocol::StringValue::create(toProtocolString(
-                            context->GetIsolate(), value->GetSource())));
+                            v8::Isolate::GetCurrent(), value->GetSource())));
 
   String16 flags = DescriptionForRegExpFlags(value);
   if (!flags.isEmpty()) {
@@ -160,7 +160,7 @@ Response SerializeMap(v8::Local<v8::Map> value, v8::Local<v8::Context> context,
 
       if (keyV8Value->IsString()) {
         keyProtocolValue = protocol::StringValue::create(toProtocolString(
-            context->GetIsolate(), keyV8Value.As<v8::String>()));
+            v8::Isolate::GetCurrent(), keyV8Value.As<v8::String>()));
       } else {
         std::unique_ptr<protocol::DictionaryValue> keyDictionaryProtocolValue;
         Response response =
@@ -246,8 +246,8 @@ Response SerializeObjectValue(v8::Local<v8::Object> value,
     if (hasRealNamedProperty.IsNothing() || !hasRealNamedProperty.FromJust()) {
       continue;
     }
-    keyProtocolValue = protocol::StringValue::create(
-        toProtocolString(context->GetIsolate(), keyV8Value.As<v8::String>()));
+    keyProtocolValue = protocol::StringValue::create(toProtocolString(
+        v8::Isolate::GetCurrent(), keyV8Value.As<v8::String>()));
 
     success = value->Get(context, keyV8Value).ToLocal(&propertyV8Value);
     CHECK(success);

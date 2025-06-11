@@ -162,17 +162,19 @@ void* GetRandomMmapAddr() {
   return GetPlatformPageAllocator()->GetRandomMmapAddr();
 }
 
-void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
-                    size_t alignment, PageAllocator::Permission access) {
+void* AllocatePages(v8::PageAllocator* page_allocator, size_t size,
+                    size_t alignment, PageAllocator::Permission access,
+                    PageAllocator::AllocationHint hint) {
   DCHECK_NOT_NULL(page_allocator);
-  DCHECK(IsAligned(reinterpret_cast<Address>(hint), alignment));
+  DCHECK(IsAligned(reinterpret_cast<Address>(hint.Address()), alignment));
   DCHECK(IsAligned(size, page_allocator->AllocatePageSize()));
-  if (!hint && v8_flags.randomize_all_allocations) {
-    hint = AlignedAddress(page_allocator->GetRandomMmapAddr(), alignment);
+  if (!hint.Address() && v8_flags.randomize_all_allocations) {
+    hint = hint.WithAddress(
+        AlignedAddress(page_allocator->GetRandomMmapAddr(), alignment));
   }
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
-    result = page_allocator->AllocatePages(hint, size, alignment, access);
+    result = page_allocator->AllocatePages(size, alignment, access, hint);
     if (V8_LIKELY(result != nullptr)) break;
     OnCriticalMemoryPressure();
   }
@@ -209,15 +211,16 @@ void OnCriticalMemoryPressure() {
 VirtualMemory::VirtualMemory() = default;
 
 VirtualMemory::VirtualMemory(v8::PageAllocator* page_allocator, size_t size,
-                             void* hint, size_t alignment,
+                             PageAllocator::AllocationHint hint,
+                             size_t alignment,
                              PageAllocator::Permission permissions)
     : page_allocator_(page_allocator) {
   DCHECK_NOT_NULL(page_allocator);
   DCHECK(IsAligned(size, page_allocator_->CommitPageSize()));
-  size_t page_size = page_allocator_->AllocatePageSize();
+  const size_t page_size = page_allocator_->AllocatePageSize();
   alignment = RoundUp(alignment, page_size);
   Address address = reinterpret_cast<Address>(AllocatePages(
-      page_allocator_, hint, RoundUp(size, page_size), alignment, permissions));
+      page_allocator_, RoundUp(size, page_size), alignment, permissions, hint));
   if (address != kNullAddress) {
     DCHECK(IsAligned(address, alignment));
     region_ = base::AddressRegion(address, size);
@@ -341,7 +344,8 @@ bool VirtualMemoryCage::InitReservation(
     // anymore whether it should be rounded up or down.
     CHECK(IsAligned(hint, params.base_alignment));
     VirtualMemory reservation(params.page_allocator, params.reservation_size,
-                              reinterpret_cast<void*>(hint),
+                              v8::PageAllocator::AllocationHint().WithAddress(
+                                  reinterpret_cast<void*>(hint)),
                               params.base_alignment, params.permissions);
     // The virtual memory reservation fails only due to OOM.
     if (!reservation.IsReserved()) return false;

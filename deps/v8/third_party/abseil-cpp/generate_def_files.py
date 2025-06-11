@@ -70,6 +70,7 @@ def _GenerateDefFile(cpu, is_debug, extra_gn_args=[], suffix=None):
       'symbol_level = 0',
       'target_cpu = "{}"'.format(cpu),
       'target_os = "win"',
+      'use_remoteexec = true',
   ]
   gn_args.extend(extra_gn_args)
 
@@ -85,7 +86,7 @@ def _GenerateDefFile(cpu, is_debug, extra_gn_args=[], suffix=None):
       logging.error('dumpbin not found. Run tools\\win\\setenv.bat.')
       exit(1)
   cwd = os.getcwd()
-  with tempfile.TemporaryDirectory(dir=cwd) as out_dir:
+  with tempfile.TemporaryDirectory(dir=os.path.join(cwd, 'out')) as out_dir:
     logging.info('[%s - %s] Creating tmp out dir in %s', cpu, flavor, out_dir)
     subprocess.check_call([gn, 'gen', out_dir, '--args=' + ' '.join(gn_args)],
                           cwd=cwd)

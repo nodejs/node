@@ -53,6 +53,7 @@ enum InstanceType : uint16_t;
   V(CppHeapExternalObject)            \
   V(DataHandler)                      \
   V(DebugInfo)                        \
+  V(DoubleStringCache)                \
   V(EmbedderDataArray)                \
   V(EphemeronHashTable)               \
   V(ExternalString)                   \
@@ -110,6 +111,7 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmDescriptorOptions)   \
   IF_WASM(V, WasmSuspenderObject)     \
   IF_WASM(V, WasmSuspendingObject)    \
+  IF_WASM(V, WasmContinuationObject)  \
   IF_WASM(V, WasmTableObject)         \
   IF_WASM(V, WasmTagObject)           \
   IF_WASM(V, WasmTypeInfo)            \
@@ -267,7 +269,15 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_GETTER(GetIndexedInterceptor, Tagged<InterceptorInfo>)
 
   // Instance type.
-  DECL_PRIMITIVE_ACCESSORS(instance_type, InstanceType)
+  // Inline definition here to avoid a circular dependency in map-inl.h
+  // with instance-types-inl.h
+  inline InstanceType instance_type() const {
+    // TODO(solanes, v8:7790, v8:11353, v8:11945): Make this and the setter
+    // non-atomic when TSAN sees the map's store synchronization.
+    return static_cast<InstanceType>(
+        RELAXED_READ_UINT16_FIELD(*this, kInstanceTypeOffset));
+  }
+  inline void set_instance_type(InstanceType value);
 
   // Returns the size of the used in-object area including object header
   // (only used for JSObject in fast mode, for the other kinds of objects it
@@ -508,14 +518,21 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static void SetShouldBeFastPrototypeMap(DirectHandle<Map> map, bool value,
                                           Isolate* isolate);
 
+  static inline bool TryGetValidityCellHolderMap(
+      Tagged<Map> map, Isolate* isolate,
+      Tagged<Map>* out_validity_cell_holder_map);
+
   // [prototype chain validity cell]: Associated with a prototype object,
   // stored in that object's map, indicates that prototype chains through this
   // object are currently valid. The cell will be invalidated and replaced when
   // the prototype chain changes. When there's nothing to guard (for example,
   // when direct prototype is null or Proxy) this function returns Smi with
   // |kPrototypeChainValid| sentinel value, which is zero.
+  // If |out_prototype_info| is provided then the function sets it to
+  // the PrototypeInfo object that corresponds to validity cell's owner.
   static Handle<UnionOf<Smi, Cell>> GetOrCreatePrototypeChainValidityCell(
-      DirectHandle<Map> map, Isolate* isolate);
+      DirectHandle<Map> map, Isolate* isolate,
+      DirectHandle<PrototypeInfo>* out_prototype_info = nullptr);
   static constexpr int kPrototypeChainValid = 0;
   static constexpr int kPrototypeChainInvalid = 1;
   static constexpr Tagged<Smi> kPrototypeChainValidSmi = Smi::zero();
@@ -1080,7 +1097,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 // needs very limited number of distinct normalized maps.
 class NormalizedMapCache : public WeakFixedArray {
  public:
-  NEVER_READ_ONLY_SPACE
   static DirectHandle<NormalizedMapCache> New(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Map> Get(Isolate* isolate,
@@ -1110,6 +1126,8 @@ class NormalizedMapCache : public WeakFixedArray {
 #define DECL_TESTER(Type, ...) inline bool Is##Type##Map(Tagged<Map> map);
 INSTANCE_TYPE_CHECKERS(DECL_TESTER)
 #undef DECL_TESTER
+inline bool IsNullMap(Tagged<Map> map);
+inline bool IsUndefinedMap(Tagged<Map> map);
 inline bool IsBooleanMap(Tagged<Map> map);
 inline bool IsNullOrUndefinedMap(Tagged<Map> map);
 inline bool IsPrimitiveMap(Tagged<Map> map);

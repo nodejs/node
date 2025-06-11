@@ -530,12 +530,9 @@ Handle<JSObject> Accessors::FunctionGetArguments(JavaScriptFrame* frame,
   UNREACHABLE();  // Requested frame not found.
 }
 
-void Accessors::FunctionArgumentsGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  isolate->CountUsage(v8::Isolate::kFunctionPrototypeArguments);
-  HandleScope scope(isolate);
-  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
+// static
+DirectHandle<Object> Accessors::GetLegacyFunctionArguments(
+    Isolate* isolate, DirectHandle<JSFunction> function) {
   DirectHandle<Object> result = isolate->factory()->null_value();
   if (!function->shared()->native()) {
     // Find the top invocation of the function by traversing frames.
@@ -548,6 +545,19 @@ void Accessors::FunctionArgumentsGetter(
       }
     }
   }
+  return result;
+}
+
+#ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
+
+void Accessors::FunctionArgumentsGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionArgumentsGetter);
+  isolate->CountUsage(v8::Isolate::kFunctionPrototypeArguments);
+  HandleScope scope(isolate);
+  auto function = Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
+  DirectHandle<Object> result = GetLegacyFunctionArguments(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -556,6 +566,8 @@ DirectHandle<AccessorInfo> Accessors::MakeFunctionArgumentsInfo(
   return MakeAccessor(isolate, isolate->factory()->arguments_string(),
                       &FunctionArgumentsGetter, nullptr);
 }
+
+#endif  // V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 
 //
 // Accessors::FunctionCaller
@@ -657,6 +669,7 @@ class FrameFunctionIterator {
   int inlined_frame_index_;
 };
 
+namespace {
 MaybeDirectHandle<JSFunction> FindCaller(Isolate* isolate,
                                          DirectHandle<JSFunction> function) {
   FrameFunctionIterator it(isolate);
@@ -693,14 +706,11 @@ MaybeDirectHandle<JSFunction> FindCaller(Isolate* isolate,
   }
   return caller;
 }
+}  // namespace
 
-void Accessors::FunctionCallerGetter(
-    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
-  HandleScope scope(isolate);
-  DirectHandle<JSFunction> function =
-      Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
+// static
+DirectHandle<Object> Accessors::GetLegacyFunctionCaller(
+    Isolate* isolate, DirectHandle<JSFunction> function) {
   DirectHandle<Object> result;
   MaybeDirectHandle<JSFunction> maybe_caller;
   maybe_caller = FindCaller(isolate, function);
@@ -712,6 +722,20 @@ void Accessors::FunctionCallerGetter(
   } else {
     result = isolate->factory()->null_value();
   }
+  return result;
+}
+
+#ifdef V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
+
+void Accessors::FunctionCallerGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallerGetter);
+  isolate->CountUsage(v8::Isolate::kFunctionPrototypeCaller);
+  HandleScope scope(isolate);
+  DirectHandle<JSFunction> function =
+      Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
+  DirectHandle<Object> result = GetLegacyFunctionCaller(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -719,6 +743,8 @@ DirectHandle<AccessorInfo> Accessors::MakeFunctionCallerInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->caller_string(),
                       &FunctionCallerGetter, nullptr);
 }
+
+#endif  // V8_FUNCTION_ARGUMENTS_CALLER_ARE_OWN_PROPS
 
 //
 // Accessors::BoundFunctionLength

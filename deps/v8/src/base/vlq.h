@@ -78,8 +78,7 @@ inline void VLQEncodeUnsigned(std::vector<uint8_t, A>* data, uint32_t value) {
 // successive calls to the given function.
 template <typename GetNextFunction>
 inline uint32_t VLQDecodeUnsigned(GetNextFunction&& get_next)
-  requires std::is_same<decltype(std::declval<GetNextFunction>()()),
-                        uint8_t>::value
+  requires std::is_same_v<decltype(std::declval<GetNextFunction>()()), uint8_t>
 {
   uint8_t cur_byte = get_next();
   // Single byte fast path; no need to mask.

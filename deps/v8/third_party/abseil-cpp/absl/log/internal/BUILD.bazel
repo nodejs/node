@@ -205,6 +205,7 @@ cc_library(
         "//absl/log:log_sink_registry",
         "//absl/memory",
         "//absl/strings",
+        "//absl/strings:internal",
         "//absl/time",
         "//absl/types:span",
     ],
@@ -218,6 +219,7 @@ cc_library(
     deps = [
         "//absl/base:config",
         "//absl/strings",
+        "//absl/strings:internal",
         "//absl/types:span",
     ],
 )
@@ -425,10 +427,6 @@ cc_library(
     hdrs = ["proto.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        ":internal_users",
-        ":structured_proto_users",
-    ],
     deps = [
         "//absl/base",
         "//absl/base:config",

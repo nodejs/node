@@ -137,7 +137,7 @@ const char* ComputeMarker(Tagged<SharedFunctionInfo> shared,
       code->builtin_id(cage_base) == Builtin::kInterpreterEntryTrampoline) {
     kind = CodeKind::INTERPRETED_FUNCTION;
   }
-  if (shared->optimization_disabled() &&
+  if (shared->all_optimization_disabled() &&
       kind == CodeKind::INTERPRETED_FUNCTION) {
     return "";
   }
@@ -1146,9 +1146,6 @@ class Ticker : public sampler::Sampler {
              perThreadData_->thread_id()) ||
          perThreadData_->thread_state() != nullptr))
       return;
-#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-    i::RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
-#endif
     TickSample sample;
     sample.Init(isolate, state, TickSample::kIncludeCEntryFrame, true);
     profiler_->Insert(&sample);
@@ -2115,6 +2112,17 @@ EnumerateCompiledFunctions(Heap* heap) {
     if (IsSharedFunctionInfo(obj)) {
       Tagged<SharedFunctionInfo> sfi = Cast<SharedFunctionInfo>(obj);
       if (sfi->is_compiled() && !sfi->HasBytecodeArray()) {
+#if V8_ENABLE_WEBASSEMBLY
+        // We have to skip over a special case here: Wasm functions created
+        // by instantiation attempts that failed to complete have inaccessible
+        // WasmFunctionData. They are also unreachable, but since we're walking
+        // the entire heap here, we may still find them if no GC has cleaned
+        // them up yet.
+        if (sfi->HasWasmFunctionData() &&
+            sfi->HasUnpublishedTrustedData(isolate)) {
+          continue;
+        }
+#endif  // V8_ENABLE_WEBASSEMBLY
         record(sfi, Cast<AbstractCode>(sfi->abstract_code(isolate)));
       }
     } else if (IsJSFunction(obj)) {

@@ -500,22 +500,38 @@ class CollectFunctionLiterals final
   CollectFunctionLiterals(Isolate* isolate, AstNode* root)
       : AstTraversalVisitor<CollectFunctionLiterals>(isolate, root) {}
   void VisitFunctionLiteral(FunctionLiteral* lit) {
+    uint32_t parent_id = function_literal_id_;
+    function_literal_id_ = lit->function_literal_id();
     AstTraversalVisitor::VisitFunctionLiteral(lit);
     literals_->push_back(lit);
+    function_literal_id_ = parent_id;
   }
-  void Run(std::vector<FunctionLiteral*>* literals) {
+  void VisitCall(Call* call) {
+    AstTraversalVisitor::VisitCall(call);
+    if (call->is_possibly_eval()) {
+      (*eval_calls_)[function_literal_id_].push_back(
+          call->eval_scope_info_index());
+    }
+  }
+  void Run(std::vector<FunctionLiteral*>* literals,
+           std::map<uint32_t, std::vector<uint32_t>>* eval_calls) {
     literals_ = literals;
+    eval_calls_ = eval_calls;
     AstTraversalVisitor::Run();
     literals_ = nullptr;
+    eval_calls_ = nullptr;
   }
 
  private:
+  uint32_t function_literal_id_ = 0;
   std::vector<FunctionLiteral*>* literals_;
+  std::map<uint32_t, std::vector<uint32_t>>* eval_calls_;
 };
 
 bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
                  MaybeDirectHandle<ScopeInfo> outer_scope_info,
                  bool compile_as_well, std::vector<FunctionLiteral*>* literals,
+                 std::map<uint32_t, std::vector<uint32_t>>* eval_calls,
                  debug::LiveEditResult* result) {
   v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   DirectHandle<SharedFunctionInfo> shared;
@@ -546,7 +562,8 @@ bool ParseScript(Isolate* isolate, Handle<Script> script, ParseInfo* parse_info,
     result->status = debug::LiveEditResult::COMPILE_ERROR;
     return false;
   }
-  CollectFunctionLiterals(isolate, parse_info->literal()).Run(literals);
+  CollectFunctionLiterals(isolate, parse_info->literal())
+      .Run(literals, eval_calls);
   return true;
 }
 
@@ -855,8 +872,9 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   MaybeDirectHandle<ScopeInfo> outer_scope_info =
       DetermineOuterScopeInfo(isolate, script);
   std::vector<FunctionLiteral*> literals;
+  std::map<uint32_t, std::vector<uint32_t>> eval_calls;
   if (!ParseScript(isolate, script, &parse_info, outer_scope_info, false,
-                   &literals, result))
+                   &literals, &eval_calls, result))
     return;
 
   Handle<Script> new_script =
@@ -868,8 +886,9 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   ParseInfo new_parse_info(isolate, new_flags, &new_compile_state,
                            &reusable_state);
   std::vector<FunctionLiteral*> new_literals;
+  std::map<uint32_t, std::vector<uint32_t>> new_eval_calls;
   if (!ParseScript(isolate, new_script, &new_parse_info, outer_scope_info, true,
-                   &new_literals, result)) {
+                   &new_literals, &new_eval_calls, result)) {
     return;
   }
 
@@ -925,10 +944,22 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     UpdatePositions(isolate, sfi, mapping.second, diffs);
 
     sfi->set_script(*new_script, kReleaseStore);
-    sfi->set_function_literal_id(mapping.second->function_literal_id());
+    std::vector<uint32_t> source_infos =
+        eval_calls[sfi->function_literal_id(kRelaxedLoad)];
+    sfi->set_function_literal_id(mapping.second->function_literal_id(),
+                                 kRelaxedStore);
+    std::vector<uint32_t> target_infos =
+        new_eval_calls[sfi->function_literal_id(kRelaxedLoad)];
     new_script->infos()->set(mapping.second->function_literal_id(),
                              MakeWeak(*sfi));
-    DCHECK_EQ(sfi->function_literal_id(),
+    if (sfi->HasBytecodeArray()) {
+      for (size_t i = 0; i < source_infos.size(); i++) {
+        Tagged<ScopeInfo> scope_info = Cast<ScopeInfo>(
+            script->infos()->get(source_infos[i]).GetHeapObjectAssumeWeak());
+        new_script->infos()->set(target_infos[i], MakeWeak(scope_info));
+      }
+    }
+    DCHECK_EQ(sfi->function_literal_id(kRelaxedLoad),
               mapping.second->function_literal_id());
 
     // Save the new start_position -> id mapping, so that we can recover it when
@@ -1046,7 +1077,8 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     for (Tagged<SharedFunctionInfo> sfi = script_it.Next(); !sfi.is_null();
          sfi = script_it.Next()) {
       DCHECK_EQ(sfi->script(), *new_script);
-      DCHECK_EQ(sfi->function_literal_id(), script_it.CurrentIndex());
+      DCHECK_EQ(sfi->function_literal_id(kRelaxedLoad),
+                script_it.CurrentIndex());
       // Don't check the start position of the top-level function, as it can
       // overlap with a function in the script.
       if (sfi->is_toplevel()) {
@@ -1066,9 +1098,10 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
         Tagged<SharedFunctionInfo> inner_sfi =
             Cast<SharedFunctionInfo>(constants->get(i));
         DCHECK_EQ(inner_sfi->script(), *new_script);
-        DCHECK_EQ(inner_sfi, new_script->infos()
-                                 ->get(inner_sfi->function_literal_id())
-                                 .GetHeapObject());
+        DCHECK_EQ(inner_sfi,
+                  new_script->infos()
+                      ->get(inner_sfi->function_literal_id(kRelaxedLoad))
+                      .GetHeapObject());
       }
     }
   }

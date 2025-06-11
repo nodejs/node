@@ -813,21 +813,6 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
 }
 #endif  // V8_ENABLE_DEBUG_CODE
 
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure, Register value,
-    Register slot_address) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_LEAPTIERING
-  UNREACHABLE();
-#else
-  // Store the optimized code in the closure.
-  mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
-  mov(value, optimized_code);  // Write barrier clobbers slot_address below.
-  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
-                   SaveFPRegsMode::kIgnore, SmiCheck::kOmit);
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
@@ -848,7 +833,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     push(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+#ifndef V8_ENABLE_LEAPTIERING
     mov(ecx, eax);
+#endif
 
     // Restore target function, new target and actual argument count.
     pop(kJavaScriptCallArgCountRegister);
@@ -858,10 +845,25 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
+#ifdef V8_ENABLE_LEAPTIERING
+  JumpJSFunction(kJavaScriptCallTargetRegister);
+#else
   JumpCodeObject(ecx);
+#endif
 }
 
 #ifndef V8_ENABLE_LEAPTIERING
+
+void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
+    Register optimized_code, Register closure, Register value,
+    Register slot_address) {
+  ASM_CODE_COMMENT(this);
+  // Store the optimized code in the closure.
+  mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
+  mov(value, optimized_code);  // Write barrier clobbers slot_address below.
+  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
+                   SaveFPRegsMode::kIgnore, SmiCheck::kOmit);
+}
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
@@ -1250,7 +1252,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
 #ifdef DEBUG
   push(eax);
   mov(ExternalReferenceAsOperand(context_address, eax),
-      Immediate(Context::kInvalidContext));
+      Immediate(Context::kNoContext));
   pop(eax);
 #endif
 }
@@ -1999,17 +2001,25 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
   int call_pc_offset = pc_offset();
   bind(&get_pc);
   if (return_location) bind(return_location);
+  // Restoring the stack pointer has to happen right after the call. The
+  // deoptimizer may overwrite everything after restoring the SP.
+  int before_offset = pc_offset();
+  if (base::OS::ActivationFrameAlignment() != 0) {
+    mov(esp, Operand(esp, num_arguments * kSystemPointerSize));
+  } else {
+    add(esp, Immediate(num_arguments * kSystemPointerSize));
+  }
+  Nop(kMaxSizeOfMoveAfterFastCall - (pc_offset() - before_offset));
+  // We assume that with the nop padding, the move instruction uses
+  // kMaxSizeOfMoveAfterFastCall bytes. When we patch in the deopt trampoline,
+  // we patch it in after the move instruction, so that the stack has been
+  // restored correctly.
+  CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
     mov(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP),
         Immediate(0));
-  }
-
-  if (base::OS::ActivationFrameAlignment() != 0) {
-    mov(esp, Operand(esp, num_arguments * kSystemPointerSize));
-  } else {
-    add(esp, Immediate(num_arguments * kSystemPointerSize));
   }
 
   return call_pc_offset;
@@ -2145,7 +2155,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 
   DCHECK(!AreAliased(dispatch_handle, eax));
   movd(xmm0, eax);
-  LoadAddress(eax, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  mov(eax, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   mov(destination, Operand(eax, dispatch_handle, times_1,
                            JSDispatchEntry::kEntrypointOffset));
   movd(eax, xmm0);

@@ -431,7 +431,7 @@ internal::Address* PersistentBase<T>::New(Isolate* isolate, T* that) {
 template <class T, class M>
 template <class S, class M2>
 void Persistent<T, M>::Copy(const Persistent<S, M2>& that) {
-  static_assert(std::is_base_of<T, S>::value, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
   this->Reset();
   if (that.IsEmpty()) return;
   this->slot() = api_internal::CopyGlobalReference(that.slot());
@@ -459,7 +459,7 @@ void PersistentBase<T>::Reset() {
 template <class T>
 template <class S>
 void PersistentBase<T>::Reset(Isolate* isolate, const Local<S>& other) {
-  static_assert(std::is_base_of<T, S>::value, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
   Reset();
   if (other.IsEmpty()) return;
   this->slot() = New(isolate, *other);
@@ -473,7 +473,7 @@ template <class T>
 template <class S>
 void PersistentBase<T>::Reset(Isolate* isolate,
                               const PersistentBase<S>& other) {
-  static_assert(std::is_base_of<T, S>::value, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
   Reset();
   if (other.IsEmpty()) return;
   this->slot() = New(isolate, other.template value<S>());
@@ -539,7 +539,7 @@ Global<T>::Global(Global&& other) : PersistentBase<T>(other.slot()) {
 template <class T>
 template <class S>
 Global<T>& Global<T>::operator=(Global<S>&& rhs) {
-  static_assert(std::is_base_of<T, S>::value, "type check");
+  static_assert(std::is_base_of_v<T, S>, "type check");
   if (this != &rhs) {
     this->Reset();
     if (!rhs.IsEmpty()) {

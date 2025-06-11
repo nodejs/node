@@ -775,6 +775,37 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ VFPCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+void Float64ToHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  // A Float64 value could contain a NaN with the bit pattern that has a special
+  // interpretation in the HoleyFloat64 representation, so we need to canicalize
+  // those before changing representation.
+  __ VFPCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
+}
+
+void HoleyFloat64ToFloat64OrUndefined::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+  set_temporaries_needed(1);
+}
+void HoleyFloat64ToFloat64OrUndefined::GenerateCode(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  Label done;
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ JumpIfNotHoleNan(value, scratch, &done);
+  __ Move(value, UndefinedNan());
+  __ bind(&done);
+}
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
 namespace {
 
 enum class ReduceInterruptBudgetType { kLoop, kReturn };

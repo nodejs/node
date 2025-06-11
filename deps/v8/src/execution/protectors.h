@@ -24,6 +24,8 @@ class Protectors : public AllStatic {
   V(ArraySpeciesLookupChain, ArraySpeciesProtector, array_species_protector)  \
   V(IsConcatSpreadableLookupChain, IsConcatSpreadableProtector,               \
     is_concat_spreadable_protector)                                           \
+  V(NoDateTimeConfigurationChange, NoDateTimeConfigurationChangeProtector,    \
+    no_date_time_configuration_change_protector)                              \
   V(NoElements, NoElementsProtector, no_elements_protector)                   \
                                                                               \
   V(MegaDOM, MegaDOMProtector, mega_dom_protector)                            \
@@ -98,8 +100,6 @@ class Protectors : public AllStatic {
   /* default type hint NUMBER). */                                            \
   V(StringWrapperToPrimitive, StringWrapperToPrimitiveProtector,              \
     string_wrapper_to_primitive_protector)                                    \
-  V(TypedArrayLengthLookupChain, TypedArrayLengthProtector,                   \
-    typed_array_length_protector)                                             \
   V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                 \
     typed_array_species_protector)
 

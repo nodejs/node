@@ -350,6 +350,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     RegisterSnapshot& register_snapshot, Register result, Register string,
     Register index, Register instance_type, [[maybe_unused]] Register scratch2,
     Label* result_fits_one_byte) {
+  ASM_CODE_COMMENT(this);
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
@@ -464,9 +465,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
-    AddWord(result, string, Operand(index));
-    Lbu(result, MemOperand(result, OFFSET_OF_DATA_START(SeqOneByteString) -
-                                       kHeapObjectTag));
+    SeqOneByteStringCharCodeAt(result, string, index);
     MacroAssembler::Branch(result_fits_one_byte);
 
     bind(&two_byte_string);
@@ -525,6 +524,39 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
       Li(index, 0xdeadbeef);
     }
   }
+}
+
+void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
+                                                 Register string,
+                                                 Register index) {
+  ASM_CODE_COMMENT(this);
+  TemporaryRegisterScope scope(this);
+  Register scratch = scope.AcquireScratch();
+  if (v8_flags.debug_code) {
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    Check(CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                                   LAST_STRING_TYPE),
+          AbortReason::kUnexpectedValue, MaglevAssembler::GetFlagsRegister(),
+          Operand(zero_reg));
+    // Check if {string} is a sequential one-byte string.
+    AndInt32(scratch, kStringRepresentationAndEncodingMask);
+    CompareInt32AndAssert(scratch, kSeqOneByteStringTag, kEqual,
+                          AbortReason::kUnexpectedValue);
+    LoadInt32(scratch, FieldMemOperand(string, offsetof(String, length_)));
+    scope.IncludeScratch({s7});  // Use s7 to avoid no enough scrachreg.
+    CompareInt32AndAssert(index, scratch, kUnsignedLessThan,
+                          AbortReason::kUnexpectedValue);
+  }
+  AddWord(scratch, index,
+          Operand(OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag));
+  AddWord(scratch, string, Operand(scratch));
+  Lbu(result, MemOperand(scratch, 0));
+}
+
+void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
+  Clz32(dst, src);
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {

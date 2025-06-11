@@ -13,7 +13,6 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/arguments-inl.h"
@@ -999,7 +998,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
             ConvertElementsWithCapacity(isolate, object, from_elements,
                                         from_kind, capacity)
                 .ToHandleChecked();
-        JSObject::SetMapAndElements(object, to_map, elements);
+        JSObject::SetMapAndElements(isolate, object, to_map, elements);
       }
       if (v8_flags.trace_elements_transitions) {
         JSObject::PrintElementsTransition(
@@ -1045,7 +1044,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     }
     DirectHandle<Map> new_map =
         JSObject::GetElementsTransitionMap(isolate, object, to_kind);
-    JSObject::SetMapAndElements(object, new_map, elements);
+    JSObject::SetMapAndElements(isolate, object, new_map, elements);
 
     // Transition through the allocation site as well if present.
     JSObject::UpdateAllocationSite(isolate, object, to_kind);
@@ -1297,13 +1296,13 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
       uint32_t insertion_index = 0) {
     size_t length = Subclass::GetMaxIndex(*object, *backing_store);
-    uint32_t const kMaxStringTableEntries =
-        isolate->heap()->MaxNumberToStringCacheSize();
     for (size_t i = 0; i < length; i++) {
       if (Subclass::HasElementImpl(isolate, *object, i, *backing_store,
                                    filter)) {
         if (convert == GetKeysConversion::kConvertToString) {
-          bool use_cache = i < kMaxStringTableEntries;
+          // Avoid trashing the number to string cache with numbers that
+          // are not likely to be needed.
+          bool use_cache = i < SmiStringCache::kMaxCapacity;
           DirectHandle<String> index_string =
               isolate->factory()->SizeToString(i, use_cache);
           list->set(insertion_index, *index_string);
@@ -3287,6 +3286,21 @@ class FastDoubleElementsAccessor
     if (start_from >= length) return Just<int64_t>(-1);
 
     if (!IsNumber(value)) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      if (IsUndefined(value)) {
+        Tagged<FixedDoubleArray> elements =
+            Cast<FixedDoubleArray>(receiver->elements());
+
+        static_assert(FixedDoubleArray::kMaxLength <=
+                      std::numeric_limits<int>::max());
+        for (size_t k = start_from; k < length; ++k) {
+          int k_int = static_cast<int>(k);
+          if (elements->is_undefined(k_int)) {
+            return Just<int64_t>(k);
+          }
+        }
+      }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
       return Just<int64_t>(-1);
     }
     if (IsNaN(value)) {
@@ -4072,7 +4086,7 @@ class TypedElementsAccessor
                                         Tagged<JSTypedArray> destination,
                                         size_t length, size_t offset) {
     if (IsBigIntTypedArrayElementsKind(Kind)) return false;
-    Isolate* isolate = source->GetIsolate();
+    Isolate* isolate = Isolate::Current();
     DisallowGarbageCollection no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
@@ -4156,7 +4170,11 @@ class TypedElementsAccessor
       Tagged<FixedDoubleArray> source_store =
           Cast<FixedDoubleArray>(source->elements());
       for (size_t i = 0; i < length; i++) {
-        if (source_store->is_the_hole(static_cast<int>(i))) {
+        if (source_store->is_the_hole(static_cast<int>(i))
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+            || source_store->is_undefined(static_cast<int>(i))
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+        ) {
           SetImpl(dest_data + i, FromObject(undefined), destination_shared);
         } else {
           double elem = source_store->get_scalar(static_cast<int>(i));
@@ -4172,7 +4190,7 @@ class TypedElementsAccessor
   static Tagged<Object> CopyElementsHandleSlow(
       DirectHandle<JSAny> source, DirectHandle<JSTypedArray> destination,
       size_t length, size_t offset) {
-    Isolate* isolate = destination->GetIsolate();
+    Isolate* isolate = Isolate::Current();
     // 8. Let k be 0.
     // 9. Repeat, while k < srcLength,
     for (size_t i = 0; i < length; i++) {
@@ -5691,6 +5709,20 @@ MaybeDirectHandle<Object> ArrayConstructInitializeElements(
       break;
     }
     case HOLEY_DOUBLE_ELEMENTS:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    {
+      auto double_elms = Cast<FixedDoubleArray>(elms);
+      for (int entry = 0; entry < number_of_elements; entry++) {
+        Tagged<Object> obj = (*args)[entry];
+        if (Is<Undefined>(obj)) {
+          double_elms->set_undefined(entry);
+        } else {
+          double_elms->set(entry, Object::NumberValue((*args)[entry]));
+        }
+      }
+      break;
+    }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
     case PACKED_DOUBLE_ELEMENTS: {
       auto double_elms = Cast<FixedDoubleArray>(elms);
       for (int entry = 0; entry < number_of_elements; entry++) {

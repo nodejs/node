@@ -81,7 +81,7 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
   ASSERT_TRUE(Compiler::Compile(i_isolate(), fun, Compiler::CLEAR_EXCEPTION,
                                 &is_compiled_scope));
   OptimizingCompileTaskExecutor task_executor;
-  task_executor.EnsureInitialized();
+  task_executor.EnsureStarted();
   OptimizingCompileDispatcher dispatcher(i_isolate(), &task_executor);
   BlockingCompilationJob* job = new BlockingCompilationJob(i_isolate(), fun);
   OptimizingCompileDispatcher* const original =
@@ -103,6 +103,7 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
   job->Signal();
   dispatcher.StartTearDown();
   dispatcher.FinishTearDown();
+  task_executor.Stop();
   i_isolate()->SetOptimizingCompileDispatcherForTesting(original);
 }
 

@@ -652,7 +652,7 @@ class X64OperandGeneratorT final : public OperandGeneratorT {
       inputs[(*input_count)++] = UseRegister(base, reg_kind);
       if (index.valid()) {
         DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
-        inputs[(*input_count)++] = UseRegister(this->value(index), reg_kind);
+        inputs[(*input_count)++] = UseRegister(index.value(), reg_kind);
         if (displacement != 0) {
           inputs[(*input_count)++] = UseImmediate64(
               displacement_mode == kNegativeDisplacement ? -displacement
@@ -680,7 +680,7 @@ class X64OperandGeneratorT final : public OperandGeneratorT {
       if (fold_base_into_displacement) {
         DCHECK(!base.valid());
         DCHECK(index.valid());
-        inputs[(*input_count)++] = UseRegister(this->value(index), reg_kind);
+        inputs[(*input_count)++] = UseRegister(index.value(), reg_kind);
         inputs[(*input_count)++] = UseImmediate(static_cast<int>(fold_value));
         static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
                                                     kMode_M4I, kMode_M8I};
@@ -697,7 +697,7 @@ class X64OperandGeneratorT final : public OperandGeneratorT {
                                                          : displacement);
           mode = kMode_MRI;
         } else {
-          inputs[(*input_count)++] = UseRegister(this->value(index), reg_kind);
+          inputs[(*input_count)++] = UseRegister(index.value(), reg_kind);
           inputs[(*input_count)++] = UseImmediate64(
               displacement_mode == kNegativeDisplacement ? -displacement
                                                          : displacement);
@@ -707,13 +707,13 @@ class X64OperandGeneratorT final : public OperandGeneratorT {
         }
       } else {
         DCHECK(index.valid());
-        inputs[(*input_count)++] = UseRegister(this->value(index), reg_kind);
+        inputs[(*input_count)++] = UseRegister(index.value(), reg_kind);
         static const AddressingMode kMn_modes[] = {kMode_MR, kMode_MR1,
                                                    kMode_M4, kMode_M8};
         mode = kMn_modes[scale_exponent];
         if (mode == kMode_MR1) {
           // [%r1 + %r1*1] has a smaller encoding than [%r1*2+0]
-          inputs[(*input_count)++] = UseRegister(this->value(index), reg_kind);
+          inputs[(*input_count)++] = UseRegister(index.value(), reg_kind);
         }
       }
     }
@@ -1511,8 +1511,8 @@ void VisitStoreCommon(InstructionSelectorT* selector,
       DCHECK_EQ(element_size_log2, 0);
       if (index.valid()) {
         DCHECK_EQ(displacement, 0);
-        inputs[input_count++] = g.GetEffectiveIndexOperand(
-            selector->value(index), &addressing_mode);
+        inputs[input_count++] =
+            g.GetEffectiveIndexOperand(index.value(), &addressing_mode);
       } else if (displacement != 0) {
         DCHECK(ValueFitsIntoImmediate(displacement));
         inputs[input_count++] = g.UseImmediate(displacement);

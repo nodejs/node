@@ -201,7 +201,7 @@ struct ImmediateInitializer {
   static inline RelocInfo::Mode rmode_for(T) { return RelocInfo::NO_INFO; }
   static inline int64_t immediate_for(T t) {
     static_assert(sizeof(T) <= 8);
-    static_assert(std::is_integral<T>::value || std::is_enum<T>::value);
+    static_assert(std::is_integral_v<T> || std::is_enum_v<T>);
     return t;
   }
 };
@@ -240,7 +240,7 @@ Immediate::Immediate(T t)
 template <typename T>
 Immediate::Immediate(T t, RelocInfo::Mode rmode)
     : value_(ImmediateInitializer<T>::immediate_for(t)), rmode_(rmode) {
-  static_assert(std::is_integral<T>::value);
+  static_assert(std::is_integral_v<T>);
 }
 
 template <typename T>

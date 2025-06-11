@@ -23,6 +23,7 @@
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/allocation.h"
+#include "third_party/dragonbox/src/include/dragonbox/dragonbox.h"
 #include "third_party/fast_float/src/include/fast_float/fast_float.h"
 #include "third_party/fast_float/src/include/fast_float/float_common.h"
 
@@ -35,6 +36,185 @@
 
 namespace v8 {
 namespace internal {
+
+// SignificandToChars and its helpers are heavily inspired by
+// dragonbox::to_chars.
+// See //third_party/dragonbox/src/source/dragonbox_to_chars.cc
+
+static constexpr char kRadix100Table[200] = {
+    '0', '0', '0', '1', '0', '2', '0', '3', '0', '4',  //
+    '0', '5', '0', '6', '0', '7', '0', '8', '0', '9',  //
+    '1', '0', '1', '1', '1', '2', '1', '3', '1', '4',  //
+    '1', '5', '1', '6', '1', '7', '1', '8', '1', '9',  //
+    '2', '0', '2', '1', '2', '2', '2', '3', '2', '4',  //
+    '2', '5', '2', '6', '2', '7', '2', '8', '2', '9',  //
+    '3', '0', '3', '1', '3', '2', '3', '3', '3', '4',  //
+    '3', '5', '3', '6', '3', '7', '3', '8', '3', '9',  //
+    '4', '0', '4', '1', '4', '2', '4', '3', '4', '4',  //
+    '4', '5', '4', '6', '4', '7', '4', '8', '4', '9',  //
+    '5', '0', '5', '1', '5', '2', '5', '3', '5', '4',  //
+    '5', '5', '5', '6', '5', '7', '5', '8', '5', '9',  //
+    '6', '0', '6', '1', '6', '2', '6', '3', '6', '4',  //
+    '6', '5', '6', '6', '6', '7', '6', '8', '6', '9',  //
+    '7', '0', '7', '1', '7', '2', '7', '3', '7', '4',  //
+    '7', '5', '7', '6', '7', '7', '7', '8', '7', '9',  //
+    '8', '0', '8', '1', '8', '2', '8', '3', '8', '4',  //
+    '8', '5', '8', '6', '8', '7', '8', '8', '8', '9',  //
+    '9', '0', '9', '1', '9', '2', '9', '3', '9', '4',  //
+    '9', '5', '9', '6', '9', '7', '9', '8', '9', '9'   //
+};
+
+static constexpr char kRadix100HeadTable[200] = {
+    '\0', '\0', '1', '\0', '2', '\0', '3', '\0', '4', '\0',  //
+    '5',  '\0', '6', '\0', '7', '\0', '8', '\0', '9', '\0',  //
+    '1',  '0',  '1', '1',  '1', '2',  '1', '3',  '1', '4',   //
+    '1',  '5',  '1', '6',  '1', '7',  '1', '8',  '1', '9',   //
+    '2',  '0',  '2', '1',  '2', '2',  '2', '3',  '2', '4',   //
+    '2',  '5',  '2', '6',  '2', '7',  '2', '8',  '2', '9',   //
+    '3',  '0',  '3', '1',  '3', '2',  '3', '3',  '3', '4',   //
+    '3',  '5',  '3', '6',  '3', '7',  '3', '8',  '3', '9',   //
+    '4',  '0',  '4', '1',  '4', '2',  '4', '3',  '4', '4',   //
+    '4',  '5',  '4', '6',  '4', '7',  '4', '8',  '4', '9',   //
+    '5',  '0',  '5', '1',  '5', '2',  '5', '3',  '5', '4',   //
+    '5',  '5',  '5', '6',  '5', '7',  '5', '8',  '5', '9',   //
+    '6',  '0',  '6', '1',  '6', '2',  '6', '3',  '6', '4',   //
+    '6',  '5',  '6', '6',  '6', '7',  '6', '8',  '6', '9',   //
+    '7',  '0',  '7', '1',  '7', '2',  '7', '3',  '7', '4',   //
+    '7',  '5',  '7', '6',  '7', '7',  '7', '8',  '7', '9',   //
+    '8',  '0',  '8', '1',  '8', '2',  '8', '3',  '8', '4',   //
+    '8',  '5',  '8', '6',  '8', '7',  '8', '8',  '8', '9',   //
+    '9',  '0',  '9', '1',  '9', '2',  '9', '3',  '9', '4',   //
+    '9',  '5',  '9', '6',  '9', '7',  '9', '8',  '9', '9'    //
+};
+
+static void Convert2Digits(uint8_t n, char* buffer) {
+  DCHECK_LT(n, sizeof(kRadix100Table) / 2);
+  MemCopy(buffer, kRadix100Table + n * 2, 2);
+}
+
+// Returns count of digits written.
+static uint8_t ConvertHeadDigits(uint8_t n, char* buffer) {
+  DCHECK_LT(n, sizeof(kRadix100HeadTable) / 2);
+  const uint8_t digit_count = 1 + (n >= 10);
+  DCHECK_LE(digit_count, 2);
+  MemCopy(buffer, kRadix100HeadTable + n * 2, digit_count);
+  return digit_count;
+}
+
+static void Convert8Digits(uint32_t n, char* buffer) {
+  static constexpr uint32_t kUint32Mask = kMaxUInt32;
+  // 281474978 = ceil(2^48 / 1'000'000) + 1
+  uint64_t prod = n * 281474978LL;
+  prod >>= 16;
+  prod += 1;
+  Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer);
+  prod = (prod & kUint32Mask) * 100;
+  Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 2);
+  prod = (prod & kUint32Mask) * 100;
+  Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 4);
+  prod = (prod & kUint32Mask) * 100;
+  Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 6);
+}
+
+// Returns count of digits written.
+uint8_t ConvertUpTo9Digits(uint32_t n, char* buffer) {
+  static constexpr uint32_t kUint32Mask = kMaxUInt32;
+
+  if (n >= 100'000'000) {
+    // 9 digits.
+    // 1441151882 = ceil(2^57 / 100'000'000) + 1
+    uint64_t prod = n * 1441151882LL;
+    prod >>= 25;
+
+    const uint8_t head_digit = static_cast<uint8_t>(prod >> 32);
+    DCHECK_LT(head_digit, 10);
+    *buffer = '0' + head_digit;
+
+    // Print remaining 8 digits.
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 1);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 3);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 5);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 7);
+
+    return 9;
+  }
+  if (n >= 1'000'000) {
+    // 7 or 8 digits.
+    // 281474978 = ceil(2^48 / 1'000'000) + 1
+    uint64_t prod = n * 281474978LL;
+    prod >>= 16;
+
+    const uint8_t head_digits = static_cast<uint8_t>(prod >> 32);
+    const uint8_t head_digit_count = ConvertHeadDigits(head_digits, buffer);
+    buffer += head_digit_count;
+
+    // Print remaining 6 digits.
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 2);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 4);
+
+    return 6 + head_digit_count;
+  }
+  if (n >= 10'000) {
+    // 5 or 6 digits.
+    // 429497 = ceil(2^32 / 10'000)
+    uint64_t prod = n * 429497LL;
+
+    const uint8_t head_digits = static_cast<uint8_t>(prod >> 32);
+    const uint8_t head_digit_count = ConvertHeadDigits(head_digits, buffer);
+    buffer += head_digit_count;
+
+    // Print remaining 4 digits.
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer);
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer + 2);
+
+    return 4 + head_digit_count;
+  }
+  if (n >= 100) {
+    // 3 or 4 digits.
+    // 42949673 = ceil(2^32 / 10'000)
+    uint64_t prod = n * 42949673LL;
+
+    const uint8_t head_digits = static_cast<uint8_t>(prod >> 32);
+    const uint8_t head_digit_count = ConvertHeadDigits(head_digits, buffer);
+    buffer += head_digit_count;
+
+    // Print remaining 2 digits.
+    prod = (prod & kUint32Mask) * 100;
+    Convert2Digits(static_cast<uint8_t>(prod >> 32), buffer);
+
+    return 2 + head_digit_count;
+  }
+  // 1 or 2 digits.
+  return ConvertHeadDigits(n, buffer);
+}
+
+// Returns count of digits written.
+uint8_t SignificandToChars(uint64_t n, char* buffer) {
+  DCHECK_LT(n, 99999999999999999);  // Only supports up to 17 digits
+
+  if (n >= 100'000'000) {
+    // If we have at least 9 digits, split into 2 blocks. The second one always
+    // has exactly 8 digits.
+    uint32_t first_block = static_cast<uint32_t>(n / 100'000'000);
+    uint32_t second_block = static_cast<uint32_t>(n % 100'000'000);
+
+    uint8_t first_block_digits = ConvertUpTo9Digits(first_block, buffer);
+    Convert8Digits(second_block, buffer + first_block_digits);
+    return first_block_digits + 8;
+  } else {
+    return ConvertUpTo9Digits(static_cast<uint32_t>(n), buffer);
+  }
+}
 
 // Helper class for building result strings in a character buffer. The
 // purpose of the class is to use safe operations that checks the
@@ -103,21 +283,28 @@ class SimpleStringBuilder final {
     cursor_ = std::fill_n(cursor_, count, c);
   }
 
-  // Add the decimal representation of the value.
-  void AddDecimalInteger(int value) {
-    uint32_t number = static_cast<uint32_t>(value);
-    if (value < 0) {
-      AddCharacter('-');
-      number = static_cast<uint32_t>(-value);
-    }
-    int digits = 1;
-    for (uint32_t factor = 10; digits < 10; digits++, factor *= 10) {
-      if (factor > number) break;
-    }
-    cursor_ += digits;
-    for (int i = 1; i <= digits; i++) {
-      *(cursor_ - i) = '0' + static_cast<char>(number % 10);
-      number /= 10;
+  // Add the decimal representation of the value. The value is expected to be
+  // a positive integer with at most 3 digits.
+  V8_INLINE void AddExponent(int value) {
+    DCHECK(!is_finalized());
+    DCHECK_GE(value, 0);
+    DCHECK_LE(value, 999);
+    if (value >= 100) {
+      // d1 = value / 10; d2 = value % 10;
+      // 6554 = ceil(2^16 / 10)
+      uint32_t d1 = (static_cast<uint32_t>(value) * 6554) >> 16;
+      uint32_t d2 = static_cast<uint32_t>(value) - 10 * d1;
+      DCHECK_LT(position() + 2, buffer_.length());
+      Convert2Digits(d1, cursor_);
+      cursor_ += 2;
+      AddCharacter('0' + d2);
+    } else if (value >= 10) {
+      DCHECK_LT(position() + 2, buffer_.length());
+      Convert2Digits(value, cursor_);
+      cursor_ += 2;
+    } else {
+      DCHECK_LT(value, 10);
+      AddCharacter('0' + value);
     }
   }
 
@@ -632,7 +819,7 @@ void NumberParseIntHelper::HandleGenericCase(const Char* current,
       // in 32 bits. When we can't guarantee that the next iteration
       // will not overflow the multiplier, we stop parsing the part
       // by leaving the loop.
-      const uint32_t kMaximumMultiplier = 0xFFFFFFFFU / 36;
+      const uint32_t kMaximumMultiplier = kMaxUInt32 / 36;
       uint32_t m = multiplier * static_cast<uint32_t>(radix());
       if (m > kMaximumMultiplier) break;
       part = part * radix() + d;
@@ -956,18 +1143,21 @@ std::string_view DoubleToStringView(double v, base::Vector<char> buffer) {
         return IntToStringView(FastD2I(v), buffer);
       }
       SimpleStringBuilder builder(buffer.begin(), buffer.size());
-      int decimal_point;
-      int sign;
-      constexpr int kV8DtoaBufferCapacity = base::kBase10MaximalLength + 1;
-      char decimal_rep[kV8DtoaBufferCapacity];
-      int length;
+      auto d = jkj::dragonbox::to_decimal(v);
 
-      base::DoubleToAscii(
-          v, base::DTOA_SHORTEST, 0,
-          base::Vector<char>(decimal_rep, kV8DtoaBufferCapacity), &sign,
-          &length, &decimal_point);
+      if (d.is_negative) builder.AddCharacter('-');
 
-      if (sign) builder.AddCharacter('-');
+      // Only in debug-builds the buffer is null-terminated.
+      constexpr int kDecimalRepLength =
+          base::kBase10MaximalLength + (DEBUG_BOOL ? 1 : 0);
+      char decimal_rep[kDecimalRepLength];
+      int length = SignificandToChars(d.significand, decimal_rep);
+#ifdef DEBUG
+      // Null-terminate decimal rep for DCHECKs in SimpleStringBuilder.
+      DCHECK_LT(length, kDecimalRepLength);
+      decimal_rep[length] = '\0';
+#endif
+      int decimal_point = length + d.exponent;
 
       if (length <= decimal_point && decimal_point <= 21) {
         // ECMA-262 section 9.8.1 step 6.
@@ -997,7 +1187,7 @@ std::string_view DoubleToStringView(double v, base::Vector<char> buffer) {
         builder.AddCharacter((decimal_point >= 0) ? '+' : '-');
         int exponent = decimal_point - 1;
         if (exponent < 0) exponent = -exponent;
-        builder.AddDecimalInteger(exponent);
+        builder.AddExponent(exponent);
       }
       return {buffer.begin(), builder.Finalize()};
     }
@@ -1114,7 +1304,7 @@ static std::string_view CreateExponentialRepresentation(
 
   builder.AddCharacter('e');
   builder.AddCharacter(negative_exponent ? '-' : '+');
-  builder.AddDecimalInteger(exponent);
+  builder.AddExponent(exponent);
   return {buffer.begin(), builder.Finalize()};
 }
 

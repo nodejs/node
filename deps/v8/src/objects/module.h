@@ -31,7 +31,6 @@ class ZoneForwardList;
 // https://tc39.github.io/ecma262/#sec-abstract-module-records
 class Module : public TorqueGeneratedModule<Module, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
 

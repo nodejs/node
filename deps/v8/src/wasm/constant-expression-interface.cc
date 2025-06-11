@@ -125,7 +125,7 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
   CanonicalValueType type =
       CanonicalValueType::Ref(module_->canonical_type_id(sig_index),
                               function_is_shared, RefTypeKind::kFunction)
-          .AsExactIfProposalEnabled();
+          .AsExactIfEnabled(decoder->enabled_);
   DirectHandle<WasmFuncRef> func_ref =
       WasmTrustedInstanceData::GetOrCreateFuncRef(
           isolate_,
@@ -173,14 +173,19 @@ DirectHandle<Map> ConstantExpressionInterface::GetRtt(
     error_ = MessageTemplate::kWasmTrapNullDereference;
     return {};
   }
-  return direct_handle(Cast<WasmStruct>(*maybe_obj)->get_described_rtt(),
-                       isolate_);
+  return direct_handle(Cast<WasmStruct>(*maybe_obj)->described_rtt(), isolate_);
 }
 
 void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
                                             const StructIndexImmediate& imm,
                                             const Value& descriptor,
                                             const Value args[], Value* result) {
+  // Declaratively adding a prototype is only permitted if the initializer
+  // ends with struct.new[_default]. Since no control flow is allowed in
+  // initializers, an 'end' instruction indicates the end of the initializer.
+  int offset_to_next_instr = 2 /* prefix, opcode */ + imm.length;
+  ends_with_struct_new_ = decoder->lookahead(offset_to_next_instr, kExprEnd);
+
   if (!generate_value()) return;
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
@@ -192,6 +197,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   if (rtt.is_null()) return;  // Trap (descriptor was null).
 
   DirectHandle<WasmStruct> obj;
+  WriteBarrierMode mode = UPDATE_WRITE_BARRIER;
   if (type.is_descriptor()) {
     DirectHandle<Object> first_field =
         struct_type->first_field_can_be_prototype()
@@ -201,6 +207,7 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
                                                       rtt, first_field);
   } else {
     obj = isolate_->factory()->NewWasmStructUninitialized(struct_type, rtt);
+    mode = SKIP_WRITE_BARRIER;  // Object is in new space.
   }
   DisallowGarbageCollection no_gc;  // Must initialize fields first.
 
@@ -211,13 +218,13 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
           reinterpret_cast<uint8_t*>(obj->RawFieldAddress(offset));
       args[i].runtime_value.Packed(struct_type->field(i)).CopyTo(address);
     } else {
-      TaggedField<Object, WasmStruct::kHeaderSize>::store(
-          *obj, offset, *args[i].runtime_value.to_ref());
+      obj->SetTaggedFieldValue(offset, *args[i].runtime_value.to_ref(), mode);
     }
   }
   result->runtime_value = WasmValue(
-      obj, decoder->module_->canonical_type(
-               ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled()));
+      obj,
+      decoder->module_->canonical_type(
+          ValueType::Ref(imm.heap_type()).AsExactIfEnabled(decoder->enabled_)));
 }
 
 void ConstantExpressionInterface::StringConst(FullDecoder* decoder,
@@ -275,6 +282,12 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate,
 void ConstantExpressionInterface::StructNewDefault(
     FullDecoder* decoder, const StructIndexImmediate& imm,
     const Value& descriptor, Value* result) {
+  // Declaratively adding a prototype is only permitted if the initializer
+  // ends with struct.new[_default]. Since no control flow is allowed in
+  // initializers, an 'end' instruction indicates the end of the initializer.
+  int offset_to_next_instr = 2 /* prefix, opcode */ + imm.length;
+  ends_with_struct_new_ = decoder->lookahead(offset_to_next_instr, kExprEnd);
+
   if (!generate_value()) return;
   DirectHandle<WasmTrustedInstanceData> data =
       GetTrustedInstanceDataForTypeIndex(imm.index);
@@ -312,8 +325,9 @@ void ConstantExpressionInterface::StructNewDefault(
   }
 
   result->runtime_value = WasmValue(
-      obj, decoder->module_->canonical_type(
-               ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled()));
+      obj,
+      decoder->module_->canonical_type(
+          ValueType::Ref(imm.heap_type()).AsExactIfEnabled(decoder->enabled_)));
 }
 
 void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
@@ -336,7 +350,7 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
                                         length.runtime_value.to_u32(),
                                         initial_value.runtime_value, rtt),
       decoder->module_->canonical_type(
-          ValueType::Ref(imm.heap_type()).AsExactIfProposalEnabled()));
+          ValueType::Ref(imm.heap_type()).AsExactIfEnabled(decoder->enabled_)));
 }
 
 void ConstantExpressionInterface::ArrayNewDefault(
@@ -363,11 +377,12 @@ void ConstantExpressionInterface::ArrayNewFixed(
   for (size_t i = 0; i < length_imm.index; i++) {
     element_values[i] = elements[i].runtime_value;
   }
-  result->runtime_value = WasmValue(
-      isolate_->factory()->NewWasmArrayFromElements(array_imm.array_type,
-                                                    element_values, rtt),
-      decoder->module_->canonical_type(
-          ValueType::Ref(array_imm.heap_type()).AsExactIfProposalEnabled()));
+  result->runtime_value =
+      WasmValue(isolate_->factory()->NewWasmArrayFromElements(
+                    array_imm.array_type, element_values, rtt),
+                decoder->module_->canonical_type(
+                    ValueType::Ref(array_imm.heap_type())
+                        .AsExactIfEnabled(decoder->enabled_)));
 }
 
 // TODO(14034): These expressions are non-constant for now. There are plans to
@@ -397,7 +412,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
   }
   CanonicalValueType element_type = rtt->wasm_type_info()->element_type();
   CanonicalValueType result_type =
-      rtt->wasm_type_info()->type().AsExactIfProposalEnabled();
+      rtt->wasm_type_info()->type().AsExactIfEnabled(decoder->enabled_);
   if (element_type.is_numeric()) {
     const WasmDataSegment& data_segment =
         module_->data_segments[segment_imm.index];

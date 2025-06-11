@@ -24,8 +24,6 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Script)
 
-NEVER_READ_ONLY_SPACE_IMPL(Script)
-
 #if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED(Script, wasm_breakpoint_infos, Tagged<FixedArray>,
                   kEvalFromSharedOrWrappedArgumentsOffset,

@@ -42,6 +42,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSCreateArrayFromIterable:
     case IrOpcode::kJSCreateLiteralRegExp:
     case IrOpcode::kJSGetTemplateObject:
+    case IrOpcode::kJSDetachContextCell:
     case IrOpcode::kJSForInEnumerate:
     case IrOpcode::kJSForInNext:
     case IrOpcode::kJSForInPrepare:
@@ -242,6 +243,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSAsyncFunctionEnter:
     case IrOpcode::kJSAsyncFunctionReject:
     case IrOpcode::kJSAsyncFunctionResolve:
+    case IrOpcode::kJSDetachContextCell:
     case IrOpcode::kJSForInEnumerate:
     case IrOpcode::kJSForInNext:
     case IrOpcode::kJSStackCheck:
@@ -259,6 +261,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSObjectIsArray:
     case IrOpcode::kJSRegExpTest:
     case IrOpcode::kJSGetImportMeta:
+    case IrOpcode::kJSStoreContext:
 
     // Iterator protocol operations
     case IrOpcode::kJSGetIterator:

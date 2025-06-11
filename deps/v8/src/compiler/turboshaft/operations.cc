@@ -11,6 +11,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/builtins/builtins.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
@@ -59,33 +60,6 @@ std::optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
     }
   }
   return std::nullopt;
-}
-
-bool CallOp::IsStackCheck(const Graph& graph, JSHeapBroker* broker,
-                          StackCheckKind kind) const {
-  auto builtin_id =
-      TryGetBuiltinId(graph.Get(callee()).TryCast<ConstantOp>(), broker);
-  if (!builtin_id.has_value()) return false;
-  if (*builtin_id != Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit) {
-    return false;
-  }
-  DCHECK_GE(input_count, 4);
-  Runtime::FunctionId builtin = GetBuiltinForStackCheckKind(kind);
-  auto is_this_builtin = [&](int input_index) {
-    if (const ConstantOp* real_callee =
-            graph.Get(input(input_index)).TryCast<ConstantOp>();
-        real_callee != nullptr &&
-        real_callee->kind == ConstantOp::Kind::kExternal &&
-        real_callee->external_reference() ==
-            ExternalReference::Create(builtin)) {
-      return true;
-    }
-    return false;
-  };
-  // The function called by `CEntry_Return1_ArgvOnStack_NoBuiltinExit` is the
-  // 3rd or the 4th argument of the CallOp (depending on the stack check kind),
-  // so we check both of them.
-  return is_this_builtin(2) || is_this_builtin(3);
 }
 
 void CallOp::PrintOptions(std::ostream& os) const {
@@ -739,8 +713,18 @@ void StoreOp::PrintOptions(std::ostream& os) const {
 }
 
 void AllocateOp::PrintOptions(std::ostream& os) const {
-  os << '[';
-  os << type;
+  os << '[' << type << ", ";
+  switch (alignment) {
+    case kTaggedAligned:
+      os << "tagged aligned";
+      break;
+    case kDoubleAligned:
+      os << "double aligned";
+      break;
+    case kDoubleUnaligned:
+      os << "double unaligned";
+      break;
+  }
   os << ']';
 }
 
@@ -884,6 +868,24 @@ void FrameStateOp::Validate(const Graph& graph) const {
 void DeoptimizeIfOp::PrintOptions(std::ostream& os) const {
   static_assert(std::tuple_size_v<decltype(options())> == 2);
   os << '[' << (negated ? "negated, " : "") << *parameters << ']';
+}
+
+void CallOp::Validate(const Graph& graph) const {
+#ifdef DEBUG
+  if (frame_state().valid()) {
+    DCHECK(Get(graph, frame_state().value()).Is<FrameStateOp>());
+  }
+
+  if (!graph.has_broker()) return;
+  if (const ConstantOp* target =
+          graph.Get(callee()).TryCast<Opmask::kHeapConstant>()) {
+    if (std::optional<Builtin> builtin =
+            TryGetBuiltinId(target, graph.broker())) {
+      CHECK_IMPLIES(!callee_effects.can_allocate,
+                    !BuiltinCanAllocate(*builtin));
+    }
+  }
+#endif
 }
 
 void DidntThrowOp::Validate(const Graph& graph) const {
@@ -1166,6 +1168,8 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
       return os << "NonCallable";
     case ObjectIsOp::Kind::kNumber:
       return os << "Number";
+    case ObjectIsOp::Kind::kNumberOrUndefined:
+      return os << "NumberOrUndefined";
     case ObjectIsOp::Kind::kNumberFitsInt32:
       return os << "NumberFitsInt32";
     case ObjectIsOp::Kind::kNumberOrBigInt:
@@ -1268,6 +1272,16 @@ std::ostream& operator<<(
       return os << "Signed";
     case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDouble:
+      return os << "Double";
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kDoubleOrHole:
+      return os << "DoubleOrHole";
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::
+        kDoubleOrUndefined:
+      return os << "DoubleOrUndefined";
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::
+        kDoubleOrUndefinedOrHole:
+      return os << "DoubleOrUndefinedOrHole";
     case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kCharCode:
       return os << "CharCode";
     case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kCodePoint:
@@ -1308,6 +1322,13 @@ std::ostream& operator<<(std::ostream& os,
       return os << "Bit";
     case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64:
       return os << "Float64";
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64OrUndefined:
+      return os << "Float64OrUndefined";
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::
+        kFloat64WithSilencedNaNOrUndefined:
+      return os << "Float64WithSilencedNaNOrUndefined";
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   }
 }
 
@@ -1955,10 +1976,48 @@ void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
      << ", is_shared: " << (is_shared ? "true" : "false") << "]";
 }
 
+void StructGetOp::PrintOptions(std::ostream& os) const {
+  os << '[' << type << ", " << type_index << ", " << field_index << ", "
+     << (is_signed ? "signed, " : "") << null_check << ", ";
+  if (memory_order.has_value()) {
+    os << *memory_order;
+  } else {
+    os << "non-atomic";
+  }
+  os << ']';
+}
+
+void StructSetOp::PrintOptions(std::ostream& os) const {
+  os << '[' << type << ", " << type_index << ", " << field_index << ", "
+     << null_check << ", ";
+  if (memory_order.has_value()) {
+    os << *memory_order;
+  } else {
+    os << "non-atomic";
+  }
+  os << ']';
+}
+
 void ArrayGetOp::PrintOptions(std::ostream& os) const {
   os << '[' << (is_signed ? "signed " : "")
      << (array_type->mutability() ? "" : "immutable ")
-     << array_type->element_type() << ']';
+     << array_type->element_type() << ", ";
+  if (memory_order.has_value()) {
+    os << *memory_order;
+  } else {
+    os << "non-atomic";
+  }
+  os << ']';
+}
+
+void ArraySetOp::PrintOptions(std::ostream& os) const {
+  os << '[' << element_type << ", ";
+  if (memory_order.has_value()) {
+    os << *memory_order;
+  } else {
+    os << "non-atomic";
+  }
+  os << ']';
 }
 
 #endif  // V8_ENABLE_WEBASSEBMLY

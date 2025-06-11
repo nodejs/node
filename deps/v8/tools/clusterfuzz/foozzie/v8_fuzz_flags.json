@@ -36,6 +36,9 @@
   [0.1, "--shared-heap"],
   [0.1, "--stress-wasm-memory-moving"],
   [0.1, "--stress-scavenger-conservative-object-pinning-random"],
+  [0.1, "--conservative-stack-scanning"],
   [0.1, "--precise-object-pinning"],
-  [0.1, "--ephemeron-fixpoint-iterations=0"]
+  [0.1, "--ephemeron-fixpoint-iterations=0"],
+  [0.25, "--experimental-wasm-revectorize"],
+  [0.5, "--additive-safe-int-feedback"]
 ]

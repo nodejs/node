@@ -48,6 +48,7 @@ V8_OBJECT class LoadHandler final : public DataHandler {
 
   enum class Kind {
     kElement,
+    kElementWithTransition,
     kIndexedString,
     kNormal,
     kGlobal,
@@ -210,12 +211,18 @@ V8_OBJECT class LoadHandler final : public DataHandler {
   // Creates a Smi-handler for loading a non-existent property. Works only as
   // a part of prototype chain check.
   static inline Handle<Smi> LoadNonExistent(Isolate* isolate);
+  static Handle<Object> LoadNonExistent(
+      Isolate* isolate, DirectHandle<Map> lookup_start_object_map);
 
   // Creates a Smi-handler for loading an element.
   static inline Handle<Smi> LoadElement(Isolate* isolate,
                                         ElementsKind elements_kind,
                                         bool is_js_array,
                                         KeyedAccessLoadMode load_mode);
+
+  static inline Handle<Smi> TransitionAndLoadElement(
+      Isolate* isolate, ElementsKind kind_after_transition,
+      KeyedAccessLoadMode load_mode);
 
   // Creates a Smi-handler for loading from a String.
   static inline Handle<Smi> LoadIndexedString(Isolate* isolate,

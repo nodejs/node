@@ -526,6 +526,10 @@ class MemoryContentTable
 
     if (all_keys_.size() > kMaxKeys) {
       TRACE(">> Bailing out because too many keys");
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Late Load Elimination because of kMaxKeys [1]\n";
+      }
       return;
     }
 
@@ -551,6 +555,10 @@ class MemoryContentTable
 
     if (all_keys_.size() > kMaxKeys) {
       TRACE(">> Bailing out because too many keys");
+      if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+        std::cout
+            << "Bailing out in Late Load Elimination because of kMaxKeys [2]\n";
+      }
       return;
     }
 
@@ -705,6 +713,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   void ProcessBlock(const Block& block, bool compute_start_snapshot);
   void ProcessLoad(OpIndex op_idx, const LoadOp& op);
   void ProcessStore(OpIndex op_idx, const StoreOp& op);
+  void ProcessAtomicRMW(OpIndex op_idx, const AtomicRMWOp& op);
   void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
   void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
@@ -737,10 +746,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationAnalyzer {
   Zone* phase_zone_;
   JSHeapBroker* broker_;
   RawBaseAssumption raw_base_assumption_;
-
-#if V8_ENABLE_WEBASSEMBLY
-  bool is_wasm_ = data_->is_wasm();
-#endif
 
   FixedOpIndexSidetable<Replacement> replacements_;
   // We map: Load-index -> Change-index -> Bitcast-index
@@ -781,15 +786,14 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   using Replacement = LoadEliminationReplacement;
 
   void Analyze() {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
-      DCHECK(AllowHandleDereference::IsAllowed());
+    if (v8_flags.turboshaft_load_elimination) {
       analyzer_.Run();
     }
     Next::Analyze();
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsLoadElimination()) {
         OpIndex replacement_ig_index = replacement.replacement();
@@ -825,7 +829,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Change)(OpIndex ig_index, const ChangeOp& change) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsInt32TruncationElimination()) {
         DCHECK(
@@ -838,7 +842,7 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
 
   OpIndex REDUCE_INPUT_GRAPH(TaggedBitcast)(OpIndex ig_index,
                                             const TaggedBitcastOp& bitcast) {
-    if (is_wasm_ || v8_flags.turboshaft_load_elimination) {
+    if (v8_flags.turboshaft_load_elimination) {
       Replacement replacement = analyzer_.GetReplacement(ig_index);
       if (replacement.IsTaggedBitcastElimination()) {
         return OpIndex::Invalid();
@@ -856,7 +860,6 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
   }
 
  private:
-  const bool is_wasm_ = __ data() -> is_wasm();
   using RawBaseAssumption = LateLoadEliminationAnalyzer::RawBaseAssumption;
   RawBaseAssumption raw_base_assumption_ =
       __ data() -> pipeline_kind() == TurboshaftPipelineKind::kCSA

@@ -205,12 +205,12 @@ class V8_EXPORT_PRIVATE Operand {
 
   // Assert that the shared {is_label_operand} and {rex} fields have the same
   // type and offset in both union variants.
-  static_assert(std::is_same<decltype(LabelOperand::is_label_operand),
-                             decltype(MemoryOperand::is_label_operand)>::value);
+  static_assert(std::is_same_v<decltype(LabelOperand::is_label_operand),
+                               decltype(MemoryOperand::is_label_operand)>);
   static_assert(offsetof(LabelOperand, is_label_operand) ==
                 offsetof(MemoryOperand, is_label_operand));
-  static_assert(std::is_same<decltype(LabelOperand::rex),
-                             decltype(MemoryOperand::rex)>::value);
+  static_assert(std::is_same_v<decltype(LabelOperand::rex),
+                               decltype(MemoryOperand::rex)>);
   static_assert(offsetof(LabelOperand, rex) == offsetof(MemoryOperand, rex));
 
   static_assert(sizeof(MemoryOperand::len) == kSystemPointerSize,

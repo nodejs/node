@@ -54,7 +54,7 @@ void MemoryBalancer::RefreshLimit() {
   }
 
   heap_->SetOldGenerationAndGlobalAllocationLimit(
-      new_limit, new_limit + embedder_allocation_limit_);
+      new_limit, new_limit + embedder_allocation_limit_, "MemoryBalancer");
 }
 
 void MemoryBalancer::UpdateGCSpeed(size_t major_gc_bytes,

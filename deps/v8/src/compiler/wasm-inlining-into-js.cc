@@ -9,6 +9,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/wasm/decoder.h"
+#include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/wasm/wasm-subtyping.h"

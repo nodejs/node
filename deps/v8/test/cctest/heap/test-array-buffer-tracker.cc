@@ -56,7 +56,7 @@ TEST(ArrayBuffer_OnlyMC) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
@@ -85,7 +85,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
@@ -113,7 +113,7 @@ TEST(ArrayBuffer_ScavengeAndMC) {
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
@@ -146,7 +146,7 @@ TEST(ArrayBuffer_Compaction) {
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
 
@@ -200,7 +200,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
 
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   {
     v8::HandleScope handle_scope(isolate);
@@ -239,7 +239,7 @@ TEST(ArrayBuffer_SemiSpaceCopyThenPagePromotion) {
   // copy.
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
   heap::SealCurrentObjects(heap);
@@ -280,7 +280,7 @@ TEST(ArrayBuffer_PagePromotion) {
   // copy.
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
 
   heap::SealCurrentObjects(heap);
@@ -343,7 +343,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreases) {
   if (v8_flags.single_generation) return;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
@@ -366,7 +366,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;
 
@@ -392,7 +392,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
   heap::AbandonCurrentlyFreeMemory(heap->old_space());
   ExternalBackingStoreType type = ExternalBackingStoreType::kArrayBuffer;

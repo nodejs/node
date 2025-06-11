@@ -61,7 +61,8 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   friend class compiler::GraphAssembler;
   friend class compiler::JSContextSpecialization;
   friend class TorqueGeneratedHeapNumberAsserts;
-  friend AllocationAlignment HeapObject::RequiredAlignment(Tagged<Map> map);
+  friend AllocationAlignment HeapObject::RequiredAlignment(
+      InSharedSpace in_shared_space, Tagged<Map> map);
 
   UnalignedDoubleMember value_;
 } V8_OBJECT_END;

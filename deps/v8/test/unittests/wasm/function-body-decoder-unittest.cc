@@ -4,6 +4,8 @@
 
 #include "src/wasm/function-body-decoder.h"
 
+#include <sstream>
+
 #include "src/flags/flags.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/canonical-types.h"
@@ -141,14 +143,15 @@ class TestModuleBuilder {
   }
 
   HeapType AddStruct(std::initializer_list<F> fields,
-                     ModuleTypeIndex supertype = kNoSuperType) {
-    StructType::Builder type_builder(
-        &mod.signature_zone, static_cast<uint32_t>(fields.size()), false);
+                     ModuleTypeIndex supertype = kNoSuperType,
+                     bool is_shared = false) {
+    StructType::Builder type_builder(&mod.signature_zone,
+                                     static_cast<uint32_t>(fields.size()),
+                                     false, is_shared);
     for (F field : fields) {
       type_builder.AddField(field.first, field.second);
     }
     const bool is_final = true;
-    const bool is_shared = false;
     mod.AddStructTypeForTesting(type_builder.Build(), supertype, is_final,
                                 is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
@@ -159,10 +162,9 @@ class TestModuleBuilder {
     return AddStruct(fields, supertype.ref_index());
   }
 
-  HeapType AddArray(ValueType type, bool mutability) {
+  HeapType AddArray(ValueType type, bool mutability, bool is_shared = false) {
     ArrayType* array = mod.signature_zone.New<ArrayType>(type, mutability);
     const bool is_final = true;
-    const bool is_shared = false;
     mod.AddArrayTypeForTesting(array, kNoSuperType, is_final, is_shared);
     GetTypeCanonicalizer()->AddRecursiveSingletonGroup(module());
     ModuleTypeIndex index{static_cast<uint8_t>(mod.types.size() - 1)};
@@ -4100,15 +4102,15 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
       &sig_i_r,
       {WASM_STRUCT_GET_S(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
-      "struct.get_s: Immediate field 0 of type 0 has non-packed type i32. Use "
-      "struct.get instead.");
+      "struct.get_s: Field 0 of type 0 has non-packed type i32. Use struct.get "
+      "instead.");
 
   ExpectFailure(
       &sig_i_r,
       {WASM_STRUCT_GET_U(struct_type_index, field_index, WASM_LOCAL_GET(0))},
       kAppendEnd,
-      "struct.get_u: Immediate field 0 of type 0 has non-packed type i32. Use "
-      "struct.get instead.");
+      "struct.get_u: Field 0 of type 0 has non-packed type i32. Use struct.get "
+      "instead.");
 }
 
 TEST_F(FunctionBodyDecoderTest, GCArray) {
@@ -4193,14 +4195,14 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
       &sig_c_r,
       {WASM_ARRAY_GET_S(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_s: Immediate array type 0 has non-packed type funcref. Use "
-      "array.get instead.");
+      "array.get_s: Array type 0 has non-packed type funcref. Use array.get "
+      "instead.");
   ExpectFailure(
       &sig_c_r,
       {WASM_ARRAY_GET_U(array_type_index, WASM_LOCAL_GET(0), WASM_I32V(5))},
       kAppendEnd,
-      "array.get_u: Immediate array type 0 has non-packed type funcref. Use "
-      "array.get instead.");
+      "array.get_u: Array type 0 has non-packed type funcref. Use array.get "
+      "instead.");
 
   /** array.set **/
   ExpectValidates(&sig_v_r,
@@ -4254,7 +4256,7 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
   ExpectFailure(&sig_v_r2,
                 {WASM_ARRAY_SET(immutable_array_type_index, WASM_LOCAL_GET(0),
                                 WASM_I32V(0), WASM_I32V(42))},
-                kAppendEnd, "array.set: immediate array type 2 is immutable");
+                kAppendEnd, "array.set: Array type 2 is immutable");
 }
 
 TEST_F(FunctionBodyDecoderTest, PackedFields) {
@@ -4322,13 +4324,13 @@ TEST_F(FunctionBodyDecoderTest, PackedFields) {
                 {WASM_ARRAY_GET(array_type_index,
                                 WASM_REF_NULL(array_type_index), WASM_I32V(0))},
                 kAppendEnd,
-                "array.get: Immediate array type 0 has packed type i8. Use "
-                "array.get_s or array.get_u instead.");
+                "array.get: Array type 0 has packed type i8. Use array.get_s "
+                "or array.get_u instead.");
   ExpectFailure(sigs.i_v(),
                 {WASM_STRUCT_GET(struct_type_index, field_index,
                                  WASM_REF_NULL(struct_type_index))},
                 kAppendEnd,
-                "struct.get: Immediate field 0 of type 1 has packed type i16. "
+                "struct.get: Field 0 of type 1 has packed type i16. "
                 "Use struct.get_s or struct.get_u instead.");
 }
 
@@ -6088,6 +6090,396 @@ TEST_F(FunctionBodyDecoderTest, WasmNoWasmFx) {
       {WASM_SWITCH(ToByte(cont_index), tag_i_i), WASM_DROP, WASM_DROP},
       kAppendEnd,
       "Invalid opcode 0xe5 (enable with --experimental-wasm-wasmfx)");
+}
+
+/*******************************************************************************
+ * Shared everything threads.
+ ******************************************************************************/
+using TestAtomicParamT =
+    std::tuple<ValueType, bool /*mutability*/, bool /*shared*/>;
+
+class FunctionBodyDecoderTestAtomicInvalid
+    : public FunctionBodyDecoderTestBase<WithDefaultPlatformMixin<
+          ::testing::TestWithParam<TestAtomicParamT>>> {};
+
+std::string PrintAtomicGetInvalidParams(
+    ::testing::TestParamInfo<TestAtomicParamT> info) {
+  const auto [element_type, mutability, shared] = info.param;
+  return std::string(mutability ? "mutable_" : "immutable_") +
+         (shared ? "shared_" : "unshared_") + element_type.short_name();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    SharedAtomicsTest, FunctionBodyDecoderTestAtomicInvalid,
+    ::testing::Combine(
+        ::testing::Values(kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
+                          IndependentHeapType{GenericKind::kExtern, kNullable,
+                                              true}),
+        ::testing::Values(true, false), ::testing::Values(true, false)),
+    PrintAtomicGetInvalidParams);
+
+TEST_P(FunctionBodyDecoderTestAtomicInvalid, Struct) {
+  WASM_FEATURE_SCOPE(shared);
+  const auto [element_type, mutability, shared] = GetParam();
+  HeapType struct_heaptype =
+      builder.AddStruct({F(element_type, mutability)}, kNoSuperType, shared);
+  ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
+  ValueType struct_type = ValueType::Ref(struct_heaptype);
+  Zone* zone = &builder.module()->signature_zone;
+  FunctionSig* sig_get =
+      FunctionSig::Build(zone, {element_type.Unpacked()}, {struct_type});
+  FunctionSig* sig_set =
+      FunctionSig::Build(zone, {}, {struct_type, element_type.Unpacked()});
+
+  ExpectFailure(
+      sig_get,
+      {WASM_STRUCT_ATOMIC_GET(0, struct_type_index, 0, WASM_LOCAL_GET(0))},
+      kAppendEnd, "struct.atomic.get: Field 0 of type 0 has invalid type");
+  if (mutability) {
+    const bool set_is_valid =
+        element_type == kWasmI8 || element_type == kWasmI16;
+    Validate(set_is_valid, sig_set,
+             {WASM_STRUCT_ATOMIC_SET(0, struct_type_index, 0, WASM_LOCAL_GET(0),
+                                     WASM_LOCAL_GET(1))},
+             kAppendEnd,
+             "struct.atomic.set: Field 0 of type 0 has invalid type");
+  } else {
+    ExpectFailure(
+        sig_set,
+        {WASM_STRUCT_ATOMIC_SET(0, struct_type_index, 0, WASM_LOCAL_GET(0),
+                                WASM_LOCAL_GET(1))},
+        kAppendEnd, "struct.atomic.set: Field 0 of type 0 is immutable");
+  }
+}
+
+TEST_P(FunctionBodyDecoderTestAtomicInvalid, Array) {
+  WASM_FEATURE_SCOPE(shared);
+  const auto [element_type, mutability, shared] = GetParam();
+  HeapType array_heaptype = builder.AddArray(element_type, mutability, shared);
+  ModuleTypeIndex array_type_index = array_heaptype.ref_index();
+  ValueType array_type = ValueType::Ref(array_heaptype);
+  Zone* zone = &builder.module()->signature_zone;
+
+  FunctionSig* sig_get = FunctionSig::Build(zone, {element_type.Unpacked()},
+                                            {array_type, kWasmI32});
+  FunctionSig* sig_set = FunctionSig::Build(
+      zone, {}, {array_type, kWasmI32, element_type.Unpacked()});
+  ExpectFailure(sig_get,
+                {WASM_ARRAY_ATOMIC_GET(0, array_type_index, WASM_LOCAL_GET(0),
+                                       WASM_LOCAL_GET(1))},
+                kAppendEnd,
+                "array.atomic.get: Array 0 has invalid element type");
+
+  if (mutability) {
+    const bool set_is_valid =
+        element_type == kWasmI8 || element_type == kWasmI16;
+    Validate(set_is_valid, sig_set,
+             {WASM_ARRAY_ATOMIC_SET(0, array_type_index, WASM_LOCAL_GET(0),
+                                    WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+             kAppendEnd, "Array type 0 has invalid type");
+  } else {
+    ExpectFailure(sig_set,
+                  {WASM_ARRAY_ATOMIC_SET(0, array_type_index, WASM_LOCAL_GET(0),
+                                         WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                  kAppendEnd, "Array type 0 is immutable");
+  }
+}
+
+class FunctionBodyDecoderTestAtomicInvalidPacked
+    : public FunctionBodyDecoderTestBase<WithDefaultPlatformMixin<
+          ::testing::TestWithParam<std::tuple<ValueType, bool>>>> {};
+
+std::string PrintAtomicGetPackedInvalidParams(
+    ::testing::TestParamInfo<std::tuple<ValueType, bool>> info) {
+  const auto [element_type, shared] = info.param;
+  return std::string(shared ? "shared_" : "unshared_") +
+         element_type.short_name();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    SharedAtomicsTest, FunctionBodyDecoderTestAtomicInvalidPacked,
+    ::testing::Combine(
+        ::testing::Values(kWasmF32, kWasmF64, kWasmS128, kWasmI32, kWasmI64,
+                          IndependentHeapType{GenericKind::kExtern, kNullable,
+                                              true}),
+        ::testing::Values(true, false)),
+    PrintAtomicGetPackedInvalidParams);
+
+TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Struct) {
+  WASM_FEATURE_SCOPE(shared);
+  ValueType element_type = std::get<0>(GetParam());
+  const bool shared = std::get<1>(GetParam());
+  HeapType struct_heaptype =
+      builder.AddStruct({F(element_type, true)}, kNoSuperType, shared);
+  ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
+  ValueType struct_type = ValueType::Ref(struct_heaptype);
+  Zone* zone = &builder.module()->signature_zone;
+  FunctionSig* sig_get =
+      FunctionSig::Build(zone, {element_type.Unpacked()}, {struct_type});
+
+  ExpectFailure(
+      sig_get,
+      {WASM_STRUCT_ATOMIC_GET_S(0, struct_type_index, 0, WASM_LOCAL_GET(0))},
+      kAppendEnd, "struct.atomic.get_s: Field 0 of type 0 has non-packed type");
+  ExpectFailure(
+      sig_get,
+      {WASM_STRUCT_ATOMIC_GET_U(0, struct_type_index, 0, WASM_LOCAL_GET(0))},
+      kAppendEnd, "struct.atomic.get_u: Field 0 of type 0 has non-packed type");
+}
+
+TEST_P(FunctionBodyDecoderTestAtomicInvalidPacked, Array) {
+  WASM_FEATURE_SCOPE(shared);
+  ValueType element_type = std::get<0>(GetParam());
+  const bool shared = std::get<1>(GetParam());
+  HeapType array_heaptype = builder.AddArray(element_type, true, shared);
+  ModuleTypeIndex array_type_index = array_heaptype.ref_index();
+  ValueType array_type = ValueType::Ref(array_heaptype);
+  Zone* zone = &builder.module()->signature_zone;
+
+  FunctionSig* sig_get = FunctionSig::Build(zone, {element_type.Unpacked()},
+                                            {array_type, kWasmI32});
+
+  ExpectFailure(sig_get,
+                {WASM_ARRAY_ATOMIC_GET_S(0, array_type_index, WASM_LOCAL_GET(0),
+                                         WASM_LOCAL_GET(1))},
+                kAppendEnd,
+                "array.atomic.get_s: Array type 0 has non-packed type");
+  ExpectFailure(sig_get,
+                {WASM_ARRAY_ATOMIC_GET_U(0, array_type_index, WASM_LOCAL_GET(0),
+                                         WASM_LOCAL_GET(1))},
+                kAppendEnd,
+                "array.atomic.get_u: Array type 0 has non-packed type");
+}
+
+class FunctionBodyDecoderTestAtomicRMWInvalid
+    : public FunctionBodyDecoderTestBase<WithDefaultPlatformMixin<
+          ::testing::TestWithParam<TestAtomicParamT>>> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    SharedAtomicsTest, FunctionBodyDecoderTestAtomicRMWInvalid,
+    ::testing::Combine(
+        ::testing::Values(kWasmF32, kWasmF64, kWasmS128, kWasmI8, kWasmI16,
+                          IndependentHeapType{GenericKind::kExtern, kNullable,
+                                              true}),
+        ::testing::Values(true, false), ::testing::Values(true, false)),
+    PrintAtomicGetInvalidParams);
+
+TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Struct) {
+  WASM_FEATURE_SCOPE(shared);
+  const auto [element_type, mutability, shared] = GetParam();
+  HeapType struct_heaptype =
+      builder.AddStruct({F(element_type, mutability)}, kNoSuperType, shared);
+  ModuleTypeIndex struct_type_index = struct_heaptype.ref_index();
+  ValueType struct_type = ValueType::Ref(struct_heaptype);
+  Zone* zone = &builder.module()->signature_zone;
+
+  FunctionSig* sig =
+      FunctionSig::Build(zone, {element_type}, {struct_type, element_type});
+
+  const char* error_msg = mutability ? "Field 0 of type 0 has invalid type"
+                                     : "Field 0 of type 0 is immutable";
+  ExpectFailure(sig,
+                {WASM_STRUCT_ATOMIC_ADD(0, struct_type_index, 0,
+                                        WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                kAppendEnd, error_msg);
+  ExpectFailure(sig,
+                {WASM_STRUCT_ATOMIC_SUB(0, struct_type_index, 0,
+                                        WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                kAppendEnd, error_msg);
+  ExpectFailure(sig,
+                {WASM_STRUCT_ATOMIC_AND(0, struct_type_index, 0,
+                                        WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                kAppendEnd, error_msg);
+  ExpectFailure(sig,
+                {WASM_STRUCT_ATOMIC_OR(0, struct_type_index, 0,
+                                       WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                kAppendEnd, error_msg);
+  ExpectFailure(sig,
+                {WASM_STRUCT_ATOMIC_XOR(0, struct_type_index, 0,
+                                        WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+                kAppendEnd, error_msg);
+}
+
+TEST_P(FunctionBodyDecoderTestAtomicRMWInvalid, Array) {
+  WASM_FEATURE_SCOPE(shared);
+  const auto [element_type, mutability, shared] = GetParam();
+  HeapType array_heaptype = builder.AddArray(element_type, mutability, shared);
+  ModuleTypeIndex array_type_index = array_heaptype.ref_index();
+  ValueType array_type = ValueType::Ref(array_heaptype);
+  Zone* zone = &builder.module()->signature_zone;
+
+  FunctionSig* sig =
+      FunctionSig::Build(zone, {element_type.Unpacked()},
+                         {array_type, kWasmI32, element_type.Unpacked()});
+
+  const char* error_msg = mutability ? "Array type 0 has invalid type"
+                                     : "Array type 0 is immutable";
+  ExpectFailure(sig,
+                {WASM_ARRAY_ATOMIC_ADD(0, array_type_index, WASM_LOCAL_GET(0),
+                                       WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                kAppendEnd, error_msg);
+  ExpectFailure(sig,
+                {WASM_ARRAY_ATOMIC_SUB(0, array_type_index, WASM_LOCAL_GET(0),
+                                       WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                kAppendEnd, error_msg);
+  ExpectFailure(sig,
+                {WASM_ARRAY_ATOMIC_AND(0, array_type_index, WASM_LOCAL_GET(0),
+                                       WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                kAppendEnd, error_msg);
+  ExpectFailure(sig,
+                {WASM_ARRAY_ATOMIC_OR(0, array_type_index, WASM_LOCAL_GET(0),
+                                      WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                kAppendEnd, error_msg);
+  ExpectFailure(sig,
+                {WASM_ARRAY_ATOMIC_XOR(0, array_type_index, WASM_LOCAL_GET(0),
+                                       WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+                kAppendEnd, error_msg);
+}
+
+TEST_F(FunctionBodyDecoderTest, MemoryOrder) {
+  WASM_FEATURE_SCOPE(shared);
+  const bool shared = true;
+
+  HeapType struct_i32_heaptype =
+      builder.AddStruct({F(kWasmI32, true)}, kNoSuperType, shared);
+  ModuleTypeIndex struct_i32_index = struct_i32_heaptype.ref_index();
+  ValueType struct_i32 = ValueType::Ref(struct_i32_heaptype);
+  HeapType struct_i16_heaptype =
+      builder.AddStruct({F(kWasmI16, true)}, kNoSuperType, shared);
+  ModuleTypeIndex struct_i16_index = struct_i16_heaptype.ref_index();
+  ValueType struct_i16 = ValueType::Ref(struct_i16_heaptype);
+
+  HeapType array_i32_heaptype = builder.AddArray(kWasmI32, true, shared);
+  ModuleTypeIndex array_i32_index = array_i32_heaptype.ref_index();
+  ValueType array_i32 = ValueType::Ref(array_i32_heaptype);
+  HeapType array_i16_heaptype = builder.AddArray(kWasmI16, true, shared);
+  ModuleTypeIndex array_i16_index = array_i16_heaptype.ref_index();
+  ValueType array_i16 = ValueType::Ref(array_i16_heaptype);
+
+  const char* error = "invalid memory ordering 2";
+  Zone* zone = &builder.module()->signature_zone;
+
+  FunctionSig* sig_struct_load_i32 =
+      FunctionSig::Build(zone, {kWasmI32}, {struct_i32});
+  FunctionSig* sig_struct_load_i16 =
+      FunctionSig::Build(zone, {kWasmI32}, {struct_i16});
+  FunctionSig* sig_struct_store_i32 =
+      FunctionSig::Build(zone, {}, {struct_i32, kWasmI32});
+  FunctionSig* sig_struct_rmw_i32 =
+      FunctionSig::Build(zone, {kWasmI32}, {struct_i32, kWasmI32});
+  FunctionSig* sig_array_load_i32 =
+      FunctionSig::Build(zone, {kWasmI32}, {array_i32, kWasmI32});
+  FunctionSig* sig_array_load_i16 =
+      FunctionSig::Build(zone, {kWasmI32}, {array_i16, kWasmI32});
+  FunctionSig* sig_array_store_i32 =
+      FunctionSig::Build(zone, {}, {array_i32, kWasmI32, kWasmI32});
+  FunctionSig* sig_array_rmw_i32 =
+      FunctionSig::Build(zone, {kWasmI32}, {array_i32, kWasmI32, kWasmI32});
+
+  for (uint8_t memory_order = 0; memory_order < 3; ++memory_order) {
+    // TODO(c++20): Replace with std::format once available on all compilers
+    // and build configurations.
+    std::stringstream str;
+    str << "memory_order = " << int{memory_order};
+    SCOPED_TRACE(str.str());
+    const bool valid = memory_order < 2;
+    // struct.atomic.get
+    Validate(valid, sig_struct_load_i32,
+             {WASM_STRUCT_ATOMIC_GET(memory_order, struct_i32_index, 0,
+                                     WASM_LOCAL_GET(0))},
+             kAppendEnd, error);
+    // struct.atomic.get_s
+    Validate(valid, sig_struct_load_i16,
+             {WASM_STRUCT_ATOMIC_GET_S(memory_order, struct_i16_index, 0,
+                                       WASM_LOCAL_GET(0))},
+             kAppendEnd, error);
+    // struct.atomic.get_u
+    Validate(valid, sig_struct_load_i16,
+             {WASM_STRUCT_ATOMIC_GET_U(memory_order, struct_i16_index, 0,
+                                       WASM_LOCAL_GET(0))},
+             kAppendEnd, error);
+    // struct.atomic.set
+    Validate(valid, sig_struct_store_i32,
+             {WASM_STRUCT_ATOMIC_SET(memory_order, struct_i32_index, 0,
+                                     WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+             kAppendEnd, error);
+    // array.atomic.get
+    Validate(valid, sig_array_load_i32,
+             {WASM_ARRAY_ATOMIC_GET(memory_order, array_i32_index,
+                                    WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+             kAppendEnd, error);
+    // array.atomic.get_s
+    Validate(valid, sig_array_load_i16,
+             {WASM_ARRAY_ATOMIC_GET_S(memory_order, array_i16_index,
+                                      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+             kAppendEnd, error);
+    // array.atomic.get_u
+    Validate(valid, sig_array_load_i16,
+             {WASM_ARRAY_ATOMIC_GET_U(memory_order, array_i16_index,
+                                      WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+             kAppendEnd, error);
+    // array.atomic.set
+    Validate(
+        valid, sig_array_store_i32,
+        {WASM_ARRAY_ATOMIC_SET(memory_order, array_i32_index, WASM_LOCAL_GET(0),
+                               WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+        kAppendEnd, error);
+    // struct.atomic.rmw.add
+    Validate(valid, sig_struct_rmw_i32,
+             {WASM_STRUCT_ATOMIC_ADD(memory_order, struct_i32_index, 0,
+                                     WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+             kAppendEnd, error);
+    // struct.atomic.rmw.sub
+    Validate(valid, sig_struct_rmw_i32,
+             {WASM_STRUCT_ATOMIC_SUB(memory_order, struct_i32_index, 0,
+                                     WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+             kAppendEnd, error);
+    // struct.atomic.rmw.and
+    Validate(valid, sig_struct_rmw_i32,
+             {WASM_STRUCT_ATOMIC_AND(memory_order, struct_i32_index, 0,
+                                     WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+             kAppendEnd, error);
+    // struct.atomic.rmw.or
+    Validate(valid, sig_struct_rmw_i32,
+             {WASM_STRUCT_ATOMIC_OR(memory_order, struct_i32_index, 0,
+                                    WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+             kAppendEnd, error);
+    // struct.atomic.rmw.xor
+    Validate(valid, sig_struct_rmw_i32,
+             {WASM_STRUCT_ATOMIC_XOR(memory_order, struct_i32_index, 0,
+                                     WASM_LOCAL_GET(0), WASM_LOCAL_GET(1))},
+             kAppendEnd, error);
+    // array.atomic.rmw.add
+    Validate(
+        valid, sig_array_rmw_i32,
+        {WASM_ARRAY_ATOMIC_ADD(memory_order, array_i32_index, WASM_LOCAL_GET(0),
+                               WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+        kAppendEnd, error);
+    // array.atomic.rmw.sub
+    Validate(
+        valid, sig_array_rmw_i32,
+        {WASM_ARRAY_ATOMIC_SUB(memory_order, array_i32_index, WASM_LOCAL_GET(0),
+                               WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+        kAppendEnd, error);
+    // array.atomic.rmw.and
+    Validate(
+        valid, sig_array_rmw_i32,
+        {WASM_ARRAY_ATOMIC_AND(memory_order, array_i32_index, WASM_LOCAL_GET(0),
+                               WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+        kAppendEnd, error);
+    // array.atomic.rmw.or
+    Validate(
+        valid, sig_array_rmw_i32,
+        {WASM_ARRAY_ATOMIC_OR(memory_order, array_i32_index, WASM_LOCAL_GET(0),
+                              WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+        kAppendEnd, error);
+    // array.atomic.rmw.xor
+    Validate(
+        valid, sig_array_rmw_i32,
+        {WASM_ARRAY_ATOMIC_XOR(memory_order, array_i32_index, WASM_LOCAL_GET(0),
+                               WASM_LOCAL_GET(1), WASM_LOCAL_GET(2))},
+        kAppendEnd, error);
+  }
 }
 
 #undef B1

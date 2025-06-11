@@ -29,6 +29,7 @@
   V(gc)                                  \
   V(typed_funcref)                       \
   V(multi_memory)                        \
+  V(multi_value)                         \
   V(memory64)
 
 // All features, including features that do not have flags.

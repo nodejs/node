@@ -119,7 +119,11 @@ struct Alloc : std::allocator<T> {
   using propagate_on_container_swap = std::true_type;
 
   // Using old paradigm for this to ensure compatibility.
-  explicit Alloc(size_t id = 0) : id_(id) {}
+  //
+  // NOTE: As of 2025-05, this constructor cannot be explicit in order to work
+  // with the libstdc++ that ships with GCC15.
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  Alloc(size_t id = 0) : id_(id) {}
 
   Alloc(const Alloc&) = default;
   Alloc& operator=(const Alloc&) = default;

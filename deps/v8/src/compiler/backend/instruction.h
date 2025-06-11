@@ -1039,9 +1039,6 @@ class V8_EXPORT_PRIVATE Instruction final {
     return arch_opcode() <= ArchOpcode::kArchTailCallAddress;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
-  bool IsThrow() const {
-    return arch_opcode() == ArchOpcode::kArchThrowTerminator;
-  }
 
   static constexpr bool IsCallWithDescriptorFlags(InstructionCode arch_opcode) {
     return arch_opcode <= ArchOpcode::kArchCallBuiltinPointer;

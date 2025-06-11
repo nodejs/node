@@ -196,9 +196,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     // The facilities we are checking for are:
     //   Bit 45 - Distinct Operands for instructions like ARK, SRK, etc.
     // As such, we require only 1 double word
-    int64_t facilities[3] = {0L};
+    int64_t facilities[4] = {0L};
 #if V8_OS_ZOS
-    int64_t reg0 = 2;
+    int64_t reg0 = 3;
     asm volatile(" stfle %0" : "=m"(facilities), __ZL_NR("+", r0)(reg0)::"cc");
 #else
     int16_t reg0;
@@ -206,7 +206,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     // STFLE is specified as .insn, as opcode is not recognized.
     // We register the instructions kill r0 (LHI) and the CC (STFLE).
     asm volatile(
-        "lhi   %%r0,2\n"
+        "lhi   %%r0,3\n"
         ".insn s,0xb2b00000,%0\n"
         : "=Q"(facilities), "=r"(reg0)
         :
@@ -241,9 +241,18 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
         supportsCPUFeature("vx")) {
       supported_ |= (1u << VECTOR_ENHANCE_FACILITY_2);
     }
-    // Test for Miscellaneous Instruction Extension Facility - Bit 58
+    // Test for Vector Enhancement Facility 3 - Bit 198
+    if (facilities[3] & (one << (63 - (198 - 192))) &&
+        supportsCPUFeature("vx")) {
+      supported_ |= (1u << VECTOR_ENHANCE_FACILITY_3);
+    }
+    // Test for Miscellaneous Instruction Extension Facility 2 - Bit 58
     if (facilities[0] & (1lu << (63 - 58))) {
       supported_ |= (1u << MISC_INSTR_EXT2);
+    }
+    // Test for Miscellaneous Instruction Extension Facility 4 - Bit 84
+    if (facilities[1] & (one << (63 - (84 - 64)))) {
+      supported_ |= (1u << MISC_INSTR_EXT4);
     }
   }
 #else
@@ -253,11 +262,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= (1u << GENERAL_INSTR_EXT);
   supported_ |= (1u << FLOATING_POINT_EXT);
   supported_ |= (1u << MISC_INSTR_EXT2);
+  supported_ |= (1u << MISC_INSTR_EXT4);
   USE(performSTFLE);  // To avoid assert
   USE(supportsCPUFeature);
   supported_ |= (1u << VECTOR_FACILITY);
   supported_ |= (1u << VECTOR_ENHANCE_FACILITY_1);
   supported_ |= (1u << VECTOR_ENHANCE_FACILITY_2);
+  supported_ |= (1u << VECTOR_ENHANCE_FACILITY_3);
 #endif
   supported_ |= (1u << FPU);
 
@@ -283,7 +294,10 @@ void CpuFeatures::PrintFeatures() {
          CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_1));
   PrintF("VECTOR_ENHANCE_FACILITY_2=%d\n",
          CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_2));
+  PrintF("VECTOR_ENHANCE_FACILITY_3=%d\n",
+         CpuFeatures::IsSupported(VECTOR_ENHANCE_FACILITY_3));
   PrintF("MISC_INSTR_EXT2=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
+  PrintF("MISC_INSTR_EXT4=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT4));
 }
 
 Register ToRegister(int num) {

@@ -203,7 +203,7 @@ void RegExpMacroAssemblerLOONG64::CheckCharacterLT(base::uc16 limit,
   BranchOrBacktrack(on_less, lt, current_character(), Operand(limit));
 }
 
-void RegExpMacroAssemblerLOONG64::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerLOONG64::CheckFixedLengthLoop(Label* on_equal) {
   Label backtrack_non_equal;
   __ Ld_w(a0, MemOperand(backtrack_stackpointer(), 0));
   __ Branch(&backtrack_non_equal, ne, current_input_offset(), Operand(a0));

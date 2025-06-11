@@ -63,7 +63,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   DirectHandle<JSTypedArray> holder = args.at<JSTypedArray>(0);
-  return *holder->GetBuffer();
+  return *holder->GetBuffer(isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_GrowableSharedArrayBufferByteLength) {

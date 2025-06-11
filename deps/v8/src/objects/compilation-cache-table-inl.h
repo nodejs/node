@@ -21,8 +21,6 @@
 
 namespace v8::internal {
 
-NEVER_READ_ONLY_SPACE_IMPL(CompilationCacheTable)
-
 Tagged<Object> CompilationCacheTable::PrimaryValueAt(InternalIndex entry) {
   return get(EntryToIndex(entry) + 1);
 }
@@ -33,14 +31,15 @@ void CompilationCacheTable::SetPrimaryValueAt(InternalIndex entry,
   set(EntryToIndex(entry) + 1, value, mode);
 }
 
-Tagged<Object> CompilationCacheTable::EvalFeedbackValueAt(InternalIndex entry) {
+Tagged<Object> CompilationCacheTable::EvalJSFunctionsValueAt(
+    InternalIndex entry) {
   static_assert(CompilationCacheShape::kEntrySize == 3);
   return get(EntryToIndex(entry) + 2);
 }
 
-void CompilationCacheTable::SetEvalFeedbackValueAt(InternalIndex entry,
-                                                   Tagged<Object> value,
-                                                   WriteBarrierMode mode) {
+void CompilationCacheTable::SetEvalJSFunctionsValueAt(InternalIndex entry,
+                                                      Tagged<Object> value,
+                                                      WriteBarrierMode mode) {
   set(EntryToIndex(entry) + 2, value, mode);
 }
 
@@ -170,11 +169,11 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
 }
 
 InfoCellPair::InfoCellPair(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
-                           Tagged<FeedbackCell> feedback_cell)
+                           Tagged<JSFunction> js_function)
     : is_compiled_scope_(!shared.is_null() ? shared->is_compiled_scope(isolate)
                                            : IsCompiledScope()),
       shared_(shared),
-      feedback_cell_(feedback_cell) {}
+      js_function_(js_function) {}
 
 }  // namespace v8::internal
 

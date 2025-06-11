@@ -53,13 +53,12 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
   stack_trace.reserve(sample.frames_count + 3);
 
   // The ProfileNode knows nothing about all versions of generated code for
-  // the same JS function. The line number information associated with
-  // the latest version of generated code is used to find a source line number
-  // for a JS function. Then, the detected source line is passed to
-  // ProfileNode to increase the tick count for this source line.
-  const int no_line_info = v8::CpuProfileNode::kNoLineNumberInfo;
-  int src_line = no_line_info;
-  bool src_line_not_found = true;
+  // the same JS function. The position information associated with
+  // the latest version of generated code is used to find a source position
+  // for a JS function. Then, the detected source position is passed to
+  // ProfileNode to increase the tick count for this source position.
+  LineAndColumn src_pos = {};
+  bool src_pos_not_found = true;
 
   if (sample.pc != nullptr) {
     if (sample.has_external_callback && sample.state == EXTERNAL) {
@@ -68,7 +67,7 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
       // that a callback calls itself.
       stack_trace.push_back(
           {FindEntry(reinterpret_cast<Address>(sample.external_callback_entry)),
-           no_line_info});
+           LineAndColumn{}});
     } else {
       Address attributed_pc = reinterpret_cast<Address>(sample.pc);
       Address pc_entry_instruction_start = kNullAddress;
@@ -89,12 +88,12 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
         int pc_offset =
             static_cast<int>(attributed_pc - pc_entry_instruction_start);
         // TODO(petermarshall): pc_offset can still be negative in some cases.
-        src_line = pc_entry->GetSourceLine(pc_offset);
-        if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) {
-          src_line = pc_entry->line_number();
+        src_pos = pc_entry->GetSourcePosition(pc_offset);
+        if (src_pos.line == v8::CpuProfileNode::kNoLineNumberInfo) {
+          src_pos = pc_entry->line_and_column();
         }
-        src_line_not_found = false;
-        stack_trace.push_back({pc_entry, src_line});
+        src_pos_not_found = false;
+        stack_trace.push_back({pc_entry, src_pos});
 
         if (pc_entry->builtin() == Builtin::kFunctionPrototypeApply ||
             pc_entry->builtin() == Builtin::kFunctionPrototypeCall) {
@@ -108,7 +107,7 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
             ProfilerStats::Instance()->AddReason(
                 ProfilerStats::Reason::kInCallOrApply);
             stack_trace.push_back(
-                {CodeEntry::unresolved_entry(), no_line_info});
+                {CodeEntry::unresolved_entry(), LineAndColumn{}});
           }
         }
       }
@@ -118,48 +117,49 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
       Address stack_pos = reinterpret_cast<Address>(sample.stack[i]);
       Address instruction_start = kNullAddress;
       CodeEntry* entry = FindEntry(stack_pos, &instruction_start);
-      int line_number = no_line_info;
+      LineAndColumn position = {};
       if (entry) {
         // Find out if the entry has an inlining stack associated.
         int pc_offset = static_cast<int>(stack_pos - instruction_start);
         // TODO(petermarshall): pc_offset can still be negative in some cases.
-        const std::vector<CodeEntryAndLineNumber>* inline_stack =
+        const std::vector<CodeEntryAndPosition>* inline_stack =
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {
-          int most_inlined_frame_line_number = entry->GetSourceLine(pc_offset);
+          LineAndColumn most_inlined_frame_pos =
+              entry->GetSourcePosition(pc_offset);
           for (auto inline_stack_entry : *inline_stack) {
             stack_trace.push_back(inline_stack_entry);
           }
 
-          // This is a bit of a messy hack. The line number for the most-inlined
+          // This is a bit of a messy hack. The position for the most-inlined
           // frame (the function at the end of the chain of function calls) has
-          // the wrong line number in inline_stack. The actual line number in
+          // the wrong position in inline_stack. The actual position in
           // this function is stored in the SourcePositionTable in entry. We fix
-          // up the line number for the most-inlined frame here.
+          // up the position for the most-inlined frame here.
           // TODO(petermarshall): Remove this and use a tree with a node per
           // inlining_id.
           DCHECK(!inline_stack->empty());
           size_t index = stack_trace.size() - inline_stack->size();
-          stack_trace[index].line_number = most_inlined_frame_line_number;
+          stack_trace[index].line_and_column = most_inlined_frame_pos;
         }
-        // Skip unresolved frames (e.g. internal frame) and get source line of
-        // the first JS caller.
-        if (src_line_not_found) {
-          src_line = entry->GetSourceLine(pc_offset);
-          if (src_line == v8::CpuProfileNode::kNoLineNumberInfo) {
-            src_line = entry->line_number();
+        // Skip unresolved frames (e.g. internal frame) and get source position
+        // of the first JS caller.
+        if (src_pos_not_found) {
+          src_pos = entry->GetSourcePosition(pc_offset);
+          if (src_pos.line == v8::CpuProfileNode::kNoLineNumberInfo) {
+            src_pos = entry->line_and_column();
           }
-          src_line_not_found = false;
+          src_pos_not_found = false;
         }
-        line_number = entry->GetSourceLine(pc_offset);
+        position = entry->GetSourcePosition(pc_offset);
 
         // The inline stack contains the top-level function i.e. the same
         // function as entry. We don't want to add it twice. The one from the
-        // inline stack has the correct line number for this particular inlining
+        // inline stack has the correct position for this particular inlining
         // so we use it instead of pushing entry to stack_trace.
         if (inline_stack) continue;
       }
-      stack_trace.push_back({entry, line_number});
+      stack_trace.push_back({entry, position});
     }
   }
 
@@ -179,11 +179,11 @@ Symbolizer::SymbolizedSample Symbolizer::SymbolizeTickSample(
         ProfilerStats::Instance()->AddReason(
             ProfilerStats::Reason::kNoSymbolizedFrames);
       }
-      stack_trace.push_back({EntryForVMState(sample.state), no_line_info});
+      stack_trace.push_back({EntryForVMState(sample.state), LineAndColumn{}});
     }
   }
 
-  return SymbolizedSample{stack_trace, src_line};
+  return SymbolizedSample{stack_trace, src_pos};
 }
 
 }  // namespace internal

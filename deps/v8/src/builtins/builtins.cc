@@ -352,6 +352,11 @@ Address Builtins::CppEntryOf(Builtin builtin) {
   return builtin_metadata[ToInt(builtin)].data.cpp_entry;
 }
 
+Address Builtins::EmbeddedEntryOf(Builtin builtin) {
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
+  return EmbeddedData::FromBlob().InstructionStartOf(builtin);
+}
+
 // static
 bool Builtins::IsBuiltin(const Tagged<Code> code) {
   return Builtins::IsBuiltinId(code->builtin_id());

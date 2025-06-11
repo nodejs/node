@@ -566,7 +566,7 @@ constexpr auto as_signed(Src value) {
 
 // as_unsigned<> returns the supplied integral value (or integral castable
 // Numeric template) cast as an unsigned integral of equivalent precision.
-// I.e. it's mostly an alias for: static_cast<std::make_unsigned<T>::type>(t)
+// I.e. it's mostly an alias for: static_cast<std::make_unsigned_t<T>>(t)
 template <typename Src,
           typename Dst = std::make_unsigned_t<UnderlyingType<Src>>>
   requires std::integral<Dst>

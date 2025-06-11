@@ -135,7 +135,7 @@ std::optional<BailoutReason> InstructionSelectorT::SelectInstructions() {
   for (auto i = blocks.rbegin(); i != blocks.rend(); ++i) {
     VisitBlock(*i);
     if (instruction_selection_failed())
-      return BailoutReason::kCodeGenerationFailed;
+      return BailoutReason::kTurbofanCodeGenerationFailed;
   }
 
   // Schedule the selected instructions.
@@ -1174,6 +1174,7 @@ void InstructionSelectorT::InitializeCallBuffer(
   bool call_code_immediate = (flags & kCallCodeImmediate) != 0;
   bool call_address_immediate = (flags & kCallAddressImmediate) != 0;
   bool call_use_fixed_target_reg = (flags & kCallFixedTargetRegister) != 0;
+  DeoptimizeKind deopt_kind = DeoptimizeKind::kLazy;
   switch (buffer->descriptor->kind()) {
     case CallDescriptor::kCallCodeObject:
       buffer->instruction_args.push_back(
@@ -1184,6 +1185,10 @@ void InstructionSelectorT::InitializeCallBuffer(
               : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallAddress:
+      // TODO(ahaas): Rename kLazyAfterFastCall and similarly called fields on
+      // the isolate to reflect that they are used for every direct call to C++
+      // and not just for fast API calls.
+      deopt_kind = DeoptimizeKind::kLazyAfterFastCall;
       buffer->instruction_args.push_back(
           (call_address_immediate && this->IsExternalConstant(callee))
               ? g.UseImmediate(callee)
@@ -1257,8 +1262,8 @@ void InstructionSelectorT::InitializeCallBuffer(
     }
 
     int const state_id = sequence()->AddDeoptimizationEntry(
-        buffer->frame_state_descriptor, DeoptimizeKind::kLazy,
-        DeoptimizeReason::kUnknown, node.id(), FeedbackSource());
+        buffer->frame_state_descriptor, deopt_kind, DeoptimizeReason::kUnknown,
+        node.id(), FeedbackSource());
     buffer->instruction_args.push_back(g.TempImmediate(state_id));
 
     StateObjectDeduplicator deduplicator(instruction_zone());
@@ -2132,9 +2137,7 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
   }
 
   FrameStateDescriptor* frame_state_descriptor = nullptr;
-  bool needs_frame_state = false;
   if (call_descriptor->NeedsFrameState()) {
-    needs_frame_state = true;
     frame_state_descriptor =
         GetFrameStateDescriptor(call_op.frame_state().value());
   }
@@ -2207,10 +2210,12 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
         fp_param_count |= 1 << kHasFunctionDescriptorBitShift;
       }
 #endif
-      opcode = needs_frame_state ? kArchCallCFunctionWithFrameState
-                                 : kArchCallCFunction;
-      opcode |= ParamField::encode(gp_param_count) |
-                FPParamField::encode(fp_param_count);
+      // We store the param counts as a separate input because they need too
+      // many bits to be encoded in the opcode.
+      buffer.instruction_args.push_back(
+          g.UseImmediate(ParamField::encode(gp_param_count) |
+                         FPParamField::encode(fp_param_count)));
+      opcode = EncodeCallDescriptorFlags(kArchCallCFunction, flags);
       break;
     }
     case CallDescriptor::kCallCodeObject:
@@ -2531,11 +2536,6 @@ void InstructionSelectorT::VisitDeoptimize(DeoptimizeReason reason,
   InstructionOperandVector args(instruction_zone());
   AppendDeoptimizeArguments(&args, reason, node_id, feedback, frame_state);
   Emit(kArchDeoptimize, 0, nullptr, args.size(), &args.front(), 0, nullptr);
-}
-
-void InstructionSelectorT::VisitThrow(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchThrowTerminator, g.NoOutput());
 }
 
 void InstructionSelectorT::VisitDebugBreak(OpIndex node) {
@@ -3310,6 +3310,7 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
       MarkAsRepresentation(loaded_type.representation(), node);
       if (load.kind.maybe_unaligned) {
         DCHECK(!load.kind.with_trap_handler);
+        DCHECK(!load.kind.is_atomic);
         if (loaded_type.representation() == MachineRepresentation::kWord8 ||
             InstructionSelector::AlignmentRequirements()
                 .IsUnalignedLoadSupported(loaded_type.representation())) {
@@ -3320,9 +3321,11 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
       } else if (load.kind.is_atomic) {
         if (load.result_rep == Rep::Word32()) {
           return VisitWord32AtomicLoad(node);
-        } else {
-          DCHECK_EQ(load.result_rep, Rep::Word64());
+        } else if (load.result_rep == Rep::Word64()) {
           return VisitWord64AtomicLoad(node);
+        } else if (load.result_rep == Rep::Tagged()) {
+          return kTaggedSize == 4 ? VisitWord32AtomicLoad(node)
+                                  : VisitWord64AtomicLoad(node);
         }
       } else if (load.kind.with_trap_handler) {
         DCHECK(!load.kind.maybe_unaligned);

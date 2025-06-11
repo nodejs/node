@@ -96,6 +96,7 @@ class TemplateHashMapImpl {
   // It returns the value of the deleted entry
   // or null if there is no value for such key.
   Value Remove(const Key& key, uint32_t hash);
+  Value Remove(Entry* entry);
 
   // Empties the hash map (occupancy() == 0).
   void Clear();
@@ -266,11 +267,21 @@ Value TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Remove(
     const Key& key, uint32_t hash) {
   // Lookup the entry for the key to remove.
   Entry* p = Probe(key, hash);
+
   if (!p->exists()) {
     // Key not found nothing to remove.
     return nullptr;
   }
 
+  return Remove(p);
+}
+
+template <typename Key, typename Value, typename MatchFun,
+          class AllocationPolicy>
+Value TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Remove(
+    Entry* p) {
+  DCHECK_LE(impl_.map_ - 1, p);
+  DCHECK_LT(p, map_end());
   Value value = p->value;
   // To remove an entry we need to ensure that it does not create an empty
   // entry that will cause the search for another entry to stop too soon. If all
@@ -343,7 +354,8 @@ typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Next(
     Entry* entry) const {
   const Entry* end = map_end();
-  DCHECK(impl_.map_ - 1 <= entry && entry < end);
+  DCHECK_LE(impl_.map_ - 1, entry);
+  DCHECK_LT(entry, map_end());
   for (entry++; entry < end; entry++) {
     if (entry->exists()) {
       return entry;

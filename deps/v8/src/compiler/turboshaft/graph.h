@@ -743,8 +743,8 @@ class Graph {
 
   template <class Op, class... Args>
   void Replace(OpIndex replaced, Args... args) {
-    static_assert((std::is_base_of<Operation, Op>::value));
-    static_assert(std::is_trivially_destructible<Op>::value);
+    static_assert((std::is_base_of_v<Operation, Op>));
+    static_assert(std::is_trivially_destructible_v<Op>);
 
     const Operation& old_op = Get(replaced);
     DecrementInputUses(old_op);
@@ -1052,6 +1052,7 @@ class Graph {
 #ifdef DEBUG
       companion_->generation_ = generation_ + 1;
       if (IsCreatedFromTurbofan()) companion_->SetCreatedFromTurbofan();
+      companion_->broker_ = broker_;
 #endif  // DEBUG
     }
     return *companion_;
@@ -1117,6 +1118,15 @@ class Graph {
   const ZoneAbslFlatHashSet<uint32_t>& stack_checks_to_remove() const {
     return stack_checks_to_remove_;
   }
+
+#ifdef DEBUG
+  void set_broker(JSHeapBroker* broker) { broker_ = broker; }
+  bool has_broker() const { return broker_ != nullptr; }
+  JSHeapBroker* broker() const {
+    DCHECK_NOT_NULL(broker_);
+    return broker_;
+  }
+#endif
 
  private:
   bool InputsValid(const Operation& op) const {
@@ -1198,6 +1208,7 @@ class Graph {
 #ifdef DEBUG
   GrowingBlockSidetable<TypeRefinements> block_type_refinement_;
   bool graph_created_from_turbofan_ = false;
+  JSHeapBroker* broker_ = nullptr;
 #endif
 
   Graph* companion_ = nullptr;

@@ -21,20 +21,20 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
   object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   switch (space) {
     case NEW_SPACE:
-      return new_space_allocator()->AllocateRaw(object_size, alignment,
-                                                AllocationOrigin::kGC);
+      return new_space_allocator()->AllocateRaw(
+          object_size, alignment, AllocationOrigin::kGC, AllocationHint());
     case OLD_SPACE:
-      return old_space_allocator()->AllocateRaw(object_size, alignment,
-                                                AllocationOrigin::kGC);
+      return old_space_allocator()->AllocateRaw(
+          object_size, alignment, AllocationOrigin::kGC, AllocationHint());
     case CODE_SPACE:
-      return code_space_allocator()->AllocateRaw(object_size, alignment,
-                                                 AllocationOrigin::kGC);
+      return code_space_allocator()->AllocateRaw(
+          object_size, alignment, AllocationOrigin::kGC, AllocationHint());
     case SHARED_SPACE:
-      return shared_space_allocator()->AllocateRaw(object_size, alignment,
-                                                   AllocationOrigin::kGC);
+      return shared_space_allocator()->AllocateRaw(
+          object_size, alignment, AllocationOrigin::kGC, AllocationHint());
     case TRUSTED_SPACE:
-      return trusted_space_allocator()->AllocateRaw(object_size, alignment,
-                                                    AllocationOrigin::kGC);
+      return trusted_space_allocator()->AllocateRaw(
+          object_size, alignment, AllocationOrigin::kGC, AllocationHint());
     default:
       UNREACHABLE();
   }

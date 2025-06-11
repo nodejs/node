@@ -52,6 +52,15 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
            // TODO(verwaest): Allowlist contexts to which we have access.
            !map.is_access_check_needed();
   }
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsWasmObjectMap(*map.object())) {
+    DCHECK(!map.object()->has_named_interceptor());
+    DCHECK(!map.is_access_check_needed());
+    // Accesses to Wasm objects all go through the prototype chain, but
+    // we can't express that in this helper function.
+    return true;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   return false;
 }
 
@@ -728,6 +737,11 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
         *details_out = dict->DetailsAt(*index_out);
       }
     }
+#if V8_ENABLE_WEBASSEMBLY
+  } else if (InstanceTypeChecker::IsWasmObject(map.instance_type())) {
+    DCHECK(index_out->is_not_found());
+    return true;  // Skip to prototypes.
+#endif            // V8_ENABLE_WEBASSEMBLY
   } else {
     Tagged<DescriptorArray> descriptors =
         *map.instance_descriptors(broker()).object();
@@ -852,6 +866,13 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
         // occuring before a fast mode holder on the chain.
         return Invalid();
       }
+
+      if (access_mode == AccessMode::kLoad && holder.has_value()) {
+        PropertyAccessInfo access_info = LookupSpecialFieldAccessorInHolder(
+            receiver_map, name, *holder, details, index);
+        if (!access_info.IsInvalid()) return access_info;
+      }
+
       if (details.location() == PropertyLocation::kField) {
         if (details.kind() == PropertyKind::kData) {
           return ComputeDataFieldAccessInfo(receiver_map, map, name, holder,
@@ -1096,17 +1117,6 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
       return PropertyAccessInfo::StringWrapperLength(zone(), map);
     }
   }
-  if (v8_flags.typed_array_length_loading && IsJSTypedArrayMap(*map.object()) &&
-      !IsRabGsabTypedArrayElementsKind(map.elements_kind()) &&
-      Name::Equals(isolate(), name.object(),
-                   isolate()->factory()->length_string()) &&
-      broker_->dependencies()->DependOnTypedArrayLengthProtector() &&
-      broker_->dependencies()->DependOnArrayBufferDetachingProtector()) {
-    // TODO(388844115): If we cannot depend on the detaching protector, add a
-    // different kind of TypedArrayLength operator which checks for detached
-    // before reading the byte_length.
-    return PropertyAccessInfo::TypedArrayLength(zone(), map);
-  }
   // Check for special JSObject field accessors.
   FieldIndex field_index;
   if (Accessors::IsJSObjectFieldAccessor(isolate(), map.object(), name.object(),
@@ -1136,6 +1146,46 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
                                          field_index, field_representation,
                                          field_type, map, {}, {}, {});
   }
+  return Invalid();
+}
+
+PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessorInHolder(
+    MapRef receiver_map, NameRef name, JSObjectRef holder,
+    PropertyDetails details, InternalIndex index) const {
+  // Check whether we're accessing the `length` property in a TypedArray
+  // prototype.
+  if (v8_flags.typed_array_length_loading &&
+      IsJSTypedArrayMap(*receiver_map.object()) &&
+      !IsRabGsabTypedArrayElementsKind(receiver_map.elements_kind()) &&
+      Name::Equals(isolate(), name.object(),
+                   isolate()->factory()->length_string()) &&
+      details.location() == PropertyLocation::kDescriptor) {
+    Tagged<DescriptorArray> descriptors =
+        holder.map(broker_).object()->instance_descriptors(kRelaxedLoad);
+    SLOW_DCHECK(index == descriptors->Search(*name.object(),
+                                             *holder.map(broker_).object(),
+                                             true));
+    Tagged<Object> maybe_accessors = descriptors->GetStrongValue(index);
+    if (IsAccessorPair(maybe_accessors)) {
+      Tagged<AccessorPair> accessors = Cast<AccessorPair>(maybe_accessors);
+      Tagged<Object> maybe_getter = accessors->getter(kAcquireLoad);
+      if (Tagged<JSFunction> getter;
+          TryCast<JSFunction>(maybe_getter, &getter)) {
+        if (getter->shared()->HasBuiltinId() &&
+            getter->shared()->builtin_id() ==
+                Builtin::kTypedArrayPrototypeLength &&
+            broker_->dependencies()->DependOnArrayBufferDetachingProtector()) {
+          dependencies()->DependOnStablePrototypeChain(
+              receiver_map, kStartAtPrototype, holder);
+          // TODO(388844115): If we cannot depend on the detaching protector,
+          // add a different kind of TypedArrayLength operator which checks for
+          // detached before reading the byte_length.
+          return PropertyAccessInfo::TypedArrayLength(zone(), receiver_map);
+        }
+      }
+    }
+  }
+
   return Invalid();
 }
 

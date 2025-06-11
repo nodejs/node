@@ -273,7 +273,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
   MacroAssembler patching_assembler(
-      nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+      zone(), AssemblerOptions{}, CodeObjectRequired::kNo,
       ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
 
   if (V8_LIKELY(frame_size < 4 * KB)) {
@@ -738,6 +738,31 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
   }
 }
 
+void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
+                                               Register offset_reg,
+                                               int32_t offset_imm,
+                                               AtomicMemoryOrder memory_order,
+                                               uint32_t* protected_load_pc,
+                                               bool needs_shift) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
+  uint32_t pc_offset_of_load = 0;
+
+#if V8_COMPRESS_POINTERS
+  Ld_w(dst, src_op);
+  pc_offset_of_load = pc_offset() - kInstrSize;
+  dbar(0);
+  DecompressTagged(dst, dst);
+#else
+  Ld_d(dst, src_op);
+  pc_offset_of_load = pc_offset() - kInstrSize;
+  dbar(0);
+#endif
+  if (protected_load_pc != nullptr) {
+    *protected_load_pc = pc_offset_of_load;
+  }
+}
+
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
                                    StoreType type, LiftoffRegList pinned,
@@ -772,6 +797,44 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
+}
+
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+
+  if (COMPRESS_POINTERS_BOOL) {
+    dbar(0);
+    St_w(src, dst_op);
+  } else {
+    dbar(0);
+    St_d(src, dst_op);
+  }
+  if (protected_store_pc != nullptr) {
+    *protected_store_pc = pc_offset() - kInstrSize;
+  }
+
+  if (v8_flags.disable_write_barriers) return;
+  // The write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+
+  Operand offset_op = Operand(offset_imm);
+  UseScratchRegisterScope temps(this);
+  if (offset_reg.is_valid()) {
+    Register scratch = temps.Acquire();
+    bstrpick_d(scratch, offset_reg, 31, 0);
+    offset_op = Operand(scratch);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 #define ASSEMBLE_ATOMIC_BINOP_EXT(load_linked, store_conditional, size, \

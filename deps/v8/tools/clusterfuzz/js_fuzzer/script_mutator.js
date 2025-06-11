@@ -23,6 +23,7 @@ const runner = require('./runner.js');
 const sourceHelpers = require('./source_helpers.js');
 
 const { AddTryCatchMutator } = require('./mutators/try_catch.js');
+const { AllocationTimeoutMutator } = require('./mutators/allocation_timeout_mutator.js');
 const { ArrayMutator } = require('./mutators/array_mutator.js');
 const { ClosureRemover } = require('./mutators/closure_remover.js');
 const { ContextAnalyzer } = require('./mutators/analyzer.js');
@@ -47,6 +48,8 @@ function defaultSettings() {
     ADD_VAR_OR_OBJ_MUTATIONS: 0.1,
     DIFF_FUZZ_EXTRA_PRINT: 0.1,
     DIFF_FUZZ_TRACK_CAUGHT: 0.4,
+    ENABLE_ALLOCATION_TIMEOUT: 0.5,
+    MUTATE_ALLOCATION_TIMEOUT: 0.02,
     MUTATE_ARRAYS: 0.1,
     MUTATE_CROSSOVER_INSERT: 0.1,
     MUTATE_EXPRESSIONS: 0.1,
@@ -96,6 +99,7 @@ class ScriptMutator {
       new FunctionCallMutator(settings),
       new VariableOrObjectMutator(settings),
     ];
+    this.timeout = new AllocationTimeoutMutator(settings);
     this.closures = new ClosureRemover(settings);
     this.trycatch = new AddTryCatchMutator(settings);
     this.settings = settings;
@@ -202,8 +206,11 @@ class ScriptMutator {
     // We always remove certain closures first.
     mutators.unshift(this.closures);
 
-    // Try-catch wrapping should always be the last mutation.
+    // Try-catch wrapping should follow after error-prone mutations.
     mutators.push(this.trycatch);
+
+    // Non-error-prone mutations that should not get further mutated.
+    mutators.push(this.timeout);
 
     for (const mutator of mutators) {
       mutator.mutate(source, context);

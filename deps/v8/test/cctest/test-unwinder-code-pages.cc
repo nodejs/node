@@ -143,7 +143,7 @@ TEST(Unwind_BadState_Fail_CodePagesAPI) {
 // Unwind a middle JS frame (i.e not the JSEntry one).
 TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
@@ -189,7 +189,7 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
 // unwinder should be able to unwind to the C++ frame before the JSEntry frame.
 TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
@@ -267,7 +267,7 @@ bool PagesContainsAddress(size_t length, MemoryRange* pages,
 TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
   v8_flags.allow_natives_syntax = true;
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   HandleScope scope(i_isolate);
 
@@ -328,7 +328,7 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
 // cannot unwind.
 TEST(Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
 
   JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
   MemoryRange code_pages[1];
@@ -391,7 +391,7 @@ TEST(Unwind_JSEntryBeforeFrame_Fail_CodePagesAPI) {
 // details.
 TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
 
   JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
   MemoryRange code_pages[1];
@@ -445,7 +445,7 @@ TEST(Unwind_TwoJSFrames_Success_CodePagesAPI) {
 // we can't unwind the stack properly.
 TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
@@ -472,7 +472,7 @@ TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
 // stack base, and then with the correct one.
 TEST(Unwind_StackBounds_Basic_CodePagesAPI) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
 
   JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
   MemoryRange code_pages[1];
@@ -509,7 +509,7 @@ TEST(Unwind_StackBounds_Basic_CodePagesAPI) {
 
 TEST(Unwind_StackBounds_WithUnwinding_CodePagesAPI) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
 
   JSEntryStubs entry_stubs = isolate->GetJSEntryStubs();
   MemoryRange code_pages[1];
@@ -580,7 +580,7 @@ TEST(PCIsInV8_BadState_Fail_CodePagesAPI) {
 
 TEST(PCIsInV8_ValidStateNullPC_Fail_CodePagesAPI) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
 
   void* pc = nullptr;
 
@@ -610,7 +610,7 @@ void TestRangeBoundaries(size_t pages_length, MemoryRange* code_pages,
 
 TEST(PCIsInV8_InAllCodePages_CodePagesAPI) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
 
   MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
   size_t pages_length =
@@ -629,7 +629,7 @@ TEST(PCIsInV8_InAllCodePages_CodePagesAPI) {
 // the CodeRange or EmbeddedCodeRange contain JSEntry.
 TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   MemoryRange code_pages[v8::Isolate::kMinCodePagesBufferSize];
@@ -654,7 +654,7 @@ TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
 TEST(PCIsInV8_LargeCodeObject_CodePagesAPI) {
   v8_flags.allow_natives_syntax = true;
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   HandleScope scope(i_isolate);
 

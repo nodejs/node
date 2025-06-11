@@ -25,7 +25,7 @@ BUILTIN(TypedArrayPrototypeBuffer) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSTypedArray, typed_array,
                  "get %TypedArray%.prototype.buffer");
-  return *typed_array->GetBuffer();
+  return *typed_array->GetBuffer(isolate);
 }
 
 namespace {
@@ -518,15 +518,19 @@ simdutf::result ArrayBufferSetFromBase64(
     simdutf::base64_options alphabet,
     simdutf::last_chunk_handling_options last_chunk_handling,
     DirectHandle<JSTypedArray> typed_array, size_t& output_length) {
-  // TODO(rezvan): Add path for typed arrays backed by SharedArrayBuffer
-  if (typed_array->buffer()->is_shared()) {
-    UNIMPLEMENTED();
-  }
   output_length = array_length;
-  simdutf::result simd_result = simdutf::base64_to_binary_safe(
-      reinterpret_cast<const T>(input_vector), input_length,
-      reinterpret_cast<char*>(typed_array->DataPtr()), output_length, alphabet,
-      last_chunk_handling);
+  simdutf::result simd_result;
+  if (typed_array->buffer()->is_shared()) {
+    simd_result = simdutf::atomic_base64_to_binary_safe(
+        reinterpret_cast<const T>(input_vector), input_length,
+        reinterpret_cast<char*>(typed_array->DataPtr()), output_length,
+        alphabet, last_chunk_handling, /*decode_up_to_bad_char*/ true);
+  } else {
+    simd_result = simdutf::base64_to_binary_safe(
+        reinterpret_cast<const T>(input_vector), input_length,
+        reinterpret_cast<char*>(typed_array->DataPtr()), output_length,
+        alphabet, last_chunk_handling, /*decode_up_to_bad_char*/ true);
+  }
 
   return simd_result;
 }
@@ -536,6 +540,7 @@ simdutf::result ArrayBufferSetFromBase64(
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.frombase64
 BUILTIN(Uint8ArrayFromBase64) {
   HandleScope scope(isolate);
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. If string is not a String, throw a TypeError exception.
   DirectHandle<Object> input = args.atOrUndefined(isolate, 1);
@@ -611,6 +616,7 @@ BUILTIN(Uint8ArrayFromBase64) {
 BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
   HandleScope scope(isolate);
   const char method_name[] = "Uint8Array.prototype.setFromBase64";
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let into be the this value.
   // 2. Perform ? ValidateUint8Array(into).
@@ -654,6 +660,13 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
         isolate, NewTypeError(MessageTemplate::kDetachedOperation,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   method_name)));
+  }
+
+  // If the receiver has length of 0, we should return early
+  // with 0 bytes read and 0 bytes write.
+  if (array_length == 0) {
+    return *isolate->factory()->NewJSUint8ArraySetFromResult(
+        handle(Smi::zero(), isolate), handle(Smi::zero(), isolate));
   }
 
   // 14. Let result be FromBase64(string, alphabet, lastChunkHandling,
@@ -717,6 +730,7 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
 BUILTIN(Uint8ArrayPrototypeToBase64) {
   HandleScope scope(isolate);
   const char method_name[] = "Uint8Array.prototype.toBase64";
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let O be the this value.
   // 2. Perform ? ValidateUint8Array(O).
@@ -818,11 +832,16 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
     //    is false.
     // 11. Return CodePointsToString(outAscii).
 
-    // TODO(rezvan): Make sure to add a path for SharedArrayBuffers when
-    // simdutf library got updated. Also, add a test for it.
-    size_t simd_result_size = simdutf::binary_to_base64(
-        std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store()),
-        length, reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
+    size_t simd_result_size;
+    if (uint8array->buffer()->is_shared()) {
+      simd_result_size = simdutf::atomic_binary_to_base64(
+          std::bit_cast<const char*>(uint8array->DataPtr()), length,
+          reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
+    } else {
+      simd_result_size = simdutf::binary_to_base64(
+          std::bit_cast<const char*>(uint8array->DataPtr()), length,
+          reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
+    }
     DCHECK_EQ(simd_result_size, output_length);
     USE(simd_result_size);
   }
@@ -837,6 +856,7 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
 BUILTIN(Uint8ArrayFromHex) {
   HandleScope scope(isolate);
   const char method_name[] = "Uint8Array.fromHex";
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. If string is not a String, throw a TypeError exception.
   DirectHandle<Object> input = args.atOrUndefined(isolate, 1);
@@ -883,14 +903,14 @@ BUILTIN(Uint8ArrayFromHex) {
         base::Vector<const uint8_t> input_vector =
             input_content.ToOneByteVector();
         result = ArrayBufferFromHex(
-            input_vector, static_cast<uint8_t*>(buffer->backing_store()),
-            output_length);
+            input_vector, /*is_shared*/ false,
+            static_cast<uint8_t*>(buffer->backing_store()), output_length);
       } else {
         base::Vector<const base::uc16> input_vector =
             input_content.ToUC16Vector();
         result = ArrayBufferFromHex(
-            input_vector, static_cast<uint8_t*>(buffer->backing_store()),
-            output_length);
+            input_vector, /*is_shared*/ false,
+            static_cast<uint8_t*>(buffer->backing_store()), output_length);
       }
   }
 
@@ -913,7 +933,8 @@ BUILTIN(Uint8ArrayFromHex) {
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.setfromhex
 BUILTIN(Uint8ArrayPrototypeSetFromHex) {
   HandleScope scope(isolate);
-  const char method_name[] = "Uint8Array.prototypr.setFromHex";
+  const char method_name[] = "Uint8Array.prototype.setFromHex";
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   // 1. Let into be the this value.
   // 2. Perform ? ValidateUint8Array(into).
@@ -950,6 +971,13 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
                                   method_name)));
   }
 
+  // If the receiver has length of 0, we should return early
+  // with 0 bytes read and 0 bytes write.
+  if (array_length == 0) {
+    return *isolate->factory()->NewJSUint8ArraySetFromResult(
+        handle(Smi::zero(), isolate), handle(Smi::zero(), isolate));
+  }
+
   size_t input_length = input_string->length();
   if (input_length % 2 != 0) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -958,11 +986,6 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
 
   size_t output_length = (input_length / 2);
   output_length = std::min(output_length, array_length);
-
-  // TODO(rezvan): Add path for typed arrays backed by SharedArrayBuffer
-  if (uint8array->buffer()->is_shared()) {
-    UNIMPLEMENTED();
-  }
 
   // 7. Let result be FromHex(string, byteLength).
   // 8. Let bytes be result.[[Bytes]].
@@ -979,15 +1002,15 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
     if (input_content.IsOneByte()) {
       base::Vector<const uint8_t> input_vector =
           input_content.ToOneByteVector();
-      result = ArrayBufferFromHex(input_vector,
-                                  static_cast<uint8_t*>(uint8array->DataPtr()),
-                                  output_length);
+      result = ArrayBufferFromHex(
+          input_vector, uint8array->buffer()->is_shared(),
+          static_cast<uint8_t*>(uint8array->DataPtr()), output_length);
     } else {
       base::Vector<const base::uc16> input_vector =
           input_content.ToUC16Vector();
-      result = ArrayBufferFromHex(input_vector,
-                                  static_cast<uint8_t*>(uint8array->DataPtr()),
-                                  output_length);
+      result = ArrayBufferFromHex(
+          input_vector, uint8array->buffer()->is_shared(),
+          static_cast<uint8_t*>(uint8array->DataPtr()), output_length);
     }
   }
 
@@ -1013,6 +1036,7 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
 BUILTIN(Uint8ArrayPrototypeToHex) {
   HandleScope scope(isolate);
   const char method_name[] = "Uint8Array.prototype.toHex";
+  isolate->CountUsage(v8::Isolate::kUint8ArrayToFromBase64AndHex);
 
   //  1. Let O be the this value.
   //  2. Perform ? ValidateUint8Array(O).
@@ -1044,9 +1068,6 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
     return *isolate->factory()->empty_string();
   }
 
-  const char* bytes =
-      std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store());
-
   //   4. Let out be the empty String.
   DirectHandle<SeqOneByteString> output;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -1057,7 +1078,8 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
   //    b. Set hex to StringPad(hex, 2, "0", start).
   //    c. Set out to the string-concatenation of out and hex.
   //  6. Return out.
-  return Uint8ArrayToHex(bytes, length, output);
+  return Uint8ArrayToHex(std::bit_cast<const char*>(uint8array->DataPtr()),
+                         length, uint8array->buffer()->is_shared(), output);
 }
 
 }  // namespace internal

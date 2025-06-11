@@ -80,6 +80,11 @@ namespace internal {
 #define MAGLEV_SCRATCH_DOUBLE_REGISTERS(R)                \
   R(d30) R(d31)
 
+#define C_CALL_CALLEE_SAVE_REGISTERS \
+  x19, x20, x21, x22, x23, x24, x25, x26, x27, x28
+
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
+
 // clang-format on
 
 // Some CPURegister methods can return Register and VRegister types, so we

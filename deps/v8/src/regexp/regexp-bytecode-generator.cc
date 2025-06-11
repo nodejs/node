@@ -174,9 +174,9 @@ void RegExpBytecodeGenerator::AdvanceCurrentPosition(int by) {
   advance_current_end_ = pc_;
 }
 
-void RegExpBytecodeGenerator::CheckGreedyLoop(
+void RegExpBytecodeGenerator::CheckFixedLengthLoop(
     Label* on_tos_equals_current_position) {
-  Emit(BC_CHECK_GREEDY, 0);
+  Emit(BC_CHECK_FIXED_LENGTH, 0);
   EmitOrLink(on_tos_equals_current_position);
 }
 

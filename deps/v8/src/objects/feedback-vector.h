@@ -290,7 +290,6 @@ class ClosureFeedbackCellArray
       TaggedArrayBase<ClosureFeedbackCellArray, ClosureFeedbackCellArrayShape>;
 
  public:
-  NEVER_READ_ONLY_SPACE
   using Shape = ClosureFeedbackCellArrayShape;
 
   V8_EXPORT_PRIVATE static DirectHandle<ClosureFeedbackCellArray> New(
@@ -310,7 +309,6 @@ class NexusConfig;
 class FeedbackVector
     : public TorqueGeneratedFeedbackVector<FeedbackVector, HeapObject> {
  public:
-  NEVER_READ_ONLY_SPACE
   DEFINE_TORQUE_GENERATED_OSR_STATE()
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
 
@@ -397,10 +395,13 @@ class FeedbackVector
 
   // Optimized OSR'd code is cached in JumpLoop feedback vector slots. The
   // slots either contain a Code object or the ClearedValue.
-  inline std::optional<Tagged<Code>> GetOptimizedOsrCode(Isolate* isolate,
-                                                         FeedbackSlot slot);
+  inline std::optional<Tagged<Code>> GetOptimizedOsrCode(
+      Isolate* isolate, Handle<BytecodeArray> bytecode_array,
+      FeedbackSlot slot);
   void SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                            Tagged<Code> code);
+  inline void RecomputeOptimizedOsrCodeFlags(
+      Isolate* isolate, Handle<BytecodeArray> bytecode_array);
 
 #ifdef V8_ENABLE_LEAPTIERING
   inline bool tiering_in_progress() const;

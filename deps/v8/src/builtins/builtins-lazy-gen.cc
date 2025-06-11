@@ -16,6 +16,28 @@ namespace internal {
 
 #include "src/codegen/define-code-stub-assembler-macros.inc"
 
+void LazyBuiltinsAssembler::GenerateTailCallToJSFunction(
+    TNode<JSFunction> function) {
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  auto dispatch_handle =
+      UncheckedParameter<JSDispatchHandleT>(Descriptor::kDispatchHandle);
+  CSA_DCHECK(this,
+             Word32Equal(dispatch_handle,
+                         LoadObjectField<JSDispatchHandleT>(
+                             function, JSFunction::kDispatchHandleOffset)));
+  TNode<Code> code = LoadCodeObjectFromJSDispatchTable(dispatch_handle);
+#else
+  auto dispatch_handle = InvalidDispatchHandleConstant();
+  TNode<Code> code = LoadJSFunctionCode(function);
+#endif
+  TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
+}
+
+#ifndef V8_ENABLE_LEAPTIERING
+
 void LazyBuiltinsAssembler::GenerateTailCallToJSCode(
     TNode<Code> code, TNode<JSFunction> function) {
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
@@ -27,7 +49,6 @@ void LazyBuiltinsAssembler::GenerateTailCallToJSCode(
 #else
   auto dispatch_handle = InvalidDispatchHandleConstant();
 #endif
-  // TODO(40931165): Check that dispatch_handle-argcount == code-argcount.
   TailCallJSCode(code, context, function, new_target, argc, dispatch_handle);
 }
 
@@ -37,8 +58,6 @@ void LazyBuiltinsAssembler::GenerateTailCallToReturnedCode(
   TNode<Code> code = CAST(CallRuntime(function_id, context, function));
   GenerateTailCallToJSCode(code, function);
 }
-
-#ifndef V8_ENABLE_LEAPTIERING
 
 void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
     TNode<JSFunction> function, TNode<FeedbackVector> feedback_vector) {
@@ -104,7 +123,8 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
 
 #endif  // !V8_ENABLE_LEAPTIERING
 
-void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
+void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function,
+                                        TNode<Context> context) {
   // First lookup code, maybe we don't need to compile!
   Label compile_function(this, Label::kDeferred);
 
@@ -155,7 +175,8 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // function's dispatch table entry and call it. Installing the code is
   // necessary as the dispatch table entry may still contain the CompileLazy
   // builtin at this point (we can only update dispatch table code from C++).
-  GenerateTailCallToReturnedCode(Runtime::kInstallSFICode, function);
+  CallRuntime(Runtime::kInstallSFICode, context, function);
+  GenerateTailCallToJSFunction(function);
 #else
   Label tailcall_code(this), baseline(this);
   TVARIABLE(Code, code);
@@ -182,13 +203,15 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
 #endif  // V8_ENABLE_LEAPTIERING
 
   BIND(&compile_function);
-  GenerateTailCallToReturnedCode(Runtime::kCompileLazy, function);
+  CallRuntime(Runtime::kCompileLazy, context, function);
+  GenerateTailCallToJSFunction(function);
 }
 
 TF_BUILTIN(CompileLazy, LazyBuiltinsAssembler) {
   auto function = Parameter<JSFunction>(Descriptor::kTarget);
+  auto context = Parameter<Context>(Descriptor::kContext);
 
-  CompileLazy(function);
+  CompileLazy(function, context);
 }
 
 #ifdef V8_ENABLE_LEAPTIERING

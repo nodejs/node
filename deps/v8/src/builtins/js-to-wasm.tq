@@ -508,7 +508,7 @@ macro HandleF32Params(
 }
 
 macro JSToWasmWrapperHelper(
-    context: NativeContext, _receiver: JSAny, target: JSFunction,
+    context: NativeContext, receiver: JSAny, target: JSFunction,
     arguments: Arguments, promise: constexpr Promise): JSAny {
   const functionData = target.shared_function_info.wasm_exported_function_data;
 
@@ -528,17 +528,14 @@ macro JSToWasmWrapperHelper(
   const implicitArg: WasmImportData|WasmTrustedInstanceData =
       functionData.internal.implicit_arg;
 
-  const paramCount =
-      TruncateIntPtrToInt32(*GetRefAt<intptr>(sig, kWasmParameterCountOffset));
+  const paramCount = *GetRefAt<intptr>(sig, kWasmParameterCountOffset);
 
-  const returnCount =
-      TruncateIntPtrToInt32(*GetRefAt<intptr>(sig, kWasmReturnCountOffset));
+  const returnCount = *GetRefAt<intptr>(sig, kWasmReturnCountOffset);
 
   const reps = *GetRefAt<RawPtr>(sig, kWasmSigTypesOffset);
 
   const sigTypes = torque_internal::unsafe::NewOffHeapConstSlice(
-      %RawDownCast<RawPtr<uint32>>(reps),
-      Convert<intptr>(paramCount + returnCount));
+      %RawDownCast<RawPtr<uint32>>(reps), paramCount + returnCount);
 
   // If the return count is greater than 1, then the return values are returned
   // as a JSArray. After returning from the call to wasm, the return values are
@@ -549,12 +546,11 @@ macro JSToWasmWrapperHelper(
   let returnSize: intptr = 0;
   let hasRefReturns: bool = false;
   if (returnCount > 1) {
-    resultArray = WasmAllocateJSArray(Convert<Smi>(returnCount));
+    resultArray = WasmAllocateJSArray(SmiFromIntPtr(returnCount));
 
     // We have to calculate the size of the stack area where the wasm function
     // will store the return values for multi-return.
-    const returnTypes =
-        Subslice(sigTypes, Convert<intptr>(0), Convert<intptr>(returnCount))
+    const returnTypes = Subslice(sigTypes, Convert<intptr>(0), returnCount)
         otherwise unreachable;
     let allocator = NewReturnSlotAllocator();
 
@@ -593,8 +589,7 @@ macro JSToWasmWrapperHelper(
     returnSize = allocator.GetSize();
   }
 
-  const paramTypes = Subslice(
-      sigTypes, Convert<intptr>(returnCount), Convert<intptr>(paramCount))
+  const paramTypes = Subslice(sigTypes, returnCount, paramCount)
       otherwise unreachable;
 
   // The `paramBuffer` is a byte array that stores parameters that have already
@@ -662,10 +657,9 @@ macro JSToWasmWrapperHelper(
     const kSlotSize: intptr = torque_internal::SizeOf<float64>();
     // Two padding words between the different segments.
     const kPadding = 2;
-    paramBufferSize = Convert<intptr>(
-        (UniqueIntPtrConstant(kNumFPRegisterParameters) +
-         Convert<intptr>(paramCount) + kPadding) *
-        kSlotSize);
+    paramBufferSize = (UniqueIntPtrConstant(kNumFPRegisterParameters) +
+                       paramCount + kPadding) *
+        kSlotSize;
     const bufferOnCHeap = AllocateBuffer(paramBufferSize);
     paramBuffer = torque_internal::unsafe::NewOffHeapReference(bufferOnCHeap);
   }
@@ -683,11 +677,16 @@ macro JSToWasmWrapperHelper(
   // JavaScript using `Function.prototype.arguments`.
   let convertedTagged: FixedArray|Smi = Convert<Smi>(0);
 
-  let paramTypeIndex: int32 = 0;
-  for (let paramIndex: int32 = 0; paramTypeIndex < paramCount; paramIndex++) {
-    const param = arguments[Convert<intptr>(paramIndex)];
-    const paramType = *paramTypes.UncheckedAtIndex(
-        Convert<intptr>(paramTypeIndex++));
+  const receiverIsFirstParam: bool =
+      functionData.receiver_is_first_param != SmiConstant(0);
+  const zero: intptr = 0;  // Torque insists. Whatever.
+  const argumentsOffset: intptr = receiverIsFirstParam ? -1 : zero;
+
+  for (let paramIndex: intptr = 0; paramIndex < paramCount; paramIndex++) {
+    const param = (receiverIsFirstParam && paramIndex == 0) ?
+        receiver :
+        arguments[paramIndex + argumentsOffset];
+    const paramType = *paramTypes.UncheckedAtIndex(paramIndex);
     if (paramType == kWasmI32Type) {
       let toRef = locationAllocator.GetGPSlot();
       typeswitch (param) {
@@ -733,11 +732,9 @@ macro JSToWasmWrapperHelper(
       // lazily.
       hasRefParam = true;
       if (TaggedIsSmi(convertedTagged)) {
-        convertedTagged =
-            WasmAllocateZeroedFixedArray(Convert<intptr>(paramCount));
+        convertedTagged = WasmAllocateZeroedFixedArray(paramCount);
       }
-      UnsafeCast<FixedArray>(convertedTagged)
-          .objects[Convert<intptr>(paramIndex)] =
+      UnsafeCast<FixedArray>(convertedTagged).objects[paramIndex] =
           JSToWasmObject(context, paramType, param);
     }
   }
@@ -755,26 +752,15 @@ macro JSToWasmWrapperHelper(
   // here and leave it in the assembly builtin just before we call to wasm.
   if (hasRefParam) {
     // Iterate over all parameters again and handle all those with ref types.
-    let k: int32 = 0;
-    // For stack switching k and paramIndex diverges,
-    // because a suspender is not passed to wrapper as param.
-    let paramIndex: int32 = 0;
     locationAllocator.StartRefs();
-
-    // We are not using a `for` loop here because Torque does not support
-    // `continue` in `for` loops.
-    while (k < paramCount) {
-      const paramType = *paramTypes.UncheckedAtIndex(Convert<intptr>(k));
-      if ((paramType & kValueTypeIsRefBit) == 0) {
-        k++;
-        paramIndex++;
-        continue;
+    for (let paramIndex: intptr = 0; paramIndex < paramCount; paramIndex++) {
+      const paramType = *paramTypes.UncheckedAtIndex(paramIndex);
+      if ((paramType & kValueTypeIsRefBit) != 0) {
+        const param =
+            UnsafeCast<FixedArray>(convertedTagged).objects[paramIndex];
+        let toRef = locationAllocator.GetGPSlot();
+        *toRef = BitcastTaggedToWord(param);
       }
-      const param = UnsafeCast<FixedArray>(convertedTagged)
-                        .objects[Convert<intptr>(paramIndex++)];
-      let toRef = locationAllocator.GetGPSlot();
-      *toRef = BitcastTaggedToWord(param);
-      k++;
     }
   }
   const paramStart = paramBuffer.GCUnsafeRawPtr();
@@ -791,7 +777,8 @@ macro JSToWasmWrapperHelper(
   const wrapperBuffer = %RawDownCast<RawPtr<intptr>>(
       StackSlotPtr(kWrapperBufferSize, torque_internal::SizeOf<intptr>()));
 
-  *GetRefAt<int32>(wrapperBuffer, kWrapperBufferReturnCount) = returnCount;
+  *GetRefAt<int32>(wrapperBuffer, kWrapperBufferReturnCount) =
+      TruncateIntPtrToInt32(returnCount);
   *GetRefAt<bool>(wrapperBuffer, kWrapperBufferRefReturnCount) = hasRefReturns;
   *GetRefAt<RawPtr>(wrapperBuffer, kWrapperBufferSigRepresentationArray) = reps;
   *GetRefAt<intptr>(wrapperBuffer, kWrapperBufferStackReturnBufferSize) =

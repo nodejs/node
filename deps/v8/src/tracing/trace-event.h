@@ -430,12 +430,11 @@ static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
 // This is the base implementation for integer types (including bool) and enums.
 template <typename T>
 static V8_INLINE void SetTraceValue(T arg, unsigned char* type, uint64_t* value)
-  requires(std::is_integral<T>::value || std::is_enum<T>::value)
+  requires(std::is_integral_v<T> || std::is_enum_v<T>)
 {
-  *type = std::is_same<T, bool>::value
-              ? TRACE_VALUE_TYPE_BOOL
-              : std::is_signed<T>::value ? TRACE_VALUE_TYPE_INT
-                                         : TRACE_VALUE_TYPE_UINT;
+  *type = std::is_same_v<T, bool> ? TRACE_VALUE_TYPE_BOOL
+          : std::is_signed_v<T>   ? TRACE_VALUE_TYPE_INT
+                                  : TRACE_VALUE_TYPE_UINT;
   *value = static_cast<uint64_t>(arg);
 }
 
@@ -463,7 +462,7 @@ static V8_INLINE void SetTraceValue(ConvertableToTraceFormat* convertable_value,
 template <typename T>
 static V8_INLINE void SetTraceValue(std::unique_ptr<T> ptr, unsigned char* type,
                                     uint64_t* value)
-  requires std::is_convertible<T*, ConvertableToTraceFormat*>::value
+  requires std::is_convertible_v<T*, ConvertableToTraceFormat*>
 {
   SetTraceValue(ptr.release(), type, value);
 }

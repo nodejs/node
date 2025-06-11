@@ -72,7 +72,7 @@ static void RunSampler(v8::Local<v8::Context> env,
                        v8::Local<v8::Value> argv[], int argc,
                        unsigned min_js_samples = 0,
                        unsigned min_external_samples = 0) {
-  TestSampler sampler(env->GetIsolate());
+  TestSampler sampler(v8::Isolate::GetCurrent());
   TestSamplingThread thread(&sampler);
   sampler.Start();
   sampler.StartCountingSamples();
@@ -98,7 +98,9 @@ static const char* sampler_test_source =
 static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
                                            const char* name) {
   return env->Global()
-      ->Get(env, String::NewFromUtf8(env->GetIsolate(), name).ToLocalChecked())
+      ->Get(
+          env,
+          String::NewFromUtf8(v8::Isolate::GetCurrent(), name).ToLocalChecked())
       .ToLocalChecked()
       .As<v8::Function>();
 }

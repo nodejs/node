@@ -39,6 +39,7 @@
 namespace absl_log_internal {
 
 using ::testing::AllOf;
+using ::testing::AnyOf;
 using ::testing::HasSubstr;
 using ::testing::Not;
 
@@ -634,14 +635,12 @@ void AbslStringify(Sink& sink, const PointerIsStringifiable* var) {
 TEST(CHECKDeathTest, TestPointerPrintedAsNumberDespiteAbslStringify) {
   const auto* p = reinterpret_cast<const PointerIsStringifiable*>(0x1234);
 
-#ifdef _MSC_VER
   EXPECT_DEATH(
       ABSL_TEST_CHECK_EQ(p, nullptr),
-      HasSubstr("Check failed: p == nullptr (0000000000001234 vs. (null))"));
-#else   // _MSC_VER
-  EXPECT_DEATH(ABSL_TEST_CHECK_EQ(p, nullptr),
-               HasSubstr("Check failed: p == nullptr (0x1234 vs. (null))"));
-#endif  // _MSC_VER
+      AnyOf(
+        HasSubstr("Check failed: p == nullptr (0000000000001234 vs. (null))"),
+        HasSubstr("Check failed: p == nullptr (0x1234 vs. (null))")
+      ));
 }
 
 // An uncopyable object with operator<<.

@@ -182,7 +182,8 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
   LoopUnrollingAnalyzer(Zone* phase_zone, Graph* input_graph, bool is_wasm)
       : input_graph_(input_graph),
         matcher_(*input_graph),
-        loop_finder_(phase_zone, input_graph),
+        loop_finder_(phase_zone, input_graph,
+                     {LoopFinder::ConfigFlags::kFindCalls}),
         loop_iteration_count_(phase_zone),
         canonical_loop_matcher_(matcher_),
         is_wasm_(is_wasm),
@@ -205,7 +206,7 @@ class V8_EXPORT_PRIVATE LoopUnrollingAnalyzer {
   bool ShouldPartiallyUnrollLoop(const Block* loop_header) const {
     DCHECK(loop_header->IsLoop());
     LoopFinder::LoopInfo info = loop_finder_.GetLoopInfo(loop_header);
-    return !info.has_inner_loops &&
+    return !info.has_inner_loops && !info.has_any_call &&
            info.op_count < kMaxLoopSizeForPartialUnrolling;
   }
 
@@ -316,21 +317,6 @@ class LoopStackCheckElisionReducer : public Next {
         }
       }
     }
-  }
-
-  V<AnyOrNone> REDUCE_INPUT_GRAPH(Call)(V<AnyOrNone> ig_idx,
-                                        const CallOp& call) {
-    LABEL_BLOCK(no_change) { return Next::ReduceInputGraphCall(ig_idx, call); }
-    if (ShouldSkipOptimizationStep()) goto no_change;
-
-    if (skip_next_stack_check_ &&
-        call.IsStackCheck(__ input_graph(), broker_,
-                          StackCheckKind::kJSIterationBody)) {
-      skip_next_stack_check_ = false;
-      return {};
-    }
-
-    goto no_change;
   }
 
   V<None> REDUCE_INPUT_GRAPH(JSStackCheck)(V<None> ig_idx,
@@ -445,25 +431,6 @@ class LoopUnrollingReducer : public Next {
         DCHECK(is_true_in_loop && is_false_in_loop);
       }
     }
-    goto no_change;
-  }
-
-  V<AnyOrNone> REDUCE_INPUT_GRAPH(Call)(V<AnyOrNone> ig_idx,
-                                        const CallOp& call) {
-    LABEL_BLOCK(no_change) { return Next::ReduceInputGraphCall(ig_idx, call); }
-    if (ShouldSkipOptimizationStep()) goto no_change;
-
-    if (V8_LIKELY(!IsRunningBuiltinPipeline())) {
-      if (skip_next_stack_check_ &&
-          call.IsStackCheck(__ input_graph(), broker_,
-                            StackCheckKind::kJSIterationBody)) {
-        // When we unroll a loop, we get rid of its stack checks. (note that
-        // we don't do this for the last folded body of partially unrolled
-        // loops so that the loop keeps one stack check).
-        return {};
-      }
-    }
-
     goto no_change;
   }
 

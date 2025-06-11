@@ -119,8 +119,8 @@ class ABSL_ATTRIBUTE_OWNER btree_set
   //
   // * Copy assignment operator
   //
-  //  absl::btree_set<std::string> set4;
-  //  set4 = set3;
+  //   absl::btree_set<std::string> set4;
+  //   set4 = set3;
   //
   // * Move constructor
   //
@@ -475,8 +475,8 @@ class ABSL_ATTRIBUTE_OWNER btree_multiset
   //
   // * Copy assignment operator
   //
-  //  absl::btree_multiset<std::string> set4;
-  //  set4 = set3;
+  //   absl::btree_multiset<std::string> set4;
+  //   set4 = set3;
   //
   // * Move constructor
   //

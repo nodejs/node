@@ -80,7 +80,7 @@ class NameTrait final : public NameTraitBase {
 #elif CPPGC_SUPPORTS_OBJECT_NAMES
     return true;
 #else   // !CPPGC_SUPPORTS_OBJECT_NAMES
-    return std::is_base_of<NameProvider, T>::value;
+    return std::is_base_of_v<NameProvider, T>;
 #endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
   }
 

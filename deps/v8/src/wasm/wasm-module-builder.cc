@@ -7,6 +7,7 @@
 #include "src/codegen/signature.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
+#include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/zone-containers.h"

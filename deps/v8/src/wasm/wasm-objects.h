@@ -17,7 +17,7 @@
 #include "src/debug/interface-types.h"
 #include "src/heap/heap.h"
 #include "src/objects/backing-store.h"
-#include "src/objects/casting.h"
+#include "src/objects/contexts.h"
 #include "src/objects/foreign.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
@@ -42,6 +42,7 @@ class NativeModule;
 class WasmCode;
 struct WasmFunction;
 struct WasmGlobal;
+class WasmImportWrapperHandle;
 struct WasmModule;
 struct WasmTag;
 using WasmTagSig = FunctionSig;
@@ -99,13 +100,21 @@ class V8_EXPORT_PRIVATE FunctionTargetAndImplicitArg {
 
 namespace wasm {
 enum class OnResume : int { kContinue, kThrow };
+
+// Generated "constructor" functions (per the Custom Descriptors proposal)
+// store the exported Wasm function they're calling in a context slot.
+// We use the first slot in a context with one slot.
+static constexpr int kConstructorFunctionContextSlot =
+    Context::MIN_CONTEXT_SLOTS;
+static constexpr int kConstructorFunctionContextLength =
+    kConstructorFunctionContextSlot + 1;
 }  // namespace wasm
 
 // A helper for an entry for an imported function, indexed statically.
 // The underlying storage in the instance is used by generated code to
 // call imported functions at runtime.
 // Each entry is either:
-//   - Wasm to JS, which has fields
+//   - Wasm to Wrapper, which has fields
 //      - object = a WasmImportData
 //      - target = entrypoint to import wrapper code
 //   - Wasm to Wasm, which has fields
@@ -116,18 +125,6 @@ class ImportedFunctionEntry {
   inline ImportedFunctionEntry(DirectHandle<WasmTrustedInstanceData>,
                                int index);
 
-  // Initialize this entry as a Wasm to JS call. This accepts the isolate as a
-  // parameter since it allocates a WasmImportData.
-  void SetGenericWasmToJs(Isolate*, DirectHandle<JSReceiver> callable,
-                          wasm::Suspend suspend, const wasm::CanonicalSig* sig,
-                          wasm::CanonicalTypeIndex sig_id);
-  V8_EXPORT_PRIVATE void SetCompiledWasmToJs(Isolate*,
-                                             DirectHandle<JSReceiver> callable,
-                                             wasm::WasmCode* wasm_to_js_wrapper,
-                                             wasm::Suspend suspend,
-                                             const wasm::CanonicalSig* sig,
-                                             wasm::CanonicalTypeIndex sig_id);
-
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(Tagged<WasmTrustedInstanceData> target_instance_object,
                      WasmCodePointer call_target,
@@ -137,6 +134,15 @@ class ImportedFunctionEntry {
                      int exported_function_index
 #endif  // V8_ENABLE_DRUMBRAKE
   );
+
+  // Initialize this entry as a Wasm to non-Wasm call, i.e. anything that needs
+  // an import wrapper. This accepts the isolate as a parameter since it
+  // allocates a WasmImportData.
+  V8_EXPORT_PRIVATE void SetWasmToWrapper(
+      Isolate*, DirectHandle<JSReceiver> callable,
+      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+      wasm::Suspend suspend, const wasm::CanonicalSig* sig,
+      wasm::CanonicalTypeIndex sig_id);
 
   Tagged<JSReceiver> callable();
   Tagged<Object> maybe_callable();
@@ -769,18 +775,15 @@ class WasmTagObject
   TQ_OBJECT_CONSTRUCTORS(WasmTagObject)
 };
 
-// Off-heap data object owned by a WasmDispatchTable. Currently used for
-// tracking referenced WasmToJS wrappers (shared per process), so we can
-// decrement their refcounts when the WasmDispatchTable is freed.
+// Off-heap data object owned by a WasmDispatchTable. Owns the {shared_ptr}s
+// which manage the lifetimes of the {WasmImportWrapperHandle}s.
 class WasmDispatchTableData {
  public:
-  WasmDispatchTableData() = default;
-  ~WasmDispatchTableData();
-
-  // This class tracks wrapper entries since it owns the corresponding
-  // CodePointerTable entries. This function can be used to check if a given
-  // entry points to a wrapper.
-  V8_EXPORT_PRIVATE bool IsAWrapper(int index) const;
+  // If a wrapper is installed at the given {index}, returns the corresponding
+  // {WasmImportWrapperHandle} so that it can be reused in other tables.
+  V8_EXPORT_PRIVATE
+  std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
+  MaybeGetWrapperHandle(int index) const;
 
 #ifdef DEBUG
   WasmCodePointer WrapperCodePointerForDebugging(int index);
@@ -789,24 +792,12 @@ class WasmDispatchTableData {
  private:
   friend class WasmDispatchTable;
 
-  // This class owns the CodePointerTable entries for generic and compiled
-  // wrappers. This function adds an entry for a wrapper. If {compiled_wrapper}
-  // is nullptr, the entry is for the generic wrapper.
-  // The CodePointerTableEntry is reused for the generic and compiled wrapper.
-  WasmCodePointer Add(int index, Address call_target,
-                      wasm::WasmCode* compiled_wrapper,
-                      uint64_t signature_hash);
-  void Remove(int index, WasmCodePointer call_target);
+  void Add(int index,
+           std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
+  void Remove(int index);
 
-  // The {wrappers_} data structure tracks installed wrappers, both generic
-  // ({code} is nullptr) and compiled. It owns the CodePointerTable entry in
-  // {call_target} and manages the {code} lifetime by incrementing and
-  // decrementing the ref count as needed.
-  struct WrapperEntry {
-    WasmCodePointer call_target;
-    wasm::WasmCode* code;  // {nullptr} if this is the generic wrapper.
-  };
-  std::unordered_map<int, WrapperEntry> wrappers_;
+  std::unordered_map<int, std::shared_ptr<wasm::WasmImportWrapperHandle>>
+      wrappers_;
 };
 
 // The dispatch table is referenced from a WasmTableObject and from every
@@ -837,35 +828,28 @@ class WasmDispatchTable : public ExposedTrustedObject {
       kTableTypeOffset + kUInt32Size + kPaddingSize;
 
   // Entries consist of
-  // - target (pointer)
+  // - target (WasmCodePointer == entry in WasmCodePointerTable),
 #if V8_ENABLE_DRUMBRAKE
-  // - function_index (uint32_t) (located in place of target pointer).
+  // - function_index (uint32_t) (located in place of target pointer),
 #endif  // V8_ENABLE_DRUMBRAKE
-  // - implicit_arg (protected pointer, tagged sized)
-  // - sig (int32_t); unused for imports which check the signature statically.
+  // - sig (canonical type index == uint32_t); unused for imports which check
+  //   the signature statically,
+  // - implicit_arg (protected pointer, tagged sized).
   static constexpr size_t kTargetBias = 0;
 #if V8_ENABLE_DRUMBRAKE
   // In jitless mode, reuse the 'target' field storage to hold the (uint32_t)
   // function index.
   static constexpr size_t kFunctionIndexBias = kTargetBias;
 #endif  // V8_ENABLE_DRUMBRAKE
-  static constexpr size_t kImplicitArgBias = kTargetBias + kSystemPointerSize;
-  static constexpr size_t kSigBias = kImplicitArgBias + kTaggedSize;
-  static constexpr size_t kEntryPaddingOffset = kSigBias + kInt32Size;
-  static constexpr size_t kEntryPaddingBytes =
-      kEntryPaddingOffset % kTaggedSize;
-  static_assert(kEntryPaddingBytes == 4 || kEntryPaddingBytes == 0);
-  static constexpr size_t kEntrySize = kEntryPaddingOffset + kEntryPaddingBytes;
+  static_assert(sizeof(WasmCodePointer) == kUInt32Size);
+  static constexpr size_t kSigBias = kTargetBias + kUInt32Size;
+  static constexpr size_t kImplicitArgBias = kSigBias + kUInt32Size;
+  static constexpr size_t kEntrySize = kImplicitArgBias + kTaggedSize;
 
-  // Tagged and system-pointer-sized fields must be tagged-size-aligned.
+  // Tagged fields must be tagged-size-aligned.
   static_assert(IsAligned(kEntriesOffset, kTaggedSize));
   static_assert(IsAligned(kEntrySize, kTaggedSize));
-  static_assert(IsAligned(kTargetBias, kTaggedSize));
   static_assert(IsAligned(kImplicitArgBias, kTaggedSize));
-
-  // TODO(clemensb): If we ever enable allocation alignment we will need to add
-  // more padding to make the "target" fields system-pointer-size aligned.
-  static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL);
 
   // The total byte size must still fit in an integer.
   static constexpr int kMaxLength = (kMaxInt - kEntriesOffset) / kEntrySize;
@@ -879,10 +863,6 @@ class WasmDispatchTable : public ExposedTrustedObject {
     DCHECK_LT(index, kMaxLength);
     return SizeFor(index);
   }
-
-  // Clear uninitialized padding space for deterministic object content.
-  // Depending on the V8 build mode there could be no padding.
-  inline void clear_entry_padding(int index);
 
   // The current length of this dispatch table. This is always <= the capacity.
   inline int length() const;
@@ -921,24 +901,24 @@ class WasmDispatchTable : public ExposedTrustedObject {
       NewOrExistingEntry new_or_existing);
 
   // Set an entry for indirect calls to a WasmToJS wrapper.
-  // {compiled_wrapper} needs to be set to the corresponding WasmCode, or
-  // nullptr in case of the generic wrapper.
-  void V8_EXPORT_PRIVATE SetForWrapper(
-      int index, Tagged<WasmImportData> implicit_arg, Address call_target,
-      wasm::CanonicalTypeIndex sig_id, uint64_t signature_hash,
+  void V8_EXPORT_PRIVATE
+  SetForWrapper(int index, Tagged<WasmImportData> implicit_arg,
+                std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+                wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-      uint32_t function_index,
+                uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-      wasm::WasmCode* compiled_wrapper, NewOrExistingEntry new_or_existing);
+                NewOrExistingEntry new_or_existing);
 
 #if V8_ENABLE_DRUMBRAKE
   inline uint32_t function_index(int index) const;
 #endif  // V8_ENABLE_DRUMBRAKE
 
   void Clear(int index, NewOrExistingEntry new_or_existing);
-  void InstallCompiledWrapper(int index, wasm::WasmCode* wrapper);
 
-  bool V8_EXPORT_PRIVATE IsAWrapper(int index) const;
+  V8_EXPORT_PRIVATE
+  std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
+  MaybeGetWrapperHandle(int index) const;
 
   static void V8_EXPORT_PRIVATE
   AddUse(Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
@@ -1025,6 +1005,17 @@ class WasmExportedFunction : public JSFunction {
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
       DirectHandle<Code> export_wrapper);
+
+  static void MarkAsReceiverIsFirstParam(
+      Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function);
+
+  // Returns the generic wrapper, or a cached compiled wrapper, or
+  // a freshly-compiled wrapper.
+  static DirectHandle<Code> GetWrapper(Isolate* isolate,
+                                       const wasm::CanonicalSig* sig,
+                                       wasm::CanonicalTypeIndex sig_id,
+                                       bool receiver_is_first_param,
+                                       const wasm::WasmModule* module);
 
   // Return a null-terminated string with the debug name in the form
   // 'js-to-wasm:<sig>'.
@@ -1221,22 +1212,20 @@ class WasmJSFunctionData
  public:
   // The purpose of this class is to provide lifetime management for compiled
   // wrappers: the {WasmJSFunction} owns an {OffheapData} via {TrustedManaged},
-  // which decrements the wrapper's refcount when the {WasmJSFunction} is
+  // which decrements the wrapper handle's refcount when the {WasmJSFunction} is
   // garbage-collected.
   class OffheapData {
    public:
-    explicit OffheapData(uint64_t signature_hash)
-        : signature_hash_(signature_hash) {}
-    ~OffheapData();
+    explicit OffheapData(
+        std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle)
+        : wrapper_handle_(wrapper_handle) {}
 
-    // These functions return the CPT entry owned by this class.
-    WasmCodePointer set_compiled_wrapper(wasm::WasmCode* wrapper);
-    WasmCodePointer set_generic_wrapper(Address call_target);
+    std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle() const {
+      return wrapper_handle_;
+    }
 
    private:
-    WasmCodePointer wrapper_code_pointer_ = wasm::kInvalidWasmCodePointer;
-    wasm::WasmCode* wrapper_{nullptr};
-    const uint64_t signature_hash_;
+    const std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle_;
   };
 
   DECL_PROTECTED_POINTER_ACCESSORS(protected_offheap_data,
@@ -1437,10 +1426,15 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
       wasm::ModuleTypeIndex index, DirectHandle<Map> map,
       DirectHandle<Object> first_field);
-  inline Tagged<Map> get_described_rtt() const;
-  inline void set_described_rtt(Tagged<Map> rtt);
+  DECL_ACCESSORS(described_rtt, Tagged<Map>)
+
+  // The RTT on descriptor structs can have a prototype when exposed to JS.
+  static DirectHandle<JSObject> AllocatePrototype(
+      Isolate* isolate, DirectHandle<JSPrototype> parent);
 
   V8_EXPORT_PRIVATE wasm::WasmValue GetFieldValue(uint32_t field_index);
+  inline void SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   DECL_PRINTER(WasmStruct)
 
@@ -1520,6 +1514,9 @@ class WasmDescriptorOptions
   static DirectHandle<WasmDescriptorOptions> New(
       Isolate* isolate, DirectHandle<Object> prototype);
   DECL_PRINTER(WasmDescriptorOptions)
+
+  class BodyDescriptor;
+
   TQ_OBJECT_CONSTRUCTORS(WasmDescriptorOptions)
 };
 
@@ -1546,6 +1543,20 @@ class WasmSuspendingObject
       Isolate* isolate, DirectHandle<JSReceiver> callable);
   DECL_PRINTER(WasmSuspendingObject)
   TQ_OBJECT_CONSTRUCTORS(WasmSuspendingObject)
+};
+
+// The continuation object is a token used during resume & suspend
+// See: https://github.com/WebAssembly/stack-switching.
+class WasmContinuationObject
+    : public TorqueGeneratedWasmContinuationObject<WasmContinuationObject,
+                                                   HeapObject> {
+ public:
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptorFor<WasmContinuationObject>,
+      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
+  DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
+  DECL_PRINTER(WasmContinuationObject)
+  TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
 };
 
 class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {

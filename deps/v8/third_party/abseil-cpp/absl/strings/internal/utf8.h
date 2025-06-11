@@ -41,7 +41,21 @@ namespace strings_internal {
 // characters into buffer, however never will more than kMaxEncodedUTF8Size
 // bytes be written, regardless of the value of utf8_char.
 enum { kMaxEncodedUTF8Size = 4 };
-size_t EncodeUTF8Char(char *buffer, char32_t utf8_char);
+size_t EncodeUTF8Char(char* buffer, char32_t utf8_char);
+
+struct ShiftState {
+  bool saw_high_surrogate = false;
+  unsigned char bits = 0;
+};
+
+// Converts `wc` from UTF-16 or UTF-32 to UTF-8 and writes to `buf`. `buf` is
+// assumed to have enough space for the output. `s` is used to carry state
+// between successive calls with a UTF-16 surrogate pair. Returns the number of
+// chars written, or `static_cast<size_t>(-1)` on failure.
+//
+// This is basically std::wcrtomb(), but always outputting UTF-8 instead of
+// respecting the current locale.
+size_t WideToUtf8(wchar_t wc, char* buf, ShiftState& s);
 
 }  // namespace strings_internal
 ABSL_NAMESPACE_END

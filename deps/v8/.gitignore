@@ -68,6 +68,9 @@
 /third_party/colorama/src
 !/third_party/cpu_features
 /third_party/cpu_features/src
+!/third_party/dragonbox
+/third_party/dragonbox/src/*
+!/third_party/dragonbox/src/include
 !/third_party/fast_float
 /third_party/fast_float/src/*
 !/third_party/fast_float/src/include

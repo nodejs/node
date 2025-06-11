@@ -492,7 +492,7 @@ static void FrameIterationCheck(
 
 THREADED_TEST(GetFrameStack) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
   v8::HandleScope scope(isolate);
@@ -513,7 +513,7 @@ THREADED_TEST(GetFrameStack) {
 
 TEST(SmallOrderedHashSetGetObjectProperties) {
   LocalContext context;
-  Isolate* isolate = reinterpret_cast<Isolate*>((*context)->GetIsolate());
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   HandleScope scope(isolate);
