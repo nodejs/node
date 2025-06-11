@@ -7,6 +7,8 @@
 #include "util-inl.h"
 #include "v8.h"
 
+namespace node::worker::locks {
+
 using node::errors::TryCatchScope;
 using v8::Array;
 using v8::Context;
@@ -22,10 +24,6 @@ using v8::ObjectTemplate;
 using v8::Promise;
 using v8::String;
 using v8::Value;
-
-namespace node {
-namespace worker {
-namespace locks {
 
 static constexpr const char* kSharedMode = "shared";
 static constexpr const char* kExclusiveMode = "exclusive";
@@ -88,11 +86,11 @@ bool LockManager::IsGrantable(const LockRequest* request) const {
   if (held_locks_iter == held_locks_.end()) return true;
 
   // Exclusive requests cannot coexist with any existing locks
-  if (request->mode() == Lock::kExclusive) return false;
+  if (request->mode() == Lock::Mode::Exclusive) return false;
 
   // For shared requests, check if any existing lock is exclusive
   for (const auto& existing_lock : held_locks_iter->second) {
-    if (existing_lock->mode() == Lock::kExclusive) return false;
+    if (existing_lock->mode() == Lock::Mode::Exclusive) return false;
   }
   // All existing locks are shared, so this shared request can be granted
   return true;
@@ -104,9 +102,10 @@ static void OnLockCallbackSettled(
   HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info);
 
+  // Extract the LockHolder from V8 External data
   auto* lock_holder =
-      static_cast<std::shared_ptr<Lock>*>(info.Data().As<External>()->Value());
-  std::shared_ptr<Lock> lock = *lock_holder;
+      static_cast<LockHolder*>(info.Data().As<External>()->Value());
+  std::shared_ptr<Lock> lock = lock_holder->lock();
   delete lock_holder;
 
   // Release the lock and continue processing the queue.
@@ -277,9 +276,12 @@ void LockManager::ProcessQueue(Environment* env) {
             envs_to_notify.insert(existing_lock->env());
 
             // Immediately reject the stolen lock's released_promise
-            Local<Value> error =
-                Exception::Error(String::NewFromUtf8(isolate, kLockStolenError)
-                                     .ToLocalChecked());
+            Local<String> error_string;
+            if (!String::NewFromUtf8(isolate, kLockStolenError)
+                     .ToLocal(&error_string)) {
+              return;
+            }
+            Local<Value> error = Exception::Error(error_string);
             existing_lock->released_promise()->Reject(context, error).Check();
           }
 
@@ -327,6 +329,9 @@ void LockManager::ProcessQueue(Environment* env) {
                              grantable_request->name(),
                              grantable_request->mode(),
                              grantable_request->client_id());
+    if (lock_info_obj.IsEmpty()) {
+      return;
+    }
     Local<Value> callback_arg = lock_info_obj;
     Local<Value> callback_result;
     {
@@ -340,17 +345,22 @@ void LockManager::ProcessQueue(Environment* env) {
         grantable_request->released_promise()
             ->Reject(context, try_catch_scope.Exception())
             .Check();
-        continue;
+        return;
       }
     }
 
-    // Allocate a shared_ptr so the lock remains alive until the callback
-    // executes.
-    auto* lock_holder = new std::shared_ptr<Lock>(granted_lock);
-    Local<Function> on_settled_callback =
-        Function::New(
-            context, OnLockCallbackSettled, External::New(isolate, lock_holder))
-            .ToLocalChecked();
+    // Allocate a LockHolder on the heap to safely manage the lock's lifetime
+    // until the user's callback promise settles.
+    // The LockHolder will be deleted in OnLockCallbackSettled.
+    auto* lock_holder = new LockHolder(granted_lock);
+    Local<Function> on_settled_callback;
+    if (!Function::New(context,
+                       OnLockCallbackSettled,
+                       External::New(isolate, lock_holder))
+             .ToLocal(&on_settled_callback)) {
+      delete lock_holder;
+      return;
+    }
 
     // Handle promise chain
     if (callback_result->IsPromise()) {
@@ -423,12 +433,16 @@ void LockManager::Request(const FunctionCallbackInfo<Value>& args) {
   Local<Function> callback = args[5].As<Function>();
 
   Lock::Mode lock_mode =
-      mode_str == kSharedMode ? Lock::kShared : Lock::kExclusive;
+      mode_str == kSharedMode ? Lock::Mode::Shared : Lock::Mode::Exclusive;
 
-  Local<Promise::Resolver> waiting_promise =
-      Promise::Resolver::New(context).ToLocalChecked();
-  Local<Promise::Resolver> released_promise =
-      Promise::Resolver::New(context).ToLocalChecked();
+  Local<Promise::Resolver> waiting_promise;
+  if (!Promise::Resolver::New(context).ToLocal(&waiting_promise)) {
+    return;
+  }
+  Local<Promise::Resolver> released_promise;
+  if (!Promise::Resolver::New(context).ToLocal(&released_promise)) {
+    return;
+  }
 
   args.GetReturnValue().Set(released_promise->GetPromise());
 
@@ -467,8 +481,10 @@ void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(isolate);
   Local<Context> context = env->context();
 
-  Local<Promise::Resolver> resolver =
-      Promise::Resolver::New(context).ToLocalChecked();
+  Local<Promise::Resolver> resolver;
+  if (!Promise::Resolver::New(context).ToLocal(&resolver)) {
+    return;
+  }
   args.GetReturnValue().Set(resolver->GetPromise());
 
   Local<Object> result = Object::New(isolate);
@@ -489,6 +505,9 @@ void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
                                    held_lock->name(),
                                    held_lock->mode(),
                                    held_lock->client_id());
+          if (lock_info.IsEmpty()) {
+            return;
+          }
           held_list->Set(context, index++, lock_info).Check();
         }
       }
@@ -503,6 +522,9 @@ void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
                                  pending_request->name(),
                                  pending_request->mode(),
                                  pending_request->client_id());
+        if (lock_info.IsEmpty()) {
+          return;
+        }
         pending_list->Set(context, index++, lock_info).Check();
       }
     }
@@ -621,26 +643,35 @@ static Local<Object> CreateLockInfoObject(Isolate* isolate,
                                           Lock::Mode mode,
                                           const std::string& client_id) {
   Local<Object> obj = Object::New(isolate);
+
+  Local<String> name_string;
+  if (!String::NewFromTwoByte(isolate,
+                              reinterpret_cast<const uint16_t*>(name.data()),
+                              v8::NewStringType::kNormal,
+                              static_cast<int>(name.length()))
+           .ToLocal(&name_string)) {
+    return Local<Object>();
+  }
+  obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "name"), name_string)
+      .Check();
+
+  Local<String> mode_string;
+  if (!String::NewFromUtf8(
+           isolate,
+           mode == Lock::Mode::Exclusive ? kExclusiveMode : kSharedMode)
+           .ToLocal(&mode_string)) {
+    return Local<Object>();
+  }
+  obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "mode"), mode_string)
+      .Check();
+
+  Local<String> client_id_string;
+  if (!String::NewFromUtf8(isolate, client_id.c_str())
+           .ToLocal(&client_id_string)) {
+    return Local<Object>();
+  }
   obj->Set(
-         context,
-         FIXED_ONE_BYTE_STRING(isolate, "name"),
-         String::NewFromTwoByte(isolate,
-                                reinterpret_cast<const uint16_t*>(name.data()),
-                                v8::NewStringType::kNormal,
-                                static_cast<int>(name.length()))
-             .ToLocalChecked())
-      .Check();
-
-  obj->Set(context,
-           FIXED_ONE_BYTE_STRING(isolate, "mode"),
-           String::NewFromUtf8(
-               isolate, mode == Lock::kExclusive ? kExclusiveMode : kSharedMode)
-               .ToLocalChecked())
-      .Check();
-
-  obj->Set(context,
-           FIXED_ONE_BYTE_STRING(isolate, "clientId"),
-           String::NewFromUtf8(isolate, client_id.c_str()).ToLocalChecked())
+         context, FIXED_ONE_BYTE_STRING(isolate, "clientId"), client_id_string)
       .Check();
 
   return obj;
@@ -654,12 +685,21 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "request", LockManager::Request);
   SetMethod(isolate, target, "query", LockManager::Query);
 
-  target->Set(FIXED_ONE_BYTE_STRING(isolate, "LOCK_MODE_SHARED"),
-              String::NewFromUtf8(isolate, kSharedMode).ToLocalChecked());
-  target->Set(FIXED_ONE_BYTE_STRING(isolate, "LOCK_MODE_EXCLUSIVE"),
-              String::NewFromUtf8(isolate, kExclusiveMode).ToLocalChecked());
-  target->Set(FIXED_ONE_BYTE_STRING(isolate, "LOCK_STOLEN_ERROR"),
-              String::NewFromUtf8(isolate, kLockStolenError).ToLocalChecked());
+  Local<String> shared_mode;
+  if (String::NewFromUtf8(isolate, kSharedMode).ToLocal(&shared_mode)) {
+    target->Set(FIXED_ONE_BYTE_STRING(isolate, "LOCK_MODE_SHARED"),
+                shared_mode);
+  }
+  Local<String> exclusive_mode;
+  if (String::NewFromUtf8(isolate, kExclusiveMode).ToLocal(&exclusive_mode)) {
+    target->Set(FIXED_ONE_BYTE_STRING(isolate, "LOCK_MODE_EXCLUSIVE"),
+                exclusive_mode);
+  }
+  Local<String> stolen_error;
+  if (String::NewFromUtf8(isolate, kLockStolenError).ToLocal(&stolen_error)) {
+    target->Set(FIXED_ONE_BYTE_STRING(isolate, "LOCK_STOLEN_ERROR"),
+                stolen_error);
+  }
 }
 
 void CreatePerContextProperties(Local<Object> target,
@@ -672,9 +712,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(LockManager::Query);
 }
 
-}  // namespace locks
-}  // namespace worker
-}  // namespace node
+}  // namespace node::worker::locks
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(
     locks, node::worker::locks::CreatePerContextProperties)

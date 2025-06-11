@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --expose-gc
 
 require('../common');
 const { describe, it } = require('node:test');
@@ -138,5 +139,38 @@ describe('Web Locks with worker threads', () => {
     assert.strictEqual(result.resolved, 'completed successfully');
 
     await worker.terminate();
+  });
+
+  it('should handle many concurrent locks without hanging', async () => {
+    if (global.gc) global.gc();
+    const before = process.memoryUsage().rss;
+
+    let callbackCount = 0;
+    let resolveCount = 0;
+
+    const promises = [];
+    for (let i = 0; i < 100; i++) {
+      const promise = navigator.locks.request(`test-${i}`, async (lock) => {
+        callbackCount++;
+        const innerPromise = navigator.locks.request(`inner-${i}`, async () => {
+          resolveCount++;
+          return 'done';
+        });
+        await innerPromise;
+        return `completed-${lock.name}`;
+      });
+
+      promises.push(promise);
+    }
+
+    await Promise.all(promises);
+
+    if (global.gc) global.gc();
+
+    const after = process.memoryUsage().rss;
+
+    assert.strictEqual(callbackCount, 100);
+    assert.strictEqual(resolveCount, 100);
+    assert(after < before * 3);
   });
 });

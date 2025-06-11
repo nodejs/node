@@ -12,13 +12,11 @@
 #include "node_mutex.h"
 #include "v8.h"
 
-namespace node {
-namespace worker {
-namespace locks {
+namespace node::worker::locks {
 
 class Lock final {
  public:
-  enum Mode { kShared, kExclusive };
+  enum class Mode { Shared, Exclusive };
 
   Lock(Environment* env,
        const std::u16string& name,
@@ -54,6 +52,20 @@ class Lock final {
   bool stolen_ = false;
   v8::Global<v8::Promise::Resolver> waiting_promise_;
   v8::Global<v8::Promise::Resolver> released_promise_;
+};
+
+class LockHolder final {
+ public:
+  explicit LockHolder(std::shared_ptr<Lock> lock) : lock_(std::move(lock)) {}
+  ~LockHolder() = default;
+
+  LockHolder(const LockHolder&) = delete;
+  LockHolder& operator=(const LockHolder&) = delete;
+
+  std::shared_ptr<Lock> lock() const { return lock_; }
+
+ private:
+  std::shared_ptr<Lock> lock_;
 };
 
 class LockRequest final {
@@ -134,9 +146,7 @@ class LockManager final {
   std::unordered_set<Environment*> registered_envs_;
 };
 
-}  // namespace locks
-}  // namespace worker
-}  // namespace node
+}  // namespace node::worker::locks
 
 #endif  // NODE_WANT_INTERNALS
 #endif  // SRC_NODE_LOCKS_H_
