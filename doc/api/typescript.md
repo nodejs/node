@@ -3,6 +3,9 @@
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58643
+    description: Type stripping no longer emits an experimental warning.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/56350
     description: Type stripping is enabled by default.
   - version: v22.7.0
