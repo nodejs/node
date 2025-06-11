@@ -4039,6 +4039,22 @@ Type: Documentation-only
 
 The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError`][] instead.
 
+### DEP0198: `fs.Dir.prototype.readSyncRecursive()` and `fs.Dir.prototype.processReadResult`
+
+<!--
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `fs.Dir.prototype.readSyncRecursive()` and `fs.Dir.prototype.processReadResult`
+methods are deprecated. They were intended as internal-only APIs and were never
+documented. However, they were exposed by mistake. They will be removed in future
+releases.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
