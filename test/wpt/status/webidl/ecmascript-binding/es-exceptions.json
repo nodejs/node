@@ -1,1 +1,10 @@
-{}
+{
+  "DOMException-is-error.any.js": {
+    "fail": {
+      "note": "https://github.com/nodejs/node/issues/56497",
+      "expected": [
+        "DOMException-is-error"
+      ]
+    }
+  }
+}
