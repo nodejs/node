@@ -693,11 +693,10 @@ void ModuleWrap::GetNamespaceSync(const FunctionCallbackInfo<Value>& args) {
       return realm->env()->ThrowError(
           "Cannot get namespace, module has not been instantiated");
     case v8::Module::Status::kInstantiated:
+    case v8::Module::Status::kEvaluating:
     case v8::Module::Status::kEvaluated:
     case v8::Module::Status::kErrored:
       break;
-    case v8::Module::Status::kEvaluating:
-      UNREACHABLE();
   }
 
   if (module->IsGraphAsync()) {
