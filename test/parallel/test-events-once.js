@@ -1,15 +1,14 @@
 'use strict';
-// Flags: --expose-internals --no-warnings
+// Flags: --no-warnings
 
 const common = require('../common');
-const { once, EventEmitter } = require('events');
+const { once, EventEmitter, getEventListeners } = require('events');
 const {
   deepStrictEqual,
   fail,
   rejects,
   strictEqual,
 } = require('assert');
-const { kEvents } = require('internal/event_target');
 
 async function onceAnEvent() {
   const ee = new EventEmitter();
@@ -78,7 +77,7 @@ async function catchesErrorsWithAbortSignal() {
   try {
     const promise = once(ee, 'myevent', { signal });
     strictEqual(ee.listenerCount('error'), 1);
-    strictEqual(signal[kEvents].size, 1);
+    strictEqual(getEventListeners(signal, 'abort').length, 1);
 
     await promise;
   } catch (e) {
@@ -87,7 +86,7 @@ async function catchesErrorsWithAbortSignal() {
   strictEqual(err, expected);
   strictEqual(ee.listenerCount('error'), 0);
   strictEqual(ee.listenerCount('myevent'), 0);
-  strictEqual(signal[kEvents].size, 0);
+  strictEqual(getEventListeners(signal, 'abort').length, 0);
 }
 
 async function stopListeningAfterCatchingError() {
@@ -198,9 +197,9 @@ async function abortSignalAfterEvent() {
     ac.abort();
   });
   const promise = once(ee, 'foo', { signal: ac.signal });
-  strictEqual(ac.signal[kEvents].size, 1);
+  strictEqual(getEventListeners(ac.signal, 'abort').length, 1);
   await promise;
-  strictEqual(ac.signal[kEvents].size, 0);
+  strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
 }
 
 async function abortSignalRemoveListener() {
