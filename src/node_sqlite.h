@@ -47,6 +47,14 @@ class DatabaseOpenConfiguration {
 
   inline bool get_return_arrays() const { return return_arrays_; }
 
+  inline void set_allow_bare_named_params(bool flag) {
+    allow_bare_named_params_ = flag;
+  }
+
+  inline bool get_allow_bare_named_params() const {
+    return allow_bare_named_params_;
+  }
+
  private:
   std::string location_;
   bool read_only_ = false;
@@ -55,6 +63,7 @@ class DatabaseOpenConfiguration {
   int timeout_ = 0;
   bool use_big_ints_ = false;
   bool return_arrays_ = false;
+  bool allow_bare_named_params_ = true;
 };
 
 class StatementSync;
@@ -94,6 +103,9 @@ class DatabaseSync : public BaseObject {
   bool IsOpen();
   bool use_big_ints() const { return open_config_.get_use_big_ints(); }
   bool return_arrays() const { return open_config_.get_return_arrays(); }
+  bool allow_bare_named_params() const {
+    return open_config_.get_allow_bare_named_params();
+  }
   sqlite3* Connection();
 
   // In some situations, such as when using custom functions, it is possible

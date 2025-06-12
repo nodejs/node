@@ -268,6 +268,49 @@ suite('DatabaseSync() constructor', () => {
     const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
     t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
   });
+
+  test('throws if options.allowBareNamedParameters is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { allowBareNamedParameters: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.allowBareNamedParameters" argument must be a boolean/,
+    });
+  });
+
+  test('allows bare named parameters', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { allowBareNamedParameters: true });
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    t.assert.deepStrictEqual(
+      stmt.run({ k: 1, v: 2 }),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+  });
+
+  test('throws if bare named parameters are used when allowBareNamedParameters is false', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { allowBareNamedParameters: false });
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    t.assert.throws(() => {
+      stmt.run({ k: 2, v: 4 });
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Unknown named parameter 'k'/,
+    });
+  });
 });
 
 suite('DatabaseSync.prototype.open()', () => {

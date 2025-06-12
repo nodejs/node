@@ -72,6 +72,7 @@
   V(ack_string, "ack")                                                         \
   V(address_string, "address")                                                 \
   V(aliases_string, "aliases")                                                 \
+  V(allow_bare_named_params_string, "allowBareNamedParameters")                \
   V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
   V(asn1curve_string, "asn1Curve")                                             \
