@@ -1233,6 +1233,26 @@ new URL('file:///hello world').pathname;   // Incorrect: /hello%20world
 fileURLToPath('file:///hello world');      // Correct:   /hello world (POSIX)
 ```
 
+### `url.fileURLToPathBuffer(url[, options])`
+
+<!--
+added: REPLACEME
+-->
+
+* `url` {URL | string} The file URL string or URL object to convert to a path.
+* `options` {Object}
+  * `windows` {boolean|undefined} `true` if the `path` should be
+    return as a windows filepath, `false` for posix, and
+    `undefined` for the system default.
+    **Default:** `undefined`.
+* Returns: {Buffer} The fully-resolved platform-specific Node.js file path
+  as a {Buffer}.
+
+Like `url.fileURLToPath(...)` except that instead of returning a string
+representation of the path, a `Buffer` is returned. This conversion is
+helpful when the input URL contains percent-encoded segments that are
+not valid UTF-8 / Unicode sequences.
+
 ### `url.format(URL[, options])`
 
 <!-- YAML
