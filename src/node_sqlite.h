@@ -43,6 +43,10 @@ class DatabaseOpenConfiguration {
 
   inline bool get_use_big_ints() const { return use_big_ints_; }
 
+  inline void set_return_arrays(bool flag) { return_arrays_ = flag; }
+
+  inline bool get_return_arrays() const { return return_arrays_; }
+
  private:
   std::string location_;
   bool read_only_ = false;
@@ -50,6 +54,7 @@ class DatabaseOpenConfiguration {
   bool enable_dqs_ = false;
   int timeout_ = 0;
   bool use_big_ints_ = false;
+  bool return_arrays_ = false;
 };
 
 class StatementSync;
@@ -88,6 +93,7 @@ class DatabaseSync : public BaseObject {
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
   bool use_big_ints() const { return open_config_.get_use_big_ints(); }
+  bool return_arrays() const { return open_config_.get_return_arrays(); }
   sqlite3* Connection();
 
   // In some situations, such as when using custom functions, it is possible

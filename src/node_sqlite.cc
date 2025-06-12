@@ -950,22 +950,6 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       allow_load_extension = allow_extension_v.As<Boolean>()->Value();
     }
 
-    Local<Value> read_bigints_v;
-    if (options->Get(env->context(), env->read_bigints_string())
-            .ToLocal(&read_bigints_v)) {
-      return;
-    }
-
-    if (!read_bigints_v->IsUndefined()) {
-      if (!read_bigints_v->IsBoolean()) {
-        THROW_ERR_INVALID_ARG_TYPE(
-            env->isolate(),
-            "The \"options.readBigInts\" argument must be a boolean.");
-        return;
-      }
-      open_config.set_use_big_ints(read_bigints_v.As<Boolean>()->Value());
-    }
-
     Local<Value> timeout_v;
     if (!options->Get(env->context(), env->timeout_string())
              .ToLocal(&timeout_v)) {
@@ -981,6 +965,34 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       }
 
       open_config.set_timeout(timeout_v.As<Int32>()->Value());
+    }
+
+    Local<Value> read_bigints_v;
+    if (options->Get(env->context(), env->read_bigints_string())
+            .ToLocal(&read_bigints_v)) {
+      if (!read_bigints_v->IsUndefined()) {
+        if (!read_bigints_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              "The \"options.readBigInts\" argument must be a boolean.");
+          return;
+        }
+        open_config.set_use_big_ints(read_bigints_v.As<Boolean>()->Value());
+      }
+    }
+
+    Local<Value> return_arrays_v;
+    if (options->Get(env->context(), env->return_arrays_string())
+            .ToLocal(&return_arrays_v)) {
+      if (!return_arrays_v->IsUndefined()) {
+        if (!return_arrays_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              "The \"options.returnArrays\" argument must be a boolean.");
+          return;
+        }
+        open_config.set_return_arrays(return_arrays_v.As<Boolean>()->Value());
+      }
     }
   }
 
@@ -1789,10 +1801,10 @@ StatementSync::StatementSync(Environment* env,
   MakeWeak();
   statement_ = stmt;
   use_big_ints_ = db_->use_big_ints();
+  return_arrays_ = db_->return_arrays();
 
   // In the future, some of these options could be set at the database
   // connection level and inherited by statements to reduce boilerplate.
-  return_arrays_ = false;
   allow_bare_named_params_ = true;
   allow_unknown_named_params_ = false;
   bare_named_params_ = std::nullopt;

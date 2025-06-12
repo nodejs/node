@@ -229,6 +229,45 @@ suite('DatabaseSync() constructor', () => {
       { changes: 1, lastInsertRowid: 20 },
     );
   });
+
+  test('throws if options.returnArrays is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { returnArrays: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.returnArrays" argument must be a boolean/,
+    });
+  });
+
+  test('allows returning arrays', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { returnArrays: true });
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), [1, 'one']);
+  });
+
+  test('allows returning objects', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { returnArrays: false });
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
+  });
 });
 
 suite('DatabaseSync.prototype.open()', () => {
