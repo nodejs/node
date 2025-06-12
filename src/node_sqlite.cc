@@ -1836,8 +1836,6 @@ StatementSync::StatementSync(Environment* env,
   allow_bare_named_params_ = db_->allow_bare_named_params();
   allow_unknown_named_params_ = db_->allow_unknown_named_params();
 
-  // In the future, some of these options could be set at the database
-  // connection level and inherited by statements to reduce boilerplate.
   bare_named_params_ = std::nullopt;
 }
 
