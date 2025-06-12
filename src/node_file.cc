@@ -3449,7 +3449,8 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
   bool verbatim_symlinks = args[5]->IsTrue();
   bool preserve_timestamps = args[6]->IsTrue();
 
-  std::optional<std::function<bool(std::string, std::string)>> filter_fn;
+  std::optional<std::function<bool(std::string_view, std::string_view)>>
+      filter_fn;
 
   if (args[7]->IsFunction()) {
     Local<v8::Function> args_filter_fn = args[7].As<v8::Function>();
@@ -3516,8 +3517,7 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
       auto dest_file_path = dest / dir_entry.path().filename();
       auto dest_file_path_str = PathToString(dest_file_path);
 
-      if (filter_fn && !(*filter_fn)(dir_entry_path_str.c_str(),
-                                     dest_file_path_str.c_str())) {
+      if (filter_fn && !(*filter_fn)(dir_entry_path_str, dest_file_path_str)) {
         continue;
       }
 
