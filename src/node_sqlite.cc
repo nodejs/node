@@ -995,18 +995,34 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
-    Local<Value> allow_bare_named_params__v;
+    Local<Value> allow_bare_named_params_v;
     if (options->Get(env->context(), env->allow_bare_named_params_string())
-            .ToLocal(&allow_bare_named_params__v)) {
-      if (!allow_bare_named_params__v->IsUndefined()) {
-        if (!allow_bare_named_params__v->IsBoolean()) {
+            .ToLocal(&allow_bare_named_params_v)) {
+      if (!allow_bare_named_params_v->IsUndefined()) {
+        if (!allow_bare_named_params_v->IsBoolean()) {
           THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
                                      "The \"options.allowBareNamedParameters\" "
                                      "argument must be a boolean.");
           return;
         }
         open_config.set_allow_bare_named_params(
-            allow_bare_named_params__v.As<Boolean>()->Value());
+            allow_bare_named_params_v.As<Boolean>()->Value());
+      }
+    }
+
+    Local<Value> allow_unknown_named_params_v;
+    if (options->Get(env->context(), env->allow_unknown_named_params_string())
+            .ToLocal(&allow_unknown_named_params_v)) {
+      if (!allow_unknown_named_params_v->IsUndefined()) {
+        if (!allow_unknown_named_params_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              "The \"options.allowUnknownNamedParameters\" "
+              "argument must be a boolean.");
+          return;
+        }
+        open_config.set_allow_unknown_named_params(
+            allow_unknown_named_params_v.As<Boolean>()->Value());
       }
     }
   }
@@ -1818,10 +1834,10 @@ StatementSync::StatementSync(Environment* env,
   use_big_ints_ = db_->use_big_ints();
   return_arrays_ = db_->return_arrays();
   allow_bare_named_params_ = db_->allow_bare_named_params();
+  allow_unknown_named_params_ = db_->allow_unknown_named_params();
 
   // In the future, some of these options could be set at the database
   // connection level and inherited by statements to reduce boilerplate.
-  allow_unknown_named_params_ = false;
   bare_named_params_ = std::nullopt;
 }
 

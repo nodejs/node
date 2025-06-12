@@ -294,7 +294,7 @@ suite('DatabaseSync() constructor', () => {
     );
   });
 
-  test('throws if bare named parameters are used when allowBareNamedParameters is false', (t) => {
+  test('throws if bare named parameters are used when option is false', (t) => {
     const dbPath = nextDb();
     const db = new DatabaseSync(dbPath, { allowBareNamedParameters: false });
     t.after(() => { db.close(); });
@@ -309,6 +309,51 @@ suite('DatabaseSync() constructor', () => {
     }, {
       code: 'ERR_INVALID_STATE',
       message: /Unknown named parameter 'k'/,
+    });
+  });
+
+  test('throws if options.allowUnknownNamedParameters is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { allowUnknownNamedParameters: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.allowUnknownNamedParameters" argument must be a boolean/,
+    });
+  });
+
+  test('allows unknown named parameters', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { allowUnknownNamedParameters: true });
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    const params = { $a: 1, $b: 2, $k: 42, $y: 25, $v: 84, $z: 99 };
+    t.assert.deepStrictEqual(
+      stmt.run(params),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+  });
+
+  test('throws if unknown named parameters are used when option is false', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { allowUnknownNamedParameters: false });
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    const params = { $a: 1, $b: 2, $k: 42, $y: 25, $v: 84, $z: 99 };
+    t.assert.throws(() => {
+      stmt.run(params);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Unknown named parameter '\$a'/,
     });
   });
 });

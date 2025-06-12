@@ -55,6 +55,14 @@ class DatabaseOpenConfiguration {
     return allow_bare_named_params_;
   }
 
+  inline void set_allow_unknown_named_params(bool flag) {
+    allow_unknown_named_params_ = flag;
+  }
+
+  inline bool get_allow_unknown_named_params() const {
+    return allow_unknown_named_params_;
+  }
+
  private:
   std::string location_;
   bool read_only_ = false;
@@ -64,6 +72,7 @@ class DatabaseOpenConfiguration {
   bool use_big_ints_ = false;
   bool return_arrays_ = false;
   bool allow_bare_named_params_ = true;
+  bool allow_unknown_named_params_ = false;
 };
 
 class StatementSync;
@@ -105,6 +114,9 @@ class DatabaseSync : public BaseObject {
   bool return_arrays() const { return open_config_.get_return_arrays(); }
   bool allow_bare_named_params() const {
     return open_config_.get_allow_bare_named_params();
+  }
+  bool allow_unknown_named_params() const {
+    return open_config_.get_allow_unknown_named_params();
   }
   sqlite3* Connection();
 
