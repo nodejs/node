@@ -753,7 +753,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_config_file_path);
   AddOption("--experimental-default-config-file",
             "set config file from default config file",
-            &EnvironmentOptions::experimental_default_config_file);
+            &EnvironmentOptions::experimental_default_config_file,
+            kDisallowedInEnvvar,
+            true);
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner,
