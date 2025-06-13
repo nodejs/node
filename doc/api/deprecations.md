@@ -2524,17 +2524,18 @@ object can lead to crashing the application.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58619
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/23173
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Previous versions of Node.js supported `dns.lookup()` with a falsy host name
-like `dns.lookup(false)` due to backward compatibility.
-This behavior is undocumented and is thought to be unused in real world apps.
-It will become an error in future versions of Node.js.
+like `dns.lookup(false)` due to backward compatibility. This has been removed.
 
 ### DEP0119: `process.binding('uv').errname()` private API
 
