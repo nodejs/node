@@ -200,7 +200,7 @@ ParseResult ConfigReader::ParseOptions(
     } else {
       FPrintF(stderr,
               "Unknown or not allowed option %s for namespace %s\n",
-              option_key.data(),
+              option_key,
               namespace_name.c_str());
       return ParseResult::InvalidContent;
     }
