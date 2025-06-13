@@ -1,12 +1,12 @@
 'use strict';
 
-if (!process.features.inspector) return;
-
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+
+common.skipIfInspectorDisabled();
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
