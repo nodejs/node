@@ -1589,6 +1589,9 @@ Renames `oldPath` to `newPath`.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58616
+    description: Remove `recursive` option.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fsPromises.rmdir(path, { recursive: true })` on a `path`
@@ -1622,18 +1625,10 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-    `EPERM` error is encountered, Node.js retries the operation with a linear
-    backoff wait of `retryDelay` milliseconds longer on each try. This option
-    represents the number of retries. This option is ignored if the `recursive`
-    option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, operations are retried on failure. **Default:** `false`.
-    **Deprecated.**
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
-    retries. This option is ignored if the `recursive` option is not `true`.
-    **Default:** `100`.
+* `options` {Object} There are currently no options exposed. There used to
+  be options for `recursive`, `maxBusyTries`, and `emfileWait` but they were
+  deprecated and removed. The `options` argument is still accepted for
+  backwards compatibility but it is not used.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Removes the directory identified by `path`.
@@ -4255,6 +4250,9 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58616
+    description: Remove `recursive` option.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -4305,18 +4303,10 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-    `EPERM` error is encountered, Node.js retries the operation with a linear
-    backoff wait of `retryDelay` milliseconds longer on each try. This option
-    represents the number of retries. This option is ignored if the `recursive`
-    option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, operations are retried on failure. **Default:** `false`.
-    **Deprecated.**
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
-    retries. This option is ignored if the `recursive` option is not `true`.
-    **Default:** `100`.
+* `options` {Object} There are currently no options exposed. There used to
+  be options for `recursive`, `maxBusyTries`, and `emfileWait` but they were
+  deprecated and removed. The `options` argument is still accepted for
+  backwards compatibility but it is not used.
 * `callback` {Function}
   * `err` {Error}
 
@@ -6234,6 +6224,9 @@ See the POSIX rename(2) documentation for more details.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58616
+    description: Remove `recursive` option.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fs.rmdirSync(path, { recursive: true })` on a `path`
@@ -6271,18 +6264,10 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-    `EPERM` error is encountered, Node.js retries the operation with a linear
-    backoff wait of `retryDelay` milliseconds longer on each try. This option
-    represents the number of retries. This option is ignored if the `recursive`
-    option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, operations are retried on failure. **Default:** `false`.
-    **Deprecated.**
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
-    retries. This option is ignored if the `recursive` option is not `true`.
-    **Default:** `100`.
+* `options` {Object} There are currently no options exposed. There used to
+  be options for `recursive`, `maxBusyTries`, and `emfileWait` but they were
+  deprecated and removed. The `options` argument is still accepted for
+  backwards compatibility but it is not used.
 
 Synchronous rmdir(2). Returns `undefined`.
 
