@@ -760,17 +760,16 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
 
   // TODO(aduh95): remove this when the harmony-import-attributes flag
   // is removed in V8.
-  if (std::find(v8_args.begin(),
-                v8_args.end(),
-                "--no-harmony-import-attributes") == v8_args.end()) {
+  if (std::ranges::find(v8_args, "--no-harmony-import-attributes") ==
+      v8_args.end()) {
     v8_args.emplace_back("--harmony-import-attributes");
   }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
-  if (std::find(v8_args.begin(), v8_args.end(),
-                "--abort-on-uncaught-exception") != v8_args.end() ||
-      std::find(v8_args.begin(), v8_args.end(),
-                "--abort_on_uncaught_exception") != v8_args.end()) {
+  if (std::ranges::find(v8_args, "--abort-on-uncaught-exception") !=
+          v8_args.end() ||
+      std::ranges::find(v8_args, "--abort_on_uncaught_exception") !=
+          v8_args.end()) {
     env_opts->abort_on_uncaught_exception = true;
   }
 
@@ -782,7 +781,7 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
   // performance penalty of frequent EINTR wakeups when the profiler is running.
   // Only do this for v8.log profiling, as it breaks v8::CpuProfiler users.
-  if (std::find(v8_args.begin(), v8_args.end(), "--prof") != v8_args.end()) {
+  if (std::ranges::find(v8_args, "--prof") != v8_args.end()) {
     uv_loop_configure(uv_default_loop(), UV_LOOP_BLOCK_SIGNAL, SIGPROF);
   }
 #endif
