@@ -126,6 +126,14 @@ added: v22.5.0
   * `timeout` {number} The [busy timeout][] in milliseconds. This is the maximum amount of
     time that SQLite will wait for a database lock to be released before
     returning an error. **Default:** `0`.
+  * `readBigInts` {boolean} If `true`, integer fields are read as JavaScript `BigInt` values. If `false`,
+    integer fields are read as JavaScript numbers. **Default:** `false`.
+  * `returnArrays` {boolean} If `true`, query results are returned as arrays instead of objects.
+    **Default:** `false`.
+  * `allowBareNamedParameters` {boolean} If `true`, allows binding named parameters without the prefix
+    character (e.g., `foo` instead of `:foo`). **Default:** `true`.
+  * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters are ignored when binding.
+    If `false`, an exception is thrown for unknown named parameters. **Default:** `false`.
 
 Constructs a new `DatabaseSync` instance.
 
