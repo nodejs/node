@@ -125,11 +125,7 @@ TF_BUILTIN(WasmFloat64ToNumber, WasmBuiltinsAssembler) {
 
 TF_BUILTIN(WasmFloat64ToString, WasmBuiltinsAssembler) {
   TNode<Float64T> val = UncheckedParameter<Float64T>(Descriptor::kValue);
-  // Having to allocate a HeapNumber is a bit unfortunate, but the subsequent
-  // runtime call will have to allocate a string anyway, which probably
-  // dwarfs the cost of one more small allocation here.
-  TNode<Number> tagged = ChangeFloat64ToTagged(val);
-  Return(NumberToString(tagged));
+  Return(Float64ToString(val));
 }
 
 TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
@@ -162,6 +158,37 @@ TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
 
   CallRuntime(Runtime::kWasmThrowJSTypeError, context);
   Unreachable();
+}
+
+// Suppose we wanted to generate JavaScript constructor functions that wrap
+// exported Wasm functions as follows:
+//
+//   function MakeConstructor(wasm_instance, name) {
+//     let wasm_func = wasm_instance.exports[name];
+//     return function(...args) {
+//       return wasm_func(...args);
+//     }
+//   }
+//   let Foo = MakeConstructor(...);
+//   let foo = new Foo(1, 2, 3);
+//
+// This builtin models the code that these functions would have: it fetches the
+// target Wasm function from a Context slot and tail-calls to it with the
+// existing arguments on the stack. So when mass-creating such constructors,
+// we don't need to compile any bytecode, we only need to allocate an
+// appropriate Context and use this builtin as the code.
+TF_BUILTIN(WasmConstructorWrapper, WasmBuiltinsAssembler) {
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  static constexpr int kSlot = wasm::kConstructorFunctionContextSlot;
+  TNode<JSFunction> target = CAST(LoadContextElementNoCell(context, kSlot));
+  TailCallBuiltin(Builtin::kCallFunction_ReceiverIsNullOrUndefined, context,
+                  target, argc);
+}
+
+TNode<BoolT> WasmBuiltinsAssembler::InSharedSpace(TNode<HeapObject> object) {
+  TNode<IntPtrT> address = BitcastTaggedToWord(object);
+  return IsPageFlagSet(address, MemoryChunk::kInSharedHeap);
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

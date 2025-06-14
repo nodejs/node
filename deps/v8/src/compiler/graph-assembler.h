@@ -1043,6 +1043,8 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
                const char* file = "", int line = -1);
   void Assert(TNode<Word32T> cond, const char* condition_string = "",
               const char* file = "", int line = -1);
+  void DetachContextCell(TNode<Object> context, TNode<Object> new_value,
+                         int index, FrameState frame_state);
   TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
   TNode<Boolean> ToBoolean(TNode<Object> value);
   TNode<Object> ConvertTaggedHoleToUndefined(TNode<Object> value);

@@ -27,14 +27,35 @@ ABSL_NAMESPACE_BEGIN
 namespace {
 
 template <typename IntT>
+class UnsignedIntegerTypesTest : public ::testing::Test {};
+template <typename IntT>
 class IntegerTypesTest : public ::testing::Test {};
 
+using UnsignedIntegerTypes =
+    ::testing::Types<uint8_t, uint16_t, uint32_t, uint64_t>;
 using OneByteIntegerTypes = ::testing::Types<
     unsigned char,
     uint8_t
     >;
 
+TYPED_TEST_SUITE(UnsignedIntegerTypesTest, UnsignedIntegerTypes);
 TYPED_TEST_SUITE(IntegerTypesTest, OneByteIntegerTypes);
+
+TYPED_TEST(UnsignedIntegerTypesTest, ReturnTypes) {
+  using UIntType = TypeParam;
+
+  static_assert(std::is_same_v<decltype(byteswap(UIntType{0})), UIntType>);
+  static_assert(std::is_same_v<decltype(rotl(UIntType{0}, 0)), UIntType>);
+  static_assert(std::is_same_v<decltype(rotr(UIntType{0}, 0)), UIntType>);
+  static_assert(std::is_same_v<decltype(countl_zero(UIntType{0})), int>);
+  static_assert(std::is_same_v<decltype(countl_one(UIntType{0})), int>);
+  static_assert(std::is_same_v<decltype(countr_zero(UIntType{0})), int>);
+  static_assert(std::is_same_v<decltype(countr_one(UIntType{0})), int>);
+  static_assert(std::is_same_v<decltype(popcount(UIntType{0})), int>);
+  static_assert(std::is_same_v<decltype(bit_ceil(UIntType{0})), UIntType>);
+  static_assert(std::is_same_v<decltype(bit_floor(UIntType{0})), UIntType>);
+  static_assert(std::is_same_v<decltype(bit_width(UIntType{0})), int>);
+}
 
 TYPED_TEST(IntegerTypesTest, HandlesTypes) {
   using UIntType = TypeParam;

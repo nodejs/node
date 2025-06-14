@@ -133,14 +133,24 @@ transitioning macro TypedArrayInitialize(
   }
 }
 
-// 22.2.4.2 TypedArray ( length )
-// ES #sec-typedarray-length
+// 23.2.5.1 TypedArray ( ...args )
+// /#sec-typedarray
+// ...
+// b. If firstArgument is an Object, then
+// ...
+// c. Else,
 transitioning macro ConstructByLength(
-    implicit context: Context)(map: Map, lengthObj: JSAny,
-    elementsInfo: typed_array::TypedArrayElementsInfo): JSTypedArray {
+    implicit context: Context)(target: JSFunction, newTarget: JSReceiver,
+    lengthObj: JSAny): JSTypedArray {
   try {
+    // i. Assert: firstArgument is not an Object.
+    // ii. Let elementLength be ? ToIndex(firstArgument).
     const length: uintptr = ToIndex(lengthObj) otherwise RangeError;
+    const map = GetDerivedMap(target, newTarget);
+    const elementsInfo = GetTypedArrayElementsInfo(map);
     const initialize: constexpr bool = true;
+    // iii. Return ? AllocateTypedArray(constructorName, NewTarget, proto,
+    // elementLength).
     return TypedArrayInitialize(initialize, map, length, elementsInfo)
         otherwise RangeError;
   } label RangeError deferred {
@@ -432,13 +442,8 @@ transitioning builtin CreateTypedArray(
         goto IfConstructByLength(lengthObj);
       }
     }
-  } label IfConstructByLength(length: JSAny) {
-    const map = GetDerivedMap(target, newTarget);
-    // 5. Let elementSize be the Number value of the Element Size value in Table
-    // 56 for constructorName.
-    const elementsInfo = GetTypedArrayElementsInfo(map);
-
-    return ConstructByLength(map, length, elementsInfo);
+  } label IfConstructByLength(lengthObj: JSAny) {
+    return ConstructByLength(target, newTarget, lengthObj);
   } label IfConstructByArrayLike(arrayLike: JSReceiver, length: uintptr) {
     const map = GetDerivedMap(target, newTarget);
     // 5. Let elementSize be the Number value of the Element Size value in Table

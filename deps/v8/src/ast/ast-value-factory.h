@@ -65,7 +65,7 @@ class AstRawString final : public ZoneObject {
   bool AsArrayIndex(uint32_t* index) const;
   bool IsIntegerIndex() const;
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
-  uint16_t FirstCharacter() const;
+  V8_EXPORT_PRIVATE uint16_t FirstCharacter() const;
 
   template <typename IsolateT>
   void Internalize(IsolateT* isolate);

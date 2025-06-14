@@ -91,7 +91,7 @@ class BasicPersistent final : public PersistentBase,
   // Heterogeneous ctor.
   template <typename U, typename OtherWeaknessPolicy,
             typename OtherLocationPolicy, typename OtherCheckingPolicy,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   // NOLINTNEXTLINE
   BasicPersistent(
       const BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
@@ -116,7 +116,7 @@ class BasicPersistent final : public PersistentBase,
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
             typename MemberStorageType,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   // NOLINTNEXTLINE
   BasicPersistent(const internal::BasicMember<
                       U, MemberBarrierPolicy, MemberWeaknessTag,
@@ -133,7 +133,7 @@ class BasicPersistent final : public PersistentBase,
 
   template <typename U, typename OtherWeaknessPolicy,
             typename OtherLocationPolicy, typename OtherCheckingPolicy,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   BasicPersistent& operator=(
       const BasicPersistent<U, OtherWeaknessPolicy, OtherLocationPolicy,
                             OtherCheckingPolicy>& other) {
@@ -158,7 +158,7 @@ class BasicPersistent final : public PersistentBase,
   template <typename U, typename MemberBarrierPolicy,
             typename MemberWeaknessTag, typename MemberCheckingPolicy,
             typename MemberStorageType,
-            typename = std::enable_if_t<std::is_base_of<T, U>::value>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U>>>
   BasicPersistent& operator=(
       const internal::BasicMember<U, MemberBarrierPolicy, MemberWeaknessTag,
                                   MemberCheckingPolicy, MemberStorageType>&

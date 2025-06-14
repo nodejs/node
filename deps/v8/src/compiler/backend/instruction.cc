@@ -835,7 +835,8 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   // headers. Since it's somewhat expensive to compute this, we should also use
   // the LoopFinder to compute the special RPO (we would only need to run the
   // LoopFinder once to compute both the special RPO and the loop headers).
-  turboshaft::LoopFinder loop_finder(zone, &graph);
+  turboshaft::LoopFinder loop_finder(zone, &graph,
+                                     turboshaft::LoopFinder::Config{});
   for (const turboshaft::Block& block : graph.blocks()) {
     DCHECK(!(*blocks)[rpo_number]);
     DCHECK_EQ(RpoNumber::FromInt(block.index().id()).ToSize(), rpo_number);

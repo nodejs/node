@@ -220,7 +220,7 @@ TEST_F(LocalFactoryTest, EmptyScript) {
   }
   DirectHandle<SharedFunctionInfo> root_sfi = shared;
 
-  EXPECT_EQ(root_sfi->function_literal_id(), 0);
+  EXPECT_EQ(root_sfi->function_literal_id(kRelaxedLoad), 0);
 }
 
 TEST_F(LocalFactoryTest, LazyFunction) {
@@ -240,7 +240,7 @@ TEST_F(LocalFactoryTest, LazyFunction) {
   }
   DirectHandle<SharedFunctionInfo> lazy_sfi = shared;
 
-  EXPECT_EQ(lazy_sfi->function_literal_id(), 1);
+  EXPECT_EQ(lazy_sfi->function_literal_id(kRelaxedLoad), 1);
   EXPECT_TRUE(lazy_sfi->Name()->IsOneByteEqualTo(base::CStrVector("lazy")));
   EXPECT_FALSE(lazy_sfi->is_compiled());
   EXPECT_TRUE(lazy_sfi->HasUncompiledDataWithoutPreparseData());
@@ -267,7 +267,7 @@ TEST_F(LocalFactoryTest, EagerFunction) {
   }
   DirectHandle<SharedFunctionInfo> eager_sfi = shared;
 
-  EXPECT_EQ(eager_sfi->function_literal_id(), 1);
+  EXPECT_EQ(eager_sfi->function_literal_id(kRelaxedLoad), 1);
   EXPECT_TRUE(eager_sfi->Name()->IsOneByteEqualTo(base::CStrVector("eager")));
   EXPECT_FALSE(eager_sfi->HasUncompiledData());
   // TODO(leszeks): Add compilation support and enable these checks.
@@ -298,7 +298,7 @@ TEST_F(LocalFactoryTest, ImplicitNameFunction) {
   }
   DirectHandle<SharedFunctionInfo> implicit_name_sfi = shared;
 
-  EXPECT_EQ(implicit_name_sfi->function_literal_id(), 1);
+  EXPECT_EQ(implicit_name_sfi->function_literal_id(kRelaxedLoad), 1);
   EXPECT_TRUE(implicit_name_sfi->Name()->IsOneByteEqualTo(
       base::CStrVector("implicit_name")));
 }
@@ -326,7 +326,7 @@ TEST_F(LocalFactoryTest, GCDuringPublish) {
   }
   DirectHandle<SharedFunctionInfo> implicit_name_sfi = shared;
 
-  EXPECT_EQ(implicit_name_sfi->function_literal_id(), 1);
+  EXPECT_EQ(implicit_name_sfi->function_literal_id(kRelaxedLoad), 1);
   EXPECT_TRUE(implicit_name_sfi->Name()->IsOneByteEqualTo(
       base::CStrVector("implicit_name")));
 }

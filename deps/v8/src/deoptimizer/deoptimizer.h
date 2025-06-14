@@ -59,7 +59,8 @@ class Deoptimizer : public Malloced {
   static bool DeoptExitIsInsideOsrLoop(Isolate* isolate,
                                        Tagged<JSFunction> function,
                                        BytecodeOffset deopt_exit_offset,
-                                       BytecodeOffset osr_offset);
+                                       BytecodeOffset osr_offset,
+                                       CodeKind code_kind);
   static DeoptInfo GetDeoptInfo(Tagged<Code> code, Address from);
   DeoptInfo GetDeoptInfo() const {
     return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
@@ -309,11 +310,10 @@ class Deoptimizer : public Malloced {
   std::optional<AccountingAllocator> alloc_;
   std::optional<Zone> zone_;
 #endif
-#if V8_ENABLE_WEBASSEMBLY && V8_ENABLE_SANDBOX
+#if V8_ENABLE_WEBASSEMBLY
   // Wasm deoptimizations should not access the heap at all. All deopt data is
   // stored off-heap.
-  std::optional<SandboxHardwareSupport::BlockAccessScope>
-      no_heap_access_during_wasm_deopt_;
+  std::optional<DisallowSandboxAccess> no_sandbox_access_during_wasm_deopt_;
 #endif
 
   friend class DeoptimizedFrameInfo;

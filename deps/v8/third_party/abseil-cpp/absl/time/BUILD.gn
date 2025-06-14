@@ -61,6 +61,7 @@ absl_test("time_test") {
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/hash:hash_testing",
     "//third_party/abseil-cpp/absl/numeric:int128",
+    "//third_party/abseil-cpp/absl/random",
     "//third_party/abseil-cpp/absl/strings:str_format",
     "//third_party/abseil-cpp/absl/time/internal/cctz:time_zone",
   ]

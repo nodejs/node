@@ -2196,7 +2196,10 @@ TEST(CheckIntlSegmentIteratorTerminateExecutionInterrupt) {
     static void NotifyCallback(
         const v8::FunctionCallbackInfo<v8::Value>& args) {
       auto self = Unwrap(args.Data());
-      self->did_enter_loop_ = true;
+      {
+        v8::base::MutexGuard guard(self->m_);
+        self->did_enter_loop_ = true;
+      }
       self->NotifyCV();
     }
     bool did_enter_loop_{false};

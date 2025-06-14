@@ -262,6 +262,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitPropertyLoadForRegister(Register obj, Property* expr,
                                     Register destination);
 
+  bool BuildInitializationBlockForParametersIfExist();
+
   AssignmentLhsData PrepareAssignmentLhs(
       Expression* lhs, AccumulatorPreservingMode accumulator_preserving_mode =
                            AccumulatorPreservingMode::kNone);

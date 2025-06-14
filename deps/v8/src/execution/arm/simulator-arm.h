@@ -496,7 +496,7 @@ class Simulator : public SimulatorBase {
   // stack underflows.
   static const int kStackMargin = 64;
   // Added in Simulator::StackLimit()
-  static const int kAdditionalStackMargin = 4 * KB;
+  static const int kAdditionalStackMargin = 20 * KB;
   static const size_t kUsableStackSize = kAllocatedStackSize - kStackMargin;
   bool pc_modified_;
   int icount_;

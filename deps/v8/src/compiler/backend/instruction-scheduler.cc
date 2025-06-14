@@ -271,7 +271,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchBinarySearchSwitch:
     case kArchRet:
     case kArchTableSwitch:
-    case kArchThrowTerminator:
       return kNoOpcodeFlags;
 
     case kArchTruncateDoubleToI:
@@ -331,7 +330,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       return kIsBarrier;
 
     case kArchCallCFunction:
-    case kArchCallCFunctionWithFrameState:
     case kArchCallCodeObject:
     case kArchCallJSFunction:
 #if V8_ENABLE_WEBASSEMBLY

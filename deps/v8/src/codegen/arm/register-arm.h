@@ -53,6 +53,11 @@ namespace internal {
 #define C_REGISTERS(V)                                            \
   V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
   V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
+
+#define C_CALL_CALLEE_SAVE_REGISTERS r4, r5, r6, r7, r8, r9, r10
+
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
+
 // clang-format on
 
 enum RegisterCode {

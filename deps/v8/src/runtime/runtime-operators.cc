@@ -17,7 +17,6 @@ RUNTIME_FUNCTION(Runtime_Add) {
   RETURN_RESULT_OR_FAILURE(isolate, Object::Add(isolate, lhs, rhs));
 }
 
-
 RUNTIME_FUNCTION(Runtime_Equal) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

@@ -22,7 +22,6 @@ namespace internal {
 class SyntheticModule
     : public TorqueGeneratedSyntheticModule<SyntheticModule, Module> {
  public:
-  NEVER_READ_ONLY_SPACE
   DECL_VERIFIER(SyntheticModule)
 
   // Set module's exported value for the specified export_name to the specified

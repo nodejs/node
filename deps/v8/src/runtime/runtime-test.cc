@@ -322,10 +322,8 @@ bool CanOptimizeFunction(CodeKind target_kind,
     return false;
   }
 
-  if (function->shared()->optimization_disabled() &&
-      function->shared()->disabled_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
-    return CrashUnlessFuzzingReturnFalse(isolate);
+  if (function->shared()->optimization_disabled(target_kind)) {
+    return false;
   }
 
   if (IsAsmWasmFunction(isolate, *function)) {
@@ -406,8 +404,7 @@ Tagged<Object> OptimizeFunctionOnNextCall(RuntimeArguments& args,
 bool EnsureCompiledAndFeedbackVector(Isolate* isolate,
                                      DirectHandle<JSFunction> function,
                                      IsCompiledScope* is_compiled_scope) {
-  *is_compiled_scope =
-      function->shared()->is_compiled_scope(function->GetIsolate());
+  *is_compiled_scope = function->shared()->is_compiled_scope(isolate);
 
   // If function isn't compiled, compile it now.
   if (!is_compiled_scope->is_compiled()) {
@@ -622,10 +619,8 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // If optimization is disabled for the function, return without marking it for
   // manual optimization
-  if (function->shared()->optimization_disabled() &&
-      function->shared()->disabled_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
-    return CrashUnlessFuzzing(isolate);
+  if (function->shared()->all_optimization_disabled()) {
+    return ReadOnlyRoots(isolate).undefined_value();
   }
 
   if (IsAsmWasmFunction(isolate, *function)) return CrashUnlessFuzzing(isolate);
@@ -729,9 +724,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  if (function->shared()->optimization_disabled() &&
-      function->shared()->disabled_optimization_reason() ==
-          BailoutReason::kNeverOptimize) {
+  if (function->shared()->all_optimization_disabled()) {
     return CrashUnlessFuzzing(isolate);
   }
 
@@ -1686,12 +1679,12 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   if (!IsJSObject(arg)) return CrashUnlessFuzzing(isolate);
   Tagged<JSObject> object = Cast<JSObject>(arg);
 
-  Heap* heap = object->GetHeap();
   if (!v8_flags.sticky_mark_bits && !HeapLayout::InYoungGeneration(object)) {
     // Object is not in new space, thus there is no memento and nothing to do.
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
   }
 
+  Heap* heap = isolate->heap();
   PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
   Tagged<AllocationMemento> memento = PretenuringHandler::FindAllocationMemento<
       PretenuringHandler::kForRuntime>(heap, object->map(), object);
@@ -1835,12 +1828,6 @@ RUNTIME_FUNCTION(Runtime_IsConcatSpreadableProtector) {
   SealHandleScope shs(isolate);
   return isolate->heap()->ToBoolean(
       Protectors::IsIsConcatSpreadableLookupChainIntact(isolate));
-}
-
-RUNTIME_FUNCTION(Runtime_TypedArrayLengthProtector) {
-  SealHandleScope shs(isolate);
-  return isolate->heap()->ToBoolean(
-      Protectors::IsTypedArrayLengthLookupChainIntact(isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_TypedArraySpeciesProtector) {
@@ -2217,6 +2204,14 @@ RUNTIME_FUNCTION(Runtime_IsEfficiencyModeEnabled) {
     return ReadOnlyRoots(isolate).true_value();
   }
   return ReadOnlyRoots(isolate).false_value();
+}
+
+RUNTIME_FUNCTION(Runtime_IsExperimentalUndefinedDoubleEnabled) {
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  return ReadOnlyRoots(isolate).true_value();
+#else
+  return ReadOnlyRoots(isolate).false_value();
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 }
 
 RUNTIME_FUNCTION(Runtime_SetBatterySaverMode) {

@@ -30,18 +30,11 @@ describe('Toplevel mutations', () => {
     // Make random operations deterministic.
     helpers.deterministicRandom(sandbox);
 
-    this.settings = {
-      ADD_VAR_OR_OBJ_MUTATIONS: 0.0,
-      MUTATE_CROSSOVER_INSERT: 0.0,
-      MUTATE_EXPRESSIONS: 0.0,
-      MUTATE_FUNCTION_CALLS: 1.0,
-      MUTATE_NUMBERS: 1.0,
-      MUTATE_VARIABLES: 0.0,
-      SCRIPT_MUTATOR_SHUFFLE: 1.0,
-      SCRIPT_MUTATOR_EXTRA_MUTATIONS: 1.0,
-      engine: 'v8',
-      testing: true,
-    };
+    this.settings = helpers.zeroSettings();
+    this.settings.MUTATE_FUNCTION_CALLS = 1.0;
+    this.settings.MUTATE_NUMBERS = 1.0;
+    this.settings.SCRIPT_MUTATOR_EXTRA_MUTATIONS = 1.0;
+    this.settings.SCRIPT_MUTATOR_SHUFFLE = 1.0;
 
     const source = helpers.loadTestData('mutation_order/input.js');
     const mutator = new scriptMutator.ScriptMutator(this.settings, helpers.DB_DIR);

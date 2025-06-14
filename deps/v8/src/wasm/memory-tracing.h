@@ -21,10 +21,9 @@ struct MemoryTracingInfo {
   uintptr_t offset;
   uint8_t is_store;  // 0 or 1
   uint8_t mem_rep;
-  static_assert(
-      std::is_same<decltype(mem_rep),
-                   std::underlying_type<MachineRepresentation>::type>::value,
-      "MachineRepresentation uses uint8_t");
+  static_assert(std::is_same_v<decltype(mem_rep),
+                               std::underlying_type_t<MachineRepresentation>>,
+                "MachineRepresentation uses uint8_t");
 
   MemoryTracingInfo(uintptr_t offset, bool is_store, MachineRepresentation rep)
       : offset(offset),

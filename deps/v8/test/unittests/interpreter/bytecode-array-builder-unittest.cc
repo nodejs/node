@@ -34,6 +34,8 @@ using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   FlagScope<bool> script_context_cells(&i::v8_flags.script_context_cells, true);
+  FlagScope<bool> function_context_cells(&i::v8_flags.function_context_cells,
+                                         true);
 
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 1, 131, &feedback_spec);
@@ -44,7 +46,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   Handle<ScopeInfo> scope_info =
       factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
-  int flags = ScopeInfo::IsEmptyBit::encode(true);
+  int flags = ScopeInfo::IsEmptyBit::encode(true) |
+              ScopeInfo::HasContextCellsBit::encode(true);
   scope_info->set_flags(flags, kRelaxedStore);
   scope_info->set_context_local_count(0);
   scope_info->set_parameter_count(0);
@@ -172,6 +175,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                     VariableKind::NORMAL_VARIABLE,
                     InitializationFlag::kCreatedInitialized);
   fun_var1.AllocateTo(VariableLocation::CONTEXT, 1);
+  fun_var1.SetMaybeAssigned();
   Variable fun_var2(&fun_scope, name, VariableMode::kVar,
                     VariableKind::NORMAL_VARIABLE,
                     InitializationFlag::kCreatedInitialized);
@@ -193,6 +197,30 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadContextSlot(Register::current_context(), &fun_var2, 0,
                        BytecodeArrayBuilder::kImmutableSlot)
       .StoreContextSlot(Register::current_context(), &fun_var3, 0)
+      .PopContext(reg);
+
+  Handle<ScopeInfo> scope_info2 =
+      factory->NewScopeInfo(ScopeInfo::kVariablePartIndex);
+  int flags2 = ScopeInfo::IsEmptyBit::encode(true) |
+               ScopeInfo::HasContextCellsBit::encode(false);
+  scope_info2->set_flags(flags2, kRelaxedStore);
+  scope_info2->set_context_local_count(0);
+  scope_info2->set_parameter_count(0);
+  scope_info2->set_position_info_start(0);
+  scope_info2->set_position_info_end(0);
+  DeclarationScope fun_scope2(zone(), ScopeType::FUNCTION_SCOPE, &ast_factory,
+                              scope_info2);
+  fun_scope2.SetHasNonSimpleParameters();
+  Variable fun2_var1(&fun_scope2, name, VariableMode::kVar,
+                     VariableKind::NORMAL_VARIABLE,
+                     InitializationFlag::kCreatedInitialized);
+  fun2_var1.AllocateTo(VariableLocation::CONTEXT, 1);
+  builder.CreateFunctionContext(&fun_scope2, 1)
+      .StoreAccumulatorInRegister(reg)
+      .LoadContextSlot(reg, &fun2_var1, 0, BytecodeArrayBuilder::kMutableSlot)
+      .PushContext(reg)
+      .LoadContextSlot(Register::current_context(), &fun2_var1, 0,
+                       BytecodeArrayBuilder::kMutableSlot)
       .PopContext(reg);
 
   // Emit load / store property operations.

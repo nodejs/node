@@ -36,8 +36,8 @@ constexpr Opcode RO_FCVT_W_S =
     OP_FP | (0b1100000 << kFunct7Shift) | (0b00000 << kRs2Shift);
 constexpr Opcode RO_FCVT_WU_S =
     OP_FP | (0b1100000 << kFunct7Shift) | (0b00001 << kRs2Shift);
-constexpr Opcode RO_FMV = OP_FP | (0b1110000 << kFunct7Shift) |
-                          (0b000 << kFunct3Shift) | (0b00000 << kRs2Shift);
+constexpr Opcode RO_FMV_X_W = OP_FP | (0b1110000 << kFunct7Shift) |
+                              (0b000 << kFunct3Shift) | (0b00000 << kRs2Shift);
 constexpr Opcode RO_FEQ_S =
     OP_FP | (0b010 << kFunct3Shift) | (0b1010000 << kFunct7Shift);
 constexpr Opcode RO_FLT_S =

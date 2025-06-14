@@ -1262,7 +1262,7 @@ i::DirectHandle<i::JSArrayBuffer> GetBufferFromTypedArray(
       i::Cast<i::JSArrayBufferView>(v8::Utils::OpenDirectHandle(*typed_array));
 
   return i::direct_handle(i::Cast<i::JSArrayBuffer>(view->buffer()),
-                          view->GetIsolate());
+                          i::Isolate::Current());
 }
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
@@ -6168,7 +6168,7 @@ v8::MaybeLocal<v8::Promise> TestHostDefinedOptionFromCachedScript(
   auto arr = host_defined_options.As<v8::FixedArray>();
   CHECK_EQ(arr->Length(), 1);
   v8::Local<v8::Symbol> expected =
-      v8::Symbol::For(context->GetIsolate(), v8_str("hdo"));
+      v8::Symbol::For(CcTest::isolate(), v8_str("hdo"));
   CHECK_EQ(arr->Get(context, 0), expected);
   CHECK(resource_name->Equals(context, v8_str("test_hdo")).FromJust());
   CHECK(specifier->Equals(context, v8_str("foo")).FromJust());
@@ -6182,7 +6182,7 @@ v8::MaybeLocal<v8::Promise> TestHostDefinedOptionFromCachedScript(
 TEST(CachedFunctionHostDefinedOption) {
   DisableAlwaysOpt();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->compilation_cache()
       ->DisableScriptAndEval();  // Disable same-isolate code cache.
@@ -6244,7 +6244,7 @@ TEST(CachedFunctionHostDefinedOption) {
 TEST(CachedUnboundScriptHostDefinedOption) {
   DisableAlwaysOpt();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->compilation_cache()
       ->DisableScriptAndEval();  // Disable same-isolate code cache.
@@ -6310,7 +6310,7 @@ v8::MaybeLocal<v8::Module> UnexpectedModuleResolveCallback(
 TEST(CachedModuleScriptFunctionHostDefinedOption) {
   DisableAlwaysOpt();
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->compilation_cache()
       ->DisableScriptAndEval();  // Disable same-isolate code cache.

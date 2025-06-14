@@ -711,7 +711,9 @@ void MacroAssembler::LoadCodePointerTableBase(Register destination) {
 void MacroAssembler::LoadEntrypointFromJSDispatchTable(
     Register destination, Register dispatch_handle) {
   DCHECK(!AreAliased(destination, dispatch_handle, kScratchRegister));
-  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  movq(kScratchRegister,
+       ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   movq(destination, dispatch_handle);
   shrl(destination, Immediate(kJSDispatchHandleShift));
   shll(destination, Immediate(kJSDispatchTableEntrySizeLog2));
@@ -722,7 +724,9 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 void MacroAssembler::LoadEntrypointFromJSDispatchTable(
     Register destination, JSDispatchHandle dispatch_handle) {
   DCHECK(!AreAliased(destination, kScratchRegister));
-  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  movq(kScratchRegister,
+       ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   // WARNING: This offset calculation is only safe if we have already stored a
   // RelocInfo for the dispatch handle, e.g. in CallJSDispatchEntry, (thus
   // keeping the dispatch entry alive) _and_ because the entrypoints are not
@@ -738,7 +742,9 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 void MacroAssembler::LoadParameterCountFromJSDispatchTable(
     Register destination, Register dispatch_handle) {
   DCHECK(!AreAliased(destination, dispatch_handle, kScratchRegister));
-  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  movq(kScratchRegister,
+       ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   movq(destination, dispatch_handle);
   shrl(destination, Immediate(kJSDispatchHandleShift));
   shll(destination, Immediate(kJSDispatchTableEntrySizeLog2));
@@ -751,7 +757,9 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
     Register entrypoint, Register parameter_count, Register dispatch_handle) {
   DCHECK(!AreAliased(entrypoint, parameter_count, dispatch_handle,
                      kScratchRegister));
-  LoadAddress(kScratchRegister, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  movq(kScratchRegister,
+       ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   Register offset = parameter_count;
   movq(offset, dispatch_handle);
   shrl(offset, Immediate(kJSDispatchHandleShift));
@@ -1256,7 +1264,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Push(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+#ifndef V8_ENABLE_LEAPTIERING
     movq(rcx, rax);
+#endif
 
     // Restore target function, new target, actual argument count, and dispatch
     // handle.
@@ -1268,9 +1278,23 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Pop(kJavaScriptCallNewTargetRegister);
     Pop(kJavaScriptCallTargetRegister);
   }
+
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
+#ifdef V8_ENABLE_LEAPTIERING
+#ifndef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  movl(kJavaScriptCallDispatchHandleRegister,
+       FieldOperand(kJavaScriptCallTargetRegister,
+                    JSFunction::kDispatchHandleOffset));
+#endif
+  LoadEntrypointFromJSDispatchTable(rcx, kJavaScriptCallDispatchHandleRegister);
+  DCHECK_EQ(jump_mode, JumpMode::kJump);
+  jmp(rcx);
+#else
   JumpCodeObject(rcx, kJSEntrypointTag, jump_mode);
+#endif
 }
+
+#ifndef V8_ENABLE_LEAPTIERING
 
 void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
     Register optimized_code, Register closure, Register scratch1,
@@ -1279,9 +1303,6 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
   DCHECK_EQ(closure, kJSFunctionRegister);
 
-#ifdef V8_ENABLE_LEAPTIERING
-  UNREACHABLE();
-#else
   // Store the optimized code in the closure.
   AssertCode(optimized_code);
   StoreCodePointerField(FieldOperand(closure, JSFunction::kCodeOffset),
@@ -1294,10 +1315,7 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
                    SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
                    ReadOnlyCheck::kOmit, SlotDescriptor::ForCodePointerSlot());
-#endif  // V8_ENABLE_LEAPTIERING
 }
-
-#ifndef V8_ENABLE_LEAPTIERING
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
@@ -4500,7 +4518,7 @@ void MacroAssembler::LeaveExitFrame() {
   Operand context_operand = ExternalReferenceAsOperand(context_address);
   movq(rsi, context_operand);
 #ifdef DEBUG
-  Move(context_operand, Context::kInvalidContext);
+  Move(context_operand, Context::kNoContext);
 #endif
 
   // Clear the top frame.
@@ -4633,17 +4651,26 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
   bind(&get_pc);
   if (return_location) bind(return_location);
 
+  DCHECK_NE(base::OS::ActivationFrameAlignment(), 0);
+  DCHECK_GE(num_arguments, 0);
+  int argument_slots_on_stack =
+      ArgumentStackSlotsForCFunctionCall(num_arguments);
+  // Restoring the stack pointer has to happen right after the call. The
+  // deoptimizer may overwrite everything after restoring the SP.
+  int before_offset = pc_offset();
+  movq(rsp, Operand(rsp, argument_slots_on_stack * kSystemPointerSize));
+  Nop(kMaxSizeOfMoveAfterFastCall - (pc_offset() - before_offset));
+  // We assume that with the nop padding, the move instruction uses
+  // kMaxSizeOfMoveAfterFastCall bytes. When we patch in the deopt trampoline,
+  // we patch it in after the move instruction, so that the stack has been
+  // restored correctly.
+  CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
+
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
     movq(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP),
          Immediate(0));
   }
-
-  DCHECK_NE(base::OS::ActivationFrameAlignment(), 0);
-  DCHECK_GE(num_arguments, 0);
-  int argument_slots_on_stack =
-      ArgumentStackSlotsForCFunctionCall(num_arguments);
-  movq(rsp, Operand(rsp, argument_slots_on_stack * kSystemPointerSize));
 
   return call_pc_offset;
 }
@@ -4780,8 +4807,10 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
   // performance tuning which emits a different instruction sequence.
   call(EntryFromBuiltinAsOperand(target));
   DCHECK_EQ(SizeOfCodeGeneratedSince(exit),
-            (kind == DeoptimizeKind::kLazy) ? Deoptimizer::kLazyDeoptExitSize
-                                            : Deoptimizer::kEagerDeoptExitSize);
+            (kind == DeoptimizeKind::kLazy ||
+             kind == DeoptimizeKind::kLazyAfterFastCall)
+                ? Deoptimizer::kLazyDeoptExitSize
+                : Deoptimizer::kEagerDeoptExitSize);
 }
 
 void MacroAssembler::Trap() { int3(); }

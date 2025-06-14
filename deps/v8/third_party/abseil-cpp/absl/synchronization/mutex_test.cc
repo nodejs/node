@@ -36,6 +36,7 @@
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
+#include "absl/random/random.h"
 #include "absl/synchronization/internal/create_thread_identity.h"
 #include "absl/synchronization/internal/thread_pool.h"
 #include "absl/time/clock.h"
@@ -1064,8 +1065,7 @@ TEST(Mutex, ConditionSwap) {
 
 static void ReaderForReaderOnCondVar(absl::Mutex *mu, absl::CondVar *cv,
                                      int *running) {
-  std::random_device dev;
-  std::mt19937 gen(dev());
+  absl::InsecureBitGen gen;
   std::uniform_int_distribution<int> random_millis(0, 15);
   mu->ReaderLock();
   while (*running == 3) {

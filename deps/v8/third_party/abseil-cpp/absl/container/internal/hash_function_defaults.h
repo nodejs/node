@@ -49,6 +49,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "absl/base/config.h"
@@ -57,10 +58,6 @@
 #include "absl/meta/type_traits.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
-
-#ifdef ABSL_HAVE_STD_STRING_VIEW
-#include <string_view>
-#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -113,8 +110,6 @@ struct HashEq<absl::string_view> : StringHashEq {};
 template <>
 struct HashEq<absl::Cord> : StringHashEq {};
 
-#ifdef ABSL_HAVE_STD_STRING_VIEW
-
 template <typename TChar>
 struct BasicStringHash {
   using is_transparent = void;
@@ -152,8 +147,6 @@ template <>
 struct HashEq<std::u32string> : BasicStringHashEq<char32_t> {};
 template <>
 struct HashEq<std::u32string_view> : BasicStringHashEq<char32_t> {};
-
-#endif  // ABSL_HAVE_STD_STRING_VIEW
 
 // Supports heterogeneous lookup for pointers and smart pointers.
 template <class T>

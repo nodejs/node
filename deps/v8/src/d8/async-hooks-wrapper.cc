@@ -176,7 +176,7 @@ Local<Object> AsyncHooks::CreateHook(
 
 void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
                                   Local<Value> parent) {
-  v8::Isolate* v8_isolate = promise->GetIsolate();
+  v8::Isolate* v8_isolate = v8::Isolate::GetCurrent();
   AsyncHooks* hooks = PerIsolateData::Get(v8_isolate)->GetAsyncHooks();
   if (v8_isolate->IsExecutionTerminating() || hooks->skip_after_termination_) {
     hooks->skip_after_termination_ = true;

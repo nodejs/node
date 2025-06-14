@@ -67,6 +67,8 @@ const char* SectionName(SectionCode code) {
       return kCompilationHintsString;
     case kBranchHintsSectionCode:
       return kBranchHintsString;
+    case kDescriptorsSectionCode:
+      return kDescriptorsString;
     default:
       return "<unknown>";
   }
@@ -740,8 +742,6 @@ DecodedNameSection::DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
     }
   }
 }
-
-#undef TRACE
 
 }  // namespace wasm
 }  // namespace internal

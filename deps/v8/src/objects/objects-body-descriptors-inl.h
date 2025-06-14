@@ -1209,7 +1209,7 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
     const wasm::CanonicalStructType* type = WasmStruct::GcSafeType(map);
     if (type->is_descriptor()) {
       // The associated Map is stored where the first field would otherwise be.
-      DCHECK_NE(type->field_offset(0), 0);
+      DCHECK(type->field_count() == 0 || type->field_offset(0) != 0);
       v->VisitPointer(wasm_struct, wasm_struct->RawField(0));
     }
     for (uint32_t i = 0; i < type->field_count(); i++) {
@@ -1221,6 +1221,26 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     return WasmStruct::GcSafeSize(map);
+  }
+};
+
+// TODO(403372470): This is effectively the same as just dropping this
+// descriptor and falling back to the default JSObject::BodyDescriptor.
+// If WebAssembly.DescriptorOptions remains in the proposal, we could
+// simplify this code. (Or decide that having an explicit descriptor for
+// each class is good style.)
+class WasmDescriptorOptions::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    IteratePointers(obj, JSObject::BodyDescriptor::kStartOffset, kHeaderSize,
+                    v);
+    IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    return map->instance_size();
   }
 };
 
@@ -1688,6 +1708,26 @@ class ProtectedWeakFixedArray::BodyDescriptor final
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
     return UncheckedCast<ProtectedWeakFixedArray>(raw_object)->AllocatedSize();
+  }
+};
+
+class DoubleStringCache::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    Tagged<DoubleStringCache> host = Cast<DoubleStringCache>(obj);
+    for (int offset = OFFSET_OF_DATA_START(DoubleStringCache);
+         offset < object_size; offset += sizeof(DoubleStringCache::Entry)) {
+      // Visit tagged value of each entry.
+      ObjectSlot slot(host->address() + offset +
+                      offsetof(DoubleStringCache::Entry, value_));
+      v->VisitPointer(host, slot);
+    }
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return UncheckedCast<DoubleStringCache>(raw_object)->AllocatedSize();
   }
 };
 

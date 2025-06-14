@@ -18,6 +18,10 @@
 
 namespace v8_fuzzer {
 
+// Use a lower max old generation size which is consistent across different
+// architectures.
+static constexpr size_t kMaxOldGenerationSize = 512 * i::MB;
+
 FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   // Disable hard abort, which generates a trap instead of a proper abortion.
   // Traps by default do not cause libfuzzer to generate a crash file.
@@ -62,6 +66,8 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator_;
   create_params.allow_atomics_wait = false;
+  create_params.constraints.set_max_old_generation_size_in_bytes(
+      kMaxOldGenerationSize);
   isolate_ = v8::Isolate::New(create_params);
 
   {

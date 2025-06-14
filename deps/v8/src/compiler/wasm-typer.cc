@@ -56,7 +56,9 @@ Reduction WasmTyper::Reduce(Node* node) {
       // Note: The intersection type might be bottom. In this case, we are in a
       // dead branch: Type this node as bottom and wait for the
       // WasmGCOperatorReducer to remove it.
-      computed_type = wasm::Intersection(guarded_wasm_type, input_wasm_type);
+      DCHECK_EQ(guarded_wasm_type.module, input_wasm_type.module);
+      computed_type = wasm::Intersection(
+          guarded_wasm_type.type, input_wasm_type.type, input_wasm_type.module);
       break;
     }
     case IrOpcode::kWasmTypeCast:
@@ -66,9 +68,8 @@ Reduction WasmTyper::Reduce(Node* node) {
           NodeProperties::GetType(NodeProperties::GetValueInput(node, 0))
               .AsWasm();
       wasm::ValueType to_type = OpParameter<WasmTypeCheckConfig>(node->op()).to;
-      // TODO(12166): Change module parameters if we have cross-module inlining.
-      computed_type = wasm::Intersection(
-          object_type.type, to_type, object_type.module, object_type.module);
+      computed_type =
+          wasm::Intersection(object_type.type, to_type, object_type.module);
       break;
     }
     case IrOpcode::kAssertNotNull: {
@@ -112,7 +113,9 @@ Reduction WasmTyper::Reduce(Node* node) {
           computed_type = wasm_type;
         } else if (!wasm_type.type.is_bottom()) {
           // We do not want union of types from unreachable branches.
-          computed_type = wasm::Union(computed_type, wasm_type);
+          DCHECK_EQ(computed_type.module, wasm_type.module);
+          computed_type =
+              wasm::Union(computed_type.type, wasm_type.type, wasm_type.module);
         }
       }
       TRACE(

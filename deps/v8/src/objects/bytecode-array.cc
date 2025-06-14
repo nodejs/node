@@ -124,7 +124,11 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
     if (!source_positions.done() &&
         iterator.current_offset() == source_positions.code_offset()) {
       os << std::setw(5) << source_positions.source_position().ScriptOffset();
-      os << (source_positions.is_statement() ? " S> " : " E> ");
+      if (source_positions.is_breakable()) {
+        os << (source_positions.is_statement() ? " S> " : " E> ");
+      } else {
+        os << (source_positions.is_statement() ? " s> " : " e> ");
+      }
       source_positions.Advance();
     } else {
       os << "         ";

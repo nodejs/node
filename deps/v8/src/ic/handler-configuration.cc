@@ -169,6 +169,78 @@ Handle<Object> LoadHandler::LoadFullChain(
   return handler;
 }
 
+Handle<Object> LoadHandler::LoadNonExistent(
+    Isolate* isolate, DirectHandle<Map> lookup_start_object_map) {
+  Tagged<Smi> smi_handler = Smi::FromInt(KindBits::encode(Kind::kNonExistent));
+  MaybeObjectDirectHandle data1 =
+      MaybeObjectDirectHandle(isolate->factory()->null_value());
+  int data_size = GetHandlerDataSize<LoadHandler>(
+      isolate, &smi_handler, lookup_start_object_map, data1);
+
+  DirectHandle<PrototypeInfo> prototype_info;
+  DirectHandle<UnionOf<Smi, Cell>> validity_cell =
+      Map::GetOrCreatePrototypeChainValidityCell(lookup_start_object_map,
+                                                 isolate, &prototype_info);
+
+  // Try to fetch cached handler if it was already created.
+  int handler_index;
+
+  if (IsSmi(*validity_cell)) {
+    DCHECK_EQ(1, data_size);
+    // Lookup on lookup start object isn't supported in case of a simple smi
+    // handler.
+    if (!LookupOnLookupStartObjectBits::decode(smi_handler.value())) {
+      return handle(smi_handler, isolate);
+    }
+    // Handlers with Smi validity cells are not cacheable.
+    handler_index = -1;
+
+  } else {
+    // |smi_handler| already has do-access-check-on-lookup or lookup-on-receiver
+    // bits set if necessary, so just use them in order to figure out the index
+    // of the cached non-existent handler.
+    int config = smi_handler.value();
+    const uint32_t non_default_mask =
+        DoAccessCheckOnLookupStartObjectBits::kMask |
+        LookupOnLookupStartObjectBits::kMask;
+    if (config & non_default_mask) {
+      if (config & LookupOnLookupStartObjectBits::kMask) {
+        handler_index =
+            PrototypeInfo::kLoadNonExistentHandlerWithLookupOnReceiver;
+      } else {
+        DCHECK(config & DoAccessCheckOnLookupStartObjectBits::kMask);
+        // This is a less often used version, we don't cache it.
+        handler_index = -1;
+      }
+    } else {
+      handler_index = PrototypeInfo::kLoadNonExistentHandlerDefault;
+    }
+
+    if (handler_index >= 0) {
+      auto maybe_handler = prototype_info->cached_handler(handler_index);
+      if (!IsSmi(maybe_handler)) {
+        Tagged<LoadHandler> handler = Cast<LoadHandler>(maybe_handler);
+        // Handler's validity cell must be the up-to-date one.
+        DCHECK_EQ(handler->validity_cell(), *validity_cell);
+        return handle(handler, isolate);
+      }
+      // Proceed with allocating a handler and caching it in prototype info.
+    }
+  }
+
+  Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_size);
+
+  handler->set_smi_handler(smi_handler);
+  handler->set_validity_cell(*validity_cell);
+  InitPrototypeChecks(isolate, direct_handle(handler), lookup_start_object_map,
+                      data1);
+
+  if (handler_index >= 0) {
+    prototype_info->set_cached_handler(handler_index, *handler);
+  }
+  return handler;
+}
+
 // static
 KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(
     Tagged<MaybeObject> handler) {
@@ -262,6 +334,9 @@ MaybeObjectHandle StoreHandler::StoreOwnTransition(Isolate* isolate,
 MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
                                                 Handle<Map> transition_map) {
   bool is_dictionary_map = transition_map->is_dictionary_map();
+  // We should not create transition handlers for fast prototype maps
+  // because they are not reusable anyway.
+  DCHECK_IMPLIES(transition_map->is_prototype_map(), is_dictionary_map);
 #ifdef DEBUG
   if (!is_dictionary_map) {
     InternalIndex descriptor = transition_map->LastAdded();
@@ -384,6 +459,17 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
            << ElementsKindToString(
                   LoadHandler::ElementsKindBits::decode(raw_handler));
       }
+      break;
+    case LoadHandler::Kind::kElementWithTransition:
+      os << "kElementWithTransition, ";
+      os << "allow out of bounds = "
+         << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)
+         << ", is JSArray = " << LoadHandler::IsJsArrayBits::decode(raw_handler)
+         << ", alow reading holes = "
+         << LoadHandler::AllowHandlingHole::decode(raw_handler)
+         << ", elements kind = "
+         << ElementsKindToString(
+                LoadHandler::ElementsKindBits::decode(raw_handler));
       break;
     case LoadHandler::Kind::kIndexedString:
       os << "kIndexedString, allow out of bounds = "

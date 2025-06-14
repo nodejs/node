@@ -2049,7 +2049,7 @@ WASM_EXPORT auto Global::get() const -> Val {
             store->i_isolate()));
       }
       if (IsWasmNull(*result)) {
-        result = v8_global->GetIsolate()->factory()->null_value();
+        result = i::Isolate::Current()->factory()->null_value();
       }
       return Val(V8RefValueToWasm(store, result));
     }
@@ -2356,8 +2356,6 @@ WASM_EXPORT own<Instance> Instance::make(Store* store_abs,
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   CheckAndHandleInterrupts(isolate);
-
-  DCHECK_EQ(module->v8_object()->GetIsolate(), isolate);
 
   if (trap) *trap = nullptr;
   ownvec<ImportType> import_types = module_abs->imports();

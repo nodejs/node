@@ -16,7 +16,7 @@ namespace v8::internal::compiler::turboshaft {
   } while (false)
 
 void WasmGCTypeAnalyzer::Run() {
-  LoopFinder loop_finder(phase_zone_, &graph_);
+  LoopFinder loop_finder(phase_zone_, &graph_, LoopFinder::Config{});
   AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
   while (iterator.HasNext()) {
     const Block& block = *iterator.Next();
@@ -392,7 +392,7 @@ void WasmGCTypeAnalyzer::ProcessPhi(const PhiOp& phi) {
     if (union_type.is_uninhabited()) {
       union_type = input_type;
     } else {
-      union_type = wasm::Union(union_type, input_type, module_, module_).type;
+      union_type = wasm::Union(union_type, input_type, module_).type;
     }
   }
   RefineTypeKnowledge(graph_.Index(phi), union_type, phi);
@@ -550,7 +550,7 @@ bool WasmGCTypeAnalyzer::CreateMergeSnapshot(
           if (res == wasm::ValueType() || type == wasm::ValueType()) {
             res = wasm::ValueType();
           } else {
-            res = wasm::Union(res, type, module_, module_).type;
+            res = wasm::Union(res, type, module_).type;
           }
         }
         return res;
@@ -566,7 +566,7 @@ wasm::ValueType WasmGCTypeAnalyzer::RefineTypeKnowledge(
   wasm::ValueType intersection_type =
       previous_value == wasm::ValueType()
           ? new_type
-          : wasm::Intersection(previous_value, new_type, module_, module_).type;
+          : wasm::Intersection(previous_value, new_type, module_).type;
   if (intersection_type == previous_value) return previous_value;
 
   TRACE("[b%u%s] #%u(%s): Refine type for object #%u(%s) -> %s%s\n",

@@ -197,7 +197,7 @@ static constexpr const char kExpectedCppStackRootsName[] =
 
 template <typename T>
 constexpr const char* GetExpectedName() {
-  if (std::is_base_of<cppgc::NameProvider, T>::value ||
+  if (std::is_base_of_v<cppgc::NameProvider, T> ||
       cppgc::NameProvider::SupportsCppClassNamesAsObjectNames()) {
     return T::kExpectedName;
   } else {
@@ -908,6 +908,70 @@ TEST_F(UnifiedHeapSnapshotTest, DynamicName) {
                                     {kExpectedCppRootsName, "dynamic name 1"}));
   EXPECT_FALSE(
       ContainsRetainingPath(*snapshot, {kExpectedCppRootsName, "static name"}));
+}
+
+namespace {
+
+class ExternalData final : public cppgc::GarbageCollected<ExternalData> {
+ public:
+  static constexpr const char kExpectedName[] =
+      "v8::internal::(anonymous namespace)::ExternalData";
+
+  void Trace(cppgc::Visitor* v) const {}
+};
+
+class GCedWithCppHeapExternalJSRef final
+    : public cppgc::GarbageCollected<GCedWithCppHeapExternalJSRef> {
+ public:
+  static constexpr const char kExpectedName[] =
+      "v8::internal::(anonymous namespace)::GCedWithCppHeapExternalJSRef";
+
+  void Trace(cppgc::Visitor* v) const { v->Trace(v8_cpp_heap_external_); }
+
+  void SetCppHeapExternal(v8::Isolate* isolate,
+                          v8::Local<v8::CppHeapExternal> object) {
+    v8_cpp_heap_external_.Reset(isolate, object);
+  }
+
+ private:
+  TracedReference<v8::CppHeapExternal> v8_cpp_heap_external_;
+};
+
+}  // namespace
+
+TEST_F(UnifiedHeapSnapshotTest, CppHeapExternal) {
+  auto* cpp_object =
+      cppgc::MakeGarbageCollected<ExternalData>(allocation_handle());
+  v8::Global<v8::CppHeapExternal> cpp_heap_external(
+      v8_isolate(),
+      v8::CppHeapExternal::New<ExternalData>(
+          v8_isolate(), cpp_object, v8::CppHeapPointerTag::kDefaultTag));
+  USE(cpp_heap_external);
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot, {"(GC roots)", "(Handle scope)", "system / CppHeapExternal",
+                  GetExpectedName<ExternalData>()}));
+}
+
+TEST_F(UnifiedHeapSnapshotTest, CppHeapExternalTracedReference) {
+  cppgc::Persistent<GCedWithCppHeapExternalJSRef> root =
+      cppgc::MakeGarbageCollected<GCedWithCppHeapExternalJSRef>(
+          allocation_handle());
+  root->SetCppHeapExternal(
+      v8_isolate(),
+      v8::CppHeapExternal::New<ExternalData>(
+          v8_isolate(),
+          cppgc::MakeGarbageCollected<ExternalData>(allocation_handle()),
+          v8::CppHeapPointerTag::kDefaultTag));
+  const v8::HeapSnapshot* snapshot =
+      TakeHeapSnapshot(cppgc::EmbedderStackState::kNoHeapPointers);
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+  EXPECT_TRUE(ContainsRetainingPath(
+      *snapshot,
+      {kExpectedCppRootsName, GetExpectedName<GCedWithCppHeapExternalJSRef>(),
+       "system / CppHeapExternal", GetExpectedName<ExternalData>()}));
 }
 
 }  // namespace internal

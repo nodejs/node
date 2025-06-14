@@ -15,7 +15,6 @@
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-base-inl.h"
-#include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/objects/feedback-cell.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number-inl.h"
@@ -154,37 +153,6 @@ Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
          IsBytecodeArray(*interpreter_data));
   interpreter_data_ = interpreter_data;
   return *this;
-}
-
-void Factory::NumberToStringCacheSet(DirectHandle<Object> number, int hash,
-                                     DirectHandle<String> js_string) {
-  if (!IsUndefined(number_string_cache()->get(hash * 2), isolate()) &&
-      !isolate()->MemorySaverModeEnabled()) {
-    int full_size = isolate()->heap()->MaxNumberToStringCacheSize();
-    if (number_string_cache()->length() != full_size) {
-      DirectHandle<FixedArray> new_cache =
-          NewFixedArray(full_size, AllocationType::kOld);
-      isolate()->heap()->set_number_string_cache(*new_cache);
-      return;
-    }
-  }
-  DisallowGarbageCollection no_gc;
-  Tagged<FixedArray> cache = *number_string_cache();
-  cache->set(hash * 2, *number);
-  cache->set(hash * 2 + 1, *js_string);
-}
-
-Handle<Object> Factory::NumberToStringCacheGet(Tagged<Object> number,
-                                               int hash) {
-  DisallowGarbageCollection no_gc;
-  Tagged<FixedArray> cache = *number_string_cache();
-  Tagged<Object> key = cache->get(hash * 2);
-  if (key == number ||
-      (IsHeapNumber(key) && IsHeapNumber(number) &&
-       Cast<HeapNumber>(key)->value() == Cast<HeapNumber>(number)->value())) {
-    return Handle<String>(Cast<String>(cache->get(hash * 2 + 1)), isolate());
-  }
-  return undefined_value();
 }
 
 }  // namespace internal

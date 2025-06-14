@@ -160,16 +160,16 @@ TEST_WITH_PLATFORM(AlignedAllocOOM, AllocationPlatform) {
 TEST_WITH_PLATFORM(AllocVirtualMemoryOOM, AllocationPlatform) {
   CHECK(!platform.oom_callback_called);
   v8::internal::VirtualMemory result(v8::internal::GetPlatformPageAllocator(),
-                                     GetHugeMemoryAmount(), nullptr);
+                                     GetHugeMemoryAmount());
   // On a few systems, allocation somehow succeeds.
   CHECK_IMPLIES(!result.IsReserved(), platform.oom_callback_called);
 }
 
 TEST_WITH_PLATFORM(AlignedAllocVirtualMemoryOOM, AllocationPlatform) {
   CHECK(!platform.oom_callback_called);
-  v8::internal::VirtualMemory result(v8::internal::GetPlatformPageAllocator(),
-                                     GetHugeMemoryAmount(), nullptr,
-                                     v8::internal::AllocatePageSize());
+  v8::internal::VirtualMemory result(
+      v8::internal::GetPlatformPageAllocator(), GetHugeMemoryAmount(),
+      v8::PageAllocator::AllocationHint(), v8::internal::AllocatePageSize());
   // On a few systems, allocation somehow succeeds.
   CHECK_IMPLIES(!result.IsReserved(), platform.oom_callback_called);
 }

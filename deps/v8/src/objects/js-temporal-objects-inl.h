@@ -81,7 +81,6 @@ TEMPORAL_TIME_INLINE_GETTER_SETTER(JSTemporalPlainTime, hour_minute_second,
                                    second_parts)
 TEMPORAL_DATE_INLINE_GETTER_SETTER(JSTemporalPlainYearMonth, year_month_day)
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalCalendar)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalDuration)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalInstant)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainDate)
@@ -92,10 +91,11 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalPlainYearMonth)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalTimeZone)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSTemporalZonedDateTime)
 
-BIT_FIELD_ACCESSORS(JSTemporalCalendar, flags, calendar_index,
-                    JSTemporalCalendar::CalendarIndexBits)
-
 BOOL_ACCESSORS(JSTemporalTimeZone, flags, is_offset, IsOffsetBit::kShift)
+
+// temporal_rs object getters
+ACCESSORS(JSTemporalInstant, instant, Tagged<Managed<temporal_rs::Instant>>,
+          kInstantOffset)
 
 // Special handling of sign
 TEMPORAL_INLINE_SIGNED_GETTER_SETTER(JSTemporalTimeZone, flags,

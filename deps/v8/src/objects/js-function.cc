@@ -70,7 +70,7 @@ CodeKinds JSFunction::GetAvailableCodeKinds(IsolateForSandbox isolate) const {
 
 void JSFunction::TraceOptimizationStatus(const char* format, ...) {
   if (!v8_flags.trace_opt_status) return;
-  Isolate* const isolate = GetIsolate();
+  Isolate* const isolate = Isolate::Current();
   PrintF("[optimization status (");
   {
     va_list arguments;
@@ -274,7 +274,7 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
   DCHECK(!ActiveTierIsTurbofan(isolate));
   DCHECK(shared()->HasBytecodeArray());
   DCHECK(shared()->allows_lazy_compilation() ||
-         !shared()->optimization_disabled());
+         !shared()->optimization_disabled(target_kind));
 
   if (IsConcurrent(mode)) {
     if (tiering_in_progress()) {
@@ -1050,7 +1050,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_TYPED_ARRAY_TYPE:
     case JS_PRIMITIVE_WRAPPER_TYPE:
-    case JS_TEMPORAL_CALENDAR_TYPE:
+#ifdef V8_TEMPORAL_SUPPORT
     case JS_TEMPORAL_DURATION_TYPE:
     case JS_TEMPORAL_INSTANT_TYPE:
     case JS_TEMPORAL_PLAIN_DATE_TYPE:
@@ -1060,6 +1060,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
     case JS_TEMPORAL_TIME_ZONE_TYPE:
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
+#endif
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:

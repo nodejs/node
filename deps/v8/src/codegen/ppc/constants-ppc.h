@@ -3257,4 +3257,8 @@ static constexpr int kFpDwarfCode = 31;  // frame-pointer
 static constexpr int kLrDwarfCode = 65;  // return-address(lr)
 static constexpr int kSpDwarfCode = 1;   // stack-pointer (sp)
 
+// The maximum size of the stack restore after a fast API call that pops the
+// stack parameters of the call off the stack.
+constexpr int kMaxSizeOfMoveAfterFastCall = 4;
+
 #endif  // V8_CODEGEN_PPC_CONSTANTS_PPC_H_

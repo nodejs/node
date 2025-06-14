@@ -94,13 +94,16 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       break;
     case CodeKind::BYTECODE_HANDLER:
       set_called_with_code_start_register();
+#ifdef V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
+      set_switch_jump_table();
+#endif  // V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
       if (v8_flags.turbo_splitting) set_splitting();
       if (v8_flags.enable_allocation_folding) set_allocation_folding();
       break;
     case CodeKind::BUILTIN:
 #ifdef V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
       set_switch_jump_table();
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
       [[fallthrough]];
     case CodeKind::FOR_TESTING:
       if (v8_flags.turbo_splitting) set_splitting();
@@ -151,7 +154,9 @@ void OptimizedCompilationInfo::AbortOptimization(BailoutReason reason) {
   if (bailout_reason_ == BailoutReason::kNoReason) {
     bailout_reason_ = reason;
   }
-  set_disable_future_optimization();
+  if (IsTerminalBailoutReasonForTurbofan(reason)) {
+    set_disable_future_optimization();
+  }
 }
 
 void OptimizedCompilationInfo::RetryOptimization(BailoutReason reason) {

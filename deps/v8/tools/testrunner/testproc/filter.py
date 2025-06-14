@@ -49,6 +49,18 @@ class StatusFileFilterProc(base.TestProcFilter):
     )
 
 
+class FuzzRareTestFilterProc(base.TestProcFilter):
+  """As above but skipping tests marked as 'FUZZ_RARE' with a probability."""
+
+  def __init__(self, rng, prob):
+    super(FuzzRareTestFilterProc, self).__init__()
+    self.rng = rng
+    self.prob = prob
+
+  def _filter(self, test):
+    return test.fuzz_rare and self.rng.random() < self.prob
+
+
 class NameFilterProc(base.TestProcFilter):
   """Filters tests based on command-line arguments.
 

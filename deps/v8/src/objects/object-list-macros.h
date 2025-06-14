@@ -68,6 +68,7 @@ namespace internal {
   V(ClosureFeedbackCellArray)                 \
   V(Code)                                     \
   V(Context)                                  \
+  V(DoubleStringCache)                        \
   V(ExternalString)                           \
   V(FeedbackMetadata)                         \
   V(FeedbackVector)                           \
@@ -117,6 +118,7 @@ namespace internal {
   V(DependentCode)                              \
   V(DescriptorArray)                            \
   V(DictionaryTemplateInfo)                     \
+  V(DoubleStringCache)                          \
   V(EmbedderDataArray)                          \
   V(EphemeronHashTable)                         \
   V(ExternalOneByteString)                      \
@@ -191,16 +193,6 @@ namespace internal {
   V(JSSpecialObject)                            \
   V(JSStringIterator)                           \
   V(JSSynchronizationPrimitive)                 \
-  V(JSTemporalCalendar)                         \
-  V(JSTemporalDuration)                         \
-  V(JSTemporalInstant)                          \
-  V(JSTemporalPlainDate)                        \
-  V(JSTemporalPlainTime)                        \
-  V(JSTemporalPlainDateTime)                    \
-  V(JSTemporalPlainMonthDay)                    \
-  V(JSTemporalPlainYearMonth)                   \
-  V(JSTemporalTimeZone)                         \
-  V(JSTemporalZonedDateTime)                    \
   V(JSTypedArray)                               \
   V(JSValidIteratorWrapper)                     \
   V(JSWeakCollection)                           \
@@ -284,6 +276,7 @@ namespace internal {
   IF_WASM(V, WasmDescriptorOptions)             \
   IF_WASM(V, WasmSuspenderObject)               \
   IF_WASM(V, WasmSuspendingObject)              \
+  IF_WASM(V, WasmContinuationObject)            \
   IF_WASM(V, WasmTableObject)                   \
   IF_WASM(V, WasmTagObject)                     \
   IF_WASM(V, WasmTypeInfo)                      \
@@ -310,32 +303,51 @@ namespace internal {
   V(NumberWrapper)                  \
   V(OSROptimizedCodeCache)          \
   V(ScriptWrapper)                  \
+  V(SmiStringCache)                 \
   V(StringWrapper)                  \
   V(SymbolWrapper)                  \
   V(UniqueName)                     \
   V(Undetectable)
 
 #ifdef V8_INTL_SUPPORT
-#define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
-  HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
-  V(JSV8BreakIterator)                    \
-  V(JSCollator)                           \
-  V(JSDateTimeFormat)                     \
-  V(JSDisplayNames)                       \
-  V(JSDurationFormat)                     \
-  V(JSListFormat)                         \
-  V(JSLocale)                             \
-  V(JSNumberFormat)                       \
-  V(JSPluralRules)                        \
-  V(JSRelativeTimeFormat)                 \
-  V(JSSegmentDataObject)                  \
-  V(JSSegmentDataObjectWithIsWordLike)    \
-  V(JSSegmentIterator)                    \
-  V(JSSegmenter)                          \
+#define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE_AND_INTL(V) \
+  HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)                \
+  V(JSV8BreakIterator)                                  \
+  V(JSCollator)                                         \
+  V(JSDateTimeFormat)                                   \
+  V(JSDisplayNames)                                     \
+  V(JSDurationFormat)                                   \
+  V(JSListFormat)                                       \
+  V(JSLocale)                                           \
+  V(JSNumberFormat)                                     \
+  V(JSPluralRules)                                      \
+  V(JSRelativeTimeFormat)                               \
+  V(JSSegmentDataObject)                                \
+  V(JSSegmentDataObjectWithIsWordLike)                  \
+  V(JSSegmentIterator)                                  \
+  V(JSSegmenter)                                        \
   V(JSSegments)
 #else
-#define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)
+#define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE_AND_INTL(V) \
+  HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)
 #endif  // V8_INTL_SUPPORT
+
+#ifdef V8_TEMPORAL_SUPPORT
+#define HEAP_OBJECT_ORDINARY_TYPE_LIST(V)         \
+  HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE_AND_INTL(V) \
+  V(JSTemporalDuration)                           \
+  V(JSTemporalInstant)                            \
+  V(JSTemporalPlainDate)                          \
+  V(JSTemporalPlainTime)                          \
+  V(JSTemporalPlainDateTime)                      \
+  V(JSTemporalPlainMonthDay)                      \
+  V(JSTemporalPlainYearMonth)                     \
+  V(JSTemporalTimeZone)                           \
+  V(JSTemporalZonedDateTime)
+#else
+#define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
+  HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE_AND_INTL(V)
+#endif  // V8_TEMPORAL_SUPPORT
 
 //
 // Trusted Objects.
@@ -487,7 +499,8 @@ namespace internal {
   V(StaleRegister, stale_register, StaleRegister)                      \
   V(SelfReferenceMarker, self_reference_marker, SelfReferenceMarker)   \
   V(BasicBlockCountersMarker, basic_block_counters_marker,             \
-    BasicBlockCountersMarker)
+    BasicBlockCountersMarker)                                          \
+  V(UndefinedContextCell, undefined_context_cell, UndefinedContextCell)
 
 #define OBJECT_TYPE_LIST(V) \
   V(Primitive)              \

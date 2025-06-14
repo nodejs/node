@@ -59,19 +59,6 @@ class LinearAllocationArea final {
     return false;
   }
 
-  V8_INLINE bool MergeIfAdjacent(LinearAllocationArea& other) {
-    Verify();
-    other.Verify();
-    if (top_ == other.limit_) {
-      top_ = other.top_;
-      start_ = other.start_;
-      other.Reset(kNullAddress, kNullAddress);
-      Verify();
-      return true;
-    }
-    return false;
-  }
-
   V8_INLINE void SetLimit(Address limit) {
     limit_ = limit;
     Verify();

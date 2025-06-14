@@ -476,6 +476,16 @@
                  'mksnapshot_flags': ['--no-native-code-counters'],
                },
              }],
+            ['build_type=="Debug"', {
+              'outputs': [
+                '<(INTERMEDIATE_DIR)/src/builtins/builtins-effects.cc',
+              ],
+              'variables': {
+                'mksnapshot_flags': [
+                  '--builtins-effects-src', '<(INTERMEDIATE_DIR)/src/builtins/builtins-effects.cc',
+                ],
+              },
+            }],
           ],
           'action': [
             '>@(_inputs)',
@@ -2145,6 +2155,8 @@
           '<(V8_ROOT)/src/objects/megadom-handler-inl.h',
           '<(V8_ROOT)/src/objects/name.h',
           '<(V8_ROOT)/src/objects/name-inl.h',
+          '<(V8_ROOT)/src/objects/number-string-cache.h',
+          '<(V8_ROOT)/src/objects/number-string-cache-inl.h',
           '<(V8_ROOT)/src/objects/objects.h',
           '<(V8_ROOT)/src/objects/objects-inl.h',
           '<(V8_ROOT)/src/objects/oddball.h',

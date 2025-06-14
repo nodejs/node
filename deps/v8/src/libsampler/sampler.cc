@@ -14,7 +14,10 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/time.h>
+
 #include <atomic>
+
+#include "src/base/platform/memory-protection-key.h"
 
 #if !V8_OS_QNX && !V8_OS_AIX && !V8_OS_ZOS
 #include <sys/syscall.h>
@@ -388,9 +391,13 @@ bool SignalHandler::signal_handler_installed_ = false;
 
 void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
-  v8::ThreadIsolatedAllocator::SetDefaultPermissionsForSignalHandler();
   USE(info);
   if (signal != SIGPROF) return;
+
+#if V8_HAS_PKU_SUPPORT
+  base::MemoryProtectionKey::SetDefaultPermissionsForAllKeysInSignalHandler();
+#endif
+
   v8::RegisterState state;
   FillRegisterState(context, &state);
   SamplerManager::instance()->DoSample(state);

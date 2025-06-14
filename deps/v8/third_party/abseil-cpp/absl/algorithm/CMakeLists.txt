@@ -68,6 +68,7 @@ absl_cc_test(
     absl::config
     absl::core_headers
     absl::memory
+    absl::random_random
     absl::span
     GTest::gmock_main
 )

@@ -28,8 +28,8 @@ constexpr bool CheckedAddImpl(T x, T y, T* result) {
   static_assert(std::integral<T>, "Type must be integral");
   // Since the value of x+y is undefined if we have a signed type, we compute
   // it using the unsigned type of the same size.
-  using UnsignedDst = typename std::make_unsigned<T>::type;
-  using SignedDst = typename std::make_signed<T>::type;
+  using UnsignedDst = std::make_unsigned_t<T>;
+  using SignedDst = std::make_signed_t<T>;
   const UnsignedDst ux = static_cast<UnsignedDst>(x);
   const UnsignedDst uy = static_cast<UnsignedDst>(y);
   const UnsignedDst uresult = static_cast<UnsignedDst>(ux + uy);
@@ -91,8 +91,8 @@ constexpr bool CheckedSubImpl(T x, T y, T* result) {
   static_assert(std::integral<T>, "Type must be integral");
   // Since the value of x+y is undefined if we have a signed type, we compute
   // it using the unsigned type of the same size.
-  using UnsignedDst = typename std::make_unsigned<T>::type;
-  using SignedDst = typename std::make_signed<T>::type;
+  using UnsignedDst = std::make_unsigned_t<T>;
+  using SignedDst = std::make_signed_t<T>;
   const UnsignedDst ux = static_cast<UnsignedDst>(x);
   const UnsignedDst uy = static_cast<UnsignedDst>(y);
   const UnsignedDst uresult = static_cast<UnsignedDst>(ux - uy);
@@ -154,8 +154,8 @@ constexpr bool CheckedMulImpl(T x, T y, T* result) {
   static_assert(std::integral<T>, "Type must be integral");
   // Since the value of x*y is potentially undefined if we have a signed type,
   // we compute it using the unsigned type of the same size.
-  using UnsignedDst = typename std::make_unsigned<T>::type;
-  using SignedDst = typename std::make_signed<T>::type;
+  using UnsignedDst = std::make_unsigned_t<T>;
+  using SignedDst = std::make_signed_t<T>;
   const UnsignedDst ux = SafeUnsignedAbs(x);
   const UnsignedDst uy = SafeUnsignedAbs(y);
   const UnsignedDst uresult = static_cast<UnsignedDst>(ux * uy);

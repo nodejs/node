@@ -132,10 +132,19 @@ void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
       hash_table.ptr();
 }
 
+void Heap::SetSmiStringCache(Tagged<SmiStringCache> cache) {
+  set_smi_string_cache(cache);
+}
+
+void Heap::SetDoubleStringCache(Tagged<DoubleStringCache> cache) {
+  set_double_string_cache(cache);
+}
+
 #if V8_ENABLE_WEBASSEMBLY
-void Heap::SetWasmCanonicalRttsAndJSToWasmWrappers(
-    Tagged<WeakFixedArray> rtts, Tagged<WeakFixedArray> js_to_wasm_wrappers) {
+void Heap::SetWasmCanonicalRtts(Tagged<WeakFixedArray> rtts) {
   set_wasm_canonical_rtts(rtts);
+}
+void Heap::SetJSToWasmWrappers(Tagged<WeakFixedArray> js_to_wasm_wrappers) {
   set_js_to_wasm_wrappers(js_to_wasm_wrappers);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -387,19 +396,6 @@ uint32_t Heap::GetNextTemplateSerialNumber() {
   DCHECK_NE(next_serial_number, TemplateInfo::kUninitializedSerialNumber);
   set_next_template_serial_number(Smi::FromInt(next_serial_number));
   return next_serial_number;
-}
-
-int Heap::MaxNumberToStringCacheSize() const {
-  // Compute the size of the number string cache based on the max newspace size.
-  // The number string cache has a minimum size based on twice the initial cache
-  // size to ensure that it is bigger after being made 'full size'.
-  size_t number_string_cache_size = max_semi_space_size_ / 512;
-  number_string_cache_size =
-      std::max(static_cast<size_t>(kInitialNumberStringCacheSize * 2),
-               std::min(static_cast<size_t>(0x4000), number_string_cache_size));
-  // There is a string and a number per entry so the length is twice the number
-  // of entries.
-  return static_cast<int>(number_string_cache_size * 2);
 }
 
 void Heap::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,

@@ -144,6 +144,18 @@ struct BuiltinCallDescriptor {
   GENERIC_UNOP_LIST(DECL_GENERIC_UNOP)
 #undef DECL_GENERIC_UNOP
 
+  struct DetachContextCell : public Descriptor<DetachContextCell> {
+    static constexpr auto kFunction = Builtin::kDetachContextCell;
+    using arguments_t = std::tuple<V<Context>, V<Object>, V<WordPtr>>;
+    using results_t = std::tuple<V<Object>>;
+
+    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects =
+        base_effects.CanWriteHeapMemory().CanReadMemory();
+  };
+
   struct ToNumber : public Descriptor<ToNumber> {
     static constexpr auto kFunction = Builtin::kToNumber;
     using arguments_t = std::tuple<V<Object>>;

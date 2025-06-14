@@ -913,7 +913,7 @@ class ContextCellDependency final : public CompilationDependency {
  public:
   ContextCellDependency(ContextCellRef slot, ContextCell::State state)
       : CompilationDependency(kContextCell), slot_(slot), state_(state) {
-    DCHECK(v8_flags.script_context_cells);
+    DCHECK(v8_flags.script_context_cells || v8_flags.function_context_cells);
   }
 
   bool IsValid(JSHeapBroker* broker) const override {
@@ -1376,6 +1376,13 @@ bool CompilationDependencies::DependOnNoElementsProtector() {
       MakeRef(broker_, broker_->isolate()->factory()->no_elements_protector()));
 }
 
+bool CompilationDependencies::DependOnNoDateTimeConfigurationChangeProtector() {
+  return DependOnProtector(
+      MakeRef(broker_, broker_->isolate()
+                           ->factory()
+                           ->no_date_time_configuration_change_protector()));
+}
+
 bool CompilationDependencies::DependOnPromiseHookProtector() {
   return DependOnProtector(MakeRef(
       broker_, broker_->isolate()->factory()->promise_hook_protector()));
@@ -1395,11 +1402,6 @@ bool CompilationDependencies::DependOnStringWrapperToPrimitiveProtector() {
   return DependOnProtector(MakeRef(
       broker_,
       broker_->isolate()->factory()->string_wrapper_to_primitive_protector()));
-}
-
-bool CompilationDependencies::DependOnTypedArrayLengthProtector() {
-  return DependOnProtector(MakeRef(
-      broker_, broker_->isolate()->factory()->typed_array_length_protector()));
 }
 
 void CompilationDependencies::DependOnElementsKind(AllocationSiteRef site) {

@@ -92,7 +92,6 @@ struct PtrComprCageReservationParams
 
 IsolateGroup::~IsolateGroup() {
   DCHECK_EQ(reference_count_.load(), 0);
-  DCHECK_EQ(isolate_count_, 0);
   DCHECK(isolates_.empty());
   DCHECK_NULL(main_isolate_);
 
@@ -278,7 +277,6 @@ void IsolateGroup::SetupReadOnlyHeap(Isolate* isolate,
 void IsolateGroup::AddIsolate(Isolate* isolate) {
   DCHECK_EQ(isolate->isolate_group(), this);
   base::MutexGuard guard(&mutex_);
-  ++isolate_count_;
 
   const bool inserted = isolates_.insert(isolate).second;
   CHECK(inserted);
@@ -287,7 +285,7 @@ void IsolateGroup::AddIsolate(Isolate* isolate) {
     main_isolate_ = isolate;
   }
 
-  optimizing_compile_task_executor_->EnsureInitialized();
+  optimizing_compile_task_executor_->EnsureStarted();
 
   if (v8_flags.shared_heap) {
     if (has_shared_space_isolate()) {
@@ -303,8 +301,10 @@ void IsolateGroup::AddIsolate(Isolate* isolate) {
 void IsolateGroup::RemoveIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
 
-  if (--isolate_count_ == 0) {
+  if (isolates_.size() == 1) {
     read_only_artifacts_.reset();
+
+    optimizing_compile_task_executor_->Stop();
 
     // We are removing the last isolate from the group. If this group has a
     // shared heap, the last isolate has to be the shared space isolate.

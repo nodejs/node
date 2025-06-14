@@ -6,6 +6,7 @@
 
 #include <fstream>
 #include <optional>
+#include <utility>
 
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
@@ -19,6 +20,7 @@
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/sampling-heap-profiler.h"
+#include "src/utils/output-stream.h"
 
 namespace v8::internal {
 
@@ -91,11 +93,23 @@ void HeapProfiler::RemoveBuildEmbedderGraphCallback(
     build_embedder_graph_callbacks_.erase(it);
 }
 
-void HeapProfiler::BuildEmbedderGraph(Isolate* isolate,
-                                      v8::EmbedderGraph* graph) {
+void HeapProfiler::BuildEmbedderGraph(
+    Isolate* isolate, v8::EmbedderGraph* graph,
+    UnorderedCppHeapExternalObjectSet&& cpp_heap_external_objects) {
+  if (internal_build_embedder_graph_callback_.first) {
+    internal_build_embedder_graph_callback_.first(
+        reinterpret_cast<v8::Isolate*>(isolate), graph,
+        internal_build_embedder_graph_callback_.second,
+        std::move(cpp_heap_external_objects));
+  }
   for (const auto& cb : build_embedder_graph_callbacks_) {
     cb.first(reinterpret_cast<v8::Isolate*>(isolate), graph, cb.second);
   }
+}
+
+void HeapProfiler::SetInternalBuildEmbedderGraphCallback(
+    InternalBuildEmbedderGraphCallback callback, void* data) {
+  internal_build_embedder_graph_callback_ = {callback, data};
 }
 
 void HeapProfiler::SetGetDetachednessCallback(
@@ -152,22 +166,6 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   return result;
 }
 
-class FileOutputStream : public v8::OutputStream {
- public:
-  explicit FileOutputStream(const char* filename) : os_(filename) {}
-  ~FileOutputStream() override { os_.close(); }
-
-  WriteResult WriteAsciiChunk(char* data, int size) override {
-    os_.write(data, size);
-    return kContinue;
-  }
-
-  void EndOfStream() override { os_.close(); }
-
- private:
-  std::ofstream os_;
-};
-
 // Precondition: only call this if you have just completed a full GC cycle.
 void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
   // We need to set a stack marker for the stack walk performed by the
@@ -182,7 +180,7 @@ void HeapProfiler::WriteSnapshotToDiskAfterGC(HeapSnapshotMode snapshot_mode) {
                                     options.global_object_name_resolver, heap(),
                                     options.stack_state);
     if (!generator.GenerateSnapshotAfterGC()) return;
-    FileOutputStream stream(filename.c_str());
+    i::FileOutputStream stream(filename.c_str());
     HeapSnapshotJSONSerializer serializer(result.get());
     serializer.Serialize(&stream);
     PrintF("Wrote heap snapshot to %s.\n", filename.c_str());
@@ -195,6 +193,15 @@ void HeapProfiler::TakeSnapshotToFile(
   FileOutputStream stream(filename.c_str());
   HeapSnapshotJSONSerializer serializer(snapshot);
   serializer.Serialize(&stream);
+}
+
+std::string HeapProfiler::TakeSnapshotToString(
+    const v8::HeapProfiler::HeapSnapshotOptions options) {
+  HeapSnapshot* snapshot = TakeSnapshot(options);
+  StringOutputStream stream;
+  HeapSnapshotJSONSerializer serializer(snapshot);
+  serializer.Serialize(&stream);
+  return stream.str();
 }
 
 bool HeapProfiler::StartSamplingHeapProfiler(
@@ -352,7 +359,7 @@ void HeapProfiler::QueryObjects(DirectHandle<Context> context,
       for (auto& typed_array : on_heap_typed_arrays) {
         // Convert the on-heap typed array into off-heap typed array, so that
         // its ArrayBuffer becomes valid and can be returned in the result.
-        typed_array->GetBuffer();
+        typed_array->GetBuffer(isolate());
       }
     }
     // We should return accurate information about live objects, so we need to

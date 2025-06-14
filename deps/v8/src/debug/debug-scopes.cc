@@ -431,6 +431,17 @@ bool ScopeIterator::DeclaresLocals(Mode mode) const {
 }
 
 bool ScopeIterator::HasContext() const {
+  // In rare cases we pause in a scope that doesn't have its context pushed yet.
+  // E.g. when pausing in for-of loop headers (see https://crbug.com/399002824).
+  //
+  // We can detect this by comparing the scope ID of the parsed scope and the
+  // runtime scope.
+  if (current_scope_ && NeedsContext() &&
+      current_scope_->UniqueIdInScript() !=
+          context_->scope_info()->UniqueIdInScript()) {
+    return false;
+  }
+
   return !InInnerScope() || NeedsContext();
 }
 
@@ -475,7 +486,7 @@ void ScopeIterator::AdvanceScope() {
   DCHECK(InInnerScope());
 
   do {
-    if (NeedsContext()) {
+    if (NeedsAndHasContext()) {
       // current_scope_ needs a context so moving one scope up requires us to
       // also move up one context.
       AdvanceOneContext();
@@ -538,6 +549,10 @@ void ScopeIterator::Next() {
   MaybeCollectAndStoreLocalBlocklists();
   UnwrapEvaluationContext();
 
+  DCHECK_IMPLIES(current_scope_ && NeedsAndHasContext(),
+                 current_scope_->UniqueIdInScript() ==
+                     context_->scope_info()->UniqueIdInScript());
+
   if (leaving_closure) function_ = Handle<JSFunction>();
 }
 
@@ -547,32 +562,33 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
   if (InInnerScope()) {
     switch (current_scope_->scope_type()) {
       case FUNCTION_SCOPE:
-        DCHECK_IMPLIES(NeedsContext(), context_->IsFunctionContext() ||
-                                           context_->IsDebugEvaluateContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(),
+                       context_->IsFunctionContext() ||
+                           context_->IsDebugEvaluateContext());
         return ScopeTypeLocal;
       case MODULE_SCOPE:
-        DCHECK_IMPLIES(NeedsContext(), context_->IsModuleContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsModuleContext());
         return ScopeTypeModule;
       case SCRIPT_SCOPE:
       case REPL_MODE_SCOPE:
-        DCHECK_IMPLIES(NeedsContext(), context_->IsScriptContext() ||
-                                           IsNativeContext(*context_));
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsScriptContext() ||
+                                                 IsNativeContext(*context_));
         return ScopeTypeScript;
       case WITH_SCOPE:
-        DCHECK_IMPLIES(NeedsContext(), context_->IsWithContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsWithContext());
         return ScopeTypeWith;
       case CATCH_SCOPE:
         DCHECK(context_->IsCatchContext());
         return ScopeTypeCatch;
       case BLOCK_SCOPE:
       case CLASS_SCOPE:
-        DCHECK_IMPLIES(NeedsContext(), context_->IsBlockContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsBlockContext());
         return ScopeTypeBlock;
       case EVAL_SCOPE:
-        DCHECK_IMPLIES(NeedsContext(), context_->IsEvalContext());
+        DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsEvalContext());
         return ScopeTypeEval;
       case SHADOW_REALM_SCOPE:
-        DCHECK_IMPLIES(NeedsContext(), IsNativeContext(*context_));
+        DCHECK_IMPLIES(NeedsAndHasContext(), IsNativeContext(*context_));
         // TODO(v8:11989): New ScopeType for ShadowRealms?
         return ScopeTypeScript;
     }
@@ -957,6 +973,12 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
 
       case VariableLocation::CONTEXT:
         if (mode == Mode::STACK) continue;
+        if (!HasContext()) {
+          // If the context was not yet pushed we report the variable as
+          // unavailable.
+          value = isolate_->factory()->the_hole_value();
+          break;
+        }
         DCHECK(var->IsContextSlot());
         DCHECK_EQ(context_->scope_info()->ContextSlotIndex(*var->name()),
                   index);
@@ -1156,7 +1178,7 @@ bool ScopeIterator::SetContextVariableValue(DirectHandle<String> variable_name,
                                             DirectHandle<Object> new_value) {
   int slot_index = context_->scope_info()->ContextSlotIndex(*variable_name);
   if (slot_index < 0) return false;
-  context_->SetNoCell(slot_index, *new_value);
+  Context::Set(context_, slot_index, new_value, isolate_);
   return true;
 }
 

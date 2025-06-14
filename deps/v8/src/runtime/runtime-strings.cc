@@ -176,6 +176,11 @@ RUNTIME_FUNCTION(Runtime_StringAdd_LhsIsStringConstant_Internalize) {
   if (IsString(*rhs)) {
     rhs_string = Cast<String>(rhs);
   } else {
+    // According to spec we first have to do ToPrimitive and only then
+    // ToString.
+    // https://tc39.es/ecma262/#sec-applystringornumericbinaryoperator
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, rhs,
+                                       Object::ToPrimitive(isolate, rhs));
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, rhs_string,
                                        Object::ToString(isolate, rhs));
   }

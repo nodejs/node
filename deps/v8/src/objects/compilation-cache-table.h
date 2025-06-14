@@ -53,19 +53,19 @@ class InfoCellPair {
  public:
   InfoCellPair() = default;
   inline InfoCellPair(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
-                      Tagged<FeedbackCell> feedback_cell);
+                      Tagged<JSFunction> js_function);
 
-  Tagged<FeedbackCell> feedback_cell() const {
+  Tagged<JSFunction> js_function() const {
     DCHECK(is_compiled_scope_.is_compiled());
-    return feedback_cell_;
+    return js_function_;
   }
   Tagged<SharedFunctionInfo> shared() const {
     DCHECK(is_compiled_scope_.is_compiled());
     return shared_;
   }
 
-  bool has_feedback_cell() const {
-    return !feedback_cell_.is_null() && is_compiled_scope_.is_compiled();
+  bool has_js_function() const {
+    return !js_function_.is_null() && is_compiled_scope_.is_compiled();
   }
   bool has_shared() const {
     // Only return true if SFI is compiled - the bytecode could have been
@@ -77,7 +77,7 @@ class InfoCellPair {
  private:
   IsCompiledScope is_compiled_scope_;
   Tagged<SharedFunctionInfo> shared_;
-  Tagged<FeedbackCell> feedback_cell_;
+  Tagged<JSFunction> js_function_;
 };
 
 // A lookup result from the compilation cache for scripts. There are three
@@ -113,8 +113,6 @@ EXTERN_DECLARE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
 class CompilationCacheTable
     : public HashTable<CompilationCacheTable, CompilationCacheShape> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   // The 'script' cache contains SharedFunctionInfos. Once a root
   // SharedFunctionInfo has become old enough that its bytecode is flushed, the
   // entry is still present and can be used to get the Script.
@@ -147,15 +145,12 @@ class CompilationCacheTable
   static void UpdateEval(DirectHandle<CompilationCacheTable> table,
                          DirectHandle<String> src,
                          DirectHandle<SharedFunctionInfo> outer_info,
-                         DirectHandle<NativeContext> native_context,
-                         DirectHandle<FeedbackCell> feedback_cell,
+                         DirectHandle<JSFunction> js_function,
                          LanguageMode language_mode, int position);
   static DirectHandle<CompilationCacheTable> PutEval(
       DirectHandle<CompilationCacheTable> cache, DirectHandle<String> src,
       DirectHandle<SharedFunctionInfo> outer_info,
-      DirectHandle<SharedFunctionInfo> value,
-      DirectHandle<NativeContext> native_context,
-      DirectHandle<FeedbackCell> feedback_cell, int position);
+      DirectHandle<JSFunction> js_function, int position);
 
   // The RegExp cache contains RegExpData objects.
   DirectHandle<Object> LookupRegExp(DirectHandle<String> source,
@@ -171,8 +166,8 @@ class CompilationCacheTable
   inline Tagged<Object> PrimaryValueAt(InternalIndex entry);
   inline void SetPrimaryValueAt(InternalIndex entry, Tagged<Object> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline Tagged<Object> EvalFeedbackValueAt(InternalIndex entry);
-  inline void SetEvalFeedbackValueAt(
+  inline Tagged<Object> EvalJSFunctionsValueAt(InternalIndex entry);
+  inline void SetEvalJSFunctionsValueAt(
       InternalIndex entry, Tagged<Object> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 

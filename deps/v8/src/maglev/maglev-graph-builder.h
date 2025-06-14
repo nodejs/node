@@ -178,6 +178,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
 struct CatchBlockDetails {
   BasicBlockRef* ref = nullptr;
   bool exception_handler_was_used = false;
+  bool block_already_exists = false;
   int deopt_frame_distance = 0;
 };
 
@@ -492,6 +493,16 @@ class MaglevGraphBuilder {
       return v8_flags.max_inlined_bytecode_size_cumulative;
     } else {
       return v8_flags.max_maglev_inlined_bytecode_size_cumulative;
+    }
+  }
+  int max_inline_depth() {
+    if (is_turbolev()) {
+      // This is just to avoid some corner cases, especially since we allow
+      // recursive inlining.
+      constexpr int kMaxDepthForInlining = 50;
+      return kMaxDepthForInlining;
+    } else {
+      return v8_flags.max_maglev_inline_depth;
     }
   }
 
@@ -1035,12 +1046,10 @@ class MaglevGraphBuilder {
     static constexpr Opcode op = Node::opcode_of<NodeT>;
     static_assert(Node::participate_in_cse(op));
     using options_result =
-        typename std::invoke_result<decltype(&NodeT::options),
-                                    const NodeT>::type;
-    static_assert(
-        std::is_assignable<options_result, std::tuple<Args...>>::value,
-        "Instruction participating in CSE needs options() returning "
-        "a tuple matching the constructor arguments");
+        std::invoke_result_t<decltype(&NodeT::options), const NodeT>;
+    static_assert(std::is_assignable_v<options_result, std::tuple<Args...>>,
+                  "Instruction participating in CSE needs options() returning "
+                  "a tuple matching the constructor arguments");
     static_assert(IsFixedInputNode<NodeT>());
     static_assert(NodeT::kInputCount <= 3);
 
@@ -1232,7 +1241,8 @@ class MaglevGraphBuilder {
         }
 
         DCHECK_IMPLIES(!IsInsideTryBlock(), is_inline());
-        if (!IsInsideTryBlock() && !is_eager_inline()) {
+        if (catch_block.block_already_exists) {
+          DCHECK(!IsInsideTryBlock());
           // If we are inlining a function non-eagerly and we are not inside a
           // try block, then the catch block already exists.
           new (node->exception_handler_info()) ExceptionHandlerInfo(
@@ -1288,7 +1298,7 @@ class MaglevGraphBuilder {
       // Inside a try-block.
       int offset = catch_block_stack_.top().handler;
       return {&jump_targets_[offset],
-              merge_states_[offset]->exception_handler_was_used(), 0};
+              merge_states_[offset]->exception_handler_was_used(), false, 0};
     }
     if (!is_inline()) {
       return CatchBlockDetails{};
@@ -1296,14 +1306,20 @@ class MaglevGraphBuilder {
     return caller_details_->catch_block;
   }
 
-  CatchBlockDetails GetTryCatchBlockFromInfo(ExceptionHandlerInfo* info) {
+  CatchBlockDetails GetTryCatchBlockForNonEagerInlining(
+      ExceptionHandlerInfo* info) {
     if (IsInsideTryBlock()) {
-      return {info->catch_block_ref_address(), !info->ShouldLazyDeopt(), 0};
+      return {info->catch_block_ref_address(), !info->ShouldLazyDeopt(), true,
+              0};
     }
     if (!is_inline()) {
       return CatchBlockDetails{};
     }
-    return caller_details_->catch_block;
+    // Since this CatchBlockDetails is stored in a non-eager call site,
+    // the catch block will already exist by the time inlining is attempted.
+    CatchBlockDetails catch_details = caller_details_->catch_block;
+    catch_details.block_already_exists = true;
+    return catch_details;
   }
 
   bool ContextMayAlias(ValueNode* context,
@@ -1535,6 +1551,8 @@ class MaglevGraphBuilder {
 
   ValueNode* GetTrustedConstant(compiler::HeapObjectRef ref,
                                 IndirectPointerTag tag);
+
+  MaybeReduceResult GetConstantSingleCharacterStringFromCode(uint16_t);
 
   ValueNode* GetRegisterInput(Register reg) {
     DCHECK(!graph_->register_inputs().has(reg));
@@ -2098,6 +2116,10 @@ class MaglevGraphBuilder {
                                           ExternalArrayType type,
                                           Function&& getValue);
 
+  MaybeReduceResult TryReduceDatePrototypeGetField(
+      compiler::JSFunctionRef target, CallArguments& args,
+      JSDate::FieldIndex field);
+
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 #define CONTINUATION_PRESERVED_EMBEDDER_DATA_LIST(V) \
   V(GetContinuationPreservedEmbedderData)            \
@@ -2125,6 +2147,13 @@ class MaglevGraphBuilder {
   V(DataViewPrototypeSetInt32)                 \
   V(DataViewPrototypeGetFloat64)               \
   V(DataViewPrototypeSetFloat64)               \
+  V(DatePrototypeGetFullYear)                  \
+  V(DatePrototypeGetMonth)                     \
+  V(DatePrototypeGetDate)                      \
+  V(DatePrototypeGetDay)                       \
+  V(DatePrototypeGetHours)                     \
+  V(DatePrototypeGetMinutes)                   \
+  V(DatePrototypeGetSeconds)                   \
   V(FunctionPrototypeApply)                    \
   V(FunctionPrototypeCall)                     \
   V(FunctionPrototypeHasInstance)              \
@@ -2139,9 +2168,11 @@ class MaglevGraphBuilder {
   V(MathPow)                                   \
   V(MathAbs)                                   \
   V(MathRound)                                 \
+  V(MathClz32)                                 \
   V(SetPrototypeHas)                           \
   V(StringConstructor)                         \
   V(StringFromCharCode)                        \
+  V(StringPrototypeCharAt)                     \
   V(StringPrototypeCharCodeAt)                 \
   V(StringPrototypeCodePointAt)                \
   V(StringPrototypeIterator)                   \
@@ -2172,6 +2203,14 @@ class MaglevGraphBuilder {
       const std::optional<InitialCallback>& initial_callback = {},
       const std::optional<ProcessElementCallback>& process_element_callback =
           {});
+
+  // OOB StringAt access behaves differently for elements (needs the elements
+  // protector, positive indices, and returns undefined) and charAt (allows
+  // negative indices, returns empty string).
+  enum class StringAtOOBMode { kElement, kCharAt };
+  MaybeReduceResult TryReduceConstantStringAt(ValueNode* object,
+                                              ValueNode* index,
+                                              StringAtOOBMode oob_mode);
 
   MaybeReduceResult TryReduceGetProto(ValueNode* node);
 
@@ -2358,6 +2397,7 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckHeapObject(ValueNode* object);
   ReduceResult BuildCheckJSReceiver(ValueNode* object);
   ReduceResult BuildCheckJSReceiverOrNullOrUndefined(ValueNode* object);
+  ReduceResult BuildCheckSeqOneByteString(ValueNode* object);
   ReduceResult BuildCheckString(ValueNode* object);
   ReduceResult BuildCheckStringOrStringWrapper(ValueNode* object);
   ReduceResult BuildCheckSymbol(ValueNode* object);
@@ -2562,6 +2602,7 @@ class MaglevGraphBuilder {
 
   MaybeReduceResult TryBuildElementAccessOnString(
       ValueNode* object, ValueNode* index,
+      const compiler::ElementAccessFeedback& access_info,
       compiler::KeyedAccessMode const& keyed_mode);
   MaybeReduceResult TryBuildElementAccessOnTypedArray(
       ValueNode* object, ValueNode* index,
@@ -2808,7 +2849,6 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   ReduceResult VisitBinarySmiOperation();
 
-  ValueNode* BuildUnwrapThinString(ValueNode* input);
   ValueNode* BuildUnwrapStringWrapper(ValueNode* input);
   ReduceResult BuildStringConcat(ValueNode* left, ValueNode* right);
   ValueNode* BuildNewConsStringMap(ValueNode* left, ValueNode* right);

@@ -549,7 +549,6 @@ def build_config_content(cpu, icu):
         ("code_comments", "false"),
         ("component_build", "false"),
         ("concurrent_marking", "false"),
-        ("conservative_stack_scanning", "false"),
         ("current_cpu", cpu),
         ("dcheck_always_on", "false"),
         ("debug_code", "false"),

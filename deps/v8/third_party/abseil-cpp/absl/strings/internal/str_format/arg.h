@@ -26,6 +26,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -36,10 +37,6 @@
 #include "absl/strings/has_absl_stringify.h"
 #include "absl/strings/internal/str_format/extension.h"
 #include "absl/strings/string_view.h"
-
-#if defined(ABSL_HAVE_STD_STRING_VIEW)
-#include <string_view>
-#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -228,7 +225,6 @@ StringConvertResult FormatConvertImpl(const std::wstring& v,
 StringConvertResult FormatConvertImpl(string_view v,
                                       FormatConversionSpecImpl conv,
                                       FormatSinkImpl* sink);
-#if defined(ABSL_HAVE_STD_STRING_VIEW)
 StringConvertResult FormatConvertImpl(std::wstring_view v,
                                       FormatConversionSpecImpl conv,
                                       FormatSinkImpl* sink);
@@ -239,7 +235,6 @@ inline StringConvertResult FormatConvertImpl(std::string_view v,
   return FormatConvertImpl(absl::string_view(v.data(), v.size()), conv, sink);
 }
 #endif  // !ABSL_USES_STD_STRING_VIEW
-#endif  // ABSL_HAVE_STD_STRING_VIEW
 
 using StringPtrConvertResult = ArgConvertResult<FormatConversionCharSetUnion(
     FormatConversionCharSetInternal::s,
@@ -651,15 +646,10 @@ class FormatArgImpl {
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(const wchar_t*, __VA_ARGS__);     \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(std::wstring, __VA_ARGS__)
 
-#if defined(ABSL_HAVE_STD_STRING_VIEW)
 #define ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_(...)       \
   ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_NO_WSTRING_VIEW_( \
       __VA_ARGS__);                                                \
   ABSL_INTERNAL_FORMAT_DISPATCH_INSTANTIATE_(std::wstring_view, __VA_ARGS__)
-#else
-#define ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_(...) \
-  ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_NO_WSTRING_VIEW_(__VA_ARGS__)
-#endif
 
 ABSL_INTERNAL_FORMAT_DISPATCH_OVERLOADS_EXPAND_(extern);
 
