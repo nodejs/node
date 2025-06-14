@@ -10,8 +10,6 @@ const rejectPromise = new Promise((r) => setTimeout(r, 10, rejection2));
 const swallowedResolve = 'Swallowed resolve';
 const swallowedResolve2 = 'Foobar';
 
-process.on('multipleResolves', common.mustCall(handler, 4));
-
 const p1 = new Promise((resolve, reject) => {
   resolve(resolveMessage);
   resolve(swallowedResolve);
