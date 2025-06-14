@@ -958,6 +958,10 @@ Environment::Environment(IsolateData* isolate_data,
                           options_->allow_fs_write,
                           permission::PermissionScope::kFileSystemWrite);
     }
+
+    if (options_->allow_net) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kNet);
+    }
   }
 }
 
