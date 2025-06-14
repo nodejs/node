@@ -1,5 +1,5 @@
 /**
- * @fileoverview Check that common.hasCrypto is used if crypto, tls,
+ * @file Check that common.hasCrypto is used if crypto, tls,
  * https, or http2 modules are required.
  * @author Daniel Bevenius <daniel.bevenius@gmail.com>
  */
