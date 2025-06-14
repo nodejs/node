@@ -6773,8 +6773,8 @@ changes:
    description: No longer experimental.
 -->
 
-Calls `dir.close()` and returns a promise that fulfills when the
-dir is closed.
+Calls `dir.close()` if the directory handle is open, and returns a promise that
+fulfills when disposal is complete.
 
 #### `dir[Symbol.dispose]()`
 
@@ -6786,7 +6786,8 @@ changes:
    description: No longer experimental.
 -->
 
-Calls `dir.closeSync()` and returns `undefined`.
+Calls `dir.closeSync()` if the directory handle is open, and returns
+`undefined`.
 
 ### Class: `fs.Dirent`
 
