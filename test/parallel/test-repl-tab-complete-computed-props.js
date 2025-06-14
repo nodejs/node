@@ -24,10 +24,10 @@ function prepareREPL() {
 
 function testCompletion(replServer, { input, expectedCompletions }) {
   replServer.complete(
-      input,
-      common.mustCall((_error, data) => {
-          assert.deepStrictEqual(data, [expectedCompletions, input]);
-      }),
+    input,
+    common.mustCall((_error, data) => {
+      assert.deepStrictEqual(data, [expectedCompletions, input]);
+    }),
   );
 };
 
@@ -90,6 +90,41 @@ describe('REPL tab object completion on computed properties', () => {
     it('works with strings with spaces', () => testCompletion(replServer, {
       input: 'obj["inner object"].th',
       expectedCompletions: ['obj["inner object"].three'],
+    }));
+  });
+
+  describe('variables as indexes', () => {
+    let replServer;
+
+    before(() => {
+      const { replServer: server, input } = prepareREPL();
+      replServer = server;
+
+      input.run([
+        `
+          const oneStr = 'One';
+          const helloWorldStr = 'Hello' + ' ' + 'World';
+
+          const obj = {
+            [oneStr]: 1,
+            ['Hello World']: 'hello world!',
+          };
+        `,
+      ]);
+    });
+
+    after(() => {
+      replServer.close();
+    });
+
+    it('works with a simple variable', () => testCompletion(replServer, {
+      input: 'obj[oneStr].toFi',
+      expectedCompletions: ['obj[oneStr].toFixed'],
+    }));
+
+    it('works with a computed variable', () => testCompletion(replServer, {
+      input: 'obj[helloWorldStr].tolocaleup',
+      expectedCompletions: ['obj[helloWorldStr].toLocaleUpperCase'],
     }));
   });
 });
