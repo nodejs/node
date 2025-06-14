@@ -3332,6 +3332,9 @@ the errors used for value type validation.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58707
+    description: End-of-Life.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41896
     description: Runtime deprecation.
@@ -3342,10 +3345,10 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-This event was deprecated because it did not work with V8 promise combinators
-which diminished its usefulness.
+This event was deprecated and removed because it did not work with V8 promise
+combinators which diminished its usefulness.
 
 ### DEP0161: `process._getActiveRequests()` and `process._getActiveHandles()`
 

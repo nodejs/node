@@ -104,7 +104,6 @@ async function stopListeningAfterCatchingError() {
   } catch (_e) {
     err = _e;
   }
-  process.removeAllListeners('multipleResolves');
   strictEqual(err, expected);
   strictEqual(ee.listenerCount('error'), 0);
   strictEqual(ee.listenerCount('myevent'), 0);
