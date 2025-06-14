@@ -1,0 +1,20 @@
+{
+  "non-secure-context.any.js": {
+    "skip": "navigator.locks is only present in secure contexts"
+  },
+  "query.https.any.js": {
+    "fail": {
+      "expected": [
+        "query() reports different ids for held locks from different contexts",
+        "query() can observe a deadlock"
+      ],
+      "note": "Browser-specific test"
+    }
+  },
+  "secure-context.https.any.js": {
+    "skip": "Different secure context behavior in Node.js"
+  },
+  "storage-buckets.tentative.https.any.js": {
+    "skip": "Node.js does not implement Storage Buckets API"
+  }
+} 
