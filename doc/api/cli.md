@@ -980,20 +980,6 @@ unknown keys or keys that cannot be used in a namespace.
 Node.js will not sanitize or perform validation on the user-provided configuration,
 so **NEVER** use untrusted configuration files.
 
-### `--experimental-default-config-file`
-
-<!-- YAML
-added:
- - v23.10.0
- - v22.16.0
--->
-
-> Stability: 1.0 - Early development
-
-If the `--experimental-default-config-file` flag is present, Node.js will look for a
-`node.config.json` file in the current working directory and load it as a
-as configuration file.
-
 ### `--experimental-eventsource`
 
 <!-- YAML
@@ -1719,6 +1705,24 @@ added: v0.8.0
 -->
 
 Silence deprecation warnings.
+
+### `--no-experimental-default-config-file`
+
+<!-- YAML
+added:
+ - v23.10.0
+ - v22.16.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58703
+    description: This flag is now enabled by default.
+-->
+
+> Stability: 1.0 - Early development
+
+Unless `--no-experimental-default-config-file` flag is present, Node.js will look for a
+`node.config.json` file in the current working directory and load it as a
+as configuration file.
 
 ### `--no-experimental-detect-module`
 
