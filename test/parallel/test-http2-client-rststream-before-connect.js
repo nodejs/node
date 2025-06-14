@@ -5,16 +5,23 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const h2 = require('http2');
+let client;
 
 const server = h2.createServer();
 server.on('stream', (stream) => {
-  stream.on('close', common.mustCall());
-  stream.respond();
-  stream.end('ok');
+  stream.on('close', common.mustCall(() => {
+    client.close();
+    server.close();
+  }));
+  stream.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    name: 'Error',
+    message: 'Stream closed with error code NGHTTP2_PROTOCOL_ERROR'
+  }));
 });
 
 server.listen(0, common.mustCall(() => {
-  const client = h2.connect(`http://localhost:${server.address().port}`);
+  client = h2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
   const closeCode = 1;
 
@@ -52,8 +59,6 @@ server.listen(0, common.mustCall(() => {
   req.on('close', common.mustCall(() => {
     assert.strictEqual(req.destroyed, true);
     assert.strictEqual(req.rstCode, closeCode);
-    server.close();
-    client.close();
   }));
 
   req.on('error', common.expectsError({

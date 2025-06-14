@@ -10,7 +10,6 @@
 #include "unicode/locid.h"
 
 #include "bytesinkutil.h"
-#include "charstr.h"
 #include "cmemory.h"
 
 U_NAMESPACE_USE
@@ -24,9 +23,7 @@ ulocale_openForLocaleID(const char* localeID, int32_t length, UErrorCode* err) {
     if (length < 0) {
         return EXTERNAL(icu::Locale::createFromName(localeID).clone());
     }
-    CharString str(localeID, length, *err);  // Make a NUL terminated copy.
-    if (U_FAILURE(*err)) { return nullptr; }
-    return EXTERNAL(icu::Locale::createFromName(str.data()).clone());
+    return EXTERNAL(icu::Locale::createFromName(StringPiece{localeID, length}).clone());
 }
 
 ULocale*

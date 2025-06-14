@@ -28,6 +28,9 @@ test-runner-watch-mode-complex: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54808
 test-async-context-frame: PASS, FLAKY
 
+# https://github.com/nodejs/node/issues/56751
+test-without-async-context-frame: PASS, FLAKY
+
 # Windows on x86
 [$system==win32 && $arch==ia32]
 test-worker-nearheaplimit-deadlock: PASS, FLAKY

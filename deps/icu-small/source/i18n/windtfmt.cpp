@@ -46,6 +46,7 @@
 #   define NOIME
 #   define NOMCX
 #include <windows.h>
+#include <typeinfo>
 
 U_NAMESPACE_BEGIN
 
@@ -251,7 +252,7 @@ UnicodeString &Win32DateFormat::format(Calendar &cal, UnicodeString &appendTo, F
         formatDate(&st_local, date);
         formatTime(&st_local, time);
 
-        if (strcmp(fCalendar->getType(), cal.getType()) != 0) {
+        if (typeid(cal) != typeid(*fCalendar)) {
             pattern = getTimeDateFormat(&cal, &fLocale, status);
         }
 
@@ -272,7 +273,7 @@ void Win32DateFormat::parse(const UnicodeString& /* text */, Calendar& /* cal */
 
 void Win32DateFormat::adoptCalendar(Calendar *newCalendar)
 {
-    if (fCalendar == nullptr || strcmp(fCalendar->getType(), newCalendar->getType()) != 0) {
+    if (fCalendar == nullptr || typeid(*fCalendar) != typeid(*newCalendar)) {
         UErrorCode status = U_ZERO_ERROR;
 
         if (fDateStyle != DateFormat::kNone && fTimeStyle != DateFormat::kNone) {
