@@ -1590,7 +1590,7 @@ Renames `oldPath` to `newPath`.
 added: v10.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58616
     description: Remove `recursive` option.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
@@ -4251,7 +4251,7 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 added: v0.0.2
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58616
     description: Remove `recursive` option.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
@@ -6225,7 +6225,7 @@ See the POSIX rename(2) documentation for more details.
 added: v0.1.21
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58616
     description: Remove `recursive` option.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
