@@ -1767,7 +1767,7 @@ text(readable).then((data) => {
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
 [`stream.Duplex.fromWeb`]: stream.md#streamduplexfromwebpair-options
-[`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex
+[`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex-options
 [`stream.Duplex`]: stream.md#class-streamduplex
 [`stream.Readable.fromWeb`]: stream.md#streamreadablefromwebreadablestream-options
 [`stream.Readable.toWeb`]: stream.md#streamreadabletowebstreamreadable-options
