@@ -40,7 +40,7 @@ function prepareREPL() {
 
   replServer.complete(
     "require('",
-    common.mustCall(async function(error, data) {
+    common.mustCall(function(error, data) {
       assert.strictEqual(error, null);
       publicModules.forEach((lib) => {
         assert(
