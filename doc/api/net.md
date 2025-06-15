@@ -181,6 +181,26 @@ added:
 * `value` {any} Any JS value
 * Returns `true` if the `value` is a `net.BlockList`.
 
+### `BlockList.fromJson(value)`
+
+> Stability: 1 - Experimental
+
+ <!-- YAML
+added: REPLACEME
+-->
+
+* `value` {string\[]} array of blocklist rules or JSON string equivalent
+
+### `BlockList.toJson()`
+
+> Stability: 1 - Experimental
+
+ <!-- YAML
+added: REPLACEME
+-->
+
+* Returns {string\[]} array of blocklist rules
+
 ## Class: `net.SocketAddress`
 
 <!-- YAML
