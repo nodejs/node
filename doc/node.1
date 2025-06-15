@@ -169,9 +169,6 @@ Enable experimental addon module support.
 .It Fl -experimental-config-file
 Specifies the configuration file to load.
 .
-.It Fl -experimental-default-config-file
-Enable support for automatically loading node.config.json.
-.
 .It Fl -experimental-import-meta-resolve
 Enable experimental ES modules support for import.meta.resolve().
 .
@@ -197,6 +194,9 @@ Enable transformation of TypeScript-only syntax into JavaScript code.
 .
 .It Fl -experimental-eventsource
 Enable experimental support for the EventSource Web API.
+.
+.It Fl -no-experimental-default-config-file
+Disables support for automatically loading node.config.json.
 .
 .It Fl -no-experimental-websocket
 Disable experimental support for the WebSocket API.
