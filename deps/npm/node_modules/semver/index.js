@@ -1,3 +1,5 @@
+'use strict'
+
 // just pre-load all the stuff that index.js lazily exports
 const internalRe = require('./internal/re')
 const constants = require('./internal/constants')

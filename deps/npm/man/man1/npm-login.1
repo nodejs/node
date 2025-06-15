@@ -1,4 +1,4 @@
-.TH "NPM-LOGIN" "1" "April 2025" "NPM@11.3.0" ""
+.TH "NPM-LOGIN" "1" "June 2025" "NPM@11.4.2" ""
 .SH "NAME"
 \fBnpm-login\fR - Login to a registry user account
 .SS "Synopsis"
@@ -13,6 +13,8 @@ Note: This command is unaware of workspaces.
 .SS "Description"
 .P
 Verify a user in the specified registry, and save the credentials to the \fB.npmrc\fR file. If no registry is specified, the default registry will be used (see npm help config).
+.P
+When you run \fBnpm login\fR, the CLI automatically generates a legacy token of \fBpublish\fR type. For more information, see \fBAbout legacy tokens\fR \fI\(la/about-access-tokens#about-legacy-tokens\(ra\fR.
 .P
 When using \fBlegacy\fR for your \fBauth-type\fR, the username and password, are read in from prompts.
 .P

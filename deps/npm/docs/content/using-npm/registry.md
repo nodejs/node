@@ -22,9 +22,6 @@ npm's package registry implementation supports several
 write APIs as well, to allow for publishing packages and managing user
 account information.
 
-The npm public registry is powered by a CouchDB database,
-of which there is a public mirror at <https://skimdb.npmjs.com/registry>.
-
 The registry URL used is determined by the scope of the package (see
 [`scope`](/using-npm/scope). If no scope is specified, the default registry is
 used, which is supplied by the [`registry` config](/using-npm/config#registry)

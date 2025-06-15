@@ -8,31 +8,6 @@
 library that provides programmatic access to the guts of the npm CLI's `npm
 team` command and its various subcommands.
 
-## Example
-
-```javascript
-const team = require('libnpmteam')
-
-// List all teams for the @npm org.
-console.log(await team.lsTeams('npm'))
-```
-
-## Publishing
-1. Manually create CHANGELOG.md file
-1. Commit changes to CHANGELOG.md
-    ```bash
-    $ git commit -m "chore: updated CHANGELOG.md"
-    ```
-1. Run `npm version {newVersion}`
-    ```bash
-    # Example
-    $ npm version patch
-    # 1. Runs `coverage` and `lint` scripts
-    # 2. Bumps package version; and **create commit/tag**
-    # 3. Runs `npm publish`; publishing directory with **unpushed commit**
-    # 4. Runs `git push origin --follow-tags`
-    ```
-
 ## Table of Contents
 
 * [Installing](#install)
@@ -51,6 +26,15 @@ console.log(await team.lsTeams('npm'))
 ### Install
 
 `$ npm install libnpmteam`
+
+### Example
+
+```javascript
+const team = require('libnpmteam')
+
+// List all teams for the @npm org.
+console.log(await team.lsTeams('npm'))
+```
 
 ### API
 
