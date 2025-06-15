@@ -3203,7 +3203,7 @@ option, or a non-nullish non-boolean value for `verbatim` option in
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58706
     description: End-of-Life.
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/45653
