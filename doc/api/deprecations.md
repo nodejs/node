@@ -3202,6 +3202,9 @@ option, or a non-nullish non-boolean value for `verbatim` option in
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58706
+    description: End-of-Life.
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/45653
     description: Runtime deprecation.
@@ -3210,10 +3213,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The `'hash'` and `'mgf1Hash'` options are replaced with `'hashAlgorithm'`
-and `'mgf1HashAlgorithm'`.
+Use  `'hashAlgorithm'` instead of `'hash'`, and `'mgf1HashAlgorithm'` instead of `'mgf1Hash'`.
 
 ### DEP0155: Trailing slashes in pattern specifier resolutions
 
