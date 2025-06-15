@@ -3132,6 +3132,19 @@ mode. If no file is provided, Node.js will exit with status code `9`.
 node --watch index.js
 ```
 
+### `--watch-kill-signal`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Customizes the signal sent to the process on watch mode restarts.
+
+```bash
+node --watch --watch-kill-signal SIGINT test.js
+```
+
 ### `--watch-path`
 
 <!-- YAML
@@ -3474,6 +3487,7 @@ one is included in the list below.
 * `--use-openssl-ca`
 * `--use-system-ca`
 * `--v8-pool-size`
+* `--watch-kill-signal`
 * `--watch-path`
 * `--watch-preserve-output`
 * `--watch`
