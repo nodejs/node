@@ -11,18 +11,18 @@ const code = common.isWindows ? 'ENOENT' : 'ENOTDIR';
 {
   const filePath = tmpdir.resolve('rmdir-recursive.txt');
   fs.writeFileSync(filePath, '');
-  assert.throws(() => fs.rmdirSync(filePath, { recursive: true }), { code });
+  assert.throws(() => fs.rmdirSync(filePath), { code });
 }
 {
   const filePath = tmpdir.resolve('rmdir-recursive.txt');
   fs.writeFileSync(filePath, '');
-  fs.rmdir(filePath, { recursive: true }, common.mustCall((err) => {
+  fs.rmdir(filePath, common.mustCall((err) => {
     assert.strictEqual(err.code, code);
   }));
 }
 {
   const filePath = tmpdir.resolve('rmdir-recursive.txt');
   fs.writeFileSync(filePath, '');
-  assert.rejects(() => fs.promises.rmdir(filePath, { recursive: true }),
+  assert.rejects(() => fs.promises.rmdir(filePath),
                  { code }).then(common.mustCall());
 }
