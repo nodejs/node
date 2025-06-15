@@ -36,6 +36,8 @@
       'src/inspector/target_agent.h',
       'src/inspector/worker_inspector.cc',
       'src/inspector/worker_inspector.h',
+      'src/inspector/io_agent.cc',
+      'src/inspector/io_agent.h',
     ],
     'node_inspector_generated_sources': [
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Forward.h',
@@ -51,6 +53,8 @@
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Network.h',
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Target.cpp',
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Target.h',
+      '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/IO.h',
+      '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/IO.cpp',
     ],
     'node_protocol_files': [
       '<(protocol_tool_path)/lib/Forward_h.template',

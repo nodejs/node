@@ -1,7 +1,12 @@
 #include "network_agent.h"
+#include <string>
+#include "env-inl.h"
 #include "inspector/protocol_helper.h"
 #include "network_inspector.h"
+#include "node_metadata.h"
 #include "util-inl.h"
+#include "uv.h"
+#include "v8-context.h"
 #include "v8.h"
 
 namespace node {
@@ -245,8 +250,14 @@ protocol::DispatchResponse NetworkAgent::streamResourceContent(
     // If the request is finished, remove the entry.
     requests_.erase(in_requestId);
   }
-
   return protocol::DispatchResponse::Success();
+}
+
+protocol::DispatchResponse NetworkAgent::loadNetworkResource(
+    const protocol::String& in_url,
+    std::unique_ptr<protocol::Network::LoadNetworkResourcePageResult>*
+        out_resource) {
+  return protocol::DispatchResponse::FallThrough();
 }
 
 void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,
