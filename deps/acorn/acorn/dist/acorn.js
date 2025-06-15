@@ -887,6 +887,49 @@
        !(isIdentifierChar(after = this.input.charCodeAt(next + 8)) || after > 0xd7ff && after < 0xdc00))
   };
 
+  pp$8.isUsingKeyword = function(isAwaitUsing, isFor) {
+    if (this.options.ecmaVersion < 17 || !this.isContextual(isAwaitUsing ? "await" : "using"))
+      { return false }
+
+    skipWhiteSpace.lastIndex = this.pos;
+    var skip = skipWhiteSpace.exec(this.input);
+    var next = this.pos + skip[0].length;
+
+    if (lineBreak.test(this.input.slice(this.pos, next))) { return false }
+
+    if (isAwaitUsing) {
+      var awaitEndPos = next + 5 /* await */, after;
+      if (this.input.slice(next, awaitEndPos) !== "using" ||
+        awaitEndPos === this.input.length ||
+        isIdentifierChar(after = this.input.charCodeAt(awaitEndPos)) ||
+        (after > 0xd7ff && after < 0xdc00)
+      ) { return false }
+
+      skipWhiteSpace.lastIndex = awaitEndPos;
+      var skipAfterUsing = skipWhiteSpace.exec(this.input);
+      if (skipAfterUsing && lineBreak.test(this.input.slice(awaitEndPos, awaitEndPos + skipAfterUsing[0].length))) { return false }
+    }
+
+    if (isFor) {
+      var ofEndPos = next + 2 /* of */, after$1;
+      if (this.input.slice(next, ofEndPos) === "of") {
+        if (ofEndPos === this.input.length ||
+          (!isIdentifierChar(after$1 = this.input.charCodeAt(ofEndPos)) && !(after$1 > 0xd7ff && after$1 < 0xdc00))) { return false }
+      }
+    }
+
+    var ch = this.input.charCodeAt(next);
+    return isIdentifierStart(ch, true) || ch === 92 // '\'
+  };
+
+  pp$8.isAwaitUsing = function(isFor) {
+    return this.isUsingKeyword(true, isFor)
+  };
+
+  pp$8.isUsing = function(isFor) {
+    return this.isUsingKeyword(false, isFor)
+  };
+
   // Parse a single statement.
   //
   // If expecting a statement and finding a slash operator, parse a
@@ -961,6 +1004,23 @@
         if (context) { this.unexpected(); }
         this.next();
         return this.parseFunctionStatement(node, true, !context)
+      }
+
+      var usingKind = this.isAwaitUsing(false) ? "await using" : this.isUsing(false) ? "using" : null;
+      if (usingKind) {
+        if (topLevel && this.options.sourceType === "script") {
+          this.raise(this.start, "Using declaration cannot appear in the top level when source type is `script`");
+        }
+        if (usingKind === "await using") {
+          if (!this.canAwait) {
+            this.raise(this.start, "Await using cannot appear outside of async function");
+          }
+          this.next();
+        }
+        this.next();
+        this.parseVar(node, false, usingKind);
+        this.semicolon();
+        return this.finishNode(node, "VariableDeclaration")
       }
 
       var maybeName = this.value, expr = this.parseExpression();
@@ -1038,18 +1098,19 @@
       this.next();
       this.parseVar(init$1, true, kind);
       this.finishNode(init$1, "VariableDeclaration");
-      if ((this.type === types$1._in || (this.options.ecmaVersion >= 6 && this.isContextual("of"))) && init$1.declarations.length === 1) {
-        if (this.options.ecmaVersion >= 9) {
-          if (this.type === types$1._in) {
-            if (awaitAt > -1) { this.unexpected(awaitAt); }
-          } else { node.await = awaitAt > -1; }
-        }
-        return this.parseForIn(node, init$1)
-      }
-      if (awaitAt > -1) { this.unexpected(awaitAt); }
-      return this.parseFor(node, init$1)
+      return this.parseForAfterInit(node, init$1, awaitAt)
     }
     var startsWithLet = this.isContextual("let"), isForOf = false;
+
+    var usingKind = this.isUsing(true) ? "using" : this.isAwaitUsing(true) ? "await using" : null;
+    if (usingKind) {
+      var init$2 = this.startNode();
+      this.next();
+      if (usingKind === "await using") { this.next(); }
+      this.parseVar(init$2, true, usingKind);
+      this.finishNode(init$2, "VariableDeclaration");
+      return this.parseForAfterInit(node, init$2, awaitAt)
+    }
     var containsEsc = this.containsEsc;
     var refDestructuringErrors = new DestructuringErrors;
     var initPos = this.start;
@@ -1070,6 +1131,20 @@
       return this.parseForIn(node, init)
     } else {
       this.checkExpressionErrors(refDestructuringErrors, true);
+    }
+    if (awaitAt > -1) { this.unexpected(awaitAt); }
+    return this.parseFor(node, init)
+  };
+
+  // Helper method to parse for loop after variable initialization
+  pp$8.parseForAfterInit = function(node, init, awaitAt) {
+    if ((this.type === types$1._in || (this.options.ecmaVersion >= 6 && this.isContextual("of"))) && init.declarations.length === 1) {
+      if (this.options.ecmaVersion >= 9) {
+        if (this.type === types$1._in) {
+          if (awaitAt > -1) { this.unexpected(awaitAt); }
+        } else { node.await = awaitAt > -1; }
+      }
+      return this.parseForIn(node, init)
     }
     if (awaitAt > -1) { this.unexpected(awaitAt); }
     return this.parseFor(node, init)
@@ -1331,6 +1406,8 @@
         decl.init = this.parseMaybeAssign(isFor);
       } else if (!allowMissingInitializer && kind === "const" && !(this.type === types$1._in || (this.options.ecmaVersion >= 6 && this.isContextual("of")))) {
         this.unexpected();
+      } else if (!allowMissingInitializer && (kind === "using" || kind === "await using") && this.options.ecmaVersion >= 17 && this.type !== types$1._in && !this.isContextual("of")) {
+        this.raise(this.lastTokEnd, ("Missing initializer in " + kind + " declaration"));
       } else if (!allowMissingInitializer && decl.id.type !== "Identifier" && !(isFor && (this.type === types$1._in || this.isContextual("of")))) {
         this.raise(this.lastTokEnd, "Complex binding patterns require an initialization value");
       } else {
@@ -1343,7 +1420,10 @@
   };
 
   pp$8.parseVarId = function(decl, kind) {
-    decl.id = this.parseBindingAtom();
+    decl.id = kind === "using" || kind === "await using"
+      ? this.parseIdent()
+      : this.parseBindingAtom();
+
     this.checkLValPattern(decl.id, kind === "var" ? BIND_VAR : BIND_LEXICAL, false);
   };
 
@@ -3074,7 +3154,8 @@
     var node = this.startNode();
     node.value = value;
     node.raw = this.input.slice(this.start, this.end);
-    if (node.raw.charCodeAt(node.raw.length - 1) === 110) { node.bigint = node.raw.slice(0, -1).replace(/_/g, ""); }
+    if (node.raw.charCodeAt(node.raw.length - 1) === 110)
+      { node.bigint = node.value != null ? node.value.toString() : node.raw.slice(0, -1).replace(/_/g, ""); }
     this.next();
     return this.finishNode(node, "Literal")
   };
@@ -6104,11 +6185,9 @@
   // Please use the [github bug tracker][ghbt] to report issues.
   //
   // [ghbt]: https://github.com/acornjs/acorn/issues
-  //
-  // [walk]: util/walk.js
 
 
-  var version = "8.14.1";
+  var version = "8.15.0";
 
   Parser.acorn = {
     Parser: Parser,
