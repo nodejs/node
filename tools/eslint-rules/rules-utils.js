@@ -3,15 +3,24 @@
  */
 'use strict';
 
+/**
+ * @returns {boolean}
+ */
 function isRequireCall(node) {
   return node.callee.type === 'Identifier' && node.callee.name === 'require';
 }
 module.exports.isRequireCall = isRequireCall;
 
+/**
+ * @returns {boolean}
+ */
 module.exports.isString = function(node) {
   return node && node.type === 'Literal' && typeof node.value === 'string';
 };
 
+/**
+ * @returns {boolean}
+ */
 module.exports.isDefiningError = function(node) {
   return node.expression &&
          node.expression.type === 'CallExpression' &&
@@ -20,6 +29,9 @@ module.exports.isDefiningError = function(node) {
          node.expression.arguments.length !== 0;
 };
 
+/**
+ * @returns {boolean}
+ */
 module.exports.isDefiningDeprecation = function(node) {
   return node.expression &&
          node.expression.type === 'CallExpression' &&
@@ -31,17 +43,19 @@ module.exports.isDefiningDeprecation = function(node) {
 /**
  * Returns true if any of the passed in modules are used in
  * require calls.
+ * @returns {boolean}
  */
 module.exports.isRequired = function(node, modules) {
   return isRequireCall(node) && node.arguments.length !== 0 &&
     modules.includes(node.arguments[0].value);
 };
 
+const commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
 /**
  * Return true if common module is required
  * in AST Node under inspection
+ * @returns {boolean}
  */
-const commonModuleRegExp = new RegExp(/^(\.\.\/)*common(\.js)?$/);
 module.exports.isCommonModule = function(node) {
   return isRequireCall(node) &&
          node.arguments.length !== 0 &&
@@ -51,6 +65,7 @@ module.exports.isCommonModule = function(node) {
 /**
  * Returns true if any of the passed in modules are used in
  * process.binding() or internalBinding() calls.
+ * @returns {boolean}
  */
 module.exports.isBinding = function(node, modules) {
   const isProcessBinding = node.callee.object &&
@@ -64,6 +79,7 @@ module.exports.isBinding = function(node, modules) {
 /**
  * Returns true is the node accesses any property in the properties
  * array on the 'common' object.
+ * @returns {boolean}
  */
 module.exports.usesCommonProperty = function(node, properties) {
   if (node.name) {
@@ -78,6 +94,7 @@ module.exports.usesCommonProperty = function(node, properties) {
 /**
  * Returns true if the passed in node is inside an if statement block,
  * and the block also has a call to skip.
+ * @returns {boolean}
  */
 module.exports.inSkipBlock = function(node) {
   let hasSkipBlock = false;
@@ -99,6 +116,9 @@ module.exports.inSkipBlock = function(node) {
   return hasSkipBlock;
 };
 
+/**
+ * @returns {boolean}
+ */
 function hasSkip(expression) {
   return expression?.callee?.name === 'skip' || expression?.callee?.property?.name === 'skip';
 }
