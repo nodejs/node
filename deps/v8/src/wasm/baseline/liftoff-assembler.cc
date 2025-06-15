@@ -884,6 +884,13 @@ void LiftoffAssembler::FinishCall(const ValueKindSig* sig,
         DCHECK(!loc.IsAnyRegister());
         reg_pair[pair_idx] = LiftoffRegister::from_external_code(
             rc, lowered_kind, loc.AsRegister());
+#if V8_TARGET_ARCH_64_BIT
+        // See explanation in `LiftoffCompiler::ParameterProcessor`.
+        if (return_kind == kI32) {
+          DCHECK(!needs_gp_pair);
+          clear_i32_upper_half(reg_pair[0].gp());
+        }
+#endif
       } else {
         DCHECK(loc.IsCallerFrameSlot());
         reg_pair[pair_idx] = GetUnusedRegister(rc, pinned);

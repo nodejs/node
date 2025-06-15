@@ -190,10 +190,14 @@ bool IsLineTerminator(int c) {
 // WriteEscapedRegExpSource into a single function to deduplicate dispatch logic
 // and move related code closer to each other.
 template <typename Char>
-int CountAdditionalEscapeChars(DirectHandle<String> source,
-                               bool* needs_escapes_out) {
+uint32_t CountAdditionalEscapeChars(DirectHandle<String> source,
+                                    bool* needs_escapes_out) {
   DisallowGarbageCollection no_gc;
-  int escapes = 0;
+  uint32_t escapes = 0;
+  // The maximum growth-factor is 5 (for \u2028 and \u2029). Make sure that we
+  // won't overflow |escapes| given the current constraints on string length.
+  static_assert(uint64_t{String::kMaxLength} * 5 <
+                std::numeric_limits<decltype(escapes)>::max());
   bool needs_escapes = false;
   bool in_character_class = false;
   base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
@@ -232,14 +236,14 @@ int CountAdditionalEscapeChars(DirectHandle<String> source,
     }
   }
   DCHECK(!in_character_class);
-  DCHECK_GE(escapes, 0);
   DCHECK_IMPLIES(escapes != 0, needs_escapes);
   *needs_escapes_out = needs_escapes;
   return escapes;
 }
 
 template <typename Char>
-void WriteStringToCharVector(base::Vector<Char> v, int* d, const char* string) {
+void WriteStringToCharVector(base::Vector<Char> v, uint32_t* d,
+                             const char* string) {
   int s = 0;
   while (string[s] != '\0') v[(*d)++] = string[s++];
 }
@@ -250,13 +254,13 @@ DirectHandle<StringType> WriteEscapedRegExpSource(
   DisallowGarbageCollection no_gc;
   base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   base::Vector<Char> dst(result->GetChars(no_gc), result->length());
-  int s = 0;
-  int d = 0;
+  uint32_t s = 0;
+  uint32_t d = 0;
   bool in_character_class = false;
-  while (s < src.length()) {
+  while (s < src.size()) {
     const Char c = src[s];
     if (c == '\\') {
-      if (s + 1 < src.length() && IsLineTerminator(src[s + 1])) {
+      if (s + 1 < src.size() && IsLineTerminator(src[s + 1])) {
         // This '\' is ignored since the next character itself will be escaped.
         s++;
         continue;
@@ -264,7 +268,7 @@ DirectHandle<StringType> WriteEscapedRegExpSource(
         // Escape. Copy this and next character.
         dst[d++] = src[s++];
       }
-      if (s == src.length()) break;
+      if (s == src.size()) break;
     } else if (c == '/' && !in_character_class) {
       // Not escaped forward-slash needs escape.
       dst[d++] = '\\';
@@ -304,11 +308,13 @@ MaybeDirectHandle<String> EscapeRegExpSource(Isolate* isolate,
   if (source->length() == 0) return isolate->factory()->query_colon_string();
   bool one_byte = String::IsOneByteRepresentationUnderneath(*source);
   bool needs_escapes = false;
-  int additional_escape_chars =
+  uint32_t additional_escape_chars =
       one_byte ? CountAdditionalEscapeChars<uint8_t>(source, &needs_escapes)
                : CountAdditionalEscapeChars<base::uc16>(source, &needs_escapes);
   if (!needs_escapes) return source;
-  int length = source->length() + additional_escape_chars;
+  DCHECK_LE(static_cast<uint64_t>(source->length()) + additional_escape_chars,
+            std::numeric_limits<uint32_t>::max());
+  uint32_t length = source->length() + additional_escape_chars;
   if (one_byte) {
     DirectHandle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
