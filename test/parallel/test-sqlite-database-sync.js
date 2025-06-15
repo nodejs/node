@@ -174,6 +174,188 @@ suite('DatabaseSync() constructor', () => {
     t.after(() => { db.close(); });
     db.exec('SELECT "foo";');
   });
+
+  test('throws if options.readBigInts is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { readBigInts: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.readBigInts" argument must be a boolean/,
+    });
+  });
+
+  test('allows reading big integers', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { readBigInts: true });
+    t.after(() => { db.close(); });
+
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 42);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT val FROM data');
+    t.assert.strictEqual(query.setReadBigInts(true), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42n });
+
+    const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
+    t.assert.strictEqual(insert.setReadBigInts(true), undefined);
+    t.assert.deepStrictEqual(
+      insert.run(20),
+      { changes: 1n, lastInsertRowid: 20n },
+    );
+  });
+
+  test('allows reading numbers', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { readBigInts: false });
+    t.after(() => { db.close(); });
+
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 42);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT val FROM data');
+    t.assert.strictEqual(query.setReadBigInts(false), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42 });
+
+    const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
+    t.assert.strictEqual(insert.setReadBigInts(false), undefined);
+    t.assert.deepStrictEqual(
+      insert.run(20),
+      { changes: 1, lastInsertRowid: 20 },
+    );
+  });
+
+  test('throws if options.returnArrays is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { returnArrays: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.returnArrays" argument must be a boolean/,
+    });
+  });
+
+  test('allows returning arrays', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { returnArrays: true });
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), [1, 'one']);
+  });
+
+  test('allows returning objects', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { returnArrays: false });
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
+  });
+
+  test('throws if options.allowBareNamedParameters is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { allowBareNamedParameters: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.allowBareNamedParameters" argument must be a boolean/,
+    });
+  });
+
+  test('allows bare named parameters', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { allowBareNamedParameters: true });
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    t.assert.deepStrictEqual(
+      stmt.run({ k: 1, v: 2 }),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+  });
+
+  test('throws if bare named parameters are used when option is false', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { allowBareNamedParameters: false });
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    t.assert.throws(() => {
+      stmt.run({ k: 2, v: 4 });
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Unknown named parameter 'k'/,
+    });
+  });
+
+  test('throws if options.allowUnknownNamedParameters is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { allowUnknownNamedParameters: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.allowUnknownNamedParameters" argument must be a boolean/,
+    });
+  });
+
+  test('allows unknown named parameters', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { allowUnknownNamedParameters: true });
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    const params = { $a: 1, $b: 2, $k: 42, $y: 25, $v: 84, $z: 99 };
+    t.assert.deepStrictEqual(
+      stmt.run(params),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+  });
+
+  test('throws if unknown named parameters are used when option is false', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { allowUnknownNamedParameters: false });
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    const params = { $a: 1, $b: 2, $k: 42, $y: 25, $v: 84, $z: 99 };
+    t.assert.throws(() => {
+      stmt.run(params);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Unknown named parameter '\$a'/,
+    });
+  });
 });
 
 suite('DatabaseSync.prototype.open()', () => {
