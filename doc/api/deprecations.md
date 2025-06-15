@@ -3213,10 +3213,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The `'hash'` and `'mgf1Hash'` options were replaced with `'hashAlgorithm'`
-and `'mgf1HashAlgorithm'`.
+Use  `'hashAlgorithm'` instead of `'hash'`, and `'mgf1HashAlgorithm'` instead of `'mgf1Hash'`.
 
 ### DEP0155: Trailing slashes in pattern specifier resolutions
 
