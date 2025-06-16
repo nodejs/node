@@ -18,6 +18,17 @@ const nodeStream = new Readable({
   }
 });
 
+// Test validation of 'type' option
+assert.throws(
+  () => {
+    Readable.toWeb(nodeStream, { type: 'wrong type' });
+  },
+  {
+    code: 'ERR_INVALID_ARG_VALUE'
+  }
+);
+
+// Test normal operation with ReadableByteStream
 const webStream = Readable.toWeb(nodeStream, { type: 'bytes' });
 const reader = webStream.getReader({ mode: 'byob' });
 
