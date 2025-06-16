@@ -14,35 +14,21 @@ function nextLocalStorage() {
   return join(tmpdir.path, `${++cnt}.localstorage`);
 }
 
-test('disabled without --experimental-webstorage', async () => {
-  for (const api of ['Storage', 'localStorage', 'sessionStorage']) {
+test('webstorage is enabled by default', async () => {
+  for (const api of ['Storage', 'sessionStorage']) {
     const cp = await spawnPromisified(process.execPath, ['-e', api]);
-
-    assert.strictEqual(cp.code, 1);
-    assert.strictEqual(cp.signal, null);
-    assert.strictEqual(cp.stdout, '');
-    assert(cp.stderr.includes(`ReferenceError: ${api} is not defined`));
-  }
-});
-
-test('emits a warning when used', async () => {
-  for (const api of ['Storage', 'localStorage', 'sessionStorage']) {
-    const cp = await spawnPromisified(process.execPath, [
-      '--experimental-webstorage',
-      '--localstorage-file', nextLocalStorage(),
-      '-e', api,
-    ]);
 
     assert.strictEqual(cp.code, 0);
     assert.strictEqual(cp.signal, null);
     assert.strictEqual(cp.stdout, '');
-    assert.match(cp.stderr, /ExperimentalWarning: Web Storage/);
+    // No experimental warning should be emitted
+    assert.doesNotMatch(cp.stderr, /ExperimentalWarning: Web Storage/);
   }
 });
 
 test('Storage instances cannot be created in userland', async () => {
   const cp = await spawnPromisified(process.execPath, [
-    '--experimental-webstorage', '-e', 'new globalThis.Storage()',
+    '-e', 'new globalThis.Storage()',
   ]);
 
   assert.strictEqual(cp.code, 1);
@@ -53,13 +39,13 @@ test('Storage instances cannot be created in userland', async () => {
 
 test('sessionStorage is not persisted', async () => {
   let cp = await spawnPromisified(process.execPath, [
-    '--experimental-webstorage', '-pe', 'sessionStorage.foo = "barbaz"',
+    '-pe', 'sessionStorage.foo = "barbaz"',
   ]);
   assert.strictEqual(cp.code, 0);
   assert.match(cp.stdout, /barbaz/);
 
   cp = await spawnPromisified(process.execPath, [
-    '--experimental-webstorage', '-pe', 'sessionStorage.foo',
+    '-pe', 'sessionStorage.foo',
   ]);
   assert.strictEqual(cp.code, 0);
   assert.match(cp.stdout, /undefined/);
@@ -68,7 +54,6 @@ test('sessionStorage is not persisted', async () => {
 
 test('localStorage throws without --localstorage-file ', async () => {
   const cp = await spawnPromisified(process.execPath, [
-    '--experimental-webstorage',
     '-pe', 'localStorage === globalThis.localStorage',
   ]);
   assert.strictEqual(cp.code, 1);
@@ -79,7 +64,6 @@ test('localStorage throws without --localstorage-file ', async () => {
 
 test('localStorage is not persisted if it is unused', async () => {
   const cp = await spawnPromisified(process.execPath, [
-    '--experimental-webstorage',
     '--localstorage-file', nextLocalStorage(),
     '-pe', 'localStorage === globalThis.localStorage',
   ]);
@@ -91,7 +75,6 @@ test('localStorage is not persisted if it is unused', async () => {
 test('localStorage is persisted if it is used', async () => {
   const localStorageFile = nextLocalStorage();
   let cp = await spawnPromisified(process.execPath, [
-    '--experimental-webstorage',
     '--localstorage-file', localStorageFile,
     '-pe', 'localStorage.foo = "barbaz"',
   ]);
@@ -102,7 +85,6 @@ test('localStorage is persisted if it is used', async () => {
   assert.match(entries[0], /\d+\.localstorage/);
 
   cp = await spawnPromisified(process.execPath, [
-    '--experimental-webstorage',
     '--localstorage-file', localStorageFile,
     '-pe', 'localStorage.foo',
   ]);
@@ -117,7 +99,6 @@ describe('webstorage quota for localStorage and sessionStorage', () => {
   test('localStorage can store and retrieve a max of 10 MB quota', async () => {
     const localStorageFile = nextLocalStorage();
     const cp = await spawnPromisified(process.execPath, [
-      '--experimental-webstorage',
       '--localstorage-file', localStorageFile,
       // Each character is 2 bytes
       '-pe', `
@@ -133,7 +114,6 @@ describe('webstorage quota for localStorage and sessionStorage', () => {
 
   test('sessionStorage can store a max of 10 MB quota', async () => {
     const cp = await spawnPromisified(process.execPath, [
-      '--experimental-webstorage',
       // Each character is 2 bytes
       '-pe', `sessionStorage['a'.repeat(${MAX_STORAGE_SIZE} / 2)] = '';
       console.error('filled');

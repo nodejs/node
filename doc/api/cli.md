@@ -1212,9 +1212,13 @@ Enable experimental WebAssembly module support.
 
 <!-- YAML
 added: v22.4.0
+changes:
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/57666
+    description: Web Storage is now enabled by default. This flag is now a no-op.
 -->
 
-Enable experimental [`Web Storage`][] support.
+This flag is now a no-op as [`Web Storage`][] is enabled by default.
 
 ### `--experimental-worker-inspection`
 
@@ -1649,12 +1653,15 @@ surface on other platforms, but the performance impact may be severe.
 
 <!-- YAML
 added: v22.4.0
+changes:
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/57666
+    description: Web Storage is now enabled by default.
 -->
 
 The file used to store `localStorage` data. If the file does not exist, it is
 created the first time `localStorage` is accessed. The same file may be shared
-between multiple Node.js processes concurrently. This flag is a no-op unless
-Node.js is started with the `--experimental-webstorage` flag.
+between multiple Node.js processes concurrently.
 
 ### `--max-http-header-size=size`
 

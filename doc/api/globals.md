@@ -684,15 +684,18 @@ A browser-compatible implementation of {Headers}.
 
 <!-- YAML
 added: v22.4.0
+changes:
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/57666
+    description: No longer requires the `--experimental-webstorage` flag.
 -->
 
-> Stability: 1.0 - Early development.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of [`localStorage`][]. Data is stored
 unencrypted in the file specified by the [`--localstorage-file`][] CLI flag.
 The maximum amount of data that can be stored is 10 MB.
 Any modification of this data outside of the Web Storage API is not supported.
-Enable this API with the [`--experimental-webstorage`][] CLI flag.
 `localStorage` data is not stored per user or per request when used in the context
 of a server, it is shared across all users and requests.
 
@@ -1116,9 +1119,13 @@ A browser-compatible implementation of {Request}.
 
 <!-- YAML
 added: v22.4.0
+changes:
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/57666
+    description: No longer requires the `--experimental-webstorage` flag.
 -->
 
-> Stability: 1.0 - Early development.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of [`sessionStorage`][]. Data is stored in
 memory, with a storage quota of 10 MB. `sessionStorage` data persists only within
@@ -1164,12 +1171,15 @@ added: v0.0.1
 
 <!-- YAML
 added: v22.4.0
+changes:
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/57666
+    description: No longer requires the `--experimental-webstorage` flag.
 -->
 
-> Stability: 1.0 - Early development.
+> Stability: 2 - Stable
 
-A browser-compatible implementation of [`Storage`][]. Enable this API with the
-[`--experimental-webstorage`][] CLI flag.
+A browser-compatible implementation of [`Storage`][].
 
 ## `structuredClone(value[, options])`
 
