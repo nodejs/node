@@ -1361,7 +1361,7 @@ fileURLToPath('file:///hello world');      // Correct:   /hello world (POSIX)
 ### `url.fileURLToPathBuffer(url[, options])`
 
 <!--
-added: REPLACEME
+added: v24.3.0
 -->
 
 * `url` {URL | string} The file URL string or URL object to convert to a path.
