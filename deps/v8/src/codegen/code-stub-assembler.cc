@@ -9413,7 +9413,7 @@ TNode<Numeric> CodeStubAssembler::ToNumberOrNumeric(
         {
           var_result = CAST(input_ho);
           if (var_type_feedback) {
-	        *var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
+            *var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
           }
           Goto(&end);
         }
