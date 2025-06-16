@@ -9412,7 +9412,9 @@ TNode<Numeric> CodeStubAssembler::ToNumberOrNumeric(
         GotoIfNot(IsBigInt(input_ho), &not_bigint);
         {
           var_result = CAST(input_ho);
-          *var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
+          if (var_type_feedback) {
+	        *var_type_feedback = SmiConstant(BinaryOperationFeedback::kBigInt);
+          }
           Goto(&end);
         }
         BIND(&not_bigint);
