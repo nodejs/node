@@ -20,7 +20,7 @@ tmpdir.refresh();
 
   assert(!fs.existsSync(result.path));
 
-  // second removal does not throw error
+  // Second removal does not throw error
   result.remove();
 }
 
@@ -34,11 +34,11 @@ tmpdir.refresh();
 
   assert(!fs.existsSync(result.path));
 
-  // second removal does not throw error
+  // Second removal does not throw error
   result[Symbol.dispose]();
 }
 
-// chdir does not affect removal
+// `chdir`` does not affect removal
 {
   const originalCwd = process.cwd();
 
@@ -81,7 +81,7 @@ tmpdir.refresh();
     fs.closeSync(fd);
     fs.unlinkSync(testFile);
 
-    // removal works once file is closed
+    // Removal works once file is closed
     base.remove();
     assert(!fs.existsSync(base.path));
   } else {
@@ -97,7 +97,7 @@ tmpdir.refresh();
 
     fs.chmodSync(base.path, originalMode);
 
-    // removal works once permissions are reset
+    // Removal works once permissions are reset
     child.remove();
     assert(!fs.existsSync(child.path));
 

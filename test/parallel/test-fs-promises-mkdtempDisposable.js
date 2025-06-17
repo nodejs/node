@@ -20,7 +20,7 @@ async function basicUsage() {
 
   assert(!fs.existsSync(result.path));
 
-  // second removal does not throw error
+  // Second removal does not throw error
   result.remove();
 }
 
@@ -33,7 +33,7 @@ async function symbolAsyncDispose() {
 
   assert(!fs.existsSync(result.path));
 
-  // second removal does not throw error
+  // Second removal does not throw error
   await result[Symbol.asyncDispose]();
 }
 
@@ -76,7 +76,7 @@ async function errorsAreReThrown() {
     fs.closeSync(fd);
     fs.unlinkSync(testFile);
 
-    // removal works once file is closed
+    // Removal works once file is closed
     await base.remove();
     assert(!fs.existsSync(base.path));
   } else {
@@ -90,7 +90,7 @@ async function errorsAreReThrown() {
 
     fs.chmodSync(base.path, originalMode);
 
-    // removal works once permissions are reset
+    // Removal works once permissions are reset
     await child.remove();
     assert(!fs.existsSync(child.path));
 
