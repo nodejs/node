@@ -26,7 +26,7 @@ try {
     e.code === 'ERR_MEMORY_ALLOCATION_FAILED' ||
     /Array buffer allocation failed/.test(e.message)
   ) {
-    common.skip('insufficient space for Buffer.alloc');
+    common.skip('insufficient space for Buffer.allocUnsafe');
   }
 
   throw e;
