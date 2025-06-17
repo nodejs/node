@@ -1947,7 +1947,7 @@ Silence all process warnings (including deprecations).
 added: REPLACEME
 -->
 
-Alias for [`--no-experimental-webstorage`][].
+Alias for `--no-experimental-webstorage`.
 
 ### `--node-memory-debug`
 
