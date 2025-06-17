@@ -642,7 +642,7 @@ A browser-compatible implementation of [`localStorage`][]. Data is stored
 unencrypted in the file specified by the [`--localstorage-file`][] CLI flag.
 The maximum amount of data that can be stored is 10 MB.
 Any modification of this data outside of the Web Storage API is not supported.
-Disable this API with the [`--no-experimental-webstorage`][] CLI flag.
+Disable this API with the [`--no-experimental-webstorage`][] (or its alias [`--no-webstorage`][]) CLI flag.
 `localStorage` data is not stored per user or per request when used in the context
 of a server, it is shared across all users and requests.
 
@@ -1107,7 +1107,7 @@ added: v22.4.0
 > [`--experimental-webstorage`][] CLI flag.
 
 A browser-compatible implementation of {Storage}. Disable this API with the
-[`--no-experimental-webstorage`][] CLI flag.
+[`--no-webstorage`][] (or its alias [`--no-experimental-webstorage`][]) CLI flag.
 
 ## `structuredClone(value[, options])`
 
@@ -1322,6 +1322,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
 [`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
 [`--no-experimental-webstorage`]: cli.md#--no-experimental-webstorage
+[`--no-webstorage`]: cli.md#--no-webstorage
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
 [`CompressionStream`]: webstreams.md#class-compressionstream
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
