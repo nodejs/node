@@ -5940,7 +5940,7 @@ added: REPLACEME
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-* Returns: {object} A disposable object with a "path" property.
+* Returns: {Object} A disposable object with a "path" property.
 
 Returns a disposable object whose `path` property holds the created directory
 path. When the object is disposed, the directory and its contents will be
