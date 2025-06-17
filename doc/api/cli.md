@@ -1718,7 +1718,7 @@ added: v22.4.0
 The file used to store `localStorage` data. If the file does not exist, it is
 created the first time `localStorage` is accessed. The same file may be shared
 between multiple Node.js processes concurrently. This flag is a no-op if
-Node.js is started with the `--no-experimental-webstorage` flag.
+Node.js is started with the `--no-experimental-webstorage` (or `--no-webstorage`) flag.
 
 ### `--max-http-header-size=size`
 
@@ -1950,6 +1950,14 @@ added: v6.0.0
 -->
 
 Silence all process warnings (including deprecations).
+
+### `--no-webstorage`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Alias for [`--no-experimental-webstorage`][].
 
 ### `--node-memory-debug`
 
@@ -3513,6 +3521,7 @@ one is included in the list below.
 * `--no-global-search-paths`
 * `--no-network-family-autoselection`
 * `--no-warnings`
+* `--no-webstorage`
 * `--node-memory-debug`
 * `--openssl-config`
 * `--openssl-legacy-provider`
