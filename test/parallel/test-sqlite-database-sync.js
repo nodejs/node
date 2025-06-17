@@ -196,11 +196,9 @@ suite('DatabaseSync() constructor', () => {
     t.assert.strictEqual(setup, undefined);
 
     const query = db.prepare('SELECT val FROM data');
-    t.assert.strictEqual(query.setReadBigInts(true), undefined);
     t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42n });
 
     const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
-    t.assert.strictEqual(insert.setReadBigInts(true), undefined);
     t.assert.deepStrictEqual(
       insert.run(20),
       { changes: 1n, lastInsertRowid: 20n },
@@ -219,11 +217,9 @@ suite('DatabaseSync() constructor', () => {
     t.assert.strictEqual(setup, undefined);
 
     const query = db.prepare('SELECT val FROM data');
-    t.assert.strictEqual(query.setReadBigInts(false), undefined);
     t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42 });
 
     const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
-    t.assert.strictEqual(insert.setReadBigInts(false), undefined);
     t.assert.deepStrictEqual(
       insert.run(20),
       { changes: 1, lastInsertRowid: 20 },
