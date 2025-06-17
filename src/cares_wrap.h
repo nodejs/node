@@ -11,6 +11,7 @@
 #include "memory_tracker.h"
 #include "node.h"
 #include "node_internals.h"
+#include "permission/permission.h"
 #include "util.h"
 
 #include "ares.h"
@@ -214,6 +215,8 @@ class GetNameInfoReqWrap final : public ReqWrap<uv_getnameinfo_t> {
  public:
   GetNameInfoReqWrap(Environment* env, v8::Local<v8::Object> req_wrap_obj);
 
+  SET_INSUFFICIENT_PERMISSION_ERROR_CALLBACK(permission::PermissionScope::kNet)
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(GetNameInfoReqWrap)
   SET_SELF_SIZE(GetNameInfoReqWrap)
@@ -249,6 +252,15 @@ class QueryWrap final : public AsyncWrap {
   void AresQuery(const char* name,
                  ares_dns_class_t dnsclass,
                  ares_dns_rec_type_t type) {
+    permission::PermissionScope scope = permission::PermissionScope::kNet;
+    Environment* env_holder = env();
+
+    if (!env_holder->permission()->is_granted(env_holder, scope, name))
+        [[unlikely]] {
+      QueuePermissionModelResponseCallback(name);
+      return;
+    }
+
     channel_->EnsureServers();
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
       TRACING_CATEGORY_NODE2(dns, native), trace_name_, this,
@@ -261,6 +273,8 @@ class QueryWrap final : public AsyncWrap {
                       MakeCallbackPointer(),
                       nullptr);
   }
+
+  SET_INSUFFICIENT_PERMISSION_ERROR_CALLBACK(permission::PermissionScope::kNet)
 
   void ParseError(int status) {
     CHECK_NE(status, ARES_SUCCESS);
@@ -354,6 +368,20 @@ class QueryWrap final : public AsyncWrap {
     data->is_host = true;
 
     wrap->QueueResponseCallback(status);
+  }
+
+  void QueuePermissionModelResponseCallback(const char* resource) {
+    BaseObjectPtr<QueryWrap<Traits>> strong_ref{this};
+    const std::string res{resource};
+    env()->SetImmediate([this, strong_ref, res](Environment*) {
+      InsufficientPermissionError(res);
+
+      // Delete once strong_ref goes out of scope.
+      Detach();
+    });
+
+    channel_->set_query_last_ok(true);
+    channel_->ModifyActivityQueryCount(-1);
   }
 
   void QueueResponseCallback(int status) {

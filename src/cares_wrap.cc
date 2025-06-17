@@ -1613,6 +1613,16 @@ Maybe<int> SoaTraits::Parse(QuerySoaWrap* wrap,
 }
 
 int ReverseTraits::Send(QueryReverseWrap* wrap, const char* name) {
+  permission::PermissionScope scope = permission::PermissionScope::kNet;
+  Environment* env_holder = wrap->env();
+
+  if (!env_holder->permission()->is_granted(env_holder, scope, name))
+      [[unlikely]] {
+    wrap->QueuePermissionModelResponseCallback(name);
+    // Error will be returned in the callback
+    return ARES_SUCCESS;
+  }
+
   int length, family;
   char address_buffer[sizeof(struct in6_addr)];
 
@@ -1851,6 +1861,10 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->IsUint32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(env->isolate(), args[1]);
+
+  ERR_ACCESS_DENIED_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, hostname.ToStringView(), args);
+
   std::string ascii_hostname = ada::idna::to_ascii(hostname.ToStringView());
 
   int32_t flags = 0;
@@ -1925,10 +1939,18 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
       TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
       "ip", TRACE_STR_COPY(*ip), "port", port);
 
-  int err = req_wrap->Dispatch(uv_getnameinfo,
-                               AfterGetNameInfo,
-                               reinterpret_cast<struct sockaddr*>(&addr),
-                               NI_NAMEREQD);
+  int err = 0;
+  if (!env->permission()->is_granted(
+          env, permission::PermissionScope::kNet, ip.ToStringView()))
+      [[unlikely]] {
+    req_wrap->InsufficientPermissionError(*ip);
+  } else {
+    err = req_wrap->Dispatch(uv_getnameinfo,
+                             AfterGetNameInfo,
+                             reinterpret_cast<struct sockaddr*>(&addr),
+                             NI_NAMEREQD);
+  }
+
   if (err == 0)
     // Release ownership of the pointer allowing the ownership to be transferred
     USE(req_wrap.release());
