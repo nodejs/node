@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --expose-internals --localstorage-file=./test/fixtures/localstoragefile-global-test
 'use strict';
 const common = require('../common');
 const assert = require('assert');
