@@ -696,6 +696,30 @@ Enable this API with the [`--experimental-webstorage`][] CLI flag.
 `localStorage` data is not stored per user or per request when used in the context
 of a server, it is shared across all users and requests.
 
+## Class: `Lock`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+<!-- type=global -->
+
+The `Lock` class. See [`Lock`][] for more details.
+
+## Class: `LockManager`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+<!-- type=global -->
+
+The `LockManager` class. See [`LockManager`][] for more details.
+
 ## `MessageChannel`
 
 <!-- YAML
@@ -1478,6 +1502,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`EventSource`]: https://developer.mozilla.org/en-US/docs/Web/API/EventSource
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`LockManager`]: worker_threads.md#class-lockmanager
+[`Lock`]: worker_threads.md#class-lock
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
 [`MessagePort`]: worker_threads.md#class-messageport
