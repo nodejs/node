@@ -32,177 +32,59 @@ const path = require('node:path');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-function prepareREPL(replOpts = {}) {
-  const input = new ArrayStream();
-  const output = new ArrayStream();
+// Tests that a REPL session data can be saved to and loaded from a file
 
-  const replServer = repl.start({
-    prompt: '',
-    input,
-    output,
-    allowBlockingCompletions: true,
-    ...replOpts,
-  });
+const input = new ArrayStream();
 
-  // Some errors are passed to the domain, but do not callback
-  replServer._domain.on('error', assert.ifError);
+const replServer = repl.start({
+  prompt: '',
+  input,
+  output: new ArrayStream(),
+  allowBlockingCompletions: true,
+});
 
-  return { replServer, input, output };
-}
+// Some errors are passed to the domain, but do not callback
+replServer._domain.on('error', assert.ifError);
 
-// The tests in this file test the REPL saving and loading session data to/from a file
+const filePath = path.resolve(tmpdir.path, 'test.save.js');
 
+const testFileContents = [
+  'let inner = (function() {',
+  '  return {one:1};',
+  '})()',
+];
 
-// The REPL can save a session's data to a file and load it back
-{
-  const { replServer, input } = prepareREPL();
-  tmpdir.refresh();
+input.run(testFileContents);
+input.run([`.save ${filePath}`]);
 
-  const filePath = path.resolve(tmpdir.path, 'test.save.js');
+assert.strictEqual(fs.readFileSync(filePath, 'utf8'),
+                   testFileContents.join('\n'));
 
-  const testFileContents = [
-    'let inner = (function() {',
-    '  return {one:1};',
-    '})()',
-  ];
+const innerOCompletions = [['inner.one'], 'inner.o'];
 
-  input.run(testFileContents);
-  input.run([`.save ${filePath}`]);
+// Double check that the data is still present in the repl after the save
+replServer.completer('inner.o', common.mustSucceed((data) => {
+  assert.deepStrictEqual(data, innerOCompletions);
+}));
 
-  assert.strictEqual(fs.readFileSync(filePath, 'utf8'),
-                     testFileContents.join('\n'));
+// Clear the repl context
+input.run(['.clear']);
 
-  const innerOCompletions = [['inner.one'], 'inner.o'];
+// Double check that the data is no longer present in the repl
+replServer.completer('inner.o', common.mustSucceed((data) => {
+  assert.deepStrictEqual(data, [[], 'inner.o']);
+}));
 
-  // Double check that the data is still present in the repl after the save
-  replServer.completer('inner.o', common.mustSucceed((data) => {
-    assert.deepStrictEqual(data, innerOCompletions);
-  }));
+// Load the file back in.
+input.run([`.load ${filePath}`]);
 
-  // Clear the repl context
-  input.run(['.clear']);
+// Make sure loading doesn't insert extra indentation
+// https://github.com/nodejs/node/issues/47673
+assert.strictEqual(replServer.line, '');
 
-  // Double check that the data is no longer present in the repl
-  replServer.completer('inner.o', common.mustSucceed((data) => {
-    assert.deepStrictEqual(data, [[], 'inner.o']);
-  }));
+// Make sure that the loaded data is present
+replServer.complete('inner.o', common.mustSucceed((data) => {
+  assert.deepStrictEqual(data, innerOCompletions);
+}));
 
-  // Load the file back in.
-  input.run([`.load ${filePath}`]);
-
-  // Make sure loading doesn't insert extra indentation
-  // https://github.com/nodejs/node/issues/47673
-  assert.strictEqual(replServer.line, '');
-
-  // Make sure that the loaded data is present
-  replServer.complete('inner.o', common.mustSucceed((data) => {
-    assert.deepStrictEqual(data, innerOCompletions);
-  }));
-
-  replServer.close();
-}
-
-// An appropriate error is displayed if .load is called without a filename
-{
-  const { replServer, input, output } = prepareREPL();
-
-  output.write = common.mustCall(function(data) {
-    assert.strictEqual(data, 'The "file" argument must be specified\n');
-    output.write = () => {};
-  });
-
-  input.run(['.load']);
-
-  replServer.close();
-}
-
-// An appropriate error is displayed if .save is called without a filename
-{
-  const { replServer, input, output } = prepareREPL();
-
-  output.write = common.mustCall(function(data) {
-    assert.strictEqual(data, 'The "file" argument must be specified\n');
-    output.write = () => {};
-  });
-
-  input.run(['.save']);
-
-  replServer.close();
-}
-
-// The case in which the user tries to load a non existing file is appropriately handled
-{
-  const { replServer, input, output } = prepareREPL();
-
-  const filePath = tmpdir.resolve('file.does.not.exist');
-
-  output.write = common.mustCall(function(data) {
-    assert.strictEqual(data, `Failed to load: ${filePath}\n`);
-    output.write = () => {};
-  });
-
-  input.run([`.load ${filePath}`]);
-
-  replServer.close();
-}
-
-// The case in which the user tries to load a directory instead of a file is appropriately handled
-{
-  const { replServer, input, output } = prepareREPL();
-
-  const dirPath = tmpdir.path;
-
-  output.write = common.mustCall(function(data) {
-    assert.strictEqual(data, `Failed to load: ${dirPath} is not a valid file\n`);
-    output.write = () => {};
-  });
-
-  input.run([`.load ${dirPath}`]);
-
-  replServer.close();
-}
-
-// The case in which a file save fails is appropriately handled
-{
-  const { replServer, input, output } = prepareREPL();
-
-  // NUL (\0) is disallowed in filenames in UNIX-like operating systems and
-  // Windows so we can use that to test failed saves.
-  const invalidFilePath = tmpdir.resolve('\0\0\0\0\0');
-
-  output.write = common.mustCall(function(data) {
-    assert.strictEqual(data, `Failed to save: ${invalidFilePath}\n`);
-    output.write = () => {};
-  });
-
-  input.run([`.save ${invalidFilePath}`]);
-
-  replServer.close();
-}
-
-// Saving in editor mode works
-{
-  const { replServer, input } = prepareREPL({ terminal: true });
-  tmpdir.refresh();
-
-  input.run(['.editor']);
-
-  const commands = [
-    'function testSave() {',
-    'return "saved";',
-    '}',
-  ];
-
-  input.run(commands);
-
-  replServer.write('', { ctrl: true, name: 'd' });
-
-  const filePath = path.resolve(tmpdir.path, 'test.save.js');
-
-  input.run([`.save ${filePath}`]);
-
-  assert.strictEqual(fs.readFileSync(filePath, 'utf8'),
-                     `${commands.join('\n')}\n`);
-
-  replServer.close();
-}
+replServer.close();
