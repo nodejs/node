@@ -92,6 +92,8 @@ const customTypesMap = {
   'CryptoKeyPair': 'webcrypto.html#class-cryptokeypair',
   'Crypto': 'webcrypto.html#class-crypto',
   'SubtleCrypto': 'webcrypto.html#class-subtlecrypto',
+  'Template Literal':
+    `${jsDocPrefix}Reference/Template_literals`,
   'RsaOaepParams': 'webcrypto.html#class-rsaoaepparams',
   'AesCtrParams': 'webcrypto.html#class-aesctrparams',
   'AesCbcParams': 'webcrypto.html#class-aescbcparams',
@@ -214,6 +216,7 @@ const customTypesMap = {
 
   'Session': 'sqlite.html#class-session',
   'StatementSync': 'sqlite.html#class-statementsync',
+  'SQLTagStore': 'sqlite.html#class-sqltagstore',
 
   'Stream': 'stream.html#stream',
   'stream.Duplex': 'stream.html#class-streamduplex',
