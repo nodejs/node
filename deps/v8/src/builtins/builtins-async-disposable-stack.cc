@@ -89,10 +89,6 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
               kMethod))),
       isolate);
 
-  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  try_catch.SetVerbose(false);
-  try_catch.SetCaptureMessage(false);
-
   MaybeDirectHandle<Object> result =
       Execution::Call(isolate, sync_method, receiver, {});
 
@@ -107,7 +103,8 @@ BUILTIN(AsyncDisposeFromSyncDispose) {
       return {};
     }
     //        d. IfAbruptRejectPromise(result, promiseCapability).
-    DCHECK(try_catch.HasCaught());
+    isolate->clear_internal_exception();
+    isolate->clear_pending_message();
     JSPromise::Reject(promise, direct_handle(exception, isolate));
   }
 
