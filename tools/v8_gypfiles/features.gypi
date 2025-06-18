@@ -229,10 +229,6 @@
     # for ARM64.
     'v8_control_flow_integrity%': 0,
 
-    # Enable V8 zone compression experimental feature.
-    # Sets -DV8_COMPRESS_ZONES.
-    'v8_enable_zone_compression%': 0,
-
     # Enable the experimental V8 sandbox.
     # Sets -DV8_ENABLE_SANDBOX.
     'v8_enable_sandbox%': 0,
@@ -370,9 +366,6 @@
       }],
       ['v8_enable_short_builtin_calls==1', {
         'defines': ['V8_SHORT_BUILTIN_CALLS',],
-      }],
-      ['v8_enable_zone_compression==1', {
-        'defines': ['V8_COMPRESS_ZONES',],
       }],
       ['v8_enable_sandbox==1', {
         'defines': ['V8_ENABLE_SANDBOX',],
