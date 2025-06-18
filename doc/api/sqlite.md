@@ -98,8 +98,7 @@ exposed by this class execute synchronously.
 <!-- YAML
 added: v22.5.0
 changes:
-  - version:
-    - REPLACEME
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/58697
     description: Add new SQLite database options.
 -->
