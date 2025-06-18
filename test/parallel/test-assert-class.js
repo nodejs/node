@@ -24,8 +24,8 @@ test('Assert constructor requires new', () => {
   );
 });
 
-test('Assert class basic instance', () => {
-  const assertInstance = new Assert({ diff: undefined });
+test('Assert class non strict', () => {
+  const assertInstance = new Assert({ diff: undefined, strict: false });
 
   assertInstance.ok(assert.AssertionError.prototype instanceof Error,
                     'assert.AssertionError instanceof Error');
@@ -44,6 +44,8 @@ test('Assert class basic instance', () => {
     }
   );
   assertInstance.equal(undefined, undefined);
+  assertInstance.equal(null, undefined);
+  assertInstance.equal(2, '2');
   assertInstance.notEqual(true, false);
   assertInstance.throws(
     () => assertInstance.deepEqual(/a/),
@@ -117,6 +119,15 @@ test('Assert class basic instance', () => {
   /* eslint-enable no-restricted-syntax */
 });
 
+test('Assert class strict', () => {
+  const assertInstance = new Assert();
+
+  assertInstance.equal(assertInstance.equal, assertInstance.strictEqual);
+  assertInstance.equal(assertInstance.deepEqual, assertInstance.deepStrictEqual);
+  assertInstance.equal(assertInstance.notEqual, assertInstance.notStrictEqual);
+  assertInstance.equal(assertInstance.notDeepEqual, assertInstance.notDeepStrictEqual);
+});
+
 test('Assert class with invalid diff option', () => {
   assert.throws(
     () => new Assert({ diff: 'invalid' }),
@@ -128,8 +139,8 @@ test('Assert class with invalid diff option', () => {
   );
 });
 
-test('Assert class with full diff', () => {
-  const assertInstance = new Assert({ diff: 'full' });
+test('Assert class non strict with full diff', () => {
+  const assertInstance = new Assert({ diff: 'full', strict: false });
 
   const longStringOfAs = 'A'.repeat(1025);
   const longStringOFBs = 'B'.repeat(1025);
@@ -173,8 +184,8 @@ test('Assert class with full diff', () => {
   });
 });
 
-test('Assert class with simple diff', () => {
-  const assertInstance = new Assert({ diff: 'simple' });
+test('Assert class non strict with simple diff', () => {
+  const assertInstance = new Assert({ diff: 'simple', strict: false });
 
   const longStringOfAs = 'A'.repeat(1025);
   const longStringOFBs = 'B'.repeat(1025);
