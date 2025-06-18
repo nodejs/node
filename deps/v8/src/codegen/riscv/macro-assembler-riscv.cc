@@ -4941,10 +4941,9 @@ void MacroAssembler::Jump(Register target, Condition cond, Register rs,
     jr(target);
     DEBUG_PRINTF("\tCheckTrampolinePool pc_offset:%d %d\n", pc_offset(),
                  next_buffer_check() - ConstpoolComputesize());
-    if (!is_trampoline_emitted() && v8_flags.debug_code &&
+    if (!is_trampoline_emitted() &&
         pc_offset() >= (next_buffer_check() - ConstpoolComputesize())) {
-      // Debug mode will emit more instrs than Release mode.
-      // so we need to check trampoline pool before Constant pool.
+      // We need to check trampoline pool before Constant pool.
       // Here need to emit trampoline first.
       // Jump(ra, al) will block trampoline pool for 1 instr.
       nop();
