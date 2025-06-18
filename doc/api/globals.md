@@ -1313,7 +1313,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`LockManager`]: worker_threads.md#class-lockmanager
-[`Lock`]: worker_threads.md#class-lock
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessagePort`]: worker_threads.md#class-messageport
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
