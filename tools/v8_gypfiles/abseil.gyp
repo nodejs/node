@@ -193,8 +193,6 @@
         '<(ABSEIL_ROOT)/absl/hash/internal/hash.h',
         '<(ABSEIL_ROOT)/absl/hash/internal/hash.cc',
         '<(ABSEIL_ROOT)/absl/hash/internal/spy_hash_state.h',
-        '<(ABSEIL_ROOT)/absl/hash/internal/low_level_hash.h',
-        '<(ABSEIL_ROOT)/absl/hash/internal/low_level_hash.cc',
         '<(ABSEIL_ROOT)/absl/memory/memory.h',
         '<(ABSEIL_ROOT)/absl/meta/type_traits.h',
         '<(ABSEIL_ROOT)/absl/numeric/bits.h',
