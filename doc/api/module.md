@@ -1279,6 +1279,9 @@ changes:
   - version: v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55698
     description: Add support for synchronous and in-thread version.
+  - version: v22.6.0
+    pr-url: https://github.com/nodejs/node/pull/56350
+    description: Add support for `source` with format `commonjs-typescript` and `module-typescript`.
   - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/47999
     description: Add support for `source` with format `commonjs`.
