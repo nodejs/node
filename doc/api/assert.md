@@ -230,6 +230,8 @@ The `Assert` class allows creating independent assertion instances with custom o
 * `options` {Object}
   * `diff` {string} If set to `'full'`, shows the full diff in assertion errors. Defaults to `'simple'`.
     Accepted values: `'simple'`, `'full'`.
+  * `strict` {boolean} If set to `true`, non-strict methods behave like their
+    corresponding strict methods. Defaults to `true`.
 
 Creates a new assertion instance. The `diff` option controls the verbosity of diffs in assertion error messages.
 
