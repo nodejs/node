@@ -974,7 +974,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
         if (!read_bigints_v->IsBoolean()) {
           THROW_ERR_INVALID_ARG_TYPE(
               env->isolate(),
-              "The \"options.readBigInts\" argument must be a boolean.");
+              R"(The "options.readBigInts" argument must be a boolean.)");
           return;
         }
         open_config.set_use_big_ints(read_bigints_v.As<Boolean>()->Value());
@@ -988,7 +988,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
         if (!return_arrays_v->IsBoolean()) {
           THROW_ERR_INVALID_ARG_TYPE(
               env->isolate(),
-              "The \"options.returnArrays\" argument must be a boolean.");
+              R"(The "options.returnArrays" argument must be a boolean.)");
           return;
         }
         open_config.set_return_arrays(return_arrays_v.As<Boolean>()->Value());
@@ -1001,7 +1001,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       if (!allow_bare_named_params_v->IsUndefined()) {
         if (!allow_bare_named_params_v->IsBoolean()) {
           THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                                     "The \"options.allowBareNamedParameters\" "
+                                     R"(The "options.allowBareNamedParameters")"
                                      "argument must be a boolean.");
           return;
         }
@@ -1017,7 +1017,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
         if (!allow_unknown_named_params_v->IsBoolean()) {
           THROW_ERR_INVALID_ARG_TYPE(
               env->isolate(),
-              "The \"options.allowUnknownNamedParameters\" "
+              R"(The "options.allowUnknownNamedParameters")"
               "argument must be a boolean.");
           return;
         }
