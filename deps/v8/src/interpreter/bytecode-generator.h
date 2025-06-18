@@ -294,6 +294,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   Variable* GetPotentialVariableInAccumulator();
 
+  void AddDisposableValue(VariableMode mode);
   void BuildVariableLoad(Variable* variable, HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = TypeofMode::kNotInside);
   void BuildVariableLoadForAccumulatorValue(
