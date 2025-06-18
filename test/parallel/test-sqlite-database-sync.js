@@ -180,7 +180,7 @@ suite('DatabaseSync() constructor', () => {
       new DatabaseSync('foo', { readBigInts: 42 });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "options\.readBigInts" argument must be a boolean/,
+      message: 'The "options.readBigInts" argument must be a boolean.',
     });
   });
 
@@ -210,7 +210,7 @@ suite('DatabaseSync() constructor', () => {
       new DatabaseSync('foo', { returnArrays: 42 });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "options\.returnArrays" argument must be a boolean/,
+      message: 'The "options.returnArrays" argument must be a boolean.',
     });
   });
 
@@ -234,7 +234,7 @@ suite('DatabaseSync() constructor', () => {
       new DatabaseSync('foo', { allowBareNamedParameters: 42 });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "options\.allowBareNamedParameters" argument must be a boolean/,
+      message: 'The "options.allowBareNamedParameters" argument must be a boolean.',
     });
   });
 
@@ -261,7 +261,7 @@ suite('DatabaseSync() constructor', () => {
       new DatabaseSync('foo', { allowUnknownNamedParameters: 42 });
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "options\.allowUnknownNamedParameters" argument must be a boolean/,
+      message: 'The "options.allowUnknownNamedParameters" argument must be a boolean.',
     });
   });
 

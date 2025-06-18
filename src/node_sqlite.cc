@@ -1000,9 +1000,10 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
             .ToLocal(&allow_bare_named_params_v)) {
       if (!allow_bare_named_params_v->IsUndefined()) {
         if (!allow_bare_named_params_v->IsBoolean()) {
-          THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                                     R"(The "options.allowBareNamedParameters")"
-                                     "argument must be a boolean.");
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              R"(The "options.allowBareNamedParameters" )"
+              "argument must be a boolean.");
           return;
         }
         open_config.set_allow_bare_named_params(
@@ -1017,7 +1018,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
         if (!allow_unknown_named_params_v->IsBoolean()) {
           THROW_ERR_INVALID_ARG_TYPE(
               env->isolate(),
-              R"(The "options.allowUnknownNamedParameters")"
+              R"(The "options.allowUnknownNamedParameters" )"
               "argument must be a boolean.");
           return;
         }
