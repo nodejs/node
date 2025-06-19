@@ -52,3 +52,15 @@ test-tls-securepair-client: PASS, FLAKY
 [$arch==arm]
 # https://github.com/nodejs/node/issues/49933
 test-watch-mode-inspect: SKIP
+
+[$system==linux && $arch==ppc64]
+# https://github.com/nodejs/node/pull/58588
+test-single-executable-application: SKIP
+test-single-executable-application-assets: SKIP
+test-single-executable-application-assets-raw: SKIP
+test-single-executable-application-disable-experimental-sea-warning: SKIP
+test-single-executable-application-empty: SKIP
+test-single-executable-application-snapshot: SKIP
+test-single-executable-application-snapshot-and-code-cache: SKIP
+test-single-executable-application-snapshot-worker: SKIP
+test-single-executable-application-use-code-cache: SKIP
