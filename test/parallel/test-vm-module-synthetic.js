@@ -69,10 +69,7 @@ const assert = require('assert');
   for (const value of [null, {}, SyntheticModule.prototype]) {
     assert.throws(() => {
       SyntheticModule.prototype.setExport.call(value, 'foo');
-    }, {
-      code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "this" argument must be an instance of SyntheticModule/
-    });
+    }, { code: 'ERR_INVALID_THIS' });
   }
 
 })().then(common.mustCall());
