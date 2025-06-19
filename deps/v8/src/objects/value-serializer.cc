@@ -654,8 +654,17 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
     case JS_DATA_VIEW_TYPE:
     case JS_RAB_GSAB_DATA_VIEW_TYPE:
       return WriteJSArrayBufferView(Cast<JSArrayBufferView>(*receiver));
-    case JS_ERROR_TYPE:
-      return WriteJSError(Cast<JSObject>(receiver));
+    case JS_ERROR_TYPE: {
+      DirectHandle<JSObject> js_error = Cast<JSObject>(receiver);
+      Maybe<bool> is_host_object = IsHostObject(js_error);
+      if (is_host_object.IsNothing()) {
+        return is_host_object;
+      }
+      if (is_host_object.FromJust()) {
+        return WriteHostObject(js_error);
+      }
+      return WriteJSError(js_error);
+    }
     case JS_SHARED_ARRAY_TYPE:
       return WriteJSSharedArray(Cast<JSSharedArray>(receiver));
     case JS_SHARED_STRUCT_TYPE:
