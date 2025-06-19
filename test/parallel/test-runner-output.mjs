@@ -241,6 +241,14 @@ const tests = [
     flags: ['--test-reporter=tap'],
   },
   {
+    name: 'test-runner/output/tap_date_serialization.js',
+    transform: snapshot.transform(
+      snapshot.replaceWindowsLineEndings,
+      replaceTestDuration,
+    ),
+    flags: ['--test-reporter=tap'],
+  },
+  {
     name: 'test-runner/output/test-runner-plan.js',
     flags: ['--test-reporter=tap'],
   },
