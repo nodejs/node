@@ -11,11 +11,29 @@ namespace inspector {
 
 class NetworkInspector;
 
+// Supported charsets for devtools frontend on request/response data.
+// If the charset is kUTF8, the data is expected to be text and can be
+// formatted on the frontend.
+enum class Charset {
+  kUTF8,
+  kBinary,
+};
+
 struct RequestEntry {
   double timestamp;
-  bool is_finished;
-  bool is_streaming;
+  bool is_request_finished = false;
+  bool is_response_finished = false;
+  bool is_streaming = false;
+  Charset request_charset;
+  std::vector<protocol::Binary> request_data_blobs;
+  Charset response_charset;
   std::vector<protocol::Binary> response_data_blobs;
+
+  RequestEntry(double timestamp, Charset request_charset, bool has_request_body)
+      : timestamp(timestamp),
+        is_request_finished(!has_request_body),
+        request_charset(request_charset),
+        response_charset(Charset::kBinary) {}
 };
 
 class NetworkAgent : public protocol::Network::Backend {
@@ -28,6 +46,15 @@ class NetworkAgent : public protocol::Network::Backend {
   protocol::DispatchResponse enable() override;
 
   protocol::DispatchResponse disable() override;
+
+  protocol::DispatchResponse getRequestPostData(
+      const protocol::String& in_requestId,
+      protocol::String* out_postData) override;
+
+  protocol::DispatchResponse getResponseBody(
+      const protocol::String& in_requestId,
+      protocol::String* out_body,
+      bool* out_base64Encoded) override;
 
   protocol::DispatchResponse streamResourceContent(
       const protocol::String& in_requestId,
@@ -48,6 +75,8 @@ class NetworkAgent : public protocol::Network::Backend {
 
   void loadingFinished(v8::Local<v8::Context> context,
                        v8::Local<v8::Object> params);
+
+  void dataSent(v8::Local<v8::Context> context, v8::Local<v8::Object> params);
 
   void dataReceived(v8::Local<v8::Context> context,
                     v8::Local<v8::Object> params);
