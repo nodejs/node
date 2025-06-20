@@ -139,7 +139,6 @@ The following paths and files are never ignored, so adding them to
 
 * `package.json`
 * `README` (and its variants)
-* `CHANGELOG` (and its variants)
 * `LICENSE` / `LICENCE`
 
 If, given the structure of your project, you find `.npmignore` to be a

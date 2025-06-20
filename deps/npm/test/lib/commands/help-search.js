@@ -7,7 +7,7 @@ const docsFixtures = {
   },
   dir2: {
     'npm-something.md': 'another\ncommand you run\nthat\nreferences exec\nand has multiple lines\nwith no matches\nthat will be ignored\nand another line\nthat does have exec as well',
-    'npm-run-script.md': 'the scripted run-script command runs scripts\nand has lines\nsome of which dont match the string run\nor script\nscript',
+    'npm-run.md': 'the scripted run command runs scripts\nand has lines\nsome of which dont match the string run\nor script\nscript',
     'npm-install.md': 'does a thing in a script\nif a thing does not exist in a thing you run\nto install it and run it maybe in a script',
   },
   dir3: {

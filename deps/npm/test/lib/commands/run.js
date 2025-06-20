@@ -12,7 +12,7 @@ const mockRs = async (t, { windows = false, runScript, ...opts } = {}) => {
 
   const mock = await mockNpm(t, {
     ...opts,
-    command: 'run-script',
+    command: 'run',
     mocks: {
       '@npmcli/run-script': Object.assign(
         async rs => {
@@ -30,7 +30,7 @@ const mockRs = async (t, { windows = false, runScript, ...opts } = {}) => {
   return {
     ...mock,
     RUN_SCRIPTS: () => RUN_SCRIPTS,
-    runScript: mock['run-script'],
+    runScript: mock.run,
     cleanLogs: () => mock.logs.error.map(cleanCwd).join('\n'),
   }
 }

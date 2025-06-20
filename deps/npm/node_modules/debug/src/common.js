@@ -168,7 +168,7 @@ function setup(env) {
 
 		const split = (typeof namespaces === 'string' ? namespaces : '')
 			.trim()
-			.replace(' ', ',')
+			.replace(/\s+/g, ',')
 			.split(',')
 			.filter(Boolean);
 

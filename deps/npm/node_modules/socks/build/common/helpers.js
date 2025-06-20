@@ -130,7 +130,7 @@ function isValidTimeoutValue(value) {
 function ipv4ToInt32(ip) {
     const address = new ip_address_1.Address4(ip);
     // Convert the IPv4 address parts to an integer
-    return address.toArray().reduce((acc, part) => (acc << 8) + part, 0);
+    return address.toArray().reduce((acc, part) => (acc << 8) + part, 0) >>> 0;
 }
 exports.ipv4ToInt32 = ipv4ToInt32;
 function int32ToIpv4(int32) {
