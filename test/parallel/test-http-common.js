@@ -1,7 +1,9 @@
+// Flags: --expose-internals --no-warnings
+
 'use strict';
 require('../common');
 const assert = require('assert');
-const httpCommon = require('_http_common');
+const httpCommon = require('internal/http/common');
 const checkIsHttpToken = httpCommon._checkIsHttpToken;
 const checkInvalidHeaderChar = httpCommon._checkInvalidHeaderChar;
 
