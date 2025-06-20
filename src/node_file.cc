@@ -2859,10 +2859,10 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
 
   CHECK(IsSafeJsInt(args[1]));
-  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
+  const uv_uid_t uid = FromV8Value<uv_uid_t>(args[1]);
 
   CHECK(IsSafeJsInt(args[2]));
-  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
+  const uv_gid_t gid = FromV8Value<uv_gid_t>(args[2]);
 
   if (argc > 3) {  // chown(path, uid, gid, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
@@ -2934,10 +2934,10 @@ static void LChown(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
 
   CHECK(IsSafeJsInt(args[1]));
-  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
+  const uv_uid_t uid = FromV8Value<uv_uid_t>(args[1]);
 
   CHECK(IsSafeJsInt(args[2]));
-  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
+  const uv_gid_t gid = FromV8Value<uv_gid_t>(args[2]);
 
   if (argc > 3) {  // lchown(path, uid, gid, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
