@@ -15,7 +15,7 @@ const session = new inspector.Session();
 session.connect();
 session.post('Network.enable');
 
-async function triggerNetworkEvents(requestId) {
+async function triggerNetworkEvents(requestId, charset) {
   const url = 'https://example.com';
   Network.requestWillBeSent({
     requestId,
@@ -42,6 +42,7 @@ async function triggerNetworkEvents(requestId) {
       headers: {
         mKey: 'mValue',
       },
+      charset,
     },
   });
   await setTimeout(1);
@@ -72,28 +73,36 @@ async function triggerNetworkEvents(requestId) {
   });
 }
 
+function assertNetworkEvents(session, requestId) {
+  session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
+    assert.strictEqual(params.requestId, requestId);
+  }));
+  session.on('Network.responseReceived', common.mustCall(({ params }) => {
+    assert.strictEqual(params.requestId, requestId);
+  }));
+  const loadingFinishedFuture = waitUntil(session, 'Network.loadingFinished')
+    .then(async ([{ params }]) => {
+      assert.strictEqual(params.requestId, requestId);
+    });
+
+  return loadingFinishedFuture;
+}
+
 test('should stream Network.dataReceived with data chunks', async () => {
   session.removeAllListeners();
 
   const requestId = 'my-req-id-1';
   const chunks = [];
   let totalDataLength = 0;
-  session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
-    assert.strictEqual(params.requestId, requestId);
-  }));
+  const loadingFinishedFuture = assertNetworkEvents(session, requestId);
   const responseReceivedFuture = waitUntil(session, 'Network.responseReceived')
-    .then(async ([{ params }]) => {
-      assert.strictEqual(params.requestId, requestId);
+    .then(async () => {
       const { bufferedData } = await session.post('Network.streamResourceContent', {
         requestId,
       });
       const data = Buffer.from(bufferedData, 'base64');
       totalDataLength += data.byteLength;
       chunks.push(data);
-    });
-  const loadingFinishedFuture = waitUntil(session, 'Network.loadingFinished')
-    .then(([{ params }]) => {
-      assert.strictEqual(params.requestId, requestId);
     });
   session.on('Network.dataReceived', ({ params }) => {
     assert.strictEqual(params.requestId, requestId);
@@ -114,16 +123,7 @@ test('Network.streamResourceContent should send all buffered chunks', async () =
   session.removeAllListeners();
 
   const requestId = 'my-req-id-2';
-  session.on('Network.requestWillBeSent', common.mustCall(({ params }) => {
-    assert.strictEqual(params.requestId, requestId);
-  }));
-  session.on('Network.responseReceived', common.mustCall(({ params }) => {
-    assert.strictEqual(params.requestId, requestId);
-  }));
-  const loadingFinishedFuture = waitUntil(session, 'Network.loadingFinished')
-    .then(async ([{ params }]) => {
-      assert.strictEqual(params.requestId, requestId);
-    });
+  const loadingFinishedFuture = assertNetworkEvents(session, requestId);
   session.on('Network.dataReceived', common.mustNotCall());
 
   await triggerNetworkEvents(requestId);
@@ -143,4 +143,36 @@ test('Network.streamResourceContent should reject if request id not found', asyn
   }), {
     code: 'ERR_INSPECTOR_COMMAND',
   });
+});
+
+test('Network.getResponseBody should send all buffered binary data', async () => {
+  session.removeAllListeners();
+
+  const requestId = 'my-req-id-3';
+  const loadingFinishedFuture = assertNetworkEvents(session, requestId);
+  session.on('Network.dataReceived', common.mustNotCall());
+
+  await triggerNetworkEvents(requestId);
+  await loadingFinishedFuture;
+  const { body, base64Encoded } = await session.post('Network.getResponseBody', {
+    requestId,
+  });
+  assert.strictEqual(base64Encoded, true);
+  assert.strictEqual(body, Buffer.from('Hello, world').toString('base64'));
+});
+
+test('Network.getResponseBody should send all buffered text data', async () => {
+  session.removeAllListeners();
+
+  const requestId = 'my-req-id-4';
+  const loadingFinishedFuture = assertNetworkEvents(session, requestId);
+  session.on('Network.dataReceived', common.mustNotCall());
+
+  await triggerNetworkEvents(requestId, 'utf-8');
+  await loadingFinishedFuture;
+  const { body, base64Encoded } = await session.post('Network.getResponseBody', {
+    requestId,
+  });
+  assert.strictEqual(base64Encoded, false);
+  assert.strictEqual(body, 'Hello, world');
 });
