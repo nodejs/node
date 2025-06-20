@@ -1078,7 +1078,7 @@ changes:
                  runtime warning.
   - version: v24.2.0
     pr-url: https://github.com/nodejs/node/pull/58313
-    description: Following the deprecation of priority signaling as of RFC 1993,
+    description: Following the deprecation of priority signaling as of RFC 9113,
                  `weight` option is deprecated.
 -->
 
@@ -1577,7 +1577,7 @@ changes:
                  `sumDependencyWeight` is always set to 0.
   - version: v24.2.0
     pr-url: https://github.com/nodejs/node/pull/58313
-    description: Following the deprecation of priority signaling as of RFC 1993,
+    description: Following the deprecation of priority signaling as of RFC 9113,
                  `weight` and `sumDependencyWeight` options are deprecated.
 -->
 
