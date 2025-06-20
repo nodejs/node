@@ -711,6 +711,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-worker-inspection",
             "experimental worker inspection support",
             &EnvironmentOptions::experimental_worker_inspection);
+  Implies("--experimental-inspector-network-resource",
+          "--experimental-worker-inspection");
+  AddOption("--experimental-inspector-network-resource",
+            "experimental load network resources via the inspector",
+            &EnvironmentOptions::experimental_inspector_network_resource);
   AddOption(
       "--heap-prof",
       "Start the V8 heap profiler on start up, and write the heap profile "
