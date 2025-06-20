@@ -17,13 +17,20 @@ const stringTooLongError = {
   name: 'Error',
 };
 
+let largeBuffer;
+
 try {
-  const buf = Buffer.allocUnsafe(size);
-  const decoder = new StringDecoder('utf8');
-  assert.throws(() => decoder.write(buf), stringTooLongError);
+  largeBuffer = Buffer.allocUnsafe(size);
 } catch (e) {
-  if (e.code !== 'ERR_MEMORY_ALLOCATION_FAILED') {
-    throw e;
+  if (
+    e.code === 'ERR_MEMORY_ALLOCATION_FAILED' ||
+    /Array buffer allocation failed/.test(e.message)
+  ) {
+    common.skip('insufficient space for Buffer.allocUnsafe');
   }
-  common.skip('insufficient space for Buffer.alloc');
+
+  throw e;
 }
+
+const decoder = new StringDecoder('utf8');
+assert.throws(() => decoder.write(largeBuffer), stringTooLongError);
