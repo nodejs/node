@@ -3821,8 +3821,18 @@ changes:
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
   * `headers` {Object | Array} Request headers to send with the request. This can be:
-    * An object like `{ 'Content-Type': 'application/json' }`, or
-    * An array of key-value pairs like `[ 'Content-Type', 'text/plain', 'X-Custom', 'yes' ]`,  similar to how headers are          passed to `response.writeHead()`.
+    * An object like `{ 'Content-Type': 'application/json' }`.
+    * A flat array of header name/value pairs like 
+        `[ 'Content-Type', 'text/plain', 'X-Custom', 'yes' ]`. This format is
+        the same as used in [`response.writeHead()`][] and exposed in
+        [`request.rawHeaders`][].
+
+    When passing `headers` as an array, it must be a flat list of alternating
+    header names and values. Nested arrays or objects are not supported in this
+    form. This array format is identical to that used in [`response.writeHead()`][]
+    and [`request.rawHeaders`][], and is often useful when working with raw header
+    data directly.
+
   * `hints` {number} Optional [`dns.lookup()` hints][].
   * `host` {string} A domain name or IP address of the server to issue the
     request to. **Default:** `'localhost'`.
@@ -4331,3 +4341,6 @@ A browser-compatible implementation of [`WebSocket`][].
 [`writable.uncork()`]: stream.md#writableuncork
 [`writable.write()`]: stream.md#writablewritechunk-encoding-callback
 [initial delay]: net.md#socketsetkeepaliveenable-initialdelay
+[`response.writeHead()`]: https://nodejs.org/api/http.html#responsewriteheadstatuscode-statusmessage-headers  
+[`request.rawHeaders`]: https://nodejs.org/api/http.html#requestrawheaders
+
