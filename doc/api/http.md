@@ -3820,7 +3820,9 @@ changes:
   * `family` {number} IP address family to use when resolving `host` or
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
-  * `headers` {Object} An object containing request headers.
+  * `headers` {Object | Array} Request headers to send with the request. This can be:
+    * An object like `{ 'Content-Type': 'application/json' }`, or
+    * An array of key-value pairs like `[ 'Content-Type', 'text/plain', 'X-Custom', 'yes' ]`,  similar to how headers are          passed to `response.writeHead()`.
   * `hints` {number} Optional [`dns.lookup()` hints][].
   * `host` {string} A domain name or IP address of the server to issue the
     request to. **Default:** `'localhost'`.
