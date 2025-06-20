@@ -15,8 +15,12 @@ const size = 2 ** 31;
 try {
   assert.throws(() => SlowBuffer(size).toString('utf8'), { code: 'ERR_STRING_TOO_LONG' });
 } catch (e) {
-  if (e.code !== 'ERR_MEMORY_ALLOCATION_FAILED') {
-    throw e;
+  if (
+    e.code === 'ERR_MEMORY_ALLOCATION_FAILED' ||
+    /Array buffer allocation failed/.test(e.message)
+  ) {
+    common.skip('insufficient space for slow Buffer allocation');
   }
-  common.skip('insufficient space for SlowBuffer');
+
+  throw e;
 }
