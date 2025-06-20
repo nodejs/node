@@ -2886,11 +2886,11 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Using a trailing `"/"` to define subpath folder mappings in the
-[subpath exports][] or [subpath imports][] fields is deprecated. Use
-[subpath patterns][] instead.
+[subpath exports][] or [subpath imports][] fields is no longer supported.
+Use [subpath patterns][] instead.
 
 ### DEP0149: `http.IncomingMessage#connection`
 
@@ -3377,10 +3377,10 @@ be added when a function is bound to an `AsyncResource`.
 changes:
   - version: v20.1.0
     pr-url: https://github.com/nodejs/node/pull/47740
-    description: Documentation-only deprecation.
+    description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 In a future version of Node.js, [`assert.CallTracker`][],
 will be removed.
@@ -3572,6 +3572,22 @@ Type: Documentation-only
 Instantiating classes without the `new` qualifier exported by the `node:repl` module is deprecated.
 It is recommended to use the `new` qualifier instead. This applies to all REPL classes, including
 `REPLServer` and `Recoverable`.
+
+<!-- md-lint skip-deprecation DEP0186 -->
+
+### DEP0187: Passing invalid argument types to `fs.existsSync`
+
+<!-- YAML
+changes:
+  - version: v20.19.3
+    pr-url: https://github.com/nodejs/node/pull/55892
+    description: Documentation-only.
+-->
+
+Type: Documentation-only
+
+Passing non-supported argument types is deprecated and, instead of returning `false`,
+will throw an error in a future version.
 
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3

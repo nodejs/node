@@ -249,6 +249,7 @@
   V(onsignal_string, "onsignal")                                               \
   V(onunpipe_string, "onunpipe")                                               \
   V(onwrite_string, "onwrite")                                                 \
+  V(ongracefulclosecomplete_string, "ongracefulclosecomplete")                 \
   V(openssl_error_stack, "opensslErrorStack")                                  \
   V(options_string, "options")                                                 \
   V(order_string, "order")                                                     \

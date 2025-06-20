@@ -721,7 +721,7 @@ added:
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer} **Default:** `null`
+  * `position` {integer|null} **Default:** `null`
 * Returns: {Promise}
 
 Write `buffer` to the file.
@@ -1047,6 +1047,8 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 deprecated: v10.0.0
 -->
+
+> Stability: 0 - Deprecated
 
 * `path` {string|Buffer|URL}
 * `mode` {integer}
@@ -3059,6 +3061,8 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
+> Stability: 0 - Deprecated
+
 * `path` {string|Buffer|URL}
 * `mode` {integer}
 * `callback` {Function}
@@ -4836,7 +4840,7 @@ added:
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer} **Default:** `null`
+  * `position` {integer|null} **Default:** `null`
 * `callback` {Function}
   * `err` {Error}
   * `bytesWritten` {integer}
@@ -5519,6 +5523,8 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 deprecated: v0.4.7
 -->
+
+> Stability: 0 - Deprecated
 
 * `path` {string|Buffer|URL}
 * `mode` {integer}
@@ -6313,7 +6319,7 @@ added:
 * `options` {Object}
   * `offset` {integer} **Default:** `0`
   * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer} **Default:** `null`
+  * `position` {integer|null} **Default:** `null`
 * Returns: {number} The number of bytes written.
 
 For detailed information, see the documentation of the asynchronous version of

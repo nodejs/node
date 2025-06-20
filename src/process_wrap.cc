@@ -314,7 +314,7 @@ class ProcessWrap : public HandleWrap {
     int signal = args[0]->Int32Value(env->context()).FromJust();
 #ifdef _WIN32
     if (signal != SIGKILL && signal != SIGTERM && signal != SIGINT &&
-        signal != SIGQUIT) {
+        signal != SIGQUIT && signal != 0) {
       signal = SIGKILL;
     }
 #endif

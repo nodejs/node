@@ -209,7 +209,7 @@ class PersianCalendar : public Calendar {
    * Return the number of days in the given Persian year
    * @internal
    */
-  virtual int32_t handleGetYearLength(int32_t extendedYear) const override;
+  virtual int32_t handleGetYearLength(int32_t extendedYear, UErrorCode& status) const override;
     
   //-------------------------------------------------------------------------
   // Functions for converting from field values to milliseconds....
