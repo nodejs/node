@@ -1,5 +1,5 @@
 ---
-title: npm-run-script
+title: npm-run
 section: 1
 description: Run arbitrary package scripts
 ---
@@ -7,9 +7,9 @@ description: Run arbitrary package scripts
 ### Synopsis
 
 ```bash
-npm run-script <command> [-- <args>]
+npm run <command> [-- <args>]
 
-aliases: run, rum, urn
+aliases: run-script, rum, urn
 ```
 
 ### Description
@@ -195,10 +195,10 @@ This value is not exported to the environment for child processes.
 * Default: false
 * Type: Boolean
 
-If true, npm will not exit with an error code when `run-script` is invoked
-for a script that isn't defined in the `scripts` section of `package.json`.
-This option can be used when it's desirable to optionally run a script when
-it's present and fail if the script fails. This is useful, for example, when
+If true, npm will not exit with an error code when `run` is invoked for a
+script that isn't defined in the `scripts` section of `package.json`. This
+option can be used when it's desirable to optionally run a script when it's
+present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.
 
@@ -212,9 +212,9 @@ This value is not exported to the environment for child processes.
 If true, npm does not run scripts specified in package.json files.
 
 Note that commands explicitly intended to run a particular script, such as
-`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
-will still run their intended script if `ignore-scripts` is set, but they
-will *not* run any pre- or post-scripts.
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
+run their intended script if `ignore-scripts` is set, but they will *not*
+run any pre- or post-scripts.
 
 
 

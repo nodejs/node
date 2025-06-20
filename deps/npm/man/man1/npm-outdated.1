@@ -1,4 +1,4 @@
-.TH "NPM-OUTDATED" "1" "April 2025" "NPM@11.3.0" ""
+.TH "NPM-OUTDATED" "1" "June 2025" "NPM@11.4.2" ""
 .SH "NAME"
 \fBnpm-outdated\fR - Check for outdated packages
 .SS "Synopsis"
@@ -28,6 +28,8 @@ In the output:
 \fBpackage type\fR (when using \fB--long\fR / \fB-l\fR) tells you whether this package is a \fBdependency\fR or a dev/peer/optional dependency. Packages not included in \fBpackage.json\fR are always marked \fBdependencies\fR.
 .IP \(bu 4
 \fBhomepage\fR (when using \fB--long\fR / \fB-l\fR) is the \fBhomepage\fR value contained in the package's packument
+.IP \(bu 4
+\fBdepended by location\fR (when using \fB--long\fR / \fB-l\fR) shows location of the package that depends on the displayed dependency
 .IP \(bu 4
 Red means there's a newer version matching your semver requirements, so you should update now.
 .IP \(bu 4

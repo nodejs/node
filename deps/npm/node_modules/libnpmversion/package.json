@@ -1,6 +1,6 @@
 {
   "name": "libnpmversion",
-  "version": "8.0.0",
+  "version": "8.0.1",
   "main": "lib/index.js",
   "files": [
     "bin/",
