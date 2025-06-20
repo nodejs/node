@@ -200,6 +200,18 @@ module.exports = cls => class VirtualLoader extends cls {
       const targetPath = resolve(this.path, meta.resolved)
       const targetLoc = relpath(this.path, targetPath)
       const target = nodes.get(targetLoc)
+
+      if (!target) {
+        const err = new Error(
+`Missing target in lock file: "${targetLoc}" is referenced by "${location}" but does not exist.
+To fix:
+1. rm package-lock.json
+2. npm install`
+        )
+        err.code = 'EMISSINGTARGET'
+        throw err
+      }
+
       const link = this.#loadLink(location, targetLoc, target, meta)
       nodes.set(location, link)
       nodes.set(targetLoc, link.target)
