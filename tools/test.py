@@ -117,6 +117,14 @@ class ProgressIndicator(object):
     self.crashed = 0
     self.lock = threading.Lock()
     self.shutdown_event = threading.Event()
+    self.target_failures = None
+    self.max_iterations = None
+    self.style = None
+    self.iteration_stats = {
+        'iterations': 0,
+        'total_failures': 0,
+        'failure_details': []
+    }
 
   def GetFailureOutput(self, failure):
     output = []
@@ -949,8 +957,9 @@ TIMEOUT_SCALEFACTOR = {
 class Context(object):
 
   def __init__(self, workspace, verbose, vm, args, expect_fail,
-               timeout, processor, suppress_dialogs,
-               store_unexpected_output, repeat, abort_on_timeout):
+                timeout, processor, suppress_dialogs,
+                store_unexpected_output, repeat, abort_on_timeout,
+                target_failures=None, max_iterations=None):
     self.workspace = workspace
     self.verbose = verbose
     self.vm = vm
@@ -962,6 +971,8 @@ class Context(object):
     self.store_unexpected_output = store_unexpected_output
     self.repeat = repeat
     self.abort_on_timeout = abort_on_timeout
+    self.target_failures = target_failures
+    self.max_iterations = max_iterations
     self.v8_enable_inspector = True
     self.node_has_crypto = True
 
@@ -999,8 +1010,51 @@ class Context(object):
     return timeout
 
 def RunTestCases(cases_to_run, progress, tasks, flaky_tests_mode, measure_flakiness):
-  progress = PROGRESS_INDICATORS[progress](cases_to_run, flaky_tests_mode, measure_flakiness)
-  return progress.Run(tasks)
+  if not hasattr(progress, 'target_failures'):
+    # Normal execution
+    progress = PROGRESS_INDICATORS[progress](cases_to_run, flaky_tests_mode, measure_flakiness)
+    return progress.Run(tasks)
+
+  # Repeat until failures mode
+  iteration = 0
+  total_failures = 0
+  failure_details = []
+
+  while (total_failures < progress.target_failures and 
+         iteration < progress.max_iterations):
+    iteration += 1
+    print(f"\nIteration {iteration}")
+
+    # Create new progress indicator for this iteration
+    current_progress = PROGRESS_INDICATORS[progress.style](
+        cases_to_run, flaky_tests_mode, measure_flakiness
+    )
+    current_progress.target_failures = progress.target_failures
+    current_progress.max_iterations = progress.max_iterations
+
+    result = current_progress.Run(tasks)
+
+    if not result['allPassed']:
+      total_failures += len(result['failed'])
+      failure_details.extend(result['failed'])
+
+      # Print iteration summary
+      print(f"\nIteration {iteration} failed with {len(result['failed'])} failures")
+      for failure in result['failed']:
+        print(f"  {failure.test.GetLabel()}")
+
+  # Print final summary
+  print("\n=== Repeat Until Failures Summary ===")
+  print(f"Total iterations: {iteration}")
+  print(f"Total failures: {total_failures}")
+  print(f"Failure rate: {(total_failures/iteration)*100:.2f}%")
+
+  return {
+      'allPassed': total_failures == 0,
+      'failed': failure_details,
+      'iterations': iteration,
+      'total_failures': total_failures
+  }
 
 # -------------------------------------------
 # --- T e s t   C o n f i g u r a t i o n ---
@@ -1458,6 +1512,9 @@ def BuildOptions():
   result.add_argument("--error-reporter",
       help="use error reporter",
       default=True, action="store_true")
+  result.add_argument('--repeat-until-n-failures',
+      help='Run tests until n failures occur or max iterations reached (format: n_failures[,max_iterations])',
+      default="")
   return result
 
 
@@ -1469,6 +1526,7 @@ def ProcessOptions(options):
   options.run = options.run.split(',')
   # Split at commas and filter out all the empty strings.
   options.skip_tests = [test for test in options.skip_tests.split(',') if test]
+
   if options.run == [""]:
     options.run = None
   elif len(options.run) != 2:
@@ -1486,6 +1544,26 @@ def ProcessOptions(options):
     if options.run[0] >= options.run[1]:
       print("The test group to run (n) must be smaller than number of groups (m).")
       return False
+
+  # Process repeat-until-n-failures
+  if options.repeat_until_n_failures:
+    try:
+      parts = options.repeat_until_n_failures.split(',')
+      options.target_failures = int(parts[0])
+      options.max_iterations = int(parts[1]) if len(parts) > 1 else float('inf')
+      if options.target_failures <= 0:
+        print("target_failures must be positive")
+        return False
+      if options.max_iterations <= 0:
+        print("max_iterations must be positive")
+        return False
+    except ValueError:
+      print("Invalid format for --repeat-until-n-failures. Expected: n_failures[,max_iterations]")
+      return False
+  else:
+    options.target_failures = None
+    options.max_iterations = None
+
   if options.j == 0:
     # inherit JOBS from environment if provided. some virtualised systems
     # tends to exaggerate the number of available cpus/cores.
@@ -1697,7 +1775,9 @@ def Main():
                     options.suppress_dialogs,
                     options.store_unexpected_output,
                     options.repeat,
-                    options.abort_on_timeout)
+                    options.abort_on_timeout,
+                    options.target_failures,
+                    options.max_iterations)
 
   # Get status for tests
   sections = [ ]
@@ -1818,7 +1898,15 @@ def Main():
   else:
     try:
       start = time.time()
-      result = RunTestCases(cases_to_run, options.progress, options.j, options.flaky_tests, options.measure_flakiness)
+      if options.repeat_until_n_failures:
+        progress_indicator = PROGRESS_INDICATORS[options.progress]
+        progress = progress_indicator(cases_to_run, options.flaky_tests, options.measure_flakiness)
+        progress.target_failures = options.target_failures
+        progress.max_iterations = options.max_iterations
+        progress.style = options.progress
+      else:
+        progress = options.progress
+      result = RunTestCases(cases_to_run, progress, options.j, options.flaky_tests, options.measure_flakiness)
       exitcode = 0 if result['allPassed'] else 1
       duration = time.time() - start
     except KeyboardInterrupt:
