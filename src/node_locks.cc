@@ -46,10 +46,7 @@ Lock::Lock(Environment* env,
   released_promise_.Reset(env_->isolate(), released);
 }
 
-Lock::~Lock() {
-  waiting_promise_.Reset();
-  released_promise_.Reset();
-}
+Lock::~Lock() {}
 
 LockRequest::LockRequest(Environment* env,
                          Local<Promise::Resolver> waiting,
@@ -71,11 +68,7 @@ LockRequest::LockRequest(Environment* env,
   callback_.Reset(env_->isolate(), callback);
 }
 
-LockRequest::~LockRequest() {
-  waiting_promise_.Reset();
-  released_promise_.Reset();
-  callback_.Reset();
-}
+LockRequest::~LockRequest() {}
 
 bool LockManager::IsGrantable(const LockRequest* request) const {
   // Steal requests bypass all normal granting rules
@@ -96,8 +89,8 @@ bool LockManager::IsGrantable(const LockRequest* request) const {
   return true;
 }
 
-// Called when the user callback settles
-static void OnLockCallbackSettled(
+// Called when the user callback promise fulfills
+static void OnLockCallbackFulfilled(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info);
@@ -109,7 +102,23 @@ static void OnLockCallbackSettled(
   delete lock_holder;
 
   // Release the lock and continue processing the queue.
-  LockManager::GetCurrent()->ReleaseLockAndProcessQueue(env, lock, info[0]);
+  LockManager::GetCurrent()->ReleaseLockAndProcessQueue(
+      env, lock, info[0], false);
+}
+
+// Called when the user callback promise rejects
+static void OnLockCallbackRejected(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  HandleScope handle_scope(info.GetIsolate());
+  Environment* env = Environment::GetCurrent(info);
+
+  auto* lock_holder =
+      static_cast<LockHolder*>(info.Data().As<External>()->Value());
+  std::shared_ptr<Lock> lock = lock_holder->lock();
+  delete lock_holder;
+
+  LockManager::GetCurrent()->ReleaseLockAndProcessQueue(
+      env, lock, info[0], true);
 }
 
 void LockManager::CleanupStolenLocks(Environment* env) {
@@ -351,14 +360,21 @@ void LockManager::ProcessQueue(Environment* env) {
 
     // Allocate a LockHolder on the heap to safely manage the lock's lifetime
     // until the user's callback promise settles.
-    // The LockHolder will be deleted in OnLockCallbackSettled.
-    auto* lock_holder = new LockHolder(granted_lock);
-    Local<Function> on_settled_callback;
+    auto* fulfill_holder = new LockHolder(granted_lock);
+    auto* reject_holder = new LockHolder(granted_lock);
+    Local<Function> on_fulfilled_callback;
+    Local<Function> on_rejected_callback;
+
     if (!Function::New(context,
-                       OnLockCallbackSettled,
-                       External::New(isolate, lock_holder))
-             .ToLocal(&on_settled_callback)) {
-      delete lock_holder;
+                       OnLockCallbackFulfilled,
+                       External::New(isolate, fulfill_holder))
+             .ToLocal(&on_fulfilled_callback) ||
+        !Function::New(context,
+                       OnLockCallbackRejected,
+                       External::New(isolate, reject_holder))
+             .ToLocal(&on_rejected_callback)) {
+      delete fulfill_holder;
+      delete reject_holder;
       return;
     }
 
@@ -373,7 +389,8 @@ void LockManager::ProcessQueue(Environment* env) {
         grantable_request->released_promise()
             ->Reject(context, rejection_value)
             .Check();
-        delete lock_holder;
+        delete fulfill_holder;
+        delete reject_holder;
         {
           Mutex::ScopedLock scoped_lock(mutex_);
           ReleaseLock(granted_lock.get());
@@ -384,15 +401,17 @@ void LockManager::ProcessQueue(Environment* env) {
         grantable_request->waiting_promise()
             ->Resolve(context, callback_result)
             .Check();
-        USE(promise->Then(context, on_settled_callback, on_settled_callback));
+        USE(promise->Then(
+            context, on_fulfilled_callback, on_rejected_callback));
       }
     } else {
       grantable_request->waiting_promise()
           ->Resolve(context, callback_result)
           .Check();
       Local<Value> promise_args[] = {callback_result};
-      USE(on_settled_callback->Call(
+      USE(on_fulfilled_callback->Call(
           context, Undefined(isolate), 1, promise_args));
+      delete reject_holder;
     }
   }
 }
@@ -541,7 +560,8 @@ void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
 // Runs after the user callback (or its returned promise) settles.
 void LockManager::ReleaseLockAndProcessQueue(Environment* env,
                                              std::shared_ptr<Lock> lock,
-                                             Local<Value> callback_result) {
+                                             Local<Value> callback_result,
+                                             bool was_rejected) {
   {
     Mutex::ScopedLock scoped_lock(mutex_);
     ReleaseLock(lock.get());
@@ -552,14 +572,11 @@ void LockManager::ReleaseLockAndProcessQueue(Environment* env,
   // For stolen locks, the released_promise was already rejected when marked as
   // stolen.
   if (!lock->is_stolen()) {
-    if (callback_result->IsPromise()) {
-      Local<Promise> promise = callback_result.As<Promise>();
-      if (promise->State() == Promise::kFulfilled) {
-        lock->released_promise()->Resolve(context, promise->Result()).Check();
-      } else {
-        lock->released_promise()->Reject(context, promise->Result()).Check();
-      }
+    if (was_rejected) {
+      // The callback promise was rejected, so reject the final promise
+      lock->released_promise()->Reject(context, callback_result).Check();
     } else {
+      // The callback promise was fulfilled, so resolve the final promise
       lock->released_promise()->Resolve(context, callback_result).Check();
     }
   }

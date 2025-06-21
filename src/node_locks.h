@@ -123,7 +123,8 @@ class LockManager final {
   static LockManager* GetCurrent() { return &current_; }
   void ReleaseLockAndProcessQueue(Environment* env,
                                   std::shared_ptr<Lock> lock,
-                                  v8::Local<v8::Value> result);
+                                  v8::Local<v8::Value> result,
+                                  bool was_rejected = false);
 
  private:
   LockManager() = default;
