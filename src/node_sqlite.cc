@@ -339,7 +339,9 @@ class CustomAggregate {
       return;
     }
 
-    agg->value.Reset(isolate, ret);
+    if (!ret->IsUndefined()) {
+      agg->value.Reset(isolate, ret);
+    }
   }
 
   static inline void xValueBase(sqlite3_context* ctx, bool is_final) {
