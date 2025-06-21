@@ -158,7 +158,8 @@ Registers a new aggregate function with the SQLite database. This method is a wr
     function is initialized. When a {Function} is passed the identity will be its return value.
   * `step` {Function} The function to call for each row in the aggregation. The
     function receives the current state and the row value. The return value of
-    this function should be the new state.
+    this function should be the new state. Returning `undefined` preserves the
+    current state unchanged, while returning `null` explicitly sets the state to `null`.
   * `result` {Function} The function to call to get the result of the
     aggregation. The function receives the final state and should return the
     result of the aggregation.
@@ -178,15 +179,16 @@ db.exec(`
                         ('b', 5),
                         ('c', 3),
                         ('d', 8),
-                        ('e', 1);
+                        ('e', 1),
+                        ('f', -1);
 `);
 
-db.aggregate('sumint', {
+db.aggregate('sum_positive', {
   start: 0,
-  step: (acc, value) => acc + value,
+  step: (acc, value) => value < 0 ? undefined : acc + value, // Skip negative values
 });
 
-db.prepare('SELECT sumint(y) as total FROM t3').get(); // { total: 21 }
+db.prepare('SELECT sum_positive(y) as total FROM t3').get(); // { total: 21 }
 ```
 
 ```mjs
@@ -199,15 +201,16 @@ db.exec(`
                         ('b', 5),
                         ('c', 3),
                         ('d', 8),
-                        ('e', 1);
+                        ('e', 1),
+                        ('f', -1);
 `);
 
-db.aggregate('sumint', {
+db.aggregate('sum_positive', {
   start: 0,
-  step: (acc, value) => acc + value,
+  step: (acc, value) => value < 0 ? undefined : acc + value, // Skip negative values
 });
 
-db.prepare('SELECT sumint(y) as total FROM t3').get(); // { total: 21 }
+db.prepare('SELECT sum_positive(y) as total FROM t3').get(); // { total: 21 }
 ```
 
 ### `database.close()`
