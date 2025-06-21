@@ -905,6 +905,29 @@ Export keyword before a key is ignored:
 export USERNAME="nodejs" # will result in `nodejs` as the value.
 ```
 
+Additionally sections can be used to have a more granular control of
+the environment variables within a single file.
+
+Sections can be defined in the file and then targeted by including a hash character
+followed by their name as the flag's argument. Multiple sections can be specified and
+if a variable is defined in multiple sections the latest instance of the variable in
+the file overrides the others.
+
+For example given the following file:
+
+```text
+MY_VAR = 'my top-level variable'
+
+[dev]
+MY_VAR = 'my variable for development'
+
+[prod]
+MY_VAR = 'my variable for production'
+```
+
+`--env-file=config#dev` will make it so that the variable's value being used is
+taken from the `dev` section.
+
 If you want to load environment variables from a file that may not exist, you
 can use the [`--env-file-if-exists`][] flag instead.
 

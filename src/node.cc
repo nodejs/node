@@ -873,7 +873,8 @@ static ExitCode InitializeNodeWithArgsInternal(
     CHECK(!per_process::v8_initialized);
 
     for (const auto& file_data : env_files) {
-      switch (per_process::dotenv_file.ParsePath(file_data.path)) {
+      switch (per_process::dotenv_file.ParsePath(file_data.path,
+                                                 file_data.sections)) {
         case Dotenv::ParseResult::Valid:
           break;
         case Dotenv::ParseResult::InvalidContent:

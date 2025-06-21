@@ -604,7 +604,9 @@ static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   Dotenv dotenv{};
 
-  switch (dotenv.ParsePath(path)) {
+  // TODO(dario-piotrowicz): update `process.loadEnvFile` to also accept
+  // sections
+  switch (dotenv.ParsePath(path, {})) {
     case dotenv.ParseResult::Valid: {
       USE(dotenv.SetEnvironment(env));
       break;
