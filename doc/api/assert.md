@@ -149,6 +149,8 @@ added: v0.1.21
   * `operator` {string} The `operator` property on the error instance.
   * `stackStartFn` {Function} If provided, the generated stack trace omits
     frames before this function.
+  * `diff` {string} If set to `'full'`, shows the full diff in assertion errors. Defaults to `'simple'`.
+    Accepted values: `'simple'`, `'full'`.
 
 A subclass of {Error} that indicates the failure of an assertion.
 
@@ -213,6 +215,31 @@ try {
   assert.strictEqual(err.operator, 'strictEqual');
   assert.strictEqual(err.generatedMessage, true);
 }
+```
+
+## Class: assert.Assert
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `Assert` class allows creating independent assertion instances with custom options.
+
+### `new assert.Assert([options])`
+
+* `options` {Object}
+  * `diff` {string} If set to `'full'`, shows the full diff in assertion errors. Defaults to `'simple'`.
+    Accepted values: `'simple'`, `'full'`.
+  * `strict` {boolean} If set to `true`, non-strict methods behave like their
+    corresponding strict methods. Defaults to `true`.
+
+Creates a new assertion instance. The `diff` option controls the verbosity of diffs in assertion error messages.
+
+```js
+const { Assert } = require('node:assert');
+const assertInstance = new Assert({ diff: 'full' });
+assertInstance.deepStrictEqual({ a: 1 }, { a: 2 });
+// Shows a full diff in the error message.
 ```
 
 ## `assert(value[, message])`
