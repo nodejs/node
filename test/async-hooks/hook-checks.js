@@ -8,12 +8,12 @@ const assert = require('assert');
  * @name checkInvocations
  * @function
  * @param {object} activity including timestamps for each life time event,
- *                 i.e. init, before ...
+ * i.e. init, before ...
  * @param {object} hooks the expected life time event invocations with a count
- *                       indicating how often they should have been invoked,
- *                       i.e. `{ init: 1, before: 2, after: 2 }`
+ * indicating how often they should have been invoked,
+ * i.e. `{ init: 1, before: 2, after: 2 }`
  * @param {string} stage the name of the stage in the test at which we are
- *                       checking the invocations
+ * checking the invocations
  */
 exports.checkInvocations = function checkInvocations(activity, hooks, stage) {
   const stageInfo = `Checking invocations at stage "${stage}":\n   `;
