@@ -4341,6 +4341,4 @@ A browser-compatible implementation of [`WebSocket`][].
 [`writable.uncork()`]: stream.md#writableuncork
 [`writable.write()`]: stream.md#writablewritechunk-encoding-callback
 [initial delay]: net.md#socketsetkeepaliveenable-initialdelay
-[`response.writeHead()`]: https://nodejs.org/api/http.html#responsewriteheadstatuscode-statusmessage-headers  
-[`request.rawHeaders`]: https://nodejs.org/api/http.html#requestrawheaders
-
+[`request.rawHeaders`]: #requestrawheaders
