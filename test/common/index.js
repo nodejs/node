@@ -123,6 +123,7 @@ const isFreeBSD = process.platform === 'freebsd';
 const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
 const isMacOS = process.platform === 'darwin';
+const isAndroid = process.platform === 'android';
 const isASan = process.config.variables.asan === 1;
 const isRiscv64 = process.arch === 'riscv64';
 const isDebug = process.features.debug;
@@ -901,6 +902,7 @@ const common = {
   isLinux,
   isOpenBSD,
   isMacOS,
+  isAndroid,
   isPi,
   isSunOS,
   isWindows,
