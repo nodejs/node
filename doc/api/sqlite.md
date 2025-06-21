@@ -185,7 +185,7 @@ db.exec(`
 
 db.aggregate('sum_positive', {
   start: 0,
-  step: (acc, value) => value < 0 ? undefined : acc + value, // Skip negative values
+  step: (acc, value) => (value < 0 ? undefined : acc + value), // Skip negative values
 });
 
 db.prepare('SELECT sum_positive(y) as total FROM t3').get(); // { total: 21 }
@@ -207,7 +207,7 @@ db.exec(`
 
 db.aggregate('sum_positive', {
   start: 0,
-  step: (acc, value) => value < 0 ? undefined : acc + value, // Skip negative values
+  step: (acc, value) => (value < 0 ? undefined : acc + value), // Skip negative values
 });
 
 db.prepare('SELECT sum_positive(y) as total FROM t3').get(); // { total: 21 }
