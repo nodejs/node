@@ -243,7 +243,8 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Utf8Value content(env->isolate(), args[0]);
   Dotenv dotenv{};
-  dotenv.ParseContent(content.ToStringView());
+  // TODO(dario-piotrowicz): update `parseEnv` to also accept sections
+  dotenv.ParseContent(content.ToStringView(), {});
   Local<Object> obj;
   if (dotenv.ToObject(env).ToLocal(&obj)) {
     args.GetReturnValue().Set(obj);
