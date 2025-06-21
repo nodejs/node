@@ -109,6 +109,11 @@ describe('REPL tab object completion on computed properties', () => {
             [oneStr]: 1,
             ['Hello World']: 'hello world!',
           };
+
+          const lookupObj = {
+            stringLookup: helloWorldStr,
+            ['number lookup']: oneStr,
+          };
         `,
       ]);
     });
@@ -126,5 +131,29 @@ describe('REPL tab object completion on computed properties', () => {
       input: 'obj[helloWorldStr].tolocaleup',
       expectedCompletions: ['obj[helloWorldStr].toLocaleUpperCase'],
     }));
+
+    it('works with a simple inlined computed property', () => testCompletion(replServer, {
+      input: 'obj["Hello " + "World"].tolocaleup',
+      expectedCompletions: ['obj["Hello " + "World"].toLocaleUpperCase'],
+    }));
+
+    it('works with a ternary inlined computed property', () => testCompletion(replServer, {
+      input: 'obj[(1 + 2 > 5) ? oneStr : "Hello " + "World"].toLocaleUpperCase',
+      expectedCompletions: ['obj[(1 + 2 > 5) ? oneStr : "Hello " + "World"].toLocaleUpperCase'],
+    }));
+
+    it('works with an inlined computed property with a nested property lookup', () =>
+      testCompletion(replServer, {
+        input: 'obj[lookupObj.stringLookup].tolocaleupp',
+        expectedCompletions: ['obj[lookupObj.stringLookup].toLocaleUpperCase'],
+      })
+    );
+
+    it('works with an inlined computed property with a nested inlined computer property lookup', () =>
+      testCompletion(replServer, {
+        input: 'obj[lookupObj["number" + " lookup"]].toFi',
+        expectedCompletions: ['obj[lookupObj["number" + " lookup"]].toFixed'],
+      })
+    );
   });
 });
