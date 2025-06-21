@@ -1,4 +1,7 @@
 'use strict';
+
+// Flags: --localstorage-file=./test/fixtures/localstoragefile-global-test
+
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
@@ -9,7 +12,6 @@ const runner = new WPTRunner('webstorage', { concurrency: 1 });
 tmpdir.refresh();
 
 runner.setFlags([
-  '--experimental-webstorage',
   '--localstorage-file', join(tmpdir.path, 'wpt-tests.localstorage'),
 ]);
 runner.setInitScript(`
