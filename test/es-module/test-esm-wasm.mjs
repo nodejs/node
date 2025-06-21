@@ -70,7 +70,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
       [
         'import { strictEqual, deepStrictEqual, ok } from "node:assert";',
 
-        // SIMD is not supported on rhel8-ppc64le
+        // WASM SIMD is not supported on older architectures such as IBM Power8
         'let wasmExports;',
         'try {',
         `  wasmExports = await import(${JSON.stringify(fixtures.fileURL('es-modules/globals.wasm'))});`,
