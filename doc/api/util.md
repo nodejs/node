@@ -2133,7 +2133,7 @@ $ node negate.js --no-logfile --logfile=test.log --color --no-color
 { logfile: 'test.log', color: false }
 ```
 
-## `util.parseEnv(content)`
+## `util.parseEnv(content, sections)`
 
 <!-- YAML
 added:
@@ -2143,26 +2143,70 @@ added:
 
 > Stability: 1.1 - Active development
 
-* `content` {string}
+* `content` {string} The con
+  The raw contents of a `.env` file.
 
-The raw contents of a `.env` file.
+* `options`
+
+  * `sections` {string\[]} (optional)
+    The sections to take from the content
 
 * Returns: {Object}
 
-Given an example `.env` file:
+Examples:
 
 ```cjs
 const { parseEnv } = require('node:util');
 
-parseEnv('HELLO=world\nHELLO=oh my\n');
+parseEnv(`
+HELLO=world
+HELLO=oh my
+`);
 // Returns: { HELLO: 'oh my' }
 ```
 
 ```mjs
 import { parseEnv } from 'node:util';
 
-parseEnv('HELLO=world\nHELLO=oh my\n');
+parseEnv(`
+HELLO=world
+HELLO=oh my
+`);
 // Returns: { HELLO: 'oh my' }
+```
+
+```cjs
+const { parseEnv } = require('node:util');
+
+parseEnv(`
+  X = x
+  Y = y
+
+  [section-a]
+  X = x_a
+
+  [section-b]
+  Y = y_b
+  Z = z_b
+`, { sections: ['section-b'] });
+// Returns: { X: 'x', Y: 'y_b', Z: 'z_b' }
+```
+
+```mjs
+import { parseEnv } from 'node:util';
+
+parseEnv(`
+  X = x
+  Y = y
+
+  [section-a]
+  X = x_a
+
+  [section-b]
+  Y = y_b
+  Z = z_b
+`, { sections: ['section-b'] });
+// Returns: { X: 'x', Y: 'y_b', Z: 'z_b' }
 ```
 
 ## `util.promisify(original)`

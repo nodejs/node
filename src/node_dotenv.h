@@ -7,6 +7,7 @@
 #include "v8.h"
 
 #include <map>
+#include <set>
 
 namespace node {
 
@@ -16,6 +17,7 @@ class Dotenv {
   struct env_file_data {
     std::string path;
     bool is_optional;
+    std::set<std::string> sections;
   };
 
   Dotenv() = default;
@@ -25,8 +27,10 @@ class Dotenv {
   Dotenv& operator=(const Dotenv& d) = delete;
   ~Dotenv() = default;
 
-  void ParseContent(const std::string_view content);
-  ParseResult ParsePath(const std::string_view path);
+  void ParseContent(const std::string_view content,
+                    const std::set<std::string> sections);
+  ParseResult ParsePath(const std::string_view path,
+                        const std::set<std::string>);
   void AssignNodeOptionsIfAvailable(std::string* node_options) const;
   v8::Maybe<void> SetEnvironment(Environment* env);
   v8::MaybeLocal<v8::Object> ToObject(Environment* env) const;

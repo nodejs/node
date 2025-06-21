@@ -590,21 +590,42 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
 }
 #endif
 
+struct IterateSectionsData {
+  Isolate* isolate;
+  std::set<std::string>* sections;
+};
+
+static v8::Array::CallbackResult IterateSectionsCallback(uint32_t index,
+                                                         Local<Value> element,
+                                                         void* data) {
+  auto* iteration_data = static_cast<IterateSectionsData*>(data);
+  CHECK(element->IsString());
+  BufferValue string(iteration_data->isolate, element);
+  iteration_data->sections->insert(string.ToString());
+  return v8::Array::CallbackResult::kContinue;
+}
+
 static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  std::string path = ".env";
-  if (args.Length() == 1) {
-    BufferValue path_value(args.GetIsolate(), args[0]);
-    ToNamespacedPath(env, &path_value);
-    path = path_value.ToString();
-  }
+  CHECK_EQ(args.Length(), 2);  // path, sections
+
+  BufferValue path_value(args.GetIsolate(), args[0]);
+  ToNamespacedPath(env, &path_value);
+  auto path = path_value.ToString();
+
+  CHECK(args[1]->IsArray());
+  Local<Array> args_sections = args[1].As<Array>();
+  std::set<std::string> sections = {};
+
+  IterateSectionsData data{env->isolate(), &sections};
+  args_sections->Iterate(env->context(), IterateSectionsCallback, &data);
 
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, path);
 
   Dotenv dotenv{};
 
-  switch (dotenv.ParsePath(path)) {
+  switch (dotenv.ParsePath(path, sections)) {
     case dotenv.ParseResult::Valid: {
       USE(dotenv.SetEnvironment(env));
       break;

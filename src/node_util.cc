@@ -3,6 +3,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "util-inl.h"
+#include "v8-container.h"
 #include "v8-fast-api-calls.h"
 
 namespace node {
@@ -237,13 +238,36 @@ static uint32_t FastGuessHandleType(Local<Value> receiver, const uint32_t fd) {
 
 CFunction fast_guess_handle_type_(CFunction::Make(FastGuessHandleType));
 
+struct IterateSectionsData {
+  Isolate* isolate;
+  std::set<std::string>* sections;
+};
+
+static v8::Array::CallbackResult IterateSectionsCallback(uint32_t index,
+                                                         Local<Value> element,
+                                                         void* data) {
+  auto* iteration_data = static_cast<IterateSectionsData*>(data);
+  CHECK(element->IsString());
+  BufferValue string(iteration_data->isolate, element);
+  iteration_data->sections->insert(string.ToString());
+  return v8::Array::CallbackResult::kContinue;
+}
+
 static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_EQ(args.Length(), 1);  // content
+  CHECK_EQ(args.Length(), 2);  // content, sections
   CHECK(args[0]->IsString());
   Utf8Value content(env->isolate(), args[0]);
   Dotenv dotenv{};
-  dotenv.ParseContent(content.ToStringView());
+  CHECK(args[1]->IsArray());
+  Local<Array> args_sections = args[1].As<Array>();
+  std::set<std::string> sections = {};
+
+  IterateSectionsData data{env->isolate(), &sections};
+  args_sections->Iterate(env->context(), IterateSectionsCallback, &data);
+
+  dotenv.ParseContent(content.ToStringView(), sections);
+
   Local<Object> obj;
   if (dotenv.ToObject(env).ToLocal(&obj)) {
     args.GetReturnValue().Set(obj);

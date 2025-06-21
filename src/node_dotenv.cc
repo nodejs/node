@@ -1,4 +1,5 @@
 #include "node_dotenv.h"
+#include <string_view>
 #include <unordered_set>
 #include "env-inl.h"
 #include "node_file.h"
@@ -26,6 +27,33 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
            arg.starts_with("--env-file-if-exists=");
   };
 
+  const auto get_sections = [](const std::string& path) {
+    std::set<std::string> sections = {};
+    std::int8_t start_index = 0;
+
+    while (true) {
+      auto hash_char_index = path.find('#', start_index);
+      if (hash_char_index == std::string::npos) {
+        return sections;
+      }
+      auto next_hash_char_index = path.find('#', hash_char_index + 1);
+      if (next_hash_char_index == std::string::npos) {
+        // We've arrived to the last section
+        auto section = path.substr(hash_char_index + 1);
+        sections.insert(section);
+        return sections;
+      }
+      // There are more sections, so let's save the current one and update the
+      // index
+      auto section = path.substr(hash_char_index + 1,
+                                 next_hash_char_index - 1 - hash_char_index);
+      sections.insert(section);
+      start_index = next_hash_char_index;
+    }
+
+    return sections;
+  };
+
   std::vector<Dotenv::env_file_data> env_files;
   // This will be an iterator, pointing to args.end() if no matches are found
   auto matched_arg = std::find_if(args.begin(), args.end(), find_match);
@@ -42,19 +70,37 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
       auto flag = matched_arg->substr(0, equal_char_index);
       auto file_path = matched_arg->substr(equal_char_index + 1);
 
-      struct env_file_data env_file_data = {
-          file_path, flag.starts_with(optional_env_file_flag)};
-      env_files.push_back(env_file_data);
-    } else {
-      // `--env-file path`
-      auto file_path = std::next(matched_arg);
+      auto sections = get_sections(file_path);
 
-      if (file_path == args.end()) {
-        return env_files;
+      auto hash_char_index = file_path.find('#');
+      if (hash_char_index != std::string::npos) {
+        file_path = file_path.substr(0, hash_char_index);
       }
 
       struct env_file_data env_file_data = {
-          *file_path, matched_arg->starts_with(optional_env_file_flag)};
+          file_path, flag.starts_with(optional_env_file_flag), sections};
+      env_files.push_back(env_file_data);
+    } else {
+      // `--env-file path`
+      auto file_path_ptr = std::next(matched_arg);
+
+      if (file_path_ptr == args.end()) {
+        return env_files;
+      }
+
+      std::string file_path = file_path_ptr->c_str();
+
+      auto sections = get_sections(file_path);
+
+      auto hash_char_index = file_path.find('#');
+      if (hash_char_index != std::string::npos) {
+        file_path = file_path.substr(0, hash_char_index);
+      }
+
+      struct env_file_data env_file_data = {
+          file_path,
+          matched_arg->starts_with(optional_env_file_flag),
+          sections};
       env_files.push_back(env_file_data);
     }
 
@@ -124,8 +170,23 @@ std::string_view trim_spaces(std::string_view input) {
   return input.substr(pos_start, pos_end - pos_start + 1);
 }
 
-void Dotenv::ParseContent(const std::string_view input) {
+void Dotenv::ParseContent(const std::string_view input,
+                          const std::set<std::string> sections) {
   std::string lines(input);
+
+  // Variable to track the current section ("" indicates that we're in the
+  // global/top-level section)
+  std::string current_section = "";
+
+  // Insert/Assign a value in the store, but only if it's in the global section
+  // or in an included section
+  auto maybe_insert_or_assign_to_store = [&](const std::string& key,
+                                             const std::string_view& value) {
+    if (current_section.empty() ||
+        (sections.find(current_section.c_str()) != sections.end())) {
+      store_.insert_or_assign(key, value);
+    }
+  };
 
   // Handle windows newlines "\r\n": remove "\r" and keep only "\n"
   lines.erase(std::remove(lines.begin(), lines.end(), '\r'), lines.end());
@@ -154,6 +215,33 @@ void Dotenv::ParseContent(const std::string_view input) {
       continue;
     }
 
+    if (content.front() == '[') {
+      auto closing_bracket_idx = content.find_first_of(']');
+      if (closing_bracket_idx != std::string_view::npos) {
+        // We've enterer a new section of the file
+        auto quote_idx = content.find_first_of('"');
+        if (quote_idx != std::string_view::npos &&
+            quote_idx < closing_bracket_idx) {
+          // There is a section alias that we want to ignore
+          // (e.g. `[my_section "Section Description"]`)
+          current_section = content.substr(1, quote_idx - 1);
+        } else {
+          current_section = content.substr(1, closing_bracket_idx - 1);
+        }
+        current_section = trim_spaces(current_section);
+        content.remove_prefix(closing_bracket_idx + 1);
+        // After processing the section we remove everything after the closing
+        // bracket, this means that if the user put something after the section
+        // that will be completely ignored this makes sense for comments, but
+        // for other content we might want to consider throwing a syntax error
+        // or something like that in the future
+        auto newline_idx = content.find_first_of('\n');
+        if (newline_idx != std::string_view::npos) {
+          content.remove_prefix(newline_idx + 1);
+        }
+      }
+    }
+
     // Find the next equals sign or newline in a single pass.
     // This optimizes the search by avoiding multiple iterations.
     auto equal_or_newline = content.find_first_of("=\n");
@@ -176,7 +264,7 @@ void Dotenv::ParseContent(const std::string_view input) {
 
     // If the value is not present (e.g. KEY=) set it to an empty string
     if (content.empty() || content.front() == '\n') {
-      store_.insert_or_assign(std::string(key), "");
+      maybe_insert_or_assign_to_store(std::string(key), "");
       continue;
     }
 
@@ -201,7 +289,7 @@ void Dotenv::ParseContent(const std::string_view input) {
     if (content.empty()) {
       // In case the last line is a single key without value
       // Example: KEY= (without a newline at the EOF)
-      store_.insert_or_assign(std::string(key), "");
+      maybe_insert_or_assign_to_store(std::string(key), "");
       break;
     }
 
@@ -221,7 +309,7 @@ void Dotenv::ParseContent(const std::string_view input) {
           pos += 1;
         }
 
-        store_.insert_or_assign(std::string(key), multi_line_value);
+        maybe_insert_or_assign_to_store(std::string(key), multi_line_value);
         auto newline = content.find('\n', closing_quote + 1);
         if (newline != std::string_view::npos) {
           content.remove_prefix(newline + 1);
@@ -248,18 +336,18 @@ void Dotenv::ParseContent(const std::string_view input) {
         auto newline = content.find('\n');
         if (newline != std::string_view::npos) {
           value = content.substr(0, newline);
-          store_.insert_or_assign(std::string(key), value);
+          maybe_insert_or_assign_to_store(std::string(key), value);
           content.remove_prefix(newline + 1);
         } else {
           // No newline - take rest of content
           value = content;
-          store_.insert_or_assign(std::string(key), value);
+          maybe_insert_or_assign_to_store(std::string(key), value);
           break;
         }
       } else {
         // Found closing quote - take content between quotes
         value = content.substr(1, closing_quote - 1);
-        store_.insert_or_assign(std::string(key), value);
+        maybe_insert_or_assign_to_store(std::string(key), value);
         auto newline = content.find('\n', closing_quote + 1);
         if (newline != std::string_view::npos) {
           // Use +1 to discard the '\n' itself => next line
@@ -285,7 +373,7 @@ void Dotenv::ParseContent(const std::string_view input) {
           value = value.substr(0, hash_character);
         }
         value = trim_spaces(value);
-        store_.insert_or_assign(std::string(key), std::string(value));
+        maybe_insert_or_assign_to_store(std::string(key), std::string(value));
         content.remove_prefix(newline + 1);
       } else {
         // Last line without newline
@@ -294,7 +382,7 @@ void Dotenv::ParseContent(const std::string_view input) {
         if (hash_char != std::string_view::npos) {
           value = content.substr(0, hash_char);
         }
-        store_.insert_or_assign(std::string(key), trim_spaces(value));
+        maybe_insert_or_assign_to_store(std::string(key), trim_spaces(value));
         content = {};
       }
     }
@@ -303,7 +391,8 @@ void Dotenv::ParseContent(const std::string_view input) {
   }
 }
 
-Dotenv::ParseResult Dotenv::ParsePath(const std::string_view path) {
+Dotenv::ParseResult Dotenv::ParsePath(const std::string_view path,
+                                      const std::set<std::string> sections) {
   uv_fs_t req;
   auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
 
@@ -337,7 +426,7 @@ Dotenv::ParseResult Dotenv::ParsePath(const std::string_view path) {
     result.append(buf.base, r);
   }
 
-  ParseContent(result);
+  ParseContent(result, sections);
   return ParseResult::Valid;
 }
 
