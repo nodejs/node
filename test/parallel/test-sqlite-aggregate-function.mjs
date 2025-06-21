@@ -413,3 +413,83 @@ test('throws an error when trying to use as windown function but didn\'t provide
     message: 'sumint() may not be used as a window function'
   });
 });
+
+describe('step function undefined handling', () => {
+  test('preserves accumulator when step returns undefined', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    
+    db.exec('CREATE TABLE numbers (n INTEGER)');
+    db.exec('INSERT INTO numbers VALUES (1), (2), (3), (4), (5)');
+    
+    db.aggregate('sum_skip_three', {
+      start: 0,
+      step: (sum, n) => n === 3 ? undefined : sum + n
+    });
+    
+    const result = db.prepare('SELECT sum_skip_three(n) as total FROM numbers').get();
+    t.assert.strictEqual(result.total, 12); // Should sum 1+2+4+5, skipping 3
+  });
+
+  test('distinguishes between undefined and null returns', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    
+    db.exec('CREATE TABLE test (val INTEGER)');
+    db.exec('INSERT INTO test VALUES (1), (2), (3)');
+    
+    // Test that null is stored when explicitly returned
+    db.aggregate('explicit_null', {
+      start: 10,
+      step: (acc, val) => {
+        if (val === 3) return null;  // Explicitly return null on last value
+        if (val === 2) return undefined;  // Skip middle value  
+        return acc + val;
+      }
+    });
+    
+    const result = db.prepare('SELECT explicit_null(val) as result FROM test').get();
+    t.assert.strictEqual(result.result, null);
+    
+    // Test that undefined preserves the accumulator
+    db.aggregate('preserve_on_undefined', {
+      start: 10,
+      step: (acc, val) => {
+        if (val === 2) return undefined;  // Return undefined to preserve
+        return acc + val;
+      }
+    });
+    
+    const result2 = db.prepare('SELECT preserve_on_undefined(val) as result FROM test').get();
+    t.assert.strictEqual(result2.result, 14); // Should preserve accumulator: 10+1+3=14
+  });
+
+  test('handles implicit undefined returns', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    
+    db.exec('CREATE TABLE test (val INTEGER)');
+    db.exec('INSERT INTO test VALUES (1), (2), (3)');
+    
+    // Test step function with implicit undefined return
+    db.aggregate('implicit_undefined', {
+      start: 10,
+      step: (acc, val) => {
+        if (val === 2) return; // Implicit undefined
+        return acc * val;
+      }
+    });
+    
+    const result = db.prepare('SELECT implicit_undefined(val) as result FROM test').get();
+    t.assert.strictEqual(result.result, 30); // Should calculate 10*1*3, skipping 2
+    
+    // Test empty function body (always returns undefined)
+    db.aggregate('empty_step', {
+      start: 42,
+      step: (acc, val) => {} // Always returns undefined
+    });
+    
+    const result2 = db.prepare('SELECT empty_step(val) as result FROM test').get();
+    t.assert.strictEqual(result2.result, 42); // Start value should be preserved
+  });
+});
