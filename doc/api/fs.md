@@ -481,6 +481,9 @@ number of bytes read is zero.
 <!-- YAML
 added: v17.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58725
+    description: Added the `signal` option.
   - version: v24.2.0
     pr-url: https://github.com/nodejs/node/pull/58548
     description: Added the `autoClose` option.
@@ -502,6 +505,7 @@ changes:
 * `options` {Object}
   * `autoClose` {boolean} When true, causes the {FileHandle} to be closed when the
     stream is closed. **Default:** `false`
+  * `signal` {AbortSignal|undefined} allows aborting the stream. **Default:** `undefined`
 * Returns: {ReadableStream}
 
 Returns a byte-oriented `ReadableStream` that may be used to read the file's
