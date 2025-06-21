@@ -9,7 +9,7 @@ tmpdir.refresh();
 {
   assert.throws(
     () =>
-      fs.rmdirSync(tmpdir.resolve('noexist.txt'), { recursive: true }),
+      fs.rmdirSync(tmpdir.resolve('noexist.txt')),
     {
       code: 'ENOENT',
     }
@@ -18,7 +18,6 @@ tmpdir.refresh();
 {
   fs.rmdir(
     tmpdir.resolve('noexist.txt'),
-    { recursive: true },
     common.mustCall((err) => {
       assert.strictEqual(err.code, 'ENOENT');
     })
@@ -26,8 +25,7 @@ tmpdir.refresh();
 }
 {
   assert.rejects(
-    () => fs.promises.rmdir(tmpdir.resolve('noexist.txt'),
-                            { recursive: true }),
+    () => fs.promises.rmdir(tmpdir.resolve('noexist.txt')),
     {
       code: 'ENOENT',
     }
