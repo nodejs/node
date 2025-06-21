@@ -1,0 +1,99 @@
+TAP version 13
+# Subtest: date vs date comparison
+not ok 1 - date vs date comparison
+  ---
+  duration_ms: *
+  type: 'test'
+  location: '*test-runner*tap_date_serialization.js:7:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + 2023-01-01T13:00:00.000Z
+    - 2023-01-01T12:00:00.000Z
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 2023-01-01T12:00:00.000Z
+  actual: 2023-01-01T13:00:00.000Z
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (*test-runner*tap_date_serialization.js:10:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.start (node:internal/test_runner/test:944:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:297:17)
+  ...
+# Subtest: date vs string comparison
+not ok 2 - date vs string comparison
+  ---
+  duration_ms: *
+  type: 'test'
+  location: '*test-runner*tap_date_serialization.js:14:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + 2023-01-01T13:00:00.000Z
+    - '2023-01-01T12:00:00.000Z'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '2023-01-01T12:00:00.000Z'
+  actual: 2023-01-01T13:00:00.000Z
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (*test-runner*tap_date_serialization.js:17:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:297:3)
+  ...
+# Subtest: nested date objects
+not ok 3 - nested date objects
+  ---
+  duration_ms: *
+  type: 'test'
+  location: '*test-runner*tap_date_serialization.js:21:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        message: 'test',
+    +   timestamp: 2023-01-01T13:00:00.000Z
+    -   timestamp: 2023-01-01T12:00:00.000Z
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    timestamp: 2023-01-01T12:00:00.000Z
+    message: 'test'
+  actual:
+    timestamp: 2023-01-01T13:00:00.000Z
+    message: 'test'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (*test-runner*tap_date_serialization.js:30:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 0
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms * 
