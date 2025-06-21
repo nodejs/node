@@ -494,9 +494,6 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
 
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kChildProcess, "");
-
   CHECK(args[0]->IsString());
   CHECK(args[1]->IsArray());
   CHECK(args[2]->IsArray());
@@ -506,6 +503,11 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
 
   // Copy arguments and environment
   Utf8Value executable(isolate, args[0]);
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                    permission::PermissionScope::kChildProcess,
+                                    executable.ToStringView());
+
   std::vector<std::string> argv_strings(argv_array->Length());
   std::vector<std::string> envp_strings(envp_array->Length());
   std::vector<char*> argv(argv_array->Length() + 1);

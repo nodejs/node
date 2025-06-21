@@ -186,8 +186,6 @@ class ProcessWrap : public HandleWrap {
     Local<Context> context = env->context();
     ProcessWrap* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kChildProcess, "");
     int err = 0;
 
     if (!args[0]->IsObject()) {
@@ -200,6 +198,20 @@ class ProcessWrap : public HandleWrap {
     memset(&options, 0, sizeof(uv_process_options_t));
 
     options.exit_cb = OnExit;
+
+    // TODO(bnoordhuis) is this possible to do without mallocing ?
+
+    // options.file
+    Local<Value> file_v;
+    if (!js_options->Get(context, env->file_string()).ToLocal(&file_v)) {
+      return;
+    }
+    CHECK(file_v->IsString());
+    node::Utf8Value file(env->isolate(), file_v);
+    options.file = *file;
+
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kChildProcess, file.ToStringView());
 
     // options.uid
     Local<Value> uid_v;
@@ -224,17 +236,6 @@ class ProcessWrap : public HandleWrap {
       options.flags |= UV_PROCESS_SETGID;
       options.gid = static_cast<uv_gid_t>(gid);
     }
-
-    // TODO(bnoordhuis) is this possible to do without mallocing ?
-
-    // options.file
-    Local<Value> file_v;
-    if (!js_options->Get(context, env->file_string()).ToLocal(&file_v)) {
-      return;
-    }
-    CHECK(file_v->IsString());
-    node::Utf8Value file(env->isolate(), file_v);
-    options.file = *file;
 
     // Undocumented feature of Win32 CreateProcess API allows spawning
     // batch files directly but is potentially insecure because arguments
