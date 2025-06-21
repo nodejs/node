@@ -806,7 +806,17 @@ added: REPLACEME
 -->
 
 The `LockManager` interface provides methods for requesting and introspecting
-locks. To obtain a `LockManager` instance use `require('node:worker_threads').locks`.
+locks. To obtain a `LockManager` instance use
+
+```mjs
+import { locks } from 'node:worker_threads';
+```
+
+```cjs
+'use strict';
+
+const { locks } = require('node:worker_threads');
+```
 
 This implementation matches the [browser `LockManager`][] API.
 
