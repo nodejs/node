@@ -3179,6 +3179,9 @@ Returns whether the stream has been read from or cancelled.
 <!-- YAML
 added: v17.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58664
+    description: add {type: 'bytes'} option
   - version:
       - v24.0.0
       - v22.17.0
@@ -3202,7 +3205,6 @@ changes:
       * `chunk` {any}
       * Returns: {number}
   * `type` {string} Must be 'bytes' or undefined.
-    If `type` is set to 'bytes', the `strategy` option is ignored
 * Returns: {ReadableStream}
 
 ### `stream.Writable.fromWeb(writableStream[, options])`
