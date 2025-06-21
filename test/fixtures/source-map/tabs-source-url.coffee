@@ -21,6 +21,12 @@ math =
 race = (winner, runners...) ->
 	print winner, runners
 
+# Multiple sourceMappingURL comments
+## sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidGFicy1zb3VyY2UtdXJsLmpzIiwic
+
+# sourceMappingURL inside strings
+sourceMappingURL = "//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoidGFicy1zb3VyY2UtdXJsLmpzIiwic"
+
 # Existence:
 if true
 	alert "I knew it!"
