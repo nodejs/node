@@ -1,0 +1,1 @@
+Checks pause inside blackboxed optimized function call.

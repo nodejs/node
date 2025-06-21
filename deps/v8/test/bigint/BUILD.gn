@@ -1,0 +1,25 @@
+# Copyright 2021 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+v8_executable("bigint_shell") {
+  testonly = true
+
+  deps = [
+    "../..:v8_bigint",
+    "//build/win:default_exe_manifest",
+  ]
+
+  data_deps = [ "../../tools:v8_testrunner" ]
+
+  data = [
+    "testcfg.py",
+    "bigint.status",
+  ]
+
+  configs = [ "../..:internal_config_base" ]
+
+  sources = [ "bigint-shell.cc" ]
+}

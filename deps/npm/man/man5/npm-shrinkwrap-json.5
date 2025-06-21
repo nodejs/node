@@ -1,0 +1,23 @@
+.TH "NPM-SHRINKWRAP.JSON" "5" "June 2025" "NPM@11.4.2" ""
+.SH "NAME"
+\fBnpm-shrinkwrap.json\fR - A publishable lockfile
+.SS "Description"
+.P
+\fBnpm-shrinkwrap.json\fR is a file created by npm help shrinkwrap. It is identical to \fBpackage-lock.json\fR, with one major caveat: Unlike \fBpackage-lock.json\fR, \fBnpm-shrinkwrap.json\fR may be included when publishing a package.
+.P
+The recommended use-case for \fBnpm-shrinkwrap.json\fR is applications deployed through the publishing process on the registry: for example, daemons and command-line tools intended as global installs or \fBdevDependencies\fR. It's strongly discouraged for library authors to publish this file, since that would prevent end users from having control over transitive dependency updates.
+.P
+If both \fBpackage-lock.json\fR and \fBnpm-shrinkwrap.json\fR are present in a package root, \fBnpm-shrinkwrap.json\fR will be preferred over the \fBpackage-lock.json\fR file.
+.P
+For full details and description of the \fBnpm-shrinkwrap.json\fR file format, refer to the manual page for \fBpackage-lock.json\fR \fI\(la/configuring-npm/package-lock-json\(ra\fR.
+.SS "See also"
+.RS 0
+.IP \(bu 4
+npm help shrinkwrap
+.IP \(bu 4
+\fBpackage-lock.json\fR \fI\(la/configuring-npm/package-lock-json\(ra\fR
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.IP \(bu 4
+npm help install
+.RE 0

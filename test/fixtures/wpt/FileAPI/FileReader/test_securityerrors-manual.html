@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>FileReader SecurityError Test</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="help" href="https://w3c.github.io/FileAPI/#dfn-error-codes">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<form name="upload">
+  <input type="file" id="fileChooser"><br><input type="button" id="start" value="start">
+</form>
+
+<div>
+  <p>Test steps:</p>
+  <ol>
+    <li>Select a system sensitive file (e.g. files in /usr/bin, password files,
+        and other native operating system executables) in the file inputbox.</li>
+    <li>Click the 'start' button.</li>
+    </ol>
+</div>
+
+<script>
+
+  const fileChooser = document.querySelector('#fileChooser');
+
+  setup({explicit_done: true});
+  setup({explicit_timeout: true});
+
+  on_event(document.querySelector('#start'), 'click', () => {
+    async_test(t => {
+      const reader = new FileReader();
+      reader.readAsArrayBuffer(fileChooser.files[0]);
+      reader.onloadend = t.step_func_done(event => {
+        assert_equals(event.target.readyState, FileReader.DONE);
+        assert_equals(reader.error.name, "SecurityError");
+      });
+    }, 'FileReader.error should be SECURITY_ERROR if the file is a system sensitive file');
+    done();
+  });
+
+</script>

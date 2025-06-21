@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title> Event.bubbles attribute is set to false </title>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-event-initevent">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-event-dispatch">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id=log></div>
+<table id="table" border="1" style="display: none">
+    <tbody id="table-body">
+    <tr id="table-row">
+        <td id="table-cell">Shady Grove</td>
+        <td>Aeolian</td>
+    </tr>
+    <tr id="parent">
+        <td id="target">Over the river, Charlie</td>
+        <td>Dorian</td>
+    </tr>
+    </tbody>
+</table>
+<script>
+function targetsForDocumentChain(document) {
+    return [
+        document,
+        document.documentElement,
+        document.getElementsByTagName("body")[0],
+        document.getElementById("table"),
+        document.getElementById("table-body"),
+        document.getElementById("parent")
+    ];
+}
+
+function testChain(document, targetParents, phases, event_type) {
+    var target = document.getElementById("target");
+    var targets = targetParents.concat(target);
+    var expected_targets = targets.concat(target);
+
+    var actual_targets = [], actual_phases = [];
+    var test_event = function(evt) {
+        actual_targets.push(evt.currentTarget);
+        actual_phases.push(evt.eventPhase);
+    }
+
+    for (var i = 0; i < targets.length; i++) {
+        targets[i].addEventListener(event_type, test_event, true);
+        targets[i].addEventListener(event_type, test_event, false);
+    }
+
+    var evt = document.createEvent("Event");
+    evt.initEvent(event_type, false, true);
+
+    target.dispatchEvent(evt);
+
+    assert_array_equals(actual_targets, expected_targets, "targets");
+    assert_array_equals(actual_phases, phases, "phases");
+}
+
+var phasesForDocumentChain = [
+    Event.CAPTURING_PHASE,
+    Event.CAPTURING_PHASE,
+    Event.CAPTURING_PHASE,
+    Event.CAPTURING_PHASE,
+    Event.CAPTURING_PHASE,
+    Event.CAPTURING_PHASE,
+    Event.AT_TARGET,
+    Event.AT_TARGET,
+];
+
+test(function () {
+    var chainWithWindow = [window].concat(targetsForDocumentChain(document));
+    testChain(
+        document, chainWithWindow, [Event.CAPTURING_PHASE].concat(phasesForDocumentChain), "click");
+}, "In window.document with click event");
+
+test(function () {
+    testChain(document, targetsForDocumentChain(document), phasesForDocumentChain, "load");
+}, "In window.document with load event")
+
+test(function () {
+    var documentClone = document.cloneNode(true);
+    testChain(
+        documentClone, targetsForDocumentChain(documentClone), phasesForDocumentChain, "click");
+}, "In window.document.cloneNode(true)");
+
+test(function () {
+    var newDocument = new Document();
+    newDocument.appendChild(document.documentElement.cloneNode(true));
+    testChain(
+        newDocument, targetsForDocumentChain(newDocument), phasesForDocumentChain, "click");
+}, "In new Document()");
+
+test(function () {
+    var HTMLDocument = document.implementation.createHTMLDocument();
+    HTMLDocument.body.appendChild(document.getElementById("table").cloneNode(true));
+    testChain(
+        HTMLDocument, targetsForDocumentChain(HTMLDocument), phasesForDocumentChain, "click");
+}, "In DOMImplementation.createHTMLDocument()");
+</script>

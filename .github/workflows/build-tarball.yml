@@ -1,0 +1,108 @@
+name: Build from tarball
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - .mailmap
+      - '**.md'
+      - AUTHORS
+      - doc/**
+      - .github/**
+      - '!.github/workflows/build-tarball.yml'
+  push:
+    branches:
+      - main
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths-ignore:
+      - .mailmap
+      - '**.md'
+      - AUTHORS
+      - doc/**
+      - .github/**
+      - '!.github/workflows/build-tarball.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+  FLAKY_TESTS: keep_retrying
+  CC: sccache clang
+  CXX: sccache clang++
+  SCCACHE_GHA_ENABLED: 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  build-tarball:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up sccache
+        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
+        with:
+          version: v0.10.0
+      - name: Environment Information
+        run: npx envinfo
+      - name: Make tarball
+        run: |
+          export DISTTYPE=nightly
+          export DATESTRING=`date "+%Y-%m-%d"`
+          export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
+          ./configure && make tar -j8 SKIP_XZ=1
+          mkdir tarballs
+          mv *.tar.gz tarballs
+      - name: Upload tarball artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: tarballs
+          path: tarballs
+  test-tarball-linux:
+    needs: build-tarball
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up sccache
+        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
+        with:
+          version: v0.10.0
+      - name: Environment Information
+        run: npx envinfo
+      - name: Download tarball
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: tarballs
+          path: tarballs
+      - name: Extract tarball
+        run: |
+          tar xzf tarballs/*.tar.gz -C $RUNNER_TEMP
+          echo "TAR_DIR=$RUNNER_TEMP/`basename tarballs/*.tar.gz .tar.gz`" >> $GITHUB_ENV
+      - name: Copy directories needed for testing
+        run: |
+          cp -r tools/eslint $TAR_DIR/tools
+          cp -r tools/eslint-rules $TAR_DIR/tools
+      - name: Build
+        run: |
+          cd $TAR_DIR
+          make build-ci -j4 V=1
+      - name: Test
+        run: |
+          cd $TAR_DIR
+          make run-ci -j4 V=1 TEST_CI_ARGS="-p dots  --measure-flakiness 9"

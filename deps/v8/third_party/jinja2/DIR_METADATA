@@ -1,0 +1,7 @@
+monorail: {
+  component: "Blink>Bindings"
+}
+team_email: "platform-architecture-dev@chromium.org"
+buganizer_public: {
+  component_id: 1456743
+}

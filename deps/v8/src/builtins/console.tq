@@ -1,0 +1,23 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace console {
+// These are technically all js-implicit parameters, but we don't currently
+// support supplying these in tail calls (where we have to supply them).
+extern javascript builtin ConsoleAssert(
+    js-implicit context: Context)(JSFunction, JSAny, int32,
+    DispatchHandle): JSAny;
+
+javascript builtin FastConsoleAssert(
+    js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
+    target: JSFunction)(...arguments): JSAny {
+  if (ToBoolean(arguments[0])) {
+    return Undefined;
+  } else {
+    tail ConsoleAssert(
+        target, newTarget, Convert<int32>(arguments.actual_count),
+        kInvalidDispatchHandle);
+  }
+}
+}

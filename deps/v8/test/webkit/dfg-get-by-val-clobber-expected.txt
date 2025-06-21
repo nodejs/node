@@ -1,0 +1,3032 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This tests that common subexpression elimination knows how to accurately model PutBuVal.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 0
+PASS doAccesses(array1, array1, i % 4, 0, i) is 0
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 1
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 2
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 3
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 4
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 5
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 6
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 7
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 8
+PASS doAccesses(array1, array1, i % 4, 0, i) is 8
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 9
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 10
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 11
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 12
+PASS doAccesses(array1, array1, i % 4, 0, i) is 12
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 13
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 14
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 15
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 16
+PASS doAccesses(array1, array1, i % 4, 0, i) is 16
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 17
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 18
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 19
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 20
+PASS doAccesses(array1, array1, i % 4, 0, i) is 20
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 21
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 22
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 23
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 24
+PASS doAccesses(array1, array1, i % 4, 0, i) is 24
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 25
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 26
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 27
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 28
+PASS doAccesses(array1, array1, i % 4, 0, i) is 28
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 29
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 30
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 31
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 32
+PASS doAccesses(array1, array1, i % 4, 0, i) is 32
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 33
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 34
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 35
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 36
+PASS doAccesses(array1, array1, i % 4, 0, i) is 36
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 37
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 38
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 39
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 40
+PASS doAccesses(array1, array1, i % 4, 0, i) is 40
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 41
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 42
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 43
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 44
+PASS doAccesses(array1, array1, i % 4, 0, i) is 44
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 45
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 46
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 47
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 48
+PASS doAccesses(array1, array1, i % 4, 0, i) is 48
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 49
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 50
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 51
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 52
+PASS doAccesses(array1, array1, i % 4, 0, i) is 52
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 53
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 54
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 55
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 56
+PASS doAccesses(array1, array1, i % 4, 0, i) is 56
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 57
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 58
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 59
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 60
+PASS doAccesses(array1, array1, i % 4, 0, i) is 60
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 61
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 62
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 63
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 64
+PASS doAccesses(array1, array1, i % 4, 0, i) is 64
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 65
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 66
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 67
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 68
+PASS doAccesses(array1, array1, i % 4, 0, i) is 68
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 69
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 70
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 71
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 72
+PASS doAccesses(array1, array1, i % 4, 0, i) is 72
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 73
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 74
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 75
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 76
+PASS doAccesses(array1, array1, i % 4, 0, i) is 76
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 77
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 78
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 79
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 80
+PASS doAccesses(array1, array1, i % 4, 0, i) is 80
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 81
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 82
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 83
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 84
+PASS doAccesses(array1, array1, i % 4, 0, i) is 84
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 85
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 86
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 87
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 88
+PASS doAccesses(array1, array1, i % 4, 0, i) is 88
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 89
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 90
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 91
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 92
+PASS doAccesses(array1, array1, i % 4, 0, i) is 92
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 93
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 94
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 95
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 96
+PASS doAccesses(array1, array1, i % 4, 0, i) is 96
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 97
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 98
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 99
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 100
+PASS doAccesses(array1, array1, i % 4, 0, i) is 100
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 101
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 102
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 103
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 104
+PASS doAccesses(array1, array1, i % 4, 0, i) is 104
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 105
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 106
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 107
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 108
+PASS doAccesses(array1, array1, i % 4, 0, i) is 108
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 109
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 110
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 111
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 112
+PASS doAccesses(array1, array1, i % 4, 0, i) is 112
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 113
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 114
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 115
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 116
+PASS doAccesses(array1, array1, i % 4, 0, i) is 116
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 117
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 118
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 119
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 120
+PASS doAccesses(array1, array1, i % 4, 0, i) is 120
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 121
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 122
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 123
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 124
+PASS doAccesses(array1, array1, i % 4, 0, i) is 124
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 125
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 126
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 127
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 128
+PASS doAccesses(array1, array1, i % 4, 0, i) is 128
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 129
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 130
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 131
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 132
+PASS doAccesses(array1, array1, i % 4, 0, i) is 132
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 133
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 134
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 135
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 136
+PASS doAccesses(array1, array1, i % 4, 0, i) is 136
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 137
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 138
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 139
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 140
+PASS doAccesses(array1, array1, i % 4, 0, i) is 140
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 141
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 142
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 143
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 144
+PASS doAccesses(array1, array1, i % 4, 0, i) is 144
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 145
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 146
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 147
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 148
+PASS doAccesses(array1, array1, i % 4, 0, i) is 148
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 149
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 150
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 151
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 152
+PASS doAccesses(array1, array1, i % 4, 0, i) is 152
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 153
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 154
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 155
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 156
+PASS doAccesses(array1, array1, i % 4, 0, i) is 156
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 157
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 158
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 159
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 160
+PASS doAccesses(array1, array1, i % 4, 0, i) is 160
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 161
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 162
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 163
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 164
+PASS doAccesses(array1, array1, i % 4, 0, i) is 164
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 165
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 166
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 167
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 168
+PASS doAccesses(array1, array1, i % 4, 0, i) is 168
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 169
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 170
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 171
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 172
+PASS doAccesses(array1, array1, i % 4, 0, i) is 172
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 173
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 174
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 175
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 176
+PASS doAccesses(array1, array1, i % 4, 0, i) is 176
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 177
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 178
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 179
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 180
+PASS doAccesses(array1, array1, i % 4, 0, i) is 180
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 181
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 182
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 183
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 184
+PASS doAccesses(array1, array1, i % 4, 0, i) is 184
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 185
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 186
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 187
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 188
+PASS doAccesses(array1, array1, i % 4, 0, i) is 188
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 189
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 190
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 191
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 192
+PASS doAccesses(array1, array1, i % 4, 0, i) is 192
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 193
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 194
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 195
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 196
+PASS doAccesses(array1, array1, i % 4, 0, i) is 196
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 197
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 198
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 199
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 200
+PASS doAccesses(array1, array1, i % 4, 0, i) is 200
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 201
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 202
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 203
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 204
+PASS doAccesses(array1, array1, i % 4, 0, i) is 204
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 205
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 206
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 207
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 208
+PASS doAccesses(array1, array1, i % 4, 0, i) is 208
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 209
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 210
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 211
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 212
+PASS doAccesses(array1, array1, i % 4, 0, i) is 212
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 213
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 214
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 215
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 216
+PASS doAccesses(array1, array1, i % 4, 0, i) is 216
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 217
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 218
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 219
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 220
+PASS doAccesses(array1, array1, i % 4, 0, i) is 220
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 221
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 222
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 223
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 224
+PASS doAccesses(array1, array1, i % 4, 0, i) is 224
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 225
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 226
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 227
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 228
+PASS doAccesses(array1, array1, i % 4, 0, i) is 228
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 229
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 230
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 231
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 232
+PASS doAccesses(array1, array1, i % 4, 0, i) is 232
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 233
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 234
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 235
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 236
+PASS doAccesses(array1, array1, i % 4, 0, i) is 236
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 237
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 238
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 239
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 240
+PASS doAccesses(array1, array1, i % 4, 0, i) is 240
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 241
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 242
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 243
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 244
+PASS doAccesses(array1, array1, i % 4, 0, i) is 244
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 245
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 246
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 247
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 248
+PASS doAccesses(array1, array1, i % 4, 0, i) is 248
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 249
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 250
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 251
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 252
+PASS doAccesses(array1, array1, i % 4, 0, i) is 252
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 253
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 254
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 255
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 256
+PASS doAccesses(array1, array1, i % 4, 0, i) is 256
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 257
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 258
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 259
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 260
+PASS doAccesses(array1, array1, i % 4, 0, i) is 260
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 261
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 262
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 263
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 264
+PASS doAccesses(array1, array1, i % 4, 0, i) is 264
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 265
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 266
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 267
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 268
+PASS doAccesses(array1, array1, i % 4, 0, i) is 268
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 269
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 270
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 271
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 272
+PASS doAccesses(array1, array1, i % 4, 0, i) is 272
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 273
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 274
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 275
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 276
+PASS doAccesses(array1, array1, i % 4, 0, i) is 276
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 277
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 278
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 279
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 280
+PASS doAccesses(array1, array1, i % 4, 0, i) is 280
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 281
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 282
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 283
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 284
+PASS doAccesses(array1, array1, i % 4, 0, i) is 284
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 285
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 286
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 287
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 288
+PASS doAccesses(array1, array1, i % 4, 0, i) is 288
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 289
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 290
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 291
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 292
+PASS doAccesses(array1, array1, i % 4, 0, i) is 292
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 293
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 294
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 295
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 296
+PASS doAccesses(array1, array1, i % 4, 0, i) is 296
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 297
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 298
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 299
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 300
+PASS doAccesses(array1, array1, i % 4, 0, i) is 300
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 301
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 302
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 303
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 304
+PASS doAccesses(array1, array1, i % 4, 0, i) is 304
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 305
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 306
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 307
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 308
+PASS doAccesses(array1, array1, i % 4, 0, i) is 308
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 309
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 310
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 311
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 312
+PASS doAccesses(array1, array1, i % 4, 0, i) is 312
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 313
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 314
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 315
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 316
+PASS doAccesses(array1, array1, i % 4, 0, i) is 316
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 317
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 318
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 319
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 320
+PASS doAccesses(array1, array1, i % 4, 0, i) is 320
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 321
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 322
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 323
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 324
+PASS doAccesses(array1, array1, i % 4, 0, i) is 324
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 325
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 326
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 327
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 328
+PASS doAccesses(array1, array1, i % 4, 0, i) is 328
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 329
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 330
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 331
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 332
+PASS doAccesses(array1, array1, i % 4, 0, i) is 332
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 333
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 334
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 335
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 336
+PASS doAccesses(array1, array1, i % 4, 0, i) is 336
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 337
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 338
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 339
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 340
+PASS doAccesses(array1, array1, i % 4, 0, i) is 340
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 341
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 342
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 343
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 344
+PASS doAccesses(array1, array1, i % 4, 0, i) is 344
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 345
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 346
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 347
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 348
+PASS doAccesses(array1, array1, i % 4, 0, i) is 348
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 349
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 350
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 351
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 352
+PASS doAccesses(array1, array1, i % 4, 0, i) is 352
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 353
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 354
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 355
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 356
+PASS doAccesses(array1, array1, i % 4, 0, i) is 356
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 357
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 358
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 359
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 360
+PASS doAccesses(array1, array1, i % 4, 0, i) is 360
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 361
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 362
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 363
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 364
+PASS doAccesses(array1, array1, i % 4, 0, i) is 364
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 365
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 366
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 367
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 368
+PASS doAccesses(array1, array1, i % 4, 0, i) is 368
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 369
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 370
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 371
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 372
+PASS doAccesses(array1, array1, i % 4, 0, i) is 372
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 373
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 374
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 375
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 376
+PASS doAccesses(array1, array1, i % 4, 0, i) is 376
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 377
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 378
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 379
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 380
+PASS doAccesses(array1, array1, i % 4, 0, i) is 380
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 381
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 382
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 383
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 384
+PASS doAccesses(array1, array1, i % 4, 0, i) is 384
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 385
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 386
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 387
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 388
+PASS doAccesses(array1, array1, i % 4, 0, i) is 388
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 389
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 390
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 391
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 392
+PASS doAccesses(array1, array1, i % 4, 0, i) is 392
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 393
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 394
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 395
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 396
+PASS doAccesses(array1, array1, i % 4, 0, i) is 396
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 397
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 398
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 399
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 400
+PASS doAccesses(array1, array1, i % 4, 0, i) is 400
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 401
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 402
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 403
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 404
+PASS doAccesses(array1, array1, i % 4, 0, i) is 404
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 405
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 406
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 407
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 408
+PASS doAccesses(array1, array1, i % 4, 0, i) is 408
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 409
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 410
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 411
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 412
+PASS doAccesses(array1, array1, i % 4, 0, i) is 412
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 413
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 414
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 415
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 416
+PASS doAccesses(array1, array1, i % 4, 0, i) is 416
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 417
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 418
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 419
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 420
+PASS doAccesses(array1, array1, i % 4, 0, i) is 420
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 421
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 422
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 423
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 424
+PASS doAccesses(array1, array1, i % 4, 0, i) is 424
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 425
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 426
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 427
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 428
+PASS doAccesses(array1, array1, i % 4, 0, i) is 428
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 429
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 430
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 431
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 432
+PASS doAccesses(array1, array1, i % 4, 0, i) is 432
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 433
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 434
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 435
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 436
+PASS doAccesses(array1, array1, i % 4, 0, i) is 436
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 437
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 438
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 439
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 440
+PASS doAccesses(array1, array1, i % 4, 0, i) is 440
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 441
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 442
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 443
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 444
+PASS doAccesses(array1, array1, i % 4, 0, i) is 444
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 445
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 446
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 447
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 448
+PASS doAccesses(array1, array1, i % 4, 0, i) is 448
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 449
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 450
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 451
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 452
+PASS doAccesses(array1, array1, i % 4, 0, i) is 452
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 453
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 454
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 455
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 456
+PASS doAccesses(array1, array1, i % 4, 0, i) is 456
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 457
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 458
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 459
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 460
+PASS doAccesses(array1, array1, i % 4, 0, i) is 460
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 461
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 462
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 463
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 464
+PASS doAccesses(array1, array1, i % 4, 0, i) is 464
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 465
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 466
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 467
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 468
+PASS doAccesses(array1, array1, i % 4, 0, i) is 468
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 469
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 470
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 471
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 472
+PASS doAccesses(array1, array1, i % 4, 0, i) is 472
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 473
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 474
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 475
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 476
+PASS doAccesses(array1, array1, i % 4, 0, i) is 476
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 477
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 478
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 479
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 480
+PASS doAccesses(array1, array1, i % 4, 0, i) is 480
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 481
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 482
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 483
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 484
+PASS doAccesses(array1, array1, i % 4, 0, i) is 484
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 485
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 486
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 487
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 488
+PASS doAccesses(array1, array1, i % 4, 0, i) is 488
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 489
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 490
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 491
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 492
+PASS doAccesses(array1, array1, i % 4, 0, i) is 492
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 493
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 494
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 495
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 496
+PASS doAccesses(array1, array1, i % 4, 0, i) is 496
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 497
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 498
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 499
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 500
+PASS doAccesses(array1, array1, i % 4, 0, i) is 500
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 501
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 502
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 503
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 504
+PASS doAccesses(array1, array1, i % 4, 0, i) is 504
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 505
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 506
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 507
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 508
+PASS doAccesses(array1, array1, i % 4, 0, i) is 508
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 509
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 510
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 511
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 512
+PASS doAccesses(array1, array1, i % 4, 0, i) is 512
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 513
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 514
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 515
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 516
+PASS doAccesses(array1, array1, i % 4, 0, i) is 516
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 517
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 518
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 519
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 520
+PASS doAccesses(array1, array1, i % 4, 0, i) is 520
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 521
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 522
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 523
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 524
+PASS doAccesses(array1, array1, i % 4, 0, i) is 524
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 525
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 526
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 527
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 528
+PASS doAccesses(array1, array1, i % 4, 0, i) is 528
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 529
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 530
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 531
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 532
+PASS doAccesses(array1, array1, i % 4, 0, i) is 532
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 533
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 534
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 535
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 536
+PASS doAccesses(array1, array1, i % 4, 0, i) is 536
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 537
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 538
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 539
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 540
+PASS doAccesses(array1, array1, i % 4, 0, i) is 540
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 541
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 542
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 543
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 544
+PASS doAccesses(array1, array1, i % 4, 0, i) is 544
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 545
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 546
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 547
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 548
+PASS doAccesses(array1, array1, i % 4, 0, i) is 548
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 549
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 550
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 551
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 552
+PASS doAccesses(array1, array1, i % 4, 0, i) is 552
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 553
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 554
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 555
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 556
+PASS doAccesses(array1, array1, i % 4, 0, i) is 556
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 557
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 558
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 559
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 560
+PASS doAccesses(array1, array1, i % 4, 0, i) is 560
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 561
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 562
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 563
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 564
+PASS doAccesses(array1, array1, i % 4, 0, i) is 564
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 565
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 566
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 567
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 568
+PASS doAccesses(array1, array1, i % 4, 0, i) is 568
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 569
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 570
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 571
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 572
+PASS doAccesses(array1, array1, i % 4, 0, i) is 572
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 573
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 574
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 575
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 576
+PASS doAccesses(array1, array1, i % 4, 0, i) is 576
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 577
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 578
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 579
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 580
+PASS doAccesses(array1, array1, i % 4, 0, i) is 580
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 581
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 582
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 583
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 584
+PASS doAccesses(array1, array1, i % 4, 0, i) is 584
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 585
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 586
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 587
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 588
+PASS doAccesses(array1, array1, i % 4, 0, i) is 588
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 589
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 590
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 591
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 592
+PASS doAccesses(array1, array1, i % 4, 0, i) is 592
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 593
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 594
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 595
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 596
+PASS doAccesses(array1, array1, i % 4, 0, i) is 596
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 597
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 598
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 599
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 600
+PASS doAccesses(array1, array1, i % 4, 0, i) is 600
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 601
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 602
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 603
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 604
+PASS doAccesses(array1, array1, i % 4, 0, i) is 604
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 605
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 606
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 607
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 608
+PASS doAccesses(array1, array1, i % 4, 0, i) is 608
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 609
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 610
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 611
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 612
+PASS doAccesses(array1, array1, i % 4, 0, i) is 612
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 613
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 614
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 615
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 616
+PASS doAccesses(array1, array1, i % 4, 0, i) is 616
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 617
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 618
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 619
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 620
+PASS doAccesses(array1, array1, i % 4, 0, i) is 620
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 621
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 622
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 623
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 624
+PASS doAccesses(array1, array1, i % 4, 0, i) is 624
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 625
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 626
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 627
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 628
+PASS doAccesses(array1, array1, i % 4, 0, i) is 628
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 629
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 630
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 631
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 632
+PASS doAccesses(array1, array1, i % 4, 0, i) is 632
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 633
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 634
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 635
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 636
+PASS doAccesses(array1, array1, i % 4, 0, i) is 636
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 637
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 638
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 639
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 640
+PASS doAccesses(array1, array1, i % 4, 0, i) is 640
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 641
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 642
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 643
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 644
+PASS doAccesses(array1, array1, i % 4, 0, i) is 644
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 645
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 646
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 647
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 648
+PASS doAccesses(array1, array1, i % 4, 0, i) is 648
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 649
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 650
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 651
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 652
+PASS doAccesses(array1, array1, i % 4, 0, i) is 652
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 653
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 654
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 655
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 656
+PASS doAccesses(array1, array1, i % 4, 0, i) is 656
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 657
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 658
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 659
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 660
+PASS doAccesses(array1, array1, i % 4, 0, i) is 660
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 661
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 662
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 663
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 664
+PASS doAccesses(array1, array1, i % 4, 0, i) is 664
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 665
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 666
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 667
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 668
+PASS doAccesses(array1, array1, i % 4, 0, i) is 668
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 669
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 670
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 671
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 672
+PASS doAccesses(array1, array1, i % 4, 0, i) is 672
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 673
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 674
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 675
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 676
+PASS doAccesses(array1, array1, i % 4, 0, i) is 676
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 677
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 678
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 679
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 680
+PASS doAccesses(array1, array1, i % 4, 0, i) is 680
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 681
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 682
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 683
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 684
+PASS doAccesses(array1, array1, i % 4, 0, i) is 684
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 685
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 686
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 687
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 688
+PASS doAccesses(array1, array1, i % 4, 0, i) is 688
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 689
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 690
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 691
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 692
+PASS doAccesses(array1, array1, i % 4, 0, i) is 692
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 693
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 694
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 695
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 696
+PASS doAccesses(array1, array1, i % 4, 0, i) is 696
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 697
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 698
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 699
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 700
+PASS doAccesses(array1, array1, i % 4, 0, i) is 700
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 701
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 702
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 703
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 704
+PASS doAccesses(array1, array1, i % 4, 0, i) is 704
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 705
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 706
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 707
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 708
+PASS doAccesses(array1, array1, i % 4, 0, i) is 708
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 709
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 710
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 711
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 712
+PASS doAccesses(array1, array1, i % 4, 0, i) is 712
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 713
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 714
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 715
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 716
+PASS doAccesses(array1, array1, i % 4, 0, i) is 716
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 717
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 718
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 719
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 720
+PASS doAccesses(array1, array1, i % 4, 0, i) is 720
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 721
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 722
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 723
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 724
+PASS doAccesses(array1, array1, i % 4, 0, i) is 724
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 725
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 726
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 727
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 728
+PASS doAccesses(array1, array1, i % 4, 0, i) is 728
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 729
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 730
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 731
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 732
+PASS doAccesses(array1, array1, i % 4, 0, i) is 732
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 733
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 734
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 735
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 736
+PASS doAccesses(array1, array1, i % 4, 0, i) is 736
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 737
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 738
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 739
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 740
+PASS doAccesses(array1, array1, i % 4, 0, i) is 740
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 741
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 742
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 743
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 744
+PASS doAccesses(array1, array1, i % 4, 0, i) is 744
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 745
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 746
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 747
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 748
+PASS doAccesses(array1, array1, i % 4, 0, i) is 748
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 749
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 750
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 751
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 752
+PASS doAccesses(array1, array1, i % 4, 0, i) is 752
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 753
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 754
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 755
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 756
+PASS doAccesses(array1, array1, i % 4, 0, i) is 756
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 757
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 758
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 759
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 760
+PASS doAccesses(array1, array1, i % 4, 0, i) is 760
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 761
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 762
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 763
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 764
+PASS doAccesses(array1, array1, i % 4, 0, i) is 764
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 765
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 766
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 767
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 768
+PASS doAccesses(array1, array1, i % 4, 0, i) is 768
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 769
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 770
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 771
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 772
+PASS doAccesses(array1, array1, i % 4, 0, i) is 772
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 773
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 774
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 775
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 776
+PASS doAccesses(array1, array1, i % 4, 0, i) is 776
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 777
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 778
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 779
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 780
+PASS doAccesses(array1, array1, i % 4, 0, i) is 780
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 781
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 782
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 783
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 784
+PASS doAccesses(array1, array1, i % 4, 0, i) is 784
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 785
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 786
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 787
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 788
+PASS doAccesses(array1, array1, i % 4, 0, i) is 788
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 789
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 790
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 791
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 792
+PASS doAccesses(array1, array1, i % 4, 0, i) is 792
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 793
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 794
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 795
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 796
+PASS doAccesses(array1, array1, i % 4, 0, i) is 796
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 797
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 798
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 799
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 800
+PASS doAccesses(array1, array1, i % 4, 0, i) is 800
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 801
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 802
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 803
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 804
+PASS doAccesses(array1, array1, i % 4, 0, i) is 804
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 805
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 806
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 807
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 808
+PASS doAccesses(array1, array1, i % 4, 0, i) is 808
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 809
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 810
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 811
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 812
+PASS doAccesses(array1, array1, i % 4, 0, i) is 812
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 813
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 814
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 815
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 816
+PASS doAccesses(array1, array1, i % 4, 0, i) is 816
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 817
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 818
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 819
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 820
+PASS doAccesses(array1, array1, i % 4, 0, i) is 820
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 821
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 822
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 823
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 824
+PASS doAccesses(array1, array1, i % 4, 0, i) is 824
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 825
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 826
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 827
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 828
+PASS doAccesses(array1, array1, i % 4, 0, i) is 828
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 829
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 830
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 831
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 832
+PASS doAccesses(array1, array1, i % 4, 0, i) is 832
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 833
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 834
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 835
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 836
+PASS doAccesses(array1, array1, i % 4, 0, i) is 836
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 837
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 838
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 839
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 840
+PASS doAccesses(array1, array1, i % 4, 0, i) is 840
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 841
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 842
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 843
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 844
+PASS doAccesses(array1, array1, i % 4, 0, i) is 844
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 845
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 846
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 847
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 848
+PASS doAccesses(array1, array1, i % 4, 0, i) is 848
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 849
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 850
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 851
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 852
+PASS doAccesses(array1, array1, i % 4, 0, i) is 852
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 853
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 854
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 855
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 856
+PASS doAccesses(array1, array1, i % 4, 0, i) is 856
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 857
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 858
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 859
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 860
+PASS doAccesses(array1, array1, i % 4, 0, i) is 860
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 861
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 862
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 863
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 864
+PASS doAccesses(array1, array1, i % 4, 0, i) is 864
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 865
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 866
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 867
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 868
+PASS doAccesses(array1, array1, i % 4, 0, i) is 868
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 869
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 870
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 871
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 872
+PASS doAccesses(array1, array1, i % 4, 0, i) is 872
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 873
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 874
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 875
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 876
+PASS doAccesses(array1, array1, i % 4, 0, i) is 876
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 877
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 878
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 879
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 880
+PASS doAccesses(array1, array1, i % 4, 0, i) is 880
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 881
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 882
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 883
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 884
+PASS doAccesses(array1, array1, i % 4, 0, i) is 884
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 885
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 886
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 887
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 888
+PASS doAccesses(array1, array1, i % 4, 0, i) is 888
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 889
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 890
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 891
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 892
+PASS doAccesses(array1, array1, i % 4, 0, i) is 892
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 893
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 894
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 895
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 896
+PASS doAccesses(array1, array1, i % 4, 0, i) is 896
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 897
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 898
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 899
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 900
+PASS doAccesses(array1, array1, i % 4, 0, i) is 900
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 901
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 902
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 903
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 904
+PASS doAccesses(array1, array1, i % 4, 0, i) is 904
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 905
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 906
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 907
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 908
+PASS doAccesses(array1, array1, i % 4, 0, i) is 908
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 909
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 910
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 911
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 912
+PASS doAccesses(array1, array1, i % 4, 0, i) is 912
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 913
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 914
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 915
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 916
+PASS doAccesses(array1, array1, i % 4, 0, i) is 916
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 917
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 918
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 919
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 920
+PASS doAccesses(array1, array1, i % 4, 0, i) is 920
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 921
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 922
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 923
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 924
+PASS doAccesses(array1, array1, i % 4, 0, i) is 924
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 925
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 926
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 927
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 928
+PASS doAccesses(array1, array1, i % 4, 0, i) is 928
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 929
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 930
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 931
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 932
+PASS doAccesses(array1, array1, i % 4, 0, i) is 932
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 933
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 934
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 935
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 936
+PASS doAccesses(array1, array1, i % 4, 0, i) is 936
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 937
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 938
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 939
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 940
+PASS doAccesses(array1, array1, i % 4, 0, i) is 940
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 941
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 942
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 943
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 944
+PASS doAccesses(array1, array1, i % 4, 0, i) is 944
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 945
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 946
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 947
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 948
+PASS doAccesses(array1, array1, i % 4, 0, i) is 948
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 949
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 950
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 951
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 952
+PASS doAccesses(array1, array1, i % 4, 0, i) is 952
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 953
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 954
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 955
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 956
+PASS doAccesses(array1, array1, i % 4, 0, i) is 956
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 957
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 958
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 959
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 960
+PASS doAccesses(array1, array1, i % 4, 0, i) is 960
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 961
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 962
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 963
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 964
+PASS doAccesses(array1, array1, i % 4, 0, i) is 964
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 965
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 966
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 967
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 968
+PASS doAccesses(array1, array1, i % 4, 0, i) is 968
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 969
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 970
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 971
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 972
+PASS doAccesses(array1, array1, i % 4, 0, i) is 972
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 973
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 974
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 975
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 976
+PASS doAccesses(array1, array1, i % 4, 0, i) is 976
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 977
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 978
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 979
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 980
+PASS doAccesses(array1, array1, i % 4, 0, i) is 980
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 981
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 982
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 983
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 984
+PASS doAccesses(array1, array1, i % 4, 0, i) is 984
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 985
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 986
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 987
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 988
+PASS doAccesses(array1, array1, i % 4, 0, i) is 988
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 989
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 990
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 991
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 992
+PASS doAccesses(array1, array1, i % 4, 0, i) is 992
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 993
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 994
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 995
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 1
+PASS array2[1] is 996
+PASS doAccesses(array1, array1, i % 4, 0, i) is 996
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 2
+PASS array2[2] is 997
+PASS doAccesses(array1, array1, i % 4, 0, i) is 2
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 3
+PASS array2[3] is 998
+PASS doAccesses(array1, array1, i % 4, 0, i) is 3
+PASS doAccesses(array1, array2, i % 4, (i + 1) % 4, i) is 4
+PASS array2[0] is 999
+PASS doAccesses(array1, array1, i % 4, 0, i) is 4
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

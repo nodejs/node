@@ -1,0 +1,33 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-proxy-gen.h'
+
+namespace proxy {
+
+extern macro ProxiesCodeStubAssembler::AllocateProxy(
+    implicit context: Context)(JSReceiver, JSReceiver): JSProxy;
+
+extern transitioning macro ProxiesCodeStubAssembler::CheckGetSetTrapResult(
+    implicit context: Context)(JSReceiver, JSProxy, Name, Object,
+    constexpr int31): void;
+
+extern transitioning macro ProxiesCodeStubAssembler::CheckDeleteTrapResult(
+    implicit context: Context)(JSReceiver, JSProxy, Name): void;
+
+extern transitioning macro ProxiesCodeStubAssembler::CheckHasTrapResult(
+    implicit context: Context)(JSReceiver, JSProxy, Name): void;
+
+const kProxyGet: constexpr int31
+    generates 'JSProxy::AccessKind::kGet';
+const kProxySet: constexpr int31
+    generates 'JSProxy::AccessKind::kSet';
+
+type ProxyRevokeFunctionContext extends FunctionContext;
+extern enum ProxyRevokeFunctionContextSlot extends intptr
+    constexpr 'ProxiesCodeStubAssembler::ProxyRevokeFunctionContextSlot' {
+  kProxySlot: Slot<ProxyRevokeFunctionContext, JSProxy|Null>,
+  kProxyContextLength
+}
+}

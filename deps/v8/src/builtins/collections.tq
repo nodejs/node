@@ -1,0 +1,438 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-collections-gen.h'
+
+namespace collections {
+
+const kSetPrototypeValues: constexpr BuiltinsName
+    generates 'Builtin::kSetPrototypeValues';
+const kSetPrototypeHas: constexpr BuiltinsName
+    generates 'Builtin::kSetPrototypeHas';
+const kMapPrototypeKeys: constexpr BuiltinsName
+    generates 'Builtin::kMapPrototypeKeys';
+const kMapPrototypeHas: constexpr BuiltinsName
+    generates 'Builtin::kMapPrototypeHas';
+
+@export
+struct SetRecord {
+  // SetRecord.[[Set]]
+  object: JSReceiver;
+
+  // SetRecord.[[Size]]
+  // a non-negative integer or +∞
+  size: Number;
+
+  // SetRecord.[[Has]]
+  has: JSAny;
+
+  // SetRecord.[[Keys]]
+  keys: JSAny;
+}
+
+extern macro CodeStubAssembler::CloneFixedArray(
+    FixedArrayBase, constexpr ExtractFixedArrayFlag): FixedArrayBase;
+
+extern macro CollectionsBuiltinsAssembler::AddToSetTable(
+    implicit context: Context)(OrderedHashSet, JSAny, String): OrderedHashSet;
+
+extern macro CollectionsBuiltinsAssembler::TableHasKey(
+    implicit context: Context)(OrderedHashSet, Object): bool;
+extern macro CollectionsBuiltinsAssembler::TableHasKey(
+    implicit context: Context)(OrderedHashMap, Object): bool;
+
+extern macro CollectionsBuiltinsAssembler::DeleteFromSetTable(
+    implicit context: Context)(OrderedHashSet, Object): Smi labels NotFound;
+
+extern runtime OrderedHashSetShrink(implicit context: Context)(
+                                    OrderedHashSet): OrderedHashSet;
+
+// Direct iteration helpers.
+@export
+struct KeyIndexPair {
+  key: JSAny;
+  index: intptr;
+}
+
+@export
+struct OrderedHashSetIndexPair {
+  table: OrderedHashSet;
+  index: intptr;
+}
+
+extern macro CollectionsBuiltinsAssembler::NextKeyIndexPairUnmodifiedTable(
+    OrderedHashSet, int32, int32, intptr): KeyIndexPair labels Done;
+
+// The underlying table must not be resized during iteration!
+struct UnmodifiedOrderedHashSetIterator {
+  macro Next(): JSAny labels Done {
+    this.current = NextKeyIndexPairUnmodifiedTable(
+        this.table, this.numBuckets, this.usedCapacity, this.current.index)
+        otherwise Done;
+    return this.current.key;
+  }
+  const table: OrderedHashSet;
+  const numBuckets: int32;
+  const usedCapacity: int32;
+  current: KeyIndexPair;
+}
+
+extern macro CollectionsBuiltinsAssembler::TransitionOrderedHashSetNoUpdate(
+    OrderedHashSet, intptr): OrderedHashSetIndexPair;
+
+extern macro CollectionsBuiltinsAssembler::NextKeyIndexPair(
+    OrderedHashSet, intptr): KeyIndexPair labels Done;
+
+// The underlying table can be resized during iteration.
+struct OrderedHashSetIterator {
+  macro Next(): JSAny labels Done {
+    // Transition the table and index in case it was modified during iteration.
+    const tableAndIndex =
+        TransitionOrderedHashSetNoUpdate(this.table, this.current.index);
+    this.table = tableAndIndex.table;
+    this.current.index = tableAndIndex.index;
+    this.current = NextKeyIndexPair(this.table, this.current.index)
+        otherwise Done;
+    return this.current.key;
+  }
+  table: OrderedHashSet;
+  current: KeyIndexPair;
+}
+
+macro LoadOrderedHashTableMetadata(
+    table: OrderedHashMap|OrderedHashSet, fieldIndex: constexpr int32): int32 {
+  return Convert<int32>(UnsafeCast<Smi>(table.objects[fieldIndex]));
+}
+
+const kOrderedHashSetNumberOfBucketsIndex:
+    constexpr int32 generates 'OrderedHashSet::NumberOfBucketsIndex()';
+const kOrderedHashSetNumberOfElementsIndex:
+    constexpr int32 generates 'OrderedHashSet::NumberOfElementsIndex()';
+const kOrderedHashSetNumberOfDeletedElementsIndex: constexpr int32
+    generates 'OrderedHashSet::NumberOfDeletedElementsIndex()';
+
+macro NewUnmodifiedOrderedHashSetIterator(table: OrderedHashSet):
+    UnmodifiedOrderedHashSetIterator {
+  const numBuckets =
+      LoadOrderedHashTableMetadata(table, kOrderedHashSetNumberOfBucketsIndex);
+  const numElements =
+      LoadOrderedHashTableMetadata(table, kOrderedHashSetNumberOfElementsIndex);
+  const numDeleted = LoadOrderedHashTableMetadata(
+      table, kOrderedHashSetNumberOfDeletedElementsIndex);
+  const usedCapacity = numElements + numDeleted;
+  return UnmodifiedOrderedHashSetIterator{
+    table: table,
+    numBuckets: numBuckets,
+    usedCapacity: usedCapacity,
+    current: KeyIndexPair {
+      key: Undefined, index: 0
+    }
+  };
+}
+
+macro NewOrderedHashSetIterator(table: OrderedHashSet):
+    OrderedHashSetIterator {
+  return OrderedHashSetIterator{
+    table: table,
+    current: KeyIndexPair {
+      key: Undefined, index: 0
+    }
+  };
+}
+
+@export
+struct KeyValueIndexTuple {
+  key: JSAny;
+  value: JSAny;
+  index: intptr;
+}
+extern macro
+    CollectionsBuiltinsAssembler::NextKeyValueIndexTupleUnmodifiedTable(
+        OrderedHashMap, int32, int32, intptr): KeyValueIndexTuple labels Done;
+
+extern macro CollectionsBuiltinsAssembler::NextKeyValueIndexTuple(
+    OrderedHashMap, intptr): KeyValueIndexTuple labels Done;
+
+extern macro
+    CollectionsBuiltinsAssembler::UnsafeStoreValueInOrderedHashMapEntry(
+        OrderedHashMap, Object, intptr): void;
+
+const kOrderedHashMapEntrySize:
+    constexpr int32 generates 'OrderedHashMap::kEntrySize';
+
+// The underlying table must not be resized during iteration!
+struct UnmodifiedOrderedHashMapIterator {
+  macro Next(): KeyValuePair labels Done {
+    this.current = NextKeyValueIndexTupleUnmodifiedTable(
+        this.table, this.numBuckets, this.usedCapacity, this.current.index)
+        otherwise Done;
+    return KeyValuePair{key: this.current.key, value: this.current.value};
+  }
+
+  macro UnsafeStoreValueAtCurrentEntry(value: Object): void {
+    // There is no current entry if the iterator is not yet advanced. The
+    // current entry is at the previous index, as we've already advanced the
+    // index.
+    dcheck(this.current.index > 0);
+    const entry =
+        (Convert<int32>(this.current.index) - 1) * kOrderedHashMapEntrySize +
+        this.numBuckets;
+    UnsafeStoreValueInOrderedHashMapEntry(
+        this.table, value, Convert<intptr>(entry));
+  }
+
+  const table: OrderedHashMap;
+  const numBuckets: int32;
+  const usedCapacity: int32;
+  current: KeyValueIndexTuple;
+}
+
+const kOrderedHashMapNumberOfBucketsIndex:
+    constexpr int32 generates 'OrderedHashMap::NumberOfBucketsIndex()';
+const kOrderedHashMapNumberOfElementsIndex:
+    constexpr int32 generates 'OrderedHashMap::NumberOfElementsIndex()';
+const kOrderedHashMapNumberOfDeletedElementsIndex: constexpr int32
+    generates 'OrderedHashMap::NumberOfDeletedElementsIndex()';
+
+macro NewUnmodifiedOrderedHashMapIterator(table: OrderedHashMap):
+    UnmodifiedOrderedHashMapIterator {
+  const numBuckets =
+      LoadOrderedHashTableMetadata(table, kOrderedHashMapNumberOfBucketsIndex);
+  const numElements =
+      LoadOrderedHashTableMetadata(table, kOrderedHashMapNumberOfElementsIndex);
+  const numDeleted = LoadOrderedHashTableMetadata(
+      table, kOrderedHashMapNumberOfDeletedElementsIndex);
+  const usedCapacity = numElements + numDeleted;
+  return UnmodifiedOrderedHashMapIterator{
+    table: table,
+    numBuckets: numBuckets,
+    usedCapacity: usedCapacity,
+    current: KeyValueIndexTuple {
+      key: Undefined, value: Undefined, index: 0
+    }
+  };
+}
+
+@export
+macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: JSAny):
+    KeyValuePair labels MayHaveSideEffects {
+  typeswitch (o) {
+    case (a: FastJSArray): {
+      const length: Smi = a.length;
+      typeswitch (a.elements) {
+        case (elements: FixedArray): {
+          return KeyValuePair{
+            key: length > 0 ? array::LoadElementOrUndefined(elements, 0) :
+                              Undefined,
+            value: length > 1 ? array::LoadElementOrUndefined(elements, 1) :
+                                Undefined
+          };
+        }
+        case (elements: FixedDoubleArray): {
+          return KeyValuePair{
+            key: length > 0 ? array::LoadElementOrUndefined(elements, 0) :
+                              Undefined,
+            value: length > 1 ? array::LoadElementOrUndefined(elements, 1) :
+                                Undefined
+          };
+        }
+        case (FixedArrayBase): deferred {
+          unreachable;
+        }
+      }
+    }
+    case (JSAny): {
+      goto MayHaveSideEffects;
+    }
+  }
+}
+
+@export
+transitioning macro LoadKeyValuePair(implicit context: Context)(
+                                     o: JSAny): KeyValuePair {
+  try {
+    return LoadKeyValuePairNoSideEffects(o) otherwise Generic;
+  } label Generic {
+    const o = Cast<JSReceiver>(o)
+        otherwise ThrowTypeError(MessageTemplate::kIteratorValueNotAnObject, o);
+    return KeyValuePair{
+      key: GetProperty(o, Convert<Smi>(0)),
+      value: GetProperty(o, Convert<Smi>(1))
+    };
+  }
+}
+
+// https://tc39.es/proposal-set-methods/#sec-getsetrecord
+transitioning macro GetSetRecord(
+    implicit context: Context)(obj: JSAny,
+    methodName: constexpr string): SetRecord {
+  // 1. If obj is not an Object, throw a TypeError exception.
+  const obj = Cast<JSReceiver>(obj)
+      otherwise ThrowTypeError(MessageTemplate::kArgumentIsNonObject, methodName);
+
+  // 2. Let rawSize be ? Get(obj, "size").
+  const rawSize = GetProperty(obj, kSizeString);
+
+  // 3. Let numSize be ? ToNumber(rawSize).
+  const numSize = ToNumber_Inline(rawSize);
+  if (NumberIsNaN(numSize)) {
+    // 4. NOTE: If rawSize is undefined, then numSize will be NaN.
+    // 5. If numSize is NaN, throw a TypeError exception.
+    ThrowTypeError(MessageTemplate::kSizeIsNaN);
+  }
+
+  // 6. Let intSize be ! ToIntegerOrInfinity(numSize).
+  const intSize = ToInteger_Inline(numSize);
+
+  // 7. If intSize < 0, throw a RangeError exception.
+  if (intSize < 0) {
+    ThrowRangeError(MessageTemplate::kInvalidSizeValue, intSize);
+  }
+
+  // 8. Let has be ? Get(obj, "has").
+  let has = GetProperty(obj, kHasString);
+
+  // 9. If IsCallable(has) is false, throw a TypeError exception.
+  has = Cast<Callable>(has)
+      otherwise ThrowCalledNonCallable(kHasString);
+
+  // 10. Let keys be ? Get(obj, "keys").
+  let keys = GetProperty(obj, kKeysString);
+
+  // 11. If IsCallable(keys) is false, throw a TypeError exception.
+  keys = Cast<Callable>(keys)
+      otherwise ThrowCalledNonCallable(kKeysString);
+
+  // 12. Return a new Set Record { [[Set]]: obj, [[Size]]: intSize, [[Has]]:
+  // has, [[Keys]]: keys }.
+  return SetRecord{object: obj, size: intSize, has: has, keys: keys};
+}
+
+// https://tc39.es/proposal-set-methods/#sec-getkeysiterator
+transitioning macro GetKeysIterator(
+    implicit context: Context)(set: JSReceiver,
+    keys: Callable): iterator::IteratorRecord {
+  // 1. Let keysIter be ? Call(setRec.[[Keys]], setRec.[[Set]]).
+  const keysIter = Call(context, keys, set);
+
+  // 2. If keysIter is not an Object, throw a TypeError exception.
+  const keysIterObj = Cast<JSReceiver>(keysIter)
+      otherwise ThrowTypeError(MessageTemplate::kKeysMethodInvalid);
+
+  // 3. Let nextMethod be ? Get(keysIter, "next").
+  const nextMethod = GetProperty(keysIter, kNextString);
+
+  // 4. If IsCallable(nextMethod) is false, throw a TypeError exception.
+  Cast<Callable>(nextMethod)
+      otherwise ThrowCalledNonCallable(kNextString);
+
+  // 5. Return a new Iterator Record { [[Iterator]]: keysIter, [[NextMethod]]:
+  // nextMethod, [[Done]]: false }.
+  return iterator::IteratorRecord{object: keysIterObj, next: nextMethod};
+}
+
+macro CheckSetRecordHasJSSetMethods(setRecord: SetRecord):
+    void labels HasUserProvidedMethods {
+  const keys =
+      Cast<JSFunction>(setRecord.keys) otherwise HasUserProvidedMethods;
+  const has = Cast<JSFunction>(setRecord.has) otherwise HasUserProvidedMethods;
+  if (!(TaggedEqual(
+            keys.shared_function_info.untrusted_function_data,
+            SmiConstant(kSetPrototypeValues)) &&
+        TaggedEqual(
+            has.shared_function_info.untrusted_function_data,
+            SmiConstant(kSetPrototypeHas))))
+    goto HasUserProvidedMethods;
+}
+
+macro CheckSetRecordHasJSMapMethods(setRecord: SetRecord):
+    void labels HasUserProvidedMethods {
+  const keys =
+      Cast<JSFunction>(setRecord.keys) otherwise HasUserProvidedMethods;
+  const has = Cast<JSFunction>(setRecord.has) otherwise HasUserProvidedMethods;
+  if (!(TaggedEqual(
+            keys.shared_function_info.untrusted_function_data,
+            SmiConstant(kMapPrototypeKeys)) &&
+        TaggedEqual(
+            has.shared_function_info.untrusted_function_data,
+            SmiConstant(kMapPrototypeHas))))
+    goto HasUserProvidedMethods;
+}
+
+macro ShrinkOrderedHashSetIfNeeded(
+    implicit context: Context)(numberOfElements: Smi,
+    resultSetData: OrderedHashSet): OrderedHashSet {
+  dcheck(
+      Convert<int32>(numberOfElements) ==
+      LoadOrderedHashTableMetadata(
+          resultSetData, kOrderedHashSetNumberOfElementsIndex));
+  let result = resultSetData;
+
+  // Shrink the result table if # of element is less than # buckets/2
+  const numberOfBuckets =
+      LoadOrderedHashTableMetadata(result, kOrderedHashSetNumberOfBucketsIndex);
+  if (Convert<int32>(numberOfElements) < (numberOfBuckets / 2)) {
+    result = OrderedHashSetShrink(result);
+  }
+  return result;
+}
+
+struct StableJSSetBackingTableWitness {
+  macro GetTable(): StableOrderedHashSet {
+    return this.unstable;
+  }
+
+  macro ReloadTable(): void {
+    this.unstable =
+        Cast<StableOrderedHashSet>(this.collection.table) otherwise unreachable;
+  }
+
+  macro LoadSize(): int32 {
+    return LoadOrderedHashTableMetadata(
+        this.unstable, kOrderedHashSetNumberOfElementsIndex);
+  }
+
+  macro HasKey(implicit context: Context)(key: Object): bool {
+    return TableHasKey(this.unstable, key);
+  }
+
+  const collection: JSSet;
+  unstable: StableOrderedHashSet;
+}
+
+struct StableJSMapBackingTableWitness {
+  macro GetTable(): StableOrderedHashMap {
+    return this.unstable;
+  }
+
+  macro LoadSize(): int32 {
+    return LoadOrderedHashTableMetadata(
+        this.unstable, kOrderedHashMapNumberOfElementsIndex);
+  }
+
+  macro HasKey(implicit context: Context)(key: Object): bool {
+    return TableHasKey(this.unstable, key);
+  }
+
+  const collection: JSMap;
+  unstable: StableOrderedHashMap;
+}
+
+macro NewStableBackingTableWitness(o: JSSet):
+    StableJSSetBackingTableWitness {
+  return StableJSSetBackingTableWitness{
+    collection: o,
+    unstable: Cast<StableOrderedHashSet>(o.table) otherwise unreachable
+  };
+}
+
+macro NewStableBackingTableWitness(o: JSMap):
+    StableJSMapBackingTableWitness {
+  return StableJSMapBackingTableWitness{
+    collection: o,
+    unstable: Cast<StableOrderedHashMap>(o.table) otherwise unreachable
+  };
+}
+
+}  // namespace collections

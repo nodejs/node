@@ -1,0 +1,6 @@
+*%(basename)s:8: TypeError: Private method '#a' is not writable
+    this.#a = 1;
+         ^
+TypeError: Private method '#a' is not writable
+    at new C (*%(basename)s:8:10)
+    at *%(basename)s:11:1

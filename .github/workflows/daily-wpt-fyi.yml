@@ -1,0 +1,162 @@
+# This workflow runs every night and tests various releases of Node.js
+# (latest nightly, current, and two latest LTS release lines) against the
+# `epochs/daily` branch of WPT.
+
+name: Daily WPT report
+
+on:
+  workflow_dispatch:
+  schedule:
+    # This is 20 minutes after `epochs/daily` branch is triggered to be created
+    # in WPT repo.
+    # https://github.com/web-platform-tests/wpt/blob/master/.github/workflows/epochs.yml
+    - cron: 30 0 * * *
+
+env:
+  PYTHON_VERSION: '3.12'
+
+permissions:
+  contents: read
+
+jobs:
+  collect-versions:
+    if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.query.outputs.matrix }}
+    steps:
+      - id: query
+        run: |
+          matrix=$(curl -s https://raw.githubusercontent.com/nodejs/Release/refs/heads/main/schedule.json | jq -c --arg now "$(date +%Y-%m-%d)" '[with_entries(select(.value.end > $now and .value.start < $now)) | keys[] | ltrimstr("v") | tonumber] + ["latest-nightly"]')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+  report:
+    needs:
+      - collect-versions
+    strategy:
+      matrix:
+        node-version: ${{ fromJSON(needs.collect-versions.outputs.matrix) }}
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+
+      # install a version and checkout
+      - name: Get latest nightly
+        if: matrix.node-version == 'latest-nightly'
+        run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-x64"))][0].version')" >> $GITHUB_ENV
+      - name: Install Node.js
+        id: setup-node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: ${{ env.NIGHTLY || matrix.node-version }}
+          check-latest: true
+      - name: Get nightly ref
+        if: contains(matrix.node-version, 'nightly')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHORT_SHA=$(node -p 'process.version.split(/-nightly\d{8}/)[1]')
+          echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA --jq '.sha')" >> $GITHUB_ENV
+      - name: Checkout ${{ steps.setup-node.outputs.node-version }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
+      - name: Set env.NODE
+        run: echo "NODE=$(which node)" >> $GITHUB_ENV
+      - name: Set env.WPT_REVISION
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "WPT_REVISION=$(gh api /repos/web-platform-tests/wpt/branches/epochs/daily --jq '.commit.sha')" >> $GITHUB_ENV
+
+      # replace checked out WPT with the synchronized branch
+      - name: Remove stale WPT
+        run: rm -rf wpt
+        working-directory: test/fixtures
+      - name: Checkout epochs/daily WPT
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          repository: web-platform-tests/wpt
+          persist-credentials: false
+          path: test/fixtures/wpt
+          clean: false
+          ref: ${{ env.WPT_REVISION }}
+
+      # Node.js WPT Runner
+      - name: Run WPT and generate report
+        run: |
+          make test-wpt-report || true
+          if [ -e out/wpt/wptreport.json ]; then
+            echo "WPT_REPORT=$(pwd)/out/wpt/wptreport.json" >> $GITHUB_ENV
+          fi
+
+      # undici WPT Runner
+      - name: Set env.UNDICI_VERSION
+        if: ${{ env.WPT_REPORT != '' }}
+        run: echo "UNDICI_VERSION=v$(jq -r '.version' < deps/undici/src/package.json)" >> $GITHUB_ENV
+      - name: Remove deps/undici
+        if: ${{ env.WPT_REPORT != '' }}
+        run: rm -rf deps/undici
+      - name: Checkout undici
+        if: ${{ env.WPT_REPORT != '' }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          repository: nodejs/undici
+          persist-credentials: false
+          path: deps/undici
+          clean: false
+          ref: ${{ env.UNDICI_VERSION }}
+      - name: Add undici WPTs to the report
+        if: ${{ env.WPT_REPORT != '' }}
+        run: |
+          rm -rf test/wpt/tests
+          mv ../../test/fixtures/wpt/ test/wpt/tests/
+          npm install
+          npm run test:wpt || true
+        working-directory: deps/undici
+
+      # Upload artifacts
+      - name: Clone report for upload
+        if: ${{ env.WPT_REPORT != '' }}
+        working-directory: out/wpt
+        run: cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
+      - name: Upload GitHub Actions artifact
+        if: ${{ env.WPT_REPORT != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          path: out/wpt/wptreport-*.json
+          name: WPT Report for ${{ steps.setup-node.outputs.node-version }}
+          if-no-files-found: error
+      - name: Upload WPT Report to wpt.fyi API
+        if: ${{ env.WPT_REPORT != '' }}
+        env:
+          WPT_FYI_USERNAME: ${{ vars.WPT_FYI_USERNAME }}
+          WPT_FYI_PASSWORD: ${{ secrets.WPT_FYI_PASSWORD }}
+        working-directory: out/wpt
+        run: |
+          gzip wptreport.json
+          echo "## Node.js ${{ steps.setup-node.outputs.node-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "WPT Revision: [\`${WPT_REVISION:0:7}\`](https://github.com/web-platform-tests/wpt/commits/$WPT_REVISION)" >> $GITHUB_STEP_SUMMARY
+          for WPT_FYI_ENDPOINT in "https://wpt.fyi/api/results/upload" "https://staging.wpt.fyi/api/results/upload"
+          do
+            response=$(curl -sS \
+              -u "$WPT_FYI_USERNAME:$WPT_FYI_PASSWORD" \
+              -F "result_file=@wptreport.json.gz" \
+              -F "labels=master" \
+              $WPT_FYI_ENDPOINT)
+
+            if [[ $response =~ Task\ ([0-9]+)\ added\ to\ queue ]]; then
+              run_id=${BASH_REMATCH[1]}
+              origin=${WPT_FYI_ENDPOINT%/api/results/upload}
+
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Run ID [\`$run_id\`]($origin/api/runs/$run_id) added to the processor queue at ${origin:8}" >> $GITHUB_STEP_SUMMARY
+              echo "- [View on the ${origin:8} dashboard]($origin/results?run_id=$run_id)" >> $GITHUB_STEP_SUMMARY
+            fi
+          done

@@ -1,0 +1,920 @@
+# Copyright 2016 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+if (v8_enable_webassembly) {
+  if (!v8_target_is_simulator && v8_current_cpu == "x64") {
+    v8_enable_wasm_simd256_revec = true
+  }
+}
+
+if (is_fuchsia) {
+  import("//build/config/fuchsia/generate_runner_scripts.gni")
+  import("//third_party/fuchsia-sdk/sdk/build/component.gni")
+  import("//third_party/fuchsia-sdk/sdk/build/package.gni")
+
+  fuchsia_component("v8_unittests_component") {
+    testonly = true
+    data_deps = [ ":v8_unittests" ]
+    manifest = "v8_unittests.cml"
+  }
+
+  fuchsia_package("v8_unittests_pkg") {
+    testonly = true
+    package_name = "v8_unittests"
+    deps = [ ":v8_unittests_component" ]
+  }
+
+  fuchsia_test_runner("v8_unittests_fuchsia") {
+    testonly = true
+    package = ":v8_unittests_pkg"
+    package_name = "v8_unittests"
+  }
+}
+
+config("gcc_warnings_not_errors") {
+  if (!is_clang && !is_win) {
+    cflags = [
+      # Turn off warning as errors due to false positives in googletest.
+      "-Wno-error",
+    ]
+  }
+}
+
+v8_executable("v8_heap_base_unittests") {
+  testonly = true
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  sources = [ "heap/base/run-all-unittests.cc" ]
+
+  deps = [
+    ":v8_heap_base_unittests_sources",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+v8_source_set("v8_heap_base_unittests_sources") {
+  testonly = true
+
+  sources = [
+    "heap/base/active-system-pages-unittest.cc",
+    "heap/base/basic-slot-set-unittest.cc",
+    "heap/base/bytes-unittest.cc",
+    "heap/base/incremental-marking-schedule-unittest.cc",
+    "heap/base/worklist-unittest.cc",
+  ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+    ":gcc_warnings_not_errors",
+  ]
+
+  deps = [
+    "../..:v8_heap_base_for_testing",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+# Stand-alone target for C++ GC unittests. This is used to ensure that it
+# builds without V8 as well. They are also included in the regular unittests
+# target for simplicity.
+if (cppgc_is_standalone) {
+  v8_executable("cppgc_unittests") {
+    testonly = true
+    if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
+      if (!is_clang) {
+        libs = [ "atomic" ]
+      }
+    }
+
+    configs = [
+      "../..:external_config",
+      "../..:internal_config_base",
+    ]
+
+    sources = [ "heap/cppgc/run-all-unittests.cc" ]
+
+    deps = [
+      ":cppgc_unittests_sources",
+      ":v8_heap_base_unittests_sources",
+      "../..:cppgc_for_testing",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
+
+v8_source_set("cppgc_unittests_sources") {
+  testonly = true
+
+  sources = [
+    "heap/cppgc/allocation-unittest.cc",
+    "heap/cppgc/caged-heap-unittest.cc",
+    "heap/cppgc/compactor-unittest.cc",
+    "heap/cppgc/concurrent-marking-unittest.cc",
+    "heap/cppgc/concurrent-sweeper-unittest.cc",
+    "heap/cppgc/cross-thread-persistent-unittest.cc",
+    "heap/cppgc/custom-spaces-unittest.cc",
+    "heap/cppgc/ephemeron-pair-unittest.cc",
+    "heap/cppgc/explicit-management-unittest.cc",
+    "heap/cppgc/finalizer-trait-unittest.cc",
+    "heap/cppgc/free-list-unittest.cc",
+    "heap/cppgc/garbage-collected-unittest.cc",
+    "heap/cppgc/gc-info-unittest.cc",
+    "heap/cppgc/gc-invoker-unittest.cc",
+    "heap/cppgc/heap-growing-unittest.cc",
+    "heap/cppgc/heap-object-header-unittest.cc",
+    "heap/cppgc/heap-page-unittest.cc",
+    "heap/cppgc/heap-registry-unittest.cc",
+    "heap/cppgc/heap-statistics-collector-unittest.cc",
+    "heap/cppgc/heap-unittest.cc",
+    "heap/cppgc/liveness-broker-unittest.cc",
+    "heap/cppgc/logging-unittest.cc",
+    "heap/cppgc/marker-unittest.cc",
+    "heap/cppgc/marking-verifier-unittest.cc",
+    "heap/cppgc/marking-visitor-unittest.cc",
+    "heap/cppgc/member-unittest.cc",
+    "heap/cppgc/metric-recorder-unittest.cc",
+    "heap/cppgc/minor-gc-unittest.cc",
+    "heap/cppgc/name-trait-unittest.cc",
+    "heap/cppgc/object-size-trait-unittest.cc",
+    "heap/cppgc/object-start-bitmap-unittest.cc",
+    "heap/cppgc/page-memory-unittest.cc",
+    "heap/cppgc/persistent-family-unittest.cc",
+    "heap/cppgc/platform-unittest.cc",
+    "heap/cppgc/prefinalizer-unittest.cc",
+    "heap/cppgc/sanitizer-unittest.cc",
+    "heap/cppgc/source-location-unittest.cc",
+    "heap/cppgc/stack-unittest.cc",
+    "heap/cppgc/stats-collector-scopes-unittest.cc",
+    "heap/cppgc/stats-collector-unittest.cc",
+    "heap/cppgc/sweeper-unittest.cc",
+    "heap/cppgc/test-platform.cc",
+    "heap/cppgc/test-platform.h",
+    "heap/cppgc/testing-unittest.cc",
+    "heap/cppgc/tests.cc",
+    "heap/cppgc/tests.h",
+    "heap/cppgc/visitor-unittest.cc",
+    "heap/cppgc/weak-container-unittest.cc",
+    "heap/cppgc/workloads-unittest.cc",
+    "heap/cppgc/write-barrier-unittest.cc",
+  ]
+
+  if (cppgc_enable_young_generation) {
+    sources += [ "heap/cppgc/age-table-unittest.cc" ]
+  }
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+    "../..:cppgc_base_config",
+    ":gcc_warnings_not_errors",
+  ]
+
+  deps = [
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if (cppgc_is_standalone) {
+    deps += [ "../..:cppgc_for_testing" ]
+  } else {
+    deps += [
+      "../..:v8_for_testing",
+      "../..:v8_tracing",
+    ]
+  }
+}
+
+v8_executable("v8_unittests") {
+  testonly = true
+
+  if (current_os == "aix") {
+    ldflags = [ "-Wl,-bbigtoc" ]
+  }
+
+  deps = [
+    ":inspector_unittests_sources",
+    ":v8_heap_base_unittests_sources",
+    ":v8_unittests_sources",
+    "../..:v8_for_testing",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "//build/win:default_exe_manifest",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if (!cppgc_is_standalone) {
+    deps += [ ":cppgc_unittests_sources" ]
+  }
+
+  data_deps = [ "../../tools:v8_testrunner" ]
+
+  data = [
+    "interpreter/bytecode_expectations/",
+    "testcfg.py",
+    "unittests.status",
+  ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+    "../..:v8_tracing_config",
+  ]
+}
+
+v8_source_set("v8_unittests_sources") {
+  testonly = true
+
+  sources = [
+    "../../testing/gmock-support.h",
+    "../../testing/gtest-support.h",
+    "../common/assembler-tester.h",
+    "../common/c-signature.h",
+    "../common/call-tester.h",
+    "../common/code-assembler-tester.h",
+    "../common/node-observer-tester.h",
+    "../common/value-helper.cc",
+    "../common/value-helper.h",
+    "api/access-check-unittest.cc",
+    "api/accessor-unittest.cc",
+    "api/api-icu-unittest.cc",
+    "api/context-unittest.cc",
+    "api/deserialize-unittest.cc",
+    "api/dictionary-template-unittest.cc",
+    "api/exception-unittest.cc",
+    "api/gc-callbacks-unittest.cc",
+    "api/interceptor-unittest.cc",
+    "api/isolate-unittest.cc",
+    "api/remote-object-unittest.cc",
+    "api/resource-constraints-unittest.cc",
+    "api/smi-tagging-unittest.cc",
+    "api/v8-array-unittest.cc",
+    "api/v8-maybe-unittest.cc",
+    "api/v8-object-unittest.cc",
+    "api/v8-script-unittest.cc",
+    "api/v8-value-unittest.cc",
+    "base/address-region-unittest.cc",
+    "base/atomic-utils-unittest.cc",
+    "base/atomicops-unittest.cc",
+    "base/bignum-dtoa-unittest.cc",
+    "base/bignum-unittest.cc",
+    "base/bits-unittest.cc",
+    "base/cpu-unittest.cc",
+    "base/division-by-constant-unittest.cc",
+    "base/double-unittest.cc",
+    "base/doubly-threaded-list-unittest.cc",
+    "base/dtoa-unittest.cc",
+    "base/fast-dtoa-unittest.cc",
+    "base/fixed-dtoa-unittest.cc",
+    "base/flags-unittest.cc",
+    "base/hashing-unittest.cc",
+    "base/hashmap-unittest.cc",
+    "base/ieee754-unittest.cc",
+    "base/iterator-unittest.cc",
+    "base/logging-unittest.cc",
+    "base/macros-unittest.cc",
+    "base/ostreams-unittest.cc",
+    "base/platform/condition-variable-unittest.cc",
+    "base/platform/mutex-unittest.cc",
+    "base/platform/platform-unittest.cc",
+    "base/platform/semaphore-unittest.cc",
+    "base/platform/time-unittest.cc",
+    "base/region-allocator-unittest.cc",
+    "base/small-vector-unittest.cc",
+    "base/smallmap-unittest.cc",
+    "base/string-format-unittest.cc",
+    "base/sys-info-unittest.cc",
+    "base/template-utils-unittest.cc",
+    "base/threaded-list-unittest.cc",
+    "base/utils/random-number-generator-unittest.cc",
+    "base/vector-unittest.cc",
+    "base/virtual-address-space-unittest.cc",
+    "base/vlq-base64-unittest.cc",
+    "base/vlq-unittest.cc",
+    "codegen/aligned-slot-allocator-unittest.cc",
+    "codegen/code-layout-unittest.cc",
+    "codegen/code-pages-unittest.cc",
+    "codegen/factory-unittest.cc",
+    "codegen/register-configuration-unittest.cc",
+    "codegen/source-position-table-unittest.cc",
+    "common/thread-isolation-unittest.cc",
+    "compiler-dispatcher/compiler-dispatcher-unittest.cc",
+    "compiler-dispatcher/optimizing-compile-dispatcher-unittest.cc",
+    "date/date-cache-unittest.cc",
+    "date/date-unittest.cc",
+    "debug/debug-property-iterator-unittest.cc",
+    "deoptimizer/deoptimization-unittest.cc",
+    "diagnostics/eh-frame-iterator-unittest.cc",
+    "diagnostics/eh-frame-writer-unittest.cc",
+    "diagnostics/gdb-jit-unittest.cc",
+    "execution/microtask-queue-unittest.cc",
+    "execution/thread-termination-unittest.cc",
+    "execution/threads-unittest.cc",
+    "flags/flag-definitions-unittest.cc",
+    "fuzztest.cc",
+    "fuzztest.h",
+    "gay-fixed.cc",
+    "gay-fixed.h",
+    "gay-precision.cc",
+    "gay-precision.h",
+    "gay-shortest.cc",
+    "gay-shortest.h",
+    "heap/allocation-observer-unittest.cc",
+    "heap/conservative-stack-visitor-unittest.cc",
+    "heap/cppgc-js/embedder-roots-handler-unittest.cc",
+    "heap/cppgc-js/traced-reference-unittest.cc",
+    "heap/cppgc-js/unified-heap-snapshot-unittest.cc",
+    "heap/cppgc-js/unified-heap-unittest.cc",
+    "heap/cppgc-js/unified-heap-utils.cc",
+    "heap/cppgc-js/unified-heap-utils.h",
+    "heap/cppgc-js/young-unified-heap-unittest.cc",
+    "heap/direct-handles-unittest.cc",
+    "heap/gc-tracer-unittest.cc",
+    "heap/global-handles-unittest.cc",
+    "heap/global-safepoint-unittest.cc",
+    "heap/heap-allocator-unittest.cc",
+    "heap/heap-controller-unittest.cc",
+    "heap/heap-unittest.cc",
+    "heap/heap-utils.cc",
+    "heap/heap-utils.h",
+    "heap/index-generator-unittest.cc",
+    "heap/inner-pointer-resolution-unittest.cc",
+    "heap/iterators-unittest.cc",
+    "heap/list-unittest.cc",
+    "heap/local-factory-unittest.cc",
+    "heap/local-handles-unittest.cc",
+    "heap/local-heap-unittest.cc",
+    "heap/marking-bitmap-unittest.cc",
+    "heap/marking-progress-tracker-unittest.cc",
+    "heap/marking-worklist-unittest.cc",
+    "heap/memory-reducer-unittest.cc",
+    "heap/object-stats-unittest.cc",
+    "heap/page-promotion-unittest.cc",
+    "heap/persistent-handles-unittest.cc",
+    "heap/pool-unittest.cc",
+    "heap/safepoint-unittest.cc",
+    "heap/shared-heap-unittest.cc",
+    "heap/slot-set-unittest.cc",
+    "heap/spaces-unittest.cc",
+    "heap/strong-root-allocator-unittest.cc",
+    "interpreter/bytecode-array-builder-unittest.cc",
+    "interpreter/bytecode-array-iterator-unittest.cc",
+    "interpreter/bytecode-array-random-iterator-unittest.cc",
+    "interpreter/bytecode-array-writer-unittest.cc",
+    "interpreter/bytecode-decoder-unittest.cc",
+    "interpreter/bytecode-expectations-printer.cc",
+    "interpreter/bytecode-expectations-printer.h",
+    "interpreter/bytecode-generator-unittest.cc",
+    "interpreter/bytecode-node-unittest.cc",
+    "interpreter/bytecode-operands-unittest.cc",
+    "interpreter/bytecode-register-allocator-unittest.cc",
+    "interpreter/bytecode-register-optimizer-unittest.cc",
+    "interpreter/bytecode-source-info-unittest.cc",
+    "interpreter/bytecode-utils.h",
+    "interpreter/bytecodes-unittest.cc",
+    "interpreter/constant-array-builder-unittest.cc",
+    "interpreter/interpreter-intrinsics-unittest.cc",
+    "interpreter/interpreter-tester.cc",
+    "interpreter/interpreter-tester.h",
+    "interpreter/interpreter-unittest.cc",
+    "interpreter/source-position-matcher.cc",
+    "interpreter/source-position-matcher.h",
+    "interpreter/source-positions-unittest.cc",
+    "js-atomics/js-atomics-synchronization-primitive-unittest.cc",
+    "libplatform/default-job-unittest.cc",
+    "libplatform/default-platform-unittest.cc",
+    "libplatform/default-worker-threads-task-runner-unittest.cc",
+    "libplatform/single-threaded-default-platform-unittest.cc",
+    "libplatform/task-queue-unittest.cc",
+    "libplatform/tracing-unittest.cc",
+    "libplatform/worker-thread-unittest.cc",
+    "libsampler/sampler-unittest.cc",
+    "libsampler/signals-and-mutexes-unittest.cc",
+    "logging/counters-unittest.cc",
+    "logging/log-unittest.cc",
+    "maglev/maglev-assembler-unittest.cc",
+    "maglev/maglev-test.cc",
+    "maglev/maglev-test.h",
+    "maglev/node-type-unittest.cc",
+    "numbers/bigint-unittest.cc",
+    "numbers/conversions-unittest.cc",
+    "numbers/diy-fp-unittest.cc",
+    "numbers/strtod-unittest.cc",
+    "objects/array-list-unittest.cc",
+    "objects/concurrent-descriptor-array-unittest.cc",
+    "objects/concurrent-feedback-vector-unittest.cc",
+    "objects/concurrent-js-array-unittest.cc",
+    "objects/concurrent-prototype-unittest.cc",
+    "objects/concurrent-script-context-table-unittest.cc",
+    "objects/concurrent-string-unittest.cc",
+    "objects/concurrent-transition-array-unittest.cc",
+    "objects/dictionary-unittest.cc",
+    "objects/elements-kind-unittest.cc",
+    "objects/feedback-vector-unittest.cc",
+    "objects/global-object-unittest.cc",
+    "objects/hashcode-unittest.cc",
+    "objects/intl-unittest.cc",
+    "objects/managed-unittest.cc",
+    "objects/modules-unittest.cc",
+    "objects/object-unittest.cc",
+    "objects/representation-unittest.cc",
+    "objects/roots-unittest.cc",
+    "objects/swiss-hash-table-helpers-unittest.cc",
+    "objects/symbols-unittest.cc",
+    "objects/value-serializer-unittest.cc",
+    "objects/weakarraylist-unittest.cc",
+    "objects/weakmaps-unittest.cc",
+    "objects/weaksets-unittest.cc",
+    "parser/ast-value-unittest.cc",
+    "parser/decls-unittest.cc",
+    "parser/parse-decision-unittest.cc",
+    "parser/parsing-unittest.cc",
+    "parser/preparser-unittest.cc",
+    "parser/scanner-streams-unittest.cc",
+    "parser/scanner-unittest.cc",
+    "parser/scope-test-helper.h",
+    "parser/unicode-helpers.cc",
+    "parser/unicode-helpers.h",
+    "profiler/circular-queue-unittest.cc",
+    "profiler/strings-storage-unittest.cc",
+    "regexp/regexp-unittest.cc",
+    "regress/regress-crbug-1041240-unittest.cc",
+    "regress/regress-crbug-1056054-unittest.cc",
+    "regress/regress-crbug-938251-unittest.cc",
+    "run-all-unittests.cc",
+    "runtime/runtime-debug-unittest.cc",
+    "sandbox/pointer-table-unittest.cc",
+    "sandbox/sandbox-unittest.cc",
+    "strings/char-predicates-unittest.cc",
+    "strings/unicode-unittest.cc",
+    "tasks/background-compile-task-unittest.cc",
+    "tasks/cancelable-tasks-unittest.cc",
+    "temporal/temporal-parser-unittest.cc",
+    "test-helpers.cc",
+    "test-helpers.h",
+    "test-utils.cc",
+    "test-utils.h",
+    "torque/earley-parser-unittest.cc",
+    "torque/ls-json-unittest.cc",
+    "torque/ls-message-unittest.cc",
+    "torque/ls-server-data-unittest.cc",
+    "torque/torque-unittest.cc",
+    "torque/torque-utils-unittest.cc",
+    "tracing/traced-value-unittest.cc",
+    "utils/allocation-unittest.cc",
+    "utils/bit-vector-unittest.cc",
+    "utils/detachable-vector-unittest.cc",
+    "utils/identity-map-unittest.cc",
+    "utils/locked-queue-unittest.cc",
+    "utils/sparse-bit-vector-unittest.cc",
+    "utils/utils-unittest.cc",
+    "utils/version-unittest.cc",
+    "zone/zone-allocator-unittest.cc",
+    "zone/zone-chunk-list-unittest.cc",
+    "zone/zone-compact-set-unittest.cc",
+    "zone/zone-unittest.cc",
+    "zone/zone-vector-unittest.cc",
+  ]
+
+  if (v8_enable_turbofan) {
+    sources += [
+      "codegen/code-stub-assembler-unittest.cc",
+      "codegen/code-stub-assembler-unittest.h",
+      "compiler/backend/instruction-selector-unittest.cc",
+      "compiler/backend/instruction-selector-unittest.h",
+      "compiler/backend/instruction-sequence-unittest.cc",
+      "compiler/backend/instruction-sequence-unittest.h",
+      "compiler/backend/instruction-unittest.cc",
+      "compiler/backend/turboshaft-instruction-selector-unittest.cc",
+      "compiler/backend/turboshaft-instruction-selector-unittest.h",
+      "compiler/branch-elimination-unittest.cc",
+      "compiler/bytecode-analysis-unittest.cc",
+      "compiler/checkpoint-elimination-unittest.cc",
+      "compiler/codegen-tester.cc",
+      "compiler/codegen-tester.h",
+      "compiler/codegen-unittest.cc",
+      "compiler/common-operator-reducer-unittest.cc",
+      "compiler/common-operator-unittest.cc",
+      "compiler/compiler-test-utils.h",
+      "compiler/compiler-unittest.cc",
+      "compiler/constant-folding-reducer-unittest.cc",
+      "compiler/control-equivalence-unittest.cc",
+      "compiler/csa-load-elimination-unittest.cc",
+      "compiler/dead-code-elimination-unittest.cc",
+      "compiler/diamond-unittest.cc",
+      "compiler/frame-unittest.cc",
+      "compiler/function-tester.cc",
+      "compiler/function-tester.h",
+      "compiler/graph-reducer-unittest.cc",
+      "compiler/graph-reducer-unittest.h",
+      "compiler/graph-trimmer-unittest.cc",
+      "compiler/graph-unittest.cc",
+      "compiler/graph-unittest.h",
+      "compiler/js-call-reducer-unittest.cc",
+      "compiler/js-create-lowering-unittest.cc",
+      "compiler/js-intrinsic-lowering-unittest.cc",
+      "compiler/js-native-context-specialization-unittest.cc",
+      "compiler/js-operator-unittest.cc",
+      "compiler/js-typed-lowering-unittest.cc",
+      "compiler/linkage-tail-call-unittest.cc",
+      "compiler/load-elimination-unittest.cc",
+      "compiler/loop-peeling-unittest.cc",
+      "compiler/machine-operator-reducer-unittest.cc",
+      "compiler/machine-operator-unittest.cc",
+      "compiler/node-cache-unittest.cc",
+      "compiler/node-matchers-unittest.cc",
+      "compiler/node-properties-unittest.cc",
+      "compiler/node-test-utils.cc",
+      "compiler/node-test-utils.h",
+      "compiler/node-unittest.cc",
+      "compiler/opcodes-unittest.cc",
+      "compiler/persistent-unittest.cc",
+      "compiler/redundancy-elimination-unittest.cc",
+      "compiler/regalloc/live-range-unittest.cc",
+      "compiler/regalloc/move-optimizer-unittest.cc",
+      "compiler/regalloc/register-allocator-unittest.cc",
+      "compiler/run-bytecode-graph-builder-unittest.cc",
+      "compiler/run-deopt-unittest.cc",
+      "compiler/run-jsbranches-unittest.cc",
+      "compiler/run-jscalls-unittest.cc",
+      "compiler/run-jsexceptions-unittest.cc",
+      "compiler/run-jsobjects-unittest.cc",
+      "compiler/run-jsops-unittest.cc",
+      "compiler/run-tail-calls-unittest.cc",
+      "compiler/schedule-unittest.cc",
+      "compiler/scheduler-rpo-unittest.cc",
+      "compiler/scheduler-unittest.cc",
+      "compiler/simplified-lowering-unittest.cc",
+      "compiler/simplified-operator-reducer-unittest.cc",
+      "compiler/simplified-operator-unittest.cc",
+      "compiler/sloppy-equality-unittest.cc",
+      "compiler/state-values-utils-unittest.cc",
+      "compiler/turboshaft/control-flow-unittest.cc",
+      "compiler/turboshaft/late-load-elimination-reducer-unittest.cc",
+      "compiler/turboshaft/loop-unrolling-analyzer-unittest.cc",
+      "compiler/turboshaft/opmask-unittest.cc",
+      "compiler/turboshaft/reducer-test.h",
+      "compiler/turboshaft/snapshot-table-unittest.cc",
+      "compiler/turboshaft/store-store-elimination-reducer-unittest.cc",
+      "compiler/turboshaft/turboshaft-typer-unittest.cc",
+      "compiler/turboshaft/turboshaft-types-unittest.cc",
+      "compiler/typed-optimization-unittest.cc",
+      "compiler/typer-unittest.cc",
+      "compiler/types-unittest.cc",
+      "compiler/value-numbering-reducer-unittest.cc",
+      "compiler/zone-stats-unittest.cc",
+      "interpreter/interpreter-assembler-unittest.cc",
+      "interpreter/interpreter-assembler-unittest.h",
+    ]
+  }
+
+  if (v8_enable_runtime_call_stats) {
+    sources += [ "logging/runtime-call-stats-unittest.cc" ]
+  }
+
+  if (v8_enable_webassembly) {
+    sources += [
+      "../../test/common/wasm/wasm-macro-gen.h",
+      "api/api-wasm-unittest.cc",
+      "asmjs/asm-scanner-unittest.cc",
+      "asmjs/asm-types-unittest.cc",
+      "compiler/int64-lowering-unittest.cc",
+      "compiler/turboshaft/wasm-simd-unittest.cc",
+      "compiler/wasm-address-reassociation-unittest.cc",
+      "objects/wasm-backing-store-unittest.cc",
+      "wasm/decoder-unittest.cc",
+      "wasm/function-body-decoder-unittest.cc",
+      "wasm/leb-helper-unittest.cc",
+      "wasm/liftoff-register-unittests.cc",
+      "wasm/loop-assignment-analysis-unittest.cc",
+      "wasm/memory-protection-unittest.cc",
+      "wasm/module-decoder-memory64-unittest.cc",
+      "wasm/module-decoder-table64-unittest.cc",
+      "wasm/module-decoder-unittest.cc",
+      "wasm/signature-hashing-unittest.cc",
+      "wasm/simd-shuffle-unittest.cc",
+      "wasm/streaming-decoder-unittest.cc",
+      "wasm/string-builder-unittest.cc",
+      "wasm/struct-types-unittest.cc",
+      "wasm/subtyping-unittest.cc",
+      "wasm/wasm-code-manager-unittest.cc",
+      "wasm/wasm-code-pointer-table-unittest.cc",
+      "wasm/wasm-compile-module.h",
+      "wasm/wasm-compiler-unittest.cc",
+      "wasm/wasm-disassembler-unittest-bad-name-section.wasm.inc",
+      "wasm/wasm-disassembler-unittest-gc.wasm.inc",
+      "wasm/wasm-disassembler-unittest-gc.wat.inc",
+      "wasm/wasm-disassembler-unittest-mvp.wasm.inc",
+      "wasm/wasm-disassembler-unittest-mvp.wat.inc",
+      "wasm/wasm-disassembler-unittest-names.wasm.inc",
+      "wasm/wasm-disassembler-unittest-names.wat.inc",
+      "wasm/wasm-disassembler-unittest-simd.wasm.inc",
+      "wasm/wasm-disassembler-unittest-simd.wat.inc",
+      "wasm/wasm-disassembler-unittest-too-many-ends.wasm.inc",
+      "wasm/wasm-disassembler-unittest-too-many-ends.wat.inc",
+      "wasm/wasm-disassembler-unittest.cc",
+      "wasm/wasm-macro-gen-unittest.cc",
+      "wasm/wasm-module-builder-unittest.cc",
+      "wasm/wasm-module-sourcemap-unittest.cc",
+      "wasm/wasm-usecounters.cc",
+    ]
+
+    if (v8_current_cpu == "arm64") {
+      sources += [ "compiler/turboshaft/wasm-shuffle-reducer-unittest.cc" ]
+    }
+  }
+
+  if (v8_enable_wasm_simd256_revec) {
+    sources += [
+      "compiler/linear-scheduler-unittest.cc",
+      "compiler/revec-unittest.cc",
+    ]
+  }
+
+  if (v8_enable_wasm_gdb_remote_debugging) {
+    sources += [ "wasm/wasm-gdbserver-unittest.cc" ]
+  }
+
+  if (v8_enable_i18n_support) {
+    defines = [ "V8_INTL_SUPPORT" ]
+    public_deps = [ v8_icu_path ]
+  } else {
+    sources -= [ "objects/intl-unittest.cc" ]
+  }
+
+  if (v8_current_cpu == "arm") {
+    sources += [
+      "assembler/disasm-arm-unittest.cc",
+      "assembler/macro-assembler-arm-unittest.cc",
+    ]
+    if (v8_enable_turbofan) {
+      sources += [
+        "compiler/arm/instruction-selector-arm-unittest.cc",
+        "compiler/arm/turboshaft-instruction-selector-arm-unittest.cc",
+      ]
+    }
+  } else if (v8_current_cpu == "arm64") {
+    sources += [
+      "assembler/disasm-arm64-unittest.cc",
+      "assembler/macro-assembler-arm64-unittest.cc",
+      "execution/pointer-auth-arm64-unittest.cc",
+    ]
+    if (v8_enable_turbofan) {
+      sources +=
+          [ "compiler/arm64/turboshaft-instruction-selector-arm64-unittest.cc" ]
+    }
+    if (v8_enable_webassembly && current_cpu == "arm64" &&
+        !v8_target_is_simulator) {
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
+    }
+  } else if (v8_current_cpu == "x86") {
+    sources += [
+      "assembler/disasm-ia32-unittest.cc",
+      "assembler/macro-assembler-ia32-unittest.cc",
+    ]
+    if (v8_enable_turbofan) {
+      sources +=
+          [ "compiler/ia32/turboshaft-instruction-selector-ia32-unittest.cc" ]
+    }
+  } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
+    sources += [
+      "assembler/disasm-mips64-unittest.cc",
+      "assembler/macro-assembler-mips64-unittest.cc",
+    ]
+  } else if (v8_current_cpu == "riscv64") {
+    sources += [
+      "assembler/disasm-riscv-unittest.cc",
+      "assembler/macro-assembler-riscv-unittest.cc",
+    ]
+    if (v8_enable_turbofan) {
+      sources += [
+        "compiler/riscv64/turboshaft-instruction-selector-riscv64-unittest.cc",
+      ]
+    }
+    if (v8_enable_webassembly && current_cpu == "riscv64") {
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
+    }
+  } else if (v8_current_cpu == "riscv32") {
+    sources += [
+      "assembler/disasm-riscv-unittest.cc",
+      "assembler/macro-assembler-riscv-unittest.cc",
+    ]
+    if (v8_enable_turbofan) {
+      sources += [
+        "compiler/riscv32/turboshaft-instruction-selector-riscv32-unittest.cc",
+      ]
+    }
+  } else if (v8_current_cpu == "x64") {
+    sources += [
+      "assembler/assembler-x64-unittest.cc",
+      "assembler/disasm-x64-unittest.cc",
+      "assembler/macro-assembler-x64-unittest.cc",
+    ]
+    if (v8_enable_turbofan) {
+      sources +=
+          [ "compiler/x64/turboshaft-instruction-selector-x64-unittest.cc" ]
+    }
+    if (v8_enable_webassembly) {
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
+    }
+  } else if (v8_current_cpu == "ppc64") {
+    sources += [
+      "assembler/disasm-ppc-unittest.cc",
+      "assembler/macro-assembler-ppc-unittest.cc",
+    ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/ppc/instruction-selector-ppc-unittest.cc" ]
+    }
+  } else if (v8_current_cpu == "s390x") {
+    sources += [
+      "assembler/disasm-s390-unittest.cc",
+      "assembler/macro-assembler-s390-unittest.cc",
+    ]
+    if (v8_enable_turbofan) {
+      sources += [ "compiler/s390/instruction-selector-s390-unittest.cc" ]
+    }
+  } else if (v8_current_cpu == "loong64") {
+    sources += [
+      "assembler/disasm-loong64-unittest.cc",
+      "assembler/macro-assembler-loong64-unittest.cc",
+    ]
+    if (v8_enable_webassembly && current_cpu == "loong64") {
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
+    }
+  }
+
+  if (v8_enable_webassembly) {
+    if (is_posix) {
+      sources += [ "wasm/trap-handler-posix-unittest.cc" ]
+    }
+
+    if (is_win) {
+      sources += [ "wasm/trap-handler-win-unittest.cc" ]
+    }
+
+    # Include this test on simulator builds on x64 on Linux, Mac and
+    # Windows, and on simulator builds on arm64 on Linux and Mac.
+    if ((current_cpu == "x64" &&
+         (v8_current_cpu == "arm64" || v8_current_cpu == "loong64" ||
+          v8_current_cpu == "riscv64") && (is_linux || is_mac || is_win)) ||
+        (current_cpu == "arm64" && (is_linux || is_mac) &&
+         v8_target_is_simulator)) {
+      sources += [ "wasm/trap-handler-simulator-unittest.cc" ]
+    }
+  }
+
+  configs = [
+    "../..:cppgc_base_config",
+    "../..:external_config",
+    "../..:internal_config_base",
+    ":gcc_warnings_not_errors",
+  ]
+
+  deps = [
+    "..:common_test_headers",
+    "../..:v8_for_testing",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "../..:v8_shared_internal_headers",
+    "../..:v8_version",
+    "../../third_party/inspector_protocol:crdtp_test",
+    "//build/win:default_exe_manifest",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if (v8_enable_fuzztest) {
+    # TODO(https://crbug.com/1500944): Drop this once FuzzTest fixed these
+    # warnings.
+    remove_configs = [ v8_path_prefix + ":strict_warnings" ]
+
+    sources += [
+      "fuzztest-adapter.h",
+      "fuzztest-init-adapter.h",
+      "regexp/regexp-fuzzer.cc",
+      "regexp/regexp-grammar.h",
+    ]
+
+    deps += [
+      "//third_party/abseil-cpp:absl_full",
+      "//third_party/fuzztest:fuzztest",
+      "//third_party/fuzztest:init_fuzztest",
+    ]
+
+    if (v8_enable_webassembly) {
+      sources += [ "wasm/type-canonicalization-fuzztest.cc" ]
+    }
+
+    if (!is_win) {
+      # TODO(https://crbug.com/40941204): Using jsoncpp doesn't work on
+      # Windows.
+      sources += [ "json/json-unittest.cc" ]
+      deps += [ "//third_party/jsoncpp:jsoncpp" ]
+    }
+  }
+
+  if (v8_enable_webassembly) {
+    deps += [ "../..:wasm_test_common" ]
+  }
+
+  if (v8_use_perfetto) {
+    deps += [
+      # TODO(skyostil): Migrate to protozero.
+      "//third_party/perfetto/protos/perfetto/trace:lite",
+    ]
+  }
+
+  if (is_win) {
+    # This warning is benignly triggered by the U16 and U32 macros in
+    # bytecode-utils.h.
+    # C4309: 'static_cast': truncation of constant value
+    cflags = [ "/wd4309" ]
+
+    sources += [ "avoid-windows-h-includes.cc" ]
+  }
+
+  if (is_win) {
+    if (v8_enable_etw_stack_walking) {
+      sources += [
+        "diagnostics/etw-control-unittest.cc",
+        "diagnostics/etw-isolate-capture-state-monitor-win-unittest.cc",
+      ]
+    }
+  }
+}
+
+v8_source_set("inspector_unittests_sources") {
+  testonly = true
+
+  sources = [ "inspector/inspector-unittest.cc" ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+    ":gcc_warnings_not_errors",
+  ]
+
+  deps = [
+    "../..:v8_for_testing",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}
+
+v8_executable("generate-bytecode-expectations") {
+  testonly = true
+
+  sources = [
+    "interpreter/bytecode-expectations-printer.cc",
+    "interpreter/bytecode-expectations-printer.h",
+    "interpreter/generate-bytecode-expectations.cc",
+  ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  deps = [
+    "../..:v8",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "//build/win:default_exe_manifest",
+  ]
+
+  data = [ "interpreter/bytecode_expectations/" ]
+}
+
+if (v8_enable_fuzztest && use_centipede) {
+  # Create all fuzzer wrappers in the fuzztests/ subdirectory. Note that
+  # the contents of the directory are calculated dynamically. Therefore
+  # this action purges the directory when run and we can't depent on
+  # any specific files in this directory in any dependent ninja targets.
+  action("v8_gen_fuzztest_configs") {
+    testonly = true
+    script = "gen_fuzztest_configs.py"
+    outputs = [ "$root_out_dir/fuzztests/fuzztests.stamp" ]
+
+    deps = [
+      ":v8_unittests",
+      "//third_party/fuzztest:centipede",
+    ]
+  }
+
+  # Placeholder target used on the bots.
+  group("v8_fuzztests") {
+    testonly = true
+    deps = [ ":v8_gen_fuzztest_configs" ]
+  }
+}

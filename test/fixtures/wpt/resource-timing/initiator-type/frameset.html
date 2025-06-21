@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing initiator type: frameset</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-initiatortype"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resource-timing/resources/observe-entry.js"></script>
+<script src="resources/initiator-type-test.js"></script>
+<script>
+  initiator_type_test("green.html", "frame", "<frame> in a <frameset>");
+</script>
+</head>
+<!-- Although framesets were deprecated in HTML5, we still want to make sure
+  Resource Timing is emitting entries for the underlying resources' requests.
+-->
+<frameset>
+  <frame src="/resource-timing/resources/green.html">
+</frameset>
+</html>

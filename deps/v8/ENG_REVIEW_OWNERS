@@ -1,0 +1,12 @@
+# Eng reviewers. This is to define an escalation path for potential
+# disagreement among owners. Please consult before adding top-level
+# directories.
+
+adamk@chromium.org
+gdeepti@chromium.org
+hpayer@chromium.org #{LAST_RESORT_SUGGESTION}
+leszeks@chromium.org
+mlippautz@chromium.org
+syg@chromium.org
+verwaest@chromium.org
+vahl@chromium.org

@@ -1,0 +1,2735 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2016 the V8 project authors. All rights reserved.  Use of this source
+code is governed by a BSD-style license that can be found in the LICENSE file.
+-->
+<head>
+<!-- This will be overwritten by the v8.dev/tools exporter -->
+<!-- ANALYTICS_PLACEHOLDER -->
+  <meta charset="utf-8">
+  <title>V8 Runtime Call Stats Komparator</title>
+  <link rel="stylesheet" type="text/css" href="system-analyzer/index.css">
+  <style>
+    body {
+      font-family: arial;
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .loaded .panel {
+      display: block;
+    }
+
+    .panel.alwaysVisible {
+      display: inherit !important;
+    }
+
+    .error #inputs {
+      background-color: var(--error-color);
+    }
+
+    table {
+      display: table;
+      border-spacing: 0px;
+    }
+
+    tr {
+      border-spacing: 0px;
+      padding: 10px;
+    }
+
+    td,
+    th {
+      padding: 3px 10px 3px 5px;
+    }
+
+    .inline {
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 10px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .view {
+      display: table;
+    }
+
+    .panel-group {
+      display: grid;
+      align-content: center;
+      grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+      grid-auto-flow: row dense;
+      grid-gap: 10px;
+      margin-top: 10px;
+    }
+
+    .column {
+      display: table-cell;
+      border-right: 1px black dotted;
+      min-width: 200px;
+    }
+
+    .column .header {
+      padding: 0 10px 0 10px
+    }
+
+    #column {
+      display: none;
+    }
+
+    .list {
+      width: 100%;
+    }
+
+    select {
+      width: 100%
+    }
+
+    .list tbody {
+      cursor: pointer;
+    }
+
+    .list tr:nth-child(even) {
+      background-color: rgba(0.5, 0.5, 0.5, 0.1);
+    }
+
+    .list tr.child {
+      display: none;
+    }
+
+    .list tr.child.visible {
+      display: table-row;
+    }
+
+    .list .child .name {
+      padding-left: 20px;
+    }
+
+    .list .parent td {
+      border-top: 1px solid #AAA;
+    }
+
+    .list .total {
+      font-weight: bold
+    }
+
+    .list tr.parent.selected,
+    .list tr:nth-child(even).selected,
+    tr.selected {
+      background-color: rgba(0.5, 0.5, 0.5, 0.1);
+    }
+
+    .codeSearch {
+      display: block-inline;
+      float: right;
+      border-radius: 5px;
+      background-color: #333;
+      width: 1em;
+      text-align: center;
+    }
+
+    .list .position {
+      text-align: right;
+      display: none;
+    }
+
+    .list div.toggle {
+      cursor: pointer;
+    }
+
+    #column_0 .position {
+      display: table-cell;
+    }
+
+    #column_0 .name {
+      display: table-cell;
+    }
+
+    .list .name {
+      display: none;
+      white-space: nowrap;
+    }
+
+    .value {
+      text-align: right;
+    }
+
+    .selectedVersion {
+      font-weight: bold;
+    }
+
+    #baseline {
+      width: auto;
+    }
+
+    .pageDetailTable tbody {
+      cursor: pointer
+    }
+
+    .pageDetailTable tfoot td {
+      border-top: 1px grey solid;
+    }
+
+    #popover {
+      position: absolute;
+      transform: translateY(-50%) translateX(40px);
+      box-shadow: -2px 10px 44px -10px #000;
+      border-radius: 5px;
+      z-index: 1;
+      background-color: var(--surface-color);
+      display: none;
+      white-space: nowrap;
+    }
+
+    #popover table {
+      position: relative;
+      z-index: 1;
+      text-align: right;
+      margin: 10px;
+    }
+
+    #popover td {
+      padding: 3px 0px 3px 5px;
+      white-space: nowrap;
+    }
+
+    .popoverArrow {
+      background-color: var(--surface-color);
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      transform: translateY(-50%)rotate(45deg);
+      top: 50%;
+      left: -10px;
+      z-index: 0;
+    }
+
+    #popover .name {
+      padding: 5px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    #popover table .compare {
+      display: none
+    }
+
+    #popover table.compare .compare {
+      display: table-cell;
+    }
+
+    #popover .compare .time,
+    #popover .compare .version {
+      padding-left: 10px;
+    }
+
+    .diff .hideDiff {
+      display: none;
+    }
+
+    .noDiff .hideNoDiff {
+      display: none;
+    }
+  </style>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <script>
+    "use strict"
+    google.charts.load('current', {
+      packages: ['corechart']
+    });
+
+    // Did anybody say monkeypatching?
+    if (!NodeList.prototype.forEach) {
+      NodeList.prototype.forEach = function (func) {
+        for (let i = 0; i < this.length; i++) {
+          func(this[i]);
+        }
+      }
+    }
+
+    let versions;
+    let pages;
+    let selectedPage;
+    let baselineVersion;
+    let selectedEntry;
+    let sortByLabel = false;
+
+    // Marker to programatically replace the defaultData.
+    let defaultData = /*default-data-start*/ undefined /*default-data-end*/;
+
+    function initialize() {
+      // Initialize the stats table and toggle lists.
+      let original = $("column");
+      let viewBody = $("view").querySelector('.panelBody');
+      removeAllChildren(viewBody);
+      let i = 0;
+      versions.forEach((version) => {
+        if (!version.enabled) return;
+        // add column
+        let column = original.cloneNode(true);
+        column.id = "column_" + i;
+        // Fill in all versions
+        let select = column.querySelector(".version");
+        select.id = "selectVersion_" + i;
+        // add all select options
+        versions.forEach((version) => {
+          if (!version.enabled) return;
+          let option = document.createElement("option");
+          option.textContent = version.name;
+          option.version = version;
+          select.appendChild(option);
+        });
+        // Fill in all page versions
+        select = column.querySelector(".pageVersion");
+        select.id = "select_" + i;
+        // add all pages
+        versions.forEach((version) => {
+          if (!version.enabled) return;
+          let optgroup = document.createElement("optgroup");
+          optgroup.label = version.name;
+          optgroup.version = version;
+          version.forEachPage((page) => {
+            let option = document.createElement("option");
+            option.textContent = page.name;
+            option.page = page;
+            optgroup.appendChild(option);
+          });
+          select.appendChild(optgroup);
+        });
+        viewBody.appendChild(column);
+        i++;
+      });
+
+      let select = $('baseline');
+      removeAllChildren(select);
+      select.appendChild(document.createElement('option'));
+      versions.forEach((version) => {
+        let option = document.createElement("option");
+        option.textContent = version.name;
+        option.version = version;
+        select.appendChild(option);
+      });
+      initializeToggleList(versions.versions, $('versionSelector'));
+      initializeToggleList(pages.values(), $('pageSelector'));
+      initializeToggleList(Group.groups.values(), $('groupSelector'));
+    }
+
+    function initializeToggleList(items, node) {
+      let list = node.querySelector('ul');
+      removeAllChildren(list);
+      items = Array.from(items);
+      items.sort(NameComparator);
+      items.forEach((item) => {
+        let li = document.createElement('li');
+        let checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = item.enabled;
+        checkbox.item = item;
+        checkbox.addEventListener('click', handleToggleVersionOrPageEnable);
+        li.appendChild(checkbox);
+        li.appendChild(document.createTextNode(item.name));
+        list.appendChild(li);
+      });
+    }
+
+    window.addEventListener('popstate', (event) => {
+      popHistoryState(event.state);
+    });
+
+    function popHistoryState(state) {
+      if (!state.version) return false;
+      if (!versions) return false;
+      let version = versions.getByName(state.version);
+      if (!version) return false;
+      let page = version.get(state.page);
+      if (!page) return false;
+      if (!state.entry) {
+        showEntry(page.total);
+      } else {
+        let entry = page.get(state.entry);
+        if (!entry) {
+          showEntry(page.total);
+        } else {
+          showEntry(entry);
+        }
+      }
+      return true;
+    }
+
+    function pushHistoryState() {
+      let selection = selectedEntry ? selectedEntry : selectedPage;
+      if (!selection) return;
+      let state = selection.urlParams();
+      // Don't push a history state if it didn't change.
+      if (JSON.stringify(window.history.state) === JSON.stringify(state)) return;
+      let params = "?";
+      for (let pairs of Object.entries(state)) {
+        params += encodeURIComponent(pairs[0]) + "=" +
+          encodeURIComponent(pairs[1]) + "&";
+      }
+      window.history.pushState(state, selection.toString(), params);
+    }
+
+    function showSelectedEntryInPage(page) {
+      if (!selectedEntry) return showPage(page);
+      let entry = page.get(selectedEntry.name);
+      if (!entry) return showPage(page);
+      selectEntry(entry);
+    }
+
+    function showPage(firstPage) {
+      let changeSelectedEntry = selectedEntry !== undefined &&
+        selectedEntry.page === selectedPage;
+      selectedPage = firstPage;
+      selectedPage.sort();
+      showPageInColumn(firstPage, 0);
+      // Show the other versions of this page in the following columns.
+      let pageVersions = versions.getPageVersions(firstPage);
+      let index = 1;
+      pageVersions.forEach((page) => {
+        if (page !== firstPage) {
+          showPageInColumn(page, index);
+          index++;
+        }
+      });
+      if (changeSelectedEntry) {
+        showEntryDetail(selectedPage.getEntry(selectedEntry));
+      }
+      showImpactList(selectedPage);
+      pushHistoryState();
+    }
+
+    function clamp(value, min, max) {
+      if (value < min) return min;
+      if (value > max) return max;
+      return value;
+    }
+
+    function diffColorFromRatio(ratio) {
+      if (ratio == Infinity) {
+        return '#ff0000';
+      }
+      if (ratio == -Infinity) {
+        return '#00ff00';
+      }
+      if (ratio > 1) {
+        // ratio > 1: #FFFFFF => #00FF00
+        const red = clamp(((ratio - 1) * 255 * 10) | 0, 0, 255);
+        const other = (255 - red).toString(16).padStart(2, '0');
+        return `#ff${other}${other}`;
+      }
+      // ratio < 1: #FF0000 => #FFFFFF
+      const green = clamp(((1 - ratio) * 255 * 10) | 0, 0, 255);
+      const other = (255 - green).toString(16).padStart(2, '0');
+      return `#${other}ff${other}`;
+    }
+
+    function showPageInColumn(page, columnIndex) {
+      page.sort();
+      let showDiff = columnIndex !== 0;
+      if (baselineVersion) showDiff = page.version !== baselineVersion;
+      let diffColor = (td, a, b) => { };
+      if (showDiff) {
+        if (baselineVersion) {
+          diffColor = (td, diff, baseline) => {
+            if (diff == 0) return;
+            const ratio = (baseline + diff) / baseline;
+            td.style.color = diffColorFromRatio(ratio);
+          };
+        } else {
+          diffColor = (td, value, reference) => {
+            if (value == reference) return;
+            const ratio = value / reference;
+            td.style.color = diffColorFromRatio(ratio);
+          }
+        }
+      }
+
+      let column = $('column_' + columnIndex);
+      let select = $('select_' + columnIndex);
+      // Find the matching option
+      selectOption(select, (i, option) => {
+        return option.page == page
+      });
+      let table = column.querySelector("table");
+      let oldTbody = table.querySelector('tbody');
+      let tbody = document.createElement('tbody');
+      let referencePage = selectedPage;
+      page.forEachSorted(selectedPage, (parentEntry, entry, referenceEntry) => {
+        let tr = document.createElement('tr');
+        tbody.appendChild(tr);
+        tr.entry = entry;
+        tr.parentEntry = parentEntry;
+        tr.className = parentEntry === undefined ? 'parent' : 'child';
+        // Don't show entries that do not exist on the current page or if we
+        // compare against the current page
+        if (entry !== undefined && page.version !== baselineVersion) {
+          // If we show a diff, use the baselineVersion as the referenceEntry
+          if (baselineVersion !== undefined) {
+            let baselineEntry = baselineVersion.getEntry(entry);
+            if (baselineEntry !== undefined) referenceEntry = baselineEntry
+          }
+          if (!parentEntry) {
+            let node = td(tr, '<div class="toggle">►</div>', 'position');
+            node.firstChild.addEventListener('click', handleToggleGroup);
+          } else {
+            td(tr, entry.position == 0 ? '' : entry.position, 'position');
+          }
+          addCodeSearchButton(entry,
+            td(tr, entry.name, 'name ' + entry.cssClass()));
+
+          diffColor(
+            td(tr, ms(entry.time), 'value time'),
+            entry.time, referenceEntry.time);
+          diffColor(
+            td(tr, percent(entry.timePercent), 'value time'),
+            entry.time, referenceEntry.time);
+          diffColor(
+            td(tr, count(entry.count), 'value count'),
+            entry.count, referenceEntry.count);
+        } else if (baselineVersion !== undefined && referenceEntry &&
+          page.version !== baselineVersion) {
+          // Show comparison of entry that does not exist on the current page.
+          tr.entry = new Entry(0, referenceEntry.name);
+          tr.entry.page = page;
+          td(tr, '-', 'position');
+          td(tr, referenceEntry.name, 'name');
+          diffColor(
+            td(tr, ms(referenceEntry.time), 'value time'),
+            referenceEntry.time, 0);
+          diffColor(
+            td(tr, percent(referenceEntry.timePercent), 'value time'),
+            referenceEntry.timePercent, 0);
+          diffColor(
+            td(tr, count(referenceEntry.count), 'value count'),
+            referenceEntry.count, 0);
+        } else {
+          // Display empty entry / baseline entry
+          let showBaselineEntry = entry !== undefined;
+          if (showBaselineEntry) {
+            if (!parentEntry) {
+              let node = td(tr, '<div class="toggle">►</div>', 'position');
+              node.firstChild.addEventListener('click', handleToggleGroup);
+            } else {
+              td(tr, entry.position == 0 ? '' : entry.position, 'position');
+            }
+            td(tr, entry.name, 'name');
+            td(tr, ms(entry.time, false), 'value time');
+            td(tr, percent(entry.timePercent, false), 'value time');
+            td(tr, count(entry.count, false), 'value count');
+          } else {
+            td(tr, '-', 'position');
+            td(tr, referenceEntry.name, 'name');
+            td(tr, '-', 'value time');
+            td(tr, '-', 'value time');
+            td(tr, '-', 'value count');
+          }
+        }
+      });
+      table.replaceChild(tbody, oldTbody);
+      let versionSelect = column.querySelector('select.version');
+      selectOption(versionSelect, (index, option) => {
+        return option.version == page.version
+      });
+    }
+
+    function showEntry(entry) {
+      selectEntry(entry, true);
+    }
+
+    function selectEntry(entry, updateSelectedPage) {
+      let needsPageSwitch = true;
+      if (updateSelectedPage && selectedPage) {
+        entry = selectedPage.version.getEntry(entry);
+        needsPageSwitch = updateSelectedPage && entry.page != selectedPage;
+      }
+      let rowIndex = 0;
+      // If clicked in the detail row change the first column to that page.
+      if (needsPageSwitch) showPage(entry.page);
+      let childNodes = $('column_0').querySelector('.list tbody').childNodes;
+      for (let i = 0; i < childNodes.length; i++) {
+        if (childNodes[i].entry !== undefined &&
+          childNodes[i].entry.name == entry.name) {
+          rowIndex = i;
+          break;
+        }
+      }
+      let firstEntry = childNodes[rowIndex].entry;
+      if (rowIndex) {
+        if (firstEntry.parent) showGroup(firstEntry.parent);
+      }
+      // Deselect all
+      $('view').querySelectorAll('.list tbody tr').forEach((tr) => {
+        toggleCssClass(tr, 'selected', false);
+      });
+      // Select the entry row
+      $('view').querySelectorAll("tbody").forEach((body) => {
+        let row = body.childNodes[rowIndex];
+        if (!row) return;
+        toggleCssClass(row, 'selected', row.entry && row.entry.name ==
+          firstEntry.name);
+      });
+      if (updateSelectedPage && selectedEntry) {
+        entry = selectedEntry.page.version.getEntry(entry);
+      }
+      if (entry !== selectedEntry) {
+        selectedEntry = entry;
+        showEntryDetail(entry);
+      }
+    }
+
+    function showEntryDetail(entry) {
+      showVersionDetails(entry);
+      showPageDetails(entry);
+      showImpactList(entry.page);
+      showGraphs(entry.page);
+      pushHistoryState();
+    }
+
+    function showVersionDetails(entry) {
+      let table, tbody, entries;
+      table = $('versionDetails').querySelector('.versionDetailTable');
+      tbody = document.createElement('tbody');
+      if (entry !== undefined) {
+        $('versionDetails').querySelector('h2 span').textContent =
+          entry.name + ' in ' + entry.page.name;
+        entries = versions.getPageVersions(entry.page).map(
+          (page) => {
+            return page.get(entry.name)
+          });
+        entries.sort((a, b) => {
+          return a.time - b.time
+        });
+        entries.forEach((pageEntry) => {
+          if (pageEntry === undefined) return;
+          let tr = document.createElement('tr');
+          if (pageEntry == entry) tr.className += 'selected';
+          tr.entry = pageEntry;
+          let isBaselineEntry = pageEntry.page.version == baselineVersion;
+          td(tr, pageEntry.page.version.name, 'version');
+          td(tr, ms(pageEntry.time, !isBaselineEntry), 'value time');
+          td(tr, percent(pageEntry.timePercent, !isBaselineEntry), 'value time');
+          td(tr, count(pageEntry.count, !isBaselineEntry), 'value count');
+          tbody.appendChild(tr);
+        });
+      }
+      table.replaceChild(tbody, table.querySelector('tbody'));
+    }
+
+    function showPageDetails(entry) {
+      let table, tbody, entries;
+      table = $('pageDetail').querySelector('.pageDetailTable');
+      tbody = document.createElement('tbody');
+      if (entry === undefined) {
+        table.replaceChild(tbody, table.querySelector('tbody'));
+        return;
+      }
+      let version = entry.page.version;
+      let showDiff = version !== baselineVersion;
+      $('pageDetail').querySelector('h2 span').textContent =
+        version.name;
+      entries = version.pages.map((page) => {
+        if (!page.enabled) return;
+        return page.get(entry.name)
+      });
+      entries.sort((a, b) => {
+        let cmp = b.timePercent - a.timePercent;
+        if (cmp.toFixed(1) == 0) return b.time - a.time;
+        return cmp
+      });
+      entries.forEach((pageEntry) => {
+        if (pageEntry === undefined) return;
+        let tr = document.createElement('tr');
+        if (pageEntry === entry) tr.className += 'selected';
+        tr.entry = pageEntry;
+        td(tr, pageEntry.page.name, 'name');
+        td(tr, ms(pageEntry.time, showDiff), 'value time');
+        td(tr, percent(pageEntry.timePercent, showDiff), 'value time');
+        td(tr, percent(pageEntry.timePercentPerEntry, showDiff),
+          'value time hideNoDiff');
+        td(tr, count(pageEntry.count, showDiff), 'value count');
+        tbody.appendChild(tr);
+      });
+      // show the total for all pages
+      let tds = table.querySelectorAll('tfoot td');
+      tds[1].textContent = ms(entry.getTimeImpact(), showDiff);
+      // Only show the percentage total if we are in diff mode:
+      tds[2].textContent = percent(entry.getTimePercentImpact(), showDiff);
+      tds[3].textContent = '';
+      tds[4].textContent = count(entry.getCountImpact(), showDiff);
+      table.replaceChild(tbody, table.querySelector('tbody'));
+    }
+
+    function showImpactList(page) {
+      let impactView = $('impactView');
+      impactView.querySelector('h2 span').textContent = page.version.name;
+
+      let table = impactView.querySelector('table');
+      let tbody = document.createElement('tbody');
+      let version = page.version;
+      let entries = version.allEntries();
+      if (selectedEntry !== undefined && selectedEntry.isGroup) {
+        impactView.querySelector('h2 span').textContent += " " + selectedEntry.name;
+        entries = entries.filter((entry) => {
+          return entry.name == selectedEntry.name ||
+            (entry.parent && entry.parent.name == selectedEntry.name)
+        });
+      }
+      let isCompareView = baselineVersion !== undefined;
+      entries = entries.filter((entry) => {
+        if (isCompareView) {
+          let impact = entry.getTimeImpact();
+          return impact < -1 || 1 < impact
+        }
+        return entry.getTimePercentImpact() > 0.01;
+      });
+      entries = entries.slice(0, 50);
+      entries.sort((a, b) => {
+        let cmp = b.getTimePercentImpact() - a.getTimePercentImpact();
+        if (isCompareView || cmp.toFixed(1) == 0) {
+          return b.getTimeImpact() - a.getTimeImpact();
+        }
+        return cmp
+      });
+      entries.forEach((entry) => {
+        let tr = document.createElement('tr');
+        tr.entry = entry;
+        td(tr, entry.name, 'name');
+        td(tr, ms(entry.getTimeImpact()), 'value time');
+        let percentImpact = entry.getTimePercentImpact();
+        td(tr, percentImpact > 1000 ? '-' : percent(percentImpact), 'value time');
+        let topPages = entry.getPagesByPercentImpact().slice(0, 3)
+          .map((each) => {
+            return each.name + ' (' + percent(each.getEntry(entry).timePercent) +
+              ')'
+          });
+        td(tr, topPages.join(', '), 'name');
+        tbody.appendChild(tr);
+      });
+      table.replaceChild(tbody, table.querySelector('tbody'));
+    }
+
+    function showGraphs(page) {
+      let groups = page.groups.filter(each => each.enabled && !each.isTotal);
+      // Sort groups by the biggest impact
+      groups.sort((a, b) => b.getTimeImpact() - a.getTimeImpact());
+      if (selectedGroup == undefined) {
+        selectedGroup = groups[0];
+      } else {
+        groups = groups.filter(each => each.name != selectedGroup.name);
+        if (!selectedGroup.isTotal && selectedGroup.enabled) {
+          groups.unshift(selectedGroup);
+        }
+      }
+      // Display graphs delayed for a snappier UI.
+      setTimeout(() => {
+        showPageVersionGraph(groups, page);
+        showPageGraph(groups, page);
+        showVersionGraph(groups, page);
+      }, 10);
+    }
+
+    function getGraphDataTable(groups, page) {
+      let dataTable = new google.visualization.DataTable();
+      dataTable.addColumn('string', 'Name');
+      groups.forEach(group => {
+        let column = dataTable.addColumn('number', group.name.substring(6));
+        dataTable.setColumnProperty(column, 'group', group);
+        column = dataTable.addColumn({
+          role: "annotation"
+        });
+        dataTable.setColumnProperty(column, 'group', group);
+      });
+      let column = dataTable.addColumn('number', 'Chart Total');
+      dataTable.setColumnProperty(column, 'group', page.total);
+      column = dataTable.addColumn({
+        role: "annotation"
+      });
+      dataTable.setColumnProperty(column, 'group', page.total);
+      return dataTable;
+    }
+
+    let selectedGroup;
+
+    function cleanUpFileName(name) {
+      return name.replace(/(\.rcs)?\.txt|\.json$/, "")
+    }
+
+    class ChartRow {
+      static kSortFirstValueRelative(chartRow) {
+        if (selectedGroup?.isTotal) return chartRow.total;
+        return chartRow.data[0] / chartRow.total;
+      }
+
+      static kSortByFirstValue(chartRow) {
+        if (selectedGroup?.isTotal) return chartRow.total;
+        return chartRow.data[0];
+      }
+
+      constructor(linkedPage, label, sortValue_fn, data,
+        excludeFromAverage = false) {
+        this.linkedPage = linkedPage;
+        this.label = label;
+        if (!Array.isArray(data)) {
+          throw new Error("Provide an Array for data");
+        }
+        this.data = data;
+        this.total = 0;
+        for (let i = 0; i < data.length; i++) this.total += data[i];
+        this.sortValue = sortValue_fn(this);
+        this.excludeFromAverage = excludeFromAverage;
+      }
+
+      forDataTable(maxRowsTotal) {
+        // row = [label, entry1, annotation1, entry2, annotation2, ...]
+        const rowData = [this.label];
+        const kShowLabelLimit = 0.1;
+        const kMinLabelWidth = 80;
+        const chartWidth = window.innerWidth - 400;
+        // Add value,label pairs
+        for (let i = 0; i < this.data.length; i++) {
+          const value = this.data[i];
+          let label = '';
+          // Only show labels for entries that are large enough..
+          if (Math.abs(value / maxRowsTotal) * chartWidth > kMinLabelWidth) {
+            label = ms(value);
+          }
+          rowData.push(value, label);
+        }
+        // Add the total row, with very small negative dummy entry for correct
+        // placement of labels in diff view.
+        rowData.push(this.total >= 0 ? 0 : -0.000000001, ms(this.total));
+        return rowData;
+      }
+    }
+    const collator = new Intl.Collator('en-UK');
+
+    function setDataTableRows(dataTable, rows) {
+      let skippedRows = 0;
+      // Always sort by the selected entry (first column after the label)
+      if (sortByLabel) {
+        rows.sort((a, b) => collator.compare(a.label, b.label));
+      } else {
+        rows.sort((a, b) => b.sortValue - a.sortValue);
+      }
+      // Aggregate row data for Average/SUM chart entry:
+      const aggregateData = rows[0].data.slice().fill(0);
+      let maxTotal = 0;
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        let total = Math.abs(row.total);
+        if (total > maxTotal) maxTotal = total;
+        if (row.excludeFromAverage) {
+          skippedRows++;
+          continue
+        }
+        const chartRowData = row.data;
+        for (let j = 0; j < chartRowData.length; j++) {
+          aggregateData[j] += chartRowData[j];
+        }
+      }
+      const length = rows.length - skippedRows;
+      for (let i = 0; i < aggregateData.length; i++) {
+        aggregateData[i] /= rows.length;
+      }
+      const averageRow = new ChartRow(undefined, 'Average',
+        ChartRow.kSortByFirstValue, aggregateData);
+      dataTable.addRow(averageRow.forDataTable());
+
+      rows.forEach(chartRow => {
+        let rowIndex = dataTable.addRow(chartRow.forDataTable(maxTotal));
+        dataTable.setRowProperty(rowIndex, 'page', chartRow.linkedPage);
+      });
+    }
+
+    function showPageVersionGraph(groups, page) {
+      let dataTable = getGraphDataTable(groups, page);
+      let vs = versions.getPageVersions(page);
+      // Calculate the entries for the versions
+      const rows = vs.map(page => new ChartRow(
+        page, page.version.name, ChartRow.kSortByFirstValue,
+        groups.map(group => page.getEntry(group).time),
+        page.version === baselineVersion));
+      renderGraph(`Versions for ${page.name}`, groups, dataTable, rows,
+        'pageVersionGraph', true);
+    }
+
+    function showPageGraph(groups, page) {
+      let isDiffView = baselineVersion !== undefined;
+      let dataTable = getGraphDataTable(groups, page);
+      // Calculate the average row
+      // Sort the pages by the selected group.
+      let pages = page.version.pages.filter(page => page.enabled);
+      // Calculate the entries for the pages
+      const rows = pages.map(page => new ChartRow(
+        page, page.name,
+        isDiffView ?
+          ChartRow.kSortByFirstValue : ChartRow.kSortFirstValueRelative,
+        groups.map(group => page.getEntry(group).time)));
+      renderGraph(`Pages for ${page.version.name}`, groups, dataTable, rows,
+        'pageGraph', isDiffView ? true : 'percent');
+    }
+
+    function showVersionGraph(groups, page) {
+      let dataTable = getGraphDataTable(groups, page);
+      let vs = versions.versions.filter(version => version.enabled);
+      // Calculate the entries for the versions
+      const rows = vs.map((version) => new ChartRow(
+        version.get(page), version.name, ChartRow.kSortByFirstValue,
+        groups.map(group => version.getEntry(group).getTimeImpact()),
+        version === baselineVersion));
+      renderGraph('Versions Total Time over all Pages', groups, dataTable, rows,
+        'versionGraph', true);
+    }
+
+    function renderGraph(title, groups, dataTable, rows, id, isStacked) {
+      let isDiffView = baselineVersion !== undefined;
+      setDataTableRows(dataTable, rows);
+      let formatter = new google.visualization.NumberFormat({
+        suffix: (isDiffView ? 'msΔ' : 'ms'),
+        negativeColor: 'red',
+        groupingSymbol: "'"
+      });
+      for (let i = 1; i < dataTable.getNumberOfColumns(); i++) {
+        formatter.format(dataTable, i);
+      }
+      let height = 85 + 28 * dataTable.getNumberOfRows();
+      let options = {
+        isStacked: isStacked,
+        height: height,
+        hAxis: {
+          minValue: 0,
+          textStyle: {
+            fontSize: 14
+          }
+        },
+        vAxis: {
+          textStyle: {
+            fontSize: 14
+          }
+        },
+        tooltip: {
+          textStyle: {
+            fontSize: 14
+          }
+        },
+        annotations: {
+          textStyle: {
+            fontSize: 8
+          }
+        },
+        explorer: {
+          actions: ['dragToZoom', 'rightClickToReset'],
+          maxZoomIn: 0.01
+        },
+        legend: {
+          position: 'top',
+          maxLines: 3,
+          textStyle: {
+            fontSize: 12
+          }
+        },
+        chartArea: {
+          left: 200,
+          top: 50
+        },
+        colors: [
+          ...groups.map(each => each.color),
+          /* Chart Total */
+          "#000000",
+        ]
+      };
+      let parentNode = $(id);
+      parentNode.querySelector('h2>span, h3>span').textContent = title;
+      let graphNode = parentNode.querySelector('.panelBody');
+
+      let chart = graphNode.chart;
+      if (chart === undefined) {
+        chart = graphNode.chart = new google.visualization.BarChart(graphNode);
+      } else {
+        google.visualization.events.removeAllListeners(chart);
+      }
+      google.visualization.events.addListener(chart, 'select', selectHandler);
+
+      function getChartEntry(selection) {
+        if (!selection) return undefined;
+        let column = selection.column;
+        if (column == undefined) return undefined;
+        let selectedGroup = dataTable.getColumnProperty(column, 'group');
+        let row = selection.row;
+        if (row == null) return selectedGroup;
+        let page = dataTable.getRowProperty(row, 'page');
+        if (!page) return selectedGroup;
+        return page.getEntry(selectedGroup);
+      }
+
+      function selectHandler(e) {
+        const newSelectedGroup = getChartEntry(chart.getSelection()[0]);
+        if (newSelectedGroup == selectedGroup) {
+          sortByLabel = !sortByLabel;
+        } else if (newSelectedGroup === undefined && selectedPage) {
+          sortByLabel = true;
+          return showGraphs(selectedPage);
+        } else {
+          sortByLabel = false;
+        }
+        selectedGroup = newSelectedGroup;
+        selectEntry(selectedGroup, true);
+      }
+
+      // Make our global tooltips work
+      google.visualization.events.addListener(chart, 'onmouseover', mouseOverHandler);
+
+      function mouseOverHandler(selection) {
+        const selectedGroup = getChartEntry(selection);
+        graphNode.entry = selectedGroup;
+      }
+      chart.draw(dataTable, options);
+    }
+
+    function showGroup(entry) {
+      toggleGroup(entry, true);
+    }
+
+    function toggleGroup(group, show) {
+      $('view').querySelectorAll(".child").forEach((tr) => {
+        let entry = tr.parentEntry;
+        if (!entry) return;
+        if (entry.name !== group.name) return;
+        toggleCssClass(tr, 'visible', show);
+      });
+    }
+
+    function showPopover(entry) {
+      let popover = $('popover');
+      popover.querySelector('td.name').textContent = entry.name;
+      popover.querySelector('td.page').textContent = entry.page.name;
+      setPopoverDetail(popover, entry, '');
+      popover.querySelector('table').className = "";
+      if (baselineVersion !== undefined) {
+        entry = baselineVersion.getEntry(entry);
+        setPopoverDetail(popover, entry, '.compare');
+        popover.querySelector('table').className = "compare";
+      }
+    }
+
+    function setPopoverDetail(popover, entry, prefix) {
+      let node = (name) => popover.querySelector(prefix + name);
+      if (entry == undefined) {
+        node('.version').textContent = baselineVersion.name;
+        node('.time').textContent = '-';
+        node('.timeVariance').textContent = '-';
+        node('.percent').textContent = '-';
+        node('.percentPerEntry').textContent = '-';
+        node('.percentVariance').textContent = '-';
+        node('.count').textContent = '-';
+        node('.countVariance').textContent = '-';
+        node('.timeImpact').textContent = '-';
+        node('.timePercentImpact').textContent = '-';
+      } else {
+        node('.version').textContent = entry.page.version.name;
+        node('.time').textContent = ms(entry._time, false);
+        node('.timeVariance').textContent = percent(entry.timeVariancePercent, false);
+        node('.percent').textContent = percent(entry.timePercent, false);
+        node('.percentPerEntry').textContent = percent(entry.timePercentPerEntry, false);
+        node('.percentVariance').textContent = percent(entry.timePercentVariancePercent, false);
+        node('.count').textContent = count(entry._count, false);
+        node('.countVariance').textContent = percent(entry.timeVariancePercent, false);
+        node('.timeImpact').textContent = ms(entry.getTimeImpact(false), false);
+        node('.timePercentImpact').textContent = percent(entry.getTimeImpactVariancePercent(false), false);
+      }
+    }
+  </script>
+  <script>
+    "use strict"
+    // =========================================================================
+    // Helpers
+    function $(id) {
+      return document.getElementById(id)
+    }
+
+    function removeAllChildren(node) {
+      while (node.firstChild) {
+        node.removeChild(node.firstChild);
+      }
+    }
+
+    function selectOption(select, match) {
+      let options = select.options;
+      for (let i = 0; i < options.length; i++) {
+        if (match(i, options[i])) {
+          select.selectedIndex = i;
+          return;
+        }
+      }
+    }
+
+    function addCodeSearchButton(entry, node) {
+      if (entry.isGroup) return;
+      let button = document.createElement("div");
+      button.textContent = '?'
+      button.className = "codeSearch"
+      button.addEventListener('click', handleCodeSearch);
+      node.appendChild(button);
+      return node;
+    }
+
+    function td(tr, content, className) {
+      let td = document.createElement("td");
+      if (content[0] == '<') {
+        td.innerHTML = content;
+      } else {
+        td.textContent = content;
+      }
+      td.className = className
+      tr.appendChild(td);
+      return td
+    }
+
+    function nodeIndex(node) {
+      let children = node.parentNode.childNodes,
+        i = 0;
+      for (; i < children.length; i++) {
+        if (children[i] == node) {
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    function toggleCssClass(node, cssClass, toggleState = true) {
+      let index = -1;
+      let classes;
+      if (node.className != undefined) {
+        classes = node.className.split(' ');
+        index = classes.indexOf(cssClass);
+      }
+      if (index == -1) {
+        if (toggleState === false) return;
+        node.className += ' ' + cssClass;
+        return;
+      }
+      if (toggleState === true) return;
+      classes.splice(index, 1);
+      node.className = classes.join(' ');
+    }
+
+    function NameComparator(a, b) {
+      if (a.name > b.name) return 1;
+      if (a.name < b.name) return -1;
+      return 0
+    }
+
+    function diffSign(value, digits, unit, showDiff) {
+      if (showDiff === false || baselineVersion == undefined) {
+        if (value === undefined) return '';
+        return value.toFixed(digits) + unit;
+      }
+      return (value >= 0 ? '+' : '') + value.toFixed(digits) + unit + 'Δ';
+    }
+
+    function ms(value, showDiff) {
+      return diffSign(value, 1, 'ms', showDiff);
+    }
+
+    function count(value, showDiff) {
+      return diffSign(value, 0, '#', showDiff);
+    }
+
+    function percent(value, showDiff) {
+      return diffSign(value, 1, '%', showDiff);
+    }
+  </script>
+  <script>
+    "use strict"
+    // =========================================================================
+    // EventHandlers
+    async function handleBodyLoad() {
+      $('uploadInput').focus();
+      if (tryLoadDefaultData() || await tryLoadFromURLParams() ||
+        await tryLoadDefaultResults()) {
+        displayResultsAfterLoading();
+      }
+    }
+
+    function tryLoadDefaultData() {
+      if (!defaultData) return false;
+      handleLoadJSON(defaultData);
+      return true;
+    }
+
+    async function tryLoadFromURLParams() {
+      let params = new URLSearchParams(document.location.search);
+      let hasFile = false;
+      params.forEach(async (value, key) => {
+        if (key !== 'file') return;
+        hasFile ||= await tryLoadFile(value, true);
+      });
+      return hasFile;
+    }
+
+    async function tryLoadDefaultResults() {
+      if (window.location.protocol === 'file:') return false;
+      // Try to load a results.json file adjacent to this day.
+      // The markers on the following line can be used to replace the url easily
+      // with scripts.
+      const url = /*results-url-start*/ 'results.json' /*results-url-end*/;
+      return tryLoadFile(url);
+    }
+
+    async function tryLoadFile(url, append = false) {
+      if (!url.startsWith('http')) {
+        // hack to get relative urls
+        let location = window.location;
+        let parts = location.pathname.split("/").slice(0, -1);
+        url = location.origin + parts.join('/') + '/' + url;
+      }
+      let response = await fetch(url, {timeout: 20});
+      if (!response.ok) return false;
+      let filename = url.split('/');
+      filename = filename[filename.length - 1];
+      handleLoadText(await response.text(), append, filename);
+      return true;
+    }
+
+    function handleAppendFiles() {
+      let files = document.getElementById("appendInput").files;
+      loadFiles(files, true);
+    }
+
+    function handleLoadFiles() {
+      let files = document.getElementById("uploadInput").files;
+      loadFiles(files, false)
+    }
+
+    async function loadFiles(files, append) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        console.log(file.name);
+        let text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result)
+          reader.readAsText(file);
+        });
+        handleLoadText(text, append, file.name);
+        // Only the first file might clear existing data, all sequent files
+        // are always append.
+        append = true;
+      }
+      displayResultsAfterLoading();
+      toggleCssClass(document.body, "loaded");
+    }
+
+    function handleLoadText(text, append, fileName) {
+      if (fileName.endsWith('.json')) {
+        handleLoadJSON(JSON.parse(text), append, fileName);
+      } else if (fileName.endsWith('.csv') ||
+        fileName.endsWith('.output') || fileName.endsWith('.output.txt')) {
+        handleLoadCSV(text, append, fileName);
+      } else if (fileName.endsWith('.txt')) {
+        handleLoadTXT(text, append, fileName);
+      } else {
+        alert(`Unsupported file extension: "${fileName}"`);
+      }
+    }
+
+    function getStateFromParams() {
+      let query = window.location.search.substr(1);
+      let result = {};
+      query.split("&").forEach((part) => {
+        let item = part.split("=");
+        let key = decodeURIComponent(item[0])
+        result[key] = decodeURIComponent(item[1]);
+      });
+      return result;
+    }
+
+    function handleLoadJSON(json, append, fileName) {
+      json = fixClusterTelemetryResults(json);
+      json = fixTraceImportJSON(json);
+      json = fixSingleVersionJSON(json, fileName);
+      let isFirstLoad = pages === undefined;
+      if (append && !isFirstLoad) {
+        json = createUniqueVersions(json);
+      }
+      if (!append || isFirstLoad) {
+        pages = new Pages();
+        versions = Versions.fromJSON(json);
+      } else {
+        Versions.fromJSON(json).forEach(e => versions.add(e))
+      }
+    }
+
+    function handleLoadCSV(csv, append, fileName) {
+      let isFirstLoad = pages === undefined;
+      if (!append || isFirstLoad) {
+        pages = new Pages();
+        versions = new Versions();
+      }
+      const lines = csv.split(/\r?\n/);
+      // The first line contains only the field names.
+      const fields = new Map();
+      csvSplit(lines[0]).forEach((name, index) => {
+        fields.set(name, index);
+      });
+      if (fields.has('displayLabel') && fields.has('stories')) {
+        handleLoadResultCSV(fields, lines);
+      } else if (fields.has('page_name')) {
+        handleLoadClusterTelemetryCSV(fields, lines, fileName);
+      } else {
+        return alert("Unknown CSV format");
+      }
+    }
+
+    function csvSplit(line) {
+      let fields = [];
+      let index = 0;
+      while (index < line.length) {
+        let lastIndex = index;
+        if (line[lastIndex] == '"') {
+          index = line.indexOf('"', lastIndex + 1);
+          if (index < 0) index = line.length;
+          fields.push(line.substring(lastIndex + 1, index));
+          // Consume ','
+          index++;
+        } else {
+          index = line.indexOf(',', lastIndex);
+          if (index === -1) index = line.length;
+          fields.push(line.substring(lastIndex, index))
+        }
+        // Consume ','
+        index++;
+      }
+      return fields;
+    }
+
+    // Ignore the following categories as they are aggregated values and are
+    // created by callstats.html on the fly.
+    const import_skip_categories = new Set([
+      'V8-Only', 'V8-Only-Main-Thread', 'Total-Main-Thread', 'Blink_Total'
+    ])
+
+    function handleLoadClusterTelemetryCSV(fields, lines, fileName) {
+      const rscFields = Array.from(fields.keys())
+        .filter(field => {
+          return field.endsWith(':duration (ms)') &&
+            !import_skip_categories.has(field.split(':')[0])
+        })
+        .map(field => {
+          let name = field.split(':')[0];
+          return [name, fields.get(field), fields.get(`${name}:count`)];
+        })
+      const page_name_i = fields.get('page_name');
+      const version = versions.getOrCreate(fileName);
+      for (let i = 1; i < lines.length; i++) {
+        const line = csvSplit(lines[i]);
+        if (line.length == 0) continue;
+        let page_name = line[page_name_i];
+        if (page_name === undefined) continue;
+        page_name = page_name.split(' ')[0];
+        const pageVersion = version.getOrCreate(page_name);
+        for (let [fieldName, duration_i, count_i] of rscFields) {
+          const duration = Number.parseFloat(line[duration_i]);
+          const count = Number.parseFloat(line[count_i]);
+          // Skip over entries without metrics (most likely crashes)
+          if (Number.isNaN(count) || Number.isNaN(duration)) {
+            console.warn(`BROKEN ${page_name}`, lines[i])
+            break;
+          }
+          pageVersion.add(new Entry(0, fieldName, duration, 0, 0, count, 0, 0))
+        }
+      }
+    }
+
+    function handleLoadResultCSV(fields, lines) {
+      const version_i = fields.get('displayLabel');
+      const page_i = fields.get('stories');
+      const category_i = fields.get('name');
+      const value_i = fields.get('avg');
+      const tempEntriesCache = new Map();
+      for (let i = 1; i < lines.length; i++) {
+        const line = csvSplit(lines[i]);
+        if (line.length == 0) continue;
+        const raw_category = line[category_i];
+        if (!raw_category.endsWith(':duration') &&
+          !raw_category.endsWith(':count')) {
+          continue;
+        }
+        let [category, type] = raw_category.split(':');
+        if (import_skip_categories.has(category)) continue;
+        const version = versions.getOrCreate(line[version_i]);
+        const pageVersion = version.getOrCreate(line[page_i]);
+        const value = Number.parseFloat(line[value_i]);
+        const entry = TempEntry.get(tempEntriesCache, pageVersion, category);
+        if (type == 'duration') {
+          entry.durations.push(value)
+        } else {
+          entry.counts.push(value)
+        }
+      }
+
+      tempEntriesCache.forEach((tempEntries, pageVersion) => {
+        tempEntries.forEach(tmpEntry => {
+          pageVersion.add(tmpEntry.toEntry())
+        })
+      });
+    }
+
+    class TempEntry {
+      constructor(category) {
+        this.category = category;
+        this.durations = [];
+        this.counts = [];
+      }
+
+      static get(cache, pageVersion, category) {
+        let tempEntries = cache.get(pageVersion);
+        if (tempEntries === undefined) {
+          tempEntries = new Map();
+          cache.set(pageVersion, tempEntries);
+        }
+        let tempEntry = tempEntries.get(category);
+        if (tempEntry === undefined) {
+          tempEntry = new TempEntry(category);
+          tempEntries.set(category, tempEntry);
+        }
+        return tempEntry;
+      }
+
+      toEntry() {
+        const [duration, durationStddev] = this.stats(this.durations);
+        const [count, countStddev] = this.stats(this.durations);
+        return new Entry(0, this.category,
+          duration, durationStddev, 0, count, countStddev, 0)
+      }
+
+      stats(values) {
+        let sum = 0;
+        for (let i = 0; i < values.length; i++) {
+          sum += values[i];
+        }
+        const avg = sum / values.length;
+        let stddevSquared = 0;
+        for (let i = 0; i < values.length; i++) {
+          const delta = values[i] - avg;
+          stddevSquared += delta * delta;
+        }
+        const stddev = Math.sqrt(stddevSquared / values.length);
+        return [avg, stddev];
+      }
+    }
+
+    function handleLoadTXT(txt, append, fileName) {
+      fileName = window.prompt('Version name:', cleanUpFileName(fileName));
+      let isFirstLoad = pages === undefined;
+      // Load raw RCS output which contains a single page
+      if (!append || isFirstLoad) {
+        pages = new Pages();
+        versions = new Versions()
+      }
+      versions.add(Version.fromTXT(fileName, txt));
+
+    }
+
+    function displayResultsAfterLoading() {
+      const isFirstLoad = pages === undefined;
+      let state = getStateFromParams();
+      initialize()
+      if (isFirstLoad && !popHistoryState(state) && selectedPage) {
+        showEntry(selectedPage.total);
+        return;
+      }
+      const page = versions.versions[0].pages[0]
+      if (page == undefined) return;
+      showPage(page);
+      showEntry(page.total);
+    }
+
+    function fixClusterTelemetryResults(json) {
+      // Convert CT results to callstats compatible JSON
+      // Input:
+      // { VERSION_NAME: { PAGE: { METRIC: { "count": {XX}, "duration": {XX} }.. }}.. }
+      let firstEntry;
+      for (let key in json) {
+        firstEntry = json[key];
+        break;
+      }
+      // Return the original JSON if it is not a CT result.
+      if (firstEntry.pairs === undefined) return json;
+      // The results include already the group totals, remove them by filtering.
+      let groupNames = new Set(Array.from(Group.groups.values()).map(e => e.name));
+      let result = Object.create(null);
+      for (let file_name in json) {
+        let entries = [];
+        let file_data = json[file_name].pairs;
+        for (let name in file_data) {
+          if (name != "Total" && groupNames.has(name)) continue;
+          let entry = file_data[name];
+          let count = entry.count;
+          let time = entry.time;
+          entries.push([name, time, 0, 0, count, 0, 0]);
+        }
+        let domain = file_name.split("/").slice(-1)[0];
+        result[domain] = entries;
+      }
+      return {
+        __proto__: null,
+        ClusterTelemetry: result
+      };
+    }
+
+    function fixTraceImportJSON(json) {
+      // Fix json file that was created by converting a trace json output
+      if (!('telemetry-results' in json)) return json;
+      // { telemetry-results: { PAGE:[ { METRIC: [ COUNT TIME ], ... }, ... ]}}
+      let version_data = {
+        __proto__: null
+      };
+      json = json["telemetry-results"];
+      for (let page_name in json) {
+        if (page_name == "placeholder") continue;
+        let page_data = {
+          __proto__: null,
+          Total: {
+            duration: {
+              average: 0,
+              stddev: 0
+            },
+            count: {
+              average: 0,
+              stddev: 0
+            }
+          }
+        };
+        let page = json[page_name];
+        for (let slice of page) {
+          for (let metric_name in slice) {
+            if (metric_name == "Blink_V8") continue;
+            // sum up entries
+            if (!(metric_name in page_data)) {
+              page_data[metric_name] = {
+                duration: {
+                  average: 0,
+                  stddev: 0
+                },
+                count: {
+                  average: 0,
+                  stddev: 0
+                }
+              }
+            }
+            let [metric_count, metric_duration] = slice[metric_name]
+            let metric = page_data[metric_name];
+            const kMicroToMilli = 1 / 1000;
+            metric.duration.average += metric_duration * kMicroToMilli;
+            metric.count.average += metric_count;
+
+            if (metric_name.startsWith('Blink_')) continue;
+            let total = page_data['Total'];
+            total.duration.average += metric_duration * kMicroToMilli;
+            total.count.average += metric_count;
+          }
+        }
+        version_data[page_name] = page_data;
+      }
+      return version_data;
+    }
+
+    function fixSingleVersionJSON(json, name) {
+      // Try to detect the single-version case, where we're missing the toplevel
+      // version object. The incoming JSON is of the form:
+      //   { PAGE: ... , PAGE_2:  }
+      // Instead of the default multi-page JSON:
+      //    {"Version 1": { "Page 1": ..., ...}, "Version 2": {...}, ...}
+      // In this case insert a single "Default" version as top-level entry.
+      const  firstProperty = (object) => {
+        for (let key in object) return object[key];
+      };
+      const maybeMetrics = firstProperty(json);
+      const maybeMetric = firstProperty(maybeMetrics);
+      let tempName = new Date().toISOString();
+      if (name) tempName = cleanUpFileName(name);
+      const getFileName =
+          () => window.prompt('Enter a name for the loaded file:', tempName);
+      if ('count' in maybeMetric && 'duration' in maybeMetric) {
+        return {
+          [getFileName()]: json
+        }
+      }
+      // Legacy fallback where the metrics are encoded as arrays:
+      //  { PAGE: [[metric_name, ...], [...], ]}
+      // Also, make sure we don't have the versioned array-style:
+      // { VERSION: { PAGE: [[metric_name, ...], [...], ]}, ...}
+      const innerArray = firstProperty(maybeMetric);
+      if (Array.isArray(maybeMetric) && !Array.isArray(innerArray)) {
+        return {
+          [getFileName()]: json
+        }
+      }
+      return json
+    }
+
+    let appendIndex = 0;
+
+    function createUniqueVersions(json) {
+      // Make sure all toplevel entries are unique names and added properly
+      appendIndex++;
+      let result = {
+        __proto__: null
+      }
+      for (let key in json) {
+        result[key + "_" + appendIndex] = json[key];
+      }
+      return result
+    }
+
+    function handleCopyToClipboard(event) {
+      const names = ["Group", ...versions.versions.map(e => e.name)];
+      let result = [names.join("\t")];
+      let groups = Array.from(Group.groups.values());
+      // Move the total group to the end.
+      groups.push(groups.shift())
+      groups.forEach(group => {
+        let row = [group.name];
+        versions.forEach(v => {
+          const time = v.pages[0].get("Group-" + group.name)?._time ?? 0;
+          row.push(time);
+        })
+        result.push(row.join("\t"));
+      });
+      result = result.join("\n");
+      navigator.clipboard.writeText(result);
+    }
+
+    function handleToggleGroup(event) {
+      let group = event.target.parentNode.parentNode.entry;
+      toggleGroup(selectedPage.get(group.name), 'toggle');
+    }
+
+    function handleSelectPage(select, event) {
+      let option = select.options[select.selectedIndex];
+      if (select.id == "select_0") {
+        showSelectedEntryInPage(option.page);
+      } else {
+        let columnIndex = select.id.split('_')[1];
+        showPageInColumn(option.page, columnIndex);
+      }
+    }
+
+    function handleSelectVersion(select, event) {
+      let option = select.options[select.selectedIndex];
+      let version = option.version;
+      if (select.id == "selectVersion_0") {
+        let page = version.get(selectedPage.name);
+        showSelectedEntryInPage(page);
+      } else {
+        let columnIndex = select.id.split('_')[1];
+        let pageSelect = $('select_' + columnIndex);
+        let page = pageSelect.options[pageSelect.selectedIndex].page;
+        page = version.get(page.name);
+        showPageInColumn(page, columnIndex);
+      }
+    }
+
+    function handleSelectDetailRow(table, event) {
+      if (event.target.tagName != 'TD') return;
+      let tr = event.target.parentNode;
+      if (tr.tagName != 'TR') return;
+      if (tr.entry === undefined) return;
+      selectEntry(tr.entry, true);
+    }
+
+    function handleSelectRow(table, event, fromDetail) {
+      if (event.target.tagName != 'TD') return;
+      let tr = event.target.parentNode;
+      if (tr.tagName != 'TR') return;
+      if (tr.entry === undefined) return;
+      selectEntry(tr.entry, false);
+    }
+
+    function handleSelectBaseline(select, event) {
+      let option = select.options[select.selectedIndex];
+      baselineVersion = option.version;
+      let showingDiff = baselineVersion !== undefined;
+      let body = $('body');
+      toggleCssClass(body, 'diff', showingDiff);
+      toggleCssClass(body, 'noDiff', !showingDiff);
+      showPage(selectedPage);
+      if (selectedEntry === undefined) return;
+      selectEntry(selectedEntry, true);
+    }
+
+    function findEntry(event) {
+      let target = event.target;
+      while (target.entry === undefined) {
+        target = target.parentNode;
+        if (!target) return undefined;
+      }
+      return target.entry;
+    }
+
+    function handleUpdatePopover(event) {
+      let popover = $('popover');
+      popover.style.left = event.pageX + 'px';
+      popover.style.top = event.pageY + 'px';
+      popover.style.display = 'none';
+      popover.style.display = event.shiftKey ? 'block' : 'none';
+      let entry = findEntry(event);
+      if (entry === undefined) return;
+      showPopover(entry);
+    }
+
+    function handleToggleVersionOrPageEnable(event) {
+      let item = this.item;
+      if (item === undefined) return;
+      item.enabled = this.checked;
+      initialize();
+      let page = selectedPage;
+      if (page === undefined || !page.version.enabled) {
+        page = versions.getEnabledPage(page.name);
+      }
+      if (!page.enabled) {
+        page = page.getNextPage();
+      }
+      showPage(page);
+    }
+
+    function handleCodeSearch(event) {
+      let entry = findEntry(event);
+      if (entry === undefined) return;
+      let url = "https://cs.chromium.org/search/?sq=package:chromium&type=cs&q=";
+      name = entry.name;
+      if (name.startsWith("API_")) {
+        name = name.substring(4);
+      }
+      url += encodeURIComponent(name) + "+file:src/v8/src";
+      window.open(url, '_blank');
+    }
+  </script>
+  <script>
+    "use strict"
+    // =========================================================================
+    class Versions {
+      constructor() {
+        this.versions = [];
+      }
+      add(version) {
+        this.versions.push(version);
+        return version;
+      }
+      getPageVersions(page) {
+        let result = [];
+        this.versions.forEach((version) => {
+          if (!version.enabled) return;
+          let versionPage = version.get(page.name);
+          if (versionPage !== undefined) result.push(versionPage);
+        });
+        return result;
+      }
+      get length() {
+        return this.versions.length
+      }
+      get(index) {
+        return this.versions[index]
+      }
+      getByName(name) {
+        return this.versions.find((each) => each.name == name);
+      }
+      getOrCreate(name) {
+        return this.getByName(name) ?? this.add(new Version(name));
+      }
+      forEach(f) {
+        this.versions.forEach(f);
+      }
+      sort() {
+        this.versions.sort(NameComparator);
+      }
+      getEnabledPage(name) {
+        for (let i = 0; i < this.versions.length; i++) {
+          let version = this.versions[i];
+          if (!version.enabled) continue;
+          let page = version.get(name);
+          if (page !== undefined) return page;
+        }
+      }
+
+      static fromJSON(json) {
+        let versions = new Versions();
+        for (let version in json) {
+          versions.add(Version.fromJSON(version, json[version]));
+        }
+        versions.sort();
+        return versions;
+      }
+    }
+
+    class Version {
+      constructor(name) {
+        this.name = name;
+        this.enabled = true;
+        this.pages = [];
+      }
+      add(page) {
+        this.pages.push(page);
+        return page;
+      }
+      indexOf(name) {
+        for (let i = 0; i < this.pages.length; i++) {
+          if (this.pages[i].name == name) return i;
+        }
+        return -1;
+      }
+      getNextPage(page) {
+        if (this.length == 0) return undefined;
+        return this.pages[(this.indexOf(page.name) + 1) % this.length];
+      }
+      get(name) {
+        let index = this.indexOf(name);
+        if (0 <= index) return this.pages[index];
+        return undefined;
+      }
+      getOrCreate(name) {
+        return this.get(name) ??
+            this.add(new PageVersion(this, pages.getOrCreate(name)));
+      }
+      get length() {
+        return this.pages.length;
+      }
+      getEntry(entry) {
+        if (entry === undefined) return undefined;
+        let page = this.get(entry.page.name);
+        if (page === undefined) return undefined;
+        return page.get(entry.name);
+      }
+      forEachEntry(fun) {
+        this.forEachPage((page) => {
+          page.forEach(fun);
+        });
+      }
+      forEachPage(fun) {
+        this.pages.forEach((page) => {
+          if (!page.enabled) return;
+          fun(page);
+        })
+      }
+      allEntries() {
+        let map = new Map();
+        this.forEachEntry((group, entry) => {
+          if (!map.has(entry.name)) map.set(entry.name, entry);
+        });
+        return Array.from(map.values());
+      }
+      getTotalValue(name, property) {
+        if (name === undefined) name = this.pages[0].total.name;
+        let sum = 0;
+        this.forEachPage((page) => {
+          let entry = page.get(name);
+          if (entry !== undefined) sum += entry[property];
+        });
+        return sum;
+      }
+      getTotalTime(name, showDiff) {
+        return this.getTotalValue(name, showDiff === false ? '_time' : 'time');
+      }
+      getTotalTimePercent(name, showDiff) {
+        if (baselineVersion === undefined || showDiff === false) {
+          // Return the overall average percent of the given entry name.
+          return this.getTotalValue(name, 'time') /
+            this.getTotalTime('Group-Total') * 100;
+        }
+        // Otherwise return the difference to the sum of the baseline version.
+        let baselineValue = baselineVersion.getTotalTime(name, false);
+        let total = this.getTotalValue(name, '_time');
+        return (total / baselineValue - 1) * 100;
+      }
+      getTotalTimeVariance(name, showDiff) {
+        // Calculate the overall error for a given entry name
+        let sum = 0;
+        this.forEachPage((page) => {
+          let entry = page.get(name);
+          if (entry === undefined) return;
+          sum += entry.timeVariance * entry.timeVariance;
+        });
+        return Math.sqrt(sum);
+      }
+      getTotalTimeVariancePercent(name, showDiff) {
+        return this.getTotalTimeVariance(name, showDiff) /
+          this.getTotalTime(name, showDiff) * 100;
+      }
+      getTotalCount(name, showDiff) {
+        return this.getTotalValue(name, showDiff === false ? '_count' : 'count');
+      }
+      getAverageTimeImpact(name, showDiff) {
+        return this.getTotalTime(name, showDiff) / this.pages.length;
+      }
+      getPagesByPercentImpact(name) {
+        let sortedPages =
+          this.pages.filter((each) => {
+            return each.get(name) !== undefined
+          });
+        sortedPages.sort((a, b) => {
+          return b.get(name).timePercent - a.get(name).timePercent;
+        });
+        return sortedPages;
+      }
+      sort() {
+        this.pages.sort(NameComparator)
+      }
+
+      static fromJSON(name, data) {
+        let version = new Version(name);
+        for (let pageName in data) {
+          version.add(PageVersion.fromJSON(version, pageName, data[pageName]));
+        }
+        version.sort();
+        return version;
+      }
+
+      static fromTXT(name, txt) {
+        let version = new Version(name);
+        let defaultName = "RAW DATA";
+        PageVersion.fromTXT(version, defaultName, txt)
+          .forEach(each => version.add(each));
+        return version;
+      }
+    }
+
+    class Pages extends Map {
+      get(name) {
+        if (name.indexOf('www.') == 0) {
+          name = name.substring(4);
+        }
+        if (!this.has(name)) {
+          this.set(name, new Page(name));
+        }
+        return super.get(name);
+      }
+      getOrCreate(name) {
+        return this.get(name);
+      }
+    }
+
+    class Page {
+      constructor(name) {
+        this.name = name;
+        this.enabled = true;
+        this.versions = [];
+      }
+      add(pageVersion) {
+        this.versions.push(pageVersion);
+        return pageVersion;
+      }
+    }
+
+    class PageVersion {
+      constructor(version, page) {
+        this.page = page;
+        this.page.add(this);
+        this.total = Group.groups.get('total').entry();
+        this.total.isTotal = true;
+        this.unclassified = new UnclassifiedEntry(this)
+        this.groups = [
+          this.total,
+          Group.groups.get('ic').entry(),
+          Group.groups.get('optimize-maglev-background').entry(),
+          Group.groups.get('optimize-maglev').entry(),
+          Group.groups.get('optimize-background').entry(),
+          Group.groups.get('optimize').entry(),
+          Group.groups.get('compile-background').entry(),
+          Group.groups.get('compile').entry(),
+          Group.groups.get('parse-background').entry(),
+          Group.groups.get('parse').entry(),
+          Group.groups.get('blink').entry(),
+          Group.groups.get('network-data').entry(),
+          Group.groups.get('callback').entry(),
+          Group.groups.get('api').entry(),
+          Group.groups.get('gc-custom').entry(),
+          Group.groups.get('gc-background').entry(),
+          Group.groups.get('gc').entry(),
+          Group.groups.get('javascript').entry(),
+          Group.groups.get('runtime').entry(),
+          this.unclassified
+        ];
+        this.entryDict = new Map();
+        this.groups.forEach((entry) => {
+          entry.page = this;
+          this.entryDict.set(entry.name, entry);
+        });
+        this.version = version;
+      }
+      toString() {
+        return this.version.name + ": " + this.name;
+      }
+      urlParams() {
+        return {
+          version: this.version.name,
+          page: this.name
+        };
+      }
+      add(entry) {
+        // Ignore accidentally added Group entries.
+        if (entry.name.startsWith(GroupedEntry.prefix)) {
+          console.warn("Skipping accidentally added Group entry:", entry, this);
+          return;
+        }
+        let existingEntry = this.entryDict.get(entry.name);
+        if (existingEntry !== undefined) {
+          // Duplicate entries happen when multiple runs are combined into a
+          // single file.
+          existingEntry.add(entry);
+          for (let i = 0; i < this.groups.length; i++) {
+            const group = this.groups[i];
+            if (group.addTimeAndCount(entry)) return;
+          }
+        } else {
+          entry.page = this;
+          this.entryDict.set(entry.name, entry);
+          for (let group of this.groups) {
+            if (group.add(entry)) return;
+          }
+        }
+        console.error("Should not get here", entry);
+      }
+      get(name) {
+        return this.entryDict.get(name)
+      }
+      getEntry(entry) {
+        if (entry === undefined) return undefined;
+        return this.get(entry.name);
+      }
+      get length() {
+        return this.versions.length
+      }
+      get name() {
+        return this.page.name
+      }
+      get enabled() {
+        return this.page.enabled
+      }
+      forEachSorted(referencePage, func) {
+        // Iterate over all the entries in the order they appear on the
+        // reference page.
+        referencePage.forEach((parent, referenceEntry) => {
+          let entry;
+          if (parent) parent = this.entryDict.get(parent.name);
+          if (referenceEntry) entry = this.entryDict.get(referenceEntry.name);
+          func(parent, entry, referenceEntry);
+        });
+      }
+      forEach(fun) {
+        this.forEachGroup((group) => {
+          fun(undefined, group);
+          group.forEach((entry) => {
+            fun(group, entry)
+          });
+        });
+      }
+      forEachGroup(fun) {
+        this.groups.forEach(fun)
+      }
+      sort() {
+        this.groups.sort((a, b) => {
+          return b.time - a.time;
+        });
+        this.groups.forEach((group) => {
+          group.sort()
+        });
+      }
+      distanceFromTotalPercent() {
+        let sum = 0;
+        this.groups.forEach(group => {
+          if (group == this.total) return;
+          let value = group.getTimePercentImpact() -
+            this.getEntry(group).timePercent;
+          sum += value * value;
+        });
+        return sum;
+      }
+      getNextPage() {
+        return this.version.getNextPage(this);
+      }
+
+      static fromJSON(version, name, data) {
+        let page = new PageVersion(version, pages.get(name));
+        // Distinguish between the legacy format which just uses Arrays,
+        // or the new object style.
+        if (Array.isArray(data)) {
+          for (let i = 0; i < data.length; i++) {
+            const entryData = data[data.length - i - 1];
+            const metricName = entryData[0];
+            if (metricName.startsWith(GroupedEntry.prefix)) {
+              console.warn(`Ignoring input group-entry "${metricName}".`);
+              continue;
+            };
+            page.add(Entry.fromLegacyJSON(i, entryData));
+          }
+        } else {
+          let position = 0;
+          for (let metricName in data) {
+            if (metricName.startsWith(GroupedEntry.prefix)) {
+              console.warn(`Ignoring input group-entry "${metricName}".`);
+              continue;
+            }
+            page.add(Entry.fromJSON(position, metricName, data[metricName]));
+            position++;
+          }
+        }
+        page.sort();
+        return page
+      }
+
+      static fromTXT(version, defaultName, txt) {
+        const kPageNameIdentifier = "== Page:";
+        const kCommentStart = "=="
+        const lines = txt.split('\n');
+        const split = / +/g
+        const result = [];
+        let pageVersion = undefined;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          // Skip header separators
+          if (line.startsWith(kCommentStart)) {
+            // Check for page names
+            if (line.startsWith(kPageNameIdentifier)) {
+              const name = line.split(kPageNameIdentifier)[1].trim();
+              pageVersion = new PageVersion(version, pages.get(name));
+              result.push(pageVersion);
+            }
+          }
+          // Skip header lines.
+          if (lines[i + 1]?.startsWith(kCommentStart)) continue;
+          const split_line = line.trim().split(split)
+          if (split_line.length != 5) continue;
+          if (pageVersion === undefined) {
+            pageVersion = new PageVersion(version, pages.get(defaultName));
+            result.push(pageVersion);
+          }
+          const position = i - 2;
+          pageVersion.add(Entry.fromTXT(position, split_line));
+        }
+        return result;
+      }
+    }
+
+
+    class Entry {
+      constructor(position, name, time, timeVariance, timeVariancePercent,
+        count, countVariance, countVariancePercent) {
+        this.position = position;
+        this.name = name;
+        this._time = time;
+        this._timeVariance = timeVariance;
+        this._timeVariancePercent =
+            this._variancePercent(time, timeVariance, timeVariancePercent);
+        this._count = count;
+        this.countVariance = countVariance;
+        this.countVariancePercent =
+            this._variancePercent(count, countVariance, countVariancePercent);
+        this.page = undefined;
+        this.parent = undefined;
+        this.isTotal = false;
+      }
+      _variancePercent(value, valueVariance, valueVariancePercent) {
+        if (valueVariancePercent) return valueVariancePercent;
+        if (!valueVariance) return 0;
+        return valueVariance / value * 100;
+      }
+
+      add(entry) {
+        if (this.name !== entry.name) {
+          console.error("Should not combine entries with different names");
+          return;
+        }
+        this._time += entry._time;
+        this._count += entry._count;
+      }
+      urlParams() {
+        let params = this.page.urlParams();
+        params.entry = this.name;
+        return params;
+      }
+      getCompareWithBaseline(value, property) {
+        if (baselineVersion == undefined) return value;
+        let baselineEntry = baselineVersion.getEntry(this);
+        if (!baselineEntry) return value;
+        if (baselineVersion === this.page.version) return value;
+        return value - baselineEntry[property];
+      }
+      cssClass() {
+        return ''
+      }
+      get time() {
+        return this.getCompareWithBaseline(this._time, '_time');
+      }
+      get count() {
+        return this.getCompareWithBaseline(this._count, '_count');
+      }
+      get timePercent() {
+        let value = this._time / this.page.total._time * 100;
+        if (baselineVersion == undefined) return value;
+        let baselineEntry = baselineVersion.getEntry(this);
+        if (!baselineEntry) return value;
+        if (baselineVersion === this.page.version) return value;
+        return (this._time - baselineEntry._time) / this.page.total._time *
+          100;
+      }
+      get timePercentPerEntry() {
+        let value = this._time / this.page.total._time * 100;
+        if (baselineVersion == undefined) return value;
+        let baselineEntry = baselineVersion.getEntry(this);
+        if (!baselineEntry) return value;
+        if (baselineVersion === this.page.version) return value;
+        return (this._time / baselineEntry._time - 1) * 100;
+      }
+      get timePercentVariancePercent() {
+        // Get the absolute values for the percentages
+        return this.timeVariance / this.page.total._time * 100;
+      }
+      getTimeImpact(showDiff) {
+        return this.page.version.getTotalTime(this.name, showDiff);
+      }
+      getTimeImpactVariancePercent(showDiff) {
+        return this.page.version.getTotalTimeVariancePercent(this.name, showDiff);
+      }
+      getTimePercentImpact(showDiff) {
+        return this.page.version.getTotalTimePercent(this.name, showDiff);
+      }
+      getCountImpact(showDiff) {
+        return this.page.version.getTotalCount(this.name, showDiff);
+      }
+      getAverageTimeImpact(showDiff) {
+        return this.page.version.getAverageTimeImpact(this.name, showDiff);
+      }
+      getPagesByPercentImpact() {
+        return this.page.version.getPagesByPercentImpact(this.name);
+      }
+      get isGroup() {
+        return false;
+      }
+      get timeVariance() {
+        return this._timeVariance;
+      }
+      get timeVariancePercent() {
+        return this._timeVariancePercent;
+      }
+
+      static fromLegacyJSON(position, data) {
+        return new Entry(position, ...data);
+      }
+
+      static fromJSON(position, name, data) {
+        let time = data.duration;
+        let count = data.count;
+        return new Entry(position, name, time.average, time.stddev, 0,
+            count.average, count.stddev, 0);
+      }
+
+      static fromTXT(position, splitLine) {
+        const name = splitLine[0];
+        let time = splitLine[1];
+        const msIndex = time.indexOf('m');
+        if (msIndex > 0) time = time.substring(0, msIndex);
+        const timePercent = splitLine[2];
+        const count = splitLine[3];
+        const countPercent = splitLine[4];
+        const timeDeviation = 0;
+        const countDeviation = 0;
+        const timeDeviationPercent = 0;
+        const countDeviationPercent = 0
+        return new Entry(position, name,
+          Number.parseFloat(time), timeDeviation, timeDeviationPercent,
+          Number.parseInt(count), countDeviation, countDeviationPercent)
+      }
+    }
+
+    class Group {
+      constructor(name, regexp, color, enabled = true, addsToTotal = true) {
+        this.name = name;
+        this.regexp = regexp;
+        this.color = color;
+        this.enabled = enabled;
+        this.addsToTotal = addsToTotal;
+      }
+      entry() {
+        return new GroupedEntry(this);
+      }
+    }
+    Group.groups = new Map();
+    Group.add = function (name, group) {
+      this.groups.set(name, group);
+      return group;
+    }
+    Group.add('total', new Group('Total', /.*Total.*/, '#BBB', true, false));
+    Group.add('ic', new Group('IC', /(.*IC_.*)|IC/, "#3366CC"));
+    Group.add('optimize-maglev-background', new Group('Optimize-Maglev-Background',
+      /.*Optimize(d?-?)(Background|Concurrent).*Maglev.*/, "#962c02"));
+    Group.add('optimize-maglev', new Group('Optimize-Maglev',
+      /.*Maglev.*/, "#fc4f26"));
+    Group.add('optimize-background', new Group('Optimize-Background',
+      /.*Optimize(d?-?)(Background|Concurrent).*/, "#702000"));
+    Group.add('optimize', new Group('Optimize',
+      /(StackGuard|Optimize|Deoptimize|Recompile).*/, "#DC3912"));
+    Group.add('compile-background', new Group('Compile-Background',
+      /(.*Compile-?Background.*)/, "#b08000"));
+    Group.add('compile', new Group('Compile',
+      /(^Compile.*)|(.*_Compile.*)/, "#FFAA00"));
+    Group.add('parse-background',
+      new Group('Parse-Background', /.*Parse-?Background.*/, "#c05000"));
+    Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));
+    Group.add('network-data',
+      new Group('Network Data', /.*GetMoreDataCallback.*/, "#103366"));
+    Group.add('callback',
+      new Group('Blink C++', /.*(Callback)|(Blink C\+\+).*/, "#109618"));
+    Group.add('api', new Group('API', /.*API.*/, "#990099"));
+    Group.add('gc-custom', new Group('GC-Custom', /GC_Custom_.*/, "#0099C6"));
+    Group.add('gc-background',
+      new Group(
+        'GC-Background', /GC_.*(BACKGROUND|Background).*/, "#00597c"));
+    Group.add('gc',
+      new Group('GC', /GC_.*|AllocateInTargetSpace|GC/, "#00799c"));
+    Group.add('javascript',
+      new Group('JavaScript', /JS_Execution|JavaScript/, "#DD4477"));
+    Group.add('runtime', new Group('V8 C++', /.*/, "#88BB00"));
+    Group.add('blink',
+      new Group('Blink RCS', /.*Blink_.*/, "#006600", false, false));
+    Group.add('unclassified', new Group('Unclassified', /.*/, "#000", false));
+
+    class GroupedEntry extends Entry {
+      constructor(group) {
+        super(0, GroupedEntry.prefix + group.name, 0, 0, 0, 0, 0, 0);
+        this.group = group;
+        this.entries = [];
+        this.missingEntries = null;
+        this.addsToTotal = group.addsToTotal;
+      }
+      get regexp() {
+        return this.group.regexp;
+      }
+      get color() {
+        return this.group.color;
+      }
+      get enabled() {
+        return this.group.enabled;
+      }
+      add(entry) {
+        if (!this.addTimeAndCount(entry)) return;
+        // TODO: sum up variance
+        this.entries.push(entry);
+        entry.parent = this;
+        return true;
+      }
+      addTimeAndCount(entry) {
+        if (!this.regexp.test(entry.name)) return false;
+        this._time += entry.time;
+        this._count += entry.count;
+        return true;
+      }
+      _initializeMissingEntries() {
+        let dummyEntryNames = new Set();
+        versions.forEach((version) => {
+          let page = version.getOrCreate(this.page.name);
+          let groupEntry = page.get(this.name);
+          if (groupEntry != this) {
+            for (let entry of groupEntry.entries) {
+              if (this.page.get(entry.name) == undefined) {
+                dummyEntryNames.add(entry.name);
+              }
+            }
+          }
+        });
+        this.missingEntries = [];
+        for (let name of dummyEntryNames) {
+          let tmpEntry = new Entry(0, name, 0, 0, 0, 0, 0, 0);
+          tmpEntry.page = this.page;
+          this.missingEntries.push(tmpEntry);
+        };
+      }
+      forEach(fun) {
+        // Show also all entries which are in at least one version.
+        // Concatenate our real entries.
+        if (this.missingEntries == null) {
+          this._initializeMissingEntries();
+        }
+        let tmpEntries = this.missingEntries.concat(this.entries);
+
+        // The compared entries are sorted by absolute impact.
+        tmpEntries.sort((a, b) => {
+          return b.time - a.time
+        });
+        tmpEntries.forEach(fun);
+      }
+      sort() {
+        this.entries.sort((a, b) => {
+          return b.time - a.time;
+        });
+      }
+      cssClass() {
+        if (this.page.total == this) return 'total';
+        return '';
+      }
+      get isGroup() {
+        return true
+      }
+      getVarianceForProperty(property) {
+        let sum = 0;
+        const key = property + 'Variance';
+        this.entries.forEach((entry) => {
+          const value = entry[key];
+          sum += value * value;
+        });
+        return Math.sqrt(sum);
+      }
+      get timeVariancePercent() {
+        if (this._time == 0) return 0;
+        return this.getVarianceForProperty('time') / this._time * 100
+      }
+      get timeVariance() {
+        return this.getVarianceForProperty('time')
+      }
+    }
+    GroupedEntry.prefix = 'Group-';
+
+    class UnclassifiedEntry extends GroupedEntry {
+      constructor(page) {
+        super(Group.groups.get('unclassified'));
+        this.page = page;
+        this._time = undefined;
+        this._count = undefined;
+      }
+      add(entry) {
+        console.log("Adding unclassified:", entry);
+        this.entries.push(entry);
+        entry.parent = this;
+        return true;
+      }
+      forEachPageGroup(fun) {
+        this.page.forEachGroup((group) => {
+          if (group == this) return;
+          if (group == this.page.total) return;
+          fun(group);
+        });
+      }
+      get time() {
+        if (this._time === undefined) {
+          this._time = this.page.total._time;
+          this.forEachPageGroup((group) => {
+            if (group.addsToTotal) this._time -= group._time;
+          });
+        }
+        return this.getCompareWithBaseline(this._time, '_time');
+      }
+      get count() {
+        if (this._count === undefined) {
+          this._count = this.page.total._count;
+          this.forEachPageGroup((group) => {
+            this._count -= group._count;
+          });
+        }
+        return this.getCompareWithBaseline(this._count, '_count');
+      }
+    }
+  </script>
+</head>
+
+<body id="body" onmousemove="handleUpdatePopover(event)" onload="handleBodyLoad()" class="noDiff">
+  <h1>Runtime Stats Komparator</h1>
+
+  <section id="inputs" class="panel alwaysVisible">
+    <input type="checkbox" id="inputsCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="inputsCheckbox">▼</label>
+    <h2>Input/Output</h2>
+    <div class="panelBody">
+      <form name="fileForm" class="inline">
+        <p class="inline">
+          <label for="uploadInput">Load Files:</label>
+          <input id="uploadInput" type="file" name="files" onchange="handleLoadFiles();" multiple
+            accept=".json,.txt,.csv,.output">
+        </p>
+        <p class="inline">
+          <label for="appendInput">Append Files:</label>
+          <input id="appendInput" type="file" name="files" onchange="handleAppendFiles();" multiple
+            accept=".json,.txt,.csv,.output">
+        </p>
+      </form>
+      <p class="inline">
+        <button onclick="handleCopyToClipboard()">Copy Table to Clipboard</button>
+      </p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Baseline Selector</h2>
+    <div class="panel-body">
+      Compare against baseline:&nbsp;<select id="baseline" onchange="handleSelectBaseline(this, event)"></select><br />
+      <span style="color: #060">Green</span> a selected version performs
+      better than the baseline.
+    </div>
+  </section>
+
+  <section class="panel-group">
+    <div id="versionSelector" class="panel">
+      <input type="checkbox" checked id="versionSelectorCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="versionSelectorCheckbox">▼</label>
+      <h2>Selected Versions</h2>
+      <div class="panelBody">
+        <ul></ul>
+      </div>
+    </div>
+
+    <div id="pageSelector" class="panel">
+      <input type="checkbox" checked id="pageSelectorCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="pageSelectorCheckbox">▼</label>
+      <h2>Selected Pages</h2>
+      <div class="panelBody">
+        <ul></ul>
+      </div>
+    </div>
+
+    <div id="groupSelector" class="panel">
+      <input type="checkbox" checked id="groupSelectorCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="groupSelectorCheckbox">▼</label>
+      <h2>Selected RCS Groups</h2>
+      <div class="panelBody">
+        <ul></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="view" class="panel">
+    <input type="checkbox" id="tableViewCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="tableViewCheckbox">▼</label>
+    <h2>RCS Table</h2>
+    <div class="panelBody"></div>
+  </section>
+
+  <section class="panel-group">
+    <div id="versionDetails" class="panel">
+      <input type="checkbox" checked id="versionDetailCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="versionDetailCheckbox">▼</label>
+      <h2><span>Compare Page Versions</span></h2>
+      <div class="conten panelBody">
+        <table class="versionDetailTable" onclick="handleSelectDetailRow(this, event);">
+          <thead>
+            <tr>
+              <th class="version">Version&nbsp;</th>
+              <th class="position">Pos.&nbsp;</th>
+              <th class="value time">Time▴&nbsp;</th>
+              <th class="value time">Percent&nbsp;</th>
+              <th class="value count">Count&nbsp;</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="pageDetail" class="panel">
+      <input type="checkbox" checked id="pageDetailCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="pageDetailCheckbox">▼</label>
+      <h2>Page Comparison for <span></span></h2>
+      <div class="panelBody">
+        <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
+          <thead>
+            <tr>
+              <th class="page">Page&nbsp;</th>
+              <th class="value time">Time&nbsp;</th>
+              <th class="value time">Percent▾&nbsp;</th>
+              <th class="value time hideNoDiff">%/Entry&nbsp;</th>
+              <th class="value count">Count&nbsp;</th>
+            </tr>
+          </thead>
+          <tfoot>
+            <tr>
+              <td class="page">Total:</td>
+              <td class="value time"></td>
+              <td class="value time"></td>
+              <td class="value time hideNoDiff"></td>
+              <td class="value count"></td>
+            </tr>
+          </tfoot>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="impactView" class="panel">
+      <input type="checkbox" checked id="impactViewCheckbox" class="panelCloserInput">
+      <label class="panelCloserLabel" for="impactViewCheckbox">▼</label>
+      <h2>Impact list for <span></span></h2>
+      <div class="panelBody">
+        <table class="pageDetailTable" onclick="handleSelectDetailRow(this, event);">
+          <thead>
+            <tr>
+              <th class="page">Name&nbsp;</th>
+              <th class="value time">Time&nbsp;</th>
+              <th class="value time">Percent▾&nbsp;</th>
+              <th class="">Top Pages</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="pageVersionGraph" class="panel">
+    <input type="checkbox" id="pageVersionGraphCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="pageVersionGraphCheckbox">▼</label>
+    <h2><span></span></h2>
+    <div class="panelBody"></div>
+  </section>
+
+  <section id="pageGraph" class="panel">
+    <input type="checkbox" id="pageGraphCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="pageGraphCheckbox">▼</label>
+    <h2><span></span></h2>
+    <div class="panelBody"></div>
+  </section>
+
+  <section id="versionGraph" class="panel">
+    <input type="checkbox" id="versionGraphCheckbox" class="panelCloserInput">
+    <label class="panelCloserLabel" for="versionGraphCheckbox">▼</label>
+    <h2><span></span></h2>
+    <div class="panelBody"></div>
+  </section>
+
+  <div id="column" class="column">
+    <div class="header">
+      <select class="version" onchange="handleSelectVersion(this, event);"></select>
+      <select class="pageVersion" onchange="handleSelectPage(this, event);"></select>
+    </div>
+    <table class="list" onclick="handleSelectRow(this, event);">
+      <thead>
+        <tr>
+          <th class="position">Pos.&nbsp;</th>
+          <th class="name">Name&nbsp;</th>
+          <th class="value time">Time&nbsp;</th>
+          <th class="value time">Percent&nbsp;</th>
+          <th class="value count">Count&nbsp;</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <section class="panel alwaysVisible">
+    <h2>Instructions</h2>
+    <div class="panelBody">
+      <ol>
+        <li>Build chrome.</li>
+      </ol>
+      <h3>Telemetry benchmark</h3>
+      <ol>
+        <li>Run <code>v8.browsing</code> benchmarks:
+          <pre>$CHROMIUM_DIR/tools/perf/run_benchmark run v8.browsing_desktop \
+            --browser=exact --browser-executable=$CHROMIUM_DIR/out/release/chrome \
+            --story-filter='.*2020 ' \
+            --also-run-disabled-tests
+          </pre>
+        </li>
+        <li>Install <a href="https://stedolan.github.io/jq/">jq</a>.</li>
+        <li>Convert the telemetry JSON files to callstats JSON file:
+          <pre>
+            $V8_DIR/tools/callstats-from-telemetry.sh $CHROMIUM_DIR/tools/perf/artifacts/run_XXXX
+          </pre>
+        </li>
+        <li>Load the generated <code>out.json</code></li>
+      </ol>
+      <h3>Merged CSV from results.html</h3>
+      <ol>
+        <li>Open a results.html page for RCS-enabled benchmarks</li>
+        <li>Select "Export merged CSV" in the toolbar</li>
+        <li>Load the downloading .csv file normally in callstats.html</li>
+      </ol>
+      <h3>Aggregated raw txt output</h3>
+      <ol>
+        <li>Install scipy, e.g. <code>sudo aptitude install python-scipy</code>
+        <li>Check out a known working version of webpagereply:
+          <pre>git -C $CHROME_DIR/third_party/webpagereplay checkout 7dbd94752d1cde5536ffc623a9e10a51721eff1d</pre>
+        </li>
+        <li>Run <code>callstats.py</code> with a web-page-replay archive:
+          <pre>$V8_DIR/tools/callstats.py run \
+          --replay-bin=$CHROME_SRC/third_party/webpagereplay/replay.py \
+          --replay-wpr=$INPUT_DIR/top25.wpr \
+          --js-flags="" \
+          --with-chrome=$CHROME_SRC/out/Release/chrome \
+          --sites-file=$INPUT_DIR/top25.json</pre>
+        </li>
+        <li>Move results file to a subdirectory: <code>mkdir $VERSION_DIR; mv *.txt $VERSION_DIR</code></li>
+        <li>Repeat from step 1 with a different configuration (e.g. <code>--js-flags="--nolazy"</code>).</li>
+        <li>Create the final results file: <code>./callstats.py json $VERSION_DIR1 $VERSION_DIR2 > result.json</code>
+        </li>
+        <li>Use <code>results.json</code> on this site.</code>
+      </ol>
+    </div>
+  </section>
+
+  <div id="popover">
+    <div class="popoverArrow"></div>
+    <table>
+      <tr>
+        <td class="name" colspan="6"></td>
+      </tr>
+      <tr>
+        <td>Page:</td>
+        <td class="page name" colspan="6"></td>
+      </tr>
+      <tr>
+        <td>Version:</td>
+        <td class="version name" colspan="3"></td>
+        <td class="compare version name" colspan="3"></td>
+      </tr>
+      <tr>
+        <td>Time:</td>
+        <td class="time"></td>
+        <td>±</td>
+        <td class="timeVariance"></td>
+        <td class="compare time"></td>
+        <td class="compare"> ± </td>
+        <td class="compare timeVariance"></td>
+      </tr>
+      <tr>
+        <td>Percent:</td>
+        <td class="percent"></td>
+        <td>±</td>
+        <td class="percentVariance"></td>
+        <td class="compare percent"></td>
+        <td class="compare"> ± </td>
+        <td class="compare percentVariance"></td>
+      </tr>
+      <tr>
+        <td>Percent per Entry:</td>
+        <td class="percentPerEntry"></td>
+        <td colspan=2></td>
+        <td class="compare percentPerEntry"></td>
+        <td colspan=2></td>
+      </tr>
+      <tr>
+        <td>Count:</td>
+        <td class="count"></td>
+        <td>±</td>
+        <td class="countVariance"></td>
+        <td class="compare count"></td>
+        <td class="compare"> ± </td>
+        <td class="compare countVariance"></td>
+      </tr>
+      <tr>
+        <td>Overall Impact:</td>
+        <td class="timeImpact"></td>
+        <td>±</td>
+        <td class="timePercentImpact"></td>
+        <td class="compare timeImpact"></td>
+        <td class="compare"> ± </td>
+        <td class="compare timePercentImpact"></td>
+      </tr>
+    </table>
+  </div>
+</body>
+
+</html>

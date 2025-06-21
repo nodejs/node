@@ -1,0 +1,57 @@
+name: V8 patch update
+on:
+  schedule:
+    # Run once a week at 00:05 AM UTC on Sunday.
+    - cron: 5 0 * * 0
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: lts/*
+
+permissions:
+  contents: read
+
+jobs:
+  v8-update:
+    if: github.repository == 'nodejs/node'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Cache node modules and update-v8
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684  # v4.2.3
+        id: cache-v8-npm
+        env:
+          cache-name: cache-v8-npm
+        with:
+          path: |
+            ~/.update-v8
+            ~/.npm
+          key: ${{ runner.os }}-build-${{ env.cache-name }}
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
+      - name: Setup Git config
+        run: |
+          git config --global user.name "Node.js GitHub Bot"
+          git config --global user.email "github-bot@iojs.org"
+      - name: Check and download new V8 version
+        run: |
+            ./tools/dep_updaters/update-v8-patch.sh > temp-output
+            cat temp-output
+            tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+            rm temp-output
+      - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
+        # Creates a PR or update the Action's existing PR, or
+        # no-op if the base branch is already up-to-date.
+        with:
+          token: ${{ secrets.GH_USER_TOKEN }}
+          branch: actions/update-v8-patch  # Custom branch *just* for this Action.
+          delete-branch: true
+          title: 'deps: patch V8 to ${{ env.NEW_VERSION }}'
+          body: This is an automated patch update of V8 to ${{ env.NEW_VERSION }}.
+          labels: dependencies, v8 engine

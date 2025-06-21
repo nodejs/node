@@ -1,0 +1,33 @@
+Tests GC object inspection.
+
+Running test: test
+Instantiating.
+Waiting for wasm script (ignoring first non-wasm script).
+Setting breakpoint at offset 103 on script wasm://wasm/27d1b772
+Calling main()
+Paused:
+Script wasm://wasm/27d1b772 byte offset 103: Wasm opcode 0x1a (kExprDrop)
+Scope:
+at $main (0:103):
+ - scope (wasm-expression-stack):
+   0: Array ((ref $ArrC))
+   1: hello world (stringref)
+     object details:
+   0: Struct ((ref $StrA))
+   length: 1 (number)
+ - scope (local):
+   $var0: hello world (stringref)
+   $varA: Struct ((ref $StrA))
+   $varB: null ((ref null $ArrC))
+     object details:
+   $byte: 127 (i8)
+   $word: 32767 (i16)
+   $pointer: Struct ((ref $veryLongNameWithMoreThanOneHundredAndTwentyEightCharactersToTestThatWeAreHandlingStringBufferOverflowWithoutCrashing_ThisWontGetTruncated))
+ - scope (module):
+   instance: exports: "main" (Function)
+   module: Module
+   functions: "$main": (Function)
+   globals: "$global0": function $main() { [native code] } ((ref null $canon6))
+at (anonymous) (0:17):
+   -- skipped
+exports.main returned!

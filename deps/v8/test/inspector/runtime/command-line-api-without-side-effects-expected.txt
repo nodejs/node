@@ -1,0 +1,134 @@
+Tests Command Line API evaluations with throwOnSideEffect.
+
+Expression: console.memory
+42
+
+Expression: $_
+43
+
+Expression: $0
+undefined
+
+Expression: $1
+undefined
+
+Expression: $2
+undefined
+
+Expression: $3
+undefined
+
+Expression: $4
+undefined
+
+Method: console.debug
+EvalError: Possible side-effect in debug-evaluate
+function debug() { [native code] }
+
+Method: console.error
+EvalError: Possible side-effect in debug-evaluate
+function error() { [native code] }
+
+Method: console.info
+EvalError: Possible side-effect in debug-evaluate
+function info() { [native code] }
+
+Method: console.log
+EvalError: Possible side-effect in debug-evaluate
+function log() { [native code] }
+
+Method: console.warn
+EvalError: Possible side-effect in debug-evaluate
+function warn() { [native code] }
+
+Method: console.dir
+EvalError: Possible side-effect in debug-evaluate
+function dir() { [native code] }
+
+Method: console.dirxml
+EvalError: Possible side-effect in debug-evaluate
+function dirxml() { [native code] }
+
+Method: console.table
+EvalError: Possible side-effect in debug-evaluate
+function table() { [native code] }
+
+Method: console.trace
+EvalError: Possible side-effect in debug-evaluate
+function trace() { [native code] }
+
+Method: console.group
+EvalError: Possible side-effect in debug-evaluate
+function group() { [native code] }
+
+Method: console.groupEnd
+EvalError: Possible side-effect in debug-evaluate
+function groupEnd() { [native code] }
+
+Method: console.groupCollapsed
+EvalError: Possible side-effect in debug-evaluate
+function groupCollapsed() { [native code] }
+
+Method: console.clear
+EvalError: Possible side-effect in debug-evaluate
+function clear() { [native code] }
+
+Method: console.count
+EvalError: Possible side-effect in debug-evaluate
+function count() { [native code] }
+
+Method: console.assert
+EvalError: Possible side-effect in debug-evaluate
+function assert() { [native code] }
+
+Method: console.profile
+EvalError: Possible side-effect in debug-evaluate
+function profile() { [native code] }
+
+Method: console.profileEnd
+EvalError: Possible side-effect in debug-evaluate
+function profileEnd() { [native code] }
+
+Method: console.time
+EvalError: Possible side-effect in debug-evaluate
+function time() { [native code] }
+
+Method: console.timeEnd
+EvalError: Possible side-effect in debug-evaluate
+function timeEnd() { [native code] }
+
+Method: debug
+EvalError: Possible side-effect in debug-evaluate
+function debug(function, condition) { [Command Line API] }
+
+Method: undebug
+EvalError: Possible side-effect in debug-evaluate
+function undebug(function) { [Command Line API] }
+
+Method: monitor
+EvalError: Possible side-effect in debug-evaluate
+function monitor(function) { [Command Line API] }
+
+Method: unmonitor
+EvalError: Possible side-effect in debug-evaluate
+function unmonitor(function) { [Command Line API] }
+
+Method: keys
+Array(2)
+function keys(object) { [Command Line API] }
+
+Method: values
+Array(2)
+function values(object) { [Command Line API] }
+
+Method: inspect
+EvalError: Possible side-effect in debug-evaluate
+function inspect(object) { [Command Line API] }
+
+Method: copy
+EvalError: Possible side-effect in debug-evaluate
+function copy(value) { [Command Line API] }
+
+Method: queryObjects
+EvalError: Possible side-effect in debug-evaluate
+function queryObjects(constructor) { [Command Line API] }

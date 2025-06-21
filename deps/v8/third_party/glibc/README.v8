@@ -1,0 +1,11 @@
+Name: glibc
+URL: https://www.gnu.org/software/libc/
+License: LGPL 2.1
+License File: LICENSE
+Security Critical: yes
+Shipped: yes
+Upstream Git: https://sourceware.org/git/?p=glibc.git;a=summary
+Version: N/A
+Revision: 4e21c2075193e406a92c0d1cb091a7c804fda4d9
+
+This directory contains a handful of files that are forked from glibc.

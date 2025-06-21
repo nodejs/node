@@ -1,0 +1,18 @@
+<body>
+<script>
+function request() {
+  var client = new XMLHttpRequest,
+      baseurl = "https://{{hosts[alt][]}}:{{ports[https][0]}}{{location[pathname]}}",
+      url = new URL("fake_responses.py", baseurl).href;
+    client.open("GET", url, false)
+    client.send(null)
+    client.open("GET", url, false)
+    client.send(null)
+}
+
+if(window.parent.setup_iframe) {
+  window.parent.setup_iframe();
+  request();
+}
+</script>
+</body>

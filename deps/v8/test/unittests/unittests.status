@@ -1,0 +1,355 @@
+# Copyright 2014 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+
+[ALWAYS, {
+  'IntlTest.StringLocaleCompareFastPath': [['mode != release', SKIP], SLOW, NO_VARIANTS],
+
+  # BUG(5193). The cpu profiler tests are notoriously flaky.
+  'SamplerTest.LibSamplerCollectSample': [SKIP],
+
+  # This tests only the type system, no point in running several variants.
+  'TypesTest.*': [PASS, NO_VARIANTS],
+
+  # These tests are supposed to fail in a slow DCHECK, skip them otherwise.
+  'LocalHandlesTest.DereferenceLocalHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
+  'PersistentHandlesTest.DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
+
+  # https://crbug.com/v8/8919
+  'PlatformTest.StackAlignment': [PASS, ['not clang', SKIP]],
+
+  # We do not yet shrink weak maps after they have been emptied by the GC
+  'WeakMapsTest.Shrinking': [SKIP],
+  'WeakSetsTest.WeakSet_Shrinking': [SKIP],
+
+  # This tests only that the preparser and parser agree, so there is no point in
+  # running several variants. Note that this still takes ages, because there
+  # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
+  'ParsingTest.ParserSync': [PASS, NO_VARIANTS],
+
+  # Slow tests.
+  'Mutex.SharedMutexThreadsFuzz': [PASS, SLOW],
+  'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
+  'SignalAndMutexTest.SignalsPlusSharedMutexes': [PASS, SLOW],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'LogAllTest.LogAll': [PASS, SLOW, HEAVY],
+  'WasmModuleVerifyTest.NGlobals': [PASS, HEAVY],
+
+  # BUG(13660): Flaky test.
+  'OS.RemapPages': [SKIP],
+}],  # ALWAYS
+
+##############################################################################
+['mode == debug', {
+  'PersistentHandlesTest.NewPersistentHandleFailsWhenParked': [FAIL],
+  'PersistentHandlesTest.NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
+}],
+
+##############################################################################
+['system == macos and asan', {
+  # BUG(820416).
+  'BitsDeathTest*': [SKIP],
+  'LiveRangeUnitTest*': [SKIP],
+  'LoggingDeathTest*': [SKIP],
+  'LoggingTest.CompareClassTypes': [SKIP],
+  'LoggingTest.CompareWithDifferentSignedness': [SKIP],
+  'LoggingTest.CompareWithReferenceType': [SKIP],
+  'RandomNumberGenerator.NextSampleInvalidParam': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
+}],  # system == macos and asan
+
+['system == macos and arch == arm64 and not simulator_run', {
+  # Throwing C++ exceptions doesn't work; probably because the unittests
+  # binary is built with -fno-exceptions?
+  'LanguageServerJson.*': [SKIP],
+  'LanguageServer.*': [SKIP],
+  'Torque.*': [SKIP],
+
+  # Test uses fancy signal handling. Needs investigation.
+  'MemoryAllocationPermissionsTest.DoTest': [SKIP],
+
+  # Time tick resolution appears to be ~42 microseconds. Tests expect 1 us.
+  'TimeTicks.NowResolution': [FAIL],
+  'RuntimeCallStatsTest.BasicJavaScript': [SKIP],
+  'RuntimeCallStatsTest.FunctionLengthGetter': [SKIP],
+}],  # system == macos and arch == arm64 and not simulator_run
+
+# TODO(v8:12824): Enable this test once this is resolved.
+['arch == arm64 and msan', {
+  'WeakContainerTest.ConservativeGCTracesWeakContainer': [SKIP],
+}],  # arch == arm64 and msan
+
+##############################################################################
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
+  'ValueSerializerTestWithSharedArrayBufferClone.RoundTripWebAssemblyMemory': [SKIP],
+  'ValueSerializerTestWithWasm.*': [SKIP],
+  'ApiWasmTest.WasmStreaming*': [SKIP],
+  'ApiWasmTest.WasmCompileToWasmModuleObject': [SKIP],
+  'ApiWasmTest.WasmStreamingCallback': [SKIP],
+}],  # not has_webassembly or variant == jitless
+
+##############################################################################
+['system == aix', {
+  # PASE does not support detecting physical memory size
+  'SysInfoTest.AmountOfPhysicalMemory': [SKIP],
+}],  # system == aix
+
+##############################################################################
+['system == aix and component_build', {
+  # FreezeFlags relies on mprotect() method, which does not work by default on
+  # shared memory
+  # https://www.ibm.com/docs/en/aix/7.2?topic=m-mprotect-subroutine
+  'FlagDefinitionsTest.FreezeFlags': [SKIP],
+}],  # system == aix and component_build
+
+##############################################################################
+['arch == ppc64', {
+  # PPC Page size is too large for these tests.
+  'HeapStatisticsCollectorTest.BriefStatisticsWithDiscardingOnNormalPage': [SKIP],
+  'HeapStatisticsCollectorTest.DetailedStatisticsWithDiscardingOnNormalPage': [SKIP],
+  'SweeperTest.DiscardingNormalPageMemory': [SKIP],
+
+  # https://crbug.com/v8/8766
+  'BytecodeGeneratorTest.WideRegisters': [SKIP],
+}],  # arch == ppc64
+
+##############################################################################
+['arch == mips64el', {
+  # TODO(mips-team): mips64 do not allocate odd register in liftoff.
+  'WasmRegisterTest.SpreadSetBitsToAdjacentFpRegs': [SKIP],
+}],  # 'arch == mips64'
+
+##############################################################################
+['system == windows and asan', {
+  # BUG(893437).
+  'LanguageServer*': [SKIP],
+  'Torque*': [SKIP],
+
+  # Hangs on asan.
+  'PageMemoryRegionDeathTest*': [SKIP],
+}],  # system == windows and asan
+
+['system == windows and arch == x64 and mode == release', {
+  # BUG(992783).
+  'Torque.ConditionalFields': [SKIP],
+  'Torque.UsingUnderscorePrefixedIdentifierError': [SKIP],
+}],  # system == windows and arch == x64 and mode == release
+
+##############################################################################
+['asan == True', {
+  # Skip tests not suitable for ASAN.
+  'AssemblerX64.AssemblerX64XchglOperations': [SKIP],
+}],  # 'asan == True'
+
+['tsan == True', {
+  # https://crbug.com/v8/9380
+  # The test is broken and needs to be fixed to use separate isolates.
+  'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
+
+  # https://crbug.com/v8/12997
+  # These skips should be removed after tsan errors in libsampler are fixed.
+  'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
+  'LogMapsTest.LogMapsDetailsStartup': [SKIP],
+  'LogMapsTest.LogMapsDetailsContexts': [SKIP],
+}],  # tsan == True
+
+##############################################################################
+['variant == stress_js_bg_compile_wasm_code_gc', {
+  # The test relies on deterministic allocation during compilation.
+  'CompilerTest.DeepEagerCompilationPeakMemory': [SKIP],
+}],  # variant == stress_js_bg_compile_wasm_code_gc
+
+##############################################################################
+['not pointer_compression', {
+  # Tests are irrelevant without pointer compression
+  'DecompressionOptimizerTest.*': [SKIP],
+}],  # not pointer_compression
+
+##############################################################################
+['variant == stress_incremental_marking', {
+  # BUG(v8:11820): the test adjusts GC flags, which does not work
+  # if GC starts before the test.
+  'RuntimeCallStatsTest.GarbageCollection': [SKIP],
+}],  # variant == stress_incremental_marking
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
+################################################################################
+['not clang and (arch == riscv64 or arch == riscv32)',{
+  'LoggingTest.SourceLocation':[SKIP]  # issue-174
+}],
+
+##############################################################################
+['lite_mode', {
+  # TODO(mythria): Code logging tests that currently fail with lazy feedback
+  # allocation. Fix logging to work without feedback vectors and enable these
+  # tests in lite_mode.
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+}], # lite_mode
+
+##############################################################################
+['variant == jitless', {
+  # --interpreted-frames-native-stack tests
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'InterpreterTest.InterpreterWithNativeStack': [SKIP],
+}], # jitless
+
+##############################################################################
+['has_jitless', {
+  # Feedback collection maintenance is (mostly) disabled.
+  'FeedbackVectorTest.Vector*': [SKIP],
+  'InterpreterTest.InterpreterBigIntComparisons': [SKIP],
+  'InterpreterTest.InterpreterBinaryOpSmiTypeFeedback': [SKIP],
+  'InterpreterTest.InterpreterUnaryOpFeedback': [SKIP],
+  'InterpreterTest.InterpreterStringComparisons': [SKIP],
+  'InterpreterTest.InterpreterSmiComparisons': [SKIP],
+  'InterpreterTest.InterpreterStringAdd': [SKIP],
+  'InterpreterTest.InterpreterMixedComparisons': [SKIP],
+  'InterpreterTest.InterpreterHeapNumberComparisons': [SKIP],
+  'InterpreterTest.InterpreterBinaryOpsBigInt': [SKIP],
+  'InterpreterTest.InterpreterBinaryOpTypeFeedback': [SKIP],
+  'InterpreterTest.InterpreterBitwiseTypeFeedback': [SKIP],
+  # These require executable code space.
+  'AssemblerX64Test.*': [SKIP],
+}],  # has_jitless
+
+##############################################################################
+['byteorder == big', {
+  # Peephole optimization not supported on big-endian machines.
+  'RegExpTest.Peephole*': [SKIP],
+}],  # 'byteorder == big'
+
+##############################################################################
+['lite_mode or variant == jitless', {
+
+  # Tests that generate code at runtime.
+  'CodePagesTest.*': [SKIP],
+  'MacroAssemblerX64Test.EmbeddedObj': [SKIP],
+  'RegExpTest.MacroAssemblernativeAtStart': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBackReferenceUC16': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBackRefNoCase': [SKIP],
+  'RegExpTest.MacroAssemblerNativeBacktrack': [SKIP],
+  'RegExpTest.MacroAssemblerNativeLotsOfRegisters': [SKIP],
+  'RegExpTest.MacroAssemblerNativeRegisters': [SKIP],
+  'RegExpTest.MacroAssemblerNativeSimple': [SKIP],
+  'RegExpTest.MacroAssemblerNativeSimpleUC16': [SKIP],
+  'RegExpTest.MacroAssemblerNativeSuccess': [SKIP],
+  'RegExpTest.MacroAssemblerStackOverflow': [SKIP],
+  'RegExpTest.Graph': [SKIP],
+  'SloppyEqualityTest.*' : [SKIP],
+  'DisasmX64Test.*': [SKIP],
+  'RunBytecodeGraphBuilderTest.*': [SKIP],
+  'RunJSBranchesTest.*': [SKIP],
+  'RunJSCallsTest.*': [SKIP],
+  'RunJSExceptionsTest.*': [SKIP],
+  'RunJSObjectsTest.*': [SKIP],
+  'RunJSOpsTest.*': [SKIP],
+  'RunTailCallsTest.*': [SKIP],
+
+  # Tests generated irregexp code.
+  'RegExpTestWithContext.RegExpInterruptReentrantExecution': [SKIP],
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['variant == no_wasm_traps', {
+  'APIExceptionTest.*': [SKIP],
+  'LogTest.*': [SKIP],
+  'TestWithIsolate.Issue23768': [SKIP],
+  'LogAllTest.LogAll': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'LogExternalLogEventListenerTest.ExternalLogEventListener': [SKIP],
+  'LogExternalLogEventListenerInnerFunctionTest.ExternalLogEventListenerInnerFunctions': [SKIP],
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogMapsTest.*': [SKIP],
+  'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
+  'LogFunctionEventsTest.LogFunctionEvents': [SKIP],
+  'BignumDtoaTest.*': [SKIP],
+  'DtoaTest.*': [SKIP],
+  'DeclsTest.*': [SKIP],
+  'GlobalHandlesTest.*': [SKIP],
+  'ParsingTest/*': [SKIP],
+}],  # variant == no_wasm_traps
+
+##############################################################################
+['not i18n', {
+  'RegExpTestWithContext.UnicodePropertyEscapeCodeSize': [SKIP],
+}],  # not i18n
+
+##############################################################################
+['no_simd_hardware == True', {
+  'WasmDisassemblerTest.Simd': [SKIP],
+}],  # no_simd_hardware == True
+
+['tsan and mode == debug', {
+  'LazyCompileDispatcherTest.CompileLazy2FinishesDispatcherJob': [SKIP],
+}],
+
+# With the official_build flag exceptions are disabled. Therefore torque
+# tests fail that rely on catching them (v8:13945).
+['official_build', {
+  'LanguageServerJson.ParserError': [FAIL],
+  'FlagDefinitionsTest.FreezeFlags': [FAIL],
+  'LanguageServerJson.LexerError': [FAIL],
+  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [FAIL],
+  'Torque.ImportNonExistentFile': [FAIL],
+  'Torque.Enums': [FAIL],
+}],  # 'official_build'
+
+##############################################################################
+# Behavioural differences between Maglev and Turbofan when the former is used
+# for OptimizeFunctionOnNextCall.
+['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
+  # Maglev doesn't support compiler::NodeObserver machinery.
+  'SloppyEqualityTest.SloppyEqualityTest': [FAIL],
+  # Maglev doesn't produce optimized enough code to trigger expected
+  # deoptimization.
+  'FeedbackVectorTest.VectorCallSpeculationModeAndFeedbackContent': [FAIL],
+}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
+
+##############################################################################
+['system == windows', {
+  # Bug: crbug.com/v8/14320
+  'TimeTicks.NowResolution': [PASS,FAIL],
+}],  # system == windows
+
+##############################################################################
+['system == android', {
+  # https://crbug.com/v8/14545
+  'LogAllTest.LogAll': [SKIP],
+  'LogTimerTest.ConsoleTimeEvents': [SKIP],
+}],  # 'system == android'
+
+['clang_coverage and mode == debug', {
+  # Too slow tests.
+  'LogAllTest.LogAll': [SKIP],
+}],  # 'clang_coverage and mode == debug'
+
+['device_type == bullhead', {
+  # https://crbug.com/374300658
+  'SandboxTest.*': [SKIP],
+}],  # 'device_type == bullhead'
+
+##############################################################################
+['simulator_run', {
+  # Do not execute tests which abort the process in the simulator; the
+  # simulator will start the interactive debugger and then timeout because
+  # there is no input.
+  'MacroAssemblerTest.TestCheck': [SKIP],
+  'MacroAssemblerTest.TestHardAbort': [SKIP],
+}],  # simulator_run
+
+]

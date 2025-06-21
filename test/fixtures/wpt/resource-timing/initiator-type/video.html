@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing initiator type: video</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-initiatortype"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resource-timing/resources/observe-entry.js"></script>
+<script src="resources/initiator-type-test.js"></script>
+</head>
+<body>
+<video poster="/resource-timing/resources/blue.png?id=poster"></video>
+<video src="/media/test.mp4?id=src" autoplay="true"></video>
+<video autoplay="true">
+  <source src="/media/test.mp4?id=source-mp4" type="video/mp4">
+  <track kind="subtitles" srclang="en" default
+    src="/resource-timing/resources/empty.py?id=track">
+</video>
+<video autoplay="true">
+  <source src="/media/test.ogv?id=source-ogv" type="video/ogg">
+</video>
+<script>
+  initiator_type_test("blue.png?id=poster", "video", "<video poster>");
+  initiator_type_test("media/test.mp4?id=src", "video", "<video src>");
+  initiator_type_test("media/test.mp4?id=source-mp4", "video", "<source src> with type=\"video/mp4\"");
+  initiator_type_test("empty.py?id=track", "track", "<track src>");
+  initiator_type_test("media/test.ogv?id=source-ogv", "video", "<source src> with type=\"video/ogg\"");
+</script>
+</body>
+</html>

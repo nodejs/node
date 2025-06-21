@@ -1,0 +1,10 @@
+Tests how wasm scrips report the source
+Check that inspector gets wasm bytecode
+Paused on debugger!
+Number of frames: 5
+[0]     debugger;
+[1] Wasm offset 72: 0x10
+[2] Wasm offset 81: 0x11
+[3]   instance.exports.main();
+[4] testFunction(module_bytes)
+Finished.

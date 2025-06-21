@@ -1,0 +1,58 @@
+Test inspection of Wasm GC objects with multiple modules
+
+Running test: test
+Calling instantiate function for module A.
+Waiting for wasm script to be parsed.
+Got wasm script!
+Calling instantiate function for module B.
+Waiting for wasm script to be parsed.
+Module A instantiated.
+Got wasm script!
+Module B instantiated.
+Setting breakpoint
+Setting breakpoint
+{
+    columnNumber : 72
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+{
+    columnNumber : 108
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+Paused:
+Script wasm://wasm/493c7026 byte offset 72: Wasm opcode 0x01 (kExprNop)
+Scope:
+at $main (0:72):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: Array ((ref $canon6))
+   $var1: Struct ((ref $canon3))
+ - scope (module):
+   instance: exports: "createStruct" (Function), "main" (Function)
+   module: Module
+   functions: "$createStruct": (Function), "$main": (Function)
+at (anonymous) (0:18):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/b9d0fb8a byte offset 108: Wasm opcode 0x01 (kExprNop)
+Scope:
+at $main (0:108):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: Array ((ref $canon6))
+   $var1: Struct ((ref $canon3))
+ - scope (module):
+   instance: exports: "createStruct" (Function), "createArray" (Function), "main" (Function)
+   module: Module
+   functions: "$createStruct": (Function), "$createArray": (Function), "$main": (Function)
+at (anonymous) (4:24):
+ - scope (global):
+   -- skipped globals
+
+main returned. Test finished.

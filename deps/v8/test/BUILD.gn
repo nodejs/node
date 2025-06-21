@@ -1,0 +1,201 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../gni/v8.gni")
+
+group("gn_all") {
+  testonly = true
+
+  data_deps = [
+    "benchmarks:v8_benchmarks",
+    "filecheck:v8_filecheck",
+    "fuzzer:v8_fuzzer",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "mozilla:v8_mozilla",
+    "test262:v8_test262",
+    "webkit:v8_webkit",
+  ]
+
+  deps = [
+    "bigint:bigint_shell",
+    "inspector:inspector-test",
+    "mkgrokdump:mkgrokdump",
+  ]
+
+  if (v8_enable_webassembly) {
+    data_deps += [
+      "wasm-js:v8_wasm_js",
+      "wasm-spec-tests:v8_wasm_spec_tests",
+    ]
+    deps += [ "wasm-api-tests:wasm_api_tests" ]
+  }
+
+  if (v8_fuzzilli) {
+    deps += [ "fuzzilli:v8_fuzzilli_test" ]
+  }
+
+  if (host_os != "mac" || !is_android) {
+    # These items don't compile for Android on Mac.
+    deps += [
+      "benchmarks/cpp:gn_all",
+      "cctest:cctest",
+      "unittests:generate-bytecode-expectations",
+      "unittests:v8_unittests",
+    ]
+  }
+}
+
+###############################################################################
+# Test groups
+#
+
+group("v8_perf") {
+  testonly = true
+
+  data_deps = [
+    "..:d8",
+    "..:v8_python_base",
+    "../tools:v8_android_test_runner_deps",
+    "../tools:v8_testrunner",
+  ]
+
+  data = [
+    "../tools/run_perf.py",
+
+    # This is often used to trigger performance bots. We include it in the
+    # isolate to not get these builds deduped.
+    "../tools/whitespace.txt",
+    "js-perf-test/",
+    "memory/",
+  ]
+}
+
+group("d8_pgo") {
+  testonly = true
+
+  data_deps = [
+    "..:d8",
+    "..:v8_python_base",
+  ]
+
+  data = [
+    "../tools/builtins-pgo/profile_only.py",
+    "../tools/builtins-pgo/get_hints.py",
+  ]
+}
+
+group("v8_bot_default") {
+  testonly = true
+
+  data_deps = [
+    "cctest:cctest",
+    "debugger:v8_debugger",
+    "filecheck:v8_filecheck",
+    "fuzzer:v8_fuzzer",
+    "inspector:inspector-test",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "mkgrokdump:mkgrokdump",
+    "unittests:v8_unittests",
+    "webkit:v8_webkit",
+  ]
+
+  if (v8_enable_webassembly) {
+    data_deps += [
+      "wasm-api-tests:wasm_api_tests",
+      "wasm-js:v8_wasm_js",
+      "wasm-spec-tests:v8_wasm_spec_tests",
+    ]
+  }
+}
+
+group("v8_default") {
+  testonly = true
+
+  data_deps = [
+    "cctest:cctest",
+    "debugger:v8_debugger",
+    "filecheck:v8_filecheck",
+    "fuzzer:v8_fuzzer",
+    "inspector:inspector-test",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "mkgrokdump:mkgrokdump",
+    "unittests:v8_unittests",
+  ]
+
+  if (v8_enable_webassembly) {
+    data_deps += [
+      "wasm-api-tests:wasm_api_tests",
+      "wasm-js:v8_wasm_js",
+      "wasm-spec-tests:v8_wasm_spec_tests",
+    ]
+  }
+}
+
+group("v8_optimize_for_size") {
+  testonly = true
+
+  data_deps = [
+    "cctest:cctest",
+    "debugger:v8_debugger",
+    "inspector:inspector-test",
+    "intl:v8_intl",
+    "mjsunit:v8_mjsunit",
+    "webkit:v8_webkit",
+  ]
+}
+
+group("v8_d8_default") {
+  testonly = true
+
+  data_deps = [
+    "debugger:v8_debugger",
+    "filecheck:v8_filecheck",
+    "intl:v8_intl",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "webkit:v8_webkit",
+  ]
+}
+
+group("v8_run_num_fuzzer") {
+  testonly = true
+
+  data_deps = [
+    "benchmarks:v8_benchmarks",
+    "mjsunit:v8_mjsunit",
+    "webkit:v8_webkit",
+  ]
+}
+
+v8_header_set("common_test_headers") {
+  testonly = true
+
+  configs = []
+
+  public_deps = [
+    "../:v8_abseil",
+    "../:v8_internal_headers",
+    "../:v8_libbase",
+  ]
+
+  sources = [
+    "common/assembler-tester.h",
+    "common/flag-utils.h",
+    "common/types-fuzz.h",
+  ]
+
+  if (v8_enable_webassembly) {
+    sources += [
+      "common/wasm/flag-utils.h",
+      "common/wasm/test-signatures.h",
+      "common/wasm/wasm-macro-gen.h",
+    ]
+  }
+}

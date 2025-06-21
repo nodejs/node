@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>window.event is still set when 'beforeunload' result is coerced to string</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#ref-for-window-current-event%E2%91%A1">
+<link rel="help" href="https://webidl.spec.whatwg.org/#call-a-user-objects-operation">
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<iframe id="iframe" src="resources/event-global-is-still-set-when-coercing-beforeunload-result-frame.html"></iframe>
+<body>
+<script>
+window.onload = () => {
+  async_test(t => {
+    iframe.onload = t.step_func_done(() => {
+      assert_equals(typeof window.currentEventInToString, "object");
+      assert_equals(window.currentEventInToString.type, "beforeunload");
+    });
+
+    iframe.contentWindow.location.href = "about:blank";
+  });
+};
+</script>

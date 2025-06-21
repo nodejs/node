@@ -1,0 +1,41 @@
+Tests scoped variable in Runtime.evaluate
+Evaluating 'let a = 42;'
+{
+    type : undefined
+}
+Evaluating 'a'
+{
+    description : 42
+    type : number
+    value : 42
+}
+Evaluating 'let a = 239;'
+{
+    exceptionDetails : {
+        columnNumber : 0
+        exception : {
+            className : SyntaxError
+            description : SyntaxError: Identifier 'a' has already been declared
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+        exceptionId : <exceptionId>
+        lineNumber : 0
+        scriptId : <scriptId>
+        text : Uncaught
+    }
+    result : {
+        className : SyntaxError
+        description : SyntaxError: Identifier 'a' has already been declared
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+Evaluating 'a'
+{
+    description : 42
+    type : number
+    value : 42
+}

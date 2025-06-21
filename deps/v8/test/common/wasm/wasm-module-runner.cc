@@ -1,0 +1,166 @@
+// Copyright 2016 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "test/common/wasm/wasm-module-runner.h"
+
+#include "src/execution/isolate.h"
+#include "src/handles/handles.h"
+#include "src/objects/heap-number-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-descriptor.h"
+#include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-js.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-opcodes.h"
+#include "src/wasm/wasm-result.h"
+
+namespace v8::internal::wasm::testing {
+
+MaybeDirectHandle<WasmModuleObject> CompileForTesting(
+    Isolate* isolate, ErrorThrower* thrower,
+    base::Vector<const uint8_t> bytes) {
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
+  MaybeDirectHandle<WasmModuleObject> module = GetWasmEngine()->SyncCompile(
+      isolate, enabled_features, CompileTimeImports{}, thrower,
+      base::OwnedCopyOf(bytes));
+  DCHECK_EQ(thrower->error(), module.is_null());
+  return module;
+}
+
+MaybeDirectHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
+    Isolate* isolate, ErrorThrower* thrower,
+    base::Vector<const uint8_t> bytes) {
+  MaybeDirectHandle<WasmModuleObject> module =
+      CompileForTesting(isolate, thrower, bytes);
+  if (module.is_null()) return {};
+  return GetWasmEngine()->SyncInstantiate(isolate, thrower,
+                                          module.ToHandleChecked(), {}, {});
+}
+
+DirectHandleVector<Object> MakeDefaultArguments(Isolate* isolate,
+                                                const FunctionSig* sig) {
+  size_t param_count = sig->parameter_count();
+  DirectHandleVector<Object> arguments(isolate, param_count);
+
+  for (size_t i = 0; i < param_count; ++i) {
+    switch (sig->GetParam(i).kind()) {
+      case kI32:
+      case kF32:
+      case kF64:
+      case kS128:
+        // Argument here for kS128 does not matter as we should error out before
+        // hitting this case.
+        arguments[i] =
+            direct_handle(Smi::FromInt(static_cast<int>(i)), isolate);
+        break;
+      case kI64:
+        arguments[i] = BigInt::FromInt64(isolate, static_cast<int64_t>(i));
+        break;
+      case kRefNull:
+        arguments[i] = isolate->factory()->null_value();
+        break;
+      case kRef:
+        arguments[i] = isolate->factory()->undefined_value();
+        break;
+      case kI8:
+      case kI16:
+      case kF16:
+      case kVoid:
+      case kTop:
+      case kBottom:
+        UNREACHABLE();
+    }
+  }
+
+  return arguments;
+}
+
+int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
+                                const uint8_t* module_end) {
+  HandleScope scope(isolate);
+  ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
+  MaybeDirectHandle<WasmInstanceObject> instance =
+      CompileAndInstantiateForTesting(
+          isolate, &thrower,
+          base::VectorOf(module_start, module_end - module_start));
+  if (instance.is_null()) {
+    return -1;
+  }
+  return CallWasmFunctionForTesting(isolate, instance.ToHandleChecked(), "main",
+                                    {});
+}
+
+MaybeDirectHandle<WasmExportedFunction> GetExportedFunction(
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
+    const char* name) {
+  DirectHandle<JSObject> exports_object;
+  DirectHandle<Name> exports =
+      isolate->factory()->InternalizeUtf8String("exports");
+  exports_object = Cast<JSObject>(
+      JSObject::GetProperty(isolate, instance, exports).ToHandleChecked());
+
+  DirectHandle<Name> main_name =
+      isolate->factory()->NewStringFromAsciiChecked(name);
+  PropertyDescriptor desc;
+  Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
+      isolate, exports_object, main_name, &desc);
+  if (!property_found.FromMaybe(false)) return {};
+  if (!IsJSFunction(*desc.value())) return {};
+
+  return Cast<WasmExportedFunction>(desc.value());
+}
+
+int32_t CallWasmFunctionForTesting(
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
+    const char* name, base::Vector<const DirectHandle<Object>> args,
+    std::unique_ptr<const char[]>* exception) {
+  DCHECK_IMPLIES(exception != nullptr, *exception == nullptr);
+  MaybeDirectHandle<WasmExportedFunction> maybe_export =
+      GetExportedFunction(isolate, instance, name);
+  DirectHandle<WasmExportedFunction> exported_function;
+  if (!maybe_export.ToHandle(&exported_function)) {
+    return -1;
+  }
+
+  // Call the JS function.
+  DirectHandle<Object> undefined = isolate->factory()->undefined_value();
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, exported_function, undefined, args);
+
+  // The result should be a number.
+  if (retval.is_null()) {
+    DCHECK(isolate->has_exception());
+    if (exception && !isolate->is_execution_terminating()) {
+      DirectHandle<String> exception_string = Object::NoSideEffectsToString(
+          isolate, direct_handle(isolate->exception(), isolate));
+      *exception = exception_string->ToCString();
+    }
+    isolate->clear_internal_exception();
+    return -1;
+  }
+  DirectHandle<Object> result = retval.ToHandleChecked();
+
+  // Multi-value returns, get the first return value (see InterpretWasmModule).
+  if (IsJSArray(*result)) {
+    auto receiver = Cast<JSReceiver>(result);
+    result = JSObject::GetElement(isolate, receiver, 0).ToHandleChecked();
+  }
+
+  if (IsSmi(*result)) {
+    return Smi::ToInt(*result);
+  }
+  if (IsHeapNumber(*result)) {
+    return static_cast<int32_t>(Cast<HeapNumber>(*result)->value());
+  }
+  if (IsBigInt(*result)) {
+    return static_cast<int32_t>(Cast<BigInt>(*result)->AsInt64());
+  }
+  return -1;
+}
+
+void SetupIsolateForWasmModule(Isolate* isolate) { WasmJs::Install(isolate); }
+
+}  // namespace v8::internal::wasm::testing

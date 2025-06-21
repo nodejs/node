@@ -1,0 +1,35 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string {
+// ES6 #sec-string.prototype.slice ( start, end )
+// https://tc39.github.io/ecma262/#sec-string.prototype.slice
+transitioning javascript builtin StringPrototypeSlice(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  // 2. Let S be ? ToString(O).
+  const string: String = ToThisString(receiver, 'String.prototype.slice');
+
+  // 3. Let len be the number of elements in S.
+  const length: uintptr = string.length_uintptr;
+
+  // Convert {start} to a relative index.
+  const arg0 = arguments[0];
+  const start: uintptr =
+      arg0 != Undefined ? ConvertAndClampRelativeIndex(arg0, length) : 0;
+
+  // 5. If end is undefined, let intEnd be len;
+  // else Convert {end} to a relative index.
+  const arg1 = arguments[1];
+  const end: uintptr =
+      arg1 != Undefined ? ConvertAndClampRelativeIndex(arg1, length) : length;
+
+  if (end <= start) {
+    return kEmptyString;
+  }
+
+  return SubString(string, start, end);
+}
+}

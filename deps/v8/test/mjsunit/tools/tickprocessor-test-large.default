@@ -1,0 +1,74 @@
+Statistical profiling result from v8.log, (303 ticks, 0 unaccounted, 0 excluded).
+
+ [Shared libraries]:
+   ticks  total  nonlib   name
+     24    7.9%          /usr/local/google/home/cbruni/Documents/v8/v8/out/x64.release/d8
+     10    3.3%          /usr/lib/x86_64-linux-gnu/libc-2.31.so
+      4    1.3%          /usr/lib/x86_64-linux-gnu/libpthread-2.31.so
+
+ [JavaScript]:
+   ticks  total  nonlib   name
+    102   33.7%   38.5%  LazyCompile: *<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+     25    8.3%    9.4%  LazyCompile: *ics test/mjsunit/tools/tickprocessor-test.js:47:13
+     21    6.9%    7.9%  LazyCompile: *loop test/mjsunit/tools/tickprocessor-test.js:10:14
+
+ [C++]:
+   ticks  total  nonlib   name
+     99   32.7%   37.4%  v8_Default_embedded_blob_code_data_
+     12    4.0%    4.5%  __write
+      3    1.0%    1.1%  fwrite
+      2    0.7%    0.8%  v8::internal::RootScavengeVisitor::VisitRootPointer(v8::internal::Root, char const*, v8::internal::FullObjectSlot)
+      1    0.3%    0.4%  v8::internal::compiler::TopLevelLiveRange::AddUseInterval(v8::internal::compiler::LifetimePosition, v8::internal::compiler::LifetimePosition, v8::internal::Zone*, bool)
+
+ [Summary]:
+   ticks  total  nonlib   name
+    148   48.8%   55.8%  JavaScript
+    117   38.6%   44.2%  C++
+     20    6.6%    7.5%  GC
+     38   12.5%          Shared libraries
+
+ [C++ entry points]:
+   ticks    cpp   total   name
+     93   93.9%   30.7%  v8_Default_embedded_blob_code_data_
+      4    4.0%    1.3%  v8::internal::Runtime_CompileForOnStackReplacement(int, unsigned long*, v8::internal::Isolate*)
+      2    2.0%    0.7%  v8::internal::Runtime_AllocateInYoungGeneration(int, unsigned long*, v8::internal::Isolate*)
+
+ [Bottom up (heavy) profile]:
+  Note: percentage shows a share of a particular caller in the total
+  amount of its parent calls.
+  Callers occupying less than 1.0% are not shown.
+
+   ticks parent  name
+    102   33.7%  LazyCompile: *<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+
+     99   32.7%  v8_Default_embedded_blob_code_data_
+     76   76.8%    LazyCompile: *<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+     16   16.2%    LazyCompile: *ics test/mjsunit/tools/tickprocessor-test.js:47:13
+     16  100.0%      Script: ~<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+      1    1.0%    Script: ~<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+
+     25    8.3%  LazyCompile: *ics test/mjsunit/tools/tickprocessor-test.js:47:13
+     25  100.0%    Script: ~<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+
+     24    7.9%  /usr/local/google/home/cbruni/Documents/v8/v8/out/x64.release/d8
+      4   16.7%    LazyCompile: ~ics test/mjsunit/tools/tickprocessor-test.js:47:13
+      4  100.0%      Script: ~<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+      3   12.5%    v8::internal::Runtime_CompileForOnStackReplacement(int, unsigned long*, v8::internal::Isolate*)
+      2   66.7%      Script: ~<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+      1   33.3%      LazyCompile: ~loop test/mjsunit/tools/tickprocessor-test.js:10:14
+      1  100.0%        Script: ~<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+      2    8.3%    v8::internal::Runtime_AllocateInYoungGeneration(int, unsigned long*, v8::internal::Isolate*)
+      2  100.0%      LazyCompile: *<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+      2    8.3%    Script: ~<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+      2    8.3%    LazyCompile: ~read_megamorphic test/mjsunit/tools/tickprocessor-test.js:35:26
+      2  100.0%      LazyCompile: ~ics test/mjsunit/tools/tickprocessor-test.js:47:13
+      2  100.0%        Script: ~<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+
+     21    6.9%  LazyCompile: *loop test/mjsunit/tools/tickprocessor-test.js:10:14
+     21  100.0%    Script: ~<anonymous> test/mjsunit/tools/tickprocessor-test.js:1:1
+
+     12    4.0%  __write
+
+     10    3.3%  /usr/lib/x86_64-linux-gnu/libc-2.31.so
+
+      4    1.3%  /usr/lib/x86_64-linux-gnu/libpthread-2.31.so

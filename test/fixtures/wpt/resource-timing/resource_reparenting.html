@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing reparenting elements</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="http://www.w3.org/TR/resource-timing/#dom-performanceresourcetiming-initiatortype"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/webperftestharness.js"></script>
+<script src="resources/webperftestharnessextension.js"></script>
+<script>
+let iframe;
+function setup_iframe() {
+    iframe = document.getElementById('frameContext');
+    const d = iframe.contentWindow.document;
+    const iframeBody = d.createElement('body');
+
+    const move_to_parent = d.createElement('img');
+    move_to_parent.src = 'blue.png?id=move_to_parent';
+    iframeBody.appendChild(move_to_parent);
+    iframeBody.removeChild(move_to_parent);
+
+    const parentBody = document.getElementsByTagName('body')[0];
+    parentBody.appendChild(move_to_parent);
+
+    const move_to_child = document.createElement('img');
+    move_to_child.src = 'blue.png?id=move_to_child';
+    parentBody.appendChild(move_to_child);
+    parentBody.removeChild(move_to_child);
+    iframeBody.appendChild(move_to_child);
+}
+function onload_test() {
+    const context = new PerformanceContext(iframe.contentWindow.performance);
+    const entries = context.getEntriesByType('resource');
+
+    const index = window.location.pathname.lastIndexOf('/');
+    const pathname = window.location.pathname.substring(0, index);
+    let expected_entries = {};
+    expected_entries[pathname + '/resources/blue.png?id=move_to_child'] = 'img';
+
+    test_resource_entries(entries, expected_entries);
+}
+window.setup_iframe = setup_iframe;
+</script>
+</head>
+<body>
+<h1>Description</h1>
+<p>This test validates that reparenting an element doesn't change the initiator document.</p>
+<div id="log"></div>
+<iframe id="frameContext" onload="onload_test();" src="resources/inject_resource_test.html"></iframe>
+</body>
+</html>

@@ -1,0 +1,4 @@
+{ foo: 'bar' }
+{ foo: 'bar' }
+string q
+{ foo: 'bar' } with object format param

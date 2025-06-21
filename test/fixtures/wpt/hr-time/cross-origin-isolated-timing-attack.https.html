@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>window.performance.now should not enable timing attacks</title>
+<link rel="author" title="W3C" href="http://www.w3.org/" />
+<link rel="help" href="http://w3c.github.io/hr-time/#privacy-security"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/timing-attack.js"></script>
+<script>
+run_test(/*isolated=*/true);
+</script>
+</head>
+<body>
+<h1>Description</h1>
+<p>The recommended minimum resolution of the Performance interface should be set to 5 microseconds.</p>
+
+<div id="log"></div>
+
+</body>
+</html>

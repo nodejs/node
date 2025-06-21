@@ -1,0 +1,30 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string {
+
+// ES6 #sec-string.prototype.substring
+transitioning javascript builtin StringPrototypeSubstring(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
+  // Check that {receiver} is coercible to Object and convert it to a String.
+  const string: String = ToThisString(receiver, 'String.prototype.substring');
+  const length: uintptr = string.length_uintptr;
+
+  // Conversion and bounds-checks for {start}.
+  const arg0 = arguments[0];
+  let start: uintptr = arg0 != Undefined ? ClampToIndexRange(arg0, length) : 0;
+
+  // Conversion and bounds-checks for {end}.
+  const arg1 = arguments[1];
+  let end: uintptr =
+      arg1 != Undefined ? ClampToIndexRange(arg1, length) : length;
+  if (end < start) {
+    const tmp: uintptr = end;
+    end = start;
+    start = tmp;
+  }
+  return SubString(string, start, end);
+}
+}

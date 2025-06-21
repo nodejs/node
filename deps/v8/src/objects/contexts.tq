@@ -1,0 +1,476 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@abstract
+// We normally don't generate a BodyDescriptor for an abstact class, but here we
+// do since all context classes share the same BodyDescriptor.
+@generateBodyDescriptor
+extern class Context extends HeapObject {
+  macro GetScopeInfo(): ScopeInfo {
+    return *ContextSlot(this, ContextSlot::SCOPE_INFO_INDEX);
+  }
+  const length: Smi;
+  elements[length]: Object;
+}
+
+@cppObjectLayoutDefinition
+extern class ScriptContextTable extends HeapObject {
+  const capacity: Smi;
+  length: Smi;
+  names_to_context_index: NameToIndexHashTable;
+  objects[capacity]: Context;
+}
+
+@cppObjectLayoutDefinition
+extern class ContextCell extends HeapObject {
+  // TODO(victorgomes): Change the type of tagged_value to JSAny.
+  tagged_value: Object;
+  dependent_code: DependentCode;
+  state: int32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  double_value: float64;
+}
+
+extern operator '.int32_value' macro LoadContextCellInt32Value(ContextCell):
+    int32;
+extern operator '.int32_value=' macro StoreContextCellInt32Value(
+    ContextCell, int32): void;
+
+const kContextCellConst: constexpr int32 generates 'ContextCell::kConst';
+const kContextCellSmi: constexpr int32 generates 'ContextCell::kSmi';
+const kContextCellInt32: constexpr int32 generates 'ContextCell::kInt32';
+const kContextCellFloat64:
+    constexpr int32 generates 'ContextCell::kFloat64';
+const kContextCellDetached:
+    constexpr int32 generates 'ContextCell::kDetached';
+
+extern class AwaitContext extends Context generates 'TNode<Context>';
+extern class BlockContext extends Context generates 'TNode<Context>';
+extern class CatchContext extends Context generates 'TNode<Context>';
+extern class DebugEvaluateContext extends Context
+    generates 'TNode<Context>';
+extern class EvalContext extends Context generates 'TNode<Context>';
+extern class ModuleContext extends Context generates 'TNode<Context>';
+extern class ScriptContext extends Context generates 'TNode<Context>';
+extern class WithContext extends Context generates 'TNode<Context>';
+
+extern class FunctionContext extends Context generates 'TNode<Context>';
+
+extern macro IsEmptyDependentCode(Object): bool;
+extern macro TryFloat64ToInt32(float64): int32 labels Failed;
+extern macro IsScriptContextCellsFlag(): bool;
+const kInitialContextSlotValue: Smi = 0;
+
+@export
+macro AllocateSyntheticFunctionContext(
+    nativeContext: NativeContext, slots: constexpr int31): FunctionContext {
+  return AllocateSyntheticFunctionContext(
+      nativeContext, Convert<intptr>(slots));
+}
+
+macro AllocateSyntheticFunctionContext(
+    nativeContext: NativeContext, slots: intptr): FunctionContext {
+  static_assert(slots >= ContextSlot::MIN_CONTEXT_SLOTS);
+  const map =
+      *ContextSlot(nativeContext, ContextSlot::FUNCTION_CONTEXT_MAP_INDEX);
+  const result = new FunctionContext{
+    map,
+    length: Convert<Smi>(slots),
+    elements: ...ConstantIterator<Smi>(kInitialContextSlotValue)
+  };
+  InitContextSlot(result, ContextSlot::SCOPE_INFO_INDEX, kEmptyScopeInfo);
+  InitContextSlot(result, ContextSlot::PREVIOUS_INDEX, Undefined);
+  return result;
+}
+
+macro HasContextCells(c: Context): bool {
+  return IsScriptContextCellsFlag() && Is<ScriptContext>(c);
+}
+
+extern class NativeContext extends Context;
+
+type Slot<Container : type extends Context, T : type extends Object> extends
+    intptr;
+
+// We cannot use ContextSlot() for initialization since that one asserts the
+// slot has the right type already.
+macro InitContextSlot<
+    ArgumentContext: type, AnnotatedContext: type, T: type, U: type>(
+    context: ArgumentContext, index: Slot<AnnotatedContext, T>,
+    value: U): void {
+  // Make sure the arguments have the right type.
+  const context: AnnotatedContext = context;
+  const value: T = value;
+  dcheck(TaggedEqual(context.elements[index], kInitialContextSlotValue));
+  context.elements[index] = value;
+}
+
+macro ContextSlot<ArgumentContext: type, AnnotatedContext: type, T: type>(
+    context: ArgumentContext, index: Slot<AnnotatedContext, T>):&T {
+  const context: AnnotatedContext = context;
+  return torque_internal::unsafe::ReferenceCast<T>(&context.elements[index]);
+}
+
+macro NativeContextSlot<T: type>(
+    context: NativeContext, index: Slot<NativeContext, T>):&T {
+  return ContextSlot(context, index);
+}
+macro NativeContextSlot<T: type>(
+    context: Context, index: Slot<NativeContext, T>):&T {
+  return ContextSlot(LoadNativeContext(context), index);
+}
+macro NativeContextSlot<C: type, T: type>(
+    implicit context: C)(index: Slot<NativeContext, T>):&T {
+  return NativeContextSlot(context, index);
+}
+
+extern enum ContextSlot extends intptr constexpr 'Context::Field' {
+  SCOPE_INFO_INDEX: Slot<Context, ScopeInfo>,
+  // Zero is used for the NativeContext, Undefined is used for synthetic
+  // function contexts.
+  PREVIOUS_INDEX: Slot<Context, Context|Zero|Undefined>,
+
+  AGGREGATE_ERROR_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  ARRAY_BUFFER_FUN_INDEX: Slot<NativeContext, Constructor>,
+  ARRAY_BUFFER_NOINIT_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  ARRAY_BUFFER_MAP_INDEX: Slot<NativeContext, Map>,
+  ARRAY_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  ARRAY_JOIN_STACK_INDEX: Slot<NativeContext, Undefined|FixedArray>,
+  OBJECT_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  ITERATOR_RESULT_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_MAP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_FILTER_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_TAKE_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_DROP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_FLAT_MAP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  VALID_ITERATOR_WRAPPER_MAP_INDEX: Slot<NativeContext, Map>,
+  JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  JS_MAP_MAP_INDEX: Slot<NativeContext, Map>,
+  JS_SET_MAP_INDEX: Slot<NativeContext, Map>,
+  MATH_RANDOM_CACHE_INDEX: Slot<NativeContext, FixedDoubleArray>,
+  MATH_RANDOM_INDEX_INDEX: Slot<NativeContext, Smi>,
+  NUMBER_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  PROXY_REVOCABLE_RESULT_MAP_INDEX: Slot<NativeContext, Map>,
+  REFLECT_APPLY_INDEX: Slot<NativeContext, Callable>,
+  REGEXP_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  REGEXP_LAST_MATCH_INFO_INDEX: Slot<NativeContext, RegExpMatchInfo>,
+  INITIAL_STRING_ITERATOR_MAP_INDEX: Slot<NativeContext, Map>,
+  INITIAL_ARRAY_ITERATOR_MAP_INDEX: Slot<NativeContext, Map>,
+  INITIAL_ITERATOR_PROTOTYPE_INDEX: Slot<NativeContext, JSObject>,
+  SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP: Slot<NativeContext, Map>,
+  STRICT_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  SLOPPY_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  FAST_ALIASED_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  FUNCTION_CONTEXT_MAP_INDEX: Slot<NativeContext, Map>,
+  FUNCTION_PROTOTYPE_APPLY_INDEX: Slot<NativeContext, JSFunction>,
+  STRING_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+
+  UINT8_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT8_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT16_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT16_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  INT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  FLOAT16_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  FLOAT32_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  FLOAT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  UINT8_CLAMPED_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  BIGUINT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+  BIGINT64_ARRAY_FUN_INDEX: Slot<NativeContext, JSFunction>,
+
+  RAB_GSAB_UINT8_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT8_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT16_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT16_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_INT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_FLOAT16_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_FLOAT32_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_FLOAT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_UINT8_CLAMPED_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_BIGUINT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+  RAB_GSAB_BIGINT64_ARRAY_MAP_INDEX: Slot<NativeContext, Map>,
+
+  ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX: Slot<NativeContext, Map>,
+  DATA_PROPERTY_DESCRIPTOR_MAP_INDEX: Slot<NativeContext, Map>,
+
+  PROMISE_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
+  PROMISE_THEN_INDEX: Slot<NativeContext, JSFunction>,
+  PROMISE_PROTOTYPE_INDEX: Slot<NativeContext, JSObject>,
+  STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX: Slot<NativeContext, Map>,
+
+  PROMISE_HOOK_INIT_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_BEFORE_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_AFTER_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+  PROMISE_HOOK_RESOLVE_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
+
+  // @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+  CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX: Slot<NativeContext, HeapObject>,
+
+  BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX: Slot<NativeContext, Map>,
+  BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX: Slot<NativeContext, Map>,
+
+  WRAPPED_FUNCTION_MAP_INDEX: Slot<NativeContext, Map>,
+
+  MIN_CONTEXT_SLOTS,
+  ...
+}
+
+@export
+macro LoadContextElementNoCell(c: Context, i: intptr): Object {
+  return LoadContextElementNoCellImpl(c, i);
+}
+
+@export
+macro LoadContextElementNoCell(c: Context, i: Smi): Object {
+  return LoadContextElementNoCellImpl(c, SmiUntag(i));
+}
+
+@export
+macro LoadContextElementNoCell(c: Context, i: constexpr int32): Object {
+  return LoadContextElementNoCellImpl(c, i);
+}
+
+@export
+macro LoadContextElement(c: Context, i: intptr): Object {
+  return LoadContextElementImpl(c, i);
+}
+
+@export
+macro LoadContextElement(c: Context, i: Smi): Object {
+  return LoadContextElementImpl(c, SmiUntag(i));
+}
+
+@export
+macro LoadContextElement(c: Context, i: constexpr int32): Object {
+  return LoadContextElementImpl(c, i);
+}
+
+@export
+macro StoreContextElementNoCell(c: Context, i: intptr, o: Object): void {
+  StoreContextElementNoCellImpl(c, i, o);
+}
+
+@export
+macro StoreContextElementNoCell(c: Context, i: Smi, o: Object): void {
+  StoreContextElementNoCellImpl(c, SmiUntag(i), o);
+}
+
+@export
+macro StoreContextElementNoCell(
+    c: Context, i: constexpr int32, o: Object): void {
+  StoreContextElementNoCellImpl(c, i, o);
+}
+
+@export
+macro StoreContextElement(c: Context, i: intptr, o: Object): void {
+  StoreScriptContextElementImpl(c, i, o);
+}
+
+@export
+macro StoreContextElement(c: Context, i: constexpr int32, o: Object): void {
+  StoreScriptContextElementImpl(c, i, o);
+}
+
+macro LoadContextElementNoCellImpl(c: Context, i: intptr): Object {
+  const val = c.elements[i];
+  dcheck(!Is<ContextCell>(val));
+  return val;
+}
+
+macro StoreContextElementNoCellImpl(c: Context, i: intptr, o: Object): void {
+  dcheck(!Is<ContextCell>(c.elements[i]));
+  c.elements[i] = o;
+}
+
+builtin LoadFromContextCell(_n: Object, c: Object, i: Smi): Object {
+  const context = UnsafeCast<Context>(c);
+  const index = SmiUntag(i);
+  return LoadContextElementImpl(context, index);
+}
+
+builtin StoreCurrentContextElementBaseline(o: Object, i: Smi): JSAny {
+  const context = internal::LoadContextFromBaseline();
+  const index = SmiUntag(i);
+  StoreScriptContextElementImpl(context, index, o);
+  return Undefined;
+}
+
+builtin StoreContextElementBaseline(
+    c: Object, o: Object, i: Smi, d: TaggedIndex): JSAny {
+  let context = UnsafeCast<Context>(c);
+  let depth = TaggedIndexToIntPtr(d);
+  while (depth > 0) {
+    --depth;
+    context =
+        UnsafeCast<Context>(context.elements[ContextSlot::PREVIOUS_INDEX]);
+  }
+
+  const index = SmiUntag(i);
+  StoreScriptContextElementImpl(context, index, o);
+  return Undefined;
+}
+
+namespace runtime {
+extern runtime NotifyContextCellStateWillChange(NoContext, ContextCell): JSAny;
+}  // namespace runtime
+
+macro NotifyContextCellStateWillChange(cell: ContextCell): void {
+  if (!IsEmptyDependentCode(cell.dependent_code)) deferred {
+      runtime::NotifyContextCellStateWillChange(kNoContext, cell);
+    }
+}
+
+macro TransitionContextCellToUntagged(
+    heapNumber: HeapNumber, cell: ContextCell,
+    currentState: constexpr int32): void {
+  try {
+    const int32Value = TryFloat64ToInt32(heapNumber.value) otherwise NotInt32;
+    cell.int32_value = int32Value;
+    cell.state = kContextCellInt32;
+  } label NotInt32 {
+    if constexpr (currentState == kContextCellInt32) {
+      // For states kConst and kSmi, we notify the change before calling
+      // TransitionContextCellToUntagged.
+      NotifyContextCellStateWillChange(cell);
+    }
+    cell.double_value = heapNumber.value;
+    cell.state = kContextCellFloat64;
+  }
+}
+
+macro StoreScriptContextElementImpl(
+    c: Context, index: intptr, newValue: Object): void {
+  const oldValue = c.elements[index];
+  if (!HasContextCells(c)) {
+    c.elements[index] = newValue;
+    return;
+  }
+
+  if (oldValue == TheHole) {
+    // Setting the initial value.
+    c.elements[index] = AllocateContextCell(newValue);
+    return;
+  }
+
+  if (!Is<ContextCell>(oldValue)) {
+    c.elements[index] = newValue;
+    return;
+  }
+
+  const cell = Cast<ContextCell>(oldValue) otherwise unreachable;
+  if (cell.state == kContextCellConst) {
+    const constValue = cell.tagged_value;
+    // If we are assigning the same value, the property won't change.
+    if (TaggedEqual(constValue, newValue)) {
+      return;
+    }
+    // If both values are HeapNumbers with the same double value, the property
+    // won't change either.
+    if (Is<HeapNumber>(constValue) && Is<HeapNumber>(newValue)) {
+      const oldNumber = Cast<HeapNumber>(constValue) otherwise unreachable;
+      const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
+      if (oldNumber.value == newNumber.value && oldNumber.value != 0) {
+        return;
+      }
+    }
+    NotifyContextCellStateWillChange(cell);
+    typeswitch (newValue) {
+      case (smiNumber: Smi): {
+        cell.state = kContextCellSmi;
+        cell.tagged_value = smiNumber;
+      }
+      case (heapNumber: HeapNumber): {
+        TransitionContextCellToUntagged(heapNumber, cell, kContextCellConst);
+        cell.tagged_value = kZero;
+      }
+      case (Object): {
+        c.elements[index] = newValue;
+        cell.tagged_value = kZero;
+        cell.state = kContextCellDetached;
+      }
+    }
+    return;
+  }
+
+  if (cell.state == kContextCellSmi) {
+    typeswitch (newValue) {
+      case (smiNumber: Smi): {
+        cell.tagged_value = smiNumber;
+      }
+      case (heapNumber: HeapNumber): {
+        NotifyContextCellStateWillChange(cell);
+        TransitionContextCellToUntagged(heapNumber, cell, kContextCellSmi);
+        cell.tagged_value = kZero;
+      }
+      case (Object): {
+        NotifyContextCellStateWillChange(cell);
+        c.elements[index] = newValue;
+        cell.tagged_value = kZero;
+        cell.state = kContextCellDetached;
+      }
+    }
+    return;
+  }
+
+  if (cell.state == kContextCellInt32) {
+    typeswitch (newValue) {
+      case (smiNumber: Smi): {
+        cell.int32_value = SmiToInt32(smiNumber);
+      }
+      case (heapNumber: HeapNumber): {
+        TransitionContextCellToUntagged(heapNumber, cell, kContextCellInt32);
+      }
+      case (Object): {
+        NotifyContextCellStateWillChange(cell);
+        c.elements[index] = newValue;
+        cell.state = kContextCellDetached;
+      }
+    }
+    return;
+  }
+
+  dcheck(cell.state == kContextCellFloat64);
+  typeswitch (newValue) {
+    case (smiNumber: Smi): {
+      cell.double_value = SmiToFloat64(smiNumber);
+    }
+    case (heapNumber: HeapNumber): {
+      cell.double_value = heapNumber.value;
+    }
+    case (Object): {
+      NotifyContextCellStateWillChange(cell);
+      c.elements[index] = newValue;
+      cell.state = kContextCellDetached;
+    }
+  }
+}
+
+macro LoadContextElementImpl(c: Context, i: intptr): Object {
+  const val = c.elements[i];
+  const cell = Cast<ContextCell>(val) otherwise return val;
+  dcheck(HasContextCells(c));
+  dcheck(kContextCellConst == 0);
+  dcheck(kContextCellSmi == 1);
+  if (cell.state <= kContextCellSmi) {
+    return cell.tagged_value;
+  } else if (cell.state == kContextCellInt32) {
+    // TODO(victorgomes): maybe this has a smi value, so we don't need to
+    // allocate a heap number.
+    return AllocateHeapNumberWithValue(ChangeInt32ToFloat64(cell.int32_value));
+  } else {
+    dcheck(cell.state == kContextCellFloat64);
+    // TODO(victorgomes): and in this case tagged_value could have contained the
+    // HeapNumber from which this double_value value was initialized.
+    return AllocateHeapNumberWithValue(cell.double_value);
+  }
+}
+
+// A dummy used instead of a context constant for runtime calls that don't need
+// a context.
+type NoContext extends Smi;
+extern macro NoContextConstant(): NoContext;
+const kNoContext: NoContext = NoContextConstant();

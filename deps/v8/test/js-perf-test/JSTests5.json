@@ -1,0 +1,678 @@
+{
+  "owners": ["jarin@chromium.org", "mvstanton@chromium.org"],
+  "name": "JSTests",
+  "run_count": 3,
+  "run_count_arm": 1,
+  "run_count_arm64": 1,
+  "timeout": 120,
+  "timeout_arm64": 240,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "AsyncAwait",
+      "path": ["AsyncAwait"],
+      "main": "run.js",
+      "resources": [
+        "native.js",
+        "baseline-babel-es2017.js",
+        "baseline-naive-promises.js"
+      ],
+      "flags": ["--allow-natives-syntax", "--ignore-unhandled-promises"],
+      "results_regexp": "^%s\\-AsyncAwait\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "BaselineES2017"},
+        {"name": "BaselineNaivePromises"},
+        {"name": "Native"}
+      ]
+    },
+    {
+      "name": "Generators",
+      "path": ["Generators"],
+      "main": "run.js",
+      "resources": ["generators.js"],
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargePacked",
+      "path": ["ArrayLiteralInitialSpreadLargePacked"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargePacked\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargeHoley",
+      "path": ["ArrayLiteralInitialSpreadLargeHoley"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeHoley\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargeDoublePacked",
+      "path": ["ArrayLiteralInitialSpreadLargeDoublePacked"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeDoublePacked\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargeDoubleHoley",
+      "path": ["ArrayLiteralInitialSpreadLargeDoubleHoley"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeDoubleHoley\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread"},
+        {"name": "ForLength"},
+        {"name": "ForLengthEmpty"},
+        {"name": "Slice"},
+        {"name": "Slice0"},
+        {"name": "ConcatReceive"},
+        {"name": "ConcatArg"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadSmallSmiMap",
+      "path": ["ArrayLiteralInitialSpreadSmallSmiMap"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadSmallSmiMap\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOfKeys"},
+        {"name": "ForOfValues"},
+        {"name": "SpreadKeys"},
+        {"name": "SpreadValues"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralInitialSpreadLargeSmiMap",
+      "path": ["ArrayLiteralInitialSpreadLargeSmiMap"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralInitialSpreadLargeSmiMap\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOfKeys"},
+        {"name": "ForOfValues"},
+        {"name": "SpreadKeys"},
+        {"name": "SpreadValues"}
+      ]
+    },
+    {
+      "name": "ArrayLiteralSpread",
+      "path": ["ArrayLiteralSpread"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralSpread\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Babel"},
+        {"name": "ForOfPush"},
+        {"name": "ForOfSet"},
+        {"name": "Spread"}
+      ]
+    },
+    {
+      "name": "ObjectDestructuringAssignment",
+      "path": ["ObjectDestructuringAssignment"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ObjectDestructuringAssignment\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Babel"},
+        {"name": "ForLoop"},
+        {"name": "DestructuringAssignment"}
+      ]
+    },
+    {
+      "name": "SpreadCallsGeneral",
+      "path": ["SpreadCallsGeneral"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-SpreadCallsGeneral\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ApplySpreadLiteral"},
+        {"name": "SpreadCall"},
+        {"name": "SpreadCallSpreadLiteral"}
+      ]
+    },
+    {
+      "name": "RestParameters",
+      "path": ["RestParameters"],
+      "main": "run.js",
+      "resources": ["rest.js"],
+      "units": "score",
+      "results_regexp": "^%s\\-RestParameters\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Basic1"},
+        {"name": "ReturnArgsBabel"},
+        {"name": "ReturnArgsNative"}
+      ]
+    },
+    {
+      "name": "SpreadCalls",
+      "path": ["SpreadCalls"],
+      "main": "run.js",
+      "resources": ["spreadcalls.js"],
+      "units": "score",
+      "results_regexp": "^%s\\-SpreadCalls\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Call"},
+        {"name": "CallMethod"},
+        {"name": "CallNew"}
+      ]
+    },
+    {
+      "name": "Classes",
+      "path": ["Classes"],
+      "main": "run.js",
+      "resources": [
+        "super.js",
+        "default-constructor.js",
+        "leaf-constructors.js"],
+      "results_regexp": "^%s\\-Classes\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Super"},
+        {"name": "DefaultConstructor"},
+        {"name": "LeafConstructors"}
+      ]
+    },
+    {
+      "name": "Closures",
+      "path": ["Closures"],
+      "main": "run.js",
+      "resources": ["closures.js"],
+      "flags": [],
+      "results_regexp": "^%s\\-Closures\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Closures"}
+      ]
+    },
+    {
+      "name": "ClosuresMarkForTierUp",
+      "path": ["Closures"],
+      "main": "run.js",
+      "resources": ["closures.js"],
+      "flags": [],
+      "results_regexp": "^%s\\-Closures\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Closures"}
+      ]
+    },
+    {
+      "name": "ManyClosures",
+      "path": ["ManyClosures"],
+      "main": "run.js",
+      "resources": ["create-many-closures.js"],
+      "flags": [ "--allow-natives-syntax", "--expose-gc" ],
+      "results_regexp": "^%s\\-ManyClosures\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ManyClosures"}
+      ]
+    },
+    {
+      "name": "Iterators",
+      "path": ["Iterators"],
+      "main": "run.js",
+      "resources": ["forof.js"],
+      "results_regexp": "^%s\\-Iterators\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOf"}
+      ]
+    },
+    {
+      "name": "StringIterators",
+      "path": ["StringIterators"],
+      "main": "run.js",
+      "resources": ["string-iterator.js"],
+      "results_regexp": "^%s\\-StringIterators\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread_OneByteShort"},
+        {"name": "Spread_TwoByteShort"},
+        {"name": "Spread_WithSurrogatePairsShort"},
+        {"name": "ForOf_OneByteShort"},
+        {"name": "ForOf_TwoByteShort"},
+        {"name": "ForOf_WithSurrogatePairsShort"},
+        {"name": "ForOf_OneByteLong"},
+        {"name": "ForOf_TwoByteLong"},
+        {"name": "ForOf_WithSurrogatePairsLong"}
+      ]
+    },
+    {
+      "name": "Templates",
+      "path": ["Templates"],
+      "main": "run.js",
+      "resources": ["templates.js"],
+      "units": "score",
+      "results_regexp": "^%s\\-Templates\\(Score\\): (.+)$",
+      "total": true,
+      "tests": [
+        {"name": "Untagged"},
+        {"name": "LargeUntagged"},
+        {"name": "Tagged"}
+      ]
+    },
+    {
+      "name": "ObjectLiteralSpread",
+      "path": ["ObjectLiteralSpread"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ObjectLiteralSpread\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Babel"},
+        {"name": "BabelAndOverwrite"},
+        {"name": "BabelAndExtend"},
+        {"name": "ObjectAssign"},
+        {"name": "ObjectAssignAndOverwrite"},
+        {"name": "ObjectAssignAndExtend"},
+        {"name": "ObjectSpread"},
+        {"name": "ObjectSpreadAndOverwrite"},
+        {"name": "ObjectSpreadAndExtend"}
+      ]
+    },
+    {
+      "name": "Scope",
+      "path": ["Scope"],
+      "main": "run.js",
+      "resources": ["with.js"],
+      "results_regexp": "^%s\\-Scope\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "With"}
+      ]
+    },
+    {
+      "name": "Exceptions",
+      "path": ["Exceptions"],
+      "main": "run.js",
+      "resources": ["try-catch.js"],
+      "results_regexp": "^%s\\-Exceptions\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Try-Catch"}
+      ]
+    },
+    {
+      "name": "DataView",
+      "path": ["DataView"],
+      "main": "run.js",
+      "resources": ["dataviewtest.js"],
+      "results_regexp": "^DataView\\-%s\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "DataViewTest-DataView-BigEndian"},
+        {"name": "DataViewTest-DataView-LittleEndian"},
+        {"name": "DataViewTest-DataView-Floats"},
+        {"name": "DataViewTest-TypedArray-BigEndian"},
+        {"name": "DataViewTest-TypedArray-LittleEndian"},
+        {"name": "DataViewTest-TypedArray-Floats"}
+      ]
+    },
+    {
+      "name": "ArrayIndexOfIncludesPolymorphic",
+      "path": ["ArrayIndexOfIncludesPolymorphic"],
+      "main": "run.js",
+      "resources": ["indexof-includes-polymorphic.js"],
+      "test_flags": ["indexof-includes-polymorphic"],
+      "results_regexp": "^%s\\-ArrayIndexOfIncludesPolymorphic\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "for loop"},
+        {"name": "Array#indexOf"},
+        {"name": "Array#includes"}
+      ]
+    },
+    {
+      "name": "ArrayInOperator",
+      "path": ["ArrayInOperator"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayInOperator\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "PackedSMI"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElements"},
+        {"name": "HoleySMI"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElements"},
+        {"name": "SparseSMI"},
+        {"name": "SparseDouble"},
+        {"name": "SparseElements"},
+        {"name": "TypedUint8"},
+        {"name": "TypedInt32"},
+        {"name": "TypedFloat64"}
+      ]
+    },
+    {
+      "name": "ArraySort",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort.js"],
+      "test_flags": ["sort"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmi"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElement"},
+        {"name": "HoleySmi"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElement"},
+        {"name": "Dictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortCompareFns",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-cmpfn.js"],
+      "test_flags": ["sort-cmpfn"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmi"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElement"},
+        {"name": "HoleySmi"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElement"},
+        {"name": "Dictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortCompareFnKindChange",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-cmpfn-kindchange.js"],
+      "test_flags": ["sort-cmpfn-kindchange"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "PackedSmiToPackedDouble"},
+        {"name": "HoleySmiToHoleyDouble"},
+        {"name": "PackedDoubleToHoleyDouble"},
+        {"name": "PackedElementToDictionary"},
+        {"name": "HoleyElementToDictionary"}
+      ]
+    },
+    {
+      "name": "ArraySortMegamorphic",
+      "path": ["ArraySort"],
+      "main": "run.js",
+      "resources": ["sort-base.js", "sort-megamorphic.js"],
+      "test_flags": ["sort-megamorphic"],
+      "results_regexp": "^%s\\-ArraySort\\(Score\\): (.+)$",
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "tests": [
+        {"name": "Base"},
+        {"name": "MultipleCompareFns"}
+      ]
+    },
+    {
+      "name": "ForLoops",
+      "path": ["ForLoops"],
+      "main": "run.js",
+      "resources": [
+        "for_loop.js"
+      ],
+      "results_regexp": "^%s\\-ForLoop\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Let-Standard"},
+        {"name": "Var-Standard"}
+      ]
+    },
+    {
+      "name": "Modules",
+      "path": ["Modules"],
+      "main": "run.js",
+      "resources": ["basic-export.js", "basic-import.js", "basic-namespace.js", "value.js"],
+      "flags": [
+        "--allow-natives-syntax"
+      ],
+      "results_regexp": "^%s\\-Modules\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "BasicExport"},
+        {"name": "BasicImport"},
+        {"name": "BasicNamespace"}
+      ]
+    },
+    {
+      "name": "Dates",
+      "path": ["Dates"],
+      "main": "run.js",
+      "resources": ["toLocaleString.js"],
+      "results_regexp": "^%s\\-Dates\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "toLocaleDateString"},
+        {"name": "toLocaleString"},
+        {"name": "toLocaleTimeString"}
+      ]
+    },
+    {
+      "name": "ExpressionDepth",
+      "path": ["ExpressionDepth"],
+      "main": "run.js",
+      "flags": [ "--no-turbofan" ],
+      "results_regexp": "^%s\\-ExpressionDepth\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Or-Value"},
+        {"name": "Or-Test"},
+        {"name": "And-Value"},
+        {"name": "And-Test"},
+        {"name": "Comma-Value"},
+        {"name": "Comma-Test"},
+        {"name": "Equals-Value"},
+        {"name": "Equals-Test"},
+        {"name": "StrictEquals-Value"},
+        {"name": "StrictEquals-Test"},
+        {"name": "GreaterThan-Value"},
+        {"name": "GreaterThan-Test"},
+        {"name": "Add"},
+        {"name": "Sub"},
+        {"name": "StringConcat"},
+        {"name": "BitwiseOr"}
+      ]
+    },
+    {
+      "name": "Intl",
+      "path": ["Intl"],
+      "main": "run.js",
+      "resources": [ "constructor.js" ],
+      "flags": [],
+      "results_regexp": "^%s\\-Intl\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "NewIntlCollator"},
+        {"name": "NewIntlDateTimeFormat"},
+        {"name": "NewIntlNumberFormat"},
+        {"name": "NewIntlPluralRules"},
+        {"name": "NewIntlListFormat"},
+        {"name": "NewIntlRelativeTimeFormat"},
+        {"name": "NewIntlLocale"},
+        {"name": "NewIntlLocaleWithOptions"}
+      ]
+    },
+    {
+      "name": "ApiAccessors",
+      "path": ["ApiAccessors"],
+      "main": "run.js",
+      "resources": [ "accessor.js" ],
+      "flags": [],
+      "results_regexp": "^%s\\-ApiAccessors\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "nodeType"}
+      ]
+    },
+    {
+      "name": "Inspector",
+      "path": ["Inspector"],
+      "main": "run.js",
+      "resources": [ "debugger.js", "runtime.js" ],
+      "flags": ["--enable-inspector","--allow-natives-syntax"],
+      "results_regexp": "^%s\\-Inspector\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Debugger.paused"},
+        {"name": "Runtime.evaluate(String16Cstor)"},
+        {"name": "Debugger.getPossibleBreakpoints"},
+        {"name": "AsyncStacksInstrumentation"}
+      ]
+    },
+    {
+      "name": "Parsing",
+      "path": ["Parsing"],
+      "main": "run.js",
+      "flags": ["--no-compilation-cache", "--allow-natives-syntax"],
+      "resources": [ "comments.js", "strings.js", "arrowfunctions.js"],
+      "results_regexp": "^%s\\-Parsing\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "OneLineComment"},
+        {"name": "OneLineComments"},
+        {"name": "MultiLineComment"},
+        {"name": "SingleLineString"},
+        {"name": "SingleLineStrings"},
+        {"name": "MultiLineString"},
+        {"name": "ArrowFunctionShort"},
+        {"name": "ArrowFunctionLong"},
+        {"name": "CommaSepExpressionListShort"},
+        {"name": "CommaSepExpressionListLong"},
+        {"name": "CommaSepExpressionListLate"},
+        {"name": "FakeArrowFunction"}
+      ]
+    },
+    {
+      "name": "Numbers",
+      "path": ["Numbers"],
+      "main": "run.js",
+      "flags": ["--allow-natives-syntax"],
+      "resources": [
+        "toNumber.js",
+        "toLocaleString.js",
+        "toHexString.js"
+      ],
+      "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Constructor"},
+        {"name": "UnaryPlus"},
+        {"name": "ParseFloat"},
+        {"name": "toLocaleString"},
+        {"name": "toHexString"}
+      ]
+    },
+    {
+      "name": "ObjectFreeze",
+      "path": ["ObjectFreeze"],
+      "main": "run.js",
+      "flags": [],
+      "resources": [
+	      "array-indexof-includes.js",
+	      "spread-call.js",
+        "tagged-template.js",
+        "has-own-property.js",
+        "array-map.js",
+        "array-reduce.js"
+      ],
+      "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "TaggedTemplate"},
+        {"name": "TaggedTemplateLoose"},
+        {"name": "ArrayIndexOf"},
+        {"name": "ArrayIncludes"},
+        {"name": "ApplySpreadLiteral"},
+        {"name": "SpreadCall"},
+        {"name": "SpreadCallSpreadLiteral"},
+        {"name": "HasOwnProperty"},
+        {"name": "ArrayMap"},
+        {"name": "ArrayReduce"},
+        {"name": "ArrayReduceRight"}
+      ]
+    },
+    {
+      "name": "TurboFan",
+      "path": ["TurboFan"],
+      "tests": [
+        {
+          "name": "NumberToString",
+          "main": "run.js",
+          "flags": ["--no-maglev"],
+          "resources": ["typedLowering.js"],
+          "test_flags": ["typedLowering"],
+          "results_regexp": "^NumberToString\\-TurboFan\\(Score\\): (.+)$"
+        },
+        {
+          "name": "WasmInliningLoopArray",
+          "main": "run.js",
+          "flags": [],
+          "resources": ["wasm-inlining-loop-array.js"],
+          "test_flags": ["wasm-inlining-loop-array"],
+          "results_regexp": "^%s\\-TurboFan\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "WasmLoop"},
+            {"name": "JSLoop"},
+            {"name": "PureJSLoop"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "StackTrace",
+      "path": ["StackTrace"],
+      "main": "run.js",
+      "flags": ["--allow-natives-syntax"],
+      "resources": ["capture.js", "serialize.js"],
+      "results_regexp": "^%s\\-StackTrace\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Simple-Capture-Error"},
+        {"name": "Custom-Capture-Error"},
+        {"name": "Inline-Capture-Error"},
+        {"name": "Recursive-Capture-Error"},
+        {"name": "Simple-Serialize-Error.stack"},
+        {"name": "Custom-Serialize-Error.stack"},
+        {"name": "Inline-Serialize-Error.stack"},
+        {"name": "Recursive-Serialize-Error.stack"}
+      ]
+    },
+    {
+      "name": "IC",
+      "path": ["IC"],
+      "main": "run.js",
+      "flags": ["--no-turbofan"],
+      "resources": ["loadconstantfromprototype.js"],
+      "results_regexp": "^%s\\-IC\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "LoadConstantFromPrototype"
+        }
+      ]
+    }
+  ]
+}

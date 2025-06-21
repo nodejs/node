@@ -1,0 +1,10 @@
+Checks if we correctly handle exceptions thrown on setBreakpointByUrl if script is invalid.
+[
+]
+[
+    [0] : {
+        columnNumber : 22
+        lineNumber : 0
+        scriptId : <scriptId>
+    }
+]

@@ -1,0 +1,27 @@
+Tests that Runtime.evaluate has the correct error line number for 'new Function(...)'
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 3
+            exception : {
+                className : TypeError
+                description : TypeError: 0 is not a function     at eval (eval at <anonymous> (:1:1), <anonymous>:3:4)     at <anonymous>:1:22
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 2
+            scriptId : <scriptId>
+            text : Uncaught
+        }
+        result : {
+            className : TypeError
+            description : TypeError: 0 is not a function     at eval (eval at <anonymous> (:1:1), <anonymous>:3:4)     at <anonymous>:1:22
+            objectId : <objectId>
+            subtype : error
+            type : object
+        }
+    }
+}

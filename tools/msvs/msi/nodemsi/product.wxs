@@ -1,0 +1,398 @@
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <?define ProductName = "Node.js" ?>
+  <?define ProductDescription = "Node.js" ?>
+  <?define ProductAuthor = "Node.js Foundation" ?>
+
+  <?define RegistryKeyPath = "SOFTWARE\Node.js" ?>
+
+  <?define RepoDir="$(var.ProjectDir)..\..\..\..\" ?>
+  <?define SourceDir="$(var.RepoDir)\$(var.Configuration)\" ?>
+
+  <Package Name="$(var.ProductName)"
+           Language="!(loc.LocaleId)"
+           Version="$(var.ProductVersion)"
+           Manufacturer="$(var.ProductAuthor)"
+           UpgradeCode="47c07a3a-42ef-4213-a85d-8f5a59077c28"
+           InstallerVersion="200"
+           Compressed="yes">
+
+    <Launch Condition="Installed OR (VersionNT &gt;= 603) OR (VersionNT &gt;= 602 AND MsiNTProductType &lt;&gt; 1)" Message="This application is only supported on Windows 8.1, Windows Server 2012 R2, or higher." />
+
+    <Media Id="1" Cabinet="media1.cab" EmbedCab="yes"/>
+
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="!(loc.MajorUpgrade_DowngradeErrorMessage)"/>
+
+    <Upgrade Id="1d60944c-b9ce-4a71-a7c0-0384eb884baa">
+      <UpgradeVersion Maximum="1.0.0"
+                      IncludeMaximum="no"
+                      Property="NODE_0X_DETECTED" />
+      <UpgradeVersion Minimum="1.0.0"
+                      IncludeMinimum="yes"
+                      Property="EARLY_IO_DETECTED" />
+    </Upgrade>
+
+    <Icon Id="NodeIcon" SourceFile="$(var.RepoDir)\src\res\node.ico"/>
+    <Property Id="ARPPRODUCTICON" Value="NodeIcon"/>
+    <Property Id="ApplicationFolderName" Value="nodejs"/>
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
+
+    <!-- WiX 4 QueryWindowsWellKnownSIDs element replaces previously used PropertyRef. -->
+    <!-- It sets all properties with the WIX_ACCOUNT_ prefix eg. WIX_ACCOUNT_USERS, etc. -->
+    <util:QueryWindowsWellKnownSIDs/>
+
+    <Property Id="INSTALLDIR" Secure="yes">
+      <RegistrySearch Id="InstallPathRegistry"
+                      Type="raw"
+                      Root="HKLM"
+                      Key="$(var.RegistryKeyPath)"
+                      Name="InstallPath"/>
+      <!-- Also need to search under HKCU to support upgrading from old
+           versions. If we wanted to disable backward compatibility, this
+           second search could be deleted. -->
+      <RegistrySearch Id="InstallPathRegistryCU"
+                      Type="raw"
+                      Root="HKCU"
+                      Key="$(var.RegistryKeyPath)"
+                      Name="InstallPath"/>
+    </Property>
+
+    <Feature Id="NodeRuntime"
+             Level="1"
+             Title="!(loc.NodeRuntime_Title)"
+             Description="!(loc.NodeRuntime_Description)"
+             AllowAbsent="no">
+      <ComponentRef Id="NodeExecutable"/>
+      <ComponentRef Id="NodeRegistryEntries"/>
+      <ComponentRef Id="NodeVarsScript"/>
+      <ComponentRef Id="NodeStartMenu"/>
+      <ComponentRef Id="InstallToolsBat" />
+      <ComponentRef Id="SetInstallDirPermission" />
+    </Feature>
+
+    <Feature Id="npm"
+             Level="1"
+             Title="!(loc.npm_Title)"
+             Description="!(loc.npm_Description)">
+      <ComponentRef Id="NpmCmdScript"/>
+      <ComponentRef Id="NpmBashScript"/>
+      <ComponentRef Id="NpmPowerShellScript"/>
+      <ComponentRef Id="NpxCmdScript"/>
+      <ComponentRef Id="NpxBashScript"/>
+      <ComponentRef Id="NpxPowerShellScript"/>
+      <ComponentRef Id="NpmConfigurationFile"/>
+      <ComponentRef Id="SetInstallDirPermission" />
+      <ComponentGroupRef Id="NpmSourceFiles"/>
+    </Feature>
+
+    <Feature Level="1"
+             Id="DocumentationShortcuts"
+             Title="!(loc.DocumentationShortcuts_Title)"
+             Description="!(loc.DocumentationShortcuts_Description)">
+      <ComponentRef Id="DocumentationShortcuts"/>
+    </Feature>
+
+    <Feature Id="EnvironmentPath"
+             Level="1"
+             Title="!(loc.EnvironmentPath_Title)"
+             Description="!(loc.EnvironmentPath_Description)">
+      <Feature Id="EnvironmentPathNode"
+               Level="1"
+               Title="!(loc.EnvironmentPathNode_Title)"
+               Description="!(loc.EnvironmentPathNode_Description)">
+        <ComponentRef Id="EnvironmentPathNode"/>
+      </Feature>
+
+      <Feature Id="EnvironmentPathNpmModules"
+               Level="1"
+               Title="!(loc.EnvironmentPathNpmModules_Title)"
+               Description="!(loc.EnvironmentPathNpmModules_Description)">
+        <ComponentRef Id="EnvironmentPathNpmModules"/>
+      </Feature>
+    </Feature>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Node.js"/>
+    </StandardDirectory>
+
+    <StandardDirectory Id="$(var.ProgramFilesFolderId)">
+      <Directory Id="INSTALLDIR" Name="nodejs">
+      </Directory>
+    </StandardDirectory>
+
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="NodeExecutable">
+        <File Id="node.exe" KeyPath="yes" Source="$(var.SourceDir)\node.exe"/>
+      </Component>
+
+      <Component Id="NodeRegistryEntries">
+        <RegistryValue Root="HKLM"
+                       Key="$(var.RegistryKeyPath)"
+                       Name="InstallPath"
+                       Type="string"
+                       Value="[INSTALLDIR]"
+                       KeyPath="yes"/>
+        <RegistryValue Root="HKLM"
+                       Key="$(var.RegistryKeyPath)"
+                       Name="Version"
+                       Type="string"
+                       Value="$(var.ProductVersion)"/>
+      </Component>
+
+      <Component Id="NodeVarsScript">
+        <File Id="nodevars.bat" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\nodevars.bat"/>
+      </Component>
+
+      <Component Id="InstallToolsBat">
+        <File Id="InstallToolsBat" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\install_tools\install_tools.bat"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="INSTALLDIR">
+      <!-- Create component for setting the install directory permission explicitly -->
+      <Component Id="SetInstallDirPermission" Guid="{EFFC4F74-183A-4237-BBD7-0CAD2B950053}">
+        <CreateFolder>
+          <Permission User="[WIX_ACCOUNT_USERS]" GenericRead="yes" Traverse="yes" GenericExecute="yes" Synchronize="yes"
+                      GenericWrite="no" WriteAttributes="no" WriteExtendedAttributes="no"/>
+          <Permission User="[AUTHENTICATED_USERS]" GenericRead="yes" Traverse="yes" GenericExecute="yes" Synchronize="yes"
+                      GenericWrite="no" WriteAttributes="no" WriteExtendedAttributes="no"/>
+          <Permission User="[WIX_ACCOUNT_ADMINISTRATORS]" GenericAll="yes"/>
+          <Permission User="[WIX_ACCOUNT_LOCALSYSTEM]" GenericAll="yes"/>
+        </CreateFolder>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="NodeStartMenu">
+        <!-- RegistryValue needed because every Component must have a KeyPath.
+             Because of ICE43, the Root must be HKCU. -->
+        <RegistryValue Root="HKCU"
+                       Key="$(var.RegistryKeyPath)\Components"
+                       Name="NodeStartMenuShortcuts"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+        <Shortcut Id="NodeVarsScriptShortcut"
+                  Name="Node.js command prompt"
+                  Target="[%ComSpec]"
+                  Arguments="/k &quot;[INSTALLDIR]nodevars.bat&quot;"
+                  Show="normal"
+                  WorkingDirectory="INSTALLDIR"/>
+        <Shortcut Id="InstallToolsShortcut"
+                  Name="Install Additional Tools for Node.js"
+                  Target="[%ComSpec]"
+                  Arguments="/d /c &quot;[INSTALLDIR]install_tools.bat&quot;"
+                  Show="normal"
+                  WorkingDirectory="INSTALLDIR"/>
+        <Shortcut Id="NodeExecutableShortcut"
+                  Name="Node.js"
+                  Target="[INSTALLDIR]node.exe"
+                  WorkingDirectory="INSTALLDIR"/>
+        <Shortcut Id="UninstallProduct"
+                  Name="Uninstall Node.js"
+                  Target="[SystemFolder]msiexec.exe"
+                  Arguments="/x [ProductCode]"/>
+        <RemoveFolder Id="RemoveApplicationProgramsFolder"
+                      On="uninstall"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="NpmCmdScript">
+        <File Id="npm.cmd" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npm.cmd"/>
+      </Component>
+
+      <Component Id="NpmBashScript">
+        <File Id="npm.sh" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npm"/>
+      </Component>
+
+      <Component Id="NpmPowerShellScript">
+        <File Id="npm.ps1" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npm.ps1"/>
+      </Component>
+
+      <Component Id="NpxCmdScript">
+        <File Id="npx.cmd" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npx.cmd"/>
+      </Component>
+
+      <Component Id="NpxBashScript">
+        <File Id="npx.sh" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npx"/>
+      </Component>
+
+      <Component Id="NpxPowerShellScript">
+        <File Id="npx.ps1" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npx.ps1"/>
+      </Component>
+
+      <Directory Id="NodeModulesFolder" Name="node_modules">
+        <Directory Id="NpmFolder" Name="npm">
+          <Component Id="NpmConfigurationFile">
+            <File Id="npm.rc" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\npm\npmrc"/>
+          </Component>
+        </Directory>
+      </Directory>
+    </DirectoryRef>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="DocumentationShortcuts">
+        <RegistryValue Root="HKCU"
+                       Key="$(var.RegistryKeyPath)\Components"
+                       Name="DocumentationShortcuts"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+        <util:InternetShortcut Id="WebsiteShortcut"
+                               Name="Node.js website"
+                               Target="https://nodejs.org/"
+                               Type="url"/>
+        <util:InternetShortcut Id="DocsShortcut"
+                               Name="Node.js documentation"
+                               Target="https://nodejs.org/download/$(var.DistTypeDir)/v$(var.FullVersion)/docs/api/"
+                               Type="url"/>
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="EnvironmentPathNode">
+        <RegistryValue Root="HKLM"
+                       Key="$(var.RegistryKeyPath)\Components"
+                       Name="EnvironmentPathNode"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+        <Environment Id="EnvironmentPathNode"
+                     Action="set"
+                     Name="PATH"
+                     Part="last"
+                     System="yes"
+                     Value="[INSTALLDIR]"/>
+      </Component>
+
+      <Component Id="EnvironmentPathNpmModules">
+        <RegistryValue Root="HKCU"
+                       Key="$(var.RegistryKeyPath)\Components"
+                       Name="EnvironmentPathNpmModules"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+        <Environment Id="EnvironmentPathNpmModules"
+                     Action="set"
+                     Name="PATH"
+                     Part="last"
+                     System="no"
+                     Value="[AppDataFolder]npm"/>
+      </Component>
+    </DirectoryRef>
+
+    <Binary Id="CustomActionsDLL"
+            SourceFile="$(var.custom_actions.TargetDir)$(var.custom_actions.TargetName).dll" />
+
+    <CustomAction Id="SetInstallScope"
+                  BinaryRef="CustomActionsDLL"
+                  DllEntry="SetInstallScope"
+                  Execute="immediate"
+                  Return="check" />
+
+    <CustomAction Id="WixBroadcastEnvironmentChange"
+                  BinaryRef="Wix4UtilCA_X86"
+                  DllEntry="WixBroadcastEnvironmentChange"
+                  Execute="immediate"
+                  Return="check" />
+
+    <CustomAction Id="GetLocalizedUserNames"
+                  BinaryRef="CustomActionsDLL"
+                  DllEntry="GetLocalizedUserNames"
+                  Execute="immediate"
+                  Return="check" />
+
+    <Property Id="WixShellExecTarget" Value="[#InstallToolsBat]" />
+    <CustomAction Id="LaunchApplication" BinaryRef="Wix4UtilCA_X86" DllEntry="WixShellExec" />
+    <CustomAction Id="PrintEula" BinaryRef="WixUiCa_X86" DllEntry="PrintEula" />
+
+    <InstallUISequence>
+      <Custom Action="SetInstallScope" Before="FindRelatedProducts"/>
+    </InstallUISequence>
+
+    <InstallExecuteSequence>
+      <Custom Action="SetInstallScope" Before="FindRelatedProducts"/>
+      <Custom Action="GetLocalizedUserNames" After="SetInstallScope"/>
+      <Custom Action="WixBroadcastEnvironmentChange" After="InstallFinalize"/>
+    </InstallExecuteSequence>
+
+    <UI Id="NodeInstallUI">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8"/>
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12"/>
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes"/>
+
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal"/>
+      <Property Id="WixUI_Mode" Value="FeatureTree"/>
+
+      <DialogRef Id="ErrorDlg"/>
+      <DialogRef Id="FatalError"/>
+      <DialogRef Id="FilesInUse"/>
+      <DialogRef Id="MsiRMFilesInUse"/>
+      <DialogRef Id="PrepareDlg"/>
+      <DialogRef Id="ProgressDlg"/>
+      <DialogRef Id="ResumeDlg"/>
+      <DialogRef Id="UserExit"/>
+      <DialogRef Id="WelcomeDlg"/>
+      <DialogRef Id="LicenseAgreementDlg"/>
+      <DialogRef Id="InstallDirDlg"/>
+      <DialogRef Id="BrowseDlg"/>
+      <DialogRef Id="InvalidDirDlg"/>
+      <Dialog Id="NativeToolsDlg" Width="370" Height="270" Title="!(loc.NativeToolsDlg_Title)">
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="!(loc.NativeToolsDlgBannerBitmap)" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.NativeToolsDlgTitle)" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.NativeToolsDlgDescription)" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+        <Control Id="Intro" Type="Text" X="20" Y="65" Width="330" Height="30" NoPrefix="yes" Text="!(loc.NativeToolsDlgIntro)" />
+        <Control Id="InstallCheckbox" Type="CheckBox" X="20" Y="105" Width="330" Height="30" Property="NATIVETOOLSCHECKBOX" CheckBoxValue="1" Text="!(loc.NativeToolsDlgInstallCheckbox)" />
+        <Control Id="ManualDetails" Type="Hyperlink" X="20" Y="140" Width="330" Height="30" Text="!(loc.NativeToolsDlgManualDetails)" />
+
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)" />
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+      </Dialog>
+
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg" Condition="NOT Installed" />
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Condition="Installed AND PATCH" />
+      <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" />
+      <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Condition="LicenseAccepted = &quot;1&quot;" />
+      <Publish Dialog="LicenseAgreementDlg" Control="Print" Event="DoAction" Value="PrintEula" />
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="CustomizeDlg" Order="20" />
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="10" />
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="10" />
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="20" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg" Order="1" Condition="NOT Installed OR WixUI_InstallMode = &quot;Change&quot;" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2" Condition="Installed AND NOT PATCH" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3" Condition="Installed AND PATCH" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="ChangeButton" Event="NewDialog" Value="CustomizeDlg" />
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg" />
+      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="1" Condition="Installed" />
+      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="2" Condition="NOT Installed" />
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="NativeToolsDlg" />
+      <Publish Dialog="NativeToolsDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg" />
+      <Publish Dialog="NativeToolsDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication" Condition="NATIVETOOLSCHECKBOX = 1" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999" />
+
+      <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="!(loc.WIXUI_EXITDIALOGOPTIONALTEXT)"/>
+    </UI>
+
+    <UIRef Id="WixUI_Common"/>
+    <UIRef Id="WixUI_ErrorProgressText"/>
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.RepoDir)\doc\thin-white-stripe.jpg"/>
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.RepoDir)\doc\full-white-stripe.jpg"/>
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.SourceDir)\LICENSE.rtf"/>
+  </Package>
+
+</Wix>

@@ -1,0 +1,64 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>This test validates resource timing information for a same-origin=>cross-origin=>same-origin redirect chain without Timing-Allow-Origin.</title>
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#sec-cross-origin-resources"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/entry-invariants.js"></script>
+</head>
+<body>
+<script>
+const {HTTPS_REMOTE_ORIGIN} = get_host_info();
+const SAME_ORIGIN = location.origin;
+// Same-Origin => Cross-Origin => Same-Origin => Same-Origin redirect chain
+let destUrl = `${SAME_ORIGIN}/resource-timing/resources/multi_redirect.py?`;
+destUrl += `page_origin=${SAME_ORIGIN}`;
+destUrl += `&cross_origin=${HTTPS_REMOTE_ORIGIN}`;
+destUrl += `&final_resource=/resource-timing/resources/blank_page_green.htm`;
+
+// No TAO in the redirect chain
+attribute_test(
+  load.iframe, destUrl,
+  invariants.assert_cross_origin_redirected_resource,
+  "Verify that cross origin resources' timings are not exposed when " +
+  "same-origin=>cross-origin=>same-origin redirects have no " +
+  "`Timing-Allow-Origin:` headers.");
+
+// Partial TAO in the redirect chain
+destUrl += '&tao_steps=2';
+attribute_test(
+  load.iframe, destUrl,
+  invariants.assert_cross_origin_redirected_resource,
+  "Verify that cross origin resources' timings are not exposed when " +
+  "same-origin=>cross-origin=>same-origin redirects have " +
+  "`Timing-Allow-Origin:` headers only on some of the responses.");
+
+// Cross-origin => Cross-Origin => Same-Origin => Same-Origin redirect chain.
+destUrl = `${HTTPS_REMOTE_ORIGIN}/resource-timing/resources/multi_redirect.py?`;
+destUrl += `page_origin=${SAME_ORIGIN}`;
+destUrl += `&cross_origin=${HTTPS_REMOTE_ORIGIN}`;
+destUrl += `&final_resource=/resource-timing/resources/blue-with-tao.png`;
+destUrl += `&tao_steps=3`;
+
+// Full redirect chain with `TAO: *`.
+attribute_test(
+  load.image, destUrl,
+  invariants.assert_tao_enabled_cross_origin_redirected_resource,
+  "Verify that cross origin resources' timings are exposed when cross-origin " +
+  "redirects have `Timing-Allow-Origin: *` headers");
+
+// TAO with a specific origin
+destUrl += `&tao_value=${SAME_ORIGIN}`;
+attribute_test(
+  load.image, destUrl,
+  invariants.assert_cross_origin_redirected_resource,
+  "Verify that cross origin resources' timings are not exposed when " +
+  "same-origin=>cross-origin=>same-origin redirects have " +
+  "`Timing-Allow-Origin:` headers with a specific origin.");
+</script>
+</body>
+</html>

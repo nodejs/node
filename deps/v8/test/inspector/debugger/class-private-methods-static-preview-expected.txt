@@ -1,0 +1,28 @@
+Check static private methods in object preview.
+
+Running test: testPrivateMethods
+expression: class { static get #readOnly() { return 1; } }
+{
+    type : string
+    value : class { static get #readOnly() { return 1; } }
+}
+expression: class { static set #writeOnly(val) { } }
+{
+    type : string
+    value : class { static set #writeOnly(val) { } }
+}
+expression: class { static #method() { return 1; } static get #accessor() { } static set #accessor(val) { } }
+{
+    type : string
+    value : class { static #method() { return 1; } static get #accessor() { } static set #accessor(val) { } }
+}
+expression: class extends class { } { static #method() { return 1; } }
+{
+    type : string
+    value : class extends class { } { static #method() { return 1; } }
+}
+expression: class extends class { static #method() { return 1; } } { get #accessor() { } set #accessor(val) { } }
+{
+    type : string
+    value : class extends class { static #method() { return 1; } } { get #accessor() { } set #accessor(val) { } }
+}

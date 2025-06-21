@@ -1,0 +1,475 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise.h'
+#include 'src/builtins/builtins-promise-gen.h'
+
+namespace runtime {
+extern transitioning runtime AllowDynamicFunction(
+    implicit context: Context)(JSAny): JSAny;
+
+extern transitioning runtime ThrowNoAccess(implicit context: Context)(): never;
+
+extern transitioning runtime ReportMessageFromMicrotask(
+    implicit context: Context)(JSAny): JSAny;
+}
+
+// Unsafe functions that should be used very carefully.
+namespace promise_internal {
+extern macro PromiseBuiltinsAssembler::ZeroOutEmbedderOffsets(JSPromise): void;
+
+extern macro PromiseBuiltinsAssembler::AllocateJSPromise(Context): HeapObject;
+}
+
+extern macro PromiseBuiltinsAssembler::IsContextPromiseHookEnabled(uint32):
+    bool;
+
+extern macro PromiseBuiltinsAssembler::IsIsolatePromiseHookEnabled(uint32):
+    bool;
+
+extern macro PromiseBuiltinsAssembler::PromiseHookFlags(): uint32;
+
+namespace macros {
+extern macro GetContinuationPreservedEmbedderData(): Object;
+extern macro SetContinuationPreservedEmbedderData(Object): void;
+}
+
+namespace promise {
+const kInvalidAsyncTaskId:
+    constexpr uint32 generates 'JSPromise::kInvalidAsyncTaskId';
+
+extern macro IsFunctionWithPrototypeSlotMap(Map): bool;
+
+@export
+macro PromiseHasHandler(promise: JSPromise): bool {
+  return promise.HasHandler();
+}
+
+@export
+macro PromiseInit(promise: JSPromise): void {
+  promise.reactions_or_result = kZero;
+  promise.flags = SmiTag(JSPromiseFlags{
+    status: PromiseState::kPending,
+    has_handler: false,
+    is_silent: false,
+    async_task_id: kInvalidAsyncTaskId
+  });
+  promise_internal::ZeroOutEmbedderOffsets(promise);
+}
+
+macro InnerNewJSPromise(implicit context: Context)(): JSPromise {
+  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
+  dcheck(IsFunctionWithPrototypeSlotMap(promiseFun.map));
+  const promiseMap = UnsafeCast<Map>(promiseFun.prototype_or_initial_map);
+  const promiseHeapObject = promise_internal::AllocateJSPromise(context);
+  *UnsafeConstCast(&promiseHeapObject.map) = promiseMap;
+  const promise = UnsafeCast<JSPromise>(promiseHeapObject);
+  promise.properties_or_hash = kEmptyFixedArray;
+  promise.elements = kEmptyFixedArray;
+  promise.reactions_or_result = kZero;
+  promise.flags = SmiTag(JSPromiseFlags{
+    status: PromiseState::kPending,
+    has_handler: false,
+    is_silent: false,
+    async_task_id: kInvalidAsyncTaskId
+  });
+  return promise;
+}
+
+macro NewPromiseFulfillReactionJobTask(
+    implicit context: Context)(handlerContext: Context, argument: Object,
+    handler: Callable|Undefined,
+    promiseOrCapability: JSPromise|PromiseCapability|
+    Undefined): PromiseFulfillReactionJobTask {
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    return new PromiseFulfillReactionJobTask{
+      map: PromiseFulfillReactionJobTaskMapConstant(),
+      continuation_preserved_embedder_data:
+          macros::GetContinuationPreservedEmbedderData(),
+      argument,
+      context: handlerContext,
+      handler,
+      promise_or_capability: promiseOrCapability
+    };
+  }
+
+  @ifnot(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    return new PromiseFulfillReactionJobTask{
+      map: PromiseFulfillReactionJobTaskMapConstant(),
+      argument,
+      context: handlerContext,
+      handler,
+      promise_or_capability: promiseOrCapability
+    };
+  }
+}
+
+macro NewPromiseRejectReactionJobTask(
+    implicit context: Context)(handlerContext: Context, argument: Object,
+    handler: Callable|Undefined,
+    promiseOrCapability: JSPromise|PromiseCapability|
+    Undefined): PromiseRejectReactionJobTask {
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    return new PromiseRejectReactionJobTask{
+      map: PromiseRejectReactionJobTaskMapConstant(),
+      continuation_preserved_embedder_data:
+          macros::GetContinuationPreservedEmbedderData(),
+      argument,
+      context: handlerContext,
+      handler,
+      promise_or_capability: promiseOrCapability
+    };
+  }
+
+  @ifnot(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    return new PromiseRejectReactionJobTask{
+      map: PromiseRejectReactionJobTaskMapConstant(),
+      argument,
+      context: handlerContext,
+      handler,
+      promise_or_capability: promiseOrCapability
+    };
+  }
+}
+
+@export
+transitioning macro RunContextPromiseHookInit(
+    implicit context: Context)(promise: JSPromise, parent: Object): void {
+  const maybeHook = *NativeContextSlot(
+      ContextSlot::PROMISE_HOOK_INIT_FUNCTION_INDEX);
+  const hook = Cast<Callable>(maybeHook) otherwise return;
+  const parentObject = Is<JSPromise>(parent) ? Cast<JSPromise>(parent)
+      otherwise unreachable: Undefined;
+
+  try {
+    Call(context, hook, Undefined, promise, parentObject);
+  } catch (e, _message) {
+    runtime::ReportMessageFromMicrotask(e);
+  }
+}
+
+@export
+transitioning macro RunContextPromiseHookResolve(
+    implicit context: Context)(promise: JSPromise): void {
+  // Use potentially unused variables.
+  const _unusedPromise = promise;
+  @if(V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS) {
+    RunContextPromiseHook(
+        ContextSlot::PROMISE_HOOK_RESOLVE_FUNCTION_INDEX, promise,
+        PromiseHookFlags());
+  }
+}
+
+@export
+transitioning macro RunContextPromiseHookResolve(
+    implicit context: Context)(promise: JSPromise, flags: uint32): void {
+  RunContextPromiseHook(
+      ContextSlot::PROMISE_HOOK_RESOLVE_FUNCTION_INDEX, promise, flags);
+}
+
+@export
+transitioning macro RunContextPromiseHookBefore(
+    implicit context: Context)(
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined): void {
+  // Use potentially unused variables.
+  const _unusedPromiseOrCapability = promiseOrCapability;
+  @if(V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS) {
+    RunContextPromiseHook(
+        ContextSlot::PROMISE_HOOK_BEFORE_FUNCTION_INDEX, promiseOrCapability,
+        PromiseHookFlags());
+  }
+}
+
+@export
+transitioning macro RunContextPromiseHookBefore(
+    implicit context: Context)(
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined,
+    flags: uint32): void {
+  RunContextPromiseHook(
+      ContextSlot::PROMISE_HOOK_BEFORE_FUNCTION_INDEX, promiseOrCapability,
+      flags);
+}
+
+@export
+transitioning macro RunContextPromiseHookAfter(
+    implicit context: Context)(
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined): void {
+  // Use potentially unused variables.
+  const _unusedPromiseOrCapability = promiseOrCapability;
+  @if(V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS) {
+    RunContextPromiseHook(
+        ContextSlot::PROMISE_HOOK_AFTER_FUNCTION_INDEX, promiseOrCapability,
+        PromiseHookFlags());
+  }
+}
+
+@export
+transitioning macro RunContextPromiseHookAfter(
+    implicit context: Context)(
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined,
+    flags: uint32): void {
+  RunContextPromiseHook(
+      ContextSlot::PROMISE_HOOK_AFTER_FUNCTION_INDEX, promiseOrCapability,
+      flags);
+}
+
+transitioning macro RunContextPromiseHook(
+    implicit context: Context)(slot: Slot<NativeContext, Undefined|Callable>,
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined,
+    flags: uint32): void {
+  // Use potentially unused variables.
+  const _unusedSlot = slot;
+  const _unusedPromiseOrCapability = promiseOrCapability;
+  const _unusedFlags = flags;
+  @if(V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS) {
+    if (!IsContextPromiseHookEnabled(flags)) return;
+    const maybeHook = *NativeContextSlot(slot);
+    const hook = Cast<Callable>(maybeHook) otherwise return;
+
+    let promise: JSPromise;
+    typeswitch (promiseOrCapability) {
+      case (jspromise: JSPromise): {
+        promise = jspromise;
+      }
+      case (capability: PromiseCapability): {
+        promise = Cast<JSPromise>(capability.promise) otherwise return;
+      }
+      case (Undefined): {
+        return;
+      }
+    }
+
+    try {
+      Call(context, hook, Undefined, promise);
+    } catch (e, _message) {
+      runtime::ReportMessageFromMicrotask(e);
+    }
+  }
+}
+
+transitioning macro RunAnyPromiseHookInit(
+    implicit context: Context)(promise: JSPromise, parent: Object): void {
+  const promiseHookFlags = PromiseHookFlags();
+  // Fast return if no hooks are set.
+  if (promiseHookFlags == 0) return;
+  @if(V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS) {
+    if (IsContextPromiseHookEnabled(promiseHookFlags)) {
+      RunContextPromiseHookInit(promise, parent);
+    }
+  }
+  if (IsIsolatePromiseHookEnabled(promiseHookFlags)) {
+    runtime::PromiseHookInit(promise, parent);
+  }
+}
+
+// These allocate and initialize a promise with pending state and
+// undefined fields.
+//
+// This uses the given parent as the parent promise for the promise
+// init hook.
+@export
+transitioning macro NewJSPromise(implicit context: Context)(
+                                 parent: Object): JSPromise {
+  const instance = InnerNewJSPromise();
+  PromiseInit(instance);
+  RunAnyPromiseHookInit(instance, parent);
+  return instance;
+}
+
+// This uses undefined as the parent promise for the promise init
+// hook.
+@export
+transitioning macro NewJSPromise(implicit context: Context)(): JSPromise {
+  return NewJSPromise(Undefined);
+}
+
+// This allocates and initializes a promise with the given state and
+// fields.
+@export
+transitioning macro NewJSPromise(
+    implicit context: Context)(status: constexpr PromiseState,
+    result: JSAny): JSPromise {
+  dcheck(status != PromiseState::kPending);
+
+  const instance = InnerNewJSPromise();
+  instance.reactions_or_result = result;
+  instance.SetStatus(status);
+  promise_internal::ZeroOutEmbedderOffsets(instance);
+  RunAnyPromiseHookInit(instance, Undefined);
+  return instance;
+}
+
+macro NewPromiseReaction(
+    implicit context: Context)(next: Zero|PromiseReaction,
+    promiseOrCapability: JSPromise|PromiseCapability|Undefined,
+    fulfillHandler: Callable|Undefined,
+    rejectHandler: Callable|Undefined): PromiseReaction {
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    return new PromiseReaction{
+      map: PromiseReactionMapConstant(),
+      continuation_preserved_embedder_data:
+          macros::GetContinuationPreservedEmbedderData(),
+      next: next,
+      reject_handler: rejectHandler,
+      fulfill_handler: fulfillHandler,
+      promise_or_capability: promiseOrCapability
+    };
+  }
+
+  @ifnot(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    return new PromiseReaction{
+      map: PromiseReactionMapConstant(),
+      next: next,
+      reject_handler: rejectHandler,
+      fulfill_handler: fulfillHandler,
+      promise_or_capability: promiseOrCapability
+    };
+  }
+}
+
+extern macro PromiseResolveThenableJobTaskMapConstant(): Map;
+
+// https://tc39.es/ecma262/#sec-newpromiseresolvethenablejob
+macro NewPromiseResolveThenableJobTask(
+    implicit context: Context)(promiseToResolve: JSPromise,
+    thenable: JSReceiver, then: Callable): PromiseResolveThenableJobTask {
+  // 2. Let getThenRealmResult be GetFunctionRealm(then).
+  // 3. If getThenRealmResult is a normal completion, then let thenRealm be
+  //    getThenRealmResult.[[Value]].
+  // 4. Otherwise, let thenRealm be null.
+  //
+  // The only cases where |thenRealm| can be null is when |then| is a revoked
+  // Proxy object, which would throw when it is called anyway. So instead of
+  // setting the context to null as the spec does, we just use the current
+  // realm.
+  const thenContext: Context = ExtractHandlerContext(then);
+  const nativeContext = LoadNativeContext(thenContext);
+
+  // 1. Let job be a new Job abstract closure with no parameters that
+  //    captures promiseToResolve, thenable, and then...
+  // 5. Return { [[Job]]: job, [[Realm]]: thenRealm }.
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    return new PromiseResolveThenableJobTask{
+      map: PromiseResolveThenableJobTaskMapConstant(),
+      continuation_preserved_embedder_data:
+          macros::GetContinuationPreservedEmbedderData(),
+      context: nativeContext,
+      promise_to_resolve: promiseToResolve,
+      thenable,
+      then
+    };
+  }
+
+  @ifnot(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA) {
+    return new PromiseResolveThenableJobTask{
+      map: PromiseResolveThenableJobTaskMapConstant(),
+      context: nativeContext,
+      promise_to_resolve: promiseToResolve,
+      thenable,
+      then
+    };
+  }
+}
+
+struct InvokeThenOneArgFunctor {
+  transitioning macro Call(
+      nativeContext: NativeContext, then: JSAny, receiver: JSAny, arg1: JSAny,
+      _arg2: JSAny): JSAny {
+    return Call(nativeContext, then, receiver, arg1);
+  }
+}
+
+struct InvokeThenTwoArgFunctor {
+  transitioning macro Call(
+      nativeContext: NativeContext, then: JSAny, receiver: JSAny, arg1: JSAny,
+      arg2: JSAny): JSAny {
+    return Call(nativeContext, then, receiver, arg1, arg2);
+  }
+}
+
+transitioning macro InvokeThen<F: type>(
+    implicit context: Context)(nativeContext: NativeContext, receiver: JSAny,
+    arg1: JSAny, arg2: JSAny, callFunctor: F): JSAny {
+  // We can skip the "then" lookup on {receiver} if it's [[Prototype]]
+  // is the (initial) Promise.prototype and the Promise#then protector
+  // is intact, as that guards the lookup path for the "then" property
+  // on JSPromise instances which have the (initial) %PromisePrototype%.
+  if (!Is<Smi>(receiver) &&
+      IsPromiseThenLookupChainIntact(
+          nativeContext, UnsafeCast<HeapObject>(receiver).map)) {
+    const then =
+        *NativeContextSlot(nativeContext, ContextSlot::PROMISE_THEN_INDEX);
+    return callFunctor.Call(nativeContext, then, receiver, arg1, arg2);
+  } else
+    deferred {
+      const then = UnsafeCast<JSAny>(GetProperty(receiver, kThenString));
+      return callFunctor.Call(nativeContext, then, receiver, arg1, arg2);
+    }
+}
+
+transitioning macro InvokeThen(
+    implicit context: Context)(nativeContext: NativeContext, receiver: JSAny,
+    arg: JSAny): JSAny {
+  return InvokeThen(
+      nativeContext, receiver, arg, Undefined, InvokeThenOneArgFunctor{});
+}
+
+transitioning macro InvokeThen(
+    implicit context: Context)(nativeContext: NativeContext, receiver: JSAny,
+    arg1: JSAny, arg2: JSAny): JSAny {
+  return InvokeThen(
+      nativeContext, receiver, arg1, arg2, InvokeThenTwoArgFunctor{});
+}
+
+transitioning macro BranchIfAccessCheckFailed(
+    implicit context: Context)(nativeContext: NativeContext,
+    promiseConstructor: JSAny, executor: JSAny): void labels IfNoAccess {
+  try {
+    // If executor is a bound function, load the bound function until we've
+    // reached an actual function.
+    let foundExecutor = executor;
+    while (true) {
+      typeswitch (foundExecutor) {
+        case (f: JSFunction): {
+          // Load the context from the function and compare it to the Promise
+          // constructor's context. If they match, everything is fine,
+          // otherwise, bail out to the runtime.
+          const functionContext = f.context;
+          const nativeFunctionContext = LoadNativeContext(functionContext);
+          if (TaggedEqual(nativeContext, nativeFunctionContext)) {
+            goto HasAccess;
+          } else {
+            goto CallRuntime;
+          }
+        }
+        case (b: JSBoundFunction): {
+          foundExecutor = b.bound_target_function;
+        }
+        case (Object): {
+          goto CallRuntime;
+        }
+      }
+    }
+  } label CallRuntime deferred {
+    const result = runtime::AllowDynamicFunction(promiseConstructor);
+    if (result != True) {
+      goto IfNoAccess;
+    }
+  } label HasAccess {}
+}
+
+@if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+transitioning javascript builtin GetContinuationPreservedEmbedderData(
+    js-implicit context: Context, receiver: JSAny)(): JSAny {
+  return UnsafeCast<JSAny>(macros::GetContinuationPreservedEmbedderData());
+}
+
+@if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+transitioning javascript builtin SetContinuationPreservedEmbedderData(
+    js-implicit context: Context, receiver: JSAny)(data: Object): Undefined {
+  macros::SetContinuationPreservedEmbedderData(data);
+  return Undefined;
+}
+
+}

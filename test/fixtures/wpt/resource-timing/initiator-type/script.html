@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing initiator type: script</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-initiatortype"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resource-timing/resources/observe-entry.js"></script>
+<script src="resources/initiator-type-test.js"></script>
+</head>
+<body>
+<script src="/resource-timing/resources/empty_script.js"></script>
+<script>
+  const async_xhr = new XMLHttpRequest;
+  async_xhr.open('GET', '/resource-timing/resources/blue.png?id=async_xhr',
+    true);
+  async_xhr.send();
+</script>
+<script>
+  initiator_type_test("empty_script.js", "script", "<script>");
+  initiator_type_test("blue.png?id=async_xhr", "xmlhttprequest", "an asynchronous XmlHTTPRequest");
+</script>
+</body>
+</html>

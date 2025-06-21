@@ -1,0 +1,12 @@
+
+Running test: testTwoSessions
+Tests Runtime.runIfWaitingForDebugger
+session 1 resumed
+session 2 resumed
+execution resumed
+
+Running test: testSessionDisconnect
+Tests Runtime.runIfWaitingForDebugger
+session 1 resumed
+session 2 disconnected
+execution resumed

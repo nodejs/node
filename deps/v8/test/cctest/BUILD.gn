@@ -1,0 +1,422 @@
+# Copyright 2016 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../gni/v8.gni")
+
+v8_executable("cctest") {
+  testonly = true
+
+  sources = [ "cctest.cc" ]
+
+  deps = [
+    ":cctest_sources",
+    "../..:v8_for_testing",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "../../tools/debug_helper:v8_debug_helper",
+    "//third_party/simdutf:simdutf",
+  ]
+
+  data_deps = [ "../../tools:v8_testrunner" ]
+
+  data = [
+    "testcfg.py",
+    "cctest.status",
+  ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+    "../..:v8_tracing_config",
+  ]
+
+  ldflags = []
+
+  if (v8_use_perfetto) {
+    deps += [
+      # TODO(skyostil): Switch the test to use protozero.
+      "//third_party/perfetto/protos/perfetto/trace/interned_data:lite",
+      "//third_party/perfetto/protos/perfetto/trace/track_event:lite",
+    ]
+  }
+
+  if (current_os == "aix") {
+    ldflags = [ "-Wl,-bbigtoc" ]
+  }
+}
+
+v8_header_set("cctest_headers") {
+  testonly = true
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  deps = [
+    "../..:v8_internal_headers",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+  ]
+
+  sources = [ "cctest.h" ]
+}
+
+config("cctest_sources_config") {
+  if (is_clang) {
+    cflags = [ "-Wno-string-concatenation" ]
+  }
+}
+
+v8_source_set("cctest_sources") {
+  testonly = true
+
+  sources = [
+    ### gcmole(all) ###
+    "../common/assembler-tester.h",
+    "../common/c-signature.h",
+    "../common/call-tester.h",
+    "../common/code-assembler-tester.h",
+    "../common/flag-utils.h",
+    "../common/node-observer-tester.h",
+    "../common/value-helper.cc",
+    "../common/value-helper.h",
+    "cctest-utils.h",
+    "collector.h",
+    "expression-type-collector-macros.h",
+    "feedback-vector-helper.h",
+    "heap/heap-tester.h",
+    "heap/heap-utils.cc",
+    "heap/heap-utils.h",
+    "heap/test-alloc.cc",
+    "heap/test-array-buffer-tracker.cc",
+    "heap/test-compaction.cc",
+    "heap/test-concurrent-allocation.cc",
+    "heap/test-concurrent-marking.cc",
+    "heap/test-external-string-tracker.cc",
+    "heap/test-heap.cc",
+    "heap/test-incremental-marking.cc",
+    "heap/test-mark-compact.cc",
+    "heap/test-memory-measurement.cc",
+    "heap/test-pool.cc",
+    "heap/test-spaces.cc",
+    "heap/test-weak-references.cc",
+    "heap/test-write-barrier.cc",
+    "jsonstream-helper.h",
+    "manually-externalized-buffer.h",
+    "print-extension.cc",
+    "print-extension.h",
+    "profiler-extension.cc",
+    "profiler-extension.h",
+    "test-accessors.cc",
+    "test-allocation.cc",
+    "test-api-array-buffer.cc",
+    "test-api-incumbent.cc",
+    "test-api-interceptors.cc",
+    "test-api-stack-traces.cc",
+    "test-api-typed-array.cc",
+    "test-api.cc",
+    "test-api.h",
+    "test-constantpool.cc",
+    "test-cpu-profiler.cc",
+    "test-debug-helper.cc",
+    "test-debug.cc",
+    "test-disasm-regex-helper.cc",
+    "test-disasm-regex-helper.h",
+    "test-field-type-tracking.cc",
+    "test-func-name-inference.cc",
+    "test-heap-profiler.cc",
+    "test-icache.cc",
+    "test-ignition-statistics-extension.cc",
+    "test-inobject-slack-tracking.cc",
+    "test-js-weak-refs.cc",
+    "test-liveedit.cc",
+    "test-lockers.cc",
+    "test-mementos.cc",
+    "test-orderedhashtable.cc",
+    "test-profile-generator.cc",
+    "test-property-details.cc",
+    "test-ptr-compr-cage.cc",
+    "test-random-number-generator.cc",
+    "test-regexp.cc",
+    "test-sampler-api.cc",
+    "test-shared-strings.cc",
+    "test-smi-lexicographic-compare.cc",
+    "test-strings.cc",
+    "test-swiss-name-dictionary-infra.cc",
+    "test-swiss-name-dictionary.cc",
+    "test-trace-event.cc",
+    "test-transitions.cc",
+    "test-transitions.h",
+    "test-typedarrays.cc",
+    "test-unscopables-hidden-prototype.cc",
+    "test-unwinder-code-pages.cc",
+    "test-usecounters.cc",
+    "test-utils.cc",
+    "test-verifiers.cc",
+    "trace-extension.cc",
+    "trace-extension.h",
+  ]
+
+  if (v8_enable_turbofan) {
+    sources += [
+      "compiler/codegen-tester.cc",
+      "compiler/codegen-tester.h",
+      "compiler/function-tester.cc",
+      "compiler/function-tester.h",
+      "compiler/test-atomic-load-store-codegen.cc",
+      "compiler/test-basic-block-profiler.cc",
+      "compiler/test-branch-combine.cc",
+      "compiler/test-calls-with-arraylike-or-spread.cc",
+      "compiler/test-code-assembler.cc",
+      "compiler/test-code-generator.cc",
+      "compiler/test-concurrent-shared-function-info.cc",
+      "compiler/test-gap-resolver.cc",
+      "compiler/test-graph-visualizer.cc",
+      "compiler/test-instruction-scheduler.cc",
+      "compiler/test-instruction.cc",
+      "compiler/test-js-constant-cache.cc",
+      "compiler/test-js-context-specialization.cc",
+      "compiler/test-js-typed-lowering.cc",
+      "compiler/test-jump-threading.cc",
+      "compiler/test-linkage.cc",
+      "compiler/test-loop-analysis.cc",
+      "compiler/test-machine-operator-reducer.cc",
+      "compiler/test-node.cc",
+      "compiler/test-operator.cc",
+      "compiler/test-representation-change.cc",
+      "compiler/test-run-calls-to-external-references.cc",
+      "compiler/test-run-load-store.cc",
+      "compiler/test-run-machops.cc",
+      "compiler/test-run-stackcheck.cc",
+      "compiler/test-run-unwinding-info.cc",
+      "compiler/test-run-variables.cc",
+      "compiler/test-select-combine.cc",
+      "compiler/test-verify-type.cc",
+      "compiler/turboshaft-codegen-tester.cc",
+      "compiler/turboshaft-codegen-tester.h",
+      "compiler/turboshaft-test-branch-combine.cc",
+      "compiler/turboshaft-test-compare-combine.cc",
+      "compiler/turboshaft-test-select-combine.cc",
+      "setup-isolate-for-tests.cc",
+      "setup-isolate-for-tests.h",
+      "test-accessor-assembler.cc",
+      "test-code-stub-assembler.cc",
+      "test-descriptor-array.cc",
+      "test-serialize.cc",
+      "test-swiss-name-dictionary-csa.cc",
+      "torque/test-torque.cc",
+    ]
+  }
+
+  if (v8_current_cpu == "arm") {
+    sources += [
+      ### gcmole(arm) ###
+      "assembler-helper-arm.cc",
+      "assembler-helper-arm.h",
+      "test-assembler-arm.cc",
+      "test-macro-assembler-arm.cc",
+      "test-sync-primitives-arm.cc",
+    ]
+  } else if (v8_current_cpu == "arm64") {
+    sources += [
+      ### gcmole(arm64) ###
+      "test-assembler-arm64.cc",
+      "test-fuzz-arm64.cc",
+      "test-javascript-arm64.cc",
+      "test-js-arm64-variables.cc",
+      "test-sync-primitives-arm64.cc",
+      "test-utils-arm64.cc",
+      "test-utils-arm64.h",
+    ]
+    if (is_win) {
+      sources += [ "test-stack-unwinding-win64.cc" ]
+    }
+  } else if (v8_current_cpu == "x86") {
+    sources += [
+      ### gcmole(ia32) ###
+      "test-assembler-ia32.cc",
+      "test-log-stack-tracer.cc",
+    ]
+  } else if (v8_current_cpu == "mips64") {
+    sources += [
+      ### gcmole(mips64) ###
+      "test-assembler-mips64.cc",
+      "test-macro-assembler-mips64.cc",
+    ]
+  } else if (v8_current_cpu == "mips64el") {
+    sources += [
+      ### gcmole(mips64el) ###
+      "test-assembler-mips64.cc",
+      "test-macro-assembler-mips64.cc",
+    ]
+  } else if (v8_current_cpu == "x64") {
+    sources += [
+      ### gcmole(x64) ###
+      "test-log-stack-tracer.cc",
+    ]
+    if (is_win) {
+      sources += [ "test-stack-unwinding-win64.cc" ]
+    }
+  } else if (v8_current_cpu == "ppc64") {
+    sources += [
+      ### gcmole(ppc) ###
+      "test-assembler-ppc.cc",
+    ]
+  } else if (v8_current_cpu == "s390x") {
+    sources += [
+      ### gcmole(s390) ###
+      "test-assembler-s390.cc",
+    ]
+    if (current_os == "zos" && is_component_build) {
+      # for OpcodeFormatTable:
+      sources += [
+        "../../src/codegen/s390/constants-s390.cc",
+        "../../src/codegen/s390/constants-s390.h",
+      ]
+    }
+  } else if (v8_current_cpu == "riscv64") {
+    sources += [
+      ### gcmole(riscv64) ###
+      "test-assembler-riscv64.cc",
+      "test-helper-riscv64.cc",
+      "test-macro-assembler-riscv64.cc",
+      "test-simple-riscv64.cc",
+    ]
+  } else if (v8_current_cpu == "riscv32") {
+    sources += [
+      ### gcmole(riscv32) ###
+      "test-assembler-riscv32.cc",
+      "test-helper-riscv32.cc",
+      "test-macro-assembler-riscv32.cc",
+      "test-simple-riscv32.cc",
+    ]
+  } else if (v8_current_cpu == "loong64") {
+    sources += [
+      ### gcmole(loong64) ###
+      "test-assembler-loong64.cc",
+      "test-macro-assembler-loong64.cc",
+    ]
+  }
+
+  if (v8_use_perfetto) {
+    # Perfetto doesn't use TraceObject.
+    sources -= [ "test-trace-event.cc" ]
+  }
+
+  configs = [
+    "../..:cppgc_base_config",
+    "../..:external_config",
+    "../..:internal_config_base",
+    "../..:v8_tracing_config",
+    ":cctest_sources_config",
+  ]
+
+  public_deps = [
+    ":cctest_headers",
+    "..:common_test_headers",
+    "../../src/inspector:protocol_generated_sources",
+    "//build/win:default_exe_manifest",
+  ]
+
+  if (v8_enable_webassembly) {
+    sources += [
+      "../common/wasm/flag-utils.h",
+      "../common/wasm/test-signatures.h",
+      "../common/wasm/wasm-macro-gen.h",
+      "compiler/test-multiple-return.cc",
+
+      # test-run-native-calls uses wasm's LinkageAllocator.
+      "compiler/test-run-native-calls.cc",
+      "test-js-to-wasm.cc",
+      "wasm/test-backing-store.cc",
+      "wasm/test-c-wasm-entry.cc",
+      "wasm/test-compilation-cache.cc",
+      "wasm/test-gc.cc",
+      "wasm/test-grow-memory.cc",
+      "wasm/test-jump-table-assembler.cc",
+      "wasm/test-liftoff-for-fuzzing.cc",
+      "wasm/test-liftoff-inspection.cc",
+      "wasm/test-run-wasm-64.cc",
+      "wasm/test-run-wasm-asmjs.cc",
+      "wasm/test-run-wasm-atomics.cc",
+      "wasm/test-run-wasm-atomics64.cc",
+      "wasm/test-run-wasm-bulk-memory.cc",
+      "wasm/test-run-wasm-exceptions.cc",
+      "wasm/test-run-wasm-f16.cc",
+      "wasm/test-run-wasm-js.cc",
+      "wasm/test-run-wasm-memory64.cc",
+      "wasm/test-run-wasm-module.cc",
+      "wasm/test-run-wasm-relaxed-simd.cc",
+      "wasm/test-run-wasm-sign-extension.cc",
+      "wasm/test-run-wasm-simd-liftoff.cc",
+      "wasm/test-run-wasm-simd.cc",
+      "wasm/test-run-wasm-wrappers.cc",
+      "wasm/test-run-wasm.cc",
+      "wasm/test-streaming-compilation.cc",
+      "wasm/test-wasm-breakpoints.cc",
+      "wasm/test-wasm-codegen.cc",
+      "wasm/test-wasm-import-wrapper-cache.cc",
+      "wasm/test-wasm-metrics.cc",
+      "wasm/test-wasm-serialization.cc",
+      "wasm/test-wasm-shared-engine.cc",
+      "wasm/test-wasm-stack.cc",
+      "wasm/test-wasm-strings.cc",
+      "wasm/test-wasm-trap-position.cc",
+      "wasm/wasm-atomics-utils.h",
+      "wasm/wasm-run-utils.cc",
+      "wasm/wasm-run-utils.h",
+      "wasm/wasm-simd-utils.cc",
+      "wasm/wasm-simd-utils.h",
+    ]
+    public_deps += [ "../..:wasm_test_common" ]
+  }
+
+  defines = []
+  deps = [
+    "../..:run_torque",
+    "../..:v8_shared_internal_headers",
+    "../..:v8_tracing",
+  ]
+
+  if (v8_enable_i18n_support) {
+    defines += [ "V8_INTL_SUPPORT" ]
+    public_deps += [ v8_icu_path ]
+  }
+
+  cflags = []
+  if (v8_current_cpu == "ppc64" || v8_current_cpu == "arm" ||
+      v8_current_cpu == "arm64" || v8_current_cpu == "s390x" ||
+      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
+      v8_current_cpu == "riscv64" || v8_current_cpu == "loong64" ||
+      v8_current_cpu == "riscv32") {
+    # Disable fmadd/fmsub so that expected results match generated code in
+    # RunFloat64MulAndFloat64Add1 and friends.
+    if (!is_win) {
+      cflags += [ "-ffp-contract=off" ]
+    }
+  }
+
+  if (is_win) {
+    # This warning is benignly triggered by the U16 and U32 macros in
+    # bytecode-utils.h.
+    # C4309: 'static_cast': truncation of constant value
+    cflags += [ "/wd4309" ]
+
+    # MSVS wants this for gay-{precision,shortest}.cc.
+    cflags += [ "/bigobj" ]
+
+    if (symbol_level == 2) {
+      sources += [ "test-v8windbg.cc" ]
+      deps += [ "../../tools/v8windbg:v8windbg_test" ]
+    }
+  }
+
+  if (v8_use_perfetto) {
+    deps += [
+      # TODO(skyostil): Migrate to protozero.
+      "//third_party/perfetto/protos/perfetto/trace:lite",
+    ]
+  }
+}

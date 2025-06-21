@@ -1,0 +1,5 @@
+Checks if we keep alive breakpoint information for top-level functions when calling getPossibleBreakpoints.
+Result of get possible breakpoints in moduleFunc.js
+[{"scriptId":"3","lineNumber":0,"columnNumber":22},{"scriptId":"3","lineNumber":0,"columnNumber":30,"type":"call"},{"scriptId":"3","lineNumber":0,"columnNumber":63,"type":"return"},{"scriptId":"3","lineNumber":0,"columnNumber":64,"type":"return"}]
+Result of get possible breakpoints in mixedFunctions.js
+[{"scriptId":"5","lineNumber":0,"columnNumber":15,"type":"return"},{"scriptId":"5","lineNumber":1,"columnNumber":2},{"scriptId":"5","lineNumber":1,"columnNumber":10,"type":"call"},{"scriptId":"5","lineNumber":2,"columnNumber":0,"type":"return"}]

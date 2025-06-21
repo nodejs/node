@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing initiator type: miscellaneous elements</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-initiatortype"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resource-timing/resources/observe-entry.js"></script>
+<script src="resources/initiator-type-test.js"></script>
+</head>
+<body background="/resource-timing/resources/blue.png?id=body">
+<input type="image" src="/resource-timing/resources/blue.png?id=input">
+<object type="image/png" data="/resource-timing/resources/blue.png?id=object">
+</object>
+<script>
+  navigator.sendBeacon('/resource-timing/resources/empty.py?id=beacon');
+  fetch('/resource-timing/resources/empty.py?id=fetch');
+  const evtSource = new EventSource('/resource-timing/resources/eventsource.py?id=eventsource');
+</script>
+<script>
+  initiator_type_test("blue.png?id=body", "body", "<body background>");
+  initiator_type_test("blue.png?id=input", "input", "<input type='image'>");
+  initiator_type_test("blue.png?id=object", "object", "<object type='image/png'>");
+  initiator_type_test("empty.py?id=beacon", "beacon", "sendBeacon()");
+  initiator_type_test("empty.py?id=fetch", "fetch", "for fetch()");
+  initiator_type_test("eventsource.py?id=eventsource", "other", "new EventSource()");
+</script>
+</body>
+</html>

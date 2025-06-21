@@ -1,0 +1,87 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise-gen.h'
+
+namespace runtime {
+extern transitioning runtime DebugPromiseThen(
+    implicit context: Context)(JSAny): JSAny;
+}
+
+namespace promise {
+
+extern macro CodeStubAssembler::HasAsyncEventDelegate(): bool;
+
+macro IsPromiseSpeciesLookupChainIntact(
+    nativeContext: NativeContext, promiseMap: Map): bool {
+  const promisePrototype =
+      *NativeContextSlot(nativeContext, ContextSlot::PROMISE_PROTOTYPE_INDEX);
+  if (IsForceSlowPath()) return false;
+  if (promiseMap.prototype != promisePrototype) return false;
+  return !IsPromiseSpeciesProtectorCellInvalid();
+}
+
+// https://tc39.es/ecma262/#sec-promise.prototype.then
+transitioning javascript builtin PromisePrototypeThen(
+    js-implicit context: NativeContext, receiver: JSAny)(onFulfilled: JSAny,
+    onRejected: JSAny): JSAny {
+  // 1. Let promise be the this value.
+  // 2. If IsPromise(promise) is false, throw a TypeError exception.
+  const promise = Cast<JSPromise>(receiver) otherwise ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, 'Promise.prototype.then',
+      receiver);
+
+  // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
+  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
+
+  // 4. Let resultCapability be ? NewPromiseCapability(C).
+  let resultPromiseOrCapability: JSPromise|PromiseCapability;
+  let resultPromise: JSAny;
+  try {
+    if (IsPromiseSpeciesLookupChainIntact(context, promise.map)) {
+      goto AllocateAndInit;
+    }
+
+    const constructor = SpeciesConstructor(promise, promiseFun);
+    if (TaggedEqual(constructor, promiseFun)) {
+      goto AllocateAndInit;
+    } else {
+      const promiseCapability = NewPromiseCapability(constructor, True);
+      resultPromiseOrCapability = promiseCapability;
+      resultPromise = promiseCapability.promise;
+    }
+  } label AllocateAndInit {
+    const resultJSPromise = NewJSPromise(promise);
+    resultPromiseOrCapability = resultJSPromise;
+    resultPromise = resultJSPromise;
+  }
+
+  // We do some work of the PerformPromiseThen operation here, in that
+  // we check the handlers and turn non-callable handlers into undefined.
+  // This is because this is the one and only callsite of PerformPromiseThen
+  // that has to do this.
+
+  // 3. If IsCallable(onFulfilled) is false, then
+  //    a. Set onFulfilled to undefined.
+  const onFulfilled = CastOrDefault<Callable>(onFulfilled, Undefined);
+
+  // 4. If IsCallable(onRejected) is false, then
+  //    a. Set onRejected to undefined.
+  const onRejected = CastOrDefault<Callable>(onRejected, Undefined);
+
+  // 5. Return PerformPromiseThen(promise, onFulfilled, onRejected,
+  //    resultCapability).
+  PerformPromiseThenImpl(
+      promise, onFulfilled, onRejected, resultPromiseOrCapability);
+
+  // Async instrumentation for Promise#then(), Promise#catch() and
+  // Promise#finally(), where the latter two both call eventually
+  // call into Promise#then().
+  if (HasAsyncEventDelegate()) {
+    return runtime::DebugPromiseThen(resultPromise);
+  }
+
+  return resultPromise;
+}
+}

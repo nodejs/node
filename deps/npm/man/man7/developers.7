@@ -1,0 +1,234 @@
+.TH "DEVELOPERS" "7" "June 2025" "NPM@11.4.2" ""
+.SH "NAME"
+\fBdevelopers\fR - Developer Guide
+.SS "Description"
+.P
+So, you've decided to use npm to develop (and maybe publish/deploy) your project.
+.P
+Fantastic!
+.P
+There are a few things that you need to do above the simple steps that your users will do to install your program.
+.SS "About These Documents"
+.P
+These are man pages. If you install npm, you should be able to then do \fBman npm-thing\fR to get the documentation on a particular topic, or \fBnpm help thing\fR to see the same information.
+.SS "What is a Package"
+.P
+A package is:
+.RS 0
+.IP \(bu 4
+a) a folder containing a program described by a package.json file
+.IP \(bu 4
+b) a gzipped tarball containing (a)
+.IP \(bu 4
+c) a url that resolves to (b)
+.IP \(bu 4
+d) a \fB<name>@<version>\fR that is published on the registry with (c)
+.IP \(bu 4
+e) a \fB<name>@<tag>\fR that points to (d)
+.IP \(bu 4
+f) a \fB<name>\fR that has a "latest" tag satisfying (e)
+.IP \(bu 4
+g) a \fBgit\fR url that, when cloned, results in (a).
+.RE 0
+
+.P
+Even if you never publish your package, you can still get a lot of benefits of using npm if you just want to write a node program (a), and perhaps if you also want to be able to easily install it elsewhere after packing it up into a tarball (b).
+.P
+Git urls can be of the form:
+.P
+.RS 2
+.nf
+git://github.com/user/project.git#commit-ish
+git+ssh://user@hostname:project.git#commit-ish
+git+http://user@hostname/project/blah.git#commit-ish
+git+https://user@hostname/project/blah.git#commit-ish
+.fi
+.RE
+.P
+The \fBcommit-ish\fR can be any tag, sha, or branch which can be supplied as an argument to \fBgit checkout\fR. The default is whatever the repository uses as its default branch.
+.SS "The package.json File"
+.P
+You need to have a \fBpackage.json\fR file in the root of your project to do much of anything with npm. That is basically the whole interface.
+.P
+See \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for details about what goes in that file. At the very least, you need:
+.RS 0
+.IP \(bu 4
+name: This should be a string that identifies your project. Please do not use the name to specify that it runs on node, or is in JavaScript. You can use the "engines" field to explicitly state the versions of node (or whatever else) that your program requires, and it's pretty well assumed that it's JavaScript.
+.P
+It does not necessarily need to match your github repository name.
+.P
+So, \fBnode-foo\fR and \fBbar-js\fR are bad names. \fBfoo\fR or \fBbar\fR are better.
+.IP \(bu 4
+version: A semver-compatible version.
+.IP \(bu 4
+engines: Specify the versions of node (or whatever else) that your program runs on. The node API changes a lot, and there may be bugs or new functionality that you depend on. Be explicit.
+.IP \(bu 4
+author: Take some credit.
+.IP \(bu 4
+scripts: If you have a special compilation or installation script, then you should put it in the \fBscripts\fR object. You should definitely have at least a basic smoke-test command as the "scripts.test" field. See npm help scripts.
+.IP \(bu 4
+main: If you have a single module that serves as the entry point to your program (like what the "foo" package gives you at require("foo")), then you need to specify that in the "main" field.
+.IP \(bu 4
+directories: This is an object mapping names to folders. The best ones to include are "lib" and "doc", but if you use "man" to specify a folder full of man pages, they'll get installed just like these ones.
+.RE 0
+
+.P
+You can use \fBnpm init\fR in the root of your package in order to get you started with a pretty basic package.json file. See npm help init for more info.
+.SS "Keeping files \fIout\fR of your Package"
+.P
+Use a \fB.npmignore\fR file to keep stuff out of your package. If there's no \fB.npmignore\fR file, but there \fIis\fR a \fB.gitignore\fR file, then npm will ignore the stuff matched by the \fB.gitignore\fR file. If you \fIwant\fR to include something that is excluded by your \fB.gitignore\fR file, you can create an empty \fB.npmignore\fR file to override it. Like \fBgit\fR, \fBnpm\fR looks for \fB.npmignore\fR and \fB.gitignore\fR files in all subdirectories of your package, not only the root directory.
+.P
+\fB.npmignore\fR files follow the \fBsame pattern rules\fR \fI\(lahttps://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring\(ra\fR as \fB.gitignore\fR files:
+.RS 0
+.IP \(bu 4
+Blank lines or lines starting with \fB#\fR are ignored.
+.IP \(bu 4
+Standard glob patterns work.
+.IP \(bu 4
+You can end patterns with a forward slash \fB/\fR to specify a directory.
+.IP \(bu 4
+You can negate a pattern by starting it with an exclamation point \fB!\fR.
+.RE 0
+
+.P
+By default, some paths and files are ignored, so there's no need to add them to \fB.npmignore\fR explicitly. Some examples are:
+.RS 0
+.IP \(bu 4
+\fB.*.swp\fR
+.IP \(bu 4
+\fB._*\fR
+.IP \(bu 4
+\fB.DS_Store\fR
+.IP \(bu 4
+\fB.git\fR
+.IP \(bu 4
+\fB.gitignore\fR
+.IP \(bu 4
+\fB.hg\fR
+.IP \(bu 4
+\fB.npmignore\fR
+.IP \(bu 4
+\fB.npmrc\fR
+.IP \(bu 4
+\fB.lock-wscript\fR
+.IP \(bu 4
+\fB.svn\fR
+.IP \(bu 4
+\fB.wafpickle-*\fR
+.IP \(bu 4
+\fBconfig.gypi\fR
+.IP \(bu 4
+\fBCVS\fR
+.IP \(bu 4
+\fBnpm-debug.log\fR
+.RE 0
+
+.P
+Additionally, everything in \fBnode_modules\fR is ignored, except for bundled dependencies. npm automatically handles this for you, so don't bother adding \fBnode_modules\fR to \fB.npmignore\fR.
+.P
+The following paths and files are never ignored, so adding them to \fB.npmignore\fR is pointless:
+.RS 0
+.IP \(bu 4
+\fBpackage.json\fR
+.IP \(bu 4
+\fBREADME\fR (and its variants)
+.IP \(bu 4
+\fBLICENSE\fR / \fBLICENCE\fR
+.RE 0
+
+.P
+If, given the structure of your project, you find \fB.npmignore\fR to be a maintenance headache, you might instead try populating the \fBfiles\fR property of \fBpackage.json\fR, which is an array of file or directory names that should be included in your package. Sometimes manually picking which items to allow is easier to manage than building a block list.
+.P
+See \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more info on what can and can't be ignored.
+.SS "Testing whether your \fB.npmignore\fR or \fBfiles\fR config works"
+.P
+If you want to double check that your package will include only the files you intend it to when published, you can run the \fBnpm pack\fR command locally which will generate a tarball in the working directory, the same way it does for publishing.
+.SS "Link Packages"
+.P
+\fBnpm link\fR is designed to install a development package and see the changes in real time without having to keep re-installing it. (You do need to either re-link or \fBnpm rebuild -g\fR to update compiled packages, of course.)
+.P
+More info at npm help link.
+.SS "Before Publishing: Make Sure Your Package Installs and Works"
+.P
+\fBThis is important.\fR
+.P
+If you can not install it locally, you'll have problems trying to publish it. Or, worse yet, you'll be able to publish it, but you'll be publishing a broken or pointless package. So don't do that.
+.P
+In the root of your package, do this:
+.P
+.RS 2
+.nf
+npm install . -g
+.fi
+.RE
+.P
+That'll show you that it's working. If you'd rather just create a symlink package that points to your working directory, then do this:
+.P
+.RS 2
+.nf
+npm link
+.fi
+.RE
+.P
+Use \fBnpm ls -g\fR to see if it's there.
+.P
+To test a local install, go into some other folder, and then do:
+.P
+.RS 2
+.nf
+cd ../some-other-folder
+npm install ../my-package
+.fi
+.RE
+.P
+to install it locally into the node_modules folder in that other place.
+.P
+Then go into the node-repl, and try using require("my-thing") to bring in your module's main module.
+.SS "Create a User Account"
+.P
+Create a user with the adduser command. It works like this:
+.P
+.RS 2
+.nf
+npm adduser
+.fi
+.RE
+.P
+and then follow the prompts.
+.P
+This is documented better in npm help adduser.
+.SS "Publish your Package"
+.P
+This part's easy. In the root of your folder, do this:
+.P
+.RS 2
+.nf
+npm publish
+.fi
+.RE
+.P
+You can give publish a url to a tarball, or a filename of a tarball, or a path to a folder.
+.P
+Note that pretty much \fBeverything in that folder will be exposed\fR by default. So, if you have secret stuff in there, use a \fB.npmignore\fR file to list out the globs to ignore, or publish from a fresh checkout.
+.SS "Brag about it"
+.P
+Send emails, write blogs, blab in IRC.
+.P
+Tell the world how easy it is to install your program!
+.SS "See also"
+.RS 0
+.IP \(bu 4
+npm help npm
+.IP \(bu 4
+npm help init
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.IP \(bu 4
+npm help scripts
+.IP \(bu 4
+npm help publish
+.IP \(bu 4
+npm help adduser
+.IP \(bu 4
+npm help registry
+.RE 0

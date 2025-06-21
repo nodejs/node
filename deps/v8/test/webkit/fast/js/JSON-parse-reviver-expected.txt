@@ -1,0 +1,142 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Test behaviour of JSON reviver function.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+
+Ensure the holder for our array is indeed an array
+PASS Array.isArray(currentHolder) is true
+PASS currentHolder.length is 5
+
+Ensure that the holder already has all the properties present at the start of filtering
+PASS currentHolder[0] is "a value"
+PASS currentHolder[1] is "another value"
+PASS currentHolder[2] is "and another value"
+PASS currentHolder[3] is "to delete"
+PASS currentHolder[4] is "extra value"
+
+Ensure the holder for our array is indeed an array
+PASS Array.isArray(currentHolder) is true
+PASS currentHolder.length is 5
+
+Ensure that we always get the same holder
+PASS currentHolder is lastHolder
+
+Ensure that returning undefined has removed the property 0 from the holder during filtering.
+PASS currentHolder.hasOwnProperty(0) is false
+
+Ensure the holder for our array is indeed an array
+PASS Array.isArray(currentHolder) is true
+PASS currentHolder.length is 5
+
+Ensure that we always get the same holder
+PASS currentHolder is lastHolder
+
+Ensure that changing the value of a property is reflected while filtering.
+PASS currentHolder[2] is "a replaced value"
+
+Ensure that the changed value is reflected in the arguments passed to the reviver
+PASS value is currentHolder[2]
+
+Ensure the holder for our array is indeed an array
+PASS Array.isArray(currentHolder) is true
+PASS currentHolder.length is 5
+
+Ensure that we always get the same holder
+PASS currentHolder is lastHolder
+
+Ensure that we visited a value that we have deleted, and that deletion is reflected while filtering.
+PASS currentHolder.hasOwnProperty(3) is false
+
+Ensure that when visiting a deleted property value is undefined
+PASS value is undefined.
+
+Ensure the holder for our array is indeed an array
+PASS Array.isArray(currentHolder) is true
+PASS currentHolder.length is 4
+
+Ensure that we always get the same holder
+PASS currentHolder is lastHolder
+PASS Ensured that property was visited despite Array length being reduced.
+PASS value is undefined.
+
+Ensure that we created the root holder as specified in ES5
+PASS '' in lastHolder is true
+PASS result is lastHolder['']
+
+Ensure that a deleted value is revived if the reviver function returns a value
+PASS result.hasOwnProperty(3) is true
+
+Test behaviour of revivor used in conjunction with an object
+PASS currentHolder != globalObject is true
+
+Ensure that the holder already has all the properties present at the start of filtering
+PASS currentHolder['a property'] is "a value"
+PASS currentHolder['another property'] is "another value"
+PASS currentHolder['and another property'] is "and another value"
+PASS currentHolder['to delete'] is "will be deleted"
+PASS currentHolder != globalObject is true
+
+Ensure that we get the same holder object for each property
+PASS currentHolder is lastHolder
+
+Ensure that returning undefined has correctly removed the property 'a property' from the holder object
+PASS currentHolder.hasOwnProperty('a property') is false
+PASS currentHolder != globalObject is true
+
+Ensure that we get the same holder object for each property
+PASS currentHolder is lastHolder
+Ensure that changing the value of a property is reflected while filtering.
+PASS currentHolder['and another property'] is "a replaced value"
+
+Ensure that the changed value is reflected in the arguments passed to the reviver
+PASS value is "a replaced value"
+PASS currentHolder != globalObject is true
+
+Ensure that we get the same holder object for each property
+PASS currentHolder is lastHolder
+
+Ensure that we visited a value that we have deleted, and that deletion is reflected while filtering.
+PASS currentHolder.hasOwnProperty('to delete') is false
+
+Ensure that when visiting a deleted property value is undefined
+PASS value is undefined.
+
+Ensure that we created the root holder as specified in ES5
+PASS lastHolder.hasOwnProperty('') is true
+PASS result.hasOwnProperty('a property') is false
+PASS result.hasOwnProperty('to delete') is true
+PASS result is lastHolder['']
+
+Test behaviour of revivor that introduces a cycle
+PASS JSON.parse("[0,1]", reviveAddsCycle) threw exception RangeError: Maximum call stack size exceeded.
+
+Test behaviour of revivor that introduces a new array classed object (the result of a regex)
+PASS JSON.stringify(JSON.parse("[0,1]", reviveIntroducesNewArrayLikeObject)) is '[0,["a","a"]]'
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

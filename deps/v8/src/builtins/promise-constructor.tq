@@ -1,0 +1,100 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-constructor-gen.h'
+#include 'src/builtins/builtins-promise-gen.h'
+
+namespace runtime {
+extern transitioning runtime PromiseHookInit(
+    implicit context: Context)(Object, Object): JSAny;
+}
+
+// https://tc39.es/ecma262/#sec-promise-constructor
+namespace promise {
+
+const kPromiseConstructorReturnedUndefined: constexpr UseCounterFeature
+    generates 'v8::Isolate::kPromiseConstructorReturnedUndefined';
+
+extern macro IsDebugActive(): bool;
+
+transitioning macro HasAccessCheckFailed(
+    implicit context: Context)(nativeContext: NativeContext, promiseFun: JSAny,
+    executor: JSAny): bool {
+  BranchIfAccessCheckFailed(nativeContext, promiseFun, executor)
+      otherwise return true;
+  return false;
+}
+
+extern macro ConstructorBuiltinsAssembler::FastNewObject(
+    Context, JSFunction, JSReceiver): JSObject;
+
+extern macro PromiseBuiltinsAssembler::
+    IsIsolatePromiseHookEnabledOrHasAsyncEventDelegate(uint32): bool;
+
+// https://tc39.es/ecma262/#sec-promise-executor
+transitioning javascript builtin PromiseConstructor(
+    js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny)(
+    executor: JSAny): JSAny {
+  // 1. If NewTarget is undefined, throw a TypeError exception.
+  if (newTarget == Undefined) {
+    ThrowTypeError(MessageTemplate::kPromiseNewTargetUndefined);
+  }
+
+  // 2. If IsCallable(executor) is false, throw a TypeError exception.
+  if (!Is<Callable>(executor)) {
+    ThrowTypeError(MessageTemplate::kResolverNotAFunction, executor);
+  }
+
+  const promiseFun = *NativeContextSlot(ContextSlot::PROMISE_FUNCTION_INDEX);
+
+  // Throw no access type error if the stack looks fishy.
+  if (HasAccessCheckFailed(context, promiseFun, executor)) {
+    IncrementUseCounter(
+        context, SmiConstant(kPromiseConstructorReturnedUndefined));
+    runtime::ThrowNoAccess();
+  }
+
+  let result: JSPromise;
+  if (promiseFun == newTarget) {
+    result = NewJSPromise();
+  } else {
+    result = UnsafeCast<JSPromise>(
+        FastNewObject(context, promiseFun, UnsafeCast<JSReceiver>(newTarget)));
+    PromiseInit(result);
+    RunAnyPromiseHookInit(result, Undefined);
+  }
+
+  const funcs = CreatePromiseResolvingFunctions(result, True, context);
+  const resolve = funcs.resolve;
+  const reject = funcs.reject;
+  try {
+    Call(context, UnsafeCast<Callable>(executor), Undefined, resolve, reject);
+  } catch (e, _message) {
+    // We need to disable the debug event, as we have already paused on this
+    // exception.
+    const promiseContext =
+        %RawDownCast<PromiseResolvingFunctionContext>(funcs.context);
+    *ContextSlot(
+        promiseContext, PromiseResolvingFunctionContextSlot::kDebugEventSlot) =
+        False;
+    Call(context, reject, Undefined, e);
+  }
+
+  return result;
+}
+
+// Promise.prototype.catch ( onRejected )
+// https://tc39.es/ecma262/#sec-promise.prototype.catch
+transitioning javascript builtin PromisePrototypeCatch(
+    js-implicit context: Context, receiver: JSAny)(onRejected: JSAny): JSAny {
+  // 1. Let promise be the this value.
+  // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
+  // This builtin is attached to JSFunction created by the bootstrapper so
+  // `context` is the native context.
+  check(Is<NativeContext>(context));
+  const nativeContext = UnsafeCast<NativeContext>(context);
+  return UnsafeCast<JSAny>(
+      InvokeThen(nativeContext, receiver, Undefined, onRejected));
+}
+}

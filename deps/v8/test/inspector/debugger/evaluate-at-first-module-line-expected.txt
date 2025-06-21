@@ -1,0 +1,11 @@
+Evaluate at first line of module should not crash
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 0
+            type : number
+            value : 0
+        }
+    }
+}

@@ -1,0 +1,4 @@
+{
+  "crash_type": "Data race\nREAD 8",
+  "crash_state": "v8::internal::compiler::JSObjectRef::GetOwnConstantElementFromHeap\nv8::internal::compiler::JSObjectRef::GetOwnConstantElement\nv8::internal::compiler::JSNativeContextSpecialization::ReduceElementLoadFromHeap"
+}

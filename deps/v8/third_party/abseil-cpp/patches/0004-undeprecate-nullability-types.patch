@@ -1,0 +1,33 @@
+TODO: crbug.com/412943761 - Remove when all libraries migrate to attribute-like nullability annotations.
+---
+diff --git a/third_party/abseil-cpp/absl/base/internal/nullability_deprecated.h b/third_party/abseil-cpp/absl/base/internal/nullability_deprecated.h
+index 1174a96eaa3e0..b6405f1d9b269 100644
+--- a/third_party/abseil-cpp/absl/base/internal/nullability_deprecated.h
++++ b/third_party/abseil-cpp/absl/base/internal/nullability_deprecated.h
+@@ -77,7 +77,7 @@ using NullabilityUnknownImpl
+ // Is equivalent to:
+ // int* absl_nonnull foo;
+ template <typename T>
+-using Nonnull [[deprecated("Use `absl_nonnull`.")]] =
++using Nonnull =
+     nullability_internal::NonnullImpl<T>;
+ 
+ // absl::Nullable, analogous to absl_nullable
+@@ -87,7 +87,7 @@ using Nonnull [[deprecated("Use `absl_nonnull`.")]] =
+ // Is equivalent to:
+ // int* absl_nullable foo;
+ template <typename T>
+-using Nullable [[deprecated("Use `absl_nullable`.")]] =
++using Nullable =
+     nullability_internal::NullableImpl<T>;
+ 
+ // absl::NullabilityUnknown, analogous to absl_nullability_unknown
+@@ -97,7 +97,7 @@ using Nullable [[deprecated("Use `absl_nullable`.")]] =
+ // Is equivalent to:
+ // int* absl_nullability_unknown foo;
+ template <typename T>
+-using NullabilityUnknown [[deprecated("Use `absl_nullability_unknown`.")]] =
++using NullabilityUnknown =
+     nullability_internal::NullabilityUnknownImpl<T>;
+ 
+ ABSL_NAMESPACE_END

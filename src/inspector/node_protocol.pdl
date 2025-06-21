@@ -1,0 +1,323 @@
+# Please notify @nodejs/v8-inspector and @nodejs/trace-events before modifying this file
+version
+  major 1
+  minor 0
+
+experimental domain NodeTracing
+  type TraceConfig extends object
+    properties
+      # Controls how the trace buffer stores data.
+      optional enum recordMode
+        recordUntilFull
+        recordContinuously
+        recordAsMuchAsPossible
+      # Included category filters.
+      array of string includedCategories
+
+  # Gets supported tracing categories.
+  command getCategories
+    returns
+      # A list of supported tracing categories.
+      array of string categories
+
+  # Start trace events collection.
+  command start
+    parameters
+      TraceConfig traceConfig
+
+  # Stop trace events collection. Remaining collected events will be sent as a sequence of
+  # dataCollected events followed by tracingComplete event.
+  command stop
+
+  # Contains an bucket of collected trace events.
+  event dataCollected
+    parameters
+      array of object value
+
+  # Signals that tracing is stopped and there is no trace buffers pending flush, all data were
+  # delivered via dataCollected events.
+  event tracingComplete
+
+# Support for sending messages to Node worker Inspector instances.
+experimental domain NodeWorker
+
+  type WorkerID extends string
+
+  # Unique identifier of attached debugging session.
+  type SessionID extends string
+
+  type WorkerInfo extends object
+    properties
+      WorkerID workerId
+      string type
+      string title
+      string url
+
+  # Sends protocol message over session with given id.
+  command sendMessageToWorker
+    parameters
+      string message
+      # Identifier of the session.
+      SessionID sessionId
+
+  # Instructs the inspector to attach to running workers. Will also attach to new workers
+  # as they start
+  command enable
+    parameters
+      # Whether to new workers should be paused until the frontend sends `Runtime.runIfWaitingForDebugger`
+      # message to run them.
+      boolean waitForDebuggerOnStart
+
+  # Detaches from all running workers and disables attaching to new workers as they are started.
+  command disable
+
+  # Detached from the worker with given sessionId.
+  command detach
+    parameters
+      SessionID sessionId
+
+  # Issued when attached to a worker.
+  event attachedToWorker
+    parameters
+      # Identifier assigned to the session used to send/receive messages.
+      SessionID sessionId
+      WorkerInfo workerInfo
+      boolean waitingForDebugger
+
+  # Issued when detached from the worker.
+  event detachedFromWorker
+    parameters
+      # Detached session identifier.
+      SessionID sessionId
+
+  # Notifies about a new protocol message received from the session
+  # (session ID is provided in attachedToWorker notification).
+  event receivedMessageFromWorker
+    parameters
+      # Identifier of a session which sends a message.
+      SessionID sessionId
+      string message
+
+# Partial support for Network domain of ChromeDevTools Protocol.
+# https://chromedevtools.github.io/devtools-protocol/tot/Network
+experimental domain Network
+  depends on Runtime
+
+  # Resource type as it was perceived by the rendering engine.
+  type ResourceType extends string
+    enum
+      Document
+      Stylesheet
+      Image
+      Media
+      Font
+      Script
+      TextTrack
+      XHR
+      Fetch
+      Prefetch
+      EventSource
+      WebSocket
+      Manifest
+      SignedExchange
+      Ping
+      CSPViolationReport
+      Preflight
+      Other
+
+  # Unique request identifier.
+  type RequestId extends string
+
+  # UTC time in seconds, counted from January 1, 1970.
+  type TimeSinceEpoch extends number
+
+  # Monotonically increasing time in seconds since an arbitrary point in the past.
+  type MonotonicTime extends number
+
+  # Information about the request initiator.
+  type Initiator extends object
+    properties
+      # Type of this initiator.
+      enum type
+        parser
+        script
+        preload
+        SignedExchange
+        preflight
+        other
+      # Initiator JavaScript stack trace, set for Script only.
+      # Requires the Debugger domain to be enabled.
+      optional Runtime.StackTrace stack
+      # Initiator URL, set for Parser type or for Script type (when script is importing module) or for SignedExchange type.
+      optional string url
+      # Initiator line number, set for Parser type or for Script type (when script is importing
+      # module) (0-based).
+      optional number lineNumber
+      # Initiator column number, set for Parser type or for Script type (when script is importing
+      # module) (0-based).
+      optional number columnNumber
+      # Set if another request triggered this request (e.g. preflight).
+      optional RequestId requestId
+
+  # HTTP request data.
+  type Request extends object
+    properties
+      string url
+      string method
+      Headers headers
+      boolean hasPostData
+
+  # HTTP response data.
+  type Response extends object
+    properties
+      string url
+      integer status
+      string statusText
+      Headers headers
+      string mimeType
+      string charset
+
+  # Request / response headers as keys / values of JSON object.
+  type Headers extends object
+
+  # Disables network tracking, prevents network events from being sent to the client.
+  command disable
+
+  # Enables network tracking, network events will now be delivered to the client.
+  command enable
+
+  # Returns post data sent with the request. Returns an error when no data was sent with the request.
+  command getRequestPostData
+    parameters
+      # Identifier of the network request to get content for.
+      RequestId requestId
+    returns
+      # Request body string, omitting files from multipart requests
+      string postData
+
+  # Returns content served for the given request.
+  command getResponseBody
+    parameters
+      # Identifier of the network request to get content for.
+      RequestId requestId
+    returns
+      # Response body.
+      string body
+      # True, if content was sent as base64.
+      boolean base64Encoded
+
+  # Enables streaming of the response for the given requestId.
+  # If enabled, the dataReceived event contains the data that was received during streaming.
+  experimental command streamResourceContent
+    parameters
+      # Identifier of the request to stream.
+      RequestId requestId
+    returns
+      # Data that has been buffered until streaming is enabled.
+      binary bufferedData
+
+  # Fired when page is about to send HTTP request.
+  event requestWillBeSent
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Request data.
+      Request request
+      # Request initiator.
+      Initiator initiator
+      # Timestamp.
+      MonotonicTime timestamp
+      # Timestamp.
+      TimeSinceEpoch wallTime
+
+  # Fired when HTTP response is available.
+  event responseReceived
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Resource type.
+      ResourceType type
+      # Response data.
+      Response response
+
+  event loadingFailed
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Resource type.
+      ResourceType type
+      # Error message.
+      string errorText
+
+  event loadingFinished
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+
+  # Fired when data chunk was received over the network.
+  event dataReceived
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Data chunk length.
+      integer dataLength
+      # Actual bytes received (might be less than dataLength for compressed encodings).
+      integer encodedDataLength
+      # Data that was received.
+      experimental optional binary data
+
+# Support for inspecting node process state.
+experimental domain NodeRuntime
+  # Enable the NodeRuntime events except by `NodeRuntime.waitingForDisconnect`.
+  command enable
+
+  # Disable NodeRuntime events
+  command disable
+
+  # Enable the `NodeRuntime.waitingForDisconnect`.
+  command notifyWhenWaitingForDisconnect
+    parameters
+      boolean enabled
+
+  # This event is fired instead of `Runtime.executionContextDestroyed` when
+  # enabled.
+  # It is fired when the Node process finished all code execution and is
+  # waiting for all frontends to disconnect.
+  event waitingForDisconnect
+
+  # This event is fired when the runtime is waiting for the debugger. For
+  # example, when inspector.waitingForDebugger is called
+  event waitingForDebugger
+
+# https://chromedevtools.github.io/devtools-protocol/1-3/Target/
+experimental domain Target
+  type SessionID extends string
+  type TargetID extends string
+  type TargetInfo extends object
+    properties
+      TargetID targetId
+      string type
+      string title
+      string url
+      boolean attached
+      boolean canAccessOpener
+  event targetCreated
+    parameters
+      TargetInfo targetInfo
+  event attachedToTarget
+    parameters
+      SessionID sessionId
+      TargetInfo targetInfo
+      boolean waitingForDebugger
+  command setAutoAttach
+    parameters
+      boolean autoAttach
+      boolean waitForDebuggerOnStart

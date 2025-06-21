@@ -1,0 +1,16 @@
+[
+  [10, "ignition", "jitless", "d8"],
+  [10, "ignition", "slow_path", "d8"],
+  [5, "ignition_no_ic", "slow_path", "d8"],
+  [5, "ignition", "slow_path_opt", "d8"],
+  [5, "ignition", "ignition_turbo_no_ic", "d8"],
+  [15, "ignition", "ignition_turbo_opt", "d8"],
+  [5, "ignition_no_ic", "ignition_turbo_opt", "d8"],
+  [15, "ignition", "ignition_maglev", "d8"],
+  [5, "ignition_turbo", "ignition_turbo_opt", "clang_x64_fuzzer_experiments/d8"],
+  [5, "ignition", "ignition", "clang_x86/d8"],
+  [5, "ignition", "ignition_turbo_opt", "clang_x86/d8"],
+  [5, "ignition", "slow_path", "clang_x86/d8"],
+  [5, "ignition", "ignition_turbo_opt", "clang_x64_v8_arm64/d8"],
+  [5, "ignition", "ignition_turbo_opt", "clang_x86_v8_arm/d8"]
+]

@@ -1,0 +1,148 @@
+.TH "NPM-TEAM" "1" "June 2025" "NPM@11.4.2" ""
+.SH "NAME"
+\fBnpm-team\fR - Manage organization teams and team memberships
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm team create <scope:team> \[lB]--otp <otpcode>\[rB]
+npm team destroy <scope:team> \[lB]--otp <otpcode>\[rB]
+npm team add <scope:team> <user> \[lB]--otp <otpcode>\[rB]
+npm team rm <scope:team> <user> \[lB]--otp <otpcode>\[rB]
+npm team ls <scope>|<scope:team>
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Used to manage teams in organizations, and change team memberships. Does not handle permissions for packages.
+.P
+Teams must always be fully qualified with the organization/scope they belong to when operating on them, separated by a colon (\fB:\fR). That is, if you have a \fBnewteam\fR team in an \fBorg\fR organization, you must always refer to that team as \fB@org:newteam\fR in these commands.
+.P
+If you have two-factor authentication enabled in \fBauth-and-writes\fR mode, then you can provide a code from your authenticator with \fB\[lB]--otp <otpcode>\[rB]\fR. If you don't include this then you will be taken through a second factor flow based on your \fBauthtype\fR.
+.RS 0
+.IP \(bu 4
+create / destroy: Create a new team, or destroy an existing one. Note: You cannot remove the \fBdevelopers\fR team, \fBlearn more.\fR \fI\(lahttps://docs.npmjs.com/about-developers-team\(ra\fR
+.P
+Here's how to create a new team \fBnewteam\fR under the \fBorg\fR org:
+.P
+.RS 2
+.nf
+npm team create @org:newteam
+.fi
+.RE
+.P
+You should see a confirming message such as: \fB+@org:newteam\fR once the new team has been created.
+.IP \(bu 4
+add: Add a user to an existing team.
+.P
+Adding a new user \fBusername\fR to a team named \fBnewteam\fR under the \fBorg\fR org:
+.P
+.RS 2
+.nf
+npm team add @org:newteam username
+.fi
+.RE
+.P
+On success, you should see a message: \fBusername added to @org:newteam\fR
+.IP \(bu 4
+rm: Using \fBnpm team rm\fR you can also remove users from a team they belong to.
+.P
+Here's an example removing user \fBusername\fR from \fBnewteam\fR team in \fBorg\fR organization:
+.P
+.RS 2
+.nf
+npm team rm @org:newteam username
+.fi
+.RE
+.P
+Once the user is removed a confirmation message is displayed: \fBusername removed from @org:newteam\fR
+.IP \(bu 4
+ls: If performed on an organization name, will return a list of existing teams under that organization. If performed on a team, it will instead return a list of all users belonging to that particular team.
+.P
+Here's an example of how to list all teams from an org named \fBorg\fR:
+.P
+.RS 2
+.nf
+npm team ls @org
+.fi
+.RE
+.P
+Example listing all members of a team named \fBnewteam\fR:
+.P
+.RS 2
+.nf
+npm team ls @org:newteam
+.fi
+.RE
+.RE 0
+
+.SS "Details"
+.P
+\fBnpm team\fR always operates directly on the current registry, configurable from the command line using \fB--registry=<registry url>\fR.
+.P
+You must be a \fIteam admin\fR to create teams and manage team membership, under the given organization. Listing teams and team memberships may be done by any member of the organization.
+.P
+Organization creation and management of team admins and \fIorganization\fR members is done through the website, not the npm CLI.
+.P
+To use teams to manage permissions on packages belonging to your organization, use the \fBnpm access\fR command to grant or revoke the appropriate permissions.
+.SS "Configuration"
+.SS "\fBregistry\fR"
+.RS 0
+.IP \(bu 4
+Default: "https://registry.npmjs.org/"
+.IP \(bu 4
+Type: URL
+.RE 0
+
+.P
+The base URL of the npm registry.
+.SS "\fBotp\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm access\fR.
+.P
+If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one.
+.SS "\fBparseable\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Output parseable results from commands that write to standard output. For \fBnpm search\fR, this will be tab-separated table format.
+.SS "\fBjson\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Whether or not to output JSON data, rather than the normal output.
+.RS 0
+.IP \(bu 4
+In \fBnpm pkg set\fR it enables parsing set values with JSON.parse() before saving them to your \fBpackage.json\fR.
+.RE 0
+
+.P
+Not supported by all npm commands.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help access
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help registry
+.RE 0

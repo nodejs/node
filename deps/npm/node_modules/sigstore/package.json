@@ -1,0 +1,47 @@
+{
+  "name": "sigstore",
+  "version": "3.1.0",
+  "description": "code-signing for npm packages",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "clean": "shx rm -rf dist *.tsbuildinfo",
+    "build": "tsc --build",
+    "test": "jest"
+  },
+  "files": [
+    "dist",
+    "store"
+  ],
+  "author": "bdehamer@github.com",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sigstore/sigstore-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sigstore/sigstore-js/issues"
+  },
+  "homepage": "https://github.com/sigstore/sigstore-js/tree/main/packages/client#readme",
+  "publishConfig": {
+    "provenance": true
+  },
+  "devDependencies": {
+    "@sigstore/rekor-types": "^3.0.0",
+    "@sigstore/jest": "^0.0.0",
+    "@sigstore/mock": "^0.10.0",
+    "@tufjs/repo-mock": "^3.0.1",
+    "@types/make-fetch-happen": "^10.0.4"
+  },
+  "dependencies": {
+    "@sigstore/bundle": "^3.1.0",
+    "@sigstore/core": "^2.0.0",
+    "@sigstore/protobuf-specs": "^0.4.0",
+    "@sigstore/sign": "^3.1.0",
+    "@sigstore/tuf": "^3.1.0",
+    "@sigstore/verify": "^2.1.0"
+  },
+  "engines": {
+    "node": "^18.17.0 || >=20.5.0"
+  }
+}
