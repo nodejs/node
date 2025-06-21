@@ -957,6 +957,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "path to watch",
             &EnvironmentOptions::watch_mode_paths,
             kAllowedInEnvvar);
+  AddOption("--watch-kill-signal",
+            "kill signal to send to the process on watch mode restarts"
+            "(default: SIGTERM)",
+            &EnvironmentOptions::watch_mode_kill_signal,
+            kAllowedInEnvvar);
   AddOption("--watch-preserve-output",
             "preserve outputs on watch mode restart",
             &EnvironmentOptions::watch_mode_preserve_output,
