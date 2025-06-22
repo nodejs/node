@@ -24,22 +24,30 @@ class Lock final {
        const std::string& client_id,
        v8::Local<v8::Promise::Resolver> waiting,
        v8::Local<v8::Promise::Resolver> released);
-  ~Lock();
+  ~Lock() = default;
 
   Lock(const Lock&) = delete;
   Lock& operator=(const Lock&) = delete;
 
+  // Resource name for this lock as DOMString
   const std::u16string& name() const { return name_; }
+  // Lock mode (shared or exclusive).
   Mode mode() const { return mode_; }
+  // Client identifier string.
   const std::string& client_id() const { return client_id_; }
+  // Environment that owns this lock.
   Environment* env() const { return env_; }
 
+  // Returns true if this lock was stolen by another request.
   bool is_stolen() const { return stolen_; }
+  // Marks this lock as stolen.
   void mark_stolen() { stolen_ = true; }
 
+  // Promise that resolves when the user callback completes.
   v8::Local<v8::Promise::Resolver> waiting_promise() {
     return waiting_promise_.Get(env_->isolate());
   }
+  // Promise that resolves when the lock is finally released.
   v8::Local<v8::Promise::Resolver> released_promise() {
     return released_promise_.Get(env_->isolate());
   }
@@ -79,7 +87,7 @@ class LockRequest final {
               const std::string& client_id,
               bool steal,
               bool if_available);
-  ~LockRequest();
+  ~LockRequest() = default;
 
   LockRequest(const LockRequest&) = delete;
   LockRequest& operator=(const LockRequest&) = delete;
@@ -88,6 +96,7 @@ class LockRequest final {
   Lock::Mode mode() const { return mode_; }
   const std::string& client_id() const { return client_id_; }
   bool steal() const { return steal_; }
+  // Returns true if this is an ifAvailable request.
   bool if_available() const { return if_available_; }
   Environment* env() const { return env_; }
 
@@ -141,6 +150,7 @@ class LockManager final {
   static LockManager current_;
 
   mutable Mutex mutex_;
+  // All entries for a given Environment* are purged in CleanupEnvironment().
   std::unordered_map<std::u16string, std::deque<std::shared_ptr<Lock>>>
       held_locks_;
   std::deque<std::unique_ptr<LockRequest>> pending_queue_;

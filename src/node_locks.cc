@@ -46,8 +46,6 @@ Lock::Lock(Environment* env,
   released_promise_.Reset(env_->isolate(), released);
 }
 
-Lock::~Lock() {}
-
 LockRequest::LockRequest(Environment* env,
                          Local<Promise::Resolver> waiting,
                          Local<Promise::Resolver> released,
@@ -67,8 +65,6 @@ LockRequest::LockRequest(Environment* env,
   released_promise_.Reset(env_->isolate(), released);
   callback_.Reset(env_->isolate(), callback);
 }
-
-LockRequest::~LockRequest() {}
 
 bool LockManager::IsGrantable(const LockRequest* request) const {
   // Steal requests bypass all normal granting rules
@@ -618,6 +614,7 @@ void LockManager::WakeEnvironment(Environment* target_env) {
 void LockManager::CleanupEnvironment(Environment* env_to_cleanup) {
   Mutex::ScopedLock scoped_lock(mutex_);
 
+  // Remove every held lock that belongs to this Environment.
   for (auto resource_iter = held_locks_.begin();
        resource_iter != held_locks_.end();) {
     auto& resource_locks = resource_iter->second;
@@ -636,6 +633,7 @@ void LockManager::CleanupEnvironment(Environment* env_to_cleanup) {
     }
   }
 
+  // Remove every pending request submitted by this Environment.
   for (auto request_iter = pending_queue_.begin();
        request_iter != pending_queue_.end();) {
     if ((*request_iter)->env() == env_to_cleanup) {
@@ -645,6 +643,7 @@ void LockManager::CleanupEnvironment(Environment* env_to_cleanup) {
     }
   }
 
+  // Finally, remove it from registered_envs_
   registered_envs_.erase(env_to_cleanup);
 }
 
