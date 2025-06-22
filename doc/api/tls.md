@@ -2260,6 +2260,25 @@ openssl pkcs12 -certpbe AES-256-CBC -export -out client-cert.pem \
 The server can be tested by connecting to it using the example client from
 [`tls.connect()`][].
 
+## `tls.useSystemCA()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enables system CA certificates to be used by the Node.js TLS clients by default.
+This is equivalent to enabling the [`--use-system-ca`][] flag, but can be done
+programmatically at runtime.
+
+Once called, the system CA certificates will be included in the default CA
+certificate list returned by [`tls.getCACertificates()`][] and used by TLS
+connections that don't specify their own CA certificates.
+
+Subsequent calls to this function are no-ops. The system CA certificates are
+loaded and cached on the first call.
+
+This function only affects the current Node.js thread.
+
 ## `tls.getCACertificates([type])`
 
 <!-- YAML

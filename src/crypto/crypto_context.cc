@@ -84,11 +84,15 @@ static std::string extra_root_certs_file;  // NOLINT(runtime/string)
 static std::atomic<bool> has_cached_bundled_root_certs{false};
 static std::atomic<bool> has_cached_system_root_certs{false};
 static std::atomic<bool> has_cached_extra_root_certs{false};
-
+// Per-thread root cert store.
+static thread_local X509_STORE* root_cert_store = nullptr;
+static bool use_system_ca_in_root_cert_store = false;
 X509_STORE* GetOrCreateRootCertStore() {
-  // Guaranteed thread-safe by standard, just don't use -fno-threadsafe-statics.
-  static X509_STORE* store = NewRootCertStore();
-  return store;
+  if (root_cert_store != nullptr) {
+    return root_cert_store;
+  }
+  root_cert_store = NewRootCertStore();
+  return root_cert_store;
 }
 
 // Takes a string or buffer and loads it into a BIO.
@@ -851,7 +855,8 @@ X509_STORE* NewRootCertStore() {
     for (X509* cert : GetBundledRootCertificates()) {
       CHECK_EQ(1, X509_STORE_add_cert(store, cert));
     }
-    if (per_process::cli_options->use_system_ca) {
+    if (per_process::cli_options->use_system_ca ||
+        use_system_ca_in_root_cert_store) {
       for (X509* cert : GetSystemStoreCACertificates()) {
         CHECK_EQ(1, X509_STORE_add_cert(store, cert));
       }
@@ -933,6 +938,17 @@ MaybeLocal<Array> X509sToArrayOfStrings(Environment* env,
     }
   }
   return scope.Escape(Array::New(env->isolate(), result.data(), result.size()));
+}
+
+void UseSystemCA(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  use_system_ca_in_root_cert_store = true;
+  X509_STORE* store = GetOrCreateRootCertStore();
+  for (X509* cert : GetSystemStoreCACertificates()) {
+    if (!X509_STORE_add_cert(store, cert)) {
+      return ThrowCryptoError(env, ERR_get_error(), "X509_STORE_add_cert");
+    }
+  }
 }
 
 void GetSystemCACertificates(const FunctionCallbackInfo<Value>& args) {
@@ -1046,6 +1062,7 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
       context, target, "getSystemCACertificates", GetSystemCACertificates);
   SetMethodNoSideEffect(
       context, target, "getExtraCACertificates", GetExtraCACertificates);
+  SetMethodNoSideEffect(context, target, "useSystemCA", UseSystemCA);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -1088,6 +1105,7 @@ void SecureContext::RegisterExternalReferences(
   registry->Register(GetBundledRootCertificates);
   registry->Register(GetSystemCACertificates);
   registry->Register(GetExtraCACertificates);
+  registry->Register(UseSystemCA);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
