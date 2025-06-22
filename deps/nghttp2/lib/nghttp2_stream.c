@@ -151,7 +151,7 @@ void nghttp2_stream_promise_fulfilled(nghttp2_stream *stream) {
 }
 
 nghttp2_stream_proto_state nghttp2_stream_get_state(nghttp2_stream *stream) {
-  if (stream == &root) {
+  if (stream == &nghttp2_stream_root) {
     return NGHTTP2_STREAM_STATE_IDLE;
   }
 
