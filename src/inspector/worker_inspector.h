@@ -70,10 +70,6 @@ class ParentInspectorHandle {
   bool WaitForConnect() {
     return wait_;
   }
-  void EmitProtocolResponse(int call_id,
-                            std::string_view params,
-                            int session_id);
-
   const std::string& url() const { return url_; }
   std::unique_ptr<inspector::InspectorSession> Connect(
       std::unique_ptr<inspector::InspectorSessionDelegate> delegate,

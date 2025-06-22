@@ -38,6 +38,8 @@
       'src/inspector/worker_inspector.h',
       'src/inspector/io_agent.cc',
       'src/inspector/io_agent.h',
+      'src/inspector/network_resource_manager.cc',
+      'src/inspector/network_resource_manager.h',
     ],
     'node_inspector_generated_sources': [
       '<(SHARED_INTERMEDIATE_DIR)/src/node/inspector/protocol/Forward.h',
