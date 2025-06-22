@@ -218,7 +218,7 @@ void Dotenv::ParseContent(const std::string_view input,
     if (content.front() == '[') {
       auto closing_bracket_idx = content.find_first_of(']');
       if (closing_bracket_idx != std::string_view::npos) {
-        // We've enterer a new section of the file
+        // We've entered a new section of the file
         auto quote_idx = content.find_first_of('"');
         if (quote_idx != std::string_view::npos &&
             quote_idx < closing_bracket_idx) {
