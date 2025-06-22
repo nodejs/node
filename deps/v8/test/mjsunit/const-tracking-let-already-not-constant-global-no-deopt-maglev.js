@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --const-tracking-let --allow-natives-syntax
+// Flags: --script-context-cells --allow-natives-syntax
 // Flags: --turbofan --no-always-turbofan --maglev --no-stress-maglev
 // Flags: --sparkplug --no-always-sparkplug
 
@@ -36,9 +36,12 @@ a = 3;
 assertUnoptimized(read);
 assertEquals(3, read());
 
-// Write won't deopt, since the value it's writing to is already not a constant.
+// Write was also deoptimized, because it depends on `a` constness.
+assertUnoptimized(write);
+
+%OptimizeMaglevOnNextCall(write);
 write(1);
+// Now it depends on Sminess of the context slot.
 assertOptimized(write);
 
-assertUnoptimized(read);
 assertEquals(1, read());

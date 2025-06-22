@@ -78,6 +78,7 @@ inline int ByteWidthForStackSlot(MachineRepresentation rep) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
 }

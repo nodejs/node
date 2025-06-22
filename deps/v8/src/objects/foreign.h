@@ -33,6 +33,7 @@ class Foreign : public TorqueGeneratedForeign<Foreign, HeapObject> {
 
   // Load the address without performing a type check. Only use this when the
   // returned pointer will not be dereferenced.
+  inline Address foreign_address_unchecked(IsolateForSandbox isolate) const;
   inline Address foreign_address_unchecked() const;
 
   // Get the tag of this foreign from the external pointer table. Non-sandbox
@@ -54,7 +55,8 @@ class Foreign : public TorqueGeneratedForeign<Foreign, HeapObject> {
 
   using BodyDescriptor = StackedBodyDescriptor<
       FixedBodyDescriptorFor<Foreign>,
-      WithExternalPointer<kForeignAddressOffset, kAnyForeignTag>>;
+      WithExternalPointer<kForeignAddressOffset,
+                          kAnyForeignExternalPointerTagRange>>;
 
  private:
   TQ_OBJECT_CONSTRUCTORS(Foreign)

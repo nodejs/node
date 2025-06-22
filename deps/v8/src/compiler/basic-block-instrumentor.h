@@ -15,7 +15,7 @@ class OptimizedCompilationInfo;
 
 namespace compiler {
 
-class Graph;
+class TFGraph;
 class Schedule;
 
 namespace turboshaft {
@@ -25,7 +25,7 @@ class Graph;
 class BasicBlockInstrumentor : public AllStatic {
  public:
   static BasicBlockProfilerData* Instrument(OptimizedCompilationInfo* info,
-                                            Graph* graph, Schedule* schedule,
+                                            TFGraph* graph, Schedule* schedule,
                                             Isolate* isolate);
 };
 

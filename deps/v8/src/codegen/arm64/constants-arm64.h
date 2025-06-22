@@ -760,6 +760,11 @@ constexpr ConditionalBranchOp ConditionalBranchFMask = 0xFE000000;
 constexpr ConditionalBranchOp ConditionalBranchMask = 0xFF000010;
 constexpr ConditionalBranchOp B_cond = ConditionalBranchFixed | 0x00000000;
 
+// Consistent Conditional branch.
+constexpr ConditionalBranchOp ConditionalBranchConsistentFixed = 0x54000010;
+constexpr ConditionalBranchOp BC_cond =
+    ConditionalBranchConsistentFixed | 0x00000000;
+
 // System.
 // System instruction encoding is complicated because some instructions use op
 // and CR fields to encode parameters. To handle this cleanly, the system
@@ -1193,6 +1198,15 @@ constexpr DataProcessing1SourceOp CLZ_x = CLZ | SixtyFourBits;
 constexpr DataProcessing1SourceOp CLS = DataProcessing1SourceFixed | 0x00001400;
 constexpr DataProcessing1SourceOp CLS_w = CLS;
 constexpr DataProcessing1SourceOp CLS_x = CLS | SixtyFourBits;
+constexpr DataProcessing1SourceOp CTZ = DataProcessing1SourceFixed | 0x00001800;
+constexpr DataProcessing1SourceOp CTZ_w = CTZ;
+constexpr DataProcessing1SourceOp CTZ_x = CTZ | SixtyFourBits;
+constexpr DataProcessing1SourceOp CNT = DataProcessing1SourceFixed | 0x00001C00;
+constexpr DataProcessing1SourceOp CNT_w = CNT;
+constexpr DataProcessing1SourceOp CNT_x = CNT | SixtyFourBits;
+constexpr DataProcessing1SourceOp ABS = DataProcessing1SourceFixed | 0x00002000;
+constexpr DataProcessing1SourceOp ABS_w = ABS;
+constexpr DataProcessing1SourceOp ABS_x = ABS | SixtyFourBits;
 
 // Data processing 2 source.
 using DataProcessing2SourceOp = uint32_t;
@@ -2406,6 +2420,14 @@ constexpr NEONTableOp NEON_TBX_1v = NEON_TBL_1v | NEONTableExt;
 constexpr NEONTableOp NEON_TBX_2v = NEON_TBL_2v | NEONTableExt;
 constexpr NEONTableOp NEON_TBX_3v = NEON_TBL_3v | NEONTableExt;
 constexpr NEONTableOp NEON_TBX_4v = NEON_TBL_4v | NEONTableExt;
+
+// NEON SHA3
+using NEONSHA3Op = uint32_t;
+constexpr NEONSHA3Op NEONSHA3Fixed = 0xce000000;
+constexpr NEONSHA3Op NEONSHA3FMask = 0xce000000;
+constexpr NEONSHA3Op NEONSHA3Mask = 0xcee00000;
+constexpr NEONSHA3Op NEON_BCAX = NEONSHA3Fixed | 0x00200000;
+constexpr NEONSHA3Op NEON_EOR3 = NEONSHA3Fixed;
 
 // NEON perm.
 using NEONPermOp = uint32_t;

@@ -386,20 +386,6 @@ TEST(CompressedTupleTest, Constexpr) {
 
   using Tuple = CompressedTuple<int, double, CompressedTuple<int>, Empty<0>>;
 
-  constexpr int r0 =
-      AsLValue(Tuple(1, 0.75, CompressedTuple<int>(9), {})).get<0>();
-  constexpr double r1 =
-      AsLValue(Tuple(1, 0.75, CompressedTuple<int>(9), {})).get<1>();
-  constexpr int r2 =
-      AsLValue(Tuple(1, 0.75, CompressedTuple<int>(9), {})).get<2>().get<0>();
-  constexpr CallType r3 =
-      AsLValue(Tuple(1, 0.75, CompressedTuple<int>(9), {})).get<3>().value();
-
-  EXPECT_EQ(r0, 1);
-  EXPECT_EQ(r1, 0.75);
-  EXPECT_EQ(r2, 9);
-  EXPECT_EQ(r3, CallType::kMutableRef);
-
   constexpr Tuple x(7, 1.25, CompressedTuple<int>(5), {});
   constexpr int x0 = x.get<0>();
   constexpr double x1 = x.get<1>();

@@ -1,9 +1,16 @@
-// Flags: --experimental-shadow-realm --expose-internals
+// Flags: --experimental-shadow-realm
+// This tests heap snapshot integration of ShadowRealm
+
 'use strict';
 require('../common');
-const { validateSnapshotNodes } = require('../common/heap');
+const { validateByRetainingPath } = require('../common/heap');
+const assert = require('assert');
 
-validateSnapshotNodes('Node / ShadowRealm', []);
+// Before shadow realm is created, no ShadowRealm should be captured.
+{
+  const nodes = validateByRetainingPath('Node / ShadowRealm', []);
+  assert.strictEqual(nodes.length, 0);
+}
 
 let realm;
 let counter = 0;
@@ -23,19 +30,9 @@ function createRealms() {
 }
 
 function validateHeap() {
-  validateSnapshotNodes('Node / Environment', [
-    {
-      children: [
-        { node_name: 'Node / shadow_realms', edge_name: 'shadow_realms' },
-      ],
-    },
-  ]);
-  validateSnapshotNodes('Node / shadow_realms', [
-    {
-      children: [
-        { node_name: 'Node / ShadowRealm' },
-      ],
-    },
+  validateByRetainingPath('Node / Environment', [
+    { node_name: 'Node / shadow_realms', edge_name: 'shadow_realms' },
+    { node_name: 'Node / ShadowRealm' },
   ]);
 }
 

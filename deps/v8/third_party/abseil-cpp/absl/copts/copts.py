@@ -57,6 +57,7 @@ ABSL_LLVM_FLAGS = [
     "-Winvalid-constexpr",
     "-Wliteral-conversion",
     "-Wmissing-declarations",
+    "-Wnullability-completeness",
     "-Woverlength-strings",
     "-Wpointer-arith",
     "-Wself-assign",
@@ -66,6 +67,7 @@ ABSL_LLVM_FLAGS = [
     "-Wstring-conversion",
     "-Wtautological-overlap-compare",
     "-Wtautological-unsigned-zero-compare",
+    "-Wthread-safety",
     "-Wundef",
     "-Wuninitialized",
     "-Wunreachable-code",
@@ -118,10 +120,6 @@ MSVC_WARNING_FLAGS = [
     "/wd4068",  # unknown pragma
     # qualifier applied to function type has no meaning; ignored
     "/wd4180",
-    # conversion from 'type1' to 'type2', possible loss of data
-    "/wd4244",
-    # conversion from 'size_t' to 'type', possible loss of data
-    "/wd4267",
     # The decorated name was longer than the compiler limit
     "/wd4503",
     # forcing value to bool 'true' or 'false' (performance warning)
@@ -158,37 +156,35 @@ def GccStyleFilterAndCombine(default_flags, test_flags):
 COPT_VARS = {
     "ABSL_GCC_FLAGS": ABSL_GCC_FLAGS,
     "ABSL_GCC_TEST_FLAGS": GccStyleFilterAndCombine(
-        ABSL_GCC_FLAGS, ABSL_GCC_TEST_ADDITIONAL_FLAGS),
+        ABSL_GCC_FLAGS, ABSL_GCC_TEST_ADDITIONAL_FLAGS
+    ),
     "ABSL_LLVM_FLAGS": ABSL_LLVM_FLAGS,
     "ABSL_LLVM_TEST_FLAGS": GccStyleFilterAndCombine(
-        ABSL_LLVM_FLAGS, ABSL_LLVM_TEST_ADDITIONAL_FLAGS),
-    "ABSL_CLANG_CL_FLAGS":
-        MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES,
-    "ABSL_CLANG_CL_TEST_FLAGS":
-        MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES + ABSL_LLVM_TEST_ADDITIONAL_FLAGS,
-    "ABSL_MSVC_FLAGS":
-        MSVC_BIG_WARNING_FLAGS + MSVC_WARNING_FLAGS + MSVC_DEFINES,
-    "ABSL_MSVC_TEST_FLAGS":
-        MSVC_BIG_WARNING_FLAGS + MSVC_WARNING_FLAGS + MSVC_DEFINES + [
+        ABSL_LLVM_FLAGS, ABSL_LLVM_TEST_ADDITIONAL_FLAGS
+    ),
+    "ABSL_CLANG_CL_FLAGS": MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES,
+    "ABSL_CLANG_CL_TEST_FLAGS": (
+        MSVC_BIG_WARNING_FLAGS + MSVC_DEFINES + ABSL_LLVM_TEST_ADDITIONAL_FLAGS
+    ),
+    "ABSL_MSVC_FLAGS": (
+        MSVC_BIG_WARNING_FLAGS + MSVC_WARNING_FLAGS + MSVC_DEFINES
+    ),
+    "ABSL_MSVC_TEST_FLAGS": (
+        MSVC_BIG_WARNING_FLAGS
+        + MSVC_WARNING_FLAGS
+        + MSVC_DEFINES
+        + [
             "/wd4018",  # signed/unsigned mismatch
             "/wd4101",  # unreferenced local variable
+            "/wd4244",  # shortening conversion
+            "/wd4267",  # shortening conversion
             "/wd4503",  # decorated name length exceeded, name was truncated
             "/wd4996",  # use of deprecated symbol
             "/DNOMINMAX",  # disable the min() and max() macros from <windows.h>
-        ],
+        ]
+    ),
     "ABSL_MSVC_LINKOPTS": [
         # Object file doesn't export any previously undefined symbols
         "-ignore:4221",
     ],
-    # "HWAES" is an abbreviation for "hardware AES" (AES - Advanced Encryption
-    # Standard). These flags are used for detecting whether or not the target
-    # architecture has hardware support for AES instructions which can be used
-    # to improve performance of some random bit generators.
-    "ABSL_RANDOM_HWAES_ARM64_FLAGS": ["-march=armv8-a+crypto"],
-    "ABSL_RANDOM_HWAES_ARM32_FLAGS": ["-mfpu=neon"],
-    "ABSL_RANDOM_HWAES_X64_FLAGS": [
-        "-maes",
-        "-msse4.1",
-    ],
-    "ABSL_RANDOM_HWAES_MSVC_X64_FLAGS": [],
 }

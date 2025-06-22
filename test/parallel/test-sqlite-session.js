@@ -1,6 +1,7 @@
 // Flags: --experimental-sqlite
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const {
   DatabaseSync,
   constants,
@@ -536,5 +537,20 @@ test('session.close() - closing twice', (t) => {
   }, {
     name: 'Error',
     message: 'session is not open'
+  });
+});
+
+test('session supports ERM', (t) => {
+  const database = new DatabaseSync(':memory:');
+  let afterDisposeSession;
+  {
+    using session = database.createSession();
+    afterDisposeSession = session;
+    const changeset = session.changeset();
+    t.assert.ok(changeset instanceof Uint8Array);
+    t.assert.strictEqual(changeset.length, 0);
+  }
+  t.assert.throws(() => afterDisposeSession.changeset(), {
+    message: /session is not open/,
   });
 });

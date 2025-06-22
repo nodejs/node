@@ -44,10 +44,9 @@ using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::Boolean;
 using v8::Context;
-using v8::CppHeap;
-using v8::CppHeapCreateParams;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
+using v8::ExternalMemoryAccounter;
 using v8::Function;
 using v8::HandleScope;
 using v8::HeapProfiler;
@@ -579,19 +578,10 @@ IsolateData::IsolateData(Isolate* isolate,
       platform_(platform),
       snapshot_data_(snapshot_data),
       options_(std::move(options)) {
-  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
-
   uint16_t cppgc_id = kDefaultCppGCEmbedderID;
   // We do not care about overflow since we just want this to be different
   // from the cppgc id.
   uint16_t non_cppgc_id = cppgc_id + 1;
-  if (cpp_heap == nullptr) {
-    cpp_heap_ = CppHeap::Create(platform, v8::CppHeapCreateParams{{}});
-    // TODO(joyeecheung): pass it into v8::Isolate::CreateParams and let V8
-    // own it when we can keep the isolate registered/task runner discoverable
-    // during isolate disposal.
-    isolate->AttachCppHeap(cpp_heap_.get());
-  }
 
   {
     // GC could still be run after the IsolateData is destroyed, so we store
@@ -615,14 +605,7 @@ IsolateData::IsolateData(Isolate* isolate,
   }
 }
 
-IsolateData::~IsolateData() {
-  if (cpp_heap_ != nullptr) {
-    v8::Locker locker(isolate_);
-    // The CppHeap must be detached before being terminated.
-    isolate_->DetachCppHeap();
-    cpp_heap_->Terminate();
-  }
-}
+IsolateData::~IsolateData() {}
 
 // Deprecated API, embedders should use v8::Object::Wrap() directly instead.
 void SetCppgcReference(Isolate* isolate,
@@ -803,6 +786,7 @@ Environment::Environment(IsolateData* isolate_data,
                          EnvironmentFlags::Flags flags,
                          ThreadId thread_id)
     : isolate_(isolate),
+      external_memory_accounter_(new ExternalMemoryAccounter()),
       isolate_data_(isolate_data),
       async_hooks_(isolate, MAYBE_FIELD_PTR(env_info, async_hooks)),
       immediate_info_(isolate, MAYBE_FIELD_PTR(env_info, immediate_info)),
@@ -828,15 +812,9 @@ Environment::Environment(IsolateData* isolate_data,
       thread_id_(thread_id.id == static_cast<uint64_t>(-1)
                      ? AllocateEnvironmentThreadId().id
                      : thread_id.id) {
-  constexpr bool is_shared_ro_heap =
-#ifdef NODE_V8_SHARED_RO_HEAP
-      true;
-#else
-      false;
-#endif
-  if (is_shared_ro_heap && !is_main_thread()) {
-    // If this is a Worker thread and we are in shared-readonly-heap mode,
-    // we can always safely use the parent's Isolate's code cache.
+  if (!is_main_thread()) {
+    // If this is a Worker thread, we can always safely use the parent's
+    // Isolate's code cache because of the shared read-only heap.
     CHECK_NOT_NULL(isolate_data->worker_context());
     builtin_loader()->CopySourceAndCodeCacheReferenceFrom(
         isolate_data->worker_context()->env()->builtin_loader());
@@ -950,6 +928,25 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
     }
 
+    // Implicit allow entrypoint to kFileSystemRead
+    if (!options_->has_eval_string && !options_->force_repl) {
+      std::string first_argv;
+      if (argv_.size() > 1) {
+        first_argv = argv_[1];
+      }
+
+      // Also implicit allow preloaded modules to kFileSystemRead
+      if (!options_->preload_cjs_modules.empty()) {
+        for (const std::string& mod : options_->preload_cjs_modules) {
+          options_->allow_fs_read.push_back(mod);
+        }
+      }
+
+      if (first_argv != "inspect") {
+        options_->allow_fs_read.push_back(first_argv);
+      }
+    }
+
     if (!options_->allow_fs_read.empty()) {
       permission()->Apply(this,
                           options_->allow_fs_read,
@@ -960,6 +957,10 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(this,
                           options_->allow_fs_write,
                           permission::PermissionScope::kFileSystemWrite);
+    }
+
+    if (options_->allow_net) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kNet);
     }
   }
 }
@@ -1062,6 +1063,8 @@ Environment::~Environment() {
       addon.Close();
     }
   }
+
+  delete external_memory_accounter_;
 }
 
 void Environment::InitializeLibuv() {

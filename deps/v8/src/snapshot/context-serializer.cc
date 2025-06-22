@@ -8,6 +8,7 @@
 #include "src/execution/microtask-queue.h"
 #include "src/heap/combined-heap.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
@@ -96,8 +97,8 @@ void ContextSerializer::Serialize(Tagged<Context>* o,
   // explicitly when it's loaded.
   // TODO(v8:10416): These mutations should not observably affect the running
   // context.
-  context_->set(Context::NEXT_CONTEXT_LINK,
-                ReadOnlyRoots(isolate()).undefined_value());
+  context_->SetNoCell(Context::NEXT_CONTEXT_LINK,
+                      ReadOnlyRoots(isolate()).undefined_value());
   DCHECK(!IsUndefined(context_->global_object()));
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
@@ -222,14 +223,17 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       // serialize optimized code anyway.
       Tagged<JSFunction> closure = Cast<JSFunction>(*obj);
       if (closure->shared()->HasBytecodeArray()) {
-        closure->SetInterruptBudget(isolate());
+        closure->SetInterruptBudget(isolate(), BudgetModification::kReset);
       }
       closure->ResetIfCodeFlushed(isolate());
       if (closure->is_compiled(isolate())) {
         if (closure->shared()->HasBaselineCode()) {
           closure->shared()->FlushBaselineCode();
         }
-        closure->UpdateCode(closure->shared()->GetCode(isolate()));
+        Tagged<Code> sfi_code = closure->shared()->GetCode(isolate());
+        if (!sfi_code.SafeEquals(closure->code(isolate()))) {
+          closure->UpdateCode(isolate(), sfi_code);
+        }
       }
     }
   } else if (InstanceTypeChecker::IsEmbedderDataArray(instance_type) &&
@@ -238,7 +242,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     Handle<EmbedderDataArray> embedder_data = Cast<EmbedderDataArray>(obj);
     int embedder_fields_count = embedder_data->length();
     if (embedder_data->length() > 0) {
-      Handle<Context> context_handle(context_, isolate());
+      DirectHandle<Context> context_handle(context_, isolate());
       v8::Local<v8::Context> api_obj =
           v8::Utils::ToLocal(Cast<NativeContext>(context_handle));
       v8::SerializeContextDataCallback user_callback =
@@ -255,7 +259,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, &sink_);
   serializer.Serialize(slot_type);
-  if (IsJSApiWrapperObject(obj->map())) {
+  if (InstanceTypeChecker::IsJSApiWrapperObject(instance_type)) {
     SerializeApiWrapperFields(Cast<JSObject>(obj));
   }
 }
@@ -281,10 +285,11 @@ namespace {
 bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 }  // anonymous namespace
 
-void ContextSerializer::SerializeApiWrapperFields(Handle<JSObject> js_object) {
+void ContextSerializer::SerializeApiWrapperFields(
+    DirectHandle<JSObject> js_object) {
   DCHECK(IsJSApiWrapperObject(*js_object));
   auto* cpp_heap_pointer =
-      JSApiWrapper(*js_object)
+      CppHeapObjectWrapper(*js_object)
           .GetCppHeapWrappable(isolate(), kAnyCppHeapPointer);
   const auto& callback_data = serialize_embedder_fields_.api_wrapper_callback;
   if (callback_data.callback == nullptr && cpp_heap_pointer == nullptr) {

@@ -16,9 +16,9 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/frame-states.h"
-#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/handles/handles-inl.h"
@@ -97,52 +97,67 @@ void TailCallOp::PrintOptions(std::ostream& os) const {
 }
 
 #if DEBUG
-bool ValidOpInputRep(
+void ValidateOpInputRep(
     const Graph& graph, OpIndex input,
     std::initializer_list<RegisterRepresentation> expected_reps,
-    std::optional<size_t> projection_index) {
+    const Operation* checked_op, std::optional<size_t> projection_index) {
+  const Operation& input_op = graph.Get(input);
   base::Vector<const RegisterRepresentation> input_reps =
-      graph.Get(input).outputs_rep();
+      input_op.outputs_rep();
   RegisterRepresentation input_rep;
   if (projection_index) {
     if (*projection_index < input_reps.size()) {
       input_rep = input_reps[*projection_index];
     } else {
-      std::cerr << "Turboshaft operation has input #" << input
+      std::cerr << "Turboshaft operation ";
+      if (checked_op) {
+        std::cerr << *checked_op << " ";
+      }
+      std::cerr << "has input #" << input << ":" << input_op
                 << " with wrong arity.\n";
       std::cerr << "Input has results " << PrintCollection(input_reps)
                 << ", but expected at least " << (*projection_index + 1)
                 << " results.\n";
-      return false;
+      UNREACHABLE();
     }
   } else if (input_reps.size() == 1) {
     input_rep = input_reps[0];
   } else {
-    std::cerr << "Turboshaft operation has input #" << input
+    std::cerr << "Turboshaft operation ";
+    if (checked_op) {
+      std::cerr << *checked_op << " ";
+    }
+    std::cerr << "has input #" << input << ":" << input_op
               << " with wrong arity.\n";
     std::cerr << "Expected a single output but found " << input_reps.size()
               << ".\n";
-    return false;
+    UNREACHABLE();
   }
   for (RegisterRepresentation expected_rep : expected_reps) {
     if (input_rep.AllowImplicitRepresentationChangeTo(
             expected_rep, graph.IsCreatedFromTurbofan())) {
-      return true;
+      return;
     }
   }
-  std::cerr << "Turboshaft operation has input #" << input
+  std::cerr << "Turboshaft operation ";
+  if (checked_op) {
+    std::cerr << *checked_op << " ";
+  }
+  std::cerr << "has input #" << input << ":" << input_op
             << " with wrong representation.\n";
   std::cerr << "Expected " << (expected_reps.size() > 1 ? "one of " : "")
             << PrintCollection(expected_reps).WithoutBrackets() << " but found "
             << input_rep << ".\n";
   std::cout << "Input: " << graph.Get(input) << "\n";
-  return false;
+  UNREACHABLE();
 }
 
-bool ValidOpInputRep(const Graph& graph, OpIndex input,
-                     RegisterRepresentation expected_rep,
-                     std::optional<size_t> projection_index) {
-  return ValidOpInputRep(graph, input, {expected_rep}, projection_index);
+void ValidateOpInputRep(const Graph& graph, OpIndex input,
+                        RegisterRepresentation expected_rep,
+                        const Operation* checked_op,
+                        std::optional<size_t> projection_index) {
+  return ValidateOpInputRep(graph, input, {expected_rep}, checked_op,
+                            projection_index);
 }
 #endif  // DEBUG
 
@@ -162,6 +177,12 @@ std::ostream& operator<<(std::ostream& os, OperationPrintStyle styled_op) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, RootIndex index) {
+  // Clearly this doesn't maximize convenience, but we don't want to include
+  // all those names in the binary.
+  return os << static_cast<uint16_t>(index);
+}
+
 std::ostream& operator<<(std::ostream& os, GenericBinopOp::Kind kind) {
   switch (kind) {
 #define PRINT_KIND(Name)              \
@@ -179,6 +200,15 @@ std::ostream& operator<<(std::ostream& os, GenericUnopOp::Kind kind) {
     return os << #Name;
     GENERIC_UNOP_LIST(PRINT_KIND)
 #undef PRINT_KIND
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, Word32SignHintOp::Sign sign) {
+  switch (sign) {
+    case Word32SignHintOp::Sign::kSigned:
+      return os << "Signed";
+    case Word32SignHintOp::Sign::kUnsigned:
+      return os << "Unsigned";
   }
 }
 
@@ -354,6 +384,10 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
       return os << "FloatConversion";
     case ChangeOp::Kind::kJSFloatTruncate:
       return os << "JSFloatTruncate";
+    case ChangeOp::Kind::kJSFloat16ChangeWithBitcast:
+      return os << "JSFloat16ChangeWithBitcast";
+    case ChangeOp::Kind::kJSFloat16TruncateWithBitcast:
+      return os << "JSFloat16TruncateWithBitcast";
     case ChangeOp::Kind::kSignedFloatTruncateOverflowToMin:
       return os << "SignedFloatTruncateOverflowToMin";
     case ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin:
@@ -391,6 +425,8 @@ std::ostream& operator<<(std::ostream& os, ChangeOrDeoptOp::Kind kind) {
       return os << "Float64ToInt32";
     case ChangeOrDeoptOp::Kind::kFloat64ToUint32:
       return os << "Float64ToUint32";
+    case ChangeOrDeoptOp::Kind::kFloat64ToAdditiveSafeInteger:
+      return os << "Float64ToAdditiveSafeInteger";
     case ChangeOrDeoptOp::Kind::kFloat64ToInt64:
       return os << "Float64ToInt64";
     case ChangeOrDeoptOp::Kind::kFloat64NotHole:
@@ -574,6 +610,10 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       os << "relocatable wasm canonical signature ID: "
          << static_cast<int32_t>(storage.integral);
       break;
+    case Kind::kRelocatableWasmIndirectCallTarget:
+      os << "relocatable wasm indirect call target: "
+         << static_cast<uint32_t>(storage.integral);
+      break;
   }
   os << ']';
 }
@@ -706,7 +746,7 @@ void AllocateOp::PrintOptions(std::ostream& os) const {
 
 void DecodeExternalPointerOp::PrintOptions(std::ostream& os) const {
   os << '[';
-  os << "tag: " << std::hex << tag << std::dec;
+  os << "tag_range: [" << tag_range.first << ", " << tag_range.last << "]";
   os << ']';
 }
 
@@ -742,6 +782,18 @@ void FrameStateOp::PrintOptions(std::ostream& os) const {
         uint32_t id;
         it.ConsumeDematerializedObjectReference(&id);
         os << '$' << id;
+        break;
+      }
+      case FrameStateData::Instr::kDematerializedStringConcat: {
+        uint32_t id;
+        it.ConsumeDematerializedStringConcat(&id);
+        os << "£" << id << "DematerializedStringConcat";
+        break;
+      }
+      case FrameStateData::Instr::kDematerializedStringConcatReference: {
+        uint32_t id;
+        it.ConsumeDematerializedStringConcatReference(&id);
+        os << "£" << id;
         break;
       }
       case FrameStateData::Instr::kArgumentsElements: {
@@ -783,7 +835,9 @@ void FrameStateOp::Validate(const Graph& graph) const {
           // The deoptimizer can handle compressed values.
           rep = RegisterRepresentation::Compressed();
         }
-        DCHECK(ValidOpInputRep(graph, input, rep));
+#ifdef DEBUG
+        ValidateOpInputRep(graph, input, rep);
+#endif  // DEBUG
         break;
       }
       case FrameStateData::Instr::kUnusedRegister:
@@ -798,6 +852,16 @@ void FrameStateOp::Validate(const Graph& graph) const {
       case FrameStateData::Instr::kDematerializedObjectReference: {
         uint32_t id;
         it.ConsumeDematerializedObjectReference(&id);
+        break;
+      }
+      case FrameStateData::Instr::kDematerializedStringConcat: {
+        uint32_t id;
+        it.ConsumeDematerializedStringConcat(&id);
+        break;
+      }
+      case FrameStateData::Instr::kDematerializedStringConcatReference: {
+        uint32_t id;
+        it.ConsumeDematerializedStringConcatReference(&id);
         break;
       }
       case FrameStateData::Instr::kArgumentsElements: {
@@ -1073,6 +1137,15 @@ void SwitchOp::PrintOptions(std::ostream& os) const {
   os << " default: " << default_case << ']';
 }
 
+void SwitchOp::Validate(const Graph& graph) const {
+  // Checking that there are no duplicated cases.
+  std::unordered_set<int> cases_set;
+  for (Case cas : cases) {
+    DCHECK(!cases_set.contains(cas.value));
+    cases_set.insert(cas.value);
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
   switch (kind) {
     case ObjectIsOp::Kind::kArrayBufferView:
@@ -1093,6 +1166,8 @@ std::ostream& operator<<(std::ostream& os, ObjectIsOp::Kind kind) {
       return os << "NonCallable";
     case ObjectIsOp::Kind::kNumber:
       return os << "Number";
+    case ObjectIsOp::Kind::kNumberFitsInt32:
+      return os << "NumberFitsInt32";
     case ObjectIsOp::Kind::kNumberOrBigInt:
       return os << "NumberOrBigInt";
     case ObjectIsOp::Kind::kReceiver:
@@ -1134,6 +1209,8 @@ std::ostream& operator<<(std::ostream& os, NumericKind kind) {
       return os << "Integer";
     case NumericKind::kSafeInteger:
       return os << "SafeInteger";
+    case NumericKind::kInt32:
+      return os << "kInt32";
     case NumericKind::kSmi:
       return os << "kSmi";
     case NumericKind::kMinusZero:
@@ -1255,6 +1332,9 @@ std::ostream& operator<<(
   switch (kind) {
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32:
       return os << "Int32";
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::
+        kAdditiveSafeInteger:
+      return os << "AdditiveSafeInteger";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt64:
       return os << "Int64";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64:
@@ -1268,6 +1348,9 @@ std::ostream& operator<<(
     std::ostream& os,
     ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind) {
   switch (kind) {
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+        kAdditiveSafeInteger:
+      return os << "AdditiveSafeInteger";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber:
       return os << "Number";
     case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
@@ -1437,6 +1520,33 @@ std::ostream& operator<<(std::ostream& os,
   }
 }
 
+void PrintMapSet(std::ostream& os, const ZoneRefSet<Map>& maps) {
+  os << "{";
+  for (size_t i = 0; i < maps.size(); ++i) {
+    if (i != 0) os << ",";
+    os << JSONEscaped(maps[i].object());
+  }
+  os << "}";
+}
+
+void CompareMapsOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  PrintMapSet(os, maps);
+  os << "]";
+}
+
+void CheckMapsOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  PrintMapSet(os, maps);
+  os << ", " << flags << ", " << feedback << "]";
+}
+
+void AssumeMapOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  PrintMapSet(os, maps);
+  os << "]";
+}
+
 std::ostream& operator<<(std::ostream& os, SameValueOp::Mode mode) {
   switch (mode) {
     case SameValueOp::Mode::kSameValue:
@@ -1454,14 +1564,6 @@ std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind) {
       return os << "FindOrderedHashMapEntryForInt32Key";
     case FindOrderedHashEntryOp::Kind::kFindOrderedHashSetEntry:
       return os << "FindOrderedHashSetEntry";
-  }
-}
-
-std::ostream& operator<<(std::ostream& os,
-                         SpeculativeNumberBinopOp::Kind kind) {
-  switch (kind) {
-    case SpeculativeNumberBinopOp::Kind::kSafeIntegerAdd:
-      return os << "SafeIntegerAdd";
   }
 }
 
@@ -1510,7 +1612,7 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
     case wasm::kS128:
       return kSimd128;
     case wasm::kVoid:
-    case wasm::kRtt:
+    case wasm::kTop:
     case wasm::kBottom:
       UNREACHABLE();
   }
@@ -1708,8 +1810,48 @@ void Simd128LoadTransformOp::PrintOptions(std::ostream& os) const {
 }
 
 void Simd128ShuffleOp::PrintOptions(std::ostream& os) const {
+  os << '[';
+  switch (kind) {
+    case Kind::kI8x2:
+      os << "I8x2, ";
+      break;
+    case Kind::kI8x4:
+      os << "I8x4, ";
+      break;
+    case Kind::kI8x8:
+      os << "I8x8, ";
+      break;
+    case Kind::kI8x16:
+      os << "I8x16, ";
+      break;
+  }
   PrintSimdValue(os, shuffle);
+  os << ']';
 }
+
+#if V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+void Simd128LoadPairDeinterleaveOp::PrintOptions(std::ostream& os) const {
+  os << '[';
+  if (load_kind.maybe_unaligned) os << "unaligned, ";
+  if (load_kind.with_trap_handler) os << "protected, ";
+
+  switch (kind) {
+    case Kind::k8x32:
+      os << "8x32";
+      break;
+    case Kind::k16x16:
+      os << "16x16";
+      break;
+    case Kind::k32x8:
+      os << "32x8";
+      break;
+    case Kind::k64x4:
+      os << "64x4";
+      break;
+  }
+  os << ']';
+}
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
 void Simd256ConstantOp::PrintOptions(std::ostream& os) const {
@@ -1809,7 +1951,8 @@ std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind) {
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
-  os << '[' << array_type->element_type() << ']';
+  os << '[' << array_type->element_type()
+     << ", is_shared: " << (is_shared ? "true" : "false") << "]";
 }
 
 void ArrayGetOp::PrintOptions(std::ostream& os) const {
@@ -1881,8 +2024,8 @@ size_t CallOp::hash_value(HashingStrategy strategy) const {
   if (strategy == HashingStrategy::kMakeSnapshotStable) {
     // Destructure here to cause a compilation error in case `options` is
     // changed.
-    auto [descriptor_value, callee_effects] = options();
-    return HashWithOptions(*descriptor_value, callee_effects);
+    auto [descriptor_value, effects] = options();
+    return HashWithOptions(*descriptor, effects);
   } else {
     return Base::hash_value(strategy);
   }
@@ -2012,5 +2155,20 @@ bool Operation::IsOnlyUserOf(const Operation& value, const Graph& graph) const {
   return std::count(inputs().begin(), inputs().end(), graph.Index(value)) ==
          value.saturated_use_count.Get();
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+bool Operation::IsProtectedLoad() const {
+  if (const auto* load = TryCast<LoadOp>()) {
+    return load->kind.with_trap_handler;
+  } else if (const auto* load_t = TryCast<Simd128LoadTransformOp>()) {
+    return load_t->load_kind.with_trap_handler;
+#ifdef V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  } else if (const auto* load_t = TryCast<Simd128LoadPairDeinterleaveOp>()) {
+    return load_t->load_kind.with_trap_handler;
+#endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
+  }
+  return false;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace v8::internal::compiler::turboshaft

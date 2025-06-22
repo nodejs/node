@@ -23,8 +23,6 @@
 // Before using this function, consider whether named function overloads would
 // be a better design.
 //
-// Note: absl::Overload requires C++17.
-//
 // Example:
 //
 //     std::variant<std::string, int32_t, int64_t> v(int32_t{1});
@@ -45,9 +43,6 @@
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
-
-#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
 
 template <typename... T>
 struct Overload final : T... {
@@ -70,21 +65,6 @@ struct Overload final : T... {
 //
 template <typename... T>
 Overload(T...) -> Overload<T...>;
-
-#else
-
-namespace functional_internal {
-template <typename T>
-constexpr bool kDependentFalse = false;
-}
-
-template <typename Dependent = int, typename... T>
-auto Overload(T&&...) {
-  static_assert(functional_internal::kDependentFalse<Dependent>,
-                "Overload is only usable with C++17 or above.");
-}
-
-#endif
 
 ABSL_NAMESPACE_END
 }  // namespace absl

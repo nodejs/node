@@ -47,8 +47,12 @@ async function validateReadFileProc() {
     return;
 
   const fileHandle = await open('/proc/sys/kernel/hostname', 'r');
-  const hostname = await fileHandle.readFile();
-  assert.ok(hostname.length > 0);
+  try {
+    const hostname = await fileHandle.readFile();
+    assert.ok(hostname.length > 0);
+  } finally {
+    await fileHandle.close();
+  }
 }
 
 async function doReadAndCancel() {
@@ -72,15 +76,18 @@ async function doReadAndCancel() {
   {
     const filePathForHandle = path.resolve(tmpDir, 'dogs-running1.txt');
     const fileHandle = await open(filePathForHandle, 'w+');
-    const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
-    fs.writeFileSync(filePathForHandle, buffer);
-    const controller = new AbortController();
-    const { signal } = controller;
-    process.nextTick(() => controller.abort());
-    await assert.rejects(readFile(fileHandle, common.mustNotMutateObjectDeep({ signal })), {
-      name: 'AbortError'
-    }, 'tick-0');
-    await fileHandle.close();
+    try {
+      const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
+      fs.writeFileSync(filePathForHandle, buffer);
+      const controller = new AbortController();
+      const { signal } = controller;
+      process.nextTick(() => controller.abort());
+      await assert.rejects(readFile(fileHandle, common.mustNotMutateObjectDeep({ signal })), {
+        name: 'AbortError'
+      }, 'tick-0');
+    } finally {
+      await fileHandle.close();
+    }
   }
 
   // Signal aborted right before buffer read
@@ -90,15 +97,17 @@ async function doReadAndCancel() {
     fs.writeFileSync(newFile, buffer);
 
     const fileHandle = await open(newFile, 'r');
-
-    const controller = new AbortController();
-    const { signal } = controller;
-    tick(1, () => controller.abort());
-    await assert.rejects(fileHandle.readFile(common.mustNotMutateObjectDeep({ signal, encoding: 'utf8' })), {
-      name: 'AbortError'
-    }, 'tick-1');
-
-    await fileHandle.close();
+    try {
+      const controller = new AbortController();
+      const { signal } = controller;
+      tick(1, () => controller.abort());
+      await assert.rejects(fileHandle.readFile(
+        common.mustNotMutateObjectDeep({ signal, encoding: 'utf8' })), {
+        name: 'AbortError'
+      }, 'tick-1');
+    } finally {
+      await fileHandle.close();
+    }
   }
 
   // Validate file size is within range for reading

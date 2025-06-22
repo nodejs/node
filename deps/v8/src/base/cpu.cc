@@ -190,17 +190,19 @@ static V8_INLINE void __cpuidex(int cpu_info[4], int info_type,
  * HWCAP2 flags - for elf_hwcap2 (in kernel) and AT_HWCAP2
  */
 #define HWCAP2_MTE (1 << 18)
+#define HWCAP2_CSSC (1UL << 34)
+#define HWCAP2_HBC (1UL << 44)
 #endif  // V8_HOST_ARCH_ARM64
 
 #if V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64
 
-static std::tuple<uint32_t, uint32_t> ReadELFHWCaps() {
-  uint32_t hwcap = 0;
-  uint32_t hwcap2 = 0;
+static std::tuple<uint64_t, uint64_t> ReadELFHWCaps() {
+  uint64_t hwcap = 0;
+  uint64_t hwcap2 = 0;
 #if (V8_GLIBC_PREREQ(2, 16) || V8_OS_ANDROID) && defined(AT_HWCAP)
-  hwcap = static_cast<uint32_t>(getauxval(AT_HWCAP));
+  hwcap = static_cast<uint64_t>(getauxval(AT_HWCAP));
 #if defined(AT_HWCAP2)
-  hwcap2 = static_cast<uint32_t>(getauxval(AT_HWCAP2));
+  hwcap2 = static_cast<uint64_t>(getauxval(AT_HWCAP2));
 #endif  // AT_HWCAP2
 #else
   // Read the ELF HWCAP flags by parsing /proc/self/auxv.
@@ -445,14 +447,20 @@ CPU::CPU()
       has_dot_prod_(false),
       has_lse_(false),
       has_mte_(false),
+      has_sha3_(false),
       has_pmull1q_(false),
       has_fp16_(false),
+      has_hbc_(false),
+      has_cssc_(false),
       is_fp64_mode_(false),
       has_non_stop_time_stamp_counter_(false),
       is_running_in_vm_(false),
       has_msa_(false),
       riscv_mmu_(RV_MMU_MODE::kRiscvSV48),
-      has_rvv_(false) {
+      has_rvv_(false),
+      has_zba_(false),
+      has_zbb_(false),
+      has_zbs_(false) {
   memcpy(vendor_, "Unknown", 8);
 
 #if defined(V8_OS_STARBOARD)
@@ -705,7 +713,8 @@ CPU::CPU()
   }
 
   // Try to extract the list of CPU features from ELF hwcaps.
-  uint32_t hwcaps, hwcaps2;
+  uint64_t hwcaps = 0;
+  uint64_t hwcaps2 = 0;
   std::tie(hwcaps, hwcaps2) = ReadELFHWCaps();
   if (hwcaps != 0) {
     has_idiva_ = (hwcaps & HWCAP_IDIVA) != 0;
@@ -828,15 +837,18 @@ CPU::CPU()
 
 #elif V8_OS_LINUX
   // Try to extract the list of CPU features from ELF hwcaps.
-  uint32_t hwcaps, hwcaps2;
+  uint64_t hwcaps, hwcaps2;
   std::tie(hwcaps, hwcaps2) = ReadELFHWCaps();
+  has_cssc_ = (hwcaps2 & HWCAP2_CSSC) != 0;
   has_mte_ = (hwcaps2 & HWCAP2_MTE) != 0;
+  has_hbc_ = (hwcaps2 & HWCAP2_HBC) != 0;
   if (hwcaps != 0) {
     has_jscvt_ = (hwcaps & HWCAP_JSCVT) != 0;
     has_dot_prod_ = (hwcaps & HWCAP_ASIMDDP) != 0;
     has_lse_ = (hwcaps & HWCAP_ATOMICS) != 0;
     has_pmull1q_ = (hwcaps & HWCAP_PMULL) != 0;
     has_fp16_ = (hwcaps & HWCAP_FPHP) != 0;
+    has_sha3_ = (hwcaps & HWCAP_SHA3) != 0;
   } else {
     // Try to fallback to "Features" CPUInfo field
     CPUInfo cpu_info;
@@ -846,6 +858,7 @@ CPU::CPU()
     has_lse_ = HasListItem(features, "atomics");
     has_pmull1q_ = HasListItem(features, "pmull");
     has_fp16_ = HasListItem(features, "half");
+    has_sha3_ = HasListItem(features, "sha3");
     delete[] features;
   }
 #elif V8_OS_DARWIN
@@ -890,6 +903,14 @@ CPU::CPU()
   } else {
     has_fp16_ = fp16;
   }
+  int64_t feat_sha3 = 0;
+  size_t feat_sha3_size = sizeof(feat_sha3);
+  if (sysctlbyname("hw.optional.arm.FEAT_SHA3", &feat_sha3, &feat_sha3_size,
+                   nullptr, 0) == -1) {
+    has_sha3_ = false;
+  } else {
+    has_sha3_ = feat_sha3;
+  }
 #else
   // ARM64 Macs always have JSCVT, ASIMDDP, FP16 and LSE.
   has_jscvt_ = true;
@@ -897,6 +918,7 @@ CPU::CPU()
   has_lse_ = true;
   has_pmull1q_ = true;
   has_fp16_ = true;
+  has_sha3_ = true;
 #endif  // V8_OS_IOS
 #endif  // V8_OS_WIN
 
@@ -969,6 +991,15 @@ CPU::CPU()
     }
     if (pairs[0].value & RISCV_HWPROBE_IMA_FD) {
       has_fpu_ = true;
+    }
+    if (pairs[0].value & RISCV_HWPROBE_EXT_ZBA) {
+      has_zba_ = true;
+    }
+    if (pairs[0].value & RISCV_HWPROBE_EXT_ZBB) {
+      has_zbb_ = true;
+    }
+    if (pairs[0].value & RISCV_HWPROBE_EXT_ZBS) {
+      has_zbs_ = true;
     }
   }
 #else

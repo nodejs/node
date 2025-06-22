@@ -78,7 +78,7 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
   };
   void ToLowerCaseImpl(TNode<String> string, TNode<Object> maybe_locales,
                        TNode<Context> context, ToLowerCaseKind kind,
-                       std::function<void(TNode<Object>)> ReturnFct);
+                       std::function<void(TNode<JSAny>)> ReturnFct);
 };
 
 TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
@@ -87,6 +87,15 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
                   ToLowerCaseKind::kToLowerCase,
                   [this](TNode<Object> ret) { Return(ret); });
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+TF_BUILTIN(WasmStringToLowerCaseIntl, IntlBuiltinsAssembler) {
+  const auto string = Parameter<String>(Descriptor::kString);
+  ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, TNode<Context>(),
+                  ToLowerCaseKind::kToLowerCase,
+                  [this](TNode<Object> ret) { Return(ret); });
+}
+#endif
 
 TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
   auto maybe_string = Parameter<Object>(Descriptor::kReceiver);
@@ -109,12 +118,12 @@ TF_BUILTIN(StringPrototypeToLocaleLowerCase, IntlBuiltinsAssembler) {
       ToThisString(context, maybe_string, "String.prototype.toLocaleLowerCase");
   ToLowerCaseImpl(string, maybe_locales, context,
                   ToLowerCaseKind::kToLocaleLowerCase,
-                  [&args](TNode<Object> ret) { args.PopAndReturn(ret); });
+                  [&args](TNode<JSAny> ret) { args.PopAndReturn(ret); });
 }
 
 void IntlBuiltinsAssembler::ToLowerCaseImpl(
     TNode<String> string, TNode<Object> maybe_locales, TNode<Context> context,
-    ToLowerCaseKind kind, std::function<void(TNode<Object>)> ReturnFct) {
+    ToLowerCaseKind kind, std::function<void(TNode<JSAny>)> ReturnFct) {
   Label call_c(this), return_string(this), runtime(this, Label::kDeferred);
 
   // Unpack strings if possible, and bail to runtime unless we get a one-byte
@@ -232,12 +241,12 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
 
   BIND(&runtime);
   if (kind == ToLowerCaseKind::kToLocaleLowerCase) {
-    ReturnFct(CallRuntime(Runtime::kStringToLocaleLowerCase, context, string,
-                          maybe_locales));
+    ReturnFct(CallRuntime<JSAny>(Runtime::kStringToLocaleLowerCase, context,
+                                 string, maybe_locales));
   } else {
     DCHECK_EQ(kind, ToLowerCaseKind::kToLowerCase);
-    ReturnFct(CallRuntime(Runtime::kStringToLowerCaseIntl, NoContextConstant(),
-                          string));
+    ReturnFct(CallRuntime<JSAny>(Runtime::kStringToLowerCaseIntl,
+                                 NoContextConstant(), string));
   }
 }
 
@@ -265,7 +274,7 @@ void IntlBuiltinsAssembler::ListFormatCommon(TNode<Context> context,
 
     // 6. Return ? FormatList(lf, stringList).
     args.PopAndReturn(
-        CallRuntime(format_func_id, context, list_format, string_list));
+        CallRuntime<JSAny>(format_func_id, context, list_format, string_list));
   }
 }
 

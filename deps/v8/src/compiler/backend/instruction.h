@@ -588,6 +588,7 @@ class LocationOperand : public InstructionOperand {
         return false;
       case MachineRepresentation::kMapWord:
       case MachineRepresentation::kIndirectPointer:
+      case MachineRepresentation::kFloat16RawBits:
         UNREACHABLE();
     }
   }
@@ -960,6 +961,7 @@ class V8_EXPORT_PRIVATE Instruction final {
   FlagsCondition flags_condition() const {
     return FlagsConditionField::decode(opcode());
   }
+  bool branch_hinted() const { return BranchHintField::decode(opcode()); }
   int misc() const { return MiscField::decode(opcode()); }
   bool HasMemoryAccessMode() const {
     return compiler::HasMemoryAccessMode(arch_opcode());
@@ -1032,7 +1034,7 @@ class V8_EXPORT_PRIVATE Instruction final {
   bool IsRet() const { return arch_opcode() == ArchOpcode::kArchRet; }
   bool IsTailCall() const {
 #if V8_ENABLE_WEBASSEMBLY
-    return arch_opcode() <= ArchOpcode::kArchTailCallWasm;
+    return arch_opcode() <= ArchOpcode::kArchTailCallWasmIndirect;
 #else
     return arch_opcode() <= ArchOpcode::kArchTailCallAddress;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1058,6 +1060,23 @@ class V8_EXPORT_PRIVATE Instruction final {
     return MiscField::decode(opcode()) & flag;
   }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+  size_t WasmSignatureHashInputIndex() const {
+    // Keep in sync with instruction-selector.cc where the inputs are assembled.
+    switch (arch_opcode()) {
+      case kArchCallWasmFunctionIndirect:
+        return InputCount() -
+               (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)
+                    ? 2
+                    : 1);
+      case kArchTailCallWasmIndirect:
+        return InputCount() - 3;
+      default:
+        UNREACHABLE();
+    }
+  }
+#endif
+
   // For call instructions, computes the index of the CodeEntrypointTag input.
   size_t CodeEnrypointTagInputIndex() const {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.
@@ -1071,6 +1090,16 @@ class V8_EXPORT_PRIVATE Instruction final {
         return InputCount() - 3;
       default:
         UNREACHABLE();
+    }
+  }
+
+  // For JS call instructions, computes the index of the argument count input.
+  size_t JSCallArgumentCountInputIndex() const {
+    // Keep in sync with instruction-selector.cc where the inputs are assembled.
+    if (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
+      return InputCount() - 2;
+    } else {
+      return InputCount() - 1;
     }
   }
 
@@ -1207,7 +1236,7 @@ class V8_EXPORT_PRIVATE Constant final {
   explicit Constant(ExternalReference ref)
       : type_(kExternalReference),
         value_(base::bit_cast<intptr_t>(ref.raw())) {}
-  explicit Constant(Handle<HeapObject> obj, bool is_compressed = false)
+  explicit Constant(IndirectHandle<HeapObject> obj, bool is_compressed = false)
       : type_(is_compressed ? kCompressedHeapObject : kHeapObject),
         value_(base::bit_cast<intptr_t>(obj)) {}
   explicit Constant(RpoNumber rpo) : type_(kRpoNumber), value_(rpo.ToInt()) {}
@@ -1272,8 +1301,8 @@ class V8_EXPORT_PRIVATE Constant final {
     return RpoNumber::FromInt(static_cast<int>(value_));
   }
 
-  Handle<HeapObject> ToHeapObject() const;
-  Handle<Code> ToCode() const;
+  IndirectHandle<HeapObject> ToHeapObject() const;
+  IndirectHandle<Code> ToCode() const;
 
  private:
   Type type_;
@@ -1292,8 +1321,9 @@ enum class StateValueKind : uint8_t {
   kRestLength,
   kPlain,
   kOptimizedOut,
-  kNested,
-  kDuplicate
+  kNestedObject,
+  kDuplicate,
+  kStringConcat
 };
 
 std::ostream& operator<<(std::ostream& os, StateValueKind kind);
@@ -1325,13 +1355,19 @@ class StateValueDescriptor {
                                 MachineType::AnyTagged());
   }
   static StateValueDescriptor Recursive(size_t id) {
-    StateValueDescriptor descr(StateValueKind::kNested,
+    StateValueDescriptor descr(StateValueKind::kNestedObject,
                                MachineType::AnyTagged());
     descr.id_ = id;
     return descr;
   }
   static StateValueDescriptor Duplicate(size_t id) {
     StateValueDescriptor descr(StateValueKind::kDuplicate,
+                               MachineType::AnyTagged());
+    descr.id_ = id;
+    return descr;
+  }
+  static StateValueDescriptor StringConcat(size_t id) {
+    StateValueDescriptor descr(StateValueKind::kStringConcat,
                                MachineType::AnyTagged());
     descr.id_ = id;
     return descr;
@@ -1346,12 +1382,18 @@ class StateValueDescriptor {
   bool IsRestLength() const { return kind_ == StateValueKind::kRestLength; }
   bool IsPlain() const { return kind_ == StateValueKind::kPlain; }
   bool IsOptimizedOut() const { return kind_ == StateValueKind::kOptimizedOut; }
-  bool IsNested() const { return kind_ == StateValueKind::kNested; }
+  bool IsNestedObject() const { return kind_ == StateValueKind::kNestedObject; }
+  bool IsNested() const {
+    return kind_ == StateValueKind::kNestedObject ||
+           kind_ == StateValueKind::kStringConcat;
+  }
   bool IsDuplicate() const { return kind_ == StateValueKind::kDuplicate; }
+  bool IsStringConcat() const { return kind_ == StateValueKind::kStringConcat; }
   MachineType type() const { return type_; }
   size_t id() const {
     DCHECK(kind_ == StateValueKind::kDuplicate ||
-           kind_ == StateValueKind::kNested);
+           kind_ == StateValueKind::kNestedObject ||
+           kind_ == StateValueKind::kStringConcat);
     return id_;
   }
   ArgumentsStateType arguments_type() const {
@@ -1438,6 +1480,12 @@ class StateValueList {
     nested_.push_back(nested);
     return nested;
   }
+  StateValueList* PushStringConcat(Zone* zone, size_t id) {
+    fields_.push_back(StateValueDescriptor::StringConcat(id));
+    StateValueList* nested = zone->New<StateValueList>(zone);
+    nested_.push_back(nested);
+    return nested;
+  }
   void PushArgumentsElements(ArgumentsStateType type) {
     fields_.push_back(StateValueDescriptor::ArgumentsElements(type));
   }
@@ -1491,7 +1539,8 @@ class FrameStateDescriptor : public ZoneObject {
       Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
       OutputFrameStateCombine state_combine, uint16_t parameters_count,
       uint16_t max_arguments, size_t locals_count, size_t stack_count,
-      MaybeHandle<SharedFunctionInfo> shared_info,
+      MaybeIndirectHandle<SharedFunctionInfo> shared_info,
+      MaybeIndirectHandle<BytecodeArray> bytecode_array,
       FrameStateDescriptor* outer_state = nullptr,
       uint32_t wasm_liftoff_frame_size = std::numeric_limits<uint32_t>::max(),
       uint32_t wasm_function_index = std::numeric_limits<uint32_t>::max());
@@ -1503,7 +1552,12 @@ class FrameStateDescriptor : public ZoneObject {
   uint16_t max_arguments() const { return max_arguments_; }
   size_t locals_count() const { return locals_count_; }
   size_t stack_count() const { return stack_count_; }
-  MaybeHandle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  MaybeIndirectHandle<SharedFunctionInfo> shared_info() const {
+    return shared_info_;
+  }
+  MaybeIndirectHandle<BytecodeArray> bytecode_array() const {
+    return bytecode_array_;
+  }
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   bool HasClosure() const {
     return
@@ -1563,7 +1617,8 @@ class FrameStateDescriptor : public ZoneObject {
   const size_t stack_count_;
   const size_t total_conservative_frame_size_in_bytes_;
   StateValueList values_;
-  MaybeHandle<SharedFunctionInfo> const shared_info_;
+  MaybeIndirectHandle<SharedFunctionInfo> const shared_info_;
+  MaybeIndirectHandle<BytecodeArray> const bytecode_array_;
   FrameStateDescriptor* const outer_state_;
   uint32_t wasm_function_index_;
 };
@@ -1571,14 +1626,13 @@ class FrameStateDescriptor : public ZoneObject {
 #if V8_ENABLE_WEBASSEMBLY
 class JSToWasmFrameStateDescriptor : public FrameStateDescriptor {
  public:
-  JSToWasmFrameStateDescriptor(Zone* zone, FrameStateType type,
-                               BytecodeOffset bailout_id,
-                               OutputFrameStateCombine state_combine,
-                               uint16_t parameters_count, size_t locals_count,
-                               size_t stack_count,
-                               MaybeHandle<SharedFunctionInfo> shared_info,
-                               FrameStateDescriptor* outer_state,
-                               const wasm::FunctionSig* wasm_signature);
+  JSToWasmFrameStateDescriptor(
+      Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
+      OutputFrameStateCombine state_combine, uint16_t parameters_count,
+      size_t locals_count, size_t stack_count,
+      MaybeIndirectHandle<SharedFunctionInfo> shared_info,
+      FrameStateDescriptor* outer_state,
+      const wasm::CanonicalSig* wasm_signature);
 
   std::optional<wasm::ValueKind> return_kind() const { return return_kind_; }
 
@@ -1689,7 +1743,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
     return loop_end_;
   }
   inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
-  inline bool IsSwitchTarget() const { return switch_target_; }
+  inline bool IsTableSwitchTarget() const { return table_switch_target_; }
   inline bool ShouldAlignCodeTarget() const { return code_target_alignment_; }
   inline bool ShouldAlignLoopHeader() const { return loop_header_alignment_; }
   inline bool IsLoopHeaderInAssemblyOrder() const {
@@ -1722,7 +1776,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   void set_code_target_alignment(bool val) { code_target_alignment_ = val; }
   void set_loop_header_alignment(bool val) { loop_header_alignment_ = val; }
 
-  void set_switch_target(bool val) { switch_target_ = val; }
+  void set_table_switch_target(bool val) { table_switch_target_ = val; }
 
   bool needs_frame() const { return needs_frame_; }
   void mark_needs_frame() { needs_frame_ = true; }
@@ -1747,7 +1801,8 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   int32_t code_end_ = -1;    // end index of arch-specific code.
   const bool deferred_ : 1;  // Block contains deferred code.
   bool handler_ : 1;         // Block is a handler entry point.
-  bool switch_target_ : 1;
+  bool table_switch_target_ : 1;  // Block is a table switch target, implying an
+                                  //  indirect jump.
   bool code_target_alignment_ : 1;  // insert code target alignment before this
                                     // block
   bool loop_header_alignment_ : 1;  // insert loop header alignment before this

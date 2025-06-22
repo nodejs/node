@@ -127,7 +127,7 @@ class Install extends ArboristWorkspaceCmd {
     args = args.filter(a => resolve(a) !== this.npm.prefix)
 
     // `npm i -g` => "install this package globally"
-    if (where === globalTop && !args.length) {
+    if (isGlobalInstall && !args.length) {
       args = ['.']
     }
 

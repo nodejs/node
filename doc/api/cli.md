@@ -194,6 +194,9 @@ process.
 <!-- YAML
 added: v20.0.0
 changes:
+  - version: v24.2.0
+    pr-url: https://github.com/nodejs/node/pull/58579
+    description: Entrypoints of your application are allowed to be read implicitly.
   - version:
     - v23.5.0
     - v22.13.0
@@ -215,23 +218,20 @@ The valid arguments for the `--allow-fs-read` flag are:
 
 Examples can be found in the [File System Permissions][] documentation.
 
-The initializer module also needs to be allowed. Consider the following example:
+The initializer module and custom `--require` modules has a implicit
+read permission.
 
 ```console
-$ node --permission index.js
-
-Error: Access to this API has been restricted
-    at node:internal/main/run_main_module:23:47 {
-  code: 'ERR_ACCESS_DENIED',
-  permission: 'FileSystemRead',
-  resource: '/Users/rafaelgss/repos/os/node/index.js'
-}
+$ node --permission -r custom-require.js -r custom-require-2.js index.js
 ```
 
-The process needs to have access to the `index.js` module:
+* The `custom-require.js`, `custom-require-2.js`, and `index.js` will be
+  by default in the allowed read list.
 
-```bash
-node --permission --allow-fs-read=/path/to/index.js index.js
+```js
+process.has('fs.read', 'index.js'); // true
+process.has('fs.read', 'custom-require.js'); // true
+process.has('fs.read', 'custom-require-2.js'); // true
 ```
 
 ### `--allow-fs-write`
@@ -262,6 +262,38 @@ Paths delimited by comma (`,`) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
+
+### `--allow-net`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process will not be able to access
+network by default.
+Attempts to do so will throw an `ERR_ACCESS_DENIED` unless the
+user explicitly passes the `--allow-net` flag when starting Node.js.
+
+Example:
+
+```js
+const http = require('node:http');
+// Attempt to bypass the permission
+const req = http.get('http://example.com', () => {});
+
+req.on('error', (err) => {
+  console.log('err', err);
+});
+```
+
+```console
+$ node --permission index.js
+Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --allow-net to manage permissions.
+  code: 'ERR_ACCESS_DENIED',
+}
+```
 
 ### `--allow-wasi`
 
@@ -749,7 +781,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-Enable [Source Map v3][Source Map] support for stack traces.
+Enable [Source Map][] support for stack traces.
 
 When using a transpiler, such as TypeScript, stack traces thrown by an
 application reference the transpiled code, not the original source position.
@@ -912,7 +944,9 @@ Enable experimental import support for `.node` addons.
 ### `--experimental-config-file=config`
 
 <!-- YAML
-added: v23.10.0
+added:
+ - v23.10.0
+ - v22.16.0
 -->
 
 > Stability: 1.0 - Early development
@@ -931,11 +965,19 @@ in the `$schema` must be replaced with the version of Node.js you are using.
     ],
     "watch-path": "src",
     "watch-preserve-output": true
+  },
+  "testRunner": {
+    "test-isolation": "process"
   }
 }
 ```
 
-In the `nodeOptions` field, only flags that are allowed in [`NODE_OPTIONS`][] are supported.
+The configuration file supports namespace-specific options:
+
+* The `nodeOptions` field contains CLI flags that are allowed in [`NODE_OPTIONS`][].
+
+* Namespace fields like `testRunner` contain configuration specific to that subsystem.
+
 No-op flags are not supported.
 Not all V8 flags are currently supported.
 
@@ -949,7 +991,7 @@ For example, the configuration file above is equivalent to
 the following command-line arguments:
 
 ```bash
-node --import amaro/strip --watch-path=src --watch-preserve-output
+node --import amaro/strip --watch-path=src --watch-preserve-output --test-isolation=process
 ```
 
 The priority in configuration is as follows:
@@ -962,11 +1004,10 @@ Values in the configuration file will not override the values in the environment
 variables and command-line options, but will override the values in the `NODE_OPTIONS`
 env file parsed by the `--env-file` flag.
 
-If duplicate keys are present in the configuration file, only
-the first key will be used.
+Keys cannot be duplicated within the same or different namespaces.
 
 The configuration parser will throw an error if the configuration file contains
-unknown keys or keys that cannot used in `NODE_OPTIONS`.
+unknown keys or keys that cannot be used in a namespace.
 
 Node.js will not sanitize or perform validation on the user-provided configuration,
 so **NEVER** use untrusted configuration files.
@@ -974,7 +1015,9 @@ so **NEVER** use untrusted configuration files.
 ### `--experimental-default-config-file`
 
 <!-- YAML
-added: v23.10.0
+added:
+ - v23.10.0
+ - v22.16.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1204,6 +1247,17 @@ added: v22.4.0
 -->
 
 Enable experimental [`Web Storage`][] support.
+
+### `--experimental-worker-inspection`
+
+<!-- YAML
+added:
+  - v24.1.0
+-->
+
+> Stability: 1.1 - Active Development
+
+Enable experimental support for the worker inspection with Chrome DevTools.
 
 ### `--expose-gc`
 
@@ -1457,12 +1511,21 @@ forked processes, or clustered processes.
 
 <!-- YAML
 added: v12.0.0
+changes:
+  - version: v23.6.0
+    pr-url: https://github.com/nodejs/node/pull/56350
+    description: Add support for `-typescript` values.
+  - version:
+    - v22.7.0
+    - v20.19.0
+    pr-url: https://github.com/nodejs/node/pull/53619
+    description: ESM syntax detection is enabled by default.
 -->
 
 This configures Node.js to interpret `--eval` or `STDIN` input as CommonJS or
 as an ES module. Valid values are `"commonjs"`, `"module"`, `"module-typescript"` and `"commonjs-typescript"`.
 The `"-typescript"` values are not available with the flag `--no-experimental-strip-types`.
-The default is `"commonjs"`.
+The default is no value, or `"commonjs"` if `--no-experimental-detect-module` is passed.
 
 If `--input-type` is not provided,
 Node.js will try to detect the syntax with the following steps:
@@ -1673,7 +1736,7 @@ requiring a native C++ addon will fail and throw an exception.
 ### `--no-async-context-frame`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 Disables the use of [`AsyncLocalStorage`][] backed by `AsyncContextFrame` and
@@ -1912,6 +1975,7 @@ following permissions are restricted:
 
 * File System - manageable through
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
+* Network - manageable through [`--allow-net`][] flag
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
@@ -2455,7 +2519,7 @@ finished executing even if the event loop would otherwise remain active.
 ### `--test-global-setup=module`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 > Stability: 1.0 - Early development
@@ -2554,8 +2618,9 @@ added:
 
 Test suite shard to execute in a format of `<index>/<total>`, where
 
-`index` is a positive integer, index of divided parts
-`total` is a positive integer, total of divided part
+* `index` is a positive integer, index of divided parts.
+* `total` is a positive integer, total of divided part.
+
 This command will divide all tests files into `total` equal parts,
 and will run only those that happen to be in an `index` part.
 
@@ -2601,7 +2666,7 @@ changes:
     - v23.4.0
     - v22.13.0
     pr-url: https://github.com/nodejs/node/pull/55897
-    description: Snapsnot testing is no longer experimental.
+    description: Snapshot testing is no longer experimental.
 -->
 
 Regenerates the snapshot files used by the test runner for [snapshot testing][].
@@ -3056,6 +3121,10 @@ Use `--watch-path` to specify what paths to watch.
 This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, or the REPL.
 
+Note: The `--watch` flag requires a file path as an argument and is incompatible
+with `--run` or inline script input, as `--run` takes precedence and ignores watch
+mode. If no file is provided, Node.js will exit with status code `9`.
+
 ```bash
 node --watch index.js
 ```
@@ -3082,6 +3151,9 @@ combination with `--watch`.
 
 This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, `--test`, or the REPL.
+
+Note: Using `--watch-path` implicitly enables `--watch`, which requires a file path
+and is incompatible with `--run`, as `--run` takes precedence and ignores watch mode.
 
 ```bash
 node --watch-path=./src --watch-path=./tests index.js
@@ -3111,8 +3183,7 @@ node --watch --watch-preserve-output test.js
 added: v6.0.0
 -->
 
-Automatically zero-fills all newly allocated [`Buffer`][] and [`SlowBuffer`][]
-instances.
+Automatically zero-fills all newly allocated [`Buffer`][] instances.
 
 ## Environment variables
 
@@ -3259,6 +3330,7 @@ one is included in the list below.
 * `--allow-child-process`
 * `--allow-fs-read`
 * `--allow-fs-write`
+* `--allow-net`
 * `--allow-wasi`
 * `--allow-worker`
 * `--conditions`, `-C`
@@ -3540,7 +3612,7 @@ variable is strongly discouraged.
 ### `NODE_USE_ENV_PROXY=1`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -3852,7 +3924,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [REPL]: repl.md
 [ScriptCoverage]: https://chromedevtools.github.io/devtools-protocol/tot/Profiler#type-ScriptCoverage
 [ShadowRealm]: https://github.com/tc39/proposal-shadowrealm
-[Source Map]: https://sourcemaps.info/spec.html
+[Source Map]: https://tc39.es/ecma426/
 [TypeScript type-stripping]: typescript.md#type-stripping
 [V8 Inspector integration for Node.js]: debugger.md#v8-inspector-integration-for-nodejs
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
@@ -3861,6 +3933,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--allow-child-process`]: #--allow-child-process
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
+[`--allow-net`]: #--allow-net
 [`--allow-wasi`]: #--allow-wasi
 [`--allow-worker`]: #--allow-worker
 [`--build-snapshot`]: #--build-snapshot
@@ -3887,7 +3960,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
-[`SlowBuffer`]: buffer.md#class-slowbuffer
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 [`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328

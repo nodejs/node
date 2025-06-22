@@ -14,13 +14,36 @@ extern class Context extends HeapObject {
   elements[length]: Object;
 }
 
-@cppObjectDefinition
+@cppObjectLayoutDefinition
 extern class ScriptContextTable extends HeapObject {
   const capacity: Smi;
   length: Smi;
   names_to_context_index: NameToIndexHashTable;
   objects[capacity]: Context;
 }
+
+@cppObjectLayoutDefinition
+extern class ContextCell extends HeapObject {
+  // TODO(victorgomes): Change the type of tagged_value to JSAny.
+  tagged_value: Object;
+  dependent_code: DependentCode;
+  state: int32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  double_value: float64;
+}
+
+extern operator '.int32_value' macro LoadContextCellInt32Value(ContextCell):
+    int32;
+extern operator '.int32_value=' macro StoreContextCellInt32Value(
+    ContextCell, int32): void;
+
+const kContextCellConst: constexpr int32 generates 'ContextCell::kConst';
+const kContextCellSmi: constexpr int32 generates 'ContextCell::kSmi';
+const kContextCellInt32: constexpr int32 generates 'ContextCell::kInt32';
+const kContextCellFloat64:
+    constexpr int32 generates 'ContextCell::kFloat64';
+const kContextCellDetached:
+    constexpr int32 generates 'ContextCell::kDetached';
 
 extern class AwaitContext extends Context generates 'TNode<Context>';
 extern class BlockContext extends Context generates 'TNode<Context>';
@@ -34,6 +57,9 @@ extern class WithContext extends Context generates 'TNode<Context>';
 
 extern class FunctionContext extends Context generates 'TNode<Context>';
 
+extern macro IsEmptyDependentCode(Object): bool;
+extern macro TryFloat64ToInt32(float64): int32 labels Failed;
+extern macro IsScriptContextCellsFlag(): bool;
 const kInitialContextSlotValue: Smi = 0;
 
 @export
@@ -56,6 +82,10 @@ macro AllocateSyntheticFunctionContext(
   InitContextSlot(result, ContextSlot::SCOPE_INFO_INDEX, kEmptyScopeInfo);
   InitContextSlot(result, ContextSlot::PREVIOUS_INDEX, Undefined);
   return result;
+}
+
+macro HasContextCells(c: Context): bool {
+  return IsScriptContextCellsFlag() && Is<ScriptContext>(c);
 }
 
 extern class NativeContext extends Context;
@@ -185,67 +215,91 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
 
   WRAPPED_FUNCTION_MAP_INDEX: Slot<NativeContext, Map>,
 
-  @sameEnumValueAs(MIN_CONTEXT_SLOTS)
-  CONST_TRACKING_LET_SIDE_DATA_INDEX: Slot<Context, HeapObject>,
-
   MIN_CONTEXT_SLOTS,
-  MIN_CONTEXT_EXTENDED_SLOTS,
   ...
 }
 
 @export
+macro LoadContextElementNoCell(c: Context, i: intptr): Object {
+  return LoadContextElementNoCellImpl(c, i);
+}
+
+@export
+macro LoadContextElementNoCell(c: Context, i: Smi): Object {
+  return LoadContextElementNoCellImpl(c, SmiUntag(i));
+}
+
+@export
+macro LoadContextElementNoCell(c: Context, i: constexpr int32): Object {
+  return LoadContextElementNoCellImpl(c, i);
+}
+
+@export
 macro LoadContextElement(c: Context, i: intptr): Object {
-  return c.elements[i];
+  return LoadContextElementImpl(c, i);
 }
 
 @export
 macro LoadContextElement(c: Context, i: Smi): Object {
-  return c.elements[i];
+  return LoadContextElementImpl(c, SmiUntag(i));
 }
 
 @export
 macro LoadContextElement(c: Context, i: constexpr int32): Object {
-  return c.elements[i];
+  return LoadContextElementImpl(c, i);
+}
+
+@export
+macro StoreContextElementNoCell(c: Context, i: intptr, o: Object): void {
+  StoreContextElementNoCellImpl(c, i, o);
+}
+
+@export
+macro StoreContextElementNoCell(c: Context, i: Smi, o: Object): void {
+  StoreContextElementNoCellImpl(c, SmiUntag(i), o);
+}
+
+@export
+macro StoreContextElementNoCell(
+    c: Context, i: constexpr int32, o: Object): void {
+  StoreContextElementNoCellImpl(c, i, o);
 }
 
 @export
 macro StoreContextElement(c: Context, i: intptr, o: Object): void {
-  c.elements[i] = o;
-}
-
-@export
-macro StoreContextElement(c: Context, i: Smi, o: Object): void {
-  c.elements[i] = o;
+  StoreScriptContextElementImpl(c, i, o);
 }
 
 @export
 macro StoreContextElement(c: Context, i: constexpr int32, o: Object): void {
+  StoreScriptContextElementImpl(c, i, o);
+}
+
+macro LoadContextElementNoCellImpl(c: Context, i: intptr): Object {
+  const val = c.elements[i];
+  dcheck(!Is<ContextCell>(val));
+  return val;
+}
+
+macro StoreContextElementNoCellImpl(c: Context, i: intptr, o: Object): void {
+  dcheck(!Is<ContextCell>(c.elements[i]));
   c.elements[i] = o;
 }
 
-@export
-macro StoreContextElementAndUpdateSideData(
-    c: Context, i: intptr, o: Object): void {
-  UpdateConstTrackingLetSideData(c, i, o);
-  c.elements[i] = o;
+builtin LoadFromContextCell(_n: Object, c: Object, i: Smi): Object {
+  const context = UnsafeCast<Context>(c);
+  const index = SmiUntag(i);
+  return LoadContextElementImpl(context, index);
 }
 
-@export
-macro StoreContextElementAndUpdateSideData(
-    c: Context, i: constexpr int32, o: Object): void {
-  UpdateConstTrackingLetSideData(c, i, o);
-  c.elements[i] = o;
-}
-
-builtin StoreCurrentScriptContextSlotBaseline(o: Object, i: Smi): JSAny {
+builtin StoreCurrentContextElementBaseline(o: Object, i: Smi): JSAny {
   const context = internal::LoadContextFromBaseline();
   const index = SmiUntag(i);
-  UpdateConstTrackingLetSideData(context, index, o);
-  context.elements[index] = o;
+  StoreScriptContextElementImpl(context, index, o);
   return Undefined;
 }
 
-builtin StoreScriptContextSlotBaseline(
+builtin StoreContextElementBaseline(
     c: Object, o: Object, i: Smi, d: TaggedIndex): JSAny {
   let context = UnsafeCast<Context>(c);
   let depth = TaggedIndexToIntPtr(d);
@@ -256,62 +310,163 @@ builtin StoreScriptContextSlotBaseline(
   }
 
   const index = SmiUntag(i);
-  UpdateConstTrackingLetSideData(context, index, o);
-  context.elements[index] = o;
+  StoreScriptContextElementImpl(context, index, o);
   return Undefined;
 }
 
 namespace runtime {
-extern runtime InvalidateDependentCodeForConstTrackingLet(Context, Object):
-    JSAny;
+extern runtime NotifyContextCellStateWillChange(NoContext, ContextCell): JSAny;
 }  // namespace runtime
 
-macro UpdateConstTrackingLetSideData(
+macro NotifyContextCellStateWillChange(cell: ContextCell): void {
+  if (!IsEmptyDependentCode(cell.dependent_code)) deferred {
+      runtime::NotifyContextCellStateWillChange(kNoContext, cell);
+    }
+}
+
+macro TransitionContextCellToUntagged(
+    heapNumber: HeapNumber, cell: ContextCell,
+    currentState: constexpr int32): void {
+  try {
+    const int32Value = TryFloat64ToInt32(heapNumber.value) otherwise NotInt32;
+    cell.int32_value = int32Value;
+    cell.state = kContextCellInt32;
+  } label NotInt32 {
+    if constexpr (currentState == kContextCellInt32) {
+      // For states kConst and kSmi, we notify the change before calling
+      // TransitionContextCellToUntagged.
+      NotifyContextCellStateWillChange(cell);
+    }
+    cell.double_value = heapNumber.value;
+    cell.state = kContextCellFloat64;
+  }
+}
+
+macro StoreScriptContextElementImpl(
     c: Context, index: intptr, newValue: Object): void {
-  const scriptContext = Cast<ScriptContext>(c) otherwise unreachable;
-
-  const sideDataIndex = index - ContextSlot::MIN_CONTEXT_EXTENDED_SLOTS;
-  const sideData: Object = *ContextSlot(
-      scriptContext, ContextSlot::CONST_TRACKING_LET_SIDE_DATA_INDEX);
-
-  const sideDataFixedArray: FixedArray =
-      Cast<FixedArray>(sideData) otherwise return;
-  if (sideDataFixedArray.length == 0) {
-    // No side data (maybe the const tracking let flag is not on).
+  const oldValue = c.elements[index];
+  if (!HasContextCells(c)) {
+    c.elements[index] = newValue;
     return;
   }
 
-  const oldValue = c.elements[index];
   if (oldValue == TheHole) {
     // Setting the initial value.
-    dcheck(sideDataFixedArray.objects[sideDataIndex] == Undefined);
-    sideDataFixedArray.objects[sideDataIndex] =
-        kConstTrackingLetCellConstMarker;
+    c.elements[index] = AllocateContextCell(newValue);
     return;
   }
-  if (TaggedEqual(oldValue, newValue)) {
+
+  if (!Is<ContextCell>(oldValue)) {
+    c.elements[index] = newValue;
     return;
   }
-  // From now on, we know the value is no longer a constant. If there's a
-  // DependentCode, invalidate it.
-  const data = sideDataFixedArray.objects[sideDataIndex];
-  typeswitch (data) {
-    case (_s: Smi): {
-      // The value is not constant after this write, but it also was not used as
-      // a constant (there's no code to invalidate). No action needed here; the
-      // side data will be updated below.
+
+  const cell = Cast<ContextCell>(oldValue) otherwise unreachable;
+  if (cell.state == kContextCellConst) {
+    const constValue = cell.tagged_value;
+    // If we are assigning the same value, the property won't change.
+    if (TaggedEqual(constValue, newValue)) {
+      return;
     }
-    case (cell: ConstTrackingLetCell): {
-      runtime::InvalidateDependentCodeForConstTrackingLet(c, cell);
+    // If both values are HeapNumbers with the same double value, the property
+    // won't change either.
+    if (Is<HeapNumber>(constValue) && Is<HeapNumber>(newValue)) {
+      const oldNumber = Cast<HeapNumber>(constValue) otherwise unreachable;
+      const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
+      if (oldNumber.value == newNumber.value && oldNumber.value != 0) {
+        return;
+      }
+    }
+    NotifyContextCellStateWillChange(cell);
+    typeswitch (newValue) {
+      case (smiNumber: Smi): {
+        cell.state = kContextCellSmi;
+        cell.tagged_value = smiNumber;
+      }
+      case (heapNumber: HeapNumber): {
+        TransitionContextCellToUntagged(heapNumber, cell, kContextCellConst);
+        cell.tagged_value = kZero;
+      }
+      case (Object): {
+        c.elements[index] = newValue;
+        cell.tagged_value = kZero;
+        cell.state = kContextCellDetached;
+      }
+    }
+    return;
+  }
+
+  if (cell.state == kContextCellSmi) {
+    typeswitch (newValue) {
+      case (smiNumber: Smi): {
+        cell.tagged_value = smiNumber;
+      }
+      case (heapNumber: HeapNumber): {
+        NotifyContextCellStateWillChange(cell);
+        TransitionContextCellToUntagged(heapNumber, cell, kContextCellSmi);
+        cell.tagged_value = kZero;
+      }
+      case (Object): {
+        NotifyContextCellStateWillChange(cell);
+        c.elements[index] = newValue;
+        cell.tagged_value = kZero;
+        cell.state = kContextCellDetached;
+      }
+    }
+    return;
+  }
+
+  if (cell.state == kContextCellInt32) {
+    typeswitch (newValue) {
+      case (smiNumber: Smi): {
+        cell.int32_value = SmiToInt32(smiNumber);
+      }
+      case (heapNumber: HeapNumber): {
+        TransitionContextCellToUntagged(heapNumber, cell, kContextCellInt32);
+      }
+      case (Object): {
+        NotifyContextCellStateWillChange(cell);
+        c.elements[index] = newValue;
+        cell.state = kContextCellDetached;
+      }
+    }
+    return;
+  }
+
+  dcheck(cell.state == kContextCellFloat64);
+  typeswitch (newValue) {
+    case (smiNumber: Smi): {
+      cell.double_value = SmiToFloat64(smiNumber);
+    }
+    case (heapNumber: HeapNumber): {
+      cell.double_value = heapNumber.value;
     }
     case (Object): {
-      // If this is reached, there's a code path which initializes or assigns a
-      // top-level `let` variable but doesn't update the side data.
-      unreachable;
+      NotifyContextCellStateWillChange(cell);
+      c.elements[index] = newValue;
+      cell.state = kContextCellDetached;
     }
   }
-  sideDataFixedArray.objects[sideDataIndex] =
-      kConstTrackingLetCellNonConstMarker;
+}
+
+macro LoadContextElementImpl(c: Context, i: intptr): Object {
+  const val = c.elements[i];
+  const cell = Cast<ContextCell>(val) otherwise return val;
+  dcheck(HasContextCells(c));
+  dcheck(kContextCellConst == 0);
+  dcheck(kContextCellSmi == 1);
+  if (cell.state <= kContextCellSmi) {
+    return cell.tagged_value;
+  } else if (cell.state == kContextCellInt32) {
+    // TODO(victorgomes): maybe this has a smi value, so we don't need to
+    // allocate a heap number.
+    return AllocateHeapNumberWithValue(ChangeInt32ToFloat64(cell.int32_value));
+  } else {
+    dcheck(cell.state == kContextCellFloat64);
+    // TODO(victorgomes): and in this case tagged_value could have contained the
+    // HeapNumber from which this double_value value was initialized.
+    return AllocateHeapNumberWithValue(cell.double_value);
+  }
 }
 
 // A dummy used instead of a context constant for runtime calls that don't need

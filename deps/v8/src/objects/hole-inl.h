@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_HOLE_INL_H_
 #define V8_OBJECTS_HOLE_INL_H_
 
+#include "src/objects/hole.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/hole.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-field-inl.h"

@@ -476,15 +476,20 @@ Reads data from the file and stores that in the given buffer.
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
 
-#### `filehandle.readableWebStream()`
+#### `filehandle.readableWebStream([options])`
 
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.2.0
+    pr-url: https://github.com/nodejs/node/pull/58548
+    description: Added the `autoClose` option.
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
-  - version: v23.8.0
+  - version:
+    - v23.8.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55461
     description: Removed option to create a 'bytes' stream. Streams are now always 'bytes' streams.
   - version:
@@ -494,6 +499,9 @@ changes:
     description: Added option to create a 'bytes' stream.
 -->
 
+* `options` {Object}
+  * `autoClose` {boolean} When true, causes the {FileHandle} to be closed when the
+    stream is closed. **Default:** `false`
 * Returns: {ReadableStream}
 
 Returns a byte-oriented `ReadableStream` that may be used to read the file's
@@ -857,11 +865,14 @@ the end of the file.
 added:
  - v20.4.0
  - v18.18.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
 
-> Stability: 1 - Experimental
-
-An alias for `filehandle.close()`.
+Calls `filehandle.close()` and returns a promise that fulfills when the
+filehandle is closed.
 
 ### `fsPromises.access(path[, mode])`
 
@@ -1075,7 +1086,10 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.1.0
+    pr-url: https://github.com/nodejs/node/pull/58182
+    description: Add support for `URL` instances for `cwd` option.
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
@@ -1090,7 +1104,7 @@ changes:
 
 * `pattern` {string|string\[]}
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -1575,6 +1589,9 @@ Renames `oldPath` to `newPath`.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58616
+    description: Remove `recursive` option.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fsPromises.rmdir(path, { recursive: true })` on a `path`
@@ -1608,18 +1625,10 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-    `EPERM` error is encountered, Node.js retries the operation with a linear
-    backoff wait of `retryDelay` milliseconds longer on each try. This option
-    represents the number of retries. This option is ignored if the `recursive`
-    option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, operations are retried on failure. **Default:** `false`.
-    **Deprecated.**
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
-    retries. This option is ignored if the `recursive` option is not `true`.
-    **Default:** `100`.
+* `options` {Object} There are currently no options exposed. There used to
+  be options for `recursive`, `maxBusyTries`, and `emfileWait` but they were
+  deprecated and removed. The `options` argument is still accepted for
+  backwards compatibility but it is not used.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Removes the directory identified by `path`.
@@ -1783,6 +1792,11 @@ added:
     filename passed to the listener. **Default:** `'utf8'`.
   * `signal` {AbortSignal} An {AbortSignal} used to signal when the watcher
     should stop.
+  * `maxQueue` {number} Specifies the number of events to queue between iterations
+    of the {AsyncIterator} returned. **Default:** `2048`.
+  * `overflow` {string} Either `'ignore'` or `'throw'` when there are more events to be
+    queued than `maxQueue` allows. `'ignore'` means overflow events are dropped and a
+    warning is emitted, while `'throw'` means to throw an exception. **Default:** `'ignore'`.
 * Returns: {AsyncIterator} of objects with the properties:
   * `eventType` {string} The type of change
   * `filename` {string|Buffer|null} The name of the file changed.
@@ -3134,7 +3148,10 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.1.0
+    pr-url: https://github.com/nodejs/node/pull/58182
+    description: Add support for `URL` instances for `cwd` option.
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
@@ -3150,7 +3167,7 @@ changes:
 * `pattern` {string|string\[]}
 
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -3587,7 +3604,7 @@ Functions based on `fs.open()` exhibit this behavior as well:
 <!-- YAML
 added: v19.8.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -4233,6 +4250,9 @@ rename('oldFile.txt', 'newFile.txt', (err) => {
 <!-- YAML
 added: v0.0.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58616
+    description: Remove `recursive` option.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -4283,18 +4303,10 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-    `EPERM` error is encountered, Node.js retries the operation with a linear
-    backoff wait of `retryDelay` milliseconds longer on each try. This option
-    represents the number of retries. This option is ignored if the `recursive`
-    option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, operations are retried on failure. **Default:** `false`.
-    **Deprecated.**
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
-    retries. This option is ignored if the `recursive` option is not `true`.
-    **Default:** `100`.
+* `options` {Object} There are currently no options exposed. There used to
+  be options for `recursive`, `maxBusyTries`, and `emfileWait` but they were
+  deprecated and removed. The `options` argument is still accepted for
+  backwards compatibility but it is not used.
 * `callback` {Function}
   * `err` {Error}
 
@@ -5687,7 +5699,10 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.1.0
+    pr-url: https://github.com/nodejs/node/pull/58182
+    description: Add support for `URL` instances for `cwd` option.
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
@@ -5702,7 +5717,7 @@ changes:
 
 * `pattern` {string|string\[]}
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -6209,6 +6224,9 @@ See the POSIX rename(2) documentation for more details.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58616
+    description: Remove `recursive` option.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37216
     description: "Using `fs.rmdirSync(path, { recursive: true })` on a `path`
@@ -6246,18 +6264,10 @@ changes:
 -->
 
 * `path` {string|Buffer|URL}
-* `options` {Object}
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
-    `EPERM` error is encountered, Node.js retries the operation with a linear
-    backoff wait of `retryDelay` milliseconds longer on each try. This option
-    represents the number of retries. This option is ignored if the `recursive`
-    option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
-    recursive mode, operations are retried on failure. **Default:** `false`.
-    **Deprecated.**
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
-    retries. This option is ignored if the `recursive` option is not `true`.
-    **Default:** `100`.
+* `options` {Object} There are currently no options exposed. There used to
+  be options for `recursive`, `maxBusyTries`, and `emfileWait` but they were
+  deprecated and removed. The `options` argument is still accepted for
+  backwards compatibility but it is not used.
 
 Synchronous rmdir(2). Returns `undefined`.
 
@@ -6738,6 +6748,32 @@ provided by the operating system's underlying directory mechanisms.
 Entries added or removed while iterating over the directory might not be
 included in the iteration results.
 
+#### `dir[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v24.1.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
+-->
+
+Calls `dir.close()` if the directory handle is open, and returns a promise that
+fulfills when disposal is complete.
+
+#### `dir[Symbol.dispose]()`
+
+<!-- YAML
+added: v24.1.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
+-->
+
+Calls `dir.closeSync()` if the directory handle is open, and returns
+`undefined`.
+
 ### Class: `fs.Dirent`
 
 <!-- YAML
@@ -6844,7 +6880,7 @@ added:
   - v20.12.0
   - v18.20.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->

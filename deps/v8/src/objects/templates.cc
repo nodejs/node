@@ -54,15 +54,8 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   Handle<SharedFunctionInfo> sfi =
       isolate->factory()->NewSharedFunctionInfoForApiFunction(name_string, info,
                                                               function_kind);
-  {
-    DisallowGarbageCollection no_gc;
-    Tagged<SharedFunctionInfo> raw_sfi = *sfi;
-    Tagged<FunctionTemplateInfo> raw_template = *info;
-    raw_sfi->set_length(raw_template->length());
-    raw_sfi->DontAdaptArguments();
-    DCHECK(raw_sfi->IsApiFunction());
-    raw_template->set_shared_function_info(raw_sfi);
-  }
+  DCHECK(sfi->IsApiFunction());
+  info->set_shared_function_info(*sfi);
   return sfi;
 }
 
@@ -76,7 +69,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   // There is a constraint on the object; check.
   if (!IsJSObjectMap(map)) return false;
 
-  if (v8_flags.embedder_instance_types) {
+  if (v8_flags.experimental_embedder_instance_types) {
     DCHECK_IMPLIES(allowed_receiver_instance_type_range_start() == 0,
                    allowed_receiver_instance_type_range_end() == 0);
     if (base::IsInRange(map->instance_type(),
@@ -131,6 +124,21 @@ bool FunctionTemplateInfo::IsLeafTemplateForApiObject(
 }
 
 // static
+void FunctionTemplateInfo::SealAndPrepareForPromotionToReadOnly(
+    Isolate* isolate, DirectHandle<FunctionTemplateInfo> info) {
+  if (info->should_promote_to_read_only()) return;
+  CHECK(!HeapLayout::InReadOnlySpace(*info));
+
+  info->EnsureHasSerialNumber(isolate);
+
+  GetOrCreateSharedFunctionInfo(isolate, info,
+                                isolate->factory()->empty_string());
+
+  info->set_should_promote_to_read_only(true);
+  info->set_published(true);
+}
+
+// static
 Tagged<FunctionTemplateRareData>
 FunctionTemplateInfo::AllocateFunctionTemplateRareData(
     Isolate* isolate,
@@ -180,7 +188,17 @@ const CFunctionInfo* FunctionTemplateInfo::GetCSignature(Isolate* isolate,
 }
 
 // static
-Handle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
+void ObjectTemplateInfo::SealAndPrepareForPromotionToReadOnly(
+    Isolate* isolate, DirectHandle<ObjectTemplateInfo> info) {
+  if (info->should_promote_to_read_only()) return;
+  CHECK(!HeapLayout::InReadOnlySpace(*info));
+
+  info->EnsureHasSerialNumber(isolate);
+  info->set_should_promote_to_read_only(true);
+}
+
+// static
+DirectHandle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
     Isolate* isolate, const v8::MemorySpan<const std::string_view>& names) {
   DirectHandle<FixedArray> property_names = isolate->factory()->NewFixedArray(
       static_cast<int>(names.size()), AllocationType::kOld);
@@ -200,11 +218,11 @@ Handle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
 
 namespace {
 
-Handle<JSObject> CreateSlowJSObjectWithProperties(
+DirectHandle<JSObject> CreateSlowJSObjectWithProperties(
     Isolate* isolate, DirectHandle<FixedArray> property_names,
     const MemorySpan<MaybeLocal<Value>>& property_values,
     int num_properties_set) {
-  Handle<JSObject> object = isolate->factory()->NewSlowJSObjectFromMap(
+  DirectHandle<JSObject> object = isolate->factory()->NewSlowJSObjectFromMap(
       isolate->slow_object_with_object_prototype_map(), num_properties_set,
       AllocationType::kYoung);
   Handle<Object> properties = handle(object->raw_properties_or_hash(), isolate);
@@ -216,7 +234,7 @@ Handle<JSObject> CreateSlowJSObjectWithProperties(
     properties = PropertyDictionary::Add(
         isolate, Cast<PropertyDictionary>(properties),
         Cast<String>(handle(property_names->get(i), isolate)),
-        Utils::OpenHandle(*property_value), PropertyDetails::Empty());
+        Utils::OpenDirectHandle(*property_value), PropertyDetails::Empty());
   }
   object->set_raw_properties_or_hash(*properties);
   return object;
@@ -225,7 +243,7 @@ Handle<JSObject> CreateSlowJSObjectWithProperties(
 }  // namespace
 
 // static
-Handle<JSObject> DictionaryTemplateInfo::NewInstance(
+DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
     DirectHandle<NativeContext> context,
     DirectHandle<DictionaryTemplateInfo> self,
     const MemorySpan<MaybeLocal<Value>>& property_values) {
@@ -244,13 +262,12 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
   }
 
   const bool can_use_map_cache = num_properties_set == property_names_len;
-  MaybeHandle<Map> maybe_cached_map;
+  MaybeDirectHandle<Map> maybe_cached_map;
   if (V8_LIKELY(can_use_map_cache)) {
     maybe_cached_map = TemplateInfo::ProbeInstantiationsCache<Map>(
-        isolate, context, self->serial_number(),
-        TemplateInfo::CachingMode::kUnlimited);
+        isolate, context, self, TemplateInfo::CachingMode::kUnlimited);
   }
-  Handle<Map> cached_map;
+  DirectHandle<Map> cached_map;
   if (V8_LIKELY(can_use_map_cache && maybe_cached_map.ToHandle(&cached_map))) {
     DCHECK(!cached_map->is_dictionary_map());
     bool can_use_cached_map = !cached_map->is_deprecated();
@@ -304,11 +321,12 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
         isolate, context, self, TemplateInfo::CachingMode::kUnlimited);
   }
 
-  // General case: We either don't have a cached map, or it is unusuable for the
+  // General case: We either don't have a cached map, or it is unusable for the
   // values provided.
-  Handle<Map> current_map = isolate->factory()->ObjectLiteralMapFromCache(
+  DirectHandle<Map> current_map = isolate->factory()->ObjectLiteralMapFromCache(
       context, num_properties_set);
-  Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(current_map);
+  DirectHandle<JSObject> object =
+      isolate->factory()->NewJSObjectFromMap(current_map);
   int current_property_index = 0;
   for (int i = 0; i < static_cast<int>(property_values.size()); ++i) {
     Local<Value> property_value;
@@ -335,7 +353,7 @@ Handle<JSObject> DictionaryTemplateInfo::NewInstance(
   if (V8_LIKELY(can_use_map_cache)) {
     TemplateInfo::CacheTemplateInstantiation(
         isolate, context, self, TemplateInfo::CachingMode::kUnlimited,
-        handle(object->map(), isolate));
+        direct_handle(object->map(), isolate));
   }
   return object;
 }

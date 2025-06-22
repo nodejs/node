@@ -1103,13 +1103,9 @@ for the sync error and one for the async error.
 
 ### Built-in Channels
 
-> Stability: 1 - Experimental
-
-While the diagnostics\_channel API is now considered stable, the built-in
-channels currently available are not. Each channel must be declared stable
-independently.
-
 #### Console
+
+> Stability: 1 - Experimental
 
 `console.log`
 
@@ -1147,6 +1143,8 @@ Emitted when `console.error()` is called. Receives and array of the arguments
 passed to `console.error()`.
 
 #### HTTP
+
+> Stability: 1 - Experimental
 
 `http.client.request.created`
 
@@ -1201,7 +1199,85 @@ The event is emitted before the response is sent.
 
 Emitted when server sends a response.
 
+#### HTTP/2
+
+> Stability: 1 - Experimental
+
+`http2.client.stream.created`
+
+* `stream` {ClientHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is created on the client.
+
+`http2.client.stream.start`
+
+* `stream` {ClientHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is started on the client.
+
+`http2.client.stream.error`
+
+* `stream` {ClientHttp2Stream}
+* `error` {Error}
+
+Emitted when an error occurs during the processing of a stream on the client.
+
+`http2.client.stream.finish`
+
+* `stream` {ClientHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+* `flags` {number}
+
+Emitted when a stream is received on the client.
+
+`http2.client.stream.close`
+
+* `stream` {ClientHttp2Stream}
+
+Emitted when a stream is closed on the client. The HTTP/2 error code used when
+closing the stream can be retrieved using the `stream.rstCode` property.
+
+`http2.server.stream.created`
+
+* `stream` {ServerHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is created on the server.
+
+`http2.server.stream.start`
+
+* `stream` {ServerHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is started on the server.
+
+`http2.server.stream.error`
+
+* `stream` {ServerHttp2Stream}
+* `error` {Error}
+
+Emitted when an error occurs during the processing of a stream on the server.
+
+`http2.server.stream.finish`
+
+* `stream` {ServerHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+* `flags` {number}
+
+Emitted when a stream is sent on the server.
+
+`http2.server.stream.close`
+
+* `stream` {ServerHttp2Stream}
+
+Emitted when a stream is closed on the server. The HTTP/2 error code used when
+closing the stream can be retrieved using the `stream.rstCode` property.
+
 #### Modules
+
+> Stability: 1 - Experimental
 
 `module.require.start`
 
@@ -1255,11 +1331,13 @@ Emitted when a `import()` throws an error. See [`error` event][].
 
 #### NET
 
+> Stability: 1 - Experimental
+
 `net.client.socket`
 
-* `socket` {net.Socket}
+* `socket` {net.Socket|tls.TLSSocket}
 
-Emitted when a new TCP or pipe client socket is created.
+Emitted when a new TCP or pipe client socket connection is created.
 
 `net.server.socket`
 
@@ -1289,6 +1367,8 @@ Emitted when [`net.Server.listen()`][] is returning an error.
 
 #### UDP
 
+> Stability: 1 - Experimental
+
 `udp.socket`
 
 * `socket` {dgram.Socket}
@@ -1296,6 +1376,8 @@ Emitted when [`net.Server.listen()`][] is returning an error.
 Emitted when a new UDP socket is created.
 
 #### Process
+
+> Stability: 1 - Experimental
 
 <!-- YAML
 added: v16.18.0
@@ -1316,6 +1398,8 @@ Emitted when a new process is created.
 Emitted when [`process.execve()`][] is invoked.
 
 #### Worker Thread
+
+> Stability: 1 - Experimental
 
 <!-- YAML
 added: v16.18.0

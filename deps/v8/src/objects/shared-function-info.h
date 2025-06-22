@@ -45,9 +45,9 @@ class WasmResumeData;
 
 #if V8_ENABLE_WEBASSEMBLY
 namespace wasm {
+class CanonicalValueType;
 struct WasmModule;
 class ValueType;
-using FunctionSig = Signature<ValueType>;
 }  // namespace wasm
 #endif
 
@@ -120,8 +120,8 @@ class UncompiledData
                                            ExposedTrustedObject> {
  public:
   inline void InitAfterBytecodeFlush(
-      IsolateForSandbox isolate, Tagged<String> inferred_name,
-      int start_position, int end_position,
+      Isolate* isolate, Tagged<String> inferred_name, int start_position,
+      int end_position,
       std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                          Tagged<HeapObject> target)>
           gc_notify_updated_slot);
@@ -308,13 +308,17 @@ class SharedFunctionInfo
 
   // [internal formal parameter count]: The declared number of parameters.
   // For subclass constructors, also includes new.target.
-  // The size of function's frame is
-  // internal_formal_parameter_count_with_receiver.
   //
-  // NOTE: this API should be considered DEPRECATED. Please obtain the
-  // parameter count from the Code/BytecodeArray or another trusted source
-  // instead. See also crbug.com/40931165.
-  // TODO(saelo): mark as V8_DEPRECATE_SOON once the remaining users are fixed.
+  // NOTE: SharedFunctionInfo objects are located inside the sandbox, so an
+  // attacker able to corrupt in-sandbox memory can change this field
+  // arbitrarily. As such, it is not safe to use this field for invoking a
+  // JSFunction or computing the size of stack frames (or similar use-cases
+  // that involve accessing out-of-sandbox memory such as the stack). Instead,
+  // for such purposes, a trusted parameter count must be used, the source of
+  // which depends on the concrete use case. For example, a (trusted) parameter
+  // count can be obtained from a BytecodeArray (e.g. for interpreting
+  // bytecode), a Code object (e.g. for deoptimizing optimized code), or the
+  // JSDispatchTable (e.g. for invoking a JSFunction).
   inline void set_internal_formal_parameter_count(int value);
   inline uint16_t internal_formal_parameter_count_with_receiver() const;
   inline uint16_t internal_formal_parameter_count_without_receiver() const;
@@ -327,7 +331,6 @@ class SharedFunctionInfo
   // Set the formal parameter count so the function code will be
   // called without using argument adaptor frames.
   inline void DontAdaptArguments();
-  inline bool IsDontAdaptArguments() const;
 
   // Accessors for the data associated with this SFI.
   //
@@ -406,7 +409,7 @@ class SharedFunctionInfo
   inline Tagged<InterpreterData> interpreter_data(
       IsolateForSandbox isolate) const;
   inline void set_interpreter_data(
-      Tagged<InterpreterData> interpreter_data,
+      Isolate* isolate, Tagged<InterpreterData> interpreter_data,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   DECL_GETTER(HasBaselineCode, bool)
   DECL_RELEASE_ACQUIRE_ACCESSORS(baseline_code, Tagged<Code>)
@@ -425,16 +428,15 @@ class SharedFunctionInfo
   inline bool HasWasmResumeData() const;
   DECL_ACCESSORS(asm_wasm_data, Tagged<AsmWasmData>)
 
+  // Note: The accessors below will read a trusted pointer; when accessing it
+  // again, you must assume that it might have been swapped out e.g. by a
+  // concurrently running worker.
   DECL_GETTER(wasm_function_data, Tagged<WasmFunctionData>)
   DECL_GETTER(wasm_exported_function_data, Tagged<WasmExportedFunctionData>)
   DECL_GETTER(wasm_js_function_data, Tagged<WasmJSFunctionData>)
   DECL_GETTER(wasm_capi_function_data, Tagged<WasmCapiFunctionData>)
-  DECL_GETTER(wasm_resume_data, Tagged<WasmResumeData>)
 
-  inline const wasm::WasmModule* wasm_module() const;
-  inline const wasm::FunctionSig* wasm_function_signature() const;
-  inline int wasm_function_index() const;
-  inline bool is_promising_wasm_export() const;
+  DECL_GETTER(wasm_resume_data, Tagged<WasmResumeData>)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // builtin corresponds to the auto-generated Builtin enum.
@@ -582,6 +584,9 @@ class SharedFunctionInfo
   // closest outer class scope.
   DECL_BOOLEAN_ACCESSORS(private_name_lookup_skips_outer_class)
 
+  // Indicates that the shared function info was live-edited.
+  DECL_BOOLEAN_ACCESSORS(live_edited)
+
   inline FunctionKind kind() const;
 
   int UniqueIdInScript() const;
@@ -617,8 +622,8 @@ class SharedFunctionInfo
 
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
-  static Handle<Object> GetSourceCode(Isolate* isolate,
-                                      DirectHandle<SharedFunctionInfo> shared);
+  static DirectHandle<Object> GetSourceCode(
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
   static Handle<Object> GetSourceCodeHarmony(
       Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
 
@@ -708,7 +713,7 @@ class SharedFunctionInfo
 
   inline bool CanCollectSourcePosition(Isolate* isolate);
   static void EnsureSourcePositionsAvailable(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
+      Isolate* isolate, DirectHandle<SharedFunctionInfo> shared_info);
 
   template <typename IsolateT>
   bool AreSourcePositionsAvailable(IsolateT* isolate) const;
@@ -828,6 +833,8 @@ class SharedFunctionInfo
   TQ_OBJECT_CONSTRUCTORS(SharedFunctionInfo)
 };
 
+std::ostream& operator<<(std::ostream& os, SharedFunctionInfo::Inlineability i);
+
 // A SharedFunctionInfoWrapper wraps a SharedFunctionInfo from trusted space.
 // It can be useful when a protected pointer reference to a SharedFunctionInfo
 // is needed, for example for a ProtectedFixedArray.
@@ -873,13 +880,13 @@ class V8_NODISCARD IsCompiledScope {
                          Isolate* isolate);
   inline IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
                          LocalIsolate* isolate);
-  inline IsCompiledScope() : retain_code_(), is_compiled_(false) {}
+  inline IsCompiledScope() = default;
 
   inline bool is_compiled() const { return is_compiled_; }
 
  private:
-  MaybeHandle<HeapObject> retain_code_;
-  bool is_compiled_;
+  MaybeHandle<HeapObject> retain_code_ = {};
+  bool is_compiled_ = false;
 };
 
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v);

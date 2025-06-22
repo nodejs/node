@@ -5,18 +5,26 @@ const common = require('../common');
 common.skipIf32Bits();
 
 const assert = require('node:assert');
-const {
-  SlowBuffer,
-} = require('node:buffer');
+const { Buffer } = require('node:buffer');
 
 const size = 2 ** 31;
 
-// Test SlowBuffer with size larger than integer range
+let largeBuffer;
+
+// Test slow Buffer with size larger than integer range
 try {
-  assert.throws(() => SlowBuffer(size).toString('utf8'), { code: 'ERR_STRING_TOO_LONG' });
+  largeBuffer = Buffer.allocUnsafeSlow(size);
 } catch (e) {
-  if (e.code !== 'ERR_MEMORY_ALLOCATION_FAILED') {
-    throw e;
+  if (
+    e.code === 'ERR_MEMORY_ALLOCATION_FAILED' ||
+    /Array buffer allocation failed/.test(e.message)
+  ) {
+    common.skip('insufficient space for slow Buffer allocation');
   }
-  common.skip('insufficient space for SlowBuffer');
+
+  throw e;
 }
+
+assert.throws(() => largeBuffer.toString('utf8'), {
+  code: 'ERR_STRING_TOO_LONG',
+});

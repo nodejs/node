@@ -50,7 +50,7 @@ struct IsMap<Map, absl::void_t<typename Map::mapped_type>> : std::true_type {};
 
 std::mt19937_64* GetSharedRng();
 
-enum Enum {
+enum Enum : uint64_t {
   kEnumEmpty,
   kEnumDeleted,
 };
@@ -80,11 +80,7 @@ struct Generator<Enum> {
   Enum operator()() const {
     std::uniform_int_distribution<typename std::underlying_type<Enum>::type>
         dist;
-    while (true) {
-      auto variate = dist(*GetSharedRng());
-      if (variate != kEnumEmpty && variate != kEnumDeleted)
-        return static_cast<Enum>(variate);
-    }
+    return static_cast<Enum>(dist(*GetSharedRng()));
   }
 };
 
@@ -94,11 +90,7 @@ struct Generator<EnumClass> {
     std::uniform_int_distribution<
         typename std::underlying_type<EnumClass>::type>
         dist;
-    while (true) {
-      EnumClass variate = static_cast<EnumClass>(dist(*GetSharedRng()));
-      if (variate != EnumClass::kEmpty && variate != EnumClass::kDeleted)
-        return static_cast<EnumClass>(variate);
-    }
+    return static_cast<EnumClass>(dist(*GetSharedRng()));
   }
 };
 

@@ -4,6 +4,7 @@
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/loong64/constants-loong64.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
@@ -623,24 +624,36 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
             kJavaScriptCallCodeStartRegister, Operand(scratch));
 }
 
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-void CodeGenerator::BailoutIfDeoptimized() {
+#ifdef V8_ENABLE_LEAPTIERING
+// Check that {kJavaScriptCallDispatchHandleRegister} is correct.
+void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
+  DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
+
+  if (!V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL) return;
+
+  // We currently don't check this for JS builtins as those are sometimes
+  // called directly (e.g. from other builtins) and not through the dispatch
+  // table. This is fine as builtin functions don't use the dispatch handle,
+  // but we could enable this check in the future if we make sure to pass the
+  // kInvalidDispatchHandle whenever we do a direct call to a JS builtin.
+  if (Builtins::IsBuiltinId(info()->builtin())) {
+    return;
+  }
+
+  // For now, we only ensure that the register references a valid dispatch
+  // entry with the correct parameter count. In the future, we may also be able
+  // to check that the entry points back to this code.
   UseScratchRegisterScope temps(masm());
+  Register actual_parameter_count = temps.Acquire();
   Register scratch = temps.Acquire();
-  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  __ LoadProtectedPointerField(
-      scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ Ld_wu(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
-  __ And(scratch, scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
-  __ TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode, ne, scratch,
-                     Operand(zero_reg));
+  __ LoadParameterCountFromJSDispatchTable(
+      actual_parameter_count, kJavaScriptCallDispatchHandleRegister, scratch);
+  __ Assert(eq, AbortReason::kWrongFunctionDispatchHandle,
+            actual_parameter_count, Operand(parameter_count_));
 }
+#endif  // V8_ENABLE_LEAPTIERING
+
+void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
 
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
@@ -678,11 +691,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
-    case kArchCallWasmFunction: {
+    case kArchCallWasmFunction:
+    case kArchCallWasmFunctionIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
+        DCHECK_EQ(arch_opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Call(wasm_code, constant.rmode());
+      } else if (arch_opcode == kArchCallWasmFunctionIndirect) {
+        __ CallWasmCodePointer(
+            i.InputRegister(0),
+            i.InputInt64(instr->WasmSignatureHashInputIndex()));
       } else {
         __ Call(i.InputRegister(0));
       }
@@ -690,11 +709,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallWasm: {
+    case kArchTailCallWasm:
+    case kArchTailCallWasmIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
+        DCHECK_EQ(arch_opcode, kArchTailCallWasm);
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Jump(wasm_code, constant.rmode());
+      } else if (arch_opcode == kArchTailCallWasmIndirect) {
+        __ CallWasmCodePointer(
+            i.InputRegister(0),
+            i.InputInt64(instr->WasmSignatureHashInputIndex()),
+            CallJumpMode::kTailCall);
       } else {
         __ Jump(i.InputRegister(0));
       }
@@ -740,7 +766,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                            FieldMemOperand(func, JSFunction::kContextOffset));
         __ Assert(eq, AbortReason::kWrongFunctionContext, cp, Operand(scratch));
       }
-      __ CallJSFunction(func);
+      uint32_t num_arguments =
+          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      __ CallJSFunction(func, num_arguments);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -795,8 +823,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       if (isWasmCapiFunction) {
-        __ LoadLabelRelative(t7, &return_location);
-        __ St_d(t7, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        UseScratchRegisterScope temps(masm());
+        Register scratch = temps.Acquire();
+        __ LoadLabelRelative(scratch, &return_location);
+        __ St_d(scratch,
+                MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -910,6 +941,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ mov(i.OutputRegister(), fp);
       }
+      break;
+    case kArchRootPointer:
+      __ mov(i.OutputRegister(), kRootRegister);
       break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
@@ -1097,10 +1131,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Add_d:
       __ Add_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kLoong64AddOvf_d:
+    case kLoong64AddOvf_d: {
+      UseScratchRegisterScope temps(masm());
+      DCHECK(temps.hasAvailable());
+      temps.Exclude(t8);
       __ AddOverflow_d(i.OutputRegister(), i.InputRegister(0),
                        i.InputOperand(1), t8);
       break;
+    }
     case kLoong64Sub_w:
       __ Sub_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -1114,14 +1152,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Mul_w:
       __ Mul_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kLoong64MulOvf_w:
+    case kLoong64MulOvf_w: {
+      UseScratchRegisterScope temps(masm());
+      DCHECK(temps.hasAvailable());
+      temps.Exclude(t8);
       __ MulOverflow_w(i.OutputRegister(), i.InputRegister(0),
                        i.InputOperand(1), t8);
       break;
-    case kLoong64MulOvf_d:
+    }
+    case kLoong64MulOvf_d: {
+      UseScratchRegisterScope temps(masm());
+      DCHECK(temps.hasAvailable());
+      temps.Exclude(t8);
       __ MulOverflow_d(i.OutputRegister(), i.InputRegister(0),
                        i.InputOperand(1), t8);
       break;
+    }
     case kLoong64Mulh_w:
       __ Mulh_w(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
@@ -1168,12 +1214,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Alsl_d:
       DCHECK(instr->InputAt(2)->IsImmediate());
       __ Alsl_d(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
-                i.InputInt8(2), t7);
+                i.InputInt8(2));
       break;
     case kLoong64Alsl_w:
       DCHECK(instr->InputAt(2)->IsImmediate());
       __ Alsl_w(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
-                i.InputInt8(2), t7);
+                i.InputInt8(2));
       break;
     case kLoong64And:
     case kLoong64And32:
@@ -1288,10 +1334,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Rotr_d:
       __ Rotr_d(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kLoong64Tst:
+    case kLoong64Tst: {
+      UseScratchRegisterScope temps(masm());
+      DCHECK(temps.hasAvailable());
+      temps.Exclude(t8);
       __ And(t8, i.InputRegister(0), i.InputOperand(1));
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
+    }
     case kLoong64Cmp32:
     case kLoong64Cmp64:
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
@@ -2163,6 +2213,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
   if (instr->arch_opcode() == kLoong64Tst) {
     Condition cc = FlagsConditionToConditionTst(condition);
     __ Branch(tlabel, cc, t8, Operand(zero_reg));
+    UseScratchRegisterScope temps(masm);
+    temps.Include(t8);
   } else if (instr->arch_opcode() == kLoong64Add_d ||
              instr->arch_opcode() == kLoong64Sub_d) {
     UseScratchRegisterScope temps(masm);
@@ -2185,6 +2237,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
+    UseScratchRegisterScope temps(masm);
+    temps.Include(t8);
   } else if (instr->arch_opcode() == kLoong64MulOvf_w ||
              instr->arch_opcode() == kLoong64MulOvf_d) {
     // Overflow occurs if overflow register is not zero
@@ -2198,6 +2252,8 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
+    UseScratchRegisterScope temps(masm);
+    temps.Include(t8);
   } else if (instr->arch_opcode() == kLoong64Cmp32 ||
              instr->arch_opcode() == kLoong64Cmp64) {
     Condition cc = FlagsConditionToConditionCmp(condition);
@@ -2276,7 +2332,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
                                         FlagsCondition condition) {
   Loong64OperandConverter i(this, instr);
 
-  // Materialize a full 32-bit 1 or 0 value. The result register is always the
+  // Materialize a full 64-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
   DCHECK_NE(0u, instr->OutputCount());
   Register result = i.OutputRegister(instr->OutputCount() - 1);
@@ -2291,6 +2347,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     } else {
       __ Sltu(result, zero_reg, t8);
     }
+    UseScratchRegisterScope temps(masm());
+    temps.Include(t8);
     return;
   } else if (instr->arch_opcode() == kLoong64Add_d ||
              instr->arch_opcode() == kLoong64Sub_d) {
@@ -2308,10 +2366,14 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
              instr->arch_opcode() == kLoong64SubOvf_d) {
     // Overflow occurs if overflow register is negative
     __ slt(result, t8, zero_reg);
+    UseScratchRegisterScope temps(masm());
+    temps.Include(t8);
   } else if (instr->arch_opcode() == kLoong64MulOvf_w ||
              instr->arch_opcode() == kLoong64MulOvf_d) {
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, t8, zero_reg);
+    UseScratchRegisterScope temps(masm());
+    temps.Include(t8);
   } else if (instr->arch_opcode() == kLoong64Cmp32 ||
              instr->arch_opcode() == kLoong64Cmp64) {
     Condition cc = FlagsConditionToConditionCmp(condition);
@@ -2440,7 +2502,7 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall() ||
+      if (call_descriptor->IsAnyWasmFunctionCall() ||
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
         // For import wrappers and C-API functions, this stack slot is only used
@@ -2499,14 +2561,36 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Branch(&done, uge, sp, Operand(stack_limit));
       }
 
-      __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
-              RelocInfo::WASM_STUB_CALL);
-      // The call does not return, hence we can ignore any references and just
-      // define an empty safepoint.
-      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-      RecordSafepoint(reference_map);
-      if (v8_flags.debug_code) {
-        __ stop();
+      if (v8_flags.experimental_wasm_growable_stacks) {
+        RegList regs_to_save;
+        regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
+        regs_to_save.set(
+            WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+
+        for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
+        __ MultiPush(regs_to_save);
+        DoubleRegList fp_regs_to_save;
+        for (auto reg : wasm::kFpParamRegisters) fp_regs_to_save.set(reg);
+        __ MultiPushFPU(fp_regs_to_save);
+        __ li(WasmHandleStackOverflowDescriptor::GapRegister(),
+              required_slots * kSystemPointerSize);
+        __ Add_d(
+            WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
+            Operand(call_descriptor->ParameterSlotCount() * kSystemPointerSize +
+                    CommonFrameConstants::kFixedFrameSizeAboveFp));
+        __ CallBuiltin(Builtin::kWasmHandleStackOverflow);
+        __ MultiPopFPU(fp_regs_to_save);
+        __ MultiPop(regs_to_save);
+      } else {
+        __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+                RelocInfo::WASM_STUB_CALL);
+        // The call does not return, hence we can ignore any references and just
+        // define an empty safepoint.
+        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
+        RecordSafepoint(reference_map);
+        if (v8_flags.debug_code) {
+          __ stop();
+        }
       }
 
       __ bind(&done);
@@ -2583,6 +2667,34 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
                 Operand(static_cast<int64_t>(0)));
     }
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (call_descriptor->IsAnyWasmFunctionCall() &&
+      v8_flags.experimental_wasm_growable_stacks) {
+    Label done;
+    {
+      UseScratchRegisterScope temps{masm()};
+      Register scratch = temps.Acquire();
+      __ Ld_d(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+      __ BranchShort(
+          &done, ne, scratch,
+          Operand(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+    }
+    RegList regs_to_save;
+    for (auto reg : wasm::kGpReturnRegisters) regs_to_save.set(reg);
+    __ MultiPush(regs_to_save);
+    __ li(kCArgRegs[0], ExternalReference::isolate_address());
+    {
+      UseScratchRegisterScope temps{masm()};
+      Register scratch = temps.Acquire();
+      __ PrepareCallCFunction(1, scratch);
+    }
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
+    __ mov(fp, kReturnRegister0);
+    __ MultiPop(regs_to_save);
+    __ bind(&done);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Functions with JS linkage have at least one parameter (the receiver).
   // If {parameter_slots} == 0, it means it is a builtin with
@@ -3044,7 +3156,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   }
 }
 
-void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
   // On 64-bit LOONG64 we emit the jump tables inline.
   UNREACHABLE();
 }

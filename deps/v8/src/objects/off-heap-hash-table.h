@@ -188,4 +188,6 @@ class OffHeapHashTableBase {
 }  // namespace internal
 }  // namespace v8
 
+#include "src/objects/object-macros-undef.h"
+
 #endif  // V8_OBJECTS_OFF_HEAP_HASH_TABLE_H_

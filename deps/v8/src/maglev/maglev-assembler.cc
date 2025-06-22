@@ -60,10 +60,7 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 int char_code) {
   DCHECK_GE(char_code, 0);
   DCHECK_LT(char_code, String::kMaxOneByteCharCode);
-  Register table = result;
-  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedField(result, table,
-                  FixedArray::kHeaderSize + char_code * kTaggedSize);
+  LoadRoot(result, RootsTable::SingleCharacterStringIndex(char_code));
 }
 
 void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
@@ -164,7 +161,6 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
                                 ZoneLabelRef is_true, ZoneLabelRef is_false,
                                 bool fallthrough_when_true) {
   TemporaryRegisterScope temps(this);
-  Register map = temps.AcquireScratch();
 
   if (check_type == CheckType::kCheckHeapObject) {
     // Check if {{value}} is Smi.
@@ -226,7 +222,7 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
     JumpIfRoot(value, RootIndex::kNullValue, *is_false);
   }
 #endif
-
+  Register map = temps.AcquireScratch();
   LoadMap(map, value);
 
   if (!compilation_info()
@@ -279,6 +275,16 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
         Move(dst, Smi::FromInt(int_value));
       } else {
         MoveHeapNumber(dst, int_value);
+      }
+      return;
+    }
+    case Opcode::kIntPtrConstant: {
+      intptr_t intptr_value = value->Cast<IntPtrConstant>()->value();
+      if (intptr_value <= std::numeric_limits<int>::max() &&
+          Smi::IsValid(static_cast<int>(intptr_value))) {
+        Move(dst, Smi::FromInt(static_cast<int>(intptr_value)));
+      } else {
+        MoveHeapNumber(dst, intptr_value);
       }
       return;
     }
@@ -356,7 +362,20 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
       bind(&done);
       break;
     }
-    case ValueRepresentation::kIntPtr:
+    case ValueRepresentation::kIntPtr: {
+      Label done;
+      TemporaryRegisterScope temps(this);
+      Register scratch = temps.AcquireScratch();
+      Move(scratch, src);
+      SmiTagIntPtrAndJumpIfSuccess(dst, scratch, &done, Label::kNear);
+      // If smi tagging fails, instead of bailing out (deopting), we change
+      // representation to a HeapNumber.
+      IntPtrToDouble(builtin_input_value, scratch);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
+      Move(dst, kReturnRegister0);
+      bind(&done);
+      break;
+    }
     case ValueRepresentation::kTagged:
       UNREACHABLE();
   }
@@ -414,7 +433,7 @@ void MaglevAssembler::TestTypeOf(
     case LiteralFlag::kUndefined: {
       MaglevAssembler::TemporaryRegisterScope temps(this);
       Register map = temps.AcquireScratch();
-      // Make sure `object` isn't a valid temp here, since we re-use it.
+      // Make sure `object` isn't a valid temp here, since we reuse it.
       DCHECK(!temps.Available().has(object));
       JumpIfSmi(object, is_false, false_distance);
       // Check it has the undetectable bit set and it is not null.
@@ -446,8 +465,8 @@ void MaglevAssembler::TestTypeOf(
       JumpIfRoot(object, RootIndex::kNullValue, is_true, true_distance);
       // Check if the object is a receiver type,
       LoadMap(scratch, object);
-      CompareInstanceType(scratch, FIRST_JS_RECEIVER_TYPE);
-      JumpIf(kLessThan, is_false, false_distance);
+      CompareInstanceTypeAndJumpIf(scratch, FIRST_JS_RECEIVER_TYPE, kLessThan,
+                                   is_false, false_distance);
       // ... and is not undefined (undetectable) nor callable.
       Branch(IsNotCallableNorUndetactable(scratch, scratch), is_true,
              true_distance, fallthrough_when_true, is_false, false_distance,
@@ -548,6 +567,7 @@ void MaglevAssembler::CheckAndEmitDeferredWriteBarrier(
     JumpIfSmi(value, *done);
   }
 
+  static_assert(WriteBarrier::kUninterestingPagesCanBeSkipped);
   MaglevAssembler::TemporaryRegisterScope temp(this);
   Register scratch = temp.AcquireScratch();
   CheckPageFlag(object, scratch,
@@ -654,27 +674,6 @@ void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
       kValueCanBeSmi);
 }
 
-void MaglevAssembler::GenerateCheckConstTrackingLetCellFooter(Register context,
-                                                              Register data,
-                                                              int index,
-                                                              Label* done) {
-  // Load the const tracking let side data.
-  LoadTaggedField(
-      data, context,
-      Context::OffsetOfElementAt(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX));
-
-  LoadTaggedField(data, data,
-                  FixedArray::OffsetOfElementAt(
-                      index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
-
-  // If the field is already marked as "not a constant", storing a
-  // different value is fine. But if it's anything else (including the hole,
-  // which means no value was stored yet), deopt this code. The lower tier code
-  // will update the side data and invalidate DependentCode if needed.
-  CompareTaggedAndJumpIf(data, ConstTrackingLetCell::kNonConstMarker, kEqual,
-                         done, Label::kNear);
-}
-
 void MaglevAssembler::TryMigrateInstance(Register object,
                                          RegisterSnapshot& register_snapshot,
                                          Label* fail) {
@@ -701,6 +700,15 @@ void MaglevAssembler::TryMigrateInstance(Register object,
 
   // On failure, the returned value is Smi zero.
   CompareTaggedAndJumpIf(return_val, Smi::zero(), kEqual, fail);
+}
+
+void MaglevAssembler::TryMigrateInstanceAndMarkMapAsMigrationTarget(
+    Register object, RegisterSnapshot& register_snapshot) {
+  SaveRegisterStateForCall save_register_state(this, register_snapshot);
+  Push(object);
+  Move(kContextRegister, native_context().object());
+  CallRuntime(Runtime::kTryMigrateInstanceAndMarkMapAsMigrationTarget);
+  save_register_state.DefineSafepoint();
 }
 
 }  // namespace maglev

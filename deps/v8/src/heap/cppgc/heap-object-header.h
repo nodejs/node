@@ -9,7 +9,6 @@
 
 #include <atomic>
 
-#include "include/cppgc/allocation.h"
 #include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/internal/member-storage.h"
 #include "include/cppgc/internal/name-trait.h"
@@ -87,7 +86,7 @@ class HeapObjectHeader {
 
   template <AccessMode = AccessMode::kNonAtomic>
   bool IsInConstruction() const;
-  inline void MarkAsFullyConstructed();
+  V8_EXPORT_PRIVATE void MarkAsFullyConstructed();
   // Use MarkObjectAsFullyConstructed() to mark an object as being constructed.
 
   template <AccessMode = AccessMode::kNonAtomic>
@@ -121,7 +120,7 @@ class HeapObjectHeader {
       GetName(HeapObjectNameForUnnamedObject) const;
 
   template <AccessMode = AccessMode::kNonAtomic>
-  void Trace(Visitor*) const;
+  void TraceImpl(Visitor*) const;
 
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };
@@ -267,11 +266,6 @@ bool HeapObjectHeader::IsInConstruction() const {
   return !FullyConstructedField::decode(encoded);
 }
 
-void HeapObjectHeader::MarkAsFullyConstructed() {
-  MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(
-      ObjectStart());
-}
-
 template <AccessMode mode>
 bool HeapObjectHeader::IsMarked() const {
   const uint16_t encoded =
@@ -346,7 +340,7 @@ HeapObjectHeader* HeapObjectHeader::GetNextUnfinalized(
 #endif  // defined(CPPGC_CAGED_HEAP)
 
 template <AccessMode mode>
-void HeapObjectHeader::Trace(Visitor* visitor) const {
+void HeapObjectHeader::TraceImpl(Visitor* visitor) const {
   const GCInfo& gc_info =
       GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex<mode>());
   return gc_info.trace(visitor, ObjectStart());

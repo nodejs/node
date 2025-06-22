@@ -28,8 +28,8 @@ transitioning builtin NonNumberToNumeric(
   return ::NonNumberToNumeric(input);
 }
 
-transitioning builtin ToNumeric(implicit context: Context)(input: JSAny):
-    Numeric {
+transitioning builtin ToNumeric(implicit context: Context)(
+                                input: JSAny): Numeric {
   typeswitch (input) {
     case (n: Number): {
       return n;
@@ -71,8 +71,8 @@ builtin ToBooleanForBaselineJump(input: JSAny):
   }
 }
 
-transitioning builtin ToLength(implicit context: Context)(input: JSAny):
-    Number {
+transitioning builtin ToLength(implicit context: Context)(
+                               input: JSAny): Number {
   // We might need to loop once for ToNumber conversion.
   let x: JSAny = input;
   while (true) {
@@ -128,8 +128,8 @@ const kNoConstructorFunctionIndex:
     constexpr int31 generates 'Map::kNoConstructorFunctionIndex';
 
 // ES6 section 7.1.13 ToObject (argument)
-transitioning builtin ToObject(implicit context: Context)(input: JSAny):
-    JSReceiver {
+transitioning builtin ToObject(implicit context: Context)(
+                               input: JSAny): JSReceiver {
   try {
     typeswitch (input) {
       case (Smi): {

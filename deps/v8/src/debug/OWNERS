@@ -6,3 +6,5 @@ pfaffe@chromium.org
 szuend@chromium.org
 verwaest@chromium.org
 yangguo@chromium.org
+
+per-file debug-wasm-*=jkummerow@chromium.org

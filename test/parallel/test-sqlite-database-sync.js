@@ -1,5 +1,6 @@
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { existsSync } = require('node:fs');
 const { join } = require('node:path');
@@ -163,7 +164,7 @@ suite('DatabaseSync() constructor', () => {
       db.exec('SELECT "foo";');
     }, {
       code: 'ERR_SQLITE_ERROR',
-      message: /no such column: "foo"/,
+      message: /no such column: "?foo"?/,
     });
   });
 
@@ -359,5 +360,57 @@ suite('DatabaseSync.prototype.isTransaction', () => {
       code: 'ERR_INVALID_STATE',
       message: /database is not open/,
     });
+  });
+});
+
+suite('DatabaseSync.prototype.location()', () => {
+  test('throws if database is not open', (t) => {
+    const db = new DatabaseSync(nextDb(), { open: false });
+
+    t.assert.throws(() => {
+      db.location();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+  });
+
+  test('throws if provided dbName is not string', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+
+    t.assert.throws(() => {
+      db.location(null);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "dbName" argument must be a string/,
+    });
+  });
+
+  test('returns null when connected to in-memory database', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.assert.strictEqual(db.location(), null);
+  });
+
+  test('returns db path when connected to a persistent database', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    t.assert.strictEqual(db.location(), dbPath);
+  });
+
+  test('returns that specific db path when attached', (t) => {
+    const dbPath = nextDb();
+    const otherPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    const other = new DatabaseSync(dbPath);
+    t.after(() => { other.close(); });
+
+    // Adding this escape because the test with unusual chars have a single quote which breaks the query
+    const escapedPath = otherPath.replace("'", "''");
+    db.exec(`ATTACH DATABASE '${escapedPath}' AS other`);
+
+    t.assert.strictEqual(db.location('other'), otherPath);
   });
 });

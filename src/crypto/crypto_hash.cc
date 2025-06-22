@@ -279,9 +279,6 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
   SetMethodNoSideEffect(context, target, "oneShotDigest", OneShotDigest);
 
   HashJob::Initialize(env, target);
-
-  SetMethodNoSideEffect(
-      context, target, "internalVerifyIntegrity", InternalVerifyIntegrity);
 }
 
 void Hash::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -293,8 +290,6 @@ void Hash::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(OneShotDigest);
 
   HashJob::RegisterExternalReferences(registry);
-
-  registry->Register(InternalVerifyIntegrity);
 }
 
 // new Hash(algorithm, algorithmId, xofLen, algorithmCache)
@@ -481,10 +476,10 @@ Maybe<void> HashTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool HashTraits::DeriveBits(
-    Environment* env,
-    const HashConfig& params,
-    ByteSource* out) {
+bool HashTraits::DeriveBits(Environment* env,
+                            const HashConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
   auto ctx = EVPMDCtxPointer::New();
 
   if (!ctx.digestInit(params.digest) || !ctx.digestUpdate(params.in))
@@ -504,44 +499,5 @@ bool HashTraits::DeriveBits(
   return true;
 }
 
-void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK_EQ(args.Length(), 3);
-
-  CHECK(args[0]->IsString());
-  Utf8Value algorithm(env->isolate(), args[0]);
-
-  CHECK(args[1]->IsString() || IsAnyBufferSource(args[1]));
-  ByteSource content = ByteSource::FromStringOrBuffer(env, args[1]);
-
-  CHECK(args[2]->IsArrayBufferView());
-  ArrayBufferOrViewContents<unsigned char> expected(args[2]);
-
-  const EVP_MD* md_type = ncrypto::getDigestByName(*algorithm);
-  unsigned char digest[EVP_MAX_MD_SIZE];
-  unsigned int digest_size;
-  if (md_type == nullptr || EVP_Digest(content.data(),
-                                       content.size(),
-                                       digest,
-                                       &digest_size,
-                                       md_type,
-                                       nullptr) != 1) [[unlikely]] {
-    return ThrowCryptoError(
-        env, ERR_get_error(), "Digest method not supported");
-  }
-
-  if (digest_size != expected.size() ||
-      CRYPTO_memcmp(digest, expected.data(), digest_size) != 0) {
-    Local<Value> ret;
-    if (StringBytes::Encode(env->isolate(),
-                            reinterpret_cast<const char*>(digest),
-                            digest_size,
-                            BASE64)
-            .ToLocal(&ret)) {
-      args.GetReturnValue().Set(ret);
-    }
-  }
-}
 }  // namespace crypto
 }  // namespace node

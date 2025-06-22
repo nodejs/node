@@ -219,7 +219,9 @@ This feature requires `--allow-worker` if used with the [Permission Model][].
 ### `module.registerHooks(options)`
 
 <!-- YAML
-added: v23.5.0
+added:
+  - v23.5.0
+  - v22.15.0
 -->
 
 > Stability: 1.1 - Active development
@@ -547,7 +549,9 @@ added: v22.8.0
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: v23.5.0
+  - version:
+    - v23.5.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55698
     description: Add support for synchronous and in-thread hooks.
   - version:
@@ -880,7 +884,9 @@ child workers by default.
 #### Synchronous hooks accepted by `module.registerHooks()`
 
 <!-- YAML
-added: v23.5.0
+added:
+  - v23.5.0
+  - v22.15.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1009,7 +1015,9 @@ register('./path-to-my-hooks.js', {
 
 <!-- YAML
 changes:
-  - version: v23.5.0
+  - version:
+    - v23.5.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55698
     description: Add support for synchronous and in-thread hooks.
   - version:
@@ -1132,9 +1140,14 @@ function resolve(specifier, context, nextResolve) {
 
 <!-- YAML
 changes:
-  - version: v23.5.0
+  - version:
+    - v23.5.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55698
     description: Add support for synchronous and in-thread version.
+  - version: v22.6.0
+    pr-url: https://github.com/nodejs/node/pull/56350
+    description: Add support for `source` with format `commonjs-typescript` and `module-typescript`.
   - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/47999
     description: Add support for `source` with format `commonjs`.
@@ -1558,7 +1571,7 @@ Running `node --import 'data:text/javascript,import { register } from "node:modu
 or `node --import ./import-map-sync-hooks.js main.js`
 should print `some module!`.
 
-## Source map v3 support
+## Source Map Support
 
 <!-- YAML
 added:
@@ -1568,13 +1581,17 @@ added:
 
 > Stability: 1 - Experimental
 
-Helpers for interacting with the source map cache. This cache is
-populated when source map parsing is enabled and
+Node.js supports TC39 ECMA-426 [Source Map][] format (it was called Source map
+revision 3 format).
+
+The APIs in this section are helpers for interacting with the source map
+cache. This cache is populated when source map parsing is enabled and
 [source map include directives][] are found in a modules' footer.
 
 To enable source map parsing, Node.js must be run with the flag
 [`--enable-source-maps`][], or with code coverage enabled by setting
-[`NODE_V8_COVERAGE=dir`][].
+[`NODE_V8_COVERAGE=dir`][], or be enabled programmatically via
+[`module.setSourceMapsSupport()`][].
 
 ```mjs
 // module.mjs
@@ -1672,7 +1689,7 @@ changes:
 
 Creates a new `sourceMap` instance.
 
-`payload` is an object with keys matching the [Source map v3 format][]:
+`payload` is an object with keys matching the [Source map format][]:
 
 * `file`: {string}
 * `version`: {number}
@@ -1763,8 +1780,8 @@ returned object contains the following keys:
 [Customization hooks]: #customization-hooks
 [ES Modules]: esm.md
 [Permission Model]: permissions.md#permission-model
-[Source Map]: https://sourcemaps.info/spec.html
-[Source map v3 format]: https://sourcemaps.info/spec.html#h.mofvlxcwqzej
+[Source Map]: https://tc39.es/ecma426/
+[Source map format]: https://tc39.es/ecma426/#sec-source-map-format
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [V8 code cache]: https://v8.dev/blog/code-caching-for-devs
 [`"exports"`]: packages.md#exports
@@ -1780,6 +1797,7 @@ returned object contains the following keys:
 [`module.enableCompileCache()`]: #moduleenablecompilecachecachedir
 [`module.flushCompileCache()`]: #moduleflushcompilecache
 [`module.getCompileCacheDir()`]: #modulegetcompilecachedir
+[`module.setSourceMapsSupport()`]: #modulesetsourcemapssupportenabled-options
 [`module`]: #the-module-object
 [`os.tmpdir()`]: os.md#ostmpdir
 [`registerHooks`]: #moduleregisterhooksoptions
@@ -1792,7 +1810,7 @@ returned object contains the following keys:
 [module wrapper]: modules.md#the-module-wrapper
 [realm]: https://tc39.es/ecma262/#realm
 [resolve hook]: #resolvespecifier-context-nextresolve
-[source map include directives]: https://sourcemaps.info/spec.html#h.lmz475t4mvbx
+[source map include directives]: https://tc39.es/ecma426/#sec-linking-generated-code
 [the documentation of `Worker`]: worker_threads.md#new-workerfilename-options
 [transferable objects]: worker_threads.md#portpostmessagevalue-transferlist
 [transform TypeScript features]: typescript.md#typescript-features

@@ -5,19 +5,33 @@
 #ifndef V8_EXECUTION_ISOLATE_UTILS_INL_H_
 #define V8_EXECUTION_ISOLATE_UTILS_INL_H_
 
-#include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate-utils.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
-#include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap-inl.h"
+#include "src/sandbox/isolate.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
+// TODO(396607238): Replace all callers with `Isolate::Current()->heap()`.
 V8_INLINE Heap* GetHeapFromWritableObject(Tagged<HeapObject> object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  return chunk->GetHeap();
+  // Do not use this method on shared objects. This method would always return
+  // the shared space isolate for shared objects. However, on worker isolates
+  // this might be different from the current isolate. In such cases either
+  // require the current isolate as an additional argument from the caller or
+  // use Isolate::Current(). From there you can access the shared space isolate
+  // with `isolate->shared_space_isolate()` if needed.
+  DCHECK(!chunk->InWritableSharedSpace());
+  Heap* heap = chunk->GetHeap();
+  // See the TODO above: The heap/isolate returned here must match TLS.
+  CHECK_EQ(heap->isolate(), Isolate::TryGetCurrent());
+  return heap;
 }
 
+// TODO(396607238): Replace all callers with `Isolate::Current()`.
 V8_INLINE Isolate* GetIsolateFromWritableObject(Tagged<HeapObject> object) {
   return Isolate::FromHeap(GetHeapFromWritableObject(object));
 }
@@ -42,18 +56,6 @@ V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
   return true;
 }
 
-// Use this function instead of Internals::GetIsolateForSandbox for internal
-// code, as this function is fully inlinable.
-V8_INLINE static Isolate* GetIsolateForSandbox(Tagged<HeapObject> object) {
-#ifdef V8_ENABLE_SANDBOX
-  return GetIsolateFromWritableObject(object);
-#else
-  // Not used in non-sandbox mode.
-  return nullptr;
-#endif
-}
-
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_EXECUTION_ISOLATE_UTILS_INL_H_

@@ -29,7 +29,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e  # v4.3.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
@@ -44,7 +44,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55  # v5.5.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -60,11 +60,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e  # v4.3.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55  # v5.5.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -97,7 +97,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e  # v4.3.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
@@ -122,7 +122,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55  # v5.5.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -139,7 +139,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Use Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@8d9ed9ac5c53483de85588cdf95a591a75ab9f55  # v5.5.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information

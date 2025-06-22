@@ -41,7 +41,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   RepresentationChanger changer_;
 
   Isolate* isolate() { return main_isolate(); }
-  Graph* graph() { return main_graph_; }
+  TFGraph* graph() { return main_graph_; }
   CommonOperatorBuilder* common() { return &main_common_; }
   JSGraph* jsgraph() { return &jsgraph_; }
   RepresentationChanger* changer() { return &changer_; }

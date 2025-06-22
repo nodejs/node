@@ -10,6 +10,7 @@
 #include "path.h"
 #include "util-inl.h"
 #include "v8-fast-api-calls.h"
+#include "v8-local-handle.h"
 #include "v8.h"
 
 #include <cstdint>
@@ -21,7 +22,7 @@ namespace url {
 
 using v8::CFunction;
 using v8::Context;
-using v8::FastOneByteString;
+using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
@@ -282,18 +283,45 @@ void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(can_parse);
 }
 
-bool BindingData::FastCanParse(Local<Value> receiver,
-                               const FastOneByteString& input) {
+bool BindingData::FastCanParse(
+    Local<Value> receiver,
+    Local<Value> input,
+    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+    FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("url.canParse");
-  return ada::can_parse(std::string_view(input.data, input.length));
+  auto isolate = options.isolate;
+  HandleScope handleScope(isolate);
+  Local<String> str;
+  if (!input->ToString(isolate->GetCurrentContext()).ToLocal(&str)) {
+    return false;
+  }
+  Utf8Value utf8(isolate, str);
+  return ada::can_parse(utf8.ToStringView());
 }
 
-bool BindingData::FastCanParseWithBase(Local<Value> receiver,
-                                       const FastOneByteString& input,
-                                       const FastOneByteString& base) {
+bool BindingData::FastCanParseWithBase(
+    Local<Value> receiver,
+    Local<Value> input,
+    Local<Value> base,
+    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+    FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("url.canParse.withBase");
-  auto base_view = std::string_view(base.data, base.length);
-  return ada::can_parse(std::string_view(input.data, input.length), &base_view);
+  auto isolate = options.isolate;
+  HandleScope handleScope(isolate);
+  auto context = isolate->GetCurrentContext();
+  Local<String> input_str;
+  if (!input->ToString(context).ToLocal(&input_str)) {
+    return false;
+  }
+  Local<String> base_str;
+  if (!base->ToString(context).ToLocal(&base_str)) {
+    return false;
+  }
+  Utf8Value input_utf8(isolate, input_str);
+  Utf8Value base_utf8(isolate, base_str);
+
+  auto base_view = base_utf8.ToStringView();
+  return ada::can_parse(input_utf8.ToStringView(), &base_view);
 }
 
 CFunction BindingData::fast_can_parse_methods_[] = {

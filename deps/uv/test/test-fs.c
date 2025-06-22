@@ -59,6 +59,18 @@
 #define TOO_LONG_NAME_LENGTH 65536
 #define PATHMAX 4096
 
+#ifdef _WIN32
+static const int is_win32 = 1;
+#else
+static const int is_win32 = 0;
+#endif
+
+#if defined(__APPLE__) || defined(__SUNPRO_C)
+static const int is_apple_or_sunpro_c = 1;
+#else
+static const int is_apple_or_sunpro_c = 0;
+#endif
+
 typedef struct {
   const char* path;
   double atime;
@@ -827,43 +839,70 @@ static void check_utime(const char* path,
   ASSERT_OK(req.result);
   s = &req.statbuf;
 
-  if (s->st_atim.tv_nsec == 0 && s->st_mtim.tv_nsec == 0) {
-    /*
-     * Test sub-second timestamps only when supported (such as Windows with
+  if (isfinite(atime)) {
+    /* Test sub-second timestamps only when supported (such as Windows with
      * NTFS). Some other platforms support sub-second timestamps, but that
      * support is filesystem-dependent. Notably OS X (HFS Plus) does NOT
      * support sub-second timestamps. But kernels may round or truncate in
      * either direction, so we may accept either possible answer.
      */
-#ifdef _WIN32
-    ASSERT_DOUBLE_EQ(atime, (long) atime);
-    ASSERT_DOUBLE_EQ(mtime, (long) atime);
-#endif
-    if (atime > 0 || (long) atime == atime)
-      ASSERT_EQ(s->st_atim.tv_sec, (long) atime);
-    if (mtime > 0 || (long) mtime == mtime)
-      ASSERT_EQ(s->st_mtim.tv_sec, (long) mtime);
-    ASSERT_GE(s->st_atim.tv_sec, (long) atime - 1);
-    ASSERT_GE(s->st_mtim.tv_sec, (long) mtime - 1);
-    ASSERT_LE(s->st_atim.tv_sec, (long) atime);
-    ASSERT_LE(s->st_mtim.tv_sec, (long) mtime);
-  } else {
-    double st_atim;
-    double st_mtim;
-#if !defined(__APPLE__) && !defined(__SUNPRO_C)
-    /* TODO(vtjnash): would it be better to normalize this? */
-    ASSERT_DOUBLE_GE(s->st_atim.tv_nsec, 0);
-    ASSERT_DOUBLE_GE(s->st_mtim.tv_nsec, 0);
-#endif
-    st_atim = s->st_atim.tv_sec + s->st_atim.tv_nsec / 1e9;
-    st_mtim = s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
-    /*
-     * Linux does not allow reading reliably the atime of a symlink
-     * since readlink() can update it
+    if (s->st_atim.tv_nsec == 0) {
+      if (is_win32)
+        ASSERT_DOUBLE_EQ(atime, (long) atime);
+      if (atime > 0 || (long) atime == atime)
+        ASSERT_EQ(s->st_atim.tv_sec, (long) atime);
+      ASSERT_GE(s->st_atim.tv_sec, (long) atime - 1);
+      ASSERT_LE(s->st_atim.tv_sec, (long) atime);
+    } else {
+      double st_atim;
+      /* TODO(vtjnash): would it be better to normalize this? */
+      if (!is_apple_or_sunpro_c)
+        ASSERT_DOUBLE_GE(s->st_atim.tv_nsec, 0);
+      st_atim = s->st_atim.tv_sec + s->st_atim.tv_nsec / 1e9;
+      /* Linux does not allow reading reliably the atime of a symlink
+       * since readlink() can update it
+       */
+      if (!test_lutime)
+        ASSERT_DOUBLE_EQ(st_atim, atime);
+    }
+  } else if (isinf(atime)) {
+    /* We test with timestamps that are in the distant past
+     * (if you're a Gen Z-er) so check it's more recent than that.
      */
-    if (!test_lutime)
-      ASSERT_DOUBLE_EQ(st_atim, atime);
-    ASSERT_DOUBLE_EQ(st_mtim, mtime);
+      ASSERT_GT(s->st_atim.tv_sec, 1739710000);
+  } else {
+    ASSERT_OK(0);
+  }
+
+  if (isfinite(mtime)) {
+    /* Test sub-second timestamps only when supported (such as Windows with
+     * NTFS). Some other platforms support sub-second timestamps, but that
+     * support is filesystem-dependent. Notably OS X (HFS Plus) does NOT
+     * support sub-second timestamps. But kernels may round or truncate in
+     * either direction, so we may accept either possible answer.
+     */
+    if (s->st_mtim.tv_nsec == 0) {
+      if (is_win32)
+        ASSERT_DOUBLE_EQ(mtime, (long) atime);
+      if (mtime > 0 || (long) mtime == mtime)
+        ASSERT_EQ(s->st_mtim.tv_sec, (long) mtime);
+      ASSERT_GE(s->st_mtim.tv_sec, (long) mtime - 1);
+      ASSERT_LE(s->st_mtim.tv_sec, (long) mtime);
+    } else {
+      double st_mtim;
+      /* TODO(vtjnash): would it be better to normalize this? */
+      if (!is_apple_or_sunpro_c)
+        ASSERT_DOUBLE_GE(s->st_mtim.tv_nsec, 0);
+      st_mtim = s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
+      ASSERT_DOUBLE_EQ(st_mtim, mtime);
+    }
+  } else if (isinf(mtime)) {
+    /* We test with timestamps that are in the distant past
+     * (if you're a Gen Z-er) so check it's more recent than that.
+     */
+      ASSERT_GT(s->st_mtim.tv_sec, 1739710000);
+  } else {
+    ASSERT_OK(0);
   }
 
   uv_fs_req_cleanup(&req);
@@ -1601,6 +1640,50 @@ TEST_IMPL(fs_fstat) {
 
   /* Cleanup. */
   unlink("test_file");
+
+  MAKE_VALGRIND_HAPPY(loop);
+  return 0;
+}
+
+
+TEST_IMPL(fs_fstat_st_dev) {
+  uv_fs_t req;
+  uv_fs_t req_link;
+  uv_loop_t* loop = uv_default_loop();
+  char* test_file = "tmp_st_dev";
+  char* symlink_file = "tmp_st_dev_link";
+
+  unlink(test_file);
+  unlink(symlink_file);
+
+  // Create file
+  int r = uv_fs_open(NULL, &req, test_file, UV_FS_O_RDWR | UV_FS_O_CREAT,
+      S_IWUSR | S_IRUSR, NULL);
+  ASSERT_GE(r, 0);
+  ASSERT_GE(req.result, 0);
+  uv_fs_req_cleanup(&req);
+
+  // Create a symlink
+  r = uv_fs_symlink(loop, &req, test_file, symlink_file, 0, NULL);
+  ASSERT_EQ(r, 0);
+  uv_fs_req_cleanup(&req);
+
+  // Call uv_fs_fstat for file
+  r = uv_fs_stat(loop, &req, test_file, NULL);
+  ASSERT_EQ(r, 0);
+
+  // Call uv_fs_fstat for symlink
+  r = uv_fs_stat(loop, &req_link, symlink_file, NULL);
+  ASSERT_EQ(r, 0);
+
+  // Compare st_dev
+  ASSERT_EQ(((uv_stat_t*)req.ptr)->st_dev, ((uv_stat_t*)req_link.ptr)->st_dev);
+
+  // Cleanup
+  uv_fs_req_cleanup(&req);
+  uv_fs_req_cleanup(&req_link);
+  unlink(test_file);
+  unlink(symlink_file);
 
   MAKE_VALGRIND_HAPPY(loop);
   return 0;
@@ -2684,12 +2767,45 @@ TEST_IMPL(fs_utime) {
 
   atime = mtime = 400497753.25; /* 1982-09-10 11:22:33.25 */
 
-  r = uv_fs_utime(NULL, &req, path, atime, mtime, NULL);
-  ASSERT_OK(r);
+  ASSERT_OK(uv_fs_utime(NULL, &req, path, atime, mtime, NULL));
   ASSERT_OK(req.result);
   uv_fs_req_cleanup(&req);
-
   check_utime(path, atime, mtime, /* test_lutime */ 0);
+
+  ASSERT_OK(uv_fs_utime(NULL,
+                        &req,
+                        path,
+                        UV_FS_UTIME_OMIT,
+                        UV_FS_UTIME_OMIT,
+                        NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(path, atime, mtime, /* test_lutime */ 0);
+
+  ASSERT_OK(uv_fs_utime(NULL,
+                        &req,
+                        path,
+                        UV_FS_UTIME_NOW,
+                        UV_FS_UTIME_OMIT,
+                        NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(path, UV_FS_UTIME_NOW, mtime, /* test_lutime */ 0);
+
+  ASSERT_OK(uv_fs_utime(NULL, &req, path, atime, mtime, NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(path, atime, mtime, /* test_lutime */ 0);
+
+  ASSERT_OK(uv_fs_utime(NULL,
+                        &req,
+                        path,
+                        UV_FS_UTIME_OMIT,
+                        UV_FS_UTIME_NOW,
+                        NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(path, atime, UV_FS_UTIME_NOW, /* test_lutime */ 0);
 
   atime = mtime = 1291404900.25; /* 2010-12-03 20:35:00.25 - mees <3 */
   checkme.path = path;
@@ -2824,8 +2940,42 @@ TEST_IMPL(fs_futime) {
   ASSERT_OK(req.result);
 #endif
   uv_fs_req_cleanup(&req);
-
   check_utime(path, atime, mtime, /* test_lutime */ 0);
+
+  ASSERT_OK(uv_fs_futime(NULL,
+                         &req,
+                         file,
+                         UV_FS_UTIME_OMIT,
+                         UV_FS_UTIME_OMIT,
+                         NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(path, atime, mtime, /* test_lutime */ 0);
+
+  ASSERT_OK(uv_fs_futime(NULL,
+                         &req,
+                         file,
+                         UV_FS_UTIME_NOW,
+                         UV_FS_UTIME_OMIT,
+                         NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(path, UV_FS_UTIME_NOW, mtime, /* test_lutime */ 0);
+
+  ASSERT_OK(uv_fs_futime(NULL, &req, file, atime, mtime, NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(path, atime, mtime, /* test_lutime */ 0);
+
+  ASSERT_OK(uv_fs_futime(NULL,
+                         &req,
+                         file,
+                         UV_FS_UTIME_OMIT,
+                         UV_FS_UTIME_NOW,
+                         NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(path, atime, UV_FS_UTIME_NOW, /* test_lutime */ 0);
 
   atime = mtime = 1291404900; /* 2010-12-03 20:35:00 - mees <3 */
 
@@ -2888,20 +3038,50 @@ TEST_IMPL(fs_lutime) {
   /* Test the synchronous version. */
   atime = mtime = 400497753.25; /* 1982-09-10 11:22:33.25 */
 
-  checkme.atime = atime;
-  checkme.mtime = mtime;
-  checkme.path = symlink_path;
-  req.data = &checkme;
-
   r = uv_fs_lutime(NULL, &req, symlink_path, atime, mtime, NULL);
-#if (defined(_AIX) && !defined(_AIX71)) ||                                    \
-     defined(__MVS__)
+#if (defined(_AIX) && !defined(_AIX71)) || defined(__MVS__)
   ASSERT_EQ(r, UV_ENOSYS);
   RETURN_SKIP("lutime is not implemented for z/OS and AIX versions below 7.1");
 #endif
   ASSERT_OK(r);
-  lutime_cb(&req);
-  ASSERT_EQ(1, lutime_cb_count);
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(symlink_path, atime, mtime, /* test_lutime */ 1);
+
+  ASSERT_OK(uv_fs_lutime(NULL,
+                         &req,
+                         symlink_path,
+                         UV_FS_UTIME_OMIT,
+                         UV_FS_UTIME_OMIT,
+                         NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(symlink_path, atime, mtime, /* test_lutime */ 1);
+
+  ASSERT_OK(uv_fs_lutime(NULL,
+                         &req,
+                         symlink_path,
+                         UV_FS_UTIME_NOW,
+                         UV_FS_UTIME_OMIT,
+                         NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(symlink_path, UV_FS_UTIME_NOW, mtime, /* test_lutime */ 1);
+
+  ASSERT_OK(uv_fs_lutime(NULL, &req, symlink_path, atime, mtime, NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(symlink_path, atime, mtime, /* test_lutime */ 1);
+
+  ASSERT_OK(uv_fs_lutime(NULL,
+                         &req,
+                         symlink_path,
+                         UV_FS_UTIME_OMIT,
+                         UV_FS_UTIME_NOW,
+                         NULL));
+  ASSERT_OK(req.result);
+  uv_fs_req_cleanup(&req);
+  check_utime(symlink_path, atime, UV_FS_UTIME_NOW, /* test_lutime */ 1);
 
   /* Test the asynchronous version. */
   atime = mtime = 1291404900; /* 2010-12-03 20:35:00 */
@@ -2909,11 +3089,12 @@ TEST_IMPL(fs_lutime) {
   checkme.atime = atime;
   checkme.mtime = mtime;
   checkme.path = symlink_path;
+  req.data = &checkme;
 
   r = uv_fs_lutime(loop, &req, symlink_path, atime, mtime, lutime_cb);
   ASSERT_OK(r);
   uv_run(loop, UV_RUN_DEFAULT);
-  ASSERT_EQ(2, lutime_cb_count);
+  ASSERT_EQ(1, lutime_cb_count);
 
   /* Cleanup. */
   unlink(path);

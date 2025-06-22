@@ -26,6 +26,16 @@ unsigned HIST_isError(size_t code) { return ERR_isError(code); }
 /*-**************************************************************
  *  Histogram functions
  ****************************************************************/
+void HIST_add(unsigned* count, const void* src, size_t srcSize)
+{
+    const BYTE* ip = (const BYTE*)src;
+    const BYTE* const end = ip + srcSize;
+
+    while (ip<end) {
+        count[*ip++]++;
+    }
+}
+
 unsigned HIST_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
                            const void* src, size_t srcSize)
 {

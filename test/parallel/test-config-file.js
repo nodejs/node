@@ -1,9 +1,10 @@
 'use strict';
 
-const { spawnPromisified } = require('../common');
+const { spawnPromisified, skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const fixtures = require('../common/fixtures');
-const { match, strictEqual } = require('node:assert');
-const { test } = require('node:test');
+const { match, strictEqual, deepStrictEqual } = require('node:assert');
+const { test, it, describe } = require('node:test');
 const { chmodSync, constants } = require('node:fs');
 const common = require('../common');
 
@@ -54,17 +55,18 @@ test('should parse boolean flag', async () => {
   strictEqual(result.code, 0);
 });
 
-test('should not override a flag declared twice', async () => {
+test('should throw an error when a flag is declared twice', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
     fixtures.path('rc/override-property.json'),
     fixtures.path('typescript/ts/transformation/test-enum.ts'),
   ]);
-  strictEqual(result.stderr, '');
-  strictEqual(result.stdout, 'Hello, TypeScript!\n');
-  strictEqual(result.code, 0);
+  match(result.stderr, /Option --experimental-transform-types is already defined/);
+  strictEqual(result.stdout, '');
+  strictEqual(result.code, 9);
 });
+
 
 test('should override env-file', async () => {
   const result = await spawnPromisified(process.execPath, [
@@ -96,7 +98,7 @@ test('should not override NODE_OPTIONS', async () => {
   strictEqual(result.code, 1);
 });
 
-test('should not ovverride CLI flags', async () => {
+test('should not override CLI flags', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--no-experimental-transform-types',
@@ -152,7 +154,7 @@ test('should throw at unknown flag', async () => {
     fixtures.path('rc/unknown-flag.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Unknown or not allowed option some-unknown-flag/);
+  match(result.stderr, /Unknown or not allowed option some-unknown-flag for namespace nodeOptions/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 9);
 });
@@ -164,7 +166,7 @@ test('should throw at flag not available in NODE_OPTIONS', async () => {
     fixtures.path('rc/not-node-options-flag.json'),
     '-p', '"Hello, World!"',
   ]);
-  match(result.stderr, /Unknown or not allowed option test/);
+  match(result.stderr, /Unknown or not allowed option test for namespace nodeOptions/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 9);
 });
@@ -229,6 +231,30 @@ test('host port flag should be parsed correctly', { skip: !process.features.insp
   ]);
   strictEqual(result.stderr, '');
   strictEqual(result.stdout, '65535\n');
+  strictEqual(result.code, 0);
+});
+
+test('--inspect=true should be parsed correctly', { skip: !process.features.inspector }, async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-config-file',
+    fixtures.path('rc/inspect-true.json'),
+    '-p', 'require("node:inspector").url()',
+  ]);
+  match(result.stderr, /^Debugger listening on (ws:\/\/[^\s]+)/);
+  match(result.stdout, /ws:\/\/[^\s]+/);
+  strictEqual(result.code, 0);
+});
+
+test('--inspect=false should be parsed correctly', { skip: !process.features.inspector }, async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--experimental-config-file',
+    fixtures.path('rc/inspect-false.json'),
+    '-p', 'require("node:inspector").url()',
+  ]);
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, 'undefined\n');
   strictEqual(result.code, 0);
 });
 
@@ -335,7 +361,10 @@ test('should override node.config.json when specificied', async () => {
   strictEqual(result.code, 0);
 });
 // Skip on windows because it doesn't support chmod changing read permissions
-test('should throw an error when the file is non readable', { skip: common.isWindows }, async () => {
+// Also skip if user is root because it would have read permissions anyway
+test('should throw an error when the file is non readable', {
+  skip: common.isWindows || process.getuid() === 0,
+}, async () => {
   chmodSync(fixtures.path('rc/non-readable/node.config.json'), constants.O_RDONLY);
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
@@ -349,4 +378,148 @@ test('should throw an error when the file is non readable', { skip: common.isWin
   strictEqual(result.code, 9);
   chmodSync(fixtures.path('rc/non-readable/node.config.json'),
             constants.S_IRWXU | constants.S_IRWXG | constants.S_IRWXO);
+});
+
+describe('namespace-scoped options', () => {
+  it('should parse a namespace-scoped option correctly', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/namespaced/node.config.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'none\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should throw an error when a namespace-scoped option is not recognised', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/unknown-flag-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    match(result.stderr, /Unknown or not allowed option unknown-flag for namespace testRunner/);
+    strictEqual(result.stdout, '');
+    strictEqual(result.code, 9);
+  });
+
+  it('should not throw an error when a namespace is not recognised', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/unknown-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'Hello, World!\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should handle an empty namespace valid namespace', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/empty-valid-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'Hello, World!\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should throw an error if a namespace-scoped option has already been set in node options', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/override-node-option-with-namespace.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    match(result.stderr, /Option --test-isolation is already defined/);
+    strictEqual(result.stdout, '');
+    strictEqual(result.code, 9);
+  });
+
+  it('should throw an error if a node option has already been set in a namespace-scoped option', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/override-namespace.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    match(result.stderr, /Option --test-isolation is already defined/);
+    strictEqual(result.stdout, '');
+    strictEqual(result.code, 9);
+  });
+
+  it('should prioritise CLI namespace-scoped options over config file options', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--test-isolation', 'process',
+      '--experimental-config-file',
+      fixtures.path('rc/namespaced/node.config.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'process\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should append namespace-scoped config file options with CLI options in case of array', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--test-coverage-exclude', 'cli-pattern1',
+      '--test-coverage-exclude', 'cli-pattern2',
+      '--experimental-config-file',
+      fixtures.path('rc/namespace-with-array.json'),
+      '-p', 'JSON.stringify(require("internal/options").getOptionValue("--test-coverage-exclude"))',
+    ]);
+    strictEqual(result.stderr, '');
+    const excludePatterns = JSON.parse(result.stdout);
+    const expected = [
+      'config-pattern1',
+      'config-pattern2',
+      'cli-pattern1',
+      'cli-pattern2',
+    ];
+    deepStrictEqual(excludePatterns, expected);
+    strictEqual(result.code, 0);
+  });
+
+  it('should allow setting kDisallowedInEnvvar in the config file if part of a namespace', async () => {
+    // This test assumes that the --test-concurrency flag is configured as kDisallowedInEnvVar
+    // and that it is part of at least one namespace.
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/namespace-with-disallowed-envvar.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-concurrency")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, '1\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should override namespace-scoped config file options with CLI options', async () => {
+    // This test assumes that the --test-concurrency flag is configured as kDisallowedInEnvVar
+    // and that it is part of at least one namespace.
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--test-concurrency', '2',
+      '--experimental-config-file',
+      fixtures.path('rc/namespace-with-disallowed-envvar.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-concurrency")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, '2\n');
+    strictEqual(result.code, 0);
+  });
 });

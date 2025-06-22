@@ -656,38 +656,6 @@ struct MallocedBuffer {
   MallocedBuffer& operator=(const MallocedBuffer&) = delete;
 };
 
-template <typename T>
-class NonCopyableMaybe {
- public:
-  NonCopyableMaybe() : empty_(true) {}
-  explicit NonCopyableMaybe(T&& value)
-      : empty_(false),
-        value_(std::move(value)) {}
-
-  bool IsEmpty() const {
-    return empty_;
-  }
-
-  const T* get() const {
-    return empty_ ? nullptr : &value_;
-  }
-
-  const T* operator->() const {
-    CHECK(!empty_);
-    return &value_;
-  }
-
-  T&& Release() {
-    CHECK_EQ(empty_, false);
-    empty_ = true;
-    return std::move(value_);
-  }
-
- private:
-  bool empty_;
-  T value_;
-};
-
 // Test whether some value can be called with ().
 template <typename T, typename = void>
 struct is_callable : std::is_function<T> { };
@@ -958,6 +926,16 @@ void SetMethodNoSideEffect(v8::Isolate* isolate,
                            const std::string_view name,
                            v8::FunctionCallback callback);
 
+// Set the Symbol.dispose method on the prototype of the class.
+void SetProtoDispose(v8::Isolate* isolate,
+                     v8::Local<v8::FunctionTemplate> that,
+                     v8::FunctionCallback callback);
+
+// Set the Symbol.asyncDispose method on the prototype of the class.
+void SetProtoAsyncDispose(v8::Isolate* isolate,
+                          v8::Local<v8::FunctionTemplate> that,
+                          v8::FunctionCallback callback);
+
 enum class SetConstructorFunctionFlag {
   NONE,
   SET_CLASS_NAME,
@@ -1026,9 +1004,12 @@ v8::Maybe<int> GetValidFileMode(Environment* env,
                                 v8::Local<v8::Value> input,
                                 uv_fs_type type);
 
+#ifdef _WIN32
 // Returns true if OS==Windows and filename ends in .bat or .cmd,
 // case insensitive.
 inline bool IsWindowsBatchFile(const char* filename);
+inline std::wstring ConvertToWideString(const std::string& str, UINT code_page);
+#endif  // _WIN32
 
 }  // namespace node
 

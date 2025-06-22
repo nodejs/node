@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/strings/string_view.h"
-
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -23,11 +21,12 @@
 #include <unordered_set>
 #include <vector>
 
-#include "benchmark/benchmark.h"
 #include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+#include "benchmark/benchmark.h"
 
 namespace {
 

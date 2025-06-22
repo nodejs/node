@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// AddressSanitizer support.
-
 #ifndef V8_BASE_SANITIZER_ASAN_H_
 #define V8_BASE_SANITIZER_ASAN_H_
+
+// AddressSanitizer support.
 
 #include <type_traits>
 

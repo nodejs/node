@@ -121,7 +121,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                               RegExpBoilerplateDescriptionRef boilerplate);
 
   Factory* factory() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   NativeContextRef native_context() const;
   CommonOperatorBuilder* common() const;

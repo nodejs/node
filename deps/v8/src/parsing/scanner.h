@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Features shared by parsing and pre-parsing scanners.
-
 #ifndef V8_PARSING_SCANNER_H_
 #define V8_PARSING_SCANNER_H_
+
+// Features shared by parsing and pre-parsing scanners.
 
 #include <algorithm>
 #include <memory>
@@ -426,9 +426,11 @@ class V8_EXPORT_PRIVATE Scanner {
   }
 
   template <typename IsolateT>
-  Handle<String> SourceUrl(IsolateT* isolate) const;
+  DirectHandle<String> SourceUrl(IsolateT* isolate) const;
   template <typename IsolateT>
-  Handle<String> SourceMappingUrl(IsolateT* isolate) const;
+  DirectHandle<String> SourceMappingUrl(IsolateT* isolate) const;
+  template <typename IsolateT>
+  DirectHandle<String> DebugId(IsolateT* isolate) const;
 
   bool SawSourceMappingUrlMagicCommentAtSign() const {
     return saw_source_mapping_url_magic_comment_at_sign_;
@@ -437,6 +439,8 @@ class V8_EXPORT_PRIVATE Scanner {
   bool SawMagicCommentCompileHintsAll() const {
     return saw_magic_comment_compile_hints_all_;
   }
+
+  bool HasPerFunctionCompileHint(int position);
 
   bool FoundHtmlComment() const { return found_html_comment_; }
 
@@ -762,8 +766,12 @@ class V8_EXPORT_PRIVATE Scanner {
   // Values parsed from magic comments.
   LiteralBuffer source_url_;
   LiteralBuffer source_mapping_url_;
+  LiteralBuffer debug_id_;
   bool saw_source_mapping_url_magic_comment_at_sign_ = false;
   bool saw_magic_comment_compile_hints_all_ = false;
+  bool saw_non_comment_ = false;
+  std::vector<int> per_function_compile_hint_positions_;
+  size_t per_function_compile_hint_positions_idx_ = 0;
 
   // Last-seen positions of potentially problematic tokens.
   Location octal_pos_;

@@ -97,8 +97,6 @@ const der = Buffer.from(
   assert.strictEqual(x509.infoAccess, infoAccessCheck);
   assert.strictEqual(x509.validFrom, 'Sep  3 21:40:37 2022 GMT');
   assert.strictEqual(x509.validTo, 'Jun 17 21:40:37 2296 GMT');
-  assert.deepStrictEqual(x509.validFromDate, new Date('2022-09-03T21:40:37Z'));
-  assert.deepStrictEqual(x509.validToDate, new Date('2296-06-17T21:40:37Z'));
   assert.strictEqual(
     x509.fingerprint,
     '8B:89:16:C4:99:87:D2:13:1A:64:94:36:38:A5:32:01:F0:95:3B:53');
@@ -117,6 +115,11 @@ const der = Buffer.from(
   assert.strictEqual(x509.serialNumber.toUpperCase(), '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
 
   assert.deepStrictEqual(x509.raw, der);
+
+  if (!process.features.openssl_is_boringssl) {
+    assert.deepStrictEqual(x509.validFromDate, new Date('2022-09-03T21:40:37Z'));
+    assert.deepStrictEqual(x509.validToDate, new Date('2296-06-17T21:40:37Z'));
+  }
 
   assert(x509.publicKey);
   assert.strictEqual(x509.publicKey.type, 'public');
@@ -356,13 +359,15 @@ tAt3hIKFD1bJt6c6WtMH2Su3syosWxmdmGk5ihslB00lvLpfj/wed8i3bkcB1doq
 UcXd/5qu2GhokrKU2cPttU+XAN2Om6a0
 -----END CERTIFICATE-----`;
 
-  const cert = new X509Certificate(certPem);
-  assert.throws(() => cert.publicKey, {
-    message: hasOpenSSL3 ? /decode error/ : /wrong tag/,
-    name: 'Error'
-  });
+  if (!process.features.openssl_is_boringssl) {
+    const cert = new X509Certificate(certPem);
+    assert.throws(() => cert.publicKey, {
+      message: hasOpenSSL3 ? /decode error/ : /wrong tag/,
+      name: 'Error'
+    });
 
-  assert.strictEqual(cert.checkIssued(cert), false);
+    assert.strictEqual(cert.checkIssued(cert), false);
+  }
 }
 
 {
@@ -401,8 +406,10 @@ UidvpWWipVLZgK+oDks+bKTobcoXGW9oXobiIYqslXPy
 -----END CERTIFICATE-----`.trim();
   const c1 = new X509Certificate(certPemUTCTime);
 
-  assert.deepStrictEqual(c1.validFromDate, new Date('1949-12-25T23:59:58Z'));
-  assert.deepStrictEqual(c1.validToDate, new Date('1950-01-01T23:59:58Z'));
+  if (!process.features.openssl_is_boringssl) {
+    assert.deepStrictEqual(c1.validFromDate, new Date('1949-12-25T23:59:58Z'));
+    assert.deepStrictEqual(c1.validToDate, new Date('1950-01-01T23:59:58Z'));
+  }
 
   // The GeneralizedTime format is used for dates in 2050 or later.
   const certPemGeneralizedTime = `-----BEGIN CERTIFICATE-----
@@ -436,6 +443,8 @@ CWwQO8JZjJqFtqtuzy2n+gLCvqePgG/gmSqHOPm2ZbLW
 -----END CERTIFICATE-----`.trim();
   const c2 = new X509Certificate(certPemGeneralizedTime);
 
-  assert.deepStrictEqual(c2.validFromDate, new Date('2049-12-26T00:00:01Z'));
-  assert.deepStrictEqual(c2.validToDate, new Date('2050-01-02T00:00:01Z'));
+  if (!process.features.openssl_is_boringssl) {
+    assert.deepStrictEqual(c2.validFromDate, new Date('2049-12-26T00:00:01Z'));
+    assert.deepStrictEqual(c2.validToDate, new Date('2050-01-02T00:00:01Z'));
+  }
 }

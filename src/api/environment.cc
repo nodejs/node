@@ -20,12 +20,15 @@
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
+#include "v8-cppgc.h"
 
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -312,21 +315,27 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
     SnapshotBuilder::InitializeIsolateParams(snapshot_data, params);
   }
 
-#ifdef NODE_V8_SHARED_RO_HEAP
   {
-    // In shared-readonly-heap mode, V8 requires all snapshots used for
-    // creating Isolates to be identical. This isn't really memory-safe
+    // Because it uses a shared readonly-heap, V8 requires all snapshots used
+    // for creating Isolates to be identical. This isn't really memory-safe
     // but also otherwise just doesn't work, and the only real alternative
     // is disabling shared-readonly-heap mode altogether.
     static Isolate::CreateParams first_params = *params;
     params->snapshot_blob = first_params.snapshot_blob;
     params->external_references = first_params.external_references;
   }
-#endif
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate, event_loop);
+
+  // Ensure that there is always a CppHeap.
+  if (settings.cpp_heap == nullptr) {
+    params->cpp_heap =
+        CppHeap::Create(platform, CppHeapCreateParams{{}}).release();
+  } else {
+    params->cpp_heap = settings.cpp_heap;
+  }
 
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate, *params);
@@ -574,26 +583,6 @@ MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env) {
   return env->platform();
 }
 
-MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    node::tracing::TracingController* tracing_controller) {
-  return CreatePlatform(
-      thread_pool_size,
-      static_cast<v8::TracingController*>(tracing_controller));
-}
-
-MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    v8::TracingController* tracing_controller) {
-  return MultiIsolatePlatform::Create(thread_pool_size,
-                                      tracing_controller)
-      .release();
-}
-
-void FreePlatform(MultiIsolatePlatform* platform) {
-  delete platform;
-}
-
 std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
     int thread_pool_size,
     v8::TracingController* tracing_controller,
@@ -778,13 +767,13 @@ MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
   Context::Scope context_scope(context);
 
   Local<ObjectTemplate> private_symbols = ObjectTemplate::New(isolate);
-  Local<Object> private_symbols_object;
 #define V(PropertyName, _)                                                     \
   private_symbols->Set(isolate, #PropertyName, isolate_data->PropertyName());
 
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
 #undef V
 
+  Local<Object> private_symbols_object;
   if (!private_symbols->NewInstance(context).ToLocal(&private_symbols_object) ||
       private_symbols_object->SetPrototypeV2(context, Null(isolate))
           .IsNothing()) {
@@ -792,6 +781,32 @@ MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
   }
 
   return scope.Escape(private_symbols_object);
+}
+
+MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
+                                               IsolateData* isolate_data) {
+  CHECK(isolate_data);
+  Isolate* isolate = context->GetIsolate();
+  EscapableHandleScope scope(isolate);
+  Context::Scope context_scope(context);
+
+  Local<ObjectTemplate> per_isolate_symbols = ObjectTemplate::New(isolate);
+#define V(PropertyName, _)                                                     \
+  per_isolate_symbols->Set(                                                    \
+      isolate, #PropertyName, isolate_data->PropertyName());
+
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+  Local<Object> per_isolate_symbols_object;
+  if (!per_isolate_symbols->NewInstance(context).ToLocal(
+          &per_isolate_symbols_object) ||
+      per_isolate_symbols_object->SetPrototypeV2(context, Null(isolate))
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  return scope.Escape(per_isolate_symbols_object);
 }
 
 Maybe<void> InitializePrimordials(Local<Context> context,
@@ -810,16 +825,22 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   // context.
   CHECK(!exports->Has(context, primordials_string).FromJust());
 
-  Local<Object> primordials = Object::New(isolate);
+  Local<Object> primordials =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
   // Create primordials and make it available to per-context scripts.
-  if (primordials->SetPrototypeV2(context, Null(isolate)).IsNothing() ||
-      exports->Set(context, primordials_string, primordials).IsNothing()) {
+  if (exports->Set(context, primordials_string, primordials).IsNothing()) {
     return Nothing<void>();
   }
 
   Local<Object> private_symbols;
   if (!InitializePrivateSymbols(context, isolate_data)
            .ToLocal(&private_symbols)) {
+    return Nothing<void>();
+  }
+
+  Local<Object> per_isolate_symbols;
+  if (!InitializePerIsolateSymbols(context, isolate_data)
+           .ToLocal(&per_isolate_symbols)) {
     return Nothing<void>();
   }
 
@@ -838,7 +859,8 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   builtin_loader.SetEagerCompile();
 
   for (const char** module = context_files; *module != nullptr; module++) {
-    Local<Value> arguments[] = {exports, primordials, private_symbols};
+    Local<Value> arguments[] = {
+        exports, primordials, private_symbols, per_isolate_symbols};
 
     if (builtin_loader
             .CompileAndCall(

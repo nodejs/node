@@ -180,7 +180,8 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
 
   void LdaGlobal(int slot_operand_index, int name_operand_index,
                  TypeofMode typeof_mode) {
-    TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+    TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+        LoadFeedbackVector();
 
     AccessorAssembler accessor_asm(state());
     ExitPoint exit_point(this, [=, this](TNode<Object> result) {
@@ -252,6 +253,20 @@ IGNITION_HANDLER(StaGlobal, InterpreterAssembler) {
   Dispatch();
 }
 
+// LdaContextSlotNoCell <context> <slot_index> <depth>
+//
+// Load the object in |slot_index| of the context at |depth| in the context
+// chain starting at |context| into the accumulator.
+IGNITION_HANDLER(LdaContextSlotNoCell, InterpreterAssembler) {
+  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
+  TNode<Uint32T> depth = BytecodeOperandUImm(2);
+  TNode<Context> slot_context = GetContextAtDepth(context, depth);
+  TNode<Object> result = LoadContextElementNoCell(slot_context, slot_index);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // LdaContextSlot <context> <slot_index> <depth>
 //
 // Load the object in |slot_index| of the context at |depth| in the context
@@ -275,7 +290,18 @@ IGNITION_HANDLER(LdaImmutableContextSlot, InterpreterAssembler) {
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
   TNode<Uint32T> depth = BytecodeOperandUImm(2);
   TNode<Context> slot_context = GetContextAtDepth(context, depth);
-  TNode<Object> result = LoadContextElement(slot_context, slot_index);
+  TNode<Object> result = LoadContextElementNoCell(slot_context, slot_index);
+  SetAccumulator(result);
+  Dispatch();
+}
+
+// LdaCurrentContextSlotNoCell <slot_index>
+//
+// Load the object in |slot_index| of the current context into the accumulator.
+IGNITION_HANDLER(LdaCurrentContextSlotNoCell, InterpreterAssembler) {
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
+  TNode<Context> slot_context = GetContext();
+  TNode<Object> result = LoadContextElementNoCell(slot_context, slot_index);
   SetAccumulator(result);
   Dispatch();
 }
@@ -297,15 +323,41 @@ IGNITION_HANDLER(LdaCurrentContextSlot, InterpreterAssembler) {
 IGNITION_HANDLER(LdaImmutableCurrentContextSlot, InterpreterAssembler) {
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
   TNode<Context> slot_context = GetContext();
-  TNode<Object> result = LoadContextElement(slot_context, slot_index);
+  TNode<Object> result = LoadContextElementNoCell(slot_context, slot_index);
   SetAccumulator(result);
+  Dispatch();
+}
+
+// StaContextSlotNoCell <context> <slot_index> <depth>
+//
+// Stores the object in the accumulator into |slot_index| of the context at
+// |depth| in the context chain starting at |context|.
+IGNITION_HANDLER(StaContextSlotNoCell, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
+  TNode<Uint32T> depth = BytecodeOperandUImm(2);
+  TNode<Context> slot_context = GetContextAtDepth(context, depth);
+  StoreContextElementNoCell(slot_context, slot_index, value);
+  Dispatch();
+}
+
+// StaCurrentContextSlotNoCell <slot_index>
+//
+// Stores the object in the accumulator into |slot_index| of the current
+// context.
+IGNITION_HANDLER(StaCurrentContextSlotNoCell, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
+  TNode<Context> slot_context = GetContext();
+  StoreContextElementNoCell(slot_context, slot_index, value);
   Dispatch();
 }
 
 // StaContextSlot <context> <slot_index> <depth>
 //
-// Stores the object in the accumulator into |slot_index| of the context at
-// |depth| in the context chain starting at |context|.
+// Stores the object in the accumulator into |slot_index| of the script context
+// at |depth| in the context chain starting at |context|.
 IGNITION_HANDLER(StaContextSlot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
@@ -319,38 +371,12 @@ IGNITION_HANDLER(StaContextSlot, InterpreterAssembler) {
 // StaCurrentContextSlot <slot_index>
 //
 // Stores the object in the accumulator into |slot_index| of the current
-// context.
+// context (which has to be a script context).
 IGNITION_HANDLER(StaCurrentContextSlot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
   TNode<Context> slot_context = GetContext();
   StoreContextElement(slot_context, slot_index, value);
-  Dispatch();
-}
-
-// StaScriptContextSlot <context> <slot_index> <depth>
-//
-// Stores the object in the accumulator into |slot_index| of the script context
-// at |depth| in the context chain starting at |context|.
-IGNITION_HANDLER(StaScriptContextSlot, InterpreterAssembler) {
-  TNode<Object> value = GetAccumulator();
-  TNode<Context> context = CAST(LoadRegisterAtOperandIndex(0));
-  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
-  TNode<Uint32T> depth = BytecodeOperandUImm(2);
-  TNode<Context> slot_context = GetContextAtDepth(context, depth);
-  StoreContextElementAndUpdateSideData(slot_context, slot_index, value);
-  Dispatch();
-}
-
-// StaCurrentScriptContextSlot <slot_index>
-//
-// Stores the object in the accumulator into |slot_index| of the current
-// context (which has to be a script context).
-IGNITION_HANDLER(StaCurrentScriptContextSlot, InterpreterAssembler) {
-  TNode<Object> value = GetAccumulator();
-  TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(0));
-  TNode<Context> slot_context = GetContext();
-  StoreContextElementAndUpdateSideData(slot_context, slot_index, value);
   Dispatch();
 }
 
@@ -386,7 +412,7 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
                                         OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void LookupContextSlot(Runtime::FunctionId function_id) {
+  void LookupContextSlot(Runtime::FunctionId function_id, ContextMode kind) {
     TNode<Context> context = GetContext();
     TNode<IntPtrT> slot_index = Signed(BytecodeOperandIdx(1));
     TNode<Uint32T> depth = BytecodeOperandUImm(2);
@@ -399,7 +425,10 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
 
     // Fast path does a normal load context.
     {
-      TNode<Object> result = LoadContextElement(slot_context, slot_index);
+      TNode<Object> result =
+          (kind == ContextMode::kHasContextCells)
+              ? LoadContextElement(slot_context, slot_index)
+              : LoadContextElementNoCell(slot_context, slot_index);
       SetAccumulator(result);
       Dispatch();
     }
@@ -419,8 +448,27 @@ class InterpreterLookupContextSlotAssembler : public InterpreterAssembler {
 //
 // Lookup the object with the name in constant pool entry |name_index|
 // dynamically.
+IGNITION_HANDLER(LdaLookupContextSlotNoCell,
+                 InterpreterLookupContextSlotAssembler) {
+  LookupContextSlot(Runtime::kLoadLookupSlot, ContextMode::kNoContextCells);
+}
+
+// LdaLookupContextSlot <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically.
 IGNITION_HANDLER(LdaLookupContextSlot, InterpreterLookupContextSlotAssembler) {
-  LookupContextSlot(Runtime::kLoadLookupSlot);
+  LookupContextSlot(Runtime::kLoadLookupSlot, ContextMode::kHasContextCells);
+}
+
+// LdaLookupContextSlotInsideTypeof <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically without causing a NoReferenceError.
+IGNITION_HANDLER(LdaLookupContextSlotNoCellInsideTypeof,
+                 InterpreterLookupContextSlotAssembler) {
+  LookupContextSlot(Runtime::kLoadLookupSlotInsideTypeof,
+                    ContextMode::kNoContextCells);
 }
 
 // LdaLookupContextSlotInsideTypeof <name_index>
@@ -429,7 +477,8 @@ IGNITION_HANDLER(LdaLookupContextSlot, InterpreterLookupContextSlotAssembler) {
 // dynamically without causing a NoReferenceError.
 IGNITION_HANDLER(LdaLookupContextSlotInsideTypeof,
                  InterpreterLookupContextSlotAssembler) {
-  LookupContextSlot(Runtime::kLoadLookupSlotInsideTypeof);
+  LookupContextSlot(Runtime::kLoadLookupSlotInsideTypeof,
+                    ContextMode::kHasContextCells);
 }
 
 class InterpreterLookupGlobalAssembler : public InterpreterLoadGlobalAssembler {
@@ -553,7 +602,7 @@ IGNITION_HANDLER(GetNamedProperty, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
 
   // Load receiver.
-  TNode<Object> recv = LoadRegisterAtOperandIndex(0);
+  TNode<JSAny> recv = CAST(LoadRegisterAtOperandIndex(0));
 
   // Load the name and context lazily.
   LazyNode<TaggedIndex> lazy_slot = [=, this] {
@@ -809,7 +858,7 @@ IGNITION_HANDLER(LdaModuleVariable, InterpreterAssembler) {
 
   TNode<Context> module_context = GetContextAtDepth(GetContext(), depth);
   TNode<SourceTextModule> module =
-      CAST(LoadContextElement(module_context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElementNoCell(module_context, Context::EXTENSION_INDEX));
 
   Label if_export(this), if_import(this), end(this);
   Branch(IntPtrGreaterThan(cell_index, IntPtrConstant(0)), &if_export,
@@ -854,7 +903,7 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
 
   TNode<Context> module_context = GetContextAtDepth(GetContext(), depth);
   TNode<SourceTextModule> module =
-      CAST(LoadContextElement(module_context, Context::EXTENSION_INDEX));
+      CAST(LoadContextElementNoCell(module_context, Context::EXTENSION_INDEX));
 
   Label if_export(this), if_import(this), end(this);
   Branch(IntPtrGreaterThan(cell_index, IntPtrConstant(0)), &if_export,
@@ -920,7 +969,7 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
     TNode<Object> rhs = GetAccumulator();
     TNode<Context> context = GetContext();
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
-    TNode<HeapObject> maybe_feedback_vector =
+    TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
         LoadFeedbackVectorOrUndefinedIfJitless();
     static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
 
@@ -937,7 +986,7 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
     TNode<Smi> rhs = BytecodeOperandImmSmi(0);
     TNode<Context> context = GetContext();
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
-    TNode<HeapObject> maybe_feedback_vector =
+    TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
         LoadFeedbackVectorOrUndefinedIfJitless();
     static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
 
@@ -955,6 +1004,16 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
 // Add register <src> to accumulator.
 IGNITION_HANDLER(Add, InterpreterBinaryOpAssembler) {
   BinaryOpWithFeedback(&BinaryOpAssembler::Generate_AddWithFeedback);
+}
+
+// Add_LhsIsConstant_Internalize <src>
+//
+// Add register <src> to accumulator.
+IGNITION_HANDLER(Add_LhsIsStringConstant_Internalize,
+                 InterpreterBinaryOpAssembler) {
+  BinaryOpWithFeedback(
+      &BinaryOpAssembler::
+          Generate_AddLhsIsStringConstantInternalizeWithFeedback);
 }
 
 // Sub <src>
@@ -1047,7 +1106,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<Object> right = GetAccumulator();
     TNode<Context> context = GetContext();
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
-    TNode<HeapObject> maybe_feedback_vector =
+    TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
         LoadFeedbackVectorOrUndefinedIfJitless();
     static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
 
@@ -1065,7 +1124,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     TNode<Smi> right = BytecodeOperandImmSmi(0);
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
     TNode<Context> context = GetContext();
-    TNode<HeapObject> maybe_feedback_vector =
+    TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
         LoadFeedbackVectorOrUndefinedIfJitless();
     static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
 
@@ -1160,7 +1219,7 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Context> context = GetContext();
   TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
-  TNode<HeapObject> maybe_feedback_vector =
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
       LoadFeedbackVectorOrUndefinedIfJitless();
   static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
 
@@ -1208,7 +1267,7 @@ IGNITION_HANDLER(Negate, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Context> context = GetContext();
   TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
-  TNode<HeapObject> maybe_feedback_vector =
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
       LoadFeedbackVectorOrUndefinedIfJitless();
   static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
 
@@ -1294,7 +1353,7 @@ IGNITION_HANDLER(Inc, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Context> context = GetContext();
   TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
-  TNode<HeapObject> maybe_feedback_vector =
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
       LoadFeedbackVectorOrUndefinedIfJitless();
   static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
 
@@ -1313,7 +1372,7 @@ IGNITION_HANDLER(Dec, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<Context> context = GetContext();
   TNode<UintPtrT> slot_index = BytecodeOperandIdx(0);
-  TNode<HeapObject> maybe_feedback_vector =
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
       LoadFeedbackVectorOrUndefinedIfJitless();
   static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
 
@@ -1383,7 +1442,8 @@ IGNITION_HANDLER(LogicalNot, InterpreterAssembler) {
 IGNITION_HANDLER(TypeOf, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
   TNode<UintPtrT> slot_id = BytecodeOperandIdx(0);
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
   TNode<String> result = Typeof(value, slot_id, maybe_feedback_vector);
   SetAccumulator(result);
   Dispatch();
@@ -1438,19 +1498,20 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
 
   // Generates code to perform a JS call that collects type feedback.
   void JSCall(ConvertReceiverMode receiver_mode) {
-    TNode<Object> function = LoadRegisterAtOperandIndex(0);
+    TNode<JSAny> function = CAST(LoadRegisterAtOperandIndex(0));
     RegListNodePair args = GetRegisterListAtOperandIndex(1);
     TNode<Context> context = GetContext();
 
 #ifndef V8_JITLESS
     // Collect the {function} feedback.
-    LazyNode<Object> receiver = [=, this] {
+    LazyNode<JSAny> receiver = [=, this] {
       return receiver_mode == ConvertReceiverMode::kNullOrUndefined
                  ? UndefinedConstant()
-                 : LoadRegisterAtOperandIndex(1);
+                 : TNode<JSAny>(CAST(LoadRegisterAtOperandIndex(1)));
     };
     TNode<UintPtrT> slot_id = BytecodeOperandIdx(3);
-    TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+    TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+        LoadFeedbackVector();
     CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
                         slot_id);
 #endif  // !V8_JITLESS
@@ -1468,20 +1529,21 @@ class InterpreterJSCallAssembler : public InterpreterAssembler {
         (receiver_mode == ConvertReceiverMode::kNullOrUndefined) ? 0 : 1;
     const int kReceiverAndArgOperandCount = kReceiverOperandCount + arg_count;
 
-    TNode<Object> function = LoadRegisterAtOperandIndex(0);
+    TNode<JSAny> function = CAST(LoadRegisterAtOperandIndex(0));
     TNode<Context> context = GetContext();
 
 #ifndef V8_JITLESS
     // Collect the {function} feedback.
-    LazyNode<Object> receiver = [=, this] {
+    LazyNode<JSAny> receiver = [=, this] {
       return receiver_mode == ConvertReceiverMode::kNullOrUndefined
                  ? UndefinedConstant()
-                 : LoadRegisterAtOperandIndex(1);
+                 : TNode<JSAny>(CAST(LoadRegisterAtOperandIndex(1)));
     };
     const int kSlotOperandIndex =
         kFirstArgumentOperandIndex + kReceiverAndArgOperandCount;
     TNode<UintPtrT> slot_id = BytecodeOperandIdx(kSlotOperandIndex);
-    TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+    TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+        LoadFeedbackVector();
     CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
                         slot_id);
 #endif  // !V8_JITLESS
@@ -1617,7 +1679,8 @@ IGNITION_HANDLER(CallJSRuntime, InterpreterAssembler) {
   // Get the function to call from the native context.
   TNode<Context> context = GetContext();
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Object> function = LoadContextElement(native_context, context_index);
+  TNode<JSAny> function =
+      CAST(LoadContextElementNoCell(native_context, context_index));
 
   // Call the function.
   CallJSAndDispatch(function, context, args,
@@ -1631,7 +1694,7 @@ IGNITION_HANDLER(CallJSRuntime, InterpreterAssembler) {
 // final argument is always a spread.
 //
 IGNITION_HANDLER(CallWithSpread, InterpreterAssembler) {
-  TNode<Object> callable = LoadRegisterAtOperandIndex(0);
+  TNode<JSAny> callable = CAST(LoadRegisterAtOperandIndex(0));
   RegListNodePair args = GetRegisterListAtOperandIndex(1);
   TNode<UintPtrT> slot_id = BytecodeOperandIdx(3);
   TNode<Context> context = GetContext();
@@ -1647,8 +1710,8 @@ IGNITION_HANDLER(CallWithSpread, InterpreterAssembler) {
 // argument is always a spread. The new.target is in the accumulator.
 //
 IGNITION_HANDLER(ConstructWithSpread, InterpreterAssembler) {
-  TNode<Object> new_target = GetAccumulator();
-  TNode<Object> constructor = LoadRegisterAtOperandIndex(0);
+  TNode<JSAny> new_target = CAST(GetAccumulator());
+  TNode<JSAny> constructor = CAST(LoadRegisterAtOperandIndex(0));
   RegListNodePair args = GetRegisterListAtOperandIndex(1);
   TNode<UintPtrT> slot_id = BytecodeOperandIdx(3);
   TNode<Context> context = GetContext();
@@ -1664,8 +1727,8 @@ IGNITION_HANDLER(ConstructWithSpread, InterpreterAssembler) {
 // current frame. The new.target is in the accumulator.
 //
 IGNITION_HANDLER(ConstructForwardAllArgs, InterpreterAssembler) {
-  TNode<Object> new_target = GetAccumulator();
-  TNode<Object> constructor = LoadRegisterAtOperandIndex(0);
+  TNode<JSAny> new_target = CAST(GetAccumulator());
+  TNode<JSAny> constructor = CAST(LoadRegisterAtOperandIndex(0));
   TNode<TaggedIndex> slot_id = BytecodeOperandIdxTaggedIndex(1);
   TNode<Context> context = GetContext();
   TNode<Object> result =
@@ -1681,11 +1744,12 @@ IGNITION_HANDLER(ConstructForwardAllArgs, InterpreterAssembler) {
 // registers. The new.target is in the accumulator.
 //
 IGNITION_HANDLER(Construct, InterpreterAssembler) {
-  TNode<Object> new_target = GetAccumulator();
-  TNode<Object> constructor = LoadRegisterAtOperandIndex(0);
+  TNode<JSAny> new_target = CAST(GetAccumulator());
+  TNode<JSAny> constructor = CAST(LoadRegisterAtOperandIndex(0));
   RegListNodePair args = GetRegisterListAtOperandIndex(1);
   TNode<UintPtrT> slot_id = BytecodeOperandIdx(3);
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
   TNode<Context> context = GetContext();
   TNode<Object> result = Construct(constructor, context, new_target, args,
                                    slot_id, maybe_feedback_vector);
@@ -1730,21 +1794,18 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
     }
 
     TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
-    TNode<HeapObject> maybe_feedback_vector =
-        LoadFeedbackVectorOrUndefinedIfJitless();
     static constexpr UpdateFeedbackMode mode = DefaultUpdateFeedbackMode();
-    UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_index,
-                   mode);
+    UpdateFeedback(var_type_feedback.value(),
+                   LoadFeedbackVectorOrUndefinedIfJitless(), slot_index, mode);
     SetAccumulator(result);
     Dispatch();
 
     BIND(&if_exception);
     {
-      TNode<UintPtrT> slot_index = BytecodeOperandIdx(1);
-      TNode<HeapObject> maybe_feedback_vector =
-          LoadFeedbackVectorOrUndefinedIfJitless();
-      UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector,
-                     slot_index, mode);
+      slot_index = BytecodeOperandIdx(1);
+      UpdateFeedback(var_type_feedback.value(),
+                     LoadFeedbackVectorOrUndefinedIfJitless(), slot_index,
+                     mode);
       CallRuntime(Runtime::kReThrow, context, var_exception.value());
       Unreachable();
     }
@@ -1831,11 +1892,12 @@ IGNITION_HANDLER(TestIn, InterpreterAssembler) {
 // referenced by the accumulator.
 IGNITION_HANDLER(TestInstanceOf, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
-  TNode<Object> callable = GetAccumulator();
+  TNode<JSAny> callable = CAST(GetAccumulator());
   TNode<Context> context = GetContext();
 
 #ifndef V8_JITLESS
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
   TNode<UintPtrT> slot_id = BytecodeOperandIdx(1);
   CollectInstanceOfFeedback(callable, context, maybe_feedback_vector, slot_id);
 #endif  // !V8_JITLESS
@@ -2513,7 +2575,8 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
 //
 // Creates an empty JSArray literal for literal index <literal_idx>.
 IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(0);
   TNode<Context> context = GetContext();
 
@@ -2635,7 +2698,8 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
       DecodeWordFromWord32<CreateObjectLiteralFlags::FlagsBits>(bytecode_flags);
   TNode<Smi> smi_flags = SmiTag(Signed(raw_flags));
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(2);
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
   TNode<Object> result = CallBuiltin(Builtin::kCloneObjectIC, context, source,
@@ -2656,7 +2720,8 @@ IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
       closure, JSFunction::kSharedFunctionInfoOffset);
   TNode<Object> description = LoadConstantPoolEntryAtOperandIndex(0);
   TNode<UintPtrT> slot = BytecodeOperandIdx(1);
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
   TNode<Object> result =
       CallBuiltin(Builtin::kGetTemplateObject, context, shared_info,
                   description, slot, maybe_feedback_vector);
@@ -3102,7 +3167,8 @@ IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
   // The {enumerator} is either a Map or a FixedArray.
   TNode<HeapObject> enumerator = CAST(GetAccumulator());
   TNode<UintPtrT> vector_index = BytecodeOperandIdx(1);
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
 
   TNode<HeapObject> cache_type = enumerator;  // Just to clarify the rename.
   TNode<FixedArray> cache_array;
@@ -3120,16 +3186,17 @@ IGNITION_HANDLER(ForInPrepare, InterpreterAssembler) {
 //
 // Returns the next enumerable property in the the accumulator.
 IGNITION_HANDLER(ForInNext, InterpreterAssembler) {
-  TNode<HeapObject> receiver = CAST(LoadRegisterAtOperandIndex(0));
+  TNode<JSAnyNotSmi> receiver = CAST(LoadRegisterAtOperandIndex(0));
   TNode<Smi> index = CAST(LoadRegisterAtOperandIndex(1));
   TNode<Object> cache_type;
   TNode<Object> cache_array;
   std::tie(cache_type, cache_array) = LoadRegisterPairAtOperandIndex(2);
   TNode<UintPtrT> vector_index = BytecodeOperandIdx(3);
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
 
   // Load the next key from the enumeration array.
-  TNode<Object> key = LoadFixedArrayElement(CAST(cache_array), index, 0);
+  TNode<JSAny> key = CAST(LoadFixedArrayElement(CAST(cache_array), index, 0));
 
   // Check if we can use the for-in fast path potentially using the enum cache.
   Label if_fast(this), if_slow(this, Label::kDeferred);
@@ -3308,31 +3375,16 @@ void BitwiseNotAssemblerTS_Generate(compiler::turboshaft::PipelineData* data,
                                     compiler::turboshaft::Graph& graph,
                                     Zone* zone);
 
-Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
-                                     Bytecode bytecode,
-                                     OperandScale operand_scale,
-                                     Builtin builtin,
-                                     const AssemblerOptions& options) {
-  Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-  compiler::CodeAssemblerState state(
-      isolate, &zone, InterpreterDispatchDescriptor{},
-      CodeKind::BYTECODE_HANDLER, debug_name, builtin);
-
-  const auto descriptor_builder = [](Zone* zone) {
-    InterpreterDispatchDescriptor descriptor{};
-    return compiler::Linkage::GetStubCallDescriptor(
-        zone, descriptor, descriptor.GetStackParameterCount(),
-        compiler::CallDescriptor::kNoFlags, compiler::Operator::kNoProperties);
-  };
-  USE(descriptor_builder);
-
-  Handle<Code> code;
+void GenerateBytecodeHandler(compiler::CodeAssemblerState* state,
+                             Bytecode bytecode, OperandScale operand_scale) {
   switch (bytecode) {
-#define CALL_GENERATOR(Name, ...)                     \
-  case Bytecode::k##Name:                             \
-    Name##Assembler::Generate(&state, operand_scale); \
+#define CALL_GENERATOR(Name, ...)                    \
+  case Bytecode::k##Name:                            \
+    Name##Assembler::Generate(state, operand_scale); \
     break;
 #define CALL_GENERATOR_TS(Name, ...)                                       \
+  /* FIXME(348031042): This doesn't compile since the                      \
+   * CodeAssemblerCompilationJob refactor. */                              \
   case Bytecode::k##Name:                                                  \
     code = compiler::turboshaft::BuildWithTurboshaftAssemblerImpl(         \
         isolate, builtin, &Name##AssemblerTS_Generate, descriptor_builder, \
@@ -3343,10 +3395,10 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
 #undef CALL_GENERATOR
 #undef CALL_GENERATOR_TS
     case Bytecode::kIllegal:
-      IllegalAssembler::Generate(&state, operand_scale);
+      IllegalAssembler::Generate(state, operand_scale);
       break;
     case Bytecode::kStar0:
-      Star0Assembler::Generate(&state, operand_scale);
+      Star0Assembler::Generate(state, operand_scale);
       break;
     default:
       // Others (the rest of the short stars, and the rest of the illegal range)
@@ -3354,21 +3406,6 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, const char* debug_name,
       // the jump table point to those handlers.
       UNREACHABLE();
   }
-
-  if (code.is_null()) {
-    code = compiler::CodeAssembler::GenerateCode(
-        &state, options, ProfileDataFromFile::TryRead(debug_name));
-  }
-
-#ifdef ENABLE_DISASSEMBLER
-  if (v8_flags.trace_ignition_codegen) {
-    StdoutStream os;
-    code->Disassemble(Bytecodes::ToString(bytecode), os, isolate);
-    os << std::flush;
-  }
-#endif  // ENABLE_DISASSEMBLER
-
-  return code;
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

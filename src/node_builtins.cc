@@ -64,6 +64,11 @@ BuiltinLoader::BuiltinLoader()
 #endif  // HAVE_AMARO
 }
 
+std::ranges::keys_view<std::ranges::ref_view<const BuiltinSourceMap>>
+BuiltinLoader::GetBuiltinIds() const {
+  return std::views::keys(*source_.read());
+}
+
 bool BuiltinLoader::Exists(const char* id) {
   auto source = source_.read();
   return source->find(id) != source->end();
@@ -127,9 +132,10 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 
 #if !HAVE_OPENSSL
         "crypto", "crypto/promises", "https", "http2", "tls", "_tls_common",
-        "_tls_wrap", "internal/tls/parse-cert-string",
-        "internal/tls/secure-context", "internal/http2/core",
-        "internal/http2/compat", "internal/streams/lazy_transform",
+        "_tls_wrap", "internal/tls/parse-cert-string", "internal/tls/common",
+        "internal/tls/wrap", "internal/tls/secure-context",
+        "internal/http2/core", "internal/http2/compat",
+        "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
 #if !NODE_OPENSSL_HAS_QUIC
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
@@ -139,6 +145,9 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "sqlite",  // Experimental.
         "sys",     // Deprecated.
         "wasi",    // Experimental.
+#if !HAVE_SQLITE
+        "internal/webstorage",  // Experimental.
+#endif
         "internal/test/binding", "internal/v8_prof_polyfill",
         "internal/v8_prof_processor",
   };
@@ -407,6 +416,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
         FIXED_ONE_BYTE_STRING(isolate, "exports"),
         FIXED_ONE_BYTE_STRING(isolate, "primordials"),
         FIXED_ONE_BYTE_STRING(isolate, "privateSymbols"),
+        FIXED_ONE_BYTE_STRING(isolate, "perIsolateSymbols"),
     };
   } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0 ||
              strncmp(id,
@@ -686,8 +696,8 @@ void BuiltinLoader::CompileFunction(const FunctionCallbackInfo<Value>& args) {
 void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
   auto instance = Environment::GetCurrent(args)->builtin_loader();
   RwLock::ScopedReadLock lock(instance->code_cache_->mutex);
-  args.GetReturnValue().Set(Boolean::New(
-      args.GetIsolate(), instance->code_cache_->has_code_cache));
+  args.GetReturnValue().Set(
+      Boolean::New(args.GetIsolate(), instance->code_cache_->has_code_cache));
 }
 
 void SetInternalLoaders(const FunctionCallbackInfo<Value>& args) {

@@ -73,7 +73,7 @@
       }, {
         'v8_enable_etw_stack_walking': 0,
       }],
-      ['OS=="linux"', {
+      ['OS=="linux" or OS=="openharmony"', {
         # Sets -dV8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION.
         #
         # This flag speeds up the performance of fork/execve on Linux systems for
@@ -86,6 +86,12 @@
         'v8_enable_private_mapping_fork_optimization': 1,
       }, {
         'v8_enable_private_mapping_fork_optimization': 0,
+      }],
+
+      ['OS in "aix os400"', {
+        'v8_enable_leaptiering': 0,
+      }, {
+        'v8_enable_leaptiering': 1,
       }],
     ],
 
@@ -133,6 +139,9 @@
 
     # Enable fast mksnapshot runs.
     'v8_enable_fast_mksnapshot%': 0,
+
+    # Enable using multiple threads to build builtins in mksnapshot.
+    'v8_enable_concurrent_mksnapshot%': 1,
 
     # Enable the registration of unwinding info for Windows/x64 and ARM64.
     'v8_win64_unwinding_info%': 1,
@@ -200,18 +209,8 @@
     # Enable map packing & unpacking (sets -dV8_MAP_PACKING).
     'v8_enable_map_packing%': 0,
 
-    # Scan the call stack conservatively during garbage collection.
-    'v8_enable_conservative_stack_scanning%': 0,
-
-    # Use direct pointers in local handles.
-    'v8_enable_direct_local%': 0,
-
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
-
-    # Enable sharing read-only space across isolates.
-    # Sets -DV8_SHARED_RO_HEAP.
-    'v8_enable_shared_ro_heap%': 0,
 
     # Enable lazy source positions by default.
     'v8_enable_lazy_source_positions%': 1,
@@ -242,6 +241,11 @@
     # Enable the experimental V8 sandbox.
     # Sets -DV8_ENABLE_SANDBOX.
     'v8_enable_sandbox%': 0,
+
+    # Enable support for external code range relative to the pointer compression
+    # cage.
+    # Sets -DV8_EXTERNAL_CODE_SPACE.
+    'v8_enable_external_code_space%': 0,
 
     # Experimental feature for collecting per-class zone memory stats.
     # Requires use_rtti = true
@@ -375,6 +379,9 @@
       ['v8_enable_sandbox==1', {
         'defines': ['V8_ENABLE_SANDBOX',],
       }],
+      ['v8_enable_external_code_space==1', {
+        'defines': ['V8_EXTERNAL_CODE_SPACE',],
+      }],
       ['v8_enable_object_print==1', {
         'defines': ['OBJECT_PRINT',],
       }],
@@ -437,9 +444,6 @@
       ['v8_use_siphash==1', {
         'defines': ['V8_USE_SIPHASH',],
       }],
-      ['v8_enable_shared_ro_heap==1', {
-        'defines': ['V8_SHARED_RO_HEAP',],
-      }],
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
       }, {
@@ -459,12 +463,6 @@
       }],
       ['tsan==1', {
         'defines': ['V8_IS_TSAN',],
-      }],
-      ['v8_enable_conservative_stack_scanning==1', {
-        'defines': ['V8_ENABLE_CONSERVATIVE_STACK_SCANNING',],
-      }],
-      ['v8_enable_direct_local==1', {
-        'defines': ['V8_ENABLE_DIRECT_LOCAL',],
       }],
       ['v8_enable_regexp_interpreter_threaded_dispatch==1', {
         'defines': ['V8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH',],
@@ -486,6 +484,9 @@
       }],
       ['v8_enable_extensible_ro_snapshot==1', {
         'defines': ['V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT',],
+      }],
+      ['v8_enable_leaptiering==1', {
+        'defines': ['V8_ENABLE_LEAPTIERING',],
       }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],

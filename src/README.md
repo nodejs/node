@@ -474,7 +474,7 @@ void Initialize(Local<Object> target,
   SetProtoMethod(isolate, channel_wrap, "queryA", Query<QueryAWrap>);
   // ...
   SetProtoMethod(isolate, channel_wrap, "querySoa", Query<QuerySoaWrap>);
-  SetProtoMethod(isolate, channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "getHostByAddr", Query<QueryReverseWrap>);
 
   SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
 
@@ -1131,6 +1131,17 @@ class MyWrap final : CPPGC_MIXIN(MyWrap) {
 }
 ```
 
+If the wrapper needs to perform cleanups when it's destroyed and that
+cleanup relies on a living Node.js `Realm`, it should implement a
+pattern like this:
+
+```cpp
+  ~MyWrap() { this->Finalize(); }
+  void Clean(Realm* env) override {
+     // Do cleanup that relies on a living Realm.
+  }
+```
+
 `cppgc::GarbageCollected` types are expected to implement a
 `void Trace(cppgc::Visitor* visitor) const` method. When they are the
 final class in the hierarchy, this method must be marked `final`. For
@@ -1182,7 +1193,7 @@ MyWrap* MyWrap::New(Environment* env, v8::Local<v8::Object> object) {
   // pointer with this, as this is not managed by the native memory
   // allocator but by V8.
   return cppgc::MakeGarbageCollected<MyWrap>(
-      env->isolate()->GetCppHeap()->GetAllocationHandle(), env, object);
+      env->cppgc_allocation_handle(), env, object);
 }
 
 // Binding method to be invoked by JavaScript.
@@ -1285,16 +1296,76 @@ referrer->Set(
 ).ToLocalChecked();
 ```
 
+#### Creating references between cppgc-managed objects and `BaseObject`s
+
+This is currently unsupported with the existing helpers. If this has
+to be done, new helpers must be implemented first. Consult the cppgc
+headers when trying to implement it.
+
+Another way to work around it is to always do the migration bottom-to-top.
+If a cppgc-managed object needs to reference a `BaseObject`, convert
+that `BaseObject` to be cppgc-managed first, and then use `cppgc::Member`
+to create the references.
+
+#### Lifetime and cleanups of cppgc-managed objects
+
 Typically, a newly created cppgc-managed wrapper object should be held alive
 by the JavaScript land (for example, by being returned by a method and
 staying alive in a closure). Long-lived cppgc objects can also
 be held alive from C++ using persistent handles (see
 `deps/v8/include/cppgc/persistent.h`) or as members of other living
 cppgc-managed objects (see `deps/v8/include/cppgc/member.h`) if necessary.
-Its destructor will be called when no other objects from the V8 heap reference
-it, this can happen at any time after the garbage collector notices that
-it's no longer reachable and before the V8 isolate is torn down.
-See the [Oilpan documentation in Chromium][] for more details.
+
+When a cppgc-managed object is no longer reachable in the heap, its destructor
+will be invoked by the garbage collection, which can happen after the `Realm`
+is already gone, or after any object it references is gone. It is therefore
+unsafe to invoke V8 APIs directly in the destructors. To ensure safety,
+the cleanups of a cppgc-managed object should adhere to different patterns,
+depending on what it needs to do:
+
+1. If it does not need to do any non-trivial cleanup, nor does its members, just use
+   the default destructor. Cleanup of `v8::TracedReference` and
+   `cppgc::Member` are already handled automatically by V8 so if they are all the
+   non-trivial members the class has, this case applies.
+2. If the cleanup relies on a living `Realm`, but does not need to access V8
+   APIs, the class should use this pattern in its class body:
+
+   ```cpp
+   ~MyWrap() { this->Finalize(); }
+   void Clean(Realm* env) override {
+     // Do cleanup that relies on a living Realm. This would be
+     // called by CppgcMixin::Finalize() first during Realm shutdown,
+     // while the Realm is still alive. If the destructor calls
+     // Finalize() again later during garbage collection that happens after
+     // Realm shutdown, Clean() would be skipped, preventing
+     // invalid access to the Realm.
+   }
+   ```
+
+   If implementers want to call `Finalize()` from `Clean()` again, they
+   need to make sure that calling `Clean()` recursively is safe.
+3. If the cleanup relies on access to the V8 heap, including using any V8
+   handles, in addition to 2, it should use the `CPPGC_USING_PRE_FINALIZER`
+   macro (from the [`cppgc/prefinalizer.h` header][]) in the private
+   section of its class body:
+
+   ```cpp
+    private:
+     CPPGC_USING_PRE_FINALIZER(MyWrap, Finalize);
+   ```
+
+Both the destructor and the pre-finalizer are always called on the thread
+in which the object is created.
+
+It's worth noting that the use of pre-finalizers would have a negative impact
+on the garbage collection performance as V8 needs to scan all of them during
+each sweeping. If the object is expected to be created frequently in large
+amounts in the application, it's better to avoid access to the V8 heap in its
+cleanup to avoid having to use a pre-finalizer.
+
+For more information about the cleanup of cppgc-managed objects and
+what can be done in a pre-finalizer, see the [cppgc documentation][] and
+the [`cppgc/prefinalizer.h` header][].
 
 ### Callback scopes
 
@@ -1421,6 +1492,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`async_hooks` module]: https://nodejs.org/api/async_hooks.html
 [`async_wrap.h`]: async_wrap.h
 [`base_object.h`]: base_object.h
+[`cppgc/prefinalizer.h` header]: ../deps/v8/include/cppgc/prefinalizer.h
 [`handle_wrap.h`]: handle_wrap.h
 [`memory_tracker.h`]: memory_tracker.h
 [`req_wrap.h`]: req_wrap.h
@@ -1432,6 +1504,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`vm` module]: https://nodejs.org/api/vm.html
 [binding function]: #binding-functions
 [cleanup hooks]: #cleanup-hooks
+[cppgc documentation]: ../deps/v8/include/cppgc/README.md
 [event loop]: #event-loop
 [exception handling]: #exception-handling
 [fast API calls]: ../doc/contributing/adding-v8-fast-api.md

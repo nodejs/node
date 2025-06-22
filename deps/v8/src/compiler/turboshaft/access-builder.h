@@ -79,9 +79,10 @@ class AccessBuilderTS : public AllStatic {
   }
   TF_ELEMENT_ACCESS(SeqOneByteString, Word32, ForSeqOneByteStringCharacter)
   TF_ELEMENT_ACCESS(SeqTwoByteString, Word32, ForSeqTwoByteStringCharacter)
+  TF_ELEMENT_ACCESS(Object, Object, ForOrderedHashMapEntryValue)
 #undef TF_ELEMENT_ACCESS
 
-  template <CONCEPT(IsTagged) T>
+  template <IsTagged T>
   static ElementAccessTS<FixedArray, T> ForFixedArrayElement() {
     static_assert(!is_array_buffer_v<FixedArray>);
     return ElementAccessTS<FixedArray, T>{

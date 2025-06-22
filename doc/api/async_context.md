@@ -75,8 +75,8 @@ http.get('http://localhost:8080');
 http.get('http://localhost:8080');
 // Prints:
 //   0: start
-//   1: start
 //   0: finish
+//   1: start
 //   1: finish
 ```
 
@@ -107,8 +107,8 @@ http.get('http://localhost:8080');
 http.get('http://localhost:8080');
 // Prints:
 //   0: start
-//   1: start
 //   0: finish
+//   1: start
 //   1: finish
 ```
 
@@ -123,7 +123,7 @@ added:
  - v13.10.0
  - v12.17.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57766
    description: Add `defaultValue` and `name` options.
  - version:
@@ -152,7 +152,9 @@ added:
  - v19.8.0
  - v18.16.0
 changes:
- - version: v23.11.0
+ - version:
+    - v23.11.0
+    - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -170,7 +172,9 @@ added:
  - v19.8.0
  - v18.16.0
 changes:
- - version: v23.11.0
+ - version:
+    - v23.11.0
+    - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -296,7 +300,7 @@ asyncLocalStorage.getStore(); // Returns the same object
 ### `asyncLocalStorage.name`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 * {string}

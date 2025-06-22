@@ -52,6 +52,8 @@ enum class IsolateFieldId : uint8_t;
   V(old_space_allocation_top_address, "Heap::OldSpaceAllocationTopAddress")    \
   V(old_space_allocation_limit_address,                                        \
     "Heap::OldSpaceAllocationLimitAddress")                                    \
+  V(array_buffer_max_allocation_address,                                       \
+    "Heap::ArrayBufferMaxAllocationAddress")                                   \
   V(handle_scope_level_address, "HandleScope::level")                          \
   V(handle_scope_next_address, "HandleScope::next")                            \
   V(handle_scope_limit_address, "HandleScope::limit")                          \
@@ -74,7 +76,8 @@ enum class IsolateFieldId : uint8_t;
     "RegExpStack::memory_top_address_address()")                               \
   V(address_of_regexp_stack_stack_pointer,                                     \
     "RegExpStack::stack_pointer_address()")                                    \
-  V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector")  \
+  V(address_of_regexp_static_result_offsets_vector,                            \
+    "Isolate::address_of_regexp_static_result_offsets_vector")                 \
   V(thread_in_wasm_flag_address_address,                                       \
     "Isolate::thread_in_wasm_flag_address_address")                            \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
@@ -86,7 +89,11 @@ enum class IsolateFieldId : uint8_t;
   V(shared_external_pointer_table_address_address,              \
     "Isolate::shared_external_pointer_table_address_address()") \
   V(trusted_pointer_table_base_address,                         \
-    "Isolate::trusted_pointer_table_base_address()")
+    "Isolate::trusted_pointer_table_base_address()")            \
+  V(shared_trusted_pointer_table_base_address,                  \
+    "Isolate::shared_trusted_pointer_table_base_address()")     \
+  V(code_pointer_table_base_address,                            \
+    "Isolate::code_pointer_table_base_address()")
 #else
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
@@ -109,6 +116,7 @@ enum class IsolateFieldId : uint8_t;
     "v8_flags.mock_arraybuffer_allocator")                                     \
   V(address_of_one_half, "LDoubleConstant::one_half")                          \
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
+  V(address_of_script_context_cells_flag, "v8_flags.script_context_cells")     \
   V(address_of_shared_string_table_flag, "v8_flags.shared_string_table")       \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
   V(address_of_uint32_bias, "uint32_bias")                                     \
@@ -138,6 +146,11 @@ enum class IsolateFieldId : uint8_t;
   V(get_date_field_function, "JSDate::GetField")                               \
   V(get_or_create_hash_raw, "get_or_create_hash_raw")                          \
   V(gsab_byte_length, "GsabByteLength")                                        \
+  V(ieee754_fp64_to_fp16_raw_bits, "ieee754_fp64_to_fp16_raw_bits")            \
+  V(ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch,                     \
+    "ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch")                   \
+  V(ieee754_fp16_raw_bits_to_fp32_raw_bits,                                    \
+    "ieee754_fp16_raw_bits_to_fp32_raw_bits")                                  \
   V(ieee754_acos_function, "base::ieee754::acos")                              \
   V(ieee754_acosh_function, "base::ieee754::acosh")                            \
   V(ieee754_asin_function, "base::ieee754::asin")                              \
@@ -154,7 +167,7 @@ enum class IsolateFieldId : uint8_t;
   V(ieee754_log10_function, "base::ieee754::log10")                            \
   V(ieee754_log1p_function, "base::ieee754::log1p")                            \
   V(ieee754_log2_function, "base::ieee754::log2")                              \
-  V(ieee754_pow_function, "base::ieee754::pow")                                \
+  V(ieee754_pow_function, "math::pow")                                         \
   V(ieee754_sin_function, "base::ieee754::sin")                                \
   V(ieee754_sinh_function, "base::ieee754::sinh")                              \
   V(ieee754_tan_function, "base::ieee754::tan")                                \
@@ -220,6 +233,7 @@ enum class IsolateFieldId : uint8_t;
   V(search_string_raw_two_two, "search_string_raw_two_two")                    \
   V(string_write_to_flat_one_byte, "string_write_to_flat_one_byte")            \
   V(string_write_to_flat_two_byte, "string_write_to_flat_two_byte")            \
+  V(additive_safe_int_feedback_flag, "v8_flags.additive_safe_int_feedback")    \
   V(external_one_byte_string_get_chars, "external_one_byte_string_get_chars")  \
   V(external_two_byte_string_get_chars, "external_two_byte_string_get_chars")  \
   V(smi_lexicographic_compare_function, "smi_lexicographic_compare_function")  \
@@ -245,7 +259,7 @@ enum class IsolateFieldId : uint8_t;
     "name_to_index_hashtable_lookup_forwarded_string")                         \
   V(name_to_index_hashtable_find_insertion_entry_forwarded_string,             \
     "name_to_index_hashtable_find_insertion_entry_forwarded_string")           \
-  IF_WASM(V, wasm_sync_stack_limit, "wasm_sync_stack_limit")                   \
+  IF_WASM(V, wasm_switch_stacks, "wasm_switch_stacks")                         \
   IF_WASM(V, wasm_return_switch, "wasm_return_switch")                         \
   IF_WASM(V, wasm_switch_to_the_central_stack,                                 \
           "wasm::switch_to_the_central_stack")                                 \
@@ -255,6 +269,7 @@ enum class IsolateFieldId : uint8_t;
           "wasm::switch_to_the_central_stack_for_js")                          \
   IF_WASM(V, wasm_switch_from_the_central_stack_for_js,                        \
           "wasm::switch_from_the_central_stack_for_js")                        \
+  IF_WASM(V, wasm_code_pointer_table, "GetProcessWideWasmCodePointerTable()")  \
   IF_WASM(V, wasm_grow_stack, "wasm::grow_stack")                              \
   IF_WASM(V, wasm_shrink_stack, "wasm::shrink_stack")                          \
   IF_WASM(V, wasm_load_old_fp, "wasm::load_old_fp")                            \
@@ -341,7 +356,6 @@ enum class IsolateFieldId : uint8_t;
   IF_WASM(V, wasm_array_fill, "wasm::array_fill")                              \
   IF_WASM(V, wasm_string_to_f64, "wasm_string_to_f64")                         \
   IF_WASM(V, wasm_atomic_notify, "wasm_atomic_notify")                         \
-  IF_WASM(V, wasm_signature_check_fail, "wasm_signature_check_fail")           \
   IF_WASM(V, wasm_WebAssemblyCompile, "wasm::WebAssemblyCompile")              \
   IF_WASM(V, wasm_WebAssemblyException, "wasm::WebAssemblyException")          \
   IF_WASM(V, wasm_WebAssemblyExceptionGetArg,                                  \
@@ -358,9 +372,19 @@ enum class IsolateFieldId : uint8_t;
           "wasm::WebAssemblyInstanceGetExports")                               \
   IF_WASM(V, wasm_WebAssemblyInstantiate, "wasm::WebAssemblyInstantiate")      \
   IF_WASM(V, wasm_WebAssemblyMemory, "wasm::WebAssemblyMemory")                \
+  IF_WASM(V, wasm_WebAssemblyMemoryMapDescriptor,                              \
+          "wasm::WebAssemblyMemoryMapDescriptor")                              \
   IF_WASM(V, wasm_WebAssemblyMemoryGetBuffer,                                  \
           "wasm::WebAssemblyMemoryGetBuffer")                                  \
   IF_WASM(V, wasm_WebAssemblyMemoryGrow, "wasm::WebAssemblyMemoryGrow")        \
+  IF_WASM(V, wasm_WebAssemblyMemoryMapDescriptorMap,                           \
+          "wasm::WebAssemblyMemoryMapDescriptorMap")                           \
+  IF_WASM(V, wasm_WebAssemblyMemoryMapDescriptorUnmap,                         \
+          "wasm::WebAssemblyMemoryMapDescriptorUnmap")                         \
+  IF_WASM(V, wasm_WebAssemblyMemoryToFixedLengthBuffer,                        \
+          "wasm::WebAssemblyMemoryToFixedLengthBuffer")                        \
+  IF_WASM(V, wasm_WebAssemblyMemoryToResizableBuffer,                          \
+          "wasm::WebAssemblyMemoryToResizableBuffer")                          \
   IF_WASM(V, wasm_WebAssemblyModule, "wasm::WebAssemblyModule")                \
   IF_WASM(V, wasm_WebAssemblyModuleCustomSections,                             \
           "wasm::WebAssemblyModuleCustomSections")                             \
@@ -431,8 +455,6 @@ enum class IsolateFieldId : uint8_t;
           "tsan_relaxed_load_function_32_bits")                                \
   IF_TSAN(V, tsan_relaxed_load_function_64_bits,                               \
           "tsan_relaxed_load_function_64_bits")                                \
-  V(js_finalization_registry_remove_cell_from_unregister_token_map,            \
-    "JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap")                \
   V(re_case_insensitive_compare_unicode,                                       \
     "RegExpMacroAssembler::CaseInsensitiveCompareUnicode()")                   \
   V(re_case_insensitive_compare_non_unicode,                                   \
@@ -446,12 +468,19 @@ enum class IsolateFieldId : uint8_t;
   V(re_match_for_call_from_js, "IrregexpInterpreter::MatchForCallFromJs")      \
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
+  V(re_atom_exec_raw, "RegExp::AtomExecRaw")                                   \
+  V(allocate_regexp_result_vector, "RegExpResultVector::Allocate")             \
+  V(free_regexp_result_vector, "RegExpResultVector::Free")                     \
   V(typed_array_and_rab_gsab_typed_array_elements_kind_shifts,                 \
     "TypedArrayAndRabGsabTypedArrayElementsKindShifts")                        \
   V(typed_array_and_rab_gsab_typed_array_elements_kind_sizes,                  \
     "TypedArrayAndRabGsabTypedArrayElementsKindSizes")                         \
+  V(allocate_buffer, "AllocateBuffer")                                         \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
-  EXTERNAL_REFERENCE_LIST_SANDBOX(V)
+  EXTERNAL_REFERENCE_LIST_SANDBOX(V)                                           \
+  EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)                                       \
+  EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)
+
 #ifdef V8_INTL_SUPPORT
 #define EXTERNAL_REFERENCE_LIST_INTL(V)                               \
   V(intl_convert_one_byte_to_lower, "intl_convert_one_byte_to_lower") \
@@ -463,16 +492,39 @@ enum class IsolateFieldId : uint8_t;
 #endif  // V8_INTL_SUPPORT
 
 #ifdef V8_ENABLE_SANDBOX
-#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                          \
-  V(sandbox_base_address, "Sandbox::base()")                        \
-  V(sandbox_end_address, "Sandbox::end()")                          \
-  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")        \
-  V(code_pointer_table_address, "GetProcessWideCodePointerTable()") \
-  V(js_dispatch_table_address, "GetProcessWideJSDispatchTable()")   \
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                   \
+  V(sandbox_base_address, "Sandbox::base()")                 \
+  V(sandbox_end_address, "Sandbox::end()")                   \
+  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()") \
   V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()")
+#else
+#define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                               \
+  V(sandbox_base_address, "Sandbox::base()")                             \
+  V(sandbox_end_address, "Sandbox::end()")                               \
+  V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")             \
+  V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()") \
+  V(global_code_pointer_table_base_address,                              \
+    "IsolateGroup::current()->code_pointer_table()")
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #else
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_ENABLE_LEAPTIERING
+#define EXTERNAL_REFERENCE_LIST_LEAPTIERING(V) \
+  V(js_dispatch_table_address, "IsolateGroup::current()->js_dispatch_table()")
+#else
+#define EXTERNAL_REFERENCE_LIST_LEAPTIERING(V)
+#endif  // V8_ENABLE_LEAPTIERING
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+#define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)            \
+  V(address_of_cet_compatible_flag, "v8_flags.cet_compatible") \
+  V(ensure_valid_return_address, "Deoptimizer::EnsureValidReturnAddress()")
+#else
+#define EXTERNAL_REFERENCE_LIST_CET_SHADOW_STACK(V)
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
 // An ExternalReference represents a C++ address used in the generated
 // code. All references to C++ functions and variables must be encapsulated
@@ -514,6 +566,10 @@ class ExternalReference {
     // Builtin call that returns floating point.
     // double f(Address tagged_ptr).
     BUILTIN_FP_POINTER_CALL,
+
+    // Builtin call that takes a double and returns an int.
+    // int f(double).
+    BUILTIN_INT_FP_CALL,
 
     // Direct call to API function callback.
     // void f(v8::FunctionCallbackInfo&)
@@ -575,6 +631,9 @@ class ExternalReference {
 #undef DECL_EXTERNAL_REFERENCE
 
   V8_EXPORT_PRIVATE static ExternalReference isolate_address();
+  V8_EXPORT_PRIVATE static ExternalReference
+  address_of_code_pointer_table_base_address();
+  V8_EXPORT_PRIVATE static ExternalReference jslimit_address();
 
   V8_EXPORT_PRIVATE V8_NOINLINE static ExternalReference
   runtime_function_table_address_for_unittests(Isolate* isolate);

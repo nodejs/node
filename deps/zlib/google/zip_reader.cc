@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "base/check.h"
+#include "base/containers/heap_array.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -209,16 +210,17 @@ bool ZipReader::OpenEntry() {
 
   // Get entry info.
   unz_file_info64 info = {};
-  char path_in_zip[internal::kZipMaxPath] = {};
+  auto path_in_zip = base::HeapArray<char>::WithSize(internal::kZipMaxPath);
   if (const UnzipError err{unzGetCurrentFileInfo64(
-          zip_file_, &info, path_in_zip, sizeof(path_in_zip) - 1, nullptr, 0,
-          nullptr, 0)};
+          zip_file_, &info, path_in_zip.data(), path_in_zip.size() - 1,
+          nullptr, 0, nullptr, 0)};
       err != UNZ_OK) {
     LOG(ERROR) << "Cannot get entry from ZIP: " << err;
     return false;
   }
 
-  entry_.path_in_original_encoding = path_in_zip;
+  DCHECK(path_in_zip[info.size_filename] == '\0');
+  entry_.path_in_original_encoding = path_in_zip.data();
 
   // Convert path from original encoding to Unicode.
   std::u16string path_in_utf16;
@@ -260,8 +262,10 @@ bool ZipReader::OpenEntry() {
 
 #if defined(OS_POSIX)
   entry_.posix_mode = (info.external_fa >> 16L) & (S_IRWXU | S_IRWXG | S_IRWXO);
+  entry_.is_symbolic_link = S_ISLNK(info.external_fa >> 16L);
 #else
   entry_.posix_mode = 0;
+  entry_.is_symbolic_link = false;
 #endif
 
   return true;

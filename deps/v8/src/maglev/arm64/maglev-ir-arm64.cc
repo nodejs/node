@@ -21,6 +21,34 @@ namespace maglev {
 
 #define __ masm->
 
+namespace {
+
+std::optional<int32_t> TryGetAddImmediateInt32ConstantInput(Node* node,
+                                                            int index) {
+  if (auto res = node->TryGetInt32ConstantInput(index)) {
+    if (MacroAssemblerBase::IsImmAddSub(*res)) {
+      return res;
+    }
+  }
+  return {};
+}
+
+std::optional<int32_t> TryGetLogicalImmediateInt32ConstantInput(Node* node,
+                                                                int index) {
+  if (auto res = node->TryGetInt32ConstantInput(index)) {
+    if (*res <= 0) {
+      return {};
+    }
+    unsigned u1, u2, u3;
+    if (MacroAssemblerBase::IsImmLogical(*res, 32, &u1, &u2, &u3)) {
+      return res;
+    }
+  }
+  return {};
+}
+
+}  // namespace
+
 void Int32NegateWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineAsRegister(this);
@@ -47,16 +75,13 @@ void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
 void Int32AbsWithOverflow::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   Register out = ToRegister(result()).W();
-  Label done;
+
   DCHECK(ToRegister(input()).W().Aliases(out));
-  __ Cmp(out, Immediate(0));
-  __ JumpIf(ge, &done);
-  __ Negs(out, out);
+  __ AbsWithOverflow(out, out);
   // Output register must not be a register input into the eager deopt info.
   DCHECK_REGLIST_EMPTY(RegList{out} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
   __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
-  __ bind(&done);
 }
 
 void Int32IncrementWithOverflow::SetValueLocationConstraints() {
@@ -127,7 +152,7 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
 }
 
 void InlinedAllocation::SetValueLocationConstraints() {
-  UseRegister(allocation_block());
+  UseRegister(allocation_block_input());
   if (offset() == 0) {
     DefineSameAsFirst(this);
   } else {
@@ -138,7 +163,8 @@ void InlinedAllocation::SetValueLocationConstraints() {
 void InlinedAllocation::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
   if (offset() != 0) {
-    __ Add(ToRegister(result()), ToRegister(allocation_block()), offset());
+    __ Add(ToRegister(result()), ToRegister(allocation_block_input()),
+           offset());
   }
 }
 
@@ -167,18 +193,74 @@ void RestLength::GenerateCode(MaglevAssembler* masm,
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
 
+void CheckedIntPtrToInt32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+
+void CheckedIntPtrToInt32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register input_reg = ToRegister(input());
+  __ CompareAndBranch(input_reg.X(),
+                      Immediate(std::numeric_limits<int32_t>::max()), gt,
+                      __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
+  __ CompareAndBranch(input_reg.X(),
+                      Immediate(std::numeric_limits<int32_t>::min()), lt,
+                      __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
+}
+
+void CheckFloat64SameValue::SetValueLocationConstraints() {
+  UseRegister(target_input());
+  set_temporaries_needed((value().get_scalar() == 0) ? 1 : 0);
+  set_double_temporaries_needed(
+      value().is_nan() || (value().get_scalar() == 0) ? 0 : 1);
+}
+void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  Label* fail = __ GetDeoptLabel(this, deoptimize_reason());
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  DoubleRegister target = ToDoubleRegister(target_input());
+  if (value().is_nan()) {
+    __ JumpIfNotNan(target, fail);
+  } else if (value().get_scalar() == 0) {  // If value is +0.0 or -0.0.
+    Register scratch = temps.AcquireScratch();
+    __ Fcmp(target, value().get_scalar());
+    __ JumpIf(kNotEqual, fail);
+    __ Fmov(scratch, target);
+    if (value().get_bits() == 0) {
+      __ Tbnz(scratch, 63, fail);
+    } else {
+      __ Tbz(scratch, 63, fail);
+    }
+  } else {
+    DoubleRegister double_scratch = temps.AcquireScratchDouble();
+    __ Move(double_scratch, value());
+    __ CompareFloat64AndJumpIf(double_scratch, target, kNotEqual, fail, fail);
+  }
+}
+
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
-  UseRegister(right_input());
+  if (TryGetAddImmediateInt32ConstantInput(this, kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
   DefineAsRegister(this);
 }
 
 void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   Register left = ToRegister(left_input()).W();
-  Register right = ToRegister(right_input()).W();
   Register out = ToRegister(result()).W();
-  __ Adds(out, left, right);
+  if (!right_input().operand().IsRegister()) {
+    auto right_const = TryGetInt32ConstantInput(kRightIndex);
+    DCHECK(right_const);
+    __ Adds(out, left, *right_const);
+  } else {
+    Register right = ToRegister(right_input()).W();
+    __ Adds(out, left, right);
+  }
   // The output register shouldn't be a register input into the eager deopt
   // info.
   DCHECK_REGLIST_EMPTY(RegList{out} &
@@ -188,15 +270,25 @@ void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
 
 void Int32SubtractWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
-  UseRegister(right_input());
+  if (TryGetAddImmediateInt32ConstantInput(this, kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
   DefineAsRegister(this);
 }
 void Int32SubtractWithOverflow::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
   Register left = ToRegister(left_input()).W();
-  Register right = ToRegister(right_input()).W();
   Register out = ToRegister(result()).W();
-  __ Subs(out, left, right);
+  if (!right_input().operand().IsRegister()) {
+    auto right_const = TryGetInt32ConstantInput(kRightIndex);
+    DCHECK(right_const);
+    __ Subs(out, left, *right_const);
+  } else {
+    Register right = ToRegister(right_input()).W();
+    __ Subs(out, left, right);
+  }
   // The output register shouldn't be a register input into the eager deopt
   // info.
   DCHECK_REGLIST_EMPTY(RegList{out} &
@@ -422,52 +514,61 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ Bind(*done);
 }
 
-#define DEF_BITWISE_BINOP(Instruction, opcode)                   \
-  void Instruction::SetValueLocationConstraints() {              \
-    UseRegister(left_input());                                   \
-    UseRegister(right_input());                                  \
-    DefineAsRegister(this);                                      \
-  }                                                              \
-                                                                 \
-  void Instruction::GenerateCode(MaglevAssembler* masm,          \
-                                 const ProcessingState& state) { \
-    Register left = ToRegister(left_input()).W();                \
-    Register right = ToRegister(right_input()).W();              \
-    Register out = ToRegister(result()).W();                     \
-    __ opcode(out, left, right);                                 \
+#define DEF_BITWISE_BINOP(Instruction, opcode)                         \
+  void Instruction::SetValueLocationConstraints() {                    \
+    UseRegister(left_input());                                         \
+    if (TryGetLogicalImmediateInt32ConstantInput(this, kRightIndex)) { \
+      UseAny(right_input());                                           \
+    } else {                                                           \
+      UseRegister(right_input());                                      \
+    }                                                                  \
+    DefineAsRegister(this);                                            \
+  }                                                                    \
+                                                                       \
+  void Instruction::GenerateCode(MaglevAssembler* masm,                \
+                                 const ProcessingState& state) {       \
+    Register left = ToRegister(left_input()).W();                      \
+    Register out = ToRegister(result()).W();                           \
+    if (!right_input().operand().IsRegister()) {                       \
+      auto right_const = TryGetInt32ConstantInput(kRightIndex);        \
+      DCHECK(right_const);                                             \
+      __ opcode(out, left, *right_const);                              \
+    } else {                                                           \
+      Register right = ToRegister(right_input()).W();                  \
+      __ opcode(out, left, right);                                     \
+    }                                                                  \
   }
 DEF_BITWISE_BINOP(Int32BitwiseAnd, and_)
 DEF_BITWISE_BINOP(Int32BitwiseOr, orr)
 DEF_BITWISE_BINOP(Int32BitwiseXor, eor)
 #undef DEF_BITWISE_BINOP
 
-#define DEF_SHIFT_BINOP(Instruction, opcode)                     \
-  void Instruction::SetValueLocationConstraints() {              \
-    UseRegister(left_input());                                   \
-    if (right_input().node()->Is<Int32Constant>()) {             \
-      UseAny(right_input());                                     \
-    } else {                                                     \
-      UseRegister(right_input());                                \
-    }                                                            \
-    DefineAsRegister(this);                                      \
-  }                                                              \
-                                                                 \
-  void Instruction::GenerateCode(MaglevAssembler* masm,          \
-                                 const ProcessingState& state) { \
-    Register out = ToRegister(result()).W();                     \
-    Register left = ToRegister(left_input()).W();                \
-    if (Int32Constant* constant =                                \
-            right_input().node()->TryCast<Int32Constant>()) {    \
-      int right = constant->value() & 31;                        \
-      if (right == 0) {                                          \
-        __ Move(out, left);                                      \
-      } else {                                                   \
-        __ opcode(out, left, right);                             \
-      }                                                          \
-    } else {                                                     \
-      Register right = ToRegister(right_input()).W();            \
-      __ opcode##v(out, left, right);                            \
-    }                                                            \
+#define DEF_SHIFT_BINOP(Instruction, opcode)                        \
+  void Instruction::SetValueLocationConstraints() {                 \
+    UseRegister(left_input());                                      \
+    if (TryGetInt32ConstantInput(kRightIndex)) {                    \
+      UseAny(right_input());                                        \
+    } else {                                                        \
+      UseRegister(right_input());                                   \
+    }                                                               \
+    DefineAsRegister(this);                                         \
+  }                                                                 \
+                                                                    \
+  void Instruction::GenerateCode(MaglevAssembler* masm,             \
+                                 const ProcessingState& state) {    \
+    Register out = ToRegister(result()).W();                        \
+    Register left = ToRegister(left_input()).W();                   \
+    if (auto right_const = TryGetInt32ConstantInput(kRightIndex)) { \
+      int right = *right_const & 31;                                \
+      if (right == 0) {                                             \
+        __ Move(out, left);                                         \
+      } else {                                                      \
+        __ opcode(out, left, right);                                \
+      }                                                             \
+    } else {                                                        \
+      Register right = ToRegister(right_input()).W();               \
+      __ opcode##v(out, left, right);                               \
+    }                                                               \
   }
 DEF_SHIFT_BINOP(Int32ShiftLeft, lsl)
 DEF_SHIFT_BINOP(Int32ShiftRight, asr)
@@ -638,12 +739,11 @@ void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
   }
   __ LoadBoundedSizeFromObject(result_register, object,
                                JSTypedArray::kRawByteLengthOffset);
-  int element_size = ElementsKindSize(elements_kind_);
-  if (element_size > 1) {
+  int shift_size = ElementsKindToShiftSize(elements_kind_);
+  if (shift_size > 0) {
     // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
-    DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
-    __ Lsr(result_register, result_register,
-           base::bits::CountTrailingZeros(element_size));
+    DCHECK(shift_size == 1 || shift_size == 2 || shift_size == 3);
+    __ Lsr(result_register, result_register, shift_size);
   }
 }
 
@@ -745,16 +845,11 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
+                                   Register feedback_cell,
                                    ReduceInterruptBudgetType type, int amount) {
   MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  Register feedback_cell = scratch;
-  Register budget = temps.Acquire().W();
-  __ Ldr(feedback_cell,
-         MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedField(
-      feedback_cell,
-      FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
+  Register budget = scratch.W();
   __ Ldr(budget,
          FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   __ Subs(budget, budget, Immediate(amount));
@@ -770,22 +865,24 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
 
 int ReduceInterruptBudgetForLoop::MaxCallStackArgs() const { return 1; }
 void ReduceInterruptBudgetForLoop::SetValueLocationConstraints() {
-  set_temporaries_needed(2);
+  UseRegister(feedback_cell());
+  set_temporaries_needed(1);
 }
 void ReduceInterruptBudgetForLoop::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
-  GenerateReduceInterruptBudget(masm, this, ReduceInterruptBudgetType::kLoop,
-                                amount());
+  GenerateReduceInterruptBudget(masm, this, ToRegister(feedback_cell()),
+                                ReduceInterruptBudgetType::kLoop, amount());
 }
 
 int ReduceInterruptBudgetForReturn::MaxCallStackArgs() const { return 1; }
 void ReduceInterruptBudgetForReturn::SetValueLocationConstraints() {
-  set_temporaries_needed(2);
+  UseRegister(feedback_cell());
+  set_temporaries_needed(1);
 }
 void ReduceInterruptBudgetForReturn::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
-  GenerateReduceInterruptBudget(masm, this, ReduceInterruptBudgetType::kReturn,
-                                amount());
+  GenerateReduceInterruptBudget(masm, this, ToRegister(feedback_cell()),
+                                ReduceInterruptBudgetType::kReturn, amount());
 }
 
 // ---
@@ -809,7 +906,7 @@ void Return::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   Register params_size = x10;
 
   // Compute the size of the actual parameters + receiver (in bytes).
-  // TODO(leszeks): Consider making this an input into Return to re-use the
+  // TODO(leszeks): Consider making this an input into Return to reuse the
   // incoming argc's register (if it's still valid).
   __ Ldr(actual_params_size,
          MemOperand(fp, StandardFrameConstants::kArgCOffset));

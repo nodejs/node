@@ -5,8 +5,10 @@
 #ifndef V8_API_API_INL_H_
 #define V8_API_API_INL_H_
 
-#include "include/v8-fast-api-calls.h"
 #include "src/api/api.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "include/v8-fast-api-calls.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/microtask-queue.h"
 #include "src/flags/flags.h"
@@ -36,19 +38,19 @@ inline v8::internal::Address ToCData(
 }
 
 template <internal::ExternalPointerTag tag, typename T>
-inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
+inline v8::internal::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
     v8::internal::Isolate* isolate, T obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
-  if (obj == nullptr) return handle(v8::internal::Smi::zero(), isolate);
+  if (obj == nullptr) return direct_handle(v8::internal::Smi::zero(), isolate);
   return isolate->factory()->NewForeign<tag>(
       reinterpret_cast<v8::internal::Address>(obj));
 }
 
 template <internal::ExternalPointerTag tag>
-inline v8::internal::Handle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
+inline v8::internal::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
     v8::internal::Isolate* isolate, v8::internal::Address obj) {
   if (obj == v8::internal::kNullAddress) {
-    return handle(v8::internal::Smi::zero(), isolate);
+    return direct_handle(v8::internal::Smi::zero(), isolate);
   }
   return isolate->factory()->NewForeign<tag>(obj);
 }
@@ -60,16 +62,18 @@ inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj) {
   if (obj.is_null()) return Local<To>();
   return Local<To>::FromAddress(obj.address());
 #else
-  return Local<To>::FromSlot(obj.location());
+  // This simply uses the location of the indirect handle wrapped inside a
+  // "fake" direct handle.
+  return Local<To>::FromSlot(indirect_handle(obj).location());
 #endif
 }
 
 // Implementations of ToLocal
 
-#define MAKE_TO_LOCAL(Name)                                                  \
-  template <template <typename T> typename HandleType, typename T, typename> \
-  inline auto Utils::Name(HandleType<T> obj) {                               \
-    return Utils::Name##_helper(v8::internal::DirectHandle<T>(obj));         \
+#define MAKE_TO_LOCAL(Name)                                                \
+  template <template <typename> typename HandleType, typename T, typename> \
+  inline auto Utils::Name(HandleType<T> obj) {                             \
+    return Utils::Name##_helper(v8::internal::DirectHandle<T>(obj));       \
   }
 
 TO_LOCAL_NAME_LIST(MAKE_TO_LOCAL)
@@ -121,7 +125,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
     DCHECK(v8::internal::ValueHelper::IsEmpty(that) ||                       \
            Is##To(v8::internal::Tagged<v8::internal::Object>(                \
                v8::internal::ValueHelper::ValueAsAddress(that))));           \
-    return v8::internal::DirectHandle<v8::internal::To>(                     \
+    return v8::internal::DirectHandle<v8::internal::To>::FromAddress(        \
         v8::internal::ValueHelper::ValueAsAddress(that));                    \
   }                                                                          \
                                                                              \
@@ -289,6 +293,11 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
       "array");
 
   uint32_t length = src->Length();
+  if (length == 0) {
+    // Early return here to avoid a cast error below, as the EmptyFixedArray
+    // cannot be cast to a FixedDoubleArray.
+    return true;
+  }
   if (length > max_length) {
     return false;
   }
@@ -337,9 +346,9 @@ void HandleScopeImplementer::EnterContext(Tagged<NativeContext> context) {
   entered_contexts_.push_back(context);
 }
 
-Handle<NativeContext> HandleScopeImplementer::LastEnteredContext() {
+DirectHandle<NativeContext> HandleScopeImplementer::LastEnteredContext() {
   if (entered_contexts_.empty()) return {};
-  return handle(entered_contexts_.back(), isolate_);
+  return direct_handle(entered_contexts_.back(), isolate_);
 }
 
 }  // namespace internal

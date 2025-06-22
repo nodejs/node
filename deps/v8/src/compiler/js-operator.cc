@@ -180,9 +180,10 @@ std::ostream& operator<<(std::ostream& os, ContextAccess const& access) {
 
 
 ContextAccess const& ContextAccessOf(Operator const* op) {
-  DCHECK(op->opcode() == IrOpcode::kJSLoadContext ||
-         op->opcode() == IrOpcode::kJSStoreContext ||
-         op->opcode() == IrOpcode::kJSStoreScriptContext);
+  DCHECK(op->opcode() == IrOpcode::kJSLoadContextNoCell ||
+         op->opcode() == IrOpcode::kJSLoadContext ||
+         op->opcode() == IrOpcode::kJSStoreContextNoCell ||
+         op->opcode() == IrOpcode::kJSStoreContext);
   return OpParameter<ContextAccess>(op);
 }
 
@@ -724,7 +725,7 @@ int JSWasmCallParameters::input_count() const {
 }
 
 // static
-Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
+Type JSWasmCallNode::TypeForWasmReturnType(wasm::CanonicalValueType type) {
   switch (type.kind()) {
     case wasm::kI32:
       return Type::Signed32();
@@ -735,7 +736,7 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
       return Type::Number();
     case wasm::kRef:
     case wasm::kRefNull:
-      CHECK_EQ(type.heap_type(), wasm::HeapType::kExtern);
+      CHECK(type.is_reference_to(wasm::HeapType::kExtern));
       return Type::Any();
     default:
       UNREACHABLE();
@@ -771,7 +772,7 @@ Type JSWasmCallNode::TypeForWasmReturnType(const wasm::ValueType& type) {
   V(LoadMessage, Operator::kNoThrow | Operator::kNoWrite, 0, 1)          \
   V(StoreMessage, Operator::kNoRead | Operator::kNoThrow, 1, 0)          \
   V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1)              \
-  V(GeneratorRestoreContext, Operator::kNoThrow, 1, 1)                   \
+  V(GeneratorRestoreContextNoCell, Operator::kNoThrow, 1, 1)             \
   V(GeneratorRestoreInputOrDebugPos, Operator::kNoThrow, 1, 1)           \
   V(Debugger, Operator::kNoProperties, 0, 0)                             \
   V(FulfillPromise, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)       \
@@ -946,9 +947,11 @@ const Operator* JSOperatorBuilder::CallRuntime(
 #if V8_ENABLE_WEBASSEMBLY
 const Operator* JSOperatorBuilder::CallWasm(
     const wasm::WasmModule* wasm_module,
-    const wasm::FunctionSig* wasm_signature, int wasm_function_index,
+    const wasm::CanonicalSig* wasm_signature, int wasm_function_index,
     SharedFunctionInfoRef shared_fct_info, wasm::NativeModule* native_module,
     FeedbackSource const& feedback) {
+  // TODO(clemensb): Drop wasm_module.
+  DCHECK_EQ(wasm_module, native_module->module());
   JSWasmCallParameters parameters(wasm_module, wasm_signature,
                                   wasm_function_index, shared_fct_info,
                                   native_module, feedback);
@@ -1226,17 +1229,37 @@ const Operator* JSOperatorBuilder::HasContextExtension(size_t depth) {
       depth);                                   // parameter
 }
 
-const Operator* JSOperatorBuilder::LoadContext(size_t depth, size_t index,
-                                               bool immutable) {
+const Operator* JSOperatorBuilder::LoadContextNoCell(size_t depth, size_t index,
+                                                     bool immutable) {
   ContextAccess access(depth, index, immutable);
   return zone()->New<Operator1<ContextAccess>>(  // --
-      IrOpcode::kJSLoadContext,                  // opcode
+      IrOpcode::kJSLoadContextNoCell,            // opcode
       Operator::kNoWrite | Operator::kNoThrow,   // flags
-      "JSLoadContext",                           // name
+      "JSLoadContextNoCell",                     // name
       0, 1, 0, 1, 1, 0,                          // counts
       access);                                   // parameter
 }
 
+const Operator* JSOperatorBuilder::LoadContext(size_t depth, size_t index) {
+  ContextAccess access(depth, index, false);
+  return zone()->New<Operator1<ContextAccess>>(  // --
+      IrOpcode::kJSLoadContext,                  // opcode
+      Operator::kNoWrite | Operator::kNoThrow,   // flags
+      "JSLoadContext",                           // name
+      0, 1, 1, 1, 1, 1,                          // counts
+      access);                                   // parameter
+}
+
+const Operator* JSOperatorBuilder::StoreContextNoCell(size_t depth,
+                                                      size_t index) {
+  ContextAccess access(depth, index, false);
+  return zone()->New<Operator1<ContextAccess>>(  // --
+      IrOpcode::kJSStoreContextNoCell,           // opcode
+      Operator::kNoRead | Operator::kNoThrow,    // flags
+      "JSStoreContextNoCell",                    // name
+      1, 1, 1, 0, 1, 0,                          // counts
+      access);                                   // parameter
+}
 
 const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
   ContextAccess access(depth, index, false);
@@ -1244,18 +1267,7 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
       IrOpcode::kJSStoreContext,                 // opcode
       Operator::kNoRead | Operator::kNoThrow,    // flags
       "JSStoreContext",                          // name
-      1, 1, 1, 0, 1, 0,                          // counts
-      access);                                   // parameter
-}
-
-const Operator* JSOperatorBuilder::StoreScriptContext(size_t depth,
-                                                      size_t index) {
-  ContextAccess access(depth, index, false);
-  return zone()->New<Operator1<ContextAccess>>(  // --
-      IrOpcode::kJSStoreScriptContext,           // opcode
-      Operator::kNoRead | Operator::kNoThrow,    // flags
-      "JSStoreScriptContext",                    // name
-      1, 1, 1, 0, 1, 0,                          // counts
+      1, 1, 1, 0, 1, 1,                          // counts
       access);                                   // parameter
 }
 

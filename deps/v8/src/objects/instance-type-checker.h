@@ -32,10 +32,13 @@ class Map;
 
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \
   V(AbstractCode)                        \
+  V(CppHeapPointerWrapperObject)         \
   V(ExternalString)                      \
   V(FreeSpaceOrFiller)                   \
   V(GcSafeCode)                          \
   V(InternalizedString)                  \
+  V(JSApiWrapperObject)                  \
+  V(MaybeReadOnlyJSObject)               \
   V(PropertyDictionary)
 
 #define INSTANCE_TYPE_CHECKERS(V)  \

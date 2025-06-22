@@ -47,6 +47,10 @@ enum class MachineRepresentation : uint8_t {
   // A 64-bit pointer encoded in a way (e.g. as offset) that guarantees it will
   // point into the sandbox.
   kSandboxedPointer,
+  // kFloat16RawBits is not a real FP representation! It's representation of a
+  // float16 bitcast to a word16, and is used for conversions to and from
+  // Float16Array elements. It is not used after machine lowering.
+  kFloat16RawBits,
   // FP and SIMD representations must be last, and in order of increasing size.
   kFloat16,
   kFloat32,

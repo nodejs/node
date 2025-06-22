@@ -190,6 +190,8 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_usingDTable_generic(
     FSE_initDState(&state1, &bitD, dt);
     FSE_initDState(&state2, &bitD, dt);
 
+    RETURN_ERROR_IF(BIT_reloadDStream(&bitD)==BIT_DStream_overflow, corruption_detected, "");
+
 #define FSE_GETSYMBOL(statePtr) fast ? FSE_decodeSymbolFast(statePtr, &bitD) : FSE_decodeSymbol(statePtr, &bitD)
 
     /* 4 symbols per loop */

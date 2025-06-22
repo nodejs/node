@@ -1,12 +1,29 @@
 @echo off
 
-@REM From December 2023, new certificates use DigiCert cloud HSM service for EV signing.
-@REM They provide a client side app smctl.exe for managing certificates and signing process.
+@REM From June 2025, we started using Azure Trusted Signing for code signing.
 @REM Release CI machines are configured to have it in the PATH so this can be used safely.
-smctl sign -k key_nodejs -i %1
+
+where signtool >nul 2>&1
+if errorlevel 1 (
+    echo signtool not found in PATH.
+    exit /b 1
+)
+
+if "%AZURE_SIGN_DLIB_PATH%"=="" (
+    echo AZURE_SIGN_DLIB_PATH is not set.
+    exit /b 1
+)
+
+if "%AZURE_SIGN_METADATA_PATH%"=="" (
+    echo AZURE_SIGN_METADATA_PATH is not set.
+    exit /b 1
+)
+
+
+signtool sign /tr "http://timestamp.acs.microsoft.com" /td sha256 /fd sha256 /v /dlib %AZURE_SIGN_DLIB_PATH% /dmdf %AZURE_SIGN_METADATA_PATH% %1
 if not ERRORLEVEL 1 (
-    echo Successfully signed %1 using smctl
+    echo Successfully signed %1 using signtool
     exit /b 0
 )
-echo Could not sign %1 using smctl
+echo Could not sign %1 using signtool
 exit /b 1

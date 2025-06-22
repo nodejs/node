@@ -259,20 +259,16 @@ void HandlerBuiltinsAssembler::DispatchByElementsKind(
   Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
          arraysize(elements_kinds));
 
-#define ELEMENTS_KINDS_CASE(KIND)                                   \
-  BIND(&if_##KIND);                                                 \
-  {                                                                 \
-    if (!v8_flags.enable_sealed_frozen_elements_kind &&             \
-        IsAnyNonextensibleElementsKindUnchecked(KIND)) {            \
-      /* Disable support for frozen or sealed elements kinds. */    \
-      Unreachable();                                                \
-    } else if (!handle_typed_elements_kind &&                       \
-               IsTypedArrayOrRabGsabTypedArrayElementsKind(KIND)) { \
-      Unreachable();                                                \
-    } else {                                                        \
-      case_function(KIND);                                          \
-      Goto(&next);                                                  \
-    }                                                               \
+#define ELEMENTS_KINDS_CASE(KIND)                            \
+  BIND(&if_##KIND);                                          \
+  {                                                          \
+    if (!handle_typed_elements_kind &&                       \
+        IsTypedArrayOrRabGsabTypedArrayElementsKind(KIND)) { \
+      Unreachable();                                         \
+    } else {                                                 \
+      case_function(KIND);                                   \
+      Goto(&next);                                           \
+    }                                                        \
   }
   ELEMENTS_KINDS(ELEMENTS_KINDS_CASE)
 #undef ELEMENTS_KINDS_CASE
@@ -388,7 +384,7 @@ void HandlerBuiltinsAssembler::Generate_KeyedStoreIC_SloppyArguments() {
   using Descriptor = StoreWithVectorDescriptor;
   auto receiver = Parameter<JSObject>(Descriptor::kReceiver);
   auto key = Parameter<Object>(Descriptor::kName);
-  auto value = Parameter<Object>(Descriptor::kValue);
+  auto value = Parameter<JSAny>(Descriptor::kValue);
   auto slot = Parameter<Smi>(Descriptor::kSlot);
   auto vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);

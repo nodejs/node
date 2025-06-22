@@ -125,6 +125,7 @@
   V(destroyed_string, "destroyed")                                             \
   V(detached_string, "detached")                                               \
   V(dh_string, "DH")                                                           \
+  V(dirname_string, "dirname")                                                 \
   V(divisor_length_string, "divisorLength")                                    \
   V(dns_a_string, "A")                                                         \
   V(dns_aaaa_string, "AAAA")                                                   \
@@ -335,6 +336,7 @@
     "export * from 'original'; export { default } from 'original'; export "    \
     "const __esModule = true;")                                                \
   V(require_string, "require")                                                 \
+  V(resolve_string, "resolve")                                                 \
   V(resource_string, "resource")                                               \
   V(result_string, "result")                                                   \
   V(retry_string, "retry")                                                     \
@@ -361,6 +363,7 @@
   V(sni_context_string, "sni_context")                                         \
   V(source_string, "source")                                                   \
   V(source_map_url_string, "sourceMapURL")                                     \
+  V(source_url_string, "sourceURL")                                            \
   V(specifier_string, "specifier")                                             \
   V(stack_string, "stack")                                                     \
   V(standard_name_string, "standardName")                                      \

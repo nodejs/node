@@ -441,7 +441,7 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* Type: {AesKeyGenParams|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams}
+* Type: {KeyAlgorithm|RsaHashedKeyAlgorithm|EcKeyAlgorithm|AesKeyAlgorithm|HmacKeyAlgorithm}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -635,7 +635,7 @@ changes:
 
 * `algorithm`: {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
 * `baseKey`: {CryptoKey}
-* `derivedKeyAlgorithm`: {string|AlgorithmIdentifier|HmacImportParams|AesDerivedKeyParams}
+* `derivedKeyAlgorithm`: {string|Algorithm|HmacImportParams|AesDerivedKeyParams}
 * `extractable`: {boolean}
 * `keyUsages`: {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
@@ -665,7 +665,7 @@ The algorithms currently supported include:
 added: v15.0.0
 -->
 
-* `algorithm`: {string|AlgorithmIdentifier}
+* `algorithm`: {string|Algorithm}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
@@ -761,7 +761,7 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {string|AlgorithmIdentifier|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams}
+* `algorithm`: {string|Algorithm|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -815,7 +815,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {string|AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
+* `algorithm`: {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -865,7 +865,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {string|AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
+* `algorithm`: {string|Algorithm|RsaPssParams|EcdsaParams|Ed448Params}
 * `key`: {CryptoKey}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
@@ -898,8 +898,8 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `unwrapAlgo`: {string|AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
-* `unwrappedKeyAlgo`: {string|AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
+* `unwrapAlgo`: {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
+* `unwrappedKeyAlgo`: {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -955,7 +955,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {string|AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
+* `algorithm`: {string|Algorithm|RsaPssParams|EcdsaParams|Ed448Params}
 * `key`: {CryptoKey}
 * `signature`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
@@ -988,7 +988,7 @@ added: v15.0.0
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
 * `key`: {CryptoKey}
 * `wrappingKey`: {CryptoKey}
-* `wrapAlgo`: {string|AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
+* `wrapAlgo`: {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -1017,13 +1017,13 @@ The algorithm parameter objects define the methods and parameters used by
 the various {SubtleCrypto} methods. While described here as "classes", they
 are simple JavaScript dictionary objects.
 
-### Class: `AlgorithmIdentifier`
+### Class: `Algorithm`
 
 <!-- YAML
 added: v15.0.0
 -->
 
-#### `algorithmIdentifier.name`
+#### `Algorithm.name`
 
 <!-- YAML
 added: v15.0.0
@@ -1171,6 +1171,30 @@ added: v15.0.0
   This values must be one of `32`, `64`, `96`, `104`, `112`, `120`, or
   `128`. **Default:** `128`.
 
+### Class: `AesKeyAlgorithm`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `aesKeyAlgorithm.length`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {number}
+
+The length of the AES key in bits.
+
+#### `aesKeyAlgorithm.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
+
 ### Class: `AesKeyGenParams`
 
 <!-- YAML
@@ -1236,7 +1260,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1245,8 +1269,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `ecdsaParams.name`
 
@@ -1255,6 +1279,28 @@ added: v15.0.0
 -->
 
 * Type: {string} Must be `'ECDSA'`.
+
+### Class: `EcKeyAlgorithm`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `ecKeyAlgorithm.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
+
+#### `ecKeyAlgorithm.namedCurve`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
 
 ### Class: `EcKeyGenParams`
 
@@ -1343,7 +1389,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1352,8 +1398,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `hkdfParams.info`
 
@@ -1399,7 +1445,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1408,8 +1454,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `hmacImportParams.length`
 
@@ -1430,6 +1476,38 @@ added: v15.0.0
 
 * Type: {string} Must be `'HMAC'`.
 
+### Class: `HmacKeyAlgorithm`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `hmacKeyAlgorithm.hash`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {Algorithm}
+
+#### `hmacKeyAlgorithm.length`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {number}
+
+The length of the HMAC key in bits.
+
+#### `hmacKeyAlgorithm.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
+
 ### Class: `HmacKeyGenParams`
 
 <!-- YAML
@@ -1442,7 +1520,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1451,8 +1529,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `hmacKeyGenParams.length`
 
@@ -1474,6 +1552,20 @@ added: v15.0.0
 
 * Type: {string} Must be `'HMAC'`.
 
+### Class: `KeyAlgorithm`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `keyAlgorithm.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
+
 ### Class: `Pbkdf2Params`
 
 <!-- YAML
@@ -1486,7 +1578,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1495,8 +1587,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `pbkdf2Params.iterations`
 
@@ -1538,7 +1630,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1547,8 +1639,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `rsaHashedImportParams.name`
 
@@ -1558,6 +1650,48 @@ added: v15.0.0
 
 * Type: {string} Must be one of `'RSASSA-PKCS1-v1_5'`, `'RSA-PSS'`, or
   `'RSA-OAEP'`.
+
+### Class: `RsaHashedKeyAlgorithm`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `rsaHashedKeyAlgorithm.hash`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {Algorithm}
+
+#### `rsaHashedKeyAlgorithm.modulusLength`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {number}
+
+The length in bits of the RSA modulus.
+
+#### `rsaHashedKeyAlgorithm.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
+
+#### `rsaHashedKeyAlgorithm.publicExponent`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {Uint8Array}
+
+The RSA public exponent.
 
 ### Class: `RsaHashedKeyGenParams`
 
@@ -1571,7 +1705,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1580,8 +1714,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `rsaHashedKeyGenParams.modulusLength`
 

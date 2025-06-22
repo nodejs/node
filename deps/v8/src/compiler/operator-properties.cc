@@ -45,7 +45,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSForInEnumerate:
     case IrOpcode::kJSForInNext:
     case IrOpcode::kJSForInPrepare:
-    case IrOpcode::kJSGeneratorRestoreContext:
+    case IrOpcode::kJSGeneratorRestoreContextNoCell:
     case IrOpcode::kJSGeneratorRestoreContinuation:
     case IrOpcode::kJSGeneratorRestoreInputOrDebugPos:
     case IrOpcode::kJSGeneratorRestoreRegister:
@@ -78,13 +78,14 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSGetImportMeta:
     case IrOpcode::kJSHasProperty:
     case IrOpcode::kJSHasContextExtension:
+    case IrOpcode::kJSLoadContextNoCell:
     case IrOpcode::kJSLoadContext:
     case IrOpcode::kJSLoadModule:
     case IrOpcode::kJSLoadNamed:
     case IrOpcode::kJSLoadNamedFromSuper:
     case IrOpcode::kJSLoadProperty:
+    case IrOpcode::kJSStoreContextNoCell:
     case IrOpcode::kJSStoreContext:
-    case IrOpcode::kJSStoreScriptContext:
     case IrOpcode::kJSDefineKeyedOwnPropertyInLiteral:
     case IrOpcode::kJSStoreGlobal:
     case IrOpcode::kJSStoreInArrayLiteral:

@@ -28,6 +28,8 @@ class UnifiedHeapMarkingState final {
 
   V8_INLINE void MarkAndPush(const TracedReferenceBase&);
 
+  Heap* heap() const { return heap_; }
+
  private:
   Heap* const heap_;
   MarkingState* const marking_state_;

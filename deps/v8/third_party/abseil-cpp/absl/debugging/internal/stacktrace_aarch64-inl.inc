@@ -18,6 +18,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/debugging/internal/address_is_readable.h"
+#include "absl/debugging/internal/addresses.h"
 #include "absl/debugging/internal/vdso_support.h"  // a no-op on non-elf or non-glibc systems
 #include "absl/debugging/stacktrace.h"
 
@@ -101,7 +102,8 @@ static bool InsideSignalStack(void** ptr, const StackInfo* stack_info) {
 // "STRICT_UNWINDING") to reduce the chance that a bad pointer is returned.
 template<bool STRICT_UNWINDING, bool WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
-ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY  // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static void **NextStackFrame(void **old_frame_pointer, const void *uc,
                              const StackInfo *stack_info) {
   void **new_frame_pointer = reinterpret_cast<void**>(*old_frame_pointer);
@@ -184,8 +186,10 @@ template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NOINLINE
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
-static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
-                      const void *ucp, int *min_dropped_frames) {
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
+static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
+                      int max_depth, int skip_count, const void *ucp,
+                      int *min_dropped_frames) {
 #ifdef __GNUC__
   void **frame_pointer = reinterpret_cast<void**>(__builtin_frame_address(0));
 #else
@@ -219,10 +223,18 @@ static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
     if (skip_count > 0) {
       skip_count--;
     } else {
-      result[n] = prev_return_address;
+      result[n] = reinterpret_cast<void *>(
+          absl::debugging_internal::StripPointerMetadata(prev_return_address));
       if (IS_STACK_FRAMES) {
-        sizes[n] = static_cast<int>(
-            ComputeStackFrameSize(prev_frame_pointer, frame_pointer));
+        if (frames != nullptr) {
+          frames[n] = absl::debugging_internal::StripPointerMetadata(
+                          prev_frame_pointer) +
+                      2 * sizeof(void *) /* go past the return address */;
+        }
+        if (sizes != nullptr) {
+          sizes[n] = static_cast<int>(
+              ComputeStackFrameSize(prev_frame_pointer, frame_pointer));
+        }
       }
       n++;
     }

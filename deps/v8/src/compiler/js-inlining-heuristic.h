@@ -82,6 +82,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
     Node* node = nullptr;     // The call site at which to inline.
     CallFrequency frequency;  // Relative frequency of this call site.
     int total_size = 0;
+    bool has_heapnumber_params = false;
   };
 
   // Comparator for candidates.
@@ -110,7 +111,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   Candidate CollectFunctions(Node* node, int functions_size);
 
   CommonOperatorBuilder* common() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   // TODO(neis): Make heap broker a component of JSGraph?
   JSHeapBroker* broker() const { return broker_; }

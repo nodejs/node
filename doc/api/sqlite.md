@@ -78,10 +78,14 @@ console.log(query.all());
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v24.0.0
+    - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57752
     description: Add `timeout` option.
-  - version: v23.10.0
+  - version:
+    - v23.10.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/56991
     description: The `path` argument now supports Buffer and URL objects.
 -->
@@ -128,7 +132,9 @@ Constructs a new `DatabaseSync` instance.
 ### `database.aggregate(name, options)`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v24.0.0
+ - v22.16.0
 -->
 
 Registers a new aggregate function with the SQLite database. This method is a wrapper around
@@ -241,6 +247,21 @@ Enables or disables the `loadExtension` SQL function, and the `loadExtension()`
 method. When `allowExtension` is `false` when constructing, you cannot enable
 loading extensions for security reasons.
 
+### `database.location([dbName])`
+
+<!-- YAML
+added:
+  - v24.0.0
+  - v22.16.0
+-->
+
+* `dbName` {string} Name of the database. This can be `'main'` (the default primary database) or any other
+  database that has been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
+* Returns: {string | null} The location of the database file. When using an in-memory database,
+  this method returns null.
+
+This method is a wrapper around [`sqlite3_db_filename()`][]
+
 ### `database.exec(sql)`
 
 <!-- YAML
@@ -286,7 +307,9 @@ wrapper around [`sqlite3_create_function_v2()`][].
 ### `database.isOpen`
 
 <!-- YAML
-added: v23.11.0
+added:
+  - v23.11.0
+  - v22.15.0
 -->
 
 * {boolean} Whether the database is currently open or not.
@@ -294,7 +317,9 @@ added: v23.11.0
 ### `database.isTransaction`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v24.0.0
+  - v22.16.0
 -->
 
 * {boolean} Whether the database is currently within a transaction. This method
@@ -396,10 +421,14 @@ targetDb.applyChangeset(changeset);
 ### `database[Symbol.dispose]()`
 
 <!-- YAML
-added: v23.11.0
+added:
+  - v23.11.0
+  - v22.15.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Closes the database connection. If the database connection is already closed
 then this is a no-op.
@@ -489,7 +518,9 @@ the values in `namedParameters` and `anonymousParameters`.
 ### `statement.columns()`
 
 <!-- YAML
-added: v23.11.0
+added:
+  - v23.11.0
+  - v22.16.0
 -->
 
 * Returns: {Array} An array of objects. Each object corresponds to a column
@@ -639,7 +670,9 @@ are several caveats to be aware of when enabling bare named parameters:
 ### `statement.setAllowUnknownNamedParameters(enabled)`
 
 <!-- YAML
-added: v23.11.0
+added:
+  - v23.11.0
+  - v22.15.0
 -->
 
 * `enabled` {boolean} Enables or disables support for unknown named parameters.
@@ -693,7 +726,9 @@ exception.
 ## `sqlite.backup(sourceDb, path[, options])`
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.16.0
 changes:
   - version: v23.10.0
     pr-url: https://github.com/nodejs/node/pull/56991
@@ -846,6 +881,7 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`sqlite3_column_table_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_create_window_function()`]: https://www.sqlite.org/c3ref/create_function.html
+[`sqlite3_db_filename()`]: https://sqlite.org/c3ref/db_filename.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3_get_autocommit()`]: https://sqlite.org/c3ref/get_autocommit.html

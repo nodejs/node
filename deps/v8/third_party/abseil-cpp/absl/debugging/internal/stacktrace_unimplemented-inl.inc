@@ -2,9 +2,10 @@
 #define ABSL_DEBUGGING_INTERNAL_STACKTRACE_UNIMPLEMENTED_INL_H_
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
-static int UnwindImpl(void** /* result */, int* /* sizes */,
-                      int /* max_depth */, int /* skip_count */,
-                      const void* /* ucp */, int *min_dropped_frames) {
+static int UnwindImpl(void** /* result */, uintptr_t* /* frames */,
+                      int* /* sizes */, int /* max_depth */,
+                      int /* skip_count */, const void* /* ucp */,
+                      int* min_dropped_frames) {
   if (min_dropped_frames != nullptr) {
     *min_dropped_frames = 0;
   }

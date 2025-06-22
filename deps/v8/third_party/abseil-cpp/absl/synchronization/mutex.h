@@ -70,6 +70,7 @@
 #include "absl/base/internal/low_level_alloc.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/base/internal/tsan_mutex_interface.h"
+#include "absl/base/nullability.h"
 #include "absl/base/port.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
@@ -190,7 +191,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // If the mutex can be acquired without blocking, does so exclusively and
   // returns `true`. Otherwise, returns `false`. Returns `true` with high
   // probability if the `Mutex` was free.
-  ABSL_MUST_USE_RESULT bool TryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true);
+  [[nodiscard]] bool TryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true);
 
   // Mutex::AssertHeld()
   //
@@ -255,7 +256,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // If the mutex can be acquired without blocking, acquires this mutex for
   // shared access and returns `true`. Otherwise, returns `false`. Returns
   // `true` with high probability if the `Mutex` was free or shared.
-  ABSL_MUST_USE_RESULT bool ReaderTryLock() ABSL_SHARED_TRYLOCK_FUNCTION(true);
+  [[nodiscard]] bool ReaderTryLock() ABSL_SHARED_TRYLOCK_FUNCTION(true);
 
   // Mutex::AssertReaderHeld()
   //
@@ -281,8 +282,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
 
   void WriterUnlock() ABSL_UNLOCK_FUNCTION() { this->Unlock(); }
 
-  ABSL_MUST_USE_RESULT bool WriterTryLock()
-      ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true) {
+  [[nodiscard]] bool WriterTryLock() ABSL_EXCLUSIVE_TRYLOCK_FUNCTION(true) {
     return this->TryLock();
   }
 
@@ -450,7 +450,9 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // substantially reduce `Mutex` performance; it should be set only for
   // non-production runs.  Optimization options may also disable invariant
   // checks.
-  void EnableInvariantDebugging(void (*invariant)(void*), void* arg);
+  void EnableInvariantDebugging(
+      void (*absl_nullable invariant)(void* absl_nullability_unknown),
+      void* absl_nullability_unknown arg);
 
   // Mutex::EnableDebugLog()
   //
@@ -459,7 +461,7 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   // call to `EnableInvariantDebugging()` or `EnableDebugLog()` has been made.
   //
   // Note: This method substantially reduces `Mutex` performance.
-  void EnableDebugLog(const char* name);
+  void EnableDebugLog(const char* absl_nullable name);
 
   // Deadlock detection
 
@@ -509,20 +511,23 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
 
   // Post()/Wait() versus associated PerThreadSem; in class for required
   // friendship with PerThreadSem.
-  static void IncrementSynchSem(Mutex* mu, base_internal::PerThreadSynch* w);
-  static bool DecrementSynchSem(Mutex* mu, base_internal::PerThreadSynch* w,
+  static void IncrementSynchSem(Mutex* absl_nonnull mu,
+                                base_internal::PerThreadSynch* absl_nonnull w);
+  static bool DecrementSynchSem(Mutex* absl_nonnull mu,
+                                base_internal::PerThreadSynch* absl_nonnull w,
                                 synchronization_internal::KernelTimeout t);
 
   // slow path acquire
-  void LockSlowLoop(SynchWaitParams* waitp, int flags);
+  void LockSlowLoop(SynchWaitParams* absl_nonnull waitp, int flags);
   // wrappers around LockSlowLoop()
-  bool LockSlowWithDeadline(MuHow how, const Condition* cond,
+  bool LockSlowWithDeadline(MuHow absl_nonnull how,
+                            const Condition* absl_nullable cond,
                             synchronization_internal::KernelTimeout t,
                             int flags);
-  void LockSlow(MuHow how, const Condition* cond,
+  void LockSlow(MuHow absl_nonnull how, const Condition* absl_nullable cond,
                 int flags) ABSL_ATTRIBUTE_COLD;
   // slow path release
-  void UnlockSlow(SynchWaitParams* waitp) ABSL_ATTRIBUTE_COLD;
+  void UnlockSlow(SynchWaitParams* absl_nullable waitp) ABSL_ATTRIBUTE_COLD;
   // TryLock slow path.
   bool TryLockSlow();
   // ReaderTryLock slow path.
@@ -533,20 +538,21 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED Mutex {
   bool LockWhenCommon(const Condition& cond,
                       synchronization_internal::KernelTimeout t, bool write);
   // Attempt to remove thread s from queue.
-  void TryRemove(base_internal::PerThreadSynch* s);
+  void TryRemove(base_internal::PerThreadSynch* absl_nonnull s);
   // Block a thread on mutex.
-  void Block(base_internal::PerThreadSynch* s);
+  void Block(base_internal::PerThreadSynch* absl_nonnull s);
   // Wake a thread; return successor.
-  base_internal::PerThreadSynch* Wakeup(base_internal::PerThreadSynch* w);
+  base_internal::PerThreadSynch* absl_nullable Wakeup(
+      base_internal::PerThreadSynch* absl_nonnull w);
   void Dtor();
 
   friend class CondVar;   // for access to Trans()/Fer().
-  void Trans(MuHow how);  // used for CondVar->Mutex transfer
-  void Fer(
-      base_internal::PerThreadSynch* w);  // used for CondVar->Mutex transfer
+  void Trans(MuHow absl_nonnull how);  // used for CondVar->Mutex transfer
+  void Fer(base_internal::PerThreadSynch* absl_nonnull
+           w);  // used for CondVar->Mutex transfer
 
   // Catch the error of writing Mutex when intending MutexLock.
-  explicit Mutex(const volatile Mutex* /*ignored*/) {}
+  explicit Mutex(const volatile Mutex* absl_nullable /*ignored*/) {}
 
   Mutex(const Mutex&) = delete;
   Mutex& operator=(const Mutex&) = delete;
@@ -581,14 +587,15 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
   // Calls `mu->Lock()` and returns when that call returns. That is, `*mu` is
   // guaranteed to be locked when this object is constructed. Requires that
   // `mu` be dereferenceable.
-  explicit MutexLock(Mutex* mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu) : mu_(mu) {
+  explicit MutexLock(Mutex* absl_nonnull mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+      : mu_(mu) {
     this->mu_->Lock();
   }
 
   // Like above, but calls `mu->LockWhen(cond)` instead. That is, in addition to
   // the above, the condition given by `cond` is also guaranteed to hold when
   // this object is constructed.
-  explicit MutexLock(Mutex* mu, const Condition& cond)
+  explicit MutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     this->mu_->LockWhen(cond);
@@ -602,7 +609,7 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
   ~MutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_->Unlock(); }
 
  private:
-  Mutex* const mu_;
+  Mutex* absl_nonnull const mu_;
 };
 
 // ReaderMutexLock
@@ -611,11 +618,12 @@ class ABSL_SCOPED_LOCKABLE MutexLock {
 // releases a shared lock on a `Mutex` via RAII.
 class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
  public:
-  explicit ReaderMutexLock(Mutex* mu) ABSL_SHARED_LOCK_FUNCTION(mu) : mu_(mu) {
+  explicit ReaderMutexLock(Mutex* absl_nonnull mu) ABSL_SHARED_LOCK_FUNCTION(mu)
+      : mu_(mu) {
     mu->ReaderLock();
   }
 
-  explicit ReaderMutexLock(Mutex* mu, const Condition& cond)
+  explicit ReaderMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_SHARED_LOCK_FUNCTION(mu)
       : mu_(mu) {
     mu->ReaderLockWhen(cond);
@@ -629,7 +637,7 @@ class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
   ~ReaderMutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_->ReaderUnlock(); }
 
  private:
-  Mutex* const mu_;
+  Mutex* absl_nonnull const mu_;
 };
 
 // WriterMutexLock
@@ -638,12 +646,13 @@ class ABSL_SCOPED_LOCKABLE ReaderMutexLock {
 // releases a write (exclusive) lock on a `Mutex` via RAII.
 class ABSL_SCOPED_LOCKABLE WriterMutexLock {
  public:
-  explicit WriterMutexLock(Mutex* mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+  explicit WriterMutexLock(Mutex* absl_nonnull mu)
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     mu->WriterLock();
   }
 
-  explicit WriterMutexLock(Mutex* mu, const Condition& cond)
+  explicit WriterMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     mu->WriterLockWhen(cond);
@@ -657,7 +666,7 @@ class ABSL_SCOPED_LOCKABLE WriterMutexLock {
   ~WriterMutexLock() ABSL_UNLOCK_FUNCTION() { this->mu_->WriterUnlock(); }
 
  private:
-  Mutex* const mu_;
+  Mutex* absl_nonnull const mu_;
 };
 
 // -----------------------------------------------------------------------------
@@ -715,7 +724,8 @@ class ABSL_SCOPED_LOCKABLE WriterMutexLock {
 class Condition {
  public:
   // A Condition that returns the result of "(*func)(arg)"
-  Condition(bool (*func)(void*), void* arg);
+  Condition(bool (*absl_nonnull func)(void* absl_nullability_unknown),
+            void* absl_nullability_unknown arg);
 
   // Templated version for people who are averse to casts.
   //
@@ -727,7 +737,8 @@ class Condition {
   //
   // See class comment for performance advice.
   template <typename T>
-  Condition(bool (*func)(T*), T* arg);
+  Condition(bool (*absl_nonnull func)(T* absl_nullability_unknown),
+            T* absl_nullability_unknown arg);
 
   // Same as above, but allows for cases where `arg` comes from a pointer that
   // is convertible to the function parameter type `T*` but not an exact match.
@@ -741,8 +752,10 @@ class Condition {
   // a function template is passed as `func`. Also, the dummy `typename = void`
   // template parameter exists just to work around a MSVC mangling bug.
   template <typename T, typename = void>
-  Condition(bool (*func)(T*),
-            typename absl::internal::type_identity<T>::type* arg);
+  Condition(
+      bool (*absl_nonnull func)(T* absl_nullability_unknown),
+      typename absl::internal::type_identity<T>::type* absl_nullability_unknown
+      arg);
 
   // Templated version for invoking a method that returns a `bool`.
   //
@@ -753,16 +766,19 @@ class Condition {
   // methods to come from base classes. A simpler signature like
   // `Condition(T*, bool (T::*)())` does not suffice.
   template <typename T>
-  Condition(T* object,
-            bool (absl::internal::type_identity<T>::type::*method)());
+  Condition(
+      T* absl_nonnull object,
+      bool (absl::internal::type_identity<T>::type::* absl_nonnull method)());
 
   // Same as above, for const members
   template <typename T>
-  Condition(const T* object,
-            bool (absl::internal::type_identity<T>::type::*method)() const);
+  Condition(
+      const T* absl_nonnull object,
+      bool (absl::internal::type_identity<T>::type::* absl_nonnull method)()
+          const);
 
   // A Condition that returns the value of `*cond`
-  explicit Condition(const bool* cond);
+  explicit Condition(const bool* absl_nonnull cond);
 
   // Templated version for invoking a functor that returns a `bool`.
   // This approach accepts pointers to non-mutable lambdas, `std::function`,
@@ -791,7 +807,7 @@ class Condition {
   // `bool operator() const`.
   template <typename T, typename E = decltype(static_cast<bool (T::*)() const>(
                             &T::operator()))>
-  explicit Condition(const T* obj)
+  explicit Condition(const T* absl_nonnull obj)
       : Condition(obj, static_cast<bool (T::*)() const>(&T::operator())) {}
 
   // A Condition that always returns `true`.
@@ -817,7 +833,8 @@ class Condition {
   // Two `Condition` values are guaranteed equal if both their `func` and `arg`
   // components are the same. A null pointer is equivalent to a `true`
   // condition.
-  static bool GuaranteedEqual(const Condition* a, const Condition* b);
+  static bool GuaranteedEqual(const Condition* absl_nullable a,
+                              const Condition* absl_nullable b);
 
  private:
   // Sizing an allocation for a method pointer can be subtle. In the Itanium
@@ -842,17 +859,17 @@ class Condition {
 #endif
 
   // Function with which to evaluate callbacks and/or arguments.
-  bool (*eval_)(const Condition*) = nullptr;
+  bool (*absl_nullable eval_)(const Condition* absl_nonnull) = nullptr;
 
   // Either an argument for a function call or an object for a method call.
-  void* arg_ = nullptr;
+  void* absl_nullable arg_ = nullptr;
 
   // Various functions eval_ can point to:
-  static bool CallVoidPtrFunction(const Condition*);
+  static bool CallVoidPtrFunction(const Condition* absl_nonnull c);
   template <typename T>
-  static bool CastAndCallFunction(const Condition* c);
+  static bool CastAndCallFunction(const Condition* absl_nonnull c);
   template <typename T, typename ConditionMethodPtr>
-  static bool CastAndCallMethod(const Condition* c);
+  static bool CastAndCallMethod(const Condition* absl_nonnull c);
 
   // Helper methods for storing, validating, and reading callback arguments.
   template <typename T>
@@ -864,11 +881,11 @@ class Condition {
   }
 
   template <typename T>
-  inline void ReadCallback(T* callback) const {
+  inline void ReadCallback(T* absl_nonnull callback) const {
     std::memcpy(callback, callback_, sizeof(*callback));
   }
 
-  static bool AlwaysTrue(const Condition*) { return true; }
+  static bool AlwaysTrue(const Condition* absl_nullable) { return true; }
 
   // Used only to create kTrue.
   constexpr Condition() : eval_(AlwaysTrue), arg_(nullptr) {}
@@ -922,7 +939,7 @@ class CondVar {
   // spurious wakeup), then reacquires the `Mutex` and returns.
   //
   // Requires and ensures that the current thread holds the `Mutex`.
-  void Wait(Mutex* mu) {
+  void Wait(Mutex* absl_nonnull mu) {
     WaitCommon(mu, synchronization_internal::KernelTimeout::Never());
   }
 
@@ -939,7 +956,7 @@ class CondVar {
   // to return `true` or `false`.
   //
   // Requires and ensures that the current thread holds the `Mutex`.
-  bool WaitWithTimeout(Mutex* mu, absl::Duration timeout) {
+  bool WaitWithTimeout(Mutex* absl_nonnull mu, absl::Duration timeout) {
     return WaitCommon(mu, synchronization_internal::KernelTimeout(timeout));
   }
 
@@ -958,7 +975,7 @@ class CondVar {
   // to return `true` or `false`.
   //
   // Requires and ensures that the current thread holds the `Mutex`.
-  bool WaitWithDeadline(Mutex* mu, absl::Time deadline) {
+  bool WaitWithDeadline(Mutex* absl_nonnull mu, absl::Time deadline) {
     return WaitCommon(mu, synchronization_internal::KernelTimeout(deadline));
   }
 
@@ -977,11 +994,12 @@ class CondVar {
   // Causes all subsequent uses of this `CondVar` to be logged via
   // `ABSL_RAW_LOG(INFO)`. Log entries are tagged with `name` if `name != 0`.
   // Note: this method substantially reduces `CondVar` performance.
-  void EnableDebugLog(const char* name);
+  void EnableDebugLog(const char* absl_nullable name);
 
  private:
-  bool WaitCommon(Mutex* mutex, synchronization_internal::KernelTimeout t);
-  void Remove(base_internal::PerThreadSynch* s);
+  bool WaitCommon(Mutex* absl_nonnull mutex,
+                  synchronization_internal::KernelTimeout t);
+  void Remove(base_internal::PerThreadSynch* absl_nonnull s);
   std::atomic<intptr_t> cv_;  // Condition variable state.
   CondVar(const CondVar&) = delete;
   CondVar& operator=(const CondVar&) = delete;
@@ -997,14 +1015,15 @@ class CondVar {
 // MutexLockMaybe is like MutexLock, but is a no-op when mu is null.
 class ABSL_SCOPED_LOCKABLE MutexLockMaybe {
  public:
-  explicit MutexLockMaybe(Mutex* mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+  explicit MutexLockMaybe(Mutex* absl_nullable mu)
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     if (this->mu_ != nullptr) {
       this->mu_->Lock();
     }
   }
 
-  explicit MutexLockMaybe(Mutex* mu, const Condition& cond)
+  explicit MutexLockMaybe(Mutex* absl_nullable mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     if (this->mu_ != nullptr) {
@@ -1019,7 +1038,7 @@ class ABSL_SCOPED_LOCKABLE MutexLockMaybe {
   }
 
  private:
-  Mutex* const mu_;
+  Mutex* absl_nullable const mu_;
   MutexLockMaybe(const MutexLockMaybe&) = delete;
   MutexLockMaybe(MutexLockMaybe&&) = delete;
   MutexLockMaybe& operator=(const MutexLockMaybe&) = delete;
@@ -1032,12 +1051,13 @@ class ABSL_SCOPED_LOCKABLE MutexLockMaybe {
 // mutex before destruction. `Release()` may be called at most once.
 class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
  public:
-  explicit ReleasableMutexLock(Mutex* mu) ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
+  explicit ReleasableMutexLock(Mutex* absl_nonnull mu)
+      ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     this->mu_->Lock();
   }
 
-  explicit ReleasableMutexLock(Mutex* mu, const Condition& cond)
+  explicit ReleasableMutexLock(Mutex* absl_nonnull mu, const Condition& cond)
       ABSL_EXCLUSIVE_LOCK_FUNCTION(mu)
       : mu_(mu) {
     this->mu_->LockWhen(cond);
@@ -1052,7 +1072,7 @@ class ABSL_SCOPED_LOCKABLE ReleasableMutexLock {
   void Release() ABSL_UNLOCK_FUNCTION();
 
  private:
-  Mutex* mu_;
+  Mutex* absl_nonnull mu_;
   ReleasableMutexLock(const ReleasableMutexLock&) = delete;
   ReleasableMutexLock(ReleasableMutexLock&&) = delete;
   ReleasableMutexLock& operator=(const ReleasableMutexLock&) = delete;
@@ -1084,7 +1104,7 @@ inline CondVar::CondVar() : cv_(0) {}
 
 // static
 template <typename T, typename ConditionMethodPtr>
-bool Condition::CastAndCallMethod(const Condition* c) {
+bool Condition::CastAndCallMethod(const Condition* absl_nonnull c) {
   T* object = static_cast<T*>(c->arg_);
   ConditionMethodPtr condition_method_pointer;
   c->ReadCallback(&condition_method_pointer);
@@ -1093,7 +1113,7 @@ bool Condition::CastAndCallMethod(const Condition* c) {
 
 // static
 template <typename T>
-bool Condition::CastAndCallFunction(const Condition* c) {
+bool Condition::CastAndCallFunction(const Condition* absl_nonnull c) {
   bool (*function)(T*);
   c->ReadCallback(&function);
   T* argument = static_cast<T*>(c->arg_);
@@ -1101,7 +1121,9 @@ bool Condition::CastAndCallFunction(const Condition* c) {
 }
 
 template <typename T>
-inline Condition::Condition(bool (*func)(T*), T* arg)
+inline Condition::Condition(
+    bool (*absl_nonnull func)(T* absl_nullability_unknown),
+    T* absl_nullability_unknown arg)
     : eval_(&CastAndCallFunction<T>),
       arg_(const_cast<void*>(static_cast<const void*>(arg))) {
   static_assert(sizeof(&func) <= sizeof(callback_),
@@ -1111,13 +1133,16 @@ inline Condition::Condition(bool (*func)(T*), T* arg)
 
 template <typename T, typename>
 inline Condition::Condition(
-    bool (*func)(T*), typename absl::internal::type_identity<T>::type* arg)
+    bool (*absl_nonnull func)(T* absl_nullability_unknown),
+    typename absl::internal::type_identity<T>::type* absl_nullability_unknown
+    arg)
     // Just delegate to the overload above.
     : Condition(func, arg) {}
 
 template <typename T>
 inline Condition::Condition(
-    T* object, bool (absl::internal::type_identity<T>::type::*method)())
+    T* absl_nonnull object,
+    bool (absl::internal::type_identity<T>::type::* absl_nonnull method)())
     : eval_(&CastAndCallMethod<T, decltype(method)>), arg_(object) {
   static_assert(sizeof(&method) <= sizeof(callback_),
                 "An overlarge method pointer was passed to Condition.");
@@ -1126,8 +1151,9 @@ inline Condition::Condition(
 
 template <typename T>
 inline Condition::Condition(
-    const T* object,
-    bool (absl::internal::type_identity<T>::type::*method)() const)
+    const T* absl_nonnull object,
+    bool (absl::internal::type_identity<T>::type::* absl_nonnull method)()
+        const)
     : eval_(&CastAndCallMethod<const T, decltype(method)>),
       arg_(reinterpret_cast<void*>(const_cast<T*>(object))) {
   StoreCallback(method);
@@ -1145,7 +1171,7 @@ inline Condition::Condition(
 // binary; if this function is called a second time with a different function
 // pointer, the value is ignored (and will cause an assertion failure in debug
 // mode.)
-void RegisterMutexProfiler(void (*fn)(int64_t wait_cycles));
+void RegisterMutexProfiler(void (*absl_nonnull fn)(int64_t wait_cycles));
 
 // Register a hook for Mutex tracing.
 //
@@ -1159,8 +1185,9 @@ void RegisterMutexProfiler(void (*fn)(int64_t wait_cycles));
 //
 // This has the same ordering and single-use limitations as
 // RegisterMutexProfiler() above.
-void RegisterMutexTracer(void (*fn)(const char* msg, const void* obj,
-                                    int64_t wait_cycles));
+void RegisterMutexTracer(void (*absl_nonnull fn)(const char* absl_nonnull msg,
+                                                 const void* absl_nonnull obj,
+                                                 int64_t wait_cycles));
 
 // Register a hook for CondVar tracing.
 //
@@ -1174,7 +1201,8 @@ void RegisterMutexTracer(void (*fn)(const char* msg, const void* obj,
 //
 // This has the same ordering and single-use limitations as
 // RegisterMutexProfiler() above.
-void RegisterCondVarTracer(void (*fn)(const char* msg, const void* cv));
+void RegisterCondVarTracer(void (*absl_nonnull fn)(
+    const char* absl_nonnull msg, const void* absl_nonnull cv));
 
 // EnableMutexInvariantDebugging()
 //

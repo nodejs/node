@@ -6,6 +6,7 @@
 
 #include <stdlib.h>  // For free, malloc.
 
+#include "src/base/address-region.h"
 #include "src/base/bits.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/lazy-instance.h"
@@ -80,8 +81,8 @@ v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace() {
 
 #ifdef V8_ENABLE_SANDBOX
 v8::PageAllocator* GetSandboxPageAllocator() {
-  CHECK(GetProcessWideSandbox()->is_initialized());
-  return GetProcessWideSandbox()->page_allocator();
+  CHECK(Sandbox::current()->is_initialized());
+  return Sandbox::current()->page_allocator();
 }
 #endif
 
@@ -250,6 +251,18 @@ bool VirtualMemory::RecommitPages(Address address, size_t size,
   return result;
 }
 
+bool VirtualMemory::Resize(Address address, size_t new_size,
+                           PageAllocator::Permission access) {
+  DCHECK(IsAligned(new_size, page_allocator_->CommitPageSize()));
+  DCHECK_LE(region_.size(), new_size);
+  if (!page_allocator_->ResizeAllocationAt(reinterpret_cast<void*>(address),
+                                           region_.size(), new_size, access)) {
+    return false;
+  }
+  region_.set_size(new_size);
+  return true;
+}
+
 bool VirtualMemory::DiscardSystemPages(Address address, size_t size) {
   CHECK(InVM(address, size));
   bool result = page_allocator_->DiscardSystemPages(
@@ -280,19 +293,6 @@ void VirtualMemory::Free() {
   v8::PageAllocator* page_allocator = page_allocator_;
   base::AddressRegion region = region_;
   Reset();
-  // FreePages expects size to be aligned to allocation granularity however
-  // ReleasePages may leave size at only commit granularity. Align it here.
-  FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
-            RoundUp(region.size(), page_allocator->AllocatePageSize()));
-}
-
-void VirtualMemory::FreeReadOnly() {
-  DCHECK(IsReserved());
-  // The only difference to Free is that it doesn't call Reset which would write
-  // to the VirtualMemory object.
-  v8::PageAllocator* page_allocator = page_allocator_;
-  base::AddressRegion region = region_;
-
   // FreePages expects size to be aligned to allocation granularity however
   // ReleasePages may leave size at only commit granularity. Align it here.
   FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),

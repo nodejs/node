@@ -43,13 +43,15 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   inline void set_length(Tagged<Smi> length);
 
   static bool MayHaveReadOnlyLength(Tagged<Map> js_array_map);
-  static bool HasReadOnlyLength(Handle<JSArray> array);
-  static bool WouldChangeReadOnlyLength(Handle<JSArray> array, uint32_t index);
+  static bool HasReadOnlyLength(DirectHandle<JSArray> array);
+  static bool WouldChangeReadOnlyLength(DirectHandle<JSArray> array,
+                                        uint32_t index);
 
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
   // capacity is non-zero.
-  V8_EXPORT_PRIVATE static void Initialize(DirectHandle<JSArray> array,
+  V8_EXPORT_PRIVATE static void Initialize(Isolate* isolate,
+                                           DirectHandle<JSArray> array,
                                            int capacity, int length = 0);
 
   // If the JSArray has fast elements, and new_length would result in
@@ -58,23 +60,24 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   static inline bool SetLengthWouldNormalize(Heap* heap, uint32_t new_length);
 
   // Initializes the array to a certain length.
-  V8_EXPORT_PRIVATE static Maybe<bool> SetLength(Handle<JSArray> array,
+  V8_EXPORT_PRIVATE static Maybe<bool> SetLength(Isolate* isolate,
+                                                 DirectHandle<JSArray> array,
                                                  uint32_t length);
 
   // Set the content of the array to the content of storage.
-  static inline void SetContent(Handle<JSArray> array,
-                                Handle<FixedArrayBase> storage);
+  static inline void SetContent(Isolate* isolate, DirectHandle<JSArray> array,
+                                DirectHandle<FixedArrayBase> storage);
 
   // ES6 9.4.2.1
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
-      Isolate* isolate, Handle<JSArray> o, Handle<Object> name,
+      Isolate* isolate, DirectHandle<JSArray> o, DirectHandle<Object> name,
       PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   static bool AnythingToArrayLength(Isolate* isolate,
-                                    Handle<Object> length_object,
+                                    DirectHandle<Object> length_object,
                                     uint32_t* output);
   V8_WARN_UNUSED_RESULT static Maybe<bool> ArraySetLength(
-      Isolate* isolate, Handle<JSArray> a, PropertyDescriptor* desc,
+      Isolate* isolate, DirectHandle<JSArray> a, PropertyDescriptor* desc,
       Maybe<ShouldThrow> should_throw);
 
   // Support for Array.prototype.join().
@@ -132,15 +135,17 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   static_assert(kMaxArrayIndex == kMaxUInt32 - 1);
 
   // This constant is somewhat arbitrary. Any large enough value would work.
-  static constexpr uint32_t kMaxFastArrayLength = 32 * 1024 * 1024;
+  static constexpr uint32_t kMaxFastArrayLength =
+      V8_LOWER_LIMITS_MODE_BOOL ? (8 * 1024 * 1024) : (32 * 1024 * 1024);
   static_assert(kMaxFastArrayLength <= kMaxArrayLength);
+  static_assert(kMaxFastArrayLength <= kMaxFixedArrayCapacity);
 
   // Min. stack size for detecting an Array.prototype.join() call cycle.
   static const uint32_t kMinJoinStackSize = 2;
 
   static const int kInitialMaxFastElementArray =
-      (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kHeaderSize -
-       AllocationMemento::kSize) >>
+      (kMaxRegularHeapObjectSize - sizeof(FixedArray) - kHeaderSize -
+       sizeof(AllocationMemento)) >>
       kDoubleSizeLog2;
 
   TQ_OBJECT_CONSTRUCTORS(JSArray)

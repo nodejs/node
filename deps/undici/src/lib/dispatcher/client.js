@@ -4,6 +4,7 @@ const assert = require('node:assert')
 const net = require('node:net')
 const http = require('node:http')
 const util = require('../core/util.js')
+const { ClientStats } = require('../util/stats.js')
 const { channels } = require('../core/diagnostics.js')
 const Request = require('../core/request.js')
 const DispatcherBase = require('./dispatcher-base')
@@ -258,6 +259,10 @@ class Client extends DispatcherBase {
   set pipelining (value) {
     this[kPipelining] = value
     this[kResume](true)
+  }
+
+  get stats () {
+    return new ClientStats(this)
   }
 
   get [kPending] () {

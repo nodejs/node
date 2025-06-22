@@ -9,6 +9,7 @@
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/heap/combined-heap.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/ic/handler-configuration-inl.h"
@@ -20,6 +21,7 @@
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/contexts.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/elements.h"
@@ -114,16 +116,16 @@ namespace internal {
 //   integrity is independent of an outer object.
 // - In cases where the InstanceType is too generic (e.g. FixedArray) the
 //   XXXVerify of the outer method has to do recursive verification.
-// - If the corresponding objects have inheritence the parent's Verify method
+// - If the corresponding objects have inheritance the parent's Verify method
 //   is called as well.
-// - For any field containing pointes VerifyPointer(...) should be called.
+// - For any field containing pointers VerifyPointer(...) should be called.
 //
 // Caveats
 // -------
 // - Assume that any of the verify methods is incomplete!
 // - Some integrity checks are only partially done due to objects being in
 //   partially initialized states when a gc happens, for instance when outer
-//   objects are allocted before inner ones.
+//   objects are allocated before inner ones.
 //
 
 #ifdef VERIFY_HEAP
@@ -176,7 +178,7 @@ void Object::VerifyMaybeObjectPointer(Isolate* isolate, Tagged<MaybeObject> p) {
 
 // static
 void Smi::SmiVerify(Tagged<Smi> obj, Isolate* isolate) {
-  CHECK(IsSmi(obj));
+  CHECK(IsSmi(Tagged<Object>(obj)));
   CHECK(!IsCallable(obj));
   CHECK(!IsConstructor(obj));
 }
@@ -196,7 +198,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 
   // Only TrustedObjects live in trusted space. See also TrustedObjectVerify.
   CHECK_IMPLIES(!IsTrustedObject(*this) && !IsFreeSpaceOrFiller(*this),
-                !IsTrustedSpaceObject(*this));
+                !HeapLayout::InTrustedSpace(*this));
 
   switch (map(cage_base)->instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
@@ -226,6 +228,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
+    case SIMPLE_NAME_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case EPHEMERON_HASH_TABLE_TYPE:
       Cast<FixedArray>(*this)->FixedArrayVerify(isolate);
@@ -312,6 +315,18 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
+
+    case TUPLE2_TYPE:
+      Cast<Tuple2>(*this)->Tuple2Verify(isolate);
+      break;
+
+    case CLASS_POSITIONS_TYPE:
+      Cast<ClassPositions>(*this)->ClassPositionsVerify(isolate);
+      break;
+
+    case ACCESSOR_PAIR_TYPE:
+      Cast<AccessorPair>(*this)->AccessorPairVerify(isolate);
+      break;
 
     case ALLOCATION_SITE_TYPE:
       Cast<AllocationSite>(*this)->AllocationSiteVerify(isolate);
@@ -410,16 +425,12 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
     CHECK(o == Smi::zero() || IsTrustedByteArray(o));
   }
 
-  for (int i = 0; i < constant_pool()->length(); ++i) {
-    // No ThinStrings in the constant pool.
-    CHECK(!IsThinString(constant_pool()->get(i), isolate));
-  }
-
   // TODO(oth): Walk bytecodes and immediate values to validate sanity.
   // - All bytecodes are known and well formed.
   // - Jumps must go to new instructions starts.
   // - No Illegal bytecodes.
   // - No consecutive sequences of prefix Wide / ExtraWide.
+  // - String constants for loads should be internalized strings.
 }
 
 void BytecodeWrapper::BytecodeWrapperVerify(Isolate* isolate) {
@@ -432,8 +443,7 @@ void BytecodeWrapper::BytecodeWrapperVerify(Isolate* isolate) {
 bool JSObject::ElementsAreSafeToExamine(PtrComprCageBase cage_base) const {
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
-  return elements(cage_base) !=
-         GetReadOnlyRoots(cage_base).one_pointer_filler_map();
+  return elements(cage_base) != GetReadOnlyRoots().one_pointer_filler_map();
 }
 
 namespace {
@@ -442,7 +452,7 @@ void VerifyJSObjectElements(Isolate* isolate, Tagged<JSObject> object) {
   // Only TypedArrays can have these specialized elements.
   if (IsJSTypedArray(object)) {
     // TODO(bmeurer,v8:4153): Fix CreateTypedArray to either not instantiate
-    // the object or propertly initialize it on errors during construction.
+    // the object or properly initialize it on errors during construction.
     /* CHECK(object->HasTypedArrayOrRabGsabTypedArrayElements()); */
     return;
   }
@@ -562,11 +572,16 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 void Map::MapVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::MapVerify(*this, isolate);
   Heap* heap = isolate->heap();
-  CHECK(!ObjectInYoungGeneration(*this));
+  CHECK(!HeapLayout::InYoungGeneration(Tagged<Map>(*this)));
   CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   CHECK(instance_size() == kVariableSizeSentinel ||
         (kTaggedSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm_struct = InstanceTypeChecker::IsWasmStruct(instance_type());
+#else
+  constexpr bool is_wasm_struct = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
   if (IsContextMap(*this)) {
     // The map for the NativeContext is allocated before the NativeContext
     // itself, so it may happen that during a GC the native_context() is still
@@ -577,10 +592,12 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK_EQ(native_context_or_null(), map()->native_context_or_null());
   } else {
     if (IsUndefined(GetBackPointer(), isolate)) {
-      // Root maps must not have descriptors in the descriptor array that do not
-      // belong to the map.
-      CHECK_EQ(NumberOfOwnDescriptors(),
-               instance_descriptors(isolate)->number_of_descriptors());
+      if (!is_wasm_struct) {
+        // Root maps must not have descriptors in the descriptor array that do
+        // not belong to the map.
+        CHECK_EQ(NumberOfOwnDescriptors(),
+                 instance_descriptors(isolate)->number_of_descriptors());
+      }
     } else {
       // If there is a parent map it must be non-stable.
       Tagged<Map> parent = Cast<Map>(GetBackPointer());
@@ -608,7 +625,9 @@ void Map::MapVerify(Isolate* isolate) {
       }
     }
   }
-  SLOW_DCHECK(instance_descriptors(isolate)->IsSortedNoDuplicates());
+  if (!is_wasm_struct) {
+    SLOW_DCHECK(instance_descriptors(isolate)->IsSortedNoDuplicates());
+  }
   SLOW_DCHECK(TransitionsAccessor(isolate, *this).IsSortedNoDuplicates());
   SLOW_DCHECK(
       TransitionsAccessor(isolate, *this).IsConsistentWithBackPointers());
@@ -646,6 +665,17 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK_EQ(map(), GetReadOnlyRoots().meta_map());
   }
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (instance_type() == WASM_STRUCT_TYPE ||
+      instance_type() == WASM_ARRAY_TYPE) {
+    // Wasm structs are sometimes shared. In this case, the meta map of this map
+    // has to be the context-free RO meta map.
+    if (HeapLayout::InAnySharedSpace(*this)) {
+      CHECK_EQ(map(), GetReadOnlyRoots().meta_map());
+    }
+  }
+#endif
+
   if (IsJSObjectMap(*this)) {
     int header_end_offset = JSObject::GetHeaderSize(*this);
     int inobject_fields_start_offset = GetInObjectPropertyOffset(0);
@@ -673,21 +703,22 @@ void Map::MapVerify(Isolate* isolate) {
           CHECK(has_shared_array_elements());
         }
       } else {
-        CHECK(InAnySharedSpace(*this));
+        CHECK(HeapLayout::InAnySharedSpace(*this));
         CHECK(IsUndefined(GetBackPointer(), isolate));
         Tagged<Object> maybe_cell = prototype_validity_cell(kRelaxedLoad);
-        if (IsCell(maybe_cell)) CHECK(InAnySharedSpace(Cast<Cell>(maybe_cell)));
+        if (IsCell(maybe_cell))
+          CHECK(HeapLayout::InAnySharedSpace(Cast<Cell>(maybe_cell)));
         CHECK(!is_extensible());
         CHECK(!is_prototype_map());
         CHECK(OnlyHasSimpleProperties());
-        CHECK(InAnySharedSpace(instance_descriptors(isolate)));
+        CHECK(HeapLayout::InAnySharedSpace(instance_descriptors(isolate)));
         if (IsJSSharedArrayMap(*this)) {
           CHECK(has_shared_array_elements());
         }
       }
     }
 
-    // Check constuctor value in JSFunction's maps.
+    // Check constructor value in JSFunction's maps.
     if (IsJSFunctionMap(*this) && !IsMap(constructor_or_back_pointer())) {
       Tagged<Object> maybe_constructor = constructor_or_back_pointer();
       // Constructor field might still contain a tuple if this map used to
@@ -702,7 +733,7 @@ void Map::MapVerify(Isolate* isolate) {
       CHECK(IsJSFunction(maybe_constructor) ||
             IsFunctionTemplateInfo(maybe_constructor) ||
             // The above check might fail until empty function setup is done.
-            IsUndefined(isolate->raw_native_context()->get(
+            IsUndefined(isolate->raw_native_context()->GetNoCell(
                 Context::EMPTY_FUNCTION_INDEX)));
     }
   }
@@ -753,17 +784,17 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
 }
 
 void FixedArrayBase::FixedArrayBaseVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+  CHECK(IsSmi(length_.load()));
 }
 
 void FixedArray::FixedArrayVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+  CHECK(IsSmi(length_.load()));
 
   for (int i = 0; i < length(); ++i) {
     Object::VerifyPointer(isolate, get(i));
   }
 
-  if (*this == ReadOnlyRoots(isolate).empty_fixed_array()) {
+  if (this == ReadOnlyRoots(isolate).empty_fixed_array()) {
     CHECK_EQ(length(), 0);
     CHECK_EQ(map(), ReadOnlyRoots(isolate).fixed_array_map());
   }
@@ -771,7 +802,7 @@ void FixedArray::FixedArrayVerify(Isolate* isolate) {
 
 void TrustedFixedArray::TrustedFixedArrayVerify(Isolate* isolate) {
   TrustedObjectVerify(isolate);
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+  CHECK(IsSmi(length_.load()));
 
   for (int i = 0; i < length(); ++i) {
     Object::VerifyPointer(isolate, get(i));
@@ -781,7 +812,7 @@ void TrustedFixedArray::TrustedFixedArrayVerify(Isolate* isolate) {
 void ProtectedFixedArray::ProtectedFixedArrayVerify(Isolate* isolate) {
   TrustedObjectVerify(isolate);
 
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+  CHECK(IsSmi(length_.load()));
 
   for (int i = 0; i < length(); ++i) {
     Tagged<Object> element = get(i);
@@ -791,7 +822,7 @@ void ProtectedFixedArray::ProtectedFixedArrayVerify(Isolate* isolate) {
 }
 
 void RegExpMatchInfo::RegExpMatchInfoVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kCapacityOffset)));
+  CHECK(IsSmi(length_.load()));
   CHECK_GE(capacity(), kMinCapacity);
   CHECK_LE(capacity(), kMaxCapacity);
   CHECK_GE(number_of_capture_registers(), kMinCapacity);
@@ -812,40 +843,58 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   JSDispatchHandle handle = dispatch_handle();
   if (handle == kNullJSDispatchHandle) return;
 
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   Tagged<Code> code = jdt->GetCode(handle);
   CodeKind kind = code->kind();
   CHECK(kind == CodeKind::FOR_TESTING || kind == CodeKind::BUILTIN ||
         kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BASELINE ||
-        kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN);
+        kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN_JS);
 #endif
 }
 
 void ClosureFeedbackCellArray::ClosureFeedbackCellArrayVerify(
     Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kCapacityOffset)));
+  CHECK(IsSmi(length_.load()));
   for (int i = 0; i < length(); ++i) {
     Object::VerifyPointer(isolate, get(i));
   }
 }
 
 void WeakFixedArray::WeakFixedArrayVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+  CHECK(IsSmi(length_.load()));
   for (int i = 0; i < length(); i++) {
     Object::VerifyMaybeObjectPointer(isolate, get(i));
   }
 }
 
 void TrustedWeakFixedArray::TrustedWeakFixedArrayVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+  CHECK(IsSmi(length_.load()));
   for (int i = 0; i < length(); i++) {
     Object::VerifyMaybeObjectPointer(isolate, get(i));
   }
 }
 
+void ProtectedWeakFixedArray::ProtectedWeakFixedArrayVerify(Isolate* isolate) {
+  TrustedObjectVerify(isolate);
+  CHECK(IsSmi(length_.load()));
+  for (int i = 0; i < length(); i++) {
+    Tagged<Union<MaybeWeak<TrustedObject>, Smi>> p = get(i);
+    Tagged<HeapObject> heap_object;
+    if (p.GetHeapObject(&heap_object)) {
+      // We could relax this, but for now we assume that strong pointers in a
+      // weak fixed array are unintentional and should be reported.
+      CHECK(p.IsWeak());
+      CHECK(IsTrustedObject(heap_object));
+      HeapObject::VerifyHeapPointer(isolate, heap_object);
+    } else {
+      CHECK(p.IsSmi() || p.IsCleared());
+    }
+  }
+}
+
 void ScriptContextTable::ScriptContextTableVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kCapacityOffset)));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+  CHECK(IsSmi(capacity_.load()));
+  CHECK(IsSmi(length_.load()));
   int len = length(kAcquireLoad);
   CHECK_LE(0, len);
   CHECK_LE(len, capacity());
@@ -862,7 +911,7 @@ void ArrayList::ArrayListVerify(Isolate* isolate) {
   CHECK_LE(0, length());
   CHECK_LE(length(), capacity());
   CHECK_IMPLIES(capacity() == 0,
-                *this == ReadOnlyRoots(isolate).empty_array_list());
+                this == ReadOnlyRoots(isolate).empty_array_list());
   for (int i = 0; i < capacity(); ++i) {
     Object::VerifyPointer(isolate, get(i));
   }
@@ -882,17 +931,13 @@ void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   }
 }
 
-void ByteArray::ByteArrayVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
-}
+void ByteArray::ByteArrayVerify(Isolate* isolate) {}
 
 void TrustedByteArray::TrustedByteArrayVerify(Isolate* isolate) {
   TrustedObjectVerify(isolate);
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
 }
 
 void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
   for (int i = 0; i < length(); i++) {
     if (!is_the_hole(i)) {
       uint64_t value = get_representation(i);
@@ -913,25 +958,6 @@ void Context::ContextVerify(Isolate* isolate) {
   for (int i = 0; i < length(); i++) {
     VerifyObjectField(isolate, OffsetOfElementAt(i));
   }
-  if (IsScriptContext()) {
-    Tagged<Object> side_data = get(CONST_TRACKING_LET_SIDE_DATA_INDEX);
-    CHECK(IsFixedArray(side_data));
-    Tagged<FixedArray> side_data_array = Cast<FixedArray>(side_data);
-    if (v8_flags.const_tracking_let) {
-      for (int i = 0; i < side_data_array->length(); i++) {
-        Tagged<Object> element = side_data_array->get(i);
-        if (IsSmi(element)) {
-          CHECK(element == ConstTrackingLetCell::kConstMarker ||
-                element == ConstTrackingLetCell::kNonConstMarker);
-        } else {
-          // The slot contains `undefined` before the variable is initialized.
-          CHECK(IsUndefined(element) || IsConstTrackingLetCell(element));
-        }
-      }
-    } else {
-      CHECK_EQ(0, side_data_array->length());
-    }
-  }
 }
 
 void NativeContext::NativeContextVerify(Isolate* isolate) {
@@ -939,6 +965,17 @@ void NativeContext::NativeContextVerify(Isolate* isolate) {
   CHECK(retained_maps() == Smi::zero() || IsWeakArrayList(retained_maps()));
   CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);
   CHECK_EQ(kVariableSizeSentinel, map()->instance_size());
+}
+
+void ContextCell::ContextCellVerify(Isolate* isolate) {
+  Tagged<Object> dep_code = dependent_code();
+  Tagged<JSAny> tagged = tagged_value();
+  int state_as_int = static_cast<int>(state());
+  CHECK_GE(state_as_int, static_cast<int>(kConst));
+  CHECK_LE(state_as_int, static_cast<int>(kDetached));
+  CHECK(IsDependentCode(dep_code));
+  Object::VerifyPointer(isolate, dep_code);
+  Object::VerifyPointer(isolate, tagged);
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
@@ -1094,18 +1131,18 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
       if (!is_fast) continue;
       // Fast sloppy arguments elements are never holey. Either the element is
       // context-mapped or present in the arguments elements.
-      CHECK(accessor->HasElement(holder, i, arg_elements));
+      CHECK(accessor->HasElement(isolate, holder, i, arg_elements));
       continue;
     }
     int mappedIndex = Smi::ToInt(mapped);
     nofMappedParameters++;
     CHECK_LE(maxMappedIndex, mappedIndex);
     maxMappedIndex = mappedIndex;
-    Tagged<Object> value = context_object->get(mappedIndex);
+    Tagged<Object> value = context_object->GetNoCell(mappedIndex);
     CHECK(IsObject(value));
     // None of the context-mapped entries should exist in the arguments
     // elements.
-    CHECK(!accessor->HasElement(holder, i, arg_elements));
+    CHECK(!accessor->HasElement(isolate, holder, i, arg_elements));
   }
   CHECK_LE(nofMappedParameters, context_object->length());
   CHECK_LE(nofMappedParameters, arg_elements->length());
@@ -1120,15 +1157,16 @@ void JSArgumentsObject::JSArgumentsObjectVerify(Isolate* isolate) {
     SloppyArgumentsElementsVerify(
         isolate, Cast<SloppyArgumentsElements>(elements()), *this);
   }
-  if (isolate->IsInAnyContext(map(), Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
-      isolate->IsInAnyContext(map(),
-                              Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
-      isolate->IsInAnyContext(map(),
-                              Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
+  Tagged<NativeContext> native_context = map()->map()->native_context();
+  if (map() == native_context->GetNoCell(Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
+      map() == native_context->GetNoCell(
+                   Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
+      map() == native_context->GetNoCell(
+                   Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
     VerifyObjectField(isolate, JSSloppyArgumentsObject::kLengthOffset);
     VerifyObjectField(isolate, JSSloppyArgumentsObject::kCalleeOffset);
-  } else if (isolate->IsInAnyContext(map(),
-                                     Context::STRICT_ARGUMENTS_MAP_INDEX)) {
+  } else if (map() ==
+             native_context->GetNoCell(Context::STRICT_ARGUMENTS_MAP_INDEX)) {
     VerifyObjectField(isolate, JSStrictArgumentsObject::kLengthOffset);
   }
 }
@@ -1181,7 +1219,7 @@ void String::StringVerify(Isolate* isolate) {
   CHECK_IMPLIES(length() == 0, this == ReadOnlyRoots(isolate).empty_string());
   if (IsInternalizedString(this)) {
     CHECK(HasHashCode());
-    CHECK(!ObjectInYoungGeneration(this));
+    CHECK(!HeapLayout::InYoungGeneration(this));
   }
 }
 
@@ -1215,7 +1253,7 @@ void SlicedString::SlicedStringVerify(Isolate* isolate) {
   if (!isolate->has_turbofan_string_builders()) {
     // Turbofan's string builder optimization can introduce SlicedString that
     // are less than SlicedString::kMinLength characters. Their live range and
-    // scope are pretty limitted, but they can be visible to the GC, which
+    // scope are pretty limited, but they can be visible to the GC, which
     // shouldn't treat them as invalid.
     CHECK_GE(length(), SlicedString::kMinLength);
   }
@@ -1261,7 +1299,7 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   CHECK_EQ(map()->map()->native_context_or_null(), native_context());
 
 #ifdef V8_ENABLE_LEAPTIERING
-  JSDispatchTable* jdt = GetProcessWideJSDispatchTable();
+  JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   JSDispatchHandle handle = dispatch_handle();
   CHECK_NE(handle, kNullJSDispatchHandle);
   uint16_t parameter_count = jdt->GetParameterCount(handle);
@@ -1270,35 +1308,36 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
   Tagged<Code> code_from_table = jdt->GetCode(handle);
   CHECK(code_from_table->parameter_count() == kDontAdaptArgumentsSentinel ||
         code_from_table->parameter_count() == parameter_count);
+  CHECK(!code_from_table->marked_for_deoptimization());
+  CHECK_IMPLIES(code_from_table->is_optimized_code(),
+                code_from_table->js_dispatch_handle() != kNullJSDispatchHandle);
 
   // Currently, a JSFunction must have the same dispatch entry as its
   // FeedbackCell, unless the FeedbackCell has no entry.
   JSDispatchHandle feedback_cell_handle =
       raw_feedback_cell(isolate)->dispatch_handle();
-  CHECK_EQ(raw_feedback_cell(isolate) == isolate->heap()->many_closures_cell(),
-           feedback_cell_handle == kNullJSDispatchHandle);
-  if (code_from_table->is_context_specialized()) {
-    // This function is context specialized. It must have its own dispatch
-    // handle. The canonical handle must exist and be different.
-    CHECK_NE(feedback_cell_handle, handle);
-  } else {
-    // This function is not context specialized. Then we should either use the
-    // canonical dispatch handle. Except for builtins, which use the
-    // many_closures_cell (see check above).
-    // Also, after code flushing this js function can point to the CompileLazy
-    // builtin, which will unify the dispatch handles on the next UpdateCode.
-    if (feedback_cell_handle != kNullJSDispatchHandle) {
-      if (code_from_table->kind() != CodeKind::BUILTIN) {
-        CHECK_EQ(feedback_cell_handle, handle);
-      }
-    }
-  }
+  CHECK_EQ(
+      raw_feedback_cell(isolate) == *isolate->factory()->many_closures_cell(),
+      feedback_cell_handle == kNullJSDispatchHandle);
   if (feedback_cell_handle != kNullJSDispatchHandle) {
-    CHECK(!jdt->GetCode(feedback_cell_handle)->is_context_specialized());
+    CHECK_EQ(feedback_cell_handle, handle);
   }
+  if (code_from_table->is_context_specialized()) {
+    CHECK_EQ(raw_feedback_cell(isolate)->map(),
+             ReadOnlyRoots(isolate).one_closure_cell_map());
+  }
+
+  // Verify the entrypoint corresponds to the code or a tiering builtin.
+  Address entrypoint = jdt->GetEntrypoint(handle);
+#define CASE(name, ...) \
+  entrypoint == BUILTIN_CODE(isolate, name)->instruction_start() ||
+  CHECK(BUILTIN_LIST_BASE_TIERING(CASE)
+            entrypoint == code_from_table->instruction_start());
+#undef CASE
+
 #endif  // V8_ENABLE_LEAPTIERING
 
-  Handle<JSFunction> function(*this, isolate);
+  DirectHandle<JSFunction> function(*this, isolate);
   LookupIterator it(isolate, function, isolate->factory()->prototype_string(),
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   if (has_prototype_slot()) {
@@ -1313,6 +1352,11 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
     CHECK(!it.IsFound() || it.state() != LookupIterator::ACCESSOR ||
           !IsAccessorInfo(*it.GetAccessors()));
   }
+
+  CHECK_IMPLIES(shared()->HasBuiltinId(),
+                Builtins::CheckFormalParameterCount(
+                    shared()->builtin_id(), shared()->length(),
+                    shared()->internal_formal_parameter_count_with_receiver()));
 }
 
 void JSWrappedFunction::JSWrappedFunctionVerify(Isolate* isolate) {
@@ -1373,7 +1417,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
     CHECK(IsFeedbackMetadata(feedback_metadata()));
   }
 
-  if (HasBytecodeArray() && !IsDontAdaptArguments()) {
+  if (HasBytecodeArray()) {
     CHECK_EQ(GetBytecodeArray(isolate)->parameter_count(),
              internal_formal_parameter_count_with_receiver());
   }
@@ -1402,6 +1446,10 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
       CHECK(!construct_as_builtin());
     }
   }
+  CHECK_IMPLIES(HasBuiltinId(),
+                Builtins::CheckFormalParameterCount(
+                    builtin_id(), length(),
+                    internal_formal_parameter_count_with_receiver()));
 }
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
@@ -1502,16 +1550,16 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   CheckDataIsCompatible(property_details(), value());
 }
 
-void ConstTrackingLetCell::ConstTrackingLetCellVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ConstTrackingLetCellVerify(*this, isolate);
-}
-
 void TrustedObject::TrustedObjectVerify(Isolate* isolate) {
 #if defined(V8_ENABLE_SANDBOX)
   // All trusted objects must live in trusted space.
   // TODO(saelo): Some objects are trusted but do not yet live in trusted space.
-  CHECK(IsTrustedSpaceObject(*this) || IsCode(*this));
+  CHECK(HeapLayout::InTrustedSpace(*this) || IsCode(*this));
 #endif
+}
+
+void TrustedObjectLayout::TrustedObjectVerify(Isolate* isolate) {
+  UncheckedCast<TrustedObject>(this)->TrustedObjectVerify(isolate);
 }
 
 void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
@@ -1520,7 +1568,9 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   // Check that the self indirect pointer is consistent, i.e. points back to
   // this object.
   InstanceType instance_type = map()->instance_type();
-  IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
+  bool shared = HeapLayout::InAnySharedSpace(*this);
+  IndirectPointerTag tag =
+      IndirectPointerTagFromInstanceType(instance_type, shared);
   // We can't use ReadIndirectPointerField here because the tag is not a
   // compile-time constant.
   IndirectPointerSlot slot =
@@ -1536,9 +1586,9 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
     // not marked as an internal read-only space.
     bool is_space_read_only =
         space == isolate->read_only_heap()->code_pointer_space();
-    CHECK_EQ(is_space_read_only, InReadOnlySpace(*this));
+    CHECK_EQ(is_space_read_only, HeapLayout::InReadOnlySpace(*this));
   } else {
-    CHECK(!InReadOnlySpace(*this));
+    CHECK(!HeapLayout::InReadOnlySpace(*this));
   }
 #endif
 }
@@ -1702,7 +1752,7 @@ void VerifyElementIsShared(Tagged<Object> element) {
   // string was in shared space.
   if (IsThinString(element)) {
     CHECK(v8_flags.shared_string_table);
-    CHECK(InWritableSharedSpace(Cast<ThinString>(element)));
+    CHECK(HeapLayout::InWritableSharedSpace(Cast<ThinString>(element)));
   } else {
     CHECK(IsShared(element));
   }
@@ -1712,13 +1762,13 @@ void VerifyElementIsShared(Tagged<Object> element) {
 
 void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
   CHECK(IsJSSharedStruct(*this));
-  CHECK(InWritableSharedSpace(*this));
+  CHECK(HeapLayout::InWritableSharedSpace(*this));
   JSObjectVerify(isolate);
   CHECK(HasFastProperties());
   // Shared structs can only point to primitives or other shared HeapObjects,
   // even internally.
   Tagged<Map> struct_map = map();
-  CHECK(InAnySharedSpace(property_array()));
+  CHECK(HeapLayout::InAnySharedSpace(property_array()));
   Tagged<DescriptorArray> descriptors =
       struct_map->instance_descriptors(isolate);
   for (InternalIndex i : struct_map->IterateOwnDescriptors()) {
@@ -1745,13 +1795,13 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
 
 void JSAtomicsMutex::JSAtomicsMutexVerify(Isolate* isolate) {
   CHECK(IsJSAtomicsMutex(*this));
-  CHECK(InWritableSharedSpace(*this));
+  CHECK(HeapLayout::InWritableSharedSpace(*this));
   JSObjectVerify(isolate);
 }
 
 void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
   CHECK(IsJSAtomicsCondition(*this));
-  CHECK(InAnySharedSpace(*this));
+  CHECK(HeapLayout::InAnySharedSpace(*this));
   JSObjectVerify(isolate);
 }
 
@@ -2369,12 +2419,12 @@ void EnumCache::EnumCacheVerify(Isolate* isolate) {
 
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
     Isolate* isolate) {
-  CHECK(IsSmi(TaggedField<Object>::load(*this, Shape::kCapacityOffset)));
-  CHECK(
-      IsSmi(TaggedField<Object>::load(*this, Shape::kBackingStoreSizeOffset)));
-  CHECK(IsSmi(TaggedField<Object>::load(*this, Shape::kFlagsOffset)));
-  for (int i = 0; i < capacity(); ++i) {
-    CHECK(!IsThinString(get(i), isolate));
+  CHECK(IsSmi(length_.load()));
+  CHECK(IsSmi(backing_store_size_.load()));
+  CHECK(IsSmi(flags_.load()));
+  // The keys of the boilerplate should not be thin strings. The values can be.
+  for (int i = 0; i < boilerplate_properties_count(); ++i) {
+    CHECK(!IsThinString(name(i), isolate));
   }
 }
 
@@ -2440,8 +2490,32 @@ void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
           arg == Smi::zero());
     if (!v8_flags.wasm_jitless) {
       // call_target always null with the interpreter.
-      CHECK_EQ(arg == Smi::zero(), target(i) == kNullAddress);
+      CHECK_EQ(arg == Smi::zero(), target(i) == wasm::kInvalidWasmCodePointer);
     }
+  }
+
+  // Check invariants of the "uses" list (which are specific to
+  // WasmDispatchTable, not inherent to any ProtectedWeakFixedArray).
+  Tagged<ProtectedWeakFixedArray> uses = protected_uses();
+  if (uses->length() > 0) {
+    CHECK(IsSmi(uses->get(0)));
+    int capacity = uses->length();
+    CHECK(capacity & 1);  // Capacity is odd: reserved slot + 2*num_entries.
+    int used_length = Cast<Smi>(uses->get(0)).value();
+    CHECK_LE(used_length, capacity);
+    for (int i = 1; i < used_length; i += 2) {
+      CHECK(uses->get(i).IsCleared() ||
+            IsWasmTrustedInstanceData(uses->get(i).GetHeapObjectAssumeWeak()));
+      CHECK(IsSmi(uses->get(i + 1)));
+    }
+  }
+}
+
+void WasmTableObject::WasmTableObjectVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::WasmTableObjectVerify(*this, isolate);
+  if (has_trusted_dispatch_table() &&
+      !has_trusted_dispatch_table_unpublished(isolate)) {
+    CHECK_EQ(trusted_dispatch_table(isolate)->length(), current_length());
   }
 }
 
@@ -2467,35 +2541,47 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
 #if V8_ENABLE_DRUMBRAKE
         wrapper->builtin_id() == Builtin::kGenericJSToWasmInterpreterWrapper ||
 #endif  // V8_ENABLE_DRUMBRAKE
-        wrapper->builtin_id() == Builtin::kWasmPromising)));
+        wrapper->builtin_id() == Builtin::kWasmPromising ||
+        wrapper->builtin_id() == Builtin::kWasmStressSwitch)));
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void DataHandler::DataHandlerVerify(Isolate* isolate) {
-  // Don't call TorqueGeneratedClassVerifiers::DataHandlerVerify because the
-  // Torque definition of this class includes all of the optional fields.
+void StructLayout::StructVerify(Isolate* isolate) {
+  Cast<Struct>(this)->StructVerify(isolate);
+}
 
-  // This assertion exists to encourage updating this verification function if
-  // new fields are added in the Torque class layout definition.
-  static_assert(DataHandler::kHeaderSize == 6 * kTaggedSize);
-
+void Tuple2::Tuple2Verify(Isolate* isolate) {
   StructVerify(isolate);
-  CHECK(IsDataHandler(*this));
-  Object::VerifyPointer(isolate, smi_handler(isolate));
+  CHECK(IsTuple2(this));
+  Object::VerifyPointer(isolate, value1_.load());
+  Object::VerifyPointer(isolate, value2_.load());
+}
+
+void AccessorPair::AccessorPairVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsAccessorPair(this));
+  Object::VerifyPointer(isolate, getter_.load());
+  Object::VerifyPointer(isolate, setter_.load());
+}
+
+void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsClassPositions(this));
+  CHECK(IsSmi(Tagged<Object>(start_.load())));
+  CHECK(IsSmi(Tagged<Object>(end_.load())));
+}
+
+void DataHandler::DataHandlerVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsDataHandler(this));
+  Object::VerifyPointer(isolate, smi_handler());
   CHECK_IMPLIES(!IsSmi(smi_handler()),
-                IsStoreHandler(*this) && IsCode(smi_handler()));
-  Object::VerifyPointer(isolate, validity_cell(isolate));
+                IsStoreHandler(this) && IsCode(smi_handler()));
+  Object::VerifyPointer(isolate, validity_cell());
   CHECK(IsSmi(validity_cell()) || IsCell(validity_cell()));
-  int data_count = data_field_count();
-  if (data_count >= 1) {
-    VerifyMaybeObjectField(isolate, kData1Offset);
-  }
-  if (data_count >= 2) {
-    VerifyMaybeObjectField(isolate, kData2Offset);
-  }
-  if (data_count >= 3) {
-    VerifyMaybeObjectField(isolate, kData3Offset);
+  for (int i = 0; i < data_field_count(); ++i) {
+    Object::VerifyMaybeObjectPointer(isolate, data()[i].load());
   }
 }
 
@@ -2510,11 +2596,20 @@ void StoreHandler::StoreHandlerVerify(Isolate* isolate) {
 }
 
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
-  CHECK(IsAllocationSite(*this));
+  CHECK(IsAllocationSite(this));
   CHECK(IsDependentCode(dependent_code()));
-  CHECK(IsSmi(transition_info_or_boilerplate()) ||
-        IsJSObject(transition_info_or_boilerplate()));
+  if (PointsToLiteral()) {
+    CHECK(IsJSObject(transition_info_or_boilerplate_.load()));
+  } else {
+    CHECK(IsSmi(transition_info_or_boilerplate_.load()));
+  }
   CHECK(IsAllocationSite(nested_site()) || nested_site() == Smi::zero());
+}
+
+void AllocationMemento::AllocationMementoVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsAllocationMemento(this));
+  CHECK(IsAllocationSite(allocation_site_.load()));
 }
 
 void Script::ScriptVerify(Isolate* isolate) {
@@ -2539,7 +2634,7 @@ void Script::ScriptVerify(Isolate* isolate) {
 }
 
 void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {
-  Cast<WeakFixedArray>(*this)->WeakFixedArrayVerify(isolate);
+  Cast<WeakFixedArray>(this)->WeakFixedArrayVerify(isolate);
   if (v8_flags.enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
       Tagged<MaybeObject> e = WeakFixedArray::get(i);
@@ -2588,14 +2683,16 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::StackFrameInfoVerify(*this, isolate);
 }
 
+void StackTraceInfo::StackTraceInfoVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::StackTraceInfoVerify(*this, isolate);
+}
+
 void ErrorStackData::ErrorStackDataVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ErrorStackDataVerify(*this, isolate);
-  CHECK_IMPLIES(!IsFixedArray(call_site_infos_or_formatted_stack()),
-                IsFixedArray(limit_or_stack_frame_infos()));
 }
 
 void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate) {
-  FixedArrayBaseVerify(isolate);
+  CHECK(IsSmi(length_.load()));
   {
     auto o = context();
     Object::VerifyPointer(isolate, o);
@@ -2796,14 +2893,13 @@ bool TransitionArray::IsSortedNoDuplicates() {
   uint32_t prev_hash = 0;
 
   for (int i = 0; i < number_of_transitions(); i++) {
-    Tagged<Name> key = GetSortedKey(i);
+    Tagged<Name> key = GetKey(i);
     uint32_t hash;
     const bool has_hash = key->TryGetHash(&hash);
     CHECK(has_hash);
     PropertyKind kind = PropertyKind::kData;
     PropertyAttributes attributes = NONE;
-    if (!TransitionsAccessor::IsSpecialTransition(key->GetReadOnlyRoots(),
-                                                  key)) {
+    if (!TransitionsAccessor::IsSpecialTransition(GetReadOnlyRoots(), key)) {
       Tagged<Map> target = GetTarget(i);
       PropertyDetails details =
           TransitionsAccessor::GetTargetDetails(key, target);
@@ -2817,7 +2913,7 @@ bool TransitionArray::IsSortedNoDuplicates() {
     int cmp = CompareKeys(prev_key, prev_hash, prev_kind, prev_attributes, key,
                           hash, kind, attributes);
     if (cmp >= 0) {
-      Print(*this);
+      Print(this);
       return false;
     }
     prev_key = key;

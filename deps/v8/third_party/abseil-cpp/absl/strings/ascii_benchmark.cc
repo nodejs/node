@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/strings/ascii.h"
-
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstddef>
-#include <string>
-#include <array>
 #include <random>
+#include <string>
 
+#include "absl/strings/ascii.h"
 #include "benchmark/benchmark.h"
 
 namespace {
@@ -102,7 +101,7 @@ BENCHMARK_TEMPLATE(BM_Ascii, std::toupper);
 BENCHMARK_TEMPLATE(BM_Ascii, absl::ascii_toupper);
 
 static void BM_StrToLower(benchmark::State& state) {
-  const int size = state.range(0);
+  const size_t size = static_cast<size_t>(state.range(0));
   std::string s(size, 'X');
   for (auto _ : state) {
     benchmark::DoNotOptimize(s);
@@ -116,7 +115,7 @@ BENCHMARK(BM_StrToLower)
     ->Range(64, 1 << 26);
 
 static void BM_StrToUpper(benchmark::State& state) {
-  const int size = state.range(0);
+  const size_t size = static_cast<size_t>(state.range(0));
   std::string s(size, 'x');
   for (auto _ : state) {
     benchmark::DoNotOptimize(s);

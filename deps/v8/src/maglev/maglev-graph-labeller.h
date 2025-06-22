@@ -40,11 +40,7 @@ class MaglevGraphLabeller {
     RegisterNode(node, nullptr, BytecodeOffset::None(),
                  SourcePosition::Unknown());
   }
-  void RegisterBasicBlock(const BasicBlock* block) {
-    block_ids_[block] = next_block_label_++;
-  }
 
-  int BlockId(const BasicBlock* block) { return block_ids_[block]; }
   int NodeId(const NodeBase* node) { return nodes_[node].label; }
   const Provenance& GetNodeProvenance(const NodeBase* node) {
     return nodes_[node].provenance;
@@ -79,9 +75,7 @@ class MaglevGraphLabeller {
   }
 
  private:
-  std::map<const BasicBlock*, int> block_ids_;
   std::map<const NodeBase*, NodeInfo> nodes_;
-  int next_block_label_ = 1;
   int next_node_label_ = 1;
 };
 

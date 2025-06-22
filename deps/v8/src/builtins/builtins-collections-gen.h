@@ -36,8 +36,8 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   // Adds an entry to a collection.  For Maps, properly handles extracting the
   // key and value from the entry (see LoadKeyValue()).
   void AddConstructorEntry(Variant variant, TNode<Context> context,
-                           TNode<Object> collection, TNode<Object> add_function,
-                           TNode<Object> key_value,
+                           TNode<JSAny> collection, TNode<Object> add_function,
+                           TNode<JSAny> key_value,
                            Label* if_may_have_side_effects = nullptr,
                            Label* if_exception = nullptr,
                            TVariable<Object>* var_exception = nullptr);
@@ -52,20 +52,20 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   // possible.
   void AddConstructorEntries(Variant variant, TNode<Context> context,
                              TNode<NativeContext> native_context,
-                             TNode<HeapObject> collection,
-                             TNode<Object> initial_entries);
+                             TNode<JSAnyNotSmi> collection,
+                             TNode<JSAny> initial_entries);
 
   // Fast path for adding constructor entries.  Assumes the entries are a fast
   // JS array (see CodeStubAssembler::BranchIfFastJSArray()).
   void AddConstructorEntriesFromFastJSArray(
       Variant variant, TNode<Context> context, TNode<Context> native_context,
-      TNode<Object> collection, TNode<JSArray> fast_jsarray,
+      TNode<JSAny> collection, TNode<JSArray> fast_jsarray,
       Label* if_may_have_side_effects, TVariable<IntPtrT>& var_current_index);
 
   // Adds constructor entries to a collection using the iterator protocol.
   void AddConstructorEntriesFromIterable(
       Variant variant, TNode<Context> context, TNode<Context> native_context,
-      TNode<Object> collection, TNode<Object> iterable, Label* if_exception,
+      TNode<JSAny> collection, TNode<JSAny> iterable, Label* if_exception,
       TVariable<JSReceiver>* var_iterator, TVariable<Object>* var_exception);
 
   virtual void AddConstructorEntriesFromFastCollection(
@@ -100,7 +100,7 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   // Retrieves the collection function that adds an entry. `set` for Maps and
   // `add` for Sets.
   TNode<Object> GetAddFunction(Variant variant, TNode<Context> context,
-                               TNode<Object> collection);
+                               TNode<JSAny> collection);
 
   // Retrieves the collection constructor function.
   TNode<JSFunction> GetConstructor(Variant variant,
@@ -128,7 +128,7 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   // Determines whether the collection's prototype has been modified.
   TNode<BoolT> HasInitialCollectionPrototype(Variant variant,
                                              TNode<Context> native_context,
-                                             TNode<Object> collection);
+                                             TNode<JSAny> collection);
 
   // Gets the initial prototype map for given collection {variant}.
   TNode<Map> GetInitialCollectionPrototype(Variant variant,
@@ -169,7 +169,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // Adds an element to a set if the element is not already in the set.
   TNode<OrderedHashSet> AddToSetTable(TNode<Object> context,
                                       TNode<OrderedHashSet> table,
-                                      TNode<Object> key,
+                                      TNode<JSAny> key,
                                       TNode<String> method_name);
   // Direct iteration helpers.
   template <typename CollectionType>
@@ -206,7 +206,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       const TNode<Object> value, const TNode<String> methodName);
 
   // Normalizes -0 to +0.
-  const TNode<Object> NormalizeNumberKey(const TNode<Object> key);
+  const TNode<JSAny> NormalizeNumberKey(const TNode<JSAny> key);
 
   // Methods after this point should really be protected but are exposed for
   // Torque.
@@ -249,11 +249,11 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       const TNode<IteratorType> iterator);
 
   template <typename TableType>
-  std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>>
+  std::tuple<TNode<JSAny>, TNode<IntPtrT>, TNode<IntPtrT>>
   NextSkipHashTableHoles(TNode<TableType> table, TNode<IntPtrT> index,
                          Label* if_end);
   template <typename TableType>
-  std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>>
+  std::tuple<TNode<JSAny>, TNode<IntPtrT>, TNode<IntPtrT>>
   NextSkipHashTableHoles(TNode<TableType> table,
                          TNode<Int32T> number_of_buckets,
                          TNode<Int32T> used_capacity, TNode<IntPtrT> index,
@@ -384,10 +384,10 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       const StoreAtEntry<CollectionType>& store_at_new_entry);
 
   void AddNewToOrderedHashSet(const TNode<OrderedHashSet> table,
-                              const TNode<Object> key,
+                              const TNode<JSAny> key,
                               const TNode<IntPtrT> number_of_buckets,
                               const TNode<IntPtrT> occupancy) {
-    TNode<Object> normalised_key = NormalizeNumberKey(key);
+    TNode<JSAny> normalised_key = NormalizeNumberKey(key);
     StoreAtEntry<OrderedHashSet> store_at_new_entry =
         [this, normalised_key](const TNode<OrderedHashSet> table,
                                const TNode<IntPtrT> entry_start) {
@@ -437,11 +437,11 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                          CheckBounds::kDebugOnly);
   }
 
-  TNode<Object> LoadValueFromOrderedHashMapEntry(
+  TNode<UnionOf<JSAny, ArrayList>> LoadValueFromOrderedHashMapEntry(
       const TNode<OrderedHashMap> table, const TNode<IntPtrT> entry,
       CheckBounds check_bounds = CheckBounds::kAlways);
 
-  TNode<Object> UnsafeLoadValueFromOrderedHashMapEntry(
+  TNode<UnionOf<JSAny, ArrayList>> UnsafeLoadValueFromOrderedHashMapEntry(
       const TNode<OrderedHashMap> table, const TNode<IntPtrT> entry) {
     return LoadValueFromOrderedHashMapEntry(table, entry,
                                             CheckBounds::kDebugOnly);
@@ -449,12 +449,12 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
 
   // Load payload (key or value) from {table} at {entry}.
   template <typename CollectionType>
-  TNode<Object> LoadKeyFromOrderedHashTableEntry(
+  TNode<JSAny> LoadKeyFromOrderedHashTableEntry(
       const TNode<CollectionType> table, const TNode<IntPtrT> entry,
       CheckBounds check_bounds = CheckBounds::kAlways);
 
   template <typename CollectionType>
-  TNode<Object> UnsafeLoadKeyFromOrderedHashTableEntry(
+  TNode<JSAny> UnsafeLoadKeyFromOrderedHashTableEntry(
       const TNode<CollectionType> table, const TNode<IntPtrT> entry) {
     return LoadKeyFromOrderedHashTableEntry(table, entry,
                                             CheckBounds::kDebugOnly);
@@ -516,6 +516,7 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // Generates and sets the identity for a JSRececiver.
   TNode<Smi> CreateIdentityHash(TNode<Object> receiver);
   TNode<IntPtrT> EntryMask(TNode<IntPtrT> capacity);
+  TNode<IntPtrT> Coefficient(TNode<IntPtrT> capacity);
 
   // Builds code that finds the EphemeronHashTable entry for a {key} using the
   // comparison code generated by {key_compare}. The key index is returned if
@@ -523,21 +524,21 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   using KeyComparator =
       std::function<void(TNode<Object> entry_key, Label* if_same)>;
   TNode<IntPtrT> FindKeyIndex(TNode<HeapObject> table, TNode<IntPtrT> key_hash,
-                              TNode<IntPtrT> entry_mask,
+                              TNode<IntPtrT> capacity,
                               const KeyComparator& key_compare);
 
   // Builds code that finds an EphemeronHashTable entry available for a new
   // entry.
   TNode<IntPtrT> FindKeyIndexForInsertion(TNode<HeapObject> table,
                                           TNode<IntPtrT> key_hash,
-                                          TNode<IntPtrT> entry_mask);
+                                          TNode<IntPtrT> capacity);
 
   // Builds code that finds the EphemeronHashTable entry with key that matches
   // {key} and returns the entry's key index. If {key} cannot be found, jumps to
   // {if_not_found}.
   TNode<IntPtrT> FindKeyIndexForKey(TNode<HeapObject> table, TNode<Object> key,
                                     TNode<IntPtrT> hash,
-                                    TNode<IntPtrT> entry_mask,
+                                    TNode<IntPtrT> capacity,
                                     Label* if_not_found);
 
   TNode<Word32T> InsufficientCapacityToAdd(TNode<Int32T> capacity,

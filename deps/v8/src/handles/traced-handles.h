@@ -158,6 +158,9 @@ class TracedNodeBlock final {
       return &ConcreteTraits::GetListNode(tnb).next_;
     }
     static bool non_empty(TracedNodeBlock* tnb) { return tnb != nullptr; }
+    static bool in_use(const TracedNodeBlock* tnb) {
+      return *prev(const_cast<TracedNodeBlock*>(tnb)) != nullptr;
+    }
   };
 
  public:
@@ -231,14 +234,27 @@ class TracedNodeBlock final {
 
   bool IsFull() const { return used_ == capacity_; }
   bool IsEmpty() const { return used_ == 0; }
+  size_t used() const { return used_; }
 
   size_t size_bytes() const {
     return sizeof(*this) + capacity_ * sizeof(TracedNode);
   }
 
-  bool InYoungList() const { return in_young_list_; }
+  bool InYoungList() const { return YoungListTraits::in_use(this); }
+  bool InUsableList() const { return UsableListTraits::in_use(this); }
 
-  void SetInYoungList(bool in_young_list) { in_young_list_ = in_young_list; }
+  bool NeedsReprocessing() const { return reprocess_; }
+  void SetReprocessing(bool value) { reprocess_ = value; }
+
+  void SetLocallyFreed(TracedNode::IndexType count) {
+    DCHECK_EQ(locally_freed_, 0);
+    locally_freed_ = count;
+  }
+  TracedNode::IndexType ConsumeLocallyFreed() {
+    const auto locally_freed = locally_freed_;
+    locally_freed_ = 0;
+    return locally_freed;
+  }
 
  private:
   TracedNodeBlock(TracedHandles&, TracedNode::IndexType);
@@ -250,7 +266,8 @@ class TracedNodeBlock final {
   TracedNode::IndexType used_ = 0;
   const TracedNode::IndexType capacity_ = 0;
   TracedNode::IndexType first_free_node_ = 0;
-  bool in_young_list_ = false;
+  TracedNode::IndexType locally_freed_ = 0;
+  bool reprocess_ = false;
 };
 
 // TracedHandles hold handles that must go through cppgc's tracing methods. The
@@ -301,9 +318,10 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   // - `JSObject::IsUnmodifiedApiObject` returns true;
   // - the `EmbedderRootsHandler` also does not consider them as roots;
   void ComputeWeaknessForYoungObjects();
-
-  void ProcessYoungObjects(RootVisitor* v,
-                           WeakSlotCallbackWithHeap should_reset_handle);
+  // Processes the weak objects that have been computed in
+  // `ComputeWeaknessForYoungObjects()`.
+  void ProcessWeakYoungObjects(RootVisitor* v,
+                               WeakSlotCallbackWithHeap should_reset_handle);
 
   void Iterate(RootVisitor*);
   void IterateYoung(RootVisitor*);
@@ -334,10 +352,13 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   void Copy(const TracedNode& from_node, Address** to);
   void Move(TracedNode& from_node, Address** from, Address** to);
 
+  bool SupportsClearingWeakNonLiveWrappers();
+
   TracedNodeBlock::OverallList blocks_;
   size_t num_blocks_ = 0;
   TracedNodeBlock::UsableList usable_blocks_;
   TracedNodeBlock::YoungList young_blocks_;
+  size_t num_young_blocks_{0};
   // Fully empty blocks that are neither referenced from any stale references in
   // destructors nor from young nodes.
   std::vector<TracedNodeBlock*> empty_blocks_;
@@ -346,6 +367,7 @@ class V8_EXPORT_PRIVATE TracedHandles final {
   bool is_sweeping_on_mutator_thread_ = false;
   size_t used_nodes_ = 0;
   size_t block_size_bytes_ = 0;
+  bool disable_block_handling_on_free_ = false;
 };
 
 }  // namespace v8::internal

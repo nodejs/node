@@ -6,6 +6,8 @@
 #define V8_COMPILER_COMPILATION_DEPENDENCIES_H_
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/objects/contexts.h"
+#include "src/objects/property-cell.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -77,15 +79,21 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
   // used to mutate fields without deoptimization of the dependent code.
   PropertyConstness DependOnFieldConstness(MapRef map, MapRef owner,
                                            InternalIndex descriptor);
+  CompilationDependency const* FieldConstnessDependencyOffTheRecord(
+      MapRef map, MapRef owner, InternalIndex descriptor);
 
   // Record the assumption that neither {cell}'s {CellType} changes, nor the
   // {IsReadOnly()} flag of {cell}'s {PropertyDetails}.
   void DependOnGlobalProperty(PropertyCellRef cell);
 
-  // Record the assumption that a const-tracked let variable doesn't change, if
-  // true.
-  bool DependOnConstTrackingLet(ContextRef script_context, size_t index,
-                                JSHeapBroker* broker);
+  // Record a property assumption in the script context slot.
+  bool DependOnContextCell(ContextRef script_context, size_t index,
+                           ContextCell::State state, JSHeapBroker* broker);
+  bool DependOnContextCell(ContextCellRef slot, ContextCell::State state);
+
+  // Record the assumption that respective contexts do not have context
+  // extension, if true.
+  bool DependOnEmptyContextExtension(ScopeInfoRef scope_info);
 
   // Return the validity of the given protector and, if true, record the
   // assumption that the protector remains valid.
@@ -102,6 +110,8 @@ class V8_EXPORT CompilationDependencies : public ZoneObject {
   bool DependOnMegaDOMProtector();
   bool DependOnNoProfilingProtector();
   bool DependOnNoUndetectableObjectsProtector();
+  bool DependOnStringWrapperToPrimitiveProtector();
+  bool DependOnTypedArrayLengthProtector();
 
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
   void DependOnElementsKind(AllocationSiteRef site);

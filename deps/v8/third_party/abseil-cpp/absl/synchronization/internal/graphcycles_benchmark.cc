@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/synchronization/internal/graphcycles.h"
-
 #include <algorithm>
 #include <cstdint>
 #include <vector>
 
-#include "benchmark/benchmark.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/synchronization/internal/graphcycles.h"
+#include "benchmark/benchmark.h"
 
 namespace {
 

@@ -10,7 +10,6 @@
 #include "src/base/atomicops.h"
 #include "src/base/bounds.h"
 #include "src/base/memory.h"
-#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/sandbox/compactible-external-entity-table.h"
 #include "src/sandbox/tagged-payload.h"
@@ -40,7 +39,8 @@ class Counters;
 struct CppHeapPointerTableEntry {
   // Make this entry a cpp heap pointer entry containing the given pointer
   // tagged with the given tag.
-  inline void MakePointerEntry(Address value, CppHeapPointerTag tag);
+  inline void MakePointerEntry(Address value, CppHeapPointerTag tag,
+                               bool mark_as_alive);
 
   // Load and untag the pointer stored in this entry.
   // This entry must be a pointer entry.
@@ -127,8 +127,7 @@ struct CppHeapPointerTableEntry {
 
     static Address Tag(Address pointer, CppHeapPointerTag tag) {
       return (pointer << kCppHeapPointerPayloadShift) |
-             (static_cast<uint16_t>(tag) << kCppHeapPointerTagShift) |
-             kCppHeapPointerMarkBit;
+             (static_cast<uint16_t>(tag) << kCppHeapPointerTagShift);
     }
 
     bool IsTaggedWithTagIn(CppHeapPointerTagRange tag_range) const {
@@ -219,15 +218,21 @@ class V8_EXPORT_PRIVATE CppHeapPointerTable
   static_assert(kMaxCppHeapPointers == kMaxCapacity);
 
  public:
-  // Size of an CppHeapPointerTable, for layout computation in IsolateData.
-  static int constexpr kSize = 2 * kSystemPointerSize;
-
   CppHeapPointerTable() = default;
   CppHeapPointerTable(const CppHeapPointerTable&) = delete;
   CppHeapPointerTable& operator=(const CppHeapPointerTable&) = delete;
 
   // The Spaces used by an CppHeapPointerTable.
-  using Space = Base::Space;
+  class Space : public Base::Space {
+   public:
+    bool allocate_black() { return allocate_black_; }
+    void set_allocate_black(bool allocate_black) {
+      allocate_black_ = allocate_black;
+    }
+
+   private:
+    bool allocate_black_ = false;
+  };
 
   // Retrieves the entry referenced by the given handle.
   //
@@ -275,8 +280,6 @@ class V8_EXPORT_PRIVATE CppHeapPointerTable
       uint32_t index, CppHeapPointerHandle* handle_location,
       uint32_t start_of_evacuation_area);
 };
-
-static_assert(sizeof(CppHeapPointerTable) == CppHeapPointerTable::kSize);
 
 }  // namespace internal
 }  // namespace v8

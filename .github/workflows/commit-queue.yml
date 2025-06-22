@@ -1,6 +1,6 @@
 # This action requires the following secrets to be set on the repository:
-#   GH_USER_NAME: GitHub user whose Jenkins and GitHub token are defined below
 #   GH_USER_TOKEN: GitHub user token, to be used by ncu and to push changes
+#   JENKINS_USER: GitHub user whose Jenkins token is defined below
 #   JENKINS_TOKEN: Jenkins token, to be used to check CI status
 
 name: Commit Queue
@@ -34,16 +34,16 @@ jobs:
         id: get_mergeable_prs
         run: |
           prs=$(gh pr list \
-                  --repo ${{ github.repository }} \
-                  --base ${{ github.ref_name }} \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --base "$GITHUB_REF_NAME" \
                   --label 'commit-queue' \
                   --json 'number' \
                   --search "created:<=$(date --date="2 days ago"  +"%Y-%m-%dT%H:%M:%S%z") -label:blocked" \
                   -t '{{ range . }}{{ .number }} {{ end }}' \
                   --limit 100)
           fast_track_prs=$(gh pr list \
-                  --repo ${{ github.repository }} \
-                  --base ${{ github.ref_name }} \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --base "$GITHUB_REF_NAME" \
                   --label 'commit-queue' \
                   --label 'fast-track' \
                   --search "-label:blocked" \
@@ -51,7 +51,7 @@ jobs:
                   -t '{{ range . }}{{ .number }} {{ end }}' \
                   --limit 100)
           numbers=$(echo $prs' '$fast_track_prs | jq -r -s 'unique | join(" ")')
-          echo "numbers=$numbers" >> $GITHUB_OUTPUT
+          echo "numbers=$numbers" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   commitQueue:
@@ -61,9 +61,6 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
-          # Needs the whole git history for ncu to work
-          # See https://github.com/nodejs/node-core-utils/pull/486
-          fetch-depth: 0
           # A personal token is required because pushing with GITHUB_TOKEN will
           # prevent commits from running CI after they land. It needs
           # to be set here because `checkout` configures GitHub authentication
@@ -72,7 +69,7 @@ jobs:
 
       # Install dependencies
       - name: Install Node.js
-        uses: actions/setup-node@cdca7365b2dadb8aad0a33bc7601856ffabcc48e  # v4.3.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Install @node-core/utils
@@ -80,24 +77,23 @@ jobs:
 
       - name: Set variables
         run: |
-          echo "REPOSITORY=$(echo ${{ github.repository }} | cut -d/ -f2)" >> $GITHUB_ENV
-          echo "OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
+          echo "REPOSITORY=$(echo "$GITHUB_REPOSITORY" | cut -d/ -f2)" >> "$GITHUB_ENV"
 
       - name: Configure @node-core/utils
         run: |
-          ncu-config set branch ${GITHUB_REF_NAME}
+          ncu-config set branch "${GITHUB_REF_NAME}"
           ncu-config set upstream origin
           ncu-config set username "$USERNAME"
-          ncu-config set token "$GH_TOKEN"
+          ncu-config set token "$GITHUB_TOKEN"
           ncu-config set jenkins_token "$JENKINS_TOKEN"
           ncu-config set repo "${REPOSITORY}"
-          ncu-config set owner "${OWNER}"
+          ncu-config set owner "${GITHUB_REPOSITORY_OWNER}"
         env:
           USERNAME: ${{ secrets.JENKINS_USER }}
-          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
           JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
 
       - name: Start the Commit Queue
-        run: ./tools/actions/commit-queue.sh ${{ env.OWNER }} ${{ env.REPOSITORY }} ${{ needs.get_mergeable_prs.outputs.numbers }}
+        run: ./tools/actions/commit-queue.sh "${GITHUB_REPOSITORY_OWNER}" "${REPOSITORY}" ${{ needs.get_mergeable_prs.outputs.numbers }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}

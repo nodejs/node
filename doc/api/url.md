@@ -629,7 +629,7 @@ console.log(JSON.stringify(myURLs));
 <!-- YAML
 added: v16.7.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -667,7 +667,7 @@ to other workers or the main thread.
 <!-- YAML
 added: v16.7.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -1040,7 +1040,7 @@ Returns an ES6 `Iterator` over each of the name-value pairs in the query.
 Each item of the iterator is a JavaScript `Array`. The first item of the `Array`
 is the `name`, the second item of the `Array` is the `value`.
 
-Alias for [`urlSearchParams[@@iterator]()`][`urlSearchParams@@iterator()`].
+Alias for [`urlSearchParams[Symbol.iterator]()`][`urlSearchParamsSymbol.iterator()`].
 
 #### `urlSearchParams.forEach(fn[, thisArg])`
 
@@ -1357,6 +1357,26 @@ fileURLToPath('file:///你好.txt');         // Correct:   /你好.txt (POSIX)
 new URL('file:///hello world').pathname;   // Incorrect: /hello%20world
 fileURLToPath('file:///hello world');      // Correct:   /hello world (POSIX)
 ```
+
+### `url.fileURLToPathBuffer(url[, options])`
+
+<!--
+added: REPLACEME
+-->
+
+* `url` {URL | string} The file URL string or URL object to convert to a path.
+* `options` {Object}
+  * `windows` {boolean|undefined} `true` if the `path` should be
+    return as a windows filepath, `false` for posix, and
+    `undefined` for the system default.
+    **Default:** `undefined`.
+* Returns: {Buffer} The fully-resolved platform-specific Node.js file path
+  as a {Buffer}.
+
+Like `url.fileURLToPath(...)` except that instead of returning a string
+representation of the path, a `Buffer` is returned. This conversion is
+helpful when the input URL contains percent-encoded segments that are
+not valid UTF-8 / Unicode sequences.
 
 ### `url.format(URL[, options])`
 
@@ -1965,7 +1985,7 @@ console.log(myURL.origin);
 [`url.toJSON()`]: #urltojson
 [`url.toString()`]: #urltostring
 [`urlSearchParams.entries()`]: #urlsearchparamsentries
-[`urlSearchParams@@iterator()`]: #urlsearchparamssymboliterator
+[`urlSearchParamsSymbol.iterator()`]: #urlsearchparamssymboliterator
 [converted to a string]: https://tc39.es/ecma262/#sec-tostring
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
 [host name spoofing]: https://hackerone.com/reports/678487

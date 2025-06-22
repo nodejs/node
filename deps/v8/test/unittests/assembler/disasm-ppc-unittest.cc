@@ -110,17 +110,17 @@ TEST_F(DisasmPpcTest, DisasmPPC) {
   COMPARE(blr(), "4e800020       blr");
 // skipping call - only used in simulator
 #if V8_TARGET_ARCH_PPC64
-  COMPARE(cmpi(r0, Operand(5)), "2fa00005       cmpi    r0, 5");
+  COMPARE(cmpi(r0, Operand(5)), "2c200005       cmpi    r0, 5");
 #else
   COMPARE(cmpi(r0, Operand(5)), "2f800005       cmpi    r0, 5");
 #endif
 #if V8_TARGET_ARCH_PPC64
-  COMPARE(cmpl(r6, r7), "7fa63840       cmpl    r6, r7");
+  COMPARE(cmpl(r6, r7), "7c263840       cmpl    r6, r7");
 #else
   COMPARE(cmpl(r6, r7), "7f863840       cmpl    r6, r7");
 #endif
 #if V8_TARGET_ARCH_PPC64
-  COMPARE(cmp(r5, r11), "7fa55800       cmp     r5, r11");
+  COMPARE(cmp(r5, r11), "7c255800       cmp     r5, r11");
 #else
   COMPARE(cmp(r5, r11), "7f855800       cmp     r5, r11");
 #endif

@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_EXECUTION_MIPS64_SIMULATOR_MIPS64_H_
+#define V8_EXECUTION_MIPS64_SIMULATOR_MIPS64_H_
+
 // Declares a Simulator for MIPS instructions if we are not generating a native
 // MIPS binary. This Simulator allows us to run and debug MIPS code generation
 // on regular desktop machines.
 // V8 calls into generated code via the GeneratedCode wrapper,
 // which will start execution in the Simulator or forwards to the real entry
 // on a MIPS HW platform.
-
-#ifndef V8_EXECUTION_MIPS64_SIMULATOR_MIPS64_H_
-#define V8_EXECUTION_MIPS64_SIMULATOR_MIPS64_H_
 
 // globals.h defines USE_SIMULATOR.
 #include "src/common/globals.h"
@@ -299,9 +299,14 @@ class Simulator : public SimulatorBase {
   // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
 
-  // Return current stack view, without additional safety margins.
+  uintptr_t StackBase() const;
+
+  // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
-  base::Vector<uint8_t> GetCurrentStackView() const;
+  base::Vector<uint8_t> GetCentralStackView() const;
+  static constexpr int JSStackLimitMargin() { return kAdditionalStackMargin; }
+
+  void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
 
   // Executes MIPS instructions until the PC reaches end_sim_pc.
   void Execute();
@@ -324,8 +329,16 @@ class Simulator : public SimulatorBase {
     }
 
     explicit CallArgument(float argument) {
-      // TODO(all): CallArgument(float) is untested.
-      UNIMPLEMENTED();
+      // Make the FPU register a NaN to try to trap errors if the callee expects
+      // a double. If it expects a float, the callee should ignore the top word.
+      double sNaN = std::numeric_limits<double>::signaling_NaN();
+      DCHECK(sizeof(sNaN) == sizeof(bits_));
+      memcpy(&bits_, &sNaN, sizeof(sNaN));
+
+      // Write the float payload to the FPU register.
+      DCHECK(sizeof(argument) <= sizeof(bits_));
+      memcpy(&bits_, &argument, sizeof(argument));
+      type_ = FP_ARG;
     }
 
     // This indicates the end of the arguments list, so that CallArgument
@@ -360,10 +373,10 @@ class Simulator : public SimulatorBase {
   double CallFP(Address entry, double d0, double d1);
 
   // Push an address onto the JS stack.
-  uintptr_t PushAddress(uintptr_t address);
+  V8_EXPORT_PRIVATE uintptr_t PushAddress(uintptr_t address);
 
   // Pop an address from the JS stack.
-  uintptr_t PopAddress();
+  V8_EXPORT_PRIVATE uintptr_t PopAddress();
 
   // Debugger input.
   void set_last_debugger_input(char* input);

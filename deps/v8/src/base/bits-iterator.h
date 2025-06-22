@@ -32,7 +32,6 @@ class BitsIterator : public iterator<std::forward_iterator_tag, int> {
   }
 
   bool operator==(BitsIterator other) { return bits_ == other.bits_; }
-  bool operator!=(BitsIterator other) { return bits_ != other.bits_; }
 
  private:
   T bits_;

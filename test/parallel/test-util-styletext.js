@@ -75,6 +75,8 @@ assert.strictEqual(
   styled,
 );
 
+assert.strictEqual(util.styleText('none', 'test'), 'test');
+
 const fd = common.getTTYfd();
 if (fd !== -1) {
   const writeStream = new WriteStream(fd);

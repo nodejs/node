@@ -28,10 +28,12 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <type_traits>
 #include <utility>
 
-#include "absl/base/internal/invoke.h"
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/scheduling_mode.h"
@@ -47,8 +49,8 @@ ABSL_NAMESPACE_BEGIN
 class once_flag;
 
 namespace base_internal {
-absl::Nonnull<std::atomic<uint32_t>*> ControlWord(
-    absl::Nonnull<absl::once_flag*> flag);
+std::atomic<uint32_t>* absl_nonnull ControlWord(
+    absl::once_flag* absl_nonnull flag);
 }  // namespace base_internal
 
 // call_once()
@@ -91,8 +93,8 @@ class once_flag {
   once_flag& operator=(const once_flag&) = delete;
 
  private:
-  friend absl::Nonnull<std::atomic<uint32_t>*> base_internal::ControlWord(
-      absl::Nonnull<once_flag*> flag);
+  friend std::atomic<uint32_t>* absl_nonnull base_internal::ControlWord(
+      once_flag* absl_nonnull flag);
   std::atomic<uint32_t> control_;
 };
 
@@ -106,7 +108,7 @@ namespace base_internal {
 // Like call_once, but uses KERNEL_ONLY scheduling. Intended to be used to
 // initialize entities used by the scheduler implementation.
 template <typename Callable, typename... Args>
-void LowLevelCallOnce(absl::Nonnull<absl::once_flag*> flag, Callable&& fn,
+void LowLevelCallOnce(absl::once_flag* absl_nonnull flag, Callable&& fn,
                       Args&&... args);
 
 // Disables scheduling while on stack when scheduling mode is non-cooperative.
@@ -147,10 +149,10 @@ enum {
 };
 
 template <typename Callable, typename... Args>
-ABSL_ATTRIBUTE_NOINLINE void CallOnceImpl(
-    absl::Nonnull<std::atomic<uint32_t>*> control,
-    base_internal::SchedulingMode scheduling_mode, Callable&& fn,
-    Args&&... args) {
+    void
+    CallOnceImpl(std::atomic<uint32_t>* absl_nonnull control,
+                 base_internal::SchedulingMode scheduling_mode, Callable&& fn,
+                 Args&&... args) {
 #ifndef NDEBUG
   {
     uint32_t old_control = control->load(std::memory_order_relaxed);
@@ -179,8 +181,7 @@ ABSL_ATTRIBUTE_NOINLINE void CallOnceImpl(
                                        std::memory_order_relaxed) ||
       base_internal::SpinLockWait(control, ABSL_ARRAYSIZE(trans), trans,
                                   scheduling_mode) == kOnceInit) {
-    base_internal::invoke(std::forward<Callable>(fn),
-                          std::forward<Args>(args)...);
+    std::invoke(std::forward<Callable>(fn), std::forward<Args>(args)...);
     old_control =
         control->exchange(base_internal::kOnceDone, std::memory_order_release);
     if (old_control == base_internal::kOnceWaiter) {
@@ -189,13 +190,13 @@ ABSL_ATTRIBUTE_NOINLINE void CallOnceImpl(
   }  // else *control is already kOnceDone
 }
 
-inline absl::Nonnull<std::atomic<uint32_t>*> ControlWord(
-    absl::Nonnull<once_flag*> flag) {
+inline std::atomic<uint32_t>* absl_nonnull ControlWord(
+    once_flag* absl_nonnull flag) {
   return &flag->control_;
 }
 
 template <typename Callable, typename... Args>
-void LowLevelCallOnce(absl::Nonnull<absl::once_flag*> flag, Callable&& fn,
+void LowLevelCallOnce(absl::once_flag* absl_nonnull flag, Callable&& fn,
                       Args&&... args) {
   std::atomic<uint32_t>* once = base_internal::ControlWord(flag);
   uint32_t s = once->load(std::memory_order_acquire);
@@ -209,7 +210,8 @@ void LowLevelCallOnce(absl::Nonnull<absl::once_flag*> flag, Callable&& fn,
 }  // namespace base_internal
 
 template <typename Callable, typename... Args>
-void call_once(absl::once_flag& flag, Callable&& fn, Args&&... args) {
+    void
+    call_once(absl::once_flag& flag, Callable&& fn, Args&&... args) {
   std::atomic<uint32_t>* once = base_internal::ControlWord(&flag);
   uint32_t s = once->load(std::memory_order_acquire);
   if (ABSL_PREDICT_FALSE(s != base_internal::kOnceDone)) {

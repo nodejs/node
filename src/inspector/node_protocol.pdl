@@ -165,6 +165,7 @@ experimental domain Network
       string url
       string method
       Headers headers
+      boolean hasPostData
 
   # HTTP response data.
   type Response extends object
@@ -173,6 +174,8 @@ experimental domain Network
       integer status
       string statusText
       Headers headers
+      string mimeType
+      string charset
 
   # Request / response headers as keys / values of JSON object.
   type Headers extends object
@@ -182,6 +185,36 @@ experimental domain Network
 
   # Enables network tracking, network events will now be delivered to the client.
   command enable
+
+  # Returns post data sent with the request. Returns an error when no data was sent with the request.
+  command getRequestPostData
+    parameters
+      # Identifier of the network request to get content for.
+      RequestId requestId
+    returns
+      # Request body string, omitting files from multipart requests
+      string postData
+
+  # Returns content served for the given request.
+  command getResponseBody
+    parameters
+      # Identifier of the network request to get content for.
+      RequestId requestId
+    returns
+      # Response body.
+      string body
+      # True, if content was sent as base64.
+      boolean base64Encoded
+
+  # Enables streaming of the response for the given requestId.
+  # If enabled, the dataReceived event contains the data that was received during streaming.
+  experimental command streamResourceContent
+    parameters
+      # Identifier of the request to stream.
+      RequestId requestId
+    returns
+      # Data that has been buffered until streaming is enabled.
+      binary bufferedData
 
   # Fired when page is about to send HTTP request.
   event requestWillBeSent
@@ -227,6 +260,20 @@ experimental domain Network
       # Timestamp.
       MonotonicTime timestamp
 
+  # Fired when data chunk was received over the network.
+  event dataReceived
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Data chunk length.
+      integer dataLength
+      # Actual bytes received (might be less than dataLength for compressed encodings).
+      integer encodedDataLength
+      # Data that was received.
+      experimental optional binary data
+
 # Support for inspecting node process state.
 experimental domain NodeRuntime
   # Enable the NodeRuntime events except by `NodeRuntime.waitingForDisconnect`.
@@ -249,3 +296,28 @@ experimental domain NodeRuntime
   # This event is fired when the runtime is waiting for the debugger. For
   # example, when inspector.waitingForDebugger is called
   event waitingForDebugger
+
+# https://chromedevtools.github.io/devtools-protocol/1-3/Target/
+experimental domain Target
+  type SessionID extends string
+  type TargetID extends string
+  type TargetInfo extends object
+    properties
+      TargetID targetId
+      string type
+      string title
+      string url
+      boolean attached
+      boolean canAccessOpener
+  event targetCreated
+    parameters
+      TargetInfo targetInfo
+  event attachedToTarget
+    parameters
+      SessionID sessionId
+      TargetInfo targetInfo
+      boolean waitingForDebugger
+  command setAutoAttach
+    parameters
+      boolean autoAttach
+      boolean waitForDebuggerOnStart

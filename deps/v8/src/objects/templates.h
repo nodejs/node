@@ -32,20 +32,26 @@ class TemplateInfo
  public:
   static const int kFastTemplateInstantiationsCacheSize = 1 * KB;
 
-  // While we could grow the slow cache until we run out of memory, we put
+  // While we could grow the cache until we run out of memory, we put
   // a limit on it anyway to not crash for embedders that re-create templates
   // instead of caching them.
-  static const int kSlowTemplateInstantiationsCacheSize = 1 * MB;
+  static constexpr int kMaxTemplateInstantiationsCacheSize = 1 * MB;
 
-  // If the serial number is set to kDoNotCache, then we should never cache this
-  // TemplateInfo.
-  static const int kDoNotCache = -1;
-  // If the serial number is set to kUncached, it means that this TemplateInfo
-  // has not been cached yet but it can be.
-  static const int kUncached = -2;
+  // Initial serial number value.
+  static const int kUninitializedSerialNumber = 0;
 
-  inline bool should_cache() const;
-  inline bool is_cached() const;
+  // Serial numbers less than this must not be reused.
+  static const int kFirstNonUniqueSerialNumber =
+      kFastTemplateInstantiationsCacheSize;
+
+  DECL_BOOLEAN_ACCESSORS(is_cacheable)
+  DECL_BOOLEAN_ACCESSORS(should_promote_to_read_only)
+  DECL_PRIMITIVE_ACCESSORS(serial_number, uint32_t)
+
+  // Initializes serial number if necessary and returns it.
+  inline uint32_t EnsureHasSerialNumber(Isolate* isolate);
+
+  inline uint32_t GetHash() const;
 
   inline bool TryGetIsolate(Isolate** isolate) const;
   inline Isolate* GetIsolateChecked() const;
@@ -63,20 +69,36 @@ class TemplateInfo
   template <typename ReturnType>
   static MaybeHandle<ReturnType> ProbeInstantiationsCache(
       Isolate* isolate, DirectHandle<NativeContext> native_context,
-      int serial_number, CachingMode caching_mode);
+      DirectHandle<TemplateInfo> info, CachingMode caching_mode) {
+    return Cast<ReturnType>(
+        ProbeInstantiationsCache(isolate, native_context, info, caching_mode));
+  }
 
-  template <typename InstantiationType, typename TemplateInfoType>
-  static void CacheTemplateInstantiation(
+  inline static MaybeHandle<Object> ProbeInstantiationsCache(
       Isolate* isolate, DirectHandle<NativeContext> native_context,
-      DirectHandle<TemplateInfoType> data, CachingMode caching_mode,
-      Handle<InstantiationType> object);
+      DirectHandle<TemplateInfo> info, CachingMode caching_mode);
 
-  template <typename TemplateInfoType>
-  static void UncacheTemplateInstantiation(
+  inline static void CacheTemplateInstantiation(
       Isolate* isolate, DirectHandle<NativeContext> native_context,
-      DirectHandle<TemplateInfoType> data, CachingMode caching_mode);
+      DirectHandle<TemplateInfo> info, CachingMode caching_mode,
+      DirectHandle<Object> object);
+
+  inline static void UncacheTemplateInstantiation(
+      Isolate* isolate, DirectHandle<NativeContext> native_context,
+      DirectHandle<TemplateInfo> info, CachingMode caching_mode);
+
+  // Bit position in the template_info_base_flags, from least significant bit
+  // position.
+  DEFINE_TORQUE_GENERATED_TEMPLATE_INFO_FLAGS()
 
   TQ_OBJECT_CONSTRUCTORS(TemplateInfo)
+};
+
+class TemplateInfoWithProperties
+    : public TorqueGeneratedTemplateInfoWithProperties<
+          TemplateInfoWithProperties, TemplateInfo> {
+ public:
+  TQ_OBJECT_CONSTRUCTORS(TemplateInfoWithProperties)
 };
 
 // Contains data members that are rarely set on a FunctionTemplateInfo.
@@ -94,7 +116,7 @@ class FunctionTemplateRareData
 // See the api-exposed FunctionTemplate for more information.
 class FunctionTemplateInfo
     : public TorqueGeneratedFunctionTemplateInfo<FunctionTemplateInfo,
-                                                 TemplateInfo> {
+                                                 TemplateInfoWithProperties> {
  public:
 #define DECL_RARE_ACCESSORS(Name, CamelName, ...)                \
   DECL_GETTER(Get##CamelName, Tagged<__VA_ARGS__>)               \
@@ -165,7 +187,7 @@ class FunctionTemplateInfo
 
   // If set, do not create a prototype property for the associated
   // JSFunction. This bit implies that neither the prototype_template nor the
-  // prototype_provoider_template are instantiated.
+  // prototype_provider_template are instantiated.
   DECL_BOOLEAN_ACCESSORS(remove_prototype)
 
   // If not set an access may be performed on calling the associated JSFunction.
@@ -177,7 +199,7 @@ class FunctionTemplateInfo
   // safely read concurrently.
   DECL_BOOLEAN_ACCESSORS(published)
 
-  // This specifies the permissable range of instance type of objects that can
+  // This specifies the permissible range of instance type of objects that can
   // be allowed to be used as receivers with the given template.
   DECL_PRIMITIVE_GETTER(allowed_receiver_instance_type_range_start,
                         InstanceType)
@@ -213,6 +235,9 @@ class FunctionTemplateInfo
   // functions that is done by IsTemplateFor).
   bool IsLeafTemplateForApiObject(Tagged<Object> object) const;
   inline bool instantiated();
+
+  static void SealAndPrepareForPromotionToReadOnly(
+      Isolate* isolate, DirectHandle<FunctionTemplateInfo> info);
 
   bool BreakAtEntry(Isolate* isolate);
   bool HasInstanceType();
@@ -263,8 +288,8 @@ class FunctionTemplateInfo
 
   // Enforce using SetInstanceType() and SetAllowedReceiverInstanceTypeRange()
   // instead of raw accessors.
-  using TorqueGeneratedFunctionTemplateInfo<FunctionTemplateInfo,
-                                            TemplateInfo>::set_instance_type;
+  using TorqueGeneratedFunctionTemplateInfo<
+      FunctionTemplateInfo, TemplateInfoWithProperties>::set_instance_type;
   DECL_PRIMITIVE_SETTER(allowed_receiver_instance_type_range_start,
                         InstanceType)
   DECL_PRIMITIVE_SETTER(allowed_receiver_instance_type_range_end, InstanceType)
@@ -283,7 +308,7 @@ class FunctionTemplateInfo
 
 class ObjectTemplateInfo
     : public TorqueGeneratedObjectTemplateInfo<ObjectTemplateInfo,
-                                               TemplateInfo> {
+                                               TemplateInfoWithProperties> {
  public:
   NEVER_READ_ONLY_SPACE
 
@@ -295,6 +320,9 @@ class ObjectTemplateInfo
   // chain till a function template that has an instance template is found.
   inline Tagged<ObjectTemplateInfo> GetParent(Isolate* isolate);
 
+  static void SealAndPrepareForPromotionToReadOnly(
+      Isolate* isolate, DirectHandle<ObjectTemplateInfo> info);
+
   using BodyDescriptor = StructBodyDescriptor;
 
  private:
@@ -305,14 +333,14 @@ class ObjectTemplateInfo
 
 class DictionaryTemplateInfo
     : public TorqueGeneratedDictionaryTemplateInfo<DictionaryTemplateInfo,
-                                                   HeapObject> {
+                                                   TemplateInfo> {
  public:
   class BodyDescriptor;
 
-  static Handle<DictionaryTemplateInfo> Create(
+  static DirectHandle<DictionaryTemplateInfo> Create(
       Isolate* isolate, const v8::MemorySpan<const std::string_view>& names);
 
-  static Handle<JSObject> NewInstance(
+  static DirectHandle<JSObject> NewInstance(
       DirectHandle<NativeContext> context,
       DirectHandle<DictionaryTemplateInfo> self,
       const MemorySpan<MaybeLocal<Value>>& property_values);

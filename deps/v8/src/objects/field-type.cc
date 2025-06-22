@@ -24,13 +24,13 @@ Tagged<FieldType> FieldType::Any() {
 }
 
 // static
-Handle<FieldType> FieldType::None(Isolate* isolate) {
-  return handle(None(), isolate);
+DirectHandle<FieldType> FieldType::None(Isolate* isolate) {
+  return direct_handle(None(), isolate);
 }
 
 // static
-Handle<FieldType> FieldType::Any(Isolate* isolate) {
-  return handle(Any(), isolate);
+DirectHandle<FieldType> FieldType::Any(Isolate* isolate) {
+  return direct_handle(Any(), isolate);
 }
 
 // static
@@ -39,8 +39,9 @@ Tagged<FieldType> FieldType::Class(Tagged<Map> map) {
 }
 
 // static
-Handle<FieldType> FieldType::Class(DirectHandle<Map> map, Isolate* isolate) {
-  return handle(Class(*map), isolate);
+DirectHandle<FieldType> FieldType::Class(DirectHandle<Map> map,
+                                         Isolate* isolate) {
+  return direct_handle(Class(*map), isolate);
 }
 
 // static
@@ -53,7 +54,7 @@ Tagged<Map> FieldType::AsClass(Tagged<FieldType> type) {
 }
 
 // static
-Handle<Map> FieldType::AsClass(Handle<FieldType> type) {
+DirectHandle<Map> FieldType::AsClass(DirectHandle<FieldType> type) {
   DCHECK(IsClass(*type));
   return Cast<Map>(type);
 }

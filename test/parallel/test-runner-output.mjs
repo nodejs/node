@@ -37,7 +37,7 @@ function replaceJunitDuration(str) {
   return str
     .replaceAll(/time="[0-9.]+"/g, 'time="*"')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
-    .replaceAll(hostname(), 'HOSTNAME')
+    .replaceAll(`hostname="${hostname()}"`, 'hostname="HOSTNAME"')
     .replace(stackTraceBasePath, '$3');
 }
 
@@ -70,7 +70,7 @@ const defaultTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
   removeWindowsPathEscaping,
-  snapshot.replaceFullPaths,
+  snapshot.transformProjectRoot(),
   snapshot.replaceWindowsPaths,
   replaceTestDuration,
   replaceTestLocationLine,
@@ -90,7 +90,7 @@ const junitTransform = snapshot.transform(
 const lcovTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
-  snapshot.replaceFullPaths,
+  snapshot.transformProjectRoot(),
   snapshot.replaceWindowsPaths,
   pickTestFileFromLcov
 );
@@ -312,6 +312,15 @@ const tests = [
     name: 'test-runner/output/coverage-short-filename.mjs',
     flags: ['--test-reporter=tap', '--test-coverage-exclude=../output/**'],
     cwd: fixtures.path('test-runner/coverage-snap'),
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/typescript-coverage.mts',
+    flags: ['--disable-warning=ExperimentalWarning',
+            '--test-reporter=tap',
+            '--experimental-transform-types',
+            '--experimental-test-module-mocks',
+            '--experimental-test-coverage',
+            '--test-coverage-exclude=!test/**']
   } : false,
 ]
 .filter(Boolean)

@@ -57,7 +57,7 @@ template <typename T>
 using Flag = flags_internal::Flag<T>;
 
 template <typename T>
-ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag);
+[[nodiscard]] T GetFlag(const absl::Flag<T>& flag);
 
 template <typename T>
 void SetFlag(absl::Flag<T>* flag, const T& v);
@@ -373,8 +373,12 @@ class MaskedPointer {
 
   static constexpr int RequiredAlignment() { return 4; }
 
+  constexpr MaskedPointer() : ptr_(nullptr) {}
   constexpr explicit MaskedPointer(ptr_t rhs) : ptr_(rhs) {}
   MaskedPointer(ptr_t rhs, bool is_candidate);
+
+  MaskedPointer(const MaskedPointer& rhs) = default;
+  MaskedPointer& operator=(const MaskedPointer& rhs) = default;
 
   void* Ptr() const {
     return reinterpret_cast<void*>(reinterpret_cast<mask_t>(ptr_) &
@@ -578,10 +582,12 @@ class FlagState;
 #endif
 class FlagImpl final : public CommandLineFlag {
  public:
-  constexpr FlagImpl(const char* name, const char* filename, FlagOpFn op,
-                     FlagHelpArg help, FlagValueStorageKind value_kind,
+  constexpr FlagImpl(const char* name, const char* type_name,
+                     const char* filename, FlagOpFn op, FlagHelpArg help,
+                     FlagValueStorageKind value_kind,
                      FlagDefaultArg default_arg)
       : name_(name),
+        type_name_(type_name),
         filename_(filename),
         op_(op),
         help_(help.source),
@@ -694,6 +700,7 @@ class FlagImpl final : public CommandLineFlag {
 
   // CommandLineFlag interface implementation
   absl::string_view Name() const override;
+  absl::string_view TypeName() const override;
   std::string Filename() const override;
   std::string Help() const override;
   FlagFastTypeId TypeId() const override;
@@ -727,6 +734,10 @@ class FlagImpl final : public CommandLineFlag {
 
   // Flags name passed to ABSL_FLAG as second arg.
   const char* const name_;
+
+  // Flags type passed to ABSL_FLAG as first arg.
+  const char* const type_name_;
+
   // The file name where ABSL_FLAG resides.
   const char* const filename_;
   // Type-specific operations vtable.
@@ -772,7 +783,7 @@ class FlagImpl final : public CommandLineFlag {
   // heap allocation during initialization, which is both slows program startup
   // and can fail. Using reserved space + placement new allows us to avoid both
   // problems.
-  alignas(absl::Mutex) mutable char data_guard_[sizeof(absl::Mutex)];
+  alignas(absl::Mutex) mutable unsigned char data_guard_[sizeof(absl::Mutex)];
 };
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
@@ -785,9 +796,9 @@ class FlagImpl final : public CommandLineFlag {
 template <typename T>
 class Flag {
  public:
-  constexpr Flag(const char* name, const char* filename, FlagHelpArg help,
-                 const FlagDefaultArg default_arg)
-      : impl_(name, filename, &FlagOps<T>, help,
+  constexpr Flag(const char* name, const char* type_name, const char* filename,
+                 FlagHelpArg help, const FlagDefaultArg default_arg)
+      : impl_(name, type_name, filename, &FlagOps<T>, help,
               flags_internal::StorageKind<T>(), default_arg),
         value_() {}
 
@@ -817,7 +828,7 @@ class Flag {
     U u;
 
 #if !defined(NDEBUG)
-    impl_.AssertValidType(base_internal::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+    impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
 #endif
 
     if (ABSL_PREDICT_FALSE(!value_.Get(impl_.seq_lock_, u.value))) {
@@ -826,7 +837,7 @@ class Flag {
     return std::move(u.value);
   }
   void Set(const T& v) {
-    impl_.AssertValidType(base_internal::FastTypeId<T>(), &GenRuntimeTypeId<T>);
+    impl_.AssertValidType(absl::FastTypeId<T>(), &GenRuntimeTypeId<T>);
     impl_.Write(&v);
   }
 
@@ -865,7 +876,8 @@ class FlagImplPeer {
 template <typename T>
 void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
   struct AlignedSpace {
-    alignas(MaskedPointer::RequiredAlignment()) alignas(T) char buf[sizeof(T)];
+    alignas(MaskedPointer::RequiredAlignment()) alignas(
+        T) unsigned char buf[sizeof(T)];
   };
   using Allocator = std::allocator<AlignedSpace>;
   switch (op) {
@@ -890,7 +902,7 @@ void* FlagOps(FlagOp op, const void* v1, void* v2, void* v3) {
     case FlagOp::kSizeof:
       return reinterpret_cast<void*>(static_cast<uintptr_t>(sizeof(T)));
     case FlagOp::kFastTypeId:
-      return const_cast<void*>(base_internal::FastTypeId<T>());
+      return const_cast<void*>(absl::FastTypeId<T>());
     case FlagOp::kRuntimeTypeId:
       return const_cast<std::type_info*>(GenRuntimeTypeId<T>());
     case FlagOp::kParse: {

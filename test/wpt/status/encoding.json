@@ -70,12 +70,6 @@
     "requires": ["full-icu"]
   },
   "encodeInto.any.js": {
-    "fail": {
-      "expected": [
-        "Invalid encodeInto() destination: Float16Array, backed by: ArrayBuffer",
-        "Invalid encodeInto() destination: Float16Array, backed by: SharedArrayBuffer"
-      ]
-    },
     "requires": ["small-icu"]
   },
   "textdecoder-copy.any.js": {

@@ -99,7 +99,7 @@ bytecodes: [
   /*   30 E> */ B(CreateFunctionContext), U8(0), U8(1),
                 B(PushContext), R(0),
   /*   56 S> */ B(CreateObjectLiteral), U8(1), U8(0), U8(41),
-  /*   56 E> */ B(StaCurrentContextSlot), U8(2),
+  /*   56 E> */ B(StaCurrentContextSlotNoCell), U8(2),
   /*   64 S> */ B(CreateClosure), U8(2), U8(0), U8(2),
   /*   93 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star1),

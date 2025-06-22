@@ -6,13 +6,14 @@
 
 #include <sstream>
 
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-lowering-verifier.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
+#include "src/compiler/use-info.h"
 #include "src/heap/factory-inl.h"
 
 namespace v8 {
@@ -141,6 +142,14 @@ bool TypeCheckIsBigInt(TypeCheckKind type_check) {
          type_check == TypeCheckKind::kBigInt64;
 }
 
+constexpr bool SupportsFpParamsInCLinkage() {
+#ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
+  return Is64();
+#else
+  return false;
+#endif
+}
+
 }  // namespace
 
 RepresentationChanger::RepresentationChanger(
@@ -169,10 +178,10 @@ Node* RepresentationChanger::GetRepresentationFor(
     return TypeError(node, output_rep, output_type, use_info.representation());
   }
 
-  // Rematerialize any truncated BigInt if user is not expecting a BigInt.
   if (output_type.Is(Type::BigInt()) &&
       output_rep == MachineRepresentation::kWord64 &&
       !TypeCheckIsBigInt(use_info.type_check())) {
+    // Rematerialize any truncated BigInt if user is not expecting a BigInt.
     if (output_type.Is(Type::UnsignedBigInt64())) {
       node = InsertConversion(node, simplified()->ChangeUint64ToBigInt(),
                               use_node);
@@ -181,6 +190,17 @@ Node* RepresentationChanger::GetRepresentationFor(
           InsertConversion(node, simplified()->ChangeInt64ToBigInt(), use_node);
     }
     output_rep = MachineRepresentation::kTaggedPointer;
+  } else if (output_rep == MachineRepresentation::kFloat16RawBits) {
+    // Float16Array elements are loaded as raw bits in a word16 then converted
+    // to float64, since architectures have spotty support for fp16.
+    DCHECK(output_type.Is(Type::Number()));
+    if (machine()->ChangeFloat16RawBitsToFloat64().IsSupported()) {
+      node = jsgraph()->graph()->NewNode(
+          machine()->ChangeFloat16RawBitsToFloat64().op(), node);
+    } else {
+      node = InsertChangeFloat16RawBitsToFloat64Fallback(node);
+    }
+    output_rep = MachineRepresentation::kFloat64;
   }
 
   // Handle the no-op shortcuts when no checking is necessary.
@@ -220,7 +240,10 @@ Node* RepresentationChanger::GetRepresentationFor(
       DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetTaggedRepresentationFor(node, output_rep, output_type,
                                         use_info.truncation());
-    case MachineRepresentation::kFloat16:
+    case MachineRepresentation::kFloat16RawBits:
+      DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
+      return GetFloat16RawBitsRepresentationFor(node, output_rep, output_type,
+                                                use_node, use_info);
     case MachineRepresentation::kFloat32:
       DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetFloat32RepresentationFor(node, output_rep, output_type,
@@ -243,6 +266,7 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kWord64:
       DCHECK(use_info.type_check() == TypeCheckKind::kNone ||
              use_info.type_check() == TypeCheckKind::kSigned64 ||
+             use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger ||
              TypeCheckIsBigInt(use_info.type_check()) ||
              use_info.type_check() == TypeCheckKind::kArrayIndex);
       return GetWord64RepresentationFor(node, output_rep, output_type, use_node,
@@ -251,6 +275,7 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kSimd256:
     case MachineRepresentation::kNone:
       return node;
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kSandboxedPointer:
@@ -642,6 +667,43 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   return jsgraph()->graph()->NewNode(op, node);
 }
 
+Node* RepresentationChanger::GetFloat16RawBitsRepresentationFor(
+    Node* node, MachineRepresentation output_rep, Type output_type,
+    Node* use_node, UseInfo use_info) {
+  if (output_rep != MachineRepresentation::kFloat64) {
+    node = GetFloat64RepresentationFor(node, output_rep, output_type, use_node,
+                                       use_info);
+  }
+
+  // Eagerly fold representation changes for constants.
+  switch (node->opcode()) {
+    case IrOpcode::kFloat64Constant:
+      return jsgraph()->Uint32Constant(
+          DoubleToFloat16(OpParameter<double>(node->op())));
+    case IrOpcode::kNumberConstant:
+    case IrOpcode::kInt32Constant:
+    case IrOpcode::kFloat32Constant:
+      UNREACHABLE();
+    default:
+      break;
+  }
+
+  // This is an impossible value; it should not be used at runtime.
+  if (output_type.Is(Type::None())) {
+    return jsgraph()->graph()->NewNode(
+        jsgraph()->common()->DeadValue(MachineRepresentation::kFloat16RawBits),
+        node);
+  }
+
+  // Insert a float64 -> float16 node.
+  if (machine()->TruncateFloat64ToFloat16RawBits().IsSupported()) {
+    return jsgraph()->graph()->NewNode(
+        machine()->TruncateFloat64ToFloat16RawBits().op(), node);
+  } else {
+    return InsertTruncateFloat64ToFloat16RawBitsFallback(node);
+  }
+}
+
 Node* RepresentationChanger::GetFloat32RepresentationFor(
     Node* node, MachineRepresentation output_rep, Type output_type,
     Truncation truncation) {
@@ -727,9 +789,11 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       case TypeCheckKind::kSigned64:
       case TypeCheckKind::kSignedSmall:
       case TypeCheckKind::kArrayIndex:
+      case TypeCheckKind::kAdditiveSafeInteger:
         break;
     }
   }
+
   // Select the correct X -> Float64 operator.
   const Operator* op = nullptr;
   if (output_type.Is(Type::None())) {
@@ -858,6 +922,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       if (use_info.type_check() == TypeCheckKind::kNone ||
           ((use_info.type_check() == TypeCheckKind::kSignedSmall ||
             use_info.type_check() == TypeCheckKind::kSigned32 ||
+            use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger ||
             use_info.type_check() == TypeCheckKind::kNumber ||
             use_info.type_check() == TypeCheckKind::kNumberOrOddball ||
             use_info.type_check() == TypeCheckKind::kArrayIndex) &&
@@ -906,7 +971,17 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type.Is(Type::Unsigned32())) {
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
-      op = machine()->TruncateFloat64ToWord32();
+      if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+        op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
+            output_type.Maybe(Type::MinusZero())
+                ? use_info.minus_zero_check()
+                : CheckForMinusZeroMode::kDontCheckForMinusZero,
+            use_info.feedback());
+        node = InsertConversion(node, op, use_node);
+        op = machine()->TruncateInt64ToInt32();
+      } else {
+        op = machine()->TruncateFloat64ToWord32();
+      }
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord32);
@@ -926,7 +1001,17 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type.Is(Type::Unsigned32())) {
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
-      op = machine()->TruncateFloat64ToWord32();
+      if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+        op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
+            output_type.Maybe(Type::MinusZero())
+                ? use_info.minus_zero_check()
+                : CheckForMinusZeroMode::kDontCheckForMinusZero,
+            use_info.feedback());
+        node = InsertConversion(node, op, use_node);
+        op = machine()->TruncateInt64ToInt32();
+      } else {
+        op = machine()->TruncateFloat64ToWord32();
+      }
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord32);
@@ -950,7 +1035,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type.Is(Type::Unsigned32())) {
       op = simplified()->ChangeTaggedToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
-      if (output_type.Is(Type::NumberOrOddballOrHole())) {
+      if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+        op = simplified()->CheckedTruncateTaggedToWord32(
+            CheckTaggedInputMode::kAdditiveSafeInteger, use_info.feedback());
+      } else if (output_type.Is(Type::NumberOrOddballOrHole())) {
         op = simplified()->TruncateTaggedToWord32();
       } else if (use_info.type_check() == TypeCheckKind::kNumber) {
         op = simplified()->CheckedTruncateTaggedToWord32(
@@ -984,7 +1072,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
         return TypeError(node, output_rep, output_type,
                          MachineRepresentation::kWord32);
       }
-    } else if (use_info.type_check() == TypeCheckKind::kNumber ||
+    } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger ||
+               use_info.type_check() == TypeCheckKind::kNumber ||
                use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
       return node;
     }
@@ -1218,6 +1307,13 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
               ? use_info.minus_zero_check()
               : CheckForMinusZeroMode::kDontCheckForMinusZero,
           use_info.feedback());
+    } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+      node = InsertChangeFloat32ToFloat64(node);
+      op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
+          output_type.Maybe(Type::MinusZero())
+              ? use_info.minus_zero_check()
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
@@ -1236,13 +1332,24 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
               ? use_info.minus_zero_check()
               : CheckForMinusZeroMode::kDontCheckForMinusZero,
           use_info.feedback());
+    } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+      op = simplified()->CheckedFloat64ToAdditiveSafeInteger(
+          output_type.Maybe(Type::MinusZero())
+              ? use_info.minus_zero_check()
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
     if (output_type.Is(Type::SignedSmall())) {
-      op = simplified()->ChangeTaggedSignedToInt64();
+      if (output_type.IsRange() && output_type.AsRange()->Min() >= 0) {
+        node = InsertChangeTaggedSignedToInt32(node);
+        op = machine()->ChangeUint32ToUint64();
+      } else {
+        op = simplified()->ChangeTaggedSignedToInt64();
+      }
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
@@ -1268,6 +1375,12 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
           use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kArrayIndex) {
       op = simplified()->CheckedTaggedToArrayIndex(use_info.feedback());
+    } else if (use_info.type_check() == TypeCheckKind::kAdditiveSafeInteger) {
+      op = simplified()->CheckedTaggedToAdditiveSafeInteger(
+          output_type.Maybe(Type::MinusZero())
+              ? use_info.minus_zero_check()
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kWord64);
@@ -1309,11 +1422,13 @@ const Operator* RepresentationChanger::Int32OperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kSpeculativeNumberAdd:  // Fall through.
-    case IrOpcode::kSpeculativeSafeIntegerAdd:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
+    case IrOpcode::kSpeculativeSmallIntegerAdd:
     case IrOpcode::kNumberAdd:
       return machine()->Int32Add();
     case IrOpcode::kSpeculativeNumberSubtract:  // Fall through.
-    case IrOpcode::kSpeculativeSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeSmallIntegerSubtract:
     case IrOpcode::kNumberSubtract:
       return machine()->Int32Sub();
     case IrOpcode::kSpeculativeNumberMultiply:
@@ -1351,9 +1466,9 @@ const Operator* RepresentationChanger::Int32OperatorFor(
 const Operator* RepresentationChanger::Int32OverflowOperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
-    case IrOpcode::kSpeculativeSafeIntegerAdd:
+    case IrOpcode::kSpeculativeSmallIntegerAdd:
       return simplified()->CheckedInt32Add();
-    case IrOpcode::kSpeculativeSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeSmallIntegerSubtract:
       return simplified()->CheckedInt32Sub();
     case IrOpcode::kSpeculativeNumberDivide:
       return simplified()->CheckedInt32Div();
@@ -1364,16 +1479,28 @@ const Operator* RepresentationChanger::Int32OverflowOperatorFor(
   }
 }
 
+const Operator* RepresentationChanger::AdditiveSafeIntegerOverflowOperatorFor(
+    IrOpcode::Value opcode) {
+  switch (opcode) {
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
+      return simplified()->CheckedAdditiveSafeIntegerAdd();
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
+      return simplified()->CheckedAdditiveSafeIntegerSub();
+    default:
+      UNREACHABLE();
+  }
+}
+
 const Operator* RepresentationChanger::Int64OperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kSpeculativeNumberAdd:  // Fall through.
-    case IrOpcode::kSpeculativeSafeIntegerAdd:
+    case IrOpcode::kSpeculativeSmallIntegerAdd:
     case IrOpcode::kNumberAdd:
     case IrOpcode::kSpeculativeBigIntAdd:
       return machine()->Int64Add();
     case IrOpcode::kSpeculativeNumberSubtract:  // Fall through.
-    case IrOpcode::kSpeculativeSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeSmallIntegerSubtract:
     case IrOpcode::kNumberSubtract:
     case IrOpcode::kSpeculativeBigIntSubtract:
       return machine()->Int64Sub();
@@ -1518,11 +1645,13 @@ const Operator* RepresentationChanger::Float64OperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
     case IrOpcode::kSpeculativeNumberAdd:
-    case IrOpcode::kSpeculativeSafeIntegerAdd:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
+    case IrOpcode::kSpeculativeSmallIntegerAdd:
     case IrOpcode::kNumberAdd:
       return machine()->Float64Add();
     case IrOpcode::kSpeculativeNumberSubtract:
-    case IrOpcode::kSpeculativeSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeSmallIntegerSubtract:
     case IrOpcode::kNumberSubtract:
       return machine()->Float64Sub();
     case IrOpcode::kSpeculativeNumberMultiply:
@@ -1675,6 +1804,103 @@ Node* RepresentationChanger::InsertCheckedFloat64ToInt32(
     Node* use_node) {
   return InsertConversion(
       node, simplified()->CheckedFloat64ToInt32(check, feedback), use_node);
+}
+
+Node* RepresentationChanger::Ieee754Fp16RawBitsToFp32RawBitsCode() {
+  if (!ieee754_fp16_raw_bits_to_fp32_raw_bits_code_.is_set()) {
+    ieee754_fp16_raw_bits_to_fp32_raw_bits_code_.set(
+        jsgraph()->ExternalConstant(
+            ExternalReference::ieee754_fp16_raw_bits_to_fp32_raw_bits()));
+  }
+  return ieee754_fp16_raw_bits_to_fp32_raw_bits_code_.get();
+}
+
+Node* RepresentationChanger::Ieee754Fp64ToFp16RawBitsCode() {
+  if (!ieee754_fp64_to_fp16_raw_bits_code_.is_set()) {
+    if constexpr (SupportsFpParamsInCLinkage()) {
+      ieee754_fp64_to_fp16_raw_bits_code_.set(jsgraph()->ExternalConstant(
+          ExternalReference::ieee754_fp64_to_fp16_raw_bits()));
+    } else {
+      ieee754_fp64_to_fp16_raw_bits_code_.set(jsgraph()->ExternalConstant(
+          ExternalReference::
+              ieee754_fp64_raw_bits_to_fp16_raw_bits_for_32bit_arch()));
+    }
+  }
+  return ieee754_fp64_to_fp16_raw_bits_code_.get();
+}
+
+Operator const*
+RepresentationChanger::Ieee754Fp16RawBitsToFp32RawBitsOperator() {
+  if (!ieee754_fp16_raw_bits_to_fp32_raw_bits_operator_.is_set()) {
+    Zone* graph_zone = jsgraph()->zone();
+    MachineSignature::Builder builder(graph_zone, 1, 1);
+    builder.AddReturn(MachineType::Uint32());
+    builder.AddParam(MachineType::Uint32());
+    auto desc = Linkage::GetSimplifiedCDescriptor(
+        graph_zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
+    ieee754_fp16_raw_bits_to_fp32_raw_bits_operator_.set(
+        jsgraph()->common()->Call(desc));
+  }
+  return ieee754_fp16_raw_bits_to_fp32_raw_bits_operator_.get();
+}
+
+Operator const* RepresentationChanger::Ieee754Fp64ToFp16RawBitsOperator() {
+  if (!ieee754_fp64_to_fp16_raw_bits_operator_.is_set()) {
+    Zone* graph_zone = jsgraph()->zone();
+    CallDescriptor* desc;
+    if constexpr (SupportsFpParamsInCLinkage()) {
+      MachineSignature::Builder builder(graph_zone, 1, 1);
+      builder.AddReturn(MachineType::Uint32());
+      builder.AddParam(MachineType::Float64());
+      desc = Linkage::GetSimplifiedCDescriptor(
+          graph_zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
+    } else {
+      MachineSignature::Builder builder(graph_zone, 1, 2);
+      builder.AddReturn(MachineType::Uint32());
+      builder.AddParam(MachineType::Uint32());
+      builder.AddParam(MachineType::Uint32());
+      desc = Linkage::GetSimplifiedCDescriptor(
+          graph_zone, builder.Get(), CallDescriptor::kNoFlags, Operator::kPure);
+    }
+    ieee754_fp64_to_fp16_raw_bits_operator_.set(
+        jsgraph()->common()->Call(desc));
+  }
+  return ieee754_fp64_to_fp16_raw_bits_operator_.get();
+}
+
+Node* RepresentationChanger::InsertChangeFloat16RawBitsToFloat64Fallback(
+    Node* node) {
+  // Replace the op directly if the underlying architecture has support.
+  DCHECK(!machine()->ChangeFloat16RawBitsToFloat64().IsSupported());
+  DCHECK_EQ(0, Ieee754Fp16RawBitsToFp32RawBitsOperator()->ControlInputCount());
+  // On architectures that don't have fp16 support, Float16Array elements are
+  // loaded as raw bits in a word16, converted to float32 in software, then
+  // converted to float64.
+  Node* float32_raw_bits =
+      jsgraph()->graph()->NewNode(Ieee754Fp16RawBitsToFp32RawBitsOperator(),
+                                  Ieee754Fp16RawBitsToFp32RawBitsCode(), node);
+  return InsertChangeFloat32ToFloat64(jsgraph()->graph()->NewNode(
+      machine()->BitcastInt32ToFloat32(), float32_raw_bits));
+}
+
+Node* RepresentationChanger::InsertTruncateFloat64ToFloat16RawBitsFallback(
+    Node* node) {
+  // Use the op directly if the underlying architecture has support.
+  DCHECK(!machine()->TruncateFloat64ToFloat16RawBits().IsSupported());
+  DCHECK_EQ(0, Ieee754Fp64ToFp16RawBitsOperator()->ControlInputCount());
+  // On architectures that don't have fp16 support, the input to be stored in
+  // Float16Array elements are converted from float64 to float16 in software.
+  if constexpr (SupportsFpParamsInCLinkage()) {
+    return jsgraph()->graph()->NewNode(Ieee754Fp64ToFp16RawBitsOperator(),
+                                       Ieee754Fp64ToFp16RawBitsCode(), node);
+  } else {
+    Node* hi = jsgraph()->graph()->NewNode(
+        machine()->Float64ExtractHighWord32(), node);
+    Node* lo =
+        jsgraph()->graph()->NewNode(machine()->Float64ExtractLowWord32(), node);
+    return jsgraph()->graph()->NewNode(Ieee754Fp64ToFp16RawBitsOperator(),
+                                       Ieee754Fp64ToFp16RawBitsCode(), hi, lo);
+  }
 }
 
 Node* RepresentationChanger::InsertTypeOverrideForVerifier(const Type& type,

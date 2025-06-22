@@ -17,6 +17,26 @@
 
 namespace v8::internal::maglev {
 
+class SweepIdentityNodes {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    for (int i = 0; i < node->input_count(); i++) {
+      Input& input = node->input(i);
+      while (input.node() && input.node()->Is<Identity>()) {
+        node->change_input(i, input.node()->input(0).node());
+      }
+    }
+    return ProcessResult::kContinue;
+  }
+};
+
 // Optimizations involving loops which cannot be done at graph building time.
 // Currently mainly loop invariant code motion.
 class LoopOptimizationProcessor {
@@ -30,6 +50,7 @@ class LoopOptimizationProcessor {
   void PreProcessGraph(Graph* graph) {}
   void PostPhiProcessing() {}
 
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     current_block = block;
     if (current_block->is_loop()) {
@@ -124,12 +145,16 @@ class LoopOptimizationProcessor {
 
   ProcessResult Process(CheckMaps* maps, const ProcessingState& state) {
     DCHECK(loop_effects);
-    // Conservatively not hoist map checks if we ever deoptimized this function
-    // to avoid deopt loops.
-    if (was_deoptimized) return ProcessResult::kContinue;
+    // Hoisting a check out of a loop can cause it to trigger more than actually
+    // needed (i.e., if the loop is executed 0 times). This could lead to
+    // deoptimization loops as there is no feedback to learn here. Thus, we
+    // abort this optimization if the function deoptimized previously. Also, if
+    // hoisting of this check fails we need to abort (and not continue) to
+    // ensure we are not hoisting other instructions over it.
+    if (was_deoptimized) return ProcessResult::kSkipBlock;
     ValueNode* object = maps->receiver_input().node();
     if (IsLoopPhi(object)) {
-      return ProcessResult::kContinue;
+      return ProcessResult::kSkipBlock;
     }
     if (!loop_effects->unstable_aspects_cleared && CanHoist(maps)) {
       if (auto j = current_block->predecessor_at(0)
@@ -137,12 +162,10 @@ class LoopOptimizationProcessor {
                        ->TryCast<CheckpointedJump>()) {
         maps->SetEagerDeoptInfo(zone, j->eager_deopt_info()->top_frame(),
                                 maps->eager_deopt_info()->feedback_to_update());
-      } else {
-        return ProcessResult::kContinue;
+        return ProcessResult::kHoist;
       }
-      return ProcessResult::kHoist;
     }
-    return ProcessResult::kContinue;
+    return ProcessResult::kSkipBlock;
   }
 
   template <typename NodeT>
@@ -165,16 +188,13 @@ class LoopOptimizationProcessor {
 
 template <typename NodeT>
 constexpr bool CanBeStoreToNonEscapedObject() {
-  return std::is_same_v<NodeT, StoreMap> ||
-         std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
-         std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier> ||
-         std::is_same_v<NodeT, StoreTrustedPointerFieldWithWriteBarrier> ||
-         std::is_same_v<NodeT, StoreFloat64>;
+  return CanBeStoreToNonEscapedObject(NodeBase::opcode_of<NodeT>);
 }
 
 class AnyUseMarkingProcessor {
  public:
   void PreProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
@@ -204,6 +224,11 @@ class AnyUseMarkingProcessor {
 
 #ifdef DEBUG
   ProcessResult Process(Dead* node, const ProcessingState& state) {
+    if (!v8_flags.maglev_untagged_phis) {
+      // These nodes are removed in the phi representation selector, if we are
+      // running without it. Just remove it here.
+      return ProcessResult::kRemove;
+    }
     UNREACHABLE();
   }
 #endif  // DEBUG
@@ -228,11 +253,11 @@ class AnyUseMarkingProcessor {
 
   void VerifyEscapeAnalysis(Graph* graph) {
 #ifdef DEBUG
-    for (auto it : graph->allocations_escape_map()) {
-      auto alloc = it.first;
+    for (const auto& it : graph->allocations_escape_map()) {
+      auto* alloc = it.first;
       DCHECK(alloc->HasBeenAnalysed());
       if (alloc->HasEscaped()) {
-        for (auto dep : it.second) {
+        for (auto* dep : it.second) {
           DCHECK(dep->HasEscaped());
         }
       }
@@ -241,8 +266,8 @@ class AnyUseMarkingProcessor {
   }
 
   void RunEscapeAnalysis(Graph* graph) {
-    for (auto it : graph->allocations_escape_map()) {
-      auto alloc = it.first;
+    for (auto& it : graph->allocations_escape_map()) {
+      auto* alloc = it.first;
       if (alloc->HasBeenAnalysed()) continue;
       // Check if all its uses are non escaping.
       if (alloc->IsEscaping()) {
@@ -304,6 +329,7 @@ class DeadNodeSweepingProcessor {
 
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }

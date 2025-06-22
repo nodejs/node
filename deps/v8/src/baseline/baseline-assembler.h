@@ -202,9 +202,17 @@ class BaselineAssembler {
   inline void AddToInterruptBudgetAndJumpIfNotExceeded(
       Register weight, Label* skip_interrupt_label);
 
-  inline void LdaContextSlot(Register context, uint32_t index, uint32_t depth);
-  inline void StaContextSlot(Register context, Register value, uint32_t index,
-                             uint32_t depth);
+  // By default, the output register may be compressed on 64-bit architectures
+  // that support pointer compression.
+  enum class CompressionMode {
+    kDefault,
+    kForceDecompression,
+  };
+  inline void LdaContextSlotNoCell(
+      Register context, uint32_t index, uint32_t depth,
+      CompressionMode compression_mode = CompressionMode::kDefault);
+  inline void StaContextSlotNoCell(Register context, Register value,
+                                   uint32_t index, uint32_t depth);
   inline void LdaModuleVariable(Register context, int cell_index,
                                 uint32_t depth);
   inline void StaModuleVariable(Register context, Register value,
@@ -230,6 +238,12 @@ class BaselineAssembler {
 
   inline void LoadFeedbackCell(Register output);
   inline void AssertFeedbackCell(Register object);
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  // If CET shadow stack is enabled, reserves a few bytes as NOP that can be
+  // patched later.
+  inline void MaybeEmitPlaceHolderForDeopt();
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
   inline static void EmitReturn(MacroAssembler* masm);
 

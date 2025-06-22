@@ -30,10 +30,10 @@ namespace {
 
 // This is significantly faster for case-sensitive matches with very
 // few possible matches.
-absl::Nullable<const char*> memmatch(absl::Nullable<const char*> phaystack,
-                                     size_t haylen,
-                                     absl::Nullable<const char*> pneedle,
-                                     size_t neelen) {
+const char* absl_nullable memmatch(const char* absl_nullable phaystack,
+                                   size_t haylen,
+                                   const char* absl_nullable pneedle,
+                                   size_t neelen) {
   if (0 == neelen) {
     return phaystack;  // even if haylen is 0
   }
@@ -232,11 +232,6 @@ string_view::size_type string_view::find_last_not_of(
   }
   return npos;
 }
-
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr string_view::size_type string_view::npos;
-constexpr string_view::size_type string_view::kMaxSize;
-#endif
 
 ABSL_NAMESPACE_END
 }  // namespace absl

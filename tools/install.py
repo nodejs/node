@@ -181,9 +181,19 @@ def files(options, action):
       link_path = abspath(options.install_path, 'lib/libnode.so')
       try_symlink(options, so_name, link_path)
     else:
-      output_lib = 'libnode.' + options.variables.get('shlib_suffix')
-      action(options, [os.path.join(options.build_dir, output_lib)],
-             os.path.join(options.variables.get('libdir'), output_lib))
+      # Ninja and Makefile generators output the library in different directories;
+      # find out which one we have, and install first found
+      output_lib_name = 'libnode.' + options.variables.get('shlib_suffix')
+      output_lib_candidate_paths = [
+        os.path.join(options.build_dir, output_lib_name),
+        os.path.join(options.build_dir, "lib", output_lib_name),
+      ]
+      try:
+        output_lib = next(filter(os.path.exists, output_lib_candidate_paths))
+      except StopIteration as not_found:
+        raise RuntimeError("No libnode.so to install!") from not_found
+      action(options, [output_lib],
+             os.path.join(options.variables.get('libdir'), output_lib_name))
 
   action(options, [os.path.join(options.v8_dir, 'tools/gdbinit')], 'share/doc/node/')
   action(options, [os.path.join(options.v8_dir, 'tools/lldb_commands.py')], 'share/doc/node/')
@@ -212,6 +222,7 @@ def headers(options, action):
       'include/cppgc/internal/caged-heap-local-data.h',
       'include/cppgc/internal/caged-heap.h',
       'include/cppgc/internal/compiler-specific.h',
+      'include/cppgc/internal/conditional-stack-allocated.h',
       'include/cppgc/internal/finalizer-trait.h',
       'include/cppgc/internal/gc-info.h',
       'include/cppgc/internal/logging.h',
@@ -226,7 +237,6 @@ def headers(options, action):
       'include/cppgc/cross-thread-persistent.h',
       'include/cppgc/custom-space.h',
       'include/cppgc/default-platform.h',
-      'include/cppgc/ephemeron-pair.h',
       'include/cppgc/explicit-management.h',
       'include/cppgc/garbage-collected.h',
       'include/cppgc/heap-consistency.h',

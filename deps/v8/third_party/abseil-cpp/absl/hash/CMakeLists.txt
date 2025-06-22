@@ -39,6 +39,7 @@ absl_cc_library(
     absl::variant
     absl::utility
     absl::low_level_hash
+    absl::weakly_mixed_integer
   PUBLIC
 )
 
@@ -68,18 +69,14 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::btree
+    absl::bits
     absl::cord_test_helpers
-    absl::core_headers
     absl::flat_hash_map
     absl::flat_hash_set
     absl::hash
     absl::hash_testing
-    absl::int128
     absl::memory
     absl::meta
-    absl::node_hash_map
-    absl::node_hash_set
     absl::optional
     absl::spy_hash_state
     absl::string_view
@@ -123,6 +120,7 @@ absl_cc_library(
     absl::hash
     absl::strings
     absl::str_format
+    absl::weakly_mixed_integer
   TESTONLY
   PUBLIC
 )
@@ -167,9 +165,22 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::config
+    absl::core_headers
     absl::endian
     absl::int128
     absl::prefetch
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
+    weakly_mixed_integer
+  HDRS
+    "internal/weakly_mixed_integer.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
 )
 
 absl_cc_test(

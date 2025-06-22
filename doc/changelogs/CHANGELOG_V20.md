@@ -9,6 +9,8 @@
 </tr>
 <tr>
 <td>
+<a href="#20.19.2">20.19.2</a><br/>
+<a href="#20.19.1">20.19.1</a><br/>
 <a href="#20.19.0">20.19.0</a><br/>
 <a href="#20.18.3">20.18.3</a><br/>
 <a href="#20.18.2">20.18.2</a><br/>
@@ -48,6 +50,7 @@
 </table>
 
 * Other Versions
+  * [24.x](CHANGELOG_V24.md)
   * [23.x](CHANGELOG_V23.md)
   * [22.x](CHANGELOG_V22.md)
   * [21.x](CHANGELOG_V21.md)
@@ -71,6 +74,47 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.19.2"></a>
+
+## 2025-05-14, Version 20.19.2 'Iron' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2025-23166) fix error handling on async crypto operation
+* (CVE-2025-23167) (SEMVER-MAJOR) update llhttp to 9.2.0
+* (CVE-2025-23165) add missing call to uv\_fs\_req\_cleanup
+
+### Commits
+
+* \[[`eb25047b1b`](https://github.com/nodejs/node/commit/eb25047b1b)] - **deps**: update llhttp to 9.2.0 (Node.js GitHub Bot) [#51719](https://github.com/nodejs/node/pull/51719)
+* \[[`12dcd8db08`](https://github.com/nodejs/node/commit/12dcd8db08)] - **deps**: update llhttp to 9.1.3 (Node.js GitHub Bot) [#50080](https://github.com/nodejs/node/pull/50080)
+* \[[`190e45a291`](https://github.com/nodejs/node/commit/190e45a291)] - **(SEMVER-MAJOR)** **(CVE-2025-23167)** **deps**: update llhttp to 9.1.2 (Paolo Insogna) [#48981](https://github.com/nodejs/node/pull/48981)
+* \[[`fc68c44e6a`](https://github.com/nodejs/node/commit/fc68c44e6a)] - **fs**: added test for missing call to uv\_fs\_req\_cleanup (Justin Nietzel) [#57811](https://github.com/nodejs/node/pull/57811)
+* \[[`9e13bf0a81`](https://github.com/nodejs/node/commit/9e13bf0a81)] - **(CVE-2025-23165)** **fs**: add missing call to uv\_fs\_req\_cleanup (Justin Nietzel) [#57811](https://github.com/nodejs/node/pull/57811)
+* \[[`bd0aa5d44c`](https://github.com/nodejs/node/commit/bd0aa5d44c)] - **(CVE-2024-27982)** **http**: do not allow OBS fold in headers by default (Paolo Insogna) [nodejs-private/node-private#556](https://github.com/nodejs-private/node-private/pull/556)
+* \[[`6c57465920`](https://github.com/nodejs/node/commit/6c57465920)] - **(CVE-2025-23166)** **src**: fix error handling on async crypto operations (RafaelGSS) [nodejs-private/node-private#710](https://github.com/nodejs-private/node-private/pull/710)
+
+<a id="20.19.1"></a>
+
+## 2025-04-22, Version 20.19.1 'Iron' (LTS), @UlisesGascon prepared by @RafaelGSS
+
+### Notable Changes
+
+* \[[`d5e73ce0f8`](https://github.com/nodejs/node/commit/d5e73ce0f8)] - **deps**: update undici to 6.21.2 (Matteo Collina) [#57442](https://github.com/nodejs/node/pull/57442)
+* \[[`e4a6323ab2`](https://github.com/nodejs/node/commit/e4a6323ab2)] - **deps**: update c-ares to v1.34.5 (Node.js GitHub Bot) [#57792](https://github.com/nodejs/node/pull/57792)
+
+### Commits
+
+* \[[`d5e73ce0f8`](https://github.com/nodejs/node/commit/d5e73ce0f8)] - **deps**: update undici to 6.21.2 (Matteo Collina) [#57442](https://github.com/nodejs/node/pull/57442)
+* \[[`e4a6323ab2`](https://github.com/nodejs/node/commit/e4a6323ab2)] - **deps**: update c-ares to v1.34.5 (Node.js GitHub Bot) [#57792](https://github.com/nodejs/node/pull/57792)
+* \[[`b2b9eb36af`](https://github.com/nodejs/node/commit/b2b9eb36af)] - **dns**: restore dns query cache ttl (Ethan Arrowood) [#57640](https://github.com/nodejs/node/pull/57640)
+* \[[`07a99a5c0b`](https://github.com/nodejs/node/commit/07a99a5c0b)] - **doc**: correct status of require(esm) warning in v20 changelog (Joyee Cheung) [#57529](https://github.com/nodejs/node/pull/57529)
+* \[[`d45517ccbf`](https://github.com/nodejs/node/commit/d45517ccbf)] - **meta**: bump Mozilla-Actions/sccache-action from 0.0.8 to 0.0.9 (dependabot\[bot]) [#57720](https://github.com/nodejs/node/pull/57720)
+* \[[`fa93bb2633`](https://github.com/nodejs/node/commit/fa93bb2633)] - **test**: update parallel/test-tls-dhe for OpenSSL 3.5 (Richard Lau) [#57477](https://github.com/nodejs/node/pull/57477)
+* \[[`29c032403c`](https://github.com/nodejs/node/commit/29c032403c)] - **tools**: update sccache to support GH cache changes (Michaël Zasso) [#57573](https://github.com/nodejs/node/pull/57573)
 
 <a id="20.19.0"></a>
 

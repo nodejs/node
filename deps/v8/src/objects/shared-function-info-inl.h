@@ -5,6 +5,9 @@
 #ifndef V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_
 
+#include "src/objects/shared-function-info.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
 #include "src/base/macros.h"
@@ -22,17 +25,16 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
-#include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/objects/templates-inl.h"
-
-// Has to be the last include (doesn't have include guards):
-#include "src/objects/object-macros.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8::internal {
 
@@ -336,7 +338,7 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
   }
 
   {
-    SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
+    MutexGuardIfOffThread<IsolateT> mutex_guard(
         isolate->shared_function_info_access(), isolate);
     if (HasBreakInfo(isolate->GetMainThreadIsolateUnsafe())) {
       return kMayContainBreakPoints;
@@ -397,6 +399,8 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, properties_are_final,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags,
                     private_name_lookup_skips_outer_class,
                     SharedFunctionInfo::PrivateNameLookupSkipsOuterClassBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, relaxed_flags, live_edited,
+                    SharedFunctionInfo::LiveEditedBit)
 
 bool SharedFunctionInfo::optimization_disabled() const {
   return disabled_optimization_reason() != BailoutReason::kNoReason;
@@ -524,11 +528,6 @@ void SharedFunctionInfo::DontAdaptArguments() {
   TorqueGeneratedClass::set_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
-bool SharedFunctionInfo::IsDontAdaptArguments() const {
-  return TorqueGeneratedClass::formal_parameter_count() ==
-         kDontAdaptArgumentsSentinel;
-}
-
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, Tagged<ScopeInfo>) {
   Tagged<Object> maybe_scope_info = name_or_scope_info(cage_base, kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info, cage_base)) {
@@ -652,33 +651,74 @@ IsCompiledScope SharedFunctionInfo::is_compiled_scope(IsolateT* isolate) const {
 }
 
 IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
-                                 Isolate* isolate)
-    : is_compiled_(shared->is_compiled()) {
-  if (shared->HasBaselineCode()) {
-    retain_code_ = handle(shared->baseline_code(kAcquireLoad), isolate);
-  } else if (shared->HasBytecodeArray()) {
-    retain_code_ = handle(shared->GetBytecodeArray(isolate), isolate);
+                                 Isolate* isolate) {
+  Tagged<Object> data_obj = shared->GetTrustedData();
+  if (Tagged<HeapObject> data; TryCast<HeapObject>(data_obj, &data)) {
+    if (Tagged<Code> code; TryCast<Code>(data, &code)) {
+      DCHECK_EQ(code->kind(), CodeKind::BASELINE);
+      data = code->bytecode_or_interpreter_data();
+    }
+    // Unlike GetBytecodeArray, we don't bother checking for DebugInfo here. If
+    // there is DebugInfo, then it will hold both the debug and original
+    // BytecodeArray strongly, so it doesn't matter which of those we hold.
+    if (Tagged<BytecodeArray> bytecode;
+        TryCast<BytecodeArray>(data, &bytecode)) {
+      retain_code_ = handle(bytecode, isolate);
+      is_compiled_ = true;
+    } else if (Tagged<InterpreterData> interpreter_data;
+               TryCast<InterpreterData>(data, &interpreter_data)) {
+      retain_code_ = handle(interpreter_data->bytecode_array(), isolate);
+      is_compiled_ = true;
+    } else if (Is<UncompiledData>(data)) {
+      retain_code_ = {};
+      is_compiled_ = false;
+    } else {
+      retain_code_ = {};
+      is_compiled_ = shared->is_compiled();
+    }
   } else {
-    retain_code_ = MaybeHandle<HeapObject>();
+    retain_code_ = {};
+    is_compiled_ = shared->is_compiled();
   }
 
   DCHECK_IMPLIES(!retain_code_.is_null(), is_compiled());
+  DCHECK_EQ(shared->is_compiled(), is_compiled());
 }
 
 IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
-                                 LocalIsolate* isolate)
-    : is_compiled_(shared->is_compiled()) {
-  if (shared->HasBaselineCode()) {
-    retain_code_ = isolate->heap()->NewPersistentHandle(
-        shared->baseline_code(kAcquireLoad));
-  } else if (shared->HasBytecodeArray()) {
-    retain_code_ =
-        isolate->heap()->NewPersistentHandle(shared->GetBytecodeArray(isolate));
+                                 LocalIsolate* isolate) {
+  Tagged<Object> data_obj = shared->GetTrustedData();
+  if (Tagged<HeapObject> data; TryCast<HeapObject>(data_obj, &data)) {
+    if (Tagged<Code> code; TryCast<Code>(data, &code)) {
+      DCHECK(code->kind() == CodeKind::BASELINE);
+      data = code->bytecode_or_interpreter_data();
+    }
+    // Unlike GetBytecodeArray, we don't bother checking for DebugInfo here. If
+    // there is DebugInfo, then it will hold both the debug and original
+    // BytecodeArray strongly, so it doesn't matter which of those we hold.
+    if (Tagged<BytecodeArray> bytecode;
+        TryCast<BytecodeArray>(data, &bytecode)) {
+      retain_code_ = isolate->heap()->NewPersistentHandle(bytecode);
+      is_compiled_ = true;
+    } else if (Tagged<InterpreterData> interpreter_data;
+               TryCast<InterpreterData>(data, &interpreter_data)) {
+      retain_code_ = isolate->heap()->NewPersistentHandle(
+          interpreter_data->bytecode_array());
+      is_compiled_ = true;
+    } else if (Is<UncompiledData>(data)) {
+      retain_code_ = {};
+      is_compiled_ = false;
+    } else {
+      retain_code_ = {};
+      is_compiled_ = shared->is_compiled();
+    }
   } else {
-    retain_code_ = MaybeHandle<HeapObject>();
+    retain_code_ = {};
+    is_compiled_ = shared->is_compiled();
   }
 
   DCHECK_IMPLIES(!retain_code_.is_null(), is_compiled());
+  DCHECK_EQ(shared->is_compiled(), is_compiled());
 }
 
 bool SharedFunctionInfo::has_simple_parameters() {
@@ -713,7 +753,7 @@ DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
 template <typename IsolateT>
 Tagged<BytecodeArray> SharedFunctionInfo::GetBytecodeArray(
     IsolateT* isolate) const {
-  SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
+  MutexGuardIfOffThread<IsolateT> mutex_guard(
       isolate->shared_function_info_access(), isolate);
 
   DCHECK(HasBytecodeArray());
@@ -801,8 +841,9 @@ Tagged<InterpreterData> SharedFunctionInfo::interpreter_data(
 }
 
 void SharedFunctionInfo::set_interpreter_data(
-    Tagged<InterpreterData> interpreter_data, WriteBarrierMode mode) {
-  DCHECK(v8_flags.interpreted_frames_native_stack);
+    Isolate* isolate, Tagged<InterpreterData> interpreter_data,
+    WriteBarrierMode mode) {
+  DCHECK(isolate->interpreted_frames_native_stack());
   DCHECK(!HasBaselineCode());
   SetTrustedData(interpreter_data, mode);
 }
@@ -874,31 +915,6 @@ void SharedFunctionInfo::set_asm_wasm_data(Tagged<AsmWasmData> data,
   SetUntrustedData(data, mode);
 }
 
-const wasm::WasmModule* SharedFunctionInfo::wasm_module() const {
-  if (!HasWasmExportedFunctionData()) return nullptr;
-  Tagged<WasmExportedFunctionData> function_data =
-      wasm_exported_function_data();
-  return function_data->instance_data()->module();
-}
-
-const wasm::FunctionSig* SharedFunctionInfo::wasm_function_signature() const {
-  const wasm::WasmModule* module = wasm_module();
-  if (!module) return nullptr;
-  Tagged<WasmExportedFunctionData> function_data =
-      wasm_exported_function_data();
-  DCHECK_LT(function_data->function_index(), module->functions.size());
-  return module->functions[function_data->function_index()].sig;
-}
-
-int SharedFunctionInfo::wasm_function_index() const {
-  if (!HasWasmExportedFunctionData()) return -1;
-  Tagged<WasmExportedFunctionData> function_data =
-      wasm_exported_function_data();
-  DCHECK_GE(function_data->function_index(), 0);
-  DCHECK_LT(function_data->function_index(), wasm_module()->functions.size());
-  return function_data->function_index();
-}
-
 DEF_GETTER(SharedFunctionInfo, wasm_function_data, Tagged<WasmFunctionData>) {
   DCHECK(HasWasmFunctionData());
   // TODO(saelo): It would be nicer if the caller provided an IsolateForSandbox.
@@ -935,13 +951,6 @@ DEF_GETTER(SharedFunctionInfo, wasm_capi_function_data,
 DEF_GETTER(SharedFunctionInfo, wasm_resume_data, Tagged<WasmResumeData>) {
   DCHECK(HasWasmResumeData());
   return Cast<WasmResumeData>(GetUntrustedData());
-}
-
-bool SharedFunctionInfo::is_promising_wasm_export() const {
-  Tagged<WasmExportedFunctionData> function_data =
-      wasm_exported_function_data();
-  return WasmFunctionData::PromiseField::decode(
-             function_data->js_promise_flags()) == wasm::kPromise;
 }
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1042,12 +1051,15 @@ void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
                 UncompiledData::kHeaderSize);
 
   // Fill the remaining space with filler and clear slots in the trimmed area.
-  heap->NotifyObjectSizeChange(data, UncompiledDataWithPreparseData::kSize,
+  int old_size = data->Size();
+  DCHECK_LE(UncompiledDataWithPreparseData::kSize, old_size);
+  heap->NotifyObjectSizeChange(data, old_size,
                                UncompiledDataWithoutPreparseData::kSize,
                                ClearRecordedSlots::kYes);
 
   // Swap the map.
-  data->set_map(GetReadOnlyRoots().uncompiled_data_without_preparse_data_map(),
+  data->set_map(heap->isolate(),
+                GetReadOnlyRoots().uncompiled_data_without_preparse_data_map(),
                 kReleaseStore);
 
   // Ensure that the clear was successful.
@@ -1055,7 +1067,7 @@ void SharedFunctionInfo::ClearPreparseData(IsolateForSandbox isolate) {
 }
 
 void UncompiledData::InitAfterBytecodeFlush(
-    IsolateForSandbox isolate, Tagged<String> inferred_name, int start_position,
+    Isolate* isolate, Tagged<String> inferred_name, int start_position,
     int end_position,
     std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
                        Tagged<HeapObject> target)>

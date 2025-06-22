@@ -36,19 +36,20 @@ TNode<JSProxy> ProxiesCodeStubAssembler::AllocateProxy(
     // Every object that is a constructor is implicitly callable
     // so it's okay to nest this check here
     GotoIf(IsConstructor(target), &constructor_target);
-    map = CAST(
-        LoadContextElement(nativeContext, Context::PROXY_CALLABLE_MAP_INDEX));
+    map = CAST(LoadContextElementNoCell(nativeContext,
+                                        Context::PROXY_CALLABLE_MAP_INDEX));
     Goto(&create_proxy);
   }
   BIND(&constructor_target);
   {
-    map = CAST(LoadContextElement(nativeContext,
-                                  Context::PROXY_CONSTRUCTOR_MAP_INDEX));
+    map = CAST(LoadContextElementNoCell(nativeContext,
+                                        Context::PROXY_CONSTRUCTOR_MAP_INDEX));
     Goto(&create_proxy);
   }
   BIND(&none_target);
   {
-    map = CAST(LoadContextElement(nativeContext, Context::PROXY_MAP_INDEX));
+    map =
+        CAST(LoadContextElementNoCell(nativeContext, Context::PROXY_MAP_INDEX));
     Goto(&create_proxy);
   }
 
@@ -97,12 +98,11 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
       trap_undefined(this);
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
-  TNode<HeapObject> handler =
+  TNode<Union<Null, JSReceiver>> handler =
       CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
 
   // 2. If handler is null, throw a TypeError exception.
-  CSA_DCHECK(this, IsNullOrJSReceiver(handler));
-  GotoIfNot(JSAnyIsNotPrimitive(handler), &throw_proxy_handler_revoked);
+  GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
 
   // 3. Assert: Type(handler) is Object.
   CSA_DCHECK(this, IsJSReceiver(handler));
@@ -116,7 +116,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   TNode<Object> trap = GetMethod(context, handler, trap_name, &trap_undefined);
 
   CodeStubArguments args(this, argc_ptr);
-  TNode<Object> receiver = args.GetReceiver();
+  TNode<JSAny> receiver = args.GetReceiver();
 
   // 7. Let argArray be CreateArrayFromList(argumentsList).
   TNode<JSArray> array = EmitFastNewAllArguments(
@@ -126,7 +126,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
 
   // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
   TNode<Object> result = Call(context, trap, handler, target, receiver, array);
-  args.PopAndReturn(result);
+  args.PopAndReturn(CAST(result));
 
   BIND(&trap_undefined);
   {
@@ -153,12 +153,11 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
       trap_undefined(this), not_an_object(this, Label::kDeferred);
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
-  TNode<HeapObject> handler =
+  TNode<Union<Null, JSReceiver>> handler =
       CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
 
   // 2. If handler is null, throw a TypeError exception.
-  CSA_DCHECK(this, IsNullOrJSReceiver(handler));
-  GotoIfNot(JSAnyIsNotPrimitive(handler), &throw_proxy_handler_revoked);
+  GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
 
   // 3. Assert: Type(handler) is Object.
   CSA_DCHECK(this, IsJSReceiver(handler));
@@ -180,7 +179,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
       UncheckedCast<IntPtrT>(args.GetLengthWithoutReceiver()));
 
   // 8. Let newObj be ? Call(trap, handler, « target, argArray, newTarget »).
-  TNode<Object> new_obj =
+  TNode<JSAny> new_obj =
       Call(context, trap, handler, target, array, new_target);
 
   // 9. If Type(newObj) is not Object, throw a TypeError exception.
@@ -263,8 +262,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
         Label continue_check(this, Label::kDeferred);
         // 10.b. If IsAccessorDescriptor(targetDesc) is true and
         // targetDesc.[[Get]] is undefined, then:
-        TNode<Object> getter =
-            LoadObjectField(accessor_pair, AccessorPair::kGetterOffset);
+        TNode<Object> getter = LoadAccessorPairGetter(CAST(accessor_pair));
         // Here we check for null as well because if the getter was never
         // defined it's set as null.
         GotoIf(IsUndefined(getter), &continue_check);
@@ -277,8 +275,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
       } else {
         // 11.b.i. If targetDesc.[[Set]] is undefined, throw a TypeError
         // exception.
-        TNode<Object> setter =
-            LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
+        TNode<Object> setter = LoadAccessorPairSetter(CAST(accessor_pair));
         GotoIf(IsUndefined(setter), &throw_non_configurable_accessor);
         GotoIf(IsNull(setter), &throw_non_configurable_accessor);
       }

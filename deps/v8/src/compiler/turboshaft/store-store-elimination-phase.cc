@@ -18,6 +18,9 @@
 namespace v8::internal::compiler::turboshaft {
 
 void StoreStoreEliminationPhase::Run(PipelineData* data, Zone* temp_zone) {
+  UnparkedScopeIfNeeded unparked_scope(
+      data->broker(), v8_flags.turboshaft_trace_load_elimination);
+
   turboshaft::CopyingPhase<
       LoopStackCheckElisionReducer, StoreStoreEliminationReducer,
       LateLoadEliminationReducer, MachineOptimizationReducer,

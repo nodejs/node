@@ -122,6 +122,7 @@ class GraphProcessor {
     process_constants(graph->tagged_index());
     process_constants(graph->int32());
     process_constants(graph->uint32());
+    process_constants(graph->intptr());
     process_constants(graph->float64());
     process_constants(graph->external_references());
     process_constants(graph->trusted_constants());
@@ -163,16 +164,16 @@ class GraphProcessor {
 
       node_processor_.PostPhiProcessing();
 
-      for (node_it_ = block->nodes().begin();
-           node_it_ != block->nodes().end();) {
+      for (node_it_ = block->nodes().begin(); node_it_ != block->nodes().end();
+           ++node_it_) {
         Node* node = *node_it_;
+        if (node == nullptr) continue;
         ProcessResult result = ProcessNodeBase(node, GetCurrentState());
         switch (result) {
           [[likely]] case ProcessResult::kContinue:
-            ++node_it_;
             break;
           case ProcessResult::kRemove:
-            node_it_ = block->nodes().RemoveAt(node_it_);
+            *node_it_ = nullptr;
             break;
           case ProcessResult::kHoist: {
             DCHECK(block->predecessor_count() == 1 ||
@@ -181,8 +182,8 @@ class GraphProcessor {
             DCHECK(target->successors().size() == 1);
             Node* cur = *node_it_;
             cur->set_owner(target);
-            block->nodes().RemoveAt(node_it_);
-            target->nodes().Add(cur);
+            *node_it_ = nullptr;
+            target->nodes().push_back(cur);
             node_it_ = block->nodes().begin();
             break;
           }
@@ -208,6 +209,7 @@ class GraphProcessor {
         }
       }
     skip_block:
+      node_processor_.PostProcessBasicBlock(block);
       continue;
     }
 
@@ -259,6 +261,7 @@ class NodeMultiProcessor<> {
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     return BlockProcessResult::kContinue;
   }
+  void PostProcessBasicBlock(BasicBlock* block) {}
   V8_INLINE ProcessResult Process(NodeBase* node,
                                   const ProcessingState& state) {
     return ProcessResult::kContinue;
@@ -304,6 +307,10 @@ class NodeMultiProcessor<Processor, Processors...>
     // Post process in reverse order because that kind of makes sense.
     Base::PostProcessGraph(graph);
     processor_.PostProcessGraph(graph);
+  }
+  void PostProcessBasicBlock(BasicBlock* block) {
+    Base::PostProcessBasicBlock(block);
+    processor_.PostProcessBasicBlock(block);
   }
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
     BlockProcessResult res = processor_.PreProcessBasicBlock(block);

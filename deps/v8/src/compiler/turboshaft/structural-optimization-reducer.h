@@ -245,22 +245,27 @@ class StructuralOptimizationReducer : public Next {
     }
     CHECK_EQ(cases.size(), false_blocks.size());
 
-    // We're skipping the last false block, as it becomes the default block.
-    for (size_t i = 0; i < false_blocks.size() - 1; ++i) {
-      const Block* block = false_blocks[i];
-      InlineAllOperationsWithoutLast(block);
+    // Sorting the cases because it will help figure out if there is a duplicate
+    // case (in which case we bailout, since this is not well handled by the
+    // code generator).
+    // Note that this isn't wasted work: there is a good chance that the
+    // instruction selector will emit a binary search for this switch, which
+    // will require the cases to be sorted.
+    std::stable_sort(
+        cases.begin(), cases.end(),
+        [](SwitchOp::Case a, SwitchOp::Case b) { return a.value < b.value; });
+    auto it = std::adjacent_find(
+        cases.begin(), cases.end(),
+        [](SwitchOp::Case a, SwitchOp::Case b) { return a.value == b.value; });
+    if (it != cases.end()) {
+      TRACE("\t [bailout] Multiple cases with the value %d.\n", (*it).value);
+      goto no_change;
     }
 
-    TRACE("[reduce] Successfully emit a Switch with %zu cases.", cases.size());
-
-    // The last current_if_true block that ends the cascade becomes the default
-    // case.
-    Block* default_block = current_if_false;
-    Asm().Switch(
-        Asm().MapToNewGraph(switch_var),
-        Asm().output_graph().graph_zone()->CloneVector(base::VectorOf(cases)),
-        Asm().MapToNewGraph(default_block), next_hint);
-    return OpIndex::Invalid();
+    TRACE("[reduce] Successfully emit a Switch with %zu cases.\n",
+          cases.size());
+    return EmitSwitch(switch_var, cases, false_blocks, current_if_false,
+                      next_hint);
   }
 
  private:
@@ -284,6 +289,26 @@ class StructuralOptimizationReducer : public Next {
     for (OpIndex op : base::IterateWithoutLast(all_ops)) {
       Asm().InlineOp(op, input_block);
     }
+  }
+
+  V<None> EmitSwitch(OpIndex switch_var,
+                     base::SmallVector<SwitchOp::Case, 16>& cases,
+                     base::SmallVector<const Block*, 16>& false_blocks,
+                     Block* current_if_false, BranchHint next_hint) {
+    // We're skipping the last false block, as it becomes the default block.
+    for (size_t i = 0; i < false_blocks.size() - 1; ++i) {
+      const Block* block = false_blocks[i];
+      InlineAllOperationsWithoutLast(block);
+    }
+
+    // The last current_if_true block that ends the cascade becomes the default
+    // case.
+    Block* default_block = current_if_false;
+    Asm().Switch(
+        Asm().MapToNewGraph(switch_var),
+        Asm().output_graph().graph_zone()->CloneVector(base::VectorOf(cases)),
+        Asm().MapToNewGraph(default_block), next_hint);
+    return OpIndex::Invalid();
   }
 };
 
