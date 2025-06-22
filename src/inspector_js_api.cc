@@ -391,8 +391,6 @@ void Initialize(Local<Object> target, Local<Value> unused,
   SetMethodNoSideEffect(context, target, "isEnabled", IsEnabled);
   SetMethod(context, target, "emitProtocolEvent", EmitProtocolEvent);
   SetMethod(context, target, "setupNetworkTracking", SetupNetworkTracking);
-
-  // Register putNetworkResource as a method
   SetMethod(context, target, "putNetworkResource", PutNetworkResource);
 
   Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
