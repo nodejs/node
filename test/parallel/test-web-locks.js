@@ -1,10 +1,11 @@
 'use strict';
 // Flags: --expose-gc
 
-require('../common');
+const common = require('../common');
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
-const { Worker } = require('worker_threads');
+const { Worker } = require('node:worker_threads');
+const { AsyncLocalStorage } = require('node:async_hooks');
 
 describe('Web Locks with worker threads', () => {
   it('should handle exclusive locks', async () => {
@@ -172,5 +173,50 @@ describe('Web Locks with worker threads', () => {
     assert.strictEqual(callbackCount, 100);
     assert.strictEqual(resolveCount, 100);
     assert(after < before * 3);
+  });
+
+  it('should preserve AsyncLocalStorage context across lock callback', async () => {
+    const als = new AsyncLocalStorage();
+    const store = { id: 'lock' };
+
+    als.run(store, () => {
+      navigator.locks
+        .request('als-context-test', async () => {
+          assert.strictEqual(als.getStore(), store);
+        })
+        .catch(common.mustNotCall());
+    });
+  });
+
+  it('should clean up when worker is terminated with a pending lock', async () => {
+    // Acquire the lock in the main thread so that the worker's request will be pending
+    await navigator.locks.request('cleanup-test', async () => {
+      // Launch a worker that requests the same lock
+      const worker = new Worker(`
+        const { parentPort } = require('worker_threads');
+        
+        parentPort.postMessage({ requesting: true });
+        
+        navigator.locks.request('cleanup-test', async () => {
+          return 'should-not-complete';
+        }).catch(err => {
+          parentPort.postMessage({ error: err.name });
+        });
+      `, { eval: true });
+
+      const requestSignal = await new Promise((resolve) => {
+        worker.once('message', resolve);
+      });
+
+      assert.strictEqual(requestSignal.requesting, true);
+
+      await worker.terminate();
+
+    });
+
+    // Request the lock again to make sure cleanup succeeded
+    await navigator.locks.request('cleanup-test', async (lock) => {
+      assert.strictEqual(lock.name, 'cleanup-test');
+    });
   });
 });
