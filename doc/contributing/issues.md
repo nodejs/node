@@ -4,6 +4,7 @@
 * [Discussing non-technical topics](#discussing-non-technical-topics)
 * [Submitting a bug report](#submitting-a-bug-report)
 * [Triaging a bug report](#triaging-a-bug-report)
+* [Blocking Issues](#blocking-issues)
 
 ## Asking for general help
 
@@ -71,6 +72,13 @@ When triagging issues and PRs:
   merged for pull requests). Closing an issue (or PR) earlier can be seen as
   dismissive from the point of view of the reporter/author.
   Always try to communicate the reason for closing the issue/PR.
+
+## Blocking Issues
+
+Collaborators have the ability to block issues from getting implemented and landed into
+the project by commenting and explicitly including "-1" in the comment.
+When doing so, explain why you believe the pull request should not land along with
+an explanation of what may be an acceptable alternative course, if any.
 
 [Node.js help repository]: https://github.com/nodejs/help/issues
 [Technical Steering Committee (TSC) repository]: https://github.com/nodejs/TSC/issues

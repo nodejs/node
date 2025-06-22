@@ -35,6 +35,7 @@ See [details on our policy on Code of Conduct](./doc/contributing/code-of-conduc
 * [Discussing non-technical topics](./doc/contributing/issues.md#discussing-non-technical-topics)
 * [Submitting a Bug Report](./doc/contributing/issues.md#submitting-a-bug-report)
 * [Triaging a Bug Report](./doc/contributing/issues.md#triaging-a-bug-report)
+* [Blocking Issues](./doc/contributing/issues.md#blocking-issues)
 
 ## [Pull Requests](./doc/contributing/pull-requests.md)
 
