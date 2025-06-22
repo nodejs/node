@@ -1,22 +1,15 @@
 #include "base_object-inl.h"
-#include "inspector/io_agent.h"
+#include "inspector/network_resource_manager.h"
 #include "inspector/protocol_helper.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"
 #include "memory_tracker-inl.h"
 #include "node_external_reference.h"
-#include "node_worker.h"
 #include "util-inl.h"
 #include "v8-inspector.h"
-#include "v8-isolate.h"
-#include "v8-local-handle.h"
-#include "v8-persistent-handle.h"
-#include "v8-primitive.h"
 #include "v8.h"
 
-#include <cstddef>
 #include <memory>
-#include <string>
 
 namespace node {
 namespace inspector {
@@ -342,68 +335,16 @@ void Url(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), url));
 }
 
-void AddFallThroughListener(const FunctionCallbackInfo<Value>& args) {
+void PutNetworkResource(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  CHECK(args[0]->IsFunction());
-  Local<Function> local_callback = args[0].As<Function>();
-  auto global_callback =
-      std::make_shared<v8::Global<Function>>(isolate, local_callback);
-
-  env->inspector_agent()->AddFallThroughListener([env, global_callback](
-                                                     int session_id,
-                                                     int call_id,
-                                                     std::string_view method,
-                                                     std::string_view message) {
-    Isolate* isolate = env->isolate();
-    HandleScope handle_scope(isolate);
-    Local<Context> context = env->context();
-
-    Local<Function> callback = global_callback->Get(isolate);
-    Local<v8::Integer> session_id_value = Uint32::New(isolate, session_id);
-    Local<v8::Integer> call_id_value = Uint32::New(isolate, call_id);
-    Local<String> method_string =
-        String::NewFromUtf8(
-            isolate, method.data(), v8::NewStringType::kNormal, method.size())
-            .ToLocalChecked();
-    Local<String> message_string =
-        String::NewFromUtf8(
-            isolate, message.data(), v8::NewStringType::kNormal, message.size())
-            .ToLocalChecked();
-    Local<Value> argv[] = {
-        session_id_value, call_id_value, method_string, message_string};
-    callback->Call(context, Undefined(isolate), 4, argv).ToLocalChecked();
-  });
-}
-
-void EmitProtocolResponseInParent(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  auto isolate = env->isolate();
-  CHECK(args[0]->IsNumber());
-  Local<v8::Number> call_id = args[0].As<v8::Number>();
-  CHECK(args[1]->IsString());
-  Local<String> params = args[1].As<String>();
-  v8::String::Utf8Value utf8(isolate, params);
-  std::string params_str(*utf8);
-
-  CHECK(args[2]->IsNumber());
-  int64_t session_id;
-  if (!args[2]->IntegerValue(env->context()).To(&session_id)) {
-    return;
-  }
-  env->inspector_agent()->EmitProtocolResponseInParent(
-      call_id->Value(), params_str, session_id);
-}
-
-void AddIoData(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 2);
   CHECK(args[0]->IsString());
-  Local<String> data = args[0].As<String>();
-  Utf8Value utf8(env->isolate(), data);
-  std::string data_str(*utf8);
-  int streamId = protocol::IoAgent::setData(data_str);
+  CHECK(args[1]->IsString());
 
-  args.GetReturnValue().Set(v8::Integer::New(env->isolate(), streamId));
+  Utf8Value url(env->isolate(), args[0].As<String>());
+  Utf8Value data(env->isolate(), args[1].As<String>());
+
+  NetworkResourceManager::Put(*url, *data);
 }
 
 void Initialize(Local<Object> target, Local<Value> unused,
@@ -449,13 +390,10 @@ void Initialize(Local<Object> target, Local<Value> unused,
   SetMethod(context, target, "registerAsyncHook", RegisterAsyncHookWrapper);
   SetMethodNoSideEffect(context, target, "isEnabled", IsEnabled);
   SetMethod(context, target, "emitProtocolEvent", EmitProtocolEvent);
-  SetMethod(context,
-            target,
-            "emitProtocolResponseInParent",
-            EmitProtocolResponseInParent);
   SetMethod(context, target, "setupNetworkTracking", SetupNetworkTracking);
-  SetMethod(context, target, "addFallThroughListener", AddFallThroughListener);
-  SetMethod(context, target, "addIoData", AddIoData);
+
+  // Register putNetworkResource as a method
+  SetMethod(context, target, "putNetworkResource", PutNetworkResource);
 
   Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
 
@@ -490,10 +428,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RegisterAsyncHookWrapper);
   registry->Register(IsEnabled);
   registry->Register(EmitProtocolEvent);
-  registry->Register(EmitProtocolResponseInParent);
   registry->Register(SetupNetworkTracking);
-  registry->Register(AddFallThroughListener);
-  registry->Register(AddIoData);
 
   registry->Register(JSBindingsConnection<LocalConnection>::New);
   registry->Register(JSBindingsConnection<LocalConnection>::Dispatch);
@@ -501,6 +436,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(JSBindingsConnection<MainThreadConnection>::New);
   registry->Register(JSBindingsConnection<MainThreadConnection>::Dispatch);
   registry->Register(JSBindingsConnection<MainThreadConnection>::Disconnect);
+  registry->Register(PutNetworkResource);
 }
 
 }  // namespace inspector

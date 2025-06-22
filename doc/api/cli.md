@@ -1068,8 +1068,7 @@ added:
 
 > Stability: 1.1 - Active Development
 
-Enables the Network.loadNetworkResource method in the Chrome DevTools Protocol (CDP) during debugging sessions.
-This feature allows DevTools to fetch additional resources directly through the inspector backend.
+Enable experimental support for inspector network resources.
 
 ### `--experimental-loader=module`
 

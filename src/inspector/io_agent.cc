@@ -1,8 +1,10 @@
 #include "io_agent.h"
 #include <algorithm>
+#include <iostream>
 #include <string>
+#include <string_view>
 #include "crdtp/dispatch.h"
-#include "node_mutex.h"
+#include "inspector/network_resource_manager.h"
 
 namespace node::inspector::protocol {
 
@@ -11,44 +13,36 @@ void IoAgent::Wire(UberDispatcher* dispatcher) {
   IO::Dispatcher::wire(dispatcher, this);
 }
 
-std::unordered_map<int, int> IoAgent::offset_map_;
-std::unordered_map<int, std::string> IoAgent::data_map_;
-std::atomic<int> IoAgent::stream_counter_{1};
-Mutex IoAgent::data_mutex_;
-
-int IoAgent::setData(const std::string& value) {
-  int key = getNextStreamId();
-  Mutex::ScopedLock lock(data_mutex_);
-  data_map_[key] = value;
-
-  return key;
-}
-
-int IoAgent::getNextStreamId() {
-  return stream_counter_++;
-}
-
 DispatchResponse IoAgent::read(const String& in_handle,
                                Maybe<int> in_offset,
                                Maybe<int> in_size,
                                String* out_data,
                                bool* out_eof) {
-  Mutex::ScopedReadLock lock(data_mutex_);
   std::string in_handle_str = in_handle;
-  int stream_id = 0;
+  uint64_t stream_id = 0;
   bool is_number =
       std::all_of(in_handle_str.begin(), in_handle_str.end(), ::isdigit);
   if (!is_number) {
-    out_data = new String("");
+    *out_data = "";
     *out_eof = true;
     return DispatchResponse::Success();
   }
-  stream_id = std::stoi(in_handle_str);
+  stream_id = std::stoull(in_handle_str);
 
-  std::string txt = data_map_[stream_id];
+  std::string url = NetworkResourceManager::GetUrlForStreamId(stream_id);
+  if (url.empty()) {
+    *out_data = "";
+    *out_eof = true;
+    return DispatchResponse::Success();
+  }
+  std::string txt = NetworkResourceManager::Get(url);
+  std::string_view txt_view(txt);
+
   int offset = 0;
+  bool offset_was_specified = false;
   if (in_offset.isJust()) {
     offset = in_offset.fromJust();
+    offset_was_specified = true;
   } else if (offset_map_.find(stream_id) != offset_map_.end()) {
     offset = offset_map_[stream_id];
   }
@@ -56,30 +50,30 @@ DispatchResponse IoAgent::read(const String& in_handle,
   if (in_size.isJust()) {
     size = in_size.fromJust();
   }
-
-  if (static_cast<std::size_t>(offset) < txt.length()) {
-    std::string out_txt = txt.substr(offset, size);
-    out_data->assign(out_txt);
+  if (static_cast<std::size_t>(offset) < txt_view.length()) {
+    std::string_view out_view = txt_view.substr(offset, size);
+    out_data->assign(out_view.data(), out_view.size());
     *out_eof = false;
+    if (!offset_was_specified) {
+      offset_map_[stream_id] = offset + size;
+    }
   } else {
+    *out_data = "";
     *out_eof = true;
   }
-
-  offset_map_[stream_id] = offset + size;
 
   return DispatchResponse::Success();
 }
 
 DispatchResponse IoAgent::close(const String& in_handle) {
-  Mutex::ScopedWriteLock lock(data_mutex_);
   std::string in_handle_str = in_handle;
-  int stream_id = 0;
+  uint64_t stream_id = 0;
   bool is_number =
       std::all_of(in_handle_str.begin(), in_handle_str.end(), ::isdigit);
   if (is_number) {
-    stream_id = std::stoi(in_handle_str);
-    offset_map_.erase(stream_id);
-    data_map_.erase(stream_id);
+    stream_id = std::stoull(in_handle_str);
+    // Use accessor to erase resource and mapping by stream id
+    NetworkResourceManager::EraseByStreamId(stream_id);
   }
   return DispatchResponse::Success();
 }
