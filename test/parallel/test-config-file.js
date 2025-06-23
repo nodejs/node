@@ -239,6 +239,7 @@ test('--inspect=true should be parsed correctly', { skip: !process.features.insp
     '--no-warnings',
     '--experimental-config-file',
     fixtures.path('rc/inspect-true.json'),
+    '--inspect-port', '0',
     '-p', 'require("node:inspector").url()',
   ]);
   match(result.stderr, /^Debugger listening on (ws:\/\/[^\s]+)/);
