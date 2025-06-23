@@ -126,9 +126,11 @@ if (isMainThread) {
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
 } else {  // Worker.
   [
+    'Internal Binding locks',
     'NativeModule diagnostics_channel',
     'NativeModule internal/abort_controller',
     'NativeModule internal/error_serdes',
+    'NativeModule internal/locks',
     'NativeModule internal/perf/event_loop_utilization',
     'NativeModule internal/process/worker_thread_only',
     'NativeModule internal/streams/add-abort-signal',
@@ -149,7 +151,6 @@ if (isMainThread) {
     'NativeModule internal/streams/writable',
     'NativeModule internal/worker',
     'NativeModule internal/worker/io',
-    'NativeModule internal/worker/locks',
     'NativeModule internal/worker/messaging',
     'NativeModule stream',
     'NativeModule stream/promises',
