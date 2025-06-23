@@ -215,10 +215,11 @@ void Dotenv::ParseContent(const std::string_view input,
       continue;
     }
 
+    // If the content starts with `[` we're most likely entering a section (e.g. `[section]`)
     if (content.front() == '[') {
       auto closing_bracket_idx = content.find_first_of(']');
       if (closing_bracket_idx != std::string_view::npos) {
-        // We've entered a new section of the file
+        // We've indeed entered a new section
         auto quote_idx = content.find_first_of('"');
         if (quote_idx != std::string_view::npos &&
             quote_idx < closing_bracket_idx) {
@@ -229,6 +230,7 @@ void Dotenv::ParseContent(const std::string_view input,
           current_section = content.substr(1, closing_bracket_idx - 1);
         }
         current_section = trim_spaces(current_section);
+
         content.remove_prefix(closing_bracket_idx + 1);
         // After processing the section we remove everything after the closing
         // bracket, this means that if the user put something after the section
