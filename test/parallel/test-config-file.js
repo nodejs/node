@@ -1,12 +1,17 @@
 'use strict';
 
-const { spawnPromisified, skipIfSQLiteMissing } = require('../common');
+const {
+  isWindows,
+  spawnPromisified,
+  skipIfSQLiteMissing,
+} = require('../common');
 skipIfSQLiteMissing();
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 const { match, strictEqual, deepStrictEqual } = require('node:assert');
 const { test, it, describe } = require('node:test');
-const { chmodSync, constants } = require('node:fs');
-const common = require('../common');
+const { chmodSync, writeFileSync, constants } = require('node:fs');
+const { join } = require('node:path');
 
 test('should handle non existing json', async () => {
   const result = await spawnPromisified(process.execPath, [
@@ -364,21 +369,24 @@ test('should override node.config.json when specificied', async () => {
 // Skip on windows because it doesn't support chmod changing read permissions
 // Also skip if user is root because it would have read permissions anyway
 test('should throw an error when the file is non readable', {
-  skip: common.isWindows || process.getuid() === 0,
+  skip: isWindows || process.getuid() === 0,
 }, async () => {
-  chmodSync(fixtures.path('rc/non-readable/node.config.json'), constants.O_RDONLY);
+  tmpdir.refresh();
+  const dest = join(tmpdir.path, 'node.config.json');
+  writeFileSync(dest, JSON.stringify({
+    nodeOptions: { 'max-http-header-size': 10 }
+  }));
+  chmodSync(dest, constants.O_RDONLY);
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-default-config-file',
     '-p', 'http.maxHeaderSize',
   ], {
-    cwd: fixtures.path('rc/non-readable'),
+    cwd: tmpdir.path,
   });
   match(result.stderr, /Cannot read configuration from node\.config\.json: permission denied/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 9);
-  chmodSync(fixtures.path('rc/non-readable/node.config.json'),
-            constants.S_IRWXU | constants.S_IRWXG | constants.S_IRWXO);
 });
 
 describe('namespace-scoped options', () => {
