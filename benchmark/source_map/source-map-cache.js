@@ -21,7 +21,7 @@ function main({ operation, n }) {
   Module.setSourceMapsSupport(true, {
     generatedCode: true,
   });
-  const validFileName = fixtures.path('test-runner/source-maps/line-lengths/index.js')
+  const validFileName = fixtures.path('test-runner/source-maps/line-lengths/index.js');
 
   const fileNameKey = '/source-map/disk.js';
   const generatedFileName = fixtures.path(fileNameKey);

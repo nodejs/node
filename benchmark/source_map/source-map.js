@@ -2,8 +2,7 @@
 
 const common = require('../common.js');
 const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
+const fixtures = require('../../test/common/fixtures');
 
 const bench = common.createBenchmark(
   main,
@@ -24,19 +23,14 @@ function main({ operation, n }) {
   const { SourceMap } = require('node:module');
 
   const samplePayload = JSON.parse(
-    fs.readFileSync(
-      path.resolve(__dirname, '../../test/fixtures/source-map/no-source.js.map'),
-      'utf8',
-    ),
+    fixtures.readSync('source-map/no-source.js.map', 'utf8'),
   );
   const sectionedPayload = JSON.parse(
-    fs.readFileSync(
-      path.resolve(__dirname, '../../test/fixtures/source-map/disk-index.map'),
-      'utf8',
-    ),
+    fixtures.readSync('source-map/disk-index.map', 'utf8'),
   );
 
   let sourceMap;
+  let sourceMapMethod;
   switch (operation) {
     case 'parse':
       bench.start();
@@ -58,36 +52,40 @@ function main({ operation, n }) {
       sourceMap = new SourceMap(samplePayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap.findEntry(i, i);
+        sourceMapMethod = sourceMap.findEntry(i, i);
       }
       bench.end(n);
+      assert.ok(sourceMapMethod);
       break;
 
     case 'findEntry-sectioned':
       sourceMap = new SourceMap(sectionedPayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap.findEntry(i, i);
+        sourceMapMethod = sourceMap.findEntry(i, i);
       }
       bench.end(n);
+      assert.ok(sourceMapMethod);
       break;
 
     case 'findOrigin':
       sourceMap = new SourceMap(samplePayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap.findOrigin(i, i);
+        sourceMapMethod = sourceMap.findOrigin(i, i);
       }
       bench.end(n);
+      assert.ok(sourceMapMethod);
       break;
 
     case 'findOrigin-sectioned':
       sourceMap = new SourceMap(sectionedPayload);
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap.findOrigin(i, i);
+        sourceMapMethod = sourceMap.findOrigin(i, i);
       }
       bench.end(n);
+      assert.ok(sourceMapMethod);
       break;
 
     default:
