@@ -215,7 +215,8 @@ void Dotenv::ParseContent(const std::string_view input,
       continue;
     }
 
-    // If the content starts with `[` we're most likely entering a section (e.g. `[section]`)
+    // If the content starts with `[` we're most likely entering
+    // a section (e.g. `[section]`)
     if (content.front() == '[') {
       auto closing_bracket_idx = content.find_first_of(']');
       if (closing_bracket_idx != std::string_view::npos) {
