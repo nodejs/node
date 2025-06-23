@@ -2,8 +2,7 @@
 
 const common = require('../common.js');
 const assert = require('assert');
-const path = require('path');
-const fs = require('fs');
+const fixtures = require('../../test/common/fixtures');
 
 const bench = common.createBenchmark(
   main,
@@ -22,20 +21,15 @@ function main({ operation, n }) {
   Module.setSourceMapsSupport(true, {
     generatedCode: true,
   });
-  const validFileName = path.resolve(
-    __dirname,
-    '../../test/fixtures/test-runner/source-maps/line-lengths/index.js',
-  );
+  const validFileName = fixtures.path('test-runner/source-maps/line-lengths/index.js')
 
-  const generatedFileName = path.resolve(
-    __dirname,
-    '../../test/fixtures/source-map/disk.js',
-  );
-  const generatedFileContent = fs.readFileSync(generatedFileName, 'utf8');
-  const sourceMapUrl = path.basename(generatedFileName, '.js') + '.map';
+  const fileNameKey = '/source-map/disk.js';
+  const generatedFileName = fixtures.path(fileNameKey);
+  const generatedFileContent = fixtures.readSync(fileNameKey, 'utf8');
+  const sourceMapUrl = generatedFileName.replace(/\.js$/, '.map');
   const sourceWithGeneratedSourceMap =
     `${generatedFileContent}\n//# sourceMappingURL=${sourceMapUrl}\n//# sourceURL=${generatedFileName}`;
-  const generatedExpectedUrl = `file://${path.resolve(generatedFileName)}`;
+  const generatedExpectedUrl = `file://${generatedFileName}`;
 
   let sourceMap;
   switch (operation) {
