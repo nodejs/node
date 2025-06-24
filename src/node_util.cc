@@ -228,10 +228,9 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   int fd;
   if (!args[0]->Int32Value(env->context()).To(&fd)) return;
 
-  // If the provided file descriptor is not valid, we return `-1`, which in JS
-  // land will be marked as null
+  // If the provided file descriptor is not valid, we return null
   if (fd < 0) [[unlikely]] {
-    args.GetReturnValue().Set(-1);
+    args.GetReturnValue().Set(v8::Null(env->isolate()));
     return;
   }
 
