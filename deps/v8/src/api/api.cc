@@ -9548,7 +9548,9 @@ Local<Symbol> v8::Symbol::ForApi(Isolate* v8_isolate, Local<String> name) {
   V(Split, split)                             \
   V(ToPrimitive, to_primitive)                \
   V(ToStringTag, to_string_tag)               \
-  V(Unscopables, unscopables)
+  V(Unscopables, unscopables)                 \
+  V(Dispose, dispose)                         \
+  V(AsyncDispose, async_dispose)
 
 #define SYMBOL_GETTER(Name, name)                                      \
   Local<Symbol> v8::Symbol::Get##Name(Isolate* v8_isolate) {           \
