@@ -642,7 +642,7 @@ A browser-compatible implementation of [`localStorage`][]. Data is stored
 unencrypted in the file specified by the [`--localstorage-file`][] CLI flag.
 The maximum amount of data that can be stored is 10 MB.
 Any modification of this data outside of the Web Storage API is not supported.
-Disable this API with the [`--no-experimental-webstorage`][] (or its alias [`--no-webstorage`][]) CLI flag.
+Disable this API with the [`--no-webstorage`][] (or its alias [`--no-experimental-webstorage`][]) CLI flag.
 `localStorage` data is not stored per user or per request when used in the context
 of a server, it is shared across all users and requests.
 

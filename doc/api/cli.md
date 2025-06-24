@@ -1718,7 +1718,7 @@ added: v22.4.0
 The file used to store `localStorage` data. If the file does not exist, it is
 created the first time `localStorage` is accessed. The same file may be shared
 between multiple Node.js processes concurrently. This flag is a no-op if
-Node.js is started with the `--no-experimental-webstorage` (or `--no-webstorage`) flag.
+Node.js is started with the `--no-webstorage` (or `--no-experimental-webstorage`) flag.
 
 ### `--max-http-header-size=size`
 
@@ -1900,7 +1900,7 @@ Disable exposition of {WebSocket} on the global scope.
 added: v22.4.0
 -->
 
-Disable experimental [`Web Storage`][] support.
+Alias for `--no-webstorage`.
 
 ### `--no-extra-info-on-fatal-exception`
 
@@ -1957,7 +1957,7 @@ Silence all process warnings (including deprecations).
 added: REPLACEME
 -->
 
-Alias for `--no-experimental-webstorage`.
+Disable experimental [`Web Storage`][] support.
 
 ### `--node-memory-debug`
 
