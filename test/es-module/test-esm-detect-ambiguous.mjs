@@ -283,7 +283,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
 
       match(
         stderr,
-        /ERR_AMBIGUOUS_MODULE_SYNTAX: This file cannot be parsed as either CommonJS or ES Module\. CommonJS error: await is only valid in async functions\. ES Module error: require is not defined in ES module scope\. If you meant to use CommonJS, wrap top-level await in async function\. If you meant to use ESM, do not use require\(\)\./
+        /ReferenceError: Cannot determine intended module format because both require\(\) and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
       );
       strictEqual(stdout, '');
       strictEqual(code, 1);
@@ -440,7 +440,7 @@ describe('cjs & esm ambiguous syntax case', () => {
 
     match(
       stderr,
-      /ERR_AMBIGUOUS_MODULE_SYNTAX: This file cannot be parsed as either CommonJS or ES Module\. CommonJS error: await is only valid in async functions\. ES Module error: require is not defined in ES module scope\. If you meant to use CommonJS, wrap top-level await in async function\. If you meant to use ESM, do not use require\(\)\./
+      /ReferenceError: Cannot determine intended module format because both require\(\) and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
     );
 
     strictEqual(code, 1);
