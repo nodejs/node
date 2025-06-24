@@ -6,6 +6,7 @@ const spawn = require('child_process').spawn;
 const vm = require('vm');
 const node = process.execPath;
 
+
 if (process.argv[2] === 'child') {
   throw new Error('child error');
 } else if (process.argv[2] === 'vm') {
