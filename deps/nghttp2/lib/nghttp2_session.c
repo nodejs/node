@@ -41,7 +41,7 @@
 #include "nghttp2_debug.h"
 #include "nghttp2_submit.h"
 
-nghttp2_stream root;
+nghttp2_stream nghttp2_stream_root;
 
 /*
  * Returns non-zero if the number of outgoing opened streams is larger
@@ -1092,6 +1092,15 @@ int nghttp2_session_add_item(nghttp2_session *session,
 
 int nghttp2_session_add_rst_stream(nghttp2_session *session, int32_t stream_id,
                                    uint32_t error_code) {
+  return nghttp2_session_add_rst_stream_continue(
+    session, stream_id, error_code,
+    /* continue_without_stream = */ 1);
+}
+
+int nghttp2_session_add_rst_stream_continue(nghttp2_session *session,
+                                            int32_t stream_id,
+                                            uint32_t error_code,
+                                            int continue_without_stream) {
   int rv;
   nghttp2_outbound_item *item;
   nghttp2_frame *frame;
@@ -1146,6 +1155,12 @@ int nghttp2_session_add_rst_stream(nghttp2_session *session, int32_t stream_id,
         return 0;
       }
     }
+  }
+
+  /* To keep the old behaviour, do not fail if stream was not
+     found. */
+  if (!continue_without_stream && !stream) {
+    return 0;
   }
 
   item = nghttp2_mem_malloc(mem, sizeof(nghttp2_outbound_item));
@@ -7715,7 +7730,7 @@ int32_t nghttp2_session_get_last_proc_stream_id(nghttp2_session *session) {
 nghttp2_stream *nghttp2_session_find_stream(nghttp2_session *session,
                                             int32_t stream_id) {
   if (stream_id == 0) {
-    return &root;
+    return &nghttp2_stream_root;
   }
 
   return nghttp2_session_get_stream_raw(session, stream_id);
@@ -7724,7 +7739,7 @@ nghttp2_stream *nghttp2_session_find_stream(nghttp2_session *session,
 nghttp2_stream *nghttp2_session_get_root_stream(nghttp2_session *session) {
   (void)session;
 
-  return &root;
+  return &nghttp2_stream_root;
 }
 
 int nghttp2_session_check_server_session(nghttp2_session *session) {
