@@ -22,7 +22,6 @@
 // This test cannot run in strict mode because it tests that `baseFoo` is
 // treated as a global without being declared with `var`/`let`/`const`.
 
-// Flags: --localstorage-file=./test/fixtures/localstoragefile-global-test
 /* eslint-disable strict */
 const common = require('../common');
 const fixtures = require('../common/fixtures');

@@ -1,6 +1,5 @@
 'use strict';
 
-// Flags: --localstorage-file=./test/fixtures/localstoragefile-global-test
 const { skipIfSQLiteMissing, spawnPromisified } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
@@ -42,9 +41,9 @@ test('sessionStorage is not persisted', async () => {
   assert.strictEqual((await readdir(tmpdir.path)).length, 0);
 });
 
-test('localStorage emits a warning without --localstorage-file ', async () => {
+test('localStorage emits a warning when used without --localstorage-file ', async () => {
   const cp = await spawnPromisified(process.execPath, [
-    '-pe', 'localStorage === globalThis.localStorage',
+    '-pe', 'localStorage.length',
   ]);
   assert.strictEqual(cp.code, 0);
   assert.strictEqual(cp.signal, null);
