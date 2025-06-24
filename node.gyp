@@ -1335,6 +1335,13 @@
       ]
     }, # overlapped-checker
     {
+      'target_name': 'nop',
+      'type': 'executable',
+      'sources': [
+        'test/nop/nop.c',
+      ]
+    }, # nop
+    {
       'target_name': 'node_js2c',
       'type': 'executable',
       'toolsets': ['host'],
