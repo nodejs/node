@@ -250,7 +250,7 @@ bool HasInstance(Local<Object> obj) {
 char* Data(Local<Value> val) {
   CHECK(val->IsArrayBufferView());
   Local<ArrayBufferView> ui = val.As<ArrayBufferView>();
-  return static_cast<char*>(ui->Buffer()->Data()) + ui->ByteOffset();
+  return static_cast<char*>(ui->Buffer()->Data());
 }
 
 
