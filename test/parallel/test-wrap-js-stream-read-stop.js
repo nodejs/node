@@ -1,4 +1,4 @@
-// Flags: --expose-internals --localstorage-file=./test/fixtures/localstoragefile-global-test
+// Flags: --expose-internals
 'use strict';
 
 require('../common');
