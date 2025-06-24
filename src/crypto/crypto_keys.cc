@@ -807,7 +807,7 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   Utf8Value name(env->isolate(), args[0]);
 
   ArrayBufferOrViewContents<unsigned char> key_data(args[1]);
-  KeyType type = static_cast<KeyType>(args[2].As<Int32>()->Value());
+  KeyType type = FromV8Value<KeyType>(args[2]);
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 

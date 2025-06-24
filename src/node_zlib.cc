@@ -53,7 +53,6 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
-using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -687,8 +686,7 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
   static void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK(args[0]->IsInt32());
-    node_zlib_mode mode =
-        static_cast<node_zlib_mode>(args[0].As<Int32>()->Value());
+    node_zlib_mode mode = FromV8Value<node_zlib_mode>(args[0]);
     new ZlibStream(env, args.This(), mode);
   }
 
@@ -793,8 +791,7 @@ class BrotliCompressionStream final :
   static void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK(args[0]->IsInt32());
-    node_zlib_mode mode =
-        static_cast<node_zlib_mode>(args[0].As<Int32>()->Value());
+    node_zlib_mode mode = FromV8Value<node_zlib_mode>(args[0]);
     new BrotliCompressionStream(env, args.This(), mode);
   }
 
