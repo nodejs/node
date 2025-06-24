@@ -951,7 +951,7 @@ TIMEOUT_SCALEFACTOR = {
 
 class Context(object):
 
-  def __init__(self, workspace, verbose, vm, args, expect_fail,
+  def __init__(self, workspace, verbose, vm, args, expect_fail, # noqa: PLR0913
                 timeout, processor, suppress_dialogs,
                 store_unexpected_output, repeat, abort_on_timeout,
                 target_failures=None, max_iterations=None):
@@ -1015,7 +1015,7 @@ def RunTestCases(cases_to_run, progress, tasks, flaky_tests_mode, measure_flakin
   total_failures = 0
   failure_details = []
 
-  while (total_failures < progress.target_failures and 
+  while (total_failures < progress.target_failures and
          iteration < progress.max_iterations):
     iteration += 1
     print(f"\nIteration {iteration}")
