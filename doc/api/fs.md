@@ -1317,7 +1317,10 @@ added: REPLACEME
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-* Returns: {Promise} Fulfills with an {AsyncDisposableTempDirectory} on success.
+* Returns: {Promise} Fulfills with a Promise for an async-disposable Object:
+  * `path` {string} The path of the created directory.
+  * `remove` {AsyncFunction} A function which removes the created directory.
+  * `[Symbol.asyncDispose]` {AsyncFunction} The same as `remove`.
 
 The resulting Promise holds an async-disposable object whose `path` property
 holds the created directory path. When the object is disposed, the directory
@@ -5939,7 +5942,10 @@ added: REPLACEME
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-* Returns: {DisposableTempDirectory}
+* Returns: {Object} A disposable object:
+  * `path` {string} The path of the created directory.
+  * `remove` {Function} A function which removes the created directory.
+  * `[Symbol.dispose]` {Function} The same as `remove`.
 
 Returns a disposable object whose `path` property holds the created directory
 path. When the object is disposed, the directory and its contents will be
@@ -6647,82 +6653,6 @@ this API: [`fs.writev()`][].
 
 The common objects are shared by all of the file system API variants
 (promise, callback, and synchronous).
-
-### Class: `AsyncDisposableTempDirectory`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Created by [`fsPromises.mkdtempDisposable()`][].
-
-#### `asyncDisposableTempDirectory.path`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Type: {string}
-
-The path of the created directory.
-
-#### `asyncDisposableTempDirectory.remove()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: <Promise> Fulfills with `undefined` upon success.
-
-Removes the created directory and its contents.
-
-#### `asyncDisposableTempDirectory[Symbol.asyncDispose]()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: <Promise> Fulfills with `undefined` upon success.
-
-Removes the created directory and its contents. The same as `remove`.
-
-### Class: `DisposableTempDirectory`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Created by [`fs.mkdtempDisposableSync()`][].
-
-#### `disposableTempDirectory.path`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Type: {string}
-
-The path of the created directory.
-
-#### `disposableTempDirectory.remove()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Returns `undefined`.
-
-Removes the created directory and its contents.
-
-#### `disposableTempDirectory[Symbol.dispose]()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Returns `undefined`.
-
-Removes the created directory and its contents. The same as `remove`.
 
 ### Class: `fs.Dir`
 
@@ -8601,7 +8531,6 @@ the file contents.
 [`fs.lutimes()`]: #fslutimespath-atime-mtime-callback
 [`fs.mkdir()`]: #fsmkdirpath-options-callback
 [`fs.mkdtemp()`]: #fsmkdtempprefix-options-callback
-[`fs.mkdtempDisposableSync()`]: #fsmkdtempdisposablesyncprefix-options
 [`fs.open()`]: #fsopenpath-flags-mode-callback
 [`fs.opendir()`]: #fsopendirpath-options-callback
 [`fs.opendirSync()`]: #fsopendirsyncpath-options
@@ -8627,7 +8556,6 @@ the file contents.
 [`fsPromises.access()`]: #fspromisesaccesspath-mode
 [`fsPromises.copyFile()`]: #fspromisescopyfilesrc-dest-mode
 [`fsPromises.mkdtemp()`]: #fspromisesmkdtempprefix-options
-[`fsPromises.mkdtempDisposable()`]: #fspromisesmkdtempdisposableprefix-options
 [`fsPromises.open()`]: #fspromisesopenpath-flags-mode
 [`fsPromises.opendir()`]: #fspromisesopendirpath-options
 [`fsPromises.rm()`]: #fspromisesrmpath-options
