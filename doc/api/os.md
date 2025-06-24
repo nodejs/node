@@ -520,6 +520,10 @@ added: REPLACEME
 
 Returns the type of the file descriptor passed in, or `null` if the provided file descriptor
 is invalid.
+A common use case for this function is checking whether standard input is passed into your process,
+and if it is, if it can be consumed by the process. For example, on Unix systems, if the type is `TTY`, it means
+you can prompt the user for new data while the process is running, and if it's `FILE` or `PIPE`, it means there is data
+available, but you shouldn't try to prompt for more.
 
 Currently, the following types for a file descriptor can be returned:
 
