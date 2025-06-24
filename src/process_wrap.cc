@@ -173,7 +173,7 @@ class ProcessWrap : public HandleWrap {
           return Nothing<void>();
         }
         CHECK(fd_value->IsNumber());
-        int fd = static_cast<int>(fd_value.As<Integer>()->Value());
+        int fd = FromV8Value<int>(fd_value);
         options->stdio[i].flags = UV_INHERIT_FD;
         options->stdio[i].data.fd = fd;
       }

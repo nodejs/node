@@ -41,7 +41,6 @@ using v8::HandleScope;
 using v8::HeapCodeStatistics;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
-using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -489,8 +488,7 @@ static void GetCppHeapStatistics(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
 
   cppgc::HeapStatistics stats = isolate->GetCppHeap()->CollectStatistics(
-      static_cast<cppgc::HeapStatistics::DetailLevel>(
-          args[0].As<Int32>()->Value()));
+      FromV8Value<cppgc::HeapStatistics::DetailLevel>(args[0]));
 
   Local<Object> result;
   if (!ConvertHeapStatsToJSObject(isolate, stats).ToLocal(&result)) {
