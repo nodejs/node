@@ -120,11 +120,6 @@ class ProgressIndicator(object):
     self.target_failures = None
     self.max_iterations = None
     self.style = None
-    self.iteration_stats = {
-        'iterations': 0,
-        'total_failures': 0,
-        'failure_details': []
-    }
 
   def GetFailureOutput(self, failure):
     output = []
