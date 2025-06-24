@@ -500,15 +500,8 @@ will be restricted.
 
 ```console
 $ node --experimental-permission index.js
-node:internal/modules/cjs/loader:171
-  const result = internalModuleStat(filename);
-                 ^
 
 Error: Access to this API has been restricted
-    at stat (node:internal/modules/cjs/loader:171:18)
-    at Module._findPath (node:internal/modules/cjs/loader:627:16)
-    at resolveMainPath (node:internal/modules/run_main:19:25)
-    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:76:24)
     at node:internal/main/run_main_module:23:47 {
   code: 'ERR_ACCESS_DENIED',
   permission: 'FileSystemRead',
