@@ -518,6 +518,22 @@ describe('Mock Timers Test Suite', () => {
           });
         });
 
+        it('should clear the abort listener when the timer resolves', async (t) => {
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          const expectedResult = 'result';
+          const controller = new AbortController();
+          const p = nodeTimersPromises.setTimeout(500, expectedResult, {
+            ref: true,
+            signal: controller.signal,
+          });
+
+          assert(hasAbortListener(controller.signal));
+
+          t.mock.timers.tick(500);
+          await p;
+          assert(!hasAbortListener(controller.signal));
+        });
+
         it('should reject given an an invalid signal instance', async (t) => {
           t.mock.timers.enable({ apis: ['setTimeout'] });
           const expectedResult = 'result';
