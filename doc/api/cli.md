@@ -1947,7 +1947,7 @@ Silence all process warnings (including deprecations).
 added: REPLACEME
 -->
 
-Disable experimental [`Web Storage`][] support.
+Disable [`Web Storage`][] support.
 
 ### `--node-memory-debug`
 
