@@ -1,5 +1,4 @@
 'use strict';
-
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
