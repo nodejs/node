@@ -4006,6 +4006,8 @@ THREADED_TEST(WellKnownSymbols) {
   CheckWellKnownSymbol(v8::Symbol::GetSplit, "Symbol.split");
   CheckWellKnownSymbol(v8::Symbol::GetToPrimitive, "Symbol.toPrimitive");
   CheckWellKnownSymbol(v8::Symbol::GetToStringTag, "Symbol.toStringTag");
+  CheckWellKnownSymbol(v8::Symbol::GetDispose, "Symbol.dispose");
+  CheckWellKnownSymbol(v8::Symbol::GetAsyncDispose, "Symbol.asyncDispose");
 }
 
 
