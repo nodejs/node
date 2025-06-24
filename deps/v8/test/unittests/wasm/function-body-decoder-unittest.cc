@@ -3089,16 +3089,16 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
       {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprI32Add});
   ExpectFailure(sigs.i_ii(), {WASM_BLOCK_X(sig0, WASM_NOP), kExprI32Add},
                 kAppendEnd,
-                "expected 2 elements on the stack for fallthru, found 0");
+                "expected 2 elements on the stack for fallthrough, found 0");
   ExpectFailure(
       sigs.i_ii(), {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0)), kExprI32Add},
-      kAppendEnd, "expected 2 elements on the stack for fallthru, found 1");
+      kAppendEnd, "expected 2 elements on the stack for fallthrough, found 1");
   ExpectFailure(sigs.i_ii(),
                 {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1),
                               WASM_LOCAL_GET(0)),
                  kExprI32Add},
                 kAppendEnd,
-                "expected 2 elements on the stack for fallthru, found 3");
+                "expected 2 elements on the stack for fallthrough, found 3");
   ExpectFailure(
       sigs.i_ii(),
       {WASM_BLOCK_X(sig0, WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprF32Add},
@@ -3994,7 +3994,7 @@ TEST_F(FunctionBodyDecoderTest, BrOnNonNull) {
 
     // br_on_non_null does not leave a value on the stack.
     ExpectFailure(&sig, {WASM_BR_ON_NON_NULL(0, WASM_LOCAL_GET(0))}, kAppendEnd,
-                  "expected 1 elements on the stack for fallthru, found 0");
+                  "expected 1 elements on the stack for fallthrough, found 0");
   }
 }
 
@@ -4028,7 +4028,7 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
   ExpectFailure(
       &sig_r_v,
       {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(0), WASM_I32V(1))},
-      kAppendEnd, "expected 1 elements on the stack for fallthru, found 2");
+      kAppendEnd, "expected 1 elements on the stack for fallthrough, found 2");
   // Mistyped arguments.
   ExpectFailure(&sig_v_r,
                 {WASM_STRUCT_NEW(struct_type_index, WASM_LOCAL_GET(0))},
@@ -4086,7 +4086,7 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
                 {WASM_STRUCT_SET(struct_type_index, field_index,
                                  WASM_LOCAL_GET(0), WASM_I32V(0))},
                 kAppendEnd,
-                "expected 1 elements on the stack for fallthru, found 0");
+                "expected 1 elements on the stack for fallthrough, found 0");
   // Setting immutable field.
   ExpectFailure(sigs.v_v(),
                 {WASM_STRUCT_SET(
@@ -5977,7 +5977,7 @@ TEST_F(FunctionBodyDecoderTest, WasmSuspend) {
       sigs.v_v(), {WASM_SUSPEND(tag_i_i), WASM_DROP}, kAppendEnd,
       "not enough arguments on the stack for suspend (need 1, got 0)");
   ExpectFailure(sigs.v_v(), {WASM_I32V(42), WASM_SUSPEND(tag_i_i)}, kAppendEnd,
-                "expected 0 elements on the stack for fallthru, found 1");
+                "expected 0 elements on the stack for fallthrough, found 1");
   ExpectFailure(sigs.v_v(), {WASM_F64(42.0), WASM_SUSPEND(tag_i_i)}, kAppendEnd,
                 "suspend[0] expected type i32, found f64.const of type f64");
 }

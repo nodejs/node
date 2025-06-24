@@ -7159,7 +7159,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         merge_type == kBranchMerge     ? "branch"
         : merge_type == kReturnMerge   ? "return"
         : merge_type == kInitExprMerge ? "constant expression"
-                                       : "fallthru";
+                                       : "fallthrough";
     uint32_t arity = merge->arity;
     uint32_t actual = stack_.size() - control_.back().stack_depth;
     // Here we have to check for !unreachable(), because we need to typecheck as
