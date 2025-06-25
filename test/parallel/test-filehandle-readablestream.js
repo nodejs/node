@@ -114,6 +114,37 @@ const check = readFileSync(__filename, { encoding: 'utf8' });
   await file.close();
 })().then(common.mustCall());
 
+// Make sure 'byob' reader works with views into
+// different parts of a single ArrayBuffer
+(async () => {
+  const file = await open(__filename);
+  const dec = new TextDecoder();
+  const readable = file.readableWebStream();
+  const reader = readable.getReader({ mode: 'byob' });
+  const size = (await file.stat()).size;
+
+  let buff = new ArrayBuffer(size);
+  let offset = 0;
+  let result;
+  do {
+    result = await reader.read(new DataView(buff, offset, Math.min(100, buff.byteLength - offset)));
+    if (result.value !== undefined) {
+      buff = result.value.buffer;
+      offset += result.value.byteLength;
+      assert.ok(result.value.byteLength <= 100);
+    }
+  } while (!result.done && (offset < buff.byteLength));
+  let data = dec.decode(new Uint8Array(buff));
+
+  assert.strictEqual(check, data);
+
+  assert.throws(() => file.readableWebStream(), {
+    code: 'ERR_INVALID_STATE',
+  });
+
+  await file.close();
+})().then(common.mustCall());
+
 // Make sure a warning is logged if a non-'bytes' type is passed.
 (async () => {
   const file = await open(__filename);
