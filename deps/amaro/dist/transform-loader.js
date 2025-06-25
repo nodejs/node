@@ -1,4 +1,5 @@
 "use strict";
+import { fileURLToPath } from "node:url";
 import { isSwcError, wrapAndReThrowSwcError } from "./errors.js";
 import { transformSync } from "./index.js";
 export async function load(url, context, nextLoad) {
@@ -12,7 +13,7 @@ export async function load(url, context, nextLoad) {
       const { code, map } = transformSync(source.toString(), {
         mode: "transform",
         sourceMap: true,
-        filename: url
+        filename: fileURLToPath(url)
       });
       let output = code;
       if (map) {
