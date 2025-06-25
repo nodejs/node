@@ -3003,7 +3003,7 @@ validation is used, as clients may specify a custom `Host` header.
 added: v0.1.17
 -->
 
-* Extends: {Stream}
+* Extends: {stream.Writable}
 
 This class serves as the parent class of [`http.ClientRequest`][]
 and [`http.ServerResponse`][]. It is an abstract outgoing message from
