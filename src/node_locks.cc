@@ -19,6 +19,7 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
@@ -29,11 +30,11 @@ static constexpr const char* kSharedMode = "shared";
 static constexpr const char* kExclusiveMode = "exclusive";
 static constexpr const char* kLockStolenError = "LOCK_STOLEN";
 
-static Local<Object> CreateLockInfoObject(Isolate* isolate,
-                                          Local<Context> context,
-                                          const std::u16string& name,
-                                          Lock::Mode mode,
-                                          const std::string& client_id);
+static MaybeLocal<Object> CreateLockInfoObject(Isolate* isolate,
+                                               Local<Context> context,
+                                               const std::u16string& name,
+                                               Lock::Mode mode,
+                                               const std::string& client_id);
 
 Lock::Lock(Environment* env,
            const std::u16string& name,
@@ -117,10 +118,34 @@ static void OnLockCallbackRejected(
       env, lock, info[0], true);
 }
 
+// Called when the promise returned from the user's callback resolves
+static void OnIfAvailableFulfill(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  HandleScope handle_scope(info.GetIsolate());
+  auto* holder = static_cast<v8::Global<v8::Promise::Resolver>*>(
+      info.Data().As<External>()->Value());
+  USE(holder->Get(info.GetIsolate())
+          ->Resolve(info.GetIsolate()->GetCurrentContext(), info[0]));
+
+  delete holder;
+}
+
+// Called when the promise returned from the user's callback rejects
+static void OnIfAvailableReject(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  HandleScope handle_scope(info.GetIsolate());
+  auto* holder = static_cast<v8::Global<v8::Promise::Resolver>*>(
+      info.Data().As<External>()->Value());
+  USE(holder->Get(info.GetIsolate())
+          ->Reject(info.GetIsolate()->GetCurrentContext(), info[0]));
+
+  delete holder;
+}
+
 void LockManager::CleanupStolenLocks(Environment* env) {
   std::vector<std::u16string> resources_to_clean;
 
-  // Collect resources to clean
+  // Iterate held locks and remove entries that were stolen from other envs.
   {
     Mutex::ScopedLock scoped_lock(mutex_);
 
@@ -186,6 +211,20 @@ void LockManager::ProcessQueue(Environment* env) {
     std::unique_ptr<LockRequest> if_available_request;
     std::unordered_set<Environment*> other_envs_to_wake;
 
+    /**
+     * First pass over pending_queue_
+     * 1- Build first_seen_for_resource: the oldest pending request
+     *   for every resource name we encounter
+     * 2- Decide what to do with each entry:
+     *     – If it belongs to another Environment, remember that env so we
+     *       can wake it later
+     *     – For our Environment, pick one of:
+     *         * grantable_request  – can be granted now
+     *         * if_available_request – user asked for ifAvailable and the
+     *           resource is currently busy
+     *         * otherwise we skip and keep scanning
+     */
+
     {
       std::unordered_map<std::u16string, LockRequest*> first_seen_for_resource;
 
@@ -198,7 +237,6 @@ void LockManager::ProcessQueue(Environment* env) {
         // Collect unique environments to wake up later
         if (request->env() != env) {
           other_envs_to_wake.insert(request->env());
-          continue;
         }
 
         // During a single pass, the first time we see a resource name is the
@@ -211,7 +249,25 @@ void LockManager::ProcessQueue(Environment* env) {
         bool has_earlier_request_for_same_resource =
             (first_for_resource != request);
 
-        if (has_earlier_request_for_same_resource || !IsGrantable(request)) {
+        bool should_wait_for_earlier_requests = false;
+
+        if (has_earlier_request_for_same_resource) {
+          // Check if this request is compatible with the earliest pending
+          // request first_for_resource
+          if (request->mode() == Lock::Mode::Exclusive ||
+              first_for_resource->mode() == Lock::Mode::Exclusive) {
+            // Exclusive locks are incompatible with everything
+            should_wait_for_earlier_requests = true;
+          }
+          // If both are shared, they're compatible and can proceed
+        }
+
+        // Only process requests from the current environment
+        if (request->env() != env) {
+          continue;
+        }
+
+        if (should_wait_for_earlier_requests || !IsGrantable(request)) {
           if (request->if_available()) {
             // ifAvailable request when resource not available: grant with null
             if_available_request = std::move(*queue_iter);
@@ -234,10 +290,12 @@ void LockManager::ProcessQueue(Environment* env) {
     }
 
     /**
-     * ifAvailable:
-     *  Grant the lock only if it is immediately available;
-     *  otherwise invoke the callback with null and resolve the promises.
-     *  Check wrapCallback function in locks.js
+     * 1- We call the user callback immediately with `null` to signal
+     *    that the lock was not granted - Check wrapCallback function in
+     * locks.js 2- Depending on what the callback returns we settle the two
+     *    internal promises
+     * 3- No lock is added to held_locks_ in this path, so nothing to
+     *    remove later
      */
     if (if_available_request) {
       Local<Value> null_arg = Null(isolate);
@@ -247,27 +305,75 @@ void LockManager::ProcessQueue(Environment* env) {
         if (!if_available_request->callback()
                  ->Call(context, Undefined(isolate), 1, &null_arg)
                  .ToLocal(&callback_result)) {
-          if_available_request->waiting_promise()
-              ->Reject(context, try_catch_scope.Exception())
-              .Check();
-          if_available_request->released_promise()
-              ->Reject(context, try_catch_scope.Exception())
-              .Check();
+          USE(if_available_request->waiting_promise()->Reject(
+              context, try_catch_scope.Exception()));
+          USE(if_available_request->released_promise()->Reject(
+              context, try_catch_scope.Exception()));
           return;
         }
       }
-      if_available_request->waiting_promise()
-          ->Resolve(context, callback_result)
-          .Check();
-      if_available_request->released_promise()
-          ->Resolve(context, callback_result)
-          .Check();
+      if (callback_result->IsPromise()) {
+        Local<Promise> p = callback_result.As<Promise>();
+
+        // Use a Global holder so the resolver survives until the promise
+        // settles.
+        auto* fulf_holder = new v8::Global<v8::Promise::Resolver>(
+            isolate, if_available_request->released_promise());
+        auto* rej_holder = new v8::Global<v8::Promise::Resolver>(
+            isolate, if_available_request->released_promise());
+
+        Local<Function> on_fulfilled;
+        Local<Function> on_rejected;
+        CHECK(Function::New(context,
+                            OnIfAvailableFulfill,
+                            External::New(isolate, fulf_holder))
+                  .ToLocal(&on_fulfilled));
+        CHECK(Function::New(context,
+                            OnIfAvailableReject,
+                            External::New(isolate, rej_holder))
+                  .ToLocal(&on_rejected));
+
+        if (p->Then(context, on_fulfilled, on_rejected).IsEmpty()) {
+          // Attaching handlers failed; reject promises and return.
+          Local<String> err_str_local =
+              String::NewFromUtf8(isolate, "Failed to attach promise handlers")
+                  .ToLocalChecked();
+          Local<Value> err_val = Exception::Error(err_str_local);
+
+          USE(if_available_request->waiting_promise()->Reject(context,
+                                                              err_val));
+          USE(if_available_request->released_promise()->Reject(context,
+                                                               err_val));
+
+          return;
+        }
+
+        // After handlers are attached, resolve waiting_promise with the
+        // promise.
+        USE(if_available_request->waiting_promise()->Resolve(context, p));
+
+        return;
+      }
+
+      // Non-promise callback result: settle both promises right away.
+      USE(if_available_request->waiting_promise()->Resolve(context,
+                                                           callback_result));
+      USE(if_available_request->released_promise()->Resolve(context,
+                                                            callback_result));
+
       return;
     }
 
     if (!grantable_request) return;
 
-    // Handle steal operations with minimal mutex scope
+    /**
+     * 1- We grant the lock immediately even if other envs hold it
+     * 2- All existing locks with the same name are marked stolen, their
+     *    released_promise is rejected, and their owners are woken so they
+     *    can observe the rejection
+     * 3- We remove stolen locks that belong to this env right away; other
+     *    envs will clean up in their next queue pass
+     */
     if (grantable_request->steal()) {
       std::unordered_set<Environment*> envs_to_notify;
 
@@ -287,7 +393,8 @@ void LockManager::ProcessQueue(Environment* env) {
               return;
             }
             Local<Value> error = Exception::Error(error_string);
-            existing_lock->released_promise()->Reject(context, error).Check();
+
+            USE(existing_lock->released_promise()->Reject(context, error));
           }
 
           // Remove stolen locks from current environment immediately
@@ -327,16 +434,18 @@ void LockManager::ProcessQueue(Environment* env) {
       held_locks_[grantable_request->name()].push_back(granted_lock);
     }
 
-    // Call user callback
-    Local<Object> lock_info_obj =
-        CreateLockInfoObject(isolate,
-                             context,
-                             grantable_request->name(),
-                             grantable_request->mode(),
-                             grantable_request->client_id());
-    if (lock_info_obj.IsEmpty()) {
+    // Create and store the new granted lock
+    Local<Object> lock_info_obj;
+    if (!CreateLockInfoObject(isolate,
+                              context,
+                              grantable_request->name(),
+                              grantable_request->mode(),
+                              grantable_request->client_id())
+             .ToLocal(&lock_info_obj)) {
       return;
     }
+
+    // Call user callback
     Local<Value> callback_arg = lock_info_obj;
     Local<Value> callback_result;
     {
@@ -344,12 +453,11 @@ void LockManager::ProcessQueue(Environment* env) {
       if (!grantable_request->callback()
                ->Call(context, Undefined(isolate), 1, &callback_arg)
                .ToLocal(&callback_result)) {
-        grantable_request->waiting_promise()
-            ->Reject(context, try_catch_scope.Exception())
-            .Check();
-        grantable_request->released_promise()
-            ->Reject(context, try_catch_scope.Exception())
-            .Check();
+        USE(grantable_request->waiting_promise()->Reject(
+            context, try_catch_scope.Exception()));
+        USE(grantable_request->released_promise()->Reject(
+            context, try_catch_scope.Exception()));
+
         return;
       }
     }
@@ -361,15 +469,22 @@ void LockManager::ProcessQueue(Environment* env) {
     Local<Function> on_fulfilled_callback;
     Local<Function> on_rejected_callback;
 
+    // Create fulfilled callback first
     if (!Function::New(context,
                        OnLockCallbackFulfilled,
                        External::New(isolate, fulfill_holder))
-             .ToLocal(&on_fulfilled_callback) ||
-        !Function::New(context,
+             .ToLocal(&on_fulfilled_callback)) {
+      delete fulfill_holder;
+      delete reject_holder;
+      return;
+    }
+
+    // Create rejected callback second
+    if (!Function::New(context,
                        OnLockCallbackRejected,
                        External::New(isolate, reject_holder))
              .ToLocal(&on_rejected_callback)) {
-      delete fulfill_holder;
+      // fulfill_holder is now owned by the External, don't delete it
       delete reject_holder;
       return;
     }
@@ -377,36 +492,37 @@ void LockManager::ProcessQueue(Environment* env) {
     // Handle promise chain
     if (callback_result->IsPromise()) {
       Local<Promise> promise = callback_result.As<Promise>();
-      if (promise->State() == Promise::kRejected) {
-        Local<Value> rejection_value = promise->Result();
-        grantable_request->waiting_promise()
-            ->Reject(context, rejection_value)
-            .Check();
-        grantable_request->released_promise()
-            ->Reject(context, rejection_value)
-            .Check();
-        delete fulfill_holder;
-        delete reject_holder;
-        {
-          Mutex::ScopedLock scoped_lock(mutex_);
-          ReleaseLock(granted_lock.get());
-        }
-        ProcessQueue(env);
+      if (promise->Then(context, on_fulfilled_callback, on_rejected_callback)
+              .IsEmpty()) {
+        // Then() failed, reject both promises and return
+        Local<String> err_str_local =
+            String::NewFromUtf8(isolate, "Failed to attach promise handlers")
+                .ToLocalChecked();
+        Local<Value> err_val = Exception::Error(err_str_local);
+
+        USE(grantable_request->waiting_promise()->Reject(context, err_val));
+        USE(grantable_request->released_promise()->Reject(context, err_val));
+
         return;
-      } else {
-        grantable_request->waiting_promise()
-            ->Resolve(context, callback_result)
-            .Check();
-        USE(promise->Then(
-            context, on_fulfilled_callback, on_rejected_callback));
       }
+
+      // Lock granted: waiting_promise resolves now with the promise returned
+      // by the callback; on_fulfilled/on_rejected will release the lock when
+      // that promise settles.
+      USE(grantable_request->waiting_promise()->Resolve(context,
+                                                        callback_result));
     } else {
-      grantable_request->waiting_promise()
-          ->Resolve(context, callback_result)
-          .Check();
+      USE(grantable_request->waiting_promise()->Resolve(context,
+                                                        callback_result));
       Local<Value> promise_args[] = {callback_result};
-      USE(on_fulfilled_callback->Call(
-          context, Undefined(isolate), 1, promise_args));
+      if (on_fulfilled_callback
+              ->Call(context, Undefined(isolate), 1, promise_args)
+              .IsEmpty()) {
+        // Callback threw an error, handle it like a rejected promise
+        // The error is already propagated through the TryCatch in the
+        // callback
+        return;
+      }
       delete reject_holder;
     }
   }
@@ -427,12 +543,12 @@ void LockManager::Request(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
 
   CHECK_EQ(args.Length(), 6);
-  CHECK(args[0]->IsString());
-  CHECK(args[1]->IsString());
-  CHECK(args[2]->IsString());
-  CHECK(args[3]->IsBoolean());
-  CHECK(args[4]->IsBoolean());
-  CHECK(args[5]->IsFunction());
+  CHECK(args[0]->IsString());    // name
+  CHECK(args[1]->IsString());    // clientId
+  CHECK(args[2]->IsString());    // mode
+  CHECK(args[3]->IsBoolean());   // steal
+  CHECK(args[4]->IsBoolean());   // ifAvailable
+  CHECK(args[5]->IsFunction());  // callback
 
   Local<String> resource_name_str = args[0].As<String>();
   TwoByteValue resource_name_utf16(isolate, resource_name_str);
@@ -451,15 +567,17 @@ void LockManager::Request(const FunctionCallbackInfo<Value>& args) {
       mode_str == kSharedMode ? Lock::Mode::Shared : Lock::Mode::Exclusive;
 
   Local<Promise::Resolver> waiting_promise;
-  if (!Promise::Resolver::New(context).ToLocal(&waiting_promise)) {
-    return;
-  }
   Local<Promise::Resolver> released_promise;
-  if (!Promise::Resolver::New(context).ToLocal(&released_promise)) {
+
+  if (!Promise::Resolver::New(context).ToLocal(&waiting_promise) ||
+      !Promise::Resolver::New(context).ToLocal(&released_promise)) {
     return;
   }
 
-  args.GetReturnValue().Set(released_promise->GetPromise());
+  // Mark both internal promises as handled to prevent unhandled rejection
+  // warnings
+  waiting_promise->GetPromise()->MarkAsHandled();
+  released_promise->GetPromise()->MarkAsHandled();
 
   LockManager* manager = GetCurrent();
   {
@@ -488,6 +606,8 @@ void LockManager::Request(const FunctionCallbackInfo<Value>& args) {
   }
 
   manager->ProcessQueue(env);
+
+  args.GetReturnValue().Set(released_promise->GetPromise());
 }
 
 void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
@@ -500,6 +620,8 @@ void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
   if (!Promise::Resolver::New(context).ToLocal(&resolver)) {
     return;
   }
+
+  // Always set the return value first so Javascript gets a promise
   args.GetReturnValue().Set(resolver->GetPromise());
 
   Local<Object> result = Object::New(isolate);
@@ -511,19 +633,30 @@ void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
     Mutex::ScopedLock scoped_lock(manager->mutex_);
 
     uint32_t index = 0;
+    Local<Object> lock_info;
     for (const auto& resource_entry : manager->held_locks_) {
       for (const auto& held_lock : resource_entry.second) {
         if (held_lock->env() == env) {
-          Local<Object> lock_info =
-              CreateLockInfoObject(isolate,
-                                   context,
-                                   held_lock->name(),
-                                   held_lock->mode(),
-                                   held_lock->client_id());
-          if (lock_info.IsEmpty()) {
+          if (!CreateLockInfoObject(isolate,
+                                    context,
+                                    held_lock->name(),
+                                    held_lock->mode(),
+                                    held_lock->client_id())
+                   .ToLocal(&lock_info)) {
+            Local<String> error_msg =
+                String::NewFromUtf8(isolate,
+                                    "Failed to create lock info object")
+                    .ToLocalChecked();
+            resolver->Reject(context, Exception::Error(error_msg)).Check();
             return;
           }
-          held_list->Set(context, index++, lock_info).Check();
+          if (held_list->Set(context, index++, lock_info).IsNothing()) {
+            Local<String> error_msg =
+                String::NewFromUtf8(isolate, "Failed to build held locks array")
+                    .ToLocalChecked();
+            resolver->Reject(context, Exception::Error(error_msg)).Check();
+            return;
+          }
         }
       }
     }
@@ -531,26 +664,44 @@ void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
     index = 0;
     for (const auto& pending_request : manager->pending_queue_) {
       if (pending_request->env() == env) {
-        Local<Object> lock_info =
-            CreateLockInfoObject(isolate,
-                                 context,
-                                 pending_request->name(),
-                                 pending_request->mode(),
-                                 pending_request->client_id());
-        if (lock_info.IsEmpty()) {
+        if (!CreateLockInfoObject(isolate,
+                                  context,
+                                  pending_request->name(),
+                                  pending_request->mode(),
+                                  pending_request->client_id())
+                 .ToLocal(&lock_info)) {
+          Local<String> error_msg =
+              String::NewFromUtf8(isolate, "Failed to create lock info object")
+                  .ToLocalChecked();
+          resolver->Reject(context, Exception::Error(error_msg)).Check();
           return;
         }
-        pending_list->Set(context, index++, lock_info).Check();
+        if (pending_list->Set(context, index++, lock_info).IsNothing()) {
+          Local<String> error_msg =
+              String::NewFromUtf8(isolate,
+                                  "Failed to build pending locks array")
+                  .ToLocalChecked();
+          resolver->Reject(context, Exception::Error(error_msg)).Check();
+          return;
+        }
       }
     }
   }
 
-  result->Set(context, FIXED_ONE_BYTE_STRING(isolate, "held"), held_list)
-      .Check();
-  result->Set(context, FIXED_ONE_BYTE_STRING(isolate, "pending"), pending_list)
-      .Check();
+  if (result->Set(context, FIXED_ONE_BYTE_STRING(isolate, "held"), held_list)
+          .IsNothing() ||
+      result
+          ->Set(
+              context, FIXED_ONE_BYTE_STRING(isolate, "pending"), pending_list)
+          .IsNothing()) {
+    Local<String> error_msg =
+        String::NewFromUtf8(isolate, "Failed to build query result object")
+            .ToLocalChecked();
+    resolver->Reject(context, Exception::Error(error_msg)).Check();
+    return;
+  }
 
-  resolver->Resolve(context, result).Check();
+  USE(resolver->Resolve(context, result));
 }
 
 // Runs after the user callback (or its returned promise) settles.
@@ -569,11 +720,11 @@ void LockManager::ReleaseLockAndProcessQueue(Environment* env,
   // stolen.
   if (!lock->is_stolen()) {
     if (was_rejected) {
-      // The callback promise was rejected, so reject the final promise
-      lock->released_promise()->Reject(context, callback_result).Check();
+      // Propagate rejection from the user callback
+      USE(lock->released_promise()->Reject(context, callback_result));
     } else {
-      // The callback promise was fulfilled, so resolve the final promise
-      lock->released_promise()->Resolve(context, callback_result).Check();
+      // Propagate fulfilment
+      USE(lock->released_promise()->Resolve(context, callback_result));
     }
   }
 
@@ -602,6 +753,7 @@ void LockManager::ReleaseLock(Lock* lock) {
 void LockManager::WakeEnvironment(Environment* target_env) {
   if (target_env == nullptr || target_env->is_stopping()) return;
 
+  // Schedule ProcessQueue in the target Environment on its event loop.
   target_env->SetImmediateThreadsafe([](Environment* env_to_wake) {
     if (env_to_wake != nullptr && !env_to_wake->is_stopping()) {
       LockManager::GetCurrent()->ProcessQueue(env_to_wake);
@@ -653,11 +805,11 @@ void LockManager::OnEnvironmentCleanup(void* arg) {
   LockManager::GetCurrent()->CleanupEnvironment(env);
 }
 
-static Local<Object> CreateLockInfoObject(Isolate* isolate,
-                                          Local<Context> context,
-                                          const std::u16string& name,
-                                          Lock::Mode mode,
-                                          const std::string& client_id) {
+static MaybeLocal<Object> CreateLockInfoObject(Isolate* isolate,
+                                               Local<Context> context,
+                                               const std::u16string& name,
+                                               Lock::Mode mode,
+                                               const std::string& client_id) {
   Local<Object> obj = Object::New(isolate);
 
   Local<String> name_string;
@@ -666,29 +818,36 @@ static Local<Object> CreateLockInfoObject(Isolate* isolate,
                               v8::NewStringType::kNormal,
                               static_cast<int>(name.length()))
            .ToLocal(&name_string)) {
-    return Local<Object>();
+    return MaybeLocal<Object>();
   }
-  obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "name"), name_string)
-      .Check();
+  if (obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "name"), name_string)
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
 
   Local<String> mode_string;
   if (!String::NewFromUtf8(
            isolate,
            mode == Lock::Mode::Exclusive ? kExclusiveMode : kSharedMode)
            .ToLocal(&mode_string)) {
-    return Local<Object>();
+    return MaybeLocal<Object>();
   }
-  obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "mode"), mode_string)
-      .Check();
+  if (obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "mode"), mode_string)
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
 
   Local<String> client_id_string;
   if (!String::NewFromUtf8(isolate, client_id.c_str())
            .ToLocal(&client_id_string)) {
-    return Local<Object>();
+    return MaybeLocal<Object>();
   }
-  obj->Set(
-         context, FIXED_ONE_BYTE_STRING(isolate, "clientId"), client_id_string)
-      .Check();
+  if (obj->Set(context,
+               FIXED_ONE_BYTE_STRING(isolate, "clientId"),
+               client_id_string)
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
 
   return obj;
 }
@@ -726,6 +885,10 @@ void CreatePerContextProperties(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(LockManager::Request);
   registry->Register(LockManager::Query);
+  registry->Register(OnLockCallbackFulfilled);
+  registry->Register(OnLockCallbackRejected);
+  registry->Register(OnIfAvailableFulfill);
+  registry->Register(OnIfAvailableReject);
 }
 
 }  // namespace node::worker::locks
