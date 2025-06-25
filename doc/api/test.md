@@ -660,6 +660,86 @@ test('spies on an object method', (t) => {
 });
 ```
 
+### Mocking callback-based APIs
+
+When mocking callback-based APIs (continuation-passing style), note that call
+tracking is updated _after_ the mocked function completes execution. This can
+lead to unexpected behavior when inspecting the mock's [`MockFunctionContext`][]
+object when asserting on how it was invoked. Using [`process.nextTick()`][] or
+[`util.promisify()`][] in your tests can help avoid this problem:
+
+```mjs
+import fs from 'node:fs';
+import { test } from 'node:test';
+import util from 'node:util';
+
+test('callback-style API mocking behavior', (t, done) => {
+  // Mock the fs.writeFile method
+  t.mock.method(fs, 'writeFile', (path, data, cb) => {
+    // Invoke callback synchronously
+    cb(null, 'success');
+  });
+
+  fs.writeFile('test.txt', 'hello', (err, result) => {
+    // This will show 0 because call tracking is updated after function completion
+    console.log('Immediate call count:', fs.writeFile.mock.callCount());
+
+    // Use process.nextTick to check after the event loop tick
+    process.nextTick(() => {
+      // This will correctly show 1
+      console.log('Call count after nextTick:', fs.writeFile.mock.callCount());
+
+      // Another approach is to use util.promisify
+      const writeFilePromise = util.promisify(fs.writeFile);
+
+      // With promises, the call count will be correctly updated
+      // after the promise is resolved
+      writeFilePromise('test.txt', 'world')
+        .then(() => {
+          console.log('Call count with promises:', fs.writeFile.mock.callCount());
+          done();
+        });
+    });
+  });
+});
+```
+
+```cjs
+const fs = require('node:fs')
+const { test } = require('node:test')
+const util = require('node:util')
+
+test('callback-style API mocking behavior', (t, done) => {
+  // Mock the fs.writeFile method
+  t.mock.method(fs, 'writeFile', (path, data, cb) => {
+    // Invoke callback synchronously
+    cb(null, 'success');
+  });
+
+  fs.writeFile('test.txt', 'hello', (err, result) => {
+    // This will show 0 because call tracking is updated after function completion
+    console.log('Immediate call count:', fs.writeFile.mock.callCount());
+
+    // Use process.nextTick to check after the event loop tick
+    process.nextTick(() => {
+      // This will correctly show 1
+      console.log('Call count after nextTick:', fs.writeFile.mock.callCount());
+
+      // Another approach is to use util.promisify
+      const writeFilePromise = util.promisify(fs.writeFile);
+
+      // With promises, the call count will be correctly updated
+      // after the promise is resolved
+      writeFilePromise('test.txt', 'world')
+        .then(() => {
+          console.log('Call count with promises:', fs.writeFile.mock.callCount());
+          done();
+        });
+    });
+  });
+});
+```
+
 ### Timers
 
 Mocking timers is a technique commonly used in software testing to simulate and
@@ -1924,6 +2004,9 @@ mock. Each entry in the array is an object with the following properties.
   `undefined`.
 * `this` {any} The mocked function's `this` value.
 
+> When mocking and testing callback-based APIs, please read the
+> [Mocking callback-based APIs][mocking callbacks] section.
+
 ### `ctx.callCount()`
 
 <!-- YAML
@@ -1937,6 +2020,9 @@ added:
 This function returns the number of times that this mock has been invoked. This
 function is more efficient than checking `ctx.calls.length` because `ctx.calls`
 is a getter that creates a copy of the internal call tracking array.
+
+> When mocking and testing callback-based APIs, please read the
+> [Mocking callback-based APIs][mocking callbacks] section.
 
 ### `ctx.mockImplementation(implementation)`
 
@@ -2187,6 +2273,9 @@ added:
 
 This function is used to create a mock function.
 
+> When mocking and testing callback-based APIs, please read the
+> [Mocking callback-based APIs][mocking callbacks] section.
+
 The following example creates a mock function that increments a counter by one
 on each invocation. The `times` option is used to modify the mock behavior such
 that the first two invocations add two to the counter instead of one.
@@ -2253,8 +2342,12 @@ added:
   `mock` property, which is an instance of [`MockFunctionContext`][], and can
   be used for inspecting and changing the behavior of the mocked method.
 
-This function is used to create a mock on an existing object method. The
-following example demonstrates how a mock is created on an existing object
+This function is used to create a mock on an existing object method.
+
+> When mocking and testing callback-based APIs, please read the
+> [Mocking callback-based APIs][mocking callbacks] section.
+
+The following example demonstrates how a mock is created on an existing object
 method.
 
 ```js
@@ -3932,6 +4025,8 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--test-skip-pattern`]: cli.md#--test-skip-pattern
 [`--test-update-snapshots`]: cli.md#--test-update-snapshots
 [`--test`]: cli.md#--test
+[`process.nextTick()`]: process.md#processnexttickcallback-args
+[`util.promisify()`]: util.md#utilpromisifyoriginal
 [`MockFunctionContext`]: #class-mockfunctioncontext
 [`MockPropertyContext`]: #class-mockpropertycontext
 [`MockTimers`]: #class-mocktimers
@@ -3952,6 +4047,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [code coverage]: #collecting-code-coverage
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
+[mocking callbacks]: #mocking-callback-based-apis
 [stream.compose]: stream.md#streamcomposestreams
 [subtests]: #subtests
 [suite options]: #suitename-options-fn
