@@ -92,7 +92,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     ] });
     stream.on('test:fail', common.mustCall((data) => {
       assert.strictEqual(data.details.error.failureType, 'testTimeoutFailure');
-    }));
+    }, 2));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
