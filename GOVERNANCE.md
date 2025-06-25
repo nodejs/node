@@ -125,6 +125,26 @@ the issue tracker is:
   member approvals and no TSC voting member opposition.
 * If there is an extended impasse, a TSC member may make a motion for a vote.
 
+In principal, TSC meetings should be public and streamed, so that a recording
+can also be made publicly available afterwards. The use of private sections
+is discouraged. If discussions must be private, written communication is
+preferred.
+
+If a private section is requested during the meeting, the TSC chair should first
+ask in the meeting if anyone objects to it being private.
+
+* If there is an objection to discussing the topic in a private section,
+  the topic should be dropped from the agenda, and it should be discussed with
+  written communication instead.
+* If there is no objection to discussing it in a private meeting, the TSC chair
+  should ask if anyone objects to the private section being recorded for those
+  not present in the meeting.
+  * If there is no objection to recording, the TSC chair should record the private
+    section locally and make it available to other TSC members after the meeting.
+  * If there is an objection, the TSC chair should ask for a justification to not
+    switch to writing communication instead, before proceeding with the private
+    meeting without recording it.
+
 ## Collaborator nominations
 
 ### Who can nominate Collaborators?
