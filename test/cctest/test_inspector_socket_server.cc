@@ -318,8 +318,7 @@ class TestSocketServerDelegate : public SocketServerDelegate {
 
   void StartSession(int session_id, const std::string& target_id) override {
     session_id_ = session_id;
-    CHECK_NE(targets_.end(),
-             std::find(targets_.begin(), targets_.end(), target_id));
+    CHECK_NE(targets_.end(), std::ranges::find(targets_, target_id));
     harness_->Connected(session_id_);
   }
 

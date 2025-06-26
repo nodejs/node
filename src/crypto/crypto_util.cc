@@ -218,7 +218,7 @@ void CryptoErrorStore::Capture() {
     ERR_error_string_n(err, buf, sizeof(buf));
     errors_.emplace_back(buf);
   }
-  std::reverse(std::begin(errors_), std::end(errors_));
+  std::ranges::reverse(errors_);
 }
 
 bool CryptoErrorStore::Empty() const {
