@@ -900,8 +900,7 @@ class AndroidMkWriter:
         if self.type != "none":
             self.WriteTargetFlags(spec, configs, link_deps)
 
-        settings = spec.get("aosp_build_settings", {})
-        if settings:
+        if settings := spec.get("aosp_build_settings", {}):
             self.WriteLn("### Set directly by aosp_build_settings.")
             for k, v in settings.items():
                 if isinstance(v, list):

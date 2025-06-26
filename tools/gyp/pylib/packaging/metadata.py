@@ -591,8 +591,7 @@ class _Validator(Generic[T]):
                 f"{{field}} must be one of {list(content_types)}, not {value!r}"
             )
 
-        charset = parameters.get("charset", "UTF-8")
-        if charset != "UTF-8":
+        if (charset := parameters.get("charset", "UTF-8")) != "UTF-8":
             raise self._invalid_metadata(
                 f"{{field}} can only specify the UTF-8 charset, not {list(charset)}"
             )

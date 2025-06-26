@@ -183,8 +183,7 @@ def SourceTreeAndPathFromPath(input_path):
     'path'         (None, 'path')
   """
 
-    source_group_match = _path_leading_variable.match(input_path)
-    if source_group_match:
+    if source_group_match := _path_leading_variable.match(input_path):
         source_tree = source_group_match.group(1)
         output_path = source_group_match.group(3)  # This may be None.
     else:
@@ -390,8 +389,7 @@ class XCObject:
     def Hashables(self):
         hashables = [self.__class__.__name__]
 
-        name = self.Name()
-        if name is not None:
+        if (name := self.Name()) is not None:
             hashables.append(name)
 
         hashables.extend(self._hashables)
@@ -1051,8 +1049,7 @@ class XCHierarchicalElement(XCObject):
         # including paths with a sourceTree, they'll still inherit their parents'
         # hashables, even though the paths aren't relative to their parents.  This
         # is not expected to be much of a problem in practice.
-        path = self.PathFromSourceTreeAndPath()
-        if path is not None:
+        if (path := self.PathFromSourceTreeAndPath()) is not None:
             components = path.split(posixpath.sep)
             for component in components:
                 hashables.append(self.__class__.__name__ + ".path")
@@ -2109,8 +2106,7 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
     specifically, "$(DIR)/path".
     """
 
-        path_tree_match = self.path_tree_re.search(path)
-        if path_tree_match:
+        if path_tree_match := self.path_tree_re.search(path):
             path_tree = path_tree_match.group(1)
             if path_tree in self.path_tree_first_to_subfolder:
                 subfolder = self.path_tree_first_to_subfolder[path_tree]
