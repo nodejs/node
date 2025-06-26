@@ -38,7 +38,7 @@
 #include "src/heap/heap-utils-inl.h"
 #include "src/heap/heap-visitor-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/incremental-marking-inl.h"
+#include "src/heap/incremental-marking.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/live-object-range-inl.h"
@@ -873,17 +873,9 @@ void MarkCompactCollector::Finish() {
 #endif  // DEBUG
   }
 
-  if (auto* new_space = heap_->new_space()) {
+  if (heap_->new_space()) {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE);
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
-    // We rebalance first to be able to assume that from- and to-space have the
-    // same size.
-    //
-    // TODO(365027679): Make growing/shrinking more flexible to avoid ensuring
-    // the same capacity.
-    if (!new_space->EnsureCurrentCapacity()) {
-      heap_->FatalProcessOutOfMemory("NewSpace::EnsureCurrentCapacity");
-    }
     heap_->ResizeNewSpace();
   }
 
@@ -1210,7 +1202,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
     if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_,
                                             heap_object)) {
       return object;
-    } else if (IsAllocationSite(object) &&
+    } else if (IsAllocationSite(heap_object) &&
                !Cast<AllocationSite>(object)->IsZombie()) {
       // "dead" AllocationSites need to live long enough for a traversal of new
       // space. These sites get a one-time reprieve.
@@ -1754,7 +1746,9 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
   static void Move(PageMetadata* page) {
-    page->heap()->new_space()->PromotePageToOldSpace(page);
+    page->heap()->new_space()->PromotePageToOldSpace(
+        page, v8_flags.minor_ms ? FreeMode::kDoNotLinkCategory
+                                : FreeMode::kLinkCategory);
   }
 
   inline bool Visit(Tagged<HeapObject> object, int size) override {
@@ -1915,6 +1909,9 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   PtrComprCageBase cage_base(client);
   Heap* client_heap = client->heap();
 
+  // Finish sweeping quarantined pages for Scavenger's new space in order to
+  // iterate objects in it.
+  client_heap->EnsureQuarantinedPagesSweepingCompleted();
   // Finish sweeping for new space in order to iterate objects in it.
   client_heap->sweeper()->FinishMinorJobs();
   // Finish sweeping for old generation in order to iterate OLD_TO_SHARED.
@@ -2344,9 +2341,8 @@ void MarkCompactCollector::MarkTransitiveClosure() {
 
 void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
                                                     Isolate* isolate) {
-  for (StackFrameIterator it(isolate, isolate->thread_local_top(),
-                             StackFrameIterator::NoHandles{});
-       !it.done(); it.Advance()) {
+  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
+       it.Advance()) {
     if (it.frame()->is_unoptimized_js()) return;
     if (it.frame()->is_optimized_js()) {
       Tagged<GcSafeCode> lookup_result = it.frame()->GcSafeLookupCode();
@@ -3741,7 +3737,7 @@ void MarkCompactCollector::RecordStrongDescriptorArraysForWeakening(
 void MarkCompactCollector::WeakenStrongDescriptorArrays() {
   Tagged<Map> descriptor_array_map =
       ReadOnlyRoots(heap_->isolate()).descriptor_array_map();
-  for (auto vec : strong_descriptor_arrays_) {
+  for (auto& vec : strong_descriptor_arrays_) {
     for (auto it = vec.begin(); it != vec.end(); ++it) {
       Tagged<DescriptorArray> raw = it.raw();
       DCHECK(IsStrongDescriptorArray(raw));
@@ -4421,7 +4417,7 @@ void MarkCompactCollector::EvacuatePrologue() {
                  std::back_inserter(new_space_evacuation_pages_),
                  [](PageMetadata* p) { return p->live_bytes() > 0; });
     if (!v8_flags.minor_ms) {
-      SemiSpaceNewSpace::From(new_space)->EvacuatePrologue();
+      SemiSpaceNewSpace::From(new_space)->SwapSemiSpaces();
     }
   }
 
@@ -5040,7 +5036,6 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
 
 void MarkCompactCollector::Evacuate() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE);
-  base::MutexGuard guard(heap_->relocation_mutex());
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_EVACUATE_PROLOGUE);
@@ -5789,7 +5784,8 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         if (!relocated_object.is_null()) {
           DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
           auto instance_type = relocated_object->map()->instance_type();
-          auto tag = IndirectPointerTagFromInstanceType(instance_type);
+          bool shared = HeapLayout::InAnySharedSpace(relocated_object);
+          auto tag = IndirectPointerTagFromInstanceType(instance_type, shared);
           tpt->Set(handle, relocated_object.ptr(), tag);
         }
       });
@@ -5803,7 +5799,8 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         if (!relocated_object.is_null()) {
           DCHECK_EQ(handle, relocated_object->self_indirect_pointer_handle());
           auto instance_type = relocated_object->map()->instance_type();
-          auto tag = IndirectPointerTagFromInstanceType(instance_type);
+          bool shared = HeapLayout::InAnySharedSpace(relocated_object);
+          auto tag = IndirectPointerTagFromInstanceType(instance_type, shared);
           DCHECK(IsSharedTrustedPointerType(tag));
           stpt->Set(handle, relocated_object.ptr(), tag);
         }

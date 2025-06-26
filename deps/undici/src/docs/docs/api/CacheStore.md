@@ -13,8 +13,28 @@ The `MemoryCacheStore` stores the responses in-memory.
 
 **Options**
 
+- `maxSize` - The maximum total size in bytes of all stored responses. Default `Infinity`.
 - `maxCount` - The maximum amount of responses to store. Default `Infinity`.
-- `maxEntrySize` - The maximum size in bytes that a response's body can be. If a response's body is greater than or equal to this, the response will not be cached.
+- `maxEntrySize` - The maximum size in bytes that a response's body can be. If a response's body is greater than or equal to this, the response will not be cached. Default `Infinity`.
+
+### Getters
+
+#### `MemoryCacheStore.size`
+
+Returns the current total size in bytes of all stored responses.
+
+### Methods
+
+#### `MemoryCacheStore.isFull()`
+
+Returns a boolean indicating whether the cache has reached its maximum size or count.
+
+### Events
+
+#### `'maxSizeExceeded'`
+
+Emitted when the cache exceeds its maximum size or count limits. The event payload contains `size`, `maxSize`, `count`, and `maxCount` properties.
+
 
 ### `SqliteCacheStore`
 
@@ -26,7 +46,7 @@ The `SqliteCacheStore` is only exposed if the `node:sqlite` api is present.
 
 - `location` - The location of the SQLite database to use. Default `:memory:`.
 - `maxCount` - The maximum number of entries to store in the database. Default `Infinity`.
-- `maxEntrySize` - The maximum size in bytes that a resposne's body can be. If a response's body is greater than or equal to this, the response will not be cached. Default `Infinity`.
+- `maxEntrySize` - The maximum size in bytes that a response's body can be. If a response's body is greater than or equal to this, the response will not be cached. Default `Infinity`.
 
 ## Defining a Custom Cache Store
 

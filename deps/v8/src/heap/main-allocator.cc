@@ -462,8 +462,13 @@ bool SemiSpaceNewSpaceAllocatorPolicy::EnsureAllocation(
   std::optional<std::pair<Address, Address>> allocation_result =
       space_->Allocate(size_in_bytes, alignment);
   if (!allocation_result) {
-    if (!v8_flags.separate_gc_phases ||
-        !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
+    if (!space_->ReachedTargetCapacity()) {
+      // If allocation failed even though we have not even grown the space to
+      // its target capacity yet, we can bail out early.
+      return false;
+    }
+
+    if (!space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation(
             PageMetadata::kPageSize)) {
       return false;
     }
@@ -640,7 +645,7 @@ bool PagedSpaceAllocatorPolicy::EnsureAllocation(int size_in_bytes,
                                                  AllocationOrigin origin) {
   if (allocator_->identity() == NEW_SPACE) {
     DCHECK(allocator_->is_main_thread());
-    space_heap()->StartMinorMSIncrementalMarkingIfNeeded();
+    space_heap()->StartMinorMSConcurrentMarkingIfNeeded();
   }
   if ((allocator_->identity() != NEW_SPACE) && !allocator_->in_gc()) {
     // Start incremental marking before the actual allocation, this allows the

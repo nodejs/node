@@ -5,7 +5,10 @@
 
 #include <map>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <variant>
+#include <vector>
 #include "node_internals.h"
 #include "simdjson.h"
 #include "util-inl.h"
@@ -29,14 +32,30 @@ class ConfigReader {
   std::optional<std::string_view> GetDataFromArgs(
       const std::vector<std::string>& args);
 
-  std::string AssignNodeOptions();
+  std::string GetNodeOptions();
+  const std::vector<std::string>& GetNamespaceFlags() const;
 
   size_t GetFlagsSize();
 
  private:
-  ParseResult ParseNodeOptions(simdjson::ondemand::object* node_options_object);
+  // Parse options for a specific namespace (including nodeOptions for backward
+  // compatibility)
+  ParseResult ParseOptions(simdjson::ondemand::object* options_object,
+                           std::unordered_set<std::string>* unique_options,
+                           const std::string& namespace_name);
+
+  // Process a single option value based on its type
+  ParseResult ProcessOptionValue(
+      const std::pair<std::string, options_parser::OptionType>& option_info,
+      simdjson::ondemand::value* option_value,
+      std::vector<std::string>* output);
 
   std::vector<std::string> node_options_;
+  std::vector<std::string> namespace_options_;
+
+  // Cache for fast lookup of environment options
+  std::unordered_map<std::string, options_parser::OptionType> env_options_map_;
+  bool env_options_initialized_ = false;
 };
 
 }  // namespace node

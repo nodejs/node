@@ -48,10 +48,14 @@ void Foreign::init_foreign_address(IsolateForSandbox isolate,
   InitExternalPointerField<tag>(kForeignAddressOffset, isolate, initial_value);
 }
 
-Address Foreign::foreign_address_unchecked() const {
-  IsolateForSandbox isolate = GetIsolateForSandbox(*this);
+Address Foreign::foreign_address_unchecked(IsolateForSandbox isolate) const {
   return ReadExternalPointerField<kAnyForeignExternalPointerTagRange>(
       kForeignAddressOffset, isolate);
+}
+
+Address Foreign::foreign_address_unchecked() const {
+  IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  return foreign_address_unchecked(isolate);
 }
 
 ExternalPointerTag Foreign::GetTag() const {

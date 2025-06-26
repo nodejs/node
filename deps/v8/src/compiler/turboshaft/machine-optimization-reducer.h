@@ -2068,12 +2068,11 @@ class MachineOptimizationReducer : public Next {
         break;
     }
 
-    auto MatchUnaryShuffle =
+    auto MatchShuffle =
         [this](V<Simd128> maybe_shuffle) -> const Simd128ShuffleOp* {
       if (const Simd128ShuffleOp* shuffle =
               matcher_.TryCast<Simd128ShuffleOp>(maybe_shuffle)) {
-        if (shuffle->kind == Simd128ShuffleOp::Kind::kI8x16 &&
-            shuffle->left() == shuffle->right()) {
+        if (shuffle->kind == Simd128ShuffleOp::Kind::kI8x16) {
           return shuffle;
         }
       }
@@ -2117,11 +2116,11 @@ class MachineOptimizationReducer : public Next {
       V<Simd128> operands[2] = {binop->left(), binop->right()};
       for (unsigned i = 0; i < 2; ++i) {
         V<Simd128> operand = operands[i];
-        if (const Simd128ShuffleOp* shuffle = MatchUnaryShuffle(operand)) {
+        if (const Simd128ShuffleOp* shuffle = MatchShuffle(operand)) {
           // Ensure that the input to the shuffle is also the other input to
-          // current binop.
+          // current binop. We take the left input because all of the shuffle
+          // pattern matching is specified, and will test, for it.
           V<Simd128> shuffle_in = shuffle->left();
-          DCHECK_EQ(shuffle_in, shuffle->right());
           V<Simd128> other_operand = operands[i ^ 1];
           if (shuffle_in != other_operand) {
             break;

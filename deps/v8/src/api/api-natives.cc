@@ -83,7 +83,7 @@ MaybeDirectHandle<Object> DefineAccessorProperty(
         isolate, getter,
         InstantiateFunction(isolate, Cast<FunctionTemplateInfo>(getter)));
     DirectHandle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
-    Cast<JSFunction>(getter)->UpdateCode(*trampoline);
+    Cast<JSFunction>(getter)->UpdateCode(isolate, *trampoline);
   }
   if (IsFunctionTemplateInfo(*setter) &&
       Cast<FunctionTemplateInfo>(*setter)->BreakAtEntry(isolate)) {
@@ -91,7 +91,7 @@ MaybeDirectHandle<Object> DefineAccessorProperty(
         isolate, setter,
         InstantiateFunction(isolate, Cast<FunctionTemplateInfo>(setter)));
     DirectHandle<Code> trampoline = BUILTIN_CODE(isolate, DebugBreakTrampoline);
-    Cast<JSFunction>(setter)->UpdateCode(*trampoline);
+    Cast<JSFunction>(setter)->UpdateCode(isolate, *trampoline);
   }
   RETURN_ON_EXCEPTION(isolate, JSObject::DefineOwnAccessorIgnoreAttributes(
                                    object, name, getter, setter, attributes));
@@ -330,7 +330,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 
   const auto new_js_object_type =
       constructor->has_initial_map() &&
-              IsJSApiWrapperObject(constructor->initial_map())
+              IsJSApiWrapperObjectMap(constructor->initial_map())
           ? NewJSObjectType::kAPIWrapper
           : NewJSObjectType::kNoAPIWrapper;
   Handle<JSObject> object;

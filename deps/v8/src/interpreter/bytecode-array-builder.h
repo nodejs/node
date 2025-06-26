@@ -228,7 +228,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // somewhere in that context chain.
   BytecodeArrayBuilder& LoadLookupContextSlot(const AstRawString* name,
                                               TypeofMode typeof_mode,
-                                              ContextKind context_kind,
+                                              ContextMode context_mode,
                                               int slot_index, int depth);
 
   // Lookup the variable with |name|, which has its feedback in |feedback_slot|
@@ -376,6 +376,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Type feedback will be recorded in the |feedback_slot|
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
                                         int feedback_slot);
+  BytecodeArrayBuilder& Add_LhsIsStringConstant_Internalize(Token::Value binop,
+                                                            Register reg,
+                                                            int feedback_slot);
   // Same as above, but lhs in the accumulator and rhs in |literal|.
   BytecodeArrayBuilder& BinaryOperationSmiLiteral(Token::Value binop,
                                                   Tagged<Smi> literal,
@@ -529,8 +532,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   void InitializeReturnPosition(FunctionLiteral* literal);
 
-  void SetStatementPosition(Statement* stmt) {
-    SetStatementPosition(stmt->position());
+  void SetStatementPosition(Statement* stmt, bool is_breakable = true) {
+    SetStatementPosition(stmt->position(), is_breakable);
   }
 
   std::optional<BytecodeSourceInfo> MaybePopSourcePosition(int scope_start) {
@@ -548,9 +551,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
     latest_source_info_ = source_info;
   }
 
-  void SetStatementPosition(int position) {
+  void SetStatementPosition(int position, bool is_breakable = true) {
     if (position == kNoSourcePosition) return;
-    latest_source_info_.MakeStatementPosition(position);
+    latest_source_info_.MakeStatementPosition(position, is_breakable);
   }
 
   void SetExpressionPosition(Expression* expr) {
@@ -566,8 +569,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
     }
   }
 
-  void SetExpressionAsStatementPosition(Expression* expr) {
-    SetStatementPosition(expr->position());
+  void SetExpressionAsStatementPosition(Expression* expr,
+                                        bool is_breakable = true) {
+    SetStatementPosition(expr->position(), is_breakable);
   }
 
   bool RemainderOfBlockIsDead() const {

@@ -130,7 +130,7 @@ class Vector {
     length_ = 0;
   }
 
-  Vector<T> operator+(size_t offset) {
+  const Vector<T> operator+(size_t offset) const {
     DCHECK_LE(offset, length_);
     return Vector<T>(start_ + offset, length_ - offset);
   }
@@ -169,20 +169,10 @@ class Vector {
     return std::equal(begin(), end(), other.begin(), other.end());
   }
 
-  bool operator!=(const Vector<T>& other) const {
-    return !operator==(other);
-  }
-
   template <typename TT = T>
     requires(!std::is_const_v<TT>)
   bool operator==(const Vector<const T>& other) const {
     return std::equal(begin(), end(), other.begin(), other.end());
-  }
-
-  template <typename TT = T>
-    requires(!std::is_const_v<TT>)
-  bool operator!=(const Vector<const T>& other) const {
-    return !operator==(other);
   }
 
  private:
@@ -289,6 +279,16 @@ class OwnedVector {
     return OwnedVector<T>(std::make_unique<T[]>(size), size);
   }
 
+  // Allocates a new vector of the specified size via the default allocator and
+  // initializes all elements by assigning from `init`.
+  template <typename U>
+  static OwnedVector<T> New(size_t size, U init) {
+    if (size == 0) return {};
+    OwnedVector<T> vec = NewForOverwrite(size);
+    std::fill_n(vec.begin(), size, init);
+    return vec;
+  }
+
   // Allocates a new vector of the specified size via the default allocator.
   // Elements in the new vector are default-initialized.
   static OwnedVector<T> NewForOverwrite(size_t size) {
@@ -307,7 +307,6 @@ class OwnedVector {
   }
 
   bool operator==(std::nullptr_t) const { return data_ == nullptr; }
-  bool operator!=(std::nullptr_t) const { return data_ != nullptr; }
 
  private:
   template <typename U>

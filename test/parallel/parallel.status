@@ -41,6 +41,10 @@ test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
 
+[$system==linux && $arch==s390x]
+# https://github.com/nodejs/node/issues/58353
+test-http2-debug: PASS, FLAKY
+
 [$system==linux || $system==win32]
 # https://github.com/nodejs/node/issues/49605
 test-runner-watch-mode: PASS,FLAKY
@@ -73,6 +77,7 @@ test-domain-throw-error-then-throw-from-uncaught-exception-handler: PASS, FLAKY
 test-domain-with-abort-on-uncaught-exception: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
+test-fs-promises-watch-iterator: SKIP
 # https://github.com/nodejs/node/issues/50050
 test-tick-processor-arguments: SKIP
 # https://github.com/nodejs/node/issues/54534
@@ -81,6 +86,7 @@ test-runner-run-watch: PASS, FLAKY
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
+test-fs-promises-watch-iterator: SKIP
 
 [$system==aix]
 # https://github.com/nodejs/node/issues/54346
@@ -91,6 +97,7 @@ test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 test-child-process-fork-net-server: SKIP
 test-cli-node-options: SKIP
 test-cluster-shared-leak: SKIP
+test-fs-promises-watch-iterator: SKIP
 test-http-writable-true-after-close: SKIP
 test-http2-connect-method: SKIP
 test-net-error-twice: SKIP
@@ -119,6 +126,14 @@ test-tls-client-mindhsize: PASS, FLAKY
 test-tls-write-error: PASS, FLAKY
 # https://github.com/nodejs/node/issues/48047
 test-http-pipeline-flood: SKIP
+# https://github.com/nodejs/node/issues/58582
+test-http-proxy-fetch: PASS, FLAKY
+test-https-proxy-fetch: PASS, FLAKY
+test-inspector-network-fetch:  PASS, FLAKY
+test-fetch:  PASS, FLAKY
+test-without-async-context-frame: PASS, FLAKY
+test-process-cpuUsage: PASS, FLAKY
+
 
 [$asan==on]
 # https://github.com/nodejs/node/issues/39655

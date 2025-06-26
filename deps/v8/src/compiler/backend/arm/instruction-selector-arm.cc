@@ -409,8 +409,9 @@ void EmitLoad(InstructionSelectorT* selector, InstructionCode opcode,
 
   const Operation& base_op = selector->Get(base);
   int64_t index_constant;
-  if (base_op.Is<Opmask::kExternalConstant>() &&
-      selector->MatchSignedIntegralConstant(index, &index_constant)) {
+  const bool is_index_constant =
+      selector->MatchSignedIntegralConstant(index, &index_constant);
+  if (base_op.Is<Opmask::kExternalConstant>() && is_index_constant) {
     const ConstantOp& constant_base = base_op.Cast<ConstantOp>();
     if (selector->CanAddressRelativeToRootsRegister(
             constant_base.external_reference())) {
@@ -426,10 +427,11 @@ void EmitLoad(InstructionSelectorT* selector, InstructionCode opcode,
     }
   }
 
-  if (base_op.Is<LoadRootRegisterOp>()) {
+  if (base_op.Is<LoadRootRegisterOp>() && is_index_constant) {
     input_count = 1;
     // This will only work if {index} is a constant.
-    inputs[0] = g.UseImmediate(index);
+    DCHECK(is_int32(index_constant));
+    inputs[0] = g.UseImmediate(static_cast<int32_t>(index_constant));
     opcode |= AddressingModeField::encode(kMode_Root);
     selector->Emit(opcode, 1, output, input_count, inputs);
     return;
@@ -1192,7 +1194,8 @@ void InstructionSelectorT::VisitStackPointerGreaterThan(
   kind = op.kind;
   value = op.stack_limit();
   InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
+      kArchStackPointerGreaterThan |
+      StackCheckField::encode(static_cast<StackCheckKind>(kind));
 
   ArmOperandGeneratorT g(this);
 

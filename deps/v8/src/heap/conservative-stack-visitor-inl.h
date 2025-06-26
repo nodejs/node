@@ -128,20 +128,20 @@ void ConservativeStackVisitorBase<ConcreteVisitor>::VisitPointer(
   auto address = reinterpret_cast<Address>(const_cast<void*>(pointer));
 #ifdef V8_COMPRESS_POINTERS
   V8HeapCompressionScheme::ProcessIntermediatePointers(
-      cage_base_, address,
+      address,
       [this](Address ptr) { VisitConservativelyIfPointer(ptr, cage_base_); });
   if constexpr (ConcreteVisitor::kOnlyVisitMainV8Cage) {
     return;
   }
 #ifdef V8_EXTERNAL_CODE_SPACE
   ExternalCodeCompressionScheme::ProcessIntermediatePointers(
-      code_cage_base_, address, [this](Address ptr) {
+      address, [this](Address ptr) {
         VisitConservativelyIfPointer(ptr, code_cage_base_);
       });
 #endif  // V8_EXTERNAL_CODE_SPACE
 #ifdef V8_ENABLE_SANDBOX
   TrustedSpaceCompressionScheme::ProcessIntermediatePointers(
-      trusted_cage_base_, address, [this](Address ptr) {
+      address, [this](Address ptr) {
         VisitConservativelyIfPointer(ptr, trusted_cage_base_);
       });
 #endif  // V8_ENABLE_SANDBOX

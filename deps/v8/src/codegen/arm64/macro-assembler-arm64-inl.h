@@ -522,6 +522,24 @@ void MacroAssembler::Cneg(const Register& rd, const Register& rn,
   cneg(rd, rn, cond);
 }
 
+void MacroAssembler::Abs(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  abs(rd, rn);
+}
+
+void MacroAssembler::Cnt(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  cnt(rd, rn);
+}
+
+void MacroAssembler::Ctz(const Register& rd, const Register& rn) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  ctz(rd, rn);
+}
+
 // Conditionally zero the destination register. Only X registers are supported
 // due to the truncation side-effect when used on W registers.
 void MacroAssembler::CzeroX(const Register& rd, Condition cond) {

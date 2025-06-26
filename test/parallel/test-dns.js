@@ -193,16 +193,13 @@ assert.deepStrictEqual(dns.getServers(), []);
 
 // dns.lookup should accept falsey values
 {
-  const checkCallback = (err, address, family) => {
-    assert.ifError(err);
-    assert.strictEqual(address, null);
-    assert.strictEqual(family, 4);
-  };
-
   ['', null, undefined, 0, NaN].forEach(async (value) => {
-    const res = await dnsPromises.lookup(value);
-    assert.deepStrictEqual(res, { address: null, family: 4 });
-    dns.lookup(value, common.mustCall(checkCallback));
+    await assert.rejects(dnsPromises.lookup(value), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
+    assert.throws(() => dns.lookup(value, common.mustNotCall()), {
+      code: 'ERR_INVALID_ARG_VALUE',
+    });
   });
 }
 
@@ -247,52 +244,104 @@ assert.throws(() => dns.lookup('', {
   name: 'TypeError'
 });
 
-dns.lookup('', { family: 4, hints: 0 }, common.mustCall());
+assert.throws(() => {
+  dns.lookup('', { family: 4, hints: 0 }, common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
-dns.lookup('', {
-  family: 6,
-  hints: dns.ADDRCONFIG
-}, common.mustCall());
+assert.throws(() => {
+  dns.lookup('', {
+    family: 6,
+    hints: dns.ADDRCONFIG
+  }, common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
-dns.lookup('', { hints: dns.V4MAPPED }, common.mustCall());
+assert.throws(() => {
+  dns.lookup('', { hints: dns.V4MAPPED }, common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
-dns.lookup('', {
-  hints: dns.ADDRCONFIG | dns.V4MAPPED
-}, common.mustCall());
+assert.throws(() => {
+  dns.lookup('', {
+    hints: dns.ADDRCONFIG | dns.V4MAPPED
+  }, common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
-dns.lookup('', {
-  hints: dns.ALL
-}, common.mustCall());
+assert.throws(() => {
+  dns.lookup('', {
+    hints: dns.ALL
+  }, common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
-dns.lookup('', {
-  hints: dns.V4MAPPED | dns.ALL
-}, common.mustCall());
+assert.throws(() => {
+  dns.lookup('', {
+    hints: dns.V4MAPPED | dns.ALL
+  }, common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
-dns.lookup('', {
-  hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
-}, common.mustCall());
+assert.throws(() => {
+  dns.lookup('', {
+    hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
+  }, common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
-dns.lookup('', {
-  hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL,
-  family: 'IPv4'
-}, common.mustCall());
+assert.throws(() => {
+  dns.lookup('', {
+    hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL,
+    family: 'IPv4'
+  }, common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
-dns.lookup('', {
-  hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL,
-  family: 'IPv6'
-}, common.mustCall());
+assert.throws(() => {
+  dns.lookup('', {
+    hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL,
+    family: 'IPv6'
+  }, common.mustNotCall());
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
 
 (async function() {
-  await dnsPromises.lookup('', { family: 4, hints: 0 });
-  await dnsPromises.lookup('', { family: 6, hints: dns.ADDRCONFIG });
-  await dnsPromises.lookup('', { hints: dns.V4MAPPED });
-  await dnsPromises.lookup('', { hints: dns.ADDRCONFIG | dns.V4MAPPED });
-  await dnsPromises.lookup('', { hints: dns.ALL });
-  await dnsPromises.lookup('', { hints: dns.V4MAPPED | dns.ALL });
-  await dnsPromises.lookup('', {
-    hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
+  await assert.rejects(dnsPromises.lookup('', { family: 4, hints: 0 }), {
+    code: 'ERR_INVALID_ARG_VALUE',
   });
-  await dnsPromises.lookup('', { order: 'verbatim' });
+  await assert.rejects(dnsPromises.lookup('', { family: 6, hints: dns.ADDRCONFIG }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+  await assert.rejects(dnsPromises.lookup('', { hints: dns.V4MAPPED }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+  await assert.rejects(dnsPromises.lookup('', { hints: dns.ADDRCONFIG | dns.V4MAPPED }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+  await assert.rejects(dnsPromises.lookup('', { hints: dns.ALL }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+  await assert.rejects(dnsPromises.lookup('', { hints: dns.V4MAPPED | dns.ALL }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+  await assert.rejects(dnsPromises.lookup('', {
+    hints: dns.ADDRCONFIG | dns.V4MAPPED | dns.ALL
+  }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
+  await assert.rejects(dnsPromises.lookup('', { order: 'verbatim' }), {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
 })().then(common.mustCall());
 
 {
@@ -415,7 +464,7 @@ assert.throws(() => {
         (answer) => Object.assign({ domain }, answer)
       ),
     }), port, address);
-  }, cases.length * 2 - 1));
+  }, cases.length * 2));
 
   server.bind(0, common.mustCall(() => {
     const address = server.address();

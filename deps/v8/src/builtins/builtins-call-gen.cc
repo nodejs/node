@@ -217,11 +217,11 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
   TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // Check if {arguments_list} is an (unmodified) arguments object.
-  TNode<Map> sloppy_arguments_map = CAST(
-      LoadContextElement(native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
+  TNode<Map> sloppy_arguments_map = CAST(LoadContextElementNoCell(
+      native_context, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
   GotoIf(TaggedEqual(arguments_list_map, sloppy_arguments_map), &if_arguments);
-  TNode<Map> strict_arguments_map = CAST(
-      LoadContextElement(native_context, Context::STRICT_ARGUMENTS_MAP_INDEX));
+  TNode<Map> strict_arguments_map = CAST(LoadContextElementNoCell(
+      native_context, Context::STRICT_ARGUMENTS_MAP_INDEX));
   GotoIf(TaggedEqual(arguments_list_map, strict_arguments_map), &if_arguments);
 
   // Check if {arguments_list} is a fast JSArray.

@@ -73,7 +73,10 @@ for (const wasm_obj of [struct, array]) {
     repeated(() => assertSame(wasm_obj, Object.getPrototypeOf(obj)));
     repeated(() => assertSame(wasm_obj, Reflect.getPrototypeOf(obj)));
     repeated(() => assertSame(undefined, obj.__proto__));
-    testThrowsRepeated(() => obj.__proto__ = wasm_obj, TypeError);
+    // __proto__ is not an inherited accessor, so it's a named property
+    // like any other.
+    obj.__proto__ = wasm_obj;
+    repeated(() => assertSame(wasm_obj, obj.__proto__));
     // Property access fails.
     repeated(() => assertSame(undefined, obj[0]));
     repeated(() => assertSame(undefined, obj.prop));

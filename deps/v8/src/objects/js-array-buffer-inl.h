@@ -218,6 +218,24 @@ bool JSArrayBufferView::WasDetached() const {
   return Cast<JSArrayBuffer>(buffer())->was_detached();
 }
 
+bool JSArrayBufferView::IsDetachedOrOutOfBounds() const {
+  auto backing_buffer = Cast<JSArrayBuffer>(buffer());
+  if (backing_buffer->was_detached()) {
+    return true;
+  }
+  if (!is_backed_by_rab()) {
+    // TypedArrays backed by GSABs or regular AB/SABs are never out of bounds.
+    // This shortcut is load-bearing; this enables determining
+    // IsDetachedOrOutOfBounds without consulting the BackingStore.
+    return false;
+  }
+  size_t buffer_byte_length =
+      backing_buffer->GetBackingStore()->byte_length();
+  // Length-tracking ArrayBufferViews have byte_length() == 0, so this math
+  // works.
+  return byte_offset() + byte_length() > buffer_byte_length;
+}
+
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_length_tracking,
                     JSArrayBufferView::IsLengthTrackingBit)
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_backed_by_rab,
@@ -249,19 +267,6 @@ bool JSTypedArray::IsOutOfBounds() const {
   bool out_of_bounds = false;
   GetLengthOrOutOfBounds(out_of_bounds);
   return out_of_bounds;
-}
-
-bool JSTypedArray::IsDetachedOrOutOfBounds() const {
-  if (WasDetached()) {
-    return true;
-  }
-  if (!is_backed_by_rab()) {
-    // TypedArrays backed by GSABs or regular AB/SABs are never out of bounds.
-    // This shortcut is load-bearing; this enables determining
-    // IsDetachedOrOutOfBounds without consulting the BackingStore.
-    return false;
-  }
-  return IsOutOfBounds();
 }
 
 // static

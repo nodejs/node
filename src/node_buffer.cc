@@ -329,7 +329,8 @@ MaybeLocal<Object> New(Isolate* isolate,
     if (actual > 0) [[likely]] {
       if (actual < length) {
         std::unique_ptr<BackingStore> old_store = std::move(store);
-        store = ArrayBuffer::NewBackingStore(isolate, actual);
+        store = ArrayBuffer::NewBackingStore(
+            isolate, actual, BackingStoreInitializationMode::kUninitialized);
         memcpy(store->Data(), old_store->Data(), actual);
       }
       Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, std::move(store));
@@ -416,7 +417,7 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
 
   CHECK(bs);
 
-  memcpy(bs->Data(), data, length);
+  if (length > 0) memcpy(bs->Data(), data, length);
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
 
@@ -506,6 +507,17 @@ MaybeLocal<Object> New(Environment* env,
     }
   }
 
+#if defined(V8_ENABLE_SANDBOX)
+  // When v8 sandbox is enabled, external backing stores are not supported
+  // since all arraybuffer allocations are expected to be done by the isolate.
+  // Since this violates the contract of this function, let's free the data and
+  // throw an error.
+  free(data);
+  THROW_ERR_OPERATION_FAILED(
+      env->isolate(),
+      "Wrapping external data is not supported when the v8 sandbox is enabled");
+  return MaybeLocal<Object>();
+#else
   EscapableHandleScope handle_scope(env->isolate());
 
   auto free_callback = [](void* data, size_t length, void* deleter_data) {
@@ -520,6 +532,7 @@ MaybeLocal<Object> New(Environment* env,
   if (Buffer::New(env, ab, 0, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
   return Local<Object>();
+#endif
 }
 
 namespace {
@@ -742,7 +755,7 @@ uint32_t FastByteLengthUtf8(
   Local<String> sourceStr = sourceValue.As<String>();
 
   if (!sourceStr->IsExternalOneByte()) {
-    return sourceStr->Utf8Length(isolate);
+    return sourceStr->Utf8LengthV2(isolate);
   }
   auto source = sourceStr->GetExternalOneByteStringResource();
   // For short inputs, the function call overhead to simdutf is maybe

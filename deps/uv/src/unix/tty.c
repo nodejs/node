@@ -284,6 +284,11 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
   int fd;
   int rc;
 
+  if (uv__is_raw_tty_mode(mode)) {
+    /* There is only a single raw TTY mode on UNIX. */
+    mode = UV_TTY_MODE_RAW;
+  }
+
   if (tty->mode == (int) mode)
     return 0;
 
@@ -324,6 +329,8 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
     case UV_TTY_MODE_IO:
       uv__tty_make_raw(&tmp);
       break;
+    default:
+      UNREACHABLE();
   }
 
   /* Apply changes after draining */

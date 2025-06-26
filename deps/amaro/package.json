@@ -1,10 +1,11 @@
 {
 	"name": "amaro",
-	"version": "0.5.3",
+	"version": "1.1.0",
 	"description": "Node.js TypeScript wrapper",
 	"license": "MIT",
 	"type": "commonjs",
 	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
 	"homepage": "https://github.com/nodejs/amaro#readme",
 	"bugs": {
 		"url": "https://github.com/nodejs/amaro/issues"
@@ -13,6 +14,12 @@
 		"type": "git",
 		"url": "https://github.com/nodejs/amaro.git"
 	},
+	"keywords": [
+		"typescript",
+		"nodejs",
+		"type stripping",
+		"strip-types"
+	],
 	"scripts": {
 		"clean": "rimraf dist",
 		"lint": "biome lint --write",
@@ -21,7 +28,7 @@
 		"ci:fix": "biome check --write",
 		"prepack": "npm run build",
 		"postpack": "npm run clean",
-		"build": "node esbuild.config.mjs",
+		"build": "node esbuild.config.mjs && tsc --noCheck",
 		"build:wasm": "node tools/build-wasm.js",
 		"typecheck": "tsc --noEmit",
 		"test": "node --test \"**/*.test.js\"",
@@ -37,12 +44,12 @@
 	},
 	"exports": {
 		".": "./dist/index.js",
-		"./register": "./dist/register-strip.mjs",
 		"./strip": "./dist/register-strip.mjs",
 		"./transform": "./dist/register-transform.mjs"
 	},
 	"files": [
 		"dist",
+		"lib/**/*.d.ts",
 		"LICENSE.md"
 	],
 	"engines": {

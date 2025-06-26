@@ -173,8 +173,7 @@ void MinorGCJob::Task::RunInternal() {
 
   Heap* heap = isolate()->heap();
 
-  if (v8_flags.separate_gc_phases &&
-      heap->incremental_marking()->IsMajorMarking()) {
+  if (heap->incremental_marking()->IsMajorMarking()) {
     // Don't trigger a minor GC while major incremental marking is active.
     return;
   }

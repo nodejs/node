@@ -1364,8 +1364,7 @@ def _GetOutputTargetExt(spec):
   Returns:
     A string with the extension, or None
   """
-    target_extension = spec.get("product_extension")
-    if target_extension:
+    if target_extension := spec.get("product_extension"):
         return "." + target_extension
     return None
 
@@ -3166,8 +3165,7 @@ def _GetMSBuildAttributes(spec, config, build_file):
         "windows_driver": "Link",
         "static_library": "Lib",
     }
-    msbuild_tool = msbuild_tool_map.get(spec["type"])
-    if msbuild_tool:
+    if msbuild_tool := msbuild_tool_map.get(spec["type"]):
         msbuild_settings = config["finalized_msbuild_settings"]
         out_file = msbuild_settings[msbuild_tool].get("OutputFile")
         if out_file:
@@ -3184,8 +3182,7 @@ def _GetMSBuildConfigurationGlobalProperties(spec, configurations, build_file):
     # there are actions.
     # TODO(jeanluc) Handle the equivalent of setting 'CYGWIN=nontsec'.
     new_paths = []
-    cygwin_dirs = spec.get("msvs_cygwin_dirs", ["."])[0]
-    if cygwin_dirs:
+    if cygwin_dirs := spec.get("msvs_cygwin_dirs", ["."])[0]:
         cyg_path = "$(MSBuildProjectDirectory)\\%s\\bin\\" % _FixPath(cygwin_dirs)
         new_paths.append(cyg_path)
         # TODO(jeanluc) Change the convention to have both a cygwin_dir and a
@@ -3370,7 +3367,6 @@ def _FinalizeMSBuildSettings(spec, configuration):
     prebuild = configuration.get("msvs_prebuild")
     postbuild = configuration.get("msvs_postbuild")
     def_file = _GetModuleDefinition(spec)
-    precompiled_header = configuration.get("msvs_precompiled_header")
 
     # Add the information to the appropriate tool
     # TODO(jeanluc) We could optimize and generate these settings only if
@@ -3408,7 +3404,7 @@ def _FinalizeMSBuildSettings(spec, configuration):
         msbuild_settings, "ClCompile", "DisableSpecificWarnings", disabled_warnings
     )
     # Turn on precompiled headers if appropriate.
-    if precompiled_header:
+    if precompiled_header := configuration.get("msvs_precompiled_header"):
         # While MSVC works with just file name eg. "v8_pch.h", ClangCL requires
         # the full path eg. "tools/msvs/pch/v8_pch.h" to find the file.
         # P.S. Only ClangCL defines msbuild_toolset, for MSVC it is None.

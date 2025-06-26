@@ -13,15 +13,15 @@ print("I'm a resource.");
 let __v_0 = 0;
 let __v_1 = 0;
 for (const __v_7 = 0; __v_7 < 10000; __v_7++) {
-  console.log(/* VariableMutator: Replaced __v_7 with __v_7 */__v_7);
+  console.log(__v_7);
   console.log(/* VariableMutator: Replaced __v_1 with __v_7 */__v_7);
-  __v_1 = /* VariableMutator: Replaced __v_7 with __v_7 */__v_7;
-  __v_1 = /* VariableMutator: Replaced __v_7 with __v_7 */__v_7;
-  __v_1 = /* VariableMutator: Replaced __v_7 with __v_7 */__v_7;
+  __v_1 = __v_7;
+  __v_1 = __v_7;
+  __v_1 = __v_7;
   __v_7 = __v_1;
   __v_7 = __v_1;
   __v_7 = __v_1;
-  /* VariableMutator: Replaced __v_5 with __v_7 */__v_7(/* VariableMutator: Replaced __v_7 with __v_7 */__v_7);
+  /* VariableMutator: Replaced __v_5 with __v_7 */__v_7(__v_7);
 }
 let __v_2 = 0;
 while (true) {
@@ -42,7 +42,7 @@ do {
 } while (/* VariableMutator: Replaced __v_5 with __v_4 */__v_4);
 const __v_6 = 10;
 for (const __v_8 = __v_6; __v_8 > 0; __v_8--) {
-  console.log(/* VariableMutator: Replaced __v_8 with __v_8 */__v_8);
+  console.log(__v_8);
   console.log(/* VariableMutator: Replaced __v_6 with __v_8 */__v_8);
   if (strange) {
     __v_8 = __v_6;

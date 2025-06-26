@@ -154,6 +154,8 @@ Failed tests:
       *
       *
       *
+      *
+      *
 ✖ subtest sync throw fails (*ms)
   '2 subtests failed'
 ✖ timed out async test (*ms)

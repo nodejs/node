@@ -14,6 +14,8 @@ end
 # Print content of V8 handles.
 python
 import gdb
+import gdb.printing
+import gdb.types
 
 class PrintV8HandleCommand(gdb.Command):
   """Print content of a V8 object, accessed through a handle."""
@@ -94,9 +96,25 @@ PrintV8LocalCommand()
 PrintV8InternalHandleCommand()
 end
 
-alias jlh = print-v8-local
-alias jl = print-v8-local
-alias jh = print-v8-internal-handle
+python
+class TryAliasCommand(gdb.Command):
+  """Create an alias, but don't error if it already exists."""
+
+  def __init__ (self):
+    super (TryAliasCommand, self).__init__ ("try-alias", gdb.COMMAND_FILES)
+
+  def invoke (self, arg, from_tty):
+    try:
+      gdb.execute('alias ' + arg)
+    except:
+      pass
+
+TryAliasCommand()
+end
+
+try-alias jlh = print-v8-local
+try-alias jl = print-v8-local
+try-alias jh = print-v8-internal-handle
 
 # Print Code objects containing given PC.
 define jco
@@ -361,7 +379,7 @@ import subprocess
 import sys
 
 compile_dirs = set()
-
+src_dir = None
 
 def get_current_debug_file_directories():
   dir = gdb.execute("show debug-file-directory", to_string=True)
@@ -380,6 +398,40 @@ def add_debug_file_directory(dir):
       "set debug-file-directory %s" % ":".join(current_dirs), to_string=True)
 
 
+def load_libcxx_pretty_printers(src_dir):
+  libcxx_pretty_printers = os.path.join(src_dir, 'third_party', 'libc++', 'src',
+                                        'utils', 'gdb', 'libcxx')
+  if not os.path.isdir(libcxx_pretty_printers):
+    return
+  sys.path.insert(1, libcxx_pretty_printers)
+  from printers import register_libcxx_printer_loader
+  register_libcxx_printer_loader()
+
+
+def set_src_dir(compile_dir):
+  global src_dir
+  git = subprocess.Popen(
+      ['git', '-C', compile_dir, 'rev-parse', '--show-toplevel'],
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE)
+  src_dir, _ = git.communicate()
+  if git.returncode:
+    return
+  if isinstance(src_dir, str):
+    src_dir = src_dir.rstrip()
+  else:
+    src_dir = src_dir.decode('utf-8').rstrip()
+
+  # If there's no LICENSE.v8 file in the repo root, we got the wrong git repo.
+  # The most common way to have this happen is to be in a git checkout of
+  # another project that vendors chromium in its own third_party directory. In
+  # that case, try falling back to the current working directory.
+  if not os.path.isfile(os.path.join(src_dir, 'LICENSE.v8')):
+    src_dir = os.path.abspath(os.getcwd())
+
+  load_libcxx_pretty_printers(src_dir)
+
+
 def newobj_handler(event):
   global compile_dirs
   compile_dir = os.path.dirname(event.new_objfile.filename)
@@ -396,6 +448,10 @@ def newobj_handler(event):
   # https://sourceware.org/gdb/onlinedocs/gdb/Separate-Debug-Files.html
   # https://crbug.com/603286#c35
   add_debug_file_directory(compile_dir)
+  
+  global src_dir
+  if not src_dir:
+    set_src_dir(compile_dir)
 
 # Event hook for newly loaded objfiles.
 # https://sourceware.org/gdb/onlinedocs/gdb/Events-In-Python.html
@@ -455,6 +511,7 @@ def cppgc_pretty_printers(val):
 
 
 gdb.pretty_printers.append(cppgc_pretty_printers)
+
 class TaggedPrintCommand(gdb.Command):
     """
     The equivalent of the print command that deals with tagged objects
@@ -514,5 +571,165 @@ class TaggedPrintCommand(gdb.Command):
         return result
 
 TaggedPrintCommand()
+
+
+static_roots_cache = None
+def GetStaticRoot(ptr):
+  global static_roots_cache
+  if static_roots_cache is None:
+    static_roots_cache = {}
+    try:
+      for field in gdb.lookup_type("v8::internal::StaticReadOnlyRoot").fields():
+        value = gdb.parse_and_eval("v8::internal::StaticReadOnlyRoot::"+field.name)
+        if int(value) in static_roots_cache:
+          static_roots_cache[int(value)] += "," + field.name
+        else:
+          static_roots_cache[int(value)] = field.name
+    except Exception as e:
+      print("Warning, couldn't find static roots: ", e)
+  ptr = ptr & 0xFFFFFFFF
+  return static_roots_cache.get(ptr, None)
+
+
+def InterpretTaggedPointer(pointer):
+  if (pointer & 0x1) == 0:
+    return f"Smi: {pointer >> 1}"
+  
+  static_root = GetStaticRoot(pointer)
+  if static_root is not None:
+    return f"{static_root}"
+
+  return None
+
+
+def OptimizedOutToNone(val):
+  if val is None:
+    return None
+  if val.is_optimized_out:
+    return None
+  return val
+
+
+class TaggedPrinter(object):
+  """Print Tagged<Foo> types."""
+
+  def __init__(self, val, pointee_type):
+    self.val = OptimizedOutToNone(val)
+    self.pointee_type = pointee_type.lstrip('v8::internal::')
+    self.ptr = self.val["ptr_"] if self.val is not None else None
+
+  def to_string(self):
+    if self.ptr is None:
+      return f"Tagged<{self.pointee_type}>{{<optimized out>}}"
+    pointer = int(self.ptr)
+    fmt = f"Tagged<{self.pointee_type}>{{0x{pointer:02x}}}"
+    if (label := InterpretTaggedPointer(pointer)) is not None:
+      fmt += f" ({label})"          
+    return fmt
+
+
+def tagged_pretty_printers(val):
+  # The member type might have been obscured by typedefs and template
+  # arguments. Fallback to using the underlying type.
+  real_type = val.type.strip_typedefs()
+  typename = real_type.name or real_type.tag or str(real_type)
+  regex = re.compile("^v8::internal::Tagged<(.*)>$")
+  match = regex.match(typename)
+  if match is not None:
+    return TaggedPrinter(val, pointee_type=match.group(1))
+
+  return None
+
+
+gdb.pretty_printers.append(tagged_pretty_printers)
+
+
+class HandlePrinter(object):
+  """Print Handle<Foo> types."""
+
+  def __init__(self, val, pointee_type):
+    self.val = OptimizedOutToNone(val)
+    self.pointee_type = pointee_type.lstrip('v8::internal::')
+    self.location = OptimizedOutToNone(self.val["location_"] if self.val is not None else None)
+    self.ptr = self.location.dereference() if self.location is not None else None
+
+  def to_string(self):
+    if self.location is None:
+      return f"Handle<{self.pointee_type}>{{<optimized out>}}"
+    location = int(self.location)
+    fmt = f"Handle<{self.pointee_type}>{{0x{location:02x}}}: "
+    if self.ptr is None:
+      fmt += f"<optimized out>"
+    else:
+      pointer = None
+      try:
+        pointer = int(self.ptr)
+      except Exception as e:
+        fmt += f"[{e}]"
+      else:
+        fmt += f"0x{pointer:02x}"
+        if (label := InterpretTaggedPointer(pointer)) is not None:
+          fmt += f" ({label})"
+          
+    return fmt
+
+
+def handle_pretty_printers(val):
+  # The member type might have been obscured by typedefs and template
+  # arguments. Fallback to using the underlying type.
+  real_type = val.type.strip_typedefs()
+  typename = real_type.name or real_type.tag or str(real_type)
+  regex = re.compile("^v8::internal::(?:Indirect)?Handle<(.*)>$")
+  match = regex.match(typename)
+  if match is not None:
+    return HandlePrinter(val, pointee_type=match.group(1))
+
+  return None
+
+
+gdb.pretty_printers.append(handle_pretty_printers)
+
+
+class DirectHandlePrinter(object):
+  """Print DirectHandle<Foo> types."""
+
+  def __init__(self, val, pointee_type):
+    self.val = val
+    self.pointee_type = pointee_type.lstrip('v8::internal::')
+    self.inner = None
+    if gdb.types.has_field(self.val.type, "handle_"):
+      self.inner = HandlePrinter(val['handle_'], pointee_type)
+    elif gdb.types.has_field(self.val.type, "obj_"):
+      self.inner = TaggedPrinter(val['obj_'], pointee_type)
+    else:
+      print("Warning: No recognised DirectHandle field")
+
+  def to_string(self):
+    if self.inner is not None:
+      return self.inner.to_string()
+
+
+def direct_handle_pretty_printers(val):
+  # The member type might have been obscured by typedefs and template
+  # arguments. Fallback to using the underlying type.
+  real_type = val.type.strip_typedefs()
+  typename = real_type.name or real_type.tag or str(real_type)
+  regex = re.compile("^v8::internal::DirectHandle<(.*)>$")
+  match = regex.match(typename)
+  if match is not None:
+    if gdb.types.has_field(real_type, "handle_"):
+      handle = None
+      if not val.is_optimized_out:
+        handle = val['handle_']
+      return HandlePrinter(handle, match.group(1))
+    elif gdb.types.has_field(real_type, "obj_"):
+      obj = None
+      if not val.is_optimized_out:
+        obj = val['obj_']
+      return TaggedPrinter(obj, match.group(1))
+
+  return None
+
+gdb.pretty_printers.append(direct_handle_pretty_printers)
 
 end

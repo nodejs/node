@@ -933,61 +933,6 @@ TEST(JSWeakRefScavengedInWorklist) {
   heap::InvokeMajorGC(heap);
 }
 
-TEST(JSWeakRefTenuredInWorklist) {
-  if (!v8_flags.incremental_marking || v8_flags.single_generation ||
-      v8_flags.separate_gc_phases) {
-    return;
-  }
-
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-
-  HandleScope outer_scope(isolate);
-  IndirectHandle<JSWeakRef> weak_ref;
-
-  // Make a WeakRef that points to a target. The target becomes unreachable.
-  {
-    HandleScope inner_scope(isolate);
-    IndirectHandle<JSObject> js_object =
-        isolate->factory()->NewJSObject(isolate->object_function());
-    IndirectHandle<JSWeakRef> inner_weak_ref =
-        ConstructJSWeakRef(js_object, isolate);
-    CHECK(HeapLayout::InYoungGeneration(*js_object));
-    CHECK(HeapLayout::InYoungGeneration(*inner_weak_ref));
-
-    weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
-  }
-  // Store weak_ref such that it is part of the root set when starting
-  // incremental marking.
-  v8::Global<Value> global_weak_ref(CcTest::isolate(),
-                                    Utils::ToLocal(Cast<Object>(weak_ref)));
-  Address old_weak_ref_location = weak_ref->address();
-
-  // Do marking. This puts the WeakRef above into the js_weak_refs worklist
-  // since its target isn't marked.
-  CHECK(heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
-  heap::SimulateIncrementalMarking(heap, true);
-  heap->mark_compact_collector()->local_weak_objects()->Publish();
-  CHECK(
-      !heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
-
-  // Now collect weak_ref's target. We still have a Handle to weak_ref, so it is
-  // moved and remains on the worklist.
-  heap::InvokeMinorGC(heap);
-  Address new_weak_ref_location = weak_ref->address();
-  CHECK_NE(old_weak_ref_location, new_weak_ref_location);
-  CHECK(
-      !heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
-
-  // The mark-compactor should see the moved WeakRef in the worklist.
-  heap::InvokeMajorGC(heap);
-  CHECK(heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
-  CHECK(IsUndefined(weak_ref->target(), isolate));
-}
-
 TEST(UnregisterTokenHeapVerifier) {
   if (!v8_flags.incremental_marking) return;
   ManualGCScope manual_gc_scope;

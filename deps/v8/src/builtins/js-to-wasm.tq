@@ -135,6 +135,8 @@ const kValueTypeHasIndexBit:
     constexpr uint32 generates 'wasm::ValueType::kHasIndexBit';
 const kValueTypeIsNullableBit:
     constexpr uint32 generates 'wasm::ValueType::kIsNullableBit';
+const kValueTypeIsSharedBit:
+    constexpr uint32 generates 'wasm::ValueType::kIsSharedBit';
 
 const kValueTypeRefKindBits:
     constexpr uint32 generates 'wasm::ValueType::kRefKindBits';
@@ -465,7 +467,9 @@ macro JSToWasmObject(
       if (!isNullable && value == Null) {
         ThrowTypeError(MessageTemplate::kWasmTrapJSTypeError);
       }
-      return value;
+      if ((targetType & kValueTypeIsSharedBit) == 0) {
+        return value;
+      }
     }
     if (standardType == ToUint(StandardType::kString)) {
       if (TaggedIsSmi(value)) {

@@ -506,6 +506,16 @@ class PageAllocator {
                               Permission permissions) = 0;
 
   /**
+   * Resizes the previously allocated memory at the given address. Returns true
+   * if the allocation could be resized. Returns false if this operation is
+   * either not supported or the object could not be resized in-place.
+   */
+  virtual bool ResizeAllocationAt(void* address, size_t old_length,
+                                  size_t new_length, Permission permissions) {
+    return false;
+  }
+
+  /**
    * Frees memory in a range that was allocated by a call to AllocatePages.
    */
   virtual bool FreePages(void* address, size_t length) = 0;

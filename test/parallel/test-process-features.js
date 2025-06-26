@@ -9,6 +9,7 @@ const expectedKeys = new Map([
   ['debug', ['boolean']],
   ['uv', ['boolean']],
   ['ipv6', ['boolean']],
+  ['openssl_is_boringssl', ['boolean']],
   ['tls_alpn', ['boolean']],
   ['tls_sni', ['boolean']],
   ['tls_ocsp', ['boolean']],

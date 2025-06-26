@@ -35,7 +35,7 @@ test('execute a TypeScript file', async () => {
     fixtures.path('typescript/ts/test-typescript.ts'),
   ]);
 
-  match(result.stderr, /Type Stripping is an experimental feature and might change at any time/);
+  strictEqual(result.stderr, '');
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });
@@ -330,4 +330,15 @@ test('execute invalid TypeScript syntax', async () => {
   match(result.stderr, /ERR_INVALID_TYPESCRIPT_SYNTAX/);
   strictEqual(result.stdout, '');
   strictEqual(result.code, 1);
+});
+
+test('check transform types warning', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-transform-types',
+    fixtures.path('typescript/ts/test-typescript.ts'),
+  ]);
+
+  match(result.stderr, /Transform Types is an experimental feature and might change at any time/);
+  match(result.stdout, /Hello, TypeScript!/);
+  strictEqual(result.code, 0);
 });

@@ -523,11 +523,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Use --trace-deopt to enable.
   void RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
                          SourcePosition position, int id);
-
-  static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
-                                       intptr_t pc_delta);
-  static void RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
-                                        intptr_t pc_delta);
+  static int RelocateInternalReference(
+      RelocInfo::Mode rmode, Address pc, intptr_t pc_delta,
+      WritableJitAllocation* jit_allocation = nullptr);
+  static void RelocateRelativeReference(
+      RelocInfo::Mode rmode, Address pc, intptr_t pc_delta,
+      WritableJitAllocation* jit_allocation = nullptr);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.

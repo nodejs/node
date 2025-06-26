@@ -215,10 +215,7 @@ async function checkInvalidOptionForEvaluate() {
     ['link', 'evaluate'].forEach(async (method) => {
       await assert.rejects(async () => {
         await Module.prototype[method]();
-      }, {
-        code: 'ERR_INVALID_ARG_TYPE',
-        message: /The "this" argument must be an instance of Module/
-      });
+      }, { code: 'ERR_INVALID_THIS' });
     });
   }
 }
@@ -240,10 +237,7 @@ function checkInvalidCachedData() {
 }
 
 function checkGettersErrors() {
-  const expectedError = {
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "this" argument must be an instance of (?:Module|SourceTextModule)/,
-  };
+  const expectedError = { code: 'ERR_INVALID_THIS' };
   const getters = ['identifier', 'context', 'namespace', 'status', 'error'];
   getters.forEach((getter) => {
     assert.throws(() => {

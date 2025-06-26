@@ -113,6 +113,7 @@ class TypeCanonicalizer {
   V8_EXPORT_PRIVATE bool IsFunctionSignature(CanonicalTypeIndex index) const;
   V8_EXPORT_PRIVATE bool IsStruct(CanonicalTypeIndex index) const;
   V8_EXPORT_PRIVATE bool IsArray(CanonicalTypeIndex index) const;
+  V8_EXPORT_PRIVATE bool IsShared(CanonicalTypeIndex index) const;
 
   bool IsHeapSubtype(CanonicalTypeIndex sub, CanonicalTypeIndex super) const;
   bool IsCanonicalSubtype_Locked(CanonicalTypeIndex sub_index,
@@ -356,7 +357,8 @@ class TypeCanonicalizer {
       const bool indexed = type1.has_index();
       if (indexed != type2.has_index()) return false;
       if (indexed) {
-        return EqualTypeIndex(type1.ref_index(), type2.ref_index());
+        return type1.is_equal_except_index(type2) &&
+               EqualTypeIndex(type1.ref_index(), type2.ref_index());
       }
       return type1 == type2;
     }

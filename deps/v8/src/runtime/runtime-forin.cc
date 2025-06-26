@@ -76,8 +76,7 @@ MaybeDirectHandle<Object> HasEnumerableProperty(
         }
       }
       case LookupIterator::WASM_OBJECT:
-        THROW_NEW_ERROR(isolate,
-                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+        continue;  // Continue to the prototype, if present.
       case LookupIterator::INTERCEPTOR: {
         result = JSObject::GetPropertyAttributesWithInterceptor(&it);
         if (result.IsNothing()) return MaybeDirectHandle<Object>();

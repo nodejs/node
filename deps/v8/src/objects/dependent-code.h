@@ -62,7 +62,7 @@ class DependentCode : public WeakArrayList {
     kAllocationSiteTransitionChangedGroup = 1 << 8,
     // Group of code objects that depend on a slot side table property of
     // a ScriptContext not being changed.
-    kScriptContextSlotPropertyChangedGroup = 1 << 9,
+    kContextCellChangedGroup = 1 << 9,
     // Group of code objects that depend on particular context's extension
     // slot to be empty.
     kEmptyContextExtensionGroup = 1 << 10,

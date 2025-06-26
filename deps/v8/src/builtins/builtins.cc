@@ -458,7 +458,7 @@ DirectHandle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
   desc.handler_table_offset = instruction_size;
   desc.constant_pool_offset = instruction_size;
   desc.code_comments_offset = instruction_size;
-  desc.builtin_jump_table_info_offset = instruction_size;
+  desc.jump_table_info_offset = instruction_size;
 
   CodeDesc::Verify(&desc);
 

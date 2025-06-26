@@ -142,6 +142,14 @@ class CompilationCacheTable
                                  DirectHandle<SharedFunctionInfo> shared,
                                  DirectHandle<NativeContext> native_context,
                                  LanguageMode language_mode, int position);
+  // Adds a new native-context-specific feedback back to an existing entry.
+  // Bails out if no existing entry was found.
+  static void UpdateEval(DirectHandle<CompilationCacheTable> table,
+                         DirectHandle<String> src,
+                         DirectHandle<SharedFunctionInfo> outer_info,
+                         DirectHandle<NativeContext> native_context,
+                         DirectHandle<FeedbackCell> feedback_cell,
+                         LanguageMode language_mode, int position);
   static DirectHandle<CompilationCacheTable> PutEval(
       DirectHandle<CompilationCacheTable> cache, DirectHandle<String> src,
       DirectHandle<SharedFunctionInfo> outer_info,

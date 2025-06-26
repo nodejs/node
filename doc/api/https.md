@@ -137,9 +137,11 @@ See [`server.close()`][] in the `node:http` module.
 
 <!-- YAML
 added: v20.4.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`server.close()`][httpsServerClose] and returns a promise that
 fulfills when the server has closed.

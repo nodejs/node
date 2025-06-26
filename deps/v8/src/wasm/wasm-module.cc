@@ -416,7 +416,7 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
   DirectHandle<JSArray> array_object =
       factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   DirectHandle<FixedArray> storage = factory->NewFixedArray(num_imports);
-  JSArray::SetContent(array_object, storage);
+  JSArray::SetContent(isolate, array_object, storage);
 
   DirectHandle<JSFunction> object_function = DirectHandle<JSFunction>(
       isolate->native_context()->object_function(), isolate);
@@ -517,7 +517,7 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
   for (int index = cursor; index < num_imports; ++index) {
     storage->set_the_hole(isolate, cursor++);
   }
-  JSObject::ValidateElements(*array_object);
+  JSObject::ValidateElements(isolate, *array_object);
   return array_object;
 }
 
@@ -542,7 +542,7 @@ DirectHandle<JSArray> GetExports(Isolate* isolate,
   DirectHandle<JSArray> array_object =
       factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   DirectHandle<FixedArray> storage = factory->NewFixedArray(num_exports);
-  JSArray::SetContent(array_object, storage);
+  JSArray::SetContent(isolate, array_object, storage);
   DCHECK_EQ(array_object->length(), Smi::FromInt(num_exports));
 
   DirectHandle<JSFunction> object_function = DirectHandle<JSFunction>(
@@ -615,7 +615,7 @@ DirectHandle<JSArray> GetExports(Isolate* isolate,
     storage->set(index, *entry);
   }
 
-  JSObject::ValidateElements(*array_object);
+  JSObject::ValidateElements(isolate, *array_object);
   return array_object;
 }
 
@@ -661,14 +661,14 @@ DirectHandle<JSArray> GetCustomSections(
       factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   DirectHandle<FixedArray> storage =
       factory->NewFixedArray(num_custom_sections);
-  JSArray::SetContent(array_object, storage);
+  JSArray::SetContent(isolate, array_object, storage);
   DCHECK_EQ(array_object->length(), Smi::FromInt(num_custom_sections));
 
   for (int i = 0; i < num_custom_sections; i++) {
     storage->set(i, *matching_sections[i]);
   }
 
-  JSObject::ValidateElements(*array_object);
+  JSObject::ValidateElements(isolate, *array_object);
   return array_object;
 }
 
@@ -693,7 +693,7 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 size_t WasmModule::EstimateStoredSize() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            776
+                            800
 #else   // V8_ENABLE_DRUMBRAKE
                             768
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -772,7 +772,7 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            776
+                            800
 #else   // V8_ENABLE_DRUMBRAKE
                             768
 #endif  // V8_ENABLE_DRUMBRAKE

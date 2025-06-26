@@ -297,8 +297,14 @@
   'test-api/Threading8': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
   'test-heap/TestInternalWeakLists': [SKIP],
+  'test-serialize/ContextSerializerContext': [SKIP],
+  'test-serialize/ContextSerializerCustomContext': [SKIP],
+  'test-serialize/SharedStrings': [SKIP],
   'test-serialize/StartupSerializerOnce': [SKIP],
   'test-serialize/StartupSerializerTwice': [SKIP],
+
+  # https://issues.chromium.org/issues/407932138
+  'test-cpu-profiler/NoProfilingProtectorCPUProfiler': [SKIP],
 }],  # 'full_debug'
 
 ##############################################################################
@@ -849,10 +855,10 @@
   'test-run-unwinding-info/RunUnwindingInfo': [SKIP],
 }],
 
-['conservative_stack_scanning', {
+['direct_handle', {
   # Needs --predictable.
   'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
-}],  # conservative_stack_scanning
+}],  # direct_handle
 
 ['clang_coverage and mode == debug', {
   # Too slow tests.

@@ -48,8 +48,8 @@ bool IsCompressed(InstructionSelectorT* selector, OpIndex node) {
   if (selector->is_load(node)) {
     auto load = selector->load_view(node);
     return load.loaded_rep().IsCompressed();
-  } else if (selector->IsPhi(node)) {
-    MachineRepresentation phi_rep = selector->phi_representation_of(node);
+  } else if (const PhiOp* phi = selector->TryCast<PhiOp>(node)) {
+    MachineRepresentation phi_rep = phi->rep.machine_representation();
     return phi_rep == MachineRepresentation::kCompressed ||
            phi_rep == MachineRepresentation::kCompressedPointer;
   }
@@ -802,8 +802,8 @@ AddressingMode X64OperandGeneratorT::GetEffectiveAddressMemoryOperand(
     }
     return mode;
   }
-  if (m->base.valid() && this->Get(m->base).Is<LoadRootRegisterOp>()) {
-    DCHECK(!m->index.valid());
+  if (m->base.valid() && this->Get(m->base).Is<LoadRootRegisterOp>() &&
+      !m->index.valid()) {
     DCHECK_EQ(m->scale, 0);
     DCHECK(ValueFitsIntoImmediate(m->displacement));
     inputs[(*input_count)++] = UseImmediate(static_cast<int>(m->displacement));
@@ -1046,7 +1046,8 @@ template <VectorLength vec_len>
 void VisitMinOrMax(InstructionSelectorT* selector, OpIndex node,
                    ArchOpcode opcode, bool flip_inputs) {
   X64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 2);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
   InstructionOperand dst = selector->IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
@@ -1054,11 +1055,11 @@ void VisitMinOrMax(InstructionSelectorT* selector, OpIndex node,
   if (flip_inputs) {
     // Due to the way minps/minpd work, we want the dst to be same as the second
     // input: b = pmin(a, b) directly maps to minps b a.
-    selector->Emit(instr_code, dst, g.UseRegister(selector->input_at(node, 1)),
-                   g.UseRegister(selector->input_at(node, 0)));
+    selector->Emit(instr_code, dst, g.UseRegister(op.input(1)),
+                   g.UseRegister(op.input(0)));
   } else {
-    selector->Emit(instr_code, dst, g.UseRegister(selector->input_at(node, 0)),
-                   g.UseRegister(selector->input_at(node, 1)));
+    selector->Emit(instr_code, dst, g.UseRegister(op.input(0)),
+                   g.UseRegister(op.input(1)));
   }
 }
 }  // namespace
@@ -1080,9 +1081,9 @@ void InstructionSelectorT::VisitStackSlot(OpIndex node) {
 
 void InstructionSelectorT::VisitAbortCSADcheck(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(kArchAbortCSADcheck, g.NoOutput(),
-       g.UseFixed(this->input_at(node, 0), rdx));
+  const AbortCSADcheckOp& check = Cast<AbortCSADcheckOp>(node);
+  DCHECK_EQ(check.input_count, 1);
+  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(check.message(), rdx));
 }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -1186,8 +1187,7 @@ void InstructionSelectorT::VisitS256Const(OpIndex node) {
   X64OperandGeneratorT g(this);
   static const int kUint32Immediates = kSimd256Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
-  const Simd256ConstantOp& constant =
-      this->Get(node).template Cast<Simd256ConstantOp>();
+  const Simd256ConstantOp& constant = Cast<Simd256ConstantOp>(node);
   memcpy(val, constant.value, kSimd256Size);
   // If all bytes are zeros or ones, avoid emitting code for generic constants
   bool all_zeros = std::all_of(std::begin(val), std::end(val),
@@ -1608,9 +1608,10 @@ void InstructionSelectorT::VisitStoreLane(OpIndex node) {
 static void VisitBinop(InstructionSelectorT* selector, OpIndex node,
                        InstructionCode opcode, FlagsContinuationT* cont) {
   X64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 2);
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  const Operation& binop = selector->Get(node);
+  DCHECK_EQ(binop.input_count, 2);
+  auto left = binop.input(0);
+  auto right = binop.input(1);
   if (selector->IsCommutative(node)) {
     if (selector->Is<ConstantOp>(left) && !selector->Is<ConstantOp>(right)) {
       std::swap(left, right);
@@ -1732,7 +1733,7 @@ std::optional<uint64_t> TryGetRightWordConstant(InstructionSelectorT* selector,
 void InstructionSelectorT::VisitWord64And(OpIndex node) {
   X64OperandGeneratorT g(this);
   if (std::optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
-    auto left = this->input_at(node, 0);
+    OpIndex left = Get(node).input(0);
     if (*constant == 0xFF) {
       Emit(kX64Movzxbq, g.DefineAsRegister(node), g.Use(left));
       return;
@@ -1765,7 +1766,7 @@ void InstructionSelectorT::VisitWord32Xor(OpIndex node) {
   if (std::optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
     if (*constant == static_cast<uint64_t>(-1)) {
       Emit(kX64Not32, g.DefineSameAsFirst(node),
-           g.UseRegister(this->input_at(node, 0)));
+           g.UseRegister(Get(node).input(0)));
       return;
     }
   }
@@ -1777,7 +1778,7 @@ void InstructionSelectorT::VisitWord64Xor(OpIndex node) {
   if (std::optional<uint64_t> constant = TryGetRightWordConstant(this, node)) {
     if (*constant == static_cast<uint64_t>(-1)) {
       Emit(kX64Not, g.DefineSameAsFirst(node),
-           g.UseRegister(this->input_at(node, 0)));
+           g.UseRegister(Get(node).input(0)));
       return;
     }
   }
@@ -1786,15 +1787,15 @@ void InstructionSelectorT::VisitWord64Xor(OpIndex node) {
 
 void InstructionSelectorT::VisitStackPointerGreaterThan(
     OpIndex node, FlagsContinuation* cont) {
-  StackCheckKind kind;
-  kind = this->Get(node).template Cast<StackPointerGreaterThanOp>().kind;
+  const StackPointerGreaterThanOp& op = Cast<StackPointerGreaterThanOp>(node);
   InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
+      kArchStackPointerGreaterThan |
+      StackCheckField::encode(static_cast<StackCheckKind>(op.kind));
 
   int effect_level = GetEffectLevel(node, cont);
 
   X64OperandGeneratorT g(this);
-  OpIndex value = this->input_at(node, 0);
+  OpIndex value = op.stack_limit();
   if (g.CanBeMemoryOperand(kX64Cmp, node, value, effect_level)) {
     DCHECK(this->IsLoadOrLoadImmutable(value));
 
@@ -1821,9 +1822,10 @@ namespace {
 void VisitWord32Shift(InstructionSelectorT* selector, OpIndex node,
                       ArchOpcode opcode) {
   X64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 2);
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  const ShiftOp& op = selector->Cast<ShiftOp>(node);
+  DCHECK_EQ(op.input_count, 2);
+  auto left = op.left();
+  auto right = op.right();
 
   if (V<Word64> left64; selector->MatchTruncateWord64ToWord32(left, &left64)) {
     left = left64;
@@ -1843,9 +1845,10 @@ void VisitWord32Shift(InstructionSelectorT* selector, OpIndex node,
 void VisitWord64Shift(InstructionSelectorT* selector, OpIndex node,
                       ArchOpcode opcode) {
   X64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 2);
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  const ShiftOp& op = selector->Cast<ShiftOp>(node);
+  DCHECK_EQ(op.input_count, 2);
+  auto left = op.left();
+  auto right = op.right();
 
   if (g.CanBeImmediate(right)) {
       // TODO(nicohartmann@): Implement this for Turboshaft.
@@ -1881,9 +1884,10 @@ bool TryVisitWordShift(InstructionSelectorT* selector, OpIndex node, int bits,
                        ArchOpcode opcode, FlagsContinuationT* cont) {
   DCHECK(bits == 32 || bits == 64);
   X64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 2);
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  const ShiftOp& op = selector->Cast<ShiftOp>(node);
+  DCHECK_EQ(op.input_count, 2);
+  auto left = op.left();
+  auto right = op.right();
 
   // If the shift count is 0, the flags are not affected.
   if (!g.CanBeImmediate(right) ||
@@ -2119,16 +2123,16 @@ void InstructionSelectorT::VisitWord64ReverseBits(OpIndex node) {
 
 void InstructionSelectorT::VisitWord64ReverseBytes(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(kX64Bswap, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)));
+  const WordUnaryOp& op = Cast<WordUnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  Emit(kX64Bswap, g.DefineSameAsFirst(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitWord32ReverseBytes(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(kX64Bswap32, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)));
+  const WordUnaryOp& op = Cast<WordUnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  Emit(kX64Bswap32, g.DefineSameAsFirst(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitSimd128ReverseBytes(OpIndex node) {
@@ -2139,7 +2143,7 @@ void InstructionSelectorT::VisitInt32Add(OpIndex node) {
   X64OperandGeneratorT g(this);
 
   std::optional<BaseWithScaledIndexAndDisplacementMatch> m;
-  const WordBinopOp& add = this->Get(node).template Cast<WordBinopOp>();
+  const WordBinopOp& add = Cast<WordBinopOp>(node);
   OpIndex left = add.left();
   OpIndex right = add.right();
   // No need to truncate the values before Int32Add.
@@ -2406,9 +2410,10 @@ void InstructionSelectorT::VisitUint64MulHigh(OpIndex node) {
 //    Else:
 //      Set Projection(1) := 0;   -- the value was out of range
 void InstructionSelectorT::VisitTryTruncateFloat32ToInt64(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   X64OperandGeneratorT g(this);
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   InstructionOperand temps[1];
   size_t output_count = 0;
@@ -2433,9 +2438,10 @@ void InstructionSelectorT::VisitTryTruncateFloat32ToInt64(OpIndex node) {
 // negative, but still within range) we restore it and set Projection(1) := 1.
 // In all other cases we set Projection(1) := 0, denoting value out of range.
 void InstructionSelectorT::VisitTryTruncateFloat64ToUint32(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   X64OperandGeneratorT g(this);
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -2449,9 +2455,10 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToUint32(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitTryTruncateFloat32ToUint64(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   X64OperandGeneratorT g(this);
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -2465,9 +2472,10 @@ void InstructionSelectorT::VisitTryTruncateFloat32ToUint64(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToUint64(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   X64OperandGeneratorT g(this);
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   size_t output_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
@@ -2481,9 +2489,10 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToUint64(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToInt64(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   X64OperandGeneratorT g(this);
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   InstructionOperand temps[1];
   size_t output_count = 0;
@@ -2500,9 +2509,10 @@ void InstructionSelectorT::VisitTryTruncateFloat64ToInt64(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitTryTruncateFloat64ToInt32(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const TryChangeOp& op = Cast<TryChangeOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   X64OperandGeneratorT g(this);
-  InstructionOperand inputs[] = {g.UseRegister(this->input_at(node, 0))};
+  InstructionOperand inputs[] = {g.UseRegister(op.input())};
   InstructionOperand outputs[2];
   InstructionOperand temps[1];
   size_t output_count = 0;
@@ -2525,10 +2535,11 @@ void InstructionSelectorT::VisitBitcastWord32ToWord64(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitChangeInt32ToInt64(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  DCHECK_EQ(op.input_count, 1);
 
   X64OperandGeneratorT g(this);
-  auto value = this->input_at(node, 0);
+  auto value = op.input();
   if (this->IsLoadOrLoadImmutable(value) && CanCover(node, value)) {
     LoadRepresentation load_rep = this->load_view(value).loaded_rep();
     MachineRepresentation rep = load_rep.representation();
@@ -2559,17 +2570,17 @@ void InstructionSelectorT::VisitChangeInt32ToInt64(OpIndex node) {
     InstructionOperand outputs[] = {g.DefineAsRegister(node)};
     size_t input_count = 0;
     InstructionOperand inputs[3];
-    AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-        this->input_at(node, 0), inputs, &input_count);
+    AddressingMode mode =
+        g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count);
     opcode |= AddressingModeField::encode(mode);
     Emit(opcode, 1, outputs, input_count, inputs);
   } else {
-    Emit(kX64Movsxlq, g.DefineAsRegister(node), g.Use(this->input_at(node, 0)));
+    Emit(kX64Movsxlq, g.DefineAsRegister(node), g.Use(value));
   }
 }
 
 bool InstructionSelectorT::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
-  const auto& op = this->Get(node);
+  const Operation& op = Get(node);
   switch (op.opcode) {
     case Opcode::kWordBinop: {
       const auto& binop = op.Cast<WordBinopOp>();
@@ -2652,8 +2663,9 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64NoPhis(OpIndex node) {
 
 void InstructionSelectorT::VisitChangeUint32ToUint64(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  OpIndex value = this->input_at(node, 0);
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  OpIndex value = op.input();
   if (ZeroExtendsWord32ToWord64(value)) {
     // These 32-bit operations implicitly zero-extend to 64-bit on x64, so the
     // zero-extension is a no-op.
@@ -2667,32 +2679,35 @@ namespace {
 void VisitRO(InstructionSelectorT* selector, OpIndex node,
              InstructionCode opcode) {
   X64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 1);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.Use(selector->input_at(node, 0)));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 1);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.Use(op.input(0)));
 }
 
 void VisitRR(InstructionSelectorT* selector, OpIndex node,
              InstructionCode opcode) {
   X64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(selector->input_at(node, 0)));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 1);
+  selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)));
 }
 
 void VisitRRO(InstructionSelectorT* selector, OpIndex node,
               InstructionCode opcode) {
   X64OperandGeneratorT g(selector);
-  selector->Emit(opcode, g.DefineSameAsFirst(node),
-                 g.UseRegister(selector->input_at(node, 0)),
-                 g.Use(selector->input_at(node, 1)));
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(op.input(0)),
+                 g.Use(op.input(1)));
 }
 
 void VisitFloatBinop(InstructionSelectorT* selector, OpIndex node,
                      InstructionCode avx_opcode, InstructionCode sse_opcode) {
   X64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 2);
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  const FloatBinopOp& op = selector->Cast<FloatBinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
+  auto left = op.left();
+  auto right = op.right();
   InstructionOperand inputs[8];
   size_t input_count = 0;
   InstructionOperand outputs[1];
@@ -2868,16 +2883,18 @@ void InstructionSelectorT::VisitTruncateFloat64ToWord32(OpIndex node) {
 
 void InstructionSelectorT::VisitTruncateFloat64ToFloat16RawBits(OpIndex node) {
   X64OperandGeneratorT g(this);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionOperand temps[] = {g.TempDoubleRegister(), g.TempRegister()};
   Emit(kSSEFloat64ToFloat16RawBits, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)), arraysize(temps), temps);
+       g.UseUniqueRegister(op.input()), arraysize(temps), temps);
 }
 
 void InstructionSelectorT::VisitChangeFloat16RawBitsToFloat64(OpIndex node) {
   X64OperandGeneratorT g(this);
+  const ChangeOp& op = Cast<ChangeOp>(node);
   InstructionOperand temps[] = {g.TempDoubleRegister()};
   Emit(kSSEFloat16RawBitsToFloat64, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)), arraysize(temps), temps);
+       g.UseRegister(op.input()), arraysize(temps), temps);
 }
 
 void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
@@ -2885,20 +2902,18 @@ void InstructionSelectorT::VisitTruncateInt64ToInt32(OpIndex node) {
   // value (see ZeroExtendsWord32ToWord64). So all code paths here
   // have to satisfy that condition.
   X64OperandGeneratorT g(this);
-
-  OpIndex value = this->input_at(node, 0);
+  const ChangeOp& op = Cast<ChangeOp>(node);
+  OpIndex value = op.input();
   bool can_cover = false;
   if (const TaggedBitcastOp* value_op =
-          this->Get(value)
-              .template TryCast<
-                  Opmask::kBitcastTaggedToWordPtrForTagAndSmiBits>()) {
+          TryCast<Opmask::kBitcastTaggedToWordPtrForTagAndSmiBits>(value)) {
     can_cover = CanCover(node, value) && CanCover(node, value_op->input());
     value = value_op->input();
   } else {
     can_cover = CanCover(node, value);
   }
     if (can_cover) {
-      const Operation& value_op = this->Get(value);
+      const Operation& value_op = Get(value);
       if (const ShiftOp * shift;
           (shift = value_op.TryCast<Opmask::kWord64ShiftRightArithmetic>()) ||
           (shift = value_op.TryCast<Opmask::kWord64ShiftRightLogical>())) {
@@ -2937,8 +2952,9 @@ void InstructionSelectorT::VisitFloat32Div(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitFloat32Abs(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Float32Abs);
+  const FloatUnaryOp& op = Cast<FloatUnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  VisitFloatUnop(this, node, op.input(), kX64Float32Abs);
 }
 
 void InstructionSelectorT::VisitFloat32Max(OpIndex node) {
@@ -2966,12 +2982,12 @@ void InstructionSelectorT::VisitFloat64Div(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitFloat64Mod(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const FloatBinopOp& op = Cast<FloatBinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   X64OperandGeneratorT g(this);
   InstructionOperand temps[] = {g.TempRegister(rax)};
-  Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)), 1, temps);
+  Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node), g.UseRegister(op.left()),
+       g.UseRegister(op.right()), 1, temps);
 }
 
 void InstructionSelectorT::VisitFloat64Max(OpIndex node) {
@@ -2983,8 +2999,9 @@ void InstructionSelectorT::VisitFloat64Min(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitFloat64Abs(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Float64Abs);
+  const FloatUnaryOp& op = Cast<FloatUnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  VisitFloatUnop(this, node, op.input(), kX64Float64Abs);
 }
 
 void InstructionSelectorT::VisitFloat64RoundTiesAway(OpIndex node) {
@@ -2992,31 +3009,33 @@ void InstructionSelectorT::VisitFloat64RoundTiesAway(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitFloat32Neg(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Float32Neg);
+  const FloatUnaryOp& op = Cast<FloatUnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  VisitFloatUnop(this, node, op.input(), kX64Float32Neg);
 }
 
 void InstructionSelectorT::VisitFloat64Neg(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Float64Neg);
+  const FloatUnaryOp& op = Cast<FloatUnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  VisitFloatUnop(this, node, op.input(), kX64Float64Neg);
 }
 
 void InstructionSelectorT::VisitFloat64Ieee754Binop(OpIndex node,
                                                     InstructionCode opcode) {
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const FloatBinopOp& op = Cast<FloatBinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   X64OperandGeneratorT g(this);
-  Emit(opcode, g.DefineAsFixed(node, xmm0),
-       g.UseFixed(this->input_at(node, 0), xmm0),
-       g.UseFixed(this->input_at(node, 1), xmm1))
+  Emit(opcode, g.DefineAsFixed(node, xmm0), g.UseFixed(op.left(), xmm0),
+       g.UseFixed(op.right(), xmm1))
       ->MarkAsCall();
 }
 
 void InstructionSelectorT::VisitFloat64Ieee754Unop(OpIndex node,
                                                    InstructionCode opcode) {
+  const FloatUnaryOp& op = Cast<FloatUnaryOp>(node);
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(opcode, g.DefineAsFixed(node, xmm0),
-       g.UseFixed(this->input_at(node, 0), xmm0))
+  DCHECK_EQ(op.input_count, 1);
+  Emit(opcode, g.DefineAsFixed(node, xmm0), g.UseFixed(op.input(), xmm0))
       ->MarkAsCall();
 }
 
@@ -3233,9 +3252,10 @@ bool IsWordAnd(InstructionSelectorT* selector, OpIndex node) {
 MachineType MachineTypeForNarrowWordAnd(InstructionSelectorT* selector,
                                         OpIndex and_node,
                                         OpIndex constant_node) {
-  DCHECK_EQ(selector->value_input_count(and_node), 2);
-  auto and_left = selector->input_at(and_node, 0);
-  auto and_right = selector->input_at(and_node, 1);
+  const WordBinopOp& op = selector->Cast<WordBinopOp>(and_node);
+  DCHECK_EQ(op.input_count, 2);
+  auto and_left = op.left();
+  auto and_right = op.right();
   auto and_constant_node = IsIntConstant(selector, and_right)  ? and_right
                            : IsIntConstant(selector, and_left) ? and_left
                                                                : OpIndex{};
@@ -3361,9 +3381,10 @@ OpIndex RemoveUnnecessaryWordAnd(InstructionSelectorT* selector,
     return and_node;
   }
 
-  DCHECK_EQ(selector->value_input_count(and_node), 2);
-  auto and_left = selector->input_at(and_node, 0);
-  auto and_right = selector->input_at(and_node, 1);
+  const WordBinopOp& op = selector->Cast<WordBinopOp>(and_node);
+  DCHECK_EQ(op.input_count, 2);
+  auto and_left = op.left();
+  auto and_right = op.right();
   auto and_constant_node = OpIndex{};
   auto and_other_node = OpIndex{};
   if (IsIntConstant(selector, and_left)) {
@@ -3386,9 +3407,10 @@ OpIndex RemoveUnnecessaryWordAnd(InstructionSelectorT* selector,
 void VisitWordCompare(InstructionSelectorT* selector, OpIndex node,
                       InstructionCode opcode, FlagsContinuationT* cont) {
   X64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 2);
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 2);
+  auto left = op.input(0);
+  auto right = op.input(1);
 
   // The 32-bit comparisons automatically truncate Word64
   // values to Word32 range, no need to do that explicitly.
@@ -3468,7 +3490,7 @@ void VisitWord64EqualImpl(InstructionSelectorT* selector, OpIndex node,
 
 bool MatchHeapObjectEqual(InstructionSelectorT* selector, OpIndex node,
                           OpIndex* left, Handle<HeapObject>* right) {
-  const ComparisonOp& equal = selector->Get(node).Cast<ComparisonOp>();
+  const ComparisonOp& equal = selector->Cast<ComparisonOp>(node);
   DCHECK_EQ(equal.kind, ComparisonOp::Kind::kEqual);
   if (selector->MatchHeapConstant(equal.right(), right)) {
     *left = equal.left();
@@ -3590,21 +3612,19 @@ void VisitCompareZero(InstructionSelectorT* selector, OpIndex user,
 // Shared routine for multiple float32 compare operations (inputs commuted).
 void VisitFloat32Compare(InstructionSelectorT* selector, OpIndex node,
                          FlagsContinuationT* cont) {
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  const ComparisonOp& op = selector->Cast<ComparisonOp>(node);
   InstructionCode const opcode =
       selector->IsSupported(AVX) ? kAVXFloat32Cmp : kSSEFloat32Cmp;
-  VisitCompare(selector, opcode, right, left, cont, false);
+  VisitCompare(selector, opcode, op.right(), op.left(), cont, false);
 }
 
 // Shared routine for multiple float64 compare operations (inputs commuted).
 void VisitFloat64Compare(InstructionSelectorT* selector, OpIndex node,
                          FlagsContinuationT* cont) {
-  auto left = selector->input_at(node, 0);
-  auto right = selector->input_at(node, 1);
+  const ComparisonOp& op = selector->Cast<ComparisonOp>(node);
   InstructionCode const opcode =
       selector->IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
-  VisitCompare(selector, opcode, right, left, cont, false);
+  VisitCompare(selector, opcode, op.right(), op.left(), cont, false);
 }
 
 // Shared routine for Word32/Word64 Atomic Binops
@@ -3659,7 +3679,7 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
   ConsumeEqualZero(&user, &value, cont);
 
   if (CanCover(user, value)) {
-    const Operation& value_op = this->Get(value);
+    const Operation& value_op = Get(value);
     if (const ComparisonOp* comparison = value_op.TryCast<ComparisonOp>()) {
       if (comparison->kind == ComparisonOp::Kind::kEqual) {
         switch (comparison->rep.MapTaggedToWord().value()) {
@@ -3689,8 +3709,7 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
             cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
             return VisitFloat32Compare(this, value, cont);
           case RegisterRepresentation::Float64(): {
-            bool is_self_compare =
-                this->input_at(value, 0) == this->input_at(value, 1);
+            bool is_self_compare = comparison->left() == comparison->right();
             cont->OverwriteAndNegateIfEqual(is_self_compare ? kIsNotNaN
                                                             : kUnorderedEqual);
             return VisitFloat64Compare(this, value, cont);
@@ -3796,8 +3815,9 @@ void InstructionSelectorT::VisitWordCompareZero(OpIndex user, OpIndex value,
 
 void InstructionSelectorT::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  InstructionOperand value_operand = g.UseRegister(this->input_at(node, 0));
+  const SwitchOp& op = Cast<SwitchOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  InstructionOperand value_operand = g.UseRegister(op.input());
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ ==
@@ -3820,7 +3840,7 @@ void InstructionSelectorT::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
              value_operand, g.TempImmediate(-sw.min_value()));
       } else {
         // Zero extend, because we use it as 64-bit index into the jump table.
-        if (ZeroExtendsWord32ToWord64(this->input_at(node, 0))) {
+        if (ZeroExtendsWord32ToWord64(op.input())) {
           // Input value has already been zero-extended.
           index_operand = value_operand;
         } else {
@@ -3838,7 +3858,7 @@ void InstructionSelectorT::VisitSwitch(OpIndex node, const SwitchInfo& sw) {
 
 void InstructionSelectorT::VisitWord32Equal(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
-  const ComparisonOp& equal = this->Get(node).Cast<ComparisonOp>();
+  const ComparisonOp& equal = Cast<ComparisonOp>(node);
   DCHECK_EQ(equal.kind, ComparisonOp::Kind::kEqual);
   DCHECK(equal.rep == RegisterRepresentation::Word32() ||
          equal.rep == RegisterRepresentation::Tagged());
@@ -3872,13 +3892,13 @@ void InstructionSelectorT::VisitUint32LessThanOrEqual(OpIndex node) {
 
 void InstructionSelectorT::VisitWord64Equal(OpIndex node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
-  const ComparisonOp& equal = this->Get(node).Cast<ComparisonOp>();
+  const ComparisonOp& equal = Cast<ComparisonOp>(node);
   DCHECK_EQ(equal.kind, ComparisonOp::Kind::kEqual);
   DCHECK(equal.rep == RegisterRepresentation::Word64() ||
          equal.rep == RegisterRepresentation::Tagged());
   if (MatchIntegralZero(equal.right())) {
     if (CanCover(node, equal.left())) {
-      const Operation& left_op = this->Get(equal.left());
+      const Operation& left_op = Get(equal.left());
       if (left_op.Is<Opmask::kWord64Sub>()) {
         return VisitWordCompare(this, equal.left(), kX64Cmp, &cont);
       } else if (left_op.Is<Opmask::kWord64BitwiseAnd>()) {
@@ -3949,7 +3969,8 @@ void InstructionSelectorT::VisitFloat32LessThanOrEqual(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitFloat64Equal(OpIndex node) {
-  bool is_self_compare = this->input_at(node, 0) == this->input_at(node, 1);
+  const ComparisonOp& op = Cast<ComparisonOp>(node);
+  bool is_self_compare = op.left() == op.right();
   FlagsContinuation cont = FlagsContinuation::ForSet(
       is_self_compare ? kIsNotNaN : kUnorderedEqual, node);
   VisitFloat64Compare(this, node, &cont);
@@ -3964,12 +3985,12 @@ void InstructionSelectorT::VisitFloat64LessThan(OpIndex node) {
   // and which evaluates to false if x is 0, -0 or NaN. We can compile
   // this to a simple (v)ucomisd using not_equal flags condition, which
   // avoids the costly Float64Abs.
-  const ComparisonOp& cmp = this->Get(node).template Cast<ComparisonOp>();
+  const ComparisonOp& cmp = Cast<ComparisonOp>(node);
   DCHECK_EQ(cmp.rep, RegisterRepresentation::Float64());
   DCHECK_EQ(cmp.kind, ComparisonOp::Kind::kSignedLessThan);
-  if (this->MatchZero(cmp.left())) {
+  if (MatchZero(cmp.left())) {
     if (const FloatUnaryOp* right_op =
-            this->Get(cmp.right()).template TryCast<Opmask::kFloat64Abs>()) {
+            TryCast<Opmask::kFloat64Abs>(cmp.right())) {
       FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, node);
       InstructionCode const opcode =
           IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
@@ -3990,7 +4011,7 @@ void InstructionSelectorT::VisitFloat64LessThanOrEqual(OpIndex node) {
 
 void InstructionSelectorT::VisitBitcastWord32PairToFloat64(OpIndex node) {
   X64OperandGeneratorT g(this);
-  const auto& bitcast = this->Cast<BitcastWord32PairToFloat64Op>(node);
+  const auto& bitcast = Cast<BitcastWord32PairToFloat64Op>(node);
   OpIndex hi = bitcast.high_word32();
   OpIndex lo = bitcast.low_word32();
 
@@ -4003,14 +4024,15 @@ void InstructionSelectorT::VisitBitcastWord32PairToFloat64(OpIndex node) {
 
 void InstructionSelectorT::VisitFloat64SilenceNaN(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const FloatUnaryOp& op = Cast<FloatUnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kSSEFloat64SilenceNaN, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitMemoryBarrier(OpIndex node) {
   AtomicMemoryOrder order;
-  order = this->Get(node).template Cast<MemoryBarrierOp>().memory_order;
+  order = Cast<MemoryBarrierOp>(node).memory_order;
   // x64 is no weaker than release-acquire and only needs to emit an
   // instruction for SeqCst memory barriers.
   if (order == AtomicMemoryOrder::kSeqCst) {
@@ -4063,7 +4085,7 @@ void InstructionSelectorT::VisitWord64AtomicStore(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord32AtomicExchange(OpIndex node) {
-  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
   ArchOpcode opcode;
   if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
     opcode = kAtomicExchangeInt8;
@@ -4084,7 +4106,7 @@ void InstructionSelectorT::VisitWord32AtomicExchange(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord64AtomicExchange(OpIndex node) {
-  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
   ArchOpcode opcode;
   if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
     opcode = kAtomicExchangeUint8;
@@ -4102,7 +4124,7 @@ void InstructionSelectorT::VisitWord64AtomicExchange(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord32AtomicCompareExchange(OpIndex node) {
-  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
   ArchOpcode opcode;
   if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
     opcode = kAtomicCompareExchangeInt8;
@@ -4123,7 +4145,7 @@ void InstructionSelectorT::VisitWord32AtomicCompareExchange(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitWord64AtomicCompareExchange(OpIndex node) {
-  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
   ArchOpcode opcode;
   if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
     opcode = kAtomicCompareExchangeUint8;
@@ -4143,7 +4165,7 @@ void InstructionSelectorT::VisitWord64AtomicCompareExchange(OpIndex node) {
 void InstructionSelectorT::VisitWord32AtomicBinaryOperation(
     OpIndex node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
-  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
   ArchOpcode opcode;
   if (atomic_op.memory_rep == MemoryRepresentation::Int8()) {
     opcode = int8_op;
@@ -4179,7 +4201,7 @@ VISIT_ATOMIC_BINOP(Xor)
 void InstructionSelectorT::VisitWord64AtomicBinaryOperation(
     OpIndex node, ArchOpcode uint8_op, ArchOpcode uint16_op,
     ArchOpcode uint32_op, ArchOpcode word64_op) {
-  const AtomicRMWOp& atomic_op = this->Get(node).template Cast<AtomicRMWOp>();
+  const AtomicRMWOp& atomic_op = Cast<AtomicRMWOp>(node);
   ArchOpcode opcode;
   if (atomic_op.memory_rep == MemoryRepresentation::Uint8()) {
     opcode = uint8_op;
@@ -4505,8 +4527,7 @@ void InstructionSelectorT::VisitS128Const(OpIndex node) {
   X64OperandGeneratorT g(this);
   static const int kUint32Immediates = kSimd128Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
-  const Simd128ConstantOp& constant =
-      this->Get(node).template Cast<Simd128ConstantOp>();
+  const Simd128ConstantOp& constant = Cast<Simd128ConstantOp>(node);
   memcpy(val, constant.value, kSimd128Size);
   // If all bytes are zeros or ones, avoid emitting code for generic constants
   bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
@@ -4542,8 +4563,9 @@ void InstructionSelectorT::VisitS128Zero(OpIndex node) {
 #define VISIT_INT_SIMD_SPLAT(Type, LaneSize, VectorLength)                   \
   void InstructionSelectorT::Visit##Type##Splat(OpIndex node) {              \
     X64OperandGeneratorT g(this);                                            \
-    DCHECK_EQ(this->value_input_count(node), 1);                             \
-    OpIndex input = this->input_at(node, 0);                                 \
+    const Operation& op = Get(node);                                         \
+    DCHECK_EQ(op.input_count, 1);                                            \
+    OpIndex input = op.input(0);                                             \
     if (g.CanBeImmediate(input) && g.GetImmediateIntegerValue(input) == 0) { \
       Emit(kX64SZero | VectorLengthField::encode(VectorLength),              \
            g.DefineAsRegister(node));                                        \
@@ -4559,49 +4581,61 @@ SIMD_INT_TYPES_FOR_SPLAT(VISIT_INT_SIMD_SPLAT)
 
 void InstructionSelectorT::VisitF64x2Splat(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128SplatOp& op = Cast<Simd128SplatOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64FSplat | LaneSizeField::encode(kL64) |
            VectorLengthField::encode(kV128),
-       g.DefineAsRegister(node), g.Use(this->input_at(node, 0)));
+       g.DefineAsRegister(node), g.Use(op.input()));
 }
 
 void InstructionSelectorT::VisitF32x4Splat(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128SplatOp& op = Cast<Simd128SplatOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64FSplat | LaneSizeField::encode(kL32) |
            VectorLengthField::encode(kV128),
-       g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)));
+       g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitF16x8Splat(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128SplatOp& op = Cast<Simd128SplatOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64FSplat | LaneSizeField::encode(kL16) |
            VectorLengthField::encode(kV128),
-       g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)));
+       g.DefineAsRegister(node), g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitF64x4Splat(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd256SplatOp& op = Cast<Simd256SplatOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64FSplat | LaneSizeField::encode(kL64) |
            VectorLengthField::encode(kV256),
-       g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)));
+       g.DefineAsRegister(node), g.UseRegister(op.input()));
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitF32x8Splat(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd256SplatOp& op = Cast<Simd256SplatOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64FSplat | LaneSizeField::encode(kL32) |
            VectorLengthField::encode(kV256),
-       g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)));
+       g.DefineAsRegister(node), g.UseRegister(op.input()));
+#else
+  UNREACHABLE();
+#endif
 }
 
 #define SIMD_VISIT_EXTRACT_LANE(IF, Type, Sign, LaneSize, VectorLength)     \
   void InstructionSelectorT::Visit##Type##ExtractLane##Sign(OpIndex node) { \
     X64OperandGeneratorT g(this);                                           \
-    const Simd128ExtractLaneOp& op =                                        \
-        this->Get(node).template Cast<Simd128ExtractLaneOp>();              \
+    const Simd128ExtractLaneOp& op = Cast<Simd128ExtractLaneOp>(node);      \
     int32_t lane = op.lane;                                                 \
     Emit(kX64##IF##ExtractLane##Sign | LaneSizeField::encode(LaneSize) |    \
              VectorLengthField::encode(VectorLength),                       \
@@ -4620,23 +4654,21 @@ SIMD_VISIT_EXTRACT_LANE(I, I8x16, S, kL8, kV128)
 
 void InstructionSelectorT::VisitI16x8ExtractLaneU(OpIndex node) {
   X64OperandGeneratorT g(this);
-  const Simd128ExtractLaneOp& op =
-      this->Get(node).template Cast<Simd128ExtractLaneOp>();
+  const Simd128ExtractLaneOp& op = Cast<Simd128ExtractLaneOp>(node);
   Emit(kX64Pextrw, g.DefineAsRegister(node), g.UseRegister(op.input()),
        g.UseImmediate(static_cast<int32_t>(op.lane)));
 }
 
 void InstructionSelectorT::VisitI8x16ExtractLaneU(OpIndex node) {
   X64OperandGeneratorT g(this);
-  const Simd128ExtractLaneOp& op =
-      this->Get(node).template Cast<Simd128ExtractLaneOp>();
+  const Simd128ExtractLaneOp& op = Cast<Simd128ExtractLaneOp>(node);
   Emit(kX64Pextrb, g.DefineAsRegister(node), g.UseRegister(op.input()),
        g.UseImmediate(op.lane));
 }
 
 void InstructionSelectorT::VisitF16x8ReplaceLane(OpIndex node) {
   X64OperandGeneratorT g(this);
-  auto& op = this->Get(node).template Cast<Simd128ReplaceLaneOp>();
+  auto& op = Cast<Simd128ReplaceLaneOp>(node);
   Emit(kX64FReplaceLane | LaneSizeField::encode(kL16) |
            VectorLengthField::encode(kV128),
        g.DefineSameAsFirst(node), g.UseRegister(op.into()),
@@ -4645,8 +4677,7 @@ void InstructionSelectorT::VisitF16x8ReplaceLane(OpIndex node) {
 
 void InstructionSelectorT::VisitF32x4ReplaceLane(OpIndex node) {
   X64OperandGeneratorT g(this);
-  const Simd128ReplaceLaneOp& op =
-      this->Get(node).template Cast<Simd128ReplaceLaneOp>();
+  const Simd128ReplaceLaneOp& op = Cast<Simd128ReplaceLaneOp>(node);
   Emit(kX64FReplaceLane | LaneSizeField::encode(kL32) |
            VectorLengthField::encode(kV128),
        g.DefineSameAsFirst(node), g.UseRegister(op.into()),
@@ -4658,21 +4689,19 @@ void InstructionSelectorT::VisitF64x2ReplaceLane(OpIndex node) {
   // When no-AVX, define dst == src to save a move.
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  const Simd128ReplaceLaneOp& op =
-      this->Get(node).template Cast<Simd128ReplaceLaneOp>();
+  const Simd128ReplaceLaneOp& op = Cast<Simd128ReplaceLaneOp>(node);
   Emit(kX64FReplaceLane | LaneSizeField::encode(kL64) |
            VectorLengthField::encode(kV128),
        dst, g.UseRegister(op.into()), g.UseImmediate(op.lane),
        g.UseRegister(op.new_lane()));
 }
 
-#define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                         \
-  void InstructionSelectorT::Visit##TYPE##ReplaceLane(OpIndex node) { \
-    X64OperandGeneratorT g(this);                                     \
-    const Simd128ReplaceLaneOp& op =                                  \
-        this->Get(node).template Cast<Simd128ReplaceLaneOp>();        \
-    Emit(OPCODE, g.DefineAsRegister(node), g.UseRegister(op.into()),  \
-         g.UseImmediate(op.lane), g.Use(op.new_lane()));              \
+#define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                          \
+  void InstructionSelectorT::Visit##TYPE##ReplaceLane(OpIndex node) {  \
+    X64OperandGeneratorT g(this);                                      \
+    const Simd128ReplaceLaneOp& op = Cast<Simd128ReplaceLaneOp>(node); \
+    Emit(OPCODE, g.DefineAsRegister(node), g.UseRegister(op.into()),   \
+         g.UseImmediate(op.lane), g.Use(op.new_lane()));               \
   }
 
 #define SIMD_TYPES_FOR_REPLACE_LANE(V) \
@@ -4689,19 +4718,18 @@ SIMD_TYPES_FOR_REPLACE_LANE(VISIT_SIMD_REPLACE_LANE)
     Name, Opcode, LaneSize, VectorLength)                                  \
   void InstructionSelectorT::Visit##Name(OpIndex node) {                   \
     X64OperandGeneratorT g(this);                                          \
-    DCHECK_EQ(this->value_input_count(node), 2);                           \
+    const Operation& op = Get(node);                                       \
+    DCHECK_EQ(op.input_count, 2);                                          \
     InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)   \
                                               : g.DefineSameAsFirst(node); \
-    if (g.CanBeImmediate(this->input_at(node, 1))) {                       \
+    if (g.CanBeImmediate(op.input(1))) {                                   \
       Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                \
                VectorLengthField::encode(VectorLength),                    \
-           dst, g.UseRegister(this->input_at(node, 0)),                    \
-           g.UseImmediate(this->input_at(node, 1)));                       \
+           dst, g.UseRegister(op.input(0)), g.UseImmediate(op.input(1)));  \
     } else {                                                               \
       Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                \
                VectorLengthField::encode(VectorLength),                    \
-           dst, g.UseRegister(this->input_at(node, 0)),                    \
-           g.UseRegister(this->input_at(node, 1)));                        \
+           dst, g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));   \
     }                                                                      \
   }
 SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(
@@ -4710,51 +4738,51 @@ SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(
 #undef VISIT_SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES
 #undef SIMD_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES
 
-#define VISIT_SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(            \
-    Name, Opcode, LaneSize, VectorLength)                                   \
-  void InstructionSelectorT::Visit##Name(OpIndex node) {                    \
-    X64OperandGeneratorT g(this);                                           \
-    DCHECK_EQ(this->value_input_count(node), 2);                            \
-    InstructionOperand output =                                             \
-        IsSupported(AVX) ? g.UseRegister(node) : g.DefineSameAsFirst(node); \
-    if (g.CanBeImmediate(this->input_at(node, 1))) {                        \
-      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                 \
-               VectorLengthField::encode(VectorLength),                     \
-           output, g.UseRegister(this->input_at(node, 0)),                  \
-           g.UseImmediate(this->input_at(node, 1)));                        \
-    } else {                                                                \
-      InstructionOperand temps[] = {g.TempSimd128Register()};               \
-      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                 \
-               VectorLengthField::encode(VectorLength),                     \
-           output, g.UseUniqueRegister(this->input_at(node, 0)),            \
-           g.UseUniqueRegister(this->input_at(node, 1)), arraysize(temps),  \
-           temps);                                                          \
-    }                                                                       \
+#define VISIT_SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(             \
+    Name, Opcode, LaneSize, VectorLength)                                    \
+  void InstructionSelectorT::Visit##Name(OpIndex node) {                     \
+    X64OperandGeneratorT g(this);                                            \
+    const Operation& op = Get(node);                                         \
+    DCHECK_EQ(op.input_count, 2);                                            \
+    InstructionOperand output =                                              \
+        IsSupported(AVX) ? g.UseRegister(node) : g.DefineSameAsFirst(node);  \
+    if (g.CanBeImmediate(op.input(1))) {                                     \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                  \
+               VectorLengthField::encode(VectorLength),                      \
+           output, g.UseRegister(op.input(0)), g.UseImmediate(op.input(1))); \
+    } else {                                                                 \
+      InstructionOperand temps[] = {g.TempSimd128Register()};                \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                  \
+               VectorLengthField::encode(VectorLength),                      \
+           output, g.UseUniqueRegister(op.input(0)),                         \
+           g.UseUniqueRegister(op.input(1)), arraysize(temps), temps);       \
+    }                                                                        \
   }
 SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(
     VISIT_SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES)
 #undef VISIT_SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES
 #undef SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES
 
-#define VISIT_SIMD_UNOP(Opcode)                            \
-  void InstructionSelectorT::Visit##Opcode(OpIndex node) { \
-    X64OperandGeneratorT g(this);                          \
-    DCHECK_EQ(this->value_input_count(node), 1);           \
-    Emit(kX64##Opcode, g.DefineAsRegister(node),           \
-         g.UseRegister(this->input_at(node, 0)));          \
+#define VISIT_SIMD_UNOP(Opcode)                                               \
+  void InstructionSelectorT::Visit##Opcode(OpIndex node) {                    \
+    X64OperandGeneratorT g(this);                                             \
+    const Operation& op = Get(node);                                          \
+    DCHECK_EQ(op.input_count, 1);                                             \
+    Emit(kX64##Opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0))); \
   }
 SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 #undef VISIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
-#define VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize,     \
-                                                VectorLength)               \
-  void InstructionSelectorT::Visit##Name(OpIndex node) {                    \
-    X64OperandGeneratorT g(this);                                           \
-    DCHECK_EQ(this->value_input_count(node), 1);                            \
-    Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                   \
-             VectorLengthField::encode(VectorLength),                       \
-         g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0))); \
+#define VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize, \
+                                                VectorLength)           \
+  void InstructionSelectorT::Visit##Name(OpIndex node) {                \
+    X64OperandGeneratorT g(this);                                       \
+    const Operation& op = Get(node);                                    \
+    DCHECK_EQ(op.input_count, 1);                                       \
+    Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |               \
+             VectorLengthField::encode(VectorLength),                   \
+         g.DefineAsRegister(node), g.UseRegister(op.input(0)));         \
   }
 
 SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST(VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH)
@@ -4762,15 +4790,16 @@ SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST(VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH)
 #undef VISIT_SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH
 #undef SIMD_UNOP_LANE_SIZE_VECTOR_LENGTH_LIST
 
-#define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize,    \
-                                                 VectorLength)              \
-  void InstructionSelectorT::Visit##Name(OpIndex node) {                    \
-    X64OperandGeneratorT g(this);                                           \
-    DCHECK_EQ(this->value_input_count(node), 2);                            \
-    Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                   \
-             VectorLengthField::encode(VectorLength),                       \
-         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)), \
-         g.UseRegister(this->input_at(node, 1)));                           \
+#define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize, \
+                                                 VectorLength)           \
+  void InstructionSelectorT::Visit##Name(OpIndex node) {                 \
+    X64OperandGeneratorT g(this);                                        \
+    const Operation& op = Get(node);                                     \
+    DCHECK_EQ(op.input_count, 2);                                        \
+    Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                \
+             VectorLengthField::encode(VectorLength),                    \
+         g.DefineSameAsFirst(node), g.UseRegister(op.input(0)),          \
+         g.UseRegister(op.input(1)));                                    \
   }
 
 SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(
@@ -4779,41 +4808,41 @@ SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(
 #undef VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH
 #undef SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST
 
-#define VISIT_SIMD_BINOP(Opcode)                           \
-  void InstructionSelectorT::Visit##Opcode(OpIndex node) { \
-    X64OperandGeneratorT g(this);                          \
-    DCHECK_EQ(this->value_input_count(node), 2);           \
-    if (IsSupported(AVX)) {                                \
-      Emit(kX64##Opcode, g.DefineAsRegister(node),         \
-           g.UseRegister(this->input_at(node, 0)),         \
-           g.UseRegister(this->input_at(node, 1)));        \
-    } else {                                               \
-      Emit(kX64##Opcode, g.DefineSameAsFirst(node),        \
-           g.UseRegister(this->input_at(node, 0)),         \
-           g.UseRegister(this->input_at(node, 1)));        \
-    }                                                      \
+#define VISIT_SIMD_BINOP(Opcode)                                               \
+  void InstructionSelectorT::Visit##Opcode(OpIndex node) {                     \
+    X64OperandGeneratorT g(this);                                              \
+    const Operation& op = Get(node);                                           \
+    DCHECK_EQ(op.input_count, 2);                                              \
+    if (IsSupported(AVX)) {                                                    \
+      Emit(kX64##Opcode, g.DefineAsRegister(node), g.UseRegister(op.input(0)), \
+           g.UseRegister(op.input(1)));                                        \
+    } else {                                                                   \
+      Emit(kX64##Opcode, g.DefineSameAsFirst(node),                            \
+           g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));            \
+    }                                                                          \
   }
 
 SIMD_BINOP_SSE_AVX_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
 #undef SIMD_BINOP_SSE_AVX_LIST
 
-#define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize,      \
-                                                 VectorLength)                \
-  void InstructionSelectorT::Visit##Name(OpIndex node) {                      \
-    X64OperandGeneratorT g(this);                                             \
-    DCHECK_EQ(this->value_input_count(node), 2);                              \
-    if (IsSupported(AVX)) {                                                   \
-      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                   \
-               VectorLengthField::encode(VectorLength),                       \
-           g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)),  \
-           g.UseRegister(this->input_at(node, 1)));                           \
-    } else {                                                                  \
-      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |                   \
-               VectorLengthField::encode(VectorLength),                       \
-           g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)), \
-           g.UseRegister(this->input_at(node, 1)));                           \
-    }                                                                         \
+#define VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH(Name, Opcode, LaneSize, \
+                                                 VectorLength)           \
+  void InstructionSelectorT::Visit##Name(OpIndex node) {                 \
+    X64OperandGeneratorT g(this);                                        \
+    const Operation& op = Get(node);                                     \
+    DCHECK_EQ(op.input_count, 2);                                        \
+    if (IsSupported(AVX)) {                                              \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |              \
+               VectorLengthField::encode(VectorLength),                  \
+           g.DefineAsRegister(node), g.UseRegister(op.input(0)),         \
+           g.UseRegister(op.input(1)));                                  \
+    } else {                                                             \
+      Emit(kX64##Opcode | LaneSizeField::encode(LaneSize) |              \
+               VectorLengthField::encode(VectorLength),                  \
+           g.DefineSameAsFirst(node), g.UseRegister(op.input(0)),        \
+           g.UseRegister(op.input(1)));                                  \
+    }                                                                    \
   }
 
 SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(
@@ -4821,18 +4850,18 @@ SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(
 #undef VISIT_SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH
 #undef SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST
 
-#define VISIT_SIMD_F16x8_BINOP(Name, Opcode)                               \
-  void InstructionSelectorT::Visit##Name(OpIndex node) {                   \
-    X64OperandGeneratorT g(this);                                          \
-    DCHECK_EQ(this->value_input_count(node), 2);                           \
-    InstructionOperand temps[] = {g.TempSimd256Register(),                 \
-                                  g.TempSimd256Register()};                \
-    size_t temp_count = arraysize(temps);                                  \
-    Emit(kX64##Opcode | LaneSizeField::encode(kL16) |                      \
-             VectorLengthField::encode(kV128),                             \
-         g.DefineAsRegister(node),                                         \
-         g.UseUniqueRegister(this->input_at(node, 0)),                     \
-         g.UseUniqueRegister(this->input_at(node, 1)), temp_count, temps); \
+#define VISIT_SIMD_F16x8_BINOP(Name, Opcode)                         \
+  void InstructionSelectorT::Visit##Name(OpIndex node) {             \
+    X64OperandGeneratorT g(this);                                    \
+    const Operation& op = Get(node);                                 \
+    DCHECK_EQ(op.input_count, 2);                                    \
+    InstructionOperand temps[] = {g.TempSimd256Register(),           \
+                                  g.TempSimd256Register()};          \
+    size_t temp_count = arraysize(temps);                            \
+    Emit(kX64##Opcode | LaneSizeField::encode(kL16) |                \
+             VectorLengthField::encode(kV128),                       \
+         g.DefineAsRegister(node), g.UseUniqueRegister(op.input(0)), \
+         g.UseUniqueRegister(op.input(1)), temp_count, temps);       \
   }
 
 SIMD_F16x8_BINOP_LIST(VISIT_SIMD_F16x8_BINOP)
@@ -4841,9 +4870,10 @@ SIMD_F16x8_BINOP_LIST(VISIT_SIMD_F16x8_BINOP)
 
     void InstructionSelectorT::VisitV128AnyTrue(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128TestOp& op = Cast<Simd128TestOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64V128AnyTrue, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)));
+       g.UseUniqueRegister(op.input()));
 }
 
 namespace {
@@ -4871,74 +4901,83 @@ static bool MatchSimd128Constant(InstructionSelectorT* selector, OpIndex node,
 
 void InstructionSelectorT::VisitS128Select(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 3);
+  const Simd128TernaryOp& op = Cast<Simd128TernaryOp>(node);
+  DCHECK_EQ(op.input_count, 3);
 
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  if (IsV128ZeroConst(this, this->input_at(node, 2))) {
+  if (IsV128ZeroConst(this, op.input(2))) {
     // select(cond, input1, 0) -> and(cond, input1)
     Emit(kX64SAnd | VectorLengthField::encode(kV128), dst,
-         g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 1)));
-  } else if (IsV128ZeroConst(this, this->input_at(node, 1))) {
+         g.UseRegister(op.input(0)), g.UseRegister(op.input(1)));
+  } else if (IsV128ZeroConst(this, op.input(1))) {
     // select(cond, 0, input2) -> and(not(cond), input2)
     Emit(kX64SAndNot | VectorLengthField::encode(kV128), dst,
-         g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 2)));
+         g.UseRegister(op.input(0)), g.UseRegister(op.input(2)));
   } else {
     Emit(kX64SSelect | VectorLengthField::encode(kV128), dst,
-         g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 1)),
-         g.UseRegister(this->input_at(node, 2)));
+         g.UseRegister(op.input(0)), g.UseRegister(op.input(1)),
+         g.UseRegister(op.input(2)));
   }
 }
 
 void InstructionSelectorT::VisitS256Select(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
+  const Simd256TernaryOp& op = Cast<Simd256TernaryOp>(node);
   Emit(kX64SSelect | VectorLengthField::encode(kV256), g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)),
-       g.UseRegister(this->input_at(node, 2)));
+       g.UseRegister(op.input(0)), g.UseRegister(op.input(1)),
+       g.UseRegister(op.input(2)));
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitS128AndNot(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   // andnps a b does ~a & b, but we want a & !b, so flip the input.
   Emit(kX64SAndNot | VectorLengthField::encode(kV128),
        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 1)),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(op.right()), g.UseRegister(op.left()));
 }
 
 void InstructionSelectorT::VisitS256AndNot(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd256BinopOp& op = Cast<Simd256BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   // andnps a b does ~a & b, but we want a & !b, so flip the input.
   Emit(kX64SAndNot | VectorLengthField::encode(kV256),
        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 1)),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(op.right()), g.UseRegister(op.left()));
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitF64x2Abs(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0),
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  VisitFloatUnop(this, node, op.input(),
                  kX64FAbs | LaneSizeField::encode(kL64) |
                      VectorLengthField::encode(kV128));
 }
 
 void InstructionSelectorT::VisitF64x2Neg(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0),
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  VisitFloatUnop(this, node, op.input(),
                  kX64FNeg | LaneSizeField::encode(kL64) |
                      VectorLengthField::encode(kV128));
 }
 
 void InstructionSelectorT::VisitF32x4UConvertI32x4(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  OpIndex value = this->input_at(node, 0);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  OpIndex value = op.input();
 
   // F32x4SConvertI32x4 is more efficient than F32x4UConvertI32x4 on x64,
   // if the u32x4 input can fit into i32x4, we can use F32x4SConvertI32x4
@@ -4955,21 +4994,20 @@ void InstructionSelectorT::VisitF32x4UConvertI32x4(OpIndex node) {
 
   if (can_use_sign_convert) {
     Emit(kX64F32x4SConvertI32x4, g.DefineAsRegister(node),
-         g.UseRegister(this->input_at(node, 0)));
+         g.UseRegister(op.input()));
   } else {
     Emit(kX64F32x4UConvertI32x4, g.DefineSameAsFirst(node),
-         g.UseRegister(this->input_at(node, 0)));
+         g.UseRegister(op.input()));
   }
 }
 
-#define VISIT_SIMD_QFMOP(Opcode)                           \
-  void InstructionSelectorT::Visit##Opcode(OpIndex node) { \
-    X64OperandGeneratorT g(this);                          \
-    DCHECK_EQ(this->value_input_count(node), 3);           \
-    Emit(kX64##Opcode, g.UseRegister(node),                \
-         g.UseRegister(this->input_at(node, 0)),           \
-         g.UseRegister(this->input_at(node, 1)),           \
-         g.UseRegister(this->input_at(node, 2)));          \
+#define VISIT_SIMD_QFMOP(Opcode)                                        \
+  void InstructionSelectorT::Visit##Opcode(OpIndex node) {              \
+    X64OperandGeneratorT g(this);                                       \
+    const Operation& op = Get(node);                                    \
+    DCHECK_EQ(op.input_count, 3);                                       \
+    Emit(kX64##Opcode, g.UseRegister(node), g.UseRegister(op.input(0)), \
+         g.UseRegister(op.input(1)), g.UseRegister(op.input(2)));       \
   }
 VISIT_SIMD_QFMOP(F64x2Qfma)
 VISIT_SIMD_QFMOP(F64x2Qfms)
@@ -4984,17 +5022,16 @@ VISIT_SIMD_QFMOP(F32x8Qfms)
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 #undef VISIT_SIMD_QFMOP
 
-#define VISIT_SIMD_F16x8_QFMOP(Opcode)                                   \
-  void InstructionSelectorT::Visit##Opcode(OpIndex node) {               \
-    X64OperandGeneratorT g(this);                                        \
-    DCHECK_EQ(this->value_input_count(node), 3);                         \
-    InstructionOperand temps[] = {g.TempSimd256Register(),               \
-                                  g.TempSimd256Register()};              \
-    Emit(kX64##Opcode, g.UseRegister(node),                              \
-         g.UseUniqueRegister(this->input_at(node, 0)),                   \
-         g.UseUniqueRegister(this->input_at(node, 1)),                   \
-         g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), \
-         temps);                                                         \
+#define VISIT_SIMD_F16x8_QFMOP(Opcode)                                        \
+  void InstructionSelectorT::Visit##Opcode(OpIndex node) {                    \
+    X64OperandGeneratorT g(this);                                             \
+    const Operation& op = Get(node);                                          \
+    DCHECK_EQ(op.input_count, 3);                                             \
+    InstructionOperand temps[] = {g.TempSimd256Register(),                    \
+                                  g.TempSimd256Register()};                   \
+    Emit(kX64##Opcode, g.UseRegister(node), g.UseUniqueRegister(op.input(0)), \
+         g.UseUniqueRegister(op.input(1)), g.UseUniqueRegister(op.input(2)),  \
+         arraysize(temps), temps);                                            \
   }
 
 VISIT_SIMD_F16x8_QFMOP(F16x8Qfma) VISIT_SIMD_F16x8_QFMOP(F16x8Qfms)
@@ -5002,11 +5039,12 @@ VISIT_SIMD_F16x8_QFMOP(F16x8Qfma) VISIT_SIMD_F16x8_QFMOP(F16x8Qfms)
 
     void InstructionSelectorT::VisitI64x2Neg(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   // If AVX unsupported, make sure dst != src to avoid a move.
-  InstructionOperand operand0 =
-      IsSupported(AVX) ? g.UseRegister(this->input_at(node, 0))
-                       : g.UseUniqueRegister(this->input_at(node, 0));
+  InstructionOperand operand0 = IsSupported(AVX)
+                                    ? g.UseRegister(op.input())
+                                    : g.UseUniqueRegister(op.input());
   Emit(
       kX64INeg | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV128),
       g.DefineAsRegister(node), operand0);
@@ -5014,103 +5052,121 @@ VISIT_SIMD_F16x8_QFMOP(F16x8Qfma) VISIT_SIMD_F16x8_QFMOP(F16x8Qfms)
 
 void InstructionSelectorT::VisitI64x2ShrS(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd128ShiftOp& op = Cast<Simd128ShiftOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
 
-  if (g.CanBeImmediate(this->input_at(node, 1))) {
+  if (g.CanBeImmediate(op.shift())) {
     Emit(kX64IShrS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         dst, g.UseRegister(this->input_at(node, 0)),
-         g.UseImmediate(this->input_at(node, 1)));
+         dst, g.UseRegister(op.input()), g.UseImmediate(op.shift()));
   } else {
     InstructionOperand temps[] = {g.TempSimd128Register()};
     Emit(kX64IShrS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         dst, g.UseUniqueRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 1)), arraysize(temps), temps);
+         dst, g.UseUniqueRegister(op.input()), g.UseRegister(op.shift()),
+         arraysize(temps), temps);
   }
 }
 
 void InstructionSelectorT::VisitI64x2Mul(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(
       kX64IMul | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV128),
-      g.DefineAsRegister(node), g.UseUniqueRegister(this->input_at(node, 0)),
-      g.UseUniqueRegister(this->input_at(node, 1)), arraysize(temps), temps);
+      g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
+      g.UseUniqueRegister(op.right()), arraysize(temps), temps);
 }
 
 void InstructionSelectorT::VisitI64x4Mul(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd256BinopOp& op = Cast<Simd256BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   InstructionOperand temps[] = {g.TempSimd256Register()};
   Emit(
       kX64IMul | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV256),
-      g.DefineAsRegister(node), g.UseUniqueRegister(this->input_at(node, 0)),
-      g.UseUniqueRegister(this->input_at(node, 1)), arraysize(temps), temps);
+      g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
+      g.UseUniqueRegister(op.right()), arraysize(temps), temps);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitI32x4SConvertF32x4(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64I32x4SConvertF32x4,
        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitI32x8SConvertF32x8(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd256UnaryOp& op = Cast<Simd256UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64I32x8SConvertF32x8, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(op.input()));
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitI32x4UConvertF32x4(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionOperand temps[] = {g.TempSimd128Register(),
                                 g.TempSimd128Register()};
   Emit(kX64I32x4UConvertF32x4, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)), arraysize(temps), temps);
+       g.UseRegister(op.input()), arraysize(temps), temps);
 }
 
 void InstructionSelectorT::VisitI32x8UConvertF32x8(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd256UnaryOp& op = Cast<Simd256UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionOperand temps[] = {g.TempSimd256Register(),
                                 g.TempSimd256Register()};
   Emit(kX64I32x8UConvertF32x8, g.DefineSameAsFirst(node),
-       g.UseRegister(this->input_at(node, 0)), arraysize(temps), temps);
+       g.UseRegister(op.input()), arraysize(temps), temps);
+#else
+  UNREACHABLE();
+#endif
 }
 
 #if V8_ENABLE_WASM_SIMD256_REVEC
 void InstructionSelectorT::VisitF32x8UConvertI32x8(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd256UnaryOp& op = Cast<Simd256UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
 
-  OpIndex value = this->input_at(node, 0);
+  OpIndex value = op.input();
 
   // F32x8SConvertI32x8 is more efficient than F32x8UConvertI32x8 on x64.
   bool can_use_sign_convert = false;
-  if (this->Get(value).template Is<Opmask::kSimd256I32x8UConvertI16x8>()) {
+  if (Is<Opmask::kSimd256I32x8UConvertI16x8>(value)) {
     can_use_sign_convert = true;
   }
 
   if (can_use_sign_convert) {
     Emit(kX64F32x8SConvertI32x8, g.DefineAsRegister(node),
-         g.UseRegister(this->input_at(node, 0)));
+         g.UseRegister(op.input()));
   } else {
     Emit(kX64F32x8UConvertI32x8, g.DefineSameAsFirst(node),
-         g.UseRegister(this->input_at(node, 0)));
+         g.UseRegister(op.input()));
   }
 }
 
 void InstructionSelectorT::VisitExtractF128(OpIndex node) {
   X64OperandGeneratorT g(this);
-  const Simd256Extract128LaneOp& op =
-      this->Get(node).template Cast<Simd256Extract128LaneOp>();
+  const Simd256Extract128LaneOp& op = Cast<Simd256Extract128LaneOp>(node);
   if (op.lane == 0) {
     EmitIdentity(node);
   } else {
@@ -5370,31 +5426,30 @@ void InstructionSelectorT::VisitI8x16Shuffle(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitI8x16Swizzle(OpIndex node) {
-  InstructionCode op = kX64I8x16Swizzle;
-  DCHECK_EQ(this->value_input_count(node), 2);
-  OpIndex left = this->input_at(node, 0);
-  OpIndex right = this->input_at(node, 1);
-
-  bool relaxed;
-  const Simd128BinopOp& binop = this->Get(node).template Cast<Simd128BinopOp>();
+  InstructionCode opcode = kX64I8x16Swizzle;
+  const Simd128BinopOp& binop = Cast<Simd128BinopOp>(node);
+  DCHECK_EQ(binop.input_count, 2);
   DCHECK(binop.kind == any_of(Simd128BinopOp::Kind::kI8x16Swizzle,
                               Simd128BinopOp::Kind::kI8x16RelaxedSwizzle));
-  relaxed = binop.kind == Simd128BinopOp::Kind::kI8x16RelaxedSwizzle;
+  bool relaxed = binop.kind == Simd128BinopOp::Kind::kI8x16RelaxedSwizzle;
+  OpIndex left = binop.left();
+  OpIndex right = binop.right();
 
   if (relaxed) {
-    op |= MiscField::encode(true);
+    opcode |= MiscField::encode(true);
   } else {
     std::array<uint8_t, kSimd128Size> imms;
     if (MatchSimd128Constant(this, right, &imms)) {
       // If the indices vector is a const, check if they are in range, or if the
       // top bit is set, then we can avoid the paddusb in the codegen and simply
       // emit a pshufb.
-      op |= MiscField::encode(wasm::SimdSwizzle::AllInRangeOrTopBitSet(imms));
+      opcode |=
+          MiscField::encode(wasm::SimdSwizzle::AllInRangeOrTopBitSet(imms));
     }
   }
 
   X64OperandGeneratorT g(this);
-  Emit(op,
+  Emit(opcode,
        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
        g.UseRegister(left), g.UseRegister(right));
 }
@@ -5403,22 +5458,19 @@ namespace {
 void VisitRelaxedLaneSelect(InstructionSelectorT* selector, OpIndex node,
                             InstructionCode code) {
   X64OperandGeneratorT g(selector);
-  DCHECK_EQ(selector->value_input_count(node), 3);
+  const Operation& op = selector->Get(node);
+  DCHECK_EQ(op.input_count, 3);
   // pblendvb/blendvps/blendvpd copies src2 when mask is set, opposite from Wasm
   // semantics. Node's inputs are: mask, lhs, rhs (determined in
   // wasm-compiler.cc).
   if (selector->IsSupported(AVX)) {
-    selector->Emit(code, g.DefineAsRegister(node),
-                   g.UseRegister(selector->input_at(node, 2)),
-                   g.UseRegister(selector->input_at(node, 1)),
-                   g.UseRegister(selector->input_at(node, 0)));
+    selector->Emit(code, g.DefineAsRegister(node), g.UseRegister(op.input(2)),
+                   g.UseRegister(op.input(1)), g.UseRegister(op.input(0)));
   } else {
     // SSE4.1 pblendvb/blendvps/blendvpd requires xmm0 to hold the mask as an
     // implicit operand.
-    selector->Emit(code, g.DefineSameAsFirst(node),
-                   g.UseRegister(selector->input_at(node, 2)),
-                   g.UseRegister(selector->input_at(node, 1)),
-                   g.UseFixed(selector->input_at(node, 0), xmm0));
+    selector->Emit(code, g.DefineSameAsFirst(node), g.UseRegister(op.input(2)),
+                   g.UseRegister(op.input(1)), g.UseFixed(op.input(0), xmm0));
   }
 }
 }  // namespace
@@ -5464,39 +5516,42 @@ void InstructionSelectorT::VisitI64x4RelaxedLaneSelect(OpIndex node) {
 
 void InstructionSelectorT::VisitF16x8Pmin(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   InstructionOperand dst = g.DefineAsRegister(node);
   InstructionCode instr_code = kX64Minph | VectorLengthField::encode(kV128);
   InstructionOperand temps[] = {g.TempSimd256Register(),
                                 g.TempSimd256Register()};
   size_t temp_count = arraysize(temps);
 
-  Emit(instr_code, dst, g.UseUniqueRegister(this->input_at(node, 1)),
-       g.UseUniqueRegister(this->input_at(node, 0)), temp_count, temps);
+  Emit(instr_code, dst, g.UseUniqueRegister(op.right()),
+       g.UseUniqueRegister(op.left()), temp_count, temps);
 }
 
 void InstructionSelectorT::VisitF16x8Pmax(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   InstructionOperand dst = g.DefineAsRegister(node);
   InstructionCode instr_code = kX64Maxph | VectorLengthField::encode(kV128);
   InstructionOperand temps[] = {g.TempSimd256Register(),
                                 g.TempSimd256Register()};
   size_t temp_count = arraysize(temps);
 
-  Emit(instr_code, dst, g.UseUniqueRegister(this->input_at(node, 1)),
-       g.UseUniqueRegister(this->input_at(node, 0)), temp_count, temps);
+  Emit(instr_code, dst, g.UseUniqueRegister(op.right()),
+       g.UseUniqueRegister(op.left()), temp_count, temps);
 }
 
 void InstructionSelectorT::VisitF16x8DemoteF64x2Zero(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register(),
                                 g.TempSimd128Register()};
   size_t temp_count = arraysize(temps);
 
   Emit(kX64F16x8DemoteF64x2Zero, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)), temp_count, temps);
+       g.UseUniqueRegister(op.input()), temp_count, temps);
 }
 
 void InstructionSelectorT::VisitF32x4Pmin(OpIndex node) {
@@ -5549,236 +5604,280 @@ void InstructionSelectorT::VisitF64x2RelaxedMax(OpIndex node) {
 
 void InstructionSelectorT::VisitI32x4ExtAddPairwiseI16x8S(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
-  Emit(kX64I32x4ExtAddPairwiseI16x8S, dst,
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(kX64I32x4ExtAddPairwiseI16x8S, dst, g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitI32x8ExtAddPairwiseI16x16S(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd256UnaryOp& op = Cast<Simd256UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64I32x8ExtAddPairwiseI16x16S, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(op.input()));
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitI32x4ExtAddPairwiseI16x8U(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
-  Emit(kX64I32x4ExtAddPairwiseI16x8U, dst,
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(kX64I32x4ExtAddPairwiseI16x8U, dst, g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitI32x8ExtAddPairwiseI16x16U(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd256UnaryOp& op = Cast<Simd256UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64I32x8ExtAddPairwiseI16x16U, g.DefineAsRegister(node),
-       g.UseRegister(this->input_at(node, 0)));
+       g.UseRegister(op.input()));
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitI16x8ExtAddPairwiseI8x16S(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   // Codegen depends on dst != src.
   Emit(kX64I16x8ExtAddPairwiseI8x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)));
+       g.UseUniqueRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitI16x16ExtAddPairwiseI8x32S(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd256UnaryOp& op = Cast<Simd256UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   Emit(kX64I16x16ExtAddPairwiseI8x32S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)));
+       g.UseUniqueRegister(op.input()));
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitI16x8ExtAddPairwiseI8x16U(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
-  Emit(kX64I16x8ExtAddPairwiseI8x16U, dst,
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(kX64I16x8ExtAddPairwiseI8x16U, dst, g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitI16x16ExtAddPairwiseI8x32U(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+  const Simd256UnaryOp& op = Cast<Simd256UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   X64OperandGeneratorT g(this);
   Emit(kX64I16x16ExtAddPairwiseI8x32U, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)));
+       g.UseUniqueRegister(op.input()));
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitI8x16Popcnt(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   Emit(kX64I8x16Popcnt, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)), arraysize(temps), temps);
+       g.UseUniqueRegister(op.input()), arraysize(temps), temps);
 }
 
 void InstructionSelectorT::VisitF64x2ConvertLowI32x4U(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  Emit(kX64F64x2ConvertLowI32x4U, dst, g.UseRegister(this->input_at(node, 0)));
+  Emit(kX64F64x2ConvertLowI32x4U, dst, g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitI32x4TruncSatF64x2SZero(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   if (CpuFeatures::IsSupported(AVX)) {
     // Requires dst != src.
     Emit(kX64I32x4TruncSatF64x2SZero, g.DefineAsRegister(node),
-         g.UseUniqueRegister(this->input_at(node, 0)));
+         g.UseUniqueRegister(op.input()));
   } else {
     Emit(kX64I32x4TruncSatF64x2SZero, g.DefineSameAsFirst(node),
-         g.UseRegister(this->input_at(node, 0)));
+         g.UseRegister(op.input()));
   }
 }
 
 void InstructionSelectorT::VisitI32x4TruncSatF64x2UZero(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
-  Emit(kX64I32x4TruncSatF64x2UZero, dst,
-       g.UseRegister(this->input_at(node, 0)));
+  Emit(kX64I32x4TruncSatF64x2UZero, dst, g.UseRegister(op.input()));
 }
 
 void InstructionSelectorT::VisitI32x4RelaxedTruncF64x2SZero(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Cvttpd2dq);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  VisitFloatUnop(this, node, op.input(), kX64Cvttpd2dq);
 }
 
 void InstructionSelectorT::VisitI32x4RelaxedTruncF64x2UZero(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0), kX64I32x4TruncF64x2UZero);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  VisitFloatUnop(this, node, op.input(), kX64I32x4TruncF64x2UZero);
 }
 
 void InstructionSelectorT::VisitI32x4RelaxedTruncF32x4S(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Cvttps2dq);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  VisitFloatUnop(this, node, op.input(), kX64Cvttps2dq);
 }
 
 void InstructionSelectorT::VisitI32x4RelaxedTruncF32x4U(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   X64OperandGeneratorT g(this);
-  OpIndex input = this->input_at(node, 0);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   if (IsSupported(AVX)) {
-    Emit(kX64I32x4TruncF32x4U, g.DefineAsRegister(node), g.UseRegister(input),
-         arraysize(temps), temps);
+    Emit(kX64I32x4TruncF32x4U, g.DefineAsRegister(node),
+         g.UseRegister(op.input()), arraysize(temps), temps);
   } else {
-    Emit(kX64I32x4TruncF32x4U, g.DefineSameAsFirst(node), g.UseRegister(input),
-         arraysize(temps), temps);
+    Emit(kX64I32x4TruncF32x4U, g.DefineSameAsFirst(node),
+         g.UseRegister(op.input()), arraysize(temps), temps);
   }
 }
 
 void InstructionSelectorT::VisitI32x8RelaxedTruncF32x8S(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  VisitFloatUnop(this, node, this->input_at(node, 0),
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+  const Simd256UnaryOp& op = Cast<Simd256UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  VisitFloatUnop(this, node, op.input(),
                  kX64Cvttps2dq | VectorLengthField::encode(kV256));
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitI32x8RelaxedTruncF32x8U(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+  const Simd256UnaryOp& op = Cast<Simd256UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
   X64OperandGeneratorT g(this);
-  OpIndex input = this->input_at(node, 0);
   InstructionOperand temps[] = {g.TempSimd256Register()};
-  Emit(kX64I32x8TruncF32x8U, g.DefineAsRegister(node), g.UseRegister(input),
-       arraysize(temps), temps);
+  Emit(kX64I32x8TruncF32x8U, g.DefineAsRegister(node),
+       g.UseRegister(op.input()), arraysize(temps), temps);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitI64x2GtS(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   if (CpuFeatures::IsSupported(AVX)) {
     Emit(kX64IGtS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 1)));
+         g.DefineAsRegister(node), g.UseRegister(op.left()),
+         g.UseRegister(op.right()));
   } else if (CpuFeatures::IsSupported(SSE4_2)) {
     Emit(kX64IGtS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 1)));
+         g.DefineSameAsFirst(node), g.UseRegister(op.left()),
+         g.UseRegister(op.right()));
   } else {
     Emit(kX64IGtS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseUniqueRegister(this->input_at(node, 0)),
-         g.UseUniqueRegister(this->input_at(node, 1)));
+         g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
+         g.UseUniqueRegister(op.right()));
   }
 }
 
 void InstructionSelectorT::VisitI64x2GeS(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   if (CpuFeatures::IsSupported(AVX)) {
     Emit(kX64IGeS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 1)));
+         g.DefineAsRegister(node), g.UseRegister(op.left()),
+         g.UseRegister(op.right()));
   } else if (CpuFeatures::IsSupported(SSE4_2)) {
     Emit(kX64IGeS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseUniqueRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 1)));
+         g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
+         g.UseRegister(op.right()));
   } else {
     Emit(kX64IGeS | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node), g.UseUniqueRegister(this->input_at(node, 0)),
-         g.UseUniqueRegister(this->input_at(node, 1)));
+         g.DefineAsRegister(node), g.UseUniqueRegister(op.left()),
+         g.UseUniqueRegister(op.right()));
   }
 }
 
 void InstructionSelectorT::VisitI64x4GeS(OpIndex node) {
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd256BinopOp& op = Cast<Simd256BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   DCHECK(CpuFeatures::IsSupported(AVX2));
   Emit(
       kX64IGeS | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV256),
-      g.DefineAsRegister(node), g.UseRegister(this->input_at(node, 0)),
-      g.UseRegister(this->input_at(node, 1)));
+      g.DefineAsRegister(node), g.UseRegister(op.left()),
+      g.UseRegister(op.right()));
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::VisitI64x2Abs(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   if (CpuFeatures::IsSupported(AVX)) {
     Emit(kX64IAbs | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineAsRegister(node),
-         g.UseUniqueRegister(this->input_at(node, 0)));
+         g.DefineAsRegister(node), g.UseUniqueRegister(op.input()));
   } else {
     Emit(kX64IAbs | LaneSizeField::encode(kL64) |
              VectorLengthField::encode(kV128),
-         g.DefineSameAsFirst(node), g.UseRegister(this->input_at(node, 0)));
+         g.DefineSameAsFirst(node), g.UseRegister(op.input()));
   }
 }
 
 bool InstructionSelectorT::CanOptimizeF64x2PromoteLowF32x4(OpIndex node) {
-  DCHECK(this->Get(node).Is<Opmask::kSimd128F64x2PromoteLowF32x4>());
-  V<Simd128> input = this->input_at(node, 0);
-  return this->Get(input).template Is<Opmask::kSimd128LoadTransform64Zero>() &&
+  const Simd128UnaryOp& op = Cast<Opmask::kSimd128F64x2PromoteLowF32x4>(node);
+  V<Simd128> input = op.input();
+  return Is<Opmask::kSimd128LoadTransform64Zero>(input) &&
          CanCover(node, input);
 }
 
 void InstructionSelectorT::VisitF64x2PromoteLowF32x4(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
+  const Simd128UnaryOp& op = Cast<Simd128UnaryOp>(node);
+  DCHECK_EQ(op.input_count, 1);
   InstructionCode code = kX64F64x2PromoteLowF32x4;
   if (CanOptimizeF64x2PromoteLowF32x4(node)) {
-    V<Simd128> input = this->input_at(node, 0);
+    V<Simd128> input = op.input();
     const Simd128LoadTransformOp& load_transform =
-        this->Get(input).template Cast<Simd128LoadTransformOp>();
+        Cast<Simd128LoadTransformOp>(input);
     if (load_transform.load_kind.with_trap_handler) {
       code |= AccessModeField::encode(kMemoryAccessProtectedMemOutOfBounds);
     }
@@ -5794,60 +5893,59 @@ void InstructionSelectorT::VisitF64x2PromoteLowF32x4(OpIndex node) {
 
 void InstructionSelectorT::VisitI16x8DotI8x16I7x16S(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd128BinopOp& op = Cast<Simd128BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   Emit(kX64I16x8DotI8x16I7x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)));
+       g.UseUniqueRegister(op.left()), g.UseRegister(op.right()));
 }
 
 void InstructionSelectorT::VisitI32x4DotI8x16I7x16AddS(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 3);
+  const Simd128TernaryOp& op = Cast<Simd128TernaryOp>(node);
+  DCHECK_EQ(op.input_count, 3);
   if (CpuFeatures::IsSupported(AVX_VNNI)) {
     Emit(kX64I32x4DotI8x16I7x16AddS, g.DefineSameAsInput(node, 2),
-         g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 1)),
-         g.UseRegister(this->input_at(node, 2)));
+         g.UseRegister(op.input(0)), g.UseRegister(op.input(1)),
+         g.UseRegister(op.input(2)));
   } else {
     InstructionOperand temps[] = {g.TempSimd128Register()};
     Emit(kX64I32x4DotI8x16I7x16AddS, g.DefineSameAsInput(node, 2),
-         g.UseUniqueRegister(this->input_at(node, 0)),
-         g.UseUniqueRegister(this->input_at(node, 1)),
-         g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), temps);
+         g.UseUniqueRegister(op.input(0)), g.UseUniqueRegister(op.input(1)),
+         g.UseUniqueRegister(op.input(2)), arraysize(temps), temps);
   }
 }
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 void InstructionSelectorT::VisitI16x16DotI8x32I7x32S(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 2);
+  const Simd256BinopOp& op = Cast<Simd256BinopOp>(node);
+  DCHECK_EQ(op.input_count, 2);
   Emit(kX64I16x16DotI8x32I7x32S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(this->input_at(node, 0)),
-       g.UseRegister(this->input_at(node, 1)));
+       g.UseUniqueRegister(op.left()), g.UseRegister(op.right()));
 }
 
 void InstructionSelectorT::VisitI32x8DotI8x32I7x32AddS(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 3);
+  const Simd256TernaryOp& op = Cast<Simd256TernaryOp>(node);
+  DCHECK_EQ(op.input_count, 3);
   if (CpuFeatures::IsSupported(AVX_VNNI)) {
     Emit(kX64I32x8DotI8x32I7x32AddS, g.DefineSameAsInput(node, 2),
-         g.UseRegister(this->input_at(node, 0)),
-         g.UseRegister(this->input_at(node, 1)),
-         g.UseRegister(this->input_at(node, 2)));
+         g.UseRegister(op.input(0)), g.UseRegister(op.input(1)),
+         g.UseRegister(op.input(2)));
   } else {
     InstructionOperand temps[] = {g.TempSimd256Register()};
     Emit(kX64I32x8DotI8x32I7x32AddS, g.DefineSameAsInput(node, 2),
-         g.UseUniqueRegister(this->input_at(node, 0)),
-         g.UseUniqueRegister(this->input_at(node, 1)),
-         g.UseUniqueRegister(this->input_at(node, 2)), arraysize(temps), temps);
+         g.UseUniqueRegister(op.input(0)), g.UseUniqueRegister(op.input(1)),
+         g.UseUniqueRegister(op.input(2)), arraysize(temps), temps);
   }
 }
 #endif
 
 void InstructionSelectorT::VisitSetStackPointer(OpIndex node) {
   X64OperandGeneratorT g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  auto input = g.UseAny(this->input_at(node, 0));
+  const SetStackPointerOp& op = Cast<SetStackPointerOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  auto input = g.UseAny(op.value());
   Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
 }
 

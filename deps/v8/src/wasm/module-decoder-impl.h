@@ -570,6 +570,7 @@ class ModuleDecoderImpl : public Decoder {
           CHECK(!ok());
           return {};
         }
+
         return {sig, kNoSuperType, is_final, shared};
       }
       case kWasmStructTypeCode: {
@@ -687,6 +688,12 @@ class ModuleDecoderImpl : public Decoder {
       module_->has_shared_part = true;
       consume_bytes(1, " shared", tracer_);
       TypeDefinition type = consume_describing_type(current_type_index);
+      if (type.kind == TypeDefinition::kFunction ||
+          type.kind == TypeDefinition::kCont) {
+        // TODO(42204563): Support shared functions/continuations.
+        error(pc() - 1, "shared functions/continuations are not supported yet");
+        return {};
+      }
       type.is_shared = true;
       return type;
     } else {
@@ -2195,9 +2202,10 @@ class ModuleDecoderImpl : public Decoder {
                 "--experimental-wasm-shared yet.");
         }
       } else if (!v8_flags.experimental_wasm_shared) {  // table
-        error(pc() - 1,
-              "invalid table limits flags, enable with "
-              "--experimental-wasm-shared");
+        error(pc() - 1, "invalid table limits flags");
+      } else {
+        // TODO(42204563): Support shared tables.
+        error(pc() - 1, "shared tables are not supported yet");
       }
     }
 
@@ -2247,10 +2255,12 @@ class ModuleDecoderImpl : public Decoder {
       tracer_->Description(mutability ? " mutable" : " immutable");
     }
     if (shared && !v8_flags.experimental_wasm_shared) {
-      errorf(
-          pc() - 1,
-          "invalid global flags 0x%x (enable via --experimental-wasm-shared)",
-          flags);
+      errorf(pc() - 1, "invalid global flags 0x%x", flags);
+      return {false, false};
+    }
+    if (shared) {
+      // TODO(42204563): Support shared globals.
+      error(pc() - 1, "shared globals are not supported yet");
       return {false, false};
     }
     return {mutability, shared};
@@ -2383,7 +2393,7 @@ class ModuleDecoderImpl : public Decoder {
       case kExprRefNull: {
         auto [type, length] =
             value_type_reader::read_heap_type<FullValidationTag>(
-                this, pc() + 1, enabled_features_);
+                this, pc() + 1, enabled_features_, detected_features_);
         value_type_reader::ValidateHeapType<FullValidationTag>(this, pc_,
                                                                module, type);
         if (V8_UNLIKELY(failed())) return {};
@@ -2480,7 +2490,8 @@ class ModuleDecoderImpl : public Decoder {
         value_type_reader::read_value_type<FullValidationTag>(
             this, pc_,
             module_->origin == kWasmOrigin ? enabled_features_
-                                           : WasmEnabledFeatures::None());
+                                           : WasmEnabledFeatures::None(),
+            detected_features_);
     value_type_reader::ValidateValueType<FullValidationTag>(
         this, pc_, module_.get(), result);
     if (ok() && module) value_type_reader::Populate(&result, module);
@@ -2497,7 +2508,8 @@ class ModuleDecoderImpl : public Decoder {
         value_type_reader::read_heap_type<FullValidationTag>(
             this, pc_,
             module_->origin == kWasmOrigin ? enabled_features_
-                                           : WasmEnabledFeatures::None());
+                                           : WasmEnabledFeatures::None(),
+            detected_features_);
 
     value_type_reader::ValidateHeapType<FullValidationTag>(
         this, pc_, module_.get(), heap_type);
@@ -2623,11 +2635,15 @@ class ModuleDecoderImpl : public Decoder {
 
     bool is_shared = flag & kSharedFlag;
     if (is_shared && !v8_flags.experimental_wasm_shared) {
-      errorf(pos,
-             "illegal flag value %u, enable with --experimental-wasm-shared",
-             flag);
+      errorf(pos, "illegal flag value %u", flag);
       return {};
     }
+    if (is_shared) {
+      // TODO(42204563): Support shared element segments.
+      error(pos, "shared element segments are not supported yet.");
+      return {};
+    }
+
     if (is_shared) module_->has_shared_part = true;
 
     const WasmElemSegment::Status status =
@@ -2768,9 +2784,12 @@ class ModuleDecoderImpl : public Decoder {
     bool is_shared = flag & 0b1000;
 
     if (V8_UNLIKELY(is_shared && !v8_flags.experimental_wasm_shared)) {
-      errorf(pos,
-             "illegal flag value %u. Enable with --experimental-wasm-shared",
-             flag);
+      errorf(pos, "illegal flag value %u.", flag);
+      return {};
+    }
+    if (V8_UNLIKELY(is_shared)) {
+      // TODO(42204563): Support shared data segments.
+      error(pos, "shared data segments are not supported yet.");
       return {};
     }
 

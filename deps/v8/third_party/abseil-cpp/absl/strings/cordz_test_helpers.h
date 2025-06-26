@@ -34,7 +34,7 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 // Returns the CordzInfo for the cord, or nullptr if the cord is not sampled.
-inline absl::Nullable<const cord_internal::CordzInfo*> GetCordzInfoForTesting(
+inline const cord_internal::CordzInfo* absl_nullable GetCordzInfoForTesting(
     const Cord& cord) {
   if (!cord.contents_.is_tree()) return nullptr;
   return cord.contents_.cordz_info();
@@ -42,7 +42,7 @@ inline absl::Nullable<const cord_internal::CordzInfo*> GetCordzInfoForTesting(
 
 // Returns true if the provided cordz_info is in the list of sampled cords.
 inline bool CordzInfoIsListed(
-    absl::Nonnull<const cord_internal::CordzInfo*> cordz_info,
+    const cord_internal::CordzInfo* absl_nonnull cordz_info,
     cord_internal::CordzSampleToken token = {}) {
   for (const cord_internal::CordzInfo& info : token) {
     if (cordz_info == &info) return true;
@@ -121,7 +121,7 @@ class CordzSamplingIntervalHelper {
 
 // Wrapper struct managing a small CordRep `rep`
 struct TestCordRep {
-  absl::Nonnull<cord_internal::CordRepFlat*> rep;
+  cord_internal::CordRepFlat* absl_nonnull rep;
 
   TestCordRep() {
     rep = cord_internal::CordRepFlat::New(100);

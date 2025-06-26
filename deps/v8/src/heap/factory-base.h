@@ -86,7 +86,7 @@ struct NewCodeOptions {
   int handler_table_offset;
   int constant_pool_offset;
   int code_comments_offset;
-  int32_t builtin_jump_table_info_offset;
+  int32_t jump_table_info_offset;
   int32_t unwinding_info_offset;
   MaybeHandle<TrustedObject> bytecode_or_interpreter_data;
   MaybeHandle<DeoptimizationData> deoptimization_data;
@@ -153,7 +153,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       int length, AllocationType allocation = AllocationType::kTrusted);
 
   // Allocates a protected fixed array in trusted space, initialized with zeros.
-  Handle<ProtectedFixedArray> NewProtectedFixedArray(int length);
+  Handle<ProtectedFixedArray> NewProtectedFixedArray(int length,
+                                                     bool shared = false);
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.

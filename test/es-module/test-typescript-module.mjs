@@ -20,7 +20,7 @@ test('execute an .mts file importing an .mts file', async () => {
     fixtures.path('typescript/mts/test-import-module.mts'),
   ]);
 
-  match(result.stderr, /Type Stripping is an experimental feature and might change at any time/);
+  strictEqual(result.stderr, '');
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });

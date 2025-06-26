@@ -486,7 +486,7 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
     MAYBE_RETURN(maybe_added, DirectHandle<JSArray>());
   }
 
-  JSObject::ValidateElements(*array);
+  JSObject::ValidateElements(isolate, *array);
   return array;
 }
 

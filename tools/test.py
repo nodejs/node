@@ -31,7 +31,7 @@
 from __future__ import print_function
 from typing import Dict
 import logging
-import optparse
+import argparse
 import os
 import re
 import signal
@@ -1378,84 +1378,84 @@ ARCH_GUESS = utils.GuessArchitecture()
 
 
 def BuildOptions():
-  result = optparse.OptionParser()
-  result.add_option("-m", "--mode", help="The test modes in which to run (comma-separated)",
+  result = argparse.ArgumentParser()
+  result.add_argument("-m", "--mode", help="The test modes in which to run (comma-separated)",
       default='release')
-  result.add_option("-v", "--verbose", help="Verbose output",
+  result.add_argument("-v", "--verbose", help="Verbose output",
       default=False, action="store_true")
-  result.add_option('--logfile', dest='logfile',
+  result.add_argument('--logfile', dest='logfile',
       help='write test output to file. NOTE: this only applies the tap progress indicator')
-  result.add_option("-p", "--progress",
+  result.add_argument("-p", "--progress",
       help="The style of progress indicator (%s)" % ", ".join(PROGRESS_INDICATORS.keys()),
       choices=list(PROGRESS_INDICATORS.keys()), default="mono")
-  result.add_option("--report", help="Print a summary of the tests to be run",
+  result.add_argument("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
-  result.add_option("-s", "--suite", help="A test suite",
+  result.add_argument("-s", "--suite", help="A test suite",
       default=[], action="append")
-  result.add_option("-t", "--timeout", help="Timeout in seconds",
-      default=120, type="int")
-  result.add_option("--arch", help='The architecture to run tests for',
+  result.add_argument("-t", "--timeout", help="Timeout in seconds",
+      default=120, type=int)
+  result.add_argument("--arch", help='The architecture to run tests for',
       default='none')
-  result.add_option("--snapshot", help="Run the tests with snapshot turned on",
+  result.add_argument("--snapshot", help="Run the tests with snapshot turned on",
       default=False, action="store_true")
-  result.add_option("--special-command", default=None)
-  result.add_option("--node-args", dest="node_args", help="Args to pass through to Node",
+  result.add_argument("--special-command", default=None)
+  result.add_argument("--node-args", dest="node_args", help="Args to pass through to Node",
       default=[], action="append")
-  result.add_option("--expect-fail", dest="expect_fail",
+  result.add_argument("--expect-fail", dest="expect_fail",
       help="Expect test cases to fail", default=False, action="store_true")
-  result.add_option("--valgrind", help="Run tests through valgrind",
+  result.add_argument("--valgrind", help="Run tests through valgrind",
       default=False, action="store_true")
-  result.add_option("--worker", help="Run parallel tests inside a worker context",
+  result.add_argument("--worker", help="Run parallel tests inside a worker context",
       default=False, action="store_true")
-  result.add_option("--check-deopts", help="Check tests for permanent deoptimizations",
+  result.add_argument("--check-deopts", help="Check tests for permanent deoptimizations",
       default=False, action="store_true")
-  result.add_option("--cat", help="Print the source of the tests",
+  result.add_argument("--cat", help="Print the source of the tests",
       default=False, action="store_true")
-  result.add_option("--flaky-tests",
+  result.add_argument("--flaky-tests",
       help="Regard tests marked as flaky (run|skip|dontcare|keep_retrying)",
       default="run")
-  result.add_option("--measure-flakiness",
+  result.add_argument("--measure-flakiness",
       help="When a test fails, re-run it x number of times",
-      default=0, type="int")
-  result.add_option("--skip-tests",
+      default=0, type=int)
+  result.add_argument("--skip-tests",
       help="Tests that should not be executed (comma-separated)",
       default="")
-  result.add_option("--warn-unused", help="Report unused rules",
+  result.add_argument("--warn-unused", help="Report unused rules",
       default=False, action="store_true")
-  result.add_option("-j", help="The number of parallel tasks to run, 0=use number of cores",
-      default=0, type="int")
-  result.add_option("-J", help="For legacy compatibility, has no effect",
+  result.add_argument("-j", help="The number of parallel tasks to run, 0=use number of cores",
+      default=0, type=int)
+  result.add_argument("-J", help="For legacy compatibility, has no effect",
       default=False, action="store_true")
-  result.add_option("--time", help="Print timing information after running",
+  result.add_argument("--time", help="Print timing information after running",
       default=False, action="store_true")
-  result.add_option("--suppress-dialogs", help="Suppress Windows dialogs for crashing tests",
+  result.add_argument("--suppress-dialogs", help="Suppress Windows dialogs for crashing tests",
         dest="suppress_dialogs", default=True, action="store_true")
-  result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
+  result.add_argument("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
         dest="suppress_dialogs", action="store_false")
-  result.add_option("--shell", help="Path to node executable", default=None)
-  result.add_option("--store-unexpected-output",
+  result.add_argument("--shell", help="Path to node executable", default=None)
+  result.add_argument("--store-unexpected-output",
       help="Store the temporary JS files from tests that fails",
       dest="store_unexpected_output", default=True, action="store_true")
-  result.add_option("--no-store-unexpected-output",
+  result.add_argument("--no-store-unexpected-output",
       help="Deletes the temporary JS files from tests that fails",
       dest="store_unexpected_output", action="store_false")
-  result.add_option("-r", "--run",
+  result.add_argument("-r", "--run",
       help="Divide the tests in m groups (interleaved) and run tests from group n (--run=n,m with n < m)",
       default="")
-  result.add_option('--temp-dir',
+  result.add_argument('--temp-dir',
       help='Optional path to change directory used for tests', default=False)
-  result.add_option('--test-root',
+  result.add_argument('--test-root',
       help='Optional path to change test directory', dest='test_root', default=None)
-  result.add_option('--repeat',
+  result.add_argument('--repeat',
       help='Number of times to repeat given tests',
-      default=1, type="int")
-  result.add_option('--abort-on-timeout',
+      default=1, type=int)
+  result.add_argument('--abort-on-timeout',
       help='Send SIGABRT instead of SIGTERM to kill processes that time out',
       default=False, action="store_true", dest="abort_on_timeout")
-  result.add_option("--type",
+  result.add_argument("--type",
       help="Type of build (simple, fips, coverage)",
       default=None)
-  result.add_option("--error-reporter",
+  result.add_argument("--error-reporter",
       help="use error reporter",
       default=True, action="store_true")
   return result
@@ -1628,10 +1628,13 @@ def get_asan_state(vm, context):
   asan = Execute([vm, '-p', 'process.config.variables.asan'], context).stdout.strip()
   return "on" if asan == "1" else "off"
 
+def get_pointer_compression_state(vm, context):
+  pointer_compression = Execute([vm, '-p', 'process.config.variables.v8_enable_pointer_compression'], context).stdout.strip()
+  return "on" if pointer_compression == "1" else "off"
 
 def Main():
   parser = BuildOptions()
-  (options, args) = parser.parse_args()
+  (options, args) = parser.parse_known_args()
   if not ProcessOptions(options):
     parser.print_help()
     return 1
@@ -1726,6 +1729,7 @@ def Main():
           'arch': vmArch,
           'type': get_env_type(vm, options.type, context),
           'asan': get_asan_state(vm, context),
+          'pointer_compression': get_pointer_compression_state(vm, context),
         }
         test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list

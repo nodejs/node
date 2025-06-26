@@ -20,10 +20,14 @@ namespace v8::internal::trap_handler {
     ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN || \
      V8_OS_FREEBSD)
 #define V8_TRAP_HANDLER_SUPPORTED true
-// Arm64 (non-simulator) on Linux, Windows, MacOS.
+// Arm64 native on Linux, Windows, MacOS.
 #elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && \
     ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN)
 #define V8_TRAP_HANDLER_SUPPORTED true
+// For Linux and Mac, enable the simulator when it's been requested.
+#if USE_SIMULATOR && ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_DARWIN)
+#define V8_TRAP_HANDLER_VIA_SIMULATOR
+#endif
 // Arm64 simulator on x64 on Linux, Mac, or Windows.
 //
 // The simulator case uses some inline assembly code, which cannot be

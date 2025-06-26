@@ -7,8 +7,8 @@
 #include <string.h>
 
 #include "src/base/bits.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/safe_conversions.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"

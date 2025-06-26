@@ -511,6 +511,35 @@ inspector.Network.requestWillBeSent({
 });
 ```
 
+### `inspector.Network.dataReceived([params])`
+
+<!-- YAML
+added:
+ - v24.2.0
+ - v22.17.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.dataReceived` event to connected frontends, or buffers the data if
+`Network.streamResourceContent` command was not invoked for the given request yet.
+
+Also enables `Network.getResponseBody` command to retrieve the response data.
+
+### `inspector.Network.dataSent([params])`
+
+<!-- YAML
+added: v24.3.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Enables `Network.getRequestPostData` command to retrieve the request data.
+
 ### `inspector.Network.requestWillBeSent([params])`
 
 <!-- YAML

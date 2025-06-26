@@ -10,6 +10,7 @@
 #include "src/api/api-inl.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/heap.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -48,7 +49,7 @@ void WrapperHelper::ResetWrappableConnection(v8::Isolate* isolate,
                                              v8::Local<v8::Object> api_object) {
   i::DirectHandle<i::JSReceiver> js_obj =
       v8::Utils::OpenDirectHandle(*api_object);
-  JSApiWrapper(Cast<JSObject>(*js_obj))
+  CppHeapObjectWrapper(Cast<JSObject>(*js_obj))
       .SetCppHeapWrappable<CppHeapPointerTag::kDefaultTag>(
           reinterpret_cast<i::Isolate*>(isolate), nullptr);
 }
@@ -59,7 +60,7 @@ void WrapperHelper::SetWrappableConnection(v8::Isolate* isolate,
                                            void* instance) {
   i::DirectHandle<i::JSReceiver> js_obj =
       v8::Utils::OpenDirectHandle(*api_object);
-  JSApiWrapper(Cast<JSObject>(*js_obj))
+  CppHeapObjectWrapper(Cast<JSObject>(*js_obj))
       .SetCppHeapWrappable<CppHeapPointerTag::kDefaultTag>(
           reinterpret_cast<i::Isolate*>(isolate), instance);
 }
@@ -69,7 +70,7 @@ void* WrapperHelper::ReadWrappablePointer(v8::Isolate* isolate,
                                           v8::Local<v8::Object> api_object) {
   i::DirectHandle<i::JSReceiver> js_obj =
       v8::Utils::OpenDirectHandle(*api_object);
-  return JSApiWrapper(Cast<JSObject>(*js_obj))
+  return CppHeapObjectWrapper(Cast<JSObject>(*js_obj))
       .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate),
                            kAnyCppHeapPointer);
 }

@@ -463,6 +463,11 @@ int WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // the flag by itself.
   EnableExperimentalWasmFeatures(isolate);
 
+  // Allow mixed old and new EH instructions in the same module for fuzzing, to
+  // help us test the interaction between the two EH proposals without requiring
+  // multiple modules.
+  v8_flags.wasm_allow_mixed_eh_for_testing = true;
+
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
 

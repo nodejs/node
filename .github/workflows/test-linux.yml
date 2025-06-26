@@ -3,6 +3,7 @@ name: Test Linux
 on:
   pull_request:
     paths-ignore:
+      - .mailmap
       - README.md
       - .github/**
       - '!.github/workflows/test-linux.yml'
@@ -14,6 +15,7 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
+      - .mailmap
       - README.md
       - .github/**
       - '!.github/workflows/test-linux.yml'

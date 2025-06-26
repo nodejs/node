@@ -78,7 +78,9 @@ console.log(query.all());
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: v24.0.0
+  - version:
+    - v24.0.0
+    - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57752
     description: Add `timeout` option.
   - version:
@@ -95,6 +97,10 @@ exposed by this class execute synchronously.
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58697
+    description: Add new SQLite database options.
 -->
 
 * `path` {string | Buffer | URL} The path of the database. A SQLite database can be
@@ -124,13 +130,23 @@ added: v22.5.0
   * `timeout` {number} The [busy timeout][] in milliseconds. This is the maximum amount of
     time that SQLite will wait for a database lock to be released before
     returning an error. **Default:** `0`.
+  * `readBigInts` {boolean} If `true`, integer fields are read as JavaScript `BigInt` values. If `false`,
+    integer fields are read as JavaScript numbers. **Default:** `false`.
+  * `returnArrays` {boolean} If `true`, query results are returned as arrays instead of objects.
+    **Default:** `false`.
+  * `allowBareNamedParameters` {boolean} If `true`, allows binding named parameters without the prefix
+    character (e.g., `foo` instead of `:foo`). **Default:** `true`.
+  * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters are ignored when binding.
+    If `false`, an exception is thrown for unknown named parameters. **Default:** `false`.
 
 Constructs a new `DatabaseSync` instance.
 
 ### `database.aggregate(name, options)`
 
 <!-- YAML
-added: v24.0.0
+added:
+ - v24.0.0
+ - v22.16.0
 -->
 
 Registers a new aggregate function with the SQLite database. This method is a wrapper around
@@ -246,7 +262,9 @@ loading extensions for security reasons.
 ### `database.location([dbName])`
 
 <!-- YAML
-added: v24.0.0
+added:
+  - v24.0.0
+  - v22.16.0
 -->
 
 * `dbName` {string} Name of the database. This can be `'main'` (the default primary database) or any other
@@ -311,7 +329,9 @@ added:
 ### `database.isTransaction`
 
 <!-- YAML
-added: v24.0.0
+added:
+  - v24.0.0
+  - v22.16.0
 -->
 
 * {boolean} Whether the database is currently within a transaction. This method
@@ -416,9 +436,11 @@ targetDb.applyChangeset(changeset);
 added:
   - v23.11.0
   - v22.15.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Closes the database connection. If the database connection is already closed
 then this is a no-op.
@@ -508,7 +530,9 @@ the values in `namedParameters` and `anonymousParameters`.
 ### `statement.columns()`
 
 <!-- YAML
-added: v23.11.0
+added:
+  - v23.11.0
+  - v22.16.0
 -->
 
 * Returns: {Array} An array of objects. Each object corresponds to a column
@@ -714,7 +738,9 @@ exception.
 ## `sqlite.backup(sourceDb, path[, options])`
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.16.0
 changes:
   - version: v23.10.0
     pr-url: https://github.com/nodejs/node/pull/56991

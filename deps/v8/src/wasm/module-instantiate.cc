@@ -92,14 +92,18 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   }
   DirectHandle<Map> map;
   switch (module->type(type_index).kind) {
-    case TypeDefinition::kStruct:
-      map = CreateStructMap(isolate, canonical_type_index, rtt_parent);
+    case TypeDefinition::kStruct: {
+      DirectHandle<NativeContext> context_independent;
+      map = CreateStructMap(isolate, canonical_type_index, rtt_parent,
+                            context_independent);
       break;
+    }
     case TypeDefinition::kArray:
       map = CreateArrayMap(isolate, canonical_type_index, rtt_parent);
       break;
     case TypeDefinition::kFunction:
-      map = CreateFuncRefMap(isolate, canonical_type_index, rtt_parent);
+      map = CreateFuncRefMap(isolate, canonical_type_index, rtt_parent,
+                             module->type(type_index).is_shared);
       break;
     case TypeDefinition::kCont:
       UNIMPLEMENTED();
@@ -1101,8 +1105,12 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
   bool shared = module_object_->module()->has_shared_part;
   DirectHandle<WasmTrustedInstanceData> shared_trusted_data;
   if (shared) {
+    // For now, allocate the shared part in non-shared space. We do not need it
+    // in shared space yet since no shared objects point to it.
+    // TODO(42204563): This will change once we introduce shared globals,
+    // tables, or functions.
     shared_trusted_data =
-        WasmTrustedInstanceData::New(isolate_, module_object_, true);
+        WasmTrustedInstanceData::New(isolate_, module_object_, false);
     trusted_data->set_shared_part(*shared_trusted_data);
   }
 
@@ -1181,12 +1189,13 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     trusted_data->set_globals_start(
         reinterpret_cast<uint8_t*>(untagged_globals_->backing_store()));
 
-    // TODO(14616): Do this only if we have a shared untagged global.
-    if (shared) {
+    // TODO(42204563): Do this only if we have a shared untagged global.
+    // TODO(42204563): Reinstate once we support shared globals.
+    /* if (shared) {
       MaybeDirectHandle<JSArrayBuffer> shared_result =
           isolate_->factory()->NewJSArrayBufferAndBackingStore(
               untagged_globals_buffer_size, InitializedFlag::kZeroInitialized,
-              AllocationType::kOld);
+              AllocationType::kSharedOld);
 
       if (!shared_result.ToHandle(&shared_untagged_globals_)) {
         thrower_->RangeError("Out of memory: wasm globals");
@@ -1197,7 +1206,7 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
           *shared_untagged_globals_);
       shared_trusted_data->set_globals_start(reinterpret_cast<uint8_t*>(
           shared_untagged_globals_->backing_store()));
-    }
+    }*/
   }
 
   uint32_t tagged_globals_buffer_size = module_->tagged_globals_buffer_size;
@@ -1207,7 +1216,8 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     trusted_data->set_tagged_globals_buffer(*tagged_globals_);
     if (shared) {
       shared_tagged_globals_ = isolate_->factory()->NewFixedArray(
-          static_cast<int>(tagged_globals_buffer_size));
+          static_cast<int>(tagged_globals_buffer_size),
+          AllocationType::kSharedOld);
       shared_trusted_data->set_tagged_globals_buffer(*shared_tagged_globals_);
     }
   }
@@ -1225,7 +1235,8 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     if (shared) {
       DirectHandle<FixedArray> shared_buffers_array =
           isolate_->factory()->NewFixedArray(
-              module_->num_imported_mutable_globals, AllocationType::kOld);
+              module_->num_imported_mutable_globals,
+              AllocationType::kSharedOld);
       shared_trusted_data->set_imported_mutable_globals_buffers(
           *shared_buffers_array);
     }
@@ -1242,7 +1253,8 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     tags_wrappers_.resize(tags_count);
     if (shared) {
       DirectHandle<FixedArray> shared_tag_table =
-          isolate_->factory()->NewFixedArray(tags_count, AllocationType::kOld);
+          isolate_->factory()->NewFixedArray(tags_count,
+                                             AllocationType::kSharedOld);
       shared_trusted_data->set_tags_table(*shared_tag_table);
       shared_tags_wrappers_.resize(tags_count);
     }
@@ -1268,7 +1280,8 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     DirectHandle<FixedArray> shared_tables;
     DirectHandle<ProtectedFixedArray> shared_dispatch_tables;
     if (shared) {
-      shared_tables = isolate_->factory()->NewFixedArray(table_count);
+      shared_tables = isolate_->factory()->NewFixedArray(
+          table_count, AllocationType::kSharedOld);
       shared_dispatch_tables =
           isolate_->factory()->NewProtectedFixedArray(table_count);
       shared_trusted_data->set_tables(*shared_tables);
@@ -1323,12 +1336,13 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
       static_cast<int>(module_->types.size()));
   DirectHandle<FixedArray> shared_maps =
       shared ? isolate_->factory()->NewFixedArray(
-                   static_cast<int>(module_->types.size()))
+                   static_cast<int>(module_->types.size()),
+                   AllocationType::kSharedOld)
              : DirectHandle<FixedArray>();
   for (uint32_t index = 0; index < module_->types.size(); index++) {
-    bool type_is_shared = module_->types[index].is_shared;
+    bool map_is_shared = module_->types[index].is_shared;
     CreateMapForType(isolate_, module_, ModuleTypeIndex{index},
-                     type_is_shared ? shared_maps : non_shared_maps);
+                     map_is_shared ? shared_maps : non_shared_maps);
   }
   trusted_data->set_managed_object_maps(*non_shared_maps);
   if (shared) shared_trusted_data->set_managed_object_maps(*shared_maps);
@@ -1363,8 +1377,8 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
     trusted_data->set_feedback_vectors(*vectors);
     if (shared) {
       DirectHandle<FixedArray> shared_vectors =
-          isolate_->factory()->NewFixedArrayWithZeroes(num_functions,
-                                                       AllocationType::kOld);
+          isolate_->factory()->NewFixedArrayWithZeroes(
+              num_functions, AllocationType::kSharedOld);
       shared_trusted_data->set_feedback_vectors(*shared_vectors);
     }
   }
@@ -1400,7 +1414,8 @@ MaybeDirectHandle<WasmTrustedInstanceData> InstanceBuilder::Build_Phase1(
         static_cast<int>(module_->elem_segments.size()));
     DirectHandle<FixedArray> shared_elements =
         shared ? isolate_->factory()->NewFixedArray(
-                     static_cast<int>(module_->elem_segments.size()))
+                     static_cast<int>(module_->elem_segments.size()),
+                     AllocationType::kSharedOld)
                : DirectHandle<FixedArray>();
     for (uint32_t i = 0; i < module_->elem_segments.size(); i++) {
       // Initialize declarative segments as empty. The rest remain
@@ -1889,14 +1904,20 @@ bool InstanceBuilder::ProcessImportedFunction(
   ImportedFunctionEntry imported_entry(trusted_instance_data, func_index);
   switch (kind) {
     case ImportCallKind::kRuntimeTypeError:
-      imported_entry.SetGenericWasmToJs(
-          isolate_, js_receiver, resolved.suspend(), expected_sig, sig_index);
+      if (v8_flags.wasm_generic_wrapper) {
+        imported_entry.SetGenericWasmToJs(
+            isolate_, js_receiver, resolved.suspend(), expected_sig, sig_index);
+        return true;
+      }
+      // Otherwise fall through to the generic handling below.
       break;
+
     case ImportCallKind::kLinkError:
       thrower_->LinkError(
           "%s: imported function does not match the expected type",
           ImportName(import_index).c_str());
       return false;
+
     case ImportCallKind::kWasmToWasm: {
       // The imported function is a Wasm function from another instance.
       auto function_data =
@@ -1914,8 +1935,9 @@ bool InstanceBuilder::ProcessImportedFunction(
                                    function_data->function_index()
 #endif  // V8_ENABLE_DRUMBRAKE
       );
-      break;
+      return true;
     }
+
     case ImportCallKind::kWasmToCapi: {
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
       WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
@@ -1946,8 +1968,9 @@ bool InstanceBuilder::ProcessImportedFunction(
       // callable to the wrapper, which we need to get the function data.
       imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
                                          kNoSuspend, expected_sig, sig_index);
-      break;
+      return true;
     }
+
     case ImportCallKind::kWasmToJSFastApi: {
       DCHECK(IsJSFunction(*js_receiver) || IsJSBoundFunction(*js_receiver));
       WasmCodeRefScope code_ref_scope;
@@ -1976,55 +1999,55 @@ bool InstanceBuilder::ProcessImportedFunction(
       wasm_code->MaybePrint();
       imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
                                          kNoSuspend, expected_sig, sig_index);
-      break;
+      return true;
     }
-    default: {
-      // The imported function is a callable.
-      if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend())) {
-        DCHECK(kind == ImportCallKind::kJSFunctionArityMatch ||
-               kind == ImportCallKind::kJSFunctionArityMismatch);
-        imported_entry.SetGenericWasmToJs(
-            isolate_, js_receiver, resolved.suspend(), expected_sig, sig_index);
-        break;
-      }
-      if (v8_flags.wasm_jitless) {
-        WasmCode* no_code = nullptr;
-        imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, no_code,
-                                           resolved.suspend(), expected_sig,
-                                           sig_index);
-        break;
-      }
-      int expected_arity = static_cast<int>(expected_sig->parameter_count());
-      if (kind == ImportCallKind::kJSFunctionArityMismatch) {
-        auto function = Cast<JSFunction>(js_receiver);
-        Tagged<SharedFunctionInfo> shared = function->shared();
-        expected_arity =
-            shared->internal_formal_parameter_count_without_receiver();
-      }
 
-      WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
-      WasmCodeRefScope code_ref_scope;
-      WasmCode* wasm_code =
-          cache->MaybeGet(kind, sig_index, expected_arity, resolved.suspend());
-      if (!wasm_code) {
-        // This should be a very rare fallback case. We expect that the
-        // generic wrapper will be used (see above).
-        bool source_positions =
-            is_asmjs_module(trusted_instance_data->module());
-        wasm_code = cache->CompileWasmImportCallWrapper(
-            isolate_, kind, expected_sig, sig_index, source_positions,
-            expected_arity, resolved.suspend());
-      }
-
-      DCHECK_NOT_NULL(wasm_code);
-      CHECK_EQ(wasm_code->kind(), WasmCode::kWasmToJsWrapper);
-      // Wasm to JS wrappers are treated specially in the import table.
-      imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
-                                         resolved.suspend(), expected_sig,
-                                         sig_index);
+    default:
       break;
-    }
   }
+
+  if (UseGenericWasmToJSWrapper(kind, expected_sig, resolved.suspend())) {
+    DCHECK(kind == ImportCallKind::kJSFunctionArityMatch ||
+           kind == ImportCallKind::kJSFunctionArityMismatch);
+    imported_entry.SetGenericWasmToJs(isolate_, js_receiver, resolved.suspend(),
+                                      expected_sig, sig_index);
+    return true;
+  }
+
+  if (v8_flags.wasm_jitless) {
+    WasmCode* no_code = nullptr;
+    imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, no_code,
+                                       resolved.suspend(), expected_sig,
+                                       sig_index);
+    return true;
+  }
+
+  int expected_arity = static_cast<int>(expected_sig->parameter_count());
+  if (kind == ImportCallKind::kJSFunctionArityMismatch) {
+    auto function = Cast<JSFunction>(js_receiver);
+    Tagged<SharedFunctionInfo> shared = function->shared();
+    expected_arity = shared->internal_formal_parameter_count_without_receiver();
+  }
+
+  WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
+  WasmCodeRefScope code_ref_scope;
+  WasmCode* wasm_code =
+      cache->MaybeGet(kind, sig_index, expected_arity, resolved.suspend());
+  if (!wasm_code) {
+    // This should be a very rare fallback case. We expect that the
+    // generic wrapper will be used (see above).
+    bool source_positions = is_asmjs_module(trusted_instance_data->module());
+    wasm_code = cache->CompileWasmImportCallWrapper(
+        isolate_, kind, expected_sig, sig_index, source_positions,
+        expected_arity, resolved.suspend());
+  }
+
+  DCHECK_NOT_NULL(wasm_code);
+  CHECK_EQ(wasm_code->kind(), WasmCode::kWasmToJsWrapper);
+  // Wasm to JS wrappers are treated specially in the import table.
+  imported_entry.SetCompiledWasmToJs(isolate_, js_receiver, wasm_code,
+                                     resolved.suspend(), expected_sig,
+                                     sig_index);
   return true;
 }
 
@@ -2719,7 +2742,7 @@ void InstanceBuilder::ProcessExports(
     uint32_t index;
     if (V8_UNLIKELY(name->AsArrayIndex(&index))) {
       // Add a data element.
-      JSObject::AddDataElement(exports_object, index, value,
+      JSObject::AddDataElement(isolate_, exports_object, index, value,
                                details.attributes());
     } else {
       // Add a property to the dictionary.
@@ -2857,9 +2880,11 @@ ValueOrError ConsumeElementSegmentEntry(
       break;
     }
     case kExprRefNull: {
+      WasmDetectedFeatures detected;
       auto [heap_type, length] =
           value_type_reader::read_heap_type<Decoder::FullValidationTag>(
-              &decoder, decoder.pc() + 1, WasmEnabledFeatures::All());
+              &decoder, decoder.pc() + 1, WasmEnabledFeatures::All(),
+              &detected);
       value_type_reader::Populate(&heap_type, module);
       if (V8_LIKELY(decoder.lookahead(1 + length, kExprEnd))) {
         decoder.consume_bytes(length + 2);

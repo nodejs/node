@@ -3,5 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --wasm-max-module-size=1 --fuzzing
+// Flags: --wasm-allow-mixed-eh-for-testing
 
 %WasmGenerateRandomModule();

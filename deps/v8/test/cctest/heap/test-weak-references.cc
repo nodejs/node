@@ -183,46 +183,6 @@ TEST(WeakReferencesOldToCleared) {
   CHECK(lh->data1().IsCleared());
 }
 
-TEST(ObjectMovesBeforeClearingWeakField) {
-  if (!v8_flags.incremental_marking || v8_flags.single_generation ||
-      v8_flags.separate_gc_phases) {
-    return;
-  }
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-
-  HandleScope outer_scope(isolate);
-  IndirectHandle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
-  CHECK(InCorrectGeneration(*lh));
-  Address lh_object_location = lh->address();
-  {
-    HandleScope inner_scope(isolate);
-    // Create a new FixedArray which the LoadHandler will point to.
-    IndirectHandle<FixedArray> fixed_array = factory->NewFixedArray(1);
-    CHECK(HeapLayout::InYoungGeneration(*fixed_array));
-    lh->set_data1(MakeWeak(*fixed_array));
-    // inner_scope will go out of scope, so when marking the next time,
-    // *fixed_array will stay white.
-  }
-
-  // Do marking steps; this will store *lh into the list for later processing
-  // (since it points to a white object).
-  SimulateIncrementalMarking(heap, true);
-
-  // Scavenger will move *lh.
-  heap::InvokeMinorGC(heap);
-  CHECK_NE(lh_object_location, lh.address());
-  CHECK(lh->data1().IsWeak());
-
-  // Now we try to clear *lh.
-  heap::InvokeMajorGC(heap);
-  CHECK(lh->data1().IsCleared());
-}
-
 TEST(ObjectWithWeakFieldDies) {
   if (!v8_flags.incremental_marking) {
     return;

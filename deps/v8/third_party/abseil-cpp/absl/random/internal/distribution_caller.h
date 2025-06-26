@@ -22,7 +22,7 @@
 #include <utility>
 
 #include "absl/base/config.h"
-#include "absl/base/internal/fast_type_id.h"
+#include "absl/base/fast_type_id.h"
 #include "absl/meta/type_traits.h"
 #include "absl/utility/utility.h"
 
@@ -50,7 +50,7 @@ struct DistributionCaller {
 
   template <class T>
   using invoke_mock_t = decltype(std::declval<T*>()->InvokeMock(
-      std::declval<base_internal::FastTypeIdType>(), std::declval<void*>(),
+      std::declval<FastTypeIdType>(), std::declval<void*>(),
       std::declval<void*>()));
 
   using HasInvokeMock = typename detector<invoke_mock_t, void, URBG>::type;
@@ -74,8 +74,7 @@ struct DistributionCaller {
 
     ArgTupleT arg_tuple(std::forward<Args>(args)...);
     ResultT result;
-    if (!urbg->InvokeMock(base_internal::FastTypeId<KeyT>(), &arg_tuple,
-                          &result)) {
+    if (!urbg->InvokeMock(FastTypeId<KeyT>(), &arg_tuple, &result)) {
       auto dist = absl::make_from_tuple<DistrT>(arg_tuple);
       result = dist(*urbg);
     }

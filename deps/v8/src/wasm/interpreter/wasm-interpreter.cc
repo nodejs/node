@@ -16,6 +16,7 @@
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/object-macros.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/interpreter/wasm-interpreter-inl.h"
@@ -352,7 +353,7 @@ void NopFinalizer(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(global_handle_location);
 }
 
-DirectHandle<WasmInstanceObject> MakeWeak(
+IndirectHandle<WasmInstanceObject> MakeWeak(
     Isolate* isolate, DirectHandle<WasmInstanceObject> instance_object) {
   Handle<WasmInstanceObject> weak_instance =
       isolate->global_handles()->Create<WasmInstanceObject>(*instance_object);
@@ -5361,38 +5362,38 @@ class Handlers : public HandlersBase {
       s2s_DoSimdLoadExtend<int16x8, int16_t, int8_t, uint32_t,
                            memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load8x8S_Idx64 =
-      s2s_DoSimdLoadExtend<int16x8, int16_t, int8_t, uint32_t,
-                           memory_offset32_t>;
+      s2s_DoSimdLoadExtend<int16x8, int16_t, int8_t, uint64_t,
+                           memory_offset64_t>;
   static auto constexpr s2s_SimdS128Load8x8U =
       s2s_DoSimdLoadExtend<int16x8, uint16_t, uint8_t, uint32_t,
                            memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load8x8U_Idx64 =
-      s2s_DoSimdLoadExtend<int16x8, uint16_t, uint8_t, uint32_t,
-                           memory_offset32_t>;
+      s2s_DoSimdLoadExtend<int16x8, uint16_t, uint8_t, uint64_t,
+                           memory_offset64_t>;
   static auto constexpr s2s_SimdS128Load16x4S =
       s2s_DoSimdLoadExtend<int32x4, int32_t, int16_t, uint32_t,
                            memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load16x4S_Idx64 =
-      s2s_DoSimdLoadExtend<int32x4, int32_t, int16_t, uint32_t,
-                           memory_offset32_t>;
+      s2s_DoSimdLoadExtend<int32x4, int32_t, int16_t, uint64_t,
+                           memory_offset64_t>;
   static auto constexpr s2s_SimdS128Load16x4U =
       s2s_DoSimdLoadExtend<int32x4, uint32_t, uint16_t, uint32_t,
                            memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load16x4U_Idx64 =
-      s2s_DoSimdLoadExtend<int32x4, uint32_t, uint16_t, uint32_t,
-                           memory_offset32_t>;
+      s2s_DoSimdLoadExtend<int32x4, uint32_t, uint16_t, uint64_t,
+                           memory_offset64_t>;
   static auto constexpr s2s_SimdS128Load32x2S =
       s2s_DoSimdLoadExtend<int64x2, int64_t, int32_t, uint32_t,
                            memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load32x2S_Idx64 =
-      s2s_DoSimdLoadExtend<int64x2, int64_t, int32_t, uint32_t,
-                           memory_offset32_t>;
+      s2s_DoSimdLoadExtend<int64x2, int64_t, int32_t, uint64_t,
+                           memory_offset64_t>;
   static auto constexpr s2s_SimdS128Load32x2U =
       s2s_DoSimdLoadExtend<int64x2, uint64_t, uint32_t, uint32_t,
                            memory_offset32_t>;
   static auto constexpr s2s_SimdS128Load32x2U_Idx64 =
-      s2s_DoSimdLoadExtend<int64x2, uint64_t, uint32_t, uint32_t,
-                           memory_offset32_t>;
+      s2s_DoSimdLoadExtend<int64x2, uint64_t, uint32_t, uint64_t,
+                           memory_offset64_t>;
 
   template <typename s_type, typename load_type, typename MemIdx,
             typename MemOffsetT>
@@ -5794,8 +5795,9 @@ class Handlers : public HandlersBase {
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     bool null_succeeds = Read<int32_t>(code);
-    HeapType target_type(
-        ModuleTypeIndex({static_cast<uint32_t>(Read<int32_t>(code))}));
+
+    HeapType target_type =
+        HeapType::FromBits(static_cast<uint32_t>(Read<int32_t>(code)));
 
     WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
     const uint32_t ref_bitfield = Read<int32_t>(code);
@@ -5832,8 +5834,9 @@ class Handlers : public HandlersBase {
       const uint8_t* code, uint32_t* sp, WasmInterpreterRuntime* wasm_runtime,
       int64_t r0, double fp0) {
     bool null_succeeds = Read<int32_t>(code);
-    HeapType target_type(
-        ModuleTypeIndex({static_cast<uint32_t>(Read<int32_t>(code))}));
+
+    HeapType target_type =
+        HeapType::FromBits(static_cast<uint32_t>(Read<int32_t>(code)));
 
     WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
     const uint32_t ref_bitfield = Read<int32_t>(code);
@@ -6095,7 +6098,7 @@ class Handlers : public HandlersBase {
     Tagged_t ref_tagged = base::ReadUnalignedValue<uint32_t>(field_addr);
     Isolate* isolate = wasm_runtime->GetIsolate();
     Tagged<Object> ref_uncompressed(
-        V8HeapCompressionScheme::DecompressTagged(isolate, ref_tagged));
+        V8HeapCompressionScheme::DecompressTagged(ref_tagged));
     WasmRef ref_handle = handle(ref_uncompressed, isolate);
     push<WasmRef>(sp, code, wasm_runtime, ref_handle);
 
@@ -6754,8 +6757,8 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC RefCast(const uint8_t* code, uint32_t* sp,
                                    WasmInterpreterRuntime* wasm_runtime,
                                    int64_t r0, double fp0) {
-    HeapType target_type(
-        ModuleTypeIndex({static_cast<uint32_t>(Read<int32_t>(code))}));
+    HeapType target_type =
+        HeapType::FromBits(static_cast<uint32_t>(Read<int32_t>(code)));
 
     WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
 
@@ -6777,8 +6780,8 @@ class Handlers : public HandlersBase {
   INSTRUCTION_HANDLER_FUNC RefTest(const uint8_t* code, uint32_t* sp,
                                    WasmInterpreterRuntime* wasm_runtime,
                                    int64_t r0, double fp0) {
-    HeapType target_type(
-        ModuleTypeIndex({static_cast<uint32_t>(Read<int32_t>(code))}));
+    HeapType target_type =
+        HeapType::FromBits(static_cast<uint32_t>(Read<int32_t>(code)));
 
     WasmRef ref = pop<WasmRef>(sp, code, wasm_runtime);
 
@@ -7321,6 +7324,7 @@ void WasmEHDataGenerator::RecordPotentialExceptionThrowingInstruction(
 WasmBytecode::WasmBytecode(int func_index, const uint8_t* code_data,
                            size_t code_length, uint32_t stack_frame_size,
                            const FunctionSig* signature,
+                           const CanonicalSig* canonical_signature,
                            const InterpreterCode* interpreter_code,
                            size_t blocks_count, const uint8_t* const_slots_data,
                            size_t const_slots_length, uint32_t ref_slots_count,
@@ -7329,6 +7333,7 @@ WasmBytecode::WasmBytecode(int func_index, const uint8_t* code_data,
     : code_(code_data, code_data + code_length),
       code_bytes_(code_.data()),
       signature_(signature),
+      canonical_signature_(canonical_signature),
       interpreter_code_(interpreter_code),
       const_slots_values_(const_slots_data,
                           const_slots_data + const_slots_length),
@@ -7823,16 +7828,20 @@ void WasmBytecodeGenerator::StoreBlockParamsAndResultsIntoSlots(
       target_block_index == 0 ? 0 : ParamsCount(target_block_data);
   uint32_t rets_count = ReturnsCount(target_block_data);
 
-  // There could be valid code where there are not enough elements in the
-  // stack if some code in unreachable (for example if a 'i32.const 0' is
-  // followed by a 'br_if' the if branch is never reachable).
-  uint32_t count = std::min(static_cast<uint32_t>(stack_.size()), rets_count);
-  for (uint32_t i = 0; i < count; i++) {
-    uint32_t from_slot_index = stack_[stack_top_index() - (count - 1) + i];
-    uint32_t to_slot_index = target_block_data.first_block_index_ + i;
-    if (from_slot_index != to_slot_index) {
-      EmitCopySlot(GetReturnType(target_block_data, i), from_slot_index,
-                   to_slot_index);
+  // If we are branching to a loop block we go back to the beginning of the
+  // block, therefore we don't need to store the block results.
+  if (!is_target_loop_block || !is_branch) {
+    // There could be valid code where there are not enough elements in the
+    // stack if some code in unreachable (for example if a 'i32.const 0' is
+    // followed by a 'br_if' the if branch is never reachable).
+    uint32_t count = std::min(static_cast<uint32_t>(stack_.size()), rets_count);
+    for (uint32_t i = 0; i < count; i++) {
+      uint32_t from_slot_index = stack_[stack_top_index() - (count - 1) + i];
+      uint32_t to_slot_index = target_block_data.first_block_index_ + i;
+      if (from_slot_index != to_slot_index) {
+        EmitCopySlot(GetReturnType(target_block_data, i), from_slot_index,
+                     to_slot_index);
+      }
     }
   }
 
@@ -7979,6 +7988,7 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
   }
 
   WasmInstruction::Optional optional;
+  WasmDetectedFeatures detected;
   switch (orig) {
     case kExprUnreachable:
       break;
@@ -7988,7 +7998,7 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
     case kExprLoop:
     case kExprIf:
     case kExprTry: {
-      BlockTypeImmediate imm(WasmEnabledFeatures::All(), &decoder,
+      BlockTypeImmediate imm(WasmEnabledFeatures::All(), &detected, &decoder,
                              wasm_code_->at(pc + 1), Decoder::kNoValidation);
       if (imm.sig_index.valid()) {
         // The block has at least one argument or at least two results, its
@@ -8081,7 +8091,7 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
     case kExprSelect:
       break;
     case kExprSelectWithType: {
-      SelectTypeImmediate imm(WasmEnabledFeatures::All(), &decoder,
+      SelectTypeImmediate imm(WasmEnabledFeatures::All(), &detected, &decoder,
                               wasm_code_->at(pc + 1), Decoder::kNoValidation);
       len = 1 + imm.length;
       break;
@@ -8264,9 +8274,10 @@ WasmInstruction WasmBytecodeGenerator::DecodeInstruction(pc_t pc,
 #undef EXECUTE_UNOP
 
     case kExprRefNull: {
-      HeapTypeImmediate imm(WasmEnabledFeatures::All(), &decoder,
+      HeapTypeImmediate imm(WasmEnabledFeatures::All(), &detected, &decoder,
                             wasm_code_->at(pc + 1), Decoder::kNoValidation);
-      optional.ref_type = imm.type.representation();
+      value_type_reader::Populate(&imm.type, module_);
+      optional.ref_type_bit_field = imm.type.raw_bit_field();
       len = 1 + imm.length;
       break;
     }
@@ -8327,6 +8338,7 @@ void WasmBytecodeGenerator::DecodeGCOp(WasmOpcode opcode,
                                        WasmInstruction::Optional* optional,
                                        Decoder* decoder, InterpreterCode* code,
                                        pc_t pc, int* const len) {
+  WasmDetectedFeatures detected;
   switch (opcode) {
     case kExprStructNew:
     case kExprStructNewDefault: {
@@ -8411,11 +8423,12 @@ void WasmBytecodeGenerator::DecodeGCOp(WasmOpcode opcode,
     case kExprRefCastNull:
     case kExprRefTest:
     case kExprRefTestNull: {
-      HeapTypeImmediate imm(WasmEnabledFeatures::All(), decoder,
+      HeapTypeImmediate imm(WasmEnabledFeatures::All(), &detected, decoder,
                             code->at(pc + *len), Decoder::kNoValidation);
+      value_type_reader::Populate(&imm.type, module_);
       optional->gc_heap_type_immediate.length = imm.length;
-      optional->gc_heap_type_immediate.type_representation =
-          imm.type.representation();
+      optional->gc_heap_type_immediate.heap_type_bit_field =
+          imm.type.raw_bit_field();
       *len += imm.length;
       break;
     }
@@ -8428,15 +8441,21 @@ void WasmBytecodeGenerator::DecodeGCOp(WasmOpcode opcode,
       BranchDepthImmediate branch(decoder, code->at(pc + *len),
                                   Decoder::kNoValidation);
       *len += branch.length;
-      HeapTypeImmediate source_imm(WasmEnabledFeatures::All(), decoder,
-                                   code->at(pc + *len), Decoder::kNoValidation);
+      HeapTypeImmediate source_imm(WasmEnabledFeatures::All(), &detected,
+                                   decoder, code->at(pc + *len),
+                                   Decoder::kNoValidation);
+      value_type_reader::Populate(&source_imm.type, module_);
       *len += source_imm.length;
-      HeapTypeImmediate target_imm(WasmEnabledFeatures::All(), decoder,
-                                   code->at(pc + *len), Decoder::kNoValidation);
+      HeapTypeImmediate target_imm(WasmEnabledFeatures::All(), &detected,
+                                   decoder, code->at(pc + *len),
+                                   Decoder::kNoValidation);
+      value_type_reader::Populate(&target_imm.type, module_);
       *len += target_imm.length;
+      DCHECK(target_imm.type.raw_bit_field() <
+             (1 << kBranchOnCastDataTargetTypeBitSize));
       optional->br_on_cast_data = BranchOnCastData{
           branch.depth, flags_imm.flags.src_is_null,
-          flags_imm.flags.res_is_null, target_imm.type.representation()};
+          flags_imm.flags.res_is_null, target_imm.type.raw_bit_field()};
       break;
     }
 
@@ -9744,7 +9763,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           GetTargetBranch(br_on_cast_data.label_depth);
       bool null_succeeds = br_on_cast_data.res_is_null;
       const ValueType target_type = ValueType::RefMaybeNull(
-          ModuleTypeIndex({br_on_cast_data.target_type}),
+          HeapType::FromBits(br_on_cast_data.target_type_bit_fields),
           null_succeeds ? kNullable : kNonNullable);
 
       const ValueType obj_type = slots_[stack_.back()].value_type;
@@ -9771,10 +9790,10 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         EMIT_INSTR_HANDLER(s2s_BranchOnCast);
         EmitI32Const(null_succeeds);
         HeapType br_on_cast_data_target_type(
-            ModuleTypeIndex({br_on_cast_data.target_type}));
+            HeapType::FromBits(br_on_cast_data.target_type_bit_fields));
         EmitI32Const(br_on_cast_data_target_type.is_index()
-                         ? br_on_cast_data_target_type.representation()
-                         : target_type.heap_type().representation());
+                         ? br_on_cast_data_target_type.raw_bit_field()
+                         : target_type.heap_type().raw_bit_field());
         ValueType value_type = RefPop();
         EmitRefValueType(value_type.raw_bit_field());
         RefPush(value_type);
@@ -9797,8 +9816,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       int32_t target_branch_index =
           GetTargetBranch(br_on_cast_data.label_depth);
       bool null_succeeds = br_on_cast_data.res_is_null;
-      HeapType br_on_cast_data_target_type(
-          ModuleTypeIndex({br_on_cast_data.target_type}));
+      HeapType br_on_cast_data_target_type =
+          HeapType::FromBits(br_on_cast_data.target_type_bit_fields);
       const ValueType target_type =
           ValueType::RefMaybeNull(br_on_cast_data_target_type,
                                   null_succeeds ? kNullable : kNonNullable);
@@ -9831,8 +9850,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         EMIT_INSTR_HANDLER(s2s_BranchOnCastFail);
         EmitI32Const(null_succeeds);
         EmitI32Const(br_on_cast_data_target_type.is_index()
-                         ? br_on_cast_data_target_type.representation()
-                         : target_type.heap_type().representation());
+                         ? br_on_cast_data_target_type.raw_bit_field()
+                         : target_type.heap_type().raw_bit_field());
         ValueType value_type = RefPop();
         EmitRefValueType(value_type.raw_bit_field());
         RefPush(value_type);
@@ -11163,8 +11182,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
 
     case kExprRefNull: {
       EMIT_INSTR_HANDLER(s2s_RefNull);
-      ValueType value_type =
-          ValueType::RefNull(HeapType(instr.optional.ref_type));
+      ValueType value_type = ValueType::RefNull(
+          HeapType::FromBits(instr.optional.ref_type_bit_field));
       EmitRefValueType(value_type.raw_bit_field());
       RefPush(value_type);
       break;
@@ -11179,8 +11198,9 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
     case kExprRefFunc: {
       EMIT_INSTR_HANDLER(s2s_RefFunc);
       EmitI32Const(instr.optional.index);
-      ValueType value_type =
-          ValueType::Ref(module_->functions[instr.optional.index].sig_index);
+      ModuleTypeIndex sig_index =
+          module_->functions[instr.optional.index].sig_index;
+      ValueType value_type = ValueType::Ref(module_->heap_type(sig_index));
       RefPush(value_type);
       break;
     }
@@ -11211,14 +11231,16 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         Pop(kind);
       }
 
-      RefPush(ValueType::Ref(ModuleTypeIndex({instr.optional.index})));
+      ModuleTypeIndex type_index{instr.optional.index};
+      RefPush(ValueType::Ref(module_->heap_type(type_index)));
       break;
     }
 
     case kExprStructNewDefault: {
       EMIT_INSTR_HANDLER(s2s_StructNewDefault);
       EmitI32Const(instr.optional.index);
-      RefPush(ValueType::Ref(ModuleTypeIndex({instr.optional.index})));
+      ModuleTypeIndex type_index{instr.optional.index};
+      RefPush(ValueType::Ref(module_->heap_type(type_index)));
       break;
     }
 
@@ -11413,7 +11435,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
           UNREACHABLE();
       }
       // Push the new array.
-      RefPush(ValueType::Ref(ModuleTypeIndex({array_index})));
+      RefPush(
+          ValueType::Ref(module_->heap_type(ModuleTypeIndex({array_index}))));
       break;
     }
 
@@ -11456,7 +11479,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         }
       }
       // Push the new array.
-      RefPush(ValueType::Ref(ModuleTypeIndex({array_index})));
+      RefPush(
+          ValueType::Ref(module_->heap_type(ModuleTypeIndex({array_index}))));
       break;
     }
 
@@ -11465,7 +11489,9 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       EmitI32Const(instr.optional.index);
       I32Pop();
       // Push the new array.
-      RefPush(ValueType::Ref(ModuleTypeIndex({instr.optional.index})));
+      ModuleTypeIndex array_index{instr.optional.index};
+      RefPush(
+          ValueType::Ref(module_->heap_type(ModuleTypeIndex({array_index}))));
       break;
     }
 
@@ -11479,7 +11505,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       I32Pop();
       I32Pop();
       // Push the new array.
-      RefPush(ValueType::Ref(ModuleTypeIndex({array_index})));
+      RefPush(
+          ValueType::Ref(module_->heap_type(ModuleTypeIndex({array_index}))));
       break;
     }
 
@@ -11493,7 +11520,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       I32Pop();
       I32Pop();
       // Push the new array.
-      RefPush(ValueType::Ref(ModuleTypeIndex({array_index})));
+      RefPush(
+          ValueType::Ref(module_->heap_type(ModuleTypeIndex({array_index}))));
       break;
     }
 
@@ -11747,7 +11775,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
     case kExprRefI31: {
       EMIT_INSTR_HANDLER(s2s_RefI31);
       I32Pop();
-      RefPush(ValueType::Ref(HeapType::kI31));
+      RefPush(ValueType::Ref(kWasmRefI31));
       break;
     }
 
@@ -11768,7 +11796,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
     case kExprRefCast:
     case kExprRefCastNull: {
       bool null_succeeds = (instr.opcode == kExprRefCastNull);
-      HeapType target_type = instr.optional.gc_heap_type_immediate.type();
+      HeapType target_type = HeapType::FromBits(
+          instr.optional.gc_heap_type_immediate.heap_type_bit_field);
       ValueType resulting_value_type = ValueType::RefMaybeNull(
           target_type, null_succeeds ? kNullable : kNonNullable);
 
@@ -11805,7 +11834,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         } else {
           EMIT_INSTR_HANDLER_WITH_PC(s2s_RefCastNull, instr.pc);
         }
-        EmitI32Const(instr.optional.gc_heap_type_immediate.type_representation);
+        EmitI32Const(instr.optional.gc_heap_type_immediate.heap_type_bit_field);
         ValueType value_type = RefPop();
         EmitRefValueType(value_type.raw_bit_field());
         RefPush(resulting_value_type);
@@ -11816,7 +11845,8 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
     case kExprRefTest:
     case kExprRefTestNull: {
       bool null_succeeds = (instr.opcode == kExprRefTestNull);
-      HeapType target_type = instr.optional.gc_heap_type_immediate.type();
+      HeapType target_type = HeapType::FromBits(
+          instr.optional.gc_heap_type_immediate.heap_type_bit_field);
 
       ValueType obj_type = slots_[stack_.back()].value_type;
       DCHECK(obj_type.is_object_reference());
@@ -11845,7 +11875,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
         } else {
           EMIT_INSTR_HANDLER(s2s_RefTestNull);
         }
-        EmitI32Const(instr.optional.gc_heap_type_immediate.type_representation);
+        EmitI32Const(instr.optional.gc_heap_type_immediate.heap_type_bit_field);
         ValueType value_type = RefPop();
         EmitRefValueType(value_type.raw_bit_field());
         I32Push();  // bool
@@ -11857,7 +11887,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       EMIT_INSTR_HANDLER_WITH_PC(s2s_AnyConvertExtern, instr.pc);
       ValueType extern_val = RefPop();
       ValueType intern_type = ValueType::RefMaybeNull(
-          HeapType::kAny, Nullability(extern_val.is_nullable()));
+          kWasmAnyRef, Nullability(extern_val.is_nullable()));
       RefPush(intern_type);
       break;
     }
@@ -11866,7 +11896,7 @@ RegMode WasmBytecodeGenerator::DoEncodeInstruction(const WasmInstruction& instr,
       EMIT_INSTR_HANDLER(s2s_ExternConvertAny);
       ValueType value_type = RefPop();
       ValueType extern_type = ValueType::RefMaybeNull(
-          HeapType::kExtern, Nullability(value_type.is_nullable()));
+          kWasmExternRef, Nullability(value_type.is_nullable()));
       RefPush(extern_type);
       break;
     }
@@ -12966,8 +12996,9 @@ std::unique_ptr<WasmBytecode> WasmBytecodeGenerator::GenerateBytecode() {
     _PushSlot(wasm_code_->locals.local_types[index]);
   }
 
-  current_block_index_ =
-      BeginBlock(kExprBlock, {wasm_code_->function->sig_index, kBottom});
+  current_block_index_ = BeginBlock(
+      kExprBlock,
+      {wasm_code_->function->sig_index, kWasmBottom.raw_bit_field()});
 
   WasmInstruction curr_instr;
   WasmInstruction next_instr;
@@ -13011,11 +13042,15 @@ std::unique_ptr<WasmBytecode> WasmBytecodeGenerator::GenerateBytecode() {
 
   total_bytecode_size_ += code_.size();
 
+  CanonicalTypeIndex canonical_sig_index =
+      module_->canonical_sig_id(module_->functions[function_index_].sig_index);
+  const CanonicalSig* canonicalized_sig =
+      GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_index);
   return std::make_unique<WasmBytecode>(
       function_index_, code_.data(), code_.size(), slot_offset_,
-      module_->functions[function_index_].sig, wasm_code_, blocks_.size(),
-      const_slots_values_.data(), const_slots_values_.size(), ref_slots_count_,
-      std::move(eh_data_), std::move(code_pc_map_));
+      module_->functions[function_index_].sig, canonicalized_sig, wasm_code_,
+      blocks_.size(), const_slots_values_.data(), const_slots_values_.size(),
+      ref_slots_count_, std::move(eh_data_), std::move(code_pc_map_));
 }
 
 int32_t WasmBytecodeGenerator::BeginBlock(
