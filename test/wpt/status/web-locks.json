@@ -1,4 +1,12 @@
 {
+  "held.https.any.js": {
+    "fail": {
+      "flaky": [
+        "evaluation in WPTRunner.runJsTests()"
+      ],
+      "note": "We may have unhandledRejection during the intentional promise rejection"
+    }
+  },
   "idlharness.https.any.js": {
     "fail": {
       "expected": [

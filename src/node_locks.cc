@@ -643,18 +643,12 @@ void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
                                     held_lock->mode(),
                                     held_lock->client_id())
                    .ToLocal(&lock_info)) {
-            Local<String> error_msg =
-                String::NewFromUtf8(isolate,
-                                    "Failed to create lock info object")
-                    .ToLocalChecked();
-            resolver->Reject(context, Exception::Error(error_msg)).Check();
+            THROW_ERR_OPERATION_FAILED(env,
+                                       "Failed to create lock info object");
             return;
           }
           if (held_list->Set(context, index++, lock_info).IsNothing()) {
-            Local<String> error_msg =
-                String::NewFromUtf8(isolate, "Failed to build held locks array")
-                    .ToLocalChecked();
-            resolver->Reject(context, Exception::Error(error_msg)).Check();
+            THROW_ERR_OPERATION_FAILED(env, "Failed to build held locks array");
             return;
           }
         }
@@ -670,34 +664,21 @@ void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
                                   pending_request->mode(),
                                   pending_request->client_id())
                  .ToLocal(&lock_info)) {
-          Local<String> error_msg =
-              String::NewFromUtf8(isolate, "Failed to create lock info object")
-                  .ToLocalChecked();
-          resolver->Reject(context, Exception::Error(error_msg)).Check();
+          THROW_ERR_OPERATION_FAILED(env, "Failed to create lock info object");
           return;
         }
         if (pending_list->Set(context, index++, lock_info).IsNothing()) {
-          Local<String> error_msg =
-              String::NewFromUtf8(isolate,
-                                  "Failed to build pending locks array")
-                  .ToLocalChecked();
-          resolver->Reject(context, Exception::Error(error_msg)).Check();
+          THROW_ERR_OPERATION_FAILED(env,
+                                     "Failed to build pending locks array");
           return;
         }
       }
     }
   }
 
-  if (result->Set(context, FIXED_ONE_BYTE_STRING(isolate, "held"), held_list)
-          .IsNothing() ||
-      result
-          ->Set(
-              context, FIXED_ONE_BYTE_STRING(isolate, "pending"), pending_list)
-          .IsNothing()) {
-    Local<String> error_msg =
-        String::NewFromUtf8(isolate, "Failed to build query result object")
-            .ToLocalChecked();
-    resolver->Reject(context, Exception::Error(error_msg)).Check();
+  if (result->Set(context, env->held_string(), held_list).IsNothing() ||
+      result->Set(context, env->pending_string(), pending_list).IsNothing()) {
+    THROW_ERR_OPERATION_FAILED(env, "Failed to build query result object");
     return;
   }
 
@@ -811,7 +792,10 @@ static MaybeLocal<Object> CreateLockInfoObject(Isolate* isolate,
                                                Lock::Mode mode,
                                                const std::string& client_id) {
   Local<Object> obj = Object::New(isolate);
+  Environment* env = Environment::GetCurrent(context);
 
+  // TODO(ilyasshabi): Add ToV8Value that directly accepts std::u16string
+  // so we can avoid the manual String::NewFromTwoByte()
   Local<String> name_string;
   if (!String::NewFromTwoByte(isolate,
                               reinterpret_cast<const uint16_t*>(name.data()),
@@ -820,8 +804,7 @@ static MaybeLocal<Object> CreateLockInfoObject(Isolate* isolate,
            .ToLocal(&name_string)) {
     return MaybeLocal<Object>();
   }
-  if (obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "name"), name_string)
-          .IsNothing()) {
+  if (obj->Set(context, env->name_string(), name_string).IsNothing()) {
     return MaybeLocal<Object>();
   }
 
@@ -832,8 +815,7 @@ static MaybeLocal<Object> CreateLockInfoObject(Isolate* isolate,
            .ToLocal(&mode_string)) {
     return MaybeLocal<Object>();
   }
-  if (obj->Set(context, FIXED_ONE_BYTE_STRING(isolate, "mode"), mode_string)
-          .IsNothing()) {
+  if (obj->Set(context, env->mode_string(), mode_string).IsNothing()) {
     return MaybeLocal<Object>();
   }
 
@@ -842,10 +824,7 @@ static MaybeLocal<Object> CreateLockInfoObject(Isolate* isolate,
            .ToLocal(&client_id_string)) {
     return MaybeLocal<Object>();
   }
-  if (obj->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "clientId"),
-               client_id_string)
-          .IsNothing()) {
+  if (obj->Set(context, env->clientId_string(), client_id_string).IsNothing()) {
     return MaybeLocal<Object>();
   }
 
