@@ -219,7 +219,7 @@ for (const bufferSize of ['', '1', null]) {
 async function doAsyncIterInvalidCallbackTest() {
   const dir = await fs.promises.opendir(testDir);
   assert.throws(() => dir.close('not function'), invalidCallbackObj);
-  dir.close()
+  dir.close();
 }
 doAsyncIterInvalidCallbackTest().then(common.mustCall());
 
