@@ -272,7 +272,10 @@ export default [
       'jsdoc/require-param': 'off',
       'jsdoc/check-tag-names': 'error',
       'jsdoc/require-returns': 'error',
-      'jsdoc/check-line-alignment': 'error',
+      'jsdoc/check-line-alignment': ['error', 'any', {
+        tags: ['param', 'property', 'returns', 'file'],
+        wrapIndent: '  ',
+      }],
       'jsdoc/check-alignment': 'error',
 
       // Stylistic rules.
