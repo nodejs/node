@@ -4058,6 +4058,45 @@ Type: Documentation-only
 
 The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError`][] instead.
 
+### DEP0198: Closing fs.Dir on garbage collection
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58850
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Allowing a [`fs.Dir`][] object to be closed on garbage collection is
+deprecated. In the future, doing so might result in a thrown error that will
+terminate the process.
+
+Please ensure that all `fs.Dir` objects are explicitly closed using
+`Dir.prototype.close()` or `using` keyword:
+
+```mjs
+import { opendir } from 'node:fs/promises';
+
+{
+  await using dir = await opendir('/async/disposable/directory');
+} // Closed by dir[Symbol.asyncDispose]()
+
+{
+  using dir = await opendir('/sync/disposable/directory');
+} // Closed by dir[Symbol.dispose]()
+
+{
+  let dir;
+  try {
+    dir = await opendir('/legacy/closeable/directory');
+  } finally {
+    await dir?.close();
+  }
+}
+```
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -4115,6 +4154,7 @@ The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError
 [`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
 [`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname-listener
 [`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
+[`fs.Dir`]: fs.md#class-fsdir
 [`fs.FileHandle`]: fs.md#class-filehandle
 [`fs.access()`]: fs.md#fsaccesspath-mode-callback
 [`fs.appendFile()`]: fs.md#fsappendfilepath-data-options-callback
