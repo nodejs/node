@@ -6,11 +6,11 @@
 
 """ Unit tests for the ninja.py file. """
 
-from pathlib import Path
 import sys
 import unittest
+from pathlib import Path
 
-import gyp.generator.ninja as ninja
+from gyp.generator import ninja
 
 
 class TestPrefixesAndSuffixes(unittest.TestCase):

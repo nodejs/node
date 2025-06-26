@@ -44,6 +44,12 @@ const DEEP_HEADER_SET_COOKIE = {
   replacement: '[REDACTED_HEADER_SET_COOKIE]',
 }
 
+const DEEP_HEADER_COOKIE = {
+  type: TYPE_PATH,
+  predicate: ({ path }) => path.endsWith('.headers.cookie'),
+  replacement: '[REDACTED_HEADER_COOKIE]',
+}
+
 const REWRITE_REQUEST = {
   type: TYPE_PATH,
   predicate: ({ path }) => path.endsWith('.request'),
@@ -76,6 +82,7 @@ module.exports = {
   URL_MATCHER,
   DEEP_HEADER_AUTHORIZATION,
   DEEP_HEADER_SET_COOKIE,
+  DEEP_HEADER_COOKIE,
   REWRITE_REQUEST,
   REWRITE_RESPONSE,
 }

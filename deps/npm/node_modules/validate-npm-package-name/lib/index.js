@@ -30,7 +30,7 @@ function validate (name) {
     errors.push('name length must be greater than zero')
   }
 
-  if (name.match(/^\./)) {
+  if (name.startsWith('.')) {
     errors.push('name cannot start with a period')
   }
 
@@ -75,6 +75,11 @@ function validate (name) {
     if (nameMatch) {
       var user = nameMatch[1]
       var pkg = nameMatch[2]
+
+      if (pkg.startsWith('.')) {
+        errors.push('name cannot start with a period')
+      }
+
       if (encodeURIComponent(user) === user && encodeURIComponent(pkg) === pkg) {
         return done(warnings, errors)
       }
