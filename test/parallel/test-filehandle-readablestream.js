@@ -134,7 +134,7 @@ const check = readFileSync(__filename, { encoding: 'utf8' });
       assert.ok(result.value.byteLength <= 100);
     }
   } while (!result.done && (offset < buff.byteLength));
-  let data = dec.decode(new Uint8Array(buff));
+  const data = dec.decode(new Uint8Array(buff));
 
   assert.strictEqual(check, data);
 
