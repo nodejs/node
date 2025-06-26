@@ -1,30 +1,26 @@
 {
   "name": "foreground-child",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "description": "Run a child as if it's the foreground process. Give it stdio. Exit when it exits.",
   "main": "./dist/commonjs/index.js",
   "types": "./dist/commonjs/index.d.ts",
   "exports": {
     "./watchdog": {
       "import": {
-        "source": "./src/watchdog.ts",
         "types": "./dist/esm/watchdog.d.ts",
         "default": "./dist/esm/watchdog.js"
       },
       "require": {
-        "source": "./src/watchdog.ts",
         "types": "./dist/commonjs/watchdog.d.ts",
         "default": "./dist/commonjs/watchdog.js"
       }
     },
     "./proxy-signals": {
       "import": {
-        "source": "./src/proxy-signals.ts",
         "types": "./dist/esm/proxy-signals.d.ts",
         "default": "./dist/esm/proxy-signals.js"
       },
       "require": {
-        "source": "./src/proxy-signals.ts",
         "types": "./dist/commonjs/proxy-signals.d.ts",
         "default": "./dist/commonjs/proxy-signals.js"
       }
@@ -32,12 +28,10 @@
     "./package.json": "./package.json",
     ".": {
       "import": {
-        "source": "./src/index.ts",
         "types": "./dist/esm/index.d.ts",
         "default": "./dist/esm/index.js"
       },
       "require": {
-        "source": "./src/index.ts",
         "types": "./dist/commonjs/index.d.ts",
         "default": "./dist/commonjs/index.js"
       }
@@ -50,7 +44,7 @@
     "node": ">=14"
   },
   "dependencies": {
-    "cross-spawn": "^7.0.0",
+    "cross-spawn": "^7.0.6",
     "signal-exit": "^4.0.1"
   },
   "scripts": {
@@ -91,8 +85,8 @@
     "@types/node": "^18.15.11",
     "@types/tap": "^15.0.8",
     "prettier": "^3.3.2",
-    "tap": "^19.2.5",
-    "tshy": "^1.15.1",
+    "tap": "^21.1.0",
+    "tshy": "^3.0.2",
     "typedoc": "^0.24.2",
     "typescript": "^5.0.2"
   },
@@ -107,5 +101,6 @@
       ".": "./src/index.ts"
     }
   },
-  "type": "module"
+  "type": "module",
+  "module": "./dist/esm/index.js"
 }

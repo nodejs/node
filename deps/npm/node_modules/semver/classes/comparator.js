@@ -1,3 +1,5 @@
+'use strict'
+
 const ANY = Symbol('SemVer ANY')
 // hoisted class for cyclic dependency
 class Comparator {
