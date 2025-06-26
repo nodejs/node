@@ -88,7 +88,7 @@ assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluat
   it('should evaluate true in evaluated script', async () => {
     const result = await spawnPromisified(
       process.execPath,
-      ['--input-type=module-typescript', '--disable-warning=ExperimentalWarning', '--eval', importMetaMainTSScript],
+      ['--experimental-strip-types', '--input-type=module-typescript', '--disable-warning=ExperimentalWarning', '--eval', importMetaMainTSScript],
     );
     assert.deepStrictEqual(result, {
       stderr: '',
@@ -101,7 +101,8 @@ assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluat
   it('should evaluate true in worker instantiated with module source by evaluated script', async () => {
     const result = await spawnPromisified(
       process.execPath,
-      ['--input-type=module-typescript',
+      ['--experimental-strip-types',
+       '--input-type=module-typescript',
        '--disable-warning=ExperimentalWarning',
        '--eval',
        wrapScriptInEvalWorker(importMetaMainTSScript)],
@@ -118,6 +119,7 @@ assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluat
     const result = await spawnPromisified(
       process.execPath,
       ['--input-type=module',
+       '--experimental-strip-types',
        '--input-type=module-typescript',
        '--disable-warning=ExperimentalWarning',
        '--eval', wrapScriptInUrlWorker(importMetaMainTSScript)],
