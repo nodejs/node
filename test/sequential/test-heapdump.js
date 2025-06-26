@@ -82,9 +82,7 @@ process.chdir(tmpdir.path);
 
 {
   const passthrough = new PassThrough();
-  passthrough.on('data', common.mustCallAtLeast(()=> {
-    // Do nothing, just consume the data
-  }, 1));
+  passthrough.on('data', common.mustCallAtLeast(1));
 
   pipeline(
     getHeapSnapshot(),
