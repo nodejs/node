@@ -810,8 +810,7 @@ def WriteTarget(
     # link directories to targets defined after it is called.
     # As a result, link_directories must come before the target definition.
     # CMake unfortunately has no means of removing entries from LINK_DIRECTORIES.
-    library_dirs = config.get("library_dirs")
-    if library_dirs is not None:
+    if (library_dirs := config.get("library_dirs")) is not None:
         output.write("link_directories(")
         for library_dir in library_dirs:
             output.write(" ")
@@ -1295,8 +1294,7 @@ def CallGenerateOutputForConfig(arglist):
 
 
 def GenerateOutput(target_list, target_dicts, data, params):
-    user_config = params.get("generator_flags", {}).get("config", None)
-    if user_config:
+    if user_config := params.get("generator_flags", {}).get("config", None):
         GenerateOutputForConfig(target_list, target_dicts, data, params, user_config)
     else:
         config_names = target_dicts[target_list[0]]["configurations"]

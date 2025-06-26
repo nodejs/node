@@ -78,7 +78,7 @@ def CalculateVariables(default_variables, params):
 
         # Copy additional generator configuration data from Xcode, which is shared
         # by the Mac Make generator.
-        import gyp.generator.xcode as xcode_generator
+        import gyp.generator.xcode as xcode_generator  # noqa: PLC0415
 
         global generator_additional_non_configuration_keys
         generator_additional_non_configuration_keys = getattr(
@@ -1465,8 +1465,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 order_only=True,
             )
 
-        pchdeps = precompiled_header.GetObjDependencies(compilable, objs)
-        if pchdeps:
+        if pchdeps := precompiled_header.GetObjDependencies(compilable, objs):
             self.WriteLn("# Dependencies from obj files to their precompiled headers")
             for source, obj, gch in pchdeps:
                 self.WriteLn(f"{obj}: {gch}")
@@ -1600,8 +1599,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
         target_prefix = spec.get("product_prefix", target_prefix)
         target = spec.get("product_name", target)
-        product_ext = spec.get("product_extension")
-        if product_ext:
+        if product_ext := spec.get("product_extension"):
             target_ext = "." + product_ext
 
         return target_prefix + target + target_ext
@@ -2383,7 +2381,7 @@ def WriteAutoRegenerationRule(params, root_makefile, makefile_name, build_files)
         % {
             "makefile_name": makefile_name,
             "deps": replace_sep(
-                " ".join(SourceifyAndQuoteSpaces(bf) for bf in build_files)
+                " ".join(sorted(SourceifyAndQuoteSpaces(bf) for bf in build_files))
             ),
             "cmd": replace_sep(gyp.common.EncodePOSIXShellList(
                 [gyp_binary, "-fmake"] + gyp.RegenerateFlags(options) + build_files_args
