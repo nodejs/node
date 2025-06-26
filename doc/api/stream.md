@@ -3050,6 +3050,44 @@ console.log(res); // prints 'HELLOWORLD'
 
 See [`readable.compose(stream)`][] for `stream.compose` as operator.
 
+### `stream.isErrored(stream)`
+
+<!-- YAML
+added:
+  - v17.3.0
+  - v16.14.0
+changes:
+  - version:
+      - v24.0.0
+      - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
+-->
+
+* `stream` {Readable|Writable|Duplex|WritableStream|ReadableStream}
+* Returns: {boolean}
+
+Returns whether the stream has encountered an error.
+
+### `stream.isReadable(stream)`
+
+<!-- YAML
+added:
+  - v17.4.0
+  - v16.14.0
+changes:
+  - version:
+      - v24.0.0
+      - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
+-->
+
+* `stream` {Readable|Duplex|ReadableStream}
+* Returns: {boolean}
+
+Returns whether the stream is readable.
+
 ### `stream.Readable.from(iterable[, options])`
 
 <!-- YAML
@@ -3135,44 +3173,6 @@ changes:
 * Returns: `boolean`
 
 Returns whether the stream has been read from or cancelled.
-
-### `stream.isErrored(stream)`
-
-<!-- YAML
-added:
-  - v17.3.0
-  - v16.14.0
-changes:
-  - version:
-      - v24.0.0
-      - v22.17.0
-    pr-url: https://github.com/nodejs/node/pull/57513
-    description: Marking the API stable.
--->
-
-* `stream` {Readable|Writable|Duplex|WritableStream|ReadableStream}
-* Returns: {boolean}
-
-Returns whether the stream has encountered an error.
-
-### `stream.isReadable(stream)`
-
-<!-- YAML
-added:
-  - v17.4.0
-  - v16.14.0
-changes:
-  - version:
-      - v24.0.0
-      - v22.17.0
-    pr-url: https://github.com/nodejs/node/pull/57513
-    description: Marking the API stable.
--->
-
-* `stream` {Readable|Duplex|ReadableStream}
-* Returns: {boolean}
-
-Returns whether the stream is readable.
 
 ### `stream.Readable.toWeb(streamReadable[, options])`
 
