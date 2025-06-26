@@ -919,6 +919,14 @@ inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
                                         heap_limit);
 }
 
+bool Environment::dir_gc_close_warning() const {
+  return emit_dir_gc_warning_;
+}
+
+void Environment::set_dir_gc_close_warning(bool on) {
+  emit_dir_gc_warning_ = on;
+}
+
 }  // namespace node
 
 // These two files depend on each other. Including base_object-inl.h after this
