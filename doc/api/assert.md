@@ -1807,6 +1807,9 @@ argument gets considered.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/XXXXX
+    description: Message may now be a `printf`-like format string or function.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17003
     description: Used comparison changed from Strict Equality to `Object.is()`.
@@ -1814,7 +1817,14 @@ changes:
 
 * `actual` {any}
 * `expected` {any}
-* `message` {string|Error}
+* `message` {string|Error|Function} Postfix `printf`-like arguments in case
+  it's used as format string.
+  If message is a function, it is called in case of a comparison failure. The
+  function receives the `actual` and `expected` arguments and has to return a
+  string that is going to be used as error message.
+  `printf`-like format strings and functions are beneficial for performance
+  reasons in case arguments are passed through. In addition, it allows nice
+  formatting with ease.
 
 Tests strict equality between the `actual` and `expected` parameters as
 determined by [`Object.is()`][].
@@ -1843,8 +1853,17 @@ const oranges = 2;
 assert.strictEqual(apples, oranges, `apples ${apples} !== oranges ${oranges}`);
 // AssertionError [ERR_ASSERTION]: apples 1 !== oranges 2
 
+assert.strictEqual(apples, oranges, 'apples %s !== oranges %s', apples, oranges);
+// AssertionError [ERR_ASSERTION]: apples 1 !== oranges 2
+
 assert.strictEqual(1, '1', new TypeError('Inputs are not identical'));
 // TypeError: Inputs are not identical
+
+assert.strictEqual(apples, oranges, () => {
+  // Do 'heavy' computations
+  return 'My error string';
+});
+// AssertionError [ERR_ASSERTION]: apples 1 !== oranges 2
 ```
 
 ```cjs
