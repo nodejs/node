@@ -33,7 +33,7 @@ assert.throws(
 // Test normal operation with ReadableByteStream
 const webStream = Readable.toWeb(nodeStream, { type: 'bytes' });
 const reader = webStream.getReader({ mode: 'byob' });
-const expected = Buffer.alloc(16);
+const expected = new Uint8Array(16);
 for (let i = 0; i < 16; i++) {
   expected[i] = count++;
 }
@@ -44,6 +44,6 @@ for (let i = 0; i < 1000; i++) {
   reader.read(receive).then(common.mustCall((result) => {
     // Verify the data received
     assert.ok(!result.done);
-    assert.deepStrictEqual(receive, expected);
+    assert.deepStrictEqual(result.value, expected);
   }));
 }
