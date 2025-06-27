@@ -395,6 +395,9 @@
         "test-coverage-lines": {
           "type": "number"
         },
+        "test-files-glob": {
+          "type": "string"
+        },
         "test-global-setup": {
           "type": "string"
         },
@@ -637,6 +640,9 @@
         },
         "test-coverage-lines": {
           "type": "number"
+        },
+        "test-files-glob": {
+          "type": "string"
         },
         "test-force-exit": {
           "type": "boolean"
