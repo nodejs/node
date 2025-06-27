@@ -621,7 +621,7 @@ added: v20.0.0
 
 See {File}.
 
-## Class `FormData`
+## Class: `FormData`
 
 <!-- YAML
 added:
@@ -660,7 +660,7 @@ the global scope; `var something` inside a Node.js module will be local to that
 module, regardless of whether it is a [CommonJS module][] or an
 [ECMAScript module][].
 
-## Class `Headers`
+## Class: `Headers`
 
 <!-- YAML
 added:
