@@ -23,15 +23,16 @@ const { createProxyServer, checkProxiedRequest } = require('../common/proxy-serv
   const serverHost = `localhost:${server.address().port}`;
 
   // FIXME(undici:4083): undici currently always tunnels the request over
-  // CONNECT, no matter it's HTTP traffic or not, which is different from e.g.
-  // how curl behaves.
+  // CONNECT if proxyTunnel is not explicitly set to false, but what we
+  // need is for it to be automatically false for HTTP requests to be
+  // consistent with curl.
   const expectedLogs = [{
     method: 'CONNECT',
     url: serverHost,
     headers: {
-      // FIXME(undici:4086): this should be keep-alive.
       connection: 'close',
-      host: serverHost
+      host: serverHost,
+      'proxy-connection': 'keep-alive'
     }
   }];
 
