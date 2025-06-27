@@ -2791,6 +2791,10 @@ added:
 
 * `path` {string | URL | Buffer | undefined}. **Default:** `'./.env'`
 
+* `options`
+
+  * `sections` {string\[]} (optional) The sections to use.
+
 Loads the `.env` file into `process.env`. Usage of `NODE_OPTIONS`
 in the `.env` file will not have any effect on Node.js.
 
