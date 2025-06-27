@@ -892,6 +892,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_name_pattern,
             kAllowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-files-glob",
+            "set the default glob pattern for matching test files (default: "
+            "'**/{test,test/**/*,test-*,*[._-]test}.{<extensions>}' where "
+            "<extensions> is 'js,mjs,cjs' or 'js,mjs,cjs,ts,mts,cts' when using"
+            " --experimental-strip-types)",
+            &EnvironmentOptions::test_files_glob,
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-reporter",
             "report test output using the given reporter",
             &EnvironmentOptions::test_reporter,

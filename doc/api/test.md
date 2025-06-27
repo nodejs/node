@@ -505,7 +505,8 @@ The Node.js test runner can be invoked from the command line by passing the
 node --test
 ```
 
-By default, Node.js will run all files matching these patterns:
+Unless overridden with the [`--test-files-glob`][] flag, by default Node.js will
+run all files matching these patterns:
 
 * `**/*.test.{cjs,mjs,js}`
 * `**/*-test.{cjs,mjs,js}`
@@ -4000,6 +4001,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-coverage-exclude`]: cli.md#--test-coverage-exclude
 [`--test-coverage-include`]: cli.md#--test-coverage-include
+[`--test-files-glob`]: cli.md#--test-files-globglob
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination

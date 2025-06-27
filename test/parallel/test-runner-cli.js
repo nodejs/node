@@ -24,6 +24,21 @@ for (const isolation of ['none', 'process']) {
   }
 
   {
+    // File not found (--test-files-glob).
+    const args = [
+      '--test',
+      `--test-isolation=${isolation}`,
+      '--test-files-glob=a-random-file-that-does-not-exist.js',
+    ];
+    const child = spawnSync(process.execPath, args);
+
+    assert.strictEqual(child.status, 1);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stdout.toString(), '');
+    assert.match(child.stderr.toString(), /^Could not find/);
+  }
+
+  {
     // Default behavior. node_modules is ignored. Files that don't match the
     // pattern are ignored except in test/ directories.
     const args = ['--test', '--test-reporter=tap',
@@ -62,27 +77,100 @@ for (const isolation of ['none', 'process']) {
     assert.doesNotMatch(stdout, /ok 4 - this should pass/);
   }
 
+  {
+    // Should override default file matching (**/{test,test/**/*,test-*,*[._-]test}.{js,mjs,cjs})
+    const args = [
+      '--test',
+      '--test-reporter=tap',
+      '--test-files-glob=**/*.spec.{js,mjs,cjs}',
+      `--test-isolation=${isolation}`,
+    ];
+    const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'custom-files-glob') });
+
+    assert.strictEqual(child.status, 0);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stderr.toString(), '');
+    const stdout = child.stdout.toString();
+    process.stderr.write(stdout);
+
+    assert.match(stdout, /ok 1 - index-test\.spec\.cjs this should pass/);
+    assert.match(stdout, /ok 2 - index-test\.spec\.js this should pass/);
+    assert.match(stdout, /ok 3 - index-test\.spec\.mjs this should pass/);
+    assert.doesNotMatch(stdout, /ok 4 - /);
+  }
+
+  {
+    // Should ignore glob override when targeted file passed in
+    const args = [
+      '--test',
+      '--test-reporter=tap',
+      '--test-files-glob=**/*.spec.{js,mjs,cjs}',
+      `--test-isolation=${isolation}`,
+      'index-test.js',
+    ];
+    const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'custom-files-glob') });
+
+    assert.strictEqual(child.status, 0);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stderr.toString(), '');
+    const stdout = child.stdout.toString();
+    process.stderr.write(stdout);
+
+    assert.match(stdout, /ok 1 - index-test\.js should not run/);
+    assert.doesNotMatch(stdout, /ok 2 - /);
+  }
+
   for (const type of ['strip', 'transform']) {
-    // Should match files with "-test.(c|m)(t|j)s" suffix when typescript support is enabled
-    const args = ['--test', '--test-reporter=tap', '--no-warnings',
-                  `--experimental-${type}-types`, `--test-isolation=${isolation}`];
-    const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'matching-patterns') });
+    {
+      // Should match files with "-test.(c|m)(t|j)s" suffix when typescript support is enabled
+      const args = ['--test', '--test-reporter=tap', '--no-warnings',
+                    `--experimental-${type}-types`, `--test-isolation=${isolation}`];
+      const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'matching-patterns') });
 
-    if (!process.config.variables.node_use_amaro) {
-      // e.g. Compiled with `--without-amaro`.
-      assert.strictEqual(child.status, 1);
-    } else {
-      assert.strictEqual(child.stderr.toString(), '');
-      const stdout = child.stdout.toString();
+      if (!process.config.variables.node_use_amaro) {
+        // e.g. Compiled with `--without-amaro`.
+        assert.strictEqual(child.status, 1);
+      } else {
+        assert.strictEqual(child.stderr.toString(), '');
+        const stdout = child.stdout.toString();
 
-      assert.match(stdout, /ok 1 - this should pass/);
-      assert.match(stdout, /ok 2 - this should pass/);
-      assert.match(stdout, /ok 3 - this should pass/);
-      assert.match(stdout, /ok 4 - this should pass/);
-      assert.match(stdout, /ok 5 - this should pass/);
-      assert.match(stdout, /ok 6 - this should pass/);
-      assert.strictEqual(child.status, 0);
-      assert.strictEqual(child.signal, null);
+        assert.match(stdout, /ok 1 - this should pass/);
+        assert.match(stdout, /ok 2 - this should pass/);
+        assert.match(stdout, /ok 3 - this should pass/);
+        assert.match(stdout, /ok 4 - this should pass/);
+        assert.match(stdout, /ok 5 - this should pass/);
+        assert.match(stdout, /ok 6 - this should pass/);
+        assert.strictEqual(child.status, 0);
+        assert.strictEqual(child.signal, null);
+      }
+    }
+
+    {
+      // Should override default file matching (**/{test,test/**/*,test-*,*[._-]test}.{js,mjs,cjs,ts,mts,cts})
+      const args = [
+        '--test',
+        '--test-reporter=tap',
+        '--no-warnings',
+        '--test-files-glob=*.spec.{ts,mts,cts}',
+        `--experimental-${type}-types`,
+        `--test-isolation=${isolation}`,
+      ];
+      const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'custom-files-glob') });
+
+      if (!process.config.variables.node_use_amaro) {
+        // e.g. Compiled with `--without-amaro`.
+        assert.strictEqual(child.status, 1);
+      } else {
+        assert.strictEqual(child.status, 0);
+        assert.strictEqual(child.signal, null);
+        assert.strictEqual(child.stderr.toString(), '');
+        const stdout = child.stdout.toString();
+
+        assert.match(stdout, /ok 1 - typescript-test\.spec\.cts this should pass/);
+        assert.match(stdout, /ok 2 - typescript-test\.spec\.mts this should pass/);
+        assert.match(stdout, /ok 3 - typescript-test\.spec\.ts this should pass/);
+        assert.doesNotMatch(stdout, /ok 4 - /);
+      }
     }
   }
 
@@ -114,6 +202,24 @@ for (const isolation of ['none', 'process']) {
       '--test',
       '--test-reporter=tap',
       `--test-isolation=${isolation}`,
+      join(testFixtures, 'index.js'),
+    ];
+    const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+
+    assert.strictEqual(child.stderr.toString(), '');
+    const stdout = child.stdout.toString();
+    assert.match(stdout, /not ok 1 - .+index\.js/);
+    assert.strictEqual(child.status, 1);
+    assert.strictEqual(child.signal, null);
+  }
+
+  {
+    // User specified files that don't match the --test-files-glob are still run.
+    const args = [
+      '--test',
+      '--test-reporter=tap',
+      `--test-isolation=${isolation}`,
+      '--test-files-glob=**/{test,test/**/*,test-*,*[._-]test}.{js,mjs,cjs}',
       join(testFixtures, 'index.js'),
     ];
     const child = spawnSync(process.execPath, args, { cwd: testFixtures });

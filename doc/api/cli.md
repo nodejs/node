@@ -2598,6 +2598,20 @@ added: v22.8.0
 Require a minimum percent of covered lines. If code coverage does not reach
 the threshold specified, the process will exit with code `1`.
 
+### `--test-files-glob=glob`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Override the default test file glob patterns. This option is ignored if
+positional `arguments` are provided as well.
+
+See [running tests from the command line][] for more information on the
+default patterns.
+
 ### `--test-force-exit`
 
 <!-- YAML
@@ -3581,6 +3595,7 @@ one is included in the list below.
 * `--test-coverage-functions`
 * `--test-coverage-include`
 * `--test-coverage-lines`
+* `--test-files-glob`
 * `--test-global-setup`
 * `--test-isolation`
 * `--test-name-pattern`
