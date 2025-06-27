@@ -548,6 +548,10 @@
               "type": "number",
               "description": "the line coverage minimum threshold"
             },
+            "test-files-glob": {
+              "type": "string",
+              "description": "run test files matching this glob pattern"
+            },
             "test-global-setup": {
               "type": "string",
               "description": "specifies the path to the global setup file"
@@ -940,6 +944,10 @@
             "test-coverage-lines": {
               "type": "number",
               "description": "the line coverage minimum threshold"
+            },
+            "test-files-glob": {
+              "type": "string",
+              "description": "run test files matching this glob pattern"
             },
             "test-force-exit": {
               "type": "boolean",
