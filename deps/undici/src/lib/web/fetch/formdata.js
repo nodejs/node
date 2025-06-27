@@ -2,7 +2,7 @@
 
 const { iteratorMixin } = require('./util')
 const { kEnumerableProperty } = require('../../core/util')
-const { webidl } = require('./webidl')
+const { webidl } = require('../webidl')
 const { File: NativeFile } = require('node:buffer')
 const nodeUtil = require('node:util')
 

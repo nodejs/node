@@ -43,6 +43,125 @@ The benchmark is a simple getting data [example](https://github.com/nodejs/undic
 └────────────────────────┴─────────┴────────────────────┴────────────┴─────────────────────────┘
 ```
 
+## Undici vs. Fetch
+
+### Overview
+
+Node.js includes a built-in `fetch()` implementation powered by undici starting from Node.js v18. However, there are important differences between using the built-in fetch and installing undici as a separate module.
+
+### Built-in Fetch (Node.js v18+)
+
+Node.js's built-in fetch is powered by a bundled version of undici:
+
+```js
+// Available globally in Node.js v18+
+const response = await fetch('https://api.example.com/data');
+const data = await response.json();
+
+// Check the bundled undici version
+console.log(process.versions.undici); // e.g., "5.28.4"
+```
+
+**Pros:**
+- No additional dependencies required
+- Works across different JavaScript runtimes
+- Automatic compression handling (gzip, deflate, br)
+- Built-in caching support (in development)
+
+**Cons:**
+- Limited to the undici version bundled with your Node.js version
+- Less control over connection pooling and advanced features
+- Error handling follows Web API standards (errors wrapped in `TypeError`)
+- Performance overhead due to Web Streams implementation
+
+### Undici Module
+
+Installing undici as a separate module gives you access to the latest features and APIs:
+
+```bash
+npm install undici
+```
+
+```js
+import { request, fetch, Agent, setGlobalDispatcher } from 'undici';
+
+// Use undici.request for maximum performance
+const { statusCode, headers, body } = await request('https://api.example.com/data');
+const data = await body.json();
+
+// Or use undici.fetch with custom configuration
+const agent = new Agent({ keepAliveTimeout: 10000 });
+setGlobalDispatcher(agent);
+const response = await fetch('https://api.example.com/data');
+```
+
+**Pros:**
+- Latest undici features and bug fixes
+- Access to advanced APIs (`request`, `stream`, `pipeline`)
+- Fine-grained control over connection pooling
+- Better error handling with clearer error messages
+- Superior performance, especially with `undici.request`
+- HTTP/1.1 pipelining support
+- Custom interceptors and middleware
+- Advanced features like `ProxyAgent`, `MockAgent`
+
+**Cons:**
+- Additional dependency to manage
+- Larger bundle size
+
+### When to Use Each
+
+#### Use Built-in Fetch When:
+- You want zero dependencies
+- Building isomorphic code that runs in browsers and Node.js
+- Simple HTTP requests without advanced configuration
+- You're okay with the undici version bundled in your Node.js version
+
+#### Use Undici Module When:
+- You need the latest undici features and performance improvements
+- You require advanced connection pooling configuration
+- You need APIs not available in the built-in fetch (`ProxyAgent`, `MockAgent`, etc.)
+- Performance is critical (use `undici.request` for maximum speed)
+- You want better error handling and debugging capabilities
+- You need HTTP/1.1 pipelining or advanced interceptors
+- You prefer decoupled protocol and API interfaces
+
+### Performance Comparison
+
+Based on benchmarks, here's the typical performance hierarchy:
+
+1. **`undici.request()`** - Fastest, most efficient
+2. **`undici.fetch()`** - Good performance, standard compliance
+3. **Node.js `http`/`https`** - Baseline performance
+
+### Migration Guide
+
+If you're currently using built-in fetch and want to migrate to undici:
+
+```js
+// Before: Built-in fetch
+const response = await fetch('https://api.example.com/data');
+
+// After: Undici fetch (drop-in replacement)
+import { fetch } from 'undici';
+const response = await fetch('https://api.example.com/data');
+
+// Or: Undici request (better performance)
+import { request } from 'undici';
+const { statusCode, body } = await request('https://api.example.com/data');
+const data = await body.json();
+```
+
+### Version Compatibility
+
+You can check which version of undici is bundled with your Node.js version:
+
+```js
+console.log(process.versions.undici);
+```
+
+Installing undici as a module allows you to use a newer version than what's bundled with Node.js, giving you access to the latest features and performance improvements.
+
 ## Quick Start
 
 ```js
@@ -62,6 +181,44 @@ for await (const data of body) { console.log('data', data) }
 
 console.log('trailers', trailers)
 ```
+
+## Global Installation
+
+Undici provides an `install()` function to add all WHATWG fetch classes to `globalThis`, making them available globally:
+
+```js
+import { install } from 'undici'
+
+// Install all WHATWG fetch classes globally
+install()
+
+// Now you can use fetch classes globally without importing
+const response = await fetch('https://api.example.com/data')
+const data = await response.json()
+
+// All classes are available globally:
+const headers = new Headers([['content-type', 'application/json']])
+const request = new Request('https://example.com')
+const formData = new FormData()
+const ws = new WebSocket('wss://example.com')
+const eventSource = new EventSource('https://example.com/events')
+```
+
+The `install()` function adds the following classes to `globalThis`:
+
+- `fetch` - The fetch function
+- `Headers` - HTTP headers management
+- `Response` - HTTP response representation
+- `Request` - HTTP request representation  
+- `FormData` - Form data handling
+- `WebSocket` - WebSocket client
+- `CloseEvent`, `ErrorEvent`, `MessageEvent` - WebSocket events
+- `EventSource` - Server-sent events client
+
+This is useful for:
+- Polyfilling environments that don't have fetch
+- Ensuring consistent fetch behavior across different Node.js versions
+- Making undici's implementations available globally for libraries that expect them
 
 ## Body Mixins
 

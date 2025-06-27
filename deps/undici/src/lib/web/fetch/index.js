@@ -61,7 +61,7 @@ const { Readable, pipeline, finished, isErrored, isReadable } = require('node:st
 const { addAbortListener, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require('./data-url')
 const { getGlobalDispatcher } = require('../../global')
-const { webidl } = require('./webidl')
+const { webidl } = require('../webidl')
 const { STATUS_CODES } = require('node:http')
 const GET_OR_HEAD = ['GET', 'HEAD']
 
@@ -2154,6 +2154,12 @@ async function httpNetworkFetch (
                 decoders.push(zlib.createBrotliDecompress({
                   flush: zlib.constants.BROTLI_OPERATION_FLUSH,
                   finishFlush: zlib.constants.BROTLI_OPERATION_FLUSH
+                }))
+              } else if (coding === 'zstd' && typeof zlib.createZstdDecompress === 'function') {
+                // Node.js v23.8.0+ and v22.15.0+ supports Zstandard
+                decoders.push(zlib.createZstdDecompress({
+                  flush: zlib.constants.ZSTD_e_continue,
+                  finishFlush: zlib.constants.ZSTD_e_end
                 }))
               } else {
                 decoders.length = 0
