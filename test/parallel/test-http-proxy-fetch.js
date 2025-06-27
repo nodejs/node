@@ -30,8 +30,8 @@ const { createProxyServer, checkProxiedRequest } = require('../common/proxy-serv
     method: 'CONNECT',
     url: serverHost,
     headers: {
-      connection: 'close',
-      host: serverHost,
+      'connection': 'close',
+      'host': serverHost,
       'proxy-connection': 'keep-alive'
     }
   }];
