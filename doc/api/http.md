@@ -3818,7 +3818,8 @@ changes:
   * `family` {number} IP address family to use when resolving `host` or
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
-  * `headers` {Object} An object containing request headers.
+  * `headers` {Object|Array} An object or an array of strings containing request
+    headers. The array is in the same format as [`message.rawHeaders`][].
   * `hints` {number} Optional [`dns.lookup()` hints][].
   * `host` {string} A domain name or IP address of the server to issue the
     request to. **Default:** `'localhost'`.
@@ -4273,6 +4274,7 @@ A browser-compatible implementation of [`WebSocket`][].
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
 [`message.headers`]: #messageheaders
+[`message.rawHeaders`]: #messagerawheaders
 [`message.socket`]: #messagesocket
 [`message.trailers`]: #messagetrailers
 [`net.Server.close()`]: net.md#serverclosecallback
