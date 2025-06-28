@@ -628,6 +628,19 @@ Set V8's thread pool size which will be used to allocate background jobs.
 If set to 0 then V8 will choose an appropriate size of the thread pool based on the number of online processors.
 If the value provided is larger than V8's maximum, then the largest value will be chosen.
 .
+.It Fl -watch
+Starts Node.js in watch mode. When in watch mode, changes in the watched files cause the Node.js process to restart.
+
+By default, watch mode will watch the entry point and any required or imported module. Use --watch-path to specify what paths to watch.
+.
+.It Fl -watch-path
+Starts Node.js in watch mode and specifies what paths to watch. When in watch mode, changes in the watched paths cause the Node.js process to restart.
+
+This will turn off watching of required or imported modules, even when used in combination with --watch.
+.
+.It Fl -watch-kill-signal
+Customizes the signal sent to the process on watch mode restarts.
+.
 .It Fl -zero-fill-buffers
 Automatically zero-fills all newly allocated Buffer and SlowBuffer instances.
 .
