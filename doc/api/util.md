@@ -1956,7 +1956,7 @@ added:
 changes:
   - version:
     - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/000000
+    pr-url: https://github.com/nodejs/node/pull/58875
     description: Add support for help text in options and enableHelpPrinting config.
   - version:
     - v22.4.0
@@ -2110,8 +2110,8 @@ if (result.printUsage) {
   //
   // Process files with various options.
   // -v, --verbose             Enable verbose output
-  // -f, --file <arg>          Input file path
-  //     --output <arg>        Output directory
+  // -f, --file <arg>           Input file path
+  // --output <arg>            Output directory
 }
 
 // Or automatically print help and exit
@@ -2156,8 +2156,8 @@ if (result.printUsage) {
   //
   // Process files with various options.
   // -v, --verbose             Enable verbose output
-  // -f, --file <arg>          Input file path
-  //     --output <arg>        Output directory
+  // -f, --file <arg>           Input file path
+  // --output <arg>            Output directory
 }
 
 // Or automatically print help and exit
