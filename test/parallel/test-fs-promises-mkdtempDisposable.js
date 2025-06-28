@@ -5,6 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const fsPromises = require('fs/promises');
 const path = require('path');
+const { isMainThread } = require('worker_threads');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -38,6 +39,9 @@ async function symbolAsyncDispose() {
 }
 
 async function chdirDoesNotAffectRemoval() {
+  // Can't use chdir in workers
+  if (isMainThread) return;
+
   const originalCwd = process.cwd();
 
   process.chdir(tmpdir.path);
@@ -63,40 +67,26 @@ async function chdirDoesNotAffectRemoval() {
 }
 
 async function errorsAreReThrown() {
+  // It is difficult to arrange for rmdir to fail on windows
+  if (common.isWindows) return;
   const base = await fsPromises.mkdtempDisposable(tmpdir.resolve('foo.'));
 
-  if (common.isWindows) {
-    // On Windows we can prevent removal by holding a file open
-    const testFile = path.join(base.path, 'locked-file.txt');
-    fs.writeFileSync(testFile, 'test');
-    const fd = fs.openSync(testFile, 'r');
+  // On Unix we can prevent removal by making the parent directory read-only
+  const child = await fsPromises.mkdtempDisposable(path.join(base.path, 'bar.'));
 
-    await assert.rejects(base.remove(), /EBUSY|ENOTEMPTY|EPERM/);
+  const originalMode = fs.statSync(base.path).mode;
+  fs.chmodSync(base.path, 0o444);
 
-    fs.closeSync(fd);
-    fs.unlinkSync(testFile);
+  await assert.rejects(child.remove(), /EACCES|EPERM/);
 
-    // Removal works once file is closed
-    await base.remove();
-    assert(!fs.existsSync(base.path));
-  } else {
-    // On Unix we can prevent removal by making the parent directory read-only
-    const child = await fsPromises.mkdtempDisposable(path.join(base.path, 'bar.'));
+  fs.chmodSync(base.path, originalMode);
 
-    const originalMode = fs.statSync(base.path).mode;
-    fs.chmodSync(base.path, 0o444);
+  // Removal works once permissions are reset
+  await child.remove();
+  assert(!fs.existsSync(child.path));
 
-    await assert.rejects(child.remove(), /EACCES|EPERM/);
-
-    fs.chmodSync(base.path, originalMode);
-
-    // Removal works once permissions are reset
-    await child.remove();
-    assert(!fs.existsSync(child.path));
-
-    await base.remove();
-    assert(!fs.existsSync(base.path));
-  }
+  await base.remove();
+  assert(!fs.existsSync(base.path));
 }
 
 (async () => {

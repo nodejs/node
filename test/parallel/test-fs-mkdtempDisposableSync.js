@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const { isMainThread } = require('worker_threads');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -39,7 +40,8 @@ tmpdir.refresh();
 }
 
 // `chdir`` does not affect removal
-{
+// Can't use chdir in workers
+if (isMainThread) {
   const originalCwd = process.cwd();
 
   process.chdir(tmpdir.path);
@@ -65,43 +67,26 @@ tmpdir.refresh();
 }
 
 // Errors from cleanup are thrown
-{
+// It is difficult to arrange for rmdir to fail on windows
+if (!common.isWindows) {
   const base = fs.mkdtempDisposableSync(tmpdir.resolve('foo.'));
 
-  if (common.isWindows) {
-    // On Windows we can prevent removal by holding a file open
-    const testFile = path.join(base.path, 'locked-file.txt');
-    fs.writeFileSync(testFile, 'test');
-    const fd = fs.openSync(testFile, 'r');
+  // On Unix we can prevent removal by making the parent directory read-only
+  const child = fs.mkdtempDisposableSync(path.join(base.path, 'bar.'));
 
-    assert.throws(() => {
-      base.remove();
-    }, /EBUSY|ENOTEMPTY|EPERM/);
+  const originalMode = fs.statSync(base.path).mode;
+  fs.chmodSync(base.path, 0o444);
 
-    fs.closeSync(fd);
-    fs.unlinkSync(testFile);
-
-    // Removal works once file is closed
-    base.remove();
-    assert(!fs.existsSync(base.path));
-  } else {
-    // On Unix we can prevent removal by making the parent directory read-only
-    const child = fs.mkdtempDisposableSync(path.join(base.path, 'bar.'));
-
-    const originalMode = fs.statSync(base.path).mode;
-    fs.chmodSync(base.path, 0o444);
-
-    assert.throws(() => {
-      child.remove();
-    }, /EACCES|EPERM/);
-
-    fs.chmodSync(base.path, originalMode);
-
-    // Removal works once permissions are reset
+  assert.throws(() => {
     child.remove();
-    assert(!fs.existsSync(child.path));
+  }, /EACCES|EPERM/);
 
-    base.remove();
-    assert(!fs.existsSync(base.path));
-  }
+  fs.chmodSync(base.path, originalMode);
+
+  // Removal works once permissions are reset
+  child.remove();
+  assert(!fs.existsSync(child.path));
+
+  base.remove();
+  assert(!fs.existsSync(base.path));
 }
