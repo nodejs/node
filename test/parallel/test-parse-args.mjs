@@ -1150,7 +1150,7 @@ test('enableHelpPrinting config must be a boolean', () => {
   );
 });
 
-test('when enableHelpPrinting config is true, print all help text and exit', () => {
+function setupConsoleAndExit() {
   const originalLog = console.log;
   const originalExit = process.exit;
 
@@ -1164,6 +1164,17 @@ test('when enableHelpPrinting config is true, print all help text and exit', () 
   process.exit = (code) => {
     exitCode = code;
   };
+
+  function restore() {
+    console.log = originalLog;
+    process.exit = originalExit;
+  }
+
+  return { getOutput: () => output, getExitCode: () => exitCode, restore };
+}
+
+test('when enableHelpPrinting config is true, print all help text and exit', () => {
+  const { getOutput, getExitCode, restore } = setupConsoleAndExit();
 
   try {
     const args = [
@@ -1191,8 +1202,7 @@ test('when enableHelpPrinting config is true, print all help text and exit', () 
 
     parseArgs({ args, options, help, enableHelpPrinting: true });
   } finally {
-    console.log = originalLog;
-    process.exit = originalExit;
+    restore();
   }
 
   const expectedOutput =
@@ -1210,6 +1220,22 @@ test('when enableHelpPrinting config is true, print all help text and exit', () 
   '-L, --looooooooooooooongHelpText <arg>\n' +
   '                              Very long option help text for demonstration purposes\n';
 
-  assert.strictEqual(exitCode, 0);
-  assert.strictEqual(output, expectedOutput);
+  assert.strictEqual(getExitCode(), 0);
+  assert.strictEqual(getOutput(), expectedOutput);
+});
+
+test('when enableHelpPrinting config is true, but no help text is available', () => {
+  const { getOutput, getExitCode, restore } = setupConsoleAndExit();
+
+  try {
+    const args = ['-a', 'val1'];
+    const options = { alpha: { type: 'string', short: 'a' } };
+
+    parseArgs({ args, options, enableHelpPrinting: true });
+  } finally {
+    restore();
+  }
+
+  assert.strictEqual(getExitCode(), 0);
+  assert.strictEqual(getOutput(), 'No help text available.\n');
 });
