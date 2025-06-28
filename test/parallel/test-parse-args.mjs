@@ -1075,8 +1075,8 @@ test('help value must be a string', () => {
 test('when help value for lone short option is added, then add help text', () => {
   const args = ['-f', 'bar'];
   const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
-  const usage = ['-f, --foo <arg>               help text'];
-  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], usage };
+  const printUsage = ['-f, --foo <arg>               help text'];
+  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
   const result = parseArgs({ args, options, allowPositionals: true });
   assert.deepStrictEqual(result, expected);
 });
@@ -1085,9 +1085,9 @@ test('when help value for short group option is added, then add help text', () =
   const args = ['-fm', 'bar'];
   const options = { foo: { type: 'boolean', short: 'f', help: 'help text' },
                     moo: { type: 'string', short: 'm', help: 'help text' } };
-  const usage = ['-f, --foo                     help text',
+  const printUsage = ['-f, --foo                     help text',
                  '-m, --moo <arg>               help text'];
-  const expected = { values: { __proto__: null, foo: true, moo: 'bar' }, positionals: [], usage };
+  const expected = { values: { __proto__: null, foo: true, moo: 'bar' }, positionals: [], printUsage };
   const result = parseArgs({ args, options, allowPositionals: true });
   assert.deepStrictEqual(result, expected);
 });
@@ -1095,8 +1095,8 @@ test('when help value for short group option is added, then add help text', () =
 test('when help value for short option and value is added, then add help text', () => {
   const args = ['-fFILE'];
   const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
-  const usage = ['-f, --foo <arg>               help text'];
-  const expected = { values: { __proto__: null, foo: 'FILE' }, positionals: [], usage };
+  const printUsage = ['-f, --foo <arg>               help text'];
+  const expected = { values: { __proto__: null, foo: 'FILE' }, positionals: [], printUsage };
   const result = parseArgs({ args, options, allowPositionals: true });
   assert.deepStrictEqual(result, expected);
 });
@@ -1104,8 +1104,8 @@ test('when help value for short option and value is added, then add help text', 
 test('when help value for lone long option is added, then add help text', () => {
   const args = ['--foo', 'bar'];
   const options = { foo: { type: 'string', help: 'help text' } };
-  const usage = ['--foo <arg>                   help text'];
-  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], usage };
+  const printUsage = ['--foo <arg>                   help text'];
+  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
   const result = parseArgs({ args, options, allowPositionals: true });
   assert.deepStrictEqual(result, expected);
 });
@@ -1113,8 +1113,8 @@ test('when help value for lone long option is added, then add help text', () => 
 test('when help value for lone long option and value is added, then add help text', () => {
   const args = ['--foo=bar'];
   const options = { foo: { type: 'string', help: 'help text' } };
-  const usage = ['--foo <arg>                   help text'];
-  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], usage };
+  const printUsage = ['--foo <arg>                   help text'];
+  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
   const result = parseArgs({ args, options, allowPositionals: true });
   assert.deepStrictEqual(result, expected);
 });
