@@ -448,12 +448,17 @@ static Local<Object> createImportAttributesContainer(
     values[idx] = raw_attributes->Get(realm->context(), i + 1).As<Value>();
   }
 
-  return Object::New(
+  Local<Object> attributes = Object::New(
       isolate, Null(isolate), names.data(), values.data(), num_attributes);
+  attributes->SetIntegrityLevel(realm->context(), v8::IntegrityLevel::kFrozen)
+      .Check();
+  return attributes;
 }
 
 static Local<Array> createModuleRequestsContainer(
     Realm* realm, Isolate* isolate, Local<FixedArray> raw_requests) {
+  EscapableHandleScope scope(isolate);
+  Local<Context> context = realm->context();
   LocalVector<Value> requests(isolate, raw_requests->Length());
 
   for (int i = 0; i < raw_requests->Length(); i++) {
@@ -483,11 +488,12 @@ static Local<Array> createModuleRequestsContainer(
 
     Local<Object> request =
         Object::New(isolate, Null(isolate), names, values, arraysize(names));
+    request->SetIntegrityLevel(context, v8::IntegrityLevel::kFrozen).Check();
 
     requests[i] = request;
   }
 
-  return Array::New(isolate, requests.data(), requests.size());
+  return scope.Escape(Array::New(isolate, requests.data(), requests.size()));
 }
 
 void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
