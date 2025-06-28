@@ -1992,6 +1992,10 @@ added:
   - v16.17.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/000000
+    description: Add support for help text in options and enableHelpPrinting config.
+  - version:
     - v22.4.0
     - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53107
@@ -2031,6 +2035,7 @@ changes:
       `true`, it must be an array. No default value is applied when the option
       does appear in the arguments to be parsed, even if the provided value
       is falsy.
+    * `help` {string} Descriptive text to display in help output for this option.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
@@ -2045,6 +2050,10 @@ changes:
     the built-in behavior, from adding additional checks through to reprocessing
     the tokens in different ways.
     **Default:** `false`.
+  * `help` {string} General help text to display at the beginning of help output.
+  * `enableHelpPrinting` {boolean} When `true`, if any options have help text
+    configured, the help will be printed to stdout and the process will exit
+    with code 0. **Default:** `false`.
 
 * Returns: {Object} The parsed command line arguments:
   * `values` {Object} A mapping of parsed option names with their {string}
@@ -2052,6 +2061,8 @@ changes:
   * `positionals` {string\[]} Positional arguments.
   * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
     section. Only returned if `config` includes `tokens: true`.
+  * `printUsage` {string\[] | undefined} Formatted help text for options that have
+    help text configured. Only included if help text is available and `enableHelpPrinting` is `false`.
 
 Provides a higher level API for command-line argument parsing than interacting
 with `process.argv` directly. Takes a specification for the expected arguments
@@ -2095,6 +2106,104 @@ const {
 } = parseArgs({ args, options });
 console.log(values, positionals);
 // Prints: [Object: null prototype] { foo: true, bar: 'b' } []
+```
+
+### `parseArgs` help text
+
+`parseArgs` can generate and display help text for command-line options. To enable
+this functionality, add `help` text to individual options and optionally provide
+general help text via the `help` config property.
+
+```mjs
+import { parseArgs } from 'node:util';
+
+const options = {
+  verbose: {
+    type: 'boolean',
+    short: 'v',
+    help: 'Enable verbose output',
+  },
+  file: {
+    type: 'string',
+    short: 'f',
+    help: 'Input file path',
+  },
+  output: {
+    type: 'string',
+    help: 'Output directory',
+  },
+};
+
+// Get help text in result
+const result = parseArgs({
+  options,
+  help: 'My CLI Tool v1.0\n\nProcess files with various options.',
+});
+
+if (result.printUsage) {
+  console.log(result.printUsage.join('\n'));
+  // Prints:
+  // My CLI Tool v1.0
+  //
+  // Process files with various options.
+  // -v, --verbose             Enable verbose output
+  // -f, --file <arg>          Input file path
+  //     --output <arg>        Output directory
+}
+
+// Or automatically print help and exit
+parseArgs({
+  options,
+  help: 'My CLI Tool v1.0\n\nProcess files with various options.',
+  enableHelpPrinting: true,
+});
+// Prints help and exits with code 0
+```
+
+```cjs
+const { parseArgs } = require('node:util');
+
+const options = {
+  verbose: {
+    type: 'boolean',
+    short: 'v',
+    help: 'Enable verbose output',
+  },
+  file: {
+    type: 'string',
+    short: 'f',
+    help: 'Input file path',
+  },
+  output: {
+    type: 'string',
+    help: 'Output directory',
+  },
+};
+
+// Get help text in result
+const result = parseArgs({
+  options,
+  help: 'My CLI Tool v1.0\n\nProcess files with various options.',
+});
+
+if (result.printUsage) {
+  console.log(result.printUsage.join('\n'));
+  // Prints:
+  // My CLI Tool v1.0
+  //
+  // Process files with various options.
+  // -v, --verbose             Enable verbose output
+  // -f, --file <arg>          Input file path
+  //     --output <arg>        Output directory
+}
+
+// Or automatically print help and exit
+parseArgs({
+  options,
+  help: 'My CLI Tool v1.0\n\nProcess files with various options.',
+  enableHelpPrinting: true,
+});
+// Prints help and exits with code 0
 ```
 
 ### `parseArgs` `tokens`
