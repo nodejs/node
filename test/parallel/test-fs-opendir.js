@@ -18,6 +18,13 @@ files.forEach(function(filename) {
   fs.closeSync(fs.openSync(path.join(testDir, filename), 'w'));
 });
 
+function assertDir(dir) {
+  assert(dir instanceof fs.Dir);
+  assert.throws(() => dir.constructor.prototype.path, {
+    code: 'ERR_INVALID_THIS',
+  });
+}
+
 function assertDirent(dirent) {
   assert(dirent instanceof fs.Dirent);
   assert.strictEqual(dirent.isFile(), true);
@@ -45,6 +52,7 @@ const invalidCallbackObj = {
 // Check the opendir Sync version
 {
   const dir = fs.opendirSync(testDir);
+  assertDir(dir);
   const entries = files.map(() => {
     const dirent = dir.readSync();
     assertDirent(dirent);
@@ -68,6 +76,7 @@ const invalidCallbackObj = {
 
 // Check the opendir async version
 fs.opendir(testDir, common.mustSucceed((dir) => {
+  assertDir(dir);
   let sync = true;
   dir.read(common.mustSucceed((dirent) => {
     assert(!sync);
@@ -121,6 +130,7 @@ fs.opendir(__filename, common.mustCall(function(e) {
 async function doPromiseTest() {
   // Check the opendir Promise version
   const dir = await fs.promises.opendir(testDir);
+  assertDir(dir);
   const entries = [];
 
   let i = files.length;
