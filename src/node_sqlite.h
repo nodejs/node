@@ -229,6 +229,32 @@ class UserDefinedFunction {
   bool use_bigint_args_;
 };
 
+class SqlTaggedTemplateQuery;
+
+class SqlTaggedTemplateQuery : public BaseObject {
+ public:
+   SqlTaggedTemplateQuery(Environment* env,
+           v8::Local<v8::Object> wrap,
+           v8::Local<v8::String> sql,
+           v8::Local<v8::Array> params);
+    ~SqlTaggedTemplateQuery() override;
+
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static void toString(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(Environment* env);
+  static v8::MaybeLocal<v8::Object> Create(Environment* env,
+                                   v8::Local<v8::String> sql,
+                                   v8::Local<v8::Array> params);
+  SET_MEMORY_INFO_NAME(SqlTaggedTemplateQuery)
+  SET_SELF_SIZE(SqlTaggedTemplateQuery)
+
+ private:
+  std::string sql_;
+  std::vector<v8::Global<v8::Value>> params_;
+};
+
+void Sql(const v8::FunctionCallbackInfo<v8::Value>& args);
+
 }  // namespace sqlite
 }  // namespace node
 
