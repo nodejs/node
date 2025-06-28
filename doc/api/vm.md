@@ -573,16 +573,6 @@ const contextifiedObject = vm.createContext({
 })();
 ```
 
-### `module.dependencySpecifiers`
-
-* {string\[]}
-
-The specifiers of all dependencies of this module. The returned array is frozen
-to disallow any changes to it.
-
-Corresponds to the `[[RequestedModules]]` field of [Cyclic Module Record][]s in
-the ECMAScript specification.
-
 ### `module.error`
 
 * Type: {any}
@@ -887,6 +877,72 @@ const cachedData = module.createCachedData();
 const module2 = new vm.SourceTextModule('const a = 1;', { cachedData });
 ```
 
+### `sourceTextModule.dependencySpecifiers`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/20300
+    description: This is deprecated in favour of `sourceTextModule.moduleRequests`.
+-->
+
+> Stability: 0 - Deprecated: Use [`sourceTextModule.moduleRequests`][] instead.
+
+* {string\[]}
+
+The specifiers of all dependencies of this module. The returned array is frozen
+to disallow any changes to it.
+
+Corresponds to the `[[RequestedModules]]` field of [Cyclic Module Record][]s in
+the ECMAScript specification.
+
+### `sourceTextModule.moduleRequests`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {ModuleRequest\[]} Dependencies of this module.
+
+The requested import dependencies of this module. The returned array is frozen
+to disallow any changes to it.
+
+For example, given a source text:
+
+<!-- eslint-disable no-duplicate-imports -->
+
+```mjs
+import foo from 'foo';
+import fooAlias from 'foo';
+import bar from './bar.js';
+import withAttrs from '../with-attrs.ts' with { arbitraryAttr: 'attr-val' };
+```
+
+<!-- eslint-enable no-duplicate-imports -->
+
+The value of the `sourceTextModule.moduleRequests` will be:
+
+```js
+[
+  {
+    specifier: 'foo',
+    attributes: {},
+  },
+  {
+    specifier: 'foo',
+    attributes: {},
+  },
+  {
+    specifier: './bar.js',
+    attributes: {},
+  },
+  {
+    specifier: '../with-attrs.ts',
+    attributes: { arbitraryAttr: 'attr-val' },
+  },
+];
+```
+
 ## Class: `vm.SyntheticModule`
 
 <!-- YAML
@@ -982,6 +1038,20 @@ const vm = require('node:vm');
   assert.strictEqual(m.namespace.x, 1);
 })();
 ```
+
+## Type: `ModuleRequest`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+  * `specifier` {string} The specifier of the requested module.
+  * `attributes` {Object} The `"with"` value passed to the
+    [WithClause][] in a [ImportDeclaration][], or an empty object if no value was
+    provided.
+
+A `ModuleRequest` represents the request to import a module with given import attributes and phase.
 
 ## `vm.compileFunction(code[, params[, options]])`
 
@@ -1953,12 +2023,14 @@ const { Script, SyntheticModule } = require('node:vm');
 [Evaluate() concrete method]: https://tc39.es/ecma262/#sec-moduleevaluation
 [GetModuleNamespace]: https://tc39.es/ecma262/#sec-getmodulenamespace
 [HostResolveImportedModule]: https://tc39.es/ecma262/#sec-hostresolveimportedmodule
+[ImportDeclaration]: https://tc39.es/ecma262/#prod-ImportDeclaration
 [Link() concrete method]: https://tc39.es/ecma262/#sec-moduledeclarationlinking
 [Module Record]: https://tc39.es/ecma262/#sec-abstract-module-records
 [Source Text Module Record]: https://tc39.es/ecma262/#sec-source-text-module-records
 [Support of dynamic `import()` in compilation APIs]: #support-of-dynamic-import-in-compilation-apis
 [Synthetic Module Record]: https://tc39.es/ecma262/#sec-synthetic-module-records
 [V8 Embedder's Guide]: https://v8.dev/docs/embed#contexts
+[WithClause]: https://tc39.es/ecma262/#prod-WithClause
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`]: errors.md#err_vm_dynamic_import_callback_missing_flag
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.md#err_vm_dynamic_import_callback_missing
 [`ERR_VM_MODULE_STATUS`]: errors.md#err_vm_module_status
@@ -1968,6 +2040,7 @@ const { Script, SyntheticModule } = require('node:vm');
 [`optionsExpression`]: https://tc39.es/proposal-import-attributes/#sec-evaluate-import-call
 [`script.runInContext()`]: #scriptrunincontextcontextifiedobject-options
 [`script.runInThisContext()`]: #scriptruninthiscontextoptions
+[`sourceTextModule.moduleRequests`]: #sourcetextmodulemodulerequests
 [`url.origin`]: url.md#urlorigin
 [`vm.compileFunction()`]: #vmcompilefunctioncode-params-options
 [`vm.constants.DONT_CONTEXTIFY`]: #vmconstantsdont_contextify
