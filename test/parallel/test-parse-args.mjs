@@ -1063,7 +1063,7 @@ test('auto-detect --no-foo as negated when strict:false and allowNegative', () =
   process.execArgv = holdExecArgv;
 });
 
-test('help value must be a string', () => {
+test('help value for option must be a string', () => {
   const args = [];
   const options = { alpha: { type: 'string', help: true } };
   assert.throws(() => {
@@ -1086,7 +1086,7 @@ test('when help value for short group option is added, then add help text', () =
   const options = { foo: { type: 'boolean', short: 'f', help: 'help text' },
                     moo: { type: 'string', short: 'm', help: 'help text' } };
   const printUsage = ['-f, --foo                     help text',
-                 '-m, --moo <arg>               help text'];
+                      '-m, --moo <arg>               help text'];
   const expected = { values: { __proto__: null, foo: true, moo: 'bar' }, positionals: [], printUsage };
   const result = parseArgs({ args, options, allowPositionals: true });
   assert.deepStrictEqual(result, expected);
@@ -1116,5 +1116,25 @@ test('when help value for lone long option and value is added, then add help tex
   const printUsage = ['--foo <arg>                   help text'];
   const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
   const result = parseArgs({ args, options, allowPositionals: true });
+  assert.deepStrictEqual(result, expected);
+});
+
+test('help value must be a string', () => {
+  const args = ['-f', 'bar'];
+  const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
+  const help = true;
+  assert.throws(() => {
+    parseArgs({ args, options, help });
+  }, /The "help" argument must be of type string/
+  );
+});
+
+test('when help value is added, then add initial help text', () => {
+  const args = ['-f', 'bar'];
+  const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
+  const help = 'Description for some awesome stuff:';
+  const printUsage = [help, '-f, --foo <arg>               help text'];
+  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
+  const result = parseArgs({ args, options, help });
   assert.deepStrictEqual(result, expected);
 });
