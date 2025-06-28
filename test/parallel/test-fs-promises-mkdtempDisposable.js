@@ -40,7 +40,7 @@ async function symbolAsyncDispose() {
 
 async function chdirDoesNotAffectRemoval() {
   // Can't use chdir in workers
-  if (isMainThread) return;
+  if (!isMainThread) return;
 
   const originalCwd = process.cwd();
 
