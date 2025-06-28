@@ -2299,6 +2299,7 @@ typedef enum {
   napi_float64_array,
   napi_bigint64_array,
   napi_biguint64_array,
+  napi_float16_array
 } napi_typedarray_type;
 ```
 
