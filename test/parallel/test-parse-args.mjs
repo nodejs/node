@@ -1119,7 +1119,7 @@ test('when help value for lone long option and value is added, then add help tex
   assert.deepStrictEqual(result, expected);
 });
 
-test('help value must be a string', () => {
+test('help value config must be a string', () => {
   const args = ['-f', 'bar'];
   const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
   const help = true;
@@ -1137,4 +1137,79 @@ test('when help value is added, then add initial help text', () => {
   const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
   const result = parseArgs({ args, options, help });
   assert.deepStrictEqual(result, expected);
+});
+
+test('enableHelpPrinting config must be a boolean', () => {
+  const args = ['-f', 'bar'];
+  const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
+  const help = 'Description for some awesome stuff:';
+  const enableHelpPrinting = 'not a boolean';
+  assert.throws(() => {
+    parseArgs({ args, options, help, enableHelpPrinting });
+  }, /The "enableHelpPrinting" argument must be of type boolean/
+  );
+});
+
+test('when enableHelpPrinting config is true, print all help text and exit', () => {
+  const originalLog = console.log;
+  const originalExit = process.exit;
+
+  let output = '';
+  let exitCode = null;
+
+  console.log = (message) => {
+    output += message + '\n';
+  };
+
+  process.exit = (code) => {
+    exitCode = code;
+  };
+
+  try {
+    const args = [
+      '-a', 'val1', '--beta', '-c', 'val3', '--delta', 'val4', '-e',
+      '--foxtrot', 'val6', '--golf', '-h', 'val8', '--india', 'val9', '-j',
+    ];
+    const options = {
+      alpha: { type: 'string', short: 'a', help: 'Alpha option help' },
+      beta: { type: 'boolean', short: 'b', help: 'Beta option help' },
+      charlie: { type: 'string', short: 'c', help: 'Charlie option help' },
+      delta: { type: 'string', help: 'Delta option help' },
+      echo: { type: 'boolean', short: 'e', help: 'Echo option help' },
+      foxtrot: { type: 'string', help: 'Foxtrot option help' },
+      golf: { type: 'boolean', help: 'Golf option help' },
+      hotel: { type: 'string', short: 'h', help: 'Hotel option help' },
+      india: { type: 'string', help: 'India option help' },
+      juliet: { type: 'boolean', short: 'j', help: 'Juliet option help' },
+      looooooooooooooongHelpText: {
+        type: 'string',
+        short: 'L',
+        help: 'Very long option help text for demonstration purposes'
+      }
+    };
+    const help = 'Description for some awesome stuff:';
+
+    parseArgs({ args, options, help, enableHelpPrinting: true });
+  } finally {
+    console.log = originalLog;
+    process.exit = originalExit;
+  }
+
+  const expectedOutput =
+  'Description for some awesome stuff:\n' +
+  '-a, --alpha <arg>             Alpha option help\n' +
+  '-b, --beta                    Beta option help\n' +
+  '-c, --charlie <arg>           Charlie option help\n' +
+  '--delta <arg>                 Delta option help\n' +
+  '-e, --echo                    Echo option help\n' +
+  '--foxtrot <arg>               Foxtrot option help\n' +
+  '--golf                        Golf option help\n' +
+  '-h, --hotel <arg>             Hotel option help\n' +
+  '--india <arg>                 India option help\n' +
+  '-j, --juliet                  Juliet option help\n' +
+  '-L, --looooooooooooooongHelpText <arg>\n' +
+  '                              Very long option help text for demonstration purposes\n';
+
+  assert.strictEqual(exitCode, 0);
+  assert.strictEqual(output, expectedOutput);
 });
