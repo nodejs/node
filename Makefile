@@ -810,7 +810,7 @@ doc-only: tools/doc/node_modules \
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping doc-only (no crypto or no icu)"; \
 	else \
-		$(MAKE) out/doc/api/all.html out/doc/api/all.json
+		$(MAKE) out/doc/api/all.html out/doc/api/all.json; \
 	fi
 
 .PHONY: doc
