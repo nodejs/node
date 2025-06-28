@@ -230,6 +230,7 @@ for (const bufferSize of ['', '1', null]) {
 async function doAsyncIterInvalidCallbackTest() {
   const dir = await fs.promises.opendir(testDir);
   assert.throws(() => dir.close('not function'), invalidCallbackObj);
+  dir.close();
 }
 doAsyncIterInvalidCallbackTest().then(common.mustCall());
 
@@ -258,6 +259,7 @@ doConcurrentAsyncAndSyncOps().then(common.mustCall());
 {
   const dir = fs.opendirSync(testDir);
   assert.throws(() => dir.read('INVALID_CALLBACK'), /ERR_INVALID_ARG_TYPE/);
+  dir.close();
 }
 
 // Check that concurrent read() operations don't do weird things.
