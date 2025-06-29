@@ -64,7 +64,7 @@ const rl = createInterface({
   input: cliMdContentsStream,
 });
 
-const isOptionLineRegex = /^###( `[^`]*`(,)?)*$/;
+const isOptionLineRegex = /^###(?: `[^`]*`,?)*$/;
 
 for await (const line of rl) {
   if (line.startsWith('## ')) {

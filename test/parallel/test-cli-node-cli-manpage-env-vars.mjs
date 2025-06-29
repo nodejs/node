@@ -73,7 +73,7 @@ async function collectCliMdEnvVarNames() {
     input: fileStream,
   });
 
-  const envVariableRE = /^### `(?<varName>[^`]*?)(=[^`]+)?`$/;
+  const envVariableRE = /^### `(?<varName>[^`]*?)(?:=[^`]+)?`$/;
 
   const envVarNames = new Set();
 
