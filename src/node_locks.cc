@@ -21,12 +21,12 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
 using v8::String;
 using v8::Value;
-using v8::NewStringType;
 
 static constexpr const char* kSharedMode = "shared";
 static constexpr const char* kExclusiveMode = "exclusive";
@@ -37,10 +37,8 @@ static bool RejectBoth(v8::Local<v8::Context> ctx,
                        v8::Local<v8::Promise::Resolver> first,
                        v8::Local<v8::Promise::Resolver> second,
                        v8::Local<v8::Value> reason) {
-  if (first->Reject(ctx, reason).IsNothing())
-    return false;
-  if (second->Reject(ctx, reason).IsNothing())
-    return false;
+  if (first->Reject(ctx, reason).IsNothing()) return false;
+  if (second->Reject(ctx, reason).IsNothing()) return false;
 
   return true;
 }
@@ -102,8 +100,7 @@ bool LockManager::IsGrantable(const LockRequest* request) const {
 }
 
 // Called when the user callback promise fulfills
-static void OnLockCallbackFulfilled(
-    const FunctionCallbackInfo<Value>& info) {
+static void OnLockCallbackFulfilled(const FunctionCallbackInfo<Value>& info) {
   HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info);
 
@@ -119,8 +116,7 @@ static void OnLockCallbackFulfilled(
 }
 
 // Called when the user callback promise rejects
-static void OnLockCallbackRejected(
-    const FunctionCallbackInfo<Value>& info) {
+static void OnLockCallbackRejected(const FunctionCallbackInfo<Value>& info) {
   HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info);
 
@@ -134,8 +130,7 @@ static void OnLockCallbackRejected(
 }
 
 // Called when the promise returned from the user's callback resolves
-static void OnIfAvailableFulfill(
-    const FunctionCallbackInfo<Value>& info) {
+static void OnIfAvailableFulfill(const FunctionCallbackInfo<Value>& info) {
   HandleScope handle_scope(info.GetIsolate());
   auto* holder = static_cast<Global<Promise::Resolver>*>(
       info.Data().As<External>()->Value());
@@ -146,15 +141,14 @@ static void OnIfAvailableFulfill(
 }
 
 // Called when the promise returned from the user's callback rejects
-static void OnIfAvailableReject(
-    const FunctionCallbackInfo<Value>& info) {
+static void OnIfAvailableReject(const FunctionCallbackInfo<Value>& info) {
   HandleScope handle_scope(info.GetIsolate());
   auto* holder = static_cast<Global<Promise::Resolver>*>(
       info.Data().As<External>()->Value());
   USE(holder->Get(info.GetIsolate())
           ->Reject(info.GetIsolate()->GetCurrentContext(), info[0]));
   holder->Reset();
-  
+
   delete holder;
 }
 
@@ -332,7 +326,8 @@ void LockManager::ProcessQueue(Environment* env) {
       if (callback_result->IsPromise()) {
         Local<Promise> p = callback_result.As<Promise>();
 
-        // The resolver survives until the promise settles and is freed automatically.
+        // The resolver survives until the promise settles and is freed
+        // automatically.
         auto resolve_holder = std::make_unique<Global<Promise::Resolver>>(
             isolate, if_available_request->released_promise());
         auto reject_holder = std::make_unique<Global<Promise::Resolver>>(
@@ -356,14 +351,15 @@ void LockManager::ProcessQueue(Environment* env) {
         {
           TryCatchScope try_catch_scope(env);
           if (p->Then(context, on_fulfilled, on_rejected).IsEmpty()) {
-            if (!try_catch_scope.CanContinue())
-              return;
+            if (!try_catch_scope.CanContinue()) return;
 
             Local<Value> err_val;
-            if (try_catch_scope.HasCaught() && !try_catch_scope.Exception().IsEmpty()) {
+            if (try_catch_scope.HasCaught() &&
+                !try_catch_scope.Exception().IsEmpty()) {
               err_val = try_catch_scope.Exception();
             } else {
-              err_val = Exception::Error(FIXED_ONE_BYTE_STRING(isolate, "Failed to attach promise handlers"));
+              err_val = Exception::Error(FIXED_ONE_BYTE_STRING(
+                  isolate, "Failed to attach promise handlers"));
             }
 
             RejectBoth(context,
@@ -376,16 +372,22 @@ void LockManager::ProcessQueue(Environment* env) {
 
         // After handlers are attached, resolve waiting_promise with the
         // promise.
-        if (if_available_request->waiting_promise()->Resolve(context, p).IsNothing())
+        if (if_available_request->waiting_promise()
+                ->Resolve(context, p)
+                .IsNothing())
           return;
 
         return;
       }
 
       // Non-promise callback result: settle both promises right away.
-      if (if_available_request->waiting_promise()->Resolve(context, callback_result).IsNothing())
+      if (if_available_request->waiting_promise()
+              ->Resolve(context, callback_result)
+              .IsNothing())
         return;
-      if (if_available_request->released_promise()->Resolve(context, callback_result).IsNothing())
+      if (if_available_request->released_promise()
+              ->Resolve(context, callback_result)
+              .IsNothing())
         return;
 
       return;
@@ -421,7 +423,9 @@ void LockManager::ProcessQueue(Environment* env) {
             }
             Local<Value> error = Exception::Error(error_string);
 
-            if (existing_lock->released_promise()->Reject(context, error).IsNothing())
+            if (existing_lock->released_promise()
+                    ->Reject(context, error)
+                    .IsNothing())
               return;
           }
 
@@ -511,7 +515,7 @@ void LockManager::ProcessQueue(Environment* env) {
                        External::New(isolate, lock_reject_holder.get()))
              .ToLocal(&on_rejected_callback)) {
       lock_resolve_holder.release();
-      
+
       return;
     }
 
@@ -523,15 +527,17 @@ void LockManager::ProcessQueue(Environment* env) {
       Local<Promise> promise = callback_result.As<Promise>();
       {
         TryCatchScope try_catch_scope(env);
-        if (promise->Then(context, on_fulfilled_callback, on_rejected_callback).IsEmpty()) {
-          if (!try_catch_scope.CanContinue())
-            return;
+        if (promise->Then(context, on_fulfilled_callback, on_rejected_callback)
+                .IsEmpty()) {
+          if (!try_catch_scope.CanContinue()) return;
 
           Local<Value> err_val;
-          if (try_catch_scope.HasCaught() && !try_catch_scope.Exception().IsEmpty()) {
+          if (try_catch_scope.HasCaught() &&
+              !try_catch_scope.Exception().IsEmpty()) {
             err_val = try_catch_scope.Exception();
           } else {
-            err_val = Exception::Error(FIXED_ONE_BYTE_STRING(isolate, "Failed to attach promise handlers"));
+            err_val = Exception::Error(FIXED_ONE_BYTE_STRING(
+                isolate, "Failed to attach promise handlers"));
           }
 
           RejectBoth(context,
@@ -545,11 +551,15 @@ void LockManager::ProcessQueue(Environment* env) {
       // Lock granted: waiting_promise resolves now with the promise returned
       // by the callback; on_fulfilled/on_rejected will release the lock when
       // that promise settles.
-      if (grantable_request->waiting_promise()->Resolve(context, callback_result).IsNothing()) {
+      if (grantable_request->waiting_promise()
+              ->Resolve(context, callback_result)
+              .IsNothing()) {
         return;
       }
     } else {
-      if (grantable_request->waiting_promise()->Resolve(context, callback_result).IsNothing()) {
+      if (grantable_request->waiting_promise()
+              ->Resolve(context, callback_result)
+              .IsNothing()) {
         return;
       }
       Local<Value> promise_args[] = {callback_result};
@@ -719,8 +729,7 @@ void LockManager::Query(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (resolver->Resolve(context, result).IsNothing())
-    return;
+  if (resolver->Resolve(context, result).IsNothing()) return;
 }
 
 // Runs after the user callback (or its returned promise) settles.
@@ -740,11 +749,15 @@ void LockManager::ReleaseLockAndProcessQueue(Environment* env,
   if (!lock->is_stolen()) {
     if (was_rejected) {
       // Propagate rejection from the user callback
-      if (lock->released_promise()->Reject(context, callback_result).IsNothing())
+      if (lock->released_promise()
+              ->Reject(context, callback_result)
+              .IsNothing())
         return;
     } else {
       // Propagate fulfilment
-      if (lock->released_promise()->Resolve(context, callback_result).IsNothing())
+      if (lock->released_promise()
+              ->Resolve(context, callback_result)
+              .IsNothing())
         return;
     }
   }
@@ -864,7 +877,8 @@ static MaybeLocal<Object> CreateLockInfoObject(Isolate* isolate,
            .ToLocal(&client_id_string)) {
     return MaybeLocal<Object>();
   }
-  if (obj->Set(context, env->client_id_string(), client_id_string).IsNothing()) {
+  if (obj->Set(context, env->client_id_string(), client_id_string)
+          .IsNothing()) {
     return MaybeLocal<Object>();
   }
 
