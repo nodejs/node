@@ -607,19 +607,24 @@ constexpr std::string_view FastStringKey::as_string_view() const {
 
 // Converts a V8 numeric value to a corresponding C++ primitive or enum type.
 template <typename T,
+          bool loose = false,
           typename = std::enable_if_t<std::numeric_limits<T>::is_specialized ||
                                       std::is_enum_v<T>>>
 T FromV8Value(v8::Local<v8::Value> value) {
   if constexpr (std::is_enum_v<T>) {
     using Underlying = std::underlying_type_t<T>;
-    return static_cast<T>(FromV8Value<Underlying>(value));
+    return static_cast<T>(FromV8Value<Underlying, loose>(value));
   } else if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>) {
     static_assert(
         std::numeric_limits<T>::max() <= std::numeric_limits<uint32_t>::max() &&
             std::numeric_limits<T>::min() >=
                 std::numeric_limits<uint32_t>::min(),
         "Type is out of unsigned integer range");
-    CHECK(value->IsUint32());
+    if constexpr (!loose) {
+      CHECK(value->IsUint32());
+    } else {
+      CHECK(value->IsNumber());
+    }
     return static_cast<T>(value.As<v8::Uint32>()->Value());
   } else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
     static_assert(
@@ -627,7 +632,11 @@ T FromV8Value(v8::Local<v8::Value> value) {
             std::numeric_limits<T>::min() >=
                 std::numeric_limits<int32_t>::min(),
         "Type is out of signed integer range");
-    CHECK(value->IsInt32());
+    if constexpr (!loose) {
+      CHECK(value->IsInt32());
+    } else {
+      CHECK(value->IsNumber());
+    }
     return static_cast<T>(value.As<v8::Int32>()->Value());
   } else {
     static_assert(std::is_floating_point_v<T>,
