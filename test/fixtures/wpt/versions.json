@@ -91,6 +91,10 @@
     "commit": "fd1b23eeaaf9a01555d4fa29cf79ed11a4c44a50",
     "path": "wasm/webapi"
   },
+  "web-locks": {
+    "commit": "10a122a6bc3670a44e0fa8b9a99f6aa9012d30f1",
+    "path": "web-locks"
+  },
   "WebCryptoAPI": {
     "commit": "591c95ce6174690b92833cd92859ce2807714591",
     "path": "WebCryptoAPI"
