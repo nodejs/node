@@ -1,5 +1,8 @@
 'use strict';
 
+// Refs: https://github.com/nodejs/node/issues/58634
+// Refs: https://github.com/nodejs/node/issues/58869
+
 const common = require('../common');
 
 if (!common.isLinux) {

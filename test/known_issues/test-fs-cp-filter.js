@@ -3,6 +3,8 @@
 // This test will fail because the the implementation does not properly
 // handle the case when the `src` or `dest` is a Buffer and the `filter`
 // function is utilized when recursively copying directories.
+// Refs: https://github.com/nodejs/node/issues/58634
+// Refs: https://github.com/nodejs/node/issues/58869
 
 const common = require('../common');
 
