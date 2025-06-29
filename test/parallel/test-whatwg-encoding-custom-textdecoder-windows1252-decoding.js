@@ -1,8 +1,5 @@
 'use strict';
 
-// From: https://github.com/w3c/web-platform-tests/blob/39a67e2fff/encoding/textdecoder-fatal.html
-// With the twist that we specifically test for Node.js error codes
-
 const common = require('../common');
 
 if (!common.hasIntl)
