@@ -9,7 +9,8 @@ namespace node::inspector::protocol {
 
 class IoAgent : public IO::Backend {
  public:
-  explicit IoAgent(std::shared_ptr<NetworkResourceManager> network_resource_manager)
+  explicit IoAgent(
+      std::shared_ptr<NetworkResourceManager> network_resource_manager)
       : network_resource_manager_(std::move(network_resource_manager)) {}
   void Wire(UberDispatcher* dispatcher);
   DispatchResponse read(const String& in_handle,
