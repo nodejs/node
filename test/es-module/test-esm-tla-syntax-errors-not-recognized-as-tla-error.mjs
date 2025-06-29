@@ -49,29 +49,30 @@ describe('maybe top-level await syntax errors that are not recognized as top-lev
     }
   });
 
-  it('should crash when the expression is not valid', async () => {
-    let { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--eval',
-      `
-      function callAwait() {}
-      callAwait(await "" ""); 
-      `,
-    ]);
-    match(stderr, /SyntaxError: missing \) after argument list/);
-    strictEqual(stdout, '');
-    strictEqual(code, 1);
-    strictEqual(signal, null);
+  it('should throw the error for unrelated syntax errors', async () => {
+    const expression = "foo bar";
+      const wrapperExpressions = [
+        [`function callSyntaxError() {}; callSyntaxError(${expression});`, /missing \) after argument list/],
+        [`if (${expression}) {}`, /Unexpected identifier/],
+        [`{ key: ${expression} }`, /Unexpected identifier/],
+        [`[${expression}]`, /Unexpected identifier/],
+        [`(${expression})`, /Unexpected identifier/],
+        [`const ${expression} = 1;`, /Missing initializer in const declaration/],
+        [`console.log('PI: ' Math.PI);`, /missing \) after argument list/],
+        [`callAwait(await "" "");`, /missing \) after argument list/]
+      ];
 
-    ({ code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-      '--eval',
-      `
-      function callAwait() {}
-      if (a "") {}
-      `,
-    ]));
-    match(stderr, /SyntaxError: Unexpected string/);
-    strictEqual(stdout, '');
-    strictEqual(code, 1);
-    strictEqual(signal, null);
+      for (const [wrapperExpression, error] of wrapperExpressions) {
+        const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+          '--eval',
+          `
+          ${wrapperExpression}
+          `,
+        ]);
+        match(stderr, error);
+        strictEqual(stdout, '');
+        strictEqual(code, 1);
+        strictEqual(signal, null);
+      }
   });
 });
