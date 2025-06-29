@@ -7,11 +7,6 @@
 namespace node {
 namespace inspector {
 
-std::unordered_map<std::string, std::string> NetworkResourceManager::resources_;
-std::unordered_map<std::string, uint64_t>
-    NetworkResourceManager::url_to_stream_id_;
-std::atomic<uint64_t> NetworkResourceManager::stream_id_counter_{1};
-
 void NetworkResourceManager::Put(const std::string& url,
                                  const std::string& data) {
   resources_[url] = data;

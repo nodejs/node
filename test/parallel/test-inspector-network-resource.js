@@ -18,11 +18,12 @@ const script = `
   const fs = require('fs');
   NetworkResources.put('${resourceUrl}', fs.readFileSync('${resourcePath.replace(/\\/g, '\\').replace(/'/g, "\\'")}', 'utf8'));
   console.log('Network resource loaded:', '${resourceUrl}');
+  debugger;
 `;
 
-async function setupSessionAndPauseAtEvalLine4(script) {
+async function setupSessionAndPauseAtEvalLastLine(script) {
   const instance = new NodeInstance([
-    '--inspect-brk=0',
+    '--inspect-wait=0',
     '--experimental-inspector-network-resource',
   ], script);
   const session = await instance.connectInspectorSession();
@@ -31,28 +32,12 @@ async function setupSessionAndPauseAtEvalLine4(script) {
   await session.send({ method: 'Runtime.enable' });
   await session.send({ method: 'Debugger.enable' });
   await session.send({ method: 'Runtime.runIfWaitingForDebugger' });
-  await session.waitForNotification((notification) => {
-    return (
-      notification.method === 'Debugger.scriptParsed' &&
-      notification.params.url.includes('[eval]')
-    );
-  });
-  // Set breakpoint at line 4 of [eval] script
-  await session.send({
-    method: 'Debugger.setBreakpointByUrl',
-    params: {
-      lineNumber: 4,
-      url: '[eval]'
-    }
-  });
-  await session.waitForNotification('Debugger.paused');
-  await session.send({ method: 'Debugger.resume' });
   await session.waitForNotification('Debugger.paused');
   return { instance, session };
 }
 
 test('should load and stream a static network resource using loadNetworkResource and IO.read', async () => {
-  const { session } = await setupSessionAndPauseAtEvalLine4(script);
+  const { session } = await setupSessionAndPauseAtEvalLastLine(script);
   const { resource } = await session.send({
     method: 'Network.loadNetworkResource',
     params: { url: resourceUrl },
@@ -78,7 +63,7 @@ test('should load and stream a static network resource using loadNetworkResource
 });
 
 test('should return success: false for missing resource', async () => {
-  const { session } = await setupSessionAndPauseAtEvalLine4(script);
+  const { session } = await setupSessionAndPauseAtEvalLastLine(script);
   const { resource } = await session.send({
     method: 'Network.loadNetworkResource',
     params: { url: 'http://localhost:3000/does-not-exist.js' },
@@ -90,7 +75,7 @@ test('should return success: false for missing resource', async () => {
 });
 
 test('should error or return empty for wrong stream id', async () => {
-  const { session } = await setupSessionAndPauseAtEvalLine4(script);
+  const { session } = await setupSessionAndPauseAtEvalLastLine(script);
   const { resource } = await session.send({
     method: 'Network.loadNetworkResource',
     params: { url: resourceUrl },
@@ -106,7 +91,7 @@ test('should error or return empty for wrong stream id', async () => {
 });
 
 test('should support IO.read with size and offset', async () => {
-  const { session } = await setupSessionAndPauseAtEvalLine4(script);
+  const { session } = await setupSessionAndPauseAtEvalLastLine(script);
   const { resource } = await session.send({
     method: 'Network.loadNetworkResource',
     params: { url: resourceUrl },
@@ -123,4 +108,71 @@ test('should support IO.read with size and offset', async () => {
   await session.send({ method: 'IO.close', params: { handle: resource.stream } });
   await session.send({ method: 'Debugger.resume' });
   await session.waitForDisconnect();
+});
+
+test('should load resource put from another thread', async () => {
+  const workerScript = `
+    console.log('this is worker thread');
+    debugger;
+  `;
+  const script = `
+  const { NetworkResources } = require('node:inspector');
+  const fs = require('fs');
+  NetworkResources.put('${resourceUrl}', fs.readFileSync('${resourcePath.replace(/\\/g, '\\').replace(/'/g, "\\'")}', 'utf8'));
+  const { Worker } = require('worker_threads');
+  const worker = new Worker(\`${workerScript}\`, {eval: true});
+  `;
+  const instance = new NodeInstance([
+    '--experimental-inspector-network-resource',
+    '--experimental-worker-inspection',
+    '--inspect-brk=0',
+  ], script);
+  const session = await instance.connectInspectorSession();
+  await setupInspector(session);
+  await session.waitForNotification('Debugger.paused');
+  await session.send({ method: 'Debugger.resume' });
+  const sessionId = '1';
+  await session.waitForNotification('Target.targetCreated');
+  await session.send({ method: 'Target.setAutoAttach', params: { autoAttach: true, waitForDebuggerOnStart: true } });
+  await session.waitForNotification((notification) => {
+    return notification.method === 'Target.attachedToTarget' &&
+           notification.params.sessionId === sessionId;
+  });
+  await setupInspector(session, sessionId);
+
+  await session.waitForNotification('Debugger.paused');
+
+  const { resource } = await session.send({
+    method: 'Network.loadNetworkResource',
+    params: { url: resourceUrl, sessionId },
+  });
+
+  assert(resource.success, 'Resource should be loaded successfully');
+  assert(resource.stream, 'Resource should have a stream handle');
+  let result = await session.send({ method: 'IO.read', params: { handle: resource.stream, sessionId } });
+  let data = result.data;
+  let eof = result.eof;
+  let content = '';
+  while (!eof) {
+    content += data;
+    result = await session.send({ method: 'IO.read', params: { handle: resource.stream, sessionId } });
+    data = result.data;
+    eof = result.eof;
+  }
+  content += data;
+  const expected = fs.readFileSync(resourcePath, 'utf8');
+  assert.strictEqual(content, expected);
+  await session.send({ method: 'IO.close', params: { handle: resource.stream, sessionId } });
+
+  await session.send({ method: 'Debugger.resume', sessionId });
+
+  await session.waitForDisconnect();
+
+  async function setupInspector(session, sessionId) {
+    await session.send({ method: 'NodeRuntime.enable', sessionId });
+    await session.waitForNotification('NodeRuntime.waitingForDebugger');
+    await session.send({ method: 'Runtime.enable', sessionId });
+    await session.send({ method: 'Debugger.enable', sessionId });
+    await session.send({ method: 'Runtime.runIfWaitingForDebugger', sessionId });
+  }
 });
