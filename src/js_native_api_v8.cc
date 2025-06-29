@@ -3301,6 +3301,8 @@ napi_status NAPI_CDECL napi_get_typedarray_info(napi_env env,
       *type = napi_int32_array;
     } else if (value->IsUint32Array()) {
       *type = napi_uint32_array;
+    } else if (value->IsFloat16Array()) {
+      *type = napi_float16_array;
     } else if (value->IsFloat32Array()) {
       *type = napi_float32_array;
     } else if (value->IsFloat64Array()) {
@@ -3309,8 +3311,6 @@ napi_status NAPI_CDECL napi_get_typedarray_info(napi_env env,
       *type = napi_bigint64_array;
     } else if (value->IsBigUint64Array()) {
       *type = napi_biguint64_array;
-    } else if (value->IsFloat16Array()) {
-      *type = napi_float16_array;
     }
   }
 
