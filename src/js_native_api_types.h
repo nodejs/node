@@ -101,11 +101,13 @@ typedef enum {
   napi_uint16_array,
   napi_int32_array,
   napi_uint32_array,
-  napi_float16_array,
   napi_float32_array,
   napi_float64_array,
   napi_bigint64_array,
   napi_biguint64_array,
+#ifdef NAPI_EXPERIMENTAL
+  napi_float16_array,
+#endif  // NAPI_EXPERIMENTAL
 } napi_typedarray_type;
 
 typedef enum {
