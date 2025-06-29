@@ -282,7 +282,6 @@ const { getEncodingFromLabel } = require('internal/encoding');
   Object.entries(mappings).forEach((i) => {
     const enc = i[0];
     const labels = i[1];
-    console.log("label: ",enc, "enc: ", getEncodingFromLabel(enc))
     assert.strictEqual(getEncodingFromLabel(enc), enc);
     labels.forEach((l) => assert.strictEqual(getEncodingFromLabel(l), enc));
   });
