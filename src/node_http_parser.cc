@@ -29,6 +29,8 @@
 #include "memory_tracker-inl.h"
 #include "node_external_reference.h"
 #include "stream_base-inl.h"
+#include "v8-fast-api-calls.h"
+#include "v8-function-callback.h"
 #include "v8.h"
 
 #include <cstdlib>  // free()
@@ -52,6 +54,7 @@ namespace http_parser {  // NOLINT(build/namespaces)
 
 using v8::Array;
 using v8::Boolean;
+using v8::CFunction;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
@@ -563,18 +566,20 @@ class Parser : public AsyncWrap, public StreamListener {
     new Parser(binding_data, args.This());
   }
 
-  // TODO(@anonrig): Add V8 Fast API
-  static void Close(const FunctionCallbackInfo<Value>& args) {
+  static void CloseFast(Local<Value> receiver) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
 
     delete parser;
   }
 
-  // TODO(@anonrig): Add V8 Fast API
-  static void Free(const FunctionCallbackInfo<Value>& args) {
+  static void Close(const FunctionCallbackInfo<Value>& args) {
+    CloseFast(args.This());
+  }
+
+  static void FreeFast(Local<Value> receiver) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
 
     // Since the Parser destructor isn't going to run the destroy() callbacks
     // it needs to be triggered manually.
@@ -582,15 +587,22 @@ class Parser : public AsyncWrap, public StreamListener {
     parser->EmitDestroy();
   }
 
-  // TODO(@anonrig): Add V8 Fast API
-  static void Remove(const FunctionCallbackInfo<Value>& args) {
+  static void Free(const FunctionCallbackInfo<Value>& args) {
+    FreeFast(args.This());
+  }
+
+  static void RemoveFast(Local<Value> receiver) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
 
     if (parser->connectionsList_ != nullptr) {
       parser->connectionsList_->Pop(parser);
       parser->connectionsList_->PopActive(parser);
     }
+  }
+
+  static void Remove(const FunctionCallbackInfo<Value>& args) {
+    RemoveFast(args.This());
   }
 
   void Save() {
@@ -695,10 +707,28 @@ class Parser : public AsyncWrap, public StreamListener {
     }
   }
 
-  // TODO(@anonrig): Add V8 Fast API
+  template <bool should_pause>
+  static void PauseFast(Local<Value> receiver,
+                        // NOLINTNEXTLINE(runtime/references) This is V8 api.
+                        v8::FastApiCallbackOptions& options) {
+    Environment* env = Environment::GetCurrent(options.data);
+    CHECK_NOT_NULL(env);
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
+    // Should always be called from the same context.
+    CHECK_EQ(env, parser->env());
+
+    if constexpr (should_pause) {
+      llhttp_pause(&parser->parser_);
+    } else {
+      llhttp_resume(&parser->parser_);
+    }
+  }
+
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
+    Environment* env = Environment::GetCurrent(args.Data());
+    CHECK_NOT_NULL(env);
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
     // Should always be called from the same context.
@@ -711,7 +741,6 @@ class Parser : public AsyncWrap, public StreamListener {
     }
   }
 
-  // TODO(@anonrig): Add V8 Fast API
   static void Consume(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -721,10 +750,9 @@ class Parser : public AsyncWrap, public StreamListener {
     stream->PushStreamListener(parser);
   }
 
-  // TODO(@anonrig): Add V8 Fast API
-  static void Unconsume(const FunctionCallbackInfo<Value>& args) {
+  static void UnconsumeFast(Local<Value> receiver) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
 
     // Already unconsumed
     if (parser->stream_ == nullptr)
@@ -733,6 +761,9 @@ class Parser : public AsyncWrap, public StreamListener {
     parser->stream_->RemoveStreamListener(parser);
   }
 
+  static void Unconsume(const FunctionCallbackInfo<Value>& args) {
+    UnconsumeFast(args.This());
+  }
 
   static void GetCurrentBuffer(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
@@ -1235,6 +1266,13 @@ const llhttp_settings_t Parser::settings = {
     nullptr,
 };
 
+static CFunction pause_fast_(CFunction::Make(&Parser::PauseFast<true>));
+static CFunction resume_fast_(CFunction::Make(&Parser::PauseFast<false>));
+static CFunction unconsume_fast_(CFunction::Make(&Parser::UnconsumeFast));
+static CFunction free_fast_(CFunction::Make(&Parser::FreeFast));
+static CFunction remove_fast_(CFunction::Make(&Parser::RemoveFast));
+static CFunction close_fast_(CFunction::Make(&Parser::CloseFast));
+
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -1287,17 +1325,19 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientAll"),
          Integer::NewFromUnsigned(isolate, kLenientAll));
 
+  auto context = isolate->GetCurrentContext();
   t->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
-  SetProtoMethod(isolate, t, "close", Parser::Close);
-  SetProtoMethod(isolate, t, "free", Parser::Free);
-  SetProtoMethod(isolate, t, "remove", Parser::Remove);
+  SetFastProtoMethod(context, t, "close", Parser::Close, &close_fast_);
+  SetFastProtoMethod(context, t, "free", Parser::Free, &free_fast_);
+  SetFastProtoMethod(context, t, "remove", Parser::Remove, &remove_fast_);
   SetProtoMethod(isolate, t, "execute", Parser::Execute);
   SetProtoMethod(isolate, t, "finish", Parser::Finish);
   SetProtoMethod(isolate, t, "initialize", Parser::Initialize);
-  SetProtoMethod(isolate, t, "pause", Parser::Pause<true>);
-  SetProtoMethod(isolate, t, "resume", Parser::Pause<false>);
+  SetFastProtoMethod(context, t, "pause", Parser::Pause<true>, &pause_fast_);
+  SetFastProtoMethod(context, t, "resume", Parser::Pause<false>, &resume_fast_);
   SetProtoMethod(isolate, t, "consume", Parser::Consume);
-  SetProtoMethod(isolate, t, "unconsume", Parser::Unconsume);
+  SetFastProtoMethod(
+      isolate->GetCurrentContext(), t, "unconsume", Parser::Unconsume, &unconsume_fast_);
   SetProtoMethod(isolate, t, "getCurrentBuffer", Parser::GetCurrentBuffer);
 
   SetConstructorFunction(isolate, target, "HTTPParser", t);
@@ -1358,15 +1398,27 @@ void CreatePerContextProperties(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parser::New);
   registry->Register(Parser::Close);
+  registry->Register(Parser::CloseFast);
+  registry->Register(close_fast_.GetTypeInfo());
   registry->Register(Parser::Free);
+  registry->Register(Parser::FreeFast);
+  registry->Register(free_fast_.GetTypeInfo());
   registry->Register(Parser::Remove);
+  registry->Register(Parser::RemoveFast);
+  registry->Register(remove_fast_.GetTypeInfo());
   registry->Register(Parser::Execute);
   registry->Register(Parser::Finish);
   registry->Register(Parser::Initialize);
   registry->Register(Parser::Pause<true>);
   registry->Register(Parser::Pause<false>);
+  registry->Register(Parser::PauseFast<true>);
+  registry->Register(pause_fast_.GetTypeInfo());
+  registry->Register(Parser::PauseFast<false>);
+  registry->Register(resume_fast_.GetTypeInfo());
   registry->Register(Parser::Consume);
   registry->Register(Parser::Unconsume);
+  registry->Register(Parser::UnconsumeFast);
+  registry->Register(unconsume_fast_.GetTypeInfo());
   registry->Register(Parser::GetCurrentBuffer);
   registry->Register(ConnectionsList::New);
   registry->Register(ConnectionsList::All);
