@@ -40,7 +40,6 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'cp819',
       'csisolatin1',
       'ibm819',
-      'iso-8859-1',
       'iso-ir-100',
       'iso8859-1',
       'iso88591',
@@ -186,21 +185,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
       'x-cp1251',
     ],
     'windows-1252': [
-      'ansi_x3.4-1968',
-      'ascii',
       'cp1252',
-      'cp819',
-      'csisolatin1',
-      'ibm819',
-      'iso-8859-1',
-      'iso-ir-100',
-      'iso8859-1',
-      'iso88591',
-      'iso_8859-1',
-      'iso_8859-1:1987',
-      'l1',
-      'latin1',
-      'us-ascii',
       'x-cp1252',
     ],
     'windows-1253': [
@@ -209,6 +194,15 @@ const { getEncodingFromLabel } = require('internal/encoding');
     ],
     'windows-1254': [
       'cp1254',
+      'csisolatin5',
+      'iso-8859-9',
+      'iso-ir-148',
+      'iso8859-9',
+      'iso88599',
+      'iso_8859-9',
+      'iso_8859-9:1989',
+      'l5',
+      'latin5',
       'x-cp1254',
     ],
     'windows-1255': [
@@ -288,6 +282,7 @@ const { getEncodingFromLabel } = require('internal/encoding');
   Object.entries(mappings).forEach((i) => {
     const enc = i[0];
     const labels = i[1];
+    console.log("label: ",enc, "enc: ", getEncodingFromLabel(enc))
     assert.strictEqual(getEncodingFromLabel(enc), enc);
     labels.forEach((l) => assert.strictEqual(getEncodingFromLabel(l), enc));
   });
