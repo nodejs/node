@@ -98,7 +98,7 @@
   V(changes_string, "changes")                                                 \
   V(channel_string, "channel")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
-  V(clientId_string, "clientId")                                               \
+  V(client_id_string, "clientId")                                              \
   V(clone_unsupported_type_str, "Cannot clone object of unsupported type.")    \
   V(clone_transfer_needed_str,                                                 \
     "Object that needs transfer was found in message but not listed in "       \
