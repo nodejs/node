@@ -180,7 +180,10 @@ export default [
       'default-case-last': 'error',
       'dot-notation': 'error',
       'eqeqeq': ['error', 'smart'],
-      'func-name-matching': 'error',
+
+      // TODO: make this rule consider primordials
+      'func-name-matching': ['error', { considerPropertyDescriptor: true }],
+
       'func-style': ['error', 'declaration', { allowArrowFunctions: true }],
       'no-constant-condition': ['error', { checkLoops: false }],
       'no-constructor-return': 'error',
