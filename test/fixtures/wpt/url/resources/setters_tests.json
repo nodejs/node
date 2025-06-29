@@ -1909,6 +1909,20 @@
             "expected": {
                 "port": "4"
             }
+        },
+        {
+            "href": "https://domain.com:3000",
+            "new_value": "\n\t80\n\t80\n\t",
+            "expected": {
+                "port": "8080"
+            }
+        },
+        {
+            "href": "https://domain.com:3000",
+            "new_value": "\n\n\t\t",
+            "expected": {
+                "port": "3000"
+            }
         }
     ],
     "pathname": [
