@@ -5,6 +5,7 @@
 #include <atomic>
 #include <string>
 #include <unordered_map>
+#include "node_mutex.h"
 
 namespace node {
 namespace inspector {
@@ -26,6 +27,7 @@ class NetworkResourceManager {
   std::unordered_map<std::string, std::string> resources_;
   std::unordered_map<std::string, uint64_t> url_to_stream_id_;
   std::atomic<uint64_t> stream_id_counter_{1};
+  Mutex mutex_;  // Protects access to resources_ and url_to_stream_id_
 };
 
 }  // namespace inspector
