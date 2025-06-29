@@ -1,6 +1,6 @@
 'use strict'
 
-const { webidl } = require('../fetch/webidl')
+const { webidl } = require('../webidl')
 const { URLSerializer } = require('../fetch/data-url')
 const { environmentSettingsObject } = require('../fetch/util')
 const { staticPropertyDescriptors, states, sentCloseFrameState, sendHints, opcodes } = require('./constants')
@@ -60,7 +60,7 @@ class WebSocket extends EventTarget {
   /** @type {Handler} */
   #handler = {
     onConnectionEstablished: (response, extensions) => this.#onConnectionEstablished(response, extensions),
-    onFail: (code, reason) => this.#onFail(code, reason),
+    onFail: (code, reason, cause) => this.#onFail(code, reason, cause),
     onMessage: (opcode, data) => this.#onMessage(opcode, data),
     onParserError: (err) => failWebsocketConnection(this.#handler, null, err.message),
     onParserDrain: () => this.#onParserDrain(),
@@ -462,11 +462,11 @@ class WebSocket extends EventTarget {
     fireEvent('open', this)
   }
 
-  #onFail (code, reason) {
+  #onFail (code, reason, cause) {
     if (reason) {
       // TODO: process.nextTick
       fireEvent('error', this, (type, init) => new ErrorEvent(type, init), {
-        error: new Error(reason),
+        error: new Error(reason, cause ? { cause } : undefined),
         message: reason
       })
     }

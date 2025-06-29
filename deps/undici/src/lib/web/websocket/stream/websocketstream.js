@@ -2,7 +2,7 @@
 
 const { createDeferredPromise, environmentSettingsObject } = require('../../fetch/util')
 const { states, opcodes, sentCloseFrameState } = require('../constants')
-const { webidl } = require('../../fetch/webidl')
+const { webidl } = require('../../webidl')
 const { getURLRecord, isValidSubprotocol, isEstablished, utf8Decode } = require('../util')
 const { establishWebSocketConnection, failWebsocketConnection, closeWebSocketConnection } = require('../connection')
 const { types } = require('node:util')

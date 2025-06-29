@@ -3,7 +3,7 @@
 const { pipeline } = require('node:stream')
 const { fetching } = require('../fetch')
 const { makeRequest } = require('../fetch/request')
-const { webidl } = require('../fetch/webidl')
+const { webidl } = require('../webidl')
 const { EventSourceStream } = require('./eventsource-stream')
 const { parseMIMEType } = require('../fetch/data-url')
 const { createFastMessageEvent } = require('../websocket/events')
@@ -231,12 +231,9 @@ class EventSource extends EventTarget {
 
     // 14. Let processEventSourceEndOfBody given response res be the following step: if res is not a network error, then reestablish the connection.
     const processEventSourceEndOfBody = (response) => {
-      if (isNetworkError(response)) {
-        this.dispatchEvent(new Event('error'))
-        this.close()
+      if (!isNetworkError(response)) {
+        return this.#reconnect()
       }
-
-      this.#reconnect()
     }
 
     // 15. Fetch request, with processResponseEndOfBody set to processEventSourceEndOfBody...

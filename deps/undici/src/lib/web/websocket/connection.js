@@ -105,7 +105,7 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
       // 1. If response is a network error or its status is not 101,
       //    fail the WebSocket connection.
       if (response.type === 'error' || response.status !== 101) {
-        failWebsocketConnection(handler, 1002, 'Received network error or non-101 status code.')
+        failWebsocketConnection(handler, 1002, 'Received network error or non-101 status code.', response.error)
         return
       }
 
@@ -298,9 +298,10 @@ function closeWebSocketConnection (object, code, reason, validate = false) {
  * @param {import('./websocket').Handler} handler
  * @param {number} code
  * @param {string|undefined} reason
+ * @param {unknown} cause
  * @returns {void}
  */
-function failWebsocketConnection (handler, code, reason) {
+function failWebsocketConnection (handler, code, reason, cause) {
   // If _The WebSocket Connection is Established_ prior to the point where
   // the endpoint is required to _Fail the WebSocket Connection_, the
   // endpoint SHOULD send a Close frame with an appropriate status code
@@ -315,7 +316,7 @@ function failWebsocketConnection (handler, code, reason) {
     handler.socket.destroy()
   }
 
-  handler.onFail(code, reason)
+  handler.onFail(code, reason, cause)
 }
 
 module.exports = {

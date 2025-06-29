@@ -13,9 +13,9 @@ The `MemoryCacheStore` stores the responses in-memory.
 
 **Options**
 
-- `maxSize` - The maximum total size in bytes of all stored responses. Default `Infinity`.
-- `maxCount` - The maximum amount of responses to store. Default `Infinity`.
-- `maxEntrySize` - The maximum size in bytes that a response's body can be. If a response's body is greater than or equal to this, the response will not be cached. Default `Infinity`.
+- `maxSize` - The maximum total size in bytes of all stored responses. Default `104857600` (100MB).
+- `maxCount` - The maximum amount of responses to store. Default `1024`.
+- `maxEntrySize` - The maximum size in bytes that a response's body can be. If a response's body is greater than or equal to this, the response will not be cached. Default `5242880` (5MB).
 
 ### Getters
 

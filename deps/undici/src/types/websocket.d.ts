@@ -136,7 +136,7 @@ interface ErrorEvent extends Event {
   readonly filename: string
   readonly lineno: number
   readonly colno: number
-  readonly error: any
+  readonly error: Error
 }
 
 export declare const ErrorEvent: {
