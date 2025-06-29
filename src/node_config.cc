@@ -7,6 +7,10 @@
 #include "node_options.h"
 #include "util-inl.h"
 
+#if HAVE_OPENSSL
+#include "ncrypto.h"
+#endif
+
 namespace node {
 
 using v8::Context;
