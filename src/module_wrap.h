@@ -38,6 +38,44 @@ enum ModulePhase : int {
   kEvaluationPhase = 2,
 };
 
+struct ModuleRequest : public MemoryRetainer {
+  std::string specifier;
+  std::vector<std::pair<std::string, std::string>> import_attributes;
+  ModulePhase phase;
+
+  ModuleRequest(
+      std::string specifier,
+      std::vector<std::pair<std::string, std::string>> import_attributes,
+      ModulePhase phase)
+      : specifier(specifier),
+        import_attributes(import_attributes),
+        phase(phase) {}
+
+  SET_MEMORY_INFO_NAME(ModuleRequest)
+  SET_SELF_SIZE(ModuleRequest)
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
+  struct Hash {
+    std::size_t operator()(const ModuleRequest& request) const {
+      std::size_t h1 = std::hash<std::string>{}(request.specifier);
+      std::size_t h2 = 0;
+      for (const auto& attr : request.import_attributes) {
+        h2 ^= std::hash<std::string>{}(attr.first) ^
+              std::hash<std::string>{}(attr.second);
+      }
+      std::size_t h3 = std::hash<int>{}(request.phase);
+      // Combine the hashes using a simple XOR and bit shift to reduce
+      // collisions.
+      return h1 ^ (h2 << 1) ^ (h3 << 2);
+    }
+  };
+
+  bool operator==(const ModuleRequest& other) const {
+    return specifier == other.specifier &&
+           import_attributes == other.import_attributes && phase == other.phase;
+  }
+};
+
 class ModuleWrap : public BaseObject {
  public:
   enum InternalFields {
@@ -149,7 +187,8 @@ class ModuleWrap : public BaseObject {
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
   v8::Global<v8::Module> module_;
-  std::unordered_map<std::string, v8::Global<v8::Object>> resolve_cache_;
+  std::unordered_map<ModuleRequest, v8::Global<v8::Object>, ModuleRequest::Hash>
+      resolve_cache_;
   contextify::ContextifyContext* contextify_context_ = nullptr;
   bool synthetic_ = false;
   int module_hash_;
