@@ -51,7 +51,7 @@ void PromiseRejectCallback(PromiseRejectMessage message) {
   Isolate* isolate = promise->GetIsolate();
   PromiseRejectEvent event = message.GetEvent();
 
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
 
   if (env == nullptr || !env->can_call_into_js()) return;
 
