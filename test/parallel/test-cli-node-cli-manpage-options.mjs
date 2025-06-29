@@ -19,6 +19,7 @@ const manPagePath = join(rootDir, 'doc', 'node.1');
 const manPageContents = readFileSync(manPagePath, { encoding: 'utf8' });
 
 // TODO(dario-piotrowicz): add the missing flags to the node.1 and remove this set
+//                         (refs: https://github.com/nodejs/node/issues/58895)
 const knownFlagsMissingFromManPage = new Set([
   'build-snapshot',
   'build-snapshot-config',
