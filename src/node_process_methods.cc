@@ -666,10 +666,8 @@ void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(SlowNumber);
   registry->Register(SlowBigInt);
-  registry->Register(FastNumber);
-  registry->Register(FastBigInt);
-  registry->Register(fast_number_.GetTypeInfo());
-  registry->Register(fast_bigint_.GetTypeInfo());
+  registry->RegisterCFunction(fast_number_);
+  registry->RegisterCFunction(fast_bigint_);
 }
 
 BindingData* BindingData::FromV8Value(Local<Value> value) {
