@@ -1,4 +1,5 @@
 import Agent from './agent'
+import ProxyAgent from './proxy-agent'
 import Dispatcher from './dispatcher'
 
 export default EnvHttpProxyAgent
@@ -10,7 +11,7 @@ declare class EnvHttpProxyAgent extends Dispatcher {
 }
 
 declare namespace EnvHttpProxyAgent {
-  export interface Options extends Agent.Options {
+  export interface Options extends Omit<ProxyAgent.Options, 'uri'> {
     /** Overrides the value of the HTTP_PROXY environment variable  */
     httpProxy?: string;
     /** Overrides the value of the HTTPS_PROXY environment variable  */

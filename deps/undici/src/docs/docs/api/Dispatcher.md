@@ -841,9 +841,28 @@ try {
 Compose a new dispatcher from the current dispatcher and the given interceptors.
 
 > _Notes_:
-> - The order of the interceptors matters. The first interceptor will be the first to be called.
+> - The order of the interceptors matters. The last interceptor will be the first to be called.
 > - It is important to note that the `interceptor` function should return a function that follows the `Dispatcher.dispatch` signature.
 > - Any fork of the chain of `interceptors` can lead to unexpected results.
+>
+> **Interceptor Stack Visualization:**
+> ```
+> compose([interceptor1, interceptor2, interceptor3])
+>
+> Request Flow:
+> ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+> │   Request   │───▶│interceptor3 │───▶│interceptor2 │───▶│interceptor1 │───▶│  dispatcher │
+> └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    │   .dispatch │
+>                           ▲                   ▲                   ▲         └─────────────┘
+>                           │                   │                   │                ▲
+>                    (called first)      (called second)     (called last)           │
+>                                                                                    │
+> ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
+> │  Response   │◀───│interceptor3 │◀───│interceptor2 │◀───│interceptor1 │◀─────────┘
+> └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+>
+> The interceptors are composed in reverse order due to function composition.
+> ```
 
 Arguments:
 

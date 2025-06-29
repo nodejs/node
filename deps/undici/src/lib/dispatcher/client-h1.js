@@ -249,7 +249,7 @@ class Parser {
           this.timeout = timers.setFastTimeout(onParserTimeout, delay, new WeakRef(this))
         } else {
           this.timeout = setTimeout(onParserTimeout, delay, new WeakRef(this))
-          this.timeout.unref()
+          this.timeout?.unref()
         }
       }
 

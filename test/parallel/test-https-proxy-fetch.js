@@ -33,9 +33,9 @@ const { createProxyServer, checkProxiedRequest } = require('../common/proxy-serv
     method: 'CONNECT',
     url: serverHost,
     headers: {
-      // FIXME(undici:4086): this should be keep-alive.
-      connection: 'close',
-      host: serverHost
+      'connection': 'close',
+      'host': serverHost,
+      'proxy-connection': 'keep-alive'
     }
   }];
 

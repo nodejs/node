@@ -10,7 +10,7 @@ const {
   utf8DecodeBytes
 } = require('./util')
 const { FormData, setFormDataState } = require('./formdata')
-const { webidl } = require('./webidl')
+const { webidl } = require('../webidl')
 const { Blob } = require('node:buffer')
 const assert = require('node:assert')
 const { isErrored, isDisturbed } = require('node:stream')
@@ -29,7 +29,7 @@ try {
 const textEncoder = new TextEncoder()
 function noop () {}
 
-const hasFinalizationRegistry = globalThis.FinalizationRegistry && process.version.indexOf('v18') !== 0
+const hasFinalizationRegistry = globalThis.FinalizationRegistry
 let streamRegistry
 
 if (hasFinalizationRegistry) {

@@ -17,6 +17,8 @@ Returns: `ProxyAgent`
 Extends: [`AgentOptions`](/docs/docs/api/Agent.md#parameter-agentoptions)
 > It ommits `AgentOptions#connect`.
 
+> **Note:** When `AgentOptions#connections` is set, and different from `0`, the non-standard [`proxy-connection` header](https://udger.com/resources/http-request-headers-detail?header=Proxy-Connection) will be set to `keep-alive` in the request.
+
 * **uri** `string | URL` (required) - The URI of the proxy server.  This can be provided as a string, as an instance of the URL class, or as an object with a `uri` property of type string.
 If the `uri` is provided as a string or `uri` is an object with an `uri` property of type string, then it will be parsed into a `URL` object according to the [WHATWG URL Specification](https://url.spec.whatwg.org).
 For detailed information on the parsing process and potential validation errors, please refer to the ["Writing" section](https://url.spec.whatwg.org/#writing) of the WHATWG URL Specification.
