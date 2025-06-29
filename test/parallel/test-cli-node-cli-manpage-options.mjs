@@ -1,8 +1,9 @@
 import '../common/index.mjs';
-import assert from 'assert';
+import assert from 'node:assert';
 import { createReadStream, readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { resolve, join } from 'node:path';
+import { EOL } from "node:os";
 
 // This test checks that all the CLI flags defined in the public CLI documentation (doc/api/cli.md)
 // are also documented in the manpage file (doc/node.1)
@@ -83,7 +84,7 @@ for await (const line of rl) {
 
   if (insideOptionsSection && isOptionLineRegex.test(line)) {
     if (line === '### `-`') {
-      if (!manPageContents.includes('\n.It Sy -\n')) {
+      if (!manPageContents.includes(`${EOL}.It Sy -${EOL}`)) {
         throw new Error(`The \`-\` flag is missing in the \`doc/node.1\` file`);
       }
       optionsEncountered.dash++;
@@ -91,7 +92,7 @@ for await (const line of rl) {
     }
 
     if (line === '### `--`') {
-      if (!manPageContents.includes('\n.It Fl -\n')) {
+      if (!manPageContents.includes(`${EOL}.It Fl -${EOL}`)) {
         throw new Error(`The \`--\` flag is missing in the \`doc/node.1\` file`);
       }
       optionsEncountered.dashDash++;
@@ -107,9 +108,9 @@ for await (const line of rl) {
         .join(' , ')}`;
 
     if (
-      // Note: we don't check the full line (note the `\n` only at the beginning) because
+      // Note: we don't check the full line (note the EOL only at the beginning) because
       //       options can have arguments and we do want to ignore those
-      !manPageContents.includes(`\n${manLine}`) &&
+      !manPageContents.includes(`${EOL}${manLine}`) &&
         !flagNames.every((flag) => knownFlagsMissingFromManPage.has(flag))) {
       assert.fail(
         `The following flag${
