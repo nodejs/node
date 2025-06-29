@@ -3,9 +3,11 @@
 
 #include "env.h"
 #include "io_agent.h"
+#include "network_resource_manager.h"
 #include "node/inspector/protocol/Network.h"
 
 #include <map>
+#include <memory>
 #include <unordered_map>
 
 namespace node {
@@ -40,9 +42,11 @@ struct RequestEntry {
 
 class NetworkAgent : public protocol::Network::Backend {
  public:
-  explicit NetworkAgent(NetworkInspector* inspector,
-                        v8_inspector::V8Inspector* v8_inspector,
-                        Environment* env);
+  explicit NetworkAgent(
+      NetworkInspector* inspector,
+      v8_inspector::V8Inspector* v8_inspector,
+      Environment* env,
+      std::shared_ptr<NetworkResourceManager> network_resource_manager);
 
   void Wire(protocol::UberDispatcher* dispatcher);
 
@@ -98,6 +102,7 @@ class NetworkAgent : public protocol::Network::Backend {
   std::unordered_map<protocol::String, EventNotifier> event_notifier_map_;
   std::map<protocol::String, RequestEntry> requests_;
   Environment* env_;
+  std::shared_ptr<NetworkResourceManager> network_resource_manager_;
 };
 
 }  // namespace inspector

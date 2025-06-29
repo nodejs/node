@@ -29,13 +29,13 @@ DispatchResponse IoAgent::read(const String& in_handle,
   }
   stream_id = std::stoull(in_handle_str);
 
-  std::string url = NetworkResourceManager::GetUrlForStreamId(stream_id);
+  std::string url = network_resource_manager_->GetUrlForStreamId(stream_id);
   if (url.empty()) {
     *out_data = "";
     *out_eof = true;
     return DispatchResponse::Success();
   }
-  std::string txt = NetworkResourceManager::Get(url);
+  std::string txt = network_resource_manager_->Get(url);
   std::string_view txt_view(txt);
 
   int offset = 0;
@@ -73,7 +73,7 @@ DispatchResponse IoAgent::close(const String& in_handle) {
   if (is_number) {
     stream_id = std::stoull(in_handle_str);
     // Use accessor to erase resource and mapping by stream id
-    NetworkResourceManager::EraseByStreamId(stream_id);
+    network_resource_manager_->EraseByStreamId(stream_id);
   }
   return DispatchResponse::Success();
 }

@@ -208,10 +208,15 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
       .build();
 }
 
-NetworkAgent::NetworkAgent(NetworkInspector* inspector,
-                           v8_inspector::V8Inspector* v8_inspector,
-                           Environment* env)
-    : inspector_(inspector), v8_inspector_(v8_inspector), env_(env) {
+NetworkAgent::NetworkAgent(
+    NetworkInspector* inspector,
+    v8_inspector::V8Inspector* v8_inspector,
+    Environment* env,
+    std::shared_ptr<NetworkResourceManager> network_resource_manager)
+    : inspector_(inspector),
+      v8_inspector_(v8_inspector),
+      env_(env),
+      network_resource_manager_(std::move(network_resource_manager)) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
   event_notifier_map_["loadingFailed"] = &NetworkAgent::loadingFailed;
@@ -349,10 +354,11 @@ protocol::DispatchResponse NetworkAgent::loadNetworkResource(
         "experimental and requires --experimental-inspector-network-resource "
         "flag to be set.");
   }
-  std::string data = NetworkResourceManager::Get(in_url);
+  CHECK_NOT_NULL(network_resource_manager_);
+  std::string data = network_resource_manager_->Get(in_url);
   bool found = !data.empty();
   if (found) {
-    uint64_t stream_id = NetworkResourceManager::GetStreamId(in_url);
+    uint64_t stream_id = network_resource_manager_->GetStreamId(in_url);
     auto result = protocol::Network::LoadNetworkResourcePageResult::create()
                       .setSuccess(true)
                       .setStream(std::to_string(stream_id))

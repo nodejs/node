@@ -5,27 +5,29 @@
 #include <atomic>
 #include <string>
 #include <unordered_map>
+#include "node_mutex.h"
 
 namespace node {
 namespace inspector {
 
 class NetworkResourceManager {
  public:
-  static void Put(const std::string& url, const std::string& data);
-  static std::string Get(const std::string& url);
+  void Put(const std::string& url, const std::string& data);
+  std::string Get(const std::string& url);
 
   // Accessor to get URL for a given stream id
-  static std::string GetUrlForStreamId(uint64_t stream_id);
+  std::string GetUrlForStreamId(uint64_t stream_id);
   // Erase resource and mapping by stream id
-  static void EraseByStreamId(uint64_t stream_id);
+  void EraseByStreamId(uint64_t stream_id);
   // Returns the stream id for a given url, or 0 if not found
-  static uint64_t GetStreamId(const std::string& url);
+  uint64_t GetStreamId(const std::string& url);
 
  private:
-  static uint64_t NextStreamId();
-  static std::unordered_map<std::string, std::string> resources_;
-  static std::unordered_map<std::string, uint64_t> url_to_stream_id_;
-  static std::atomic<uint64_t> stream_id_counter_;
+  uint64_t NextStreamId();
+  std::unordered_map<std::string, std::string> resources_;
+  std::unordered_map<std::string, uint64_t> url_to_stream_id_;
+  std::atomic<uint64_t> stream_id_counter_{1};
+  Mutex mutex_;  // Protects access to resources_ and url_to_stream_id_
 };
 
 }  // namespace inspector

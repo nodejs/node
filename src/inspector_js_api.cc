@@ -344,7 +344,7 @@ void PutNetworkResource(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Utf8Value url(env->isolate(), args[0].As<String>());
   Utf8Value data(env->isolate(), args[1].As<String>());
 
-  NetworkResourceManager::Put(*url, *data);
+  env->inspector_agent()->GetNetworkResourceManager()->Put(*url, *data);
 }
 
 void Initialize(Local<Object> target, Local<Value> unused,

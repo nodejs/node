@@ -1,13 +1,17 @@
 #ifndef SRC_INSPECTOR_IO_AGENT_H_
 #define SRC_INSPECTOR_IO_AGENT_H_
 
+#include <memory>
+#include "inspector/network_resource_manager.h"
 #include "node/inspector/protocol/IO.h"
 
 namespace node::inspector::protocol {
 
 class IoAgent : public IO::Backend {
  public:
-  IoAgent() {}
+  explicit IoAgent(
+      std::shared_ptr<NetworkResourceManager> network_resource_manager)
+      : network_resource_manager_(std::move(network_resource_manager)) {}
   void Wire(UberDispatcher* dispatcher);
   DispatchResponse read(const String& in_handle,
                         Maybe<int> in_offset,
@@ -19,6 +23,7 @@ class IoAgent : public IO::Backend {
  private:
   std::shared_ptr<IO::Frontend> frontend_;
   std::unordered_map<int, int> offset_map_ = {};  // Maps stream_id to offset
+  std::shared_ptr<NetworkResourceManager> network_resource_manager_;
 };
 }  // namespace node::inspector::protocol
 #endif  // SRC_INSPECTOR_IO_AGENT_H_
