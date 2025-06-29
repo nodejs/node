@@ -7,7 +7,7 @@ const h2 = require('http2');
 
 common.expectWarning(
   'DeprecationWarning',
-  'http2Stream.priority is longer supported after priority signalling was deprecated in RFC 1993',
+  'http2Stream.priority is longer supported after priority signalling was deprecated in RFC 9113',
   'DEP0194');
 
 const server = h2.createServer();

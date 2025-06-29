@@ -45,6 +45,9 @@
             }
           ]
         },
+        "allow-net": {
+          "type": "boolean"
+        },
         "allow-wasi": {
           "type": "boolean"
         },
@@ -561,6 +564,9 @@
         },
         "watch": {
           "type": "boolean"
+        },
+        "watch-kill-signal": {
+          "type": "string"
         },
         "watch-path": {
           "oneOf": [

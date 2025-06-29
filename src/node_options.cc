@@ -565,6 +565,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "allow use of child process when any permissions are set",
             &EnvironmentOptions::allow_child_process,
             kAllowedInEnvvar);
+  AddOption("--allow-net",
+            "allow use of network when any permissions are set",
+            &EnvironmentOptions::allow_net,
+            kAllowedInEnvvar);
   AddOption("--allow-wasi",
             "allow wasi when any permissions are set",
             &EnvironmentOptions::allow_wasi,
@@ -952,6 +956,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--watch-path",
             "path to watch",
             &EnvironmentOptions::watch_mode_paths,
+            kAllowedInEnvvar);
+  AddOption("--watch-kill-signal",
+            "kill signal to send to the process on watch mode restarts"
+            "(default: SIGTERM)",
+            &EnvironmentOptions::watch_mode_kill_signal,
             kAllowedInEnvvar);
   AddOption("--watch-preserve-output",
             "preserve outputs on watch mode restart",

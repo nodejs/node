@@ -248,6 +248,7 @@ const customTypesMap = {
   'vm.Module': 'vm.html#class-vmmodule',
   'vm.Script': 'vm.html#class-vmscript',
   'vm.SourceTextModule': 'vm.html#class-vmsourcetextmodule',
+  'ModuleRequest': 'vm.html#type-modulerequest',
   'vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER':
       'vm.html#vmconstantsuse_main_context_default_loader',
   'vm.constants.DONT_CONTEXTIFY':

@@ -194,7 +194,9 @@ process.
 <!-- YAML
 added: v20.0.0
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58579
     description: Entrypoints of your application are allowed to be read implicitly.
   - version:
@@ -262,6 +264,38 @@ Paths delimited by comma (`,`) are no longer allowed.
 When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
+
+### `--allow-net`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process will not be able to access
+network by default.
+Attempts to do so will throw an `ERR_ACCESS_DENIED` unless the
+user explicitly passes the `--allow-net` flag when starting Node.js.
+
+Example:
+
+```js
+const http = require('node:http');
+// Attempt to bypass the permission
+const req = http.get('http://example.com', () => {});
+
+req.on('error', (err) => {
+  console.log('err', err);
+});
+```
+
+```console
+$ node --permission index.js
+Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --allow-net to manage permissions.
+  code: 'ERR_ACCESS_DENIED',
+}
+```
 
 ### `--allow-wasi`
 
@@ -1221,6 +1255,7 @@ Enable experimental [`Web Storage`][] support.
 <!-- YAML
 added:
   - v24.1.0
+  - v22.17.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -1943,6 +1978,7 @@ following permissions are restricted:
 
 * File System - manageable through
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
+* Network - manageable through [`--allow-net`][] flag
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
@@ -3096,6 +3132,19 @@ mode. If no file is provided, Node.js will exit with status code `9`.
 node --watch index.js
 ```
 
+### `--watch-kill-signal`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Customizes the signal sent to the process on watch mode restarts.
+
+```bash
+node --watch --watch-kill-signal SIGINT test.js
+```
+
 ### `--watch-path`
 
 <!-- YAML
@@ -3297,6 +3346,7 @@ one is included in the list below.
 * `--allow-child-process`
 * `--allow-fs-read`
 * `--allow-fs-write`
+* `--allow-net`
 * `--allow-wasi`
 * `--allow-worker`
 * `--conditions`, `-C`
@@ -3437,6 +3487,7 @@ one is included in the list below.
 * `--use-openssl-ca`
 * `--use-system-ca`
 * `--v8-pool-size`
+* `--watch-kill-signal`
 * `--watch-path`
 * `--watch-preserve-output`
 * `--watch`
@@ -3899,6 +3950,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--allow-child-process`]: #--allow-child-process
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
+[`--allow-net`]: #--allow-net
 [`--allow-wasi`]: #--allow-wasi
 [`--allow-worker`]: #--allow-worker
 [`--build-snapshot`]: #--build-snapshot

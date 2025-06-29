@@ -1,6 +1,6 @@
-const { fixer } = require('normalize-package-data')
 const npmFetch = require('npm-registry-fetch')
 const npa = require('npm-package-arg')
+const PackageJson = require('@npmcli/package-json')
 const { log } = require('proc-log')
 const semver = require('semver')
 const { URL } = require('node:url')
@@ -31,7 +31,7 @@ Remove the 'private' field from the package.json to publish it.`),
   }
 
   const reg = npmFetch.pickRegistry(spec, opts)
-  const pubManifest = patchManifest(manifest, opts)
+  const pubManifest = await patchManifest(manifest, opts)
 
   // registry-frontdoor cares about the access level,
   // which is only configurable for scoped packages
@@ -62,17 +62,18 @@ Remove the 'private' field from the package.json to publish it.`),
   return res
 }
 
-const patchManifest = (_manifest, opts) => {
+const patchManifest = async (_manifest, opts) => {
   const { npmVersion } = opts
-  // we only update top-level fields, so a shallow clone is fine
-  const manifest = { ..._manifest }
-
-  manifest._nodeVersion = process.versions.node
-  if (npmVersion) {
-    manifest._npmVersion = npmVersion
+  const steps = ['fixName']
+  const manifestInput = { ..._manifest, _nodeVersion: process.versions.node }
+  if (npmVersion != null) {
+    manifestInput._npmVersion = npmVersion
   }
+  const manifest = await new PackageJson()
+    .fromContent(manifestInput)
+    .normalize({ steps })
+    .then(p => p.content)
 
-  fixer.fixNameField(manifest, { strict: true, allowLegacyCase: true })
   const version = semver.clean(manifest.version)
   if (!version) {
     throw Object.assign(

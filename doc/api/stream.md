@@ -878,7 +878,9 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
- - version: v24.0.0
+ - version:
+    - v24.0.0
+    - v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -1646,7 +1648,9 @@ the stream has not been destroyed or emitted `'error'` or `'end'`.
 <!-- YAML
 added: v16.8.0
 changes:
- - version: v24.0.0
+ - version:
+    - v24.0.0
+    - v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -1662,7 +1666,9 @@ added:
   - v16.7.0
   - v14.18.0
 changes:
- - version: v24.0.0
+ - version:
+    - v24.0.0
+    - v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -2014,7 +2020,9 @@ added:
   - v19.1.0
   - v18.13.0
 changes:
- - version: v24.0.0
+ - version:
+    - v24.0.0
+    - v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -2051,7 +2059,9 @@ See [`stream.compose`][] for more information.
 <!-- YAML
 added: v16.3.0
 changes:
- - version: v24.0.0
+ - version:
+    - v24.0.0
+    - v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -3040,6 +3050,44 @@ console.log(res); // prints 'HELLOWORLD'
 
 See [`readable.compose(stream)`][] for `stream.compose` as operator.
 
+### `stream.isErrored(stream)`
+
+<!-- YAML
+added:
+  - v17.3.0
+  - v16.14.0
+changes:
+  - version:
+      - v24.0.0
+      - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
+-->
+
+* `stream` {Readable|Writable|Duplex|WritableStream|ReadableStream}
+* Returns: {boolean}
+
+Returns whether the stream has encountered an error.
+
+### `stream.isReadable(stream)`
+
+<!-- YAML
+added:
+  - v17.4.0
+  - v16.14.0
+changes:
+  - version:
+      - v24.0.0
+      - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
+-->
+
+* `stream` {Readable|Duplex|ReadableStream}
+* Returns: {boolean}
+
+Returns whether the stream is readable.
+
 ### `stream.Readable.from(iterable[, options])`
 
 <!-- YAML
@@ -3094,7 +3142,9 @@ Readable.from([
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v24.0.0
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3112,7 +3162,9 @@ changes:
 <!-- YAML
 added: v16.8.0
 changes:
-  - version: v24.0.0
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3122,40 +3174,6 @@ changes:
 
 Returns whether the stream has been read from or cancelled.
 
-### `stream.isErrored(stream)`
-
-<!-- YAML
-added:
-  - v17.3.0
-  - v16.14.0
-changes:
-  - version: v24.0.0
-    pr-url: https://github.com/nodejs/node/pull/57513
-    description: Marking the API stable.
--->
-
-* `stream` {Readable|Writable|Duplex|WritableStream|ReadableStream}
-* Returns: {boolean}
-
-Returns whether the stream has encountered an error.
-
-### `stream.isReadable(stream)`
-
-<!-- YAML
-added:
-  - v17.4.0
-  - v16.14.0
-changes:
-  - version: v24.0.0
-    pr-url: https://github.com/nodejs/node/pull/57513
-    description: Marking the API stable.
--->
-
-* `stream` {Readable|Duplex|ReadableStream}
-* Returns: {boolean}
-
-Returns whether the stream is readable.
-
 ### `stream.Readable.toWeb(streamReadable[, options])`
 
 <!-- YAML
@@ -3164,7 +3182,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/58664
     description: add {type: 'bytes'} option
-  - version: v24.0.0
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
@@ -3192,7 +3212,9 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v24.0.0
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3210,7 +3232,9 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v24.0.0
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3274,7 +3298,9 @@ Duplex.from([
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v24.0.0
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -3357,7 +3383,9 @@ duplex.once('readable', () => console.log('readable', duplex.read()));
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v24.0.0
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->

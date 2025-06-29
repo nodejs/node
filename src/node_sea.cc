@@ -400,10 +400,9 @@ ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
     return exit_code;
   }
   auto& persistents = snapshot.env_info.principal_realm.persistent_values;
-  auto it = std::find_if(
-      persistents.begin(), persistents.end(), [](const PropInfo& prop) {
-        return prop.name == "snapshot_deserialize_main";
-      });
+  auto it = std::ranges::find_if(persistents, [](const PropInfo& prop) {
+    return prop.name == "snapshot_deserialize_main";
+  });
   if (it == persistents.end()) {
     FPrintF(
         stderr,

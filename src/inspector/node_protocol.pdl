@@ -165,6 +165,7 @@ experimental domain Network
       string url
       string method
       Headers headers
+      boolean hasPostData
 
   # HTTP response data.
   type Response extends object
@@ -184,6 +185,26 @@ experimental domain Network
 
   # Enables network tracking, network events will now be delivered to the client.
   command enable
+
+  # Returns post data sent with the request. Returns an error when no data was sent with the request.
+  command getRequestPostData
+    parameters
+      # Identifier of the network request to get content for.
+      RequestId requestId
+    returns
+      # Request body string, omitting files from multipart requests
+      string postData
+
+  # Returns content served for the given request.
+  command getResponseBody
+    parameters
+      # Identifier of the network request to get content for.
+      RequestId requestId
+    returns
+      # Response body.
+      string body
+      # True, if content was sent as base64.
+      boolean base64Encoded
 
   # Enables streaming of the response for the given requestId.
   # If enabled, the dataReceived event contains the data that was received during streaming.

@@ -11,9 +11,13 @@ async function explicitCall() {
 
   const dh = await fs.opendir(__dirname);
   await dh[Symbol.asyncDispose]();
+  // Repeat invocations should not reject
+  await dh[Symbol.asyncDispose]();
   await assert.rejects(dh.read(), { code: 'ERR_DIR_CLOSED' });
 
   const dhSync = opendirSync(__dirname);
+  dhSync[Symbol.dispose]();
+  // Repeat invocations should not throw
   dhSync[Symbol.dispose]();
   assert.throws(() => dhSync.readSync(), { code: 'ERR_DIR_CLOSED' });
 }

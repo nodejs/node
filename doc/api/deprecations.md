@@ -2524,17 +2524,18 @@ object can lead to crashing the application.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58619
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/23173
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Previous versions of Node.js supported `dns.lookup()` with a falsy host name
-like `dns.lookup(false)` due to backward compatibility.
-This behavior is undocumented and is thought to be unused in real world apps.
-It will become an error in future versions of Node.js.
+like `dns.lookup(false)` due to backward compatibility. This has been removed.
 
 ### DEP0119: `process.binding('uv').errname()` private API
 
@@ -2864,16 +2865,18 @@ To maintain existing behavior `response.finished` should be replaced with
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58536
+    description: End-of-Life.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/28396
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Allowing a [`fs.FileHandle`][] object to be closed on garbage collection is
-deprecated. In the future, doing so might result in a thrown error that will
-terminate the process.
+Allowing a [`fs.FileHandle`][] object to be closed on garbage collection used
+to be allowed, but now throws an error.
 
 Please ensure that all `fs.FileHandle` objects are explicitly closed using
 `FileHandle.prototype.close()` when the `fs.FileHandle` is no longer needed:
@@ -3056,6 +3059,9 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58616
+    description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37302
     description: Runtime deprecation.
@@ -3067,10 +3073,10 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-In future versions of Node.js, `recursive` option will be ignored for
-`fs.rmdir`, `fs.rmdirSync`, and `fs.promises.rmdir`.
+The `fs.rmdir`, `fs.rmdirSync`, and `fs.promises.rmdir` methods used
+to support a `recursive` option. That option has been removed.
 
 Use `fs.rm(path, { recursive: true, force: true })`,
 `fs.rmSync(path, { recursive: true, force: true })` or
@@ -3201,6 +3207,9 @@ option, or a non-nullish non-boolean value for `verbatim` option in
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58706
+    description: End-of-Life.
   - version: v20.0.0
     pr-url: https://github.com/nodejs/node/pull/45653
     description: Runtime deprecation.
@@ -3209,10 +3218,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The `'hash'` and `'mgf1Hash'` options are replaced with `'hashAlgorithm'`
-and `'mgf1HashAlgorithm'`.
+Use  `'hashAlgorithm'` instead of `'hash'`, and `'mgf1HashAlgorithm'` instead of `'mgf1Hash'`.
 
 ### DEP0155: Trailing slashes in pattern specifier resolutions
 
@@ -3864,6 +3872,7 @@ changes:
   - version:
     - v23.4.0
     - v22.13.0
+    - v20.19.3
     pr-url: https://github.com/nodejs/node/pull/55892
     description: Documentation-only.
 -->
@@ -3946,7 +3955,9 @@ upon `require('node:module').builtinModules`.
 
 <!-- YAML
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57643
     description: Runtime deprecation.
 -->
@@ -3960,7 +3971,9 @@ an internal nodejs implementation rather than a public facing API, use `node:tls
 
 <!-- YAML
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58337
     description: Runtime deprecation.
 -->
@@ -3978,7 +3991,9 @@ changes:
   - version: v24.2.0
     pr-url: https://github.com/nodejs/node/pull/58293
     description: End-of-Life.
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Documentation-only deprecation.
 -->
@@ -3991,7 +4006,9 @@ The support for priority signaling has been removed following its deprecation in
 
 <!-- YAML
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58518
     description: Documentation-only deprecation.
 -->
@@ -4006,7 +4023,9 @@ It is recommended to use the `new` qualifier instead. This applies to all http c
 
 <!-- YAML
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58564
     description: Documentation-only deprecation.
 -->

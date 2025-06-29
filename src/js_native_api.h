@@ -21,6 +21,18 @@
 #endif
 #endif
 
+#if defined(NAPI_EXPERIMENTAL) &&                                              \
+    !defined(NODE_API_EXPERIMENTAL_NO_WARNING) &&                              \
+    !defined(NODE_WANT_INTERNALS)
+#ifdef _MSC_VER
+#pragma message("NAPI_EXPERIMENTAL is enabled. "                               \
+                "Experimental features may be unstable.")
+#else
+#warning "NAPI_EXPERIMENTAL is enabled. " \
+       "Experimental features may be unstable."
+#endif
+#endif
+
 #include "js_native_api_types.h"
 
 // If you need __declspec(dllimport), either include <node_api.h> instead, or

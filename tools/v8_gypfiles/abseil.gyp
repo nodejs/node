@@ -1,4 +1,5 @@
 {
+  'includes': ['toolchain.gypi'],
   'targets': [
     {
       'target_name': 'abseil',

@@ -25,8 +25,7 @@ import tempfile
 
 def main(args):
     executor = MacTool()
-    exit_code = executor.Dispatch(args)
-    if exit_code is not None:
+    if (exit_code := executor.Dispatch(args)) is not None:
         sys.exit(exit_code)
 
 
@@ -142,7 +141,7 @@ class MacTool:
         #     CFPropertyListCreateFromXMLData(): Old-style plist parser: missing
         #     semicolon in dictionary.
         # on invalid files. Do the same kind of validation.
-        import CoreFoundation
+        import CoreFoundation  # noqa: PLC0415
 
         with open(source, "rb") as in_file:
             s = in_file.read()

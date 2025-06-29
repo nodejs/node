@@ -3,6 +3,7 @@ const clean = require('semver/functions/clean')
 const fs = require('node:fs/promises')
 const path = require('node:path')
 const { log } = require('proc-log')
+const moduleBuiltin = require('node:module')
 
 /**
  * @type {import('hosted-git-info')}
@@ -144,7 +145,7 @@ const normalize = async (pkg, { strict, steps, root, changes, allowLegacyCase })
   const pkgId = `${data.name ?? ''}@${data.version ?? ''}`
 
   // name and version are load bearing so we have to clean them up first
-  if (steps.includes('fixNameField') || steps.includes('normalizeData')) {
+  if (steps.includes('fixName') || steps.includes('fixNameField') || steps.includes('normalizeData')) {
     if (!data.name && !strict) {
       changes?.push('Missing "name" field was set to an empty string')
       data.name = ''
@@ -167,6 +168,13 @@ const normalize = async (pkg, { strict, steps, root, changes, allowLegacyCase })
         data.name.toLowerCase() === 'favicon.ico') {
         throw new Error('Invalid name: ' + JSON.stringify(data.name))
       }
+    }
+  }
+
+  if (steps.includes('fixName')) {
+    // Check for conflicts with builtin modules
+    if (moduleBuiltin.builtinModules.includes(data.name)) {
+      log.warn('package-json', pkgId, `Package name "${data.name}" conflicts with a Node.js built-in module name`)
     }
   }
 

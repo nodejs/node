@@ -396,8 +396,7 @@ def _ValidateExclusionSetting(setting, settings, error_msg, stderr=sys.stderr):
     # This may be unrecognized because it's an exclusion list. If the
     # setting name has the _excluded suffix, then check the root name.
     unrecognized = True
-    m = re.match(_EXCLUDED_SUFFIX_RE, setting)
-    if m:
+    if m := re.match(_EXCLUDED_SUFFIX_RE, setting):
         root_setting = m.group(1)
         unrecognized = root_setting not in settings
 

@@ -8,7 +8,8 @@ const deepMap = (input, handler = v => v, path = ['$'], seen = new Set([input]))
   if (input instanceof Error) {
     return deepMap(serializeError(input), handler, path, seen)
   }
-  if (input instanceof Buffer) {
+  // allows for non-node js environments, sush as workers
+  if (typeof Buffer !== 'undefined' && input instanceof Buffer) {
     return `[unable to log instanceof buffer]`
   }
   if (input instanceof Uint8Array) {

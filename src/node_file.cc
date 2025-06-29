@@ -333,12 +333,10 @@ BaseObjectPtr<BaseObject> FileHandle::TransferData::Deserialize(
   return BaseObjectPtr<BaseObject> { FileHandle::New(bd, fd) };
 }
 
-// Close the file descriptor if it hasn't already been closed. A process
-// warning will be emitted using a SetImmediate to avoid calling back to
-// JS during GC. If closing the fd fails at this point, a fatal exception
-// will crash the process immediately.
+// Throw an exception if the file handle has not yet been closed.
 inline void FileHandle::Close() {
   if (closed_ || closing_) return;
+
   uv_fs_t req;
   CHECK_NE(fd_, -1);
   FS_SYNC_TRACE_BEGIN(close);
@@ -352,42 +350,38 @@ inline void FileHandle::Close() {
 
   AfterClose();
 
-  if (ret < 0) {
-    // Do not unref this
-    env()->SetImmediate([detail](Environment* env) {
+  // Even though we closed the file descriptor, we still throw an error
+  // if the FileHandle object was not closed before garbage collection.
+  // Because this method is called during garbage collection, we will defer
+  // throwing the error until the next immediate queue tick so as not
+  // to interfere with the gc process.
+  //
+  // This exception will end up being fatal for the process because
+  // it is being thrown from within the SetImmediate handler and
+  // there is no JS stack to bubble it to. In other words, tearing
+  // down the process is the only reasonable thing we can do here.
+  env()->SetImmediate([detail](Environment* env) {
+    HandleScope handle_scope(env->isolate());
+
+    // If there was an error while trying to close the file descriptor,
+    // we will throw that instead.
+    if (detail.ret < 0) {
       char msg[70];
-      snprintf(msg, arraysize(msg),
-              "Closing file descriptor %d on garbage collection failed",
-              detail.fd);
-      // This exception will end up being fatal for the process because
-      // it is being thrown from within the SetImmediate handler and
-      // there is no JS stack to bubble it to. In other words, tearing
-      // down the process is the only reasonable thing we can do here.
+      snprintf(msg,
+               arraysize(msg),
+               "Closing file descriptor %d on garbage collection failed",
+               detail.fd);
       HandleScope handle_scope(env->isolate());
       env->ThrowUVException(detail.ret, "close", msg);
-    });
-    return;
-  }
-
-  // If the close was successful, we still want to emit a process warning
-  // to notify that the file descriptor was gc'd. We want to be noisy about
-  // this because not explicitly closing the FileHandle is a bug.
-
-  env()->SetImmediate([detail](Environment* env) {
-    ProcessEmitWarning(env,
-                       "Closing file descriptor %d on garbage collection",
-                       detail.fd);
-    if (env->filehandle_close_warning()) {
-      env->set_filehandle_close_warning(false);
-      USE(ProcessEmitDeprecationWarning(
-          env,
-          "Closing a FileHandle object on garbage collection is deprecated. "
-          "Please close FileHandle objects explicitly using "
-          "FileHandle.prototype.close(). In the future, an error will be "
-          "thrown if a file descriptor is closed during garbage collection.",
-          "DEP0137"));
+      return;
     }
-  }, CallbackFlags::kUnrefed);
+
+    THROW_ERR_INVALID_STATE(
+        env,
+        "A FileHandle object was closed during garbage collection. "
+        "This used to be allowed with a deprecation warning but is now "
+        "considered an error. Please close FileHandle objects explicitly.");
+  });
 }
 
 void FileHandle::CloseReq::Resolve() {
@@ -1813,6 +1807,7 @@ int MKDirpAsync(uv_loop_t* loop,
           break;
         }
         case UV_EACCES:
+        case UV_ENOSPC:
         case UV_ENOTDIR:
         case UV_EPERM: {
           req_wrap->continuation_data()->Done(err);
@@ -2858,10 +2853,10 @@ static void Chown(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
 
   CHECK(IsSafeJsInt(args[1]));
-  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
+  const uv_uid_t uid = FromV8Value<uv_uid_t>(args[1]);
 
   CHECK(IsSafeJsInt(args[2]));
-  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
+  const uv_gid_t gid = FromV8Value<uv_gid_t>(args[2]);
 
   if (argc > 3) {  // chown(path, uid, gid, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);
@@ -2933,10 +2928,10 @@ static void LChown(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
 
   CHECK(IsSafeJsInt(args[1]));
-  const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
+  const uv_uid_t uid = FromV8Value<uv_uid_t>(args[1]);
 
   CHECK(IsSafeJsInt(args[2]));
-  const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
+  const uv_gid_t gid = FromV8Value<uv_gid_t>(args[2]);
 
   if (argc > 3) {  // lchown(path, uid, gid, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);

@@ -185,7 +185,8 @@ int nghttp2_submit_rst_stream(nghttp2_session *session, uint8_t flags,
     return NGHTTP2_ERR_INVALID_ARGUMENT;
   }
 
-  return nghttp2_session_add_rst_stream(session, stream_id, error_code);
+  return nghttp2_session_add_rst_stream_continue(
+    session, stream_id, error_code, /* continue_without_stream = */ 0);
 }
 
 int nghttp2_submit_goaway(nghttp2_session *session, uint8_t flags,

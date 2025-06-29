@@ -219,7 +219,7 @@ def _RegistryGetValueUsingWinReg(key, value):
     contents of the registry key's value, or None on failure.  Throws
     ImportError if winreg is unavailable.
   """
-    from winreg import HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx
+    from winreg import HKEY_LOCAL_MACHINE, OpenKey, QueryValueEx  # noqa: PLC0415
     try:
         root, subkey = key.split("\\", 1)
         assert root == "HKLM"  # Only need HKLM for now.
@@ -552,8 +552,7 @@ def SelectVisualStudioVersion(version="auto", allow_fallback=True):
         "2019": ("16.0",),
         "2022": ("17.0",),
     }
-    override_path = os.environ.get("GYP_MSVS_OVERRIDE_PATH")
-    if override_path:
+    if override_path := os.environ.get("GYP_MSVS_OVERRIDE_PATH"):
         msvs_version = os.environ.get("GYP_MSVS_VERSION")
         if not msvs_version:
             raise ValueError(

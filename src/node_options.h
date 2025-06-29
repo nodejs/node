@@ -142,6 +142,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> allow_fs_write;
   bool allow_addons = false;
   bool allow_child_process = false;
+  bool allow_net = false;
   bool allow_wasi = false;
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
@@ -231,6 +232,7 @@ class EnvironmentOptions : public Options {
   bool watch_mode = false;
   bool watch_mode_report_to_parent = false;
   bool watch_mode_preserve_output = false;
+  std::string watch_mode_kill_signal = "SIGTERM";
   std::vector<std::string> watch_mode_paths;
 
   bool syntax_check_only = false;
