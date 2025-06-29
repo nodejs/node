@@ -22,6 +22,7 @@ assert(manpageEnvVarNames.size > 0,
 );
 
 // TODO(dario-piotrowicz): add the missing env variables to the manpage and remove this set
+//                         (refs: https://github.com/nodejs/node/issues/58894)
 const knownEnvVariablesMissingFromManPage = new Set([
   'NODE_COMPILE_CACHE',
   'NODE_DISABLE_COMPILE_CACHE',
