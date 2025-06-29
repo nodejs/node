@@ -1,4 +1,4 @@
-// Flags: --inspect=0 --experimental-network-inspection
+// Flags: --inspect=0 --experimental-network-inspection --expose-internals
 'use strict';
 const common = require('../common');
 
@@ -12,8 +12,8 @@ const https = require('node:https');
 const inspector = require('node:inspector/promises');
 
 // Disable certificate validation for the global fetch.
-const undici = require('../../deps/undici/src/index.js');
-undici.setGlobalDispatcher(new undici.Agent({
+const undici = require('internal/deps/undici/undici');
+undici.setGlobalDispatcher(new undici.EnvHttpProxyAgent({
   connect: {
     rejectUnauthorized: false,
   },
