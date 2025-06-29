@@ -429,3 +429,52 @@ for (const isolation of ['none', 'process']) {
   assert.strictEqual(child.status, 0);
   assert.strictEqual(child.signal, null);
 }
+
+{
+  // Should not propagate --experimental-config-file option to sub test in isolation process
+  const fixturePath = join(testFixtures, 'options-propagation');
+  const args = [
+    '--test-reporter=tap',
+    '--no-warnings',
+    `--experimental-config-file=node.config.json`,
+    '--expose-internals',
+    '--test',
+  ];
+  const child = spawnSync(process.execPath, args, { cwd: fixturePath });
+
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+
+  assert.match(stdout, /tests 1/);
+  assert.match(stdout, /suites 0/);
+  assert.match(stdout, /pass 1/);
+  assert.match(stdout, /fail 0/);
+  assert.match(stdout, /cancelled 0/);
+  assert.match(stdout, /skipped 0/);
+  assert.match(stdout, /todo 0/);
+
+
+  assert.strictEqual(child.status, 0);
+}
+
+{
+  if (process.features.inspector) {
+    // https://github.com/nodejs/node/issues/58828
+    // Should not print report twice when --experimental-test-coverage is set via config file
+    const fixturePath = join(testFixtures, 'options-propagation');
+    const args = [
+      '--test-reporter=tap',
+      '--no-warnings',
+      `--experimental-config-file=node.config.json`,
+      '--expose-internals',
+      '--test',
+    ];
+
+    const child = spawnSync(process.execPath, args, { cwd: fixturePath });
+    const stdout = child.stdout.toString();
+
+    const coverageReportMatches = stdout.match(/# start of coverage report/g);
+    assert.strictEqual(coverageReportMatches?.length, 1);
+    assert.strictEqual(child.stderr.toString(), '');
+  }
+}
