@@ -1,5 +1,5 @@
 import '../common/index.mjs';
-import assert from 'assert';
+import assert from 'node:assert';
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { resolve, join } from 'node:path';

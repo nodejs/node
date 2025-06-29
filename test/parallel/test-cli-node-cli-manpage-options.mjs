@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { createReadStream, readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { resolve, join } from 'node:path';
-import { EOL } from "node:os";
+import { EOL } from 'node:os';
 
 // This test checks that all the CLI flags defined in the public CLI documentation (doc/api/cli.md)
 // are also documented in the manpage file (doc/node.1)
