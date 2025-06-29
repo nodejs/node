@@ -788,7 +788,7 @@ responding to new issues.
 Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
 * **Antoine du Hamel** <<duhamelantoine1995@gmail.com>>
-  `C0D6248439F1D5604AAFFB4021D900FFDB233756`
+  `5BE8A3F6C8A5C01D106C0AD820B1A390B168D356`
 * **Juan José Arboleda** <<soyjuanarbol@gmail.com>>
   `DD792F5973C6DE52C432CBDAC77ABFA00DDBF2B7`
 * **Marco Ippolito** <<marcoippolito54@gmail.com>>
@@ -808,7 +808,7 @@ To import the full set of trusted release keys (including subkeys possibly used
 to sign releases):
 
 ```bash
-gpg --keyserver hkps://keys.openpgp.org --recv-keys C0D6248439F1D5604AAFFB4021D900FFDB233756 # Antoine du Hamel
+gpg --keyserver hkps://keys.openpgp.org --recv-keys 5BE8A3F6C8A5C01D106C0AD820B1A390B168D356 # Antoine du Hamel
 gpg --keyserver hkps://keys.openpgp.org --recv-keys DD792F5973C6DE52C432CBDAC77ABFA00DDBF2B7 # Juan José Arboleda
 gpg --keyserver hkps://keys.openpgp.org --recv-keys CC68F5A3106FF448322E48ED27F5E38D5B0A215F # Marco Ippolito
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600 # Michaël Zasso
@@ -825,6 +825,8 @@ verify a downloaded file.
 
 <summary>Other keys used to sign some previous releases</summary>
 
+* **Antoine du Hamel** <<duhamelantoine1995@gmail.com>>
+  `C0D6248439F1D5604AAFFB4021D900FFDB233756`
 * **Beth Griggs** <<bethanyngriggs@gmail.com>>
   `4ED778F539E3634C779C87C6D7062848A1AB005C`
 * **Bryan English** <<bryan@bryanenglish.com>>
