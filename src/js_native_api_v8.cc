@@ -3149,6 +3149,10 @@ napi_status NAPI_CDECL napi_create_typedarray(napi_env env,
       CREATE_TYPED_ARRAY(
           env, Uint32Array, 4, buffer, byte_offset, length, typedArray);
       break;
+    case napi_float16_array:
+      CREATE_TYPED_ARRAY(
+          env, Float16Array, 2, buffer, byte_offset, length, typedArray);
+      break;
     case napi_float32_array:
       CREATE_TYPED_ARRAY(
           env, Float32Array, 4, buffer, byte_offset, length, typedArray);
@@ -3203,6 +3207,8 @@ napi_status NAPI_CDECL napi_get_typedarray_info(napi_env env,
       *type = napi_int32_array;
     } else if (value->IsUint32Array()) {
       *type = napi_uint32_array;
+    } else if (value->IsFloat16Array()) {
+      *type = napi_float16_array;
     } else if (value->IsFloat32Array()) {
       *type = napi_float32_array;
     } else if (value->IsFloat64Array()) {
