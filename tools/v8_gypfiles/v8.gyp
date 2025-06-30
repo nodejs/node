@@ -636,11 +636,6 @@
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?sources = ")',
         ],
         'conditions': [
-          ['v8_enable_maglev==0', {
-            'sources': [
-              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?!v8_enable_maglev.*?sources \\+= ")',
-            ],
-          }],
           ['v8_enable_snapshot_compression==1', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_snapshot_compression.*?sources \\+= ")',
@@ -956,6 +951,11 @@
         'abseil.gyp:abseil',
       ],
       'conditions': [
+        ['v8_enable_maglev==0', {
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?!v8_enable_maglev.*?sources \\+= ")',
+          ],
+        }],
         ['v8_enable_turbofan==1', {
           'dependencies': ['v8_compiler_sources'],
         }, {
