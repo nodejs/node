@@ -15,19 +15,12 @@ class NetworkResourceManager {
   void Put(const std::string& url, const std::string& data);
   std::string Get(const std::string& url);
 
-  // Accessor to get URL for a given stream id
-  std::string GetUrlForStreamId(uint64_t stream_id);
   // Erase resource and mapping by stream id
-  void EraseByStreamId(uint64_t stream_id);
-  // Returns the stream id for a given url, or 0 if not found
-  uint64_t GetStreamId(const std::string& url);
+  void Erase(const std::string& stream_id);
 
  private:
-  uint64_t NextStreamId();
   std::unordered_map<std::string, std::string> resources_;
-  std::unordered_map<std::string, uint64_t> url_to_stream_id_;
-  std::atomic<uint64_t> stream_id_counter_{1};
-  Mutex mutex_;  // Protects access to resources_ and url_to_stream_id_
+  Mutex mutex_;  // Protects access to resources_
 };
 
 }  // namespace inspector

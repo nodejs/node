@@ -13,6 +13,7 @@ const fs = require('fs');
 const resourceUrl = 'http://localhost:3000/app.js';
 const resourcePath = path.join(__dirname, '../fixtures/inspector-network-resource/app.js.map');
 
+const resourceText = fs.readFileSync(resourcePath, 'utf8');
 const script = `
   const { NetworkResources } = require('node:inspector');
   const fs = require('fs');
@@ -55,8 +56,7 @@ test('should load and stream a static network resource using loadNetworkResource
     eof = result.eof;
   }
   content += data;
-  const expected = fs.readFileSync(resourcePath, 'utf8');
-  assert.strictEqual(content, expected);
+  assert.strictEqual(content, resourceText);
   await session.send({ method: 'IO.close', params: { handle: resource.stream } });
   await session.send({ method: 'Debugger.resume' });
   await session.waitForDisconnect();
@@ -98,13 +98,12 @@ test('should support IO.read with size and offset', async () => {
   });
   assert(resource.success);
   assert(resource.stream);
-  const expected = fs.readFileSync(resourcePath, 'utf8');
   let result = await session.send({ method: 'IO.read', params: { handle: resource.stream, size: 5 } });
-  assert.strictEqual(result.data, expected.slice(0, 5));
+  assert.strictEqual(result.data, resourceText.slice(0, 5));
   result = await session.send({ method: 'IO.read', params: { handle: resource.stream, offset: 5, size: 5 } });
-  assert.strictEqual(result.data, expected.slice(5, 10));
+  assert.strictEqual(result.data, resourceText.slice(5, 10));
   result = await session.send({ method: 'IO.read', params: { handle: resource.stream, offset: 10 } });
-  assert.strictEqual(result.data, expected.slice(10));
+  assert.strictEqual(result.data, resourceText.slice(10));
   await session.send({ method: 'IO.close', params: { handle: resource.stream } });
   await session.send({ method: 'Debugger.resume' });
   await session.waitForDisconnect();
@@ -131,12 +130,16 @@ test('should load resource put from another thread', async () => {
   await setupInspector(session);
   await session.waitForNotification('Debugger.paused');
   await session.send({ method: 'Debugger.resume' });
-  const sessionId = '1';
   await session.waitForNotification('Target.targetCreated');
   await session.send({ method: 'Target.setAutoAttach', params: { autoAttach: true, waitForDebuggerOnStart: true } });
+  let sessionId;
   await session.waitForNotification((notification) => {
-    return notification.method === 'Target.attachedToTarget' &&
-           notification.params.sessionId === sessionId;
+    if (notification.method === 'Target.attachedToTarget') {
+      sessionId = notification.params.sessionId;
+      return true;
+    }
+    return false;
+
   });
   await setupInspector(session, sessionId);
 
@@ -160,8 +163,7 @@ test('should load resource put from another thread', async () => {
     eof = result.eof;
   }
   content += data;
-  const expected = fs.readFileSync(resourcePath, 'utf8');
-  assert.strictEqual(content, expected);
+  assert.strictEqual(content, resourceText);
   await session.send({ method: 'IO.close', params: { handle: resource.stream, sessionId } });
 
   await session.send({ method: 'Debugger.resume', sessionId });

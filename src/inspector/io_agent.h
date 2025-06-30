@@ -22,7 +22,8 @@ class IoAgent : public IO::Backend {
 
  private:
   std::shared_ptr<IO::Frontend> frontend_;
-  std::unordered_map<int, int> offset_map_ = {};  // Maps stream_id to offset
+  std::unordered_map<std::string, int> offset_map_ =
+      {};  // Maps stream_id to offset
   std::shared_ptr<NetworkResourceManager> network_resource_manager_;
 };
 }  // namespace node::inspector::protocol

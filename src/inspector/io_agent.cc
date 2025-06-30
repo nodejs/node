@@ -18,23 +18,7 @@ DispatchResponse IoAgent::read(const String& in_handle,
                                Maybe<int> in_size,
                                String* out_data,
                                bool* out_eof) {
-  std::string in_handle_str = in_handle;
-  uint64_t stream_id = 0;
-  bool is_number =
-      std::all_of(in_handle_str.begin(), in_handle_str.end(), ::isdigit);
-  if (!is_number) {
-    *out_data = "";
-    *out_eof = true;
-    return DispatchResponse::Success();
-  }
-  stream_id = std::stoull(in_handle_str);
-
-  std::string url = network_resource_manager_->GetUrlForStreamId(stream_id);
-  if (url.empty()) {
-    *out_data = "";
-    *out_eof = true;
-    return DispatchResponse::Success();
-  }
+  std::string url = in_handle;
   std::string txt = network_resource_manager_->Get(url);
   std::string_view txt_view(txt);
 
@@ -43,8 +27,8 @@ DispatchResponse IoAgent::read(const String& in_handle,
   if (in_offset.isJust()) {
     offset = in_offset.fromJust();
     offset_was_specified = true;
-  } else if (offset_map_.find(stream_id) != offset_map_.end()) {
-    offset = offset_map_[stream_id];
+  } else if (offset_map_.find(url) != offset_map_.end()) {
+    offset = offset_map_[url];
   }
   int size = 1 << 20;
   if (in_size.isJust()) {
@@ -55,7 +39,7 @@ DispatchResponse IoAgent::read(const String& in_handle,
     out_data->assign(out_view.data(), out_view.size());
     *out_eof = false;
     if (!offset_was_specified) {
-      offset_map_[stream_id] = offset + size;
+      offset_map_[url] = offset + size;
     }
   } else {
     *out_data = "";
@@ -66,15 +50,8 @@ DispatchResponse IoAgent::read(const String& in_handle,
 }
 
 DispatchResponse IoAgent::close(const String& in_handle) {
-  std::string in_handle_str = in_handle;
-  uint64_t stream_id = 0;
-  bool is_number =
-      std::all_of(in_handle_str.begin(), in_handle_str.end(), ::isdigit);
-  if (is_number) {
-    stream_id = std::stoull(in_handle_str);
-    // Use accessor to erase resource and mapping by stream id
-    network_resource_manager_->EraseByStreamId(stream_id);
-  }
+  std::string url = in_handle;
+  network_resource_manager_->Erase(url);
   return DispatchResponse::Success();
 }
 }  // namespace node::inspector::protocol

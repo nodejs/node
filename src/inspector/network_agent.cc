@@ -358,10 +358,9 @@ protocol::DispatchResponse NetworkAgent::loadNetworkResource(
   std::string data = network_resource_manager_->Get(in_url);
   bool found = !data.empty();
   if (found) {
-    uint64_t stream_id = network_resource_manager_->GetStreamId(in_url);
     auto result = protocol::Network::LoadNetworkResourcePageResult::create()
                       .setSuccess(true)
-                      .setStream(std::to_string(stream_id))
+                      .setStream(in_url)
                       .build();
     *out_resource = std::move(result);
     return protocol::DispatchResponse::Success();
