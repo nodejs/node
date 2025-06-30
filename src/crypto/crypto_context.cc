@@ -75,8 +75,6 @@ static const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
 };
 
-static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
-
 static std::string extra_root_certs_file;  // NOLINT(runtime/string)
 
 static std::atomic<bool> has_cached_bundled_root_certs{false};
@@ -836,11 +834,13 @@ X509_STORE* NewRootCertStore() {
   X509_STORE* store = X509_STORE_new();
   CHECK_NOT_NULL(store);
 
-  if (*system_cert_path != '\0') {
+#ifdef NODE_OPENSSL_SYSTEM_CERT_PATH
+  if constexpr (sizeof(NODE_OPENSSL_SYSTEM_CERT_PATH) > 1) {
     ERR_set_mark();
-    X509_STORE_load_locations(store, system_cert_path, nullptr);
+    X509_STORE_load_locations(store, NODE_OPENSSL_SYSTEM_CERT_PATH, nullptr);
     ERR_pop_to_mark();
   }
+#endif
 
   Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
   if (per_process::cli_options->ssl_openssl_cert_store) {
