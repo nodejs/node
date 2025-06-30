@@ -739,7 +739,6 @@ Intercepted ContextifyContext::PropertyDefinerCallback(
     // kYes to behave according to the expected semantics.
     return Intercepted::kNo;
   }
-  return Intercepted::kNo;
 }
 
 // static
