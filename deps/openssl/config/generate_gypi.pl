@@ -48,15 +48,15 @@ my $makefile = $is_win ? "../config/Makefile_$arch": "Makefile";
 # Generate arch dependent header files with Makefile
 my $buildinf = "crypto/buildinf.h";
 my $progs = "apps/progs.h";
-my $prov_headers = "providers/common/include/prov/der_dsa.h providers/common/include/prov/der_wrap.h providers/common/include/prov/der_rsa.h providers/common/include/prov/der_ecx.h providers/common/include/prov/der_sm2.h providers/common/include/prov/der_ec.h providers/common/include/prov/der_digests.h";
+my $prov_headers = "providers/common/include/prov/der_dsa.h providers/common/include/prov/der_ml_dsa.h providers/common/include/prov/der_slh_dsa.h providers/common/include/prov/der_wrap.h providers/common/include/prov/der_rsa.h providers/common/include/prov/der_ecx.h providers/common/include/prov/der_sm2.h providers/common/include/prov/der_ec.h providers/common/include/prov/der_digests.h";
 my $fips_ld = ($arch =~ m/linux/ ? "providers/fips.ld" : "");
 my $cmd1 = "cd ../openssl; make -f $makefile clean build_generated $buildinf $progs $prov_headers $fips_ld;";
 system($cmd1) == 0 or die "Error in system($cmd1)";
 
 # Copy and move all arch dependent header files into config/archs
 make_path("$base_dir/crypto/include/internal", "$base_dir/include/openssl",
-	  "$base_dir/include/crypto", "$base_dir/providers/common/include/prov",
-	  "$base_dir/apps",
+	  "$base_dir/include/crypto", "$base_dir/include/internal",
+	  "$base_dir/providers/common/include/prov", "$base_dir/apps",
           {
            error => \my $make_path_err});
 if (@$make_path_err) {
@@ -73,6 +73,9 @@ copy_headers(@openssl_dir_headers, 'openssl');
 my @crypto_dir_headers = shift @ARGV;
 copy_headers(@crypto_dir_headers, 'crypto');
 
+my @internal_dir_headers = shift @ARGV;
+copy_headers(@internal_dir_headers, 'internal');
+
 move("$src_dir/include/crypto/bn_conf.h",
      "$base_dir/include/crypto/bn_conf.h") or die "Move failed: $!";
 move("$src_dir/include/crypto/dso_conf.h",
@@ -85,7 +88,14 @@ move("$src_dir/$progs",
 copy("$src_dir/apps/progs.c",
      "$base_dir/apps") or die "Copy failed: $!";
 
+move("$src_dir/include/internal/param_names.h",
+     "$base_dir/include/internal/param_names.h") or die "Move failed: $!";
+
 copy("$src_dir/providers/common/include/prov/der_dsa.h",
+     "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
+copy("$src_dir/providers/common/include/prov/der_ml_dsa.h",
+     "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
+copy("$src_dir/providers/common/include/prov/der_slh_dsa.h",
      "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
 copy("$src_dir/providers/common/include/prov/der_wrap.h",
      "$base_dir/providers/common/include/prov/") or die "Copy failed: $!";
@@ -363,7 +373,7 @@ close(CLGYPI);
 
 # Clean Up
 my $cmd2 ="cd $src_dir; make -f $makefile clean; make -f $makefile distclean;" .
-    "git clean -f $src_dir/crypto";
+    "git clean -f $src_dir";
 system($cmd2) == 0 or die "Error in system($cmd2)";
 
 
