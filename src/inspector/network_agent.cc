@@ -354,6 +354,7 @@ protocol::DispatchResponse NetworkAgent::loadNetworkResource(
         "experimental and requires --experimental-inspector-network-resource "
         "flag to be set.");
   }
+  CHECK_NOT_NULL(network_resource_manager_);
   std::string data = network_resource_manager_->Get(in_url);
   bool found = !data.empty();
   if (found) {
