@@ -538,6 +538,7 @@ will be present on the object:
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `'A'`     | `address`/`ttl`                                                                                                                                  |
 | `'AAAA'`  | `address`/`ttl`                                                                                                                                  |
+| `'CAA'`   | Refer to [`dns.resolveCaa()`][]                                                                                                                  |
 | `'CNAME'` | `value`                                                                                                                                          |
 | `'MX'`    | Refer to [`dns.resolveMx()`][]                                                                                                                   |
 | `'NAPTR'` | Refer to [`dns.resolveNaptr()`][]                                                                                                                |
@@ -1311,6 +1312,7 @@ present on the object:
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `'A'`     | `address`/`ttl`                                                                                                                                          |
 | `'AAAA'`  | `address`/`ttl`                                                                                                                                          |
+| `'CAA'`   | Refer to [`dnsPromises.resolveCaa()`][]                                                                                                                  |
 | `'CNAME'` | `value`                                                                                                                                                  |
 | `'MX'`    | Refer to [`dnsPromises.resolveMx()`][]                                                                                                                   |
 | `'NAPTR'` | Refer to [`dnsPromises.resolveNaptr()`][]                                                                                                                |
