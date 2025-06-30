@@ -137,9 +137,9 @@ test('should load resource put from another thread', async () => {
     if (notification.method === 'Target.attachedToTarget') {
       sessionId = notification.params.sessionId;
       return true;
-    } else {
-      return false;
     }
+    return false;
+
   });
   await setupInspector(session, sessionId);
 
