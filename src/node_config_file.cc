@@ -131,7 +131,6 @@ ParseResult ConfigReader::ProcessOptionValue(
               "No-op flag %s is currently not supported\n",
               option_name.c_str());
       return ParseResult::InvalidContent;
-      break;
     }
     case options_parser::OptionType::kV8Option: {
       FPrintF(stderr,
