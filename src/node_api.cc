@@ -1058,8 +1058,7 @@ napi_create_external_buffer(napi_env env,
 
 #if defined(V8_ENABLE_SANDBOX)
   return napi_set_last_error(env, napi_no_external_buffers_allowed);
-#endif
-
+#else
   v8::Isolate* isolate = env->isolate;
 
   // The finalizer object will delete itself after invoking the callback.
@@ -1081,6 +1080,7 @@ napi_create_external_buffer(napi_env env,
   // as it will be deleted when the buffer to which it is associated
   // is finalized.
   // coverity[leaked_storage]
+#endif  // V8_ENABLE_SANDBOX
 }
 
 napi_status NAPI_CDECL napi_create_buffer_copy(napi_env env,
