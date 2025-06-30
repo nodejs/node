@@ -8,6 +8,7 @@ if (!common.isMainThread)
 const { writeHeapSnapshot, getHeapSnapshot } = require('v8');
 const assert = require('assert');
 const fs = require('fs');
+const { promises: { pipeline }, PassThrough } = require('stream');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
@@ -75,4 +76,14 @@ process.chdir(tmpdir.path);
   snapshot.on('end', common.mustCall(() => {
     JSON.parse(data);
   }));
+}
+
+{
+  const passthrough = new PassThrough();
+  passthrough.on('data', common.mustCallAtLeast(1));
+
+  pipeline(
+    getHeapSnapshot(),
+    passthrough,
+  ).then(common.mustCall());
 }
