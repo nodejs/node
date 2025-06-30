@@ -6909,6 +6909,89 @@ changes:
 
 The path to the parent directory of the file this {fs.Dirent} object refers to.
 
+### Class: `fs.FastUtf8Stream`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+An optimized UTF-8 stream writer.
+
+#### `new fs.FastUtf8Stream([options])`
+
+* `options` {Object}
+  * `fd`: {number} A file descriptor, something that is returned by `fs.open()`
+    or `fs.openSync()`.
+  * `dest`: {string} A path to a file to be written to (mode controlled by the
+    append option).
+  * `minLength`: {number} The minimum length of the internal buffer that is
+    required to be full before flushing.
+  * `maxLength`: {number} The maximum length of the internal buffer. If a write
+    operation would cause the buffer to exceed `maxLength`, the data written is
+    dropped and a drop event is emitted with the dropped data
+  * `maxWrite`: {number} The maximum number of bytes that can be written;
+    **Default**: `16384`
+  * `periodicFlush`: {number} Calls flush every `periodicFlush` milliseconds.
+  * `sync`: {boolean} Perform writes synchronously.
+  * `fsync`: {boolean} Perform a `fs.fsyncSync()` every time a write is
+    completed.
+  * `append`: {boolean} Appends writes to dest file instead of truncating it.
+    **Default**: `true`.
+  * `mode`: {number|string} Specify the creating file mode (see `fs.open()`).
+  * `contentMode`: {string} Which type of data you can send to the write
+    function, supported values are `'utf8'` or `'buffer'`. **Default**:
+    `'utf8'`.
+  * `mkdir`: {boolean} Ensure directory for `dest` file exists when true.
+    **Default**: `false`.
+  * `retryEAGAIN` {Function} A function that will be called when `write()`,
+    `writeSync()`, or `flushSync()` encounters an `EAGAIN` or `EBUSY` error.
+    If the return value is `true` the operation will be retried, otherwise it
+    will bubble the error. The `err` is the error that caused this function to
+    be called, `writeBufferLen` is the length of the buffer that was written,
+    and `remainingBufferLen` is the length of the remaining buffer that the
+    stream did not try to write.
+    * `err` {any} An error or `null`.
+    * `writeBufferLen` {number}
+    * `remainingBufferLen`: {number}
+
+#### `fastUtf8Stream.destroy()`
+
+Close the stream immediately, without flushing the internal buffer.
+
+#### `fastUtf8Stream.end()`
+
+Close the stream gracefully, flushing the internal buffer before closing.
+
+#### `fastUtf8Stream.flush(callback)`
+
+* `callback` {Function}
+  * `err` {Error|null} An error if the flush failed, otherwise `null`.
+
+Writes the current buffer to the file if a write was not in progress. Do
+nothing if `minLength` is zero or if it is already writing.
+
+#### `fastUtf8Stream.flushSync()`
+
+Flushes the buffered data synchronously. This is a costly operation.
+
+#### `fastUtf8Stream.reopen(file)`
+
+* `file`: {string|Buffer|URL} A path to a file to be written to (mode
+  controlled by the append option).
+
+Reopen the file in place, useful for log rotation.
+
+#### `fastUtf8Stream.write(data)`
+
+* `data` {string} The data to write.
+* Returns {boolean}
+
+#### `fastUtf8Stream[Symbol.dispose]()`
+
+Calls `fastUtf8Stream.destroy()`.
+
 ### Class: `fs.FSWatcher`
 
 <!-- YAML
