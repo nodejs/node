@@ -66,6 +66,10 @@ const ignoreList = [
   'R_OK',
   'F_OK',
   'Dir',
+  // the FastUtf8Stream is implemented in terms of functions
+  // on the fs module that have permission checks, so we don't
+  // need to check it here.
+  'FastUtf8Stream',
   'FileReadStream',
   'FileWriteStream',
   '_toUnixTimestamp',
