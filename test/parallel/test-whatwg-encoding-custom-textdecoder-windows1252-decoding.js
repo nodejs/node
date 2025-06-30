@@ -42,17 +42,14 @@ const assert = require('assert');
     [0x9C, 0x0153], // LATIN SMALL LIGATURE OE
     [0x9D, 0x009D], // UNDEFINED
     [0x9E, 0x017E], // LATIN SMALL LETTER Z WITH CARON
-    [0x9F, 0x0178]  // LATIN CAPITAL LETTER Y WITH DIAERESIS
+    [0x9F, 0x0178],  // LATIN CAPITAL LETTER Y WITH DIAERESIS
   ];
 
   for (let i = 0; i < win1252_0x7F_0x9F.length; i++) {
     const byte = win1252_0x7F_0x9F[i][0];
     const expectedUnicodeCode = win1252_0x7F_0x9F[i][1];
     const arr = new Uint8Array([byte]);
-    let decoded;
-    assert.doesNotThrow(() => {
-      decoded = new TextDecoder("windows-1252").decode(arr);
-    }, `Decoding byte ${byte} should not throw`);
+    const decoded = new TextDecoder('windows-1252').decode(arr);
     assert.strictEqual(decoded.length, 1, `Decoded string for ${byte} should have length 1`);
     const actualUnicodeCode = decoded.codePointAt(0);
     assert.strictEqual(actualUnicodeCode, expectedUnicodeCode, `Decoded code point for ${byte} should be U+${expectedUnicodeCode.toString(16).toUpperCase()}`);
