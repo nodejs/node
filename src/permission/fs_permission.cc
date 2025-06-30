@@ -72,43 +72,53 @@ bool is_tree_granted(
   return granted_tree->Lookup(resolved_param, true);
 }
 
-void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
-               size_t spaces = 0) {
-  std::string whitespace(spaces, ' ');
+static const char* kBoxDrawingsLightUpAndRight = "└─ ";
+static const char* kBoxDrawingsLightVerticalAndRight = "├─ ";
 
+void PrintTree(const node::permission::FSPermission::RadixTree::Node* node,
+               size_t depth = 0,
+               const std::string& branch_prefix = "",
+               bool is_last = true) {
   if (node == nullptr) {
     return;
   }
-  if (node->wildcard_child != nullptr) {
-    node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
-                             "%s Wildcard: %s\n",
-                             whitespace,
-                             node->prefix);
-  } else {
-    node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
-                             "%s Prefix: %s\n",
-                             whitespace,
-                             node->prefix);
-    if (node->children.size()) {
-      size_t child = 0;
-      for (const auto& pair : node->children) {
-        ++child;
-        node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
-                                 "%s Child(%s): %s\n",
-                                 whitespace,
-                                 child,
-                                 std::string(1, pair.first));
-        PrintTree(pair.second, spaces + 2);
+
+  if (depth > 0 || (node->prefix.length() > 0)) {
+    std::string indent;
+
+    if (depth > 0) {
+      indent = branch_prefix;
+      if (is_last) {
+        indent += kBoxDrawingsLightUpAndRight;
+      } else {
+        indent += kBoxDrawingsLightVerticalAndRight;
       }
-      node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
-                               "%s End of tree - child(%s)\n",
-                               whitespace,
-                               child);
-    } else {
-      node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
-                               "%s End of tree: %s\n",
-                               whitespace,
-                               node->prefix);
+    }
+
+    node::per_process::Debug(node::DebugCategory::PERMISSION_MODEL,
+                             "%s%s\n",
+                             indent.c_str(),
+                             node->prefix.c_str());
+  }
+
+  if (node->children.size() > 0) {
+    size_t count = 0;
+    size_t total = node->children.size();
+
+    std::string next_branch_prefix;
+    if (depth > 0) {
+      next_branch_prefix = branch_prefix;
+      if (is_last) {
+        next_branch_prefix += "   ";
+      } else {
+        next_branch_prefix += "│  ";
+      }
+    }
+
+    for (const auto& pair : node->children) {
+      count++;
+      bool child_is_last = (count == total);
+      PrintTree(pair.second, depth + 1, next_branch_prefix, child_is_last);
     }
   }
 }
