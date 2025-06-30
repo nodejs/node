@@ -8,7 +8,7 @@
 #include "util-inl.h"
 
 #if HAVE_OPENSSL
-#include "ncrypto.h"
+#include "ncrypto.h"  // Ensure OPENSSL_IS_BORINGSSL is defined if applicable
 #endif
 
 namespace node {
