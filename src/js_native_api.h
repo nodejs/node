@@ -567,6 +567,7 @@ node_api_post_finalizer(node_api_basic_env env,
                         void* finalize_data,
                         void* finalize_hint);
 
+#define NODE_API_EXPERIMENTAL_HAS_FLOAT16_ARRAY
 #endif  // NAPI_EXPERIMENTAL
 
 #if NAPI_VERSION >= 6
