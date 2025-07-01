@@ -41,7 +41,10 @@ exports.createProxyServer = function(options = {}) {
       port: targetPort,
       path: url.pathname + url.search,  // Convert back to relative URL.
       method: req.method,
-      headers: req.headers,
+      headers: {
+        ...req.headers,
+        'connection': req.headers['proxy-connection'] || 'close',
+      },
     };
 
     const proxyReq = http.request(options, (proxyRes) => {
@@ -161,4 +164,28 @@ exports.checkProxiedFetch = async function(envExtension, expectation) {
     signal: null,
     ...expectation,
   });
+};
+
+exports.runProxiedRequest = async function(envExtension) {
+  const fixtures = require('./fixtures');
+  return spawnPromisified(
+    process.execPath,
+    [fixtures.path('request-and-log.js')], {
+      env: {
+        ...process.env,
+        ...envExtension,
+      },
+    });
+};
+
+exports.runProxiedPOST = async function(envExtension) {
+  const fixtures = require('./fixtures');
+  return spawnPromisified(
+    process.execPath,
+    [fixtures.path('post-resource-and-log.js')], {
+      env: {
+        ...process.env,
+        ...envExtension,
+      },
+    });
 };
