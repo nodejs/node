@@ -2052,7 +2052,7 @@ changes:
     **Default:** `false`.
   * `help` {string} General help text to display at the beginning of help output.
   * `enableHelpPrinting` {boolean} When `true`, if any options have help text
-    configured, the help will be printed to stdout and the process will exit
+    configured and a `--help` entry was provided, the help will be printed to stdout and the process will exit
     with code 0. **Default:** `false`.
 
 * Returns: {Object} The parsed command line arguments:
@@ -2123,10 +2123,10 @@ const options = {
     short: 'v',
     help: 'Enable verbose output',
   },
-  file: {
-    type: 'string',
-    short: 'f',
-    help: 'Input file path',
+  help: {
+    type: 'boolean',
+    short: 'h',
+    help: 'Prints command line options',
   },
   output: {
     type: 'string',
@@ -2134,20 +2134,20 @@ const options = {
   },
 };
 
-// Get help text in result
+// Get serialized help text in result
 const result = parseArgs({
   options,
   help: 'My CLI Tool v1.0\n\nProcess files with various options.',
 });
 
 if (result.printUsage) {
-  console.log(result.printUsage.join('\n'));
+  console.log(result.printUsage);
   // Prints:
   // My CLI Tool v1.0
   //
   // Process files with various options.
   // -v, --verbose             Enable verbose output
-  // -f, --file <arg>           Input file path
+  // -h, --help.               Prints command line options
   // --output <arg>            Output directory
 }
 
@@ -2169,10 +2169,10 @@ const options = {
     short: 'v',
     help: 'Enable verbose output',
   },
-  file: {
-    type: 'string',
-    short: 'f',
-    help: 'Input file path',
+  help: {
+    type: 'boolean',
+    short: 'h',
+    help: 'Prints command line options',
   },
   output: {
     type: 'string',
@@ -2187,13 +2187,13 @@ const result = parseArgs({
 });
 
 if (result.printUsage) {
-  console.log(result.printUsage.join('\n'));
+  console.log(result.printUsage);
   // Prints:
   // My CLI Tool v1.0
   //
   // Process files with various options.
   // -v, --verbose             Enable verbose output
-  // -f, --file <arg>           Input file path
+  // -h, --help.               Prints command line options
   // --output <arg>            Output directory
 }
 
