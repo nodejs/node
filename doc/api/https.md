@@ -65,6 +65,14 @@ An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 
 <!-- YAML
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58980
+    description: Add support for `proxyEnv`.
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58980
+    description: Add support for `defaultPort` and `protocol`.
   - version: v12.5.0
     pr-url: https://github.com/nodejs/node/pull/28209
     description: do not automatically set servername if the target host was
