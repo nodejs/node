@@ -2,7 +2,7 @@ import { spawnPromisified } from '../common/index.mjs';
 import { describe, it } from 'node:test';
 import { strictEqual, match } from 'node:assert';
 
-describe('maybe top-level await syntax errors that are not recognized as top-level await errors', () => {
+describe('unusual top-level await syntax errors', () => {
   const expressions = [
     // string
     { expression: '""' },
