@@ -21,16 +21,6 @@ assert(manpageEnvVarNames.size > 0,
        'Unexpectedly not even a single env variable was detected when scanning the `doc/node.1` file'
 );
 
-// TODO(dario-piotrowicz): add the missing env variables to the manpage and remove this set
-//                         (refs: https://github.com/nodejs/node/issues/58894)
-const knownEnvVariablesMissingFromManPage = new Set([
-  'NODE_COMPILE_CACHE',
-  'NODE_DISABLE_COMPILE_CACHE',
-  'NODE_PENDING_PIPE_INSTANCES',
-  'NODE_TEST_CONTEXT',
-  'NODE_USE_ENV_PROXY',
-]);
-
 for (const envVarName of cliMdEnvVarNames) {
   if (!manpageEnvVarNames.has(envVarName) && !knownEnvVariablesMissingFromManPage.has(envVarName)) {
     assert.fail(`The "${envVarName}" environment variable (present in \`doc/api/cli.md\`) is missing from the \`doc/node.1\` file`);

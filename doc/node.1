@@ -693,11 +693,21 @@ disabled.
 .It Ev NO_COLOR
 Alias for NODE_DISABLE_COLORS
 .
+.It Ev NODE_COMPILE_CACHE Ar dir
+Enable the
+.Sy module compile cache 
+for the Node.js instance
+.
 .It Ev NODE_DEBUG Ar modules...
 Comma-separated list of core modules that should print debug information.
 .
 .It Ev NODE_DEBUG_NATIVE Ar modules...
 Comma-separated list of C++ core modules that should print debug information.
+.
+.It Ev NODE_DISABLE_COMPILE_CACHE Ar dir
+Disable the
+.Sy module compile cache 
+for the Node.js instance
 .
 .It Ev NODE_DISABLE_COLORS
 When set to
@@ -754,6 +764,9 @@ When set to
 .Ar 1 ,
 emit pending deprecation warnings.
 .
+.It Ev NODE_PENDING_PIPE_INSTANCES
+Set the number of pending pipe instance handles when the pipe server is waiting for connections. This setting applies to Windows only.
+.
 .It Ev NODE_PRESERVE_SYMLINKS
 When set to
 .Ar 1 ,
@@ -787,10 +800,24 @@ the check for a supported platform is skipped during Node.js startup.
 Node.js might not execute correctly.
 Any issues encountered on unsupported platforms will not be fixed.
 .
+.It Ev NODE_TEST_CONTEXT
+When set to
+.Sq child,
+test reporter options will be overridden and test output will be sent to stdout in the TAP format.
+If any other value is provided, Node.js makes no guarantees about the reporter format used or its stability.
+.
 .It Ev NODE_TLS_REJECT_UNAUTHORIZED
 When set to
 .Ar 0 ,
 TLS certificate validation is disabled.
+.
+.It Ev NODE_USE_ENV_PROXY
+When enabled, Node.js parses the 
+.Ar HTTP_PROXY, 
+.Ar HTTPS_PROXY 
+and 
+.Ar NO_PROXY
+environment variables during startup, and tunnels requests over the specified proxy.
 .
 .It Ev NODE_V8_COVERAGE Ar dir
 When set, Node.js writes JavaScript code coverage information to
