@@ -130,10 +130,10 @@ decision making must be taken back to asynchronous communication to ensure
 that all members can participate and that the context of the decision is
 documented for posterity.
 
-In principal, topics discussed in the TSC meetings should be public and
-streamed, so that a recording can also be made publicly available afterwards.
+In principle, topics discussed in the TSC meetings should be public and
+streamed or recorded, so that a recording can also be made publicly available afterwards.
 Exception may be given to discussions related to security, legal matters,
-personnel or other sensitive topics that require confidentiality. In these
+personnel, or other sensitive topics that require confidentiality. In these
 cases, the discussion should at least be summarized and posted to a written
 channel. If the outcome of the discussion is public, a summary should be
 made public as well, even with a delay to prevent premature disclosure
