@@ -117,6 +117,14 @@ http.get({
 added: v0.3.4
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58980
+    description: Add support for `proxyEnv`.
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58980
+    description: Add support for `defaultPort` and `protocol`.
+  - version:
       - v15.6.0
       - v14.17.0
     pr-url: https://github.com/nodejs/node/pull/36685
@@ -178,6 +186,20 @@ changes:
     **Default:** `'lifo'`.
   * `timeout` {number} Socket timeout in milliseconds.
     This will set the timeout when the socket is created.
+  * `proxyEnv` {Object|undefined} Environment variables for proxy configuration.
+    See [Built-in Proxy Support][] for details. **Default:** `undefined`
+    * `HTTP_PROXY` {string|undefined} URL for the proxy server that HTTP requests should use.
+      If undefined, no proxy is used for HTTP requests.
+    * `HTTPS_PROXY` {string|undefined} URL for the proxy server that HTTPS requests should use.
+      If undefined, no proxy is used for HTTPS requests.
+    * `NO_PROXY` {string|undefined} Patterns specifying the endpoints
+      that should not be routed through a proxy.
+    * `http_proxy` {string|undefined} Same as `HTTP_PROXY`. If both are set, `http_proxy` takes precedence.
+    * `https_proxy` {string|undefined} Same as `HTTPS_PROXY`. If both are set, `https_proxy` takes precedence.
+    * `no_proxy` {string|undefined} Same as `NO_PROXY`. If both are set, `no_proxy` takes precedence.
+  * `defaultPort` {number} Default port to use when the port is not specified
+    in requests. **Default:** `80`.
+  * `protocol` {string} The protocol to use for the agent. **Default:** `'http:'`.
 
 `options` in [`socket.connect()`][] are also supported.
 
@@ -4243,6 +4265,98 @@ added:
 
 A browser-compatible implementation of {WebSocket}.
 
+## Built-in Proxy Support
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When Node.js creates the global agent, it checks the `NODE_USE_ENV_PROXY`
+environment variable. If it is set to `1`, the global agent will be constructed
+with `proxyEnv: process.env`, enabling proxy support based on the environment variables.
+
+Custom agents can also be created with proxy support by passing a
+`proxyEnv` option when constructing the agent. The value can be `process.env`
+if they just want to inherit the configuration from the environment variables,
+or an object with specific setting overriding the environment.
+
+The following properties of the `proxyEnv` are checked to configure proxy
+support.
+
+* `HTTP_PROXY` or `http_proxy`: Proxy server URL for HTTP requests. If both are set,
+  `http_proxy` takes precedence.
+* `HTTPS_PROXY` or `https_proxy`: Proxy server URL for HTTPS requests. If both are set,
+  `https_proxy` takes precedence.
+* `NO_PROXY` or `no_proxy`: Comma-separated list of hosts to bypass the proxy. If both are set,
+  `no_proxy` takes precedence.
+
+If the request is made to a Unix domain socket, the proxy settings will be ignored.
+
+### Proxy URL Format
+
+Proxy URLs can use either HTTP or HTTPS protocols:
+
+* HTTP proxy: `http://proxy.example.com:8080`
+* HTTPS proxy: `https://proxy.example.com:8080`
+* Proxy with authentication: `http://username:password@proxy.example.com:8080`
+
+### `NO_PROXY` Format
+
+The `NO_PROXY` environment variable supports several formats:
+
+* `*` - Bypass proxy for all hosts
+* `example.com` - Exact host name match
+* `.example.com` - Domain suffix match (matches `sub.example.com`)
+* `*.example.com` - Wildcard domain match
+* `192.168.1.100` - Exact IP address match
+* `192.168.1.1-192.168.1.100` - IP address range
+* `example.com:8080` - Hostname with specific port
+
+Multiple entries should be separated by commas.
+
+### Example
+
+Starting a Node.js process with proxy support enabled for all requests sent
+through the default global agent:
+
+```console
+NODE_USE_ENV_PROXY=1 HTTP_PROXY=http://proxy.example.com:8080 NO_PROXY=localhost,127.0.0.1 node client.js
+```
+
+To create a custom agent with built-in proxy support:
+
+```cjs
+const http = require('node:http');
+
+// Creating a custom agent with custom proxy support.
+const agent = new http.Agent({ proxyEnv: { HTTP_PROXY: 'http://proxy.example.com:8080' } });
+
+http.request({
+  hostname: 'www.example.com',
+  port: 80,
+  path: '/',
+  agent,
+}, (res) => {
+  // This request will be proxied through proxy.example.com:8080 using the HTTP protocol.
+  console.log(`STATUS: ${res.statusCode}`);
+});
+```
+
+Alternatively, the following also works:
+
+```cjs
+const http = require('node:http');
+// Use lower-cased option name.
+const agent1 = new http.Agent({ proxyEnv: { http_proxy: 'http://proxy.example.com:8080' } });
+// Use values inherited from the environment variables, if the process is started with
+// HTTP_PROXY=http://proxy.example.com:8080 this will use the proxy server specified
+// in process.env.HTTP_PROXY.
+const agent2 = new http.Agent({ proxyEnv: process.env });
+```
+
+[Built-in Proxy Support]: #built-in-proxy-support
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
 [`'checkContinue'`]: #event-checkcontinue

@@ -2491,6 +2491,18 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
 
+<a id="ERR_PROXY_INVALID_CONFIG"></a>
+
+### `ERR_PROXY_INVALID_CONFIG`
+
+Failed to proxy a request because the proxy configuration is invalid.
+
+<a id="ERR_PROXY_TUNNEL"></a>
+
+### `ERR_PROXY_TUNNEL`
+
+Failed to establish proxy tunnel when `NODE_USE_ENV_PROXY` is enabled.
+
 <a id="ERR_QUIC_APPLICATION_ERROR"></a>
 
 ### `ERR_QUIC_APPLICATION_ERROR`

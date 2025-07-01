@@ -10,7 +10,7 @@ if (!common.hasCrypto)
 
 // https must be dynamically imported so that builds without crypto support
 // can skip it.
-const https = (await import('node:https')).default;
+const { default: https } = await import('node:https');
 
 // Start a server to process the final request.
 const server = https.createServer({
