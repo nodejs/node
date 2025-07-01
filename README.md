@@ -355,6 +355,8 @@ For information about the governance of the Node.js project, see
   **Harshitha K P** <<harshitha014@gmail.com>> (she/her)
 * [himself65](https://github.com/himself65) -
   **Zeyu "Alex" Yang** <<himself65@outlook.com>> (he/him)
+* [IlyasShabi](https://github.com/IlyasShabi) -
+  **Ilyas Shabi** <<ilyasshabi94@gmail.com>> (he/him)
 * [islandryu](https://github.com/islandryu) -
   **Ryuhei Shima** <<shimaryuhei@gmail.com>> (he/him)
 * [jakecastelli](https://github.com/jakecastelli) -
