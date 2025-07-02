@@ -121,7 +121,7 @@ The TSC may invite people to take part in a non-voting capacity in either the
 public or private portions of the meeting.
 
 During the public portion of the meeting, the TSC chair ensures that someone
-takes minutes that include a detailed summary of the discussion and any
+takes minutes that include a summary of the discussion and any
 decisions made. After the meeting, the TSC chair ensures that someone opens a
 public pull request with the minutes from the public portion of the meeting.
 
