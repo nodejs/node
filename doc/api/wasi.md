@@ -254,7 +254,7 @@ added: REPLACEME
   * `memory` {WebAssembly.Memory} **Default:** `instance.exports.memory`.
 
 Set up WASI host bindings to `instance` without calling `initialize()`
-or `start()`. This method is useful when the wasi module is instatiated in
+or `start()`. This method is useful when the WASI module is instantiated in
 child threads for sharing the memory across threads.
 
 `finalizeBindings()` requires that either `instance` exports a
