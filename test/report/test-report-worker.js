@@ -13,7 +13,7 @@ async function basic() {
     parentPort.once('message', () => {
       /* Wait for message to stop the Worker */
     });
-  `, { eval: true });
+  `, { eval: true, name: 'hello' });
 
   await once(w, 'online');
 
@@ -22,7 +22,8 @@ async function basic() {
   assert.strictEqual(report.workers.length, 1);
   helper.validateContent(report.workers[0]);
   assert.strictEqual(report.workers[0].header.threadId, w.threadId);
-
+  assert.strictEqual(report.workers[0].header.event,
+                     'Worker thread subreport [hello]');
   w.postMessage({});
 
   await once(w, 'exit');
