@@ -164,20 +164,4 @@ int nghttp3_pq_empty(const nghttp3_pq *pq) { return pq->length == 0; }
 
 size_t nghttp3_pq_size(const nghttp3_pq *pq) { return pq->length; }
 
-int nghttp3_pq_each(const nghttp3_pq *pq, nghttp3_pq_item_cb fun, void *arg) {
-  size_t i;
-
-  if (pq->length == 0) {
-    return 0;
-  }
-
-  for (i = 0; i < pq->length; ++i) {
-    if ((*fun)(pq->q[i], arg)) {
-      return 1;
-    }
-  }
-
-  return 0;
-}
-
 void nghttp3_pq_clear(nghttp3_pq *pq) { pq->length = 0; }
