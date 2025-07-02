@@ -64,7 +64,7 @@ interface InternalBindingMap {
 
 type InternalBindingKeys = keyof InternalBindingMap;
 
-declare function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T]
+declare function internalBinding<T extends InternalBindingKeys>(binding: T): InternalBindingMap[T];
 
 declare global {
   type TypedArray =

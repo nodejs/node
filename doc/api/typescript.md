@@ -145,7 +145,7 @@ This example will work correctly:
 ```ts
 // This namespace is exporting a type
 namespace TypeOnly {
-   export type A = string;
+  export type A = string;
 }
 ```
 
@@ -154,7 +154,7 @@ This will result in [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`][] error:
 ```ts
 // This namespace is exporting a value
 namespace A {
-   export const x = 1;
+  export const x = 1;
 }
 ```
 
