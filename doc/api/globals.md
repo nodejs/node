@@ -4,6 +4,8 @@
 
 <!-- type=misc -->
 
+> Stability: 2 - Stable
+
 These objects are available in all modules.
 
 The following variables may appear to be global but are not. They exist only in
@@ -31,9 +33,6 @@ changes:
     description: No longer experimental.
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 A utility class used to signal cancelation in selected `Promise`-based APIs.
 The API is based on the Web API [`AbortController`][].
@@ -232,10 +231,6 @@ If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
 added: v18.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 See {Blob}.
 
 ## Class: `Buffer`
@@ -243,10 +238,6 @@ See {Blob}.
 <!-- YAML
 added: v0.1.103
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 * {Function}
 
@@ -290,8 +281,6 @@ Global alias for [`buffer.atob()`][].
 added: v18.0.0
 -->
 
-> Stability: 2 - Stable
-
 See {BroadcastChannel}.
 
 ## `btoa(data)`
@@ -310,10 +299,6 @@ Global alias for [`buffer.btoa()`][].
 added: v0.9.1
 -->
 
-> Stability: 2 - Stable
-
-<!--type=global-->
-
 [`clearImmediate`][] is described in the [timers][] section.
 
 ## `clearInterval(intervalObject)`
@@ -321,10 +306,6 @@ added: v0.9.1
 <!-- YAML
 added: v0.0.1
 -->
-
-> Stability: 2 - Stable
-
-<!--type=global-->
 
 [`clearInterval`][] is described in the [timers][] section.
 
@@ -334,10 +315,6 @@ added: v0.0.1
 added: v0.0.1
 -->
 
-> Stability: 2 - Stable
-
-<!--type=global-->
-
 [`clearTimeout`][] is described in the [timers][] section.
 
 ## `CloseEvent`
@@ -345,10 +322,6 @@ added: v0.0.1
 <!-- YAML
 added: v23.0.0
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 The `CloseEvent` class. See [`CloseEvent`][] for more details.
 
@@ -374,10 +347,6 @@ A browser-compatible implementation of [`CompressionStream`][].
 <!-- YAML
 added: v0.1.100
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 * {Object}
 
@@ -412,8 +381,6 @@ changes:
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 2 - Stable
-
 A browser-compatible implementation of {Crypto}. This global is available
 only if the Node.js binary was compiled with including support for the
 `node:crypto` module.
@@ -433,8 +400,6 @@ changes:
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 2 - Stable
-
 A browser-compatible implementation of the [Web Crypto API][].
 
 ## `CryptoKey`
@@ -451,8 +416,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/42083
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
-
-> Stability: 2 - Stable
 
 A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
@@ -477,10 +440,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/44860
     description: No longer behind `--experimental-global-customevent` CLI flag.
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 A browser-compatible implementation of the [`CustomEvent` Web API][].
 
@@ -508,10 +467,6 @@ changes:
     description: No longer experimental.
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 A browser-compatible implementation of the `Event` class. See
 [`EventTarget` and `Event` API][] for more details.
 
@@ -538,10 +493,6 @@ changes:
     description: No longer experimental.
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 A browser-compatible implementation of the `EventTarget` class. See
 [`EventTarget` and `Event` API][] for more details.
 
@@ -564,8 +515,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/41811
     description: No longer behind `--experimental-fetch` CLI flag.
 -->
-
-> Stability: 2 - Stable
 
 A browser-compatible implementation of the [`fetch()`][] function.
 
@@ -615,10 +564,6 @@ The following globals are available to use with `fetch`:
 added: v20.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 See {File}.
 
 ## Class: `FormData`
@@ -637,8 +582,6 @@ changes:
     description: No longer behind `--experimental-fetch` CLI flag.
 -->
 
-> Stability: 2 - Stable
-
 A browser-compatible implementation of {FormData}.
 
 ## `global`
@@ -646,8 +589,6 @@ A browser-compatible implementation of {FormData}.
 <!-- YAML
 added: v0.1.27
 -->
-
-<!-- type=global -->
 
 > Stability: 3 - Legacy. Use [`globalThis`][] instead.
 
@@ -676,8 +617,6 @@ changes:
     description: No longer behind `--experimental-fetch` CLI flag.
 -->
 
-> Stability: 2 - Stable
-
 A browser-compatible implementation of {Headers}.
 
 ## `localStorage`
@@ -702,10 +641,6 @@ of a server, it is shared across all users and requests.
 added: v15.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 The `MessageChannel` class. See [`MessageChannel`][] for more details.
 
 ## `MessageEvent`
@@ -714,10 +649,6 @@ The `MessageChannel` class. See [`MessageChannel`][] for more details.
 added: v15.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 The `MessageEvent` class. See [`MessageEvent`][] for more details.
 
 ## `MessagePort`
@@ -725,10 +656,6 @@ The `MessageEvent` class. See [`MessageEvent`][] for more details.
 <!-- YAML
 added: v15.0.0
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 The `MessagePort` class. See [`MessagePort`][] for more details.
 
@@ -850,10 +777,6 @@ console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 added: v19.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 The `PerformanceEntry` class. See [`PerformanceEntry`][] for more details.
 
 ## `PerformanceMark`
@@ -861,10 +784,6 @@ The `PerformanceEntry` class. See [`PerformanceEntry`][] for more details.
 <!-- YAML
 added: v19.0.0
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 The `PerformanceMark` class. See [`PerformanceMark`][] for more details.
 
@@ -874,10 +793,6 @@ The `PerformanceMark` class. See [`PerformanceMark`][] for more details.
 added: v19.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 The `PerformanceMeasure` class. See [`PerformanceMeasure`][] for more details.
 
 ## `PerformanceObserver`
@@ -886,10 +801,6 @@ The `PerformanceMeasure` class. See [`PerformanceMeasure`][] for more details.
 added: v19.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 The `PerformanceObserver` class. See [`PerformanceObserver`][] for more details.
 
 ## `PerformanceObserverEntryList`
@@ -897,10 +808,6 @@ The `PerformanceObserver` class. See [`PerformanceObserver`][] for more details.
 <!-- YAML
 added: v19.0.0
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 The `PerformanceObserverEntryList` class. See
 [`PerformanceObserverEntryList`][] for more details.
@@ -911,10 +818,6 @@ The `PerformanceObserverEntryList` class. See
 added: v19.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 The `PerformanceResourceTiming` class. See [`PerformanceResourceTiming`][] for
 more details.
 
@@ -924,8 +827,6 @@ more details.
 added: v16.0.0
 -->
 
-> Stability: 2 - Stable
-
 The [`perf_hooks.performance`][] object.
 
 ## `process`
@@ -933,10 +834,6 @@ The [`perf_hooks.performance`][] object.
 <!-- YAML
 added: v0.1.7
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 * {Object}
 
@@ -947,10 +844,6 @@ The process object. See the [`process` object][] section.
 <!-- YAML
 added: v11.0.0
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 * `callback` {Function} Function to be queued.
 
@@ -1088,8 +981,6 @@ changes:
     description: No longer behind `--experimental-fetch` CLI flag.
 -->
 
-> Stability: 2 - Stable
-
 A browser-compatible implementation of {Response}.
 
 ## `Request`
@@ -1107,8 +998,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/41811
     description: No longer behind `--experimental-fetch` CLI flag.
 -->
-
-> Stability: 2 - Stable
 
 A browser-compatible implementation of {Request}.
 
@@ -1130,10 +1019,6 @@ the currently running process, and is not shared between workers.
 added: v0.9.1
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 [`setImmediate`][] is described in the [timers][] section.
 
 ## `setInterval(callback, delay[, ...args])`
@@ -1142,10 +1027,6 @@ added: v0.9.1
 added: v0.0.1
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 [`setInterval`][] is described in the [timers][] section.
 
 ## `setTimeout(callback, delay[, ...args])`
@@ -1153,10 +1034,6 @@ added: v0.0.1
 <!-- YAML
 added: v0.0.1
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 [`setTimeout`][] is described in the [timers][] section.
 
@@ -1177,10 +1054,6 @@ A browser-compatible implementation of [`Storage`][]. Enable this API with the
 added: v17.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 The WHATWG [`structuredClone`][] method.
 
 ## `SubtleCrypto`
@@ -1195,8 +1068,6 @@ changes:
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 2 - Stable
-
 A browser-compatible implementation of {SubtleCrypto}. This global is available
 only if the Node.js binary was compiled with including support for the
 `node:crypto` module.
@@ -1207,10 +1078,6 @@ only if the Node.js binary was compiled with including support for the
 added: v17.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 The WHATWG `DOMException` class. See [`DOMException`][] for more details.
 
 ## `TextDecoder`
@@ -1218,10 +1085,6 @@ The WHATWG `DOMException` class. See [`DOMException`][] for more details.
 <!-- YAML
 added: v11.0.0
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 
@@ -1244,10 +1107,6 @@ A browser-compatible implementation of [`TextDecoderStream`][].
 <!-- YAML
 added: v11.0.0
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
 
@@ -1299,10 +1158,6 @@ A browser-compatible implementation of [`TransformStreamDefaultController`][].
 added: v10.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 The WHATWG `URL` class. See the [`URL`][] section.
 
 ## `URLPattern`
@@ -1313,8 +1168,6 @@ added: v24.0.0
 
 > Stability: 1 - Experimental
 
-<!-- type=global -->
-
 The WHATWG `URLPattern` class. See the [`URLPattern`][] section.
 
 ## `URLSearchParams`
@@ -1323,10 +1176,6 @@ The WHATWG `URLPattern` class. See the [`URLPattern`][] section.
 added: v10.0.0
 -->
 
-> Stability: 2 - Stable
-
-<!-- type=global -->
-
 The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 
 ## `WebAssembly`
@@ -1334,10 +1183,6 @@ The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 <!-- YAML
 added: v8.0.0
 -->
-
-> Stability: 2 - Stable
-
-<!-- type=global -->
 
 * {Object}
 
@@ -1359,8 +1204,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/51594
     description: No longer behind `--experimental-websocket` CLI flag.
 -->
-
-> Stability: 2 - Stable
 
 A browser-compatible implementation of [`WebSocket`][]. Disable this API
 with the [`--no-experimental-websocket`][] CLI flag.
