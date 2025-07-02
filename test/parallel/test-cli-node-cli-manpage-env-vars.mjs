@@ -22,7 +22,7 @@ assert(manpageEnvVarNames.size > 0,
 );
 
 for (const envVarName of cliMdEnvVarNames) {
-  if (!manpageEnvVarNames.has(envVarName) && !knownEnvVariablesMissingFromManPage.has(envVarName)) {
+  if (!manpageEnvVarNames.has(envVarName)) {
     assert.fail(`The "${envVarName}" environment variable (present in \`doc/api/cli.md\`) is missing from the \`doc/node.1\` file`);
   }
   manpageEnvVarNames.delete(envVarName);
