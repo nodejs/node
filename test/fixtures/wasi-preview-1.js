@@ -96,6 +96,8 @@ assert.strictEqual(wasiPreview1.wasiImport,
         } else if (cmd === 'cleanup-thread') {
           workers[tid].terminate();
           delete workers[tid];
+        } else if (cmd === 'terminate-all-threads') {
+          terminateAllThreads();
         }
       });
 
@@ -214,7 +216,15 @@ assert.strictEqual(wasiPreview1.wasiImport,
     throw e;
   }
   if (!isMainThread) {
-    instancePreview1.exports.wasi_thread_start(workerData.tid, workerData.startArg);
+    try {
+      instancePreview1.exports.wasi_thread_start(workerData.tid, workerData.startArg);
+    } catch (err) {
+      if (err instanceof WebAssembly.RuntimeError) {
+        parentPort.postMessage({ cmd: 'terminate-all-threads' });
+      }
+      throw err
+    }
+
     parentPort.postMessage({ cmd: 'cleanup-thread', tid: workerData.tid });
   }
 })().then(common.mustCall());
