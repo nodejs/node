@@ -194,7 +194,7 @@ easy to configure permissions as needed when using `npx`.
 
 There are constraints you need to know before using this system:
 
-* The model does not inherit to a child node process or a worker thread.
+* The model does not inherit to a worker thread.
 * When using the Permission Model the following features will be restricted:
   * Native modules
   * Child process
