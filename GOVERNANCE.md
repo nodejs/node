@@ -138,13 +138,12 @@ and ensures that those are shared with all TSC members via a private discussion
 channel such as the TSC private email list. These summaries are not to be made
 public unless all TSC members present during the meeting agree.
 
-Recording the private portion of a meeting is forbidden, and no detailed
-transcript of the private portion of the meeting is to be maintained or
-published. This is to ensure that TSC members and invited guests can feel safe
+Recording the private portion of a meeting or maintaining or publishing a
+detailed transcript is only permitted when all participants present during the
+private portion of the meeting explicitly agree to the recording and/or
+transcript. This is to ensure that TSC members and invited guests can feel safe
 to discuss sensitive or controversial topics freely without fear of public
-scrutiny. Exception is allowed only when all participants present during the
-private portion of the meeting explicitly agree to the recording and transcript
-in advance.
+scrutiny.
 
 If a quorum of TSC members is not present, all decisions made during meetings
 are considered provisional and subject to confirmation by the full TSC. If no
