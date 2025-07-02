@@ -51,10 +51,10 @@ to fetch the package (and dependencies) and build and run the tests:
     ninja -C out/Release crdtp_test
     out/Release/crdtp_test
 
-You'll probably also need to install g++, since Clang uses this to find the
+You'll probably also need to install libstdc++, since Clang uses this to find the
 standard C++ headers. E.g.,
 
-    sudo apt-get install g++-8
+    sudo apt-get install libstdc++-14-dev
 
 # Purpose of the tests
 
