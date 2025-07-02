@@ -25,7 +25,6 @@ const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-im
 const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
 const { default: markdown } = await importEslintTool('eslint-plugin-markdown');
 const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin');
-const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin-js');
 const { default: tseslint } = await importEslintTool('typescript-eslint');
 
 nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.url));

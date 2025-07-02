@@ -30,7 +30,7 @@ declare namespace InternalZlibBinding {
   }
 
   class Zlib extends ZlibBase {
-    constructor(mode: number)
+    constructor(mode: number);
     init(windowBits: number,
       level: number,
       memLevel: number,
