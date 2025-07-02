@@ -141,9 +141,7 @@ public unless all TSC members present during the meeting agree.
 Recording the private portion of a meeting or maintaining or publishing a
 detailed transcript is only permitted when all participants present during the
 private portion of the meeting explicitly agree to the recording and/or
-transcript. This is to ensure that TSC members and invited guests can feel safe
-to discuss sensitive or controversial topics freely without fear of public
-scrutiny.
+transcript, in order to comply to privacy regulations.
 
 All discussions made during meetings are considered provisional, receiving no
 objections from folks at the TSC meeting to take an action is not equivalent to
