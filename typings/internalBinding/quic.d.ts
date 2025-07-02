@@ -5,19 +5,19 @@ interface QuicCallbacks {
   onSessionDatagram: (datagram: Uint8Array, early: boolean) => void;
   onSessionDatagramStatus: (id: bigint, status: string) => void;
   onSessionHandshake: (sni: string,
-                       alpn: string,
-                       cipher: string,
-                       cipherVersion: string,
-                       validationReason?: string,
-                       validationCode?: string) => void;
+    alpn: string,
+    cipher: string,
+    cipherVersion: string,
+    validationReason?: string,
+    validationCode?: string) => void;
   onSessionPathValidation: (result: string,
-                            local: SocketAddress,
-                            remote: SocketAddress,
-                            preferred: boolean) => void;
+    local: SocketAddress,
+    remote: SocketAddress,
+    preferred: boolean) => void;
   onSessionTicket: (ticket: ArrayBuffer) => void;
   onSessionVersionNegotiation: (version: number,
-                                versions: number[],
-                                supports: number[]) => void;
+    versions: number[],
+    supports: number[]) => void;
   onStreamCreated: (stream: Stream) => void;
   onStreamBlocked: () => void;
   onStreamClose: (error: [number, bigint, string]) => void;
@@ -28,15 +28,15 @@ interface QuicCallbacks {
 
 interface EndpointOptions {
   address?: SocketAddress;
-  retryTokenExpiration?: number|bigint;
-  tokenExpiration?: number|bigint;
-  maxConnectionsPerHost?: number|bigint;
-  maxConnectionsTotal?: number|bigint;
-  maxStatelessResetsPerHost?: number|bigint;
-  addressLRUSize?: number|bigint;
-  maxRetries?: number|bigint;
-  maxPayloadSize?: number|bigint;
-  unacknowledgedPacketThreshold?: number|bigint;
+  retryTokenExpiration?: number | bigint;
+  tokenExpiration?: number | bigint;
+  maxConnectionsPerHost?: number | bigint;
+  maxConnectionsTotal?: number | bigint;
+  maxStatelessResetsPerHost?: number | bigint;
+  addressLRUSize?: number | bigint;
+  maxRetries?: number | bigint;
+  maxPayloadSize?: number | bigint;
+  unacknowledgedPacketThreshold?: number | bigint;
   validateAddress?: boolean;
   disableStatelessReset?: boolean;
   ipv6Only?: boolean;
@@ -45,7 +45,7 @@ interface EndpointOptions {
   udpTTL?: number;
   resetTokenSecret?: ArrayBufferView;
   tokenSecret?: ArrayBufferView;
-  cc?: 'reno'|'cubic'|'pcc'|'bbr'| 0 | 2 | 3 | 4;
+  cc?: 'reno' | 'cubic' | 'pcc' | 'bbr' | 0 | 2 | 3 | 4;
 }
 
 interface SessionOptions {}
@@ -60,7 +60,7 @@ interface Endpoint {
   closeGracefully(): void;
   markBusy(on?: boolean): void;
   ref(on?: boolean): void;
-  address(): SocketAddress|void;
+  address(): SocketAddress | void;
   readonly state: ArrayBuffer;
   readonly stats: ArrayBuffer;
 }

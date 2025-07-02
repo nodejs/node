@@ -13,7 +13,7 @@ export interface InspectorBinding {
     nodeMethod: (...args: any[]) => any,
     ...args: any[]
   ): void;
-  setConsoleExtensionInstaller(installer: Function): void;
+  setConsoleExtensionInstaller(installer: (...args: any[]) => any): void;
   callAndPauseOnStart(
     fn: (...args: any[]) => any,
     thisArg: any,

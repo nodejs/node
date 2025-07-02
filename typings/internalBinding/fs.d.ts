@@ -10,7 +10,7 @@ interface ReadFileContext {
   pos: number;
   encoding: string;
   err: Error | null;
-  signal: unknown /* AbortSignal | undefined */;
+  signal: unknown; /* AbortSignal | undefined */
 }
 
 declare namespace InternalFSBinding {
@@ -80,8 +80,16 @@ declare namespace InternalFSBinding {
     usePromises: typeof kUsePromises): Promise<void>;
 
   function cpSyncCheckPaths(src: StringOrBuffer, dest: StringOrBuffer, dereference: boolean, recursive: boolean): void;
-  function cpSyncOverrideFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, preserveTimestamps: boolean): void;
-  function cpSyncCopyDir(src: StringOrBuffer, dest: StringOrBuffer, force: boolean, errorOnExist: boolean, verbatimSymlinks: boolean, dereference: boolean): void;
+  function cpSyncOverrideFile(src: StringOrBuffer,
+    dest: StringOrBuffer,
+    mode: number,
+    preserveTimestamps: boolean): void;
+  function cpSyncCopyDir(src: StringOrBuffer,
+    dest: StringOrBuffer,
+    force: boolean,
+    errorOnExist: boolean,
+    verbatimSymlinks: boolean,
+    dereference: boolean): void;
 
   function fchmod(fd: number, mode: number, req: FSReqCallback): void;
   function fchmod(fd: number, mode: number): void;
