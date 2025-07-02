@@ -154,7 +154,7 @@ been informed and no objection for taking that vote has been raised in 48 hours.
 To clarify, TSC voting members can object to the vote taking place during the
 meeting, but not to the vote itself.
 
-For decisions that are made outside of meetings, the TSC uses
+For discussions outside of meetings, the TSC uses
 [the TSC issue tracker](https://github.com/nodejs/TSC/issues) for public
 issues, and the private TSC email list for private matters. The process for
 public issues in the issue tracker is:
