@@ -102,8 +102,7 @@ portion is used to discuss sensitive topics, such as personnel issues,
 security vulnerabilities, or other confidential matters. Private discussions
 should be avoided as much as possible, and the TSC should strive to keep
 discussions in the public portion of the meeting, but there are times when
-private discussions are necessary. Any TSC member can request that a topic be
-moved to the private portion of the meeting.
+private discussions are necessary.
 
 The TSC agenda includes issues that are at an impasse. The intention of the
 agenda is not to review or approve all patches. Collaborators review and approve
