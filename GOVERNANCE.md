@@ -145,10 +145,16 @@ transcript. This is to ensure that TSC members and invited guests can feel safe
 to discuss sensitive or controversial topics freely without fear of public
 scrutiny.
 
-If a quorum of TSC members is not present, all decisions made during meetings
-are considered provisional and subject to confirmation by the full TSC. If no
-objections are raised within 48-hours of publishing the summary of a decision
-(either publicly or privately), the decision is considered confirmed.
+All discussions made during meetings are considered provisional, receiving no
+objections from folks at the TSC meeting to take an action is not equivalent to
+the TSC endorsing that action.
+
+If a quorum of TSC voting members is present, it is possible to call for an
+explicit vote, and take the vote immediately if there are no objections. The
+decision is considered confirmed once the rest of the TSC voting members have
+been informed and no objection for taking that vote has been raised in 48 hours.
+To clarify, TSC voting members can object to the vote taking place during the
+meeting, but not to the vote itself.
 
 For decisions that are made outside of meetings, the uses
 [the TSC issue tracker](https://github.com/nodejs/TSC/issues) for public
