@@ -31,7 +31,7 @@ const randomNodeStream = new Readable({
 
     randomBytes(size, (err, buf) => {
       if (err) {
-        this.emit('error', err);
+        this.destroy(err);
         return;
       }
 
