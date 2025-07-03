@@ -14,10 +14,11 @@ const resourceUrl = 'http://localhost:3000/app.js';
 const resourcePath = path.join(__dirname, '../fixtures/inspector-network-resource/app.js.map');
 
 const resourceText = fs.readFileSync(resourcePath, 'utf8');
+const embedPath = resourcePath.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 const script = `
   const { NetworkResources } = require('node:inspector');
   const fs = require('fs');
-  NetworkResources.put('${resourceUrl}', fs.readFileSync('${resourcePath.replace(/\\/g, '\\').replace(/'/g, "\\'")}', 'utf8'));
+  NetworkResources.put('${resourceUrl}', fs.readFileSync('${embedPath}', 'utf8'));
   console.log('Network resource loaded:', '${resourceUrl}');
   debugger;
 `;
@@ -117,7 +118,7 @@ test('should load resource put from another thread', async () => {
   const script = `
   const { NetworkResources } = require('node:inspector');
   const fs = require('fs');
-  NetworkResources.put('${resourceUrl}', fs.readFileSync('${resourcePath.replace(/\\/g, '\\').replace(/'/g, "\\'")}', 'utf8'));
+  NetworkResources.put('${resourceUrl}', fs.readFileSync('${embedPath}', 'utf8'));
   const { Worker } = require('worker_threads');
   const worker = new Worker(\`${workerScript}\`, {eval: true});
   `;
