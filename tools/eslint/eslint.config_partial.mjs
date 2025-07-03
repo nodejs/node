@@ -2,7 +2,7 @@ import { globals } from './eslint.config_utils.mjs';
 
 export default [
   {
-    files: ['tools/**/*.{js,mjs,cjs}'],
+    files: ['tools/**/*.{js,mjs,cjs,ts,mts,cts}'],
     languageOptions: {
       globals: {
         ...globals.node,

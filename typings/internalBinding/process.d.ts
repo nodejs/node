@@ -1,4 +1,4 @@
-interface CpuUsageValue { 
+interface CpuUsageValue {
   user: number;
   system: number;
 }
