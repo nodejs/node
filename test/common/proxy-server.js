@@ -14,19 +14,32 @@ function logRequest(logs, req) {
 
 // This creates a minimal proxy server that logs the requests it gets
 // to an array before performing proxying.
-exports.createProxyServer = function() {
+exports.createProxyServer = function(options = {}) {
   const logs = [];
 
-  const proxy = http.createServer();
+  let proxy;
+  if (options.https) {
+    const common = require('../common');
+    if (!common.hasCrypto) {
+      common.skip('missing crypto');
+    }
+    proxy = require('https').createServer({
+      cert: require('./fixtures').readKey('agent9-cert.pem'),
+      key: require('./fixtures').readKey('agent9-key.pem'),
+    });
+  } else {
+    proxy = http.createServer();
+  }
   proxy.on('request', (req, res) => {
     logRequest(logs, req);
     const [hostname, port] = req.headers.host.split(':');
     const targetPort = port || 80;
 
+    const url = new URL(req.url);
     const options = {
       hostname: hostname,
       port: targetPort,
-      path: req.url,
+      path: url.pathname + url.search,  // Convert back to relative URL.
       method: req.method,
       headers: req.headers,
     };
@@ -38,8 +51,16 @@ exports.createProxyServer = function() {
 
     proxyReq.on('error', (err) => {
       logs.push({ error: err, source: 'proxy request' });
-      res.writeHead(500);
-      res.end('Proxy error: ' + err.message);
+      if (!res.headersSent) {
+        res.writeHead(500);
+      }
+      if (!res.writableEnded) {
+        res.end(`Proxy error ${err.code}: ${err.message}`);
+      }
+    });
+
+    res.on('error', (err) => {
+      logs.push({ error: err, source: 'proxy response' });
     });
 
     req.pipe(proxyReq, { end: true });
@@ -49,6 +70,11 @@ exports.createProxyServer = function() {
     logRequest(logs, req);
 
     const [hostname, port] = req.url.split(':');
+
+    res.on('error', (err) => {
+      logs.push({ error: err, source: 'proxy response' });
+    });
+
     const proxyReq = net.connect(port, hostname, () => {
       res.write(
         'HTTP/1.1 200 Connection Established\r\n' +
@@ -74,8 +100,46 @@ exports.createProxyServer = function() {
   return { proxy, logs };
 };
 
-exports.checkProxiedRequest = async function(envExtension, expectation) {
-  const { spawnPromisified } = require('./');
+function spawnPromisified(...args) {
+  const { spawn } = require('child_process');
+  let stderr = '';
+  let stdout = '';
+
+  const child = spawn(...args);
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (data) => {
+    console.error('[STDERR]', data);
+    stderr += data;
+  });
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (data) => {
+    console.log('[STDOUT]', data);
+    stdout += data;
+  });
+
+  return new Promise((resolve, reject) => {
+    child.on('close', (code, signal) => {
+      console.log('[CLOSE]', code, signal);
+      resolve({
+        code,
+        signal,
+        stderr,
+        stdout,
+      });
+    });
+    child.on('error', (code, signal) => {
+      console.log('[ERROR]', code, signal);
+      reject({
+        code,
+        signal,
+        stderr,
+        stdout,
+      });
+    });
+  });
+}
+
+exports.checkProxiedFetch = async function(envExtension, expectation) {
   const fixtures = require('./fixtures');
   const { code, signal, stdout, stderr } = await spawnPromisified(
     process.execPath,
