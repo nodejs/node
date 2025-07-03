@@ -1,65 +1,52 @@
-import { hasCrypto, skip } from '../common/index.mjs';
-if (!hasCrypto) {
-  skip('requires crypto');
-}
-
+import { mustCall } from '../common/index.mjs';
 import { Readable } from 'node:stream';
 import { memoryUsage } from 'node:process';
 import assert from 'node:assert';
 import { setImmediate } from 'node:timers/promises';
-import { test } from 'node:test';
 
 // Based on: https://github.com/nodejs/node/issues/46347#issuecomment-1413886707
 // edit: make it cross-platform as /dev/urandom is not available on Windows
 
-test('Stream Readable.toWeb() should not cause memory leak', async function() {
-  const { randomBytes } = await import('node:crypto');
+const MAX_MEM = 256 * 1024 * 1024; // 256 MiB
 
-  const MAX_MEM = 256 * 1024 * 1024; // 256 MiB
+function checkMemoryUsage() {
+  assert(memoryUsage().arrayBuffers < MAX_MEM);
+}
 
-  function checkMemoryUsage() {
-    assert(memoryUsage().arrayBuffers < MAX_MEM);
-  }
+const MAX_BUFFERS = 1000;
+let buffersCreated = 0;
 
-  let end = false;
-
-  const timeout = setTimeout(() => {
-    end = true;
-  }, 5000);
-
-  const randomNodeStream = new Readable({
-    read(size) {
-      if (end) {
-        this.push(null);
-        return;
-      }
-
-      randomBytes(size, (err, buf) => {
-        if (err) {
-          this.destroy(err);
-          return;
-        }
-
-        this.push(buf);
-      });
+const randomNodeStream = new Readable({
+  read(size) {
+    if (buffersCreated >= MAX_BUFFERS) {
+      this.push(null);
+      return;
     }
-  });
 
-  randomNodeStream.on('error', (err) => {
-    clearTimeout(timeout);
-    assert.fail(err);
-  });
+    this.push(Buffer.alloc(size));
+    buffersCreated++;
+  }
+});
 
-  // Before doing anything, make sure memory usage is okay
-  checkMemoryUsage();
+randomNodeStream.on('error', (err) => {
+  assert.fail(err);
+});
 
-  // Create stream and check memory usage remains okay
+// Before doing anything, make sure memory usage is okay
+checkMemoryUsage();
 
-  const randomWebStream = Readable.toWeb(randomNodeStream);
+// Create stream and check memory usage remains okay
 
-  checkMemoryUsage();
+const randomWebStream = Readable.toWeb(randomNodeStream);
 
-  try {
+checkMemoryUsage();
+
+let timeout;
+try {
+  // Wait two seconds before consuming the stream to see if memory usage increases
+  timeout = setTimeout(mustCall(async () => {
+    // Did the stream leak memory?
+    checkMemoryUsage();
     // eslint-disable-next-line no-unused-vars
     for await (const _ of randomWebStream) {
       // Yield event loop to allow garbage collection
@@ -68,8 +55,10 @@ test('Stream Readable.toWeb() should not cause memory leak', async function() {
       // check memory usage remains okay
       checkMemoryUsage();
     }
-  } catch (err) {
+  }), 2000);
+} catch (err) {
+  if (timeout) {
     clearTimeout(timeout);
-    assert.fail(err);
   }
-});
+  assert.fail(err);
+}
