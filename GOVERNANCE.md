@@ -133,10 +133,11 @@ public portion of the meeting after this announcement implies consent to the
 recording.
 
 For the private portion of the meeting, the TSC chair ensures that someone
-documents only the final disposition of any decisions made during the meeting
-and ensures that those are shared with all TSC members via a private discussion
-channel such as the TSC private email list. These summaries are not to be made
-public unless all TSC members present during the meeting agree.
+produces a summary of the discussions, gets it reviewed by the attendees,
+and shares it to all the TSC members once approved by the attendees via a
+private discussion channel such as the TSC private mailing list. The summary
+may be made public if there is consensus within the TSC and the non-TSC
+attendees to make it public.
 
 Recording the private portion of a meeting or maintaining or publishing a
 detailed transcript is only permitted when all participants present during the
