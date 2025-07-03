@@ -106,6 +106,7 @@ typedef enum {
   napi_bigint64_array,
   napi_biguint64_array,
 #ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_FLOAT16_ARRAY
   napi_float16_array,
 #endif  // NAPI_EXPERIMENTAL
 } napi_typedarray_type;
