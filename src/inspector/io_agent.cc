@@ -14,8 +14,8 @@ void IoAgent::Wire(UberDispatcher* dispatcher) {
 }
 
 DispatchResponse IoAgent::read(const String& in_handle,
-                               Maybe<int> in_offset,
-                               Maybe<int> in_size,
+                               std::optional<int> in_offset,
+                               std::optional<int> in_size,
                                String* out_data,
                                bool* out_eof) {
   std::string url = in_handle;
@@ -24,15 +24,15 @@ DispatchResponse IoAgent::read(const String& in_handle,
 
   int offset = 0;
   bool offset_was_specified = false;
-  if (in_offset.isJust()) {
-    offset = in_offset.fromJust();
+  if (in_offset.has_value()) {
+    offset = *in_offset;
     offset_was_specified = true;
   } else if (offset_map_.find(url) != offset_map_.end()) {
     offset = offset_map_[url];
   }
   int size = 1 << 20;
-  if (in_size.isJust()) {
-    size = in_size.fromJust();
+  if (in_size.has_value()) {
+    size = *in_size;
   }
   if (static_cast<std::size_t>(offset) < txt_view.length()) {
     std::string_view out_view = txt_view.substr(offset, size);
