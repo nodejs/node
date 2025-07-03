@@ -2061,7 +2061,7 @@ changes:
   * `positionals` {string\[]} Positional arguments.
   * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
     section. Only returned if `config` includes `tokens: true`.
-  * `printUsage` {string\[] | undefined} Formatted help text for options that have
+  * `printUsage` {string | undefined} Formatted help text for options that have
     help text configured. Only included if help text is available and `enableHelpPrinting` is `false`.
 
 Provides a higher level API for command-line argument parsing than interacting
