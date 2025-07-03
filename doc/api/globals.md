@@ -506,9 +506,7 @@ added: REPLACEME
 
 <!-- type=global -->
 
-The `ErrorEvent` class. See [`ErrorEvent`][] for more details.
-
-A browser-compatible implementation of [`ErrorEvent`][].
+A browser-compatible implementation of {ErrorEvent}.
 
 ## `Event`
 
@@ -1438,7 +1436,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
-[`ErrorEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/ErrorEvent
 [`EventSource`]: https://developer.mozilla.org/en-US/docs/Web/API/EventSource
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`MessageChannel`]: worker_threads.md#class-messagechannel
