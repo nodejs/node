@@ -187,7 +187,7 @@ For information about the governance of the Node.js project, see
 * [RaisinTen](https://github.com/RaisinTen) -
   **Darshan Sen** <<raisinten@gmail.com>> (he/him)
 * [richardlau](https://github.com/richardlau) -
-  **Richard Lau** <<rlau@redhat.com>>
+  **Richard Lau** <<richard.lau@ibm.com>>
 * [ronag](https://github.com/ronag) -
   **Robert Nagy** <<ronagy@icloud.com>>
 * [ruyadorno](https://github.com/ruyadorno) -
@@ -426,7 +426,7 @@ For information about the governance of the Node.js project, see
 * [RaisinTen](https://github.com/RaisinTen) -
   **Darshan Sen** <<raisinten@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/RaisinTen)
 * [richardlau](https://github.com/richardlau) -
-  **Richard Lau** <<rlau@redhat.com>>
+  **Richard Lau** <<richard.lau@ibm.com>>
 * [rluvaton](https://github.com/rluvaton) -
   **Raz Luvaton** <<rluvaton@gmail.com>> (he/him)
 * [ronag](https://github.com/ronag) -
@@ -799,7 +799,7 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
   `8FCCA13FEF1D0C2E91008E09770F7A9A5AE15600`
 * **Rafael Gonzaga** <<rafael.nunu@hotmail.com>>
   `890C08DB8579162FEE0DF9DB8BEAB4DFCF555EF4`
-* **Richard Lau** <<rlau@redhat.com>>
+* **Richard Lau** <<richard.lau@ibm.com>>
   `C82FA3AE1CBEDC6BE46B9360C43CEC45C17AB93C`
 * **Ruy Adorno** <<ruyadorno@hotmail.com>>
   `108F52B48DB57BB0CC439B2997B01419BD92F80A`
