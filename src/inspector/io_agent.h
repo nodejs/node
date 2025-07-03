@@ -14,8 +14,8 @@ class IoAgent : public IO::Backend {
       : network_resource_manager_(std::move(network_resource_manager)) {}
   void Wire(UberDispatcher* dispatcher);
   DispatchResponse read(const String& in_handle,
-                        Maybe<int> in_offset,
-                        Maybe<int> in_size,
+                        std::optional<int> in_offset,
+                        std::optional<int> in_size,
                         String* out_data,
                         bool* out_eof) override;
   DispatchResponse close(const String& in_handle) override;
