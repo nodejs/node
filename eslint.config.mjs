@@ -278,7 +278,7 @@ export default [
       '@stylistic/js/computed-property-spacing': 'error',
       '@stylistic/js/dot-location': ['error', 'property'],
       '@stylistic/js/eol-last': 'error',
-      '@stylistic/js/func-call-spacing': 'error',
+      '@stylistic/js/function-call-spacing': 'error',
       '@stylistic/js/indent': ['error', 2, {
         ArrayExpression: 'first',
         CallExpression: { arguments: 'first' },
