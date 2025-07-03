@@ -21,7 +21,7 @@ async function runTest() {
     terminal: true
   });
 
-  replServer._domain.on('error', (e) => {
+  replServer._completeDomain.on('error', (e) => {
     assert.fail(`Error in REPL domain: ${e}`);
   });
 
