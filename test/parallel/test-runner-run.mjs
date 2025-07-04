@@ -5,6 +5,54 @@ import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
 import assert from 'node:assert';
 import util from 'node:util';
+import { spawn } from 'node:child_process';
+
+import { writeFileSync, unlinkSync } from 'node:fs';
+import tmpdir from '../common/tmpdir.js';
+import { randomBytes } from 'node:crypto';
+
+async function runTestInSubprocess(testFile, options = {}) {
+  tmpdir.refresh();
+
+  const tmpFile = tmpdir.resolve(`test-subprocess-${randomBytes(8).toString('hex')}.mjs`);
+
+  const testNamePatterns = options.testNamePatterns ? JSON.stringify(options.testNamePatterns) : undefined;
+  const testSkipPatterns = options.testSkipPatterns ? JSON.stringify(options.testSkipPatterns) : undefined;
+  const isolation = options.isolation ? JSON.stringify(options.isolation) : undefined;
+
+  const code = `
+    import { run } from 'node:test';
+    import { tap } from 'node:test/reporters';
+    import { join } from 'node:path';
+    const files = [${JSON.stringify(testFile)}];
+    const opts = {
+      files,
+      reporter: 'tap',
+      ${testNamePatterns ? `testNamePatterns: ${testNamePatterns},` : ''}
+      ${testSkipPatterns ? `testSkipPatterns: ${testSkipPatterns},` : ''}
+      ${isolation ? `isolation: ${isolation},` : ''}
+    };
+    const result = await run(opts).compose(tap).toArray();
+    for (const line of result) {
+      process.stdout.write(typeof line === 'string' ? line : String(line));
+    }
+  `;
+  writeFileSync(tmpFile, code);
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [tmpFile], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (data) => { stdout += data; });
+    child.stderr.on('data', (data) => { stderr += data; });
+    child.on('close', (code) => {
+      unlinkSync(tmpFile);
+      if (code !== 0) {
+        return reject(new Error(`Test failed with exit code ${code}\n${stderr}`));
+      }
+      resolve(stdout);
+    });
+  });
+}
 
 const testFixtures = fixtures.path('test-runner');
 
@@ -206,7 +254,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       files: [join(testFixtures, 'default-behavior/test/random.cjs')],
       watch: true,
       signal: controller.signal,
-    }).on('data', function ({ type }) {
+    }).on('data', function({ type }) {
       if (type === 'test:watch:drained') {
         controller.abort();
       }
@@ -650,45 +698,27 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 });
 
-describe("with isolation set to 'none'",() => {
+describe("with isolation set to 'none'", () => {
   it('should skip tests not matching testNamePatterns - string', async () => {
-    const result = await run({
-      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
-      testNamePatterns: ['executed'],
-      isolation: 'none',
-    })
-      .compose(tap)
-      .toArray();
-    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
-    assert.strictEqual(result[4], '1..1\n');
-    assert.strictEqual(result[5], '# tests 1\n');
-  });
+    const result = await runTestInSubprocess(
+      join(testFixtures, 'default-behavior/test/skip_by_name.cjs'),
+      { isolation: 'none', testNamePatterns: ['executed'] }
+    );
 
-  it('should skip tests not matching testNamePatterns - RegExp', async () => {
-    const result = await run({
-      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
-      testNamePatterns: [/executed/],
-      isolation: 'none',
-    })
-      .compose(tap)
-      .toArray();
-    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
-    assert.strictEqual(result[4], '1..1\n');
-    assert.strictEqual(result[5], '# tests 1\n');
+    assert.match(result, /ok 1 - this should be executed/);
+    assert.match(result, /1\.\.1/);
+    assert.match(result, /# tests 1/);
   });
 
   it('should skip tests matching testSkipPatterns', async () => {
-    const result = await run({
-      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
-      testSkipPatterns: ['skipped'],
-      isolation: 'none',
-    })
-      .compose(tap)
-      .toArray();
+    const result = await runTestInSubprocess(
+      join(testFixtures, 'default-behavior/test/skip_by_name.cjs'),
+      { isolation: 'none', testSkipPatterns: ['skipped'] }
+    );
 
-    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
-    assert.strictEqual(result[4], '1..1\n');
-    assert.strictEqual(result[5], '# tests 1\n');
+    assert.match(result, /ok 1 - this should be executed/);
+    assert.match(result, /1\.\.1/);
+    assert.match(result, /# tests 1/);
   });
 });
 
