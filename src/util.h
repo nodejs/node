@@ -906,6 +906,11 @@ void SetProtoMethod(v8::Isolate* isolate,
                     v8::Local<v8::FunctionTemplate> that,
                     const std::string_view name,
                     v8::FunctionCallback callback);
+void SetFastProtoMethod(v8::Local<v8::Context> context,
+                        v8::Local<v8::FunctionTemplate> that,
+                        const std::string_view name,
+                        v8::FunctionCallback slow_callback,
+                        const v8::CFunction* c_function);
 
 void SetInstanceMethod(v8::Isolate* isolate,
                        v8::Local<v8::FunctionTemplate> that,
