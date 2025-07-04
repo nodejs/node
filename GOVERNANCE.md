@@ -129,7 +129,7 @@ The public portion of the TSC meeting is expected to be recorded and made
 available for live streaming during the meeting or download by anyone after.
 This expectation is to be announced to all participants at the start of the
 each meeting before the recording is started. Continued participation in the
-public portion of the meeting after this announcement implies consent to the
+public portion of the meeting after this announcement is interpreted as consent to the
 recording.
 
 For the private portion of the meeting, the TSC chair ensures that someone
