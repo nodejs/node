@@ -36,7 +36,7 @@ changes:
 <!-- type=global -->
 
 A utility class used to signal cancelation in selected `Promise`-based APIs.
-The API is based on the Web API [`AbortController`][].
+The API is based on the Web API {AbortController}.
 
 ```js
 const ac = new AbortController();
@@ -453,7 +453,7 @@ changes:
 
 <!-- type=global -->
 
-A browser-compatible implementation of the [`CustomEvent` Web API][].
+A browser-compatible implementation of {CustomEvent}.
 
 ## Class: `DecompressionStream`
 
@@ -493,7 +493,7 @@ added: v22.3.0
 > Stability: 1 - Experimental. Enable this API with the [`--experimental-eventsource`][]
 > CLI flag.
 
-A browser-compatible implementation of the [`EventSource`][] class.
+A browser-compatible implementation of {EventSource}.
 
 ## `EventTarget`
 
@@ -685,7 +685,7 @@ added: v15.0.0
 
 <!-- type=global -->
 
-The `MessageEvent` class. See [`MessageEvent`][] for more details.
+A browser-compatible implementation of {MessageEvent}.
 
 ## `MessagePort`
 
@@ -1121,10 +1121,10 @@ added: v0.0.1
 added: v22.4.0
 -->
 
-> Stability: 1.0 - Early development.
+> Stability: 1.0 - Early development. Enable this API with the
+> [`--experimental-webstorage`][] CLI flag.
 
-A browser-compatible implementation of [`Storage`][]. Enable this API with the
-[`--experimental-webstorage`][] CLI flag.
+A browser-compatible implementation of {Storage}.
 
 ## `structuredClone(value[, options])`
 
@@ -1167,7 +1167,7 @@ added: v17.0.0
 
 <!-- type=global -->
 
-The WHATWG `DOMException` class. See [`DOMException`][] for more details.
+The WHATWG {DOMException} class.
 
 ## `TextDecoder`
 
@@ -1298,7 +1298,7 @@ changes:
 
 > Stability: 2 - Stable
 
-A browser-compatible implementation of [`WebSocket`][]. Disable this API
+A browser-compatible implementation of {WebSocket}. Disable this API
 with the [`--no-experimental-websocket`][] CLI flag.
 
 ## Class: `WritableStream`
@@ -1350,17 +1350,12 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
 [`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
-[`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
 [`CompressionStream`]: webstreams.md#class-compressionstream
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
-[`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
-[`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
-[`EventSource`]: https://developer.mozilla.org/en-US/docs/Web/API/EventSource
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`MessageChannel`]: worker_threads.md#class-messagechannel
-[`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
 [`MessagePort`]: worker_threads.md#class-messageport
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
 [`PerformanceMark`]: perf_hooks.md#class-performancemark
@@ -1374,7 +1369,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`ReadableStreamDefaultController`]: webstreams.md#class-readablestreamdefaultcontroller
 [`ReadableStreamDefaultReader`]: webstreams.md#class-readablestreamdefaultreader
 [`ReadableStream`]: webstreams.md#class-readablestream
-[`Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Storage
 [`TextDecoderStream`]: webstreams.md#class-textdecoderstream
 [`TextDecoder`]: util.md#class-utiltextdecoder
 [`TextEncoderStream`]: webstreams.md#class-textencoderstream
@@ -1383,7 +1377,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`TransformStream`]: webstreams.md#class-transformstream
 [`URLSearchParams`]: url.md#class-urlsearchparams
 [`URL`]: url.md#class-url
-[`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`WritableStreamDefaultController`]: webstreams.md#class-writablestreamdefaultcontroller
 [`WritableStreamDefaultWriter`]: webstreams.md#class-writablestreamdefaultwriter
 [`WritableStream`]: webstreams.md#class-writablestream
