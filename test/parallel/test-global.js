@@ -59,6 +59,8 @@ for (const moduleName of builtinModules) {
     'fetch',
     'crypto',
     'navigator',
+    'localStorage',
+    'sessionStorage',
   ];
   assert.deepStrictEqual(new Set(Object.keys(globalThis)), new Set(expected));
   expected.forEach((value) => {
