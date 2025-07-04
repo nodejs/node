@@ -516,11 +516,8 @@ void BindingData::RegisterExternalReferences(
   registry->Register(PathToFileURL);
   registry->Register(Update);
   registry->Register(CanParse);
-  registry->Register(FastCanParse);
-  registry->Register(FastCanParseWithBase);
-
   for (const CFunction& method : fast_can_parse_methods_) {
-    registry->Register(method.GetTypeInfo());
+    registry->Register(method);
   }
 }
 
