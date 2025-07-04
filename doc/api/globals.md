@@ -579,7 +579,7 @@ The implementation is based upon [undici](https://undici.nodejs.org), an HTTP/1.
 written from scratch for Node.js. You can figure out which version of `undici` is bundled
 in your Node.js process reading the `process.versions.undici` property.
 
-## Custom dispatcher
+### Custom dispatcher
 
 You can use a custom dispatcher to dispatch requests passing it in fetch's options object.
 The dispatcher must be compatible with `undici`'s
@@ -598,7 +598,7 @@ import { setGlobalDispatcher } from 'undici';
 setGlobalDispatcher(new MyAgent());
 ```
 
-## Related classes
+### Related classes
 
 The following globals are available to use with `fetch`:
 
