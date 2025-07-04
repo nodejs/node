@@ -33,6 +33,56 @@ enum HostDefinedOptions : int {
   kLength = 9,
 };
 
+/**
+ * ModuleCacheKey is used to uniquely identify a module request
+ * in the module cache. It is a composition of the module specifier
+ * and the import attributes.
+ */
+struct ModuleCacheKey : public MemoryRetainer {
+  using ImportAttributeVector =
+      std::vector<std::pair<std::string, std::string>>;
+
+  std::string specifier;
+  ImportAttributeVector import_attributes;
+  // A hash of the specifier, and import attributes.
+  // This does not guarantee uniqueness, but is used to reduce
+  // the number of comparisons needed when checking for equality.
+  std::size_t hash;
+
+  SET_MEMORY_INFO_NAME(ModuleCacheKey)
+  SET_SELF_SIZE(ModuleCacheKey)
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
+  template <int elements_per_attribute = 3>
+  static ModuleCacheKey From(v8::Local<v8::Context> context,
+                             v8::Local<v8::String> specifier,
+                             v8::Local<v8::FixedArray> import_attributes);
+  static ModuleCacheKey From(v8::Local<v8::Context> context,
+                             v8::Local<v8::ModuleRequest> v8_request);
+
+  struct Hash {
+    std::size_t operator()(const ModuleCacheKey& request) const {
+      return request.hash;
+    }
+  };
+
+  // Equality operator for ModuleCacheKey.
+  bool operator==(const ModuleCacheKey& other) const {
+    // Hash does not provide uniqueness guarantee, so ignore it.
+    return specifier == other.specifier &&
+           import_attributes == other.import_attributes;
+  }
+
+ private:
+  // Use public ModuleCacheKey::From to create instances.
+  ModuleCacheKey(std::string specifier,
+                 ImportAttributeVector import_attributes,
+                 std::size_t hash)
+      : specifier(specifier),
+        import_attributes(import_attributes),
+        hash(hash) {}
+};
+
 class ModuleWrap : public BaseObject {
  public:
   enum InternalFields {
@@ -134,7 +184,10 @@ class ModuleWrap : public BaseObject {
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
   v8::Global<v8::Module> module_;
-  std::unordered_map<std::string, v8::Global<v8::Object>> resolve_cache_;
+  std::unordered_map<ModuleCacheKey,
+                     v8::Global<v8::Object>,
+                     ModuleCacheKey::Hash>
+      resolve_cache_;
   contextify::ContextifyContext* contextify_context_ = nullptr;
   bool synthetic_ = false;
   int module_hash_;

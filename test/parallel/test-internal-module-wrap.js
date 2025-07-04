@@ -14,7 +14,7 @@ const bar = new ModuleWrap('bar', undefined, 'export const five = 5', 0, 0);
   assert.strictEqual(moduleRequests.length, 1);
   assert.strictEqual(moduleRequests[0].specifier, 'bar');
 
-  foo.link(['bar'], [bar]);
+  foo.link([bar]);
   foo.instantiate();
 
   assert.strictEqual(await foo.evaluate(-1, false), undefined);
