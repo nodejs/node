@@ -284,7 +284,7 @@ added: v16.0.0
 
 Global alias for [`buffer.atob()`][].
 
-## `BroadcastChannel`
+## Class: `BroadcastChannel`
 
 <!-- YAML
 added: v18.0.0
@@ -340,7 +340,7 @@ added: v0.0.1
 
 [`clearTimeout`][] is described in the [timers][] section.
 
-## `CloseEvent`
+## Class: `CloseEvent`
 
 <!-- YAML
 added: v23.0.0
@@ -395,7 +395,7 @@ changes:
 
 A browser-compatible implementation of [`CountQueuingStrategy`][].
 
-## `Crypto`
+## Class: `Crypto`
 
 <!-- YAML
 added:
@@ -435,7 +435,7 @@ changes:
 
 A browser-compatible implementation of the [Web Crypto API][].
 
-## `CryptoKey`
+## Class: `CryptoKey`
 
 <!-- YAML
 added:
@@ -456,7 +456,7 @@ A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
 `node:crypto` module.
 
-## `CustomEvent`
+## Class: `CustomEvent`
 
 <!-- YAML
 added:
@@ -496,7 +496,7 @@ changes:
 
 A browser-compatible implementation of [`DecompressionStream`][].
 
-## `Event`
+## Class: `Event`
 
 <!-- YAML
 added: v15.0.0
@@ -513,7 +513,7 @@ changes:
 A browser-compatible implementation of the `Event` class. See
 [`EventTarget` and `Event` API][] for more details.
 
-## `EventSource`
+## Class: `EventSource`
 
 <!-- YAML
 added:
@@ -526,7 +526,7 @@ added:
 
 A browser-compatible implementation of {EventSource}.
 
-## `EventTarget`
+## Class: `EventTarget`
 
 <!-- YAML
 added: v15.0.0
@@ -694,7 +694,7 @@ Enable this API with the [`--experimental-webstorage`][] CLI flag.
 `localStorage` data is not stored per user or per request when used in the context
 of a server, it is shared across all users and requests.
 
-## `MessageChannel`
+## Class: `MessageChannel`
 
 <!-- YAML
 added: v15.0.0
@@ -706,7 +706,7 @@ added: v15.0.0
 
 The `MessageChannel` class. See [`MessageChannel`][] for more details.
 
-## `MessageEvent`
+## Class: `MessageEvent`
 
 <!-- YAML
 added: v15.0.0
@@ -718,7 +718,7 @@ added: v15.0.0
 
 A browser-compatible implementation of {MessageEvent}.
 
-## `MessagePort`
+## Class: `MessagePort`
 
 <!-- YAML
 added: v15.0.0
@@ -734,7 +734,7 @@ The `MessagePort` class. See [`MessagePort`][] for more details.
 
 This variable may appear to be global but is not. See [`module`][].
 
-## `Navigator`
+## Class: `Navigator`
 
 <!-- YAML
 added: v21.0.0
@@ -842,7 +842,7 @@ consisting of the runtime name and major version number.
 console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 ```
 
-## `PerformanceEntry`
+## Class: `PerformanceEntry`
 
 <!-- YAML
 added: v19.0.0
@@ -854,7 +854,7 @@ added: v19.0.0
 
 The `PerformanceEntry` class. See [`PerformanceEntry`][] for more details.
 
-## `PerformanceMark`
+## Class: `PerformanceMark`
 
 <!-- YAML
 added: v19.0.0
@@ -866,7 +866,7 @@ added: v19.0.0
 
 The `PerformanceMark` class. See [`PerformanceMark`][] for more details.
 
-## `PerformanceMeasure`
+## Class: `PerformanceMeasure`
 
 <!-- YAML
 added: v19.0.0
@@ -878,7 +878,7 @@ added: v19.0.0
 
 The `PerformanceMeasure` class. See [`PerformanceMeasure`][] for more details.
 
-## `PerformanceObserver`
+## Class: `PerformanceObserver`
 
 <!-- YAML
 added: v19.0.0
@@ -890,7 +890,7 @@ added: v19.0.0
 
 The `PerformanceObserver` class. See [`PerformanceObserver`][] for more details.
 
-## `PerformanceObserverEntryList`
+## Class: `PerformanceObserverEntryList`
 
 <!-- YAML
 added: v19.0.0
@@ -903,7 +903,7 @@ added: v19.0.0
 The `PerformanceObserverEntryList` class. See
 [`PerformanceObserverEntryList`][] for more details.
 
-## `PerformanceResourceTiming`
+## Class: `PerformanceResourceTiming`
 
 <!-- YAML
 added: v19.0.0
@@ -1070,7 +1070,7 @@ A browser-compatible implementation of [`ReadableStreamDefaultReader`][].
 
 This variable may appear to be global but is not. See [`require()`][].
 
-## `Response`
+## Class: `Response`
 
 <!-- YAML
 added:
@@ -1090,7 +1090,7 @@ changes:
 
 A browser-compatible implementation of {Response}.
 
-## `Request`
+## Class: `Request`
 
 <!-- YAML
 added:
@@ -1181,7 +1181,7 @@ added: v17.0.0
 
 The WHATWG [`structuredClone`][] method.
 
-## `SubtleCrypto`
+## Class: `SubtleCrypto`
 
 <!-- YAML
 added:
@@ -1199,7 +1199,7 @@ A browser-compatible implementation of {SubtleCrypto}. This global is available
 only if the Node.js binary was compiled with including support for the
 `node:crypto` module.
 
-## `DOMException`
+## Class: `DOMException`
 
 <!-- YAML
 added: v17.0.0
@@ -1211,7 +1211,7 @@ added: v17.0.0
 
 The WHATWG {DOMException} class.
 
-## `TextDecoder`
+## Class: `TextDecoder`
 
 <!-- YAML
 added: v11.0.0
@@ -1237,7 +1237,7 @@ changes:
 
 A browser-compatible implementation of [`TextDecoderStream`][].
 
-## `TextEncoder`
+## Class: `TextEncoder`
 
 <!-- YAML
 added: v11.0.0
@@ -1291,7 +1291,7 @@ changes:
 
 A browser-compatible implementation of [`TransformStreamDefaultController`][].
 
-## `URL`
+## Class: `URL`
 
 <!-- YAML
 added: v10.0.0
@@ -1303,7 +1303,7 @@ added: v10.0.0
 
 The WHATWG `URL` class. See the [`URL`][] section.
 
-## `URLPattern`
+## Class: `URLPattern`
 
 <!-- YAML
 added: v24.0.0
@@ -1315,7 +1315,7 @@ added: v24.0.0
 
 The WHATWG `URLPattern` class. See the [`URLPattern`][] section.
 
-## `URLSearchParams`
+## Class: `URLSearchParams`
 
 <!-- YAML
 added: v10.0.0
@@ -1327,7 +1327,7 @@ added: v10.0.0
 
 The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 
-## `WebAssembly`
+## Class: `WebAssembly`
 
 <!-- YAML
 added: v8.0.0
@@ -1343,7 +1343,7 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
-## `WebSocket`
+## Class: `WebSocket`
 
 <!-- YAML
 added:

@@ -4234,7 +4234,7 @@ added:
 
 Set the maximum number of idle HTTP parsers.
 
-## `WebSocket`
+## Class: `WebSocket`
 
 <!-- YAML
 added:
