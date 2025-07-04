@@ -7,7 +7,7 @@ const assert = require('assert');
 
 // Runtime errors from throw should be caught.
 assert.throws(() => {
-  require('../fixtures/es-modules/runtime-error-esm.js');
+  require('../fixtures/es-modules/runtime-error-esm.mjs');
 }, {
   message: 'hello'
 });
