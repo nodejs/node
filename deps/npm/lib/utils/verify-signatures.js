@@ -2,7 +2,6 @@ const fetch = require('npm-registry-fetch')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const npa = require('npm-package-arg')
 const pacote = require('pacote')
-const pMap = require('p-map')
 const tufClient = require('@sigstore/tuf')
 const { log, output } = require('proc-log')
 
@@ -25,6 +24,7 @@ class VerifySignatures {
   }
 
   async run () {
+    const { default: pMap } = await import('p-map')
     const start = process.hrtime.bigint()
 
     // Find all deps in tree

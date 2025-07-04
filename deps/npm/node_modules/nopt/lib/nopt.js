@@ -18,6 +18,8 @@ function nopt (types, shorthands, args = process.argv, slice = 2) {
     shorthands: shorthands || {},
     typeDefs: exports.typeDefs,
     invalidHandler: exports.invalidHandler,
+    unknownHandler: exports.unknownHandler,
+    abbrevHandler: exports.abbrevHandler,
   })
 }
 
@@ -26,5 +28,7 @@ function clean (data, types, typeDefs = exports.typeDefs) {
     types: types || {},
     typeDefs,
     invalidHandler: exports.invalidHandler,
+    unknownHandler: exports.unknownHandler,
+    abbrevHandler: exports.abbrevHandler,
   })
 }

@@ -6,10 +6,10 @@
 
 """ Unit tests for the easy_xml.py file. """
 
-import gyp.easy_xml as easy_xml
 import unittest
-
 from io import StringIO
+
+from gyp import easy_xml
 
 
 class TestSequenceFunctions(unittest.TestCase):
