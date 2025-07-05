@@ -457,11 +457,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetLoadAvg);
   registry->Register(GetUptime);
   registry->Register(GetTotalMemory);
-  registry->Register(FastGetTotalMemory);
-  registry->Register(fast_get_total_memory.GetTypeInfo());
+  registry->Register(fast_get_total_memory);
   registry->Register(GetFreeMemory);
-  registry->Register(FastGetFreeMemory);
-  registry->Register(fast_get_free_memory.GetTypeInfo());
+  registry->Register(fast_get_free_memory);
   registry->Register(GetCPUInfo);
   registry->Register(GetInterfaceAddresses);
   registry->Register(GetHomeDirectory);
@@ -469,8 +467,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetPriority);
   registry->Register(GetPriority);
   registry->Register(GetAvailableParallelism);
-  registry->Register(FastGetAvailableParallelism);
-  registry->Register(fast_get_available_parallelism.GetTypeInfo());
+  registry->Register(fast_get_available_parallelism);
   registry->Register(GetOSInformation);
 }
 

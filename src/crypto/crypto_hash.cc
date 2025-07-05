@@ -331,6 +331,18 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
   }
 
   md_len_ = mdctx_.getDigestSize();
+  // TODO(@panva): remove this behaviour when DEP0198 is End-Of-Life
+  if (mdctx_.hasXofFlag() && !xof_md_len.IsJust() && md_len_ == 0) {
+    const char* name = OBJ_nid2sn(EVP_MD_type(md));
+    if (name != nullptr) {
+      if (strcmp(name, "SHAKE128") == 0) {
+        md_len_ = 16;
+      } else if (strcmp(name, "SHAKE256") == 0) {
+        md_len_ = 32;
+      }
+    }
+  }
+
   if (xof_md_len.IsJust() && xof_md_len.FromJust() != md_len_) {
     // This is a little hack to cause createHash to fail when an incorrect
     // hashSize option was passed for a non-XOF hash function.

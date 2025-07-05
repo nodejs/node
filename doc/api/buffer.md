@@ -464,7 +464,7 @@ changes:
     description: No longer experimental.
 -->
 
-A [`Blob`][] encapsulates immutable, raw data that can be safely shared across
+A {Blob} encapsulates immutable, raw data that can be safely shared across
 multiple worker threads.
 
 ### `new buffer.Blob([sources[, options]])`
@@ -5506,7 +5506,6 @@ introducing security vulnerabilities into an application.
 [UTF-16]: https://en.wikipedia.org/wiki/UTF-16
 [UTF-8]: https://en.wikipedia.org/wiki/UTF-8
 [WHATWG Encoding Standard]: https://encoding.spec.whatwg.org/
-[`Blob`]: https://developer.mozilla.org/en-US/docs/Web/API/Blob
 [`Buffer.alloc()`]: #static-method-bufferallocsize-fill-encoding
 [`Buffer.allocUnsafe()`]: #static-method-bufferallocunsafesize
 [`Buffer.allocUnsafeSlow()`]: #static-method-bufferallocunsafeslowsize

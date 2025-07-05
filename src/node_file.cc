@@ -1034,6 +1034,7 @@ static void ExistsSync(const FunctionCallbackInfo<Value>& args) {
   // will **not** return an error and is therefore not enough.
   // Double check with `uv_fs_stat()`.
   if (err == 0) {
+    uv_fs_req_cleanup(&req);
     FS_SYNC_TRACE_BEGIN(stat);
     err = uv_fs_stat(nullptr, &req, path.out(), nullptr);
     FS_SYNC_TRACE_END(stat);
