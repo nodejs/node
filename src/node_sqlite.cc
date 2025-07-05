@@ -2704,6 +2704,196 @@ void Session::Delete() {
   session_ = nullptr;
 }
 
+SqlTaggedTemplateQuery::SqlTaggedTemplateQuery(Environment* env,
+                   v8::Local<v8::Object> wrap,
+                   v8::Local<v8::String> sql,
+                   v8::Local<v8::Array> params)
+    : BaseObject(env, wrap) {
+  MakeWeak();
+
+  Utf8Value utf8_sql(env->isolate(), sql);
+  sql_ = std::string(*utf8_sql, utf8_sql.length());
+
+  if (!params.IsEmpty()) {
+    for (uint32_t i = 0; i < params->Length(); ++i) {
+      v8::Local<v8::Value> val;
+      if (params->Get(env->context(), i).ToLocal(&val)) {
+        params_.emplace_back(env->isolate(), val);
+      }
+    }
+  }
+
+  wrap->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "sql"),
+            sql)
+      .Check();
+  wrap->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "params"),
+            params)
+      .Check();
+}
+
+SqlTaggedTemplateQuery::~SqlTaggedTemplateQuery() {
+  for (auto& param : params_) {
+    param.Reset();
+  }
+}
+
+void SqlTaggedTemplateQuery::toString(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  SqlTaggedTemplateQuery* query;
+  ASSIGN_OR_RETURN_UNWRAP(&query, args.This());
+
+  std::string result = query->sql_;
+  size_t param_index = 0;
+  size_t pos = 0;
+  while ((pos = result.find('?', pos)) != std::string::npos &&
+         param_index < query->params_.size()) {
+    Local<Value> val = query->params_[param_index].Get(isolate);
+    std::string param_value;
+
+    if (val->IsString()) {
+      Utf8Value utf8_param(isolate, val);
+      std::string str_param(*utf8_param, utf8_param.length());
+      // Basic escaping for single quotes for SQL
+      size_t a_pos = 0;
+      while ((a_pos = str_param.find('\'', a_pos)) != std::string::npos) {
+        str_param.replace(a_pos, 1, "''");
+        a_pos += 2;
+      }
+      param_value = "'" + str_param + "'";
+    } else if (val->IsNumber()) {
+      double num_val = val->NumberValue(context).ToChecked();
+      std::ostringstream stream;
+      stream.imbue(std::locale::classic());
+      stream << num_val;
+      param_value = stream.str();
+    } else if (val->IsNull() || val->IsUndefined()) {
+      param_value = "NULL";
+    } else if (val->IsBoolean()) {
+      param_value = val->BooleanValue(isolate) ? "1" : "0";
+    } else if (val->IsBigInt()) {
+      bool lossless;
+      int64_t int_val = val.As<v8::BigInt>()->Int64Value(&lossless);
+      if (lossless) {
+        param_value = std::to_string(int_val);
+      } else {
+        param_value = "'<BigInt-Unrepresentable>'";
+      }
+    } else if (val->IsArrayBufferView()) {
+      param_value = "'<Blob>'";  // Simple placeholder for blobs
+    } else {
+      param_value = "'<Object>'";
+    }
+
+    result.replace(pos, 1, param_value);
+    pos += param_value.length();
+    param_index++;
+  }
+
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(isolate, result.c_str()).ToLocalChecked());
+}
+
+v8::Local<v8::FunctionTemplate> SqlTaggedTemplateQuery::GetConstructorTemplate(
+    Environment* env) {
+  v8::Isolate* isolate = env->isolate();
+  v8::Local<v8::FunctionTemplate> tmpl =
+      NewFunctionTemplate(isolate, IllegalConstructor);
+  tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "SqlTaggedTemplateQuery"));
+  tmpl->InstanceTemplate()->SetInternalFieldCount(
+      SqlTaggedTemplateQuery::kInternalFieldCount);
+  SetProtoMethod(isolate, tmpl, "toString", toString);
+  return tmpl;
+}
+
+v8::MaybeLocal<v8::Object> SqlTaggedTemplateQuery::Create(Environment* env,
+                                            v8::Local<v8::String> sql,
+                                            v8::Local<v8::Array> params) {
+  v8::Local<v8::Object> obj;
+  if (!GetConstructorTemplate(env)
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+
+  MakeBaseObject<SqlTaggedTemplateQuery>(env, obj, sql, params);
+  return obj;
+}
+
+void SqlTaggedTemplateQuery::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("sql", sql_);
+  tracker->TrackField("params", params_);
+  for (const auto& p : params_) {
+    tracker->TrackField("param_value", p);
+  }
+}
+
+void Sql(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (args.Length() < 1 || !args[0]->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(isolate, "Template literal must be provided.");
+    return;
+  }
+
+  Local<Object> template_obj = args[0].As<Object>();
+  Local<Value> raw_val;
+  if (!template_obj->Get(context, FIXED_ONE_BYTE_STRING(isolate, "raw"))
+           .ToLocal(&raw_val) ||
+      !raw_val->IsArray()) {
+    THROW_ERR_INVALID_ARG_TYPE(isolate, "Invalid template literal object.");
+    return;
+  }
+
+  Local<Array> template_array = raw_val.As<Array>();
+  uint32_t template_len = template_array->Length();
+
+  if (template_len == 0) {
+    v8::MaybeLocal<v8::Object> sql_query_obj =
+        SqlTaggedTemplateQuery::Create(env,
+                         String::NewFromUtf8(isolate, "").ToLocalChecked(),
+                         Array::New(isolate, 0));
+    if (!sql_query_obj.IsEmpty()) {
+      args.GetReturnValue().Set(sql_query_obj.ToLocalChecked());
+    }
+    return;
+  }
+
+  std::string query;
+  Local<Array> params = Array::New(isolate);
+  uint32_t param_index = 0;
+
+  for (uint32_t i = 0; i < template_len; ++i) {
+    Local<Value> str_val;
+    if (template_array->Get(context, i).ToLocal(&str_val) &&
+        str_val->IsString()) {
+      query += *String::Utf8Value(isolate, str_val.As<String>());
+    }
+
+    if (i < template_len - 1) {
+      if (args.Length() > i + 1) {
+        query += "?";
+        params->Set(context, param_index++, args[i + 1]).Check();
+      }
+    }
+  }
+
+  Local<String> sql_string =
+      String::NewFromUtf8(isolate, query.c_str()).ToLocalChecked();
+
+  v8::MaybeLocal<v8::Object> sql_query_obj =
+      SqlTaggedTemplateQuery::Create(env, sql_string, params);
+
+  if (!sql_query_obj.IsEmpty()) {
+    args.GetReturnValue().Set(sql_query_obj.ToLocalChecked());
+  }
+}
+
 void DefineConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_OMIT);
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_REPLACE);
@@ -2727,6 +2917,8 @@ static void Initialize(Local<Object> target,
   db_tmpl->InstanceTemplate()->SetInternalFieldCount(
       DatabaseSync::kInternalFieldCount);
   Local<Object> constants = Object::New(isolate);
+
+  NODE_SET_METHOD(target, "sql", Sql);
 
   DefineConstants(constants);
 
