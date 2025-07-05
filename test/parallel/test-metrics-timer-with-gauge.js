@@ -5,20 +5,20 @@ const common = require('../common');
 const assert = require('assert');
 const { subscribe } = require('node:diagnostics_channel');
 const { metrics } = require('node:perf_hooks');
-const { counter, Counter, Timer, MetricReport } = metrics;
+const { gauge, Gauge, Timer, MetricReport } = metrics;
 
-// Create a counter for timing
-const testCounter = counter('test.duration', { base: 'test' });
-assert.ok(testCounter instanceof Counter);
+// Create a gauge for timing
+const testGauge = gauge('test.response.time', { base: 'test' });
+assert.ok(testGauge instanceof Gauge);
 
-assert.strictEqual(testCounter.type, 'counter');
-assert.strictEqual(testCounter.name, 'test.duration');
-assert.deepStrictEqual(testCounter.meta, { base: 'test' });
-assert.strictEqual(testCounter.channelName, 'metrics:counter:test.duration');
+assert.strictEqual(testGauge.type, 'gauge');
+assert.strictEqual(testGauge.name, 'test.response.time');
+assert.deepStrictEqual(testGauge.meta, { base: 'test' });
+assert.strictEqual(testGauge.channelName, 'metrics:gauge:test.response.time');
 
-// Create timers from the counter
-const a = testCounter.createTimer({ timer: 'a', meta: 'extra' });
-const b = testCounter.createTimer({ timer: 'b' });
+// Create timers from the gauge
+const a = testGauge.createTimer({ timer: 'a', meta: 'extra' });
+const b = testGauge.createTimer({ timer: 'b' });
 
 assert.ok(a instanceof Timer);
 assert.ok(b instanceof Timer);
@@ -28,10 +28,10 @@ const messages = [
   [100, { base: 'test', timer: 'b' }],
 ];
 
-subscribe(testCounter.channelName, common.mustCall((report) => {
+subscribe(testGauge.channelName, common.mustCall((report) => {
   assert.ok(report instanceof MetricReport);
-  assert.strictEqual(report.type, 'counter');
-  assert.strictEqual(report.name, 'test.duration');
+  assert.strictEqual(report.type, 'gauge');
+  assert.strictEqual(report.name, 'test.response.time');
   assert.ok(report.time > 0);
 
   const [value, meta] = messages.shift();

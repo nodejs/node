@@ -180,12 +180,10 @@ const customTypesMap = {
 
   'metrics.Counter': 'metrics.html#class-counter',
   'metrics.Gauge': 'metrics.html#class-gauge',
-  'metrics.Meter': 'metrics.html#class-meter',
   'metrics.Metric': 'metrics.html#class-metric',
   'metrics.MetricReport': 'metrics.html#class-metricreport',
-  'metrics.PeriodicGauge': 'metrics.html#class-periodicgauge',
+  'metrics.PullGauge': 'metrics.html#class-pullgauge',
   'metrics.Timer': 'metrics.html#class-timer',
-  'metrics.TimerFactory': 'metrics.html#class-timerfactory',
 
   'module': 'modules.html#the-module-object',
 

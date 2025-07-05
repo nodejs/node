@@ -4,20 +4,20 @@
 
 > Stability: 1 - Experimental
 
-<!-- source_link=lib/metrics.js -->
+<!-- source_link=lib/internal/perf/metrics.js -->
 
-The `node:metrics` module provides an API for application instrumentation and
+The metrics API provides an API for application instrumentation and
 performance monitoring. It offers various metric types and built-in exporters
 for popular monitoring systems.
 
-The module can be accessed using:
+The metrics API can be accessed using:
 
 ```mjs
-import * as metrics from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
 ```
 
 ```cjs
-const metrics = require('node:metrics');
+const { metrics } = require('node:perf_hooks');
 ```
 
 ## Overview
@@ -30,7 +30,8 @@ flexible consumption patterns.
 ### Example
 
 ```mjs
-import { counter } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { counter } = metrics;
 
 // Create counter metrics
 const apiCalls = counter('api.calls', { service: 'web' });
@@ -49,7 +50,8 @@ function handleRequest(req, res) {
 ```
 
 ```cjs
-const { counter } = require('node:metrics');
+const { metrics } = require('node:perf_hooks');
+const { counter } = metrics;
 
 // Create counter metrics
 const apiCalls = counter('api.calls', { service: 'web' });
@@ -82,7 +84,8 @@ added: REPLACEME
 Creates a counter metric that tracks cumulative values.
 
 ```mjs
-import { counter } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { counter } = metrics;
 
 const errorCount = counter('errors.total', { component: 'database' });
 
@@ -105,7 +108,8 @@ added: REPLACEME
 Creates a gauge metric that represents a single value at a point in time.
 
 ```mjs
-import { gauge } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { gauge } = metrics;
 import { memoryUsage } from 'node:process';
 
 const memory = gauge('memory.usage.bytes');
@@ -128,7 +132,8 @@ added: REPLACEME
 Creates a gauge that samples a value on-demand by calling the provided function.
 
 ```mjs
-import { pullGauge } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { pullGauge } = metrics;
 import { cpuUsage } from 'node:process';
 
 const cpu = pullGauge('cpu.usage', () => {
@@ -292,7 +297,8 @@ specific methods provided by each metric type (e.g., `increment`, `reset`,
 metadata.
 
 ```mjs
-import { gauge } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { gauge } = metrics;
 
 const memoryUsage = gauge('memory.usage', { service: 'web' });
 
@@ -332,7 +338,8 @@ added: REPLACEME
 Increments the counter by the specified amount.
 
 ```mjs
-import { counter } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { counter } = metrics;
 
 const apiCalls = counter('api.calls', { service: 'web' });
 
@@ -354,7 +361,8 @@ added: REPLACEME
 Decrements the counter by the specified amount.
 
 ```mjs
-import { counter } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { counter } = metrics;
 
 const errorCount = counter('errors.total', { component: 'database' });
 
@@ -376,7 +384,8 @@ added: REPLACEME
 Creates a timer that will increment this counter with its duration when stopped.
 
 ```mjs
-import { counter } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { counter } = metrics;
 
 const requestDuration = counter('request.duration.ms');
 
@@ -417,7 +426,8 @@ added: REPLACEME
 Sets the gauge to a specific value and reports it.
 
 ```mjs
-import { gauge } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { gauge } = metrics;
 import { memoryUsage } from 'node:process';
 
 const memory = gauge('memory.usage.bytes');
@@ -439,7 +449,8 @@ added: REPLACEME
 Creates a timer that will set this gauge to its duration when stopped.
 
 ```mjs
-import { gauge } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { gauge } = metrics;
 
 const responseTime = gauge('response.time.ms');
 
@@ -497,7 +508,8 @@ added: REPLACEME
 Stops the timer and reports the duration. Can only be called once.
 
 ```mjs
-import { counter } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { counter } = metrics;
 
 const dbQueryDuration = counter('db.query.duration');
 
@@ -518,7 +530,8 @@ added: REPLACEME
 Allows `using` syntax to automatically stop the timer when done.
 
 ```mjs
-import { counter } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { counter } = metrics;
 
 const dbQueryDuration = counter('db.query.duration');
 
@@ -553,7 +566,8 @@ added: REPLACEME
 Calls the configured function to get the current value and reports it.
 
 ```mjs
-import { pullGauge } from 'node:metrics';
+import { metrics } from 'node:perf_hooks';
+const { pullGauge } = metrics;
 import { cpuUsage } from 'node:process';
 
 const cpu = pullGauge('cpu.usage', () => {

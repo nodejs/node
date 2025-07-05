@@ -3,7 +3,8 @@
 require('../common');
 
 const assert = require('assert');
-const { MetricReport } = require('node:metrics');
+const { metrics } = require('node:perf_hooks');
+const { MetricReport } = metrics;
 
 const report = new MetricReport('counter', 'test-counter', 123, {
   meta: 'test'

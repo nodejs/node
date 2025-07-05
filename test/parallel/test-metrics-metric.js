@@ -4,7 +4,8 @@ const common = require('../common');
 
 const assert = require('assert');
 const { subscribe } = require('node:diagnostics_channel');
-const { Metric, MetricReport } = require('node:metrics');
+const { metrics } = require('node:perf_hooks');
+const { Metric, MetricReport } = metrics;
 
 const metric = new Metric('counter', 'test-counter', { base: 'test' });
 
