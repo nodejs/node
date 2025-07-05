@@ -19,7 +19,7 @@ const fs = require('fs');
   assert.throws(() => { crypto.hash('sha1', invalid); }, { code: 'ERR_INVALID_ARG_TYPE' });
 });
 
-[null, true, 1, () => {}, {}].forEach((invalid) => {
+[0, 1, NaN, true, Symbol(0)].forEach((invalid) => {
   assert.throws(() => { crypto.hash('sha1', 'test', invalid); }, { code: 'ERR_INVALID_ARG_TYPE' });
 });
 
