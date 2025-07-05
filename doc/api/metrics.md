@@ -30,18 +30,13 @@ flexible consumption patterns.
 ### Example
 
 ```mjs
-import { counter, timer, statsdStream } from 'node:metrics';
-import { createWriteStream } from 'node:fs';
+import { counter, timer } from 'node:metrics';
 
 // Create a counter metric
 const apiCalls = counter('api.calls', { service: 'web' });
 
 // Create a timer factory
 const requestTimer = timer('api.request.duration', { service: 'web' });
-
-// Export metrics to StatsD format
-const statsd = statsdStream();
-statsd.pipe(createWriteStream('metrics.log'));
 
 // Use metrics in your application
 function handleRequest(req, res) {
@@ -56,18 +51,13 @@ function handleRequest(req, res) {
 ```
 
 ```cjs
-const { counter, timer, statsdStream } = require('node:metrics');
-const { createWriteStream } = require('node:fs');
+const { counter, timer } = require('node:metrics');
 
 // Create a counter metric
 const apiCalls = counter('api.calls', { service: 'web' });
 
 // Create a timer factory
 const requestTimer = timer('api.request.duration', { service: 'web' });
-
-// Export metrics to StatsD format
-const statsd = statsdStream();
-statsd.pipe(createWriteStream('metrics.log'));
 
 // Use metrics in your application
 function handleRequest(req, res) {
@@ -172,28 +162,6 @@ const t = dbQueryTimer.create({ query: 'SELECT * FROM users' });
 const duration = t.stop(); // Returns duration in milliseconds
 ```
 
-### `metrics.uniqueSet(name[, meta])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `name` {string} The name of the unique set metric.
-* `meta` {Object} Optional metadata to attach to all reports.
-* Returns: {metrics.UniqueSet}
-
-Creates a unique set metric which counts distinct objects. Uniqueness is
-determined through a `WeakSet`, so it follows the same identity rules.
-
-```mjs
-import { uniqueSet } from 'node:metrics';
-
-const uniqueUsers = uniqueSet('users.unique');
-
-uniqueUsers.add(user);        // Only counted once per unique value
-uniqueUsers.add(anotherUser);
-```
-
 ### `metrics.periodicGauge(name, interval, fn[, meta])`
 
 <!-- YAML
@@ -239,7 +207,7 @@ added: REPLACEME
 * {string}
 
 The type of the metric (e.g., 'counter', 'gauge', 'meter', 'periodicGauge',
-'timer', 'uniqueSet').
+'timer').
 
 #### `metricReport.name`
 
@@ -356,7 +324,7 @@ added: REPLACEME
 * {string}
 
 The type of the metric (e.g., 'counter', 'gauge', 'meter', 'periodicGauge',
-'timer', 'uniqueSet').
+'timer').
 
 #### `metric.name`
 
@@ -755,57 +723,6 @@ const dbQueryTimer = timer('db.query.duration');
 const t = dbQueryTimer.create({ query: 'SELECT * FROM users' });
 ```
 
-### Class: `UniqueSet`
-
-* Extends: {metrics.Gauge}
-
-<!-- YAML
-added: REPLACEME
--->
-
-A metric that counts unique values.
-
-#### `uniqueSet.metric`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {metrics.Metric}
-
-The underlying metric instance used for reporting.
-
-#### `uniqueSet.add(value[, meta])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {any} The value to add to the set.
-* `meta` {Object} Additional metadata for this report.
-
-Adds a value to the set. Only reports if the value hasn't been seen before.
-
-```mjs
-import { uniqueSet } from 'node:metrics';
-
-const uniqueUsers = uniqueSet('users.unique');
-
-uniqueUsers.add(user);        // Only counted once per unique value
-uniqueUsers.add(user);        // Ignored because user is already in the set
-uniqueUsers.add(anotherUser, { source: 'login' }); // Count another user with metadata
-```
-
-#### `uniqueSet.count`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {number}
-
-The number of unique values seen.
-
 ### Class: `PeriodicGauge`
 
 * Extends: {metrics.Gauge}
@@ -903,87 +820,6 @@ import { cpuUsage } from 'node:process';
 }
 ```
 
-## Metric Streams
-
-### `metrics.statsdStream()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: {stream.Transform}
-
-Creates a transform stream that converts all metrics to StatsD format.
-
-```mjs
-import { statsdStream } from 'node:metrics';
-import { stdout } from 'node:process';
-
-const stream = statsdStream();
-stream.pipe(stdout);
-```
-
-Output format: `metric.name:value|type`
-
-### `metrics.dogstatsdStream()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: {stream.Transform}
-
-Creates a transform stream that converts all metrics to DogStatsD format with tags.
-
-```mjs
-import { dogstatsdStream } from 'node:metrics';
-import { stdout } from 'node:process';
-
-const stream = dogstatsdStream();
-stream.pipe(stdout);
-```
-
-Output format: `metric.name:value|type|key:value,key2:value2`
-
-### `metrics.graphiteStream()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: {stream.Transform}
-
-Creates a transform stream that converts all metrics to Graphite plaintext protocol.
-
-```mjs
-import { dogstatsdStream } from 'node:metrics';
-import { stdout } from 'node:process';
-
-const stream = graphiteStream();
-stream.pipe(stdout);
-```
-
-Output format: `metric.name value timestamp`
-
-### `metrics.prometheusStream()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: {stream.Transform}
-
-Creates a transform stream that converts all metrics to Prometheus exposition format.
-
-```mjs
-import { prometheusStream } from 'node:metrics';
-import { stdout } from 'node:process';
-
-const stream = prometheusStream();
-stream.pipe(stdout);
-```
-
-Output format: `metric_name{label="value"} value timestamp`
 
 ## Integration with Diagnostics Channel
 
