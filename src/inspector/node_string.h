@@ -6,7 +6,6 @@
 #include <cstring>
 #include <sstream>
 #include <string>
-#include "crdtp/maybe.h"
 #include "crdtp/protocol_core.h"
 #include "util.h"
 #include "v8-inspector.h"
@@ -29,11 +28,6 @@ struct ProtocolTypeTraits<node::inspector::protocol::Binary> {
                           node::inspector::protocol::Binary* value);
   static void Serialize(const node::inspector::protocol::Binary& value,
                         std::vector<uint8_t>* bytes);
-};
-
-template <>
-struct detail::MaybeTypedef<node::inspector::protocol::Binary> {
-  typedef ValueMaybe<node::inspector::protocol::Binary> type;
 };
 
 }  // namespace crdtp

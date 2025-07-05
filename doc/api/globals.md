@@ -36,7 +36,7 @@ changes:
 <!-- type=global -->
 
 A utility class used to signal cancelation in selected `Promise`-based APIs.
-The API is based on the Web API [`AbortController`][].
+The API is based on the Web API {AbortController}.
 
 ```js
 const ac = new AbortController();
@@ -284,7 +284,7 @@ added: v16.0.0
 
 Global alias for [`buffer.atob()`][].
 
-## `BroadcastChannel`
+## Class: `BroadcastChannel`
 
 <!-- YAML
 added: v18.0.0
@@ -340,7 +340,7 @@ added: v0.0.1
 
 [`clearTimeout`][] is described in the [timers][] section.
 
-## `CloseEvent`
+## Class: `CloseEvent`
 
 <!-- YAML
 added: v23.0.0
@@ -350,9 +350,7 @@ added: v23.0.0
 
 <!-- type=global -->
 
-The `CloseEvent` class. See [`CloseEvent`][] for more details.
-
-A browser-compatible implementation of [`CloseEvent`][]. Disable this API
+A browser-compatible implementation of {CloseEvent}. Disable this API
 with the [`--no-experimental-websocket`][] CLI flag.
 
 ## Class: `CompressionStream`
@@ -397,7 +395,7 @@ changes:
 
 A browser-compatible implementation of [`CountQueuingStrategy`][].
 
-## `Crypto`
+## Class: `Crypto`
 
 <!-- YAML
 added:
@@ -437,7 +435,7 @@ changes:
 
 A browser-compatible implementation of the [Web Crypto API][].
 
-## `CryptoKey`
+## Class: `CryptoKey`
 
 <!-- YAML
 added:
@@ -458,7 +456,7 @@ A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
 `node:crypto` module.
 
-## `CustomEvent`
+## Class: `CustomEvent`
 
 <!-- YAML
 added:
@@ -482,7 +480,7 @@ changes:
 
 <!-- type=global -->
 
-A browser-compatible implementation of the [`CustomEvent` Web API][].
+A browser-compatible implementation of {CustomEvent}.
 
 ## Class: `DecompressionStream`
 
@@ -498,7 +496,7 @@ changes:
 
 A browser-compatible implementation of [`DecompressionStream`][].
 
-## `Event`
+## Class: `Event`
 
 <!-- YAML
 added: v15.0.0
@@ -515,7 +513,7 @@ changes:
 A browser-compatible implementation of the `Event` class. See
 [`EventTarget` and `Event` API][] for more details.
 
-## `EventSource`
+## Class: `EventSource`
 
 <!-- YAML
 added:
@@ -526,9 +524,9 @@ added:
 > Stability: 1 - Experimental. Enable this API with the [`--experimental-eventsource`][]
 > CLI flag.
 
-A browser-compatible implementation of the [`EventSource`][] class.
+A browser-compatible implementation of {EventSource}.
 
-## `EventTarget`
+## Class: `EventTarget`
 
 <!-- YAML
 added: v15.0.0
@@ -581,7 +579,7 @@ The implementation is based upon [undici](https://undici.nodejs.org), an HTTP/1.
 written from scratch for Node.js. You can figure out which version of `undici` is bundled
 in your Node.js process reading the `process.versions.undici` property.
 
-## Custom dispatcher
+### Custom dispatcher
 
 You can use a custom dispatcher to dispatch requests passing it in fetch's options object.
 The dispatcher must be compatible with `undici`'s
@@ -600,7 +598,7 @@ import { setGlobalDispatcher } from 'undici';
 setGlobalDispatcher(new MyAgent());
 ```
 
-## Related classes
+### Related classes
 
 The following globals are available to use with `fetch`:
 
@@ -696,7 +694,7 @@ Enable this API with the [`--experimental-webstorage`][] CLI flag.
 `localStorage` data is not stored per user or per request when used in the context
 of a server, it is shared across all users and requests.
 
-## `MessageChannel`
+## Class: `MessageChannel`
 
 <!-- YAML
 added: v15.0.0
@@ -708,7 +706,7 @@ added: v15.0.0
 
 The `MessageChannel` class. See [`MessageChannel`][] for more details.
 
-## `MessageEvent`
+## Class: `MessageEvent`
 
 <!-- YAML
 added: v15.0.0
@@ -718,9 +716,9 @@ added: v15.0.0
 
 <!-- type=global -->
 
-The `MessageEvent` class. See [`MessageEvent`][] for more details.
+A browser-compatible implementation of {MessageEvent}.
 
-## `MessagePort`
+## Class: `MessagePort`
 
 <!-- YAML
 added: v15.0.0
@@ -736,7 +734,7 @@ The `MessagePort` class. See [`MessagePort`][] for more details.
 
 This variable may appear to be global but is not. See [`module`][].
 
-## `Navigator`
+## Class: `Navigator`
 
 <!-- YAML
 added: v21.0.0
@@ -844,7 +842,7 @@ consisting of the runtime name and major version number.
 console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 ```
 
-## `PerformanceEntry`
+## Class: `PerformanceEntry`
 
 <!-- YAML
 added: v19.0.0
@@ -856,7 +854,7 @@ added: v19.0.0
 
 The `PerformanceEntry` class. See [`PerformanceEntry`][] for more details.
 
-## `PerformanceMark`
+## Class: `PerformanceMark`
 
 <!-- YAML
 added: v19.0.0
@@ -868,7 +866,7 @@ added: v19.0.0
 
 The `PerformanceMark` class. See [`PerformanceMark`][] for more details.
 
-## `PerformanceMeasure`
+## Class: `PerformanceMeasure`
 
 <!-- YAML
 added: v19.0.0
@@ -880,7 +878,7 @@ added: v19.0.0
 
 The `PerformanceMeasure` class. See [`PerformanceMeasure`][] for more details.
 
-## `PerformanceObserver`
+## Class: `PerformanceObserver`
 
 <!-- YAML
 added: v19.0.0
@@ -892,7 +890,7 @@ added: v19.0.0
 
 The `PerformanceObserver` class. See [`PerformanceObserver`][] for more details.
 
-## `PerformanceObserverEntryList`
+## Class: `PerformanceObserverEntryList`
 
 <!-- YAML
 added: v19.0.0
@@ -905,7 +903,7 @@ added: v19.0.0
 The `PerformanceObserverEntryList` class. See
 [`PerformanceObserverEntryList`][] for more details.
 
-## `PerformanceResourceTiming`
+## Class: `PerformanceResourceTiming`
 
 <!-- YAML
 added: v19.0.0
@@ -1072,7 +1070,7 @@ A browser-compatible implementation of [`ReadableStreamDefaultReader`][].
 
 This variable may appear to be global but is not. See [`require()`][].
 
-## `Response`
+## Class: `Response`
 
 <!-- YAML
 added:
@@ -1092,7 +1090,7 @@ changes:
 
 A browser-compatible implementation of {Response}.
 
-## `Request`
+## Class: `Request`
 
 <!-- YAML
 added:
@@ -1166,10 +1164,10 @@ added: v0.0.1
 added: v22.4.0
 -->
 
-> Stability: 1.0 - Early development.
+> Stability: 1.0 - Early development. Enable this API with the
+> [`--experimental-webstorage`][] CLI flag.
 
-A browser-compatible implementation of [`Storage`][]. Enable this API with the
-[`--experimental-webstorage`][] CLI flag.
+A browser-compatible implementation of {Storage}.
 
 ## `structuredClone(value[, options])`
 
@@ -1183,7 +1181,7 @@ added: v17.0.0
 
 The WHATWG [`structuredClone`][] method.
 
-## `SubtleCrypto`
+## Class: `SubtleCrypto`
 
 <!-- YAML
 added:
@@ -1201,7 +1199,7 @@ A browser-compatible implementation of {SubtleCrypto}. This global is available
 only if the Node.js binary was compiled with including support for the
 `node:crypto` module.
 
-## `DOMException`
+## Class: `DOMException`
 
 <!-- YAML
 added: v17.0.0
@@ -1211,9 +1209,9 @@ added: v17.0.0
 
 <!-- type=global -->
 
-The WHATWG `DOMException` class. See [`DOMException`][] for more details.
+The WHATWG {DOMException} class.
 
-## `TextDecoder`
+## Class: `TextDecoder`
 
 <!-- YAML
 added: v11.0.0
@@ -1239,7 +1237,7 @@ changes:
 
 A browser-compatible implementation of [`TextDecoderStream`][].
 
-## `TextEncoder`
+## Class: `TextEncoder`
 
 <!-- YAML
 added: v11.0.0
@@ -1293,7 +1291,7 @@ changes:
 
 A browser-compatible implementation of [`TransformStreamDefaultController`][].
 
-## `URL`
+## Class: `URL`
 
 <!-- YAML
 added: v10.0.0
@@ -1305,7 +1303,7 @@ added: v10.0.0
 
 The WHATWG `URL` class. See the [`URL`][] section.
 
-## `URLPattern`
+## Class: `URLPattern`
 
 <!-- YAML
 added: v24.0.0
@@ -1317,7 +1315,7 @@ added: v24.0.0
 
 The WHATWG `URLPattern` class. See the [`URLPattern`][] section.
 
-## `URLSearchParams`
+## Class: `URLSearchParams`
 
 <!-- YAML
 added: v10.0.0
@@ -1329,7 +1327,7 @@ added: v10.0.0
 
 The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 
-## `WebAssembly`
+## Class: `WebAssembly`
 
 <!-- YAML
 added: v8.0.0
@@ -1345,7 +1343,7 @@ The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
 [Mozilla Developer Network][webassembly-mdn] for usage and compatibility.
 
-## `WebSocket`
+## Class: `WebSocket`
 
 <!-- YAML
 added:
@@ -1362,7 +1360,7 @@ changes:
 
 > Stability: 2 - Stable
 
-A browser-compatible implementation of [`WebSocket`][]. Disable this API
+A browser-compatible implementation of {WebSocket}. Disable this API
 with the [`--no-experimental-websocket`][] CLI flag.
 
 ## Class: `WritableStream`
@@ -1418,18 +1416,12 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`--localstorage-file`]: cli.md#--localstorage-filefile
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
 [`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
-[`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
-[`CloseEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent/CloseEvent
 [`CompressionStream`]: webstreams.md#class-compressionstream
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
-[`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
-[`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
-[`EventSource`]: https://developer.mozilla.org/en-US/docs/Web/API/EventSource
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
 [`MessageChannel`]: worker_threads.md#class-messagechannel
-[`MessageEvent`]: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/MessageEvent
 [`MessagePort`]: worker_threads.md#class-messageport
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
 [`PerformanceMark`]: perf_hooks.md#class-performancemark
@@ -1443,7 +1435,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`ReadableStreamDefaultController`]: webstreams.md#class-readablestreamdefaultcontroller
 [`ReadableStreamDefaultReader`]: webstreams.md#class-readablestreamdefaultreader
 [`ReadableStream`]: webstreams.md#class-readablestream
-[`Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Storage
 [`TextDecoderStream`]: webstreams.md#class-textdecoderstream
 [`TextDecoder`]: util.md#class-utiltextdecoder
 [`TextEncoderStream`]: webstreams.md#class-textencoderstream
@@ -1453,7 +1444,6 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`URLPattern`]: url.md#class-urlpattern
 [`URLSearchParams`]: url.md#class-urlsearchparams
 [`URL`]: url.md#class-url
-[`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`WritableStreamDefaultController`]: webstreams.md#class-writablestreamdefaultcontroller
 [`WritableStreamDefaultWriter`]: webstreams.md#class-writablestreamdefaultwriter
 [`WritableStream`]: webstreams.md#class-writablestream
