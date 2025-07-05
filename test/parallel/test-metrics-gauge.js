@@ -8,21 +8,20 @@ const { gauge, Gauge, Metric, MetricReport } = require('node:metrics');
 
 const testGauge = gauge('test', { base: 'test' });
 assert.ok(testGauge instanceof Gauge);
+assert.ok(testGauge instanceof Metric);
 assert.strictEqual(testGauge.value, 0);
 
-const { metric } = testGauge;
-assert.ok(metric instanceof Metric);
-assert.strictEqual(metric.type, 'gauge');
-assert.strictEqual(metric.name, 'test');
-assert.deepStrictEqual(metric.meta, { base: 'test' });
-assert.strictEqual(metric.channelName, 'metrics:gauge:test');
+assert.strictEqual(testGauge.type, 'gauge');
+assert.strictEqual(testGauge.name, 'test');
+assert.deepStrictEqual(testGauge.meta, { base: 'test' });
+assert.strictEqual(testGauge.channelName, 'metrics:gauge:test');
 
 const messages = [
   [123, { base: 'test', meta: 'first' }],
   [0, { base: 'test' }],
 ];
 
-subscribe(metric.channelName, common.mustCall((report) => {
+subscribe(testGauge.channelName, common.mustCall((report) => {
   assert.ok(report instanceof MetricReport);
   assert.strictEqual(report.type, 'gauge');
   assert.strictEqual(report.name, 'test');
