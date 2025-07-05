@@ -24,13 +24,13 @@ test('FastUtf8Stream destroy - basic functionality', async (t) => {
   // Test successful write
   const writeResult = stream.write('hello world\n');
   assert.ok(writeResult);
-  
+
   // Destroy the stream
   stream.destroy();
-  
+
   // Test that write throws after destroy
-  assert.throws(() => { 
-    stream.write('hello world\n'); 
+  assert.throws(() => {
+    stream.write('hello world\n');
   });
 
   // Wait for file to be written and check content
@@ -46,20 +46,20 @@ test('FastUtf8Stream destroy - basic functionality', async (t) => {
 
   // Test events - use Promise to handle async events
   const eventPromises = [];
-  
-  // finish event should NOT be emitted after destroy
+
+  // Finish event should NOT be emitted after destroy
   eventPromises.push(new Promise((resolve) => {
     const finishTimeout = setTimeout(() => {
       resolve('finish not emitted'); // This is what we want
     }, 100);
-    
+
     stream.on('finish', () => {
       clearTimeout(finishTimeout);
       resolve('finish emitted');
     });
   }));
 
-  // close event SHOULD be emitted after destroy
+  // Close event SHOULD be emitted after destroy
   eventPromises.push(new Promise((resolve) => {
     stream.on('close', () => {
       resolve('close emitted');
@@ -67,7 +67,7 @@ test('FastUtf8Stream destroy - basic functionality', async (t) => {
   }));
 
   const [finishResult, closeResult] = await Promise.all(eventPromises);
-  
+
   assert.strictEqual(finishResult, 'finish not emitted');
   assert.strictEqual(closeResult, 'close emitted');
 
@@ -107,7 +107,7 @@ test('FastUtf8Stream destroy while opening', async (t) => {
 
   // Destroy immediately while opening
   stream.destroy();
-  
+
   // Wait for close event
   await new Promise((resolve) => {
     stream.on('close', () => {

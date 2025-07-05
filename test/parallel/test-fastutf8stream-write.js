@@ -244,14 +244,14 @@ function buildTests(test, sync) {
   test(`write later on recoverable error - sync: ${sync}`, async (t) => {
     const dest = getTempFile();
     const fd = fs.openSync(dest, 'w');
-    
+
     // Store original function
     const originalWrite = sync ? fs.writeSync : fs.write;
     let errorThrown = false;
 
     try {
       if (sync) {
-        fs.writeSync = function (fd, buf, enc) {
+        fs.writeSync = function(fd, buf, enc) {
           if (!errorThrown) {
             errorThrown = true;
             throw new Error('recoverable error');
@@ -261,7 +261,7 @@ function buildTests(test, sync) {
         fs.writeSync.isMocked = true;
         fs.writeSync.original = originalWrite;
       } else {
-        fs.write = function (fd, buf, ...args) {
+        fs.write = function(fd, buf, ...args) {
           if (!errorThrown) {
             errorThrown = true;
             const callback = args[args.length - 1];
@@ -278,7 +278,7 @@ function buildTests(test, sync) {
 
       await new Promise((resolve, reject) => {
         let errorEmitted = false;
-        
+
         stream.on('ready', () => {
           stream.on('error', () => {
             errorEmitted = true;
@@ -318,7 +318,7 @@ function buildTests(test, sync) {
       } else {
         fs.write = originalWrite;
       }
-      
+
       // Cleanup
       try {
         fs.unlinkSync(dest);
@@ -373,17 +373,17 @@ function buildTests(test, sync) {
 test('write buffers that are not totally written', async (t) => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
-  
+
   // Store original function
   const originalWrite = fs.write;
   let callCount = 0;
 
   try {
-    fs.write = function (fd, buf, ...args) {
+    fs.write = function(fd, buf, ...args) {
       callCount++;
       if (callCount === 1) {
         // First call returns 0 (nothing written)
-        fs.write = function (fd, buf, ...args) {
+        fs.write = function(fd, buf, ...args) {
           return originalWrite.call(fs, fd, buf, ...args);
         };
         const callback = args[args.length - 1];
@@ -418,7 +418,7 @@ test('write buffers that are not totally written', async (t) => {
   } finally {
     // Restore original function
     fs.write = originalWrite;
-    
+
     // Cleanup
     try {
       fs.unlinkSync(dest);
@@ -471,7 +471,7 @@ test('write enormously large buffers async', async (t) => {
 test('make sure `maxLength` is passed', (t) => {
   const dest = getTempFile();
   const stream = new FastUtf8Stream({ dest, maxLength: 65536 });
-  
+
   try {
     assert.strictEqual(stream.maxLength, 65536);
     stream.end();

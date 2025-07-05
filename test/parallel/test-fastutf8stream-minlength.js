@@ -23,13 +23,13 @@ test('drain deadlock', async (t) => {
     assert.ok(stream.write(Buffer.alloc(1500).fill('x').toString()));
     assert.ok(stream.write(Buffer.alloc(1500).fill('x').toString()));
     assert.ok(!stream.write(Buffer.alloc(MAX_WRITE).fill('x').toString()));
-    
+
     await new Promise((resolve) => {
       stream.on('drain', () => {
         resolve();
       });
     });
-    
+
     stream.end();
   } finally {
     // Cleanup
@@ -51,7 +51,7 @@ test('should throw if minLength >= maxWrite', (t) => {
       minLength: MAX_WRITE
     });
   });
-  
+
   // Cleanup
   try {
     fs.closeSync(fd);

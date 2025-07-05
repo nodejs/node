@@ -1387,4 +1387,3 @@ it('fsync with async', async (t) => {
 
   fs.fsyncSync = originalFsyncSync;
 });
-

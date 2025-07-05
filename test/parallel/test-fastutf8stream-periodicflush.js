@@ -57,7 +57,7 @@ function buildTests(test, sync) {
   test(`periodicflush property - sync: ${sync}`, async (t) => {
     const dest = getTempFile();
     const fd = fs.openSync(dest, 'w');
-    
+
     try {
       // Test that periodicFlush property is set correctly
       const stream1 = new FastUtf8Stream({ fd, sync, minLength: 5000 });

@@ -34,7 +34,7 @@ function buildTests(test, sync) {
 
     stream.flushSync();
 
-    // let the file system settle down things
+    // Let the file system settle down things
     await new Promise((resolve) => {
       setImmediate(() => {
         stream.end();
@@ -90,14 +90,14 @@ test('retry in flushSync on EAGAIN', async (t) => {
         fs.readFile(dest, 'utf8', (err, data) => {
           assert.ifError(err);
           assert.strictEqual(data, 'hello world\nsomething else\n');
-          
+
           // Cleanup
           try {
             fs.unlinkSync(dest);
           } catch (cleanupErr) {
             // Ignore cleanup errors
           }
-          
+
           resolve();
         });
       });
@@ -108,7 +108,7 @@ test('retry in flushSync on EAGAIN', async (t) => {
 test('throw error in flushSync on EAGAIN', async (t) => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
-  
+
   let retryCallCount = 0;
   const stream = new FastUtf8Stream({
     fd,
@@ -129,7 +129,7 @@ test('throw error in flushSync on EAGAIN', async (t) => {
       const err = new Error('EAGAIN');
       err.code = 'EAGAIN';
       Error.captureStackTrace(err);
-      
+
       const originalWriteSync = fs.writeSync;
       let mockCallCount = 0;
       const mockWriteSync = mock.fn((fd, buf, enc) => {
@@ -148,11 +148,11 @@ test('throw error in flushSync on EAGAIN', async (t) => {
       const mockFsyncSync = mock.fn((...args) => {
         return originalFsyncSync.apply(fs, args);
       });
-      
+
       mock.method(fs, 'fsyncSync', mockFsyncSync);
 
       assert.ok(stream.write('hello world\n'));
-      
+
       // This should throw EAGAIN error
       assert.throws(() => {
         stream.flushSync();
@@ -167,17 +167,17 @@ test('throw error in flushSync on EAGAIN', async (t) => {
         fs.readFile(dest, 'utf8', (err, data) => {
           assert.ifError(err);
           assert.strictEqual(data, 'hello world\nsomething else\n');
-          
+
           // Verify retry callback was called
           assert.strictEqual(retryCallCount, 1);
-          
+
           // Cleanup
           try {
             fs.unlinkSync(dest);
           } catch (cleanupErr) {
             // Ignore cleanup errors
           }
-          
+
           resolve();
         });
       });

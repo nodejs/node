@@ -21,7 +21,7 @@ afterEach(() => {
 test('fsync with sync', async (t) => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
-  
+
   // Store original function
   const originalFsyncSync = fs.fsyncSync;
   let fsyncSyncCalls = 0;
@@ -45,13 +45,13 @@ test('fsync with sync', async (t) => {
 
     const data = fs.readFileSync(dest, 'utf8');
     assert.strictEqual(data, 'hello world\nsomething else\n');
-    
+
     // Verify fsyncSync was called
     assert.ok(fsyncSyncCalls > 0, 'fsyncSync should have been called');
   } finally {
     // Restore original function
     fs.fsyncSync = originalFsyncSync;
-    
+
     // Cleanup
     try {
       fs.unlinkSync(dest);
@@ -64,7 +64,7 @@ test('fsync with sync', async (t) => {
 test('fsync with async', async (t) => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
-  
+
   // Store original function
   const originalFsyncSync = fs.fsyncSync;
   let fsyncSyncCalls = 0;
@@ -100,16 +100,16 @@ test('fsync with async', async (t) => {
       });
 
       stream.on('close', () => {
-        // close emitted - test passed
+        // Close emitted - test passed
       });
     });
-    
+
     // Verify fsyncSync was called
     assert.ok(fsyncSyncCalls > 0, 'fsyncSync should have been called');
   } finally {
     // Restore original function
     fs.fsyncSync = originalFsyncSync;
-    
+
     // Cleanup
     try {
       fs.unlinkSync(dest);

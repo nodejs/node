@@ -38,7 +38,7 @@ function buildTests(test, sync) {
           assert.ifError(err);
           assert.strictEqual(data, 'something else\n');
           stream.end();
-          
+
           // Cleanup
           try {
             fs.unlinkSync(dest);
@@ -63,7 +63,7 @@ function buildTests(test, sync) {
           assert.ifError(err);
           assert.strictEqual(data, 'hello world\n');
           stream.end();
-          
+
           // Cleanup
           try {
             fs.unlinkSync(dest);
@@ -91,7 +91,7 @@ function buildTests(test, sync) {
           assert.ifError(err);
           assert.strictEqual(data, 'hello world\nsomething else\n');
           stream.end();
-          
+
           // Cleanup
           try {
             fs.unlinkSync(dest);
@@ -113,7 +113,7 @@ function buildTests(test, sync) {
 
       stream.on('drain', () => {
         stream.end();
-        
+
         // Cleanup
         try {
           fs.unlinkSync(dest);
@@ -136,7 +136,7 @@ function buildTests(test, sync) {
       stream.flush((err) => {
         assert.ifError(err);
         stream.end();
-        
+
         // Cleanup
         try {
           fs.unlinkSync(dest);
@@ -156,7 +156,7 @@ function buildTests(test, sync) {
       stream.flush((err) => {
         assert.ifError(err);
         stream.end();
-        
+
         // Cleanup
         try {
           fs.unlinkSync(dest);
@@ -175,7 +175,7 @@ function buildTests(test, sync) {
     stream.flush((err) => {
       assert.ifError(err);
       stream.end();
-      
+
       // Cleanup
       try {
         fs.unlinkSync(dest);
@@ -193,7 +193,7 @@ function buildTests(test, sync) {
 
     stream.flush((err) => {
       assert.ok(err);
-      
+
       // Cleanup
       try {
         fs.unlinkSync(dest);

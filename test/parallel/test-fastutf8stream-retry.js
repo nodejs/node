@@ -40,14 +40,14 @@ function buildTests(test, sync) {
   test(`retry on EAGAIN - sync: ${sync}`, async (t) => {
     const dest = getTempFile();
     const fd = fs.openSync(dest, 'w');
-    
+
     // Store original function
     const originalWrite = sync ? fs.writeSync : fs.write;
     let callCount = 0;
 
     try {
       if (sync) {
-        fs.writeSync = function (fd, buf, enc) {
+        fs.writeSync = function(fd, buf, enc) {
           callCount++;
           if (callCount === 1) {
             const err = new Error('EAGAIN');
@@ -59,7 +59,7 @@ function buildTests(test, sync) {
         fs.writeSync.isMocked = true;
         fs.writeSync.original = originalWrite;
       } else {
-        fs.write = function (fd, buf, ...args) {
+        fs.write = function(fd, buf, ...args) {
           callCount++;
           if (callCount === 1) {
             const err = new Error('EAGAIN');
@@ -103,7 +103,7 @@ function buildTests(test, sync) {
       } else {
         fs.write = originalWrite;
       }
-      
+
       // Cleanup
       try {
         fs.unlinkSync(dest);
@@ -117,13 +117,13 @@ function buildTests(test, sync) {
 test('emit error on async EAGAIN', async (t) => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
-  
+
   // Store original function
   const originalWrite = fs.write;
   let callCount = 0;
 
   try {
-    fs.write = function (fd, buf, ...args) {
+    fs.write = function(fd, buf, ...args) {
       callCount++;
       if (callCount === 1) {
         const err = new Error('EAGAIN');
@@ -174,7 +174,7 @@ test('emit error on async EAGAIN', async (t) => {
   } finally {
     // Restore original function
     fs.write = originalWrite;
-    
+
     // Cleanup
     try {
       fs.unlinkSync(dest);
@@ -187,13 +187,13 @@ test('emit error on async EAGAIN', async (t) => {
 test('retry on EBUSY', async (t) => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
-  
+
   // Store original function
   const originalWrite = fs.write;
   let callCount = 0;
 
   try {
-    fs.write = function (fd, buf, ...args) {
+    fs.write = function(fd, buf, ...args) {
       callCount++;
       if (callCount === 1) {
         const err = new Error('EBUSY');
@@ -230,7 +230,7 @@ test('retry on EBUSY', async (t) => {
   } finally {
     // Restore original function
     fs.write = originalWrite;
-    
+
     // Cleanup
     try {
       fs.unlinkSync(dest);
@@ -243,13 +243,13 @@ test('retry on EBUSY', async (t) => {
 test('emit error on async EBUSY', async (t) => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
-  
+
   // Store original function
   const originalWrite = fs.write;
   let callCount = 0;
 
   try {
-    fs.write = function (fd, buf, ...args) {
+    fs.write = function(fd, buf, ...args) {
       callCount++;
       if (callCount === 1) {
         const err = new Error('EBUSY');
@@ -300,7 +300,7 @@ test('emit error on async EBUSY', async (t) => {
   } finally {
     // Restore original function
     fs.write = originalWrite;
-    
+
     // Cleanup
     try {
       fs.unlinkSync(dest);

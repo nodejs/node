@@ -37,7 +37,7 @@ function buildTests(test, sync) {
           fs.readFile(after, 'utf8', (err, data) => {
             assert.ifError(err);
             assert.strictEqual(data, 'after reopen\n');
-            
+
             // Cleanup
             try {
               fs.unlinkSync(dest);
@@ -45,7 +45,7 @@ function buildTests(test, sync) {
             } catch (cleanupErr) {
               // Ignore cleanup errors
             }
-            
+
             resolve();
           });
         });
@@ -68,7 +68,7 @@ function buildTests(test, sync) {
           fs.readFile(after, 'utf8', (err, data) => {
             assert.ifError(err);
             assert.strictEqual(data, 'after reopen\n');
-            
+
             // Cleanup
             try {
               fs.unlinkSync(dest);
@@ -77,7 +77,7 @@ function buildTests(test, sync) {
             } catch (cleanupErr) {
               // Ignore cleanup errors
             }
-            
+
             resolve();
           });
         });
@@ -90,16 +90,16 @@ function buildTests(test, sync) {
     const dest = getTempFile();
     const stream = new FastUtf8Stream({ dest, minLength: 4096, sync });
     const after = dest + '-moved';
-    
+
     stream.reopen(after);
     stream.write('after reopen\n');
-    
+
     await new Promise((resolve) => {
       stream.on('finish', () => {
         fs.readFile(after, 'utf8', (err, data) => {
           assert.ifError(err);
           assert.strictEqual(data, 'after reopen\n');
-          
+
           // Cleanup
           try {
             fs.unlinkSync(dest);
@@ -107,11 +107,11 @@ function buildTests(test, sync) {
           } catch (cleanupErr) {
             // Ignore cleanup errors
           }
-          
+
           resolve();
         });
       });
-      
+
       stream.end();
     });
   });
@@ -127,7 +127,7 @@ function buildTests(test, sync) {
         stream.end();
         return;
       }
-      
+
       const chunk = str.slice(totalWritten, totalWritten + 1000);
       if (stream.write(chunk)) {
         totalWritten += chunk.length;
@@ -146,18 +146,18 @@ function buildTests(test, sync) {
           assert.ifError(err);
           assert.strictEqual(data.length, 10000);
           assert.strictEqual(data, str);
-          
+
           // Cleanup
           try {
             fs.unlinkSync(dest);
           } catch (cleanupErr) {
             // Ignore cleanup errors
           }
-          
+
           resolve();
         });
       });
-      
+
       writeData();
     });
   });

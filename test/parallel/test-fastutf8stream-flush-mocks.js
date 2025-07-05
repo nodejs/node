@@ -85,7 +85,7 @@ function buildTests(test, sync) {
       await new Promise((resolve, reject) => {
         stream.on('ready', () => {
           assert.ok(stream.write('hello world\n'));
-          
+
           stream.flush((err) => {
             try {
               assert.ifError(err);
@@ -95,7 +95,7 @@ function buildTests(test, sync) {
               assert.strictEqual(fsyncCalls, 0, 'fsync should not be called');
               // Verify write was called
               assert.strictEqual(writeCalls, 1, 'write should be called once');
-              
+
               stream.end();
               resolve();
             } catch (assertErr) {
@@ -110,7 +110,7 @@ function buildTests(test, sync) {
       fs.fsyncSync = originalFsyncSync;
       fs.write = originalWrite;
       fs.writeSync = originalWriteSync;
-      
+
       // Cleanup
       try {
         fs.unlinkSync(dest);
@@ -163,12 +163,12 @@ function buildTests(test, sync) {
       await new Promise((resolve, reject) => {
         stream.on('ready', () => {
           assert.ok(stream.write('hello world\n'));
-          
+
           stream.flush((err) => {
             try {
               assert.ok(err, 'flush should return an error');
               assert.strictEqual(err.code, 'ETEST', 'error should have correct code');
-              
+
               stream.end();
               resolve();
             } catch (assertErr) {
@@ -182,7 +182,7 @@ function buildTests(test, sync) {
       fs.fsync = originalFsync;
       fs.write = originalWrite;
       fs.writeSync = originalWriteSync;
-      
+
       // Cleanup
       try {
         fs.unlinkSync(dest);

@@ -27,13 +27,13 @@ afterEach(() => {
 test('write buffers that are not totally written with sync mode', async (t) => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
-  
+
   // Store original function
   const originalWriteSync = fs.writeSync;
   let callCount = 0;
 
   try {
-    fs.writeSync = function (fd, buf, enc) {
+    fs.writeSync = function(fd, buf, enc) {
       callCount++;
       if (callCount === 1) {
         // First call returns 0 (nothing written)
@@ -72,7 +72,7 @@ test('write buffers that are not totally written with sync mode', async (t) => {
   } finally {
     // Restore original function
     fs.writeSync = originalWriteSync;
-    
+
     // Cleanup
     try {
       fs.unlinkSync(dest);
@@ -85,13 +85,13 @@ test('write buffers that are not totally written with sync mode', async (t) => {
 test('write buffers that are not totally written with flush sync', async (t) => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
-  
+
   // Store original function
   const originalWriteSync = fs.writeSync;
   let callCount = 0;
 
   try {
-    fs.writeSync = function (fd, buf, enc) {
+    fs.writeSync = function(fd, buf, enc) {
       callCount++;
       if (callCount === 1) {
         // First call returns 0 (nothing written)
@@ -136,7 +136,7 @@ test('write buffers that are not totally written with flush sync', async (t) => 
   } finally {
     // Restore original function
     fs.writeSync = originalWriteSync;
-    
+
     // Cleanup
     try {
       fs.unlinkSync(dest);
@@ -149,19 +149,19 @@ test('write buffers that are not totally written with flush sync', async (t) => 
 test('sync writing is fully sync', async (t) => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
-  
+
   // Store original function
   const originalWriteSync = fs.writeSync;
 
   try {
-    fs.writeSync = function (fd, buf, enc) {
+    fs.writeSync = function(fd, buf, enc) {
       return originalWriteSync.call(fs, fd, buf, enc);
     };
     fs.writeSync.isMocked = true;
     fs.writeSync.original = originalWriteSync;
 
     const stream = new FastUtf8Stream({ fd, minLength: 0, sync: true });
-    
+
     assert.ok(stream.write('hello world\n'));
     assert.ok(stream.write('something else\n'));
 
@@ -177,7 +177,7 @@ test('sync writing is fully sync', async (t) => {
   } finally {
     // Restore original function
     fs.writeSync = originalWriteSync;
-    
+
     // Cleanup
     try {
       fs.unlinkSync(dest);
@@ -270,7 +270,7 @@ test('write enormously large buffers sync with utf8 multi-byte split', async (t)
 
 test('file specified by dest path available immediately when options.sync is true', (t) => {
   const dest = getTempFile();
-  
+
   try {
     const stream = new FastUtf8Stream({ dest, sync: true });
     assert.ok(stream.write('hello world\n'));

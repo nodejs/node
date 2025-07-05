@@ -96,7 +96,7 @@ function buildTests(test, sync) {
       stream.reopen();
 
       stream.end();
-      
+
       await new Promise((resolve) => {
         stream.on('close', () => {
           resolve();
@@ -180,20 +180,20 @@ function buildTests(test, sync) {
 
       await new Promise((resolve, reject) => {
         let errorEmitted = false;
-        
+
         stream.on('error', () => {
           errorEmitted = true;
         });
 
         stream.once('drain', () => {
           fs.renameSync(dest, after);
-          
+
           if (sync) {
-            fs.openSync = function (file, flags) {
+            fs.openSync = function(file, flags) {
               throw new Error('open error');
             };
           } else {
-            fs.open = function (file, flags, mode, cb) {
+            fs.open = function(file, flags, mode, cb) {
               setTimeout(() => cb(new Error('open error')), 0);
             };
           }
@@ -230,7 +230,7 @@ function buildTests(test, sync) {
       // Restore original functions
       fs.open = originalOpen;
       fs.openSync = originalOpenSync;
-      
+
       // Cleanup
       try {
         fs.unlinkSync(dest);
