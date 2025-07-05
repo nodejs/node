@@ -72,6 +72,25 @@ void ModuleCacheKey::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("import_attributes", import_attributes);
 }
 
+std::string ModuleCacheKey::ToString() const {
+  std::string result = "ModuleCacheKey(\"" + specifier + "\"";
+  if (!import_attributes.empty()) {
+    result += ", {";
+    bool first = true;
+    for (const auto& attr : import_attributes) {
+      if (first) {
+        first = false;
+      } else {
+        result += ", ";
+      }
+      result += attr.first + ": " + attr.second;
+    }
+    result += "}";
+  }
+  result += ")";
+  return result;
+}
+
 template <int elements_per_attribute>
 ModuleCacheKey ModuleCacheKey::From(Local<Context> context,
                                     Local<String> specifier,
@@ -605,6 +624,8 @@ void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
 // moduleWrap.link(moduleWraps)
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  Realm* realm = Realm::GetCurrent(args);
+  Local<Context> context = realm->context();
 
   ModuleWrap* dependent;
   ASSIGN_OR_RETURN_UNWRAP(&dependent, args.This());
@@ -615,6 +636,30 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
       dependent->module_.Get(isolate)->GetModuleRequests();
   Local<Array> modules = args[0].As<Array>();
   CHECK_EQ(modules->Length(), static_cast<uint32_t>(requests->Length()));
+
+  for (int i = 0; i < requests->Length(); i++) {
+    ModuleCacheKey module_cache_key = ModuleCacheKey::From(
+        context, requests->Get(context, i).As<ModuleRequest>());
+    DCHECK(dependent->resolve_cache_.contains(module_cache_key));
+
+    Local<Value> module_i;
+    Local<Value> module_cache_i;
+    uint32_t coalesced_index = dependent->resolve_cache_[module_cache_key];
+    if (!modules->Get(context, i).ToLocal(&module_i) ||
+        !modules->Get(context, coalesced_index).ToLocal(&module_cache_i) ||
+        !module_i->StrictEquals(module_cache_i)) {
+      // If the module is different from the one of the same request, throw an
+      // error.
+      THROW_ERR_MODULE_LINK_MISMATCH(
+          realm->env(),
+          "Module request '%s' at index %d must be linked "
+          "to the same module requested at index %d",
+          module_cache_key.ToString(),
+          i,
+          coalesced_index);
+      return;
+    }
+  }
 
   args.This()->SetInternalField(kLinkedRequestsSlot, modules);
   dependent->linked_ = true;
@@ -627,6 +672,12 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
   Local<Context> context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
+
+  if (!obj->IsLinked()) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(realm->env(), "module is not linked");
+    return;
+  }
+
   TryCatchScope try_catch(realm->env());
   USE(module->InstantiateModule(
       context, ResolveModuleCallback, ResolveSourceCallback));
