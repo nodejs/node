@@ -8,28 +8,25 @@ const { timer, Timer, TimerFactory, Metric, MetricReport } = require('node:metri
 
 const testTimer = timer('test', { base: 'test' });
 assert.ok(testTimer instanceof TimerFactory);
-assert.ok(testTimer.metric instanceof Metric);
+assert.ok(testTimer instanceof Metric);
 
-const { metric } = testTimer;
-assert.strictEqual(metric.type, 'timer');
-assert.strictEqual(metric.name, 'test');
-assert.deepStrictEqual(metric.meta, { base: 'test' });
-assert.strictEqual(metric.channelName, 'metrics:timer:test');
+assert.strictEqual(testTimer.type, 'timer');
+assert.strictEqual(testTimer.name, 'test');
+assert.deepStrictEqual(testTimer.meta, { base: 'test' });
+assert.strictEqual(testTimer.channelName, 'metrics:timer:test');
 
 const a = testTimer.create({ timer: 'a' });
 const b = testTimer.create({ timer: 'b' });
 
 assert.ok(a instanceof Timer);
-assert.deepStrictEqual(a.meta, { base: 'test', timer: 'a' });
-assert.strictEqual(a.value, 0);
-assert.ok(a.metric instanceof Metric);
+assert.ok(a instanceof Metric);
 
 const messages = [
   [50, { base: 'test', timer: 'a', meta: 'extra' }],
   [100, { base: 'test', timer: 'b' }],
 ];
 
-subscribe(metric.channelName, common.mustCall((report) => {
+subscribe(testTimer.channelName, common.mustCall((report) => {
   assert.ok(report instanceof MetricReport);
   assert.strictEqual(report.type, 'timer');
   assert.strictEqual(report.name, 'test');

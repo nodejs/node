@@ -321,29 +321,19 @@ import { gauge } from 'node:metrics';
 
 const memoryUsage = gauge('memory.usage', { service: 'web' });
 
-memoryUsage.metric.report(85); // Reports a value of 85
-memoryUsage.metric.report(90, { threshold: 'warning' }); // Reports 90 with metadata
+memoryUsage.report(85); // Reports a value of 85
+memoryUsage.report(90, { threshold: 'warning' }); // Reports 90 with metadata
 ```
 
 ### Class: `Counter`
 
-* Extends: {metrics.Gauge}
+* Extends: {metrics.Metric}
 
 <!-- YAML
 added: REPLACEME
 -->
 
 A metric that only increases or decreases.
-
-#### `counter.metric`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {metrics.Metric}
-
-The underlying metric instance used for reporting.
 
 #### `counter.value`
 
@@ -401,21 +391,13 @@ errorCount.decrement({ errorType: 'timeout' });    // Decrement by 1 with metada
 
 ### Class: `Gauge`
 
+* Extends: {metrics.Metric}
+
 <!-- YAML
 added: REPLACEME
 -->
 
 A metric representing a single value that can go up or down.
-
-#### `gauge.metric`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {metrics.Metric}
-
-The underlying metric instance used for reporting.
 
 #### `gauge.value`
 
@@ -451,23 +433,13 @@ memory.reset(1024, { source: 'system' }); // Set to 1024 with metadata
 
 ### Class: `Timer`
 
-* Extends: {metrics.Gauge}
+* Extends: {metrics.Metric}
 
 <!-- YAML
 added: REPLACEME
 -->
 
 A metric for measuring durations.
-
-#### `timer.metric`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {metrics.Metric}
-
-The underlying metric instance used for reporting.
 
 #### `timer.start`
 
@@ -546,21 +518,13 @@ const dbQueryTimer = timer('db.query.duration');
 
 ### Class: `TimerFactory`
 
+* Extends: {metrics.Metric}
+
 <!-- YAML
 added: REPLACEME
 -->
 
 A factory for creating timer instances.
-
-#### `timer.metric`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {metrics.Metric}
-
-The underlying metric instance used for reporting.
 
 #### `timerFactory.create([meta])`
 
@@ -583,23 +547,13 @@ const t = dbQueryTimer.create({ query: 'SELECT * FROM users' });
 
 ### Class: `PullGauge`
 
-* Extends: {metrics.Gauge}
+* Extends: {metrics.Metric}
 
 <!-- YAML
 added: REPLACEME
 -->
 
 A gauge that samples values on-demand when the `sample()` method is called.
-
-#### `pullGauge.metric`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {metrics.Metric}
-
-The underlying metric instance used for reporting.
 
 #### `pullGauge.sample([meta])`
 
