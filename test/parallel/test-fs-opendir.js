@@ -4,11 +4,19 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const process = require('node:process');
 
 const tmpdir = require('../common/tmpdir');
 
 const testDir = tmpdir.path;
 const files = ['empty', 'files', 'for', 'just', 'testing'];
+
+process.on('warning', (cause) => {
+  // If any directory handle was left unclosed and then GC'd,
+  // it will emit `Warning: Closing directory handle on garbage collection`.
+  // Treat this warning as error.
+  throw new Error('Expected no warnings', { cause });
+});
 
 // Make sure tmp directory is clean
 tmpdir.refresh();
