@@ -345,6 +345,16 @@ added: REPLACEME
 
 The underlying metric instance used for reporting.
 
+#### `counter.value`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+The current value of the counter.
+
 #### `counter.increment([n[, meta]])`
 
 <!-- YAML
@@ -388,16 +398,6 @@ errorCount.decrement(3);    // Decrement by 3
 errorCount.decrement(2, { errorType: 'timeout' }); // Decrement by 2 with metadata
 errorCount.decrement({ errorType: 'timeout' });    // Decrement by 1 with metadata
 ```
-
-#### `counter.value`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {number}
-
-The current value of the counter.
 
 ### Class: `Gauge`
 

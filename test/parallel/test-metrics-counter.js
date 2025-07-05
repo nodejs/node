@@ -19,9 +19,9 @@ assert.strictEqual(metric.channelName, 'metrics:counter:test');
 
 const messages = [
   [1, { base: 'test' }],
-  [124, { base: 'test', meta: 'extra' }],
-  [123, { base: 'test' }],
-  [0, { base: 'test', meta: 'extra' }],
+  [123, { base: 'test', meta: 'extra' }],
+  [-1, { base: 'test' }],
+  [-123, { base: 'test', meta: 'extra' }],
 ];
 
 subscribe(metric.channelName, common.mustCall((report) => {
