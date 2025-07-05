@@ -139,6 +139,8 @@ const customTypesMap = {
   'CustomEvent': 'events.html#class-customevent',
   'EventListener': 'events.html#event-listener',
 
+  'ErrorEvent': `${mdnPrefix}/API/ErrorEvent`,
+
   'CloseEvent': `${mdnPrefix}/API/CloseEvent`,
   'EventSource': `${mdnPrefix}/API/EventSource`,
   'MessageEvent': `${mdnPrefix}/API/MessageEvent`,
