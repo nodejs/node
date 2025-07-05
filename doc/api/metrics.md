@@ -140,30 +140,29 @@ const t = dbQueryTimer.create({ query: 'SELECT * FROM users' });
 const duration = t.stop(); // Returns duration in milliseconds
 ```
 
-### `metrics.periodicGauge(name, interval, fn[, meta])`
+### `metrics.pullGauge(name, fn[, meta])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `name` {string} The name of the periodic gauge metric.
-* `interval` {number} The interval in milliseconds between samples.
+* `name` {string} The name of the pull gauge metric.
 * `fn` {Function} A function that returns the current value.
 * `meta` {Object} Optional metadata to attach to all reports.
-* Returns: {metrics.PeriodicGauge}
+* Returns: {metrics.PullGauge}
 
-Creates a gauge that automatically samples a value at regular intervals.
+Creates a gauge that samples a value on-demand by calling the provided function.
 
 ```mjs
-import { periodicGauge } from 'node:metrics';
+import { pullGauge } from 'node:metrics';
 import { cpuUsage } from 'node:process';
 
-const cpu = periodicGauge('cpu.usage', 5000, () => {
+const cpu = pullGauge('cpu.usage', () => {
   return cpuUsage().user;
 });
 
-// Stop sampling when no longer needed
-cpu.stop();
+// Sample the gauge when needed
+cpu.sample();
 ```
 
 ## Classes
@@ -184,7 +183,7 @@ added: REPLACEME
 
 * {string}
 
-The type of the metric (e.g., 'counter', 'gauge', 'periodicGauge',
+The type of the metric (e.g., 'counter', 'gauge', 'pullGauge',
 'timer').
 
 #### `metricReport.name`
@@ -301,7 +300,7 @@ added: REPLACEME
 
 * {string}
 
-The type of the metric (e.g., 'counter', 'gauge', 'periodicGauge',
+The type of the metric (e.g., 'counter', 'gauge', 'pullGauge',
 'timer').
 
 #### `metric.name`
@@ -659,7 +658,7 @@ const dbQueryTimer = timer('db.query.duration');
 const t = dbQueryTimer.create({ query: 'SELECT * FROM users' });
 ```
 
-### Class: `PeriodicGauge`
+### Class: `PullGauge`
 
 * Extends: {metrics.Gauge}
 
@@ -667,9 +666,9 @@ const t = dbQueryTimer.create({ query: 'SELECT * FROM users' });
 added: REPLACEME
 -->
 
-A gauge that automatically samples values at regular intervals.
+A gauge that samples values on-demand when the `sample()` method is called.
 
-#### `periodicGauge.metric`
+#### `pullGauge.metric`
 
 <!-- YAML
 added: REPLACEME
@@ -679,81 +678,31 @@ added: REPLACEME
 
 The underlying metric instance used for reporting.
 
-#### `periodicGauge.interval`
+#### `pullGauge.sample([meta])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {number}
+* `meta` {Object} Additional metadata for this specific sample.
+* Returns: {number} The sampled value.
 
-The sampling interval in milliseconds. Setting this property reschedules the timer.
-
-#### `periodicGauge.schedule()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Schedules the periodic sampling based on the configured interval. This is called
-automatically when the gauge is created, but can be called again to reschedule
-after it has been stopped.
+Calls the configured function to get the current value and reports it.
 
 ```mjs
-import { periodicGauge } from 'node:metrics';
+import { pullGauge } from 'node:metrics';
 import { cpuUsage } from 'node:process';
 
-const cpu = periodicGauge('cpu.usage', 5000, () => {
+const cpu = pullGauge('cpu.usage', () => {
   return cpuUsage().user;
 });
 
-cpu.stop();
+// Sample the gauge when needed
+const value = cpu.sample();
+console.log(`Current CPU usage: ${value}`);
 
-// Reschedule sampling
-cpu.schedule();
-```
-
-#### `periodicGauge.stop()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Stops the periodic sampling.
-
-```mjs
-import { periodicGauge } from 'node:metrics';
-import { cpuUsage } from 'node:process';
-
-const cpu = periodicGauge('cpu.usage', 5000, () => {
-  return cpuUsage().user;
-});
-
-// Stop sampling when no longer needed
-cpu.stop();
-```
-
-#### `periodicGauge[Symbol.dispose]()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-Allows `using` syntax to automatically stop the periodic gauge when done.
-
-```mjs
-import { periodicGauge } from 'node:metrics';
-import { cpuUsage } from 'node:process';
-
-{
-  using cpu = periodicGauge('cpu.usage', 1000, () => {
-    return cpuUsage().user;
-  });
-
-  // Perform operations that require periodic sampling...
-
-  // Sampling is automatically stopped here
-}
+// Sample with additional metadata
+cpu.sample({ threshold: 'high' });
 ```
 
 
