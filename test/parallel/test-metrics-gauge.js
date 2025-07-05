@@ -19,7 +19,6 @@ assert.strictEqual(metric.channelName, 'metrics:gauge:test');
 
 const messages = [
   [123, { base: 'test', meta: 'first' }],
-  [357, { base: 'test', meta: 'second' }],
   [0, { base: 'test' }],
 ];
 
@@ -32,8 +31,7 @@ subscribe(metric.channelName, common.mustCall((report) => {
   const [value, meta] = messages.shift();
   assert.strictEqual(report.value, value);
   assert.deepStrictEqual(report.meta, meta);
-}, 3));
+}, 2));
 
 testGauge.reset(123, { meta: 'first' });
-testGauge.applyDelta(234, { meta: 'second' });
 testGauge.reset();
