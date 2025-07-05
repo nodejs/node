@@ -1,7 +1,7 @@
+#include "async_wrap.h"
 #include "env-inl.h"
 #include "node_internals.h"
 #include "node_process-inl.h"
-#include "async_wrap.h"
 
 namespace node {
 
@@ -115,10 +115,8 @@ struct ACHHandle final {
 // this.
 void DeleteACHHandle::operator ()(ACHHandle* handle) const { delete handle; }
 
-void AddEnvironmentCleanupHook(Isolate* isolate,
-                               CleanupHook fun,
-                               void* arg) {
-  Environment* env = Environment::GetCurrent(isolate);
+void AddEnvironmentCleanupHook(Isolate* isolate, CleanupHook fun, void* arg) {
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   CHECK_NOT_NULL(env);
   env->AddCleanupHook(fun, arg);
 }
@@ -126,7 +124,7 @@ void AddEnvironmentCleanupHook(Isolate* isolate,
 void RemoveEnvironmentCleanupHook(Isolate* isolate,
                                   CleanupHook fun,
                                   void* arg) {
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   CHECK_NOT_NULL(env);
   env->RemoveCleanupHook(fun, arg);
 }
@@ -146,11 +144,10 @@ static void RunAsyncCleanupHook(void* arg) {
   info->fun(info->arg, FinishAsyncCleanupHook, info);
 }
 
-ACHHandle* AddEnvironmentCleanupHookInternal(
-    Isolate* isolate,
-    AsyncCleanupHook fun,
-    void* arg) {
-  Environment* env = Environment::GetCurrent(isolate);
+ACHHandle* AddEnvironmentCleanupHookInternal(Isolate* isolate,
+                                             AsyncCleanupHook fun,
+                                             void* arg) {
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   CHECK_NOT_NULL(env);
   auto info = std::make_shared<AsyncCleanupHookInfo>();
   info->env = env;
@@ -179,7 +176,7 @@ void RequestInterrupt(Environment* env, void (*fun)(void* arg), void* arg) {
 }
 
 async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (env == nullptr) return -1;
   return env->execution_async_id();
 }
@@ -191,11 +188,10 @@ async_id AsyncHooksGetExecutionAsyncId(Local<Context> context) {
 }
 
 async_id AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (env == nullptr) return -1;
   return env->trigger_async_id();
 }
-
 
 async_context EmitAsyncInit(Isolate* isolate,
                             Local<Object> resource,
@@ -213,7 +209,7 @@ async_context EmitAsyncInit(Isolate* isolate,
                             Local<String> name,
                             async_id trigger_async_id) {
   DebugSealHandleScope handle_scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   CHECK_NOT_NULL(env);
 
   // Initialize async context struct
@@ -233,7 +229,8 @@ async_context EmitAsyncInit(Isolate* isolate,
 }
 
 void EmitAsyncDestroy(Isolate* isolate, async_context asyncContext) {
-  EmitAsyncDestroy(Environment::GetCurrent(isolate), asyncContext);
+  EmitAsyncDestroy(Environment::GetCurrent(isolate->GetCurrentContext()),
+                   asyncContext);
 }
 
 void EmitAsyncDestroy(Environment* env, async_context asyncContext) {
