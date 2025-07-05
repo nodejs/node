@@ -115,7 +115,6 @@ import { memoryUsage } from 'node:process';
 const memory = gauge('memory.usage.bytes');
 
 memory.reset(memoryUsage().heapUsed);
-memory.applyDelta(1024);  // Add 1024 to current value
 ```
 
 ### `metrics.timer(name[, meta])`
@@ -448,26 +447,6 @@ const memory = gauge('memory.usage.bytes');
 memory.reset(); // Reset to 0
 memory.reset(memoryUsage().heapUsed); // Set to current memory usage
 memory.reset(1024, { source: 'system' }); // Set to 1024 with metadata
-```
-
-#### `gauge.applyDelta(delta[, meta])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `delta` {number} The amount to add to the current value.
-* `meta` {Object} Additional metadata for this report.
-
-Adds a delta to the current value and reports the new value.
-
-```mjs
-import { gauge } from 'node:metrics';
-
-const cpuUsage = gauge('cpu.usage.percent');
-
-cpuUsage.applyDelta(5); // Increase by 5
-cpuUsage.applyDelta(-2, { source: 'system' }); // Decrease by 2 with metadata
 ```
 
 ### Class: `Timer`
