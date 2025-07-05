@@ -3997,6 +3997,19 @@ Type: Documentation-only
 
 The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError`][] instead.
 
+### DEP0198: Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58942
+    description: Documentation-only deprecation with support for `--pending-deprecation`.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength` is deprecated.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
