@@ -192,6 +192,9 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetUndefined();
   }
 
+  auto cleanup =
+      OnScopeLeave([&]() { uv_free_interface_addresses(interfaces, count); });
+
   Local<Value> no_scope_id = Integer::New(isolate, -1);
   std::vector<Local<Value>> result;
   result.reserve(count * 7);
@@ -243,7 +246,6 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  uv_free_interface_addresses(interfaces, count);
   args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
 }
 
