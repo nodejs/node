@@ -42,7 +42,7 @@ list like the following:
 <!-- eslint-disable @stylistic/js/semi -->
 
 ```js
-[ 'ConTent-Length', '123456',
+[ 'Content-Length', '123456',
   'content-LENGTH', '123',
   'content-type', 'text/plain',
   'CONNECTION', 'keep-alive',
