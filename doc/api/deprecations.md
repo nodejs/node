@@ -3850,6 +3850,21 @@ To make [`child_process.exec`][] invoke the default shell, either omit the
 `shell` option, or set it to a nullish value. If the intention is not to invoke
 a shell, use [`child_process.execFile`][] instead.
 
+<!-- md-lint skip-deprecation DEP0197 -->
+
+### DEP0198: Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58942
+    description: Documentation-only deprecation with support for `--pending-deprecation`.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength` is deprecated.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3

@@ -345,10 +345,22 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
   }
 
   md_len_ = EVP_MD_size(md);
+  bool is_xof = (EVP_MD_flags(md) & EVP_MD_FLAG_XOF) != 0;
+  if (is_xof && !xof_md_len.IsJust() && md_len_ == 0) {
+    const char* name = OBJ_nid2sn(EVP_MD_type(md));
+    if (name != nullptr) {
+      if (strcmp(name, "SHAKE128") == 0) {
+        md_len_ = 16;
+      } else if (strcmp(name, "SHAKE256") == 0) {
+        md_len_ = 32;
+      }
+    }
+  }
+
   if (xof_md_len.IsJust() && xof_md_len.FromJust() != md_len_) {
     // This is a little hack to cause createHash to fail when an incorrect
     // hashSize option was passed for a non-XOF hash function.
-    if ((EVP_MD_flags(md) & EVP_MD_FLAG_XOF) == 0) {
+    if (!is_xof) {
       EVPerr(EVP_F_EVP_DIGESTFINALXOF, EVP_R_NOT_XOF_OR_INVALID_LENGTH);
       return false;
     }
