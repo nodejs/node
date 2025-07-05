@@ -5,10 +5,10 @@ const common = require('../common');
 const assert = require('assert');
 const { subscribe } = require('node:diagnostics_channel');
 const { metrics } = require('node:perf_hooks');
-const { gauge, Gauge, Timer, MetricReport } = metrics;
+const { createGauge, Gauge, Timer, MetricReport } = metrics;
 
 // Create a gauge for timing
-const testGauge = gauge('test.response.time', { base: 'test' });
+const testGauge = createGauge('test.response.time', { base: 'test' });
 assert.ok(testGauge instanceof Gauge);
 
 assert.strictEqual(testGauge.type, 'gauge');

@@ -5,10 +5,10 @@ const common = require('../common');
 const assert = require('assert');
 const { subscribe } = require('node:diagnostics_channel');
 const { metrics } = require('node:perf_hooks');
-const { counter, Counter, Timer, MetricReport } = metrics;
+const { createCounter, Counter, Timer, MetricReport } = metrics;
 
 // Create a counter for timing
-const testCounter = counter('test.duration', { base: 'test' });
+const testCounter = createCounter('test.duration', { base: 'test' });
 assert.ok(testCounter instanceof Counter);
 
 assert.strictEqual(testCounter.type, 'counter');

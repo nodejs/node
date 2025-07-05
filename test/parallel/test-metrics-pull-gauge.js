@@ -5,13 +5,13 @@ const common = require('../common');
 const assert = require('assert');
 const { subscribe } = require('node:diagnostics_channel');
 const { metrics } = require('node:perf_hooks');
-const { pullGauge, PullGauge, Metric, MetricReport } = metrics;
+const { createPullGauge, PullGauge, Metric, MetricReport } = metrics;
 
 // Test values to return from the pull function
 const values = [ 1, 5, 10, 4, 6 ];
 let currentIndex = 0;
 
-const testPullGauge = pullGauge('test', () => {
+const testPullGauge = createPullGauge('test', () => {
   return values[currentIndex];
 }, { base: 'test' });
 

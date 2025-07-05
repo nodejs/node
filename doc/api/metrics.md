@@ -31,11 +31,11 @@ flexible consumption patterns.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { counter } = metrics;
+const { createCounter } = metrics;
 
 // Create counter metrics
-const apiCalls = counter('api.calls', { service: 'web' });
-const requestDuration = counter('api.request.duration.ms', { service: 'web' });
+const apiCalls = createCounter('api.calls', { service: 'web' });
+const requestDuration = createCounter('api.request.duration.ms', { service: 'web' });
 
 // Use metrics in your application
 function handleRequest(req, res) {
@@ -51,11 +51,11 @@ function handleRequest(req, res) {
 
 ```cjs
 const { metrics } = require('node:perf_hooks');
-const { counter } = metrics;
+const { createCounter } = metrics;
 
 // Create counter metrics
-const apiCalls = counter('api.calls', { service: 'web' });
-const requestDuration = counter('api.request.duration.ms', { service: 'web' });
+const apiCalls = createCounter('api.calls', { service: 'web' });
+const requestDuration = createCounter('api.request.duration.ms', { service: 'web' });
 
 // Use metrics in your application
 function handleRequest(req, res) {
@@ -71,7 +71,7 @@ function handleRequest(req, res) {
 
 ## Metric Types
 
-### `metrics.counter(name[, meta])`
+### `metrics.createCounter(name[, meta])`
 
 <!-- YAML
 added: REPLACEME
@@ -85,9 +85,9 @@ Creates a counter metric that tracks cumulative values.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { counter } = metrics;
+const { createCounter } = metrics;
 
-const errorCount = counter('errors.total', { component: 'database' });
+const errorCount = createCounter('errors.total', { component: 'database' });
 
 errorCount.increment();     // Increment by 1
 errorCount.increment(5);    // Increment by 5
@@ -95,7 +95,7 @@ errorCount.decrement(2);    // Decrement by 2
 ```
 
 
-### `metrics.gauge(name[, meta])`
+### `metrics.createGauge(name[, meta])`
 
 <!-- YAML
 added: REPLACEME
@@ -109,16 +109,16 @@ Creates a gauge metric that represents a single value at a point in time.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { gauge } = metrics;
+const { createGauge } = metrics;
 import { memoryUsage } from 'node:process';
 
-const memory = gauge('memory.usage.bytes');
+const memory = createGauge('memory.usage.bytes');
 
 memory.reset(memoryUsage().heapUsed);
 ```
 
 
-### `metrics.pullGauge(name, fn[, meta])`
+### `metrics.createPullGauge(name, fn[, meta])`
 
 <!-- YAML
 added: REPLACEME
@@ -133,10 +133,10 @@ Creates a gauge that samples a value on-demand by calling the provided function.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { pullGauge } = metrics;
+const { createPullGauge } = metrics;
 import { cpuUsage } from 'node:process';
 
-const cpu = pullGauge('cpu.usage', () => {
+const cpu = createPullGauge('cpu.usage', () => {
   return cpuUsage().user;
 });
 
@@ -298,7 +298,7 @@ metadata.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { gauge } = metrics;
+const { createGauge } = metrics;
 
 const memoryUsage = gauge('memory.usage', { service: 'web' });
 
@@ -339,9 +339,9 @@ Increments the counter by the specified amount.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { counter } = metrics;
+const { createCounter } = metrics;
 
-const apiCalls = counter('api.calls', { service: 'web' });
+const apiCalls = createCounter('api.calls', { service: 'web' });
 
 apiCalls.increment();     // Increment by 1
 apiCalls.increment(5);    // Increment by 5
@@ -362,9 +362,9 @@ Decrements the counter by the specified amount.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { counter } = metrics;
+const { createCounter } = metrics;
 
-const errorCount = counter('errors.total', { component: 'database' });
+const errorCount = createCounter('errors.total', { component: 'database' });
 
 errorCount.decrement();     // Decrement by 1
 errorCount.decrement(3);    // Decrement by 3
@@ -385,9 +385,9 @@ Creates a timer that will increment this counter with its duration when stopped.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { counter } = metrics;
+const { createCounter } = metrics;
 
-const requestDuration = counter('request.duration.ms');
+const requestDuration = createCounter('request.duration.ms');
 
 const timer = requestDuration.createTimer({ endpoint: '/api/users' });
 // Process request...
@@ -427,10 +427,10 @@ Sets the gauge to a specific value and reports it.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { gauge } = metrics;
+const { createGauge } = metrics;
 import { memoryUsage } from 'node:process';
 
-const memory = gauge('memory.usage.bytes');
+const memory = createGauge('memory.usage.bytes');
 
 memory.reset(); // Reset to 0
 memory.reset(memoryUsage().heapUsed); // Set to current memory usage
@@ -450,9 +450,9 @@ Creates a timer that will set this gauge to its duration when stopped.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { gauge } = metrics;
+const { createGauge } = metrics;
 
-const responseTime = gauge('response.time.ms');
+const responseTime = createGauge('response.time.ms');
 
 const timer = responseTime.createTimer({ endpoint: '/api/users' });
 // Process request...
@@ -509,9 +509,9 @@ Stops the timer and reports the duration. Can only be called once.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { counter } = metrics;
+const { createCounter } = metrics;
 
-const dbQueryDuration = counter('db.query.duration');
+const dbQueryDuration = createCounter('db.query.duration');
 
 const t = dbQueryDuration.createTimer({ query: 'SELECT * FROM users' });
 
@@ -531,9 +531,9 @@ Allows `using` syntax to automatically stop the timer when done.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { counter } = metrics;
+const { createCounter } = metrics;
 
-const dbQueryDuration = counter('db.query.duration');
+const dbQueryDuration = createCounter('db.query.duration');
 
 {
   using t = dbQueryDuration.createTimer({ query: 'SELECT * FROM users' });
@@ -567,10 +567,10 @@ Calls the configured function to get the current value and reports it.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { pullGauge } = metrics;
+const { createPullGauge } = metrics;
 import { cpuUsage } from 'node:process';
 
-const cpu = pullGauge('cpu.usage', () => {
+const cpu = createPullGauge('cpu.usage', () => {
   return cpuUsage().user;
 });
 

@@ -5,9 +5,9 @@ const common = require('../common');
 const assert = require('assert');
 const { subscribe } = require('node:diagnostics_channel');
 const { metrics } = require('node:perf_hooks');
-const { gauge, Gauge, Metric, MetricReport } = metrics;
+const { createGauge, Gauge, Metric, MetricReport } = metrics;
 
-const testGauge = gauge('test', { base: 'test' });
+const testGauge = createGauge('test', { base: 'test' });
 assert.ok(testGauge instanceof Gauge);
 assert.ok(testGauge instanceof Metric);
 assert.strictEqual(testGauge.value, 0);
