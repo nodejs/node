@@ -32,21 +32,21 @@ subscribe(testPullGauge.channelName, common.mustCall((report) => {
   assert.strictEqual(report.name, 'test');
   assert.ok(report.time > 0);
   assert.strictEqual(report.value, values[reportCount]);
-  
+
   if (reportCount < values.length - 1) {
     assert.deepStrictEqual(report.meta, { base: 'test' });
   } else {
     // Last sample includes additional metadata
     assert.deepStrictEqual(report.meta, { base: 'test', extra: 'metadata' });
   }
-  
+
   reportCount++;
 }, values.length));
 
 // Test sampling
 for (let i = 0; i < values.length; i++) {
   currentIndex = i;
-  
+
   if (i === values.length - 1) {
     // Test sampling with additional metadata
     const value = testPullGauge.sample({ extra: 'metadata' });
