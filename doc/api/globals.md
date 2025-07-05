@@ -496,6 +496,16 @@ changes:
 
 A browser-compatible implementation of [`DecompressionStream`][].
 
+## Class: `ErrorEvent`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+A browser-compatible implementation of {ErrorEvent}.
+
 ## Class: `Event`
 
 <!-- YAML
