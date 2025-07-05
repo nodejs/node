@@ -227,62 +227,6 @@ added: REPLACEME
 The `performance.now()` timestamp when the measurement was recorded in
 milliseconds since `performance.timeOrigin`.
 
-#### `metricReport.toStatsd()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: {string}
-
-Formats the metric report as a StatsD-compatible string.
-
-```js
-console.log(report.toStatsd()); // 'api.calls:1|c'
-```
-
-#### `metricReport.toDogStatsd()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: {string}
-
-Formats the metric report as a DogStatsD-compatible string with tags.
-
-```js
-console.log(report.toDogStatsd()); // 'api.calls:1|c|service:web'
-```
-
-#### `metricReport.toGraphite()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: {string}
-
-Formats the metric report as a Graphite-compatible string.
-
-```js
-console.log(report.toGraphite()); // 'api.calls 1 1234567890'
-```
-
-#### `metricReport.toPrometheus()`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* Returns: {string}
-
-Formats the metric report as a Prometheus-compatible string.
-
-```js
-console.log(report.toPrometheus()); // 'api_calls{service="web"} 1 1234567890.123'
-```
-
 ### Class: `Metric`
 
 <!-- YAML
