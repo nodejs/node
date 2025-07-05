@@ -1196,7 +1196,8 @@ changes:
     `'/bin/sh'` on Unix, and `process.env.ComSpec` on Windows. A different
     shell can be specified as a string. See [Shell requirements][] and
     [Default Windows shell][]. **Default:** `false` (no shell).
-* Returns: {Buffer|string} The stdout from the command.
+* Returns: {Buffer|string|null} If `stdio` is `'pipe'`, the stdout from the
+  command, otherwise null.
 
 The `child_process.execFileSync()` method is generally identical to
 [`child_process.execFile()`][] with the exception that the method will not
@@ -1323,7 +1324,8 @@ changes:
     **Default:** `'buffer'`.
   * `windowsHide` {boolean} Hide the subprocess console window that would
     normally be created on Windows systems. **Default:** `false`.
-* Returns: {Buffer|string} The stdout from the command.
+* Returns: {Buffer|string|null} If `stdio` is `'pipe'`, the stdout from the
+  command, otherwise null.
 
 The `child_process.execSync()` method is generally identical to
 [`child_process.exec()`][] with the exception that the method will not return
@@ -1407,8 +1409,10 @@ changes:
 * Returns: {Object}
   * `pid` {number} Pid of the child process.
   * `output` {Array} Array of results from stdio output.
-  * `stdout` {Buffer|string} The contents of `output[1]`.
-  * `stderr` {Buffer|string} The contents of `output[2]`.
+  * `stdout` {Buffer|string|null} If `stdio` is `'pipe'`, the contents of
+    `output[1]`, otherwise null.
+  * `stderr` {Buffer|string|null} If `stdio` is `'pipe'`, the contents of
+    `output[2]`, otherwise null.
   * `status` {number|null} The exit code of the subprocess, or `null` if the
     subprocess terminated due to a signal.
   * `signal` {string|null} The signal used to kill the subprocess, or `null` if
