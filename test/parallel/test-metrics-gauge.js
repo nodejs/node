@@ -4,7 +4,8 @@ const common = require('../common');
 
 const assert = require('assert');
 const { subscribe } = require('node:diagnostics_channel');
-const { gauge, Gauge, Metric, MetricReport } = require('node:metrics');
+const { metrics } = require('node:perf_hooks');
+const { gauge, Gauge, Metric, MetricReport } = metrics;
 
 const testGauge = gauge('test', { base: 'test' });
 assert.ok(testGauge instanceof Gauge);
