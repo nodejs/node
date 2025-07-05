@@ -85,6 +85,7 @@ Permission::Permission() : enabled_(false) {
       std::make_shared<InspectorPermission>();
   std::shared_ptr<PermissionBase> wasi = std::make_shared<WASIPermission>();
   std::shared_ptr<PermissionBase> net = std::make_shared<NetPermission>();
+  std::shared_ptr<PermissionBase> addon = std::make_shared<AddonPermission>();
 #define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, fs));
   FILESYSTEM_PERMISSIONS(V)
@@ -108,6 +109,10 @@ Permission::Permission() : enabled_(false) {
 #define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, net));
   NET_PERMISSIONS(V)
+#undef V
+#define V(Name, _, __, ___)                                                    \
+  nodes_.insert(std::make_pair(PermissionScope::k##Name, addon));
+  ADDON_PERMISSIONS(V)
 #undef V
 }
 
