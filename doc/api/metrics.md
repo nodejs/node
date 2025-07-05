@@ -94,7 +94,6 @@ errorCount.increment(5);    // Increment by 5
 errorCount.decrement(2);    // Decrement by 2
 ```
 
-
 ### `metrics.createGauge(name[, meta])`
 
 <!-- YAML
@@ -116,7 +115,6 @@ const memory = createGauge('memory.usage.bytes');
 
 memory.reset(memoryUsage().heapUsed);
 ```
-
 
 ### `metrics.createPullGauge(name, fn[, meta])`
 
@@ -254,7 +252,7 @@ added: REPLACEME
 
 * {string}
 
-The name of the diagnostics_channel used for this metric.
+The name of the diagnostics\_channel used for this metric.
 
 #### `metric.channel`
 
@@ -485,7 +483,8 @@ added: REPLACEME
 
 * {number|undefined}
 
-The end time of the timer (milliseconds since `performance.timeOrigin`). `undefined` if timer is still running. This property is read-only.
+The end time of the timer (milliseconds since `performance.timeOrigin`). `undefined` if timer is still running.
+This property is read-only.
 
 #### `timer.duration`
 
@@ -543,7 +542,6 @@ const dbQueryDuration = createCounter('db.query.duration');
 }
 ```
 
-
 ### Class: `PullGauge`
 
 * Extends: {metrics.Metric}
@@ -581,7 +579,6 @@ console.log(`Current CPU usage: ${value}`);
 // Sample with additional metadata
 cpu.sample({ threshold: 'high' });
 ```
-
 
 ## Integration with Diagnostics Channel
 
@@ -633,6 +630,6 @@ subscribe('metrics:new', (metric) => {
 2. **Metadata**: Use metadata to add dimensions to your metrics without creating separate metric instances.
 
 3. **Performance**: Metric types are designed to be lightweight. However, avoid
-  creating metric types in hot code paths. As with diagnostics_channel, metric
-  creation is optimized for capture time performance by moving costly
-  operations to metric type creation time.
+   creating metric types in hot code paths. As with diagnostics\_channel, metric
+   creation is optimized for capture time performance by moving costly
+   operations to metric type creation time.

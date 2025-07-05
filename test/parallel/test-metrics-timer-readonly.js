@@ -1,6 +1,6 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const { metrics } = require('node:perf_hooks');
 const { Timer } = metrics;
