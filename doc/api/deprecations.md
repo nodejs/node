@@ -3589,6 +3589,39 @@ Type: Documentation-only
 Passing non-supported argument types is deprecated and, instead of returning `false`,
 will throw an error in a future version.
 
+<!-- md-lint skip-deprecation DEP0188 -->
+
+<!-- md-lint skip-deprecation DEP0189 -->
+
+<!-- md-lint skip-deprecation DEP0190 -->
+
+<!-- md-lint skip-deprecation DEP0191 -->
+
+<!-- md-lint skip-deprecation DEP0192 -->
+
+<!-- md-lint skip-deprecation DEP0193 -->
+
+<!-- md-lint skip-deprecation DEP0194 -->
+
+<!-- md-lint skip-deprecation DEP0195 -->
+
+<!-- md-lint skip-deprecation DEP0196 -->
+
+<!-- md-lint skip-deprecation DEP0197 -->
+
+### DEP0198: Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58942
+    description: Documentation-only deprecation with support for `--pending-deprecation`.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength` is deprecated.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
