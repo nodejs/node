@@ -197,6 +197,7 @@ class EnvironmentOptions : public Options {
   bool test_runner_module_mocks = false;
   bool test_runner_update_snapshots = false;
   std::vector<std::string> test_name_pattern;
+  std::string test_files_glob;
   std::vector<std::string> test_reporter;
   std::vector<std::string> test_reporter_destination;
   std::string test_global_setup_path;
