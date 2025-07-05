@@ -30,44 +30,40 @@ flexible consumption patterns.
 ### Example
 
 ```mjs
-import { counter, timer } from 'node:metrics';
+import { counter } from 'node:metrics';
 
-// Create a counter metric
+// Create counter metrics
 const apiCalls = counter('api.calls', { service: 'web' });
-
-// Create a timer factory
-const requestTimer = timer('api.request.duration', { service: 'web' });
+const requestDuration = counter('api.request.duration.ms', { service: 'web' });
 
 // Use metrics in your application
 function handleRequest(req, res) {
-  const timer = requestTimer.create({ endpoint: req.url });
+  const timer = requestDuration.createTimer({ endpoint: req.url });
 
   apiCalls.increment();
 
   // Process request...
 
-  timer.stop();
+  timer.stop(); // Increments requestDuration with the elapsed time
 }
 ```
 
 ```cjs
-const { counter, timer } = require('node:metrics');
+const { counter } = require('node:metrics');
 
-// Create a counter metric
+// Create counter metrics
 const apiCalls = counter('api.calls', { service: 'web' });
-
-// Create a timer factory
-const requestTimer = timer('api.request.duration', { service: 'web' });
+const requestDuration = counter('api.request.duration.ms', { service: 'web' });
 
 // Use metrics in your application
 function handleRequest(req, res) {
-  const timer = requestTimer.create({ endpoint: req.url });
+  const timer = requestDuration.createTimer({ endpoint: req.url });
 
   apiCalls.increment();
 
   // Process request...
 
-  timer.stop();
+  timer.stop(); // Increments requestDuration with the elapsed time
 }
 ```
 
@@ -117,27 +113,6 @@ const memory = gauge('memory.usage.bytes');
 memory.reset(memoryUsage().heapUsed);
 ```
 
-### `metrics.timer(name[, meta])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `name` {string} The name of the timer metric.
-* `meta` {Object} Optional metadata to attach to all reports.
-* Returns: {metrics.TimerFactory}
-
-Creates a timer factory for measuring durations.
-
-```mjs
-import { timer } from 'node:metrics';
-
-const dbQueryTimer = timer('db.query.duration');
-
-const t = dbQueryTimer.create({ query: 'SELECT * FROM users' });
-// Perform database query...
-const duration = t.stop(); // Returns duration in milliseconds
-```
 
 ### `metrics.pullGauge(name, fn[, meta])`
 
@@ -389,6 +364,27 @@ errorCount.decrement(2, { errorType: 'timeout' }); // Decrement by 2 with metada
 errorCount.decrement({ errorType: 'timeout' });    // Decrement by 1 with metadata
 ```
 
+#### `counter.createTimer([meta])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `meta` {Object} Additional metadata to include with the report.
+* Returns: {Timer}
+
+Creates a timer that will increment this counter with its duration when stopped.
+
+```mjs
+import { counter } from 'node:metrics';
+
+const requestDuration = counter('request.duration.ms');
+
+const timer = requestDuration.createTimer({ endpoint: '/api/users' });
+// Process request...
+const duration = timer.stop(); // Counter is incremented with duration
+```
+
 ### Class: `Gauge`
 
 * Extends: {metrics.Metric}
@@ -431,15 +427,34 @@ memory.reset(memoryUsage().heapUsed); // Set to current memory usage
 memory.reset(1024, { source: 'system' }); // Set to 1024 with metadata
 ```
 
-### Class: `Timer`
-
-* Extends: {metrics.Metric}
+#### `gauge.createTimer([meta])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-A metric for measuring durations.
+* `meta` {Object} Additional metadata to include with the report.
+* Returns: {Timer}
+
+Creates a timer that will set this gauge to its duration when stopped.
+
+```mjs
+import { gauge } from 'node:metrics';
+
+const responseTime = gauge('response.time.ms');
+
+const timer = responseTime.createTimer({ endpoint: '/api/users' });
+// Process request...
+const duration = timer.stop(); // Gauge is set to duration
+```
+
+### Class: `Timer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A helper for measuring durations that reports the elapsed time via a callback when stopped.
 
 #### `timer.start`
 
@@ -449,7 +464,7 @@ added: REPLACEME
 
 * {number}
 
-The start time of the timer (milliseconds since epoch).
+The start time of the timer (milliseconds since `performance.timeOrigin`). This property is read-only.
 
 #### `timer.end`
 
@@ -457,9 +472,9 @@ The start time of the timer (milliseconds since epoch).
 added: REPLACEME
 -->
 
-* {number}
+* {number|undefined}
 
-The end time of the timer (milliseconds since epoch). Zero if timer is running.
+The end time of the timer (milliseconds since `performance.timeOrigin`). `undefined` if timer is still running. This property is read-only.
 
 #### `timer.duration`
 
@@ -467,27 +482,26 @@ The end time of the timer (milliseconds since epoch). Zero if timer is running.
 added: REPLACEME
 -->
 
-* {number}
+* {number|undefined}
 
-The duration in milliseconds. Zero if timer is still running.
+The duration in milliseconds. `undefined` if timer is still running. This property is read-only.
 
-#### `timer.stop([meta])`
+#### `timer.stop()`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `meta` {Object} Additional metadata for this report.
 * Returns: {number} The duration in milliseconds.
 
 Stops the timer and reports the duration. Can only be called once.
 
 ```mjs
-import { timer } from 'node:metrics';
+import { counter } from 'node:metrics';
 
-const dbQueryTimer = timer('db.query.duration');
+const dbQueryDuration = counter('db.query.duration');
 
-const t = dbQueryTimer.create({ query: 'SELECT * FROM users' });
+const t = dbQueryDuration.createTimer({ query: 'SELECT * FROM users' });
 
 // Perform database query...
 
@@ -504,46 +518,18 @@ added: REPLACEME
 Allows `using` syntax to automatically stop the timer when done.
 
 ```mjs
-import { timer } from 'node:metrics';
+import { counter } from 'node:metrics';
 
-const dbQueryTimer = timer('db.query.duration');
+const dbQueryDuration = counter('db.query.duration');
 
 {
-  using t = dbQueryTimer.create({ query: 'SELECT * FROM users' });
+  using t = dbQueryDuration.createTimer({ query: 'SELECT * FROM users' });
   // Perform database query...
 
   // Timer is automatically stopped here
 }
 ```
 
-### Class: `TimerFactory`
-
-* Extends: {metrics.Metric}
-
-<!-- YAML
-added: REPLACEME
--->
-
-A factory for creating timer instances.
-
-#### `timerFactory.create([meta])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `meta` {Object} Additional metadata for this timer.
-* Returns: {metrics.Timer}
-
-Creates a new timer instance with the specified metadata.
-
-```mjs
-import { timer } from 'node:metrics';
-
-const dbQueryTimer = timer('db.query.duration');
-
-const t = dbQueryTimer.create({ query: 'SELECT * FROM users' });
-```
 
 ### Class: `PullGauge`
 

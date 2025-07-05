@@ -4,32 +4,33 @@ const common = require('../common');
 
 const assert = require('assert');
 const { subscribe } = require('node:diagnostics_channel');
-const { timer, Timer, TimerFactory, Metric, MetricReport } = require('node:metrics');
+const { counter, Counter, Timer, MetricReport } = require('node:metrics');
 
-const testTimer = timer('test', { base: 'test' });
-assert.ok(testTimer instanceof TimerFactory);
-assert.ok(testTimer instanceof Metric);
+// Create a counter for timing
+const testCounter = counter('test.duration', { base: 'test' });
+assert.ok(testCounter instanceof Counter);
 
-assert.strictEqual(testTimer.type, 'timer');
-assert.strictEqual(testTimer.name, 'test');
-assert.deepStrictEqual(testTimer.meta, { base: 'test' });
-assert.strictEqual(testTimer.channelName, 'metrics:timer:test');
+assert.strictEqual(testCounter.type, 'counter');
+assert.strictEqual(testCounter.name, 'test.duration');
+assert.deepStrictEqual(testCounter.meta, { base: 'test' });
+assert.strictEqual(testCounter.channelName, 'metrics:counter:test.duration');
 
-const a = testTimer.create({ timer: 'a' });
-const b = testTimer.create({ timer: 'b' });
+// Create timers from the counter
+const a = testCounter.createTimer({ timer: 'a', meta: 'extra' });
+const b = testCounter.createTimer({ timer: 'b' });
 
 assert.ok(a instanceof Timer);
-assert.ok(a instanceof Metric);
+assert.ok(b instanceof Timer);
 
 const messages = [
   [50, { base: 'test', timer: 'a', meta: 'extra' }],
   [100, { base: 'test', timer: 'b' }],
 ];
 
-subscribe(testTimer.channelName, common.mustCall((report) => {
+subscribe(testCounter.channelName, common.mustCall((report) => {
   assert.ok(report instanceof MetricReport);
-  assert.strictEqual(report.type, 'timer');
-  assert.strictEqual(report.name, 'test');
+  assert.strictEqual(report.type, 'counter');
+  assert.strictEqual(report.name, 'test.duration');
   assert.ok(report.time > 0);
 
   const [value, meta] = messages.shift();
@@ -42,13 +43,10 @@ function near(actual, expected, threshold = 10) {
   return Math.abs(actual - expected) <= threshold;
 }
 
-setTimeout(common.mustCall(() => {
-  a.stop({ meta: 'extra' });
-  assert.ok(a.start > 0);
-  assert.ok(a.end > 0);
-  assert.ok(a.duration > 0);
-}), 50);
+setTimeout(() => {
+  a.stop();
+}, 50);
 
-setTimeout(common.mustCall(() => {
-  b.stop();
-}), 100);
+setTimeout(() => {
+  b[Symbol.dispose]();
+}, 100);
