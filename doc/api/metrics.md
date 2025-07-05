@@ -118,28 +118,6 @@ memory.reset(memoryUsage().heapUsed);
 memory.applyDelta(1024);  // Add 1024 to current value
 ```
 
-### `metrics.meter(name, interval[, meta])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `name` {string} The name of the meter metric.
-* `interval` {number} The time window in milliseconds for rate calculation.
-* `meta` {Object} Optional metadata to attach to all reports.
-* Returns: {metrics.Meter}
-
-Creates a meter metric that measures the rate of events over time.
-
-```mjs
-import { meter } from 'node:metrics';
-
-const requestRate = meter('requests.rate', 60000); // 1 minute window
-
-requestRate.mark();     // Mark one event
-requestRate.mark(10);   // Mark 10 events
-```
-
 ### `metrics.timer(name[, meta])`
 
 <!-- YAML
@@ -206,7 +184,7 @@ added: REPLACEME
 
 * {string}
 
-The type of the metric (e.g., 'counter', 'gauge', 'meter', 'periodicGauge',
+The type of the metric (e.g., 'counter', 'gauge', 'periodicGauge',
 'timer').
 
 #### `metricReport.name`
@@ -323,7 +301,7 @@ added: REPLACEME
 
 * {string}
 
-The type of the metric (e.g., 'counter', 'gauge', 'meter', 'periodicGauge',
+The type of the metric (e.g., 'counter', 'gauge', 'periodicGauge',
 'timer').
 
 #### `metric.name`
@@ -397,12 +375,12 @@ specific methods provided by each metric type (e.g., `increment`, `reset`,
 metadata.
 
 ```mjs
-import { meter } from 'node:metrics';
+import { gauge } from 'node:metrics';
 
-const apiCalls = meter('api.calls', { service: 'web' });
+const memoryUsage = gauge('memory.usage', { service: 'web' });
 
-apiCalls.metric.report(1); // Reports a value of 1
-apiCalls.metric.report(5, { endpoint: '/api/users' }); // Reports 5 with metadata
+memoryUsage.metric.report(85); // Reports a value of 85
+memoryUsage.metric.report(90, { threshold: 'warning' }); // Reports 90 with metadata
 ```
 
 ### Class: `Counter`
@@ -547,48 +525,6 @@ const cpuUsage = gauge('cpu.usage.percent');
 
 cpuUsage.applyDelta(5); // Increase by 5
 cpuUsage.applyDelta(-2, { source: 'system' }); // Decrease by 2 with metadata
-```
-
-### Class: `Meter`
-
-* Extends: {metrics.Gauge}
-
-<!-- YAML
-added: REPLACEME
--->
-
-A metric that measures the rate of events over a sliding time window.
-
-#### `meter.metric`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {metrics.Metric}
-
-The underlying metric instance used for reporting.
-
-#### `meter.mark([n[, meta]])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `n` {number} The number of events to mark. **Default:** `1`
-* `meta` {Object} Additional metadata for this report.
-
-Records events and updates the rate calculation.
-
-```mjs
-import { meter } from 'node:metrics';
-
-const requestRate = meter('requests.rate', 60000); // 1 minute window
-
-requestRate.mark();     // Mark one event
-requestRate.mark(10);   // Mark 10 events
-requestRate.mark(5, { endpoint: '/api/users' }); // Mark 5 with metadata
-requestRate.mark({ endpoint: '/api/orders' }); // Mark 1 with metadata
 ```
 
 ### Class: `Timer`
