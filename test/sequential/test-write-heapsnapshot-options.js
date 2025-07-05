@@ -4,7 +4,9 @@
 
 require('../common');
 
+const assert = require('assert');
 const fs = require('fs');
+const tmpdir = require('../common/tmpdir');
 const { getHeapSnapshotOptionTests, recordState } = require('../common/heap');
 
 class ReadStream {
@@ -20,7 +22,12 @@ if (process.argv[2] === 'child') {
   const { writeHeapSnapshot } = require('v8');
   require(tests.fixtures);
   const { options, expected } = tests.cases[parseInt(process.argv[3])];
+  const { path } = options;
+  // If path is set, writeHeapSnapshot will write to the tmpdir.
+  if (path) options.path = tmpdir.path;
   const filename = writeHeapSnapshot(undefined, options);
+  // If path is set, the filename will be the provided path.
+  if (path) assert(filename.includes(tmpdir.path));
   const snapshot = recordState(new ReadStream(filename));
   console.log('Snapshot nodes', snapshot.snapshot.length);
   console.log('Searching for', expected[0].children);
@@ -30,8 +37,6 @@ if (process.argv[2] === 'child') {
 }
 
 const { spawnSync } = require('child_process');
-const assert = require('assert');
-const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 // Start child processes to prevent the heap from growing too big.
