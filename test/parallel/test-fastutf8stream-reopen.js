@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test, afterEach } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -75,8 +76,8 @@ function buildTests(test, sync) {
       try {
         fs.unlinkSync(dest);
         fs.unlinkSync(dest + '-moved');
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
@@ -106,8 +107,8 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
@@ -158,8 +159,8 @@ function buildTests(test, sync) {
       try {
         fs.unlinkSync(dest);
         fs.unlinkSync(dest + '-new');
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
@@ -179,17 +180,15 @@ function buildTests(test, sync) {
       const after = dest + '-moved';
 
       await new Promise((resolve, reject) => {
-        let errorEmitted = false;
-
         stream.on('error', () => {
-          errorEmitted = true;
+          // Expected error
         });
 
         stream.once('drain', () => {
           fs.renameSync(dest, after);
 
           if (sync) {
-            fs.openSync = function(file, flags) {
+            fs.openSync = function() {
               throw new Error('open error');
             };
           } else {
@@ -201,7 +200,7 @@ function buildTests(test, sync) {
           if (sync) {
             try {
               stream.reopen();
-            } catch (err) {
+            } catch {
               // Expected error
             }
           } else {
@@ -235,13 +234,13 @@ function buildTests(test, sync) {
       try {
         fs.unlinkSync(dest);
         fs.unlinkSync(dest + '-moved');
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
 
-  test(`reopen emits drain - sync: ${sync}`, async (t) => {
+  test(`reopen emits drain - sync: ${sync}`, async () => {
     const dest = getTempFile();
     const stream = new FastUtf8Stream({ dest, sync });
 
@@ -287,8 +286,8 @@ function buildTests(test, sync) {
       try {
         fs.unlinkSync(dest);
         fs.unlinkSync(dest + '-moved');
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });

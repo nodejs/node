@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test, afterEach } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -76,8 +77,8 @@ test('write buffers that are not totally written with sync mode', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });
@@ -140,8 +141,8 @@ test('write buffers that are not totally written with flush sync', async (t) => 
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });
@@ -181,8 +182,8 @@ test('sync writing is fully sync', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });
@@ -221,8 +222,8 @@ test('write enormously large buffers sync', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });
@@ -262,8 +263,8 @@ test('write enormously large buffers sync with utf8 multi-byte split', async (t)
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });
@@ -282,8 +283,8 @@ test('file specified by dest path available immediately when options.sync is tru
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });
@@ -315,8 +316,8 @@ test('._len must always be equal or greater than 0', (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });
@@ -351,8 +352,8 @@ test('minLength with multi-byte characters', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });

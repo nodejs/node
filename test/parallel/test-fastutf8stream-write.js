@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test, afterEach } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -65,8 +66,8 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
@@ -109,8 +110,8 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
@@ -148,8 +149,8 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
@@ -183,8 +184,8 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
@@ -200,9 +201,8 @@ function buildTests(test, sync) {
           assert.ok(stream.write('something else\n'));
 
           // Don't expect drain event with minLength
-          let drainCalled = false;
           stream.on('drain', () => {
-            drainCalled = true;
+            // Don't expect this to be called
           });
 
           setTimeout(() => {
@@ -235,13 +235,13 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
 
-  test(`write later on recoverable error - sync: ${sync}`, async (t) => {
+  test(`write later on recoverable error - sync: ${sync}`, async () => {
     const dest = getTempFile();
     const fd = fs.openSync(dest, 'w');
 
@@ -277,11 +277,9 @@ function buildTests(test, sync) {
       const stream = new FastUtf8Stream({ fd, minLength: 0, sync });
 
       await new Promise((resolve, reject) => {
-        let errorEmitted = false;
-
         stream.on('ready', () => {
           stream.on('error', () => {
-            errorEmitted = true;
+            // Expected error
           });
 
           assert.ok(stream.write('hello world\n'));
@@ -322,13 +320,13 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
 
-  test(`emit write events - sync: ${sync}`, async (t) => {
+  test(`emit write events - sync: ${sync}`, async () => {
     const dest = getTempFile();
     const stream = new FastUtf8Stream({ dest, sync });
 
@@ -363,14 +361,14 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
 }
 
-test('write buffers that are not totally written', async (t) => {
+test('write buffers that are not totally written', async () => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
 
@@ -422,13 +420,13 @@ test('write buffers that are not totally written', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
+    } catch {
       // Ignore cleanup errors
     }
   }
 });
 
-test('write enormously large buffers async', async (t) => {
+test('write enormously large buffers async', async () => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
   const stream = new FastUtf8Stream({ fd, minLength: 0, sync: false });
@@ -462,13 +460,13 @@ test('write enormously large buffers async', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
+    } catch {
       // Ignore cleanup errors
     }
   }
 });
 
-test('make sure `maxLength` is passed', (t) => {
+test('make sure `maxLength` is passed', () => {
   const dest = getTempFile();
   const stream = new FastUtf8Stream({ dest, maxLength: 65536 });
 
@@ -479,7 +477,7 @@ test('make sure `maxLength` is passed', (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
+    } catch {
       // Ignore cleanup errors
     }
   }

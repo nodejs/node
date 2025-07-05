@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -37,7 +38,7 @@ function buildTests(test, sync) {
         setTimeout(() => {
           fs.readFile(dest, 'utf8', (err, data) => {
             assert.ifError(err);
-            assert.strictEqual(data, '', 'file should be empty without periodicFlush');
+            assert.strictEqual(data, '');
             resolve();
           });
         }, 1500);
@@ -48,8 +49,8 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
@@ -61,19 +62,19 @@ function buildTests(test, sync) {
     try {
       // Test that periodicFlush property is set correctly
       const stream1 = new FastUtf8Stream({ fd, sync, minLength: 5000 });
-      assert.strictEqual(stream1.periodicFlush, 0, 'default periodicFlush should be 0');
+      assert.strictEqual(stream1.periodicFlush, 0);
       stream1.destroy();
 
       const fd2 = fs.openSync(dest, 'w');
       const stream2 = new FastUtf8Stream({ fd: fd2, sync, minLength: 5000, periodicFlush: 1000 });
-      assert.strictEqual(stream2.periodicFlush, 1000, 'periodicFlush should be set to 1000');
+      assert.strictEqual(stream2.periodicFlush, 1000);
       stream2.destroy();
     } finally {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
@@ -96,7 +97,7 @@ function buildTests(test, sync) {
         setTimeout(() => {
           fs.readFile(dest, 'utf8', (err, data) => {
             assert.ifError(err);
-            assert.strictEqual(data, 'hello world\n', 'file should contain data after manual flush');
+            assert.strictEqual(data, 'hello world\n');
             resolve();
           });
         }, 500);
@@ -107,8 +108,8 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });

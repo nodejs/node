@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test, mock } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -45,8 +46,8 @@ function buildTests(test, sync) {
           // Cleanup
           try {
             fs.unlinkSync(dest);
-          } catch (cleanupErr) {
-            // Ignore cleanup errors
+          } catch (err) {
+            console.warn('Cleanup error:', err.message);
           }
           resolve();
         });
@@ -94,8 +95,8 @@ test('retry in flushSync on EAGAIN', async (t) => {
           // Cleanup
           try {
             fs.unlinkSync(dest);
-          } catch (cleanupErr) {
-            // Ignore cleanup errors
+          } catch (err) {
+            console.warn('Cleanup error:', err.message);
           }
 
           resolve();
@@ -174,8 +175,8 @@ test('throw error in flushSync on EAGAIN', async (t) => {
           // Cleanup
           try {
             fs.unlinkSync(dest);
-          } catch (cleanupErr) {
-            // Ignore cleanup errors
+          } catch (err) {
+            console.warn('Cleanup error:', err.message);
           }
 
           resolve();

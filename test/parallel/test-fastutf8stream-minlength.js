@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -35,8 +36,8 @@ test('drain deadlock', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });
@@ -50,13 +51,13 @@ test('should throw if minLength >= maxWrite', (t) => {
       fd,
       minLength: MAX_WRITE
     });
-  });
+  }, Error);
 
   // Cleanup
   try {
     fs.closeSync(fd);
     fs.unlinkSync(dest);
-  } catch (cleanupErr) {
+  } catch {
     // Ignore cleanup errors
   }
 });

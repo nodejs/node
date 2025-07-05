@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test, afterEach } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -13,7 +14,6 @@ function getTempFile() {
   return path.join(tmpdir(), `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
 }
 
-const MAX_WRITE = 16 * 1024;
 
 // Clean up all mocks after each test
 afterEach(() => {
@@ -37,7 +37,7 @@ function buildTests(test, sync) {
   // Reset the umask for testing
   process.umask(0o000);
 
-  test(`retry on EAGAIN - sync: ${sync}`, async (t) => {
+  test(`retry on EAGAIN - sync: ${sync}`, async () => {
     const dest = getTempFile();
     const fd = fs.openSync(dest, 'w');
 
@@ -107,14 +107,14 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
 }
 
-test('emit error on async EAGAIN', async (t) => {
+test('emit error on async EAGAIN', async () => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
 
@@ -178,13 +178,13 @@ test('emit error on async EAGAIN', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
+    } catch {
       // Ignore cleanup errors
     }
   }
 });
 
-test('retry on EBUSY', async (t) => {
+test('retry on EBUSY', async () => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
 
@@ -234,13 +234,13 @@ test('retry on EBUSY', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
+    } catch {
       // Ignore cleanup errors
     }
   }
 });
 
-test('emit error on async EBUSY', async (t) => {
+test('emit error on async EBUSY', async () => {
   const dest = getTempFile();
   const fd = fs.openSync(dest, 'w');
 
@@ -304,7 +304,7 @@ test('emit error on async EBUSY', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
+    } catch {
       // Ignore cleanup errors
     }
   }

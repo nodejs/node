@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -42,8 +43,8 @@ function buildTests(test, sync) {
             try {
               fs.unlinkSync(dest);
               fs.unlinkSync(after);
-            } catch (cleanupErr) {
-              // Ignore cleanup errors
+            } catch (err) {
+              console.warn('Cleanup error:', err.message);
             }
 
             resolve();
@@ -74,8 +75,8 @@ function buildTests(test, sync) {
               fs.unlinkSync(dest);
               fs.unlinkSync(dest + '-moved');
               fs.unlinkSync(after);
-            } catch (cleanupErr) {
-              // Ignore cleanup errors
+            } catch (err) {
+              console.warn('Cleanup error:', err.message);
             }
 
             resolve();
@@ -104,7 +105,7 @@ function buildTests(test, sync) {
           try {
             fs.unlinkSync(dest);
             fs.unlinkSync(after);
-          } catch (cleanupErr) {
+          } catch {
             // Ignore cleanup errors
           }
 
@@ -150,7 +151,7 @@ function buildTests(test, sync) {
           // Cleanup
           try {
             fs.unlinkSync(dest);
-          } catch (cleanupErr) {
+          } catch {
             // Ignore cleanup errors
           }
 

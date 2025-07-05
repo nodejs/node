@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test, mock, afterEach } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -90,11 +91,11 @@ function buildTests(test, sync) {
             try {
               assert.ifError(err);
               // Verify fsyncSync was called
-              assert.strictEqual(fsyncSyncCalls, 1, 'fsyncSync should be called once');
+              assert.strictEqual(fsyncSyncCalls, 1);
               // Verify fsync was not called
-              assert.strictEqual(fsyncCalls, 0, 'fsync should not be called');
+              assert.strictEqual(fsyncCalls, 0);
               // Verify write was called
-              assert.strictEqual(writeCalls, 1, 'write should be called once');
+              assert.strictEqual(writeCalls, 1);
 
               stream.end();
               resolve();
@@ -114,8 +115,8 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });
@@ -167,7 +168,7 @@ function buildTests(test, sync) {
           stream.flush((err) => {
             try {
               assert.ok(err, 'flush should return an error');
-              assert.strictEqual(err.code, 'ETEST', 'error should have correct code');
+              assert.strictEqual(err.code, 'ETEST');
 
               stream.end();
               resolve();
@@ -186,8 +187,8 @@ function buildTests(test, sync) {
       // Cleanup
       try {
         fs.unlinkSync(dest);
-      } catch (cleanupErr) {
-        // Ignore cleanup errors
+      } catch (err) {
+        console.warn('Cleanup error:', err.message);
       }
     }
   });

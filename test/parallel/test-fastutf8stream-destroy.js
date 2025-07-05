@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -31,7 +32,7 @@ test('FastUtf8Stream destroy - basic functionality', async (t) => {
   // Test that write throws after destroy
   assert.throws(() => {
     stream.write('hello world\n');
-  });
+  }, Error);
 
   // Wait for file to be written and check content
   await new Promise((resolve, reject) => {
@@ -75,7 +76,7 @@ test('FastUtf8Stream destroy - basic functionality', async (t) => {
   try {
     fs.unlinkSync(dest);
   } catch (err) {
-    // Ignore cleanup errors
+    console.warn('Cleanup error:', err.message);
   }
 });
 
@@ -88,7 +89,7 @@ test('FastUtf8Stream destroy - sync mode', async (t) => {
 
   assert.ok(stream.write('hello world\n'));
   stream.destroy();
-  assert.throws(() => { stream.write('hello world\n'); });
+  assert.throws(() => { stream.write('hello world\n'); }, Error);
 
   const data = fs.readFileSync(dest, 'utf8');
   assert.strictEqual(data, 'hello world\n');
@@ -97,7 +98,7 @@ test('FastUtf8Stream destroy - sync mode', async (t) => {
   try {
     fs.unlinkSync(dest);
   } catch (err) {
-    // Ignore cleanup errors
+    console.warn('Cleanup error:', err.message);
   }
 });
 
@@ -119,6 +120,6 @@ test('FastUtf8Stream destroy while opening', async (t) => {
   try {
     fs.unlinkSync(dest);
   } catch (err) {
-    // Ignore cleanup errors
+    console.warn('Cleanup error:', err.message);
   }
 });

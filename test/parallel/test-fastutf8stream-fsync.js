@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test, afterEach } = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -55,8 +56,8 @@ test('fsync with sync', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });
@@ -113,8 +114,8 @@ test('fsync with async', async (t) => {
     // Cleanup
     try {
       fs.unlinkSync(dest);
-    } catch (cleanupErr) {
-      // Ignore cleanup errors
+    } catch (err) {
+      console.warn('Cleanup error:', err.message);
     }
   }
 });
