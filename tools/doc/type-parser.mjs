@@ -186,7 +186,6 @@ const customTypesMap = {
   'metrics.PeriodicGauge': 'metrics.html#class-periodicgauge',
   'metrics.Timer': 'metrics.html#class-timer',
   'metrics.TimerFactory': 'metrics.html#class-timerfactory',
-  'metrics.UniqueSet': 'metrics.html#class-uniqueset',
 
   'module': 'modules.html#the-module-object',
 
