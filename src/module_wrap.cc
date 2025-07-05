@@ -63,6 +63,10 @@ using v8::UnboundModuleScript;
 using v8::Undefined;
 using v8::Value;
 
+inline bool DataIsString(Local<Data> data) {
+  return data->IsValue() && data.As<Value>()->IsString();
+}
+
 void ModuleCacheKey::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("specifier", specifier);
   tracker->TrackField("import_attributes", import_attributes);
@@ -83,6 +87,9 @@ ModuleCacheKey ModuleCacheKey::From(Local<Context> context,
 
   for (int i = 0; i < import_attributes->Length();
        i += elements_per_attribute) {
+    DCHECK(DataIsString(import_attributes->Get(context, i)));
+    DCHECK(DataIsString(import_attributes->Get(context, i + 1)));
+
     Local<String> v8_key = import_attributes->Get(context, i).As<String>();
     Local<String> v8_value =
         import_attributes->Get(context, i + 1).As<String>();
@@ -488,9 +495,14 @@ static Local<Object> createImportAttributesContainer(
   LocalVector<Value> values(isolate, num_attributes);
 
   for (int i = 0; i < raw_attributes->Length(); i += elements_per_attribute) {
+    Local<Data> key = raw_attributes->Get(realm->context(), i);
+    Local<Data> value = raw_attributes->Get(realm->context(), i + 1);
+    DCHECK(DataIsString(key));
+    DCHECK(DataIsString(value));
+
     int idx = i / elements_per_attribute;
-    names[idx] = raw_attributes->Get(realm->context(), i).As<Name>();
-    values[idx] = raw_attributes->Get(realm->context(), i + 1).As<Value>();
+    names[idx] = key.As<String>();
+    values[idx] = value.As<String>();
   }
 
   Local<Object> attributes = Object::New(
@@ -507,6 +519,7 @@ static Local<Array> createModuleRequestsContainer(
   LocalVector<Value> requests(isolate, raw_requests->Length());
 
   for (int i = 0; i < raw_requests->Length(); i++) {
+    DCHECK(raw_requests->Get(context, i)->IsModuleRequest());
     Local<ModuleRequest> module_request =
         raw_requests->Get(realm->context(), i).As<ModuleRequest>();
 
