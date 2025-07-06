@@ -3305,6 +3305,7 @@ bool ShouldUseColor(bool stdout_is_tty) {
     const bool term_supports_color =
         term != nullptr && (String::CStringEquals(term, "xterm") ||
                             String::CStringEquals(term, "xterm-color") ||
+                            String::CStringEquals(term, "xterm-ghostty") ||
                             String::CStringEquals(term, "xterm-kitty") ||
                             String::CStringEquals(term, "alacritty") ||
                             String::CStringEquals(term, "screen") ||
@@ -6091,7 +6092,11 @@ bool UnitTestImpl::RunAllTests() {
       constexpr char kNoTestsSelectedMessage[] =
           "No tests were selected to run. Please make sure at least one test "
           "exists and is not disabled! If the test is sharded, you may have "
-          "defined more shards than test cases, which is wasteful.";
+          "defined more shards than test cases, which is wasteful. If you also "
+          "defined --gtest_filter, that filter is taken into account, so "
+          "shards with no matching test cases will hit this error. Either "
+          "disable sharding, set --gtest_fail_if_no_test_selected=false, or "
+          "remove the filter to resolve this error.";
       ColoredPrintf(GTestColor::kRed, "%s\n", kNoTestsSelectedMessage);
       return false;
     }
