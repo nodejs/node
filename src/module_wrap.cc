@@ -63,6 +63,51 @@ using v8::UnboundModuleScript;
 using v8::Undefined;
 using v8::Value;
 
+void ModuleCacheKey::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("specifier", specifier);
+  tracker->TrackField("import_attributes", import_attributes);
+}
+
+template <int elements_per_attribute>
+ModuleCacheKey ModuleCacheKey::From(Local<Context> context,
+                                    Local<String> specifier,
+                                    Local<FixedArray> import_attributes) {
+  CHECK_EQ(import_attributes->Length() % elements_per_attribute, 0);
+  Isolate* isolate = context->GetIsolate();
+  std::size_t h1 = specifier->GetIdentityHash();
+  size_t num_attributes = import_attributes->Length() / elements_per_attribute;
+  ImportAttributeVector attributes;
+  attributes.reserve(num_attributes);
+
+  std::size_t h2 = 0;
+
+  for (int i = 0; i < import_attributes->Length();
+       i += elements_per_attribute) {
+    Local<String> v8_key = import_attributes->Get(context, i).As<String>();
+    Local<String> v8_value =
+        import_attributes->Get(context, i + 1).As<String>();
+    Utf8Value key_utf8(isolate, v8_key);
+    Utf8Value value_utf8(isolate, v8_value);
+
+    attributes.emplace_back(key_utf8.ToString(), value_utf8.ToString());
+    h2 ^= v8_key->GetIdentityHash();
+    h2 ^= v8_value->GetIdentityHash();
+  }
+
+  // Combine the hashes using a simple XOR and bit shift to reduce
+  // collisions. Note that the hash does not guarantee uniqueness.
+  std::size_t hash = h1 ^ (h2 << 1);
+
+  Utf8Value utf8_specifier(isolate, specifier);
+  return ModuleCacheKey{utf8_specifier.ToString(), attributes, hash};
+}
+
+ModuleCacheKey ModuleCacheKey::From(Local<Context> context,
+                                    Local<ModuleRequest> v8_request) {
+  return From(
+      context, v8_request->GetSpecifier(), v8_request->GetImportAttributes());
+}
+
 ModuleWrap::ModuleWrap(Realm* realm,
                        Local<Object> object,
                        Local<Module> module,
@@ -509,7 +554,7 @@ void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
       realm, isolate, module->GetModuleRequests()));
 }
 
-// moduleWrap.link(specifiers, moduleWraps)
+// moduleWrap.link(moduleWraps)
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
@@ -518,33 +563,28 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   ModuleWrap* dependent;
   ASSIGN_OR_RETURN_UNWRAP(&dependent, args.This());
 
-  CHECK_EQ(args.Length(), 2);
+  CHECK_EQ(args.Length(), 1);
 
-  Local<Array> specifiers = args[0].As<Array>();
-  Local<Array> modules = args[1].As<Array>();
-  CHECK_EQ(specifiers->Length(), modules->Length());
+  Local<FixedArray> requests =
+      dependent->module_.Get(isolate)->GetModuleRequests();
+  Local<Array> modules = args[0].As<Array>();
+  CHECK_EQ(modules->Length(), static_cast<uint32_t>(requests->Length()));
 
-  std::vector<Global<Value>> specifiers_buffer;
-  if (FromV8Array(context, specifiers, &specifiers_buffer).IsNothing()) {
-    return;
-  }
   std::vector<Global<Value>> modules_buffer;
   if (FromV8Array(context, modules, &modules_buffer).IsNothing()) {
     return;
   }
 
-  for (uint32_t i = 0; i < specifiers->Length(); i++) {
-    Local<String> specifier_str =
-        specifiers_buffer[i].Get(isolate).As<String>();
+  for (uint32_t i = 0; i < modules_buffer.size(); i++) {
     Local<Object> module_object = modules_buffer[i].Get(isolate).As<Object>();
 
     CHECK(
         realm->isolate_data()->module_wrap_constructor_template()->HasInstance(
             module_object));
 
-    Utf8Value specifier(isolate, specifier_str);
-    dependent->resolve_cache_[specifier.ToString()].Reset(isolate,
-                                                          module_object);
+    ModuleCacheKey module_cache_key = ModuleCacheKey::From(
+        context, requests->Get(context, i).As<ModuleRequest>());
+    dependent->resolve_cache_[module_cache_key].Reset(isolate, module_object);
   }
 }
 
@@ -924,27 +964,27 @@ MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
     return MaybeLocal<Module>();
   }
 
-  Utf8Value specifier_utf8(isolate, specifier);
-  std::string specifier_std(*specifier_utf8, specifier_utf8.length());
+  ModuleCacheKey cache_key =
+      ModuleCacheKey::From(context, specifier, import_attributes);
 
   ModuleWrap* dependent = GetFromModule(env, referrer);
   if (dependent == nullptr) {
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is from invalid module", specifier_std);
+        env, "request for '%s' is from invalid module", cache_key.specifier);
     return MaybeLocal<Module>();
   }
 
-  if (dependent->resolve_cache_.count(specifier_std) != 1) {
+  if (dependent->resolve_cache_.count(cache_key) != 1) {
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is not in cache", specifier_std);
+        env, "request for '%s' is not in cache", cache_key.specifier);
     return MaybeLocal<Module>();
   }
 
   Local<Object> module_object =
-      dependent->resolve_cache_[specifier_std].Get(isolate);
+      dependent->resolve_cache_[cache_key].Get(isolate);
   if (module_object.IsEmpty() || !module_object->IsObject()) {
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' did not return an object", specifier_std);
+        env, "request for '%s' did not return an object", cache_key.specifier);
     return MaybeLocal<Module>();
   }
 
@@ -965,27 +1005,27 @@ MaybeLocal<Object> ModuleWrap::ResolveSourceCallback(
     return MaybeLocal<Object>();
   }
 
-  Utf8Value specifier_utf8(isolate, specifier);
-  std::string specifier_std(*specifier_utf8, specifier_utf8.length());
+  ModuleCacheKey cache_key =
+      ModuleCacheKey::From(context, specifier, import_attributes);
 
   ModuleWrap* dependent = GetFromModule(env, referrer);
   if (dependent == nullptr) {
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is from invalid module", specifier_std);
+        env, "request for '%s' is from invalid module", cache_key.specifier);
     return MaybeLocal<Object>();
   }
 
-  if (dependent->resolve_cache_.count(specifier_std) != 1) {
+  if (dependent->resolve_cache_.count(cache_key) != 1) {
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is not in cache", specifier_std);
+        env, "request for '%s' is not in cache", cache_key.specifier);
     return MaybeLocal<Object>();
   }
 
   Local<Object> module_object =
-      dependent->resolve_cache_[specifier_std].Get(isolate);
+      dependent->resolve_cache_[cache_key].Get(isolate);
   if (module_object.IsEmpty() || !module_object->IsObject()) {
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' did not return an object", specifier_std);
+        env, "request for '%s' did not return an object", cache_key.specifier);
     return MaybeLocal<Object>();
   }
 

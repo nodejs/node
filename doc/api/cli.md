@@ -1855,7 +1855,7 @@ For more information, see the [TypeScript type-stripping][] documentation.
 added: v22.0.0
 -->
 
-Disable exposition of [`WebSocket`][] on the global scope.
+Disable exposition of {WebSocket} on the global scope.
 
 ### `--no-extra-info-on-fatal-exception`
 
@@ -3988,7 +3988,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
-[`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
