@@ -35,6 +35,18 @@ Date:   Fri May 16 15:48:19 2025 +0200
     Change-Id: Ifab65f470736b45b1b51a1cc130a5753a2b20583
     Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/6553931
 
+commit 9f6e08ef47d3bc9438fdc3b1ab77126a7b36cce9
+Author: Hans Wennborg <hans@chromium.org>
+Date:   Thu Jul 3 17:47:55 2025 +0200
+
+    [minizip] Fix Unicode Path Extra Field filename length overflow
+
+    If dataSize is too small, fileNameSize would overflow.
+
+    Bug: 428744375
+    Change-Id: I714fc1e30cb1634c31cb97ce87be225518368e57
+    Reviewed-on: https://chromium-review.googlesource.com/c/chromium/src/+/6701714
+
 diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib/minizip/unzip.c
 index c8a01b23efd42..42677cff82c96 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
@@ -74,7 +86,15 @@ index c8a01b23efd42..42677cff82c96 100644
 +            {
 +                int version = 0;
 +
-+                if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
++                if (dataSize < 1 + 4)
++                {
++                    /* dataSize includes version (1 byte), uCrc (4 bytes), and
++                     * the filename data. If it's too small, fileNameSize below
++                     * would overflow. */
++                    err = UNZ_ERRNO;
++                    break;
++                }
++                else if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
 +                {
 +                    err = UNZ_ERRNO;
 +                }
@@ -94,7 +114,7 @@ index c8a01b23efd42..42677cff82c96 100644
 +                        err = UNZ_ERRNO;
 +                    }
 +                    uHeaderCrc = crc32(0, (const unsigned char *)szFileName, file_info.size_filename);
-+                    fileNameSize = dataSize - (2 * sizeof (short) + 1);
++                    fileNameSize = dataSize - (1 + 4);  /* 1 for version, 4 for uCrc */
 +                    /* Check CRC against file name in the header. */
 +                    if (uHeaderCrc != uCrc)
 +                    {

@@ -13,6 +13,7 @@
 #if !defined(CMAKE_STANDALONE_UNITTESTS)
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/path_service.h"
 
 #include "third_party/zlib/contrib/minizip/unzip.h"
 #include "third_party/zlib/contrib/minizip/zip.h"
@@ -1284,6 +1285,29 @@ TEST(ZlibTest, ZipExtraFieldSize) {
   EXPECT_EQ(std::string(buf), extra_field);
 
   EXPECT_EQ(unzGoToNextFile(uzf), UNZ_END_OF_LIST_OF_FILE);
+  EXPECT_EQ(unzClose(uzf), UNZ_OK);
+}
+
+static base::FilePath TestDataDir() {
+  base::FilePath path;
+  bool success = base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &path);
+  EXPECT_TRUE(success);
+  return path
+      .AppendASCII("third_party")
+      .AppendASCII("zlib")
+      .AppendASCII("google")
+      .AppendASCII("test")
+      .AppendASCII("data");
+}
+
+TEST(ZlibTest, ZipUnicodePathExtraSizeFilenameOverflow) {
+  // This is based on components/test/data/unzip_service/bug953599.zip (added
+  // in https://crrev.com/1004132), with the Unicode Path Extra Field's
+  // dataSize hex edited to four.
+  base::FilePath zip_file = TestDataDir().AppendASCII("unicode_path_extra_overflow.zip");
+  unzFile uzf = unzOpen(zip_file.AsUTF8Unsafe().c_str());
+  ASSERT_NE(uzf, nullptr);
+  EXPECT_EQ(unzGoToFirstFile(uzf), UNZ_ERRNO);
   EXPECT_EQ(unzClose(uzf), UNZ_OK);
 }
 

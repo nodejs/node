@@ -1012,7 +1012,15 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
             {
                 int version = 0;
 
-                if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
+                if (dataSize < 1 + 4)
+                {
+                    /* dataSize includes version (1 byte), uCrc (4 bytes), and
+                     * the filename data. If it's too small, fileNameSize below
+                     * would overflow. */
+                    err = UNZ_ERRNO;
+                    break;
+                }
+                else if (unz64local_getByte(&s->z_filefunc, s->filestream, &version) != UNZ_OK)
                 {
                     err = UNZ_ERRNO;
                 }
@@ -1032,7 +1040,7 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
                         err = UNZ_ERRNO;
                     }
                     uHeaderCrc = crc32(0, (const unsigned char *)szFileName, file_info.size_filename);
-                    fileNameSize = dataSize - (2 * sizeof (short) + 1);
+                    fileNameSize = dataSize - (1 + 4);  /* 1 for version, 4 for uCrc */
                     /* Check CRC against file name in the header. */
                     if (uHeaderCrc != uCrc)
                     {
