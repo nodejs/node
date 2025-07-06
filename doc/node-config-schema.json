@@ -703,6 +703,10 @@
           "type": "boolean",
           "description": "run in watch mode"
         },
+        "watch-kill-signal": {
+          "type": "string",
+          "description": "kill signal to send to the process on watch mode restarts(default: SIGTERM)"
+        },
         "watch-path": {
           "oneOf": [
             {
