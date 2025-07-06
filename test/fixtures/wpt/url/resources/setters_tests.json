@@ -1195,6 +1195,15 @@
                 "host": "test",
                 "hostname": "test"
             }
+        },
+        {
+            "href": "foo://path/to",
+            "new_value": ":80",
+            "expected": {
+                "href": "foo://path/to",
+                "host": "path",
+                "port": ""
+            }
         }
     ],
     "hostname": [
