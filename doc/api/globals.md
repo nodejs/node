@@ -33,7 +33,6 @@ changes:
     description: No longer experimental.
 -->
 
-
 A utility class used to signal cancelation in selected `Promise`-based APIs.
 The API is based on the Web API [`AbortController`][].
 
