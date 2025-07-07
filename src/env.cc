@@ -937,6 +937,7 @@ Environment::Environment(IsolateData* isolate_data,
     // unless explicitly allowed by the user
     if (!options_->allow_addons) {
       options_->allow_native_addons = false;
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kAddon);
     }
     flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
     permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
