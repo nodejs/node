@@ -1138,17 +1138,6 @@ test('when help value is added, then add initial help text', () => {
   assert.deepStrictEqual(result, expected);
 });
 
-test('enableHelpPrinting config must be a boolean', () => {
-  const args = ['-f', 'bar'];
-  const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
-  const help = 'Description for some awesome stuff:';
-  const enableHelpPrinting = 'not a boolean';
-  assert.throws(() => {
-    parseArgs({ args, options, help, enableHelpPrinting });
-  }, /The "enableHelpPrinting" argument must be of type boolean/
-  );
-});
-
 function setupConsoleAndExit() {
   const originalLog = console.log;
   const originalExit = process.exit;
@@ -1172,13 +1161,12 @@ function setupConsoleAndExit() {
   return { getOutput: () => output, getExitCode: () => exitCode, restore };
 }
 
-test('when enableHelpPrinting config is true, print all help text and exit', () => {
+test('when --help flag is present with help arg, prints all help text and exit', () => {
   const { getOutput, getExitCode, restore } = setupConsoleAndExit();
 
   try {
     const args = [
-      '-h', '-a', 'val1', '--beta', '-c', 'val3', '--delta', 'val4', '-e',
-      '--foxtrot', 'val6', '--golf', '--hotel', 'val8', '--india', 'val9', '-j',
+      '-h', '-a', 'val1',
     ];
     const options = {
       help: { type: 'boolean', short: 'h', help: 'Prints command line options' },
@@ -1200,7 +1188,7 @@ test('when enableHelpPrinting config is true, print all help text and exit', () 
     };
     const help = 'Description for some awesome stuff:';
 
-    parseArgs({ args, options, help, enableHelpPrinting: true });
+    parseArgs({ args, options, help });
   } finally {
     restore();
   }
@@ -1223,18 +1211,19 @@ test('when enableHelpPrinting config is true, print all help text and exit', () 
   assert.strictEqual(getOutput(), expectedOutput);
 });
 
-test('when enableHelpPrinting config is true, but no help text is available', () => {
+test('when --help flag is present with help arg but no help text is available, prints help text and exit', () => {
   const { getOutput, getExitCode, restore } = setupConsoleAndExit();
 
   try {
     const args = ['-a', 'val1', '--help'];
+    const help = 'Description for some awesome stuff:';
     const options = { alpha: { type: 'string', short: 'a' }, help: { type: 'boolean' } };
 
-    parseArgs({ args, options, enableHelpPrinting: true });
+    parseArgs({ args, options, help });
   } finally {
     restore();
   }
 
   assert.strictEqual(getExitCode(), 0);
-  assert.strictEqual(getOutput(), 'No help text available.\n');
+  assert.strictEqual(getOutput(), 'Description for some awesome stuff:\n');
 });

@@ -2051,9 +2051,6 @@ changes:
     the tokens in different ways.
     **Default:** `false`.
   * `help` {string} General help text to display at the beginning of help output.
-  * `enableHelpPrinting` {boolean} When `true`, if any options have help text
-    configured and a `--help` entry was provided, the help will be printed to stdout and the process will exit
-    with code 0. **Default:** `false`.
 
 * Returns: {Object} The parsed command line arguments:
   * `values` {Object} A mapping of parsed option names with their {string}
@@ -2110,9 +2107,11 @@ console.log(values, positionals);
 
 ### `parseArgs` help text
 
-`parseArgs` can generate and display help text for command-line options. To enable
-this functionality, add `help` text to individual options and optionally provide
-general help text via the `help` config property.
+`parseArgs` supports automatic help text generation for command-line options. To use this feature, add a `help`
+property to each option and optionally provide general help text using the `help` config property.
+
+When both general help text is provided and `--help` is present in the `args`, `parseArgs`
+will automatically print the help message and exit with code 0.
 
 ```mjs
 import { parseArgs } from 'node:util';
@@ -2152,12 +2151,20 @@ if (result.printUsage) {
 }
 
 // Or automatically print help and exit
+const args = ['-h'];
 parseArgs({
+  args,
   options,
   help: 'My CLI Tool v1.0\n\nProcess files with various options.',
-  enableHelpPrinting: true,
 });
-// Prints help and exits with code 0
+// Prints:
+// My CLI Tool v1.0
+//
+// Process files with various options.
+// -v, --verbose             Enable verbose output
+// -h, --help.               Prints command line options
+// --output <arg>            Output directory
+// exit with code 0
 ```
 
 ```cjs
@@ -2180,7 +2187,7 @@ const options = {
   },
 };
 
-// Get help text in result
+// Get serialized help text in result
 const result = parseArgs({
   options,
   help: 'My CLI Tool v1.0\n\nProcess files with various options.',
@@ -2198,12 +2205,20 @@ if (result.printUsage) {
 }
 
 // Or automatically print help and exit
+const args = ['-h'];
 parseArgs({
+  args,
   options,
   help: 'My CLI Tool v1.0\n\nProcess files with various options.',
-  enableHelpPrinting: true,
 });
-// Prints help and exits with code 0
+// Prints:
+// My CLI Tool v1.0
+//
+// Process files with various options.
+// -v, --verbose             Enable verbose output
+// -h, --help.               Prints command line options
+// --output <arg>            Output directory
+// exit with code 0
 ```
 
 ### `parseArgs` `tokens`
