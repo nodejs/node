@@ -662,6 +662,10 @@ a code {
   -webkit-padding-start: 1.5rem;
 }
 
+#column1 a {
+  scroll-margin-top: 50px;
+}
+
 #column2.interior {
   width: 234px;
   background-color: var(--color-fill-side-nav);
@@ -836,6 +840,9 @@ kbd {
   }
   .api_stability {
     top: 0;
+  }
+  #column1 a {
+    scroll-margin-top: 0;
   }
 }
 
