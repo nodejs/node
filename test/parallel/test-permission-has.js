@@ -25,3 +25,13 @@ const assert = require('assert');
 {
   assert.ok(!process.permission.has('FileSystemWrite', Buffer.from('reference')));
 }
+
+{
+  assert.ok(!process.permission.has('fs'));
+  assert.ok(process.permission.has('fs.read'));
+  assert.ok(!process.permission.has('fs.write'));
+  assert.ok(!process.permission.has('wasi'));
+  assert.ok(!process.permission.has('worker'));
+  assert.ok(!process.permission.has('inspector'));
+  assert.ok(!process.permission.has('addon'));
+}
