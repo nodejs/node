@@ -373,7 +373,7 @@ p {
   padding-bottom: 2rem;
 }
 
-/* prevent the sticky stability header from overlapping the section header */
+/* prevent the module-level sticky stability header from overlapping the section headers when clicked */
 #apicontent:has(> .api_stability) a {
   scroll-margin-top: 50px;
 }
