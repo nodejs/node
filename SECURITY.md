@@ -112,8 +112,14 @@ does not trust is considered a vulnerability:
 * Memory leaks qualify as vulnerabilities when all of the following criteria are met:
   * The API is being correctly used
   * The API doesn't have a warning against its usage in a production environment
+  * The API is public and documented
   * The API is on stable (2.0) status
   * The memory leak is significant, causing a DoS fast or in a user-uncontrolled space (for instance, on HTTP parsing)
+  * The memory leak is directly exploitable by an untrusted source without requiring application mistakes
+  * The leak cannot be reasonably mitigated through standard operational practices (like process recycling)
+  * The leak occurs deterministically under normal usage patterns rather than edge cases
+  * The leak occurs at a rate that would cause practical resource exhaustion within X requests or Y hours under
+    typical workloads
 
 If Node.js loads configuration files or runs code by default (without a
 specific request from the user), and this is not documented, it is considered a
