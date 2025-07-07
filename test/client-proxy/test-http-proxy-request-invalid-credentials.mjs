@@ -1,5 +1,6 @@
 // This tests that proxy URLs with invalid credentials (containing \r or \n characters)
 // are rejected with an appropriate error.
+import '../common/index.mjs';
 import assert from 'node:assert';
 import http from 'node:http';
 
