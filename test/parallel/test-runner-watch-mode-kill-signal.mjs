@@ -1,6 +1,5 @@
 import * as common from '../common/index.mjs';
 import { describe, it, beforeEach } from 'node:test';
-import { once } from 'node:events';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -19,27 +18,10 @@ if (common.isAIX) {
 }
 
 const indexContents = `
-  const { setTimeout } = require("timers/promises");
-  (async () => {
-      // Wait a few milliseconds to make sure that the
-      // parent process has time to attach its listeners
-      await setTimeout(200);
-
-      process.on('SIGTERM', () => {
-          console.log('__SIGTERM received__');
-          process.exit(123);
-      });
-
-      process.on('SIGINT', () => {
-          console.log('__SIGINT received__');
-          process.exit(124);
-      });
-
-      console.log('ready!');
-
-      // Wait for a long time (just to keep the process alive)
-      await setTimeout(100_000_000);
-  })();
+  process.on('SIGTERM', () => { console.log('__SIGTERM received__'); process.exit(); });
+  process.on('SIGINT', () => { console.log('__SIGINT received__'); process.exit(); });
+  process.send('script ready');
+  setTimeout(() => {}, 100_000);
 `;
 
 let indexPath = '';
@@ -54,60 +36,82 @@ describe('test runner watch mode with --watch-kill-signal', () => {
   beforeEach(refresh);
 
   it('defaults to SIGTERM', async () => {
-    let currentRun = Promise.withResolvers();
-    const child = spawn(process.execPath, ['--watch', indexPath], {
-      cwd: tmpdir.path,
-    });
+    const child = spawn(
+      process.execPath,
+      ['--watch', indexPath],
+      {
+        cwd: tmpdir.path,
+        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+      }
+    );
 
     let stdout = '';
     child.stdout.on('data', (data) => {
-      stdout += data.toString();
-      currentRun.resolve();
-    });
-
-    await currentRun.promise;
-
-    currentRun = Promise.withResolvers();
-    writeFileSync(indexPath, indexContents);
-
-    await currentRun.promise;
-    child.kill();
-    const [exitCode] = await once(child, 'exit');
-    assert.match(stdout, /__SIGTERM received__/);
-    assert.strictEqual(exitCode, 123);
-  });
-
-  it('can be overridden (to SIGINT)', async () => {
-    let currentRun = Promise.withResolvers();
-    const child = spawn(process.execPath, ['--watch', '--watch-kill-signal', 'SIGINT', indexPath], {
-      cwd: tmpdir.path,
-    });
-    let stdout = '';
-
-    child.stdout.on('data', (data) => {
-      stdout += data.toString();
-      if (stdout.includes('ready!')) {
-        currentRun.resolve();
+      stdout += `${data}`;
+      if (/__(SIGINT|SIGTERM) received__/.test(stdout)) {
+        child.kill();
       }
     });
 
-    await currentRun.promise;
+    child.on('message', (msg) => {
+      if (msg === 'script ready') {
+        writeFileSync(indexPath, indexContents);
+      }
+    });
 
-    currentRun = Promise.withResolvers();
-    writeFileSync(indexPath, indexContents);
+    await new Promise((resolve) =>
+      child.on('exit', () => {
+        resolve();
+      })
+    );
 
-    await currentRun.promise;
-    child.kill();
-    const [exitCode] = await once(child, 'exit');
+    assert.match(stdout, /__SIGTERM received__/);
+    assert.doesNotMatch(stdout, /__SIGINT received__/);
+  });
+
+  it('can be overridden (to SIGINT)', async () => {
+    const child = spawn(
+      process.execPath,
+      ['--watch', '--watch-kill-signal', 'SIGINT', indexPath],
+      {
+        cwd: tmpdir.path,
+        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+      }
+    );
+
+    let stdout = '';
+    child.stdout.on('data', (data) => {
+      stdout += `${data}`;
+      if (/__(SIGINT|SIGTERM) received__/.test(stdout)) {
+        child.kill();
+      }
+    });
+
+    child.on('message', (msg) => {
+      if (msg === 'script ready') {
+        writeFileSync(indexPath, indexContents);
+      }
+    });
+
+    await new Promise((resolve) =>
+      child.on('exit', () => {
+        resolve();
+      })
+    );
+
     assert.match(stdout, /__SIGINT received__/);
-    assert.strictEqual(exitCode, 124);
+    assert.doesNotMatch(stdout, /__SIGTERM received__/);
   });
 
   it('errors if an invalid signal is provided', async () => {
     const currentRun = Promise.withResolvers();
-    const child = spawn(process.execPath, ['--watch', '--watch-kill-signal', 'invalid_signal', indexPath], {
-      cwd: tmpdir.path,
-    });
+    const child = spawn(
+      process.execPath,
+      ['--watch', '--watch-kill-signal', 'invalid_signal', indexPath],
+      {
+        cwd: tmpdir.path,
+      }
+    );
     let stdout = '';
 
     child.stderr.on('data', (data) => {
@@ -117,6 +121,11 @@ describe('test runner watch mode with --watch-kill-signal', () => {
 
     await currentRun.promise;
 
-    assert.match(stdout, new RegExp(/TypeError \[ERR_UNKNOWN_SIGNAL\]: Unknown signal: invalid_signal/));
+    assert.match(
+      stdout,
+      new RegExp(
+        /TypeError \[ERR_UNKNOWN_SIGNAL\]: Unknown signal: invalid_signal/
+      )
+    );
   });
 });
