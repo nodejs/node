@@ -1,180 +1,217 @@
+// Flags: --expose-internals
 'use strict';
 
-require('../common');
-const { test } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
-const { FastUtf8Stream } = require('node:fs');
-const { tmpdir } = require('node:os');
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const { it } = require('node:test');
+const fs = require('fs');
+const path = require('path');
+const FastUtf8Stream = require('internal/streams/fast-utf8-stream');
 
-let fileCounter = 0;
+tmpdir.refresh();
+process.umask(0o000);
 
-function getTempFile() {
-  return path.join(tmpdir(), `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+const isWindows = common.isWindows;
+const files = [];
+let count = 0;
+
+function file() {
+  const file = path.join(tmpdir.path,
+                         `sonic-boom-${process.pid}-${process.hrtime().toString()}-${count++}`);
+  files.push(file);
+  return file;
 }
 
-const isWindows = process.platform === 'win32';
+it('mode sync', { skip: isWindows }, async (t) => {
+  const dest = file();
+  const mode = 0o666;
+  const stream = new FastUtf8Stream({ dest, sync: true, mode });
 
-function runTests(buildTests) {
-  buildTests(test, false);
-  buildTests(test, true);
-}
+  stream.on('ready', common.mustCall());
 
-runTests(buildTests);
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
 
-function buildTests(test, sync) {
-  // Reset the umask for testing
-  process.umask(0o000);
+  stream.end();
 
-  test(`mode - sync: ${sync}`, { skip: isWindows }, async (t) => {
-    const dest = getTempFile();
-    const mode = 0o666;
-    const stream = new FastUtf8Stream({ dest, sync, mode });
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      t.assert.strictEqual(fs.statSync(dest).mode & 0o777, stream.mode);
+      resolve();
+    }));
+  }));
 
-    try {
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          assert.ok(stream.write('hello world\n'));
-          assert.ok(stream.write('something else\n'));
+  await promise;
+});
 
-          stream.end();
+it('mode', { skip: isWindows }, async (t) => {
+  const dest = file();
+  const mode = 0o666;
+  const stream = new FastUtf8Stream({ dest, sync: false, mode });
 
-          stream.on('finish', () => {
-            fs.readFile(dest, 'utf8', (err, data) => {
-              try {
-                assert.ifError(err);
-                assert.strictEqual(data, 'hello world\nsomething else\n');
-                assert.strictEqual(fs.statSync(dest).mode & 0o777, stream.mode);
-                resolve();
-              } catch (assertErr) {
-                reject(assertErr);
-              }
-            });
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
+  stream.on('ready', common.mustCall());
 
-  test(`mode default - sync: ${sync}`, { skip: isWindows }, async (t) => {
-    const dest = getTempFile();
-    const defaultMode = 0o666;
-    const stream = new FastUtf8Stream({ dest, sync });
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
 
-    try {
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          assert.ok(stream.write('hello world\n'));
-          assert.ok(stream.write('something else\n'));
+  stream.end();
 
-          stream.end();
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      t.assert.strictEqual(fs.statSync(dest).mode & 0o777, stream.mode);
+      resolve();
+    }));
+  }));
 
-          stream.on('finish', () => {
-            fs.readFile(dest, 'utf8', (err, data) => {
-              try {
-                assert.ifError(err);
-                assert.strictEqual(data, 'hello world\nsomething else\n');
-                assert.strictEqual(fs.statSync(dest).mode & 0o777, defaultMode);
-                resolve();
-              } catch (assertErr) {
-                reject(assertErr);
-              }
-            });
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
+  await promise;
+});
 
-  test(`mode on mkdir - sync: ${sync}`, { skip: isWindows }, async (t) => {
-    const dest = path.join(getTempFile(), 'out.log');
-    const mode = 0o666;
-    const stream = new FastUtf8Stream({ dest, mkdir: true, mode, sync });
+it('mode default sync', { skip: isWindows }, async (t) => {
+  const dest = file();
+  const defaultMode = 0o666;
+  const stream = new FastUtf8Stream({ dest, sync: true });
 
-    try {
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          assert.ok(stream.write('hello world\n'));
+  stream.on('ready', common.mustCall());
 
-          stream.flush();
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
 
-          stream.on('drain', () => {
-            fs.readFile(dest, 'utf8', (err, data) => {
-              try {
-                assert.ifError(err);
-                assert.strictEqual(data, 'hello world\n');
-                assert.strictEqual(fs.statSync(dest).mode & 0o777, stream.mode);
-                stream.end();
-                resolve();
-              } catch (assertErr) {
-                reject(assertErr);
-              }
-            });
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-        fs.rmdirSync(path.dirname(dest));
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
+  stream.end();
 
-  test(`mode on append - sync: ${sync}`, { skip: isWindows }, async (t) => {
-    const dest = getTempFile();
-    // Create file with writable mode first, then change mode after FastUtf8Stream creation
-    fs.writeFileSync(dest, 'hello world\n', { encoding: 'utf8' });
-    const mode = isWindows ? 0o444 : 0o666;
-    const stream = new FastUtf8Stream({ dest, append: false, mode, sync });
+  const { promise, resolve } = Promise.withResolvers();
 
-    try {
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          assert.ok(stream.write('something else\n'));
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      t.assert.strictEqual(fs.statSync(dest).mode & 0o777, defaultMode);
+      resolve();
+    }));
+  }));
 
-          stream.flush();
+  await promise;
+});
 
-          stream.on('drain', () => {
-            fs.readFile(dest, 'utf8', (err, data) => {
-              try {
-                assert.ifError(err);
-                assert.strictEqual(data, 'something else\n');
-                assert.strictEqual(fs.statSync(dest).mode & 0o777, stream.mode);
-                stream.end();
-                resolve();
-              } catch (assertErr) {
-                reject(assertErr);
-              }
-            });
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
-}
+it('mode default', { skip: isWindows }, async (t) => {
+  const dest = file();
+  const defaultMode = 0o666;
+  const stream = new FastUtf8Stream({ dest, sync: false });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.end();
+
+  const { promise, resolve } = Promise.withResolvers();
+
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      t.assert.strictEqual(fs.statSync(dest).mode & 0o777, defaultMode);
+      resolve();
+    }));
+  }));
+
+  await promise;
+});
+
+it('mode on mkdir sync', { skip: isWindows }, async (t) => {
+  const dest = path.join(file(), 'out.log');
+  const mode = 0o666;
+  const stream = new FastUtf8Stream({ dest, mkdir: true, mode, sync: true });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+
+  stream.flush();
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('drain', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\n');
+      t.assert.strictEqual(fs.statSync(dest).mode & 0o777, stream.mode);
+      stream.end();
+      resolve();
+    }));
+  }));
+  await promise;
+});
+
+it('mode on mkdir', { skip: isWindows }, async (t) => {
+  const dest = path.join(file(), 'out.log');
+  const mode = 0o666;
+  const stream = new FastUtf8Stream({ dest, mkdir: true, mode, sync: false });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+
+  stream.flush();
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('drain', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\n');
+      t.assert.strictEqual(fs.statSync(dest).mode & 0o777, stream.mode);
+      stream.end();
+      resolve();
+    }));
+  }));
+  await promise;
+});
+
+it('mode on append sync', { skip: isWindows }, async (t) => {
+  const dest = file();
+  fs.writeFileSync(dest, 'hello world\n', 'utf8', 0o422);
+  const mode = isWindows ? 0o444 : 0o666;
+  const stream = new FastUtf8Stream({ dest, append: false, mode, sync: true });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.flush();
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('drain', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'something else\n');
+      t.assert.strictEqual(fs.statSync(dest).mode & 0o777, stream.mode);
+      stream.end();
+      resolve();
+    }));
+  }));
+
+  await promise;
+});
+
+it('mode on append', { skip: isWindows }, async (t) => {
+  const dest = file();
+  fs.writeFileSync(dest, 'hello world\n', 'utf8', 0o422);
+  const mode = isWindows ? 0o444 : 0o666;
+  const stream = new FastUtf8Stream({ dest, append: false, mode, sync: false });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.flush();
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('drain', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'something else\n');
+      t.assert.strictEqual(fs.statSync(dest).mode & 0o777, stream.mode);
+      stream.end();
+      resolve();
+    }));
+  }));
+
+  await promise;
+});

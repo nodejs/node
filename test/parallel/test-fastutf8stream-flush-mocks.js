@@ -1,196 +1,227 @@
+// Flags: --expose-internals
 'use strict';
 
-require('../common');
-const { test, mock, afterEach } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
-const { FastUtf8Stream } = require('node:fs');
-const { tmpdir } = require('node:os');
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const { it } = require('node:test');
+const fs = require('fs');
+const path = require('path');
+const FastUtf8Stream = require('internal/streams/fast-utf8-stream');
 
-let fileCounter = 0;
+tmpdir.refresh();
+process.umask(0o000);
 
-function getTempFile() {
-  return path.join(tmpdir(), `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+const files = [];
+let count = 0;
+
+function file() {
+  const file = path.join(tmpdir.path,
+                         `sonic-boom-${process.pid}-${process.hrtime().toString()}-${count++}`);
+  files.push(file);
+  return file;
 }
 
-// Clean up all mocks after each test
-afterEach(() => {
-  mock.restoreAll();
+it('only call fsyncSync and not fsync when fsync: true sync', async (t) => {
+
+  const originalFsync = fs.fsync;
+  const originalFsyncSync = fs.fsyncSync;
+  const originalWriteSync = fs.writeSync;
+
+  fs.fsync = common.mustNotCall();
+  fs.fsyncSync = common.mustCall();
+
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({
+    fd,
+    sync: true,
+    fsync: true,
+    minLength: 4096
+  });
+
+  stream.on('ready', common.mustCall());
+
+  fs.writeSync = common.mustCall((...args) => originalWriteSync(...args));
+
+  t.assert.ok(stream.write('hello world\n'));
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.flush(common.mustSucceed(() => {
+    process.nextTick(common.mustCall(resolve));
+  }));
+
+  await promise;
+
+  fs.writeSync = originalWriteSync;
+  fs.fsync = originalFsync;
+  fs.fsyncSync = originalFsyncSync;
 });
 
-function runTests(buildTests) {
-  buildTests(test, false);
-  buildTests(test, true);
-}
+it('only call fsyncSync and not fsync when fsync: true', async (t) => {
 
-runTests(buildTests);
+  const originalFsync = fs.fsync;
+  const originalFsyncSync = fs.fsyncSync;
+  const originalWrite = fs.write;
 
-function buildTests(test, sync) {
-  // Reset the umask for testing
-  process.umask(0o000);
+  fs.fsync = common.mustNotCall();
+  fs.fsyncSync = common.mustCall();
 
-  test(`only call fsyncSync and not fsync when fsync: true - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const fd = fs.openSync(dest, 'w');
-    const stream = new FastUtf8Stream({
-      fd,
-      sync,
-      fsync: true,
-      minLength: 4096
-    });
-
-    // Store original functions
-    const originalFsync = fs.fsync;
-    const originalFsyncSync = fs.fsyncSync;
-    const originalWrite = fs.write;
-    const originalWriteSync = fs.writeSync;
-
-    let fsyncCalls = 0;
-    let fsyncSyncCalls = 0;
-    let writeCalls = 0;
-
-    // Mock fs.fsync to track calls (should not be called)
-    const mockFsync = (fd, cb) => {
-      fsyncCalls++;
-      cb(new Error('fs.fsync should not be called'));
-    };
-
-    // Mock fs.fsyncSync to track calls (should be called)
-    const mockFsyncSync = (fd) => {
-      fsyncSyncCalls++;
-      return originalFsyncSync.call(fs, fd);
-    };
-
-    // Mock write functions to track calls
-    const mockWrite = (...args) => {
-      writeCalls++;
-      return originalWrite.call(fs, ...args);
-    };
-
-    const mockWriteSync = (...args) => {
-      writeCalls++;
-      return originalWriteSync.call(fs, ...args);
-    };
-
-    // Apply mocks
-    fs.fsync = mockFsync;
-    fs.fsyncSync = mockFsyncSync;
-    if (sync) {
-      fs.writeSync = mockWriteSync;
-    } else {
-      fs.write = mockWrite;
-    }
-
-    try {
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          assert.ok(stream.write('hello world\n'));
-
-          stream.flush((err) => {
-            try {
-              assert.ifError(err);
-              // Verify fsyncSync was called
-              assert.strictEqual(fsyncSyncCalls, 1);
-              // Verify fsync was not called
-              assert.strictEqual(fsyncCalls, 0);
-              // Verify write was called
-              assert.strictEqual(writeCalls, 1);
-
-              stream.end();
-              resolve();
-            } catch (assertErr) {
-              reject(assertErr);
-            }
-          });
-        });
-      });
-    } finally {
-      // Restore original functions
-      fs.fsync = originalFsync;
-      fs.fsyncSync = originalFsyncSync;
-      fs.write = originalWrite;
-      fs.writeSync = originalWriteSync;
-
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({
+    fd,
+    sync: false,
+    fsync: true,
+    minLength: 4096
   });
 
-  test(`call flush cb with error when fsync failed - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const fd = fs.openSync(dest, 'w');
-    const stream = new FastUtf8Stream({
-      fd,
-      sync,
-      minLength: 4096
-    });
+  stream.on('ready', common.mustCall());
 
-    // Store original functions
-    const originalFsync = fs.fsync;
-    const originalWrite = fs.write;
-    const originalWriteSync = fs.writeSync;
+  fs.write = common.mustCall((...args) => originalWrite(...args));
 
-    const testError = new Error('fsync failed');
-    testError.code = 'ETEST';
+  t.assert.ok(stream.write('hello world\n'));
 
-    // Mock fs.fsync to fail
-    const mockFsync = (fd, cb) => {
-      process.nextTick(() => cb(testError));
-    };
+  const { promise, resolve } = Promise.withResolvers();
+  stream.flush(common.mustSucceed(() => {
+    process.nextTick(common.mustCall(resolve));
+  }));
 
-    // Mock write functions to succeed
-    const mockWrite = (...args) => {
-      return originalWrite.call(fs, ...args);
-    };
+  await promise;
 
-    const mockWriteSync = (...args) => {
-      return originalWriteSync.call(fs, ...args);
-    };
+  fs.write = originalWrite;
+  fs.fsync = originalFsync;
+  fs.fsyncSync = originalFsyncSync;
+});
 
-    // Apply mocks
-    fs.fsync = mockFsync;
-    if (sync) {
-      fs.writeSync = mockWriteSync;
-    } else {
-      fs.write = mockWrite;
-    }
+it('call flush cb with error when fsync failed sync', async (t) => {
 
-    try {
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          assert.ok(stream.write('hello world\n'));
+  const originalFsync = fs.fsync;
+  const originalWriteSync = fs.writeSync;
 
-          stream.flush((err) => {
-            try {
-              assert.ok(err, 'flush should return an error');
-              assert.strictEqual(err.code, 'ETEST');
-
-              stream.end();
-              resolve();
-            } catch (assertErr) {
-              reject(assertErr);
-            }
-          });
-        });
-      });
-    } finally {
-      // Restore original functions
-      fs.fsync = originalFsync;
-      fs.write = originalWrite;
-      fs.writeSync = originalWriteSync;
-
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
+  const err = new Error('boom');
+  fs.fsync = common.mustCall((...args) => {
+    args[args.length - 1](err);
   });
 
-}
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({
+    fd,
+    sync: true,
+    minLength: 4096
+  });
+
+  stream.on('ready', common.mustCall());
+
+  fs.writeSync = common.mustCall((...args) => originalWriteSync(...args));
+
+  t.assert.ok(stream.write('hello world\n'));
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.flush(common.mustCall((actual) => {
+    t.assert.strictEqual(actual, err);
+    resolve();
+  }));
+
+  await promise;
+
+  fs.writeSync = originalWriteSync;
+  fs.fsync = originalFsync;
+});
+
+
+it('call flush cb with an error when failed to flush sync', async (t) => {
+
+  const originalWriteSync = fs.writeSync;
+  const err = new Error('boom');
+  fs.writeSync = common.mustCall(() => {
+    throw err;
+  });
+
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({
+    fd,
+    sync: true,
+    minLength: 4096
+  });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+  const { promise, resolve } = Promise.withResolvers();
+  stream.flush(common.mustCall((actual) => {
+    t.assert.strictEqual(actual, err);
+    fs.writeSync = originalWriteSync;
+  }));
+
+  stream.end();
+
+  stream.on('close', common.mustCall(resolve));
+
+  await promise;
+
+});
+
+it('call flush cb when finish writing when currently in the middle sync', async (t) => {
+
+  const originalWriteSync = fs.writeSync;
+
+  const { promise, resolve } = Promise.withResolvers();
+
+  fs.writeSync = common.mustCall((...args) => {
+    stream.flush(common.mustSucceed(resolve));
+    originalWriteSync(...args);
+  });
+
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({
+    fd,
+    sync: true,
+
+    // To trigger write without calling flush
+    minLength: 1
+  });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+
+  await promise;
+
+  fs.writeSync = originalWriteSync;
+});
+
+it('call flush cb when writing and trying to flush before ready (on async)', async (t) => {
+
+  const originalOpen = fs.open;
+
+  const { promise, resolve } = Promise.withResolvers();
+  fs.open = function(...args) {
+    process.nextTick(common.mustCall(() => {
+      // Try writing and flushing before ready and in the middle of opening
+      t.assert.ok(stream.write('hello world\n'));
+      // calling flush
+      stream.flush(common.mustSucceed(resolve));
+      originalOpen(...args);
+    }));
+  };
+
+  const dest = file();
+  const stream = new FastUtf8Stream({
+    fd: dest,
+    // Only async as sync is part of the constructor so the user will not be able to call write/flush
+    // before ready
+    sync: false,
+
+    // To not trigger write without calling flush
+    minLength: 4096
+  });
+
+  stream.on('ready', common.mustCall());
+
+  await promise;
+
+  fs.open = originalOpen;
+});

@@ -1,294 +1,252 @@
+// Flags: --expose-internals
 'use strict';
 
-require('../common');
-const { test, afterEach } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const { FastUtf8Stream } = require('node:fs');
-const { tmpdir } = require('node:os');
-const path = require('node:path');
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const fs = require('fs');
+const path = require('path');
+const FastUtf8Stream = require('internal/streams/fast-utf8-stream');
+const { it } = require('node:test');
 
-let fileCounter = 0;
+tmpdir.refresh();
+process.umask(0o000);
 
-function getTempFile() {
-  return path.join(tmpdir(), `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+const files = [];
+let count = 0;
+
+function file() {
+  const file = path.join(tmpdir.path,
+                         `sonic-boom-${process.pid}-${process.hrtime().toString()}-${count++}`);
+  files.push(file);
+  return file;
 }
 
-// Clean up all mocks after each test
-afterEach(() => {
-  // No mocks to clean up in basic tests
+it('reopen sync', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, sync: true });
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  const after = dest + '-moved';
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.once('drain', common.mustCall(() => {
+    fs.renameSync(dest, after);
+    stream.reopen();
+
+    stream.once('ready', common.mustCall(() => {
+      t.assert.ok(stream.write('after reopen\n'));
+
+      stream.once('drain', () => {
+        fs.promises.readFile(after, 'utf8').then(common.mustCall((data) => {
+          t.assert.strictEqual(data, 'hello world\nsomething else\n');
+          fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+            t.assert.strictEqual(data, 'after reopen\n');
+            stream.end();
+            resolve();
+          }));
+        }));
+      });
+    }));
+  }));
+
+  await promise;
 });
 
-function runTests(buildTests) {
-  buildTests(test, false);
-  buildTests(test, true);
-}
+it('reopen', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, sync: false });
 
-runTests(buildTests);
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
 
-function buildTests(test, sync) {
-  // Reset the umask for testing
-  process.umask(0o000);
+  const after = dest + '-moved';
 
-  test(`reopen - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const stream = new FastUtf8Stream({ dest, sync });
+  const { promise, resolve } = Promise.withResolvers();
+  stream.once('drain', common.mustCall(() => {
+    fs.renameSync(dest, after);
+    stream.reopen();
 
-    try {
-      assert.ok(stream.write('hello world\n'));
-      assert.ok(stream.write('something else\n'));
+    stream.once('ready', common.mustCall(() => {
+      t.assert.ok(stream.write('after reopen\n'));
 
-      const after = dest + '-moved';
-
-      await new Promise((resolve, reject) => {
-        stream.once('drain', () => {
-          fs.renameSync(dest, after);
-          stream.reopen();
-
-          stream.once('ready', () => {
-            assert.ok(stream.write('after reopen\n'));
-
-            stream.once('drain', () => {
-              fs.readFile(after, 'utf8', (err, data) => {
-                try {
-                  assert.ifError(err);
-                  assert.strictEqual(data, 'hello world\nsomething else\n');
-                  fs.readFile(dest, 'utf8', (err, data) => {
-                    try {
-                      assert.ifError(err);
-                      assert.strictEqual(data, 'after reopen\n');
-                      stream.end();
-                      resolve();
-                    } catch (assertErr) {
-                      reject(assertErr);
-                    }
-                  });
-                } catch (assertErr) {
-                  reject(assertErr);
-                }
-              });
-            });
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-        fs.unlinkSync(dest + '-moved');
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
-
-  // Skip this test - FastUtf8Stream has different buffer behavior during reopen
-  // Basic reopen functionality is covered in other tests
-  // test(`reopen with buffer - sync: ${sync}`, async (t) => { ... });
-
-  test(`reopen if not open - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const stream = new FastUtf8Stream({ dest, sync });
-
-    try {
-      assert.ok(stream.write('hello world\n'));
-      assert.ok(stream.write('something else\n'));
-
-      stream.reopen();
-
-      stream.end();
-
-      await new Promise((resolve) => {
-        stream.on('close', () => {
-          resolve();
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
-
-  test(`reopen with file - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const stream = new FastUtf8Stream({ dest, minLength: 0, sync });
-
-    try {
-      assert.ok(stream.write('hello world\n'));
-      assert.ok(stream.write('something else\n'));
-
-      const after = dest + '-new';
-
-      await new Promise((resolve, reject) => {
-        stream.once('drain', () => {
-          stream.reopen(after);
-          assert.strictEqual(stream.file, after);
-
-          stream.once('ready', () => {
-            assert.ok(stream.write('after reopen\n'));
-
-            stream.once('drain', () => {
-              fs.readFile(dest, 'utf8', (err, data) => {
-                try {
-                  assert.ifError(err);
-                  assert.strictEqual(data, 'hello world\nsomething else\n');
-                  fs.readFile(after, 'utf8', (err, data) => {
-                    try {
-                      assert.ifError(err);
-                      assert.strictEqual(data, 'after reopen\n');
-                      stream.end();
-                      resolve();
-                    } catch (assertErr) {
-                      reject(assertErr);
-                    }
-                  });
-                } catch (assertErr) {
-                  reject(assertErr);
-                }
-              });
-            });
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-        fs.unlinkSync(dest + '-new');
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
-
-  test(`reopen throws an error - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const stream = new FastUtf8Stream({ dest, sync });
-
-    // Store original functions
-    const originalOpen = fs.open;
-    const originalOpenSync = fs.openSync;
-
-    try {
-      assert.ok(stream.write('hello world\n'));
-      assert.ok(stream.write('something else\n'));
-
-      const after = dest + '-moved';
-
-      await new Promise((resolve, reject) => {
-        stream.on('error', () => {
-          // Expected error
-        });
-
-        stream.once('drain', () => {
-          fs.renameSync(dest, after);
-
-          if (sync) {
-            fs.openSync = function() {
-              throw new Error('open error');
-            };
-          } else {
-            fs.open = function(file, flags, mode, cb) {
-              setTimeout(() => cb(new Error('open error')), 0);
-            };
-          }
-
-          if (sync) {
-            try {
-              stream.reopen();
-            } catch {
-              // Expected error
-            }
-          } else {
-            stream.reopen();
-          }
-
-          setTimeout(() => {
-            assert.ok(stream.write('after reopen\n'));
-
+      stream.once('drain', () => {
+        fs.promises.readFile(after, 'utf8').then(common.mustCall((data) => {
+          t.assert.strictEqual(data, 'hello world\nsomething else\n');
+          fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+            t.assert.strictEqual(data, 'after reopen\n');
             stream.end();
-            stream.on('finish', () => {
-              fs.readFile(after, 'utf8', (err, data) => {
-                try {
-                  assert.ifError(err);
-                  assert.strictEqual(data, 'hello world\nsomething else\nafter reopen\n');
-                  resolve();
-                } catch (assertErr) {
-                  reject(assertErr);
-                }
-              });
-            });
-          }, 10);
-        });
+            resolve();
+          }));
+        }));
       });
-    } finally {
-      // Restore original functions
-      fs.open = originalOpen;
-      fs.openSync = originalOpenSync;
+    }));
+  }));
 
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-        fs.unlinkSync(dest + '-moved');
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
+  await promise;
+});
 
-  test(`reopen emits drain - sync: ${sync}`, async () => {
-    const dest = getTempFile();
-    const stream = new FastUtf8Stream({ dest, sync });
+it('reopen if not open sync', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, sync: true });
 
-    try {
-      assert.ok(stream.write('hello world\n'));
-      assert.ok(stream.write('something else\n'));
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
 
-      const after = dest + '-moved';
+  stream.reopen();
 
-      await new Promise((resolve, reject) => {
-        stream.once('drain', () => {
-          fs.renameSync(dest, after);
-          stream.reopen();
+  stream.end();
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('close', common.mustCall(resolve));
+  await promise;
+});
 
-          stream.once('drain', () => {
-            assert.ok(stream.write('after reopen\n'));
+it('reopen if not open', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, sync: false });
 
-            stream.once('drain', () => {
-              fs.readFile(after, 'utf8', (err, data) => {
-                try {
-                  assert.ifError(err);
-                  assert.strictEqual(data, 'hello world\nsomething else\n');
-                  fs.readFile(dest, 'utf8', (err, data) => {
-                    try {
-                      assert.ifError(err);
-                      assert.strictEqual(data, 'after reopen\n');
-                      stream.end();
-                      resolve();
-                    } catch (assertErr) {
-                      reject(assertErr);
-                    }
-                  });
-                } catch (assertErr) {
-                  reject(assertErr);
-                }
-              });
-            });
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-        fs.unlinkSync(dest + '-moved');
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
-}
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.reopen();
+
+  stream.end();
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('close', common.mustCall(resolve));
+  await promise;
+});
+
+it('reopen with file sync', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, minLength: 0, sync: true });
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  const after = dest + '-new';
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.once('drain', common.mustCall(() => {
+    stream.reopen(after);
+    t.assert.strictEqual(stream.file, after);
+
+    stream.once('ready', common.mustCall(() => {
+      t.assert.ok(stream.write('after reopen\n'));
+
+      stream.once('drain', common.mustCall(() => {
+        fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+          t.assert.strictEqual(data, 'hello world\nsomething else\n');
+          fs.promises.readFile(after, 'utf8').then(common.mustCall((data) => {
+            t.assert.strictEqual(data, 'after reopen\n');
+            stream.end();
+            resolve();
+          }));
+        }));
+      }));
+    }));
+  }));
+
+  await promise;
+});
+
+it('reopen with file', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, minLength: 0, sync: false });
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  const after = dest + '-new';
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.once('drain', common.mustCall(() => {
+    stream.reopen(after);
+    t.assert.strictEqual(stream.file, after);
+
+    stream.once('ready', common.mustCall(() => {
+      t.assert.ok(stream.write('after reopen\n'));
+
+      stream.once('drain', common.mustCall(() => {
+        fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+          t.assert.strictEqual(data, 'hello world\nsomething else\n');
+          fs.promises.readFile(after, 'utf8').then(common.mustCall((data) => {
+            t.assert.strictEqual(data, 'after reopen\n');
+            stream.end();
+            resolve();
+          }));
+        }));
+      }));
+    }));
+  }));
+
+  await promise;
+});
+
+it('reopen emits drain sync', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, sync: true });
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  const after = dest + '-moved';
+
+  const { promise, resolve } = Promise.withResolvers();
+
+  stream.once('drain', common.mustCall(() => {
+    fs.renameSync(dest, after);
+    stream.reopen();
+
+    stream.once('drain', common.mustCall(() => {
+      t.assert.ok(stream.write('after reopen\n'));
+
+      stream.once('drain', common.mustCall(() => {
+        fs.promises.readFile(after, 'utf8').then(common.mustCall((data) => {
+          t.assert.strictEqual(data, 'hello world\nsomething else\n');
+          fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+            t.assert.strictEqual(data, 'after reopen\n');
+            stream.end();
+            resolve();
+          }));
+        }));
+      }));
+    }));
+  }));
+
+  await promise;
+});
+
+it('reopen emits drain', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, sync: false });
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  const after = dest + '-moved';
+
+  const { promise, resolve } = Promise.withResolvers();
+
+  stream.once('drain', common.mustCall(() => {
+    fs.renameSync(dest, after);
+    stream.reopen();
+
+    stream.once('drain', common.mustCall(() => {
+      t.assert.ok(stream.write('after reopen\n'));
+
+      stream.once('drain', common.mustCall(() => {
+        fs.promises.readFile(after, 'utf8').then(common.mustCall((data) => {
+          t.assert.strictEqual(data, 'hello world\nsomething else\n');
+          fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+            t.assert.strictEqual(data, 'after reopen\n');
+            stream.end();
+            resolve();
+          }));
+        }));
+      }));
+    }));
+  }));
+
+  await promise;
+});

@@ -1,121 +1,69 @@
+// Flags: --expose-internals
 'use strict';
 
-require('../common');
-const { test, afterEach } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const { FastUtf8Stream } = require('node:fs');
-const { tmpdir } = require('node:os');
-const path = require('node:path');
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const { it } = require('node:test');
+const fs = require('fs');
+const path = require('path');
+const FastUtf8Stream = require('internal/streams/fast-utf8-stream');
 
-let fileCounter = 0;
+tmpdir.refresh();
+process.umask(0o000);
 
-function getTempFile() {
-  return path.join(tmpdir(), `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+const files = [];
+let count = 0;
+
+function file() {
+  const file = path.join(tmpdir.path,
+                         `sonic-boom-${process.pid}-${process.hrtime().toString()}-${count++}`);
+  files.push(file);
+  return file;
 }
 
-// Clean up all mocks after each test
-afterEach(() => {
-  // No mocks to clean up in this simplified version
+it('fsync with sync', async (t) => {
+
+  const originalFsyncSync = fs.fsyncSync;
+  fs.fsyncSync = common.mustCall(originalFsyncSync, 2);
+
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, sync: true, fsync: true });
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.end();
+
+  const data = fs.readFileSync(dest, 'utf8');
+  t.assert.strictEqual(data, 'hello world\nsomething else\n');
+  fs.fsyncSync = originalFsyncSync;
 });
 
-test('fsync with sync', async (t) => {
-  const dest = getTempFile();
-  const fd = fs.openSync(dest, 'w');
+it('fsync with async', async (t) => {
 
-  // Store original function
   const originalFsyncSync = fs.fsyncSync;
-  let fsyncSyncCalls = 0;
+  fs.fsyncSync = common.mustCall(originalFsyncSync, 2);
 
-  // Mock fs.fsyncSync to track calls
-  const mockFsyncSync = (fd) => {
-    fsyncSyncCalls++;
-    return originalFsyncSync.call(fs, fd);
-  };
-
-  // Apply mock
-  fs.fsyncSync = mockFsyncSync;
-
-  try {
-    const stream = new FastUtf8Stream({ fd, sync: true, fsync: true });
-
-    assert.ok(stream.write('hello world\n'));
-    assert.ok(stream.write('something else\n'));
-
-    stream.end();
-
-    const data = fs.readFileSync(dest, 'utf8');
-    assert.strictEqual(data, 'hello world\nsomething else\n');
-
-    // Verify fsyncSync was called
-    assert.ok(fsyncSyncCalls > 0, 'fsyncSync should have been called');
-  } finally {
-    // Restore original function
-    fs.fsyncSync = originalFsyncSync;
-
-    // Cleanup
-    try {
-      fs.unlinkSync(dest);
-    } catch (err) {
-      console.warn('Cleanup error:', err.message);
-    }
-  }
-});
-
-test('fsync with async', async (t) => {
-  const dest = getTempFile();
+  const dest = file();
   const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, fsync: true });
 
-  // Store original function
-  const originalFsyncSync = fs.fsyncSync;
-  let fsyncSyncCalls = 0;
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
 
-  // Mock fs.fsyncSync to track calls
-  const mockFsyncSync = (fd) => {
-    fsyncSyncCalls++;
-    return originalFsyncSync.call(fs, fd);
-  };
+  stream.end();
 
-  // Apply mock
-  fs.fsyncSync = mockFsyncSync;
+  stream.on('finish', common.mustCall(() => {
+    fs.readFile(dest, 'utf8', common.mustSucceed((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+    }));
+  }));
 
-  try {
-    const stream = new FastUtf8Stream({ fd, fsync: true });
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('close', common.mustCall(resolve));
 
-    assert.ok(stream.write('hello world\n'));
-    assert.ok(stream.write('something else\n'));
+  await promise;
 
-    stream.end();
-
-    await new Promise((resolve, reject) => {
-      stream.on('finish', () => {
-        fs.readFile(dest, 'utf8', (err, data) => {
-          try {
-            assert.ifError(err);
-            assert.strictEqual(data, 'hello world\nsomething else\n');
-            resolve();
-          } catch (assertErr) {
-            reject(assertErr);
-          }
-        });
-      });
-
-      stream.on('close', () => {
-        // Close emitted - test passed
-      });
-    });
-
-    // Verify fsyncSync was called
-    assert.ok(fsyncSyncCalls > 0, 'fsyncSync should have been called');
-  } finally {
-    // Restore original function
-    fs.fsyncSync = originalFsyncSync;
-
-    // Cleanup
-    try {
-      fs.unlinkSync(dest);
-    } catch (err) {
-      console.warn('Cleanup error:', err.message);
-    }
-  }
+  fs.fsyncSync = originalFsyncSync;
 });

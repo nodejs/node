@@ -1,311 +1,248 @@
+// Flags: --expose-internals
 'use strict';
 
-require('../common');
-const { test, afterEach } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const { FastUtf8Stream } = require('node:fs');
-const { tmpdir } = require('node:os');
-const path = require('node:path');
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const fs = require('fs');
+const path = require('path');
+const FastUtf8Stream = require('internal/streams/fast-utf8-stream');
+const { it } = require('node:test');
 
-let fileCounter = 0;
+tmpdir.refresh();
+process.umask(0o000);
 
-function getTempFile() {
-  return path.join(tmpdir(), `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+const files = [];
+let count = 0;
+
+function file() {
+  const file = path.join(tmpdir.path,
+                         `sonic-boom-${process.pid}-${process.hrtime().toString()}-${count++}`);
+  files.push(file);
+  return file;
 }
 
+it('retry on EAGAIN sync', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
 
-// Clean up all mocks after each test
-afterEach(() => {
-  // Restore original functions if they were mocked
-  if (fs.write.isMocked) {
-    fs.write = fs.write.original;
-  }
-  if (fs.writeSync.isMocked) {
-    fs.writeSync = fs.writeSync.original;
-  }
+  const originalWriteSync = fs.writeSync;
+  let callCount = 0;
+
+  fs.writeSync = function(fd, buf, enc) {
+    callCount++;
+    if (callCount === 1) {
+      const err = new Error('EAGAIN');
+      err.code = 'EAGAIN';
+      throw err;
+    }
+    return originalWriteSync.call(fs, fd, buf, enc);
+  };
+
+  const stream = new FastUtf8Stream({ fd, sync: true, minLength: 0 });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.end();
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      fs.writeSync = originalWriteSync;
+      resolve();
+    }));
+  }));
+
+  await promise;
 });
 
-function runTests(buildTests) {
-  buildTests(test, false);
-  buildTests(test, true);
-}
+it('retry on EAGAIN', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
 
-runTests(buildTests);
+  const originalWrite = fs.write;
+  let callCount = 0;
 
-function buildTests(test, sync) {
-  // Reset the umask for testing
-  process.umask(0o000);
+  fs.write = function(fd, buf, ...args) {
+    callCount++;
+    if (callCount === 1) {
+      const err = new Error('EAGAIN');
+      err.code = 'EAGAIN';
+      const callback = args[args.length - 1];
+      process.nextTick(callback, err);
+      return;
+    }
+    return originalWrite.call(fs, fd, buf, ...args);
+  };
 
-  test(`retry on EAGAIN - sync: ${sync}`, async () => {
-    const dest = getTempFile();
-    const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, sync: false, minLength: 0 });
 
-    // Store original function
-    const originalWrite = sync ? fs.writeSync : fs.write;
-    let callCount = 0;
+  stream.on('ready', common.mustCall());
 
-    try {
-      if (sync) {
-        fs.writeSync = function(fd, buf, enc) {
-          callCount++;
-          if (callCount === 1) {
-            const err = new Error('EAGAIN');
-            err.code = 'EAGAIN';
-            throw err;
-          }
-          return originalWrite.call(fs, fd, buf, enc);
-        };
-        fs.writeSync.isMocked = true;
-        fs.writeSync.original = originalWrite;
-      } else {
-        fs.write = function(fd, buf, ...args) {
-          callCount++;
-          if (callCount === 1) {
-            const err = new Error('EAGAIN');
-            err.code = 'EAGAIN';
-            const callback = args[args.length - 1];
-            process.nextTick(callback, err);
-            return;
-          }
-          return originalWrite.call(fs, fd, buf, ...args);
-        };
-        fs.write.isMocked = true;
-        fs.write.original = originalWrite;
-      }
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
 
-      const stream = new FastUtf8Stream({ fd, sync, minLength: 0 });
+  stream.end();
 
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          assert.ok(stream.write('hello world\n'));
-          assert.ok(stream.write('something else\n'));
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      fs.write = originalWrite;
+      resolve();
+    }));
+  }));
 
-          stream.end();
+  await promise;
+});
 
-          stream.on('finish', () => {
-            fs.readFile(dest, 'utf8', (err, data) => {
-              try {
-                assert.ifError(err);
-                assert.strictEqual(data, 'hello world\nsomething else\n');
-                resolve();
-              } catch (assertErr) {
-                reject(assertErr);
-              }
-            });
-          });
-        });
-      });
-    } finally {
-      // Restore original function
-      if (sync) {
-        fs.writeSync = originalWrite;
-      } else {
-        fs.write = originalWrite;
-      }
+it('emit error on async EAGAIN', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
 
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
+  const originalWrite = fs.write;
+  let callCount = 0;
+
+  fs.write = function(fd, buf, ...args) {
+    callCount++;
+    if (callCount === 1) {
+      const err = new Error('EAGAIN');
+      err.code = 'EAGAIN';
+      const callback = args[args.length - 1];
+      process.nextTick(callback, err);
+      return;
+    }
+    return originalWrite.call(fs, fd, buf, ...args);
+  };
+
+  const stream = new FastUtf8Stream({
+    fd,
+    sync: false,
+    minLength: 12,
+    retryEAGAIN: (err, writeBufferLen, remainingBufferLen) => {
+      t.assert.strictEqual(err.code, 'EAGAIN');
+      t.assert.strictEqual(writeBufferLen, 12);
+      t.assert.strictEqual(remainingBufferLen, 0);
+      return false; // Don't retry
     }
   });
-}
 
-test('emit error on async EAGAIN', async () => {
-  const dest = getTempFile();
-  const fd = fs.openSync(dest, 'w');
+  stream.on('ready', common.mustCall());
 
-  // Store original function
-  const originalWrite = fs.write;
-  let callCount = 0;
+  stream.once('error', common.mustCall((err) => {
+    t.assert.strictEqual(err.code, 'EAGAIN');
+    t.assert.ok(stream.write('something else\n'));
+  }));
 
-  try {
-    fs.write = function(fd, buf, ...args) {
-      callCount++;
-      if (callCount === 1) {
-        const err = new Error('EAGAIN');
-        err.code = 'EAGAIN';
-        const callback = args[args.length - 1];
-        process.nextTick(callback, err);
-        return;
-      }
-      return originalWrite.call(fs, fd, buf, ...args);
-    };
+  t.assert.ok(stream.write('hello world\n'));
 
-    const stream = new FastUtf8Stream({
-      fd,
-      sync: false,
-      minLength: 12,
-      retryEAGAIN: (err, writeBufferLen, remainingBufferLen) => {
-        assert.strictEqual(err.code, 'EAGAIN');
-        assert.strictEqual(writeBufferLen, 12);
-        assert.strictEqual(remainingBufferLen, 0);
-        return false; // Don't retry
-      }
-    });
+  stream.end();
 
-    await new Promise((resolve, reject) => {
-      stream.on('ready', () => {
-        stream.once('error', (err) => {
-          assert.strictEqual(err.code, 'EAGAIN');
-          assert.ok(stream.write('something else\n'));
-        });
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      fs.write = originalWrite;
+      resolve();
+    }));
+  }));
 
-        assert.ok(stream.write('hello world\n'));
-
-        stream.end();
-
-        stream.on('finish', () => {
-          fs.readFile(dest, 'utf8', (err, data) => {
-            try {
-              assert.ifError(err);
-              assert.strictEqual(data, 'hello world\nsomething else\n');
-              resolve();
-            } catch (assertErr) {
-              reject(assertErr);
-            }
-          });
-        });
-      });
-    });
-  } finally {
-    // Restore original function
-    fs.write = originalWrite;
-
-    // Cleanup
-    try {
-      fs.unlinkSync(dest);
-    } catch {
-      // Ignore cleanup errors
-    }
-  }
+  await promise;
 });
 
-test('retry on EBUSY', async () => {
-  const dest = getTempFile();
+it('retry on EBUSY', async (t) => {
+  const dest = file();
   const fd = fs.openSync(dest, 'w');
 
-  // Store original function
   const originalWrite = fs.write;
   let callCount = 0;
 
-  try {
-    fs.write = function(fd, buf, ...args) {
-      callCount++;
-      if (callCount === 1) {
-        const err = new Error('EBUSY');
-        err.code = 'EBUSY';
-        const callback = args[args.length - 1];
-        process.nextTick(callback, err);
-        return;
-      }
-      return originalWrite.call(fs, fd, buf, ...args);
-    };
-
-    const stream = new FastUtf8Stream({ fd, sync: false, minLength: 0 });
-
-    await new Promise((resolve, reject) => {
-      stream.on('ready', () => {
-        assert.ok(stream.write('hello world\n'));
-        assert.ok(stream.write('something else\n'));
-
-        stream.end();
-
-        stream.on('finish', () => {
-          fs.readFile(dest, 'utf8', (err, data) => {
-            try {
-              assert.ifError(err);
-              assert.strictEqual(data, 'hello world\nsomething else\n');
-              resolve();
-            } catch (assertErr) {
-              reject(assertErr);
-            }
-          });
-        });
-      });
-    });
-  } finally {
-    // Restore original function
-    fs.write = originalWrite;
-
-    // Cleanup
-    try {
-      fs.unlinkSync(dest);
-    } catch {
-      // Ignore cleanup errors
+  fs.write = function(fd, buf, ...args) {
+    callCount++;
+    if (callCount === 1) {
+      const err = new Error('EBUSY');
+      err.code = 'EBUSY';
+      const callback = args[args.length - 1];
+      process.nextTick(callback, err);
+      return;
     }
-  }
+    return originalWrite.call(fs, fd, buf, ...args);
+  };
+
+  const stream = new FastUtf8Stream({ fd, sync: false, minLength: 0 });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.end();
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      fs.write = originalWrite;
+      resolve();
+    }));
+  }));
+
+  await promise;
 });
 
-test('emit error on async EBUSY', async () => {
-  const dest = getTempFile();
+it('emit error on async EBUSY', async (t) => {
+  const dest = file();
   const fd = fs.openSync(dest, 'w');
 
-  // Store original function
   const originalWrite = fs.write;
   let callCount = 0;
 
-  try {
-    fs.write = function(fd, buf, ...args) {
-      callCount++;
-      if (callCount === 1) {
-        const err = new Error('EBUSY');
-        err.code = 'EBUSY';
-        const callback = args[args.length - 1];
-        process.nextTick(callback, err);
-        return;
-      }
-      return originalWrite.call(fs, fd, buf, ...args);
-    };
-
-    const stream = new FastUtf8Stream({
-      fd,
-      sync: false,
-      minLength: 12,
-      retryEAGAIN: (err, writeBufferLen, remainingBufferLen) => {
-        assert.strictEqual(err.code, 'EBUSY');
-        assert.strictEqual(writeBufferLen, 12);
-        assert.strictEqual(remainingBufferLen, 0);
-        return false; // Don't retry
-      }
-    });
-
-    await new Promise((resolve, reject) => {
-      stream.on('ready', () => {
-        stream.once('error', (err) => {
-          assert.strictEqual(err.code, 'EBUSY');
-          assert.ok(stream.write('something else\n'));
-        });
-
-        assert.ok(stream.write('hello world\n'));
-
-        stream.end();
-
-        stream.on('finish', () => {
-          fs.readFile(dest, 'utf8', (err, data) => {
-            try {
-              assert.ifError(err);
-              assert.strictEqual(data, 'hello world\nsomething else\n');
-              resolve();
-            } catch (assertErr) {
-              reject(assertErr);
-            }
-          });
-        });
-      });
-    });
-  } finally {
-    // Restore original function
-    fs.write = originalWrite;
-
-    // Cleanup
-    try {
-      fs.unlinkSync(dest);
-    } catch {
-      // Ignore cleanup errors
+  fs.write = function(fd, buf, ...args) {
+    callCount++;
+    if (callCount === 1) {
+      const err = new Error('EBUSY');
+      err.code = 'EBUSY';
+      const callback = args[args.length - 1];
+      process.nextTick(callback, err);
+      return;
     }
-  }
+    return originalWrite.call(fs, fd, buf, ...args);
+  };
+
+  const stream = new FastUtf8Stream({
+    fd,
+    sync: false,
+    minLength: 12,
+    retryEAGAIN: (err, writeBufferLen, remainingBufferLen) => {
+      t.assert.strictEqual(err.code, 'EBUSY');
+      t.assert.strictEqual(writeBufferLen, 12);
+      t.assert.strictEqual(remainingBufferLen, 0);
+      return false; // Don't retry
+    }
+  });
+
+  stream.on('ready', common.mustCall());
+
+  stream.once('error', common.mustCall((err) => {
+    t.assert.strictEqual(err.code, 'EBUSY');
+    t.assert.ok(stream.write('something else\n'));
+  }));
+
+  t.assert.ok(stream.write('hello world\n'));
+
+  stream.end();
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      fs.write = originalWrite;
+      resolve();
+    }));
+  }));
+
+  await promise;
 });

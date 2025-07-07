@@ -1,63 +1,50 @@
+// Flags: --expose-internals
 'use strict';
 
-require('../common');
-const { test } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const { FastUtf8Stream } = require('node:fs');
-const { tmpdir } = require('node:os');
-const path = require('node:path');
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const { it } = require('node:test');
+const fs = require('fs');
+const path = require('path');
+const FastUtf8Stream = require('internal/streams/fast-utf8-stream');
 
-let fileCounter = 0;
+tmpdir.refresh();
+process.umask(0o000);
 
-function getTempFile() {
-  return path.join(tmpdir(), `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+const files = [];
+let count = 0;
+
+function file() {
+  const file = path.join(tmpdir.path,
+                         `sonic-boom-${process.pid}-${process.hrtime().toString()}-${count++}`);
+  files.push(file);
+  return file;
 }
 
-const MAX_WRITE = 16 * 1024;
+const kMaxWrite = 16 * 1024;
 
-test('drain deadlock', async (t) => {
-  const dest = getTempFile();
+it('drain deadlock', async (t) => {
+  const dest = file();
   const stream = new FastUtf8Stream({ dest, sync: false, minLength: 9999 });
 
-  try {
-    assert.ok(stream.write(Buffer.alloc(1500).fill('x').toString()));
-    assert.ok(stream.write(Buffer.alloc(1500).fill('x').toString()));
-    assert.ok(!stream.write(Buffer.alloc(MAX_WRITE).fill('x').toString()));
-
-    await new Promise((resolve) => {
-      stream.on('drain', () => {
-        resolve();
-      });
-    });
-
-    stream.end();
-  } finally {
-    // Cleanup
-    try {
-      fs.unlinkSync(dest);
-    } catch (err) {
-      console.warn('Cleanup error:', err.message);
-    }
-  }
+  t.assert.ok(stream.write(Buffer.alloc(1500).fill('x').toString()));
+  t.assert.ok(stream.write(Buffer.alloc(1500).fill('x').toString()));
+  t.assert.ok(!stream.write(Buffer.alloc(kMaxWrite).fill('x').toString()));
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('drain', common.mustCall(resolve));
+  await promise;
 });
 
-test('should throw if minLength >= maxWrite', (t) => {
-  const dest = getTempFile();
-  const fd = fs.openSync(dest, 'w');
+it('should throw if minLength >= maxWrite', (t) => {
+  t.assert.throws(() => {
+    const dest = file();
+    const fd = fs.openSync(dest, 'w');
 
-  assert.throws(() => {
     new FastUtf8Stream({
       fd,
-      minLength: MAX_WRITE
+      minLength: kMaxWrite
     });
-  }, Error);
-
-  // Cleanup
-  try {
-    fs.closeSync(fd);
-    fs.unlinkSync(dest);
-  } catch {
-    // Ignore cleanup errors
-  }
+  }, {
+    code: 'ERR_INVALID_ARG_VALUE',
+  });
 });

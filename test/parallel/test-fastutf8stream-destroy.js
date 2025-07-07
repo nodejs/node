@@ -1,125 +1,70 @@
+// Flags: --expose-internals
 'use strict';
 
-require('../common');
-const { test } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const { FastUtf8Stream } = require('node:fs');
-const { tmpdir } = require('node:os');
-const path = require('node:path');
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const { it } = require('node:test');
+const fs = require('fs');
+const path = require('path');
+const FastUtf8Stream = require('internal/streams/fast-utf8-stream');
 
-let fileCounter = 0;
+tmpdir.refresh();
+process.umask(0o000);
 
-function getTempFile() {
-  return path.join(tmpdir(), `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+const files = [];
+let count = 0;
+
+function file() {
+  const file = path.join(tmpdir.path,
+                         `sonic-boom-${process.pid}-${process.hrtime().toString()}-${count++}`);
+  files.push(file);
+  return file;
 }
 
-test('FastUtf8Stream destroy - basic functionality', async (t) => {
-  // Reset the umask for testing
-  process.umask(0o000);
+it('destroy', async (t) => {
+  t.plan(3);
 
-  const dest = getTempFile();
+  const dest = file();
   const fd = fs.openSync(dest, 'w');
   const stream = new FastUtf8Stream({ fd, sync: false });
 
-  // Test successful write
-  const writeResult = stream.write('hello world\n');
-  assert.ok(writeResult);
-
-  // Destroy the stream
+  t.assert.ok(stream.write('hello world\n'));
   stream.destroy();
-
-  // Test that write throws after destroy
-  assert.throws(() => {
-    stream.write('hello world\n');
-  }, Error);
-
-  // Wait for file to be written and check content
-  await new Promise((resolve, reject) => {
-    fs.readFile(dest, 'utf8', (err, data) => {
-      if (err) reject(err);
-      else {
-        assert.strictEqual(data, 'hello world\n');
-        resolve();
-      }
-    });
+  t.assert.throws(() => { stream.write('hello world\n'); }, {
+    code: 'ERR_INVALID_STATE',
   });
 
-  // Test events - use Promise to handle async events
-  const eventPromises = [];
+  const data = await fs.promises.readFile(dest, 'utf8');
+  t.assert.strictEqual(data, 'hello world\n');
 
-  // Finish event should NOT be emitted after destroy
-  eventPromises.push(new Promise((resolve) => {
-    const finishTimeout = setTimeout(() => {
-      resolve('finish not emitted'); // This is what we want
-    }, 100);
-
-    stream.on('finish', () => {
-      clearTimeout(finishTimeout);
-      resolve('finish emitted');
-    });
-  }));
-
-  // Close event SHOULD be emitted after destroy
-  eventPromises.push(new Promise((resolve) => {
-    stream.on('close', () => {
-      resolve('close emitted');
-    });
-  }));
-
-  const [finishResult, closeResult] = await Promise.all(eventPromises);
-
-  assert.strictEqual(finishResult, 'finish not emitted');
-  assert.strictEqual(closeResult, 'close emitted');
-
-  // Cleanup
-  try {
-    fs.unlinkSync(dest);
-  } catch (err) {
-    console.warn('Cleanup error:', err.message);
-  }
+  stream.on('finish', common.mustNotCall());
+  stream.on('close', common.mustCall());
 });
 
-test('FastUtf8Stream destroy - sync mode', async (t) => {
-  process.umask(0o000);
+it('destroy sync', async (t) => {
+  t.plan(3);
 
-  const dest = getTempFile();
+  const dest = file();
   const fd = fs.openSync(dest, 'w');
   const stream = new FastUtf8Stream({ fd, sync: true });
 
-  assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('hello world\n'));
   stream.destroy();
-  assert.throws(() => { stream.write('hello world\n'); }, Error);
-
-  const data = fs.readFileSync(dest, 'utf8');
-  assert.strictEqual(data, 'hello world\n');
-
-  // Cleanup
-  try {
-    fs.unlinkSync(dest);
-  } catch (err) {
-    console.warn('Cleanup error:', err.message);
-  }
-});
-
-test('FastUtf8Stream destroy while opening', async (t) => {
-  const dest = getTempFile();
-  const stream = new FastUtf8Stream({ dest });
-
-  // Destroy immediately while opening
-  stream.destroy();
-
-  // Wait for close event
-  await new Promise((resolve) => {
-    stream.on('close', () => {
-      resolve();
-    });
+  t.assert.throws(() => { stream.write('hello world\n'); }, {
+    code: 'ERR_INVALID_STATE',
   });
 
-  // Cleanup
-  try {
-    fs.unlinkSync(dest);
-  } catch (err) {
-    console.warn('Cleanup error:', err.message);
-  }
+  const data = await fs.promises.readFile(dest, 'utf8');
+  t.assert.strictEqual(data, 'hello world\n');
+
+  stream.on('finish', common.mustNotCall());
+  stream.on('close', common.mustCall());
+});
+
+it('destroy while opening', (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest });
+
+  stream.destroy();
+  stream.on('close', common.mustCall());
 });

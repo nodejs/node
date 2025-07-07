@@ -1,484 +1,354 @@
+// Flags: --expose-internals
 'use strict';
 
-require('../common');
-const { test, afterEach } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const { FastUtf8Stream } = require('node:fs');
-const { tmpdir } = require('node:os');
-const path = require('node:path');
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const fs = require('fs');
+const path = require('path');
+const FastUtf8Stream = require('internal/streams/fast-utf8-stream');
+const { it } = require('node:test');
 
-let fileCounter = 0;
+tmpdir.refresh();
+process.umask(0o000);
 
-function getTempFile() {
-  return path.join(tmpdir(), `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+const files = [];
+let count = 0;
+
+function file() {
+  const file = path.join(tmpdir.path,
+                         `sonic-boom-${process.pid}-${process.hrtime().toString()}-${count++}`);
+  files.push(file);
+  return file;
 }
 
-// Clean up all mocks after each test
-afterEach(() => {
-  // Restore original functions if they were mocked
-  if (fs.write.isMocked) {
-    fs.write = fs.write.original;
-  }
-  if (fs.writeSync.isMocked) {
-    fs.writeSync = fs.writeSync.original;
-  }
+it('write things to a file descriptor sync', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, sync: true });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.end();
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      resolve();
+    }));
+  }));
+  stream.on('close', common.mustCall());
+
+  await promise;
 });
 
-function runTests(buildTests) {
-  buildTests(test, false);
-  buildTests(test, true);
-}
+it('write things to a file descriptor', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, sync: false });
 
-runTests(buildTests);
+  stream.on('ready', common.mustCall());
 
-function buildTests(test, sync) {
-  // Reset the umask for testing
-  process.umask(0o000);
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
 
-  test(`write things to a file descriptor - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const fd = fs.openSync(dest, 'w');
-    const stream = new FastUtf8Stream({ fd, sync });
+  stream.end();
 
-    try {
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          assert.ok(stream.write('hello world\n'));
-          assert.ok(stream.write('something else\n'));
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      resolve();
+    }));
+  }));
+  stream.on('close', common.mustCall());
 
-          stream.end();
+  await promise;
+});
 
-          stream.on('finish', () => {
-            fs.readFile(dest, 'utf8', (err, data) => {
-              try {
-                assert.ifError(err);
-                assert.strictEqual(data, 'hello world\nsomething else\n');
-                resolve();
-              } catch (assertErr) {
-                reject(assertErr);
-              }
-            });
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
+it('write things in a streaming fashion sync', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, sync: true });
+
+  stream.once('drain', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\n');
+      t.assert.ok(stream.write('something else\n'));
+    }));
+
+    stream.once('drain', common.mustCall(() => {
+      fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+        t.assert.strictEqual(data, 'hello world\nsomething else\n');
+        stream.end();
+      }));
+    }));
+  }));
+
+  t.assert.ok(stream.write('hello world\n'));
+
+  const { promise, resolve } = Promise.withResolvers();
+
+  stream.on('finish', common.mustCall());
+  stream.on('close', common.mustCall(resolve));
+
+  await promise;
+});
+
+it('write things in a streaming fashion', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, sync: false });
+
+  stream.once('drain', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\n');
+      t.assert.ok(stream.write('something else\n'));
+    }));
+
+    stream.once('drain', common.mustCall(() => {
+      fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+        t.assert.strictEqual(data, 'hello world\nsomething else\n');
+        stream.end();
+      }));
+    }));
+  }));
+
+  t.assert.ok(stream.write('hello world\n'));
+
+  const { promise, resolve } = Promise.withResolvers();
+
+  stream.on('finish', common.mustCall());
+  stream.on('close', common.mustCall(resolve));
+
+  await promise;
+});
+
+it('can be piped into sync', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, sync: true });
+  const source = fs.createReadStream(__filename, { encoding: 'utf8' });
+
+  source.pipe(stream);
+
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(__filename, 'utf8').then(common.mustCall((expected) => {
+      fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+        t.assert.strictEqual(data, expected);
+      }));
+    }));
+  }));
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('close', common.mustCall(resolve));
+
+  await promise;
+});
+
+it('can be piped into', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, sync: false });
+  const source = fs.createReadStream(__filename, { encoding: 'utf8' });
+
+  source.pipe(stream);
+
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(__filename, 'utf8').then(common.mustCall((expected) => {
+      fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+        t.assert.strictEqual(data, expected);
+      }));
+    }));
+  }));
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('close', common.mustCall(resolve));
+
+  await promise;
+});
+
+it('write things to a file sync', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, sync: true });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.end();
+
+  const { promise, resolve } = Promise.withResolvers();
+
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+    }));
+  }));
+  stream.on('close', common.mustCall(resolve));
+
+  await promise;
+});
+
+it('write things to a file', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, sync: false });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.end();
+
+  const { promise, resolve } = Promise.withResolvers();
+
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+    }));
+  }));
+  stream.on('close', common.mustCall(resolve));
+
+  await promise;
+});
+
+it('emit write events sync', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, sync: true });
+
+  stream.on('ready', common.mustCall());
+
+  let length = 0;
+  stream.on('write', (bytes) => {
+    length += bytes;
   });
 
-  test(`write things in a streaming fashion - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const fd = fs.openSync(dest, 'w');
-    const stream = new FastUtf8Stream({ fd, sync });
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
 
-    try {
-      await new Promise((resolve, reject) => {
-        stream.once('drain', () => {
-          fs.readFile(dest, 'utf8', (err, data) => {
-            try {
-              assert.ifError(err);
-              assert.strictEqual(data, 'hello world\n');
-              assert.ok(stream.write('something else\n'));
+  stream.end();
 
-              stream.once('drain', () => {
-                fs.readFile(dest, 'utf8', (err, data) => {
-                  try {
-                    assert.ifError(err);
-                    assert.strictEqual(data, 'hello world\nsomething else\n');
-                    stream.end();
-                    resolve();
-                  } catch (assertErr) {
-                    reject(assertErr);
-                  }
-                });
-              });
-            } catch (assertErr) {
-              reject(assertErr);
-            }
-          });
-        });
+  const { promise, resolve } = Promise.withResolvers();
 
-        assert.ok(stream.write('hello world\n'));
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      t.assert.strictEqual(length, 27);
+      resolve();
+    }));
+  }));
+
+  await promise;
+});
+
+it('emit write events', async (t) => {
+  const dest = file();
+  const stream = new FastUtf8Stream({ dest, sync: false });
+
+  stream.on('ready', common.mustCall());
+
+  let length = 0;
+  stream.on('write', (bytes) => {
+    length += bytes;
   });
 
-  test(`can be piped into - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const fd = fs.openSync(dest, 'w');
-    const stream = new FastUtf8Stream({ fd, sync });
-    const source = fs.createReadStream(__filename, { encoding: 'utf8' });
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
 
-    try {
-      source.pipe(stream);
+  stream.end();
 
-      await new Promise((resolve, reject) => {
-        stream.on('finish', () => {
-          fs.readFile(__filename, 'utf8', (err, expected) => {
-            try {
-              assert.ifError(err);
-              fs.readFile(dest, 'utf8', (err, data) => {
-                try {
-                  assert.ifError(err);
-                  assert.strictEqual(data, expected);
-                  resolve();
-                } catch (assertErr) {
-                  reject(assertErr);
-                }
-              });
-            } catch (assertErr) {
-              reject(assertErr);
-            }
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
+  const { promise, resolve } = Promise.withResolvers();
 
-  test(`write things to a file - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const stream = new FastUtf8Stream({ dest, sync });
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      t.assert.strictEqual(length, 27);
+      resolve();
+    }));
+  }));
 
-    try {
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          assert.ok(stream.write('hello world\n'));
-          assert.ok(stream.write('something else\n'));
+  await promise;
+});
 
-          stream.end();
-
-          stream.on('finish', () => {
-            fs.readFile(dest, 'utf8', (err, data) => {
-              try {
-                assert.ifError(err);
-                assert.strictEqual(data, 'hello world\nsomething else\n');
-                resolve();
-              } catch (assertErr) {
-                reject(assertErr);
-              }
-            });
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
-
-  test(`minLength - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const stream = new FastUtf8Stream({ dest, minLength: 4096, sync });
-
-    try {
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          assert.ok(stream.write('hello world\n'));
-          assert.ok(stream.write('something else\n'));
-
-          // Don't expect drain event with minLength
-          stream.on('drain', () => {
-            // Don't expect this to be called
-          });
-
-          setTimeout(() => {
-            fs.readFile(dest, 'utf8', (err, data) => {
-              try {
-                assert.ifError(err);
-                assert.strictEqual(data, ''); // Should be empty due to minLength
-
-                stream.end();
-
-                stream.on('finish', () => {
-                  fs.readFile(dest, 'utf8', (err, data) => {
-                    try {
-                      assert.ifError(err);
-                      assert.strictEqual(data, 'hello world\nsomething else\n');
-                      resolve();
-                    } catch (assertErr) {
-                      reject(assertErr);
-                    }
-                  });
-                });
-              } catch (assertErr) {
-                reject(assertErr);
-              }
-            });
-          }, 100);
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
-
-  test(`write later on recoverable error - sync: ${sync}`, async () => {
-    const dest = getTempFile();
-    const fd = fs.openSync(dest, 'w');
-
-    // Store original function
-    const originalWrite = sync ? fs.writeSync : fs.write;
-    let errorThrown = false;
-
-    try {
-      if (sync) {
-        fs.writeSync = function(fd, buf, enc) {
-          if (!errorThrown) {
-            errorThrown = true;
-            throw new Error('recoverable error');
-          }
-          return originalWrite.call(fs, fd, buf, enc);
-        };
-        fs.writeSync.isMocked = true;
-        fs.writeSync.original = originalWrite;
-      } else {
-        fs.write = function(fd, buf, ...args) {
-          if (!errorThrown) {
-            errorThrown = true;
-            const callback = args[args.length - 1];
-            setTimeout(() => callback(new Error('recoverable error')), 0);
-            return;
-          }
-          return originalWrite.call(fs, fd, buf, ...args);
-        };
-        fs.write.isMocked = true;
-        fs.write.original = originalWrite;
-      }
-
-      const stream = new FastUtf8Stream({ fd, minLength: 0, sync });
-
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          stream.on('error', () => {
-            // Expected error
-          });
-
-          assert.ok(stream.write('hello world\n'));
-
-          setTimeout(() => {
-            // Restore the function and try writing again
-            if (sync) {
-              fs.writeSync = originalWrite;
-            } else {
-              fs.write = originalWrite;
-            }
-
-            assert.ok(stream.write('something else\n'));
-
-            stream.end();
-            stream.on('finish', () => {
-              fs.readFile(dest, 'utf8', (err, data) => {
-                try {
-                  assert.ifError(err);
-                  assert.strictEqual(data, 'hello world\nsomething else\n');
-                  resolve();
-                } catch (assertErr) {
-                  reject(assertErr);
-                }
-              });
-            });
-          }, 10);
-        });
-      });
-    } finally {
-      // Restore original function
-      if (sync) {
-        fs.writeSync = originalWrite;
-      } else {
-        fs.write = originalWrite;
-      }
-
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
-
-  test(`emit write events - sync: ${sync}`, async () => {
-    const dest = getTempFile();
-    const stream = new FastUtf8Stream({ dest, sync });
-
-    try {
-      await new Promise((resolve, reject) => {
-        stream.on('ready', () => {
-          let length = 0;
-          stream.on('write', (bytes) => {
-            length += bytes;
-          });
-
-          assert.ok(stream.write('hello world\n'));
-          assert.ok(stream.write('something else\n'));
-
-          stream.end();
-
-          stream.on('finish', () => {
-            fs.readFile(dest, 'utf8', (err, data) => {
-              try {
-                assert.ifError(err);
-                assert.strictEqual(data, 'hello world\nsomething else\n');
-                assert.strictEqual(length, 27);
-                resolve();
-              } catch (assertErr) {
-                reject(assertErr);
-              }
-            });
-          });
-        });
-      });
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
-}
-
-test('write buffers that are not totally written', async () => {
-  const dest = getTempFile();
+it('write buffers that are not totally written async', async (t) => {
+  const dest = file();
   const fd = fs.openSync(dest, 'w');
 
-  // Store original function
   const originalWrite = fs.write;
   let callCount = 0;
 
-  try {
-    fs.write = function(fd, buf, ...args) {
-      callCount++;
-      if (callCount === 1) {
-        // First call returns 0 (nothing written)
-        fs.write = function(fd, buf, ...args) {
-          return originalWrite.call(fs, fd, buf, ...args);
-        };
-        const callback = args[args.length - 1];
-        process.nextTick(callback, null, 0);
-        return;
-      }
-      return originalWrite.call(fs, fd, buf, ...args);
-    };
-
-    const stream = new FastUtf8Stream({ fd, minLength: 0, sync: false });
-
-    await new Promise((resolve, reject) => {
-      stream.on('ready', () => {
-        assert.ok(stream.write('hello world\n'));
-        assert.ok(stream.write('something else\n'));
-
-        stream.end();
-
-        stream.on('finish', () => {
-          fs.readFile(dest, 'utf8', (err, data) => {
-            try {
-              assert.ifError(err);
-              assert.strictEqual(data, 'hello world\nsomething else\n');
-              resolve();
-            } catch (assertErr) {
-              reject(assertErr);
-            }
-          });
-        });
-      });
-    });
-  } finally {
-    // Restore original function
-    fs.write = originalWrite;
-
-    // Cleanup
-    try {
-      fs.unlinkSync(dest);
-    } catch {
-      // Ignore cleanup errors
+  fs.write = function(fd, buf, ...args) {
+    callCount++;
+    if (callCount === 1) {
+      // First call returns 0 (nothing written)
+      fs.write = function(fd, buf, ...args) {
+        return originalWrite.call(fs, fd, buf, ...args);
+      };
+      const callback = args[args.length - 1];
+      process.nextTick(callback, null, 0);
+      return;
     }
-  }
+    return originalWrite.call(fs, fd, buf, ...args);
+  };
+
+  const stream = new FastUtf8Stream({ fd, minLength: 0, sync: false });
+
+  stream.on('ready', common.mustCall());
+
+  t.assert.ok(stream.write('hello world\n'));
+  t.assert.ok(stream.write('something else\n'));
+
+  stream.end();
+
+  const { promise, resolve } = Promise.withResolvers();
+  stream.on('finish', common.mustCall(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, 'hello world\nsomething else\n');
+      fs.write = originalWrite;
+      resolve();
+    }));
+  }));
+
+  await promise;
 });
 
-test('write enormously large buffers async', async () => {
-  const dest = getTempFile();
+it('write enormously large buffers async', async (t) => {
+  const dest = file();
   const fd = fs.openSync(dest, 'w');
   const stream = new FastUtf8Stream({ fd, minLength: 0, sync: false });
 
-  try {
-    const buf = Buffer.alloc(1024).fill('x').toString(); // 1 KB
-    let length = 0;
+  const buf = Buffer.alloc(1024).fill('x').toString(); // 1 KB
+  let length = 0;
 
-    // Reduce iterations to avoid test timeout
-    for (let i = 0; i < 1024; i++) {
-      length += buf.length;
-      stream.write(buf);
-    }
-
-    stream.end();
-
-    await new Promise((resolve, reject) => {
-      stream.on('finish', () => {
-        fs.stat(dest, (err, stat) => {
-          try {
-            assert.ifError(err);
-            assert.strictEqual(stat.size, length);
-            resolve();
-          } catch (assertErr) {
-            reject(assertErr);
-          }
-        });
-      });
-    });
-  } finally {
-    // Cleanup
-    try {
-      fs.unlinkSync(dest);
-    } catch {
-      // Ignore cleanup errors
-    }
+  // Reduce iterations to avoid test timeout
+  for (let i = 0; i < 1024; i++) {
+    length += buf.length;
+    stream.write(buf);
   }
+
+  stream.end();
+
+  stream.on('finish', common.mustCall(() => {
+    fs.stat(dest, common.mustCall((err, stat) => {
+      t.assert.ifError(err);
+      t.assert.strictEqual(stat.size, length);
+    }));
+  }));
+
+  const { promise, resolve } = Promise.withResolvers();
+
+  stream.on('close', common.mustCall(resolve));
+  await promise;
 });
 
-test('make sure `maxLength` is passed', () => {
-  const dest = getTempFile();
+it('make sure `maxLength` is passed', (t) => {
+  const dest = file();
   const stream = new FastUtf8Stream({ dest, maxLength: 65536 });
-
-  try {
-    assert.strictEqual(stream.maxLength, 65536);
-    stream.end();
-  } finally {
-    // Cleanup
-    try {
-      fs.unlinkSync(dest);
-    } catch {
-      // Ignore cleanup errors
-    }
-  }
+  t.assert.strictEqual(stream.maxLength, 65536);
+  stream.end();
 });

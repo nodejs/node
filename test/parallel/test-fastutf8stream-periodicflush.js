@@ -1,116 +1,62 @@
+// Flags: --expose-internals
 'use strict';
 
-require('../common');
-const { test } = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const { FastUtf8Stream } = require('node:fs');
-const { tmpdir } = require('node:os');
-const path = require('node:path');
+const common = require('../common');
+const tmpdir = require('../common/tmpdir');
+const { it } = require('node:test');
+const fs = require('fs');
+const path = require('path');
+const FastUtf8Stream = require('internal/streams/fast-utf8-stream');
 
-let fileCounter = 0;
+tmpdir.refresh();
+process.umask(0o000);
 
-function getTempFile() {
-  return path.join(tmpdir(), `fastutf8stream-${process.pid}-${Date.now()}-${fileCounter++}.log`);
+const files = [];
+let count = 0;
+
+function file() {
+  const file = path.join(tmpdir.path,
+                         `sonic-boom-${process.pid}-${process.hrtime().toString()}-${count++}`);
+  files.push(file);
+  return file;
 }
 
-function runTests(buildTests) {
-  buildTests(test, false);
-  buildTests(test, true);
-}
+it('periodicflush off sync', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, sync: true, minLength: 5000 });
 
-runTests(buildTests);
+  t.assert.ok(stream.write('hello world\n'));
 
-function buildTests(test, sync) {
-  // Reset the umask for testing
-  process.umask(0o000);
-
-  test(`periodicflush_off - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const fd = fs.openSync(dest, 'w');
-    const stream = new FastUtf8Stream({ fd, sync, minLength: 5000 });
-
-    try {
-      assert.ok(stream.write('hello world\n'));
-
-      // Wait 1.5 seconds - without periodicFlush, data should not be written
-      await new Promise((resolve) => {
-        setTimeout(() => {
-          fs.readFile(dest, 'utf8', (err, data) => {
-            assert.ifError(err);
-            assert.strictEqual(data, '');
-            resolve();
-          });
-        }, 1500);
-      });
-
+  // Wait - without periodicFlush, data should not be written
+  const { promise, resolve } = Promise.withResolvers();
+  setTimeout(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, '');
       stream.destroy();
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
+      resolve();
+    }));
+  }, 100);
 
-  test(`periodicflush property - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const fd = fs.openSync(dest, 'w');
+  await promise;
+});
 
-    try {
-      // Test that periodicFlush property is set correctly
-      const stream1 = new FastUtf8Stream({ fd, sync, minLength: 5000 });
-      assert.strictEqual(stream1.periodicFlush, 0);
-      stream1.destroy();
+it('periodicflush off', async (t) => {
+  const dest = file();
+  const fd = fs.openSync(dest, 'w');
+  const stream = new FastUtf8Stream({ fd, sync: false, minLength: 5000 });
 
-      const fd2 = fs.openSync(dest, 'w');
-      const stream2 = new FastUtf8Stream({ fd: fd2, sync, minLength: 5000, periodicFlush: 1000 });
-      assert.strictEqual(stream2.periodicFlush, 1000);
-      stream2.destroy();
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
+  t.assert.ok(stream.write('hello world\n'));
 
-  test(`manual flush with minLength - sync: ${sync}`, async (t) => {
-    const dest = getTempFile();
-    const fd = fs.openSync(dest, 'w');
-    const stream = new FastUtf8Stream({ fd, sync, minLength: 5000 });
-
-    try {
-      assert.ok(stream.write('hello world\n'));
-
-      // Manually flush to test that data can be written
-      stream.flush((err) => {
-        assert.ifError(err);
-      });
-
-      // Wait a bit for flush to complete
-      await new Promise((resolve) => {
-        setTimeout(() => {
-          fs.readFile(dest, 'utf8', (err, data) => {
-            assert.ifError(err);
-            assert.strictEqual(data, 'hello world\n');
-            resolve();
-          });
-        }, 500);
-      });
-
+  // Wait - without periodicFlush, data should not be written
+  const { promise, resolve } = Promise.withResolvers();
+  setTimeout(() => {
+    fs.promises.readFile(dest, 'utf8').then(common.mustCall((data) => {
+      t.assert.strictEqual(data, '');
       stream.destroy();
-    } finally {
-      // Cleanup
-      try {
-        fs.unlinkSync(dest);
-      } catch (err) {
-        console.warn('Cleanup error:', err.message);
-      }
-    }
-  });
-}
+      resolve();
+    }));
+  }, 100);
+
+  await promise;
+});
