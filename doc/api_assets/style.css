@@ -373,6 +373,11 @@ p {
   padding-bottom: 2rem;
 }
 
+/* prevent the sticky stability header from overlapping the section header */
+#apicontent:has(> .api_stability) a {
+  scroll-margin-top: 50px;
+}
+
 table {
   border-collapse: collapse;
   margin: 0 0 1.5rem;
@@ -662,10 +667,6 @@ a code {
   -webkit-padding-start: 1.5rem;
 }
 
-#column1 a {
-  scroll-margin-top: 50px;
-}
-
 #column2.interior {
   width: 234px;
   background-color: var(--color-fill-side-nav);
@@ -841,7 +842,7 @@ kbd {
   .api_stability {
     top: 0;
   }
-  #column1 a {
+  #apicontent a {
     scroll-margin-top: 0;
   }
 }
