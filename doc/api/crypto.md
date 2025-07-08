@@ -4203,12 +4203,16 @@ A convenient alias for [`crypto.webcrypto.getRandomValues()`][]. This
 implementation is not compliant with the Web Crypto spec, to write
 web-compatible code use [`crypto.webcrypto.getRandomValues()`][] instead.
 
-### `crypto.hash(algorithm, data[, outputEncoding])`
+### `crypto.hash(algorithm, data[, options])`
 
 <!-- YAML
 added:
  - v21.7.0
  - v20.12.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58121
+    description: The `outputLength` option was added for XOF hash functions.
 -->
 
 > Stability: 1.2 - Release candidate
@@ -4219,8 +4223,11 @@ added:
   input encoding is desired for a string input, user could encode the string
   into a `TypedArray` using either `TextEncoder` or `Buffer.from()` and passing
   the encoded `TypedArray` into this API instead.
-* `outputEncoding` {string|undefined}  [Encoding][encoding] used to encode the
-  returned digest. **Default:** `'hex'`.
+* `options` {Object|string}
+  * `outputEncoding` {string} [Encoding][encoding] used to encode the
+    returned digest. **Default:** `'hex'`.
+  * `outputLength` {number} For XOF hash functions such as 'shake256',
+    the outputLength option can be used to specify the desired output length in bytes.
 * Returns: {string|Buffer}
 
 A utility for creating one-shot hash digests of data. It can be faster than
@@ -4232,6 +4239,8 @@ The `algorithm` is dependent on the available algorithms supported by the
 version of OpenSSL on the platform. Examples are `'sha256'`, `'sha512'`, etc.
 On recent releases of OpenSSL, `openssl list -digest-algorithms` will
 display the available digest algorithms.
+
+If `options` is a string, then it specifies the `outputEncoding`.
 
 Example:
 
