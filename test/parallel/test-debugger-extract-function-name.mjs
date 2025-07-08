@@ -7,7 +7,7 @@ import startCLI from '../common/debugger.js';
 
 import assert from 'assert';
 
-const cli = startCLI([path('debugger', 'three-lines.js')]);
+const cli = startCLI(['--port=0', path('debugger', 'three-lines.js')]);
 
 try {
   await cli.waitForInitialBreak();
