@@ -151,7 +151,7 @@ test('Assert class with invalid diff option', () => {
   assert.throws(() => new Assert({ diff: 'invalid' }), {
     code: 'ERR_INVALID_ARG_VALUE',
     name: 'TypeError',
-    message: /must be one of "simple", "full"/,
+    message: "The property 'options.diff' must be one of: 'simple', 'full'. Received 'invalid'",
   });
 });
 
