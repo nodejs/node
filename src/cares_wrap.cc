@@ -1319,6 +1319,8 @@ int SoaTraits::Parse(
   if (status != ARES_SUCCESS)
     return status;
 
+  auto cleanup = OnScopeLeave([&]() { ares_free_data(soa_out); });
+
   Local<Object> soa_record = Object::New(env->isolate());
 
   soa_record->Set(env->context(),
@@ -1344,8 +1346,6 @@ int SoaTraits::Parse(
                   env->minttl_string(),
                   Integer::NewFromUnsigned(
                       env->isolate(), soa_out->minttl)).Check();
-
-  ares_free_data(soa_out);
 
   wrap->CallOnComplete(soa_record);
   return ARES_SUCCESS;
