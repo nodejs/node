@@ -13,4 +13,4 @@ assert.throws(() => {
 
 assert.rejects(import('../fixtures/es-modules/throw-error.mjs'), {
   message: 'test',
-}).catch(common.mustNotCall());
+}).then(common.mustCall());

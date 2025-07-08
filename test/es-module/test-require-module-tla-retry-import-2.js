@@ -23,4 +23,4 @@ async function test() {
 }
 
 // Run the test twice to check consistency after caching.
-test().then(common.mustCall(test)).catch(common.mustNotCall());
+test().then(common.mustCall(test));
