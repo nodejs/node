@@ -246,7 +246,7 @@ If `initialize()` is called more than once, an exception is thrown.
 ### `wasi.finalizeBindings(instance[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.4.0
 -->
 
 * `instance` {WebAssembly.Instance}

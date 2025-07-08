@@ -4065,7 +4065,7 @@ The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.4.0
     pr-url: https://github.com/nodejs/node/pull/58942
     description: Documentation-only deprecation with support for `--pending-deprecation`.
 -->

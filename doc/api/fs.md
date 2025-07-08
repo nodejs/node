@@ -1321,7 +1321,7 @@ characters directly to the `prefix` string. For instance, given a directory
 ### `fsPromises.mkdtempDisposable(prefix[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.4.0
 -->
 
 * `prefix` {string|Buffer|URL}
@@ -5951,7 +5951,7 @@ object with an `encoding` property specifying the character encoding to use.
 ### `fs.mkdtempDisposableSync(prefix[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v24.4.0
 -->
 
 * `prefix` {string|Buffer|URL}
