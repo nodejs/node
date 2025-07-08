@@ -4210,7 +4210,7 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
-  - version: REPLACEME
+  - version: v24.4.0
     pr-url: https://github.com/nodejs/node/pull/58121
     description: The `outputLength` option was added for XOF hash functions.
 -->

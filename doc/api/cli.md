@@ -154,7 +154,7 @@ Error: Cannot load native addon because loading addons is disabled.
 <!-- YAML
 added: v20.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.4.0
     pr-url: https://github.com/nodejs/node/pull/58853
     description: When spawning process with the permission model enabled.
                  The flags are inherit to the child Node.js process through
@@ -3106,7 +3106,7 @@ node --watch index.js
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.4.0
 -->
 
 Customizes the signal sent to the process on watch mode restarts.

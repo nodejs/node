@@ -883,7 +883,7 @@ const module2 = new vm.SourceTextModule('const a = 1;', { cachedData });
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.4.0
     pr-url: https://github.com/nodejs/node/pull/20300
     description: This is deprecated in favour of `sourceTextModule.moduleRequests`.
 -->
@@ -901,7 +901,7 @@ the ECMAScript specification.
 ### `sourceTextModule.moduleRequests`
 
 <!-- YAML
-added: REPLACEME
+added: v24.4.0
 -->
 
 * {ModuleRequest\[]} Dependencies of this module.
@@ -1054,7 +1054,7 @@ const vm = require('node:vm');
 ## Type: `ModuleRequest`
 
 <!-- YAML
-added: REPLACEME
+added: v24.4.0
 -->
 
 * {Object}
