@@ -287,3 +287,75 @@ const util = require('util');
   assert(BlockList.isBlockList(new BlockList()));
   assert(!BlockList.isBlockList({}));
 }
+
+// Test exporting and importing the rule list to/from JSON
+{
+  const ruleList = [
+    'Address: IPv4 10.0.0.5',
+    'Address: IPv6 ::',
+    'Subnet: IPv4 192.168.1.0/24',
+    'Subnet: IPv6 8592:757c:efae:4e45::/64',
+  ];
+
+  const test2 = new BlockList();
+  const test3 = new BlockList();
+  const test4 = new BlockList();
+  const test5 = new BlockList();
+
+  const bl = new BlockList();
+  bl.addAddress('10.0.0.5');
+  bl.addAddress('::', 'ipv6');
+  bl.addSubnet('192.168.1.0', 24);
+  bl.addSubnet('8592:757c:efae:4e45::', 64, 'ipv6');
+
+  // Test invalid inputs (input to fromJSON must be an array of
+  // string rules or a serialized json string of an array of
+  // string rules.
+  [
+    1, null, Symbol(), [1, 2, 3], '123', [Symbol()], new Map(),
+  ].forEach((i) => {
+    assert.throws(() => test2.fromJSON(i), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  // Invalid rules are ignored.
+  test2.fromJSON(['1', '2', '3']);
+  assert.deepStrictEqual(test2.rules, []);
+
+  // Direct output from toJSON method works
+  test2.fromJSON(bl.toJSON());
+  assert.deepStrictEqual(test2.rules.sort(), ruleList);
+
+  // JSON stringified output works
+  test3.fromJSON(JSON.stringify(bl));
+  assert.deepStrictEqual(test3.rules.sort(), ruleList);
+
+  // A raw array works
+  test4.fromJSON(ruleList);
+  assert.deepStrictEqual(test4.rules.sort(), ruleList);
+
+  // Individual rules work
+  ruleList.forEach((item) => {
+    test5.fromJSON([item]);
+  });
+  assert.deepStrictEqual(test5.rules.sort(), ruleList);
+
+  // Each of the created blocklists should handle the checks identically.
+  [
+    ['10.0.0.5', 'ipv4', true],
+    ['10.0.0.6', 'ipv4', false],
+    ['::', 'ipv6', true],
+    ['::1', 'ipv6', false],
+    ['192.168.1.0', 'ipv4', true],
+    ['193.168.1.0', 'ipv4', false],
+    ['8592:757c:efae:4e45::', 'ipv6', true],
+    ['1111:1111:1111:1111::', 'ipv6', false],
+  ].forEach((i) => {
+    assert.strictEqual(bl.check(i[0], i[1]), i[2]);
+    assert.strictEqual(test2.check(i[0], i[1]), i[2]);
+    assert.strictEqual(test3.check(i[0], i[1]), i[2]);
+    assert.strictEqual(test4.check(i[0], i[1]), i[2]);
+    assert.strictEqual(test5.check(i[0], i[1]), i[2]);
+  });
+}
