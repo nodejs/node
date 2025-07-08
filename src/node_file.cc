@@ -1996,9 +1996,11 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
   // while others do not. This code checks if the input path ends with
   // a slash (either '/' or '\\') and, if so, ensures that the processed
   // path also ends with a trailing backslash ('\\').
+  // However, we need to avoid adding extra backslashes to drive root paths
+  // like "C:\" or "M:\" (subst drives) to prevent ENOENT errors.
   bool slashCheck = false;
-  if (path.ToStringView().ends_with("/") ||
-      path.ToStringView().ends_with("\\")) {
+  std::string_view path_view = path.ToStringView();
+  if (path_view.ends_with("/") || path_view.ends_with("\\")) {
     slashCheck = true;
   }
 #endif
@@ -2007,10 +2009,31 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
 
 #ifdef _WIN32
   if (slashCheck) {
-    size_t new_length = path.length() + 1;
-    path.AllocateSufficientStorage(new_length + 1);
-    path.SetLengthAndZeroTerminate(new_length);
-    path.out()[new_length - 1] = '\\';
+    std::string_view processed_path = path.ToStringView();
+    // Check if this is a drive root path (e.g., "C:\" or "\\?\C:\")
+    // Don't add extra backslash if it's already a properly formatted drive root
+    bool is_drive_root = false;
+    if (processed_path.length() >= 3) {
+      // Check for standard drive root "C:\"
+      if (processed_path.length() == 3 && std::isalpha(processed_path[0]) &&
+          processed_path[1] == ':' && processed_path[2] == '\\') {
+        is_drive_root = true;
+      } else if (processed_path.length() >= 6 &&
+                 processed_path.substr(0, 4) == "\\\\?\\" &&
+                 processed_path.length() >= 7 &&
+                 std::isalpha(processed_path[4]) && processed_path[5] == ':' &&
+                 processed_path[6] == '\\' &&
+                 (processed_path.length() == 7 || processed_path[7] == '\0')) {
+        is_drive_root = true;
+      }
+    }
+
+    if (!is_drive_root) {
+      size_t new_length = path.length() + 1;
+      path.AllocateSufficientStorage(new_length + 1);
+      path.SetLengthAndZeroTerminate(new_length);
+      path.out()[new_length - 1] = '\\';
+    }
   }
 #endif
 
