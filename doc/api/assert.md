@@ -217,7 +217,7 @@ try {
 }
 ```
 
-## Class: assert.Assert
+## Class: `assert.Assert`
 
 <!-- YAML
 added: REPLACEME
