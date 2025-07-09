@@ -61,48 +61,102 @@ describe('REPL completion in relation of getters', () => {
     test(`completions are generated for properties that don't trigger getters`, () => {
       runCompletionTests(
         `
+        function getFooKey() {
+          return "foo";
+        }
+
+        const fooKey = "foo";
+
+        const keys = {
+          "foo key": "foo",
+        };
+
         const objWithGetters = {
-          foo: { bar: { baz: {} }, get gBar() { return { baz: {} } } },
+          foo: { bar: { baz: { buz: {} } }, get gBar() { return { baz: {} } } },
           get gFoo() { return { bar: { baz: {} } }; }
         };
         `, [
           ['objWithGetters.', ['objWithGetters.foo']],
           ['objWithGetters.f', ['objWithGetters.foo']],
           ['objWithGetters.foo', ['objWithGetters.foo']],
+          ['objWithGetters["foo"].b', ['objWithGetters["foo"].bar']],
           ['objWithGetters.foo.', ['objWithGetters.foo.bar']],
           ['objWithGetters.foo.bar.b', ['objWithGetters.foo.bar.baz']],
           ['objWithGetters.gFo', ['objWithGetters.gFoo']],
           ['objWithGetters.foo.gB', ['objWithGetters.foo.gBar']],
+          ["objWithGetters.foo['bar'].b", ["objWithGetters.foo['bar'].baz"]],
+          ["objWithGetters['foo']['bar'].b", ["objWithGetters['foo']['bar'].baz"]],
+          ["objWithGetters['foo']['bar']['baz'].b", ["objWithGetters['foo']['bar']['baz'].buz"]],
+          ["objWithGetters[keys['foo key']].b", ["objWithGetters[keys['foo key']].bar"]],
+          ['objWithGetters[fooKey].b', ['objWithGetters[fooKey].bar']],
+          ["objWithGetters['f' + 'oo'].b", ["objWithGetters['f' + 'oo'].bar"]],
+          ['objWithGetters[getFooKey()].b', ['objWithGetters[getFooKey()].bar']],
         ]);
     });
 
     test('no completions are generated for properties that trigger getters', () => {
       runCompletionTests(
         `
+        function getGFooKey() {
+          return "g" + "Foo";
+        }
+
+        const gFooKey = "gFoo";
+
+        const keys = {
+          "g-foo key": "gFoo",
+        };
+
         const objWithGetters = {
-          foo: { bar: { baz: {} }, get gBar() { return { baz: {} } } },
+          foo: { bar: { baz: {} }, get gBar() { return { baz: {}, get gBuz() { return 5; } } } },
           get gFoo() { return { bar: { baz: {} } }; }
         };
         `,
         [
           ['objWithGetters.gFoo.', []],
           ['objWithGetters.gFoo.b', []],
+          ['objWithGetters["gFoo"].b', []],
           ['objWithGetters.gFoo.bar.b', []],
           ['objWithGetters.foo.gBar.', []],
           ['objWithGetters.foo.gBar.b', []],
+          ["objWithGetters.foo['gBar'].b", []],
+          ["objWithGetters['foo']['gBar'].b", []],
+          ["objWithGetters['foo']['gBar']['gBuz'].", []],
+          ["objWithGetters[keys['g-foo key']].b", []],
+          ['objWithGetters[gFooKey].b', []],
+          ["objWithGetters['g' + 'Foo'].b", []],
+          ['objWithGetters[getGFooKey()].b', []],
         ]);
     });
   });
 
   describe('completions on proxies', () => {
     test('no completions are generated for a proxy object', () => {
-      runCompletionTests('const proxyObj = new Proxy({ foo: { bar: { baz: {} } } }, {});', [
-        ['proxyObj.', []],
-        ['proxyObj.f', []],
-        ['proxyObj.foo', []],
-        ['proxyObj.foo.', []],
-        ['proxyObj.foo.bar.b', []],
-      ]);
+      runCompletionTests(
+        `
+        function getFooKey() {
+          return "foo";
+        }
+
+        const fooKey = "foo";
+
+        const keys = {
+          "foo key": "foo",
+        };
+
+        const proxyObj = new Proxy({ foo: { bar: { baz: {} } } }, {});
+        `, [
+          ['proxyObj.', []],
+          ['proxyObj.f', []],
+          ['proxyObj.foo', []],
+          ['proxyObj.foo.', []],
+          ['proxyObj.["foo"].', []],
+          ['proxyObj.["f" + "oo"].', []],
+          ['proxyObj.[fooKey].', []],
+          ['proxyObj.[getFooKey()].', []],
+          ['proxyObj.[keys["foo key"]].', []],
+          ['proxyObj.foo.bar.b', []],
+        ]);
     });
 
     test('no completions are generated for a proxy present in a standard object', () => {
@@ -113,6 +167,7 @@ describe('REPL completion in relation of getters', () => {
           ['objWithProxy.foo.', ['objWithProxy.foo.bar']],
           ['objWithProxy.foo.b', ['objWithProxy.foo.bar']],
           ['objWithProxy.foo.bar.', []],
+          ['objWithProxy.foo["b" + "ar"].', []],
         ]);
     });
   });
