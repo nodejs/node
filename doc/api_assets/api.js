@@ -187,6 +187,16 @@
     });
   }
 
+  function scrollIntoViewWithActiveLink() {
+    const activeLInk = document.querySelector('.interior ul .active');
+    if (activeLInk) {
+      activeLInk.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  }
+
   function bootstrap() {
     // Check if we have JavaScript support.
     document.documentElement.classList.add('has-js');
@@ -206,6 +216,8 @@
     setupFlavorToggles();
 
     setupCopyButton();
+
+    scrollIntoViewWithActiveLink();
   }
 
   if (document.readyState === 'loading') {
