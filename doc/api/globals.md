@@ -636,8 +636,6 @@ A browser-compatible implementation of {Headers}.
 added: v22.4.0
 -->
 
-> Stability: 2 - Stable
-
 A browser-compatible implementation of [`localStorage`][]. Data is stored
 unencrypted in the file specified by the [`--localstorage-file`][] CLI flag.
 The maximum amount of data that can be stored is 10 MB.
@@ -1104,7 +1102,7 @@ added: v22.4.0
 -->
 
 > Stability: 1.0 - Early development. Enable this API with the
-> [`--experimental-webstorage`][] CLI flag.
+> \[`--experimental-webstorage`]\[] CLI flag.
 
 A browser-compatible implementation of {Storage}. Disable this API with the
 [`--no-webstorage`][] (or its alias [`--no-experimental-webstorage`][]) CLI flag.
