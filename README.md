@@ -882,6 +882,9 @@ releases on a rotation basis as outlined in the
 * [Datadog](https://www.datadoghq.com/)
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
+* [HeroDevs](https://www.herodevs.com/)
+  * [marco-ippolito](https://github.com/marco-ippolito) -
+    **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
 * [NodeSource](https://nodesource.com/)
   * [juanarbol](https://github.com/juanarbol) -
     **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
