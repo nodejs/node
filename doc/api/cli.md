@@ -1849,14 +1849,6 @@ added: v22.0.0
 
 Disable exposition of {WebSocket} on the global scope.
 
-### `--no-experimental-webstorage`
-
-<!-- YAML
-added: v22.4.0
--->
-
-Alias for `--no-webstorage`.
-
 ### `--no-extra-info-on-fatal-exception`
 
 <!-- YAML
