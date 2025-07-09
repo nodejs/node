@@ -251,6 +251,7 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
     } else if (output_length == 0) {
       // This is to handle OpenSSL 3.4's breaking change in SHAKE128/256
       // default lengths
+      // TODO(@panva): remove this behaviour when DEP0198 is End-Of-Life
       const char* name = OBJ_nid2sn(EVP_MD_type(md));
       if (name != nullptr) {
         if (strcmp(name, "SHAKE128") == 0) {
@@ -379,6 +380,9 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
   }
 
   md_len_ = mdctx_.getDigestSize();
+
+  // This is to handle OpenSSL 3.4's breaking change in SHAKE128/256
+  // default lengths
   // TODO(@panva): remove this behaviour when DEP0198 is End-Of-Life
   if (mdctx_.hasXofFlag() && !xof_md_len.IsJust() && md_len_ == 0) {
     const char* name = OBJ_nid2sn(EVP_MD_type(md));
