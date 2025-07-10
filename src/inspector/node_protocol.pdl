@@ -180,6 +180,11 @@ experimental domain Network
   # Request / response headers as keys / values of JSON object.
   type Headers extends object
 
+  type LoadNetworkResourcePageResult extends object
+    properties
+      boolean success
+      optional IO.StreamHandle stream
+
   # Disables network tracking, prevents network events from being sent to the client.
   command disable
 
@@ -215,6 +220,13 @@ experimental domain Network
     returns
       # Data that has been buffered until streaming is enabled.
       binary bufferedData
+  # Fetches the resource and returns the content.
+  command loadNetworkResource
+    parameters
+      # URL of the resource to get content for.
+      string url
+    returns
+      LoadNetworkResourcePageResult resource
 
   # Fired when page is about to send HTTP request.
   event requestWillBeSent
@@ -321,3 +333,24 @@ experimental domain Target
     parameters
       boolean autoAttach
       boolean waitForDebuggerOnStart
+domain IO
+  type StreamHandle extends string
+  # Read a chunk of the stream
+  command read
+    parameters
+      # Handle of the stream to read.
+      StreamHandle handle
+      # Seek to the specified offset before reading (if not specified, proceed with offset
+      # following the last read). Some types of streams may only support sequential reads.
+      optional integer offset
+      # Maximum number of bytes to read (left upon the agent discretion if not specified).
+      optional integer size
+    returns
+      # Data that were read.
+      string data
+      # Set if the end-of-file condition occurred while reading.
+      boolean eof
+  command close
+    parameters
+      # Handle of the stream to close.
+      StreamHandle handle
