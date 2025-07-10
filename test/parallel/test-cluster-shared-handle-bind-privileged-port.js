@@ -37,7 +37,7 @@ if (process.getuid() === 0)
 
 // Some systems won't have port 42 set as a privileged port, in that
 // case, skip the test.
-if (common.isLinux) {
+if (common.isLinux || common.isAndroid) {
   const { readFileSync } = require('fs');
 
   try {
