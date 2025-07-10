@@ -187,12 +187,17 @@
     });
   }
 
+  /**
+   * Scrolls the active link into view, centering it in the viewport.
+   * This is useful for documentation pages where the active link should be visible
+   * when the page loads or when navigating to a section.
+   */
   function scrollIntoViewWithActiveLink() {
     const activeLInk = document.querySelector('.interior ul .active');
     if (activeLInk) {
       activeLInk.scrollIntoView({
         behavior: 'smooth',
-        block: 'center'
+        block: 'center',
       });
     }
   }
