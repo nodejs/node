@@ -1031,6 +1031,17 @@ passing a second `parentURL` argument for contextual resolution.
 
 Previously gated the entire `import.meta.resolve` feature.
 
+### `--experimental-inspector-network-resource`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+Enable experimental support for inspector network resources.
+
 ### `--experimental-loader=module`
 
 <!-- YAML
