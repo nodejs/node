@@ -811,7 +811,7 @@ use the compile-time builtins automatically:
 
 ```js
 import source mod from './string-len.wasm';
-const { exports: { getLength } } = await WebAssembly.instantiate(mod);
+const { exports: { getLength } } = await WebAssembly.instantiate(mod, {});
 getLength('foo'); // Also returns 3.
 ```
 
