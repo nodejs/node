@@ -129,7 +129,7 @@ Legacy assertion mode may have surprising results, especially when using
 assert.deepEqual(/a/gi, new Date());
 ```
 
-## Class: assert.AssertionError
+## Class: `assert.AssertionError`
 
 * Extends: {errors.Error}
 
