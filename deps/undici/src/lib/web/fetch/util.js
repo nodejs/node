@@ -9,7 +9,7 @@ const { performance } = require('node:perf_hooks')
 const { ReadableStreamFrom, isValidHTTPToken, normalizedMethodRecordsBase } = require('../../core/util')
 const assert = require('node:assert')
 const { isUint8Array } = require('node:util/types')
-const { webidl } = require('./webidl')
+const { webidl } = require('../webidl')
 
 let supportedHashes = []
 
@@ -1262,7 +1262,7 @@ async function readAllBytes (reader, successSteps, failureSteps) {
       // 1. If chunk is not a Uint8Array object, call failureSteps
       //    with a TypeError and abort these steps.
       if (!isUint8Array(chunk)) {
-        failureSteps(TypeError('Received non-Uint8Array chunk'))
+        failureSteps(new TypeError('Received non-Uint8Array chunk'))
         return
       }
 

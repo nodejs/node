@@ -144,7 +144,8 @@ class ProxyAgent extends DispatcherBase {
             signal: opts.signal,
             headers: {
               ...this[kProxyHeaders],
-              host: opts.host
+              host: opts.host,
+              ...(opts.connections == null || opts.connections > 0 ? { 'proxy-connection': 'keep-alive' } : {})
             },
             servername: this[kProxyTls]?.servername || proxyHostname
           })

@@ -822,9 +822,6 @@ class Environment final : public MemoryRetainer {
   inline node_module* extra_linked_bindings_tail();
   inline const Mutex& extra_linked_bindings_mutex() const;
 
-  inline bool filehandle_close_warning() const;
-  inline void set_filehandle_close_warning(bool on);
-
   inline void set_source_maps_enabled(bool on);
   inline bool source_maps_enabled() const;
 
@@ -1106,7 +1103,6 @@ class Environment final : public MemoryRetainer {
   bool trace_sync_io_ = false;
   bool emit_env_nonstring_warning_ = true;
   bool emit_err_name_warning_ = true;
-  bool emit_filehandle_warning_ = true;
   bool source_maps_enabled_ = false;
 
   size_t async_callback_scope_depth_ = 0;

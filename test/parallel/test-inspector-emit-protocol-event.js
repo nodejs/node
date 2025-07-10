@@ -63,7 +63,12 @@ const EXPECTED_EVENTS = {
     },
     {
       name: 'dataReceived',
-      // Network.dataReceived is buffered until Network.streamResourceContent is invoked.
+      // Network.dataReceived is buffered until Network.streamResourceContent/Network.getResponseBody is invoked.
+      skip: true,
+    },
+    {
+      name: 'dataSent',
+      // Network.dataSent is buffered until Network.getRequestPostData is invoked.
       skip: true,
     },
     {

@@ -16,9 +16,9 @@ const { assertCacheKey, assertCacheValue } = require('../util/cache.js')
  * @extends {EventEmitter}
  */
 class MemoryCacheStore extends EventEmitter {
-  #maxCount = Infinity
-  #maxSize = Infinity
-  #maxEntrySize = Infinity
+  #maxCount = 1024
+  #maxSize = 104857600 // 100MB
+  #maxEntrySize = 5242880 // 5MB
 
   #size = 0
   #count = 0

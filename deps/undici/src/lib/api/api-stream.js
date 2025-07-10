@@ -117,7 +117,7 @@ class StreamHandler extends AsyncResource {
       const { callback, res, opaque, trailers, abort } = this
 
       this.res = null
-      if (err || !res.readable) {
+      if (err || !res?.readable) {
         util.destroy(res, err)
       }
 

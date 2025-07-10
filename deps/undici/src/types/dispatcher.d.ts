@@ -97,7 +97,8 @@ declare class Dispatcher extends EventEmitter {
 
 declare namespace Dispatcher {
   export interface ComposedDispatcher extends Dispatcher {}
-  export type DispatcherComposeInterceptor = (dispatch: Dispatcher['dispatch']) => Dispatcher['dispatch']
+  export type Dispatch = Dispatcher['dispatch']
+  export type DispatcherComposeInterceptor = (dispatch: Dispatch) => Dispatch
   export interface DispatchOptions {
     origin?: string | URL;
     path: string;
@@ -276,6 +277,6 @@ declare namespace Dispatcher {
   }
 
   export interface DispatchInterceptor {
-    (dispatch: Dispatcher['dispatch']): Dispatcher['dispatch']
+    (dispatch: Dispatch): Dispatch
   }
 }

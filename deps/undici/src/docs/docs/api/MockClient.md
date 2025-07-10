@@ -38,6 +38,10 @@ const mockClient = mockAgent.get('http://localhost:3000')
 
 Implements: [`MockPool.intercept(options)`](/docs/docs/api/MockPool.md#mockpoolinterceptoptions)
 
+### `MockClient.cleanMocks()`
+
+Implements: [`MockPool.cleanMocks()`](/docs/docs/api/MockPool.md#mockpoolcleanmocks)
+
 ### `MockClient.close()`
 
 Implements: [`MockPool.close()`](/docs/docs/api/MockPool.md#mockpoolclose)

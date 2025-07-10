@@ -2,8 +2,6 @@
 
 <!--introduced_in=v20.0.0-->
 
-<!-- source_link=src/permission.cc -->
-
 Permissions can be used to control what system resources the
 Node.js process has access to or what actions the process can take
 with those resources.
@@ -195,7 +193,7 @@ easy to configure permissions as needed when using `npx`.
 
 There are constraints you need to know before using this system:
 
-* The model does not inherit to a child node process or a worker thread.
+* The model does not inherit to a worker thread.
 * When using the Permission Model the following features will be restricted:
   * Native modules
   * Network

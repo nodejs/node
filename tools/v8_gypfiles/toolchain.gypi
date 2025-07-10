@@ -40,9 +40,15 @@
     'ubsan_vptr%': 0,
     'has_valgrind%': 0,
     'coverage%': 0,
+
+    # Toolchain settings.
     'v8_target_arch%': '<(target_arch)',
     'v8_host_byteorder%': '<!("<(python)" -c "import sys; print(sys.byteorder)")',
     'force_dynamic_crt%': 0,
+
+    # Enable control-flow integrity features, such as pointer authentication
+    # for ARM64.
+    'v8_control_flow_integrity%': 0,
 
     # Setting 'v8_can_use_vfp32dregs' to 'true' will cause V8 to use the VFP
     # registers d16-d31 in the generated code, both in the snapshot and for the
@@ -98,10 +104,6 @@
     'gcmole%': 0,
   },
   'target_defaults': {
-    'include_dirs': [
-      '<(V8_ROOT)',
-      '<(V8_ROOT)/include',
-    ],
     'cflags!': ['-Wall', '-Wextra'],
     'conditions': [
       ['clang==0 and OS!="win"', {

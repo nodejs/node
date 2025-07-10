@@ -488,7 +488,7 @@ std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
           WideCharToMultiByte(
               CP_UTF8, 0, module_name, -1, str, size, nullptr, nullptr);
           list.emplace_back(str);
-          delete str;
+          delete[] str;
         }
       }
     }

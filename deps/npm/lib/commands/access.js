@@ -116,11 +116,15 @@ class Access extends BaseCommand {
   }
 
   async #grant (permissions, scope, pkg) {
-    await libnpmaccess.setPermissions(scope, pkg, permissions, this.npm.flatOptions)
+    await otplease(this.npm, this.npm.flatOptions, async (opts) => {
+      await libnpmaccess.setPermissions(scope, pkg, permissions, opts)
+    })
   }
 
   async #revoke (scope, pkg) {
-    await libnpmaccess.removePermissions(scope, pkg, this.npm.flatOptions)
+    await otplease(this.npm, this.npm.flatOptions, async (opts) => {
+      await libnpmaccess.removePermissions(scope, pkg, opts)
+    })
   }
 
   async #listPackages (owner, pkg) {

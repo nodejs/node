@@ -902,8 +902,7 @@ void ChannelWrap::StartTimer() {
     return;
   }
   int timeout = timeout_;
-  if (timeout == 0) timeout = 1;
-  if (timeout < 0 || timeout > 1000) timeout = 1000;
+  if (timeout <= 0 || timeout > 1000) timeout = 1000;
   uv_timer_start(timer_handle_, AresTimeout, timeout, timeout);
 }
 
@@ -1566,6 +1565,8 @@ Maybe<int> SoaTraits::Parse(QuerySoaWrap* wrap,
 
   if (status != ARES_SUCCESS) return Just<int>(status);
 
+  auto cleanup = OnScopeLeave([&]() { ares_free_data(soa_out); });
+
   Local<Object> soa_record = Object::New(env->isolate());
 
   if (soa_record
@@ -1605,8 +1606,6 @@ Maybe<int> SoaTraits::Parse(QuerySoaWrap* wrap,
           .IsNothing()) {
     return Nothing<int>();
   }
-
-  ares_free_data(soa_out);
 
   wrap->CallOnComplete(soa_record);
   return Just<int>(ARES_SUCCESS);

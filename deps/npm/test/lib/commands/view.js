@@ -79,6 +79,29 @@ const packument = (nv, opts) => {
         },
       },
     },
+    // package with no time attribute
+    gray: {
+      _id: 'gray',
+      name: 'gray',
+      'dist-tags': {
+        latest: '1.1.0',
+        beta: '1.2.0-beta',
+        alpha: '1.2.0-alpha',
+        old: '1.0.0',
+        stable: '1.1.0',
+      },
+      versions: {
+        '1.1.0': {
+          name: 'gray',
+          version: '1.1.0',
+          dist: {
+            shasum: 'b',
+            tarball: 'http://gray/1.1.0.tgz',
+            fileCount: 1,
+          },
+        },
+      },
+    },
     cyan: {
       _npmUser: {
         name: 'claudia',
@@ -768,4 +791,10 @@ t.test('no package completion', async t => {
   const res = await view.completion({ conf: { argv: { remain: ['npm', 'view'] } } })
   t.notOk(res, 'there is no package completion')
   t.end()
+})
+
+t.test('package with multiple dist‑tags and no time', async t => {
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { unicode: false } })
+  await view.exec(['https://github.com/npm/gray'])
+  t.matchSnapshot(joinedOutput())
 })

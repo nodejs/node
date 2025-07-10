@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.20.2](https://github.com/nodejs/gyp-next/compare/v0.20.1...v0.20.2) (2025-06-22)
+
+
+### Bug Fixes
+
+* Python lint import-outside-top-level ruff rule PLC0415 ([#298](https://github.com/nodejs/gyp-next/issues/298)) ([34f4df6](https://github.com/nodejs/gyp-next/commit/34f4df614936ee6a056e47406ebbe7e3c1cb6540))
+
+## [0.20.1](https://github.com/nodejs/gyp-next/compare/v0.20.0...v0.20.1) (2025-06-06)
+
+
+### Bug Fixes
+
+* Ensure Consistent Order of build_files in WriteAutoRegenerationRule ([#293](https://github.com/nodejs/gyp-next/issues/293)) ([59b5903](https://github.com/nodejs/gyp-next/commit/59b59035f4ae63419343ffdafe0f0ff511ada17d))
+* ignore failure of `GetCompilerPredefines` ([#295](https://github.com/nodejs/gyp-next/issues/295)) ([0eaea29](https://github.com/nodejs/gyp-next/commit/0eaea297f0fbb0869597aa162f66f78eb2468fad))
+
 ## [0.20.0](https://github.com/nodejs/gyp-next/compare/v0.19.1...v0.20.0) (2025-03-27)
 
 

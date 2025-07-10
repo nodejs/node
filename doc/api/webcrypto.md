@@ -5,6 +5,7 @@ changes:
   - version:
     - v23.5.0
     - v22.13.0
+    - v20.19.3
     pr-url: https://github.com/nodejs/node/pull/56142
     description: Algorithms `Ed25519` and `X25519` are now stable.
   - version:

@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "April 2025" "NPM@11.3.0" ""
+.TH "PACKAGE.JSON" "5" "June 2025" "NPM@11.4.2" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -361,7 +361,7 @@ If your module is meant to be used client-side the browser field should be used 
 .P
 A lot of packages have one or more executable files that they'd like to install into the PATH. npm makes this pretty easy (in fact, it uses this feature to install the "npm" executable.)
 .P
-To use this, supply a \fBbin\fR field in your package.json which is a map of command name to local file name. When this package is installed globally, that file will be either linked inside the global bins directory or a cmd (Windows Command File) will be created which executes the specified file in the \fBbin\fR field, so it is available to run by \fBname\fR or \fBname.cmd\fR (on Windows PowerShell). When this package is installed as a dependency in another package, the file will be linked where it will be available to that package either directly by \fBnpm exec\fR or by name in other scripts when invoking them via \fBnpm run-script\fR.
+To use this, supply a \fBbin\fR field in your package.json which is a map of command name to local file name. When this package is installed globally, that file will be either linked inside the global bins directory or a cmd (Windows Command File) will be created which executes the specified file in the \fBbin\fR field, so it is available to run by \fBname\fR or \fBname.cmd\fR (on Windows PowerShell). When this package is installed as a dependency in another package, the file will be linked where it will be available to that package either directly by \fBnpm exec\fR or by name in other scripts when invoking them via \fBnpm run\fR.
 .P
 For example, myapp could have this:
 .P
@@ -549,7 +549,7 @@ A "config" object can be used to set configuration parameters used in package sc
 .fi
 .RE
 .P
-It could also have a "start" command that referenced the \fBnpm_package_config_port\fR environment variable.
+It could also have a "start" script that referenced the \fBnpm_package_config_port\fR environment variable.
 .SS "dependencies"
 .P
 Dependencies are specified in a simple object that maps a package name to a version range. The version range is a string which has one or more space-separated descriptors. Dependencies can also be identified with a tarball or git URL.
@@ -868,7 +868,7 @@ Overrides provide a way to replace a package in your dependency tree with anothe
 .P
 Overrides are only considered in the root \fBpackage.json\fR file for a project. Overrides in installed dependencies (including npm help workspaces) are not considered in dependency tree resolution. Published packages may dictate their resolutions by pinning dependencies or using an \fB\fBnpm-shrinkwrap.json\fR\fR \fI\(la/configuring-npm/npm-shrinkwrap-json\(ra\fR file.
 .P
-To make sure the package \fBfoo\fR is always installed as version \fB1.0.0\fR no matter what version your dependencies rely on:
+To make sure the package \fB@npm/foo\fR is always installed as version \fB1.0.0\fR no matter what version your dependencies rely on:
 .P
 .RS 2
 .nf

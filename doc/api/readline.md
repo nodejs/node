@@ -503,7 +503,9 @@ line prompts are included in the calculations.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v24.0.0
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->

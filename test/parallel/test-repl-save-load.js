@@ -20,162 +20,71 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
+
 const common = require('../common');
 const ArrayStream = require('../common/arraystream');
-const assert = require('assert');
-const fs = require('fs');
+
+const assert = require('node:assert');
+const fs = require('node:fs');
+const repl = require('node:repl');
+const path = require('node:path');
+
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-// TODO: the following async IIFE and the completePromise function are necessary because
-//       the reply tests are all run against the same repl instance (testMe) and thus coordination
-//       needs to be in place for the tests not to interfere with each other, this is really
-//       not ideal, the tests in this file should be refactored so that each use its own isolated
-//       repl instance, making sure that no special coordination needs to be in place for them
-//       and also allowing the tests to all be run in parallel
-(async () => {
-  const repl = require('repl');
+// Tests that a REPL session data can be saved to and loaded from a file
 
-  const works = [['inner.one'], 'inner.o'];
+const input = new ArrayStream();
 
-  const putIn = new ArrayStream();
-  const testMe = repl.start('', putIn);
+const replServer = repl.start({
+  prompt: '',
+  input,
+  output: new ArrayStream(),
+  allowBlockingCompletions: true,
+});
 
-  // Some errors might be passed to the domain.
-  testMe._domain.on('error', function(reason) {
-    const err = new Error('Test failed');
-    err.reason = reason;
-    throw err;
-  });
+// Some errors are passed to the domain, but do not callback
+replServer._domain.on('error', assert.ifError);
 
-  async function completePromise(query, callback) {
-    return new Promise((resolve) => {
-      testMe.complete(query, (...args) => {
-        callback(...args);
-        resolve();
-      });
-    });
-  }
+const filePath = path.resolve(tmpdir.path, 'test.save.js');
 
-  const testFile = [
-    'let inner = (function() {',
-    '  return {one:1};',
-    '})()',
-  ];
-  const saveFileName = tmpdir.resolve('test.save.js');
+const testFileContents = [
+  'let inner = (function() {',
+  '  return {one:1};',
+  '})()',
+];
 
-  // Add some data.
-  putIn.run(testFile);
+input.run(testFileContents);
+input.run([`.save ${filePath}`]);
 
-  // Save it to a file.
-  putIn.run([`.save ${saveFileName}`]);
+assert.strictEqual(fs.readFileSync(filePath, 'utf8'),
+                   testFileContents.join('\n'));
 
-  // The file should have what I wrote.
-  assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
-                     testFile.join('\n'));
+const innerOCompletions = [['inner.one'], 'inner.o'];
 
-  // Make sure that the REPL data is "correct".
-  await completePromise('inner.o', common.mustSucceed((data) => {
-    assert.deepStrictEqual(data, works);
-  }));
+// Double check that the data is still present in the repl after the save
+replServer.completer('inner.o', common.mustSucceed((data) => {
+  assert.deepStrictEqual(data, innerOCompletions);
+}));
 
-  // Clear the REPL.
-  putIn.run(['.clear']);
+// Clear the repl context
+input.run(['.clear']);
 
-  testMe._sawKeyPress = true;
-  // Load the file back in.
-  putIn.run([`.load ${saveFileName}`]);
+// Double check that the data is no longer present in the repl
+replServer.completer('inner.o', common.mustSucceed((data) => {
+  assert.deepStrictEqual(data, [[], 'inner.o']);
+}));
 
-  // Make sure loading doesn't insert extra indentation
-  // https://github.com/nodejs/node/issues/47673
-  assert.strictEqual(testMe.line, '');
+// Load the file back in.
+input.run([`.load ${filePath}`]);
 
-  // Make sure that the REPL data is "correct".
-  await completePromise('inner.o', common.mustSucceed((data) => {
-    assert.deepStrictEqual(data, works);
-  }));
+// Make sure loading doesn't insert extra indentation
+// https://github.com/nodejs/node/issues/47673
+assert.strictEqual(replServer.line, '');
 
-  // Clear the REPL.
-  putIn.run(['.clear']);
+// Make sure that the loaded data is present
+replServer.complete('inner.o', common.mustSucceed((data) => {
+  assert.deepStrictEqual(data, innerOCompletions);
+}));
 
-  let loadFile = tmpdir.resolve('file.does.not.exist');
-
-  // Should not break.
-  putIn.write = common.mustCall(function(data) {
-    // Make sure I get a failed to load message and not some crazy error.
-    assert.strictEqual(data, `Failed to load: ${loadFile}\n`);
-    // Eat me to avoid work.
-    putIn.write = () => {};
-  });
-  putIn.run([`.load ${loadFile}`]);
-
-  // Throw error on loading directory.
-  loadFile = tmpdir.path;
-  putIn.write = common.mustCall(function(data) {
-    assert.strictEqual(data, `Failed to load: ${loadFile} is not a valid file\n`);
-    putIn.write = () => {};
-  });
-  putIn.run([`.load ${loadFile}`]);
-
-  // Clear the REPL.
-  putIn.run(['.clear']);
-
-  // NUL (\0) is disallowed in filenames in UNIX-like operating systems and
-  // Windows so we can use that to test failed saves.
-  const invalidFileName = tmpdir.resolve('\0\0\0\0\0');
-
-  // Should not break.
-  putIn.write = common.mustCall(function(data) {
-    // Make sure I get a failed to save message and not some other error.
-    assert.strictEqual(data, `Failed to save: ${invalidFileName}\n`);
-    // Reset to no-op.
-    putIn.write = () => {};
-  });
-
-  // Save it to a file.
-  putIn.run([`.save ${invalidFileName}`]);
-
-  {
-    // Save .editor mode code.
-    const cmds = [
-      'function testSave() {',
-      'return "saved";',
-      '}',
-    ];
-    const putIn = new ArrayStream();
-    const replServer = repl.start({ terminal: true, stream: putIn });
-
-    putIn.run(['.editor']);
-    putIn.run(cmds);
-    replServer.write('', { ctrl: true, name: 'd' });
-
-    putIn.run([`.save ${saveFileName}`]);
-    replServer.close();
-    assert.strictEqual(fs.readFileSync(saveFileName, 'utf8'),
-                       `${cmds.join('\n')}\n`);
-  }
-
-  // Check if the file is present when using save
-
-  // Clear the REPL.
-  putIn.run(['.clear']);
-
-  // Error message when using save without a file
-  putIn.write = common.mustCall(function(data) {
-    assert.strictEqual(data, 'The "file" argument must be specified\n');
-    putIn.write = () => {};
-  });
-  putIn.run(['.save']);
-
-  // Check if the file is present when using load
-
-  // Clear the REPL.
-  putIn.run(['.clear']);
-
-  // Error message when using load without a file
-  putIn.write = common.mustCall(function(data) {
-    assert.strictEqual(data, 'The "file" argument must be specified\n');
-    putIn.write = () => {};
-  });
-  putIn.run(['.load']);
-})().then(common.mustCall());
+replServer.close();

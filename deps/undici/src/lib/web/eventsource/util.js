@@ -26,7 +26,7 @@ function isASCIINumber (value) {
 // https://github.com/nodejs/undici/issues/2664
 function delay (ms) {
   return new Promise((resolve) => {
-    setTimeout(resolve, ms).unref()
+    setTimeout(resolve, ms)
   })
 }
 

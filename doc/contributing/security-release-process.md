@@ -41,7 +41,6 @@ The current security stewards are documented in the main Node.js
 | IBM          | Joe             |              |
 | Platformatic | Matteo          |              |
 | NodeSource   | Juan            |              |
-| Red Hat      | Michael         |              |
 
 ## Planning
 

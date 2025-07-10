@@ -2408,7 +2408,9 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
-  - version: v24.2.0
+  - version:
+      - v24.2.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58437
     description: Added the `'none'` format as a non-op format.
   - version:

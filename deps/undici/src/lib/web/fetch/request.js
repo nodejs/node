@@ -23,7 +23,7 @@ const {
   requestDuplex
 } = require('./constants')
 const { kEnumerableProperty, normalizedMethodRecordsBase, normalizedMethodRecords } = util
-const { webidl } = require('./webidl')
+const { webidl } = require('../webidl')
 const { URLSerializer } = require('./data-url')
 const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')

@@ -97,9 +97,17 @@ Charter need approval by the OpenJS Foundation Cross-Project Council (CPC).
 The TSC meets in a video conference call. Each year, the TSC elects a chair to
 run the meetings. The TSC streams its meetings for public viewing on YouTube.
 
+TSC meetings may consist of a public portion and a private portion. The private
+portion is used to discuss sensitive topics, such as personnel issues,
+security vulnerabilities, or other confidential matters. Private discussions
+should be avoided as much as possible, and the TSC should strive to keep
+discussions in the public portion of the meeting, but there are times when
+private discussions are necessary.
+
 The TSC agenda includes issues that are at an impasse. The intention of the
 agenda is not to review or approve all patches. Collaborators review and approve
-patches on GitHub.
+patches on GitHub. The preference is to minimize the need for TSC meetings to
+make decisions that can otherwise be made by collaborators on GitHub.
 
 Any community member can create a GitHub issue asking that the TSC review
 something. If consensus-seeking fails for an issue, a collaborator may apply the
@@ -109,21 +117,55 @@ Before each TSC meeting, the meeting chair will share the agenda with members of
 the TSC. TSC members can also add items to the agenda at the beginning of each
 meeting. The meeting chair and the TSC cannot veto or remove items.
 
-The TSC may invite people to take part in a non-voting capacity.
+The TSC may invite people to take part in a non-voting capacity in either the
+public or private portions of the meeting.
 
-During the meeting, the TSC chair ensures that someone takes minutes. After the
-meeting, the TSC chair ensures that someone opens a pull request with the
-minutes.
+During the public portion of the meeting, the TSC chair ensures that someone
+takes minutes that include a summary of the discussion and any
+decisions made. After the meeting, the TSC chair ensures that someone opens a
+public pull request with the minutes from the public portion of the meeting.
 
-The TSC seeks to resolve as many issues as possible outside meetings using
-[the TSC issue tracker](https://github.com/nodejs/TSC/issues). The process in
-the issue tracker is:
+The public portion of the TSC meeting is expected to be recorded and made
+available for live streaming during the meeting or download by anyone after.
+This expectation is to be announced to all participants at the start of the
+each meeting before the recording is started. Continued participation in the
+public portion of the meeting after this announcement is interpreted as consent to the
+recording.
+
+For the private portion of the meeting, the TSC chair ensures that someone
+produces a summary of the discussions, gets it reviewed by the attendees,
+and shares it to all the TSC members once approved by the attendees via a
+private discussion channel such as the TSC private mailing list. The summary
+may be made public if there is consensus within the TSC and the non-TSC
+attendees to make it public.
+
+Recording the private portion of a meeting or maintaining or publishing a
+detailed transcript is only permitted when all participants present during the
+private portion of the meeting explicitly agree to the recording and/or
+transcript, in order to comply to privacy regulations.
+
+All discussions made during meetings are considered provisional, receiving no
+objections from folks at the TSC meeting to take an action is not equivalent to
+the TSC endorsing that action.
+
+If a quorum of TSC voting members is present, it is possible to call for an
+explicit vote, and take the vote immediately if there are no objections. The
+decision is considered confirmed once the rest of the TSC voting members have
+been informed and no objection for taking that vote has been raised in 48 hours.
+To clarify, TSC voting members can object to the vote taking place during the
+meeting, but not to the vote itself.
+
+For discussions outside of meetings, the TSC uses
+[the TSC issue tracker](https://github.com/nodejs/TSC/issues) for public
+issues, and the private TSC email list for private matters. The process for
+public issues in the issue tracker is:
 
 * A TSC member opens an issue explaining the proposal/issue and @-mentions
   @nodejs/tsc.
 * The proposal passes if, after 72 hours, there are two or more TSC voting
   member approvals and no TSC voting member opposition.
-* If there is an extended impasse, a TSC member may make a motion for a vote.
+* If there is an extended impasse, a TSC member may ask for the issue to be
+  added to the TSC agenda, or make a motion for a vote.
 
 ## Collaborator nominations
 

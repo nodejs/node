@@ -181,3 +181,18 @@ module.exports.mockErrors = mockErrors
 const { EventSource } = require('./lib/web/eventsource/eventsource')
 
 module.exports.EventSource = EventSource
+
+function install () {
+  globalThis.fetch = module.exports.fetch
+  globalThis.Headers = module.exports.Headers
+  globalThis.Response = module.exports.Response
+  globalThis.Request = module.exports.Request
+  globalThis.FormData = module.exports.FormData
+  globalThis.WebSocket = module.exports.WebSocket
+  globalThis.CloseEvent = module.exports.CloseEvent
+  globalThis.ErrorEvent = module.exports.ErrorEvent
+  globalThis.MessageEvent = module.exports.MessageEvent
+  globalThis.EventSource = module.exports.EventSource
+}
+
+module.exports.install = install

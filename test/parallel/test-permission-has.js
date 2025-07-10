@@ -34,5 +34,5 @@ const assert = require('assert');
   assert.ok(!process.permission.has('worker'));
   assert.ok(!process.permission.has('inspector'));
   assert.ok(!process.permission.has('net'));
-  // TODO(rafaelgss): add addon
+  assert.ok(!process.permission.has('addon'));
 }

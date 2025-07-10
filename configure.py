@@ -868,7 +868,7 @@ parser.add_argument('--without-sqlite',
     action='store_true',
     dest='without_sqlite',
     default=None,
-    help='build without SQLite (disables SQLite and Web Stoage API)')
+    help='build without SQLite (disables SQLite and Web Storage API)')
 
 parser.add_argument('--ninja',
     action='store_true',

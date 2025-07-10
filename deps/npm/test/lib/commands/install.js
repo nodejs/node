@@ -126,6 +126,25 @@ t.test('exec commands', async t => {
     await npm.exec('install')
   })
 
+  await t.test('should not self-install package if prefix is the same as CWD', async t => {
+    let REIFY_CALLED_WITH = null
+    const { npm } = await loadMockNpm(t, {
+      mocks: {
+        '{LIB}/utils/reify-finish.js': async () => {},
+        '@npmcli/run-script': () => {},
+        '@npmcli/arborist': function () {
+          this.reify = (opts) => {
+            REIFY_CALLED_WITH = opts
+          }
+        },
+      },
+      prefixOverride: process.cwd(),
+    })
+
+    await npm.exec('install')
+    t.equal(REIFY_CALLED_WITH.add.length, 0, 'did not install current directory as a dependency')
+  })
+
   await t.test('should not install invalid global package name', async t => {
     const { npm } = await loadMockNpm(t, {
       config: {
