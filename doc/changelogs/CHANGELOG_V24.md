@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#24.4.1">24.4.1</a><br/>
 <a href="#24.4.0">24.4.0</a><br/>
 <a href="#24.3.0">24.3.0</a><br/>
 <a href="#24.2.0">24.2.0</a><br/>
@@ -44,6 +45,22 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="24.4.1"></a>
+
+## 2025-07-15, Version 24.4.1 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2025-27209) HashDoS in V8 with new RapidHash algorithm
+* (CVE-2025-27210) Windows Device Names (CON, PRN, AUX) Bypass Path Traversal Protection in path.normalize()
+
+### Commits
+
+* \[[`c33223f1a5`](https://github.com/nodejs/node/commit/c33223f1a5)] - **(CVE-2025-27209)** **deps**: V8: revert rapidhash commits (Michaël Zasso) [nodejs-private/node-private#713](https://github.com/nodejs-private/node-private/pull/713)
+* \[[`56f9db2aaa`](https://github.com/nodejs/node/commit/56f9db2aaa)] - **(CVE-2025-27210)** **lib**: handle all windows reserved driver name (RafaelGSS) [nodejs-private/node-private#721](https://github.com/nodejs-private/node-private/pull/721)
 
 <a id="24.4.0"></a>
 
