@@ -3120,6 +3120,8 @@ added:
   - v24.4.0
 -->
 
+> Stability: 1.1 - Active Development
+
 Customizes the signal sent to the process on watch mode restarts.
 
 ```bash
