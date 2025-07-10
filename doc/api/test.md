@@ -3729,7 +3729,7 @@ added:
   - v16.17.0
 -->
 
-* Type: {AbortSignal}
+* {AbortSignal}
 
 Can be used to abort test subtasks when the test has been aborted.
 
@@ -3913,7 +3913,7 @@ added:
   - v16.17.0
 -->
 
-* Type: {AbortSignal}
+* {AbortSignal}
 
 Can be used to abort test subtasks when the test has been aborted.
 

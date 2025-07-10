@@ -396,7 +396,7 @@ crypto API.
 added: v15.0.0
 -->
 
-* Type: {SubtleCrypto}
+* {SubtleCrypto}
 
 Provides access to the `SubtleCrypto` API.
 
@@ -442,7 +442,7 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* Type: {KeyAlgorithm|RsaHashedKeyAlgorithm|EcKeyAlgorithm|AesKeyAlgorithm|HmacKeyAlgorithm}
+* {KeyAlgorithm|RsaHashedKeyAlgorithm|EcKeyAlgorithm|AesKeyAlgorithm|HmacKeyAlgorithm}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -457,7 +457,7 @@ Read-only.
 added: v15.0.0
 -->
 
-* Type: {boolean}
+* {boolean}
 
 When `true`, the {CryptoKey} can be extracted using either
 `subtleCrypto.exportKey()` or `subtleCrypto.wrapKey()`.
@@ -470,7 +470,7 @@ Read-only.
 added: v15.0.0
 -->
 
-* Type: {string} One of `'secret'`, `'private'`, or `'public'`.
+* {string} One of `'secret'`, `'private'`, or `'public'`.
 
 A string identifying whether the key is a symmetric (`'secret'`) or
 asymmetric (`'private'` or `'public'`) key.
@@ -481,7 +481,7 @@ asymmetric (`'private'` or `'public'`) key.
 added: v15.0.0
 -->
 
-* Type: {string\[]}
+* {string\[]}
 
 An array of strings identifying the operations for which the
 key may be used.
@@ -534,7 +534,7 @@ The `CryptoKeyPair` is a simple dictionary object with `publicKey` and
 added: v15.0.0
 -->
 
-* Type: {CryptoKey} A {CryptoKey} whose `type` will be `'private'`.
+* {CryptoKey} A {CryptoKey} whose `type` will be `'private'`.
 
 ### `cryptoKeyPair.publicKey`
 
@@ -542,7 +542,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {CryptoKey} A {CryptoKey} whose `type` will be `'public'`.
+* {CryptoKey} A {CryptoKey} whose `type` will be `'public'`.
 
 ## Class: `SubtleCrypto`
 
@@ -1030,7 +1030,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string}
+* {string}
 
 ### Class: `AesDerivedKeyParams`
 
@@ -1044,7 +1044,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'AES-CBC'`, `'AES-CTR'`, `'AES-GCM'`, or
+* {string} Must be one of `'AES-CBC'`, `'AES-CTR'`, `'AES-GCM'`, or
   `'AES-KW'`
 
 #### `aesDerivedKeyParams.length`
@@ -1053,7 +1053,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* {number}
 
 The length of the AES key to be derived. This must be either `128`, `192`,
 or `256`.
@@ -1070,7 +1070,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer}
+* {ArrayBuffer|TypedArray|DataView|Buffer}
 
 Provides the initialization vector. It must be exactly 16-bytes in length
 and should be unpredictable and cryptographically random.
@@ -1081,7 +1081,7 @@ and should be unpredictable and cryptographically random.
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'AES-CBC'`.
+* {string} Must be `'AES-CBC'`.
 
 ### Class: `AesCtrParams`
 
@@ -1095,7 +1095,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer}
+* {ArrayBuffer|TypedArray|DataView|Buffer}
 
 The initial value of the counter block. This must be exactly 16 bytes long.
 
@@ -1108,7 +1108,7 @@ counter and the remaining bits as the nonce.
 added: v15.0.0
 -->
 
-* Type: {number} The number of bits in the `aesCtrParams.counter` that are
+* {number} The number of bits in the `aesCtrParams.counter` that are
   to be used as the counter.
 
 #### `aesCtrParams.name`
@@ -1117,7 +1117,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'AES-CTR'`.
+* {string} Must be `'AES-CTR'`.
 
 ### Class: `AesGcmParams`
 
@@ -1131,7 +1131,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
+* {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
 With the AES-GCM method, the `additionalData` is extra input that is not
 encrypted but is included in the authentication of the data. The use of
@@ -1143,7 +1143,7 @@ encrypted but is included in the authentication of the data. The use of
 added: v15.0.0
 -->
 
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer}
+* {ArrayBuffer|TypedArray|DataView|Buffer}
 
 The initialization vector must be unique for every encryption operation using a
 given key.
@@ -1160,7 +1160,7 @@ initialization vectors for AES-GCM, refer to Section 8 of [NIST SP 800-38D][].
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'AES-GCM'`.
+* {string} Must be `'AES-GCM'`.
 
 #### `aesGcmParams.tagLength`
 
@@ -1168,7 +1168,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number} The size in bits of the generated authentication tag.
+* {number} The size in bits of the generated authentication tag.
   This values must be one of `32`, `64`, `96`, `104`, `112`, `120`, or
   `128`. **Default:** `128`.
 
@@ -1184,7 +1184,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* {number}
 
 The length of the AES key in bits.
 
@@ -1194,7 +1194,7 @@ The length of the AES key in bits.
 added: v15.0.0
 -->
 
-* Type: {string}
+* {string}
 
 ### Class: `AesKeyGenParams`
 
@@ -1208,7 +1208,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* {number}
 
 The length of the AES key to be generated. This must be either `128`, `192`,
 or `256`.
@@ -1219,7 +1219,7 @@ or `256`.
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'AES-CBC'`, `'AES-CTR'`, `'AES-GCM'`, or
+* {string} Must be one of `'AES-CBC'`, `'AES-CTR'`, `'AES-GCM'`, or
   `'AES-KW'`
 
 ### Class: `EcdhKeyDeriveParams`
@@ -1234,7 +1234,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'ECDH'`, `'X25519'`, or `'X448'`.
+* {string} Must be `'ECDH'`, `'X25519'`, or `'X448'`.
 
 #### `ecdhKeyDeriveParams.public`
 
@@ -1242,7 +1242,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {CryptoKey}
+* {CryptoKey}
 
 ECDH key derivation operates by taking as input one parties private key and
 another parties public key -- using both to generate a common shared secret.
@@ -1261,7 +1261,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Algorithm}
+* {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1279,7 +1279,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'ECDSA'`.
+* {string} Must be `'ECDSA'`.
 
 ### Class: `EcKeyAlgorithm`
 
@@ -1293,7 +1293,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string}
+* {string}
 
 #### `ecKeyAlgorithm.namedCurve`
 
@@ -1301,7 +1301,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string}
+* {string}
 
 ### Class: `EcKeyGenParams`
 
@@ -1315,7 +1315,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'ECDSA'` or `'ECDH'`.
+* {string} Must be one of `'ECDSA'` or `'ECDH'`.
 
 #### `ecKeyGenParams.namedCurve`
 
@@ -1323,7 +1323,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`.
+* {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`.
 
 ### Class: `EcKeyImportParams`
 
@@ -1337,7 +1337,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'ECDSA'` or `'ECDH'`.
+* {string} Must be one of `'ECDSA'` or `'ECDH'`.
 
 #### `ecKeyImportParams.namedCurve`
 
@@ -1345,7 +1345,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`.
+* {string} Must be one of `'P-256'`, `'P-384'`, `'P-521'`.
 
 ### Class: `Ed448Params`
 
@@ -1361,7 +1361,7 @@ added:
   - v16.17.0
 -->
 
-* Type: {string} Must be `'Ed448'`.
+* {string} Must be `'Ed448'`.
 
 #### `ed448Params.context`
 
@@ -1371,7 +1371,7 @@ added:
   - v16.17.0
 -->
 
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
+* {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
 
 The `context` member represents the optional context data to associate with
 the message.
@@ -1390,7 +1390,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Algorithm}
+* {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1408,7 +1408,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer}
+* {ArrayBuffer|TypedArray|DataView|Buffer}
 
 Provides application-specific contextual input to the HKDF algorithm.
 This can be zero-length but must be provided.
@@ -1419,7 +1419,7 @@ This can be zero-length but must be provided.
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'HKDF'`.
+* {string} Must be `'HKDF'`.
 
 #### `hkdfParams.salt`
 
@@ -1427,7 +1427,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer}
+* {ArrayBuffer|TypedArray|DataView|Buffer}
 
 The salt value significantly improves the strength of the HKDF algorithm.
 It should be random or pseudorandom and should be the same length as the
@@ -1446,7 +1446,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Algorithm}
+* {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1464,7 +1464,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {number}
+* {number}
 
 The optional number of bits in the HMAC key. This is optional and should
 be omitted for most cases.
@@ -1475,7 +1475,7 @@ be omitted for most cases.
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'HMAC'`.
+* {string} Must be `'HMAC'`.
 
 ### Class: `HmacKeyAlgorithm`
 
@@ -1489,7 +1489,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {Algorithm}
+* {Algorithm}
 
 #### `hmacKeyAlgorithm.length`
 
@@ -1497,7 +1497,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* {number}
 
 The length of the HMAC key in bits.
 
@@ -1507,7 +1507,7 @@ The length of the HMAC key in bits.
 added: v15.0.0
 -->
 
-* Type: {string}
+* {string}
 
 ### Class: `HmacKeyGenParams`
 
@@ -1521,7 +1521,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Algorithm}
+* {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1539,7 +1539,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {number}
+* {number}
 
 The number of bits to generate for the HMAC key. If omitted,
 the length will be determined by the hash algorithm used.
@@ -1551,7 +1551,7 @@ This is optional and should be omitted for most cases.
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'HMAC'`.
+* {string} Must be `'HMAC'`.
 
 ### Class: `KeyAlgorithm`
 
@@ -1565,7 +1565,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string}
+* {string}
 
 ### Class: `Pbkdf2Params`
 
@@ -1579,7 +1579,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Algorithm}
+* {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1597,7 +1597,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {number}
+* {number}
 
 The number of iterations the PBKDF2 algorithm should make when deriving bits.
 
@@ -1607,7 +1607,7 @@ The number of iterations the PBKDF2 algorithm should make when deriving bits.
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'PBKDF2'`.
+* {string} Must be `'PBKDF2'`.
 
 #### `pbkdf2Params.salt`
 
@@ -1615,7 +1615,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer}
+* {ArrayBuffer|TypedArray|DataView|Buffer}
 
 Should be at least 16 random or pseudorandom bytes.
 
@@ -1631,7 +1631,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Algorithm}
+* {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1649,7 +1649,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'RSASSA-PKCS1-v1_5'`, `'RSA-PSS'`, or
+* {string} Must be one of `'RSASSA-PKCS1-v1_5'`, `'RSA-PSS'`, or
   `'RSA-OAEP'`.
 
 ### Class: `RsaHashedKeyAlgorithm`
@@ -1664,7 +1664,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {Algorithm}
+* {Algorithm}
 
 #### `rsaHashedKeyAlgorithm.modulusLength`
 
@@ -1672,7 +1672,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* {number}
 
 The length in bits of the RSA modulus.
 
@@ -1682,7 +1682,7 @@ The length in bits of the RSA modulus.
 added: v15.0.0
 -->
 
-* Type: {string}
+* {string}
 
 #### `rsaHashedKeyAlgorithm.publicExponent`
 
@@ -1690,7 +1690,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {Uint8Array}
+* {Uint8Array}
 
 The RSA public exponent.
 
@@ -1706,7 +1706,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Algorithm}
+* {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1724,7 +1724,7 @@ must be one of the above listed values.
 added: v15.0.0
 -->
 
-* Type: {number}
+* {number}
 
 The length in bits of the RSA modulus. As a best practice, this should be
 at least `2048`.
@@ -1735,7 +1735,7 @@ at least `2048`.
 added: v15.0.0
 -->
 
-* Type: {string} Must be one of `'RSASSA-PKCS1-v1_5'`, `'RSA-PSS'`, or
+* {string} Must be one of `'RSASSA-PKCS1-v1_5'`, `'RSA-PSS'`, or
   `'RSA-OAEP'`.
 
 #### `rsaHashedKeyGenParams.publicExponent`
@@ -1744,7 +1744,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {Uint8Array}
+* {Uint8Array}
 
 The RSA public exponent. This must be a {Uint8Array} containing a big-endian,
 unsigned integer that must fit within 32-bits. The {Uint8Array} may contain an
@@ -1764,7 +1764,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {ArrayBuffer|TypedArray|DataView|Buffer}
+* {ArrayBuffer|TypedArray|DataView|Buffer}
 
 An additional collection of bytes that will not be encrypted, but will be bound
 to the generated ciphertext.
@@ -1777,7 +1777,7 @@ The `rsaOaepParams.label` parameter is optional.
 added: v15.0.0
 -->
 
-* Type: {string} must be `'RSA-OAEP'`.
+* {string} must be `'RSA-OAEP'`.
 
 ### Class: `RsaPssParams`
 
@@ -1791,7 +1791,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string} Must be `'RSA-PSS'`.
+* {string} Must be `'RSA-PSS'`.
 
 #### `rsaPssParams.saltLength`
 
@@ -1799,7 +1799,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {number}
+* {number}
 
 The length (in bytes) of the random salt to use.
 

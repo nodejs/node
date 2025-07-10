@@ -75,7 +75,7 @@ added:
   - v14.17.0
 -->
 
-* Type: {AbortSignal}
+* {AbortSignal}
 
 ### Class: `AbortSignal`
 
@@ -181,7 +181,7 @@ added:
   - v14.17.0
 -->
 
-* Type: {boolean} True after the `AbortController` has been aborted.
+* {boolean} True after the `AbortController` has been aborted.
 
 #### `abortSignal.onabort`
 
@@ -191,7 +191,7 @@ added:
   - v14.17.0
 -->
 
-* Type: {Function}
+* {Function}
 
 An optional callback function that may be set by user code to be notified
 when the `abortController.abort()` function has been called.
@@ -204,7 +204,7 @@ added:
   - v16.14.0
 -->
 
-* Type: {any}
+* {any}
 
 An optional reason specified when the `AbortSignal` was triggered.
 

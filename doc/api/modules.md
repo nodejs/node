@@ -1183,7 +1183,7 @@ added:
   - v14.17.0
 -->
 
-* Type: {boolean} `true` if the module is running during the Node.js preload
+* {boolean} `true` if the module is running during the Node.js preload
   phase.
 
 ### `module.loaded`

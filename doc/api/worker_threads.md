@@ -839,7 +839,7 @@ Closes the `BroadcastChannel` connection.
 added: v15.4.0
 -->
 
-* Type: {Function} Invoked with a single `MessageEvent` argument
+* {Function} Invoked with a single `MessageEvent` argument
   when a message is received.
 
 ### `broadcastChannel.onmessageerror`
@@ -848,7 +848,7 @@ added: v15.4.0
 added: v15.4.0
 -->
 
-* Type: {Function} Invoked with a received message cannot be
+* {Function} Invoked with a received message cannot be
   deserialized.
 
 ### `broadcastChannel.postMessage(message)`

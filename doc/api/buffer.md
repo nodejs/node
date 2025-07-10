@@ -586,7 +586,7 @@ added:
   - v14.18.0
 -->
 
-* Type: {string}
+* {string}
 
 The content-type of the `Blob`.
 
@@ -5143,7 +5143,7 @@ added:
   - v18.13.0
 -->
 
-* Type: {string}
+* {string}
 
 The name of the `File`.
 
@@ -5155,7 +5155,7 @@ added:
   - v18.13.0
 -->
 
-* Type: {number}
+* {number}
 
 The last modified date of the `File`.
 
@@ -5221,7 +5221,7 @@ added:
   - v18.15.0
 -->
 
-* input {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
 * Returns: {boolean}
 
 This function returns `true` if `input` contains only valid ASCII-encoded data,
@@ -5237,7 +5237,7 @@ added:
   - v18.14.0
 -->
 
-* input {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
 * Returns: {boolean}
 
 This function returns `true` if `input` contains only valid UTF-8-encoded data,

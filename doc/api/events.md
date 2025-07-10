@@ -1984,11 +1984,11 @@ same options as `EventEmitter` and `AsyncResource` themselves.
 
 ### `eventemitterasyncresource.asyncId`
 
-* Type: {number} The unique `asyncId` assigned to the resource.
+* {number} The unique `asyncId` assigned to the resource.
 
 ### `eventemitterasyncresource.asyncResource`
 
-* Type: The underlying {AsyncResource}.
+* The underlying {AsyncResource}.
 
 The returned `AsyncResource` object has an additional `eventEmitter` property
 that provides a reference to this `EventEmitterAsyncResource`.
@@ -2002,7 +2002,7 @@ never be called.
 
 ### `eventemitterasyncresource.triggerAsyncId`
 
-* Type: {number} The same `triggerAsyncId` that is passed to the
+* {number} The same `triggerAsyncId` that is passed to the
   `AsyncResource` constructor.
 
 <a id="event-target-and-event-api"></a>
@@ -2159,7 +2159,7 @@ are created internally by Node.js.
 added: v14.5.0
 -->
 
-* Type: {boolean} Always returns `false`.
+* {boolean} Always returns `false`.
 
 This is not used in Node.js and is provided purely for completeness.
 
@@ -2171,7 +2171,7 @@ added: v14.5.0
 
 > Stability: 3 - Legacy: Use [`event.stopPropagation()`][] instead.
 
-* Type: {boolean}
+* {boolean}
 
 Alias for `event.stopPropagation()` if set to `true`. This is not used
 in Node.js and is provided purely for completeness.
@@ -2182,7 +2182,7 @@ in Node.js and is provided purely for completeness.
 added: v14.5.0
 -->
 
-* Type: {boolean} True if the event was created with the `cancelable` option.
+* {boolean} True if the event was created with the `cancelable` option.
 
 #### `event.composed`
 
@@ -2190,7 +2190,7 @@ added: v14.5.0
 added: v14.5.0
 -->
 
-* Type: {boolean} Always returns `false`.
+* {boolean} Always returns `false`.
 
 This is not used in Node.js and is provided purely for completeness.
 
@@ -2210,7 +2210,7 @@ Node.js and is provided purely for completeness.
 added: v14.5.0
 -->
 
-* Type: {EventTarget} The `EventTarget` dispatching the event.
+* {EventTarget} The `EventTarget` dispatching the event.
 
 Alias for `event.target`.
 
@@ -2220,7 +2220,7 @@ Alias for `event.target`.
 added: v14.5.0
 -->
 
-* Type: {boolean}
+* {boolean}
 
 Is `true` if `cancelable` is `true` and `event.preventDefault()` has been
 called.
@@ -2231,7 +2231,7 @@ called.
 added: v14.5.0
 -->
 
-* Type: {number} Returns `0` while an event is not being dispatched, `2` while
+* {number} Returns `0` while an event is not being dispatched, `2` while
   it is being dispatched.
 
 This is not used in Node.js and is provided purely for completeness.
@@ -2258,7 +2258,7 @@ This is not used in Node.js and is provided purely for completeness.
 added: v14.5.0
 -->
 
-* Type: {boolean}
+* {boolean}
 
 The {AbortSignal} `"abort"` event is emitted with `isTrusted` set to `true`. The
 value is `false` in all other cases.
@@ -2279,7 +2279,7 @@ added: v14.5.0
 
 > Stability: 3 - Legacy: Use [`event.defaultPrevented`][] instead.
 
-* Type: {boolean} True if the event has not been canceled.
+* {boolean} True if the event has not been canceled.
 
 The value of `event.returnValue` is always the opposite of `event.defaultPrevented`.
 This is not used in Node.js and is provided purely for completeness.
@@ -2292,7 +2292,7 @@ added: v14.5.0
 
 > Stability: 3 - Legacy: Use [`event.target`][] instead.
 
-* Type: {EventTarget} The `EventTarget` dispatching the event.
+* {EventTarget} The `EventTarget` dispatching the event.
 
 Alias for `event.target`.
 
@@ -2318,7 +2318,7 @@ This is not used in Node.js and is provided purely for completeness.
 added: v14.5.0
 -->
 
-* Type: {EventTarget} The `EventTarget` dispatching the event.
+* {EventTarget} The `EventTarget` dispatching the event.
 
 #### `event.timeStamp`
 
@@ -2326,7 +2326,7 @@ added: v14.5.0
 added: v14.5.0
 -->
 
-* Type: {number}
+* {number}
 
 The millisecond timestamp when the `Event` object was created.
 
@@ -2336,7 +2336,7 @@ The millisecond timestamp when the `Event` object was created.
 added: v14.5.0
 -->
 
-* Type: {string}
+* {string}
 
 The event type identifier.
 
@@ -2467,7 +2467,7 @@ changes:
     description: CustomEvent is now stable.
 -->
 
-* Type: {any} Returns custom data passed when initializing.
+* {any} Returns custom data passed when initializing.
 
 Read-only.
 

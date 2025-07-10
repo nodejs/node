@@ -964,7 +964,7 @@ changes:
     description: Remove the `--experimental-resolve-self` option.
 -->
 
-* Type: {string}
+* {string}
 
 ```json
 {
@@ -985,7 +985,7 @@ The `"name"` field can be used in addition to the [`"exports"`][] field to
 added: v0.4.0
 -->
 
-* Type: {string}
+* {string}
 
 ```json
 {
@@ -1019,7 +1019,7 @@ changes:
     description: Unflag `--experimental-modules`.
 -->
 
-* Type: {string}
+* {string}
 
 The `"type"` field defines the module format that Node.js uses for all
 `.js` files that have that `package.json` file as their nearest parent.
@@ -1092,7 +1092,7 @@ changes:
     description: Implement conditional exports.
 -->
 
-* Type: {Object} | {string} | {string\[]}
+* {Object|string|string\[]}
 
 ```json
 {
@@ -1121,7 +1121,7 @@ added:
  - v12.19.0
 -->
 
-* Type: {Object}
+* {Object}
 
 ```json
 // package.json
