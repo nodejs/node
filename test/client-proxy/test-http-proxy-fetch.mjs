@@ -7,7 +7,7 @@ import { createProxyServer, checkProxiedFetch } from '../common/proxy-server.js'
 // Start a server to process the final request.
 const server = http.createServer(common.mustCall((req, res) => {
   res.end('Hello world');
-}, 3));
+}, common.isWindows ? 2 : 3));
 server.on('error', common.mustNotCall((err) => { console.error('Server error', err); }));
 server.listen(0);
 await once(server, 'listening');
@@ -54,23 +54,27 @@ await checkProxiedFetch({
 });
 assert.deepStrictEqual(logs, expectedLogs);
 
-const proxy2 = http.createServer();
-proxy2.on('connect', common.mustNotCall());
-proxy2.listen(0);
-await once(proxy2, 'listening');
-
 // Check lower-cased http_proxy environment variable takes precedence.
-logs.splice(0, logs.length);
-await checkProxiedFetch({
-  NODE_USE_ENV_PROXY: 1,
-  FETCH_URL: `http://${serverHost}/test`,
-  http_proxy: `http://localhost:${proxy.address().port}`,
-  HTTP_PROXY: `http://localhost:${proxy2.address().port}`,
-}, {
-  stdout: 'Hello world',
-});
-assert.deepStrictEqual(logs, expectedLogs);
+// On Windows, environment variables are case-insensitive, so this test
+// is not applicable.
+if (!common.isWindows) {
+  const proxy2 = http.createServer();
+  proxy2.on('connect', common.mustNotCall());
+  proxy2.listen(0);
+  await once(proxy2, 'listening');
+
+  logs.splice(0, logs.length);
+  await checkProxiedFetch({
+    NODE_USE_ENV_PROXY: 1,
+    FETCH_URL: `http://${serverHost}/test`,
+    http_proxy: `http://localhost:${proxy.address().port}`,
+    HTTP_PROXY: `http://localhost:${proxy2.address().port}`,
+  }, {
+    stdout: 'Hello world',
+  });
+  assert.deepStrictEqual(logs, expectedLogs);
+  proxy2.close();
+}
 
 proxy.close();
-proxy2.close();
 server.close();
