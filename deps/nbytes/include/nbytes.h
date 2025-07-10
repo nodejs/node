@@ -548,7 +548,11 @@ size_t StringSearch<Char>::BoyerMooreSearch(Vector subject,
   size_t start = start_;
 
   int *bad_char_occurrence = bad_char_shift_table_;
-  int *good_suffix_shift = good_suffix_shift_table_ - start_;
+
+  auto good_suffix_get = [&](size_t idx) -> int {
+    if (idx < start || idx - start > kBMMaxShift) return 0;
+    return good_suffix_shift_table_[idx - start];
+  };
 
   Char last_char = pattern_[pattern_length - 1];
   size_t index = start_index;
@@ -575,7 +579,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(Vector subject,
       index +=
           pattern_length - 1 - CharOccurrence(bad_char_occurrence, last_char);
     } else {
-      int gs_shift = good_suffix_shift[j + 1];
+      int gs_shift = good_suffix_get(j + 1);
       int bc_occ = CharOccurrence(bad_char_occurrence, c);
       int shift = j - bc_occ;
       if (gs_shift > shift) {
@@ -591,22 +595,25 @@ size_t StringSearch<Char>::BoyerMooreSearch(Vector subject,
 template <typename Char>
 void StringSearch<Char>::PopulateBoyerMooreTable() {
   const size_t pattern_length = pattern_.length();
-  // Only look at the last kBMMaxShift characters of pattern (from start_
-  // to pattern_length).
   const size_t start = start_;
   const size_t length = pattern_length - start;
 
-  // Biased tables so that we can use pattern indices as table indices,
-  // even if we only cover the part of the pattern from offset start.
-  int *shift_table = good_suffix_shift_table_ - start_;
-  int *suffix_table = suffix_table_ - start_;
+  auto shift_get = [&](size_t idx) -> int& {
+    if (idx < start) abort();
+    return good_suffix_shift_table_[idx - start];
+  };
+
+  auto suffix_get = [&](size_t idx) -> int& {
+    if (idx < start) abort();
+    return suffix_table_[idx - start];
+  };
 
   // Initialize table.
   for (size_t i = start; i < pattern_length; i++) {
-    shift_table[i] = length;
+    shift_get(i) = length;
   }
-  shift_table[pattern_length] = 1;
-  suffix_table[pattern_length] = pattern_length + 1;
+  shift_get(pattern_length) = 1;
+  suffix_get(pattern_length) = pattern_length + 1;
 
   if (pattern_length <= start) {
     return;
@@ -620,34 +627,35 @@ void StringSearch<Char>::PopulateBoyerMooreTable() {
     while (i > start) {
       Char c = pattern_[i - 1];
       while (suffix <= pattern_length && c != pattern_[suffix - 1]) {
-        if (static_cast<size_t>(shift_table[suffix]) == length) {
-          shift_table[suffix] = suffix - i;
+        if (static_cast<size_t>(shift_get(suffix)) == length) {
+          shift_get(suffix) = suffix - i;
         }
-        suffix = suffix_table[suffix];
+        suffix = suffix_get(suffix);
       }
-      suffix_table[--i] = --suffix;
+      suffix_get(--i) = --suffix;
       if (suffix == pattern_length) {
         // No suffix to extend, so we check against last_char only.
         while ((i > start) && (pattern_[i - 1] != last_char)) {
-          if (static_cast<size_t>(shift_table[pattern_length]) == length) {
-            shift_table[pattern_length] = pattern_length - i;
+          if (static_cast<size_t>(shift_get(pattern_length)) == length) {
+            shift_get(pattern_length) = pattern_length - i;
           }
-          suffix_table[--i] = pattern_length;
+          suffix_get(--i) = pattern_length;
         }
         if (i > start) {
-          suffix_table[--i] = --suffix;
+          suffix_get(--i) = --suffix;
         }
       }
     }
   }
+
   // Build shift table using suffixes.
   if (suffix < pattern_length) {
     for (size_t i = start; i <= pattern_length; i++) {
-      if (static_cast<size_t>(shift_table[i]) == length) {
-        shift_table[i] = suffix - start;
+      if (static_cast<size_t>(shift_get(i)) == length) {
+        shift_get(i) = suffix - start;
       }
       if (i == suffix) {
-        suffix = suffix_table[suffix];
+        suffix = suffix_get(suffix);
       }
     }
   }
