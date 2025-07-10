@@ -4,6 +4,7 @@ process.env.NODE_TEST_KNOWN_GLOBALS = 0;
 const common = require('../common');
 
 const assert = require('node:assert');
+const { getEventListeners } = require('node:events');
 const { it, mock, describe } = require('node:test');
 const nodeTimers = require('node:timers');
 const nodeTimersPromises = require('node:timers/promises');
@@ -422,6 +423,8 @@ describe('Mock Timers Test Suite', () => {
     });
 
     describe('timers/promises', () => {
+      const hasAbortListener = (signal) => !!getEventListeners(signal, 'abort').length;
+
       describe('setTimeout Suite', () => {
         it('should advance in time and trigger timers when calling the .tick function multiple times', async (t) => {
           t.mock.timers.enable({ apis: ['setTimeout'] });
@@ -513,6 +516,22 @@ describe('Mock Timers Test Suite', () => {
           await assert.rejects(() => p, {
             name: 'AbortError',
           });
+        });
+
+        it('should clear the abort listener when the timer resolves', async (t) => {
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          const expectedResult = 'result';
+          const controller = new AbortController();
+          const p = nodeTimersPromises.setTimeout(500, expectedResult, {
+            ref: true,
+            signal: controller.signal,
+          });
+
+          assert(hasAbortListener(controller.signal));
+
+          t.mock.timers.tick(500);
+          await p;
+          assert(!hasAbortListener(controller.signal));
         });
 
         it('should reject given an an invalid signal instance', async (t) => {
@@ -726,6 +745,23 @@ describe('Mock Timers Test Suite', () => {
           await assert.rejects(() => first, {
             name: 'AbortError',
           });
+        });
+
+        it('should clear the abort listener when the interval returns', async (t) => {
+          t.mock.timers.enable({ apis: ['setInterval'] });
+
+          const abortController = new AbortController();
+          const intervalIterator = nodeTimersPromises.setInterval(1, Date.now(), {
+            signal: abortController.signal,
+          });
+
+          const first = intervalIterator.next();
+          t.mock.timers.tick();
+
+          await first;
+          assert(hasAbortListener(abortController.signal));
+          await intervalIterator.return();
+          assert(!hasAbortListener(abortController.signal));
         });
 
         it('should abort operation given an abort controller signal on a real use case', async (t) => {
