@@ -369,6 +369,11 @@ p {
   padding-bottom: 2rem;
 }
 
+/* prevent the module-level sticky stability header from overlapping the section headers when clicked */
+#apicontent:has(> .api_stability) a {
+  scroll-margin-top: 50px;
+}
+
 table {
   border-collapse: collapse;
   margin: 0 0 1.5rem;
@@ -829,6 +834,12 @@ kbd {
   .header {
     position: relative;
     top: 0;
+  }
+  .api_stability {
+    top: 0;
+  }
+  #apicontent a {
+    scroll-margin-top: 0;
   }
 }
 
