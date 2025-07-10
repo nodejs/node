@@ -28,6 +28,9 @@ test('Assert class non strict', () => {
     assert.AssertionError.prototype instanceof Error,
     'assert.AssertionError instanceof Error'
   );
+  assert.strictEqual(typeof assertInstance.ok, 'function');
+  assert.strictEqual(assertInstance.ok.strictEqual, undefined);
+  assert.strictEqual(typeof assertInstance.strictEqual, 'function');
   assertInstance.ok(true);
   assertInstance.throws(
     () => {
