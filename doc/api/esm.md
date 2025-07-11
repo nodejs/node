@@ -764,6 +764,74 @@ const dynamicLibrary = await import.source('./library.wasm');
 const instance = await WebAssembly.instantiate(dynamicLibrary, importObject);
 ```
 
+### JavaScript String Builtins
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When importing WebAssembly modules, the
+[WebAssembly JS String Builtins Proposal][] is automatically enabled through the
+ESM Integration. This allows WebAssembly modules to directly use efficient
+compile-time string builtins from the `wasm:js-string` namespace.
+
+For example, the following Wasm module exports a string `getLength` function using
+the `wasm:js-string` `length` builtin:
+
+```text
+(module
+  ;; Compile-time import of the string length builtin.
+  (import "wasm:js-string" "length" (func $string_length (param externref) (result i32)))
+
+  ;; Define getLength, taking a JS value parameter assumed to be a string,
+  ;; calling string length on it and returning the result.
+  (func $getLength (param $str externref) (result i32)
+    local.get $str
+    call $string_length
+  )
+
+  ;; Export the getLength function.
+  (export "getLength" (func $get_length))
+)
+```
+
+```js
+import { getLength } from './string-len.wasm';
+getLength('foo'); // Returns 3.
+```
+
+Wasm builtins are compile-time imports that are linked during module compilation
+rather than during instantiation. They do not behave like normal module graph
+imports and they cannot be inspected via `WebAssembly.Module.imports(mod)`
+or virtualized unless recompiling the module using the direct
+`WebAssembly.compile` API with string builtins disabled.
+
+Importing a module in the source phase before it has been instantiated will also
+use the compile-time builtins automatically:
+
+```js
+import source mod from './string-len.wasm';
+const { exports: { getLength } } = await WebAssembly.instantiate(mod, {});
+getLength('foo'); // Also returns 3.
+```
+
+### Reserved Wasm Namespaces
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When importing WebAssembly modules through the ESM Integration, they cannot use
+import module names or import/export names that start with reserved prefixes:
+
+* `wasm-js:` - reserved in all module import names, module names and export
+  names.
+* `wasm:` - reserved in module import names and export names (imported module
+  names are allowed in order to support future builtin polyfills).
+
+Importing a module using the above reserved names will throw a
+`WebAssembly.LinkError`.
+
 <i id="esm_experimental_top_level_await"></i>
 
 ## Top-level `await`
@@ -1206,6 +1274,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Source Phase Imports]: https://github.com/tc39/proposal-source-phase-imports
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
+[WebAssembly JS String Builtins Proposal]: https://github.com/WebAssembly/js-string-builtins
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
 [`--input-type`]: cli.md#--input-typetype
