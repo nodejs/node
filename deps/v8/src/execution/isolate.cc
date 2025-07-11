@@ -3875,7 +3875,7 @@ void Isolate::SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to) {
     // TODO(388533754): This check won't hold anymore with core stack-switching.
     // Instead, we will need to validate all the intermediate stacks and also
     // check that they don't hold central stack frames.
-    DCHECK_EQ(from->jmpbuf()->parent, to);
+    SBXCHECK_EQ(from->jmpbuf()->parent, to);
   }
   uintptr_t limit = reinterpret_cast<uintptr_t>(to->jmpbuf()->stack_limit);
   stack_guard()->SetStackLimitForStackSwitching(limit);

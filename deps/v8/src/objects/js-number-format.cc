@@ -1108,14 +1108,12 @@ MaybeDirectHandle<JSNumberFormat> JSNumberFormat::New(
   // 10. Let r be ResolveLocale(%NumberFormat%.[[AvailableLocales]],
   // requestedLocales, opt,  %NumberFormat%.[[RelevantExtensionKeys]],
   // localeData).
-  std::set<std::string> relevant_extension_keys{"nu"};
-  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
-      Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales(),
-                          requested_locales, matcher, relevant_extension_keys);
-  if (maybe_resolve_locale.IsNothing()) {
+  Intl::ResolvedLocale r;
+  if (!Intl::ResolveLocale(isolate, JSNumberFormat::GetAvailableLocales(),
+                           requested_locales, matcher, {"nu"})
+           .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;

@@ -87,13 +87,13 @@ MaybeDirectHandle<JSListFormat> JSListFormat::New(
 
   // 10. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
   // requestedLocales, opt, undefined, localeData).
-  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
-      Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
-                          requested_locales, matcher, {});
-  if (maybe_resolve_locale.IsNothing()) {
+  Intl::ResolvedLocale r;
+  if (!Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
+                           requested_locales, matcher, {})
+           .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
+
   DirectHandle<String> locale_str =
       isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
 

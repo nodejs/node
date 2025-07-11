@@ -1221,7 +1221,8 @@ class V8_NODISCARD BytecodeGenerator::OptionalChainNullLabelScope final {
  public:
   explicit OptionalChainNullLabelScope(BytecodeGenerator* bytecode_generator)
       : bytecode_generator_(bytecode_generator),
-        labels_(bytecode_generator->zone()) {
+        labels_(bytecode_generator->zone()),
+        hole_check_scope_(bytecode_generator) {
     prev_ = bytecode_generator_->optional_chaining_null_labels_;
     bytecode_generator_->optional_chaining_null_labels_ = &labels_;
   }
@@ -1236,6 +1237,9 @@ class V8_NODISCARD BytecodeGenerator::OptionalChainNullLabelScope final {
   BytecodeGenerator* bytecode_generator_;
   BytecodeLabels labels_;
   BytecodeLabels* prev_;
+  // Use the same scope for the entire optional chain, as links earlier in the
+  // chain dominate later links, linearly.
+  HoleCheckElisionScope hole_check_scope_;
 };
 
 // LoopScope delimits the scope of {loop}, from its header to its final jump.
@@ -6461,9 +6465,6 @@ template <typename ExpressionFunc>
 void BytecodeGenerator::BuildOptionalChain(ExpressionFunc expression_func) {
   BytecodeLabel done;
   OptionalChainNullLabelScope label_scope(this);
-  // Use the same scope for the entire optional chain, as links earlier in the
-  // chain dominate later links, linearly.
-  HoleCheckElisionScope elider(this);
   expression_func();
   builder()->Jump(&done);
   label_scope.labels()->Bind(builder());
