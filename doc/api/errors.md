@@ -3270,7 +3270,7 @@ The WASI instance has not been started.
 
 ### `ERR_WEBASSEMBLY_NOT_MODULE_RECORD_NAMESPACE`
 
-The object passed to `WebAssembly.moduleInstance` was not a valid WebAssembly
+The object passed to `WebAssembly.namespaceInstance` was not a valid WebAssembly
 Module Record namespace object.
 
 <a id="ERR_WEBASSEMBLY_RESPONSE"></a>
