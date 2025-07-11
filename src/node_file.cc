@@ -2473,8 +2473,6 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
       uv_req->path = nullptr;
       AfterInteger(uv_req);  // after may delete req_wrap_async if there is
                              // an error
-    } else {
-      req_wrap_async->SetReturnValue(args);
     }
   } else {  // write(fd, string, pos, enc, undefined, ctx)
     CHECK_EQ(argc, 6);
