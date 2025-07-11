@@ -4,6 +4,15 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
+common.expectWarning({
+  DeprecationWarning: [
+    ['crypto.Hash constructor is deprecated.',
+     'DEP0179'],
+    ['Creating SHAKE128/256 digests without an explicit options.outputLength is deprecated.',
+     'DEP0198'],
+  ]
+});
+
 const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -280,10 +289,4 @@ assert.throws(
 
 {
   crypto.Hash('sha256');
-  common.expectWarning({
-    DeprecationWarning: [
-      ['crypto.Hash constructor is deprecated.',
-       'DEP0179'],
-    ]
-  });
 }

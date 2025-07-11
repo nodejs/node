@@ -4065,12 +4065,15 @@ The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59008
+    description: Runtime deprecation.
   - version: v24.4.0
     pr-url: https://github.com/nodejs/node/pull/58942
     description: Documentation-only deprecation with support for `--pending-deprecation`.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength` is deprecated.
 
