@@ -15,9 +15,9 @@ if (process.stdout.isTTY) {
 
 test('Assert constructor requires new', () => {
   assert.throws(() => Assert(), {
-    code: 'ERR_INVALID_ARG_TYPE',
+    code: 'ERR_CONSTRUCT_CALL_REQUIRED',
     name: 'TypeError',
-    message: /Assert/,
+    message: /Assert cannot call constructor without `new`/,
   });
 });
 
