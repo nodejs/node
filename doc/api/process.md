@@ -2809,11 +2809,10 @@ program memory allocations.
 
 ### A note on process memoryUsage
 
-Once you notice that the `rss` continues to rise while the `heapTotal` shows normal,
-and the `rss` is more than three times higher than the `heapTotal`,
-it is very likely that there is an issue with an external memory leak.
-Referer to the discussions in [nodejs/node#21973][] and [nodejs/help#1942][] for
-suggestions on switching the system's default `malloc` to `jemalloc` to try to resolve such issues.
+On Linux or other systems where glibc is commonly used, an application may have sustained
+`rss` growth despite stable `heapTotal` due to fragmentation caused by the glibc `malloc`
+implementation. See [nodejs/node#21973][] on how to switch to an alternative `malloc`
+implementation to address the performance issue.
 
 ## `process.memoryUsage.rss()`
 
