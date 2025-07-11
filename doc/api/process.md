@@ -4555,6 +4555,8 @@ cases:
 [debugger]: debugger.md
 [deprecation code]: deprecations.md
 [loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
+[nodejs/help#1942]: https://github.com/nodejs/help/issues/1942
+[nodejs/node#21973]: https://github.com/nodejs/node/issues/21973
 [note on process I/O]: #a-note-on-process-io
 [process.cpuUsage]: #processcpuusagepreviousvalue
 [process_emit_warning]: #processemitwarningwarning-type-code-ctor
@@ -4566,5 +4568,3 @@ cases:
 [uv_rusage_t]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
 [wikipedia_major_fault]: https://en.wikipedia.org/wiki/Page_fault#Major
 [wikipedia_minor_fault]: https://en.wikipedia.org/wiki/Page_fault#Minor
-[nodejs/node#21973]: https://github.com/nodejs/node/issues/21973
-[nodejs/help#1942]: https://github.com/nodejs/help/issues/1942
