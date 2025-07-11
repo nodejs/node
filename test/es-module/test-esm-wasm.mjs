@@ -403,4 +403,28 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
     strictEqual(stdout, '');
     notStrictEqual(code, 0);
   });
+
+  it('should return the underlying instance with shared state', async () => {
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-wasm-modules',
+      '--input-type=module',
+      '--eval',
+      [
+        'import { strictEqual, ok } from "node:assert";',
+        `const wasmNamespace = await import(${JSON.stringify(fixtures.fileURL('es-modules/globals.wasm'))});`,
+        'const instance = WebAssembly.namespaceInstance(wasmNamespace);',
+        'ok(instance instanceof WebAssembly.Instance);',
+        '// Verify shared state between namespace and instance',
+        'wasmNamespace.setLocalMutI32(999);',
+        'strictEqual(instance.exports.getLocalMutI32(), 999);',
+        'instance.exports.setLocalMutI32(888);',
+        'strictEqual(wasmNamespace.getLocalMutI32(), 888);',
+      ].join('\n'),
+    ]);
+
+    strictEqual(stderr, '');
+    strictEqual(stdout, '');
+    strictEqual(code, 0);
+  });
 });
