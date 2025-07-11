@@ -2890,6 +2890,13 @@ The `process.memoryUsage()` method iterates over each page to gather
 information about memory usage which might be slow depending on the
 program memory allocations.
 
+### A note on process memoryUsage
+
+On Linux or other systems where glibc is commonly used, an application may have sustained
+`rss` growth despite stable `heapTotal` due to fragmentation caused by the glibc `malloc`
+implementation. See [nodejs/node#21973][] on how to switch to an alternative `malloc`
+implementation to address the performance issue.
+
 ## `process.memoryUsage.rss()`
 
 <!-- YAML
@@ -4631,6 +4638,7 @@ cases:
 [debugger]: debugger.md
 [deprecation code]: deprecations.md
 [loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
+[nodejs/node#21973]: https://github.com/nodejs/node/issues/21973
 [note on process I/O]: #a-note-on-process-io
 [process.cpuUsage]: #processcpuusagepreviousvalue
 [process_emit_warning]: #processemitwarningwarning-type-code-ctor
