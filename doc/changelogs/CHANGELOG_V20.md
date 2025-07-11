@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.19.4">20.19.4</a><br/>
 <a href="#20.19.3">20.19.3</a><br/>
 <a href="#20.19.2">20.19.2</a><br/>
 <a href="#20.19.1">20.19.1</a><br/>
@@ -71,6 +72,20 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.19.4"></a>
+
+## 2025-07-15, Version 20.19.4 'Iron' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2025-27210) Windows Device Names (CON, PRN, AUX) Bypass Path Traversal Protection in path.normalize()
+
+### Commits
+
+* \[[`db7b93fcef`](https://github.com/nodejs/node/commit/db7b93fcef)] - **(CVE-2025-27210)** **lib**: handle all windows reserved driver name (RafaelGSS) [nodejs-private/node-private#721](https://github.com/nodejs-private/node-private/pull/721)
 
 <a id="20.19.3"></a>
 
