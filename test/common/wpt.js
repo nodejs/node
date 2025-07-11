@@ -885,7 +885,7 @@ class WPTRunner {
       console.log(test.stack);
     }
     const command = `${process.execPath} ${process.execArgv}` +
-                    ` ${require.main.filename} '${spec.filename}${spec.variant}'`;
+                    ` ${require.main?.filename} '${spec.filename}${spec.variant}'`;
     console.log(`Command: ${command}\n`);
 
     reportResult?.addSubtest(test.name, 'FAIL', test.message);
