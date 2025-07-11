@@ -1,4 +1,4 @@
-// META: global=window,dedicatedworker,jsshell
+// META: global=window,dedicatedworker,jsshell,shadowrealm
 // META: script=/wasm/jsapi/wasm-module-builder.js
 
 let emptyModuleBinary;
@@ -109,10 +109,10 @@ test(() => {
 
   builder.addGlobal(kWasmI32, true)
     .exportAs("global")
-    .init = 7;
+    .init = wasmI32Const(7);
   builder.addGlobal(kWasmF64, true)
     .exportAs("global2")
-    .init = 1.2;
+    .init = wasmF64Const(1.2);
 
   builder.addMemory(0, 256, true);
 
@@ -167,7 +167,7 @@ test(() => {
 
   builder.addGlobal(kWasmI32, true)
     .exportAs("")
-    .init = 7;
+    .init = wasmI32Const(7);
 
   const buffer = builder.toBuffer()
   const module = new WebAssembly.Module(buffer);

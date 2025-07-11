@@ -1,0 +1,96 @@
+{
+  "esm-integration/global-exports-live-bindings.tentative.any.js": {
+    "skip": "Live bindings unsupported pending V8 WebAssemblyModuleRecord"
+  },
+  "esm-integration/namespace-instance.tentative.any.js": {
+    "skip": "pending https://github.com/nodejs/node/pull/59024"
+  },
+  "esm-integration/v128-tdz.tentative.any.js": {
+    "skip": "v128 undefined Wasm bindings not yet supported in V8"
+  },
+  "global/value-get-set.any.js": {
+    "fail": {
+      "expected": [
+        "Calling setter without argument"
+      ]
+    }
+  },
+  "memory/to-fixed-length-buffer-shared.any.js": {
+    "fail": {
+      "expected": [
+        "toFixedLengthBuffer caching behavior"
+      ]
+    }
+  },
+  "memory/to-fixed-length-buffer.any.js": {
+    "fail": {
+      "expected": [
+        "API surface",
+        "toFixedLengthBuffer caching behavior"
+      ]
+    }
+  },
+  "memory/to-resizable-buffer-shared.any.js": {
+    "fail": {
+      "expected": [
+        "toResizableBuffer caching behavior",
+        "toResizableBuffer max size",
+        "Resizing a Memory's resizable buffer"
+      ]
+    }
+  },
+  "memory/to-resizable-buffer.any.js": {
+    "fail": {
+      "expected": [
+        "API surface",
+        "toResizableBuffer caching behavior",
+        "toResizableBuffer max size",
+        "Resizing a Memory's resizable buffer",
+        "Resizable buffers from Memory cannot be detached by JS"
+      ]
+    }
+  },
+  "module/moduleSource.tentative.any.js": {
+    "fail": {
+      "expected": [
+        "AbstractModuleSourceProto toStringTag brand check"
+      ]
+    }
+  },
+  "exception/getArg.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "function/call.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "function/constructor.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "function/table.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "function/type.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "global/type.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "idlharness.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "memory/constructor-types.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "memory/type.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "table/constructor-types.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "table/type.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "tag/type.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  }
+}
