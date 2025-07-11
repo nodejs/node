@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.17.1">22.17.1</a><br/>
 <a href="#22.17.0">22.17.0</a><br/>
 <a href="#22.16.0">22.16.0</a><br/>
 <a href="#22.15.1">22.15.1</a><br/>
@@ -60,6 +61,21 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.17.1"></a>
+
+## 2025-07-15, Version 22.17.1 'Jod' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2025-27210) Windows Device Names (CON, PRN, AUX) Bypass Path Traversal Protection in path.normalize()
+
+### Commits
+
+* \[[`8cf5d66ab7`](https://github.com/nodejs/node/commit/8cf5d66ab7)] - **(CVE-2025-27210)** **lib**: handle all windows reserved driver name (RafaelGSS) [nodejs-private/node-private#721](https://github.com/nodejs-private/node-private/pull/721)
+* \[[`9c0cb487ec`](https://github.com/nodejs/node/commit/9c0cb487ec)] - **win,build**: fix MSVS v17.14 compilation issue (StefanStojanovic) [#58902](https://github.com/nodejs/node/pull/58902)
 
 <a id="22.17.0"></a>
 
