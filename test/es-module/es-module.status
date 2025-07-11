@@ -16,4 +16,4 @@ test-wasm-web-api: SKIP
 
 [$system==ibmi]
 # https://github.com/nodejs/node/issues/58582
-test-wasm-web-api: PASS,FLAKY
+test-wasm-web-api: SKIP

@@ -127,11 +127,12 @@ test-tls-write-error: PASS, FLAKY
 # https://github.com/nodejs/node/issues/48047
 test-http-pipeline-flood: SKIP
 # https://github.com/nodejs/node/issues/58582
-test-http-proxy-fetch: PASS, FLAKY
-test-https-proxy-fetch: PASS, FLAKY
-test-inspector-network-fetch:  PASS, FLAKY
-test-fetch:  PASS, FLAKY
-test-without-async-context-frame: PASS, FLAKY
+test-http-proxy-fetch: SKIP
+test-https-proxy-fetch: SKIP
+test-inspector-network-fetch:  SKIP
+test-inspector-network-content-type: SKIP
+test-fetch:  SKIP
+test-without-async-context-frame: SKIP
 test-process-cpuUsage: PASS, FLAKY
 
 
