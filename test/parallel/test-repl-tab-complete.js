@@ -50,6 +50,12 @@ function prepareREPL() {
 }
 
 describe('REPL tab completion (core functionality)', () => {
+  it('does not break with variable declarations without an initialization', () => {
+    const { replServer } = prepareREPL();
+    replServer.complete('let a', getNoResultsFunction());
+    replServer.close();
+  });
+
   it('does not break in an object literal', () => {
     const { replServer, input } = prepareREPL();
 
