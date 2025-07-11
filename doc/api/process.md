@@ -2809,8 +2809,11 @@ program memory allocations.
 
 ### A note on process memoryUsage
 
-Once you notice that the `rss` continues to rise while the `heapTotal` shows normal, and the `rss` is more than three times higher than the `heapTotal`, it is very likely that there is an issue with an external memory leak.
-Referer to the discussions in [nodejs/node#21973](https://github.com/nodejs/node/issues/21973) and [nodejs/help#1942](https://github.com/nodejs/help/issues/1942) for suggestions on switching the system's default `malloc` to `jemalloc` to try to resolve such issues.
+Once you notice that the `rss` continues to rise while the `heapTotal` shows normal,
+and the `rss` is more than three times higher than the `heapTotal`,
+it is very likely that there is an issue with an external memory leak.
+Referer to the discussions in [nodejs/node#21973][] and [nodejs/help#1942][] for
+suggestions on switching the system's default `malloc` to `jemalloc` to try to resolve such issues.
 
 ## `process.memoryUsage.rss()`
 
@@ -4563,3 +4566,5 @@ cases:
 [uv_rusage_t]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
 [wikipedia_major_fault]: https://en.wikipedia.org/wiki/Page_fault#Major
 [wikipedia_minor_fault]: https://en.wikipedia.org/wiki/Page_fault#Minor
+[nodejs/node#21973]: https://github.com/nodejs/node/issues/21973
+[nodejs/help#1942]: https://github.com/nodejs/help/issues/1942
