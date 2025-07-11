@@ -333,6 +333,10 @@ const customTypesMap = {
   'quic.OnHeadersCallback': 'quic.html#callback-onheaderscallback',
   'quic.OnTrailersCallback': 'quic.html#callback-ontrailerscallback',
   'quic.OnPullCallback': 'quic.html#callback-onpullcallback',
+
+  'Lock': 'worker_threads.html#class-lock',
+  'LockManager': 'worker_threads.html#class-lockmanager',
+  'LockManagerSnapshot': 'https://developer.mozilla.org/en-US/docs/Web/API/LockManagerSnapshot',
 };
 
 const arrayPart = /(?:\[])+$/;
