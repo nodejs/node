@@ -166,7 +166,7 @@ added:
   - v14.18.0
 -->
 
-* Type: {string\[]}
+* {string\[]}
 
 The list of rules added to the blocklist.
 
@@ -246,7 +246,7 @@ added:
   - v14.18.0
 -->
 
-* Type {string}
+* {string}
 
 ### `socketaddress.family`
 
@@ -256,7 +256,7 @@ added:
   - v14.18.0
 -->
 
-* Type {string} Either `'ipv4'` or `'ipv6'`.
+* {string} Either `'ipv4'` or `'ipv6'`.
 
 ### `socketaddress.flowlabel`
 
@@ -266,7 +266,7 @@ added:
   - v14.18.0
 -->
 
-* Type {number}
+* {number}
 
 ### `socketaddress.port`
 
@@ -276,7 +276,7 @@ added:
   - v14.18.0
 -->
 
-* Type {number}
+* {number}
 
 ### `SocketAddress.parse(input)`
 

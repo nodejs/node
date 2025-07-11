@@ -538,19 +538,19 @@ added:
 * Returns: {Array} An array of objects. Each object corresponds to a column
   in the prepared statement, and contains the following properties:
 
-  * `column`: {string|null} The unaliased name of the column in the origin
+  * `column` {string|null} The unaliased name of the column in the origin
     table, or `null` if the column is the result of an expression or subquery.
     This property is the result of [`sqlite3_column_origin_name()`][].
-  * `database`: {string|null} The unaliased name of the origin database, or
+  * `database` {string|null} The unaliased name of the origin database, or
     `null` if the column is the result of an expression or subquery. This
     property is the result of [`sqlite3_column_database_name()`][].
-  * `name`: {string} The name assigned to the column in the result set of a
+  * `name` {string} The name assigned to the column in the result set of a
     `SELECT` statement. This property is the result of
     [`sqlite3_column_name()`][].
-  * `table`: {string|null} The unaliased name of the origin table, or `null` if
+  * `table` {string|null} The unaliased name of the origin table, or `null` if
     the column is the result of an expression or subquery. This property is the
     result of [`sqlite3_column_table_name()`][].
-  * `type`: {string|null} The declared data type of the column, or `null` if the
+  * `type` {string|null} The declared data type of the column, or `null` if the
     column is the result of an expression or subquery. This property is the
     result of [`sqlite3_column_decltype()`][].
 
@@ -640,12 +640,12 @@ changes:
 * `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Object}
-  * `changes`: {number|bigint} The number of rows modified, inserted, or deleted
+  * `changes` {number|bigint} The number of rows modified, inserted, or deleted
     by the most recently completed `INSERT`, `UPDATE`, or `DELETE` statement.
     This field is either a number or a `BigInt` depending on the prepared
     statement's configuration. This property is the result of
     [`sqlite3_changes64()`][].
-  * `lastInsertRowid`: {number|bigint} The most recently inserted rowid. This
+  * `lastInsertRowid` {number|bigint} The most recently inserted rowid. This
     field is either a number or a `BigInt` depending on the prepared statement's
     configuration. This property is the result of
     [`sqlite3_last_insert_rowid()`][].

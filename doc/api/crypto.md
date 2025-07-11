@@ -1996,14 +1996,14 @@ changes:
 -->
 
 * {Object}
-  * `modulusLength`: {number} Key size in bits (RSA, DSA).
-  * `publicExponent`: {bigint} Public exponent (RSA).
-  * `hashAlgorithm`: {string} Name of the message digest (RSA-PSS).
-  * `mgf1HashAlgorithm`: {string} Name of the message digest used by
+  * `modulusLength` {number} Key size in bits (RSA, DSA).
+  * `publicExponent` {bigint} Public exponent (RSA).
+  * `hashAlgorithm` {string} Name of the message digest (RSA-PSS).
+  * `mgf1HashAlgorithm` {string} Name of the message digest used by
     MGF1 (RSA-PSS).
-  * `saltLength`: {number} Minimal salt length in bytes (RSA-PSS).
-  * `divisorLength`: {number} Size of `q` in bits (DSA).
-  * `namedCurve`: {string} Name of the curve (EC).
+  * `saltLength` {number} Minimal salt length in bytes (RSA-PSS).
+  * `divisorLength` {number} Size of `q` in bits (DSA).
+  * `namedCurve` {string} Name of the curve (EC).
 
 This property exists only on asymmetric keys. Depending on the type of the key,
 this object contains information about the key. None of the information obtained
@@ -2067,7 +2067,7 @@ added:
   - v16.15.0
 -->
 
-* `otherKeyObject`: {KeyObject} A `KeyObject` with which to
+* `otherKeyObject` {KeyObject} A `KeyObject` with which to
   compare `keyObject`.
 * Returns: {boolean}
 
@@ -2085,27 +2085,27 @@ changes:
     description: Added support for `'jwk'` format.
 -->
 
-* `options`: {Object}
+* `options` {Object}
 * Returns: {string | Buffer | Object}
 
 For symmetric keys, the following encoding options can be used:
 
-* `format`: {string} Must be `'buffer'` (default) or `'jwk'`.
+* `format` {string} Must be `'buffer'` (default) or `'jwk'`.
 
 For public keys, the following encoding options can be used:
 
-* `type`: {string} Must be one of `'pkcs1'` (RSA only) or `'spki'`.
-* `format`: {string} Must be `'pem'`, `'der'`, or `'jwk'`.
+* `type` {string} Must be one of `'pkcs1'` (RSA only) or `'spki'`.
+* `format` {string} Must be `'pem'`, `'der'`, or `'jwk'`.
 
 For private keys, the following encoding options can be used:
 
-* `type`: {string} Must be one of `'pkcs1'` (RSA only), `'pkcs8'` or
+* `type` {string} Must be one of `'pkcs1'` (RSA only), `'pkcs8'` or
   `'sec1'` (EC only).
-* `format`: {string} Must be `'pem'`, `'der'`, or `'jwk'`.
-* `cipher`: {string} If specified, the private key will be encrypted with
+* `format` {string} Must be `'pem'`, `'der'`, or `'jwk'`.
+* `cipher` {string} If specified, the private key will be encrypted with
   the given `cipher` and `passphrase` using PKCS#5 v2.0 password based
   encryption.
-* `passphrase`: {string | Buffer} The passphrase to use for encryption, see
+* `passphrase` {string | Buffer} The passphrase to use for encryption, see
   `cipher`.
 
 The result type depends on the selected encoding format, when PEM the
@@ -2146,12 +2146,12 @@ added:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
+* `algorithm` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
-* `extractable`: {boolean}
-* `keyUsages`: {string\[]} See [Key usages][].
+* `extractable` {boolean}
+* `keyUsages` {string\[]} See [Key usages][].
 * Returns: {CryptoKey}
 
 Converts a `KeyObject` instance to a `CryptoKey`.
@@ -2529,7 +2529,7 @@ added: v15.6.0
 added: v15.6.0
 -->
 
-* Type: {boolean} Will be `true` if this is a Certificate Authority (CA)
+* {boolean} Will be `true` if this is a Certificate Authority (CA)
   certificate.
 
 ### `x509.checkEmail(email[, options])`
@@ -2687,7 +2687,7 @@ the given private key.
 added: v15.6.0
 -->
 
-* Type: {string\[]}
+* {string\[]}
 
 An array detailing the key extended usages for this certificate.
 
@@ -2697,7 +2697,7 @@ An array detailing the key extended usages for this certificate.
 added: v15.6.0
 -->
 
-* Type: {string}
+* {string}
 
 The SHA-1 fingerprint of this certificate.
 
@@ -2711,7 +2711,7 @@ certificates, consider using [`x509.fingerprint256`][] instead.
 added: v15.6.0
 -->
 
-* Type: {string}
+* {string}
 
 The SHA-256 fingerprint of this certificate.
 
@@ -2723,7 +2723,7 @@ added:
   - v16.14.0
 -->
 
-* Type: {string}
+* {string}
 
 The SHA-512 fingerprint of this certificate.
 
@@ -2746,7 +2746,7 @@ changes:
                  in response to CVE-2021-44532.
 -->
 
-* Type: {string}
+* {string}
 
 A textual representation of the certificate's authority information access
 extension.
@@ -2767,7 +2767,7 @@ Third-party code should be prepared to handle both possible entry formats.
 added: v15.6.0
 -->
 
-* Type: {string}
+* {string}
 
 The issuer identification included in this certificate.
 
@@ -2777,7 +2777,7 @@ The issuer identification included in this certificate.
 added: v15.9.0
 -->
 
-* Type: {X509Certificate}
+* {X509Certificate}
 
 The issuer certificate or `undefined` if the issuer certificate is not
 available.
@@ -2788,7 +2788,7 @@ available.
 added: v15.6.0
 -->
 
-* Type: {KeyObject}
+* {KeyObject}
 
 The public key {KeyObject} for this certificate.
 
@@ -2798,7 +2798,7 @@ The public key {KeyObject} for this certificate.
 added: v15.6.0
 -->
 
-* Type: {Buffer}
+* {Buffer}
 
 A `Buffer` containing the DER encoding of this certificate.
 
@@ -2808,7 +2808,7 @@ A `Buffer` containing the DER encoding of this certificate.
 added: v15.6.0
 -->
 
-* Type: {string}
+* {string}
 
 The serial number of this certificate.
 
@@ -2822,7 +2822,7 @@ identifier instead.
 added: v15.6.0
 -->
 
-* Type: {string}
+* {string}
 
 The complete subject of this certificate.
 
@@ -2839,7 +2839,7 @@ changes:
                  in response to CVE-2021-44532.
 -->
 
-* Type: {string}
+* {string}
 
 The subject alternative name specified for this certificate.
 
@@ -2864,7 +2864,7 @@ to handle both possible entry formats.
 added: v15.6.0
 -->
 
-* Type: {string}
+* {string}
 
 There is no standard JSON encoding for X509 certificates. The
 `toJSON()` method returns a string containing the PEM encoded
@@ -2876,7 +2876,7 @@ certificate.
 added: v15.6.0
 -->
 
-* Type: {Object}
+* {Object}
 
 Returns information about this certificate using the legacy
 [certificate object][] encoding.
@@ -2887,7 +2887,7 @@ Returns information about this certificate using the legacy
 added: v15.6.0
 -->
 
-* Type: {string}
+* {string}
 
 Returns the PEM-encoded certificate.
 
@@ -2897,7 +2897,7 @@ Returns the PEM-encoded certificate.
 added: v15.6.0
 -->
 
-* Type: {string}
+* {string}
 
 The date/time from which this certificate is valid.
 
@@ -2909,7 +2909,7 @@ added:
  - v22.10.0
 -->
 
-* Type: {Date}
+* {Date}
 
 The date/time from which this certificate is valid, encapsulated in a `Date` object.
 
@@ -2919,7 +2919,7 @@ The date/time from which this certificate is valid, encapsulated in a `Date` obj
 added: v15.6.0
 -->
 
-* Type: {string}
+* {string}
 
 The date/time until which this certificate is valid.
 
@@ -2931,7 +2931,7 @@ added:
  - v22.10.0
 -->
 
-* Type: {Date}
+* {Date}
 
 The date/time until which this certificate is valid, encapsulated in a `Date` object.
 
@@ -3415,14 +3415,14 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView}
-  * `key`: {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
+  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
     material, either in PEM, DER, or JWK format.
-  * `format`: {string} Must be `'pem'`, `'der'`, or '`'jwk'`.
+  * `format` {string} Must be `'pem'`, `'der'`, or '`'jwk'`.
     **Default:** `'pem'`.
-  * `type`: {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
+  * `type` {string} Must be `'pkcs1'`, `'pkcs8'` or `'sec1'`. This option is
     required only if the `format` is `'der'` and ignored otherwise.
-  * `passphrase`: {string | Buffer} The passphrase to use for decryption.
-  * `encoding`: {string} The string encoding to use when `key` is a string.
+  * `passphrase` {string | Buffer} The passphrase to use for decryption.
+  * `encoding` {string} The string encoding to use when `key` is a string.
 * Returns: {KeyObject}
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -3458,11 +3458,11 @@ changes:
 <!--lint disable maximum-line-length remark-lint-->
 
 * `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView}
-  * `key`: {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
+  * `key` {string|ArrayBuffer|Buffer|TypedArray|DataView|Object} The key
     material, either in PEM, DER, or JWK format.
-  * `format`: {string} Must be `'pem'`, `'der'`, or `'jwk'`.
+  * `format` {string} Must be `'pem'`, `'der'`, or `'jwk'`.
     **Default:** `'pem'`.
-  * `type`: {string} Must be `'pkcs1'` or `'spki'`. This option is
+  * `type` {string} Must be `'pkcs1'` or `'spki'`. This option is
     required only if the `format` is `'der'` and ignored otherwise.
   * `encoding` {string} The string encoding to use when `key` is a string.
 * Returns: {KeyObject}
@@ -3561,9 +3561,9 @@ changes:
     description: Optional callback argument added.
 -->
 
-* `options`: {Object}
-  * `privateKey`: {KeyObject}
-  * `publicKey`: {KeyObject}
+* `options` {Object}
+  * `privateKey` {KeyObject}
+  * `publicKey` {KeyObject}
 * `callback` {Function}
   * `err` {Error}
   * `secret` {Buffer}
@@ -5476,7 +5476,7 @@ If the `callback` function is provided this function uses libuv's threadpool.
 added: v17.4.0
 -->
 
-* Type: {SubtleCrypto}
+* {SubtleCrypto}
 
 A convenient alias for [`crypto.webcrypto.subtle`][].
 
