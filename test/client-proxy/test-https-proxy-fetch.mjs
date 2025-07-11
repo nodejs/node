@@ -18,7 +18,7 @@ const server = https.createServer({
   key: fixtures.readKey('agent8-key.pem'),
 }, common.mustCall((req, res) => {
   res.end('Hello world');
-}, 3));
+}, common.isWindows ? 2 : 3));
 server.on('error', common.mustNotCall((err) => { console.error('Server error', err); }));
 server.listen(0);
 await once(server, 'listening');
