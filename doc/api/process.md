@@ -4554,7 +4554,6 @@ cases:
 [debugger]: debugger.md
 [deprecation code]: deprecations.md
 [loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
-[nodejs/help#1942]: https://github.com/nodejs/help/issues/1942
 [nodejs/node#21973]: https://github.com/nodejs/node/issues/21973
 [note on process I/O]: #a-note-on-process-io
 [process.cpuUsage]: #processcpuusagepreviousvalue
