@@ -104,7 +104,7 @@ changes:
     description: Added the new optional reason argument.
 -->
 
-* `reason`: {any}
+* `reason` {any}
 * Returns: {AbortSignal}
 
 Returns a new already aborted `AbortSignal`.
