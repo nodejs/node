@@ -44,6 +44,22 @@ Represents the readable side of a TTY. In normal circumstances
 [`process.stdin`][] will be the only `tty.ReadStream` instance in a Node.js
 process and there should be no reason to create additional instances.
 
+### `new tty.ReadStream(fd[, options])`
+
+<!-- YAML
+added: v0.5.8
+changes:
+  - version: v0.9.4
+    description: The `options` argument is supported.
+-->
+
+* `fd` {number} A file descriptor associated with a TTY.
+* `options` {Object} Options passed to parent `net.Socket`,
+  see `options` of [`net.Socket` constructor][].
+* Returns {tty.ReadStream}
+
+Creates a `ReadStream` for `fd` associated with a TTY.
+
 ### `readStream.isRaw`
 
 <!-- YAML
@@ -97,22 +113,6 @@ Represents the writable side of a TTY. In normal circumstances,
 [`process.stdout`][] and [`process.stderr`][] will be the only
 `tty.WriteStream` instances created for a Node.js process and there
 should be no reason to create additional instances.
-
-### `new tty.ReadStream(fd[, options])`
-
-<!-- YAML
-added: v0.5.8
-changes:
-  - version: v0.9.4
-    description: The `options` argument is supported.
--->
-
-* `fd` {number} A file descriptor associated with a TTY.
-* `options` {Object} Options passed to parent `net.Socket`,
-  see `options` of [`net.Socket` constructor][].
-* Returns {tty.ReadStream}
-
-Creates a `ReadStream` for `fd` associated with a TTY.
 
 ### `new tty.WriteStream(fd)`
 
