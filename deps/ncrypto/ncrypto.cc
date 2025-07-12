@@ -1718,6 +1718,7 @@ const EVP_CIPHER* getCipherByName(const char* name) {
 }
 
 namespace {
+
 struct MaxThreadsScope final {
   MaxThreadsScope(OSSL_LIB_CTX* ctx, uint64_t threads)
       : ctx{ctx}, success{OSSL_set_max_threads(ctx, threads) == 1} {}
@@ -1726,61 +1727,8 @@ struct MaxThreadsScope final {
   OSSL_LIB_CTX* ctx;
   bool success;
 };
+
 }  // namespace
-
-DataPointer argon2(const Buffer<const char>& pass,
-                   const Buffer<const char>& salt,
-                   std::string_view algorithm,
-                   const Buffer<const char>& secret,
-                   const Buffer<const char>& ad,
-                   uint32_t iter,
-                   uint32_t lanes,
-                   uint32_t memcost,
-                   size_t length) {
-  ClearErrorOnReturn clearErrorOnReturn;
-
-  if (pass.len > INT_MAX || salt.len > INT_MAX || length > INT_MAX) {
-    return {};
-  }
-
-  auto libctx =
-      DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free>{OSSL_LIB_CTX_new()};
-  auto kdf = EVPKdfPointer::NewByAlgorithmName(libctx.get(), algorithm);
-  auto ctx = EVPKdfCtxPointer::New(kdf);
-
-  auto params = std::vector<OSSL_PARAM>{
-      OSSL_PARAM_octet_string(
-          OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass.data), pass.len),
-      OSSL_PARAM_octet_string(
-          OSSL_KDF_PARAM_SALT, const_cast<char*>(salt.data), salt.len),
-      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ITER, const_cast<uint32_t*>(&iter)),
-      OSSL_PARAM_uint32(OSSL_KDF_PARAM_THREADS, const_cast<uint32_t*>(&lanes)),
-      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_LANES,
-                        const_cast<uint32_t*>(&lanes)),
-      OSSL_PARAM_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST,
-                        const_cast<uint32_t*>(&memcost)),
-  };
-
-  if (secret.len > 0) {
-    params.push_back(OSSL_PARAM_octet_string(
-        OSSL_KDF_PARAM_SECRET, const_cast<char*>(secret.data), secret.len));
-  }
-
-  if (ad.len > 0) {
-    params.push_back(OSSL_PARAM_octet_string(
-        OSSL_KDF_PARAM_ARGON2_AD, const_cast<char*>(ad.data), ad.len));
-  }
-
-  params.push_back(OSSL_PARAM_END);
-
-  // TODO: Create a new OSSL_LIB_CTX if another function uses thread limit
-  MaxThreadsScope mts{libctx.get(), lanes};
-  if (!mts.success) {
-    return {};
-  }
-
-  return ctx.derive(length, params.data());
-}
 
 bool checkHkdfLength(const Digest& md, size_t length) {
   // HKDF-Expand computes up to 255 HMAC blocks, each having as many bits as
@@ -1941,7 +1889,7 @@ DataPointer argon2(const Buffer<const char>& pass,
       algorithm = "ARGON2D";
       break;
     case Argon2Type::ARGON2ID:
-      algorithm = "ARGON2ID"; 
+      algorithm = "ARGON2ID";
       break;
     default:
       // Invalid Argon2 type
@@ -4082,82 +4030,6 @@ bool Ec::GetCurves(Ec::GetCurveCallback callback) {
     if (!callback(OBJ_nid2sn(curve.nid))) return false;
   }
   return true;
-}
-
-// ============================================================================
-
-EVPKdfPointer::EVPKdfPointer() : kdf_(nullptr) {}
-
-EVPKdfPointer::EVPKdfPointer(EVP_KDF* ctx) : kdf_(ctx) {}
-
-EVPKdfPointer::EVPKdfPointer(EVPKdfPointer&& other) noexcept
-    : kdf_(other.release()) {}
-
-EVPKdfPointer& EVPKdfPointer::operator=(EVPKdfPointer&& other) noexcept {
-  kdf_.reset(other.release());
-  return *this;
-}
-
-EVPKdfPointer::~EVPKdfPointer() {
-  reset();
-}
-
-void EVPKdfPointer::reset(EVP_KDF* ctx) {
-  kdf_.reset(ctx);
-}
-
-EVP_KDF* EVPKdfPointer::release() {
-  return kdf_.release();
-}
-
-EVPKdfPointer EVPKdfPointer::NewByAlgorithmName(
-    OSSL_LIB_CTX* libctx, const std::string_view algorithm) {
-  return EVPKdfPointer(EVP_KDF_fetch(libctx, algorithm.data(), nullptr));
-}
-
-// ============================================================================
-
-EVPKdfCtxPointer::EVPKdfCtxPointer() : ctx_(nullptr) {}
-
-EVPKdfCtxPointer::EVPKdfCtxPointer(EVP_KDF_CTX* ctx) : ctx_(ctx) {}
-
-EVPKdfCtxPointer::EVPKdfCtxPointer(EVPKdfCtxPointer&& other) noexcept
-    : ctx_(other.release()) {}
-
-EVPKdfCtxPointer& EVPKdfCtxPointer::operator=(
-    EVPKdfCtxPointer&& other) noexcept {
-  ctx_.reset(other.release());
-  return *this;
-}
-
-EVPKdfCtxPointer::~EVPKdfCtxPointer() {
-  reset();
-}
-
-void EVPKdfCtxPointer::reset(EVP_KDF_CTX* ctx) {
-  ctx_.reset(ctx);
-}
-
-EVP_KDF_CTX* EVPKdfCtxPointer::release() {
-  return ctx_.release();
-}
-
-DataPointer EVPKdfCtxPointer::derive(size_t out_size,
-                                     const OSSL_PARAM* params) {
-  auto out = DataPointer::Alloc(out_size);
-  if (EVP_KDF_derive(ctx_.get(),
-                     reinterpret_cast<uint8_t*>(out.get()),
-                     out_size,
-                     params) != 1) {
-    std::printf("%s", ERR_error_string(ERR_get_error(), nullptr));
-    return {};
-  }
-
-  return out;
-}
-
-EVPKdfCtxPointer EVPKdfCtxPointer::New(const EVPKdfPointer& kdf) {
-  return EVPKdfCtxPointer(EVP_KDF_CTX_new(kdf.get()));
 }
 
 // ============================================================================

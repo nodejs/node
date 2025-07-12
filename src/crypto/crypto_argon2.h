@@ -24,7 +24,6 @@ struct Argon2Config final : public MemoryRetainer {
   CryptoJobMode mode;
   ByteSource pass;
   ByteSource salt;
-  std::string algorithm;
   ByteSource secret;
   ByteSource ad;
   ncrypto::Argon2Type type;
@@ -55,12 +54,12 @@ struct Argon2Traits final {
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
-      Argon2Config* params);
+      Argon2Config* config);
 
-  static bool DeriveBits(
-    Environment* env,
-    const Argon2Config& params,
-    ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const Argon2Config& config,
+                         ByteSource* out,
+                         CryptoJobMode mode);
 
   static v8::MaybeLocal<v8::Value> EncodeOutput(Environment* env,
                                                 const Argon2Config& config,

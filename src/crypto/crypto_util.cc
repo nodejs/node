@@ -667,11 +667,6 @@ CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
   return static_cast<CryptoJobMode>(mode);
 }
 
-MaxThreadsScope::MaxThreadsScope(OSSL_LIB_CTX* ctx, uint64_t threads)
-    : ctx_{ctx}, success{OSSL_set_max_threads(ctx, threads) == 1} {}
-
-MaxThreadsScope::~MaxThreadsScope() { OSSL_set_max_threads(ctx_.get(), 0); }
-
 namespace {
 // SecureBuffer uses OpenSSL's secure heap feature to allocate a
 // Uint8Array. Without --secure-heap, OpenSSL's secure heap is disabled,

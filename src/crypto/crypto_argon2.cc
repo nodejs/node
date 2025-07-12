@@ -41,7 +41,7 @@ void Argon2Config::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 MaybeLocal<Value> Argon2Traits::EncodeOutput(Environment* env,
-                                             const Argon2Config& params,
+                                             const Argon2Config& config,
                                              ByteSource* out) {
   return out->ToArrayBuffer(env);
 }
@@ -50,10 +50,10 @@ Maybe<void> Argon2Traits::AdditionalConfig(
     CryptoJobMode mode,
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
-    Argon2Config* params) {
+    Argon2Config* config) {
   Environment* env = Environment::GetCurrent(args);
 
-  params->mode = mode;
+  config->mode = mode;
 
   ArrayBufferOrViewContents<char> pass(args[offset]);
   ArrayBufferOrViewContents<char> salt(args[offset + 1]);
@@ -99,16 +99,14 @@ Maybe<void> Argon2Traits::AdditionalConfig(
   }
 
   CHECK(args[offset + 5]->IsUint32());  // iter
-  CHECK(args[offset + 6]->IsUint32());  // threads
-  CHECK(args[offset + 7]->IsUint32());  // lanes
-  CHECK(args[offset + 8]->IsUint32());  // memcost
-  CHECK(args[offset + 9]->IsUint32());  // keylen
+  CHECK(args[offset + 6]->IsUint32());  // lanes
+  CHECK(args[offset + 7]->IsUint32());  // memcost
+  CHECK(args[offset + 8]->IsUint32());  // keylen
 
   config->iter = args[offset + 5].As<Uint32>()->Value();
-  config->threads = args[offset + 6].As<Uint32>()->Value();
-  config->lanes = args[offset + 7].As<Uint32>()->Value();
-  config->memcost = args[offset + 8].As<Uint32>()->Value();
-  config->keylen = args[offset + 9].As<Uint32>()->Value();
+  config->lanes = args[offset + 6].As<Uint32>()->Value();
+  config->memcost = args[offset + 7].As<Uint32>()->Value();
+  config->keylen = args[offset + 8].As<Uint32>()->Value();
 
   if (!ncrypto::argon2(config->pass,
                        config->salt,
@@ -128,9 +126,10 @@ Maybe<void> Argon2Traits::AdditionalConfig(
 }
 
 bool Argon2Traits::DeriveBits(Environment* env,
-                              const Argon2Config& params,
-                              ByteSource* out) {
-  // If the params.length is zero-length, just return an empty buffer.
+                              const Argon2Config& config,
+                              ByteSource* out,
+                              CryptoJobMode mode) {
+  // If the config.length is zero-length, just return an empty buffer.
   // It's useless, yes, but allowed via the API.
   if (config.keylen == 0) {
     *out = ByteSource();
