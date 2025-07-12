@@ -74,7 +74,6 @@ import {
   createReadStream,
   createWriteStream,
 } from 'node:fs';
-import process from 'node:process';
 import { createGzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 
