@@ -1,6 +1,7 @@
 #include "node_task_runner.h"
 #include "util-inl.h"
 
+#include <filesystem>
 #include <regex>  // NOLINT(build/c++11)
 
 namespace node::task_runner {
@@ -252,7 +253,22 @@ FindPackageJson(const std::filesystem::path& cwd) {
 void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const std::vector<std::string_view>& positional_args) {
-  auto cwd = std::filesystem::current_path();
+  auto run_from = per_process::cli_options->run_from;
+  std::filesystem::path cwd;
+
+  if (run_from.empty()) {
+    cwd = std::filesystem::current_path();
+  } else {
+    cwd = std::filesystem::absolute(std::filesystem::path(run_from));
+
+    if (!is_directory(cwd)) {
+      // Given a directory that should have a package.json
+      fprintf(stderr, "Error: %s is not a directory\n", cwd.c_str());
+      result->exit_code_ = ExitCode::kGenericUserError;
+      return;
+    }
+  }
+
   auto package_json = FindPackageJson(cwd);
 
   if (!package_json.has_value()) {
