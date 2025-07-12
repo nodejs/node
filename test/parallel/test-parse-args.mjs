@@ -1063,62 +1063,7 @@ test('auto-detect --no-foo as negated when strict:false and allowNegative', () =
   process.execArgv = holdExecArgv;
 });
 
-test('help value for option must be a string', () => {
-  const args = [];
-  const options = { alpha: { type: 'string', help: true } };
-  assert.throws(() => {
-    parseArgs({ args, options });
-  }, /"options\.alpha\.help" property must be of type string/
-  );
-});
-
-test('when help value for lone short option is added, then add help text', () => {
-  const args = ['-f', 'bar'];
-  const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
-  const printUsage = '-f, --foo <arg>               help text';
-  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
-  const result = parseArgs({ args, options, allowPositionals: true });
-  assert.deepStrictEqual(result, expected);
-});
-
-test('when help value for short group option is added, then add help text', () => {
-  const args = ['-fm', 'bar'];
-  const options = { foo: { type: 'boolean', short: 'f', help: 'help text' },
-                    moo: { type: 'string', short: 'm', help: 'help text' } };
-  const printUsage = '-f, --foo                     help text\n-m, --moo <arg>               help text';
-  const expected = { values: { __proto__: null, foo: true, moo: 'bar' }, positionals: [], printUsage };
-  const result = parseArgs({ args, options, allowPositionals: true });
-  assert.deepStrictEqual(result, expected);
-});
-
-test('when help value for short option and value is added, then add help text', () => {
-  const args = ['-fFILE'];
-  const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
-  const printUsage = '-f, --foo <arg>               help text';
-  const expected = { values: { __proto__: null, foo: 'FILE' }, positionals: [], printUsage };
-  const result = parseArgs({ args, options, allowPositionals: true });
-  assert.deepStrictEqual(result, expected);
-});
-
-test('when help value for lone long option is added, then add help text', () => {
-  const args = ['--foo', 'bar'];
-  const options = { foo: { type: 'string', help: 'help text' } };
-  const printUsage = '--foo <arg>                   help text';
-  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
-  const result = parseArgs({ args, options, allowPositionals: true });
-  assert.deepStrictEqual(result, expected);
-});
-
-test('when help value for lone long option and value is added, then add help text', () => {
-  const args = ['--foo=bar'];
-  const options = { foo: { type: 'string', help: 'help text' } };
-  const printUsage = '--foo <arg>                   help text';
-  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
-  const result = parseArgs({ args, options, allowPositionals: true });
-  assert.deepStrictEqual(result, expected);
-});
-
-test('help value config must be a string', () => {
+test('help arg value config must be a string', () => {
   const args = ['-f', 'bar'];
   const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
   const help = true;
@@ -1128,102 +1073,120 @@ test('help value config must be a string', () => {
   );
 });
 
-test('when help value is added, then add initial help text', () => {
+test('help value for option must be a string', () => {
+  const args = [];
+  const options = { alpha: { type: 'string', help: true } };
+  assert.throws(() => {
+    parseArgs({ args, options });
+  }, /"options\.alpha\.help" property must be of type string/
+  );
+});
+
+test('when help arg with help value for lone short option is added, then add help text', () => {
   const args = ['-f', 'bar'];
   const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
   const help = 'Description for some awesome stuff:';
   const printUsage = help + '\n-f, --foo <arg>               help text';
   const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
-  const result = parseArgs({ args, options, help });
+  const result = parseArgs({ args, options, allowPositionals: true, help });
   assert.deepStrictEqual(result, expected);
 });
 
-function setupConsoleAndExit() {
-  const originalLog = console.log;
-  const originalExit = process.exit;
+test('when help arg with help value for short group option is added, then add help text', () => {
+  const args = ['-fm', 'bar'];
+  const options = { foo: { type: 'boolean', short: 'f', help: 'help text' },
+                    moo: { type: 'string', short: 'm', help: 'help text' } };
+  const help = 'Description for some awesome stuff:';
+  const printUsage = help + '\n-f, --foo                     help text\n-m, --moo <arg>               help text';
+  const expected = { values: { __proto__: null, foo: true, moo: 'bar' }, positionals: [], printUsage };
+  const result = parseArgs({ args, options, allowPositionals: true, help });
+  assert.deepStrictEqual(result, expected);
+});
 
-  let output = '';
-  let exitCode = null;
+test('when help arg with help value for short option and value is added, then add help text', () => {
+  const args = ['-fFILE'];
+  const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
+  const help = 'Description for some awesome stuff:';
+  const printUsage = help + '\n-f, --foo <arg>               help text';
+  const expected = { values: { __proto__: null, foo: 'FILE' }, positionals: [], printUsage };
+  const result = parseArgs({ args, options, allowPositionals: true, help });
+  assert.deepStrictEqual(result, expected);
+});
 
-  console.log = (message) => {
-    output += message + '\n';
+test('when help arg with help value for lone long option is added, then add help text', () => {
+  const args = ['--foo', 'bar'];
+  const options = { foo: { type: 'string', help: 'help text' } };
+  const help = 'Description for some awesome stuff:';
+  const printUsage = help + '\n--foo <arg>                   help text';
+  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
+  const result = parseArgs({ args, options, allowPositionals: true, help });
+  assert.deepStrictEqual(result, expected);
+});
+
+test('when help arg with help value for lone long option and value is added, then add help text', () => {
+  const args = ['--foo=bar'];
+  const options = { foo: { type: 'string', help: 'help text' } };
+  const help = 'Description for some awesome stuff:';
+  const printUsage = help + '\n--foo <arg>                   help text';
+  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [], printUsage };
+  const result = parseArgs({ args, options, allowPositionals: true, help });
+  assert.deepStrictEqual(result, expected);
+});
+
+test('when help arg with help values and without explicit help texts, then add help text', () => {
+  const args = [
+    '-h', '-a', 'val1',
+  ];
+  const options = {
+    help: { type: 'boolean', short: 'h', help: 'Prints command line options' },
+    alpha: { type: 'string', short: 'a', help: 'Alpha option help' },
+    beta: { type: 'boolean', short: 'b', help: 'Beta option help' },
+    charlie: { type: 'string', short: 'c' },
+    delta: { type: 'string', help: 'Delta option help' },
+    echo: { type: 'boolean', short: 'e', help: 'Echo option help' },
+    foxtrot: { type: 'string', help: 'Foxtrot option help' },
+    golf: { type: 'boolean', help: 'Golf option help' },
+    hotel: { type: 'string', help: 'Hotel option help' },
+    india: { type: 'string' },
+    juliet: { type: 'boolean', short: 'j', help: 'Juliet option help' },
+    looooooooooooooongHelpText: {
+      type: 'string',
+      short: 'L',
+      help: 'Very long option help text for demonstration purposes'
+    }
   };
+  const help = 'Description for some awesome stuff:';
 
-  process.exit = (code) => {
-    exitCode = code;
-  };
-
-  function restore() {
-    console.log = originalLog;
-    process.exit = originalExit;
-  }
-
-  return { getOutput: () => output, getExitCode: () => exitCode, restore };
-}
-
-test('when --help flag is present with help arg, prints all help text and exit', () => {
-  const { getOutput, getExitCode, restore } = setupConsoleAndExit();
-
-  try {
-    const args = [
-      '-h', '-a', 'val1',
-    ];
-    const options = {
-      help: { type: 'boolean', short: 'h', help: 'Prints command line options' },
-      alpha: { type: 'string', short: 'a', help: 'Alpha option help' },
-      beta: { type: 'boolean', short: 'b', help: 'Beta option help' },
-      charlie: { type: 'string', short: 'c' },
-      delta: { type: 'string', help: 'Delta option help' },
-      echo: { type: 'boolean', short: 'e', help: 'Echo option help' },
-      foxtrot: { type: 'string', help: 'Foxtrot option help' },
-      golf: { type: 'boolean', help: 'Golf option help' },
-      hotel: { type: 'string', help: 'Hotel option help' },
-      india: { type: 'string' },
-      juliet: { type: 'boolean', short: 'j', help: 'Juliet option help' },
-      looooooooooooooongHelpText: {
-        type: 'string',
-        short: 'L',
-        help: 'Very long option help text for demonstration purposes'
-      }
-    };
-    const help = 'Description for some awesome stuff:';
-
-    parseArgs({ args, options, help });
-  } finally {
-    restore();
-  }
-
-  const expectedOutput =
+  const result = parseArgs({ args, options, help });
+  const printUsage =
   'Description for some awesome stuff:\n' +
   '-h, --help                    Prints command line options\n' +
   '-a, --alpha <arg>             Alpha option help\n' +
   '-b, --beta                    Beta option help\n' +
+  '-c, --charlie <arg>\n' +
   '--delta <arg>                 Delta option help\n' +
   '-e, --echo                    Echo option help\n' +
   '--foxtrot <arg>               Foxtrot option help\n' +
   '--golf                        Golf option help\n' +
   '--hotel <arg>                 Hotel option help\n' +
+  '--india <arg>\n' +
   '-j, --juliet                  Juliet option help\n' +
   '-L, --looooooooooooooongHelpText <arg>\n' +
-  '                              Very long option help text for demonstration purposes\n';
+  '                              Very long option help text for demonstration purposes';
 
-  assert.strictEqual(getExitCode(), 0);
-  assert.strictEqual(getOutput(), expectedOutput);
+  assert.strictEqual(result.printUsage, printUsage);
 });
 
-test('when --help flag is present with help arg but no help text is available, prints help text and exit', () => {
-  const { getOutput, getExitCode, restore } = setupConsoleAndExit();
+test('when help arg but no help text is available, then add help text', () => {
+  const args = ['-a', 'val1', '--help'];
+  const help = 'Description for some awesome stuff:';
+  const options = { alpha: { type: 'string', short: 'a' }, help: { type: 'boolean' } };
+  const printUsage =
+    'Description for some awesome stuff:\n' +
+    '-a, --alpha <arg>\n' +
+    '--help';
 
-  try {
-    const args = ['-a', 'val1', '--help'];
-    const help = 'Description for some awesome stuff:';
-    const options = { alpha: { type: 'string', short: 'a' }, help: { type: 'boolean' } };
+  const result = parseArgs({ args, options, help });
 
-    parseArgs({ args, options, help });
-  } finally {
-    restore();
-  }
-
-  assert.strictEqual(getExitCode(), 0);
-  assert.strictEqual(getOutput(), 'Description for some awesome stuff:\n');
+  assert.strictEqual(result.printUsage, printUsage);
 });
