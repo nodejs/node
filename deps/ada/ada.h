@@ -1,4 +1,4 @@
-/* auto-generated on 2025-04-28 12:16:36 -0400. Do not edit! */
+/* auto-generated on 2025-06-30 19:51:09 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -1122,7 +1122,7 @@ enum class encoding_type {
 /**
  * Convert a encoding_type to string.
  */
-ada_warn_unused std::string to_string(encoding_type type);
+ada_warn_unused std::string_view to_string(encoding_type type);
 
 }  // namespace ada
 
@@ -10498,14 +10498,14 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "3.2.4"
+#define ADA_VERSION "3.2.5"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 3,
   ADA_VERSION_MINOR = 2,
-  ADA_VERSION_REVISION = 4,
+  ADA_VERSION_REVISION = 5,
 };
 
 }  // namespace ada
