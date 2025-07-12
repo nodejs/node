@@ -1031,7 +1031,6 @@ void Agent::ReportUncaughtException(Local<Value> error,
   if (!IsListening())
     return;
   client_->ReportUncaughtException(error, message);
-  WaitForDisconnect();
 }
 
 void Agent::PauseOnNextJavascriptStatement(const std::string& reason) {
