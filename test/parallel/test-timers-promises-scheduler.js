@@ -51,5 +51,6 @@ async function testCancelableWait2() {
 testCancelableWait2().then(common.mustCall());
 
 throws(() => new scheduler.constructor(), {
+  name: 'TypeError',
   code: 'ERR_ILLEGAL_CONSTRUCTOR',
 });
