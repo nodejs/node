@@ -1922,6 +1922,10 @@ added:
   - v16.17.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58875
+    description: Add support for help text in options and general help text.
+  - version:
     - v22.4.0
     - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53107
@@ -1959,6 +1963,7 @@ changes:
       be used if (and only if) the option does not appear in the arguments to be
       parsed. It must be of the same type as the `type` property. When `multiple`
       is `true`, it must be an array.
+    * `help` {string} Descriptive text to display in help output for this option.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
@@ -1973,6 +1978,7 @@ changes:
     the built-in behavior, from adding additional checks through to reprocessing
     the tokens in different ways.
     **Default:** `false`.
+  * `help` {string} General help text to display at the beginning of help output.
 
 * Returns: {Object} The parsed command line arguments:
   * `values` {Object} A mapping of parsed option names with their {string}
@@ -1980,6 +1986,8 @@ changes:
   * `positionals` {string\[]} Positional arguments.
   * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
     section. Only returned if `config` includes `tokens: true`.
+  * `printUsage` {string | undefined} Formatted help text for all options provided. Only included if general `help` text
+    is available.
 
 Provides a higher level API for command-line argument parsing than interacting
 with `process.argv` directly. Takes a specification for the expected arguments
@@ -2023,6 +2031,86 @@ const {
 } = parseArgs({ args, options });
 console.log(values, positionals);
 // Prints: [Object: null prototype] { foo: true, bar: 'b' } []
+```
+
+### `parseArgs` help text
+
+`parseArgs` supports automatic formatted help text generation for command-line options. To use this feature, provide
+general help text using the `help` config property, and also
+add a `help` property to each option can be optionally included.
+
+```mjs
+import { parseArgs } from 'node:util';
+
+const options = {
+  verbose: {
+    type: 'boolean',
+    short: 'v',
+  },
+  help: {
+    type: 'boolean',
+    short: 'h',
+    help: 'Prints command line options',
+  },
+  output: {
+    type: 'string',
+    help: 'Output directory',
+  },
+};
+
+// Get serialized help text in result
+const result = parseArgs({
+  options,
+  help: 'My CLI Tool v1.0\n\nProcess files with various options.',
+});
+
+if (result.printUsage) {
+  console.log(result.printUsage);
+  // Prints:
+  // My CLI Tool v1.0
+  //
+  // Process files with various options.
+  // -v, --verbose
+  // -h, --help.               Prints command line options
+  // --output <arg>            Output directory
+}
+```
+
+```cjs
+const { parseArgs } = require('node:util');
+
+const options = {
+  verbose: {
+    type: 'boolean',
+    short: 'v',
+  },
+  help: {
+    type: 'boolean',
+    short: 'h',
+    help: 'Prints command line options',
+  },
+  output: {
+    type: 'string',
+    help: 'Output directory',
+  },
+};
+
+// Get serialized help text in result
+const result = parseArgs({
+  options,
+  help: 'My CLI Tool v1.0\n\nProcess files with various options.',
+});
+
+if (result.printUsage) {
+  console.log(result.printUsage);
+  // Prints:
+  // My CLI Tool v1.0
+  //
+  // Process files with various options.
+  // -v, --verbose
+  // -h, --help.               Prints command line options
+  // --output <arg>            Output directory
+}
 ```
 
 ### `parseArgs` `tokens`
