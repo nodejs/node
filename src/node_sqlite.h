@@ -4,10 +4,12 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object.h"
+#include "lru_cache-inl.h"
 #include "node_mem.h"
 #include "sqlite3.h"
 #include "util.h"
 
+#include <list>
 #include <map>
 #include <unordered_set>
 
@@ -95,6 +97,7 @@ class DatabaseSync : public BaseObject {
   static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CreateTagStore(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Location(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CustomFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AggregateFunction(
@@ -146,6 +149,7 @@ class DatabaseSync : public BaseObject {
   std::unordered_set<StatementSync*> statements_;
 
   friend class Session;
+  friend class SqlTagStore;
 };
 
 class StatementSync : public BaseObject {
@@ -195,6 +199,7 @@ class StatementSync : public BaseObject {
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
 
   friend class StatementSyncIterator;
+  friend class SqlTagStore;
 };
 
 class StatementSyncIterator : public BaseObject {
@@ -246,6 +251,37 @@ class Session : public BaseObject {
   void Delete();
   sqlite3_session* session_;
   BaseObjectWeakPtr<DatabaseSync> database_;  // The Parent Database
+};
+
+class SqlTagStore : public BaseObject {
+ public:
+  SqlTagStore(Environment* env,
+              v8::Local<v8::Object> object,
+              BaseObjectWeakPtr<DatabaseSync> database,
+              int capacity);
+  ~SqlTagStore() override;
+  static BaseObjectPtr<SqlTagStore> Create(
+      Environment* env, BaseObjectWeakPtr<DatabaseSync> database, int capacity);
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static void all(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void get(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void iterate(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void run(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void size(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void capacity(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void reset(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void clear(const v8::FunctionCallbackInfo<v8::Value>& info);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  SET_MEMORY_INFO_NAME(SqlTagStore)
+  SET_SELF_SIZE(SqlTagStore)
+
+ private:
+  static BaseObjectPtr<StatementSync> PrepareStatement(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  BaseObjectWeakPtr<DatabaseSync> database_;
+  LruCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
+  int capacity_;
 };
 
 class UserDefinedFunction {
