@@ -180,7 +180,7 @@ See [`git-node-v8-backport`][] for more documentation and additional options.
     _vY.x-staging_ branch and notify the `@nodejs/v8` team.
   * Run the Node.js [V8 CI][] in addition to the [Node.js CI][].
     The CI uses the `test-v8` target in the `Makefile`, which uses
-    `tools/make-v8.sh` to reconstruct a git tree in the `deps/v8` directory to
+    `tools/build_v8.py` to reconstruct a git tree in the `deps/v8` directory to
     run V8 tests.[^1]
 
 Here are the steps for the bug mentioned above:
