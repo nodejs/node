@@ -1936,7 +1936,7 @@ changes:
   - version:
     - REPLACEME
     pr-url: https://github.com/nodejs/node/pull/58875
-    description: Add support for help text in options and enableHelpPrinting config.
+    description: Add support for help text in options and general help text.
   - version:
     - v22.4.0
     - v20.16.0
@@ -2000,8 +2000,8 @@ changes:
   * `positionals` {string\[]} Positional arguments.
   * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
     section. Only returned if `config` includes `tokens: true`.
-  * `printUsage` {string | undefined} Formatted help text for options that have
-    help text configured. Only included if help text is available and `enableHelpPrinting` is `false`.
+  * `printUsage` {string | undefined} Formatted help text for all options provided. Only included if general `help` text
+    is available.
 
 Provides a higher level API for command-line argument parsing than interacting
 with `process.argv` directly. Takes a specification for the expected arguments
@@ -2049,11 +2049,9 @@ console.log(values, positionals);
 
 ### `parseArgs` help text
 
-`parseArgs` supports automatic help text generation for command-line options. To use this feature, add a `help`
-property to each option and optionally provide general help text using the `help` config property.
-
-When both general help text is provided and `--help` is present in the `args`, `parseArgs`
-will automatically print the help message and exit with code 0.
+`parseArgs` supports automatic formatted help text generation for command-line options. To use this feature, provide
+general help text using the `help` config property, and also
+add a `help` property to each option can be optionally included.
 
 ```mjs
 import { parseArgs } from 'node:util';
@@ -2062,7 +2060,6 @@ const options = {
   verbose: {
     type: 'boolean',
     short: 'v',
-    help: 'Enable verbose output',
   },
   help: {
     type: 'boolean',
@@ -2087,26 +2084,10 @@ if (result.printUsage) {
   // My CLI Tool v1.0
   //
   // Process files with various options.
-  // -v, --verbose             Enable verbose output
+  // -v, --verbose
   // -h, --help.               Prints command line options
   // --output <arg>            Output directory
 }
-
-// Or automatically print help and exit
-const args = ['-h'];
-parseArgs({
-  args,
-  options,
-  help: 'My CLI Tool v1.0\n\nProcess files with various options.',
-});
-// Prints:
-// My CLI Tool v1.0
-//
-// Process files with various options.
-// -v, --verbose             Enable verbose output
-// -h, --help.               Prints command line options
-// --output <arg>            Output directory
-// exit with code 0
 ```
 
 ```cjs
@@ -2116,7 +2097,6 @@ const options = {
   verbose: {
     type: 'boolean',
     short: 'v',
-    help: 'Enable verbose output',
   },
   help: {
     type: 'boolean',
@@ -2141,26 +2121,10 @@ if (result.printUsage) {
   // My CLI Tool v1.0
   //
   // Process files with various options.
-  // -v, --verbose             Enable verbose output
+  // -v, --verbose
   // -h, --help.               Prints command line options
   // --output <arg>            Output directory
 }
-
-// Or automatically print help and exit
-const args = ['-h'];
-parseArgs({
-  args,
-  options,
-  help: 'My CLI Tool v1.0\n\nProcess files with various options.',
-});
-// Prints:
-// My CLI Tool v1.0
-//
-// Process files with various options.
-// -v, --verbose             Enable verbose output
-// -h, --help.               Prints command line options
-// --output <arg>            Output directory
-// exit with code 0
 ```
 
 ### `parseArgs` `tokens`
