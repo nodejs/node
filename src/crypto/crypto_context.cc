@@ -2095,6 +2095,12 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(buff);
 }
 
+void SecureContext::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackFieldWithSize("ctx", ctx_ ? kSizeOf_SSL_CTX : 0);
+  tracker->TrackFieldWithSize("cert", cert_ ? kSizeOf_X509 : 0);
+  tracker->TrackFieldWithSize("issuer", issuer_ ? kSizeOf_X509 : 0);
+}
+
 // UseExtraCaCerts is called only once at the start of the Node.js process.
 void UseExtraCaCerts(std::string_view file) {
   extra_root_certs_file = file;
