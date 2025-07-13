@@ -3074,11 +3074,15 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
 
   if (argc > 2) {  // mkdtemp(tmpl, encoding, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 2);
-    ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env,
-        req_wrap_async,
-        permission::PermissionScope::kFileSystemWrite,
-        tmpl.ToStringView());
+    if (!env->permission()->is_granted(
+            env, permission::PermissionScope::kFileSystemWrite,
+            tmpl.ToStringView())) {
+      permission::Permission::AsyncThrowAccessDenied(
+          env, req_wrap_async, permission::PermissionScope::kFileSystemWrite,
+          tmpl.ToStringView());
+      req_wrap_async->SetReturnValue(args);
+      return;
+    }
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_MKDTEMP, req_wrap_async, "path", TRACE_STR_COPY(*tmpl))
     AsyncCall(env, req_wrap_async, args, "mkdtemp", encoding, AfterStringPath,
