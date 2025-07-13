@@ -8,6 +8,7 @@
 #include <openssl/params.h>
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
+#include <openssl/thread.h>
 #include <openssl/x509v3.h>
 #include <algorithm>
 #include <cstring>

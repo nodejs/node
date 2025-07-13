@@ -22,9 +22,6 @@
 #include "openssl/provider.h"
 #endif
 
-#include <openssl/rand.h>
-#include <openssl/thread.h>
-
 namespace node {
 
 using ncrypto::BignumPointer;

@@ -11,7 +11,6 @@
 #include <openssl/kdf.h>
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
-#include <openssl/thread.h>
 #include <openssl/x509.h>
 #include <cstddef>
 #include <functional>
