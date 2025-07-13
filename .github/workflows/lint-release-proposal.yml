@@ -39,7 +39,7 @@ jobs:
           EXPECTED_TRAILER="^$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/[[:digit:]]+\$"
           echo "Expected trailer format: $EXPECTED_TRAILER"
           PR_URL="$(git --no-pager log -1 --format='%(trailers:key=PR-URL,valueonly)')"
-          echo "Actual: $ACTUAL"
+          echo "Actual: $PR_URL"
           echo "$PR_URL" | grep -E -q "$EXPECTED_TRAILER"
 
           PR_HEAD="$(gh pr view "$PR_URL" --json headRefOid -q .headRefOid)"
