@@ -1,0 +1,20 @@
+name: Install Clang
+description: Installs a specific Clang version. Useful if the GitHub runner does not have it by default.
+inputs:
+  clang-version:
+    description: The Clang major version to install
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Add LLVM apt repository
+      shell: bash
+      run: |
+        sudo wget -qO /etc/apt/trusted.gpg.d/apt.llvm.org.asc https://apt.llvm.org/llvm-snapshot.gpg.key
+        echo "deb http://apt.llvm.org/$(lsb_release -sc)/ llvm-toolchain-$(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/apt.llvm.org.list
+    - name: Install Clang
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-${{ inputs.clang-version }}
