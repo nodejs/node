@@ -39,7 +39,7 @@ function measureAsync(n, pass, salt, options) {
 }
 
 function main({ n, sync, ...options }) {
-  // pass, salt, secret, ad & output length does not affect performance
+  // Pass, salt, secret, ad & output length does not affect performance
   const pass = randomBytes(32);
   const salt = randomBytes(16);
   if (sync)

@@ -1717,19 +1717,6 @@ const EVP_CIPHER* getCipherByName(const char* name) {
   return EVP_get_cipherbyname(name);
 }
 
-namespace {
-
-struct MaxThreadsScope final {
-  MaxThreadsScope(OSSL_LIB_CTX* ctx, uint64_t threads)
-      : ctx{ctx}, success{OSSL_set_max_threads(ctx, threads) == 1} {}
-  ~MaxThreadsScope() { OSSL_set_max_threads(ctx, 0); }
-
-  OSSL_LIB_CTX* ctx;
-  bool success;
-};
-
-}  // namespace
-
 bool checkHkdfLength(const Digest& md, size_t length) {
   // HKDF-Expand computes up to 255 HMAC blocks, each having as many bits as
   // the output of the hash function. 255 is a hard limit because HKDF appends
@@ -1868,6 +1855,23 @@ DataPointer pbkdf2(const Digest& md,
 }
 
 #ifndef OPENSSL_NO_ARGON2
+namespace {
+
+class MaxThreadsScope final {
+ public:
+  MaxThreadsScope(uint64_t threads) : ctx_{OSSL_LIB_CTX_new()} {
+    OSSL_set_max_threads(ctx_.get(), threads) == 1;
+  }
+  ~MaxThreadsScope() { OSSL_set_max_threads(ctx_.get(), 0); }
+
+  auto ctx() const { return ctx_.get(); }
+
+ private:
+  DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> ctx_;
+};
+
+}  // namespace
+
 DataPointer argon2(const Buffer<const char>& pass,
                    const Buffer<const unsigned char>& salt,
                    const Buffer<const unsigned char>& secret,
@@ -1896,8 +1900,10 @@ DataPointer argon2(const Buffer<const char>& pass,
       return {};
   }
 
+  MaxThreadsScope mts{lanes};
+
   auto kdf = DeleteFnPtr<EVP_KDF, EVP_KDF_free>{
-      EVP_KDF_fetch(nullptr, algorithm.data(), nullptr)};
+      EVP_KDF_fetch(mts.ctx(), algorithm.data(), nullptr)};
   if (!kdf) {
     return {};
   }
@@ -1909,13 +1915,14 @@ DataPointer argon2(const Buffer<const char>& pass,
   }
 
   std::vector<OSSL_PARAM> params;
-  params.reserve(8);
+  params.reserve(9);
 
   params.push_back(OSSL_PARAM_construct_octet_string(
       OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass.data), pass.len));
   params.push_back(OSSL_PARAM_construct_octet_string(
       OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt.data), salt.len));
   params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &iter));
+  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &lanes));
   params.push_back(
       OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
   params.push_back(

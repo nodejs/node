@@ -27,15 +27,15 @@ const defaults = { password, salt, keylen: 32, iter: 3, lanes: 4, memcost: 64 <<
 
 const good = [
   [
-    { algorithm: "ARGON2D" },
+    { algorithm: 'ARGON2D' },
     'bf37a2a7530e053a8bd2784a9d50dc7de451e33bd581096922bc7f9ef66020ed',
   ],
   [
-    { algorithm: "ARGON2I" },
+    { algorithm: 'ARGON2I' },
     '96334882febdd85eb9b2cf367479fbad2d5b87cf79f9076f51b23589560a2e0a',
   ],
   [
-    { algorithm: "ARGON2ID" },
+    { algorithm: 'ARGON2ID' },
     'fedd802b86b17230843c6d3f025c81d3f472fbf9daaf26897fa88844732167ec',
   ],
   [
@@ -62,12 +62,12 @@ const good = [
 
 // Test vectors that should fail.
 const bad = [
-  [{ iter: 0 }, "iter"], // iter < 2
-  [{ iter: 2 ** 32 }, "iter"], // iter > 2^(32)-1
-  [{ lanes: 0 }, "lanes"], // lanes < 1
-  [{ lanes: 2 ** 24 }, "lanes"], // lanes > 2^(24)-1
-  [{ lanes: 4, memcost: 16 }, "memcost"], // memcost < 8 * lanes
-  [{ memcost: 2 ** 32 }, "memcost"], // memcost > 2^(32)-1
+  [{ iter: 0 }, 'iter'], // iter < 2
+  [{ iter: 2 ** 32 }, 'iter'], // iter > 2^(32)-1
+  [{ lanes: 0 }, 'lanes'], // lanes < 1
+  [{ lanes: 2 ** 24 }, 'lanes'], // lanes > 2^(24)-1
+  [{ lanes: 4, memcost: 16 }, 'memcost'], // memcost < 8 * lanes
+  [{ memcost: 2 ** 32 }, 'memcost'], // memcost > 2^(32)-1
 ];
 
 const badargs = [
@@ -125,8 +125,8 @@ for (const [overrides, expected] of good) {
 
 for (const [options, param] of bad) {
   const expected = {
-    code:'ERR_OUT_OF_RANGE',
-    message: new RegExp(`The value of "${param}" is out of range.`),
+    code: 'ERR_OUT_OF_RANGE',
+    message: new RegExp(`The value of "${param}" is out of range`),
   };
   assert.throws(() => crypto.argon2(password, salt, 32, options, () => {}),
                 expected);
