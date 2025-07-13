@@ -53,9 +53,8 @@ void BindingData::SlowScheduleTimer(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void BindingData::FastScheduleTimer(Local<Object> unused,
-                                    Local<Object> receiver,
-                                    int64_t duration) {
+void BindingData::FastScheduleTimer(Local<Object> receiver, int64_t duration) {
+  TRACK_V8_FAST_API_CALL("timers.scheduleTimer");
   ScheduleTimerImpl(FromJSObject<BindingData>(receiver), duration);
 }
 
@@ -69,9 +68,8 @@ void BindingData::SlowToggleTimerRef(
                      args[0]->IsTrue());
 }
 
-void BindingData::FastToggleTimerRef(Local<Object> unused,
-                                     Local<Object> receiver,
-                                     bool ref) {
+void BindingData::FastToggleTimerRef(Local<Object> receiver, bool ref) {
+  TRACK_V8_FAST_API_CALL("timers.toggleTimerRef");
   ToggleTimerRefImpl(FromJSObject<BindingData>(receiver), ref);
 }
 
@@ -85,9 +83,8 @@ void BindingData::SlowToggleImmediateRef(
                          args[0]->IsTrue());
 }
 
-void BindingData::FastToggleImmediateRef(Local<Object> unused,
-                                         Local<Object> receiver,
-                                         bool ref) {
+void BindingData::FastToggleImmediateRef(Local<Object> receiver, bool ref) {
+  TRACK_V8_FAST_API_CALL("timers.toggleImmediateRef");
   ToggleImmediateRefImpl(FromJSObject<BindingData>(receiver), ref);
 }
 
