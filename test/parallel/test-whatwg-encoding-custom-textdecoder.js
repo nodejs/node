@@ -233,3 +233,14 @@ if (common.hasIntl) {
   const decoder = new TextDecoder();
   assert.strictEqual(decoder.decode(buffer), '');
 }
+
+//Big5 encoding error byte sequence handling
+{
+  const decoder = new TextDecoder('Big5');
+  const input = new Uint8Array([0x83, 0x5C]);
+  const output = decoder.decode(input);
+
+  assert.strictEqual(output.length, 2, 'Big5 error sequence should decode to 2 characters');
+  assert.strictEqual(output.charCodeAt(0).toString(16), 'fffd', 'The first character should be U+FFFD');
+  assert.strictEqual(output.charCodeAt(1).toString(16), '5c', 'The second character should be U+005C');
+}
