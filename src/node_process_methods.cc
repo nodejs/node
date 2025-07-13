@@ -652,22 +652,22 @@ BindingData::BindingData(Realm* realm,
   hrtime_buffer_.MakeWeak();
 }
 
-v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
-v8::CFunction BindingData::fast_bigint_(v8::CFunction::Make(FastBigInt));
+CFunction BindingData::fast_hrtime_(CFunction::Make(FastHrtime));
+CFunction BindingData::fast_hrtime_bigint_(CFunction::Make(FastHrtimeBigInt));
 
 void BindingData::AddMethods(Isolate* isolate, Local<ObjectTemplate> target) {
   SetFastMethodNoSideEffect(
-      isolate, target, "hrtime", SlowNumber, &fast_number_);
+      isolate, target, "hrtime", SlowHrtime, &fast_hrtime_);
   SetFastMethodNoSideEffect(
-      isolate, target, "hrtimeBigInt", SlowBigInt, &fast_bigint_);
+      isolate, target, "hrtimeBigInt", SlowHrtimeBigInt, &fast_hrtime_bigint_);
 }
 
 void BindingData::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
-  registry->Register(SlowNumber);
-  registry->Register(SlowBigInt);
-  registry->Register(fast_number_);
-  registry->Register(fast_bigint_);
+  registry->Register(SlowHrtime);
+  registry->Register(SlowHrtimeBigInt);
+  registry->Register(fast_hrtime_);
+  registry->Register(fast_hrtime_bigint_);
 }
 
 BindingData* BindingData::FromV8Value(Local<Value> value) {
@@ -689,14 +689,14 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 // broken into the upper/lower 32 bits to be converted back in JS,
 // because there is no Uint64Array in JS.
 // The third entry contains the remaining nanosecond part of the value.
-void BindingData::NumberImpl(BindingData* receiver) {
+void BindingData::HrtimeImpl(BindingData* receiver) {
   uint64_t t = uv_hrtime();
   receiver->hrtime_buffer_[0] = (t / NANOS_PER_SEC) >> 32;
   receiver->hrtime_buffer_[1] = (t / NANOS_PER_SEC) & 0xffffffff;
   receiver->hrtime_buffer_[2] = t % NANOS_PER_SEC;
 }
 
-void BindingData::BigIntImpl(BindingData* receiver) {
+void BindingData::HrtimeBigIntImpl(BindingData* receiver) {
   uint64_t t = uv_hrtime();
   // The buffer is a Uint32Array, so we need to reinterpret it as a
   // Uint64Array to write the value. The buffer is valid at this scope so we
@@ -706,12 +706,12 @@ void BindingData::BigIntImpl(BindingData* receiver) {
   fields[0] = t;
 }
 
-void BindingData::SlowBigInt(const FunctionCallbackInfo<Value>& args) {
-  BigIntImpl(FromJSObject<BindingData>(args.This()));
+void BindingData::SlowHrtimeBigInt(const FunctionCallbackInfo<Value>& args) {
+  HrtimeBigIntImpl(FromJSObject<BindingData>(args.This()));
 }
 
-void BindingData::SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  NumberImpl(FromJSObject<BindingData>(args.This()));
+void BindingData::SlowHrtime(const FunctionCallbackInfo<Value>& args) {
+  HrtimeImpl(FromJSObject<BindingData>(args.This()));
 }
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
