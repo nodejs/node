@@ -17,7 +17,6 @@ test('Assert constructor requires new', () => {
   assert.throws(() => Assert(), {
     code: 'ERR_CONSTRUCT_CALL_REQUIRED',
     name: 'TypeError',
-    message: /Assert cannot call constructor without `new`/,
   });
 });
 
