@@ -29,6 +29,7 @@
 #include "permission/permission.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"
+#include "v8-fast-api-calls.h"
 
 namespace node {
 
@@ -38,6 +39,7 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
 using v8::Boolean;
+using v8::CFunction;
 using v8::Context;
 using v8::DontDelete;
 using v8::FunctionCallbackInfo;
@@ -48,6 +50,7 @@ using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
+using v8::ObjectTemplate;
 using v8::PropertyAttribute;
 using v8::ReadOnly;
 using v8::Signature;
@@ -73,6 +76,11 @@ void SetLibuvInt32(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 }  // namespace
+
+static CFunction fast_get_send_queue_size_(
+    CFunction::Make(&UDPWrap::FastGetSendQueueSize));
+static CFunction fast_get_send_queue_count_(
+    CFunction::Make(&UDPWrap::FastGetSendQueueCount));
 
 class SendWrap : public ReqWrap<uv_udp_send_t> {
  public:
@@ -215,9 +223,20 @@ void UDPWrap::Initialize(Local<Object> target,
       isolate, t, "setBroadcast", SetLibuvInt32<uv_udp_set_broadcast>);
   SetProtoMethod(isolate, t, "setTTL", SetLibuvInt32<uv_udp_set_ttl>);
   SetProtoMethod(isolate, t, "bufferSize", BufferSize);
-  SetProtoMethodNoSideEffect(isolate, t, "getSendQueueSize", GetSendQueueSize);
-  SetProtoMethodNoSideEffect(
-      isolate, t, "getSendQueueCount", GetSendQueueCount);
+
+  Local<ObjectTemplate> instance = t->InstanceTemplate();
+
+  SetFastMethodNoSideEffect(isolate,
+                            instance,
+                            "getSendQueueSize",
+                            GetSendQueueSize,
+                            &fast_get_send_queue_size_);
+
+  SetFastMethodNoSideEffect(isolate,
+                            instance,
+                            "getSendQueueCount",
+                            GetSendQueueCount,
+                            &fast_get_send_queue_count_);
 
   t->Inherit(HandleWrap::GetConstructorTemplate(env));
 
@@ -266,6 +285,8 @@ void UDPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(BufferSize);
   registry->Register(GetSendQueueSize);
   registry->Register(GetSendQueueCount);
+  registry->Register(fast_get_send_queue_size_);
+  registry->Register(fast_get_send_queue_count_);
 }
 
 void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
@@ -668,6 +689,19 @@ ReqWrap<uv_udp_send_t>* UDPWrap::CreateSendWrap(size_t msg_size) {
   return req_wrap;
 }
 
+double UDPWrap::FastGetSendQueueSize(Local<Value> receiver) {
+  UDPWrap* wrap = BaseObject::Unwrap<UDPWrap>(receiver.As<Object>());
+  if (wrap == nullptr) return static_cast<double>(UV_EBADF);
+  return static_cast<double>(
+      uv_udp_get_send_queue_size(wrap->GetLibuvHandle()));
+}
+
+double UDPWrap::FastGetSendQueueCount(Local<Value> receiver) {
+  UDPWrap* wrap = BaseObject::Unwrap<UDPWrap>(receiver.As<Object>());
+  if (wrap == nullptr) return static_cast<double>(UV_EBADF);
+  return static_cast<double>(
+      uv_udp_get_send_queue_count(wrap->GetLibuvHandle()));
+}
 
 void UDPWrap::Send(const FunctionCallbackInfo<Value>& args) {
   DoSend(args, AF_INET);
