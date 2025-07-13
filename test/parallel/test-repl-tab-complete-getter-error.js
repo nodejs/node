@@ -24,44 +24,12 @@ async function runTest() {
   replServer._domain.on('error', (e) => {
     assert.fail(`Error in REPL domain: ${e}`);
   });
-  await new Promise((resolve, reject) => {
-    replServer.eval(`
-class Person1 {
-  constructor(name) { this.name = name; }
-  get name() { throw new Error(); } set name(value) { this._name = value; }
-};
-const foo = new Person1("Alice")
-      `, replServer.context, '', (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
-  });
-  replServer.complete(
-    'foo.name.',
-    common.mustCall((error, data) => {
-      assert.strictEqual(error, null);
-      assert.strictEqual(data.length, 2);
-      assert.strictEqual(data[1], 'foo.name.');
-    })
-  );
 
-  replServer.complete(
-    'foo["name"].',
-    common.mustCall((error, data) => {
-      assert.strictEqual(error, null);
-      assert.strictEqual(data.length, 2);
-      assert.strictEqual(data[1], 'foo["name"].');
-    })
-  );
   await new Promise((resolve, reject) => {
     replServer.eval(`
-function getNameText() {
-  return "name";
-}
-      `, replServer.context, '', (err) => {
+     const getNameText = () => "name";
+     const foo = { get name() { throw new Error(); } };
+     `, replServer.context, '', (err) => {
       if (err) {
         reject(err);
       } else {
@@ -69,12 +37,15 @@ function getNameText() {
       }
     });
   });
-  replServer.complete(
-    'foo[getNameText()].',
-    common.mustCall((error, data) => {
-      assert.strictEqual(error, null);
-      assert.strictEqual(data.length, 2);
-      assert.strictEqual(data[1], 'foo[getNameText()].');
-    })
-  );
+
+  ['foo.name.', 'foo["name"].', 'foo[getNameText()].'].forEach((test) => {
+    replServer.complete(
+      test,
+      common.mustCall((error, data) => {
+        assert.strictEqual(error, null);
+        assert.strictEqual(data.length, 2);
+        assert.strictEqual(data[1], test);
+      })
+    );
+  });
 }
