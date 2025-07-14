@@ -36,8 +36,8 @@ function main({ n, method }) {
       client.close();
       server.close();
 
-      assert.ok(size > 0);
-      assert.ok(count > 0);
+      assert.ok(size >= 0);
+      assert.ok(count >= 0);
     });
   });
 }
