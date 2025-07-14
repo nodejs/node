@@ -1,5 +1,4 @@
 #include "inspector_profiler.h"
-#include "uv.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "diagnosticfilename-inl.h"
@@ -9,6 +8,7 @@
 #include "node_file.h"
 #include "node_internals.h"
 #include "util-inl.h"
+#include "uv.h"
 #include "v8-inspector.h"
 
 #include <cinttypes>
@@ -469,10 +469,11 @@ static void EndStartedProfilers(Environment* env) {
 static std::string ReplacePlaceholders(const std::string& pattern) {
   std::string result = pattern;
 
-  static const std::unordered_map<std::string, std::function<std::string()>> kPlaceholderMap = {
-    { "${pid}", []() { return std::to_string(uv_os_getpid()); } },
-    // TODO(haramj): Add more placeholders as needed.
-  };
+  static const std::unordered_map<std::string, std::function<std::string()>>
+      kPlaceholderMap = {
+          {"${pid}", []() { return std::to_string(uv_os_getpid()); }},
+          // TODO(haramj): Add more placeholders as needed.
+      };
 
   for (const auto& [placeholder, getter] : kPlaceholderMap) {
     size_t pos = 0;
