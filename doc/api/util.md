@@ -1960,7 +1960,7 @@ changes:
       must match the type specified by the `type` property. If `multiple` is
       `true`, it must be an array. No default value is applied when the option
       does appear in the arguments to be parsed, even if the provided value
-      is falsey.
+      is falsy.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
