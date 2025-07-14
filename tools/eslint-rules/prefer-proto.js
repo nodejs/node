@@ -1,7 +1,7 @@
 /**
  * @file null objects can be created with `ObjectCreate(null)`, or with
- *               syntax: `{ __proto__: null }`. This linter rule forces use of
- *               syntax over ObjectCreate.
+ *   syntax: `{ __proto__: null }`. This linter rule forces use of
+ *   syntax over ObjectCreate.
  * @author Jordan Harband <ljharb@gmail.com>
  */
 'use strict';

@@ -1,12 +1,12 @@
 /**
  * @file Iterating over arrays should be avoided because it relies on
- *               user-mutable global methods (`Array.prototype[Symbol.iterator]`
- *               and `%ArrayIteratorPrototype%.next`), we should instead use
- *               other alternatives. This file defines a rule that disallow
- *               array destructuring syntax in favor of object destructuring
- *               syntax. Note that you can ignore this rule if you are using
- *               the array destructuring syntax over a safe iterable, or
- *               actually want to iterate over a user-provided object.
+ *   user-mutable global methods (`Array.prototype[Symbol.iterator]`
+ *   and `%ArrayIteratorPrototype%.next`), we should instead use
+ *   other alternatives. This file defines a rule that disallow
+ *   array destructuring syntax in favor of object destructuring
+ *   syntax. Note that you can ignore this rule if you are using
+ *   the array destructuring syntax over a safe iterable, or
+ *   actually want to iterate over a user-provided object.
  * @author aduh95 <duhamelantoine1995@gmail.com>
  */
 'use strict';

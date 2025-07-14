@@ -1,7 +1,7 @@
 /**
  * @file Any non-ASCII characters in lib/ will increase the size
- *               of the compiled node binary. This linter rule ensures that
- *               any such character is reported.
+ *   of the compiled node binary. This linter rule ensures that
+ *   any such character is reported.
  * @author Sarat Addepalli <sarat.addepalli@gmail.com>
  */
 

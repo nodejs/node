@@ -1,6 +1,6 @@
 /**
  * @file Check that TypeError[ERR_INVALID_ARG_TYPE] uses
- *               lowercase for primitive types
+ *   lowercase for primitive types
  * @author Weijia Wang <starkwang@126.com>
  */
 'use strict';

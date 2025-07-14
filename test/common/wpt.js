@@ -196,7 +196,7 @@ class ResourceLoader {
   /**
    * Load a resource in test/fixtures/wpt specified with a URL
    * @param {string} from the path of the file loading this resource,
-   * relative to the WPT folder.
+   *   relative to the WPT folder.
    * @param {string} url the url of the resource being loaded.
    * @returns {string}
    */
@@ -208,7 +208,7 @@ class ResourceLoader {
   /**
    * Load a resource in test/fixtures/wpt specified with a URL
    * @param {string} from the path of the file loading this resource,
-   * relative to the WPT folder.
+   *   relative to the WPT folder.
    * @param {string} url the url of the resource being loaded.
    * @returns {Promise<{
    *   ok: string,
@@ -296,9 +296,9 @@ class WPTTestSpec {
 
   /**
    * @param {string} mod name of the WPT module, e.g.
-   * 'html/webappapis/microtask-queuing'
+   *   'html/webappapis/microtask-queuing'
    * @param {string} filename path of the test, relative to mod, e.g.
-   * 'test.any.js'
+   *   'test.any.js'
    * @param {StatusRule[]} rules
    * @param {string} variant test file variant
    */

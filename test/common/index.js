@@ -827,7 +827,7 @@ function spawnPromisified(...args) {
  * values on tests which are skipped on Windows.
  * This function is meant to be used for tagged template strings.
  * @returns {[string, object | undefined]} An array that can be passed as
- * arguments to `exec` or `execSync`.
+ *   arguments to `exec` or `execSync`.
  */
 function escapePOSIXShell(cmdParts, ...args) {
   if (common.isWindows) {
