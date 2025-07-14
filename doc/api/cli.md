@@ -544,7 +544,7 @@ If `--cpu-prof-name` is specified, the provided value is used as a template
 for the file name. Some placeholders are supported and will be substituted
 at runtime:
 
-- `${pid}` — the current process ID
+* `${pid}` — the current process ID
 
 ```console
 $ node --cpu-prof --cpu-prof-name 'CPU.${pid}.cpuprofile' index.js
@@ -661,7 +661,7 @@ For example, the following script will not emit
 
 ```mjs
 import sys from 'node:sys';
-```
+````
 
 ```cjs
 const sys = require('node:sys');

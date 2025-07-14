@@ -1,4 +1,5 @@
 #include "inspector_profiler.h"
+#include "uv.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
 #include "diagnosticfilename-inl.h"
@@ -9,8 +10,6 @@
 #include "node_internals.h"
 #include "util-inl.h"
 #include "v8-inspector.h"
-#include <unistd.h>
-#include <regex>
 
 #include <cinttypes>
 #include <limits>
@@ -467,11 +466,22 @@ static void EndStartedProfilers(Environment* env) {
   }
 }
 
-std::string ReplacePlaceholders(const std::string& pattern) {
+static std::string ReplacePlaceholders(const std::string& pattern) {
   std::string result = pattern;
-  std::string pid_str = std::to_string(getpid());
-  result = std::regex_replace(result, std::regex("\\$\\{pid\\}"), pid_str);
-  // TODO: Add more placeholders as needed.
+
+  static const std::unordered_map<std::string, std::function<std::string()>> kPlaceholderMap = {
+    { "${pid}", []() { return std::to_string(uv_os_getpid()); } },
+    // TODO(haramj): Add more placeholders as needed.
+  };
+
+  for (const auto& [placeholder, getter] : kPlaceholderMap) {
+    size_t pos = 0;
+    while ((pos = result.find(placeholder, pos)) != std::string::npos) {
+      result.replace(pos, placeholder.length(), getter());
+      pos += getter().length();
+    }
+  }
+
   return result;
 }
 
@@ -496,7 +506,8 @@ void StartProfilers(Environment* env) {
       DiagnosticFilename filename(env, "CPU", "cpuprofile");
       env->set_cpu_prof_name(*filename);
     } else {
-      std::string resolved_name = ReplacePlaceholders(env->options()->cpu_prof_name);
+      std::string resolved_name =
+          ReplacePlaceholders(env->options()->cpu_prof_name);
       env->set_cpu_prof_name(resolved_name);
     }
     CHECK_NULL(env->cpu_profiler_connection());
