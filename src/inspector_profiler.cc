@@ -9,6 +9,8 @@
 #include "node_internals.h"
 #include "util-inl.h"
 #include "v8-inspector.h"
+#include <unistd.h>
+#include <regex>
 
 #include <cinttypes>
 #include <limits>
@@ -465,6 +467,14 @@ static void EndStartedProfilers(Environment* env) {
   }
 }
 
+std::string ReplacePlaceholders(const std::string& pattern) {
+  std::string result = pattern;
+  std::string pid_str = std::to_string(getpid());
+  result = std::regex_replace(result, std::regex("\\$\\{pid\\}"), pid_str);
+  // TODO: Add more placeholders as needed.
+  return result;
+}
+
 void StartProfilers(Environment* env) {
   AtExit(env, [](void* env) {
     EndStartedProfilers(static_cast<Environment*>(env));
@@ -486,7 +496,8 @@ void StartProfilers(Environment* env) {
       DiagnosticFilename filename(env, "CPU", "cpuprofile");
       env->set_cpu_prof_name(*filename);
     } else {
-      env->set_cpu_prof_name(env->options()->cpu_prof_name);
+      std::string resolved_name = ReplacePlaceholders(env->options()->cpu_prof_name);
+      env->set_cpu_prof_name(resolved_name);
     }
     CHECK_NULL(env->cpu_profiler_connection());
     env->set_cpu_profiler_connection(
