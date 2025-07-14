@@ -40,3 +40,10 @@ promise_test(async () => {
   instance.exports.logExec();
   assert_true(logged, "WebAssembly instance should execute imported function");
 }, "Source phase imports");
+
+promise_test(async () => {
+  const { mod1, mod2, mod3, mod4 } = await import('./resources/source-phase-identity.js');
+
+  assert_equals(mod1, mod2);
+  assert_equals(mod3, mod4);
+}, "Source phase identities");
