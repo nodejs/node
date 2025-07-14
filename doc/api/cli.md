@@ -3980,7 +3980,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--allow-worker`]: #--allow-worker
 [`--build-snapshot`]: #--build-snapshot
 [`--cpu-prof-dir`]: #--cpu-prof-dir
-[`--diagnostic-dir`]: #--diagnostic-dirdirectory
+[`--diagnostic-dir`]: #--diagnostic-dir
 [`--disable-sigusr1`]: #--disable-sigusr1
 [`--env-file-if-exists`]: #--env-file-if-existsconfig
 [`--env-file`]: #--env-fileconfig
