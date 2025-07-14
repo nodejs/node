@@ -3091,6 +3091,65 @@ napi_status NAPI_CDECL napi_get_arraybuffer_info(napi_env env,
   return napi_clear_last_error(env);
 }
 
+napi_status NAPI_CDECL napi_is_sharedarraybuffer(napi_env env,
+                                                 napi_value value,
+                                                 bool* result) {
+  CHECK_ENV_NOT_IN_GC(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+  *result = val->IsSharedArrayBuffer();
+
+  return napi_clear_last_error(env);
+}
+
+napi_status NAPI_CDECL napi_create_sharedarraybuffer(napi_env env,
+                                                     size_t byte_length,
+                                                     void** data,
+                                                     napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::SharedArrayBuffer> buffer =
+      v8::SharedArrayBuffer::New(isolate, byte_length);
+
+  // Optionally return a pointer to the buffer's data, to avoid another call to
+  // retrieve it.
+  if (data != nullptr) {
+    *data = buffer->Data();
+  }
+
+  *result = v8impl::JsValueFromV8LocalValue(buffer);
+  return GET_RETURN_STATUS(env);
+}
+
+napi_status NAPI_CDECL
+napi_get_sharedarraybuffer_info(napi_env env,
+                                napi_value sharedarraybuffer,
+                                void** data,
+                                size_t* byte_length) {
+  CHECK_ENV_NOT_IN_GC(env);
+  CHECK_ARG(env, sharedarraybuffer);
+
+  v8::Local<v8::Value> value =
+      v8impl::V8LocalValueFromJsValue(sharedarraybuffer);
+  RETURN_STATUS_IF_FALSE(env, value->IsSharedArrayBuffer(), napi_invalid_arg);
+
+  v8::Local<v8::SharedArrayBuffer> sab = value.As<v8::SharedArrayBuffer>();
+
+  if (data != nullptr) {
+    *data = sab->Data();
+  }
+
+  if (byte_length != nullptr) {
+    *byte_length = sab->ByteLength();
+  }
+
+  return napi_clear_last_error(env);
+}
+
 napi_status NAPI_CDECL napi_is_typedarray(napi_env env,
                                           napi_value value,
                                           bool* result) {
