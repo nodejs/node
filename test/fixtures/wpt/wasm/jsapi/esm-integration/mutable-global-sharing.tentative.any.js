@@ -1,3 +1,5 @@
+// META: global=window,dedicatedworker,jsshell,shadowrealm
+
 promise_test(async () => {
   const exporterModule = await import("./resources/mutable-global-export.wasm");
   const reexporterModule = await import(
