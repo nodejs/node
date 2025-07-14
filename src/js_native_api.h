@@ -486,6 +486,17 @@ napi_get_dataview_info(napi_env env,
                        napi_value* arraybuffer,
                        size_t* byte_offset);
 
+NAPI_EXTERN napi_status NAPI_CDECL napi_is_sharedarraybuffer(napi_env env,
+                                                             napi_value value,
+                                                             bool* result);
+NAPI_EXTERN napi_status NAPI_CDECL napi_create_sharedarraybuffer(
+    napi_env env, size_t byte_length, void** data, napi_value* result);
+NAPI_EXTERN napi_status NAPI_CDECL
+napi_get_sharedarraybuffer_info(napi_env env,
+                                napi_value sharedarraybuffer,
+                                void** data,
+                                size_t* byte_length);
+
 // version management
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_version(node_api_basic_env env,
                                                     uint32_t* result);
