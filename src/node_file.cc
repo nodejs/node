@@ -1045,6 +1045,8 @@ static void ExistsSync(const FunctionCallbackInfo<Value>& args) {
 }
 
 // Used to speed up module loading. Returns an array [string, boolean]
+// Do not expose this function through public API as it doesn't hold
+// Permission Model checks.
 static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -1052,8 +1054,6 @@ static void InternalModuleReadJSON(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsString());
   node::Utf8Value path(isolate, args[0]);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
   if (strlen(*path) != path.length()) {
     args.GetReturnValue().Set(Array::New(isolate));
@@ -1149,8 +1149,6 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsString());
   node::Utf8Value path(env->isolate(), args[0]);
-  THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
 
   uv_fs_t req;
   int rc = uv_fs_stat(env->event_loop(), &req, *path, nullptr);
