@@ -6475,6 +6475,19 @@ def CheckItemIndentationInNamespace(filename, raw_lines_no_comments, linenum,
     error(filename, linenum, 'runtime/indentation_namespace', 4,
           'Do not indent within a namespace')
 
+def CheckLocalVectorUsage(filename, lines, error):
+  """Logs an error if std::vector<v8::Local<T>> is used.
+  Args:
+    filename: The name of the current file.
+    lines: An array of strings, each representing a line of the file.
+    error: The function to call with any errors found.
+  """
+  for linenum, line in enumerate(lines):
+    if (Search(r'\bstd::vector<v8::Local<[^>]+>>', line) or
+        Search(r'\bstd::vector<Local<[^>]+>>', line)):
+      error(filename, linenum, 'runtime/local_vector', 5,
+            'Do not use std::vector<v8::Local<T>>. '
+            'Use v8::LocalVector<T> instead.')
 
 def ProcessLine(filename, file_extension, clean_lines, line,
                 include_state, function_state, nesting_state, error,
@@ -6644,6 +6657,8 @@ def ProcessFileData(filename, file_extension, lines, error,
   CheckForNewlineAtEOF(filename, lines, error)
 
   CheckInlineHeader(filename, include_state, error)
+
+  CheckLocalVectorUsage(filename, lines, error)
 
 def ProcessConfigOverrides(filename):
   """ Loads the configuration files and processes the config overrides.
