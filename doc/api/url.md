@@ -207,7 +207,7 @@ myURL = new URL('foo:Example.com/', 'https://example.org/');
 
 #### `url.hash`
 
-* {string}
+* Type: {string}
 
 Gets and sets the fragment portion of the URL.
 
@@ -228,7 +228,7 @@ percent-encode may vary somewhat from what the [`url.parse()`][] and
 
 #### `url.host`
 
-* {string}
+* Type: {string}
 
 Gets and sets the host portion of the URL.
 
@@ -246,7 +246,7 @@ Invalid host values assigned to the `host` property are ignored.
 
 #### `url.hostname`
 
-* {string}
+* Type: {string}
 
 Gets and sets the host name portion of the URL. The key difference between
 `url.host` and `url.hostname` is that `url.hostname` does _not_ include the
@@ -272,7 +272,7 @@ Invalid host name values assigned to the `hostname` property are ignored.
 
 #### `url.href`
 
-* {string}
+* Type: {string}
 
 Gets and sets the serialized URL.
 
@@ -306,7 +306,7 @@ changes:
                  returns `'null'` for it.
 -->
 
-* {string}
+* Type: {string}
 
 Gets the read-only serialization of the URL's origin.
 
@@ -327,7 +327,7 @@ console.log(idnURL.hostname);
 
 #### `url.password`
 
-* {string}
+* Type: {string}
 
 Gets and sets the password portion of the URL.
 
@@ -348,7 +348,7 @@ percent-encode may vary somewhat from what the [`url.parse()`][] and
 
 #### `url.pathname`
 
-* {string}
+* Type: {string}
 
 Gets and sets the path portion of the URL.
 
@@ -376,7 +376,7 @@ changes:
     description: The scheme "gopher" is no longer special.
 -->
 
-* {string}
+* Type: {string}
 
 Gets and sets the port portion of the URL.
 
@@ -459,7 +459,7 @@ console.log(myURL.port);
 
 #### `url.protocol`
 
-* {string}
+* Type: {string}
 
 Gets and sets the protocol portion of the URL.
 
@@ -524,7 +524,7 @@ According to the WHATWG URL Standard, special protocol schemes are `ftp`,
 
 #### `url.search`
 
-* {string}
+* Type: {string}
 
 Gets and sets the serialized query portion of the URL.
 
@@ -545,7 +545,7 @@ and [`url.format()`][] methods would produce.
 
 #### `url.searchParams`
 
-* {URLSearchParams}
+* Type: {URLSearchParams}
 
 Gets the [`URLSearchParams`][] object representing the query parameters of the
 URL. This property is read-only but the `URLSearchParams` object it provides
@@ -572,7 +572,7 @@ console.log(myURL.search);  // prints ?foo=%7Ebar
 
 #### `url.username`
 
-* {string}
+* Type: {string}
 
 Gets and sets the username portion of the URL.
 

@@ -120,7 +120,7 @@ any global object; rather, it is bound before each run, just for that run.
 added: v5.7.0
 -->
 
-* {boolean|undefined}
+* Type: {boolean|undefined}
 
 When `cachedData` is supplied to create the `vm.Script`, this value will be set
 to either `true` or `false` depending on acceptance of the data by V8.
@@ -369,7 +369,7 @@ added:
   - v18.13.0
 -->
 
-* {string|undefined}
+* Type: {string|undefined}
 
 When the script is compiled from a source that contains a source map magic
 comment, this property will be set to the URL of the source map.
@@ -585,7 +585,7 @@ the ECMAScript specification.
 
 ### `module.error`
 
-* {any}
+* Type: {any}
 
 If the `module.status` is `'errored'`, this property contains the exception
 thrown by the module during evaluation. If the status is anything else,
@@ -626,7 +626,7 @@ Record][]s in the ECMAScript specification.
 
 ### `module.identifier`
 
-* {string}
+* Type: {string}
 
 The identifier of the current module, as set in the constructor.
 
@@ -701,7 +701,7 @@ Record][]s in the ECMAScript specification.
 
 ### `module.namespace`
 
-* {Object}
+* Type: {Object}
 
 The namespace object of the module. This is only available after linking
 (`module.link()`) has completed.
@@ -711,7 +711,7 @@ specification.
 
 ### `module.status`
 
-* {string}
+* Type: {string}
 
 The current status of the module. Will be one of:
 
@@ -1063,7 +1063,7 @@ added:
   - v20.12.0
 -->
 
-* {Object}
+* Type: {Object}
 
 Returns an object containing commonly used constants for VM operations.
 

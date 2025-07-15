@@ -1287,7 +1287,7 @@ changes:
   * `forceExit`: {boolean} Configures the test runner to exit the process once
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
-  * `globPatterns`: {Array} An array containing the list of glob patterns to
+  * `globPatterns` {Array} An array containing the list of glob patterns to
     match test files. This option cannot be used together with `files`.
     **Default:** matching files from [test runner execution model][].
   * `inspectPort` {number|Function} Sets inspector port of test child process.
@@ -1300,7 +1300,7 @@ changes:
     `'process'`, each test file is run in a separate child process. If set to
     `'none'`, all test files run in the current process. **Default:**
     `'process'`.
-  * `only`: {boolean} If truthy, the test context will only run tests that
+  * `only` {boolean} If truthy, the test context will only run tests that
     have the `only` option set
   * `setup` {Function} A function that accepts the `TestsStream` instance
     and can be used to setup listeners before any tests are run.
@@ -1816,7 +1816,7 @@ added:
   - v18.13.0
 -->
 
-* {Array}
+* Type: {Array}
 
 A getter that returns a copy of the internal array used to track calls to the
 mock. Each entry in the array is an object with the following properties.

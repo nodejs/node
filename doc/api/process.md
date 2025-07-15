@@ -825,7 +825,7 @@ This feature is not available in [`Worker`][] threads.
 added: v10.10.0
 -->
 
-* {Set}
+* Type: {Set}
 
 The `process.allowedNodeEnvironmentFlags` property is a special,
 read-only `Set` of flags allowable within the [`NODE_OPTIONS`][]
@@ -888,7 +888,7 @@ contain what _would have_ been allowable.
 added: v0.5.0
 -->
 
-* {string}
+* Type: {string}
 
 The operating system CPU architecture for which the Node.js binary was compiled.
 Possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'loong64'`, `'mips'`,
@@ -912,7 +912,7 @@ console.log(`This processor architecture is ${arch}`);
 added: v0.1.27
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 The `process.argv` property returns an array containing the command-line
 arguments passed when the Node.js process was launched. The first element will
@@ -963,7 +963,7 @@ Would generate the output:
 added: v6.4.0
 -->
 
-* {string}
+* Type: {string}
 
 The `process.argv0` property stores a read-only copy of the original value of
 `argv[0]` passed when Node.js starts.
@@ -986,7 +986,7 @@ changes:
     description: Change stability index for this feature from Experimental to Stable.
 -->
 
-* {number}
+* Type: {number}
 
 Gets the amount of free memory that is still available to the process
 (in bytes).
@@ -1004,7 +1004,7 @@ changes:
     description: The object no longer accidentally exposes native C++ bindings.
 -->
 
-* {Object}
+* Type: {Object}
 
 If the Node.js process was spawned with an IPC channel (see the
 [Child Process][] documentation), the `process.channel`
@@ -1088,7 +1088,7 @@ changes:
     description: Modifying process.config has been deprecated.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.config` property returns a frozen `Object` containing the
 JavaScript representation of the configure options used to compile the current
@@ -1131,7 +1131,7 @@ An example of the possible output looks like:
 added: v0.7.2
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If the Node.js process is spawned with an IPC channel (see the [Child Process][]
 and [Cluster][] documentation), the `process.connected` property will return
@@ -1156,7 +1156,7 @@ changes:
     description: Aligned return value with `uv_get_constrained_memory`.
 -->
 
-* {number}
+* Type: {number}
 
 Gets the amount of memory available to the process (in bytes) based on
 limits imposed by the OS. If there is no such constraint, or the constraint
@@ -1243,7 +1243,7 @@ console.log(`Current directory: ${cwd()}`);
 added: v0.7.2
 -->
 
-* {number}
+* Type: {number}
 
 The port used by the Node.js debugger when enabled.
 
@@ -1591,7 +1591,7 @@ changes:
     description: Implicit conversion of variable value to string is deprecated.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.env` property returns an object containing the user environment.
 See environ(7).
@@ -1719,7 +1719,7 @@ unlike the main thread.
 added: v0.7.7
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 The `process.execArgv` property returns the set of Node.js-specific command-line
 options passed when the Node.js process was launched. These options do not
@@ -1755,7 +1755,7 @@ threads with this property.
 added: v0.1.100
 -->
 
-* {string}
+* Type: {string}
 
 The `process.execPath` property returns the absolute pathname of the executable
 that started the Node.js process. Symbolic links, if any, are resolved.
@@ -1912,7 +1912,7 @@ changes:
                  represents an integer.
 -->
 
-* {integer|string|null|undefined} The exit code. For string type, only
+* Type: {integer|string|null|undefined} The exit code. For string type, only
   integer strings (e.g.,'1') are allowed. **Default:** `undefined`.
 
 A number which will be the process exit code, when the process either
@@ -1948,7 +1948,7 @@ $ node --input-type=module -e 'process.exitCode = 9; await new Promise(() => {})
 added: v12.0.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build is caching builtin modules.
 
@@ -1958,7 +1958,7 @@ A boolean value that is `true` if the current Node.js build is caching builtin m
 added: v0.5.5
 -->
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build is a debug build.
 
@@ -1968,7 +1968,7 @@ A boolean value that is `true` if the current Node.js build is a debug build.
 added: v11.10.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes the inspector.
 
@@ -1982,7 +1982,7 @@ deprecated: v22.13.0
 > Stability: 0 - Deprecated. This property is always true, and any checks based on it are
 > redundant.
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for IPv6.
 
@@ -1994,7 +1994,7 @@ Since all Node.js builds have IPv6 support, this value is always `true`.
 added: v22.10.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build supports
 [loading ECMAScript modules using `require()`][].
@@ -2005,7 +2005,7 @@ A boolean value that is `true` if the current Node.js build supports
 added: v0.5.3
 -->
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for TLS.
 
@@ -2018,7 +2018,7 @@ deprecated: v22.13.0
 
 > Stability: 0 - Deprecated. Use `process.features.tls` instead.
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for ALPN in TLS.
 
@@ -2034,7 +2034,7 @@ deprecated: v22.13.0
 
 > Stability: 0 - Deprecated. Use `process.features.tls` instead.
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for OCSP in TLS.
 
@@ -2050,7 +2050,7 @@ deprecated: v22.13.0
 
 > Stability: 0 - Deprecated. Use `process.features.tls` instead.
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for SNI in TLS.
 
@@ -2065,7 +2065,7 @@ added: v22.10.0
 
 > Stability: 1.1 - Active development
 
-* {boolean|string}
+* Type: {boolean|string}
 
 A value that is `"strip"` by default,
 `"transform"` if Node.js is run with `--experimental-transform-types`, and `false` if
@@ -2081,7 +2081,7 @@ deprecated: v22.13.0
 > Stability: 0 - Deprecated. This property is always true, and any checks based on it are
 > redundant.
 
-* {boolean}
+* Type: {boolean}
 
 A boolean value that is `true` if the current Node.js build includes support for libuv.
 
@@ -2778,7 +2778,7 @@ deprecated: v14.0.0
 
 > Stability: 0 - Deprecated: Use [`require.main`][] instead.
 
-* {Object}
+* Type: {Object}
 
 The `process.mainModule` property provides an alternative way of retrieving
 [`require.main`][]. The difference is that if the main module changes at
@@ -3137,7 +3137,7 @@ needed, use `queueMicrotask()`.
 added: v0.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `process.noDeprecation` property indicates whether the `--no-deprecation`
 flag is set on the current Node.js process. See the documentation for
@@ -3151,7 +3151,7 @@ flag's behavior.
 added: v20.0.0
 -->
 
-* {Object}
+* Type: {Object}
 
 This API is available through the [`--permission`][] flag.
 
@@ -3198,7 +3198,7 @@ process.permission.has('fs.read');
 added: v0.1.15
 -->
 
-* {integer}
+* Type: {integer}
 
 The `process.pid` property returns the PID of the process.
 
@@ -3220,7 +3220,7 @@ console.log(`This process is pid ${pid}`);
 added: v0.1.16
 -->
 
-* {string}
+* Type: {string}
 
 The `process.platform` property returns a string identifying the operating
 system platform for which the Node.js binary was compiled.
@@ -3260,7 +3260,7 @@ added:
   - v6.13.0
 -->
 
-* {integer}
+* Type: {integer}
 
 The `process.ppid` property returns the PID of the parent of the
 current process.
@@ -3306,7 +3306,7 @@ changes:
     description: The `lts` property is now supported.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.release` property returns an `Object` containing metadata related
 to the current release, including URLs for the source tarball and headers-only
@@ -3362,7 +3362,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {Object}
+* Type: {Object}
 
 `process.report` is an object whose methods are used to generate diagnostic
 reports for the current process. Additional documentation is available in the
@@ -3376,7 +3376,7 @@ added:
  - v12.17.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Write reports in a compact format, single-line JSON, more easily consumable
 by log processing systems than the default multi-line format designed for
@@ -3406,7 +3406,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {string}
+* Type: {string}
 
 Directory where the report is written. The default value is the empty string,
 indicating that reports are written to the current working directory of the
@@ -3436,7 +3436,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {string}
+* Type: {string}
 
 Filename where the report is written. If set to the empty string, the output
 filename will be comprised of a timestamp, PID, and sequence number. The default
@@ -3514,7 +3514,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated on fatal errors, such as out of
 memory errors or failed C++ assertions.
@@ -3543,7 +3543,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated when the process receives the
 signal specified by `process.report.signal`.
@@ -3572,7 +3572,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated on uncaught exception.
 
@@ -3594,7 +3594,7 @@ console.log(`Report on exception: ${report.reportOnUncaughtException}`);
 added: v22.13.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `true`, a diagnostic report is generated without the environment variables.
 
@@ -3610,7 +3610,7 @@ changes:
     description: This API is no longer experimental.
 -->
 
-* {string}
+* Type: {string}
 
 The signal used to trigger the creation of a diagnostic report. Defaults to
 `'SIGUSR2'`.
@@ -4082,14 +4082,14 @@ added:
 
 > Stability: 1 - Experimental: Use [`module.getSourceMapsSupport()`][] instead.
 
-* {boolean}
+* Type: {boolean}
 
 The `process.sourceMapsEnabled` property returns whether the
 [Source Map][] support for stack traces is enabled.
 
 ## `process.stderr`
 
-* {Stream}
+* Type: {Stream}
 
 The `process.stderr` property returns a stream connected to
 `stderr` (fd `2`). It is a [`net.Socket`][] (which is a [Duplex][]
@@ -4101,7 +4101,7 @@ a [Writable][] stream.
 
 ### `process.stderr.fd`
 
-* {number}
+* Type: {number}
 
 This property refers to the value of underlying file descriptor of
 `process.stderr`. The value is fixed at `2`. In [`Worker`][] threads,
@@ -4109,7 +4109,7 @@ this field does not exist.
 
 ## `process.stdin`
 
-* {Stream}
+* Type: {Stream}
 
 The `process.stdin` property returns a stream connected to
 `stdin` (fd `0`). It is a [`net.Socket`][] (which is a [Duplex][]
@@ -4128,7 +4128,7 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 
 ### `process.stdin.fd`
 
-* {number}
+* Type: {number}
 
 This property refers to the value of underlying file descriptor of
 `process.stdin`. The value is fixed at `0`. In [`Worker`][] threads,
@@ -4136,7 +4136,7 @@ this field does not exist.
 
 ## `process.stdout`
 
-* {Stream}
+* Type: {Stream}
 
 The `process.stdout` property returns a stream connected to
 `stdout` (fd `1`). It is a [`net.Socket`][] (which is a [Duplex][]
@@ -4162,7 +4162,7 @@ stdin.pipe(stdout);
 
 ### `process.stdout.fd`
 
-* {number}
+* Type: {number}
 
 This property refers to the value of underlying file descriptor of
 `process.stdout`. The value is fixed at `1`. In [`Worker`][] threads,
@@ -4222,7 +4222,7 @@ See the [TTY][] documentation for more information.
 added: v0.9.12
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The initial value of `process.throwDeprecation` indicates whether the
 `--throw-deprecation` flag is set on the current Node.js process.
@@ -4253,7 +4253,7 @@ Thrown:
 added: v0.1.104
 -->
 
-* {string}
+* Type: {string}
 
 The `process.title` property returns the current process title (i.e. returns
 the current value of `ps`). Assigning a new value to `process.title` modifies
@@ -4278,7 +4278,7 @@ Services Manager.
 added: v0.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `process.traceDeprecation` property indicates whether the
 `--trace-deprecation` flag is set on the current Node.js process. See the
@@ -4378,7 +4378,7 @@ seconds.
 added: v0.1.3
 -->
 
-* {string}
+* Type: {string}
 
 The `process.version` property contains the Node.js version string.
 
@@ -4412,7 +4412,7 @@ changes:
     description: The `icu` property is now supported.
 -->
 
-* {Object}
+* Type: {Object}
 
 The `process.versions` property returns an object listing the version strings of
 Node.js and its dependencies. `process.versions.modules` indicates the current

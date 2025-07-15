@@ -435,7 +435,7 @@ changes:
     description: Value will always be a string, never undefined.
 -->
 
-* {string}
+* Type: {string}
 
 The current input data being processed by node.
 
@@ -471,7 +471,7 @@ process.stdin.on('keypress', (c, k) => {
 added: v0.1.98
 -->
 
-* {number|undefined}
+* Type: {number|undefined}
 
 The cursor position relative to `rl.line`.
 

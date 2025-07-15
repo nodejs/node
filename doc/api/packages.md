@@ -1103,7 +1103,7 @@ changes:
     description: Implement conditional exports.
 -->
 
-* Type: {Object} | {string} | {string\[]}
+* Type: {Object|string|string\[]}
 
 ```json
 {

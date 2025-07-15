@@ -185,7 +185,7 @@ let log = debuglog('internals', (debug) => {
 added: v14.9.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `util.debuglog().enabled` getter is used to create a test that can be used
 in conditionals based on the existence of the `NODE_DEBUG` environment variable.
@@ -1466,7 +1466,7 @@ changes:
     description: This is now defined as a shared symbol.
 -->
 
-* {symbol} that can be used to declare custom inspect functions.
+* Type: {symbol} that can be used to declare custom inspect functions.
 
 In addition to being accessible through `util.inspect.custom`, this
 symbol is [registered globally][global symbol registry] and can be
@@ -1607,7 +1607,7 @@ console.log(String(myMIME));
 
 ### `mime.type`
 
-* {string}
+* Type: {string}
 
 Gets and sets the type portion of the MIME.
 
@@ -1639,7 +1639,7 @@ console.log(String(myMIME));
 
 ### `mime.subtype`
 
-* {string}
+* Type: {string}
 
 Gets and sets the subtype portion of the MIME.
 
@@ -1671,7 +1671,7 @@ console.log(String(myMIME));
 
 ### `mime.essence`
 
-* {string}
+* Type: {string}
 
 Gets the essence of the MIME. This property is read only.
 Use `mime.type` or `mime.subtype` to alter the MIME.
@@ -1704,7 +1704,7 @@ console.log(String(myMIME));
 
 ### `mime.params`
 
-* {MIMEParams}
+* Type: {MIMEParams}
 
 Gets the [`MIMEParams`][] object representing the
 parameters of the MIME. This property is read-only. See
@@ -2353,7 +2353,7 @@ changes:
     description: This is now defined as a shared symbol.
 -->
 
-* {symbol} that can be used to declare custom promisified variants of functions,
+* Type: {symbol} that can be used to declare custom promisified variants of functions,
   see [Custom promisified functions][].
 
 In addition to being accessible through `util.promisify.custom`, this
@@ -2596,20 +2596,20 @@ If `textDecoder.fatal` is `true`, decoding errors that occur will result in a
 
 ### `textDecoder.encoding`
 
-* {string}
+* Type: {string}
 
 The encoding supported by the `TextDecoder` instance.
 
 ### `textDecoder.fatal`
 
-* {boolean}
+* Type: {boolean}
 
 The value will be `true` if decoding errors result in a `TypeError` being
 thrown.
 
 ### `textDecoder.ignoreBOM`
 
-* {boolean}
+* Type: {boolean}
 
 The value will be `true` if the decoding result will include the byte order
 mark.
@@ -2666,7 +2666,7 @@ const { read, written } = encoder.encodeInto(src, dest);
 
 ### `textEncoder.encoding`
 
-* {string}
+* Type: {string}
 
 The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 

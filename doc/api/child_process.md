@@ -1602,7 +1602,7 @@ changes:
     description: The object no longer accidentally exposes native C++ bindings.
 -->
 
-* {Object} A pipe representing the IPC channel to the child process.
+* Type: {Object} A pipe representing the IPC channel to the child process.
 
 The `subprocess.channel` property is a reference to the child's IPC channel. If
 no IPC channel exists, this property is `undefined`.
@@ -1631,7 +1631,7 @@ running, and lets it finish even while the channel is open.
 added: v0.7.2
 -->
 
-* {boolean} Set to `false` after `subprocess.disconnect()` is called.
+* Type: {boolean} Set to `false` after `subprocess.disconnect()` is called.
 
 The `subprocess.connected` property indicates whether it is still possible to
 send and receive messages from a child process. When `subprocess.connected` is
@@ -1660,7 +1660,7 @@ within the child process to close the IPC channel as well.
 
 ### `subprocess.exitCode`
 
-* {integer}
+* Type: {integer}
 
 The `subprocess.exitCode` property indicates the exit code of the child process.
 If the child process is still running, the field will be `null`.
@@ -1783,7 +1783,7 @@ Calls [`subprocess.kill()`][] with `'SIGTERM'`.
 added: v0.5.10
 -->
 
-* {boolean} Set to `true` after `subprocess.kill()` is used to successfully
+* Type: {boolean} Set to `true` after `subprocess.kill()` is used to successfully
   send a signal to the child process.
 
 The `subprocess.killed` property indicates whether the child process
@@ -1796,7 +1796,7 @@ does not indicate that the child process has been terminated.
 added: v0.1.90
 -->
 
-* {integer|undefined}
+* Type: {integer|undefined}
 
 Returns the process identifier (PID) of the child process. If the child process
 fails to spawn due to errors, then the value is `undefined` and `error` is
@@ -2094,21 +2094,21 @@ connection to the child.
 
 ### `subprocess.signalCode`
 
-* {string|null}
+* Type: {string|null}
 
 The `subprocess.signalCode` property indicates the signal received by
 the child process if any, else `null`.
 
 ### `subprocess.spawnargs`
 
-* {Array}
+* Type: {Array}
 
 The `subprocess.spawnargs` property represents the full list of command-line
 arguments the child process was launched with.
 
 ### `subprocess.spawnfile`
 
-* {string}
+* Type: {string}
 
 The `subprocess.spawnfile` property indicates the executable file name of
 the child process that is launched.
@@ -2126,7 +2126,7 @@ in which the child process is launched.
 added: v0.1.90
 -->
 
-* {stream.Readable|null|undefined}
+* Type: {stream.Readable|null|undefined}
 
 A `Readable Stream` that represents the child process's `stderr`.
 
@@ -2145,7 +2145,7 @@ if the child process could not be successfully spawned.
 added: v0.1.90
 -->
 
-* {stream.Writable|null|undefined}
+* Type: {stream.Writable|null|undefined}
 
 A `Writable Stream` that represents the child process's `stdin`.
 
@@ -2167,7 +2167,7 @@ if the child process could not be successfully spawned.
 added: v0.7.10
 -->
 
-* {Array}
+* Type: {Array}
 
 A sparse array of pipes to the child process, corresponding with positions in
 the [`stdio`][] option passed to [`child_process.spawn()`][] that have been set
@@ -2234,7 +2234,7 @@ not be successfully spawned.
 added: v0.1.90
 -->
 
-* {stream.Readable|null|undefined}
+* Type: {stream.Readable|null|undefined}
 
 A `Readable Stream` that represents the child process's `stdout`.
 

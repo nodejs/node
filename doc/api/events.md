@@ -1984,7 +1984,7 @@ same options as `EventEmitter` and `AsyncResource` themselves.
 
 ### `eventemitterasyncresource.asyncResource`
 
-* Type: The underlying {AsyncResource}.
+* The underlying {AsyncResource}.
 
 The returned `AsyncResource` object has an additional `eventEmitter` property
 that provides a reference to this `EventEmitterAsyncResource`.

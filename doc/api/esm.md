@@ -336,7 +336,7 @@ modules it can be used to load ES modules.
 
 ## `import.meta`
 
-* {Object}
+* Type: {Object}
 
 The `import.meta` meta property is an `Object` that contains the following
 properties. It is only supported in ES modules.
@@ -353,7 +353,7 @@ changes:
     description: This property is no longer experimental.
 -->
 
-* {string} The directory name of the current module.
+* Type: {string} The directory name of the current module.
 
 This is the same as the [`path.dirname()`][] of the [`import.meta.filename`][].
 
@@ -371,7 +371,7 @@ changes:
     description: This property is no longer experimental.
 -->
 
-* {string} The full absolute path and filename of the current module, with
+* Type: {string} The full absolute path and filename of the current module, with
   symlinks resolved.
 
 This is the same as the [`url.fileURLToPath()`][] of the [`import.meta.url`][].
@@ -381,7 +381,7 @@ This is the same as the [`url.fileURLToPath()`][] of the [`import.meta.url`][].
 
 ### `import.meta.url`
 
-* {string} The absolute `file:` URL of the module.
+* Type: {string} The absolute `file:` URL of the module.
 
 This is defined exactly the same as it is in browsers providing the URL of the
 current module file.
@@ -402,7 +402,7 @@ added:
 
 > Stability: 1.0 - Early development
 
-* {boolean} `true` when the current module is the entry point of the current process; `false` otherwise.
+* Type: {boolean} `true` when the current module is the entry point of the current process; `false` otherwise.
 
 Equivalent to `require.main === module` in CommonJS.
 
