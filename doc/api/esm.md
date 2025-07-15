@@ -811,6 +811,37 @@ spawn(execPath, [
 
 <i id="esm_experimental_loaders"></i>
 
+## Runtime-specific Conditions via `--import`
+
+Node.js does not currently support dynamic or runtime-defined conditions in the `"exports"` field of `package.json`. For example, there's no built-in `"electron"` condition, and the module resolution algorithm does not allow users to register custom conditions at runtime.
+
+However, you can simulate this behavior using the `--import` flag to preload a script that sets runtime-specific flags. This lets your application decide, at runtime, which modules to load based on the detected environment.
+
+- Example: Supporting a runtime-specific condition like `"electron"`
+Create a preload script that sets a flag if the app is running in Electron:
+```js
+// register-conditions.js
+if (process.versions.electron) {
+  process.env.EXPORTS_CONDITION = 'electron';
+}
+```
+In your main application module, use that flag to conditionally load modules:
+```js
+// index.js
+if (process.env.EXPORTS_CONDITION === 'electron') {
+  export * from './electron-specific.js';
+} else {
+  export * from './default.js';
+}
+```
+Then run your application using the `--import` flag to preload the condition registration script:
+```bash
+node --import ./register-conditions.js index.js
+```
+- This approach does not modify or participate in the resolution of `"exports"` conditions in `package.json`. It's a userland workaround that enables dynamic behavior within your own code.
+- It works in both CommonJS (`require`) and ECMAScript Module (`import`) contexts, as long as your modules are written to respect the environment variable.
+- For deeper integration into the module loading process—such as affecting   import   resolution paths—you may consider writing a custom loader using the `--loader` flag. However, custom loaders introduce more complexity and are recommended only for advanced use cases.
+
 ## Loaders
 
 The former Loaders documentation is now at
