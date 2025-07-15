@@ -990,7 +990,7 @@ be used in pipes and similar stream operations.
 added: v10.0.0
 -->
 
-* {number}
+* Type: {number}
 
 The `zlib.bytesWritten` property specifies the number of bytes written to
 the engine, before the bytes are processed (compressed or decompressed,

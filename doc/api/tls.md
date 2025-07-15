@@ -1044,7 +1044,7 @@ property is set only when `tlsSocket.authorized === false`.
 added: v0.11.4
 -->
 
-* {boolean}
+* Type: {boolean}
 
 This property is `true` if the peer certificate was signed by one of the CAs
 specified when creating the `tls.TLSSocket` instance, otherwise `false`.
@@ -1395,7 +1395,7 @@ See the OpenSSL [`SSL_get_version`][] documentation for more information.
 added: v0.11.4
 -->
 
-* {Buffer}
+* Type: {Buffer}
 
 Returns the TLS session data or `undefined` if no session was
 negotiated. On the client, the data can be provided to the `session` option of
@@ -1426,7 +1426,7 @@ for more information.
 added: v0.11.4
 -->
 
-* {Buffer}
+* Type: {Buffer}
 
 For a client, returns the TLS session ticket if one is available, or
 `undefined`. For a server, always returns `undefined`.
@@ -1464,7 +1464,7 @@ See [Session Resumption][] for more information.
 added: v0.11.4
 -->
 
-* {string}
+* Type: {string}
 
 Returns the string representation of the local IP address.
 
@@ -1474,7 +1474,7 @@ Returns the string representation of the local IP address.
 added: v0.11.4
 -->
 
-* {integer}
+* Type: {integer}
 
 Returns the numeric representation of the local port.
 
@@ -1484,7 +1484,7 @@ Returns the numeric representation of the local port.
 added: v0.11.4
 -->
 
-* {string}
+* Type: {string}
 
 Returns the string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
@@ -1495,7 +1495,7 @@ Returns the string representation of the remote IP address. For example,
 added: v0.11.4
 -->
 
-* {string}
+* Type: {string}
 
 Returns the string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 
@@ -1505,7 +1505,7 @@ Returns the string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 added: v0.11.4
 -->
 
-* {integer}
+* Type: {integer}
 
 Returns the numeric representation of the remote port. For example, `443`.
 
@@ -2319,7 +2319,7 @@ console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 added: v12.3.0
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 An immutable array of strings representing the root certificates (in PEM format)
 from the bundled Mozilla CA store as supplied by the current Node.js version.
@@ -2352,7 +2352,7 @@ information.
 added: v11.4.0
 -->
 
-* {string} The default value of the `maxVersion` option of
+* Type: {string} The default value of the `maxVersion` option of
   [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
   protocol versions, `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
   **Default:** `'TLSv1.3'`, unless changed using CLI options. Using
@@ -2366,7 +2366,7 @@ added: v11.4.0
 added: v11.4.0
 -->
 
-* {string} The default value of the `minVersion` option of
+* Type: {string} The default value of the `minVersion` option of
   [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
   protocol versions, `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
   Versions before TLSv1.2 may require downgrading the [OpenSSL Security Level][].
@@ -2384,7 +2384,7 @@ added:
  - v18.16.0
 -->
 
-* {string} The default value of the `ciphers` option of
+* Type: {string} The default value of the `ciphers` option of
   [`tls.createSecureContext()`][]. It can be assigned any of the supported
   OpenSSL ciphers.  Defaults to the content of
   `crypto.constants.defaultCoreCipherList`, unless changed using CLI options

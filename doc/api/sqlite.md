@@ -318,7 +318,7 @@ added:
   - v22.15.0
 -->
 
-* {boolean} Whether the database is currently open or not.
+* Type: {boolean} Whether the database is currently open or not.
 
 ### `database.isTransaction`
 
@@ -326,7 +326,7 @@ added:
 added: v24.0.0
 -->
 
-* {boolean} Whether the database is currently within a transaction. This method
+* Type: {boolean} Whether the database is currently within a transaction. This method
   is a wrapper around [`sqlite3_get_autocommit()`][].
 
 ### `database.open()`
@@ -528,19 +528,19 @@ added: v23.11.0
 * Returns: {Array} An array of objects. Each object corresponds to a column
   in the prepared statement, and contains the following properties:
 
-  * `column`: {string|null} The unaliased name of the column in the origin
+  * `column` {string|null} The unaliased name of the column in the origin
     table, or `null` if the column is the result of an expression or subquery.
     This property is the result of [`sqlite3_column_origin_name()`][].
-  * `database`: {string|null} The unaliased name of the origin database, or
+  * `database` {string|null} The unaliased name of the origin database, or
     `null` if the column is the result of an expression or subquery. This
     property is the result of [`sqlite3_column_database_name()`][].
-  * `name`: {string} The name assigned to the column in the result set of a
+  * `name` {string} The name assigned to the column in the result set of a
     `SELECT` statement. This property is the result of
     [`sqlite3_column_name()`][].
-  * `table`: {string|null} The unaliased name of the origin table, or `null` if
+  * `table` {string|null} The unaliased name of the origin table, or `null` if
     the column is the result of an expression or subquery. This property is the
     result of [`sqlite3_column_table_name()`][].
-  * `type`: {string|null} The declared data type of the column, or `null` if the
+  * `type` {string|null} The declared data type of the column, or `null` if the
     column is the result of an expression or subquery. This property is the
     result of [`sqlite3_column_decltype()`][].
 
@@ -553,7 +553,7 @@ prepared statement.
 added: v22.5.0
 -->
 
-* {string} The source SQL expanded to include parameter values.
+* Type: {string} The source SQL expanded to include parameter values.
 
 The source SQL text of the prepared statement with parameter
 placeholders replaced by the values that were used during the most recent
@@ -630,12 +630,12 @@ changes:
 * `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Object}
-  * `changes`: {number|bigint} The number of rows modified, inserted, or deleted
+  * `changes` {number|bigint} The number of rows modified, inserted, or deleted
     by the most recently completed `INSERT`, `UPDATE`, or `DELETE` statement.
     This field is either a number or a `BigInt` depending on the prepared
     statement's configuration. This property is the result of
     [`sqlite3_changes64()`][].
-  * `lastInsertRowid`: {number|bigint} The most recently inserted rowid. This
+  * `lastInsertRowid` {number|bigint} The most recently inserted rowid. This
     field is either a number or a `BigInt` depending on the prepared statement's
     configuration. This property is the result of
     [`sqlite3_last_insert_rowid()`][].
@@ -704,7 +704,7 @@ supported at all times.
 added: v22.5.0
 -->
 
-* {string} The source SQL used to create this prepared statement.
+* Type: {string} The source SQL used to create this prepared statement.
 
 The source SQL text of the prepared statement. This property is a
 wrapper around [`sqlite3_sql()`][].
@@ -794,7 +794,7 @@ added:
   - v22.13.0
 -->
 
-* {Object}
+* Type: {Object}
 
 An object containing commonly used constants for SQLite operations.
 

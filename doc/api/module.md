@@ -8,7 +8,7 @@ added: v0.3.7
 
 ## The `Module` object
 
-* {Object}
+* Type: {Object}
 
 Provides general utility methods when interacting with instances of
 `Module`, the [`module`][] variable often seen in [CommonJS][] modules. Accessed
@@ -27,7 +27,7 @@ changes:
     description: The list now also contains prefix-only modules.
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 A list of the names of all modules provided by Node.js. Can be used to verify
 if a module is maintained by a third party or not.
@@ -1691,13 +1691,13 @@ Creates a new `sourceMap` instance.
 
 `payload` is an object with keys matching the [Source map format][]:
 
-* `file`: {string}
-* `version`: {number}
-* `sources`: {string\[]}
-* `sourcesContent`: {string\[]}
-* `names`: {string\[]}
-* `mappings`: {string}
-* `sourceRoot`: {string}
+* `file` {string}
+* `version` {number}
+* `sources` {string\[]}
+* `sourcesContent` {string\[]}
+* `names` {string\[]}
+* `mappings` {string}
+* `sourceRoot` {string}
 
 `lineLengths` is an optional array of the length of each line in the
 generated code.

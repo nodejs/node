@@ -1500,7 +1500,7 @@ console.log(Buffer.isEncoding(''));
 added: v0.11.3
 -->
 
-* {integer} **Default:** `8192`
+* Type: {integer} **Default:** `8192`
 
 This is the size (in bytes) of pre-allocated internal `Buffer` instances used
 for pooling. This value may be modified.
@@ -1557,7 +1557,7 @@ console.log(buf.toString('utf8'));
 
 ### `buf.buffer`
 
-* {ArrayBuffer} The underlying `ArrayBuffer` object based on which this `Buffer`
+* Type: {ArrayBuffer} The underlying `ArrayBuffer` object based on which this `Buffer`
   object is created.
 
 This `ArrayBuffer` is not guaranteed to correspond exactly to the original
@@ -1585,7 +1585,7 @@ console.log(buffer.buffer === arrayBuffer);
 
 ### `buf.byteOffset`
 
-* {integer} The `byteOffset` of the `Buffer`'s underlying `ArrayBuffer` object.
+* Type: {integer} The `byteOffset` of the `Buffer`'s underlying `ArrayBuffer` object.
 
 When setting `byteOffset` in `Buffer.from(ArrayBuffer, byteOffset, length)`,
 or sometimes when allocating a `Buffer` smaller than `Buffer.poolSize`, the
@@ -2426,7 +2426,7 @@ If `value` is an empty string or empty `Buffer`, `byteOffset` will be returned.
 added: v0.1.90
 -->
 
-* {integer}
+* Type: {integer}
 
 Returns the number of bytes in `buf`.
 
@@ -5221,7 +5221,7 @@ added:
   - v18.15.0
 -->
 
-* input {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
 * Returns: {boolean}
 
 This function returns `true` if `input` contains only valid ASCII-encoded data,
@@ -5237,7 +5237,7 @@ added:
   - v18.14.0
 -->
 
-* input {Buffer | ArrayBuffer | TypedArray} The input to validate.
+* `input` {Buffer | ArrayBuffer | TypedArray} The input to validate.
 * Returns: {boolean}
 
 This function returns `true` if `input` contains only valid UTF-8-encoded data,
@@ -5251,7 +5251,7 @@ Throws if the `input` is a detached array buffer.
 added: v0.5.4
 -->
 
-* {integer} **Default:** `50`
+* Type: {integer} **Default:** `50`
 
 Returns the maximum number of bytes that will be returned when
 `buf.inspect()` is called. This can be overridden by user modules. See
@@ -5263,7 +5263,7 @@ Returns the maximum number of bytes that will be returned when
 added: v3.0.0
 -->
 
-* {integer} The largest size allowed for a single `Buffer` instance.
+* Type: {integer} The largest size allowed for a single `Buffer` instance.
 
 An alias for [`buffer.constants.MAX_LENGTH`][].
 
@@ -5273,7 +5273,7 @@ An alias for [`buffer.constants.MAX_LENGTH`][].
 added: v3.0.0
 -->
 
-* {integer} The largest length allowed for a single `string` instance.
+* Type: {integer} The largest length allowed for a single `string` instance.
 
 An alias for [`buffer.constants.MAX_STRING_LENGTH`][].
 
@@ -5387,7 +5387,7 @@ changes:
       2<sup>32</sup> - 1 on 64-bit architectures.
 -->
 
-* {integer} The largest size allowed for a single `Buffer` instance.
+* Type: {integer} The largest size allowed for a single `Buffer` instance.
 
 On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (about 1
 GiB).
@@ -5404,7 +5404,7 @@ This value is also available as [`buffer.kMaxLength`][].
 added: v8.2.0
 -->
 
-* {integer} The largest length allowed for a single `string` instance.
+* Type: {integer} The largest length allowed for a single `string` instance.
 
 Represents the largest `length` that a `string` primitive can have, counted
 in UTF-16 code units.

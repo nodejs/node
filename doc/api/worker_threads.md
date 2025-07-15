@@ -166,7 +166,7 @@ added:
   - v22.14.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if this code is running inside of an internal [`Worker`][] thread (e.g the loader thread).
 
@@ -208,7 +208,7 @@ console.log(isInternalThread);  // false
 added: v10.5.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if this code is not running inside of a [`Worker`][] thread.
 
@@ -431,7 +431,7 @@ events using it.
 added: v10.5.0
 -->
 
-* {null|MessagePort}
+* Type: {null|MessagePort}
 
 If this thread is a [`Worker`][], this is a [`MessagePort`][]
 allowing communication with the parent thread. Messages sent using
@@ -642,7 +642,7 @@ added:
  - v12.16.0
 -->
 
-* {Object}
+* Type: {Object}
   * `maxYoungGenerationSizeMb` {number}
   * `maxOldGenerationSizeMb` {number}
   * `codeRangeSizeMb` {number}
@@ -660,7 +660,7 @@ If this is used in the main thread, its value is an empty object.
 added: v11.14.0
 -->
 
-* {symbol}
+* Type: {symbol}
 
 A special value that can be passed as the `env` option of the [`Worker`][]
 constructor, to indicate that the current thread and the Worker thread should
@@ -715,7 +715,7 @@ instances spawned from the current context.
 added: v10.5.0
 -->
 
-* {integer}
+* Type: {integer}
 
 An integer identifier for the current thread. On the corresponding worker object
 (if there is any), it is available as [`worker.threadId`][].
@@ -1770,7 +1770,7 @@ added:
  - v12.16.0
 -->
 
-* {Object}
+* Type: {Object}
   * `maxYoungGenerationSizeMb` {number}
   * `maxOldGenerationSizeMb` {number}
   * `codeRangeSizeMb` {number}
@@ -1788,7 +1788,7 @@ If the worker has stopped, the return value is an empty object.
 added: v10.5.0
 -->
 
-* {stream.Readable}
+* Type: {stream.Readable}
 
 This is a readable stream which contains data written to [`process.stderr`][]
 inside the worker thread. If `stderr: true` was not passed to the
@@ -1801,7 +1801,7 @@ inside the worker thread. If `stderr: true` was not passed to the
 added: v10.5.0
 -->
 
-* {null|stream.Writable}
+* Type: {null|stream.Writable}
 
 If `stdin: true` was passed to the [`Worker`][] constructor, this is a
 writable stream. The data written to this stream will be made available in
@@ -1813,7 +1813,7 @@ the worker thread as [`process.stdin`][].
 added: v10.5.0
 -->
 
-* {stream.Readable}
+* Type: {stream.Readable}
 
 This is a readable stream which contains data written to [`process.stdout`][]
 inside the worker thread. If `stdout: true` was not passed to the
@@ -1845,7 +1845,7 @@ Returns a Promise for the exit code that is fulfilled when the
 added: v10.5.0
 -->
 
-* {integer}
+* Type: {integer}
 
 An integer identifier for the referenced thread. Inside the worker thread,
 it is available as [`require('node:worker_threads').threadId`][].

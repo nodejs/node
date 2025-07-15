@@ -375,7 +375,7 @@ Unlike `filehandle.sync` this method does not flush modified metadata.
 added: v10.0.0
 -->
 
-* {number} The numeric file descriptor managed by the {FileHandle} object.
+* Type: {number} The numeric file descriptor managed by the {FileHandle} object.
 
 #### `filehandle.read(buffer, offset, length, position)`
 
@@ -1959,7 +1959,7 @@ added:
   - v16.17.0
 -->
 
-* {Object}
+* Type: {Object}
 
 Returns an object containing commonly used constants for file system
 operations. The object is the same as `fs.constants`. See [FS constants][]
@@ -6450,8 +6450,7 @@ changes:
 * `target` {string|Buffer|URL}
 * `path` {string|Buffer|URL}
 * `type` {string|null} **Default:** `null`
-
-Returns `undefined`.
+* Returns: `undefined`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.symlink()`][].
@@ -6508,8 +6507,7 @@ changes:
 * `path` {string|Buffer|URL}
 * `atime` {number|string|Date}
 * `mtime` {number|string|Date}
-
-Returns `undefined`.
+* Returns: `undefined`.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.utimes()`][].
@@ -6560,8 +6558,7 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
   * `flush` {boolean} If all data is successfully written to the file, and
     `flush` is `true`, `fs.fsyncSync()` is used to flush the data.
-
-Returns `undefined`.
+* Returns: `undefined`.
 
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.
@@ -6736,7 +6733,7 @@ Subsequent reads will result in errors.
 added: v12.12.0
 -->
 
-* {string}
+* Type: {string}
 
 The read-only path of this directory as was provided to [`fs.opendir()`][],
 [`fs.opendirSync()`][], or [`fsPromises.opendir()`][].
@@ -6938,7 +6935,7 @@ Returns `true` if the {fs.Dirent} object describes a symbolic link.
 added: v10.10.0
 -->
 
-* {string|Buffer}
+* Type: {string|Buffer}
 
 The file name that this {fs.Dirent} object refers to. The type of this
 value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
@@ -6957,7 +6954,7 @@ changes:
     description: Marking the API stable.
 -->
 
-* {string}
+* Type: {string}
 
 The path to the parent directory of the file this {fs.Dirent} object refers to.
 
@@ -7158,7 +7155,7 @@ Fires immediately after `'open'`.
 added: v6.4.0
 -->
 
-* {number}
+* Type: {number}
 
 The number of bytes that have been read so far.
 
@@ -7168,7 +7165,7 @@ The number of bytes that have been read so far.
 added: v0.1.93
 -->
 
-* {string|Buffer}
+* Type: {string|Buffer}
 
 The path to the file the stream is reading from as specified in the first
 argument to `fs.createReadStream()`. If `path` is passed as a string, then
@@ -7184,7 +7181,7 @@ added:
  - v10.16.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 This property is `true` if the underlying file has not been opened yet,
 i.e. before the `'ready'` event is emitted.
@@ -7343,49 +7340,49 @@ This method is only valid when using [`fs.lstat()`][].
 
 #### `stats.dev`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The numeric identifier of the device containing the file.
 
 #### `stats.ino`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The file system specific "Inode" number for the file.
 
 #### `stats.mode`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 A bit-field describing the file type and mode.
 
 #### `stats.nlink`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The number of hard-links that exist for the file.
 
 #### `stats.uid`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The numeric user identifier of the user that owns the file (POSIX).
 
 #### `stats.gid`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The numeric group identifier of the group that owns the file (POSIX).
 
 #### `stats.rdev`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 A numeric device identifier if the file represents a device.
 
 #### `stats.size`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The size of the file in bytes.
 
@@ -7394,13 +7391,13 @@ this will be `0`.
 
 #### `stats.blksize`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The file system block size for i/o operations.
 
 #### `stats.blocks`
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The number of blocks allocated for this file.
 
@@ -7410,7 +7407,7 @@ The number of blocks allocated for this file.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The timestamp indicating the last time this file was accessed expressed in
 milliseconds since the POSIX Epoch.
@@ -7421,7 +7418,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The timestamp indicating the last time this file was modified expressed in
 milliseconds since the POSIX Epoch.
@@ -7432,7 +7429,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The timestamp indicating the last time the file status was changed expressed
 in milliseconds since the POSIX Epoch.
@@ -7443,7 +7440,7 @@ in milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 The timestamp indicating the creation time of this file expressed in
 milliseconds since the POSIX Epoch.
@@ -7454,7 +7451,7 @@ milliseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7467,7 +7464,7 @@ nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7480,7 +7477,7 @@ nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7493,7 +7490,7 @@ in nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7506,7 +7503,7 @@ nanoseconds since the POSIX Epoch.
 added: v0.11.13
 -->
 
-* {Date}
+* Type: {Date}
 
 The timestamp indicating the last time this file was accessed.
 
@@ -7516,7 +7513,7 @@ The timestamp indicating the last time this file was accessed.
 added: v0.11.13
 -->
 
-* {Date}
+* Type: {Date}
 
 The timestamp indicating the last time this file was modified.
 
@@ -7526,7 +7523,7 @@ The timestamp indicating the last time this file was modified.
 added: v0.11.13
 -->
 
-* {Date}
+* Type: {Date}
 
 The timestamp indicating the last time the file status was changed.
 
@@ -7536,7 +7533,7 @@ The timestamp indicating the last time the file status was changed.
 added: v0.11.13
 -->
 
-* {Date}
+* Type: {Date}
 
 The timestamp indicating the creation time of this file.
 
@@ -7628,7 +7625,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Free blocks available to unprivileged users.
 
@@ -7640,7 +7637,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Free blocks in file system.
 
@@ -7652,7 +7649,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Total data blocks in file system.
 
@@ -7664,7 +7661,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Optimal transfer block size.
 
@@ -7676,7 +7673,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Free file nodes in file system.
 
@@ -7688,7 +7685,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Total file nodes in file system.
 
@@ -7700,7 +7697,7 @@ added:
   - v18.15.0
 -->
 
-* {number|bigint}
+* Type: {number|bigint}
 
 Type of file system.
 
@@ -7782,14 +7779,14 @@ argument to [`fs.createWriteStream()`][]. If `path` is passed as a string, then
 added: v11.2.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 This property is `true` if the underlying file has not been opened yet,
 i.e. before the `'ready'` event is emitted.
 
 ### `fs.constants`
 
-* {Object}
+* Type: {Object}
 
 Returns an object containing commonly used constants for file system
 operations.

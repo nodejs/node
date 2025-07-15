@@ -120,7 +120,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {net.SocketAddress|undefined}
+* Type: {net.SocketAddress|undefined}
 
 The local UDP socket address to which the endpoint is bound, if any.
 
@@ -132,7 +132,7 @@ If the endpoint is not currently bound then the value will be `undefined`. Read 
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 When `endpoint.busy` is set to true, the endpoint will temporarily reject
 new sessions from being created. Read/write.
@@ -167,7 +167,7 @@ Returns a promise that is fulfilled when the endpoint is destroyed.
 added: v23.8.0
 -->
 
-* {Promise}
+* Type: {Promise}
 
 A promise that is fulfilled when the endpoint is destroyed. This will be the same promise that is
 returned by the `endpoint.close()` function. Read only.
@@ -178,7 +178,7 @@ returned by the `endpoint.close()` function. Read only.
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True if `endpoint.close()` has been called and closing the endpoint has not yet completed.
 Read only.
@@ -200,7 +200,7 @@ closed.
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True if `endpoint.destroy()` has been called. Read only.
 
@@ -210,7 +210,7 @@ True if `endpoint.destroy()` has been called. Read only.
 added: v23.8.0
 -->
 
-* {quic.QuicEndpoint.Stats}
+* Type: {quic.QuicEndpoint.Stats}
 
 The statistics collected for an active session. Read only.
 
@@ -237,7 +237,7 @@ A view of the collected statistics for an endpoint.
 added: v23.8.0
 -->
 
-* {bigint} A timestamp indicating the moment the endpoint was created. Read only.
+* Type: {bigint} A timestamp indicating the moment the endpoint was created. Read only.
 
 ### `endpointStats.destroyedAt`
 
@@ -245,7 +245,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} A timestamp indicating the moment the endpoint was destroyed. Read only.
+* Type: {bigint} A timestamp indicating the moment the endpoint was destroyed. Read only.
 
 ### `endpointStats.bytesReceived`
 
@@ -253,7 +253,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number of bytes received by this endpoint. Read only.
+* Type: {bigint} The total number of bytes received by this endpoint. Read only.
 
 ### `endpointStats.bytesSent`
 
@@ -261,7 +261,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number of bytes sent by this endpoint. Read only.
+* Type: {bigint} The total number of bytes sent by this endpoint. Read only.
 
 ### `endpointStats.packetsReceived`
 
@@ -269,7 +269,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number of QUIC packets successfully received by this endpoint. Read only.
+* Type: {bigint} The total number of QUIC packets successfully received by this endpoint. Read only.
 
 ### `endpointStats.packetsSent`
 
@@ -277,7 +277,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number of QUIC packets successfully sent by this endpoint. Read only.
+* Type: {bigint} The total number of QUIC packets successfully sent by this endpoint. Read only.
 
 ### `endpointStats.serverSessions`
 
@@ -285,7 +285,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number of peer-initiated sessions received by this endpoint. Read only.
+* Type: {bigint} The total number of peer-initiated sessions received by this endpoint. Read only.
 
 ### `endpointStats.clientSessions`
 
@@ -293,7 +293,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number of sessions initiated by this endpoint. Read only.
+* Type: {bigint} The total number of sessions initiated by this endpoint. Read only.
 
 ### `endpointStats.serverBusyCount`
 
@@ -301,7 +301,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number of times an initial packet was rejected due to the
+* Type: {bigint} The total number of times an initial packet was rejected due to the
   endpoint being marked busy. Read only.
 
 ### `endpointStats.retryCount`
@@ -310,7 +310,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number of QUIC retry attempts on this endpoint. Read only.
+* Type: {bigint} The total number of QUIC retry attempts on this endpoint. Read only.
 
 ### `endpointStats.versionNegotiationCount`
 
@@ -318,7 +318,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number sessions rejected due to QUIC version mismatch. Read only.
+* Type: {bigint} The total number sessions rejected due to QUIC version mismatch. Read only.
 
 ### `endpointStats.statelessResetCount`
 
@@ -326,7 +326,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number of stateless resets handled by this endpoint. Read only.
+* Type: {bigint} The total number of stateless resets handled by this endpoint. Read only.
 
 ### `endpointStats.immediateCloseCount`
 
@@ -334,7 +334,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint} The total number of sessions that were closed before handshake completed. Read only.
+* Type: {bigint} The total number of sessions that were closed before handshake completed. Read only.
 
 ## Class: `QuicSession`
 
@@ -363,7 +363,7 @@ the session has been destroyed.
 added: v23.8.0
 -->
 
-* {Promise}
+* Type: {Promise}
 
 A promise that is fulfilled once the session is destroyed.
 
@@ -384,7 +384,7 @@ session will be closed.
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True if `session.destroy()` has been called. Read only.
 
@@ -394,7 +394,7 @@ True if `session.destroy()` has been called. Read only.
 added: v23.8.0
 -->
 
-* {quic.QuicEndpoint}
+* Type: {quic.QuicEndpoint}
 
 The endpoint that created this session. Read only.
 
@@ -404,7 +404,7 @@ The endpoint that created this session. Read only.
 added: v23.8.0
 -->
 
-* {quic.OnStreamCallback}
+* Type: {quic.OnStreamCallback}
 
 The callback to invoke when a new stream is initiated by a remote peer. Read/write.
 
@@ -414,7 +414,7 @@ The callback to invoke when a new stream is initiated by a remote peer. Read/wri
 added: v23.8.0
 -->
 
-* {quic.OnDatagramCallback}
+* Type: {quic.OnDatagramCallback}
 
 The callback to invoke when a new datagram is received from a remote peer. Read/write.
 
@@ -424,7 +424,7 @@ The callback to invoke when a new datagram is received from a remote peer. Read/
 added: v23.8.0
 -->
 
-* {quic.OnDatagramStatusCallback}
+* Type: {quic.OnDatagramStatusCallback}
 
 The callback to invoke when the status of a datagram is updated. Read/write.
 
@@ -434,7 +434,7 @@ The callback to invoke when the status of a datagram is updated. Read/write.
 added: v23.8.0
 -->
 
-* {quic.OnPathValidationCallback}
+* Type: {quic.OnPathValidationCallback}
 
 The callback to invoke when the path validation is updated. Read/write.
 
@@ -444,7 +444,7 @@ The callback to invoke when the path validation is updated. Read/write.
 added: v23.8.0
 -->
 
-* {quic.OnSessionTicketCallback}
+* Type: {quic.OnSessionTicketCallback}
 
 The callback to invoke when a new session ticket is received. Read/write.
 
@@ -454,7 +454,7 @@ The callback to invoke when a new session ticket is received. Read/write.
 added: v23.8.0
 -->
 
-* {quic.OnVersionNegotiationCallback}
+* Type: {quic.OnVersionNegotiationCallback}
 
 The callback to invoke when a version negotiation is initiated. Read/write.
 
@@ -464,7 +464,7 @@ The callback to invoke when a version negotiation is initiated. Read/write.
 added: v23.8.0
 -->
 
-* {quic.OnHandshakeCallback}
+* Type: {quic.OnHandshakeCallback}
 
 The callback to invoke when the TLS handshake is completed. Read/write.
 
@@ -502,7 +502,7 @@ the outgoing stream will be closed.
 added: v23.8.0
 -->
 
-* {Object|undefined}
+* Type: {Object|undefined}
   * `local` {net.SocketAddress}
   * `remote` {net.SocketAddress}
 
@@ -527,7 +527,7 @@ that view will be transfered to the underlying stream.
 added: v23.8.0
 -->
 
-* {quic.QuicSession.Stats}
+* Type: {quic.QuicSession.Stats}
 
 Return the current statistics for the session. Read only.
 
@@ -560,7 +560,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.closingAt`
 
@@ -568,7 +568,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.handshakeCompletedAt`
 
@@ -576,7 +576,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.handshakeConfirmedAt`
 
@@ -584,7 +584,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.bytesReceived`
 
@@ -592,7 +592,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.bytesSent`
 
@@ -600,7 +600,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.bidiInStreamCount`
 
@@ -608,7 +608,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.bidiOutStreamCount`
 
@@ -616,7 +616,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.uniInStreamCount`
 
@@ -624,7 +624,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.uniOutStreamCount`
 
@@ -632,7 +632,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.maxBytesInFlights`
 
@@ -640,7 +640,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.bytesInFlight`
 
@@ -648,7 +648,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.blockCount`
 
@@ -656,7 +656,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.cwnd`
 
@@ -664,7 +664,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.latestRtt`
 
@@ -672,7 +672,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.minRtt`
 
@@ -680,7 +680,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.rttVar`
 
@@ -688,7 +688,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.smoothedRtt`
 
@@ -696,7 +696,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.ssthresh`
 
@@ -704,7 +704,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.datagramsReceived`
 
@@ -712,7 +712,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.datagramsSent`
 
@@ -720,7 +720,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.datagramsAcknowledged`
 
@@ -728,7 +728,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `sessionStats.datagramsLost`
 
@@ -736,7 +736,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ## Class: `QuicStream`
 
@@ -750,7 +750,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {Promise}
+* Type: {Promise}
 
 A promise that is fulfilled when the stream is fully closed.
 
@@ -770,7 +770,7 @@ Immediately and abruptly destroys the stream.
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True if `stream.destroy()` has been called.
 
@@ -780,7 +780,7 @@ True if `stream.destroy()` has been called.
 added: v23.8.0
 -->
 
-* {string} One of either `'bidi'` or `'uni'`.
+* Type: {string} One of either `'bidi'` or `'uni'`.
 
 The directionality of the stream. Read only.
 
@@ -790,7 +790,7 @@ The directionality of the stream. Read only.
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 The stream ID. Read only.
 
@@ -800,7 +800,7 @@ The stream ID. Read only.
 added: v23.8.0
 -->
 
-* {quic.OnBlockedCallback}
+* Type: {quic.OnBlockedCallback}
 
 The callback to invoke when the stream is blocked. Read/write.
 
@@ -810,7 +810,7 @@ The callback to invoke when the stream is blocked. Read/write.
 added: v23.8.0
 -->
 
-* {quic.OnStreamErrorCallback}
+* Type: {quic.OnStreamErrorCallback}
 
 The callback to invoke when the stream is reset. Read/write.
 
@@ -820,7 +820,7 @@ The callback to invoke when the stream is reset. Read/write.
 added: v23.8.0
 -->
 
-* {ReadableStream}
+* Type: {ReadableStream}
 
 ### `stream.session`
 
@@ -828,7 +828,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {quic.QuicSession}
+* Type: {quic.QuicSession}
 
 The session that created this stream. Read only.
 
@@ -838,7 +838,7 @@ The session that created this stream. Read only.
 added: v23.8.0
 -->
 
-* {quic.QuicStream.Stats}
+* Type: {quic.QuicStream.Stats}
 
 The current statistics for the stream. Read only.
 
@@ -854,7 +854,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.bytesReceived`
 
@@ -862,7 +862,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.bytesSent`
 
@@ -870,7 +870,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.createdAt`
 
@@ -878,7 +878,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.destroyedAt`
 
@@ -886,7 +886,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.finalSize`
 
@@ -894,7 +894,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.isConnected`
 
@@ -902,7 +902,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.maxOffset`
 
@@ -910,7 +910,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.maxOffsetAcknowledged`
 
@@ -918,7 +918,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.maxOffsetReceived`
 
@@ -926,7 +926,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.openedAt`
 
@@ -934,7 +934,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ### `streamStats.receivedAt`
 
@@ -942,7 +942,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 ## Types
 
@@ -952,7 +952,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {Object}
+* Type: {Object}
 
 The endpoint configuration options passed when constructing a new `QuicEndpoint` instance.
 
@@ -962,7 +962,7 @@ The endpoint configuration options passed when constructing a new `QuicEndpoint`
 added: v23.8.0
 -->
 
-* {net.SocketAddress | string} The local UDP address and port the endpoint should bind to.
+* Type: {net.SocketAddress | string} The local UDP address and port the endpoint should bind to.
 
 If not specified the endpoint will bind to IPv4 `localhost` on a random port.
 
@@ -972,7 +972,7 @@ If not specified the endpoint will bind to IPv4 `localhost` on a random port.
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 The endpoint maintains an internal cache of validated socket addresses as a
 performance optimization. This option sets the maximum number of addresses
@@ -985,7 +985,7 @@ need to specify.
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 When `true`, indicates that the endpoint should bind only to IPv6 addresses.
 
@@ -995,7 +995,7 @@ When `true`, indicates that the endpoint should bind only to IPv6 addresses.
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the maximum number of concurrent sessions allowed per remote peer address.
 
@@ -1005,7 +1005,7 @@ Specifies the maximum number of concurrent sessions allowed per remote peer addr
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the maximum total number of concurrent sessions.
 
@@ -1015,7 +1015,7 @@ Specifies the maximum total number of concurrent sessions.
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the maximum number of QUIC retry attempts allowed per remote peer address.
 
@@ -1025,7 +1025,7 @@ Specifies the maximum number of QUIC retry attempts allowed per remote peer addr
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the maximum number of stateless resets that are allowed per remote peer address.
 
@@ -1035,7 +1035,7 @@ Specifies the maximum number of stateless resets that are allowed per remote pee
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the length of time a QUIC retry token is considered valid.
 
@@ -1045,7 +1045,7 @@ Specifies the length of time a QUIC retry token is considered valid.
 added: v23.8.0
 -->
 
-* {ArrayBufferView}
+* Type: {ArrayBufferView}
 
 Specifies the 16-byte secret used to generate QUIC retry tokens.
 
@@ -1055,7 +1055,7 @@ Specifies the 16-byte secret used to generate QUIC retry tokens.
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the length of time a QUIC token is considered valid.
 
@@ -1065,7 +1065,7 @@ Specifies the length of time a QUIC token is considered valid.
 added: v23.8.0
 -->
 
-* {ArrayBufferView}
+* Type: {ArrayBufferView}
 
 Specifies the 16-byte secret used to generate QUIC tokens.
 
@@ -1075,7 +1075,7 @@ Specifies the 16-byte secret used to generate QUIC tokens.
 added: v23.8.0
 -->
 
-* {number}
+* Type: {number}
 
 #### `endpointOptions.udpSendBufferSize`
 
@@ -1083,7 +1083,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {number}
+* Type: {number}
 
 #### `endpointOptions.udpTTL`
 
@@ -1091,7 +1091,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {number}
+* Type: {number}
 
 #### `endpointOptions.validateAddress`
 
@@ -1099,7 +1099,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 When `true`, requires that the endpoint validate peer addresses using retry packets
 while establishing a new connection.
@@ -1116,7 +1116,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {string}
+* Type: {string}
 
 The ALPN protocol identifier.
 
@@ -1126,7 +1126,7 @@ The ALPN protocol identifier.
 added: v23.8.0
 -->
 
-* {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
+* Type: {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
 
 The CA certificates to use for sessions.
 
@@ -1136,7 +1136,7 @@ The CA certificates to use for sessions.
 added: v23.8.0
 -->
 
-* {string}
+* Type: {string}
 
 Specifies the congestion control algorithm that will be used
 . Must be set to one of either `'reno'`, `'cubic'`, or `'bbr'`.
@@ -1149,7 +1149,7 @@ This is an advanced option that users typically won't have need to specify.
 added: v23.8.0
 -->
 
-* {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
+* Type: {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
 
 The TLS certificates to use for sessions.
 
@@ -1159,7 +1159,7 @@ The TLS certificates to use for sessions.
 added: v23.8.0
 -->
 
-* {string}
+* Type: {string}
 
 The list of supported TLS 1.3 cipher algorithms.
 
@@ -1169,7 +1169,7 @@ The list of supported TLS 1.3 cipher algorithms.
 added: v23.8.0
 -->
 
-* {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
+* Type: {ArrayBuffer|ArrayBufferView|ArrayBuffer\[]|ArrayBufferView\[]}
 
 The CRL to use for sessions.
 
@@ -1179,7 +1179,7 @@ The CRL to use for sessions.
 added: v23.8.0
 -->
 
-* {string}
+* Type: {string}
 
 The list of support TLS 1.3 cipher groups.
 
@@ -1189,7 +1189,7 @@ The list of support TLS 1.3 cipher groups.
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True to enable TLS keylogging output.
 
@@ -1199,7 +1199,7 @@ True to enable TLS keylogging output.
 added: v23.8.0
 -->
 
-* {KeyObject|CryptoKey|KeyObject\[]|CryptoKey\[]}
+* Type: {KeyObject|CryptoKey|KeyObject\[]|CryptoKey\[]}
 
 The TLS crypto keys to use for sessions.
 
@@ -1209,7 +1209,7 @@ The TLS crypto keys to use for sessions.
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the maximum UDP packet payload size.
 
@@ -1219,7 +1219,7 @@ Specifies the maximum UDP packet payload size.
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the maximum stream flow-control window size.
 
@@ -1229,7 +1229,7 @@ Specifies the maximum stream flow-control window size.
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the maximum session flow-control window size.
 
@@ -1239,7 +1239,7 @@ Specifies the maximum session flow-control window size.
 added: v23.8.0
 -->
 
-* {number}
+* Type: {number}
 
 The minimum QUIC version number to allow. This is an advanced option that users
 typically won't have need to specify.
@@ -1250,7 +1250,7 @@ typically won't have need to specify.
 added: v23.8.0
 -->
 
-* {string} One of `'use'`, `'ignore'`, or `'default'`.
+* Type: {string} One of `'use'`, `'ignore'`, or `'default'`.
 
 When the remote peer advertises a preferred address, this option specifies whether
 to use it or ignore it.
@@ -1261,7 +1261,7 @@ to use it or ignore it.
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True if qlog output should be enabled.
 
@@ -1271,7 +1271,7 @@ True if qlog output should be enabled.
 added: v23.8.0
 -->
 
-* {ArrayBufferView} A session ticket to use for 0RTT session resumption.
+* Type: {ArrayBufferView} A session ticket to use for 0RTT session resumption.
 
 #### `sessionOptions.handshakeTimeout`
 
@@ -1279,7 +1279,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the maximum number of milliseconds a TLS handshake is permitted to take
 to complete before timing out.
@@ -1290,7 +1290,7 @@ to complete before timing out.
 added: v23.8.0
 -->
 
-* {string}
+* Type: {string}
 
 The peer server name to target.
 
@@ -1300,7 +1300,7 @@ The peer server name to target.
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True to enable TLS tracing output.
 
@@ -1310,7 +1310,7 @@ True to enable TLS tracing output.
 added: v23.8.0
 -->
 
-* {quic.TransportParams}
+* Type: {quic.TransportParams}
 
 The QUIC transport parameters to use for the session.
 
@@ -1320,7 +1320,7 @@ The QUIC transport parameters to use for the session.
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 Specifies the maximum number of unacknowledged packets a session should allow.
 
@@ -1330,7 +1330,7 @@ Specifies the maximum number of unacknowledged packets a session should allow.
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True to require verification of TLS client certificate.
 
@@ -1340,7 +1340,7 @@ True to require verification of TLS client certificate.
 added: v23.8.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 True to require private key verification.
 
@@ -1350,7 +1350,7 @@ True to require private key verification.
 added: v23.8.0
 -->
 
-* {number}
+* Type: {number}
 
 The QUIC version number to use. This is an advanced option that users typically
 won't have need to specify.
@@ -1367,7 +1367,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {net.SocketAddress} The preferred IPv4 address to advertise.
+* Type: {net.SocketAddress} The preferred IPv4 address to advertise.
 
 #### `transportParams.preferredAddressIpv6`
 
@@ -1375,7 +1375,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {net.SocketAddress} The preferred IPv6 address to advertise.
+* Type: {net.SocketAddress} The preferred IPv6 address to advertise.
 
 #### `transportParams.initialMaxStreamDataBidiLocal`
 
@@ -1383,7 +1383,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 #### `transportParams.initialMaxStreamDataBidiRemote`
 
@@ -1391,7 +1391,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 #### `transportParams.initialMaxStreamDataUni`
 
@@ -1399,7 +1399,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 #### `transportParams.initialMaxData`
 
@@ -1407,7 +1407,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 #### `transportParams.initialMaxStreamsBidi`
 
@@ -1415,7 +1415,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 #### `transportParams.initialMaxStreamsUni`
 
@@ -1423,7 +1423,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 #### `transportParams.maxIdleTimeout`
 
@@ -1431,7 +1431,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 #### `transportParams.activeConnectionIDLimit`
 
@@ -1439,7 +1439,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 #### `transportParams.ackDelayExponent`
 
@@ -1447,7 +1447,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 #### `transportParams.maxAckDelay`
 
@@ -1455,7 +1455,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 #### `transportParams.maxDatagramFrameSize`
 
@@ -1463,7 +1463,7 @@ added: v23.8.0
 added: v23.8.0
 -->
 
-* {bigint|number}
+* Type: {bigint|number}
 
 ## Callbacks
 
