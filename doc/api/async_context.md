@@ -303,7 +303,7 @@ asyncLocalStorage.getStore(); // Returns the same object
 added: v24.0.0
 -->
 
-* {string}
+* Type: {string}
 
 The name of the `AsyncLocalStorage` instance if provided.
 

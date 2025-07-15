@@ -1908,7 +1908,7 @@ added:
   - v18.13.0
 -->
 
-* {Array}
+* Type: {Array}
 
 A getter that returns a copy of the internal array used to track calls to the
 mock. Each entry in the array is an object with the following properties.
@@ -2078,7 +2078,7 @@ of property mocks created via the [`MockTracker`][] APIs.
 
 ### `ctx.accesses`
 
-* {Array}
+* Type: {Array}
 
 A getter that returns a copy of the internal array used to track accesses (get/set) to
 the mocked property. Each entry in the array is an object with the following properties:
@@ -3729,7 +3729,7 @@ added:
   - v16.17.0
 -->
 
-* {AbortSignal}
+* Type: {AbortSignal}
 
 Can be used to abort test subtasks when the test has been aborted.
 
@@ -3913,7 +3913,7 @@ added:
   - v16.17.0
 -->
 
-* {AbortSignal}
+* Type: {AbortSignal}
 
 Can be used to abort test subtasks when the test has been aborted.
 

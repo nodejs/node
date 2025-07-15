@@ -324,7 +324,7 @@ added:
   - v22.15.0
 -->
 
-* {boolean} Whether the database is currently open or not.
+* Type: {boolean} Whether the database is currently open or not.
 
 ### `database.isTransaction`
 
@@ -334,7 +334,7 @@ added:
   - v22.16.0
 -->
 
-* {boolean} Whether the database is currently within a transaction. This method
+* Type: {boolean} Whether the database is currently within a transaction. This method
   is a wrapper around [`sqlite3_get_autocommit()`][].
 
 ### `database.open()`
@@ -563,7 +563,7 @@ prepared statement.
 added: v22.5.0
 -->
 
-* {string} The source SQL expanded to include parameter values.
+* Type: {string} The source SQL expanded to include parameter values.
 
 The source SQL text of the prepared statement with parameter
 placeholders replaced by the values that were used during the most recent
@@ -714,7 +714,7 @@ supported at all times.
 added: v22.5.0
 -->
 
-* {string} The source SQL used to create this prepared statement.
+* Type: {string} The source SQL used to create this prepared statement.
 
 The source SQL text of the prepared statement. This property is a
 wrapper around [`sqlite3_sql()`][].
@@ -806,7 +806,7 @@ added:
   - v22.13.0
 -->
 
-* {Object}
+* Type: {Object}
 
 An object containing commonly used constants for SQLite operations.
 

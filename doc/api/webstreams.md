@@ -161,7 +161,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* {boolean} Set to `true` if there is an active reader for this
+* Type: {boolean} Set to `true` if there is an active reader for this
   {ReadableStream}.
 
 The `readableStream.locked` property is `false` by default, and is
@@ -529,7 +529,7 @@ when the underlying stream has been canceled.
 added: v16.5.0
 -->
 
-* {Promise} Fulfilled with `undefined` when the associated
+* Type: {Promise} Fulfilled with `undefined` when the associated
   {ReadableStream} is closed or rejected if the stream errors or the reader's
   lock is released before the stream finishes closing.
 
@@ -661,7 +661,7 @@ when the underlying stream has been canceled.
 added: v16.5.0
 -->
 
-* {Promise} Fulfilled with `undefined` when the associated
+* Type: {Promise} Fulfilled with `undefined` when the associated
   {ReadableStream} is closed or rejected if the stream errors or the reader's
   lock is released before the stream finishes closing.
 
@@ -735,7 +735,7 @@ Closes the {ReadableStream} to which this controller is associated.
 added: v16.5.0
 -->
 
-* {number}
+* Type: {number}
 
 Returns the amount of data remaining to fill the {ReadableStream}'s
 queue.
@@ -780,7 +780,7 @@ the internal state and management of the stream's queue. The
 added: v16.5.0
 -->
 
-* {ReadableStreamBYOBRequest}
+* Type: {ReadableStreamBYOBRequest}
 
 #### `readableByteStreamController.close()`
 
@@ -796,7 +796,7 @@ Closes the {ReadableStream} to which this controller is associated.
 added: v16.5.0
 -->
 
-* {number}
+* Type: {number}
 
 Returns the amount of data remaining to fill the {ReadableStream}'s
 queue.
@@ -869,7 +869,7 @@ to a new `Buffer`, `TypedArray`, or `DataView`.
 added: v16.5.0
 -->
 
-* {Buffer|TypedArray|DataView}
+* Type: {Buffer|TypedArray|DataView}
 
 ### Class: `WritableStream`
 
@@ -969,7 +969,7 @@ data into the `WritableStream`.
 added: v16.5.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `writableStream.locked` property is `false` by default, and is
 switched to `true` while there is an active writer attached to this
@@ -1040,7 +1040,7 @@ Closes the `WritableStream` when no additional writes are expected.
 added: v16.5.0
 -->
 
-* {Promise} Fulfilled with `undefined` when the associated
+* Type: {Promise} Fulfilled with `undefined` when the associated
   {WritableStream} is closed or rejected if the stream errors or the writer's
   lock is released before the stream finishes closing.
 
@@ -1050,7 +1050,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* {number}
+* Type: {number}
 
 The amount of data required to fill the {WritableStream}'s queue.
 
@@ -1060,7 +1060,7 @@ The amount of data required to fill the {WritableStream}'s queue.
 added: v16.5.0
 -->
 
-* {Promise} Fulfilled with `undefined` when the writer is ready
+* Type: {Promise} Fulfilled with `undefined` when the writer is ready
   to be used.
 
 #### `writableStreamDefaultWriter.releaseLock()`
@@ -1109,7 +1109,7 @@ with currently pending writes canceled.
 
 #### `writableStreamDefaultController.signal`
 
-* {AbortSignal} An `AbortSignal` that can be used to cancel pending
+* Type: {AbortSignal} An `AbortSignal` that can be used to cancel pending
   write or close operations when a {WritableStream} is aborted.
 
 ### Class: `TransformStream`
@@ -1191,7 +1191,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* {ReadableStream}
+* Type: {ReadableStream}
 
 #### `transformStream.writable`
 
@@ -1199,7 +1199,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* {WritableStream}
+* Type: {WritableStream}
 
 #### Transferring with postMessage()
 
@@ -1237,7 +1237,7 @@ of the `TransformStream`.
 added: v16.5.0
 -->
 
-* {number}
+* Type: {number}
 
 The amount of data required to fill the readable side's queue.
 
@@ -1297,7 +1297,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* {number}
+* Type: {number}
 
 #### `byteLengthQueuingStrategy.size`
 
@@ -1305,7 +1305,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* {Function}
+* Type: {Function}
   * `chunk` {any}
   * Returns: {number}
 
@@ -1334,7 +1334,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* {number}
+* Type: {number}
 
 #### `countQueuingStrategy.size`
 
@@ -1342,7 +1342,7 @@ added: v16.5.0
 added: v16.5.0
 -->
 
-* {Function}
+* Type: {Function}
   * `chunk` {any}
   * Returns: {number}
 
@@ -1370,7 +1370,7 @@ Creates a new `TextEncoderStream` instance.
 added: v16.6.0
 -->
 
-* {string}
+* Type: {string}
 
 The encoding supported by the `TextEncoderStream` instance.
 
@@ -1380,7 +1380,7 @@ The encoding supported by the `TextEncoderStream` instance.
 added: v16.6.0
 -->
 
-* {ReadableStream}
+* Type: {ReadableStream}
 
 #### `textEncoderStream.writable`
 
@@ -1388,7 +1388,7 @@ added: v16.6.0
 added: v16.6.0
 -->
 
-* {WritableStream}
+* Type: {WritableStream}
 
 ### Class: `TextDecoderStream`
 
@@ -1423,7 +1423,7 @@ Creates a new `TextDecoderStream` instance.
 added: v16.6.0
 -->
 
-* {string}
+* Type: {string}
 
 The encoding supported by the `TextDecoderStream` instance.
 
@@ -1433,7 +1433,7 @@ The encoding supported by the `TextDecoderStream` instance.
 added: v16.6.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The value will be `true` if decoding errors result in a `TypeError` being
 thrown.
@@ -1444,7 +1444,7 @@ thrown.
 added: v16.6.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The value will be `true` if the decoding result will include the byte order
 mark.
@@ -1455,7 +1455,7 @@ mark.
 added: v16.6.0
 -->
 
-* {ReadableStream}
+* Type: {ReadableStream}
 
 #### `textDecoderStream.writable`
 
@@ -1463,7 +1463,7 @@ added: v16.6.0
 added: v16.6.0
 -->
 
-* {WritableStream}
+* Type: {WritableStream}
 
 ### Class: `CompressionStream`
 
@@ -1495,7 +1495,7 @@ changes:
 added: v17.0.0
 -->
 
-* {ReadableStream}
+* Type: {ReadableStream}
 
 #### `compressionStream.writable`
 
@@ -1503,7 +1503,7 @@ added: v17.0.0
 added: v17.0.0
 -->
 
-* {WritableStream}
+* Type: {WritableStream}
 
 ### Class: `DecompressionStream`
 
@@ -1535,7 +1535,7 @@ changes:
 added: v17.0.0
 -->
 
-* {ReadableStream}
+* Type: {ReadableStream}
 
 #### `decompressionStream.writable`
 
@@ -1543,7 +1543,7 @@ added: v17.0.0
 added: v17.0.0
 -->
 
-* {WritableStream}
+* Type: {WritableStream}
 
 ### Utility Consumers
 

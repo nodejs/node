@@ -1995,7 +1995,7 @@ changes:
                  for RSA-PSS keys.
 -->
 
-* {Object}
+* Type: {Object}
   * `modulusLength` {number} Key size in bits (RSA, DSA).
   * `publicExponent` {bigint} Public exponent (RSA).
   * `hashAlgorithm` {string} Name of the message digest (RSA-PSS).
@@ -2041,7 +2041,7 @@ changes:
     description: Added support for `'ed25519'` and `'ed448'`.
 -->
 
-* {string}
+* Type: {string}
 
 For asymmetric keys, this property represents the type of the key. Supported key
 types are:
@@ -2131,7 +2131,7 @@ PKCS#1 and SEC1 encryption.
 added: v11.6.0
 -->
 
-* {number}
+* Type: {number}
 
 For secret keys, this property represents the size of the key in bytes. This
 property is `undefined` for asymmetric keys.
@@ -2162,7 +2162,7 @@ Converts a `KeyObject` instance to a `CryptoKey`.
 added: v11.6.0
 -->
 
-* {string}
+* Type: {string}
 
 Depending on the type of this `KeyObject`, this property is either
 `'secret'` for secret (symmetric) keys, `'public'` for public (asymmetric) keys
@@ -2529,7 +2529,7 @@ added: v15.6.0
 added: v15.6.0
 -->
 
-* {boolean} Will be `true` if this is a Certificate Authority (CA)
+* Type: {boolean} Will be `true` if this is a Certificate Authority (CA)
   certificate.
 
 ### `x509.checkEmail(email[, options])`
@@ -2687,7 +2687,7 @@ the given private key.
 added: v15.6.0
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 An array detailing the key extended usages for this certificate.
 
@@ -2697,7 +2697,7 @@ An array detailing the key extended usages for this certificate.
 added: v15.6.0
 -->
 
-* {string}
+* Type: {string}
 
 The SHA-1 fingerprint of this certificate.
 
@@ -2711,7 +2711,7 @@ certificates, consider using [`x509.fingerprint256`][] instead.
 added: v15.6.0
 -->
 
-* {string}
+* Type: {string}
 
 The SHA-256 fingerprint of this certificate.
 
@@ -2723,7 +2723,7 @@ added:
   - v16.14.0
 -->
 
-* {string}
+* Type: {string}
 
 The SHA-512 fingerprint of this certificate.
 
@@ -2746,7 +2746,7 @@ changes:
                  in response to CVE-2021-44532.
 -->
 
-* {string}
+* Type: {string}
 
 A textual representation of the certificate's authority information access
 extension.
@@ -2767,7 +2767,7 @@ Third-party code should be prepared to handle both possible entry formats.
 added: v15.6.0
 -->
 
-* {string}
+* Type: {string}
 
 The issuer identification included in this certificate.
 
@@ -2777,7 +2777,7 @@ The issuer identification included in this certificate.
 added: v15.9.0
 -->
 
-* {X509Certificate}
+* Type: {X509Certificate}
 
 The issuer certificate or `undefined` if the issuer certificate is not
 available.
@@ -2788,7 +2788,7 @@ available.
 added: v15.6.0
 -->
 
-* {KeyObject}
+* Type: {KeyObject}
 
 The public key {KeyObject} for this certificate.
 
@@ -2798,7 +2798,7 @@ The public key {KeyObject} for this certificate.
 added: v15.6.0
 -->
 
-* {Buffer}
+* Type: {Buffer}
 
 A `Buffer` containing the DER encoding of this certificate.
 
@@ -2808,7 +2808,7 @@ A `Buffer` containing the DER encoding of this certificate.
 added: v15.6.0
 -->
 
-* {string}
+* Type: {string}
 
 The serial number of this certificate.
 
@@ -2822,7 +2822,7 @@ identifier instead.
 added: v15.6.0
 -->
 
-* {string}
+* Type: {string}
 
 The complete subject of this certificate.
 
@@ -2839,7 +2839,7 @@ changes:
                  in response to CVE-2021-44532.
 -->
 
-* {string}
+* Type: {string}
 
 The subject alternative name specified for this certificate.
 
@@ -2864,7 +2864,7 @@ to handle both possible entry formats.
 added: v15.6.0
 -->
 
-* {string}
+* Type: {string}
 
 There is no standard JSON encoding for X509 certificates. The
 `toJSON()` method returns a string containing the PEM encoded
@@ -2876,7 +2876,7 @@ certificate.
 added: v15.6.0
 -->
 
-* {Object}
+* Type: {Object}
 
 Returns information about this certificate using the legacy
 [certificate object][] encoding.
@@ -2887,7 +2887,7 @@ Returns information about this certificate using the legacy
 added: v15.6.0
 -->
 
-* {string}
+* Type: {string}
 
 Returns the PEM-encoded certificate.
 
@@ -2897,7 +2897,7 @@ Returns the PEM-encoded certificate.
 added: v15.6.0
 -->
 
-* {string}
+* Type: {string}
 
 The date/time from which this certificate is valid.
 
@@ -2909,7 +2909,7 @@ added:
  - v22.10.0
 -->
 
-* {Date}
+* Type: {Date}
 
 The date/time from which this certificate is valid, encapsulated in a `Date` object.
 
@@ -2919,7 +2919,7 @@ The date/time from which this certificate is valid, encapsulated in a `Date` obj
 added: v15.6.0
 -->
 
-* {string}
+* Type: {string}
 
 The date/time until which this certificate is valid.
 
@@ -2931,7 +2931,7 @@ added:
  - v22.10.0
 -->
 
-* {Date}
+* Type: {Date}
 
 The date/time until which this certificate is valid, encapsulated in a `Date` object.
 
@@ -3005,7 +3005,7 @@ Checks the primality of the `candidate`.
 added: v6.3.0
 -->
 
-* {Object}
+* Type: {Object}
 
 An object containing commonly used constants for crypto and security related
 operations. The specific constants currently defined are described in
@@ -5467,7 +5467,7 @@ If the `callback` function is provided this function uses libuv's threadpool.
 added: v17.4.0
 -->
 
-* {SubtleCrypto}
+* Type: {SubtleCrypto}
 
 A convenient alias for [`crypto.webcrypto.subtle`][].
 
