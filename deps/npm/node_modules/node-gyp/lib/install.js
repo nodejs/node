@@ -284,7 +284,7 @@ async function install (gyp, argv) {
       if (tarExtractDir !== devDir) {
         try {
           // try to cleanup temp dir
-          await fs.rm(tarExtractDir, { recursive: true })
+          await fs.rm(tarExtractDir, { recursive: true, maxRetries: 3 })
         } catch {
           log.warn('failed to clean up temp tarball extract directory')
         }

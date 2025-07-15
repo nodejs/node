@@ -11,7 +11,7 @@
     "bindings",
     "gyp"
   ],
-  "version": "11.0.0",
+  "version": "11.2.0",
   "installVersion": 11,
   "author": "Nathan Rajlich <nathan@tootallnate.net> (http://tootallnate.net)",
   "repository": {
@@ -24,13 +24,13 @@
   "dependencies": {
     "env-paths": "^2.2.0",
     "exponential-backoff": "^3.1.1",
-    "glob": "^10.3.10",
     "graceful-fs": "^4.2.6",
     "make-fetch-happen": "^14.0.3",
     "nopt": "^8.0.0",
     "proc-log": "^5.0.0",
     "semver": "^7.3.5",
     "tar": "^7.4.3",
+    "tinyglobby": "^0.2.12",
     "which": "^5.0.0"
   },
   "engines": {

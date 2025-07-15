@@ -3,11 +3,12 @@
 # found in the LICENSE file.
 
 
+import json
 import os
+
 import gyp
 import gyp.common
 import gyp.msvs_emulation
-import json
 
 generator_supports_multiple_toolsets = True
 

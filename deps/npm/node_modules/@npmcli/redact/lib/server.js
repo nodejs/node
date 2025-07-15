@@ -6,6 +6,7 @@ const {
   DEEP_HEADER_SET_COOKIE,
   REWRITE_REQUEST,
   REWRITE_RESPONSE,
+  DEEP_HEADER_COOKIE,
 } = require('./matchers')
 
 const {
@@ -13,6 +14,8 @@ const {
   redactUrlPasswordMatcher,
   redactMatchers,
 } = require('./utils')
+
+const { serializeError } = require('./error')
 
 const { deepMap } = require('./deep-map')
 
@@ -22,6 +25,7 @@ const _redact = redactMatchers(
   JSON_WEB_TOKEN,
   DEEP_HEADER_AUTHORIZATION,
   DEEP_HEADER_SET_COOKIE,
+  DEEP_HEADER_COOKIE,
   REWRITE_REQUEST,
   REWRITE_RESPONSE,
   redactUrlMatcher(
@@ -31,4 +35,25 @@ const _redact = redactMatchers(
 
 const redact = (input) => deepMap(input, (value, path) => _redact(value, { path }))
 
-module.exports = { redact }
+/** takes an error returns new error keeping some custom properties */
+function redactError (input) {
+  const { message, ...data } = serializeError(input)
+  const output = new Error(redact(message))
+  return Object.assign(output, redact(data))
+}
+
+/** runs a function within try / catch and throws error wrapped in redactError */
+function redactThrow (func) {
+  if (typeof func !== 'function') {
+    throw new Error('redactThrow expects a function')
+  }
+  return async (...args) => {
+    try {
+      return await func(...args)
+    } catch (error) {
+      throw redactError(error)
+    }
+  }
+}
+
+module.exports = { redact, redactError, redactThrow }
