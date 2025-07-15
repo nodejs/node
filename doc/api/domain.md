@@ -287,7 +287,7 @@ To handle the errors that it catches, listen to its `'error'` event.
 
 ### `domain.members`
 
-* {Array}
+* Type: {Array}
 
 An array of timers and event emitters that have been explicitly added
 to the domain.

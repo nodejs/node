@@ -694,7 +694,7 @@ deprecated:
 
 > Stability: 0 - Deprecated. Use [`module.builtinModules`][] instead.
 
-* {string\[]}
+* Type: {string\[]}
 
 A list of the names of some Node.js modules, e.g., `'http'`.
 

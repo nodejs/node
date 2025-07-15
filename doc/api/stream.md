@@ -568,7 +568,7 @@ function writeOneMillionTimes(writer, data, encoding, callback) {
 added: v0.9.4
 -->
 
-* {Error}
+* Type: {Error}
 
 The `'error'` event is emitted if an error occurred while writing or piping
 data. The listener callback is passed a single `Error` argument when called.
@@ -732,7 +732,7 @@ but instead implement [`writable._destroy()`][writable-_destroy].
 added: v18.0.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` after `'close'` has been emitted.
 
@@ -742,7 +742,7 @@ Is `true` after `'close'` has been emitted.
 added: v8.0.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` after [`writable.destroy()`][writable-destroy] has been called.
 
@@ -866,7 +866,7 @@ See also: [`writable.cork()`][].
 added: v11.4.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if it is safe to call [`writable.write()`][stream-write], which means
 the stream has not been destroyed, errored, or ended.
@@ -885,7 +885,7 @@ changes:
    description: Marking the API stable.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Returns whether the stream was destroyed or errored before emitting `'finish'`.
 
@@ -895,7 +895,7 @@ Returns whether the stream was destroyed or errored before emitting `'finish'`.
 added: v12.9.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` after [`writable.end()`][] has been called. This property
 does not indicate whether the data has been flushed, for this use
@@ -909,7 +909,7 @@ added:
  - v12.16.0
 -->
 
-* {integer}
+* Type: {integer}
 
 Number of times [`writable.uncork()`][stream-uncork] needs to be
 called in order to fully uncork the stream.
@@ -921,7 +921,7 @@ added:
   v18.0.0
 -->
 
-* {Error}
+* Type: {Error}
 
 Returns error if the stream has been destroyed with an error.
 
@@ -931,7 +931,7 @@ Returns error if the stream has been destroyed with an error.
 added: v12.6.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is set to `true` immediately before the [`'finish'`][] event is emitted.
 
@@ -941,7 +941,7 @@ Is set to `true` immediately before the [`'finish'`][] event is emitted.
 added: v9.3.0
 -->
 
-* {number}
+* Type: {number}
 
 Return the value of `highWaterMark` passed when creating this `Writable`.
 
@@ -951,7 +951,7 @@ Return the value of `highWaterMark` passed when creating this `Writable`.
 added: v9.4.0
 -->
 
-* {number}
+* Type: {number}
 
 This property contains the number of bytes (or objects) in the queue
 ready to be written. The value provides introspection data regarding
@@ -965,7 +965,7 @@ added:
   - v14.17.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if the stream's buffer has been full and stream will emit `'drain'`.
 
@@ -975,7 +975,7 @@ Is `true` if the stream's buffer has been full and stream will emit `'drain'`.
 added: v12.3.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Getter for the property `objectMode` of a given `Writable` stream.
 
@@ -1289,7 +1289,7 @@ readable.on('end', () => {
 added: v0.9.4
 -->
 
-* {Error}
+* Type: {Error}
 
 The `'error'` event may be emitted by a `Readable` implementation at any time.
 Typically, this may occur if the underlying stream is unable to generate data
@@ -1418,7 +1418,7 @@ Implementors should not override this method, but instead implement
 added: v18.0.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` after `'close'` has been emitted.
 
@@ -1428,7 +1428,7 @@ Is `true` after `'close'` has been emitted.
 added: v8.0.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` after [`readable.destroy()`][readable-destroy] has been called.
 
@@ -1638,7 +1638,7 @@ been emitted will return `null`. No runtime error will be raised.
 added: v11.4.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if it is safe to call [`readable.read()`][stream-read], which means
 the stream has not been destroyed or emitted `'error'` or `'end'`.
@@ -1655,7 +1655,7 @@ changes:
    description: Marking the API stable.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Returns whether the stream was destroyed or errored before emitting `'end'`.
 
@@ -1673,7 +1673,7 @@ changes:
    description: Marking the API stable.
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Returns whether `'data'` has been emitted.
 
@@ -1683,7 +1683,7 @@ Returns whether `'data'` has been emitted.
 added: v12.7.0
 -->
 
-* {null|string}
+* Type: {null|string}
 
 Getter for the property `encoding` of a given `Readable` stream. The `encoding`
 property can be set using the [`readable.setEncoding()`][] method.
@@ -1694,7 +1694,7 @@ property can be set using the [`readable.setEncoding()`][] method.
 added: v12.9.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Becomes `true` when [`'end'`][] event is emitted.
 
@@ -1705,7 +1705,7 @@ added:
   v18.0.0
 -->
 
-* {Error}
+* Type: {Error}
 
 Returns error if the stream has been destroyed with an error.
 
@@ -1715,7 +1715,7 @@ Returns error if the stream has been destroyed with an error.
 added: v9.4.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 This property reflects the current state of a `Readable` stream as described
 in the [Three states][] section.
@@ -1726,7 +1726,7 @@ in the [Three states][] section.
 added: v9.3.0
 -->
 
-* {number}
+* Type: {number}
 
 Returns the value of `highWaterMark` passed when creating this `Readable`.
 
@@ -1736,7 +1736,7 @@ Returns the value of `highWaterMark` passed when creating this `Readable`.
 added: v9.4.0
 -->
 
-* {number}
+* Type: {number}
 
 This property contains the number of bytes (or objects) in the queue
 ready to be read. The value provides introspection data regarding
@@ -1748,7 +1748,7 @@ the status of the `highWaterMark`.
 added: v12.3.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Getter for the property `objectMode` of a given `Readable` stream.
 
@@ -2678,7 +2678,7 @@ Examples of `Duplex` streams include:
 added: v0.9.4
 -->
 
-* {boolean}
+* Type: {boolean}
 
 If `false` then the stream will automatically end the writable side when the
 readable side ends. Set initially by the `allowHalfOpen` constructor option,
