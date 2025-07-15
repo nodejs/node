@@ -164,6 +164,69 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
                            isolate->factory()->NewConsString(str1, str2));
 }
 
+RUNTIME_FUNCTION(Runtime_StringAdd_LhsIsStringConstant_Internalize) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  DirectHandle<String> lhs = args.at<String>(0);
+  DirectHandle<Object> rhs = args.at<Object>(1);
+  Handle<HeapObject> maybe_feedback_vector = args.at<HeapObject>(2);
+  const int slot_index = args.tagged_index_value_at(3);
+
+  DirectHandle<String> rhs_string;
+  if (IsString(*rhs)) {
+    rhs_string = Cast<String>(rhs);
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, rhs_string,
+                                       Object::ToString(isolate, rhs));
+  }
+
+  auto f = isolate->factory();
+  auto rhs_internalized = IsInternalizedString(*rhs_string)
+                              ? Cast<InternalizedString>(rhs_string)
+                              : f->InternalizeString(rhs_string);
+
+  if (IsUndefined(*maybe_feedback_vector)) {
+    DirectHandle<String> cons;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, cons, f->NewConsString(lhs, Cast<String>(rhs_internalized)));
+    return *f->InternalizeString(cons);
+  }
+
+  auto feedback_vector = Cast<FeedbackVector>(maybe_feedback_vector);
+
+  FeedbackSlot cache_slot(FeedbackVector::ToSlot(
+      slot_index + kAdd_LhsIsStringConstant_Internalize_CacheSlotOffset));
+  DCHECK_LT(cache_slot.ToInt(), feedback_vector->length());
+  Handle<Object> cache_obj(Cast<Object>(feedback_vector->Get(cache_slot)),
+                           isolate);
+  Handle<SimpleNameDictionary> cache;
+  if (*cache_obj == ReadOnlyRoots{isolate}.uninitialized_symbol()) {
+    cache = SimpleNameDictionary::New(isolate, 1);
+    feedback_vector->SynchronizedSet(cache_slot, *cache);
+  } else {
+    cache = Cast<SimpleNameDictionary>(cache_obj);
+  }
+
+  InternalIndex entry = cache->FindEntry(isolate, rhs_internalized);
+  if (entry.is_found()) {
+    auto result = cache->ValueAt(entry);
+    DCHECK(IsInternalizedString(result));
+    return result;
+  }
+
+  DirectHandle<String> cons;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, cons, f->NewConsString(lhs, Cast<String>(rhs_internalized)));
+
+  auto internalized = f->InternalizeString(cons);
+  auto new_cache =
+      SimpleNameDictionary::Set(isolate, cache, rhs_internalized, internalized);
+  if (*new_cache != *cache) {
+    feedback_vector->SynchronizedSet(cache_slot, *new_cache);
+  }
+
+  return *internalized;
+}
 
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
   HandleScope handles(isolate);
@@ -308,11 +371,9 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
     // a LookupSingleCharacterStringFromCode for each of the characters.
     if (content.IsOneByte()) {
       base::Vector<const uint8_t> chars = content.ToOneByteVector();
-      Tagged<FixedArray> one_byte_table =
-          isolate->heap()->single_character_string_table();
+      ReadOnlyRoots roots(isolate);
       for (int i = 0; i < length; ++i) {
-        Tagged<Object> value = one_byte_table->get(chars[i]);
-        DCHECK(IsString(value));
+        Tagged<String> value = roots.single_character_string(chars[i]);
         DCHECK(ReadOnlyHeap::Contains(Cast<HeapObject>(value)));
         // The single-character strings are in RO space so it should
         // be safe to skip the write barriers.
@@ -387,10 +448,6 @@ RUNTIME_FUNCTION(Runtime_StringEqual) {
   SaveAndClearThreadInWasmFlag non_wasm_scope(isolate);
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  DirectHandle<String> x = args.at<String>(0);
-  DirectHandle<String> y = args.at<String>(1);
-#else
   // This function can be called from Wasm: optimized Wasm code calls
   // straight to the "StringEqual" builtin, which tail-calls here. So on
   // the stack, the CEntryStub's EXIT frame will sit right on top of the
@@ -403,9 +460,11 @@ RUNTIME_FUNCTION(Runtime_StringEqual) {
   // In the future, Conservative Stack Scanning will trivially solve the
   // problem. In the meantime, we can work around it by explicitly creating
   // handles here (rather than treating the on-stack arguments as handles).
+  //
+  // TODO(42203211): Don't create new handles here once direct handles and CSS
+  // are enabled by default.
   DirectHandle<String> x(*args.at<String>(0), isolate);
   DirectHandle<String> y(*args.at<String>(1), isolate);
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   return isolate->heap()->ToBoolean(String::Equals(isolate, x, y));
 }
 

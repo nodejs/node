@@ -11,7 +11,7 @@
 
 #include "src/base/container-utils.h"
 #include "src/base/logging.h"
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/bailout-reason.h"

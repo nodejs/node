@@ -121,10 +121,12 @@ static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
 #define FLEXIBLE_ARRAY_MEMBER(Type, name)                     \
   using FlexibleDataReturnType = Type[0];                     \
   FlexibleDataReturnType& name() {                            \
+    static_assert(alignof(Type) <= alignof(decltype(*this))); \
     using ReturnType = Type[0];                               \
     return reinterpret_cast<ReturnType&>(*(this + 1));        \
   }                                                           \
   const FlexibleDataReturnType& name() const {                \
+    static_assert(alignof(Type) <= alignof(decltype(*this))); \
     using ReturnType = Type[0];                               \
     return reinterpret_cast<const ReturnType&>(*(this + 1));  \
   }                                                           \

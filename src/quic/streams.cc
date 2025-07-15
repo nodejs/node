@@ -18,6 +18,7 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
+using v8::BackingStoreInitializationMode;
 using v8::BigInt;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -68,7 +69,7 @@ namespace quic {
   V(ACKED_AT, acked_at)                                                        \
   /* Marks the timestamp when the stream was destroyed */                      \
   V(DESTROYED_AT, destroyed_at)                                                \
-  /* Records the total number of bytes receied by the stream */                \
+  /* Records the total number of bytes received by the stream */               \
   V(BYTES_RECEIVED, bytes_received)                                            \
   /* Records the total number of bytes sent by the stream */                   \
   V(BYTES_SENT, bytes_sent)                                                    \
@@ -1198,7 +1199,8 @@ void Stream::ReceiveData(const uint8_t* data,
 
   STAT_INCREMENT_N(Stats, bytes_received, len);
   STAT_RECORD_TIMESTAMP(Stats, received_at);
-  auto backing = ArrayBuffer::NewBackingStore(env()->isolate(), len);
+  auto backing = ArrayBuffer::NewBackingStore(
+      env()->isolate(), len, BackingStoreInitializationMode::kUninitialized);
   memcpy(backing->Data(), data, len);
   inbound_->append(DataQueue::CreateInMemoryEntryFromBackingStore(
       std::move(backing), 0, len));

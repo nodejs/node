@@ -125,7 +125,7 @@ const algorithms = [
   ['sha256', '', 'salt', '', 10],
   ['sha512', 'secret', 'salt', '', 15],
 ];
-if (!hasOpenSSL3)
+if (!hasOpenSSL3 && !process.features.openssl_is_boringssl)
   algorithms.push(['whirlpool', 'secret', '', 'info', 20]);
 
 algorithms.forEach(([ hash, secret, salt, info, length ]) => {

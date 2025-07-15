@@ -28,7 +28,7 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
 
   std::vector<Dotenv::env_file_data> env_files;
   // This will be an iterator, pointing to args.end() if no matches are found
-  auto matched_arg = std::find_if(args.begin(), args.end(), find_match);
+  auto matched_arg = std::ranges::find_if(args, find_match);
 
   while (matched_arg != args.end()) {
     if (*matched_arg == "--") {
@@ -65,18 +65,19 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
 }
 
 Maybe<void> Dotenv::SetEnvironment(node::Environment* env) {
-  Local<Value> name;
-  Local<Value> val;
   auto context = env->context();
+  auto env_vars = env->env_vars();
 
   for (const auto& entry : store_) {
-    auto existing = env->env_vars()->Get(entry.first.data());
+    auto existing = env_vars->Get(entry.first.data());
     if (!existing.has_value()) {
+      Local<Value> name;
+      Local<Value> val;
       if (!ToV8Value(context, entry.first).ToLocal(&name) ||
           !ToV8Value(context, entry.second).ToLocal(&val)) {
         return Nothing<void>();
       }
-      env->env_vars()->Set(env->isolate(), name.As<String>(), val.As<String>());
+      env_vars->Set(env->isolate(), name.As<String>(), val.As<String>());
     }
   }
 

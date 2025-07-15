@@ -4,11 +4,19 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
+common.expectWarning({
+  DeprecationWarning: [
+    ['crypto.Hash constructor is deprecated.',
+     'DEP0179'],
+    ['Creating SHAKE128/256 digests without an explicit options.outputLength is deprecated.',
+     'DEP0198'],
+  ]
+});
+
 const assert = require('assert');
 const crypto = require('crypto');
 const fs = require('fs');
 
-const { hasOpenSSL } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 
 let cryptoType;
@@ -184,21 +192,19 @@ assert.throws(
 
 // Test XOF hash functions and the outputLength option.
 {
-  // Default outputLengths. Since OpenSSL 3.4 an outputLength is mandatory
-  if (!hasOpenSSL(3, 4)) {
-    assert.strictEqual(crypto.createHash('shake128').digest('hex'),
-                       '7f9c2ba4e88f827d616045507605853e');
-    assert.strictEqual(crypto.createHash('shake128', null).digest('hex'),
-                       '7f9c2ba4e88f827d616045507605853e');
-    assert.strictEqual(crypto.createHash('shake256').digest('hex'),
-                       '46b9dd2b0ba88d13233b3feb743eeb24' +
-                       '3fcd52ea62b81b82b50c27646ed5762f');
-    assert.strictEqual(crypto.createHash('shake256', { outputLength: 0 })
-                             .copy()  // Default outputLength.
-                             .digest('hex'),
-                       '46b9dd2b0ba88d13233b3feb743eeb24' +
-                       '3fcd52ea62b81b82b50c27646ed5762f');
-  }
+  // Default outputLengths.
+  assert.strictEqual(crypto.createHash('shake128').digest('hex'),
+                     '7f9c2ba4e88f827d616045507605853e');
+  assert.strictEqual(crypto.createHash('shake128', null).digest('hex'),
+                     '7f9c2ba4e88f827d616045507605853e');
+  assert.strictEqual(crypto.createHash('shake256').digest('hex'),
+                     '46b9dd2b0ba88d13233b3feb743eeb24' +
+                     '3fcd52ea62b81b82b50c27646ed5762f');
+  assert.strictEqual(crypto.createHash('shake256', { outputLength: 0 })
+                           .copy()  // Default outputLength.
+                           .digest('hex'),
+                     '46b9dd2b0ba88d13233b3feb743eeb24' +
+                     '3fcd52ea62b81b82b50c27646ed5762f');
 
   // Short outputLengths.
   assert.strictEqual(crypto.createHash('shake128', { outputLength: 0 })
@@ -283,10 +289,4 @@ assert.throws(
 
 {
   crypto.Hash('sha256');
-  common.expectWarning({
-    DeprecationWarning: [
-      ['crypto.Hash constructor is deprecated.',
-       'DEP0179'],
-    ]
-  });
 }

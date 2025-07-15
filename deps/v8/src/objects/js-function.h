@@ -57,7 +57,8 @@ class JSBoundFunction
 
   // The bound function's string representation implemented according
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static DirectHandle<String> ToString(DirectHandle<JSBoundFunction> function);
+  static DirectHandle<String> ToString(Isolate* isolate,
+                                       DirectHandle<JSBoundFunction> function);
 
   TQ_OBJECT_CONSTRUCTORS(JSBoundFunction)
 };
@@ -83,7 +84,7 @@ class JSWrappedFunction
   // The wrapped function's string representation implemented according
   // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static DirectHandle<String> ToString(
-      DirectHandle<JSWrappedFunction> function);
+      Isolate* isolate, DirectHandle<JSWrappedFunction> function);
 
   TQ_OBJECT_CONSTRUCTORS(JSWrappedFunction)
 };
@@ -136,10 +137,10 @@ class JSFunction : public TorqueGeneratedJSFunction<
       Isolate* isolate, Tagged<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void UpdateCode(
-      Tagged<Code> code,
+      Isolate* isolate, Tagged<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
   inline void UpdateCodeKeepTieringRequests(
-      Tagged<Code> code,
+      Isolate* isolate, Tagged<Code> code,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
 
   // Returns the raw content of the Code field. When reading from a background
@@ -253,7 +254,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline bool IsTieringRequestedOrInProgress() const;
 
   inline void SetTieringInProgress(
-      bool in_progress, BytecodeOffset osr_offset = BytecodeOffset::None());
+      Isolate* isolate, bool in_progress,
+      BytecodeOffset osr_offset = BytecodeOffset::None());
   inline void ResetTieringRequests();
 
   inline bool osr_tiering_in_progress();
@@ -269,7 +271,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   int ComputeInstanceSizeWithMinSlack(Isolate* isolate);
 
   // Completes inobject slack tracking on initial map if it is active.
-  inline void CompleteInobjectSlackTrackingIfActive();
+  inline void CompleteInobjectSlackTrackingIfActive(Isolate* isolate);
 
   // [raw_feedback_cell]: Gives raw access to the FeedbackCell used to hold the
   /// FeedbackVector eventually. Generally this shouldn't be used to get the
@@ -300,19 +302,21 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // lazily.
   inline bool has_closure_feedback_cell_array() const;
   inline Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array() const;
-  static void EnsureClosureFeedbackCellArray(DirectHandle<JSFunction> function);
+  static void EnsureClosureFeedbackCellArray(Isolate* isolate,
+                                             DirectHandle<JSFunction> function);
 
   // Initializes the feedback cell of |function|. In lite mode, this would be
   // initialized to the closure feedback cell array that holds the feedback
   // cells for create closure calls from this function. In the regular mode,
   // this allocates feedback vector.
-  static void InitializeFeedbackCell(DirectHandle<JSFunction> function,
+  static void InitializeFeedbackCell(Isolate* isolate,
+                                     DirectHandle<JSFunction> function,
                                      IsCompiledScope* compiled_scope,
                                      bool reset_budget_for_feedback_allocation);
 
   // Unconditionally clear the type feedback vector, even those that we usually
   // keep (e.g.: BinaryOp feedback).
-  void ClearAllTypeFeedbackInfoForTesting();
+  void ClearAllTypeFeedbackInfoForTesting(Isolate* isolate);
 
   // Resets function to clear compiled data after bytecode has been flushed.
   inline bool NeedsResetDueToFlushedBytecode(Isolate* isolate);
@@ -347,7 +351,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
 
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
-      DirectHandle<JSFunction> function);
+      Isolate* isolate, DirectHandle<JSFunction> function);
 
   // Creates a map that matches the constructor's initial map, but with
   // [[prototype]] being new.target.prototype. Because new.target can be a
@@ -378,7 +382,7 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_GETTER(instance_prototype, Tagged<JSPrototype>)
   DECL_GETTER(has_prototype_property, bool)
   DECL_GETTER(PrototypeRequiresRuntimeLookup, bool)
-  static void SetPrototype(DirectHandle<JSFunction> function,
+  static void SetPrototype(Isolate* isolate, DirectHandle<JSFunction> function,
                            DirectHandle<Object> value);
 
   // Returns if this function has been compiled to native code yet.
@@ -413,17 +417,20 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Because of the way this abstract operation is used in the spec,
   // it should never fail, but in practice it will fail if the generated
   // function name's length exceeds String::kMaxLength.
-  static V8_WARN_UNUSED_RESULT bool SetName(DirectHandle<JSFunction> function,
+  static V8_WARN_UNUSED_RESULT bool SetName(Isolate* isolate,
+                                            DirectHandle<JSFunction> function,
                                             DirectHandle<Name> name,
                                             DirectHandle<String> prefix);
 
   // The function's name if it is configured, otherwise shared function info
   // debug name.
-  static DirectHandle<String> GetDebugName(DirectHandle<JSFunction> function);
+  static DirectHandle<String> GetDebugName(Isolate* isolate,
+                                           DirectHandle<JSFunction> function);
 
   // The function's string representation implemented according to
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static DirectHandle<String> ToString(DirectHandle<JSFunction> function);
+  static DirectHandle<String> ToString(Isolate* isolate,
+                                       DirectHandle<JSFunction> function);
 
   class BodyDescriptor;
 
@@ -445,8 +452,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline void set_tiering_state(IsolateForSandbox isolate, TieringState state);
 #endif  // !V8_ENABLE_LEAPTIERING
 
-  inline void UpdateCodeImpl(Tagged<Code> code, WriteBarrierMode mode,
-                             bool keep_tiering_request);
+  inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
+                             WriteBarrierMode mode, bool keep_tiering_request);
 
   // Updates the Code in this function's dispatch table entry.
   inline void UpdateDispatchEntry(

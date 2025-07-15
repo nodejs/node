@@ -1937,6 +1937,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.groups = [
           this.total,
           Group.groups.get('ic').entry(),
+          Group.groups.get('optimize-maglev-background').entry(),
+          Group.groups.get('optimize-maglev').entry(),
           Group.groups.get('optimize-background').entry(),
           Group.groups.get('optimize').entry(),
           Group.groups.get('compile-background').entry(),
@@ -2265,6 +2267,10 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
     Group.add('total', new Group('Total', /.*Total.*/, '#BBB', true, false));
     Group.add('ic', new Group('IC', /(.*IC_.*)|IC/, "#3366CC"));
+    Group.add('optimize-maglev-background', new Group('Optimize-Maglev-Background',
+      /.*Optimize(d?-?)(Background|Concurrent).*Maglev.*/, "#962c02"));
+    Group.add('optimize-maglev', new Group('Optimize-Maglev',
+      /.*Maglev.*/, "#fc4f26"));
     Group.add('optimize-background', new Group('Optimize-Background',
       /.*Optimize(d?-?)(Background|Concurrent).*/, "#702000"));
     Group.add('optimize', new Group('Optimize',

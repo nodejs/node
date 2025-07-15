@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "absl/base/config.h"
+#include "absl/base/fast_type_id.h"
 #include "absl/flags/commandlineflag.h"
 #include "absl/flags/internal/commandlineflag.h"
 #include "absl/strings/string_view.h"
@@ -83,7 +84,7 @@ template <typename T>
 class RetiredFlag {
  public:
   void Retire(const char* flag_name) {
-    flags_internal::Retire(flag_name, base_internal::FastTypeId<T>(), buf_);
+    flags_internal::Retire(flag_name, absl::FastTypeId<T>(), buf_);
   }
 
  private:

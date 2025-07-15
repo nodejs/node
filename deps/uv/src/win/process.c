@@ -898,7 +898,7 @@ int uv_spawn(uv_loop_t* loop,
          *env = NULL, *cwd = NULL;
   STARTUPINFOW startup;
   PROCESS_INFORMATION info;
-  DWORD process_flags;
+  DWORD process_flags, cwd_len;
   BYTE* child_stdio_buffer;
 
   uv__process_init(loop, process);
@@ -947,9 +947,10 @@ int uv_spawn(uv_loop_t* loop,
     if (err)
       goto done_uv;
 
+    cwd_len = wcslen(cwd);
   } else {
     /* Inherit cwd */
-    DWORD cwd_len, r;
+    DWORD r;
 
     cwd_len = GetCurrentDirectoryW(0, NULL);
     if (!cwd_len) {
@@ -965,6 +966,15 @@ int uv_spawn(uv_loop_t* loop,
 
     r = GetCurrentDirectoryW(cwd_len, cwd);
     if (r == 0 || r >= cwd_len) {
+      err = GetLastError();
+      goto done;
+    }
+  }
+
+  /* If cwd is too long, shorten it */
+  if (cwd_len >= MAX_PATH) {
+    cwd_len = GetShortPathNameW(cwd, cwd, cwd_len);
+    if (cwd_len == 0) {
       err = GetLastError();
       goto done;
     }

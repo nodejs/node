@@ -41,7 +41,6 @@ using v8::HandleScope;
 using v8::HeapCodeStatistics;
 using v8::HeapSpaceStatistics;
 using v8::HeapStatistics;
-using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -392,23 +391,13 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
         FIXED_ONE_BYTE_STRING(isolate, "bucket_size"),
         FIXED_ONE_BYTE_STRING(isolate, "free_count"),
         FIXED_ONE_BYTE_STRING(isolate, "free_size")};
-    Local<Value> bucket_size_value;
-    if (!ToV8Value(context, space_stats.free_list_stats.bucket_size)
-             .ToLocal(&bucket_size_value)) {
-      return MaybeLocal<Object>();
-    }
-    Local<Value> free_count_value;
-    if (!ToV8Value(context, space_stats.free_list_stats.free_count)
-             .ToLocal(&free_count_value)) {
-      return MaybeLocal<Object>();
-    }
-    Local<Value> free_size_value;
-    if (!ToV8Value(context, space_stats.free_list_stats.free_size)
-             .ToLocal(&free_size_value)) {
-      return MaybeLocal<Object>();
-    }
     Local<Value> free_list_statistics_values[] = {
-        bucket_size_value, free_count_value, free_size_value};
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.bucket_size, isolate),
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.free_count, isolate),
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.free_size, isolate)};
 
     Local<Object> free_list_statistics_obj =
         Object::New(isolate,
@@ -499,8 +488,7 @@ static void GetCppHeapStatistics(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsInt32());
 
   cppgc::HeapStatistics stats = isolate->GetCppHeap()->CollectStatistics(
-      static_cast<cppgc::HeapStatistics::DetailLevel>(
-          args[0].As<Int32>()->Value()));
+      FromV8Value<cppgc::HeapStatistics::DetailLevel>(args[0]));
 
   Local<Object> result;
   if (!ConvertHeapStatsToJSObject(isolate, stats).ToLocal(&result)) {
@@ -737,8 +725,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GCProfiler::Stop);
   registry->Register(GetCppHeapStatistics);
   registry->Register(IsStringOneByteRepresentation);
-  registry->Register(FastIsStringOneByteRepresentation);
-  registry->Register(fast_is_string_one_byte_representation_.GetTypeInfo());
+  registry->Register(fast_is_string_one_byte_representation_);
 }
 
 }  // namespace v8_utils

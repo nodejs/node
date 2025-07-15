@@ -220,7 +220,7 @@ testclean: ## Remove test artifacts.
 distclean: ## Remove all build and test artifacts.
 	$(RM) -r out
 	$(RM) config.gypi icu_config.gypi
-	$(RM) config.mk
+	$(RM) config.mk config.status
 	$(RM) -r $(NODE_EXE) $(NODE_G_EXE)
 	$(RM) -r node_modules
 	$(RM) -r deps/icu
@@ -509,16 +509,24 @@ SQLITE_BINDING_SOURCES := \
 	$(wildcard test/sqlite/*/*.c)
 
 # Implicitly depends on $(NODE_EXE), see the build-sqlite-tests rule for rationale.
+ifndef NOSQLITE
 test/sqlite/.buildstamp: $(ADDONS_PREREQS) \
 	$(SQLITE_BINDING_GYPS) $(SQLITE_BINDING_SOURCES)
 	@$(call run_build_addons,"$$PWD/test/sqlite",$@)
+else
+test/sqlite/.buildstamp:
+endif
 
 .PHONY: build-sqlite-tests
+ifndef NOSQLITE
 # .buildstamp needs $(NODE_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
 # .buildstamp is out of date and need a rebuild.
 build-sqlite-tests: | $(NODE_EXE) test/sqlite/.buildstamp ## Build SQLite tests.
+else
+build-sqlite-tests:
+endif
 
 .PHONY: clear-stalled
 clear-stalled: ## Clear any stalled processes.

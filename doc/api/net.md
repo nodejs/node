@@ -181,6 +181,38 @@ added:
 * `value` {any} Any JS value
 * Returns `true` if the `value` is a `net.BlockList`.
 
+### `blockList.fromJSON(value)`
+
+> Stability: 1 - Experimental
+
+ <!-- YAML
+added: REPLACEME
+-->
+
+```js
+const blockList = new net.BlockList();
+const data = [
+  'Subnet: IPv4 192.168.1.0/24',
+  'Address: IPv4 10.0.0.5',
+  'Range: IPv4 192.168.2.1-192.168.2.10',
+  'Range: IPv4 10.0.0.1-10.0.0.10',
+];
+blockList.fromJSON(data);
+blockList.fromJSON(JSON.stringify(data));
+```
+
+* `value` Blocklist.rules
+
+### `blockList.toJSON()`
+
+> Stability: 1 - Experimental
+
+ <!-- YAML
+added: REPLACEME
+-->
+
+* Returns Blocklist.rules
+
 ## Class: `net.SocketAddress`
 
 <!-- YAML
@@ -402,9 +434,11 @@ was not open when it was closed.
 added:
  - v20.5.0
  - v18.18.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`server.close()`][] and returns a promise that fulfills when the
 server has closed.

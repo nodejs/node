@@ -142,6 +142,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> allow_fs_write;
   bool allow_addons = false;
   bool allow_child_process = false;
+  bool allow_net = false;
   bool allow_wasi = false;
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
@@ -173,6 +174,8 @@ class EnvironmentOptions : public Options {
   std::string cpu_prof_name;
   bool cpu_prof = false;
   bool experimental_network_inspection = false;
+  bool experimental_worker_inspection = false;
+  bool experimental_inspector_network_resource = false;
   std::string heap_prof_dir;
   std::string heap_prof_name;
   static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
@@ -230,6 +233,7 @@ class EnvironmentOptions : public Options {
   bool watch_mode = false;
   bool watch_mode_report_to_parent = false;
   bool watch_mode_preserve_output = false;
+  std::string watch_mode_kill_signal = "SIGTERM";
   std::vector<std::string> watch_mode_paths;
 
   bool syntax_check_only = false;
@@ -379,7 +383,7 @@ class PerProcessOptions : public Options {
 namespace options_parser {
 
 HostPort SplitHostPort(const std::string& arg,
-    std::vector<std::string>* errors);
+                       std::vector<std::string>* errors);
 void GetOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
 std::string GetBashCompletion();
 
@@ -394,6 +398,43 @@ enum OptionType {
   kStringList,
 };
 std::unordered_map<std::string, OptionType> MapEnvOptionsFlagInputType();
+std::unordered_map<std::string, OptionType> MapOptionsByNamespace(
+    std::string namespace_name);
+std::unordered_map<std::string,
+                   std::unordered_map<std::string, options_parser::OptionType>>
+MapNamespaceOptionsAssociations();
+std::vector<std::string> MapAvailableNamespaces();
+
+// Define all namespace entries
+#define OPTION_NAMESPACE_LIST(V)                                               \
+  V(kNoNamespace, "")                                                          \
+  V(kTestRunnerNamespace, "testRunner")
+
+enum class OptionNamespaces {
+#define V(name, _) name,
+  OPTION_NAMESPACE_LIST(V)
+#undef V
+};
+
+inline const std::string NamespaceEnumToString(OptionNamespaces ns) {
+  switch (ns) {
+#define V(name, string_value)                                                  \
+  case OptionNamespaces::name:                                                 \
+    return string_value;
+    OPTION_NAMESPACE_LIST(V)
+#undef V
+    default:
+      return "";
+  }
+}
+
+inline constexpr auto AllNamespaces() {
+  return std::array{
+#define V(name, _) OptionNamespaces::name,
+      OPTION_NAMESPACE_LIST(V)
+#undef V
+  };
+}
 
 template <typename Options>
 class OptionsParser {
@@ -412,39 +453,55 @@ class OptionsParser {
   // default_is_true is only a hint in printing help text, it does not
   // affect the default value of the option. Set the default value in the
   // Options struct instead.
-  void AddOption(const char* name,
-                 const char* help_text,
-                 bool Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
-                 bool default_is_true = false);
-  void AddOption(const char* name,
-                 const char* help_text,
-                 uint64_t Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
-  void AddOption(const char* name,
-                 const char* help_text,
-                 int64_t Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
-  void AddOption(const char* name,
-                 const char* help_text,
-                 std::string Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
-  void AddOption(const char* name,
-                 const char* help_text,
-                 std::vector<std::string> Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
-  void AddOption(const char* name,
-                 const char* help_text,
-                 HostPort Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
-  void AddOption(const char* name,
-                 const char* help_text,
-                 NoOp no_op_tag,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
-  void AddOption(const char* name,
-                 const char* help_text,
-                 V8Option v8_option_tag,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
+  void AddOption(
+      const char* name,
+      const char* help_text,
+      bool Options::*field,
+      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+      bool default_is_true = false,
+      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
+  void AddOption(
+      const char* name,
+      const char* help_text,
+      uint64_t Options::*field,
+      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
+  void AddOption(
+      const char* name,
+      const char* help_text,
+      int64_t Options::*field,
+      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
+  void AddOption(
+      const char* name,
+      const char* help_text,
+      std::string Options::*field,
+      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
+  void AddOption(
+      const char* name,
+      const char* help_text,
+      std::vector<std::string> Options::*field,
+      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
+  void AddOption(
+      const char* name,
+      const char* help_text,
+      HostPort Options::*field,
+      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
+  void AddOption(
+      const char* name,
+      const char* help_text,
+      NoOp no_op_tag,
+      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
+  void AddOption(
+      const char* name,
+      const char* help_text,
+      V8Option v8_option_tag,
+      OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+      OptionNamespaces namespace_id = OptionNamespaces::kNoNamespace);
 
   // Adds aliases. An alias can be of the form "--option-a" -> "--option-b",
   // or have a more complex group expansion, like
@@ -534,12 +591,15 @@ class OptionsParser {
   // - A type.
   // - A way to store/access the property value.
   // - The information of whether it may occur in an env var or not.
+  // - A default value (if applicable).
+  // - A namespace ID (optional) to allow for namespacing of options.
   struct OptionInfo {
     OptionType type;
     std::shared_ptr<BaseOptionField> field;
     OptionEnvvarSettings env_setting;
     std::string help_text;
     bool default_is_true = false;
+    std::string namespace_id;
   };
 
   // An implied option is composed of the information on where to store a
@@ -580,6 +640,9 @@ class OptionsParser {
   friend std::string GetBashCompletion();
   friend std::unordered_map<std::string, OptionType>
   MapEnvOptionsFlagInputType();
+  friend std::unordered_map<std::string, OptionType> MapOptionsByNamespace(
+      std::string namespace_name);
+  friend std::vector<std::string> MapAvailableNamespaces();
   friend void GetEnvOptionsInputType(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 };

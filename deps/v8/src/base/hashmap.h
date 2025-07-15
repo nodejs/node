@@ -326,9 +326,7 @@ template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
 void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Clear() {
   // Mark all entries as empty.
-  for (size_t i = 0; i < capacity(); ++i) {
-    impl_.map_[i].clear();
-  }
+  memset(impl_.map_, 0, capacity() * sizeof(Entry));
   impl_.occupancy_ = 0;
 }
 
@@ -360,6 +358,7 @@ template <typename LookupKey>
 typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Probe(
     const LookupKey& key, uint32_t hash) const {
+  hash &= 0x7FFFFFFF;
   DCHECK(base::bits::IsPowerOfTwo(capacity()));
   size_t i = hash & (capacity() - 1);
   DCHECK(i < capacity());
@@ -545,7 +544,7 @@ class TemplateHashMap
     }
 
     value_type* operator->() { return reinterpret_cast<value_type*>(entry_); }
-    bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
+    bool operator==(const Iterator& other) { return entry_ == other.entry_; }
 
    private:
     Iterator(const Base* map, typename Base::Entry* entry)

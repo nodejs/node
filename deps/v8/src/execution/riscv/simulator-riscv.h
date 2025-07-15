@@ -538,6 +538,7 @@ class Simulator : public SimulatorBase {
   // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
   base::Vector<uint8_t> GetCentralStackView() const;
+  static constexpr int JSStackLimitMargin() { return kAdditionalStackMargin; }
 
   void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
 
@@ -563,8 +564,9 @@ class Simulator : public SimulatorBase {
       type_ = FP_ARG;
     }
     explicit CallArgument(float argument) {
-      // TODO(all): CallArgument(float) is untested.
-      UNIMPLEMENTED();
+      auto arg = box_float(argument);
+      memcpy(&bits_, &arg, sizeof(arg));
+      type_ = FP_ARG;
     }
     // This indicates the end of the arguments list, so that CallArgument
     // objects can be passed into varargs functions.

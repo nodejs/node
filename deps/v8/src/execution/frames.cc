@@ -144,13 +144,6 @@ StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t)
 
 #if V8_ENABLE_WEBASSEMBLY
 StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t,
-                                       NoHandles)
-    : StackFrameIteratorBase(isolate) {
-  no_gc_.emplace();
-  Reset(t);
-}
-
-StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t,
                                        FirstStackOnly)
     : StackFrameIteratorBase(isolate) {
   first_stack_only_ = true;
@@ -162,12 +155,6 @@ StackFrameIterator::StackFrameIterator(Isolate* isolate,
     : StackFrameIteratorBase(isolate) {
   first_stack_only_ = true;
   Reset(isolate->thread_local_top(), stack);
-}
-#else
-StackFrameIterator::StackFrameIterator(Isolate* isolate, ThreadLocalTop* t,
-                                       NoHandles)
-    : StackFrameIteratorBase(isolate) {
-  Reset(t);
 }
 #endif
 
@@ -190,11 +177,8 @@ void StackFrameIterator::Advance() {
     // the "caller" frame (top frame of the parent stack) have frame type
     // STACK_SWITCH. We use the caller FP to distinguish them: the callee frame
     // does not have a caller fp.
-    auto parent = continuation()->parent();
-    CHECK(!IsUndefined(parent));
-    set_continuation(
-        GCSafeCast<WasmContinuationObject>(parent, isolate_->heap()));
-    wasm_stack_ = reinterpret_cast<wasm::StackMemory*>(continuation()->stack());
+    wasm_stack_ = wasm_stack()->jmpbuf()->parent;
+    CHECK_NOT_NULL(wasm_stack_);
     CHECK_EQ(wasm_stack_->jmpbuf()->state, wasm::JumpBuffer::Inactive);
     StackSwitchFrame::GetStateForJumpBuffer(wasm_stack_->jmpbuf(), &state);
     SetNewFrame(StackFrame::STACK_SWITCH, &state);
@@ -284,15 +268,7 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
   }
 #if V8_ENABLE_WEBASSEMBLY
-  auto active_continuation = isolate_->root(RootIndex::kActiveContinuation);
-  if (!IsUndefined(active_continuation, isolate_)) {
-    auto continuation = GCSafeCast<WasmContinuationObject>(active_continuation,
-                                                           isolate_->heap());
-    if (!first_stack_only_) {
-      set_continuation(continuation);
-    }
-    wasm_stack_ = reinterpret_cast<wasm::StackMemory*>(continuation->stack());
-  }
+  wasm_stack_ = isolate_->isolate_data()->active_stack();
 #endif
   handler_ = StackHandler::FromAddress(Isolate::handler(top));
   SetNewFrame(type, &state);
@@ -338,21 +314,6 @@ void StackFrameIteratorBase::SetNewFrame(StackFrame::Type type) {
   frame_ = nullptr;
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-Tagged<WasmContinuationObject> StackFrameIterator::continuation() {
-  return no_gc_.has_value() ? continuation_.obj_ : *continuation_.handle_;
-}
-
-void StackFrameIterator::set_continuation(
-    Tagged<WasmContinuationObject> continuation) {
-  if (no_gc_.has_value()) {
-    continuation_.obj_ = continuation;
-  } else {
-    continuation_.handle_ = handle(continuation, isolate_);
-  }
-}
-#endif
-
 // -------------------------------------------------------------------------
 
 void TypedFrameWithJSLinkage::Iterate(RootVisitor* v) const {
@@ -393,19 +354,6 @@ DebuggableStackFrameIterator::DebuggableStackFrameIterator(Isolate* isolate)
 DebuggableStackFrameIterator::DebuggableStackFrameIterator(Isolate* isolate,
                                                            StackFrameId id)
     : DebuggableStackFrameIterator(isolate) {
-  while (!done() && frame()->id() != id) Advance();
-}
-
-DebuggableStackFrameIterator::DebuggableStackFrameIterator(
-    Isolate* isolate, StackFrameIterator::NoHandles)
-    : iterator_(isolate, isolate->thread_local_top(),
-                StackFrameIterator::NoHandles{}) {
-  if (!done() && !IsValidFrame(iterator_.frame())) Advance();
-}
-
-DebuggableStackFrameIterator::DebuggableStackFrameIterator(
-    Isolate* isolate, StackFrameId id, StackFrameIterator::NoHandles)
-    : DebuggableStackFrameIterator(isolate, StackFrameIterator::NoHandles{}) {
   while (!done() && frame()->id() != id) Advance();
 }
 
@@ -1596,7 +1544,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
       // We don't need to update smi values or full pointers.
       was_compressed = true;
       *spill_slot.location() = V8HeapCompressionScheme::DecompressTagged(
-          cage_base, static_cast<Tagged_t>(value));
+          static_cast<Tagged_t>(value));
       if (DEBUG_BOOL) {
         // Ensure that the spill slot contains correct heap object.
         Tagged<HeapObject> raw =
@@ -1631,8 +1579,8 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     if (!HAS_SMI_TAG(compressed_value)) {
       was_compressed = slot_contents <= 0xFFFFFFFF;
       // We don't need to update smi values.
-      *spill_slot.location() = V8HeapCompressionScheme::DecompressTagged(
-          cage_base, compressed_value);
+      *spill_slot.location() =
+          V8HeapCompressionScheme::DecompressTagged(compressed_value);
     }
   }
 #endif
@@ -2811,7 +2759,8 @@ DirectHandle<StackFrameInfo>
 FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
   DirectHandle<SharedFunctionInfo> shared(function_->shared(), isolate());
   DirectHandle<Script> script(Cast<Script>(shared->script()), isolate());
-  DirectHandle<String> function_name = JSFunction::GetDebugName(function_);
+  DirectHandle<String> function_name =
+      JSFunction::GetDebugName(isolate(), function_);
   if (function_name->length() == 0 &&
       script->compilation_type() == Script::CompilationType::kEval) {
     function_name = isolate()->factory()->eval_string();
@@ -4112,7 +4061,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
     if (!context.is_null()) {
       int slot_index = Context::MIN_CONTEXT_SLOTS + it->index();
       if (slot_index < context->length()) {
-        accumulator->Add("%o", context->get(slot_index));
+        accumulator->Add("%o", context->get(slot_index, kRelaxedLoad));
       } else {
         accumulator->Add(
             "// warning: missing context slot - inconsistent frame?");

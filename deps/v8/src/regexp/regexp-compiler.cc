@@ -6,7 +6,7 @@
 
 #include <optional>
 
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/execution/isolate.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/regexp/regexp-macro-assembler-arch.h"

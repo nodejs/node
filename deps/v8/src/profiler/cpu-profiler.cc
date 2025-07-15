@@ -165,8 +165,7 @@ void ProfilerEventsProcessor::AddCurrentStack(
     bool update_stats, const std::optional<uint64_t> trace_id) {
   TickSampleEventRecord record(last_code_event_id_);
   RegisterState regs;
-  StackFrameIterator it(isolate_, isolate_->thread_local_top(),
-                        StackFrameIterator::NoHandles{});
+  StackFrameIterator it(isolate_, isolate_->thread_local_top());
   if (!it.done()) {
     StackFrame* frame = it.frame();
     regs.sp = reinterpret_cast<void*>(frame->sp());

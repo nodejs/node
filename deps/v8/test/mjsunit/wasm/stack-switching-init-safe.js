@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --no-experimental-wasm-jspi
+
 // Should result in an exception when trying to use JSPI.
 // Check that we cannot init after installing a SuspendError
 

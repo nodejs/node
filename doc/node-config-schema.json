@@ -45,6 +45,9 @@
             }
           ]
         },
+        "allow-net": {
+          "type": "boolean"
+        },
         "allow-wasi": {
           "type": "boolean"
         },
@@ -562,6 +565,9 @@
         "watch": {
           "type": "boolean"
         },
+        "watch-kill-signal": {
+          "type": "string"
+        },
         "watch-path": {
           "oneOf": [
             {
@@ -584,6 +590,135 @@
         }
       },
       "type": "object"
+    },
+    "testRunner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "experimental-test-coverage": {
+          "type": "boolean"
+        },
+        "experimental-test-module-mocks": {
+          "type": "boolean"
+        },
+        "test-concurrency": {
+          "type": "number"
+        },
+        "test-coverage-branches": {
+          "type": "number"
+        },
+        "test-coverage-exclude": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "test-coverage-functions": {
+          "type": "number"
+        },
+        "test-coverage-include": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "test-coverage-lines": {
+          "type": "number"
+        },
+        "test-force-exit": {
+          "type": "boolean"
+        },
+        "test-global-setup": {
+          "type": "string"
+        },
+        "test-isolation": {
+          "type": "string"
+        },
+        "test-name-pattern": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "test-only": {
+          "type": "boolean"
+        },
+        "test-reporter": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "test-reporter-destination": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "test-shard": {
+          "type": "string"
+        },
+        "test-skip-pattern": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "test-timeout": {
+          "type": "number"
+        },
+        "test-update-snapshots": {
+          "type": "boolean"
+        }
+      }
     }
   },
   "type": "object"

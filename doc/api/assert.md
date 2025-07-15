@@ -129,7 +129,7 @@ Legacy assertion mode may have surprising results, especially when using
 assert.deepEqual(/a/gi, new Date());
 ```
 
-## Class: assert.AssertionError
+## Class: `assert.AssertionError`
 
 * Extends: {errors.Error}
 
@@ -215,331 +215,6 @@ try {
 }
 ```
 
-## Class: `assert.CallTracker`
-
-<!-- YAML
-added:
-  - v14.2.0
-  - v12.19.0
-changes:
-  - version: v20.1.0
-    pr-url: https://github.com/nodejs/node/pull/47740
-    description: the `assert.CallTracker` class has been deprecated and will be
-                  removed in a future version.
--->
-
-> Stability: 0 - Deprecated
-
-This feature is deprecated and will be removed in a future version.
-Please consider using alternatives such as the
-[`mock`][] helper function.
-
-### `new assert.CallTracker()`
-
-<!-- YAML
-added:
-  - v14.2.0
-  - v12.19.0
--->
-
-Creates a new [`CallTracker`][] object which can be used to track if functions
-were called a specific number of times. The `tracker.verify()` must be called
-for the verification to take place. The usual pattern would be to call it in a
-[`process.on('exit')`][] handler.
-
-```mjs
-import assert from 'node:assert';
-import process from 'node:process';
-
-const tracker = new assert.CallTracker();
-
-function func() {}
-
-// callsfunc() must be called exactly 1 time before tracker.verify().
-const callsfunc = tracker.calls(func, 1);
-
-callsfunc();
-
-// Calls tracker.verify() and verifies if all tracker.calls() functions have
-// been called exact times.
-process.on('exit', () => {
-  tracker.verify();
-});
-```
-
-```cjs
-const assert = require('node:assert');
-const process = require('node:process');
-
-const tracker = new assert.CallTracker();
-
-function func() {}
-
-// callsfunc() must be called exactly 1 time before tracker.verify().
-const callsfunc = tracker.calls(func, 1);
-
-callsfunc();
-
-// Calls tracker.verify() and verifies if all tracker.calls() functions have
-// been called exact times.
-process.on('exit', () => {
-  tracker.verify();
-});
-```
-
-### `tracker.calls([fn][, exact])`
-
-<!-- YAML
-added:
-  - v14.2.0
-  - v12.19.0
--->
-
-* `fn` {Function} **Default:** A no-op function.
-* `exact` {number} **Default:** `1`.
-* Returns: {Function} A function that wraps `fn`.
-
-The wrapper function is expected to be called exactly `exact` times. If the
-function has not been called exactly `exact` times when
-[`tracker.verify()`][] is called, then [`tracker.verify()`][] will throw an
-error.
-
-```mjs
-import assert from 'node:assert';
-
-// Creates call tracker.
-const tracker = new assert.CallTracker();
-
-function func() {}
-
-// Returns a function that wraps func() that must be called exact times
-// before tracker.verify().
-const callsfunc = tracker.calls(func);
-```
-
-```cjs
-const assert = require('node:assert');
-
-// Creates call tracker.
-const tracker = new assert.CallTracker();
-
-function func() {}
-
-// Returns a function that wraps func() that must be called exact times
-// before tracker.verify().
-const callsfunc = tracker.calls(func);
-```
-
-### `tracker.getCalls(fn)`
-
-<!-- YAML
-added:
-  - v18.8.0
-  - v16.18.0
--->
-
-* `fn` {Function}
-
-* Returns: {Array} An array with all the calls to a tracked function.
-
-* Object {Object}
-  * `thisArg` {Object}
-  * `arguments` {Array} the arguments passed to the tracked function
-
-```mjs
-import assert from 'node:assert';
-
-const tracker = new assert.CallTracker();
-
-function func() {}
-const callsfunc = tracker.calls(func);
-callsfunc(1, 2, 3);
-
-assert.deepStrictEqual(tracker.getCalls(callsfunc),
-                       [{ thisArg: undefined, arguments: [1, 2, 3] }]);
-```
-
-```cjs
-const assert = require('node:assert');
-
-// Creates call tracker.
-const tracker = new assert.CallTracker();
-
-function func() {}
-const callsfunc = tracker.calls(func);
-callsfunc(1, 2, 3);
-
-assert.deepStrictEqual(tracker.getCalls(callsfunc),
-                       [{ thisArg: undefined, arguments: [1, 2, 3] }]);
-```
-
-### `tracker.report()`
-
-<!-- YAML
-added:
-  - v14.2.0
-  - v12.19.0
--->
-
-* Returns: {Array} An array of objects containing information about the wrapper
-  functions returned by [`tracker.calls()`][].
-* Object {Object}
-  * `message` {string}
-  * `actual` {number} The actual number of times the function was called.
-  * `expected` {number} The number of times the function was expected to be
-    called.
-  * `operator` {string} The name of the function that is wrapped.
-  * `stack` {Object} A stack trace of the function.
-
-The arrays contains information about the expected and actual number of calls of
-the functions that have not been called the expected number of times.
-
-```mjs
-import assert from 'node:assert';
-
-// Creates call tracker.
-const tracker = new assert.CallTracker();
-
-function func() {}
-
-// Returns a function that wraps func() that must be called exact times
-// before tracker.verify().
-const callsfunc = tracker.calls(func, 2);
-
-// Returns an array containing information on callsfunc()
-console.log(tracker.report());
-// [
-//  {
-//    message: 'Expected the func function to be executed 2 time(s) but was
-//    executed 0 time(s).',
-//    actual: 0,
-//    expected: 2,
-//    operator: 'func',
-//    stack: stack trace
-//  }
-// ]
-```
-
-```cjs
-const assert = require('node:assert');
-
-// Creates call tracker.
-const tracker = new assert.CallTracker();
-
-function func() {}
-
-// Returns a function that wraps func() that must be called exact times
-// before tracker.verify().
-const callsfunc = tracker.calls(func, 2);
-
-// Returns an array containing information on callsfunc()
-console.log(tracker.report());
-// [
-//  {
-//    message: 'Expected the func function to be executed 2 time(s) but was
-//    executed 0 time(s).',
-//    actual: 0,
-//    expected: 2,
-//    operator: 'func',
-//    stack: stack trace
-//  }
-// ]
-```
-
-### `tracker.reset([fn])`
-
-<!-- YAML
-added:
-  - v18.8.0
-  - v16.18.0
--->
-
-* `fn` {Function} a tracked function to reset.
-
-Reset calls of the call tracker.
-If a tracked function is passed as an argument, the calls will be reset for it.
-If no arguments are passed, all tracked functions will be reset.
-
-```mjs
-import assert from 'node:assert';
-
-const tracker = new assert.CallTracker();
-
-function func() {}
-const callsfunc = tracker.calls(func);
-
-callsfunc();
-// Tracker was called once
-assert.strictEqual(tracker.getCalls(callsfunc).length, 1);
-
-tracker.reset(callsfunc);
-assert.strictEqual(tracker.getCalls(callsfunc).length, 0);
-```
-
-```cjs
-const assert = require('node:assert');
-
-const tracker = new assert.CallTracker();
-
-function func() {}
-const callsfunc = tracker.calls(func);
-
-callsfunc();
-// Tracker was called once
-assert.strictEqual(tracker.getCalls(callsfunc).length, 1);
-
-tracker.reset(callsfunc);
-assert.strictEqual(tracker.getCalls(callsfunc).length, 0);
-```
-
-### `tracker.verify()`
-
-<!-- YAML
-added:
-  - v14.2.0
-  - v12.19.0
--->
-
-Iterates through the list of functions passed to
-[`tracker.calls()`][] and will throw an error for functions that
-have not been called the expected number of times.
-
-```mjs
-import assert from 'node:assert';
-
-// Creates call tracker.
-const tracker = new assert.CallTracker();
-
-function func() {}
-
-// Returns a function that wraps func() that must be called exact times
-// before tracker.verify().
-const callsfunc = tracker.calls(func, 2);
-
-callsfunc();
-
-// Will throw an error since callsfunc() was only called once.
-tracker.verify();
-```
-
-```cjs
-const assert = require('node:assert');
-
-// Creates call tracker.
-const tracker = new assert.CallTracker();
-
-function func() {}
-
-// Returns a function that wraps func() that must be called exact times
-// before tracker.verify().
-const callsfunc = tracker.calls(func, 2);
-
-callsfunc();
-
-// Will throw an error since callsfunc() was only called once.
-tracker.verify();
-```
-
 ## `assert(value[, message])`
 
 <!-- YAML
@@ -556,6 +231,9 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57627
+    description: Invalid dates are now considered equal.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57622
     description: Recursion now stops when either side encounters a circular
@@ -747,6 +425,9 @@ parameter is an instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57627
+    description: Invalid dates are now considered equal.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57622
     description: Recursion now stops when either side encounters a circular
@@ -1394,107 +1075,6 @@ assert.fail('boom');
 
 assert.fail(new TypeError('need array'));
 // TypeError: need array
-```
-
-Using `assert.fail()` with more than two arguments is possible but deprecated.
-See below for further details.
-
-## `assert.fail(actual, expected[, message[, operator[, stackStartFn]]])`
-
-<!-- YAML
-added: v0.1.21
-changes:
-  - version: v10.0.0
-    pr-url: https://github.com/nodejs/node/pull/18418
-    description: Calling `assert.fail()` with more than one argument is
-                 deprecated and emits a warning.
--->
-
-> Stability: 0 - Deprecated: Use `assert.fail([message])` or other assert
-> functions instead.
-
-* `actual` {any}
-* `expected` {any}
-* `message` {string|Error}
-* `operator` {string} **Default:** `'!='`
-* `stackStartFn` {Function} **Default:** `assert.fail`
-
-If `message` is falsy, the error message is set as the values of `actual` and
-`expected` separated by the provided `operator`. If just the two `actual` and
-`expected` arguments are provided, `operator` will default to `'!='`. If
-`message` is provided as third argument it will be used as the error message and
-the other arguments will be stored as properties on the thrown object. If
-`stackStartFn` is provided, all stack frames above that function will be
-removed from stacktrace (see [`Error.captureStackTrace`][]). If no arguments are
-given, the default message `Failed` will be used.
-
-```mjs
-import assert from 'node:assert/strict';
-
-assert.fail('a', 'b');
-// AssertionError [ERR_ASSERTION]: 'a' != 'b'
-
-assert.fail(1, 2, undefined, '>');
-// AssertionError [ERR_ASSERTION]: 1 > 2
-
-assert.fail(1, 2, 'fail');
-// AssertionError [ERR_ASSERTION]: fail
-
-assert.fail(1, 2, 'whoops', '>');
-// AssertionError [ERR_ASSERTION]: whoops
-
-assert.fail(1, 2, new TypeError('need array'));
-// TypeError: need array
-```
-
-```cjs
-const assert = require('node:assert/strict');
-
-assert.fail('a', 'b');
-// AssertionError [ERR_ASSERTION]: 'a' != 'b'
-
-assert.fail(1, 2, undefined, '>');
-// AssertionError [ERR_ASSERTION]: 1 > 2
-
-assert.fail(1, 2, 'fail');
-// AssertionError [ERR_ASSERTION]: fail
-
-assert.fail(1, 2, 'whoops', '>');
-// AssertionError [ERR_ASSERTION]: whoops
-
-assert.fail(1, 2, new TypeError('need array'));
-// TypeError: need array
-```
-
-In the last three cases `actual`, `expected`, and `operator` have no
-influence on the error message.
-
-Example use of `stackStartFn` for truncating the exception's stacktrace:
-
-```mjs
-import assert from 'node:assert/strict';
-
-function suppressFrame() {
-  assert.fail('a', 'b', undefined, '!==', suppressFrame);
-}
-suppressFrame();
-// AssertionError [ERR_ASSERTION]: 'a' !== 'b'
-//     at repl:1:1
-//     at ContextifyScript.Script.runInThisContext (vm.js:44:33)
-//     ...
-```
-
-```cjs
-const assert = require('node:assert/strict');
-
-function suppressFrame() {
-  assert.fail('a', 'b', undefined, '!==', suppressFrame);
-}
-suppressFrame();
-// AssertionError [ERR_ASSERTION]: 'a' !== 'b'
-//     at repl:1:1
-//     at ContextifyScript.Script.runInThisContext (vm.js:44:33)
-//     ...
 ```
 
 ## `assert.ifError(value)`
@@ -2603,9 +2183,14 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
- - version: v24.0.0
-   pr-url: https://github.com/nodejs/node/pull/57370
-   description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57627
+    description: Invalid dates are now considered equal.
+  - version:
+      - v24.0.0
+      - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/57370
+    description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
 -->
 
 * `actual` {any}
@@ -2760,10 +2345,8 @@ assert.partialDeepStrictEqual(
 [`===` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Strict_equality
 [`==` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Equality
 [`AssertionError`]: #class-assertassertionerror
-[`CallTracker`]: #class-assertcalltracker
 [`Class`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes
 [`ERR_INVALID_RETURN_VALUE`]: errors.md#err_invalid_return_value
-[`Error.captureStackTrace`]: errors.md#errorcapturestacktracetargetobject-constructoropt
 [`Object.is()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is
 [`assert.deepEqual()`]: #assertdeepequalactual-expected-message
 [`assert.deepStrictEqual()`]: #assertdeepstrictequalactual-expected-message
@@ -2777,9 +2360,5 @@ assert.partialDeepStrictEqual(
 [`assert.strictEqual()`]: #assertstrictequalactual-expected-message
 [`assert.throws()`]: #assertthrowsfn-error-message
 [`getColorDepth()`]: tty.md#writestreamgetcolordepthenv
-[`mock`]: test.md#mocking
-[`process.on('exit')`]: process.md#event-exit
-[`tracker.calls()`]: #trackercallsfn-exact
-[`tracker.verify()`]: #trackerverify
 [enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots

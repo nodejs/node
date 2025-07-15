@@ -257,6 +257,12 @@ Indicates if [internationalization][] is supported.
 
 Indicates whether `IPv6` is supported on this platform.
 
+### `hasSQLite`
+
+* [\<boolean>][<boolean>]
+
+Indicates whether SQLite is available.
+
 ### `inFreeBSDJail`
 
 * [\<boolean>][<boolean>]
@@ -479,6 +485,11 @@ at `tools/eslint/node_modules/eslint`
 ### `skipIfInspectorDisabled()`
 
 Skip the rest of the tests in the current file when the Inspector
+was disabled at compile time.
+
+### `skipIfSQLiteMissing()`
+
+Skip the rest of the tests in the current file when the SQLite
 was disabled at compile time.
 
 ### `skipIf32Bits()`
@@ -830,7 +841,7 @@ frames for testing of HTTP/2 endpoints
 const http2 = require('../common/http2');
 ```
 
-### Class: Frame
+### Class: `Frame`
 
 The `http2.Frame` is a base class that creates a `Buffer` containing a
 serialized HTTP/2 frame header.
@@ -850,7 +861,7 @@ socket.write(frame.data);
 
 The serialized `Buffer` may be retrieved using the `frame.data` property.
 
-### Class: HeadersFrame
+### Class: `HeadersFrame`
 
 The `http2.HeadersFrame` is a subclass of `http2.Frame` that serializes a
 `HEADERS` frame.
@@ -869,7 +880,7 @@ const frame = new http2.HeadersFrame(id, payload, padlen, final);
 socket.write(frame.data);
 ```
 
-### Class: SettingsFrame
+### Class: `SettingsFrame`
 
 The `http2.SettingsFrame` is a subclass of `http2.Frame` that serializes an
 empty `SETTINGS` frame.
@@ -1127,7 +1138,7 @@ See the source code for definitions. Please avoid using it in new
 code - the current usage of this port in tests is being migrated to
 the original WPT harness, see [the WPT tests README][].
 
-### Class: WPTRunner
+### Class: `WPTRunner`
 
 A driver class for running WPT with the WPT harness in a worker thread.
 

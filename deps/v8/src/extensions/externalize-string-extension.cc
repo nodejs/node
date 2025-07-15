@@ -121,18 +121,19 @@ void ExternalizeStringExtension::Externalize(
     }
     return;
   }
+  uint32_t length = string->length();
   if (externalize_as_one_byte) {
-    uint8_t* data = new uint8_t[string->length()];
-    String::WriteToFlat(*string, data, 0, string->length());
-    SimpleOneByteStringResource* resource = new SimpleOneByteStringResource(
-        reinterpret_cast<char*>(data), string->length());
+    uint8_t* data = new uint8_t[length];
+    String::WriteToFlat(*string, data, 0, length);
+    SimpleOneByteStringResource* resource =
+        new SimpleOneByteStringResource(reinterpret_cast<char*>(data), length);
     result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   } else {
-    base::uc16* data = new base::uc16[string->length()];
-    String::WriteToFlat(*string, data, 0, string->length());
-    SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
-        data, string->length());
+    base::uc16* data = new base::uc16[length];
+    String::WriteToFlat(*string, data, 0, length);
+    SimpleTwoByteStringResource* resource =
+        new SimpleTwoByteStringResource(data, length);
     result = Utils::ToLocal(string)->MakeExternal(info.GetIsolate(), resource);
     if (!result) delete resource;
   }

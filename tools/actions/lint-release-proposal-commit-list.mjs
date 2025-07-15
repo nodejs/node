@@ -5,7 +5,8 @@
 //
 // Example:
 // $ git log upstream/vXX.x...upstream/vX.X.X-proposal \
-//     --format='{"prURL":"%(trailers:key=PR-URL,valueonly,separator=)","title":"%s","smallSha":"%h"}' \
+//     --reverse --format='{"prURL":"%(trailers:key=PR-URL,valueonly,separator=)","title":"%s","smallSha":"%h"}' \
+//   | sed 's/,"title":"Revert "\([^"]\+\)""/,"title":"Revert \\"\1\\""/g' \
 //   | ./lint-release-proposal-commit-list.mjs "path/to/CHANGELOG.md" "$(git rev-parse upstream/vX.X.X-proposal)"
 
 const [,, CHANGELOG_PATH, RELEASE_COMMIT_SHA] = process.argv;
@@ -33,6 +34,7 @@ if (commitListingStart === -1) {
 // Normalize for consistent comparison
 commitList = commitList
   .replaceAll('**(SEMVER-MINOR)** ', '')
+  .replaceAll(/(?<= - )\*\*\(CVE-\d{4}-\d+\)\*\* (?=\*\*)/g, '')
   .replaceAll('\\', '');
 
 let expectedNumberOfCommitsLeft = commitList.match(/\n\* \[/g)?.length ?? 0;
@@ -52,20 +54,33 @@ for await (const line of stdinLineByLine) {
   assert.notStrictEqual(lineStart, -1, `Cannot find ${smallSha} on the list`);
   const lineEnd = commitList.indexOf('\n', lineStart + 1);
 
-  const colonIndex = title.indexOf(':');
-  const expectedCommitTitle = `${`**${title.slice(0, colonIndex)}`.replace('**Revert "', '_**Revert**_ "**')}**${title.slice(colonIndex)}`;
   try {
-    assert(commitList.lastIndexOf(`/${smallSha})] - ${expectedCommitTitle} (`, lineEnd) > lineStart, `Commit title doesn't match`);
-  } catch (e) {
-    if (e?.code === 'ERR_ASSERTION') {
-      e.operator = 'includes';
-      e.expected = expectedCommitTitle;
-      e.actual = commitList.slice(lineStart + 1, lineEnd);
+    const colonIndex = title.indexOf(':');
+    const expectedCommitTitle = `${`**${title.slice(0, colonIndex)}`.replace('**Revert "', '_**Revert**_ "**')}**${title.slice(colonIndex)}`;
+    try {
+      assert(commitList.lastIndexOf(`/${smallSha})] - ${expectedCommitTitle} (`, lineEnd) > lineStart, `Changelog entry doesn't match for ${smallSha}`);
+    } catch (e) {
+      if (e?.code === 'ERR_ASSERTION') {
+        e.operator = 'includes';
+        e.expected = expectedCommitTitle;
+        e.actual = commitList.slice(lineStart + 1, lineEnd);
+      }
+      throw e;
     }
-    throw e;
-  }
-  assert.strictEqual(commitList.slice(lineEnd - prURL.length - 2, lineEnd), `(${prURL})`, `when checking ${smallSha} ${title}`);
+    assert.strictEqual(commitList.slice(lineEnd - prURL.length - 2, lineEnd), `(${prURL})`, `when checking ${smallSha} ${title}`);
 
+  } catch (e) {
+    if (e?.code !== 'ERR_ASSERTION') {
+      throw e;
+    }
+    let line = 1;
+    for (let i = 0; i < lineStart + commitListingStart; i = changelog.indexOf('\n', i + 1)) {
+      line++;
+    }
+    console.error(`::error file=${CHANGELOG_PATH},line=${line},title=Release proposal linter::${e.message}`);
+    console.error(e);
+    process.exitCode ||= 1;
+  }
   expectedNumberOfCommitsLeft--;
   console.log(prURL);
 }

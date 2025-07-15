@@ -7,10 +7,7 @@ import sys
 import zipfile
 import tarfile
 import contextlib
-try:
-    from urllib.request import FancyURLopener, URLopener
-except ImportError:
-    from urllib import FancyURLopener, URLopener
+from urllib.request import build_opener, install_opener, urlretrieve
 
 def formatSize(amt):
     """Format a size as a string in MB"""
@@ -20,11 +17,6 @@ def spin(c):
     """print out an ASCII 'spinner' based on the value of counter 'c'"""
     spin = ".:|'"
     return (spin[c % len(spin)])
-
-class ConfigOpener(FancyURLopener):
-    """fancy opener used by retrievefile. Set a UA"""
-    # append to existing version (UA)
-    version = '%s node.js/configure' % URLopener.version
 
 def reporthook(count, size, total):
     """internal hook used by retrievefile"""
@@ -38,7 +30,10 @@ def retrievefile(url, targetfile):
     try:
         sys.stdout.write(' <%s>\nConnecting...\r' % url)
         sys.stdout.flush()
-        ConfigOpener().retrieve(url, targetfile, reporthook=reporthook)
+        opener = build_opener()
+        opener.addheaders = [('User-agent', f'Python-urllib/{sys.version_info.major}.{sys.version_info.minor} node.js/configure')]
+        install_opener(opener)
+        urlretrieve(url, targetfile, reporthook=reporthook)
         print('')  # clear the line
         return targetfile
     except IOError as err:

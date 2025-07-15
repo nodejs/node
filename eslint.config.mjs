@@ -18,11 +18,13 @@ import nodeCore from './tools/eslint/eslint-plugin-node-core.js';
 const { globalIgnores } = await importEslintTool('eslint/config');
 const { default: js } = await importEslintTool('@eslint/js');
 const { default: babelEslintParser } = await importEslintTool('@babel/eslint-parser');
+const babelPluginProposalExplicitResourceManagement =
+  resolveEslintTool('@babel/plugin-proposal-explicit-resource-management');
 const babelPluginSyntaxImportAttributes = resolveEslintTool('@babel/plugin-syntax-import-attributes');
 const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-import-source');
 const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
 const { default: markdown } = await importEslintTool('eslint-plugin-markdown');
-const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin-js');
+const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin');
 
 nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.url));
 
@@ -102,7 +104,9 @@ export default [
       parser: babelEslintParser,
       parserOptions: {
         babelOptions: {
+          parserOpts: { createImportExpressions: true },
           plugins: [
+            babelPluginProposalExplicitResourceManagement,
             babelPluginSyntaxImportAttributes,
             babelPluginSyntaxImportSource,
           ],
@@ -116,6 +120,7 @@ export default [
   {
     languageOptions: {
       globals: {
+        AsyncDisposableStack: 'readonly',
         ByteLengthQueuingStrategy: 'readonly',
         CompressionStream: 'readonly',
         CountQueuingStrategy: 'readonly',
@@ -124,8 +129,10 @@ export default [
         Crypto: 'readonly',
         CryptoKey: 'readonly',
         DecompressionStream: 'readonly',
+        DisposableStack: 'readonly',
         EventSource: 'readable',
         fetch: 'readonly',
+        Float16Array: 'readonly',
         FormData: 'readonly',
         navigator: 'readonly',
         ReadableStream: 'readonly',
@@ -278,7 +285,7 @@ export default [
       '@stylistic/js/computed-property-spacing': 'error',
       '@stylistic/js/dot-location': ['error', 'property'],
       '@stylistic/js/eol-last': 'error',
-      '@stylistic/js/func-call-spacing': 'error',
+      '@stylistic/js/function-call-spacing': 'error',
       '@stylistic/js/indent': ['error', 2, {
         ArrayExpression: 'first',
         CallExpression: { arguments: 'first' },

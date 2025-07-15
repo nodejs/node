@@ -109,7 +109,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 8},
     ],
   },
   'v8_linux_gc_stress_dbg': {
@@ -1050,7 +1050,7 @@
   'v8_mac64_asan_rel': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 8},
@@ -1059,7 +1059,7 @@
   'v8_mac64_dbg': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1074,7 +1074,7 @@
   'v8_mac_arm64_gc_stress_dbg': {
     'swarming_dimensions' : {
       'cpu': 'arm64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 3},
@@ -1083,7 +1083,7 @@
   'v8_mac64_noopt_dbg': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 6},
@@ -1092,7 +1092,7 @@
   'v8_mac64_rel': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1107,7 +1107,7 @@
   'v8_mac_arm64_rel': {
     'swarming_dimensions' : {
       'cpu': 'arm64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
       'pool': 'chromium.tests',
     },
     'tests': [
@@ -1128,7 +1128,7 @@
   'v8_mac_arm64_dbg': {
     'swarming_dimensions' : {
       'cpu': 'arm64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
       'pool': 'chromium.tests',
     },
     'tests': [
@@ -1149,7 +1149,7 @@
   'v8_mac_arm64_full_dbg': {
     'swarming_dimensions' : {
       'cpu': 'arm64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
       'pool': 'chromium.tests',
     },
     'tests': [
@@ -1170,7 +1170,7 @@
   'v8_mac_arm64_no_pointer_compression_dbg': {
     'swarming_dimensions' : {
       'cpu': 'arm64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
       'pool': 'chromium.tests',
     },
     'tests': [
@@ -1375,7 +1375,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 7},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 8},
     ],
   },
   'V8 Linux - gc stress': {
@@ -2026,7 +2026,7 @@
   'V8 Mac64': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -2041,7 +2041,7 @@
   'V8 Mac64 - debug': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -2056,7 +2056,7 @@
   'V8 Mac64 ASAN': {
     'swarming_dimensions': {
       'cpu': 'x86-64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 10},
@@ -2065,7 +2065,7 @@
   'V8 Mac - arm64 - gc stress': {
     'swarming_dimensions': {
       'cpu': 'arm64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
     },
     'tests': [
       {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 3},
@@ -2073,7 +2073,7 @@
   },
   'V8 Mac - arm64': {
     'swarming_dimensions' : {
-      'os': 'Mac-14',
+      'os': 'Mac-15',
       'cpu': 'arm64',
       'pool': 'chromium.tests',
     },
@@ -2095,7 +2095,7 @@
   },
   'V8 Mac - arm64 - release': {
     'swarming_dimensions' : {
-      'os': 'Mac-14',
+      'os': 'Mac-15',
       'cpu': 'arm64',
       'pool': 'chromium.tests',
     },
@@ -2117,7 +2117,7 @@
   },
   'V8 Mac - arm64 - debug': {
     'swarming_dimensions' : {
-      'os': 'Mac-14',
+      'os': 'Mac-15',
       'cpu': 'arm64',
       'pool': 'chromium.tests',
     },
@@ -2140,7 +2140,7 @@
   'V8 Mac - arm64 - no pointer compression debug': {
     'swarming_dimensions' : {
       'cpu': 'arm64',
-      'os': 'Mac-14',
+      'os': 'Mac-15',
       'pool': 'chromium.tests',
     },
     'tests': [

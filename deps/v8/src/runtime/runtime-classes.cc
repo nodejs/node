@@ -39,7 +39,7 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   DirectHandle<Context> context(constructor->native_context(), isolate);
   DCHECK(IsNativeContext(*context));
   DirectHandle<JSFunction> realm_type_error_function(
-      Cast<JSFunction>(context->get(Context::TYPE_ERROR_FUNCTION_INDEX)),
+      Cast<JSFunction>(context->GetNoCell(Context::TYPE_ERROR_FUNCTION_INDEX)),
       isolate);
   if (name->length() == 0) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -159,7 +159,7 @@ MaybeDirectHandle<Object> GetMethodAndSetName(Isolate* isolate,
     // property name is properly converted to Name. So, we can actually be smart
     // here and avoid converting Smi keys back to Name.
     DirectHandle<Name> name = KeyToName<Dictionary>(isolate, key);
-    if (!JSFunction::SetName(method, name, name_prefix)) {
+    if (!JSFunction::SetName(isolate, method, name, name_prefix)) {
       return MaybeDirectHandle<Object>();
     }
   }

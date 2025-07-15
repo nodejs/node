@@ -199,11 +199,14 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Node* const arguments_length =
             graph()->NewNode(simplified()->ArgumentsLength());
         // Allocate the elements backing store.
-        Node* const elements = effect = graph()->NewNode(
-            simplified()->NewArgumentsElements(
-                CreateArgumentsType::kUnmappedArguments,
-                shared.internal_formal_parameter_count_without_receiver()),
-            arguments_length, effect);
+        int parameter_count_without_receiver =
+            shared
+                .internal_formal_parameter_count_without_receiver_deprecated();
+        Node* const elements = effect =
+            graph()->NewNode(simplified()->NewArgumentsElements(
+                                 CreateArgumentsType::kUnmappedArguments,
+                                 parameter_count_without_receiver),
+                             arguments_length, effect);
         // Load the arguments object map.
         Node* const arguments_map = jsgraph()->ConstantNoHole(
             native_context().strict_arguments_map(broker()), broker());
@@ -225,13 +228,16 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Node* const arguments_length =
             graph()->NewNode(simplified()->ArgumentsLength());
         Node* const rest_length = graph()->NewNode(simplified()->RestLength(
-            shared.internal_formal_parameter_count_without_receiver()));
+            state_info.parameter_count_without_receiver()));
         // Allocate the elements backing store.
-        Node* const elements = effect = graph()->NewNode(
-            simplified()->NewArgumentsElements(
-                CreateArgumentsType::kRestParameter,
-                shared.internal_formal_parameter_count_without_receiver()),
-            arguments_length, effect);
+        int parameter_count_without_receiver =
+            shared
+                .internal_formal_parameter_count_without_receiver_deprecated();
+        Node* const elements = effect =
+            graph()->NewNode(simplified()->NewArgumentsElements(
+                                 CreateArgumentsType::kRestParameter,
+                                 parameter_count_without_receiver),
+                             arguments_length, effect);
         // Load the JSArray object map.
         Node* const jsarray_map = jsgraph()->ConstantNoHole(
             native_context().js_array_packed_elements_map(broker()), broker());
@@ -272,7 +278,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         return NoChange();
       }
       FrameStateInfo args_state_info = args_state.frame_state_info();
-      int length = args_state_info.parameter_count() - 1;  // Minus receiver.
+      int length = args_state_info.parameter_count_without_receiver();
       // Prepare element backing store to be used by arguments object.
       bool has_aliased_arguments = false;
       Node* const elements = TryAllocateAliasedArguments(
@@ -315,7 +321,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         return NoChange();
       }
       FrameStateInfo args_state_info = args_state.frame_state_info();
-      int length = args_state_info.parameter_count() - 1;  // Minus receiver.
+      int length = args_state_info.parameter_count_without_receiver();
       // Prepare element backing store to be used by arguments object.
       Node* const elements = TryAllocateArguments(effect, control, args_state);
       if (elements == nullptr) return NoChange();
@@ -339,7 +345,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
     }
     case CreateArgumentsType::kRestParameter: {
       int start_index =
-          shared.internal_formal_parameter_count_without_receiver();
+          shared.internal_formal_parameter_count_without_receiver_deprecated();
       // Use inline allocation for all unmapped arguments objects within inlined
       // (i.e. non-outermost) frames, independent of the object size.
       Node* effect = NodeProperties::GetEffectInput(node);
@@ -365,8 +371,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // Actually allocate and initialize the jsarray.
       AllocationBuilder a(jsgraph(), broker(), effect, control);
 
-      // -1 to minus receiver
-      int argument_count = args_state_info.parameter_count() - 1;
+      int argument_count = args_state_info.parameter_count_without_receiver();
       int length = std::max(0, argument_count - start_index);
       static_assert(JSArray::kHeaderSize == 4 * kTaggedSize);
       a.Allocate(ALIGN_TO_ALLOCATION_ALIGNMENT(JSArray::kHeaderSize));
@@ -409,7 +414,7 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     SharedFunctionInfoRef shared = js_function.shared(broker());
     DCHECK(shared.HasBytecodeArray());
     int parameter_count_no_receiver =
-        shared.internal_formal_parameter_count_without_receiver();
+        shared.internal_formal_parameter_count_without_receiver_deprecated();
     int length = parameter_count_no_receiver +
                  shared.GetBytecodeArray(broker()).register_count();
     MapRef fixed_array_map = broker()->fixed_array_map();
@@ -1494,7 +1499,7 @@ Reduction JSCreateLowering::ReduceJSCreateStringWrapper(Node* node) {
 Node* JSCreateLowering::TryAllocateArguments(Node* effect, Node* control,
                                              FrameState frame_state) {
   FrameStateInfo state_info = frame_state.frame_state_info();
-  int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
+  int argument_count = state_info.parameter_count_without_receiver();
   if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
 
   // Prepare an iterator over argument values recorded in the frame state.
@@ -1523,7 +1528,7 @@ Node* JSCreateLowering::TryAllocateRestArguments(Node* effect, Node* control,
                                                  FrameState frame_state,
                                                  int start_index) {
   FrameStateInfo state_info = frame_state.frame_state_info();
-  int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
+  int argument_count = state_info.parameter_count_without_receiver();
   int num_elements = std::max(0, argument_count - start_index);
   if (num_elements == 0) return jsgraph()->EmptyFixedArrayConstant();
 
@@ -1555,13 +1560,13 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
     Node* effect, Node* control, FrameState frame_state, Node* context,
     SharedFunctionInfoRef shared, bool* has_aliased_arguments) {
   FrameStateInfo state_info = frame_state.frame_state_info();
-  int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
+  int argument_count = state_info.parameter_count_without_receiver();
   if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
 
   // If there is no aliasing, the arguments object elements are not special in
   // any way, we can just return an unmapped backing store instead.
   int parameter_count =
-      shared.internal_formal_parameter_count_without_receiver();
+      shared.internal_formal_parameter_count_without_receiver_deprecated();
   if (parameter_count == 0) {
     return TryAllocateArguments(effect, control, frame_state);
   }
@@ -1628,7 +1633,7 @@ Node* JSCreateLowering::TryAllocateAliasedArguments(
   // If there is no aliasing, the arguments object elements are not
   // special in any way, we can just return an unmapped backing store.
   int parameter_count =
-      shared.internal_formal_parameter_count_without_receiver();
+      shared.internal_formal_parameter_count_without_receiver_deprecated();
   if (parameter_count == 0) {
     return graph()->NewNode(
         simplified()->NewArgumentsElements(

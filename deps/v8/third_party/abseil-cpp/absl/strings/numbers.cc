@@ -47,7 +47,7 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-bool SimpleAtof(absl::string_view str, absl::Nonnull<float*> out) {
+bool SimpleAtof(absl::string_view str, float* absl_nonnull out) {
   *out = 0.0;
   str = StripAsciiWhitespace(str);
   // std::from_chars doesn't accept an initial +, but SimpleAtof does, so if one
@@ -78,7 +78,7 @@ bool SimpleAtof(absl::string_view str, absl::Nonnull<float*> out) {
   return true;
 }
 
-bool SimpleAtod(absl::string_view str, absl::Nonnull<double*> out) {
+bool SimpleAtod(absl::string_view str, double* absl_nonnull out) {
   *out = 0.0;
   str = StripAsciiWhitespace(str);
   // std::from_chars doesn't accept an initial +, but SimpleAtod does, so if one
@@ -109,7 +109,7 @@ bool SimpleAtod(absl::string_view str, absl::Nonnull<double*> out) {
   return true;
 }
 
-bool SimpleAtob(absl::string_view str, absl::Nonnull<bool*> out) {
+bool SimpleAtob(absl::string_view str, bool* absl_nonnull out) {
   ABSL_RAW_CHECK(out != nullptr, "Output pointer must not be nullptr.");
   if (EqualsIgnoreCase(str, "true") || EqualsIgnoreCase(str, "t") ||
       EqualsIgnoreCase(str, "yes") || EqualsIgnoreCase(str, "y") ||
@@ -168,7 +168,7 @@ constexpr uint64_t kDivisionBy100Mul = 10486u;
 constexpr uint64_t kDivisionBy100Div = 1 << 20;
 
 // Encode functions write the ASCII output of input `n` to `out_str`.
-inline char* EncodeHundred(uint32_t n, absl::Nonnull<char*> out_str) {
+inline char* EncodeHundred(uint32_t n, char* absl_nonnull out_str) {
   int num_digits = static_cast<int>(n - 10) >> 8;
   uint32_t div10 = (n * kDivisionBy10Mul) / kDivisionBy10Div;
   uint32_t mod10 = n - 10u * div10;
@@ -178,7 +178,7 @@ inline char* EncodeHundred(uint32_t n, absl::Nonnull<char*> out_str) {
   return out_str + 2 + num_digits;
 }
 
-inline char* EncodeTenThousand(uint32_t n, absl::Nonnull<char*> out_str) {
+inline char* EncodeTenThousand(uint32_t n, char* absl_nonnull out_str) {
   // We split lower 2 digits and upper 2 digits of n into 2 byte consecutive
   // blocks. 123 ->  [\0\1][\0\23]. We divide by 10 both blocks
   // (it's 1 division + zeroing upper bits), and compute modulo 10 as well "in
@@ -234,8 +234,8 @@ inline uint64_t PrepareEightDigits(uint32_t i) {
   return tens;
 }
 
-inline ABSL_ATTRIBUTE_ALWAYS_INLINE absl::Nonnull<char*> EncodeFullU32(
-    uint32_t n, absl::Nonnull<char*> out_str) {
+inline ABSL_ATTRIBUTE_ALWAYS_INLINE char* absl_nonnull EncodeFullU32(
+    uint32_t n, char* absl_nonnull out_str) {
   if (n < 10) {
     *out_str = static_cast<char>('0' + n);
     return out_str + 1;
@@ -284,7 +284,7 @@ inline ABSL_ATTRIBUTE_ALWAYS_INLINE char* EncodeFullU64(uint64_t i,
 
 }  // namespace
 
-void numbers_internal::PutTwoDigits(uint32_t i, absl::Nonnull<char*> buf) {
+void numbers_internal::PutTwoDigits(uint32_t i, char* absl_nonnull buf) {
   assert(i < 100);
   uint32_t base = kTwoZeroBytes;
   uint32_t div10 = (i * kDivisionBy10Mul) / kDivisionBy10Div;
@@ -293,15 +293,15 @@ void numbers_internal::PutTwoDigits(uint32_t i, absl::Nonnull<char*> buf) {
   little_endian::Store16(buf, static_cast<uint16_t>(base));
 }
 
-absl::Nonnull<char*> numbers_internal::FastIntToBuffer(
-    uint32_t n, absl::Nonnull<char*> out_str) {
+char* absl_nonnull numbers_internal::FastIntToBuffer(
+    uint32_t n, char* absl_nonnull out_str) {
   out_str = EncodeFullU32(n, out_str);
   *out_str = '\0';
   return out_str;
 }
 
-absl::Nonnull<char*> numbers_internal::FastIntToBuffer(
-    int32_t i, absl::Nonnull<char*> buffer) {
+char* absl_nonnull numbers_internal::FastIntToBuffer(
+    int32_t i, char* absl_nonnull buffer) {
   uint32_t u = static_cast<uint32_t>(i);
   if (i < 0) {
     *buffer++ = '-';
@@ -315,15 +315,15 @@ absl::Nonnull<char*> numbers_internal::FastIntToBuffer(
   return buffer;
 }
 
-absl::Nonnull<char*> numbers_internal::FastIntToBuffer(
-    uint64_t i, absl::Nonnull<char*> buffer) {
+char* absl_nonnull numbers_internal::FastIntToBuffer(
+    uint64_t i, char* absl_nonnull buffer) {
   buffer = EncodeFullU64(i, buffer);
   *buffer = '\0';
   return buffer;
 }
 
-absl::Nonnull<char*> numbers_internal::FastIntToBuffer(
-    int64_t i, absl::Nonnull<char*> buffer) {
+char* absl_nonnull numbers_internal::FastIntToBuffer(
+    int64_t i, char* absl_nonnull buffer) {
   uint64_t u = static_cast<uint64_t>(i);
   if (i < 0) {
     *buffer++ = '-';
@@ -546,7 +546,7 @@ static ExpDigits SplitToSix(const double value) {
 // Helper function for fast formatting of floating-point.
 // The result is the same as "%g", a.k.a. "%.6g".
 size_t numbers_internal::SixDigitsToBuffer(double d,
-                                           absl::Nonnull<char*> const buffer) {
+                                           char* absl_nonnull const buffer) {
   static_assert(std::numeric_limits<float>::is_iec559,
                 "IEEE-754/IEC-559 support only");
 
@@ -694,9 +694,9 @@ static constexpr std::array<int8_t, 256> kAsciiToInt = {
 
 // Parse the sign and optional hex or oct prefix in text.
 inline bool safe_parse_sign_and_base(
-    absl::Nonnull<absl::string_view*> text /*inout*/,
-    absl::Nonnull<int*> base_ptr /*inout*/,
-    absl::Nonnull<bool*> negative_ptr /*output*/) {
+    absl::string_view* absl_nonnull text /*inout*/,
+    int* absl_nonnull base_ptr /*inout*/,
+    bool* absl_nonnull negative_ptr /*output*/) {
   if (text->data() == nullptr) {
     return false;
   }
@@ -981,7 +981,7 @@ ABSL_CONST_INIT const IntType LookupTables<IntType>::kVminOverBase[] =
 
 template <typename IntType>
 inline bool safe_parse_positive_int(absl::string_view text, int base,
-                                    absl::Nonnull<IntType*> value_p) {
+                                    IntType* absl_nonnull value_p) {
   IntType value = 0;
   const IntType vmax = std::numeric_limits<IntType>::max();
   assert(vmax > 0);
@@ -1018,7 +1018,7 @@ inline bool safe_parse_positive_int(absl::string_view text, int base,
 
 template <typename IntType>
 inline bool safe_parse_negative_int(absl::string_view text, int base,
-                                    absl::Nonnull<IntType*> value_p) {
+                                    IntType* absl_nonnull value_p) {
   IntType value = 0;
   const IntType vmin = std::numeric_limits<IntType>::min();
   assert(vmin < 0);
@@ -1063,7 +1063,7 @@ inline bool safe_parse_negative_int(absl::string_view text, int base,
 // http://pubs.opengroup.org/onlinepubs/9699919799/functions/strtol.html
 template <typename IntType>
 inline bool safe_int_internal(absl::string_view text,
-                              absl::Nonnull<IntType*> value_p, int base) {
+                              IntType* absl_nonnull value_p, int base) {
   *value_p = 0;
   bool negative;
   if (!safe_parse_sign_and_base(&text, &base, &negative)) {
@@ -1078,7 +1078,7 @@ inline bool safe_int_internal(absl::string_view text,
 
 template <typename IntType>
 inline bool safe_uint_internal(absl::string_view text,
-                               absl::Nonnull<IntType*> value_p, int base) {
+                               IntType* absl_nonnull value_p, int base) {
   *value_p = 0;
   bool negative;
   if (!safe_parse_sign_and_base(&text, &base, &negative) || negative) {
@@ -1112,52 +1112,52 @@ ABSL_CONST_INIT ABSL_DLL const char kHexTable[513] =
     "e0e1e2e3e4e5e6e7e8e9eaebecedeeef"
     "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff";
 
-bool safe_strto8_base(absl::string_view text, absl::Nonnull<int8_t*> value,
+bool safe_strto8_base(absl::string_view text, int8_t* absl_nonnull value,
                       int base) {
   return safe_int_internal<int8_t>(text, value, base);
 }
 
-bool safe_strto16_base(absl::string_view text, absl::Nonnull<int16_t*> value,
+bool safe_strto16_base(absl::string_view text, int16_t* absl_nonnull value,
                        int base) {
   return safe_int_internal<int16_t>(text, value, base);
 }
 
-bool safe_strto32_base(absl::string_view text, absl::Nonnull<int32_t*> value,
+bool safe_strto32_base(absl::string_view text, int32_t* absl_nonnull value,
                        int base) {
   return safe_int_internal<int32_t>(text, value, base);
 }
 
-bool safe_strto64_base(absl::string_view text, absl::Nonnull<int64_t*> value,
+bool safe_strto64_base(absl::string_view text, int64_t* absl_nonnull value,
                        int base) {
   return safe_int_internal<int64_t>(text, value, base);
 }
 
-bool safe_strto128_base(absl::string_view text, absl::Nonnull<int128*> value,
+bool safe_strto128_base(absl::string_view text, int128* absl_nonnull value,
                         int base) {
   return safe_int_internal<absl::int128>(text, value, base);
 }
 
-bool safe_strtou8_base(absl::string_view text, absl::Nonnull<uint8_t*> value,
+bool safe_strtou8_base(absl::string_view text, uint8_t* absl_nonnull value,
                        int base) {
   return safe_uint_internal<uint8_t>(text, value, base);
 }
 
-bool safe_strtou16_base(absl::string_view text, absl::Nonnull<uint16_t*> value,
+bool safe_strtou16_base(absl::string_view text, uint16_t* absl_nonnull value,
                         int base) {
   return safe_uint_internal<uint16_t>(text, value, base);
 }
 
-bool safe_strtou32_base(absl::string_view text, absl::Nonnull<uint32_t*> value,
+bool safe_strtou32_base(absl::string_view text, uint32_t* absl_nonnull value,
                         int base) {
   return safe_uint_internal<uint32_t>(text, value, base);
 }
 
-bool safe_strtou64_base(absl::string_view text, absl::Nonnull<uint64_t*> value,
+bool safe_strtou64_base(absl::string_view text, uint64_t* absl_nonnull value,
                         int base) {
   return safe_uint_internal<uint64_t>(text, value, base);
 }
 
-bool safe_strtou128_base(absl::string_view text, absl::Nonnull<uint128*> value,
+bool safe_strtou128_base(absl::string_view text, uint128* absl_nonnull value,
                          int base) {
   return safe_uint_internal<absl::uint128>(text, value, base);
 }

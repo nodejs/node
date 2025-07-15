@@ -33,7 +33,7 @@ uintptr_t EnsureDecompressed(uintptr_t address,
   // TODO(v8:11880): ExternalCodeCompressionScheme might be needed here for
   // decompressing Code pointers from external code space.
   return i::V8HeapCompressionScheme::DecompressTagged(
-      any_uncompressed_ptr, static_cast<i::Tagged_t>(address));
+      static_cast<i::Tagged_t>(address));
 }
 
 d::PropertyKind GetArrayKind(d::MemoryAccessResult mem_result) {

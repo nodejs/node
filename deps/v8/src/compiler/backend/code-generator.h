@@ -36,6 +36,9 @@ struct BranchInfo {
   FlagsCondition condition;
   Label* true_label;
   Label* false_label;
+  // Whether there a hint that this branch is unlikely to change direction,
+  // such as a WebAssembly hinted branch or a trap.
+  bool hinted;
   bool fallthru;
 };
 

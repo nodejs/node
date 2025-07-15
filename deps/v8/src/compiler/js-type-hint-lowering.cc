@@ -292,6 +292,11 @@ class JSSpeculativeBinopBuilder final {
   Node* TryBuildNumberCompare() {
     NumberOperationHint hint;
     if (GetCompareNumberOperationHint(&hint)) {
+      // Equality doesn't not perform ToNumber conversions on Oddballs.
+      if (hint == NumberOperationHint::kNumberOrOddball &&
+          op_->opcode() == IrOpcode::kJSEqual) {
+        return nullptr;
+      }
       const Operator* op = SpeculativeNumberCompareOp(hint);
       Node* node = BuildSpeculativeOperation(op);
       return node;

@@ -2744,8 +2744,9 @@ std::optional<int> SSLPointer::getSecurityLevel() {
 
   return SSL_get_security_level(ssl);
 #else
-  // for BoringSSL assume the same as the default
-  return OPENSSL_TLS_SECURITY_LEVEL;
+  // OPENSSL_TLS_SECURITY_LEVEL is not defined in BoringSSL
+  // so assume it is the default OPENSSL_TLS_SECURITY_LEVEL value.
+  return 1;
 #endif  // OPENSSL_IS_BORINGSSL
 }
 
@@ -4188,6 +4189,22 @@ DataPointer hashDigest(const Buffer<const unsigned char>& buf,
   }
 
   return data.resize(result_size);
+}
+
+DataPointer xofHashDigest(const Buffer<const unsigned char>& buf,
+                          const EVP_MD* md,
+                          size_t output_length) {
+  if (md == nullptr) return {};
+
+  EVPMDCtxPointer ctx = EVPMDCtxPointer::New();
+  if (!ctx) return {};
+  if (ctx.digestInit(md) != 1) {
+    return {};
+  }
+  if (ctx.digestUpdate(reinterpret_cast<const Buffer<const void>&>(buf)) != 1) {
+    return {};
+  }
+  return ctx.digestFinal(output_length);
 }
 
 // ============================================================================

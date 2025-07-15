@@ -70,7 +70,7 @@ const defaultTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
   removeWindowsPathEscaping,
-  snapshot.replaceFullPaths,
+  snapshot.transformProjectRoot(),
   snapshot.replaceWindowsPaths,
   replaceTestDuration,
   replaceTestLocationLine,
@@ -90,7 +90,7 @@ const junitTransform = snapshot.transform(
 const lcovTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
-  snapshot.replaceFullPaths,
+  snapshot.transformProjectRoot(),
   snapshot.replaceWindowsPaths,
   pickTestFileFromLcov
 );
@@ -134,12 +134,19 @@ const tests = [
   },
   {
     name: 'test-runner/output/test-timeout-flag.js',
-    flags: ['--test-reporter=tap'],
+    flags: [
+      '--test-reporter=tap',
+      '--test-timeout=20',
+    ],
   },
   // --test-timeout should work with or without --test flag
   {
     name: 'test-runner/output/test-timeout-flag.js',
-    flags: ['--test-reporter=tap', '--test'],
+    flags: [
+      '--test-reporter=tap',
+      '--test-timeout=20',
+      '--test',
+    ],
   },
   {
     name: 'test-runner/output/hooks-with-no-global-test.js',
@@ -312,6 +319,15 @@ const tests = [
     name: 'test-runner/output/coverage-short-filename.mjs',
     flags: ['--test-reporter=tap', '--test-coverage-exclude=../output/**'],
     cwd: fixtures.path('test-runner/coverage-snap'),
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/typescript-coverage.mts',
+    flags: ['--disable-warning=ExperimentalWarning',
+            '--test-reporter=tap',
+            '--experimental-transform-types',
+            '--experimental-test-module-mocks',
+            '--experimental-test-coverage',
+            '--test-coverage-exclude=!test/**']
   } : false,
 ]
 .filter(Boolean)

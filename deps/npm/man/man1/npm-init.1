@@ -1,4 +1,4 @@
-.TH "NPM-INIT" "1" "April 2025" "NPM@11.3.0" ""
+.TH "NPM-INIT" "1" "June 2025" "NPM@11.4.2" ""
 .SH "NAME"
 \fBnpm-init\fR - Create a package.json file
 .SS "Synopsis"
@@ -89,6 +89,14 @@ Generate it without having it ask any questions:
 .RS 2
 .nf
 $ npm init -y
+.fi
+.RE
+.P
+Set the private flag to \fBtrue\fR in package.json:
+.P
+.RS 2
+.nf
+$ npm init --init-private -y
 .fi
 .RE
 .SS "Workspaces support"
@@ -208,6 +216,16 @@ Type: SemVer string
 
 .P
 The value that \fBnpm init\fR should use by default for the package version number, if not already set in package.json.
+.SS "\fBinit-private\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+The value \fBnpm init\fR should use by default for the package's private flag.
 .SS "\fByes\fR"
 .RS 0
 .IP \(bu 4

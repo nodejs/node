@@ -116,6 +116,11 @@ function _unwrapExpressionStatement(value) {
   return value;
 }
 
+function isConst(path, name) {
+  const binding = path.scope.getBinding(name);
+  return binding && binding.kind === 'const';
+}
+
 function isVariableIdentifier(name) {
   return /__v_[0-9]+/.test(name);
 }
@@ -463,6 +468,7 @@ module.exports = {
   availableFunctionNames: availableFunctionNames,
   randomFunction: randomFunction,
   randomVariable: randomVariable,
+  isConst: isConst,
   isInForLoopCondition: isInForLoopCondition,
   isInWhileLoop: isInWhileLoop,
   isInfiniteLoop: isInfiniteLoop,

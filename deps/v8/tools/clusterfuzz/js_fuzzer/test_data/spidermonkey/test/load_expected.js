@@ -6,6 +6,11 @@
 var document = {
   all: undefined
 };
+try {
+  drainJobQueue;
+} catch (e) {
+  this.drainJobQueue = this.nop;
+}
 
 // Original: spidermonkey/shell.js
 console.log('/shell.js');

@@ -323,7 +323,7 @@ DirectHandle<PrimitiveHeapObject> CallSiteInfo::GetFunctionName(
       return isolate->factory()->NewStringFromAsciiChecked(maybe_known_name);
     }
   }
-  DirectHandle<String> name = JSFunction::GetDebugName(function);
+  DirectHandle<String> name = JSFunction::GetDebugName(isolate, function);
   if (name->length() != 0) return name;
   if (info->IsEval()) return isolate->factory()->eval_string();
   return isolate->factory()->null_value();
@@ -346,7 +346,7 @@ DirectHandle<String> CallSiteInfo::GetFunctionDebugName(
 #endif  // V8_ENABLE_WEBASSEMBLY
   DirectHandle<JSFunction> function(Cast<JSFunction>(info->function()),
                                     isolate);
-  DirectHandle<String> name = JSFunction::GetDebugName(function);
+  DirectHandle<String> name = JSFunction::GetDebugName(isolate, function);
   if (name->length() == 0 && info->IsEval()) {
     name = isolate->factory()->eval_string();
   }
@@ -531,7 +531,8 @@ DirectHandle<Object> CallSiteInfo::GetTypeName(
   }
   if (IsJSFunction(*receiver)) {
     DirectHandle<JSFunction> function = Cast<JSFunction>(receiver);
-    DirectHandle<String> class_name = JSFunction::GetDebugName(function);
+    DirectHandle<String> class_name =
+        JSFunction::GetDebugName(isolate, function);
     if (class_name->length() != 0) {
       return class_name;
     }

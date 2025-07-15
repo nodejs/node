@@ -16,6 +16,7 @@ const {
   getBufferSources,
   getTTYfd,
   hasCrypto,
+  hasSQLite,
   hasIntl,
   hasIPv6,
   isAIX,
@@ -44,6 +45,7 @@ const {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfSQLiteMissing,
   spawnPromisified,
 } = common;
 
@@ -64,6 +66,7 @@ export {
   getPort,
   getTTYfd,
   hasCrypto,
+  hasSQLite,
   hasIntl,
   hasIPv6,
   isAIX,
@@ -92,5 +95,6 @@ export {
   skipIf32Bits,
   skipIfEslintMissing,
   skipIfInspectorDisabled,
+  skipIfSQLiteMissing,
   spawnPromisified,
 };

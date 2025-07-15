@@ -2730,7 +2730,7 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
     versions[n] = Integer::NewFromUnsigned(env()->isolate(), sv[n]);
   }
 
-  // supported are the versions we acutually support expressed as a range.
+  // supported are the versions we actually support expressed as a range.
   // The first value is the minimum version, the second is the maximum.
   Local<Value> supported[] = {
       Integer::NewFromUnsigned(env()->isolate(), opts.min_version),

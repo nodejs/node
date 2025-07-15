@@ -94,7 +94,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     isolate->PerformMicrotaskCheckpoint();
   }
 
-  return resolver->fuzzing_return_value();
+  // Differently to fuzzers generating "always valid" wasm modules, also mark
+  // invalid modules as interesting to have coverage-guidance for invalid cases.
+  return 0;
 }
 
 }  // namespace v8::internal::wasm::fuzzing

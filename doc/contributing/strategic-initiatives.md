@@ -8,7 +8,6 @@ agenda to ensure they are active and have the support they need.
 
 | Initiative             | Champion                         | Links                                             |
 | ---------------------- | -------------------------------- | ------------------------------------------------- |
-| Core Promise APIs      | [Antoine du Hamel][aduh95]       | <https://github.com/nodejs/TSC/issues/1094>       |
 | QUIC / HTTP3           | [James M Snell][jasnell]         | <https://github.com/nodejs/quic>                  |
 | Shadow Realm           | [Chengzhong Wu][legendecas]      | <https://github.com/nodejs/node/issues/42528>     |
 | Startup Snapshot       | [Joyee Cheung][joyeecheung]      | <https://github.com/nodejs/node/issues/35711>     |
@@ -23,24 +22,24 @@ agenda to ensure they are active and have the support they need.
 
 ## Completed initiatives
 
-| Initiative         | Champion                   | Links                                                                |
-| ------------------ | -------------------------- | -------------------------------------------------------------------- |
-| Build resources    | Michael Dawson             | <https://github.com/nodejs/build/issues/1154#issuecomment-448418977> |
-| CVE Management     | Michael Dawson             | <https://github.com/nodejs/security-wg/issues/33>                    |
-| Governance         | Myles Borins               |                                                                      |
-| Moderation Team    | Rich Trott                 | <https://github.com/nodejs/TSC/issues/329>                           |
-| Modules            | Myles Borins               | <https://github.com/nodejs/modules>                                  |
-| N-API              | Michael Dawson             | <https://github.com/nodejs/abi-stable-node>                          |
-| npm Integration    | Myles Borins               | <https://github.com/nodejs/node/pull/21594>                          |
-| OpenSSL Evolution  | Rod Vagg                   | <https://github.com/nodejs/TSC/issues/677>                           |
-| Open Web Standards | Myles Borins, Joyee Cheung | <https://github.com/nodejs/open-standards>                           |
-| VM module fix      | Franziska Hinkelmann       | <https://github.com/nodejs/node/issues/6283>                         |
-| Workers            | Anna Henningsen            | <https://github.com/nodejs/worker>                                   |
+| Initiative         | Champion                         | Links                                                                |
+| ------------------ | -------------------------------- | -------------------------------------------------------------------- |
+| Build resources    | Michael Dawson                   | <https://github.com/nodejs/build/issues/1154#issuecomment-448418977> |
+| Core Promise APIs  | Matteo Collina, Antoine du Hamel | <https://github.com/nodejs/TSC/issues/1094>                          |
+| CVE Management     | Michael Dawson                   | <https://github.com/nodejs/security-wg/issues/33>                    |
+| Governance         | Myles Borins                     |                                                                      |
+| Moderation Team    | Rich Trott                       | <https://github.com/nodejs/TSC/issues/329>                           |
+| Modules            | Myles Borins                     | <https://github.com/nodejs/modules>                                  |
+| N-API              | Michael Dawson                   | <https://github.com/nodejs/abi-stable-node>                          |
+| npm Integration    | Myles Borins                     | <https://github.com/nodejs/node/pull/21594>                          |
+| OpenSSL Evolution  | Rod Vagg                         | <https://github.com/nodejs/TSC/issues/677>                           |
+| Open Web Standards | Myles Borins, Joyee Cheung       | <https://github.com/nodejs/open-standards>                           |
+| VM module fix      | Franziska Hinkelmann             | <https://github.com/nodejs/node/issues/6283>                         |
+| Workers            | Anna Henningsen                  | <https://github.com/nodejs/worker>                                   |
 
 </details>
 
 [RaisinTen]: https://github.com/RaisinTen
-[aduh95]: https://github.com/aduh95
 [benjamingr]: https://github.com/benjamingr
 [jasnell]: https://github.com/jasnell
 [joyeecheung]: https://github.com/joyeecheung

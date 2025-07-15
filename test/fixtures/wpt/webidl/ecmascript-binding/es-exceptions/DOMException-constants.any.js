@@ -1,3 +1,5 @@
+// META: global=window,dedicatedworker,shadowrealm
+
 'use strict';
 
 test(function() {

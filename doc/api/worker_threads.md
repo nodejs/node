@@ -1274,7 +1274,9 @@ added:
   - v18.1.0
   - v16.17.0
 changes:
- - version: v24.0.0
+ - version:
+    - v24.0.0
+    - v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -1641,7 +1643,9 @@ immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 ### `worker.getHeapStatistics()`
 
 <!-- YAML
-added: v24.0.0
+added:
+- v24.0.0
+- v22.16.0
 -->
 
 * Returns: {Promise}
@@ -1860,6 +1864,21 @@ added: v10.5.0
 Calling `unref()` on a worker allows the thread to exit if this is the only
 active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again has no effect.
+
+### `worker[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v24.2.0
+-->
+
+Calls [`worker.terminate()`][] when the dispose scope is exited.
+
+```js
+async function example() {
+  await using worker = new Worker('for (;;) {}', { eval: true });
+  // Worker is automatically terminate when the scope is exited.
+}
+```
 
 ## Notes
 

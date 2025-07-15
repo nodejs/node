@@ -146,12 +146,10 @@ TwoByteValue::TwoByteValue(Isolate* isolate, Local<Value> value) {
   Local<String> string;
   if (!value->ToString(isolate->GetCurrentContext()).ToLocal(&string)) return;
 
-  // Allocate enough space to include the null terminator
-  const size_t storage = string->Length() + 1;
-  AllocateSufficientStorage(storage);
-
-  const int flags = String::NO_NULL_TERMINATION;
-  const int length = string->Write(isolate, out(), 0, storage, flags);
+  // Allocate enough space to include the null terminator.
+  const size_t length = string->Length();
+  AllocateSufficientStorage(length + 1);
+  string->WriteV2(isolate, 0, length, out());
   SetLengthAndZeroTerminate(length);
 }
 
@@ -598,6 +596,32 @@ void SetMethodNoSideEffect(Isolate* isolate,
       v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
           .ToLocalChecked();
   that->Set(name_string, t);
+}
+
+void SetProtoDispose(v8::Isolate* isolate,
+                     v8::Local<v8::FunctionTemplate> that,
+                     v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetDispose(isolate), t);
+}
+
+void SetProtoAsyncDispose(v8::Isolate* isolate,
+                          v8::Local<v8::FunctionTemplate> that,
+                          v8::FunctionCallback callback) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<v8::FunctionTemplate> t =
+      NewFunctionTemplate(isolate,
+                          callback,
+                          signature,
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect);
+  that->PrototypeTemplate()->Set(v8::Symbol::GetAsyncDispose(isolate), t);
 }
 
 void SetProtoMethod(v8::Isolate* isolate,

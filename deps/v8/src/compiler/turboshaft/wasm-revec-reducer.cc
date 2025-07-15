@@ -235,8 +235,8 @@ void ForEach(FunctionType callback,
              const ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>& node_map) {
   absl::flat_hash_set<PackNode const*> visited;
 
-  for (auto entry : node_map) {
-    for (auto pnode : entry.second) {
+  for (const auto& entry : node_map) {
+    for (auto* pnode : entry.second) {
       if (visited.find(pnode) != visited.end()) {
         continue;
       }

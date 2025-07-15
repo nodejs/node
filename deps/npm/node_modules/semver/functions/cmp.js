@@ -1,3 +1,5 @@
+'use strict'
+
 const eq = require('./eq')
 const neq = require('./neq')
 const gt = require('./gt')

@@ -208,17 +208,18 @@ const EVP_MD* GetDigestImplementation(Environment* env,
 }
 
 // crypto.digest(algorithm, algorithmId, algorithmCache,
-//               input, outputEncoding, outputEncodingId)
+//               input, outputEncoding, outputEncodingId, outputLength)
 void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  CHECK_EQ(args.Length(), 6);
+  CHECK_EQ(args.Length(), 7);
   CHECK(args[0]->IsString());                                  // algorithm
   CHECK(args[1]->IsInt32());                                   // algorithmId
   CHECK(args[2]->IsObject());                                  // algorithmCache
   CHECK(args[3]->IsString() || args[3]->IsArrayBufferView());  // input
   CHECK(args[4]->IsString());                                  // outputEncoding
   CHECK(args[5]->IsUint32() || args[5]->IsUndefined());  // outputEncodingId
+  CHECK(args[6]->IsUint32() || args[6]->IsUndefined());  // outputLength
 
   const EVP_MD* md = GetDigestImplementation(env, args[0], args[1], args[2]);
   if (md == nullptr) [[unlikely]] {
@@ -230,21 +231,69 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding output_enc = ParseEncoding(isolate, args[4], args[5], HEX);
 
-  DataPointer output = ([&] {
+  bool is_xof = (EVP_MD_flags(md) & EVP_MD_FLAG_XOF) != 0;
+  int output_length = EVP_MD_size(md);
+
+  // This is to cause hash() to fail when an incorrect
+  // outputLength option was passed for a non-XOF hash function.
+  if (!is_xof && !args[6]->IsUndefined()) {
+    output_length = args[6].As<Uint32>()->Value();
+    if (output_length != EVP_MD_size(md)) {
+      Utf8Value method(isolate, args[0]);
+      std::string message =
+          "Output length " + std::to_string(output_length) + " is invalid for ";
+      message += method.ToString() + ", which does not support XOF";
+      return ThrowCryptoError(env, ERR_get_error(), message.c_str());
+    }
+  } else if (is_xof) {
+    if (!args[6]->IsUndefined()) {
+      output_length = args[6].As<Uint32>()->Value();
+    } else if (output_length == 0) {
+      // This is to handle OpenSSL 3.4's breaking change in SHAKE128/256
+      // default lengths
+      // TODO(@panva): remove this behaviour when DEP0198 is End-Of-Life
+      const char* name = OBJ_nid2sn(EVP_MD_type(md));
+      if (name != nullptr) {
+        if (strcmp(name, "SHAKE128") == 0) {
+          output_length = 16;
+        } else if (strcmp(name, "SHAKE256") == 0) {
+          output_length = 32;
+        }
+      }
+    }
+  }
+
+  if (output_length == 0) {
+    if (output_enc == BUFFER) {
+      Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 0);
+      args.GetReturnValue().Set(
+          Buffer::New(isolate, ab, 0, 0).ToLocalChecked());
+    } else {
+      args.GetReturnValue().Set(v8::String::Empty(isolate));
+    }
+    return;
+  }
+
+  DataPointer output = ([&]() -> DataPointer {
+    Utf8Value utf8(isolate, args[3]);
+    ncrypto::Buffer<const unsigned char> buf;
     if (args[3]->IsString()) {
-      Utf8Value utf8(isolate, args[3]);
-      ncrypto::Buffer<const unsigned char> buf{
+      buf = {
           .data = reinterpret_cast<const unsigned char*>(utf8.out()),
           .len = utf8.length(),
       };
-      return ncrypto::hashDigest(buf, md);
+    } else {
+      ArrayBufferViewContents<unsigned char> input(args[3]);
+      buf = {
+          .data = reinterpret_cast<const unsigned char*>(input.data()),
+          .len = input.length(),
+      };
     }
 
-    ArrayBufferViewContents<unsigned char> input(args[3]);
-    ncrypto::Buffer<const unsigned char> buf{
-        .data = reinterpret_cast<const unsigned char*>(input.data()),
-        .len = input.length(),
-    };
+    if (is_xof) {
+      return ncrypto::xofHashDigest(buf, md, output_length);
+    }
+
     return ncrypto::hashDigest(buf, md);
   })();
 
@@ -279,9 +328,6 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
   SetMethodNoSideEffect(context, target, "oneShotDigest", OneShotDigest);
 
   HashJob::Initialize(env, target);
-
-  SetMethodNoSideEffect(
-      context, target, "internalVerifyIntegrity", InternalVerifyIntegrity);
 }
 
 void Hash::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -293,8 +339,6 @@ void Hash::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(OneShotDigest);
 
   HashJob::RegisterExternalReferences(registry);
-
-  registry->Register(InternalVerifyIntegrity);
 }
 
 // new Hash(algorithm, algorithmId, xofLen, algorithmCache)
@@ -336,6 +380,21 @@ bool Hash::HashInit(const EVP_MD* md, Maybe<unsigned int> xof_md_len) {
   }
 
   md_len_ = mdctx_.getDigestSize();
+
+  // This is to handle OpenSSL 3.4's breaking change in SHAKE128/256
+  // default lengths
+  // TODO(@panva): remove this behaviour when DEP0198 is End-Of-Life
+  if (mdctx_.hasXofFlag() && !xof_md_len.IsJust() && md_len_ == 0) {
+    const char* name = OBJ_nid2sn(EVP_MD_type(md));
+    if (name != nullptr) {
+      if (strcmp(name, "SHAKE128") == 0) {
+        md_len_ = 16;
+      } else if (strcmp(name, "SHAKE256") == 0) {
+        md_len_ = 32;
+      }
+    }
+  }
+
   if (xof_md_len.IsJust() && xof_md_len.FromJust() != md_len_) {
     // This is a little hack to cause createHash to fail when an incorrect
     // hashSize option was passed for a non-XOF hash function.
@@ -481,10 +540,10 @@ Maybe<void> HashTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool HashTraits::DeriveBits(
-    Environment* env,
-    const HashConfig& params,
-    ByteSource* out) {
+bool HashTraits::DeriveBits(Environment* env,
+                            const HashConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
   auto ctx = EVPMDCtxPointer::New();
 
   if (!ctx.digestInit(params.digest) || !ctx.digestUpdate(params.in))
@@ -504,44 +563,5 @@ bool HashTraits::DeriveBits(
   return true;
 }
 
-void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK_EQ(args.Length(), 3);
-
-  CHECK(args[0]->IsString());
-  Utf8Value algorithm(env->isolate(), args[0]);
-
-  CHECK(args[1]->IsString() || IsAnyBufferSource(args[1]));
-  ByteSource content = ByteSource::FromStringOrBuffer(env, args[1]);
-
-  CHECK(args[2]->IsArrayBufferView());
-  ArrayBufferOrViewContents<unsigned char> expected(args[2]);
-
-  const EVP_MD* md_type = ncrypto::getDigestByName(*algorithm);
-  unsigned char digest[EVP_MAX_MD_SIZE];
-  unsigned int digest_size;
-  if (md_type == nullptr || EVP_Digest(content.data(),
-                                       content.size(),
-                                       digest,
-                                       &digest_size,
-                                       md_type,
-                                       nullptr) != 1) [[unlikely]] {
-    return ThrowCryptoError(
-        env, ERR_get_error(), "Digest method not supported");
-  }
-
-  if (digest_size != expected.size() ||
-      CRYPTO_memcmp(digest, expected.data(), digest_size) != 0) {
-    Local<Value> ret;
-    if (StringBytes::Encode(env->isolate(),
-                            reinterpret_cast<const char*>(digest),
-                            digest_size,
-                            BASE64)
-            .ToLocal(&ret)) {
-      args.GetReturnValue().Set(ret);
-    }
-  }
-}
 }  // namespace crypto
 }  // namespace node

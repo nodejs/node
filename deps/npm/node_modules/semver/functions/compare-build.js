@@ -1,3 +1,5 @@
+'use strict'
+
 const SemVer = require('../classes/semver')
 const compareBuild = (a, b, loose) => {
   const versionA = new SemVer(a, loose)

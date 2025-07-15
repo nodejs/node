@@ -126,11 +126,28 @@ let __callGC;
   };
 })();
 
+let __dummy;
+(function() {
+  const handler = {
+    get: function(x, prop) {
+      if (prop == Symbol.toPrimitive) {
+        return function() { return undefined; };
+      }
+      return __dummy;
+    },
+  };
+  __dummy = new Proxy(function() { return __dummy; }, handler);
+  Object.freeze(__dummy);
+})();
 
-function __wrapTC(f) {
+function __wrapTC(f, permissive=true) {
   try {
     return f();
-  } catch (e) {}
+  } catch (e) {
+    if (permissive) {
+      return __dummy;
+    }
+  }
 }
 
 // Neuter common test functions.

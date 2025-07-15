@@ -528,8 +528,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)      \
   V(WasmImportedStringsEnabledCallback,                                     \
     wasm_imported_strings_enabled_callback, nullptr)                        \
-  V(JavaScriptCompileHintsMagicEnabledCallback,                             \
-    compile_hints_magic_enabled_callback, nullptr)                          \
   V(WasmJSPIEnabledCallback, wasm_jspi_enabled_callback, nullptr)           \
   V(IsJSApiWrapperNativeErrorCallback,                                      \
     is_js_api_wrapper_native_error_callback, nullptr)                       \
@@ -574,14 +572,10 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
 #define THREAD_LOCAL_TOP_ADDRESS(type, name) \
   inline type* name##_address() { return &thread_local_top()->name##_; }
 
-#if defined(_MSC_VER)
-extern thread_local Isolate* g_current_isolate_ V8_CONSTINIT;
-#else
 // Do not use this variable directly, use Isolate::Current() instead.
 // Defined outside of Isolate because Isolate uses V8_EXPORT_PRIVATE.
 __attribute__((tls_model(V8_TLS_MODEL))) extern thread_local Isolate*
     g_current_isolate_ V8_CONSTINIT;
-#endif  // defined(_MSC_VER)
 
 // HiddenFactory exists so Isolate can privately inherit from it without making
 // Factory's members available to Isolate directly.
@@ -2342,17 +2336,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return wasm_stacks_;
   }
 
-  // Sets the new stack limit, updates the central stack info and checks the
-  // validity of the switch.
-  void SwitchStacks(Tagged<WasmContinuationObject> source_continuation,
-                    Tagged<WasmContinuationObject> target_continuation);
+  // Updates the stack limit, parent pointer and central stack info.
+  void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to);
 
   // Retires the stack owned by {continuation}, to be called when returning or
   // throwing from this continuation.
   // This updates the {StackMemory} state, removes it from the global
   // {wasm_stacks_} vector and nulls the EPT entry. This does not update the
   // {ActiveContinuation} root or the stack limit.
-  void RetireWasmStack(Tagged<WasmContinuationObject> continuation);
+  void RetireWasmStack(wasm::StackMemory* stack);
 #else
   bool IsOnCentralStack() { return true; }
 #endif
@@ -2361,6 +2353,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // allocated variables per ScopeInfo for debug-evaluate.
   // We also store a strong reference to the outer ScopeInfo to keep all
   // blocklists along a scope chain alive.
+  void LocalsBlockListCacheRehash();
   void LocalsBlockListCacheSet(DirectHandle<ScopeInfo> scope_info,
                                DirectHandle<ScopeInfo> outer_scope_info,
                                DirectHandle<StringSet> locals_blocklist);

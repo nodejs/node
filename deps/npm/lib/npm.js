@@ -221,7 +221,7 @@ class Npm {
     const command = new Command(this)
 
     // since 'test', 'start', 'stop', etc. commands re-enter this function
-    // to call the run-script command, we need to only set it one time.
+    // to call the run command, we need to only set it one time.
     if (!this.#command) {
       this.#command = command
       process.env.npm_command = this.command

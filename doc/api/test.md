@@ -105,11 +105,11 @@ top level test with two subtests.
 
 ```js
 test('top level test', async (t) => {
-  t.test('subtest 1', (t) => {
+  await t.test('subtest 1', (t) => {
     assert.strictEqual(1, 1);
   });
 
-  t.test('subtest 2', (t) => {
+  await t.test('subtest 2', (t) => {
     assert.strictEqual(2, 2);
   });
 });
@@ -118,7 +118,12 @@ test('top level test', async (t) => {
 > **Note:** `beforeEach` and `afterEach` hooks are triggered
 > between each subtest execution.
 
-Any subtest failures cause the parent test to fail.
+In this example, `await` is used to ensure that both subtests have completed.
+This is necessary because tests do not wait for their subtests to
+complete, unlike tests created within suites.
+Any subtests that are still outstanding when their parent finishes
+are cancelled and treated as failures. Any subtest failures cause the parent
+test to fail.
 
 ## Skipping tests
 
@@ -236,20 +241,20 @@ that are not executed are omitted from the test runner output.
 // The suite's 'only' option is set, so these tests are run.
 test('this test is run', { only: true }, async (t) => {
   // Within this test, all subtests are run by default.
-  t.test('running subtest');
+  await t.test('running subtest');
 
   // The test context can be updated to run subtests with the 'only' option.
   t.runOnly(true);
-  t.test('this subtest is now skipped');
-  t.test('this subtest is run', { only: true });
+  await t.test('this subtest is now skipped');
+  await t.test('this subtest is run', { only: true });
 
   // Switch the context back to execute all tests.
   t.runOnly(false);
-  t.test('this subtest is now run');
+  await t.test('this subtest is now run');
 
   // Explicitly do not run these tests.
-  t.test('skipped subtest 3', { only: false });
-  t.test('skipped subtest 4', { skip: true });
+  await t.test('skipped subtest 3', { only: false });
+  await t.test('skipped subtest 4', { skip: true });
 });
 
 // The 'only' option is not set, so this test is skipped.
@@ -304,13 +309,13 @@ multiple times (e.g. `--test-name-pattern="test 1"`,
 
 ```js
 test('test 1', async (t) => {
-  t.test('test 2');
-  t.test('test 3');
+  await t.test('test 2');
+  await t.test('test 3');
 });
 
 test('Test 4', async (t) => {
-  t.test('Test 5');
-  t.test('test 6');
+  await t.test('Test 5');
+  await t.test('test 6');
 });
 ```
 
@@ -472,9 +477,12 @@ By default, Node.js will run all files matching these patterns:
 Unless [`--no-experimental-strip-types`][] is supplied, the following
 additional patterns are also matched:
 
-* `**/test/**/*-test.{cts,mts,ts}`
-* `**/test/**/*.test.{cts,mts,ts}`
-* `**/test/**/*_test.{cts,mts,ts}`
+* `**/*.test.{cts,mts,ts}`
+* `**/*-test.{cts,mts,ts}`
+* `**/*_test.{cts,mts,ts}`
+* `**/test-*.{cts,mts,ts}`
+* `**/test.{cts,mts,ts}`
+* `**/test/**/*.{cts,mts,ts}`
 
 Alternatively, one or more glob patterns can be provided as the
 final argument(s) to the Node.js command, as shown below.
@@ -983,7 +991,7 @@ added: v22.3.0
 changes:
   - version: v23.4.0
     pr-url: https://github.com/nodejs/node/pull/55897
-    description: Snapsnot testing is no longer experimental.
+    description: Snapshot testing is no longer experimental.
 -->
 
 Snapshot tests allow arbitrary values to be serialized into string values and
@@ -1043,6 +1051,10 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
+  - version: v23.0.0
+    pr-url: https://github.com/nodejs/node/pull/54548
+    description: The default reporter on non-TTY stdout is changed from `tap` to
+                 `spec`, aligning with TTY stdout.
   - version:
     - v19.9.0
     - v18.17.0
@@ -1114,6 +1126,9 @@ const customReporter = new Transform({
       case 'test:watch:drained':
         callback(null, 'test watch queue drained');
         break;
+      case 'test:watch:restarted':
+        callback(null, 'test watch restarted due to file change');
+        break;
       case 'test:start':
         callback(null, `test ${event.data.name} started`);
         break;
@@ -1159,6 +1174,9 @@ const customReporter = new Transform({
       case 'test:watch:drained':
         callback(null, 'test watch queue drained');
         break;
+      case 'test:watch:restarted':
+        callback(null, 'test watch restarted due to file change');
+        break;
       case 'test:start':
         callback(null, `test ${event.data.name} started`);
         break;
@@ -1203,6 +1221,9 @@ export default async function * customReporter(source) {
       case 'test:watch:drained':
         yield 'test watch queue drained\n';
         break;
+      case 'test:watch:restarted':
+        yield 'test watch restarted due to file change\n';
+        break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
         break;
@@ -1242,6 +1263,9 @@ module.exports = async function * customReporter(source) {
         break;
       case 'test:watch:drained':
         yield 'test watch queue drained\n';
+        break;
+      case 'test:watch:restarted':
+        yield 'test watch restarted due to file change\n';
         break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
@@ -1336,16 +1360,16 @@ changes:
     If `false`, it would only run one test file at a time.
     **Default:** `false`.
   * `cwd`: {string} Specifies the current working directory to be used by the test runner.
-    Serves as the base path for resolving files according to the [test runner execution model][].
+    Serves as the base path for resolving files as if [running tests from the command line][] from that directory.
     **Default:** `process.cwd()`.
   * `files`: {Array} An array containing the list of files to run.
-    **Default:** matching files from [test runner execution model][].
+    **Default:** Same as [running tests from the command line][].
   * `forceExit`: {boolean} Configures the test runner to exit the process once
     all known tests have finished executing even if the event loop would
     otherwise remain active. **Default:** `false`.
   * `globPatterns`: {Array} An array containing the list of glob patterns to
     match test files. This option cannot be used together with `files`.
-    **Default:** matching files from [test runner execution model][].
+    **Default:** Same as [running tests from the command line][].
   * `inspectPort` {number|Function} Sets inspector port of test child process.
     This can be a number, or a function that takes no arguments and returns a
     number. If a nullish value is provided, each process gets its own port,
@@ -1453,11 +1477,6 @@ run({ files: [path.resolve('./tests/test.js')] })
 added:
   - v22.0.0
   - v20.13.0
-changes:
-  - version:
-    - v24.0.0
-    pr-url: https://github.com/nodejs/node/pull/56664
-    description: This function no longer returns a `Promise`.
 -->
 
 * `name` {string} The name of the suite, which is displayed when reporting test
@@ -1468,6 +1487,7 @@ changes:
 * `fn` {Function|AsyncFunction} The suite function declaring nested tests and
   suites. The first argument to this function is a [`SuiteContext`][] object.
   **Default:** A no-op function.
+* Returns: {Promise} Immediately fulfilled with `undefined`.
 
 The `suite()` function is imported from the `node:test` module.
 
@@ -1511,10 +1531,6 @@ added:
   - v18.0.0
   - v16.17.0
 changes:
-  - version:
-    - v24.0.0
-    pr-url: https://github.com/nodejs/node/pull/56664
-    description: This function no longer returns a `Promise`.
   - version:
     - v20.2.0
     - v18.17.0
@@ -1564,6 +1580,8 @@ changes:
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
   function.
+* Returns: {Promise} Fulfilled with `undefined` once
+  the test completes, or immediately if the test runs within a suite.
 
 The `test()` function is the value imported from the `test` module. Each
 invocation of this function results in reporting the test to the {TestsStream}.
@@ -1571,6 +1589,26 @@ invocation of this function results in reporting the test to the {TestsStream}.
 The `TestContext` object passed to the `fn` argument can be used to perform
 actions related to the current test. Examples include skipping the test, adding
 additional diagnostic information, or creating subtests.
+
+`test()` returns a `Promise` that fulfills once the test completes.
+if `test()` is called within a suite, it fulfills immediately.
+The return value can usually be discarded for top level tests.
+However, the return value from subtests should be used to prevent the parent
+test from finishing first and cancelling the subtest
+as shown in the following example.
+
+```js
+test('top level test', async (t) => {
+  // The setTimeout() in the following subtest would cause it to outlive its
+  // parent test if 'await' is removed on the next line. Once the parent test
+  // completes, it will cancel any outstanding subtests.
+  await t.test('longer running subtest', async (t) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(resolve, 1000);
+    });
+  });
+});
+```
 
 The `timeout` option can be used to fail the test if it takes longer than
 `timeout` milliseconds to complete. However, it is not a reliable mechanism for
@@ -2029,6 +2067,87 @@ added:
 
 Resets the implementation of the mock module.
 
+## Class: `MockPropertyContext`
+
+<!-- YAML
+added: v24.3.0
+-->
+
+The `MockPropertyContext` class is used to inspect or manipulate the behavior
+of property mocks created via the [`MockTracker`][] APIs.
+
+### `ctx.accesses`
+
+* {Array}
+
+A getter that returns a copy of the internal array used to track accesses (get/set) to
+the mocked property. Each entry in the array is an object with the following properties:
+
+* `type` {string} Either `'get'` or `'set'`, indicating the type of access.
+* `value` {any} The value that was read (for `'get'`) or written (for `'set'`).
+* `stack` {Error} An `Error` object whose stack can be used to determine the
+  callsite of the mocked function invocation.
+
+### `ctx.accessCount()`
+
+* Returns: {integer} The number of times that the property was accessed (read or written).
+
+This function returns the number of times that the property was accessed.
+This function is more efficient than checking `ctx.accesses.length` because
+`ctx.accesses` is a getter that creates a copy of the internal access tracking array.
+
+### `ctx.mockImplementation(value)`
+
+* `value` {any} The new value to be set as the mocked property value.
+
+This function is used to change the value returned by the mocked property getter.
+
+### `ctx.mockImplementationOnce(value[, onAccess])`
+
+* `value` {any} The value to be used as the mock's
+  implementation for the invocation number specified by `onAccess`.
+* `onAccess` {integer} The invocation number that will use `value`. If
+  the specified invocation has already occurred then an exception is thrown.
+  **Default:** The number of the next invocation.
+
+This function is used to change the behavior of an existing mock for a single
+invocation. Once invocation `onAccess` has occurred, the mock will revert to
+whatever behavior it would have used had `mockImplementationOnce()` not been
+called.
+
+The following example creates a mock function using `t.mock.property()`, calls the
+mock property, changes the mock implementation to a different value for the
+next invocation, and then resumes its previous behavior.
+
+```js
+test('changes a mock behavior once', (t) => {
+  const obj = { foo: 1 };
+
+  const prop = t.mock.property(obj, 'foo', 5);
+
+  assert.strictEqual(obj.foo, 5);
+  prop.mock.mockImplementationOnce(25);
+  assert.strictEqual(obj.foo, 25);
+  assert.strictEqual(obj.foo, 5);
+});
+```
+
+#### Caveat
+
+For consistency with the rest of the mocking API, this function treats both property gets and sets
+as accesses. If a property set occurs at the same access index, the "once" value will be consumed
+by the set operation, and the mocked property value will be changed to the "once" value. This may
+lead to unexpected behavior if you intend the "once" value to only be used for a get operation.
+
+### `ctx.resetAccesses()`
+
+Resets the access history of the mocked property.
+
+### `ctx.restore()`
+
+Resets the implementation of the mock property to its original behavior. The
+mock can still be used after calling this function.
+
 ## Class: `MockTracker`
 
 <!-- YAML
@@ -2171,6 +2290,7 @@ added:
 changes:
   - version:
     - v24.0.0
+    - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/58007
     description: Support JSON modules.
 -->
@@ -2230,6 +2350,43 @@ test('mocks a builtin module in both module systems', async (t) => {
   assert.strictEqual(typeof cjsImpl.cursorTo, 'function');
   assert.strictEqual(esmImpl.fn, undefined);
   assert.strictEqual(cjsImpl.fn, undefined);
+});
+```
+
+### `mock.property(object, propertyName[, value])`
+
+<!-- YAML
+added: v24.3.0
+-->
+
+* `object` {Object} The object whose value is being mocked.
+* `propertyName` {string|symbol} The identifier of the property on `object` to mock.
+* `value` {any} An optional value used as the mock value
+  for `object[propertyName]`. **Default:** The original property value.
+* Returns: {Proxy} A proxy to the mocked object. The mocked object contains a
+  special `mock` property, which is an instance of [`MockPropertyContext`][], and
+  can be used for inspecting and changing the behavior of the mocked property.
+
+Creates a mock for a property value on an object. This allows you to track and control access to a specific property,
+including how many times it is read (getter) or written (setter), and to restore the original value after mocking.
+
+```js
+test('mocks a property value', (t) => {
+  const obj = { foo: 42 };
+  const prop = t.mock.property(obj, 'foo', 100);
+
+  assert.strictEqual(obj.foo, 100);
+  assert.strictEqual(prop.mock.accessCount(), 1);
+  assert.strictEqual(prop.mock.accesses[0].type, 'get');
+  assert.strictEqual(prop.mock.accesses[0].value, 100);
+
+  obj.foo = 200;
+  assert.strictEqual(prop.mock.accessCount(), 2);
+  assert.strictEqual(prop.mock.accesses[1].type, 'set');
+  assert.strictEqual(prop.mock.accesses[1].value, 200);
+
+  prop.mock.restore();
+  assert.strictEqual(obj.foo, 42);
 });
 ```
 
@@ -3009,6 +3166,11 @@ defined. The corresponding declaration ordered event is `'test:start'`.
     `undefined` if the test was run through the REPL.
   * `message` {string} The diagnostic message.
   * `nesting` {number} The nesting level of the test.
+  * `level` {string} The severity level of the diagnostic message.
+    Possible values are:
+    * `'info'`: Informational messages.
+    * `'warn'`: Warnings.
+    * `'error'`: Errors.
 
 Emitted when [`context.diagnostic`][] is called.
 This event is guaranteed to be emitted in the same order as the tests are
@@ -3163,6 +3325,10 @@ generated for each test file in addition to a final cumulative summary.
 
 Emitted when no more tests are queued for execution in watch mode.
 
+### Event: `'test:watch:restarted'`
+
+Emitted when one or more tests are restarted due to a file change in watch mode.
+
 ## Class: `TestContext`
 
 <!-- YAML
@@ -3228,9 +3394,12 @@ before each subtest of the current test.
 ```js
 test('top level test', async (t) => {
   t.beforeEach((t) => t.diagnostic(`about to run ${t.name}`));
-  t.test('This is a subtest', (t) => {
-    assert.ok('some relevant assertion here');
-  });
+  await t.test(
+    'This is a subtest',
+    (t) => {
+      assert.ok('some relevant assertion here');
+    },
+  );
 });
 ```
 
@@ -3288,9 +3457,12 @@ after each subtest of the current test.
 ```js
 test('top level test', async (t) => {
   t.afterEach((t) => t.diagnostic(`finished running ${t.name}`));
-  t.test('This is a subtest', (t) => {
-    assert.ok('some relevant assertion here');
-  });
+  await t.test(
+    'This is a subtest',
+    (t) => {
+      assert.ok('some relevant assertion here');
+    },
+  );
 });
 ```
 
@@ -3542,8 +3714,10 @@ no-op.
 test('top level test', (t) => {
   // The test context can be set to run subtests with the 'only' option.
   t.runOnly(true);
-  t.test('this subtest is now skipped');
-  t.test('this subtest is run', { only: true });
+  return Promise.all([
+    t.test('this subtest is now skipped'),
+    t.test('this subtest is run', { only: true }),
+  ]);
 });
 ```
 
@@ -3616,10 +3790,6 @@ added:
   - v16.17.0
 changes:
   - version:
-    - v24.0.0
-    pr-url: https://github.com/nodejs/node/pull/56664
-    description: This function no longer returns a `Promise`.
-  - version:
     - v18.8.0
     - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/43554
@@ -3663,13 +3833,14 @@ changes:
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
   function.
+* Returns: {Promise} Fulfilled with `undefined` once the test completes.
 
 This function is used to create subtests under the current test. This function
 behaves in the same fashion as the top level [`test()`][] function.
 
 ```js
 test('top level test', async (t) => {
-  t.test(
+  await t.test(
     'This is a subtest',
     { only: false, skip: false, concurrency: 1, todo: false, plan: 1 },
     (t) => {
@@ -3762,6 +3933,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--test-update-snapshots`]: cli.md#--test-update-snapshots
 [`--test`]: cli.md#--test
 [`MockFunctionContext`]: #class-mockfunctioncontext
+[`MockPropertyContext`]: #class-mockpropertycontext
 [`MockTimers`]: #class-mocktimers
 [`MockTracker.method`]: #mockmethodobject-methodname-implementation-options
 [`MockTracker`]: #class-mocktracker
@@ -3780,6 +3952,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [code coverage]: #collecting-code-coverage
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
+[running tests from the command line]: #running-tests-from-the-command-line
 [stream.compose]: stream.md#streamcomposestreams
 [subtests]: #subtests
 [suite options]: #suitename-options-fn

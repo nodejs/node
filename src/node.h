@@ -175,35 +175,6 @@ NODE_DEPRECATED("Use UVException(isolate, ...)",
                      path);
 })
 
-/*
- * These methods need to be called in a HandleScope.
- *
- * It is preferred that you use the `MakeCallback` overloads taking
- * `async_context` arguments.
- */
-
-NODE_DEPRECATED("Use MakeCallback(..., async_context)",
-                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-                    v8::Isolate* isolate,
-                    v8::Local<v8::Object> recv,
-                    const char* method,
-                    int argc,
-                    v8::Local<v8::Value>* argv));
-NODE_DEPRECATED("Use MakeCallback(..., async_context)",
-                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-                    v8::Isolate* isolate,
-                    v8::Local<v8::Object> recv,
-                    v8::Local<v8::String> symbol,
-                    int argc,
-                    v8::Local<v8::Value>* argv));
-NODE_DEPRECATED("Use MakeCallback(..., async_context)",
-                NODE_EXTERN v8::Local<v8::Value> MakeCallback(
-                    v8::Isolate* isolate,
-                    v8::Local<v8::Object> recv,
-                    v8::Local<v8::Function> callback,
-                    int argc,
-                    v8::Local<v8::Value>* argv));
-
 }  // namespace node
 
 #include <cassert>
@@ -328,22 +299,6 @@ NODE_EXTERN int Start(int argc, char* argv[]);
 // in the loop and / or actively executing JavaScript code).
 NODE_EXTERN int Stop(Environment* env,
                      StopFlags::Flags flags = StopFlags::kNoFlags);
-
-// Set up per-process state needed to run Node.js. This will consume arguments
-// from argv, fill exec_argv, and possibly add errors resulting from parsing
-// the arguments to `errors`. The return value is a suggested exit code for the
-// program; If it is 0, then initializing Node.js succeeded.
-// This runs a subset of the initialization performed by
-// InitializeOncePerProcess(), which supersedes this function.
-// The subset is roughly equivalent to the one given by
-// `ProcessInitializationFlags::kLegacyInitializeNodeWithArgsBehavior`.
-NODE_DEPRECATED("Use InitializeOncePerProcess() instead",
-                NODE_EXTERN int InitializeNodeWithArgs(
-                    std::vector<std::string>* argv,
-                    std::vector<std::string>* exec_argv,
-                    std::vector<std::string>* errors,
-                    ProcessInitializationFlags::Flags flags =
-                        ProcessInitializationFlags::kNoFlags));
 
 // Set up per-process state needed to run Node.js. This will consume arguments
 // from args, and return information about the initialization success,
@@ -848,32 +803,21 @@ NODE_EXTERN void GetNodeReport(Environment* env,
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env);
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env);
 
-NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
-    NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
-        int thread_pool_size,
-        v8::TracingController* tracing_controller));
-NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
-    NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform));
-
-// Get/set the currently active tracing controller. Using CreatePlatform()
-// will implicitly set this by default. This is global and should be initialized
-// along with the v8::Platform instance that is being used. `controller`
-// is allowed to be `nullptr`.
-// This is used for tracing events from Node.js itself. V8 uses the tracing
-// controller returned from the active `v8::Platform` instance.
+// Get/set the currently active tracing controller. Using
+// MultiIsolatePlatform::Create() will implicitly set this by default. This is
+// global and should be initialized along with the v8::Platform instance that is
+// being used. `controller` is allowed to be `nullptr`. This is used for tracing
+// events from Node.js itself. V8 uses the tracing controller returned from the
+// active `v8::Platform` instance.
 NODE_EXTERN v8::TracingController* GetTracingController();
 NODE_EXTERN void SetTracingController(v8::TracingController* controller);
 
 // Run `process.emit('beforeExit')` as it would usually happen when Node.js is
 // run in standalone mode.
 NODE_EXTERN v8::Maybe<bool> EmitProcessBeforeExit(Environment* env);
-NODE_DEPRECATED("Use Maybe version (EmitProcessBeforeExit) instead",
-    NODE_EXTERN void EmitBeforeExit(Environment* env));
 // Run `process.emit('exit')` as it would usually happen when Node.js is run
 // in standalone mode. The return value corresponds to the exit code.
 NODE_EXTERN v8::Maybe<int> EmitProcessExit(Environment* env);
-NODE_DEPRECATED("Use Maybe version (EmitProcessExit) instead",
-    NODE_EXTERN int EmitExit(Environment* env));
 
 // Runs hooks added through `AtExit()`. This is part of `FreeEnvironment()`,
 // so calling it manually is typically not necessary.

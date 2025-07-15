@@ -162,9 +162,10 @@ void ConsoleCall(
   if (!IsNativeContext(args.target()->context())) {
     DirectHandle<Context> context(args.target()->context(), isolate);
     CHECK_EQ(CONSOLE_CONTEXT_SLOTS, context->length());
-    context_id = Cast<Smi>(context->get(CONSOLE_CONTEXT_ID_INDEX)).value();
+    context_id =
+        Cast<Smi>(context->GetNoCell(CONSOLE_CONTEXT_ID_INDEX)).value();
     context_name = direct_handle(
-        Cast<String>(context->get(CONSOLE_CONTEXT_NAME_INDEX)), isolate);
+        Cast<String>(context->GetNoCell(CONSOLE_CONTEXT_NAME_INDEX)), isolate);
   }
   (isolate->console_delegate()->*func)(
       debug::ConsoleCallArguments(isolate, args),
@@ -289,7 +290,7 @@ BUILTIN(ConsoleContext) {
 
   DirectHandle<JSObject> prototype =
       factory->NewJSObject(isolate->object_function());
-  JSFunction::SetPrototype(cons, prototype);
+  JSFunction::SetPrototype(isolate, cons, prototype);
 
   DirectHandle<JSObject> console_context =
       factory->NewJSObject(cons, AllocationType::kOld);
@@ -297,8 +298,8 @@ BUILTIN(ConsoleContext) {
 
   DirectHandle<Context> context = factory->NewBuiltinContext(
       isolate->native_context(), CONSOLE_CONTEXT_SLOTS);
-  context->set(CONSOLE_CONTEXT_ID_INDEX, Smi::FromInt(context_id));
-  context->set(CONSOLE_CONTEXT_NAME_INDEX, *context_name);
+  context->SetNoCell(CONSOLE_CONTEXT_ID_INDEX, Smi::FromInt(context_id));
+  context->SetNoCell(CONSOLE_CONTEXT_NAME_INDEX, *context_name);
 
 #define CONSOLE_BUILTIN_SETUP(call, name, ...)            \
   InstallContextFunction(isolate, console_context, #name, \

@@ -300,6 +300,9 @@ static void uv__udp_recvmsg(uv_udp_t* handle) {
  *
  * zOS does not support getsockname with SO_REUSEPORT option when using
  * AF_UNIX.
+ *
+ * Solaris 11.4: SO_REUSEPORT will not load balance when SO_REUSEADDR
+ * is also set, but it's not valid for every socket type.
  */
 static int uv__sock_reuseaddr(int fd) {
   int yes;
@@ -317,8 +320,18 @@ static int uv__sock_reuseaddr(int fd) {
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes)))
        return UV__ERR(errno);
   }
-#elif defined(SO_REUSEPORT) && !defined(__linux__) && !defined(__GNU__) && \
-	!defined(__sun__) && !defined(__DragonFly__) && !defined(_AIX73)
+#elif defined(SO_REUSEPORT) && defined(UV__SOLARIS_11_4) && UV__SOLARIS_11_4
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes))) {
+    if (errno != ENOPROTOOPT)
+      return UV__ERR(errno);
+    /* Not all socket types accept SO_REUSEPORT. */
+    errno = 0;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)))
+      return UV__ERR(errno);
+  }
+#elif defined(SO_REUSEPORT) && \
+  !defined(__linux__) && !defined(__GNU__) && \
+  !defined(__illumos__) && !defined(__DragonFly__) && !defined(_AIX73)
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes)))
     return UV__ERR(errno);
 #else
@@ -1298,7 +1311,8 @@ static int uv__udp_sendmsgv(int fd,
   r = 0;
   nsent = 0;
 
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) || \
+  (defined(__sun__) && defined(MSG_WAITFORONE))
   if (count > 1) {
     for (i = 0; i < count; /*empty*/) {
       struct mmsghdr m[20];
@@ -1325,7 +1339,9 @@ static int uv__udp_sendmsgv(int fd,
 
     goto exit;
   }
-#endif  /* defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) */
+#endif  /* defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) ||
+	 * (defined(__sun__) && defined(MSG_WAITFORONE))
+	 */
 
   for (i = 0; i < count; i++, nsent++)
     if ((r = uv__udp_sendmsg1(fd, bufs[i], nbufs[i], addrs[i])))

@@ -9,9 +9,9 @@
 // NOTE these macros are used by some of the tool scripts and the build
 // system so their names cannot be changed without changing the scripts.
 #define V8_MAJOR_VERSION 13
-#define V8_MINOR_VERSION 6
-#define V8_BUILD_NUMBER 233
-#define V8_PATCH_LEVEL 8
+#define V8_MINOR_VERSION 7
+#define V8_BUILD_NUMBER 152
+#define V8_PATCH_LEVEL 14
 
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)

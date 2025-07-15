@@ -560,7 +560,28 @@ enum ExternalPointerTag : uint16_t {
   kFunctionTemplateInfoCallbackTag = kFirstMaybeReadOnlyExternalPointerTag,
   kAccessorInfoGetterTag,
   kAccessorInfoSetterTag,
-  kLastMaybeReadOnlyExternalPointerTag = kAccessorInfoSetterTag,
+
+  // InterceptorInfo external pointers.
+  kFirstInterceptorInfoExternalPointerTag,
+  kApiNamedPropertyQueryCallbackTag = kFirstInterceptorInfoExternalPointerTag,
+  kApiNamedPropertyGetterCallbackTag,
+  kApiNamedPropertySetterCallbackTag,
+  kApiNamedPropertyDescriptorCallbackTag,
+  kApiNamedPropertyDefinerCallbackTag,
+  kApiNamedPropertyDeleterCallbackTag,
+  kApiNamedPropertyEnumeratorCallbackTag,
+  kApiIndexedPropertyQueryCallbackTag,
+  kApiIndexedPropertyGetterCallbackTag,
+  kApiIndexedPropertySetterCallbackTag,
+  kApiIndexedPropertyDescriptorCallbackTag,
+  kApiIndexedPropertyDefinerCallbackTag,
+  kApiIndexedPropertyDeleterCallbackTag,
+  kApiIndexedPropertyEnumeratorCallbackTag,
+  kLastInterceptorInfoExternalPointerTag =
+      kApiIndexedPropertyEnumeratorCallbackTag,
+
+  kLastMaybeReadOnlyExternalPointerTag = kLastInterceptorInfoExternalPointerTag,
+
   kWasmInternalFunctionCallTargetTag,
   kWasmTypeInfoNativeTypeTag,
   kWasmExportedFunctionDataSignatureTag,
@@ -570,19 +591,7 @@ enum ExternalPointerTag : uint16_t {
   // Foreigns
   kFirstForeignExternalPointerTag,
   kGenericForeignTag = kFirstForeignExternalPointerTag,
-  kApiNamedPropertyQueryCallbackTag,
-  kApiNamedPropertyGetterCallbackTag,
-  kApiNamedPropertySetterCallbackTag,
-  kApiNamedPropertyDescriptorCallbackTag,
-  kApiNamedPropertyDefinerCallbackTag,
-  kApiNamedPropertyDeleterCallbackTag,
-  kApiIndexedPropertyQueryCallbackTag,
-  kApiIndexedPropertyGetterCallbackTag,
-  kApiIndexedPropertySetterCallbackTag,
-  kApiIndexedPropertyDescriptorCallbackTag,
-  kApiIndexedPropertyDefinerCallbackTag,
-  kApiIndexedPropertyDeleterCallbackTag,
-  kApiIndexedPropertyEnumeratorCallbackTag,
+
   kApiAccessCheckCallbackTag,
   kApiAbortScriptExecutionCallbackTag,
   kSyntheticModuleTag,
@@ -636,6 +645,9 @@ constexpr ExternalPointerTagRange kAnySharedExternalPointerTagRange(
     kFirstSharedExternalPointerTag, kLastSharedExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyForeignExternalPointerTagRange(
     kFirstForeignExternalPointerTag, kLastForeignExternalPointerTag);
+constexpr ExternalPointerTagRange kAnyInterceptorInfoExternalPointerTagRange(
+    kFirstInterceptorInfoExternalPointerTag,
+    kLastInterceptorInfoExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyManagedExternalPointerTagRange(
     kFirstManagedExternalPointerTag, kLastManagedExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyMaybeReadOnlyExternalPointerTagRange(
@@ -678,7 +690,8 @@ V8_INLINE static constexpr bool IsManagedExternalPointerType(
 V8_INLINE static constexpr bool ExternalPointerCanBeEmpty(
     ExternalPointerTagRange tag_range) {
   return tag_range.Contains(kArrayBufferExtensionTag) ||
-         tag_range.Contains(kEmbedderDataSlotPayloadTag);
+         tag_range.Contains(kEmbedderDataSlotPayloadTag) ||
+         kAnyInterceptorInfoExternalPointerTagRange.Contains(tag_range);
 }
 
 // Indirect Pointers.
@@ -1331,7 +1344,7 @@ class BackingStoreBase {};
 
 // The maximum value in enum GarbageCollectionReason, defined in heap.h.
 // This is needed for histograms sampling garbage collection reasons.
-constexpr int kGarbageCollectionReasonMaxValue = 29;
+constexpr int kGarbageCollectionReasonMaxValue = 30;
 
 // Base class for the address block allocator compatible with standard
 // containers, which registers its allocated range as strong roots.

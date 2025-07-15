@@ -43,8 +43,11 @@
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/embedder-state.h"
+#include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/flags/flags.h"
+#include "src/heap/memory-chunk.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/spaces.h"
 #include "src/init/v8.h"
 #include "src/libsampler/sampler.h"
@@ -4169,9 +4172,12 @@ TEST(EmbedderStatePropagateNativeContextMove) {
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
-  LocalContext execution_env;
   i::HandleScope scope(CcTest::i_isolate());
 
+  // Ensures that the context isn't allocated on a NEVER_EVACUATE page.
+  heap::AbandonCurrentlyFreeMemory(CcTest::i_isolate()->heap()->old_space());
+
+  LocalContext execution_env;
   v8::Isolate* isolate = execution_env.local()->GetIsolate();
 
   // Install CollectSample callback for more deterministic sampling.
@@ -4185,6 +4191,9 @@ TEST(EmbedderStatePropagateNativeContextMove) {
 
     i::Address initial_address =
         CcTest::i_isolate()->current_embedder_state()->native_context_address();
+    CHECK(!PageMetadata::FromAddress(initial_address)
+               ->Chunk()
+               ->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
 
     // Install a function that triggers the native context to be moved.
     v8::Local<v8::FunctionTemplate> move_func_template =

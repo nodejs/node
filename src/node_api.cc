@@ -704,9 +704,9 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     napi_addon_register_func init,
                                     int32_t module_api_version) {
   node::Environment* node_env = node::Environment::GetCurrent(context);
+  CHECK_NOT_NULL(node_env);
   std::string module_filename = "";
   if (init == nullptr) {
-    CHECK_NOT_NULL(node_env);
     node_env->ThrowError("Module has no declared entry point.");
     return;
   }
@@ -1056,10 +1056,9 @@ napi_create_external_buffer(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-#if defined(V8_ENABLE_SANDBOX)
+#ifdef V8_ENABLE_SANDBOX
   return napi_set_last_error(env, napi_no_external_buffers_allowed);
-#endif
-
+#else
   v8::Isolate* isolate = env->isolate;
 
   // The finalizer object will delete itself after invoking the callback.
@@ -1081,6 +1080,7 @@ napi_create_external_buffer(napi_env env,
   // as it will be deleted when the buffer to which it is associated
   // is finalized.
   // coverity[leaked_storage]
+#endif  // V8_ENABLE_SANDBOX
 }
 
 napi_status NAPI_CDECL napi_create_buffer_copy(napi_env env,

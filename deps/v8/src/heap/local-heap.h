@@ -33,14 +33,10 @@ class MarkingBarrier;
 class MutablePageMetadata;
 class Safepoint;
 
-#if defined(_MSC_VER)
-extern thread_local LocalHeap* g_current_local_heap_ V8_CONSTINIT;
-#else
 // Do not use this variable directly, use LocalHeap::Current() instead.
 // Defined outside of LocalHeap because LocalHeap uses V8_EXPORT_PRIVATE.
 __attribute__((tls_model(V8_TLS_MODEL))) extern thread_local LocalHeap*
     g_current_local_heap_ V8_CONSTINIT;
-#endif  // defined(_MSC_VER)
 
 // LocalHeap is used by the GC to track all threads with heap access in order to
 // stop them before performing a collection. LocalHeaps can be either Parked or
@@ -239,6 +235,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   pthread_t thread_handle() { return thread_handle_; }
 #endif
 
+  void Iterate(RootVisitor* visitor);
+
   HeapAllocator* allocator() { return &heap_allocator_; }
 
  private:
@@ -400,6 +398,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<MarkingBarrier> marking_barrier_;
 
   GCCallbacksInSafepoint gc_epilogue_callbacks_;
+  GCRootsProvider* roots_provider_ = nullptr;
 
   HeapAllocator heap_allocator_;
 
@@ -416,6 +415,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class IsolateSafepointScope;
   friend class ParkedScope;
   friend class UnparkedScope;
+  friend class GCRootsProviderScope;
 };
 
 }  // namespace internal

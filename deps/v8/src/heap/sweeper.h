@@ -215,6 +215,7 @@ class Sweeper {
     callback(CODE_SPACE);
     callback(SHARED_SPACE);
     callback(TRUSTED_SPACE);
+    callback(SHARED_TRUSTED_SPACE);
   }
 
   // Helper function for RawSweep. Depending on the FreeListRebuildingMode and

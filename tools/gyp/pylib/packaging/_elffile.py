@@ -48,8 +48,7 @@ class ELFFile:
             ident = self._read("16B")
         except struct.error:
             raise ELFInvalid("unable to parse identification")
-        magic = bytes(ident[:4])
-        if magic != b"\x7fELF":
+        if (magic := bytes(ident[:4])) != b"\x7fELF":
             raise ELFInvalid(f"invalid magic: {magic!r}")
 
         self.capacity = ident[4]  # Format for program header (bitness).

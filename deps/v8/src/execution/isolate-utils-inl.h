@@ -26,8 +26,8 @@ V8_INLINE Heap* GetHeapFromWritableObject(Tagged<HeapObject> object) {
   // with `isolate->shared_space_isolate()` if needed.
   DCHECK(!chunk->InWritableSharedSpace());
   Heap* heap = chunk->GetHeap();
-  // TODO(396607238): Make this a `SBXCHECK`.
-  DCHECK_EQ(heap->isolate(), Isolate::TryGetCurrent());
+  // See the TODO above: The heap/isolate returned here must match TLS.
+  CHECK_EQ(heap->isolate(), Isolate::TryGetCurrent());
   return heap;
 }
 

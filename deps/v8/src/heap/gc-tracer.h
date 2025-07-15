@@ -303,8 +303,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Start and stop a GC cycle (collecting data and reporting results).
   void StartCycle(GarbageCollector collector, GarbageCollectionReason gc_reason,
                   const char* collector_reason, MarkingType marking);
-  void StopYoungCycleIfNeeded();
-  void StopFullCycleIfNeeded();
+  void StopYoungCycleIfFinished();
+  void StopFullCycleIfFinished();
 
   void UpdateMemoryBalancerGCSpeed();
 
@@ -315,7 +315,15 @@ class V8_EXPORT_PRIVATE GCTracer {
   void StartInSafepoint(base::TimeTicks time);
   void StopInSafepoint(base::TimeTicks time);
 
-  void NotifyFullSweepingCompleted();
+  // Notify the GC tracer that full/young sweeping is completed. A cycle cannot
+  // be stopped until sweeping is completed and `StopCycle` would bail out if
+  // `Notify*SweepingCompleted` is not called before. These methods also call
+  // `StopCycle` if all other conditions are also met (e.g. Oilpan sweeping is
+  // also completed).
+  void NotifyFullSweepingCompletedAndStopCycleIfFinished();
+  void NotifyYoungSweepingCompletedAndStopCycleIfFinished();
+  // Marks young sweeping as complete but doesn't try to call `StopCycle` even
+  // if possible.
   void NotifyYoungSweepingCompleted();
 
   void NotifyFullCppGCCompleted();
@@ -512,8 +520,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // The starting time of the observable pause if set.
   std::optional<base::TimeTicks> start_of_observable_pause_;
 
-  // We need two epochs, since there can be scavenges during incremental
-  // marking.
+  // We need two epochs, since there can be scavenges during sweeping.
   CollectionEpoch epoch_young_ = 0;
   CollectionEpoch epoch_full_ = 0;
 
@@ -588,7 +595,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // When a full GC cycle is interrupted by a young generation GC cycle, the
   // |previous_| event is used as temporary storage for the |current_| event
   // that corresponded to the full GC cycle, and this field is set to true.
-  bool young_gc_while_full_gc_ = false;
+  bool young_gc_during_full_gc_sweeping_ = false;
 
   v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalMark
       incremental_mark_batched_events_;

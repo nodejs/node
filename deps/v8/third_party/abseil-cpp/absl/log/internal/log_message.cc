@@ -147,7 +147,7 @@ void WriteToStream(const char* data, void* os) {
 }  // namespace
 
 struct LogMessage::LogMessageData final {
-  LogMessageData(absl::Nonnull<const char*> file, int line,
+  LogMessageData(const char* absl_nonnull file, int line,
                  absl::LogSeverity severity, absl::Time timestamp);
   LogMessageData(const LogMessageData&) = delete;
   LogMessageData& operator=(const LogMessageData&) = delete;
@@ -163,7 +163,7 @@ struct LogMessage::LogMessageData final {
   bool is_perror;
 
   // Extra `LogSink`s to log to, in addition to `global_sinks`.
-  absl::InlinedVector<absl::Nonnull<absl::LogSink*>, 16> extra_sinks;
+  absl::InlinedVector<absl::LogSink* absl_nonnull, 16> extra_sinks;
   // If true, log to `extra_sinks` but not to `global_sinks` or hardcoded
   // non-sink targets (e.g. stderr, log files).
   bool extra_sinks_only;
@@ -199,7 +199,7 @@ struct LogMessage::LogMessageData final {
   void FinalizeEncodingAndFormat();
 };
 
-LogMessage::LogMessageData::LogMessageData(absl::Nonnull<const char*> file,
+LogMessage::LogMessageData::LogMessageData(const char* absl_nonnull file,
                                            int line, absl::LogSeverity severity,
                                            absl::Time timestamp)
     : extra_sinks_only(false), manipulated(nullptr) {
@@ -270,7 +270,7 @@ void LogMessage::LogMessageData::FinalizeEncodingAndFormat() {
       absl::MakeSpan(string_buf).subspan(0, chars_written);
 }
 
-LogMessage::LogMessage(absl::Nonnull<const char*> file, int line,
+LogMessage::LogMessage(const char* absl_nonnull file, int line,
                        absl::LogSeverity severity)
     : data_(absl::make_unique<LogMessageData>(file, line, severity,
                                               absl::Now())) {
@@ -284,11 +284,11 @@ LogMessage::LogMessage(absl::Nonnull<const char*> file, int line,
   LogBacktraceIfNeeded();
 }
 
-LogMessage::LogMessage(absl::Nonnull<const char*> file, int line, InfoTag)
+LogMessage::LogMessage(const char* absl_nonnull file, int line, InfoTag)
     : LogMessage(file, line, absl::LogSeverity::kInfo) {}
-LogMessage::LogMessage(absl::Nonnull<const char*> file, int line, WarningTag)
+LogMessage::LogMessage(const char* absl_nonnull file, int line, WarningTag)
     : LogMessage(file, line, absl::LogSeverity::kWarning) {}
-LogMessage::LogMessage(absl::Nonnull<const char*> file, int line, ErrorTag)
+LogMessage::LogMessage(const char* absl_nonnull file, int line, ErrorTag)
     : LogMessage(file, line, absl::LogSeverity::kError) {}
 
 // This cannot go in the header since LogMessageData is defined in this file.
@@ -343,13 +343,13 @@ LogMessage& LogMessage::WithPerror() {
   return *this;
 }
 
-LogMessage& LogMessage::ToSinkAlso(absl::Nonnull<absl::LogSink*> sink) {
+LogMessage& LogMessage::ToSinkAlso(absl::LogSink* absl_nonnull sink) {
   ABSL_INTERNAL_CHECK(sink, "null LogSink*");
   data_->extra_sinks.push_back(sink);
   return *this;
 }
 
-LogMessage& LogMessage::ToSinkOnly(absl::Nonnull<absl::LogSink*> sink) {
+LogMessage& LogMessage::ToSinkOnly(absl::LogSink* absl_nonnull sink) {
   ABSL_INTERNAL_CHECK(sink, "null LogSink*");
   data_->extra_sinks.clear();
   data_->extra_sinks.push_back(sink);
@@ -673,11 +673,11 @@ void LogMessage::CopyToEncodedBufferWithStructuredProtoField(
 #pragma warning(disable : 4722)
 #endif
 
-LogMessageFatal::LogMessageFatal(absl::Nonnull<const char*> file, int line)
+LogMessageFatal::LogMessageFatal(const char* absl_nonnull file, int line)
     : LogMessage(file, line, absl::LogSeverity::kFatal) {}
 
-LogMessageFatal::LogMessageFatal(absl::Nonnull<const char*> file, int line,
-                                 absl::Nonnull<const char*> failure_msg)
+LogMessageFatal::LogMessageFatal(const char* absl_nonnull file, int line,
+                                 const char* absl_nonnull failure_msg)
     : LogMessage(file, line, absl::LogSeverity::kFatal) {
   *this << "Check failed: " << failure_msg << " ";
 }
@@ -686,7 +686,7 @@ LogMessageFatal::~LogMessageFatal() {
   FailWithoutStackTrace();
 }
 
-LogMessageDebugFatal::LogMessageDebugFatal(absl::Nonnull<const char*> file,
+LogMessageDebugFatal::LogMessageDebugFatal(const char* absl_nonnull file,
                                            int line)
     : LogMessage(file, line, absl::LogSeverity::kFatal) {}
 
@@ -695,7 +695,7 @@ LogMessageDebugFatal::~LogMessageDebugFatal() {
 }
 
 LogMessageQuietlyDebugFatal::LogMessageQuietlyDebugFatal(
-    absl::Nonnull<const char*> file, int line)
+    const char* absl_nonnull file, int line)
     : LogMessage(file, line, absl::LogSeverity::kFatal) {
   SetFailQuietly();
 }
@@ -704,15 +704,15 @@ LogMessageQuietlyDebugFatal::~LogMessageQuietlyDebugFatal() {
   FailQuietly();
 }
 
-LogMessageQuietlyFatal::LogMessageQuietlyFatal(absl::Nonnull<const char*> file,
+LogMessageQuietlyFatal::LogMessageQuietlyFatal(const char* absl_nonnull file,
                                                int line)
     : LogMessage(file, line, absl::LogSeverity::kFatal) {
   SetFailQuietly();
 }
 
 LogMessageQuietlyFatal::LogMessageQuietlyFatal(
-    absl::Nonnull<const char*> file, int line,
-    absl::Nonnull<const char*> failure_msg)
+    const char* absl_nonnull file, int line,
+    const char* absl_nonnull failure_msg)
     : LogMessageQuietlyFatal(file, line) {
   *this << "Check failed: " << failure_msg << " ";
 }

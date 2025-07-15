@@ -1936,9 +1936,11 @@ affects new connections to the server, not any existing connections.
 
 <!-- YAML
 added: v20.4.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`server.close()`][] and returns a promise that fulfills when the
 server has closed.
@@ -3322,13 +3324,13 @@ const server = http.createServer((req, res) => {
 });
 ```
 
-### `outgoingMessage.setTimeout(msesc[, callback])`
+### `outgoingMessage.setTimeout(msecs[, callback])`
 
 <!-- YAML
 added: v0.9.12
 -->
 
-* `msesc` {number}
+* `msecs` {number}
 * `callback` {Function} Optional function to be called when a timeout
   occurs. Same as binding to the `timeout` event.
 * Returns: {this}
@@ -3818,7 +3820,8 @@ changes:
   * `family` {number} IP address family to use when resolving `host` or
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
-  * `headers` {Object} An object containing request headers.
+  * `headers` {Object|Array} An object or an array of strings containing request
+    headers. The array is in the same format as [`message.rawHeaders`][].
   * `hints` {number} Optional [`dns.lookup()` hints][].
   * `host` {string} A domain name or IP address of the server to issue the
     request to. **Default:** `'localhost'`.
@@ -4231,14 +4234,14 @@ added:
 
 Set the maximum number of idle HTTP parsers.
 
-## `WebSocket`
+## Class: `WebSocket`
 
 <!-- YAML
 added:
   - v22.5.0
 -->
 
-A browser-compatible implementation of [`WebSocket`][].
+A browser-compatible implementation of {WebSocket}.
 
 [RFC 8187]: https://www.rfc-editor.org/rfc/rfc8187.txt
 [`'ERR_HTTP_CONTENT_LENGTH_MISMATCH'`]: errors.md#err_http_content_length_mismatch
@@ -4256,7 +4259,6 @@ A browser-compatible implementation of [`WebSocket`][].
 [`Headers`]: globals.md#class-headers
 [`TypeError`]: errors.md#class-typeerror
 [`URL`]: url.md#the-whatwg-url-api
-[`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`agent.createConnection()`]: #agentcreateconnectionoptions-callback
 [`agent.getName()`]: #agentgetnameoptions
 [`destroy()`]: #agentdestroy
@@ -4273,6 +4275,7 @@ A browser-compatible implementation of [`WebSocket`][].
 [`http.globalAgent`]: #httpglobalagent
 [`http.request()`]: #httprequestoptions-callback
 [`message.headers`]: #messageheaders
+[`message.rawHeaders`]: #messagerawheaders
 [`message.socket`]: #messagesocket
 [`message.trailers`]: #messagetrailers
 [`net.Server.close()`]: net.md#serverclosecallback

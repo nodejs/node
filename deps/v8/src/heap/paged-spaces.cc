@@ -8,8 +8,8 @@
 #include <iterator>
 
 #include "src/base/logging.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/safe_conversions.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
@@ -93,14 +93,17 @@ PageMetadata* PagedSpaceBase::InitializePage(
 }
 
 void PagedSpaceBase::TearDown() {
+  const bool is_marking = heap_->isolate()->isolate_data()->is_marking();
   while (!memory_chunk_list_.Empty()) {
     MutablePageMetadata* chunk = memory_chunk_list_.front();
     memory_chunk_list_.Remove(chunk);
-    auto mode = (id_ == NEW_SPACE || id_ == OLD_SPACE) &&
-                        !chunk->Chunk()->IsFlagSet(
-                            MemoryChunk::SHRINK_TO_HIGH_WATER_MARK)
-                    ? MemoryAllocator::FreeMode::kPool
-                    : MemoryAllocator::FreeMode::kImmediately;
+    const auto mode = (id_ == NEW_SPACE || id_ == OLD_SPACE)
+                          ? MemoryAllocator::FreeMode::kPool
+                          : MemoryAllocator::FreeMode::kImmediately;
+    if (mode == MemoryAllocator::FreeMode::kPool &&
+        (is_marking || V8_ENABLE_STICKY_MARK_BITS_BOOL)) {
+      chunk->ClearLiveness();
+    }
     heap()->memory_allocator()->Free(mode, chunk);
   }
   accounting_stats_.Clear();
@@ -276,28 +279,12 @@ void PagedSpaceBase::RemovePage(PageMetadata* page) {
   DecrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
 }
 
-size_t PagedSpaceBase::ShrinkPageToHighWaterMark(PageMetadata* page) {
-  size_t unused = page->ShrinkToHighWaterMark();
-  accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));
-  AccountUncommitted(unused);
-  return unused;
-}
-
 void PagedSpaceBase::ResetFreeList() {
   for (PageMetadata* page : *this) {
     free_list_->EvictFreeListItems(page);
   }
   DCHECK(free_list_->IsEmpty());
   DCHECK_EQ(0, free_list_->Available());
-}
-
-void PagedSpaceBase::ShrinkImmortalImmovablePages() {
-  DCHECK(!heap()->deserialization_complete());
-  ResetFreeList();
-  for (PageMetadata* page : *this) {
-    DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
-    ShrinkPageToHighWaterMark(page);
-  }
 }
 
 bool PagedSpaceBase::TryExpand(LocalHeap* local_heap, AllocationOrigin origin) {
@@ -558,7 +545,7 @@ void PagedSpaceBase::RefillFreeList() {
   // Any PagedSpace might invoke RefillFreeList.
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
          identity() == SHARED_SPACE || identity() == NEW_SPACE ||
-         identity() == TRUSTED_SPACE);
+         identity() == TRUSTED_SPACE || identity() == SHARED_TRUSTED_SPACE);
   DCHECK_IMPLIES(identity() == NEW_SPACE, heap_->IsMainThread());
   DCHECK(!is_compaction_space());
 
@@ -646,21 +633,33 @@ CompactionSpaceCollection::CompactionSpaceCollection(
 // -----------------------------------------------------------------------------
 // OldSpace implementation
 
-void OldSpace::AddPromotedPage(PageMetadata* page) {
+void OldSpace::AddPromotedPage(PageMetadata* page, FreeMode free_mode) {
+  DCHECK_EQ(page->area_size(), page->allocated_bytes());
   if (v8_flags.minor_ms) {
     // Reset the page's allocated bytes. The page will be swept and the
     // allocated bytes will be updated to match the live bytes.
-    DCHECK_EQ(page->area_size(), page->allocated_bytes());
     page->DecreaseAllocatedBytes(page->area_size());
   }
   AddPageImpl(page);
-  if (!v8_flags.minor_ms) {
+  if (free_mode == FreeMode::kLinkCategory) {
     RelinkFreeListCategories(page);
   }
 }
 
 void OldSpace::ReleasePage(PageMetadata* page) {
   ReleasePageImpl(page, MemoryAllocator::FreeMode::kPool);
+}
+
+void OldSpace::RelinkQuarantinedPageFreeList(PageMetadata* page,
+                                             size_t filler_size_on_page) {
+  base::MutexGuard guard(mutex());
+  DCHECK_EQ(this, page->owner());
+  DCHECK(page->SweepingDone());
+  DCHECK_EQ(page->live_bytes(), 0);
+  DCHECK_EQ(accounting_stats_.AllocatedOnPage(page),
+            MemoryChunkLayout::AllocatableMemoryInMemoryChunk(OLD_SPACE));
+  DecreaseAllocatedBytes(filler_size_on_page, page);
+  RelinkFreeListCategories(page);
 }
 
 // -----------------------------------------------------------------------------

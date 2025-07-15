@@ -339,9 +339,9 @@
 #ifndef ABSL_ATTRIBUTE_SECTION_VARIABLE
 #ifdef _AIX
 // __attribute__((section(#name))) on AIX is achieved by using the `.csect`
-// psudo op which includes an additional integer as part of its syntax indcating
-// alignment. If data fall under different alignments then you might get a
-// compilation error indicating a `Section type conflict`.
+// pseudo op which includes an additional integer as part of its syntax
+// indicating alignment. If data fall under different alignments then you might
+// get a compilation error indicating a `Section type conflict`.
 #define ABSL_ATTRIBUTE_SECTION_VARIABLE(name)
 #else
 #define ABSL_ATTRIBUTE_SECTION_VARIABLE(name) __attribute__((section(#name)))

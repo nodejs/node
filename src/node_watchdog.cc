@@ -389,7 +389,7 @@ void SigintWatchdogHelper::Register(SigintWatchdogBase* wd) {
 void SigintWatchdogHelper::Unregister(SigintWatchdogBase* wd) {
   Mutex::ScopedLock lock(list_mutex_);
 
-  auto it = std::find(watchdogs_.begin(), watchdogs_.end(), wd);
+  auto it = std::ranges::find(watchdogs_, wd);
 
   CHECK_NE(it, watchdogs_.end());
   watchdogs_.erase(it);

@@ -86,6 +86,9 @@
 // // A non-null function pointer.
 // void (*absl_nonnull func)(int, double);
 //
+// // A non-null array of `Employee`s as a parameter.
+// void func(Employee employees[absl_nonnull]);
+//
 // // A non-null std::unique_ptr to an `Employee`.
 // // As with `const`, it is possible to place the annotation on either side of
 // // a named type not ending in `*`, but placing it before the type it
@@ -181,7 +184,7 @@
 #define ABSL_BASE_NULLABILITY_H_
 
 #include "absl/base/config.h"
-#include "absl/base/internal/nullability_impl.h"
+#include "absl/base/internal/nullability_deprecated.h"
 
 // ABSL_POINTERS_DEFAULT_NONNULL
 //
@@ -311,47 +314,5 @@
 #else
 #define ABSL_NULLABILITY_COMPATIBLE
 #endif
-
-namespace absl {
-ABSL_NAMESPACE_BEGIN
-
-// The following template aliases are alternate forms of the macro annotations
-// above. They have some limitations, for example, an incompatibility with
-// `auto*` pointers, as `auto` cannot be used in a template argument.
-//
-// It is important to note that these annotations are not distinct strong
-// *types*. They are alias templates defined to be equal to the underlying
-// pointer type. A pointer annotated `Nonnull<T*>`, for example, is simply a
-// pointer of type `T*`.
-
-// absl::Nonnull, analogous to absl_nonnull
-//
-// Example:
-// absl::Nonnull<int*> foo;
-// Is equivalent to:
-// int* absl_nonnull foo;
-template <typename T>
-using Nonnull = nullability_internal::NonnullImpl<T>;
-
-// absl::Nullable, analogous to absl_nullable
-//
-// Example:
-// absl::Nullable<int*> foo;
-// Is equivalent to:
-// int* absl_nullable foo;
-template <typename T>
-using Nullable = nullability_internal::NullableImpl<T>;
-
-// absl::NullabilityUnknown, analogous to absl_nullability_unknown
-//
-// Example:
-// absl::NullabilityUnknown<int*> foo;
-// Is equivalent to:
-// int* absl_nullability_unknown foo;
-template <typename T>
-using NullabilityUnknown = nullability_internal::NullabilityUnknownImpl<T>;
-
-ABSL_NAMESPACE_END
-}  // namespace absl
 
 #endif  // ABSL_BASE_NULLABILITY_H_

@@ -61,7 +61,7 @@ let createUniqueModule = (function() {
 })();
 
 // Test a scenario where each instance only has polymorphic call feedback but
-// the instsances combined sum up to more feedback slots than the maximum
+// the instances combined sum up to more feedback slots than the maximum
 // polymorphism (4).
 (function TestCollectiveFeedbackMoreThanMaxPolymorphism() {
   let module = createUniqueModule();

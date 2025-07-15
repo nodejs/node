@@ -46,6 +46,19 @@ declare namespace primordials {
   export import decodeURIComponent = globalThis.decodeURIComponent;
   export import encodeURI = globalThis.encodeURI;
   export import encodeURIComponent = globalThis.encodeURIComponent;
+  export const AtomicsAdd: typeof Atomics.add
+  export const AtomicsAnd: typeof Atomics.and
+  export const AtomicsCompareExchange: typeof Atomics.compareExchange
+  export const AtomicsExchange: typeof Atomics.exchange
+  export const AtomicsIsLockFree: typeof Atomics.isLockFree
+  export const AtomicsLoad: typeof Atomics.load
+  export const AtomicsNotify: typeof Atomics.notify
+  export const AtomicsOr: typeof Atomics.or
+  export const AtomicsStore: typeof Atomics.store
+  export const AtomicsSub: typeof Atomics.sub
+  export const AtomicsWait: typeof Atomics.wait
+  export const AtomicsWaitAsync: typeof Atomics.waitAsync
+  export const AtomicsXor: typeof Atomics.xor
   export const JSONParse: typeof JSON.parse
   export const JSONStringify: typeof JSON.stringify
   export const MathAbs: typeof Math.abs
@@ -151,7 +164,7 @@ declare namespace primordials {
   export import ArrayBuffer = globalThis.ArrayBuffer;
   export const ArrayBufferPrototype: typeof ArrayBuffer.prototype
   export const ArrayBufferIsView: typeof ArrayBuffer.isView
-  export const ArrayBufferPrototypeGetDetached: UncurryThis<typeof ArrayBuffer.prototype.detached>
+  export const ArrayBufferPrototypeGetDetached: UncurryGetter<typeof ArrayBuffer.prototype, 'detached'>;
   export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
   export const ArrayBufferPrototypeTransfer: UncurryThis<typeof ArrayBuffer.prototype.transfer>
   export const ArrayBufferPrototypeGetByteLength: UncurryGetter<typeof ArrayBuffer.prototype , "byteLength">;
@@ -479,10 +492,29 @@ declare namespace primordials {
     constructor: new (length: number) => T,
     items: readonly TypedArrayContentType<T>[],
   ): T;
+  export const TypedArray: TypedArray;
+  export const TypedArrayPrototype:
+    | typeof Uint8Array.prototype
+    | typeof Int8Array.prototype
+    | typeof Uint16Array.prototype
+    | typeof Int16Array.prototype
+    | typeof Uint32Array.prototype
+    | typeof Int32Array.prototype
+    | typeof Float32Array.prototype
+    | typeof Float64Array.prototype
+    | typeof BigInt64Array.prototype
+    | typeof BigUint64Array.prototype
+    | typeof Uint8ClampedArray.prototype;
   export const TypedArrayPrototypeGetBuffer: UncurryGetter<TypedArray, "buffer">;
   export const TypedArrayPrototypeGetByteLength: UncurryGetter<TypedArray, "byteLength">;
   export const TypedArrayPrototypeGetByteOffset: UncurryGetter<TypedArray, "byteOffset">;
   export const TypedArrayPrototypeGetLength: UncurryGetter<TypedArray, "length">;
+  export function TypedArrayPrototypeAt<T extends TypedArray>(self: T, ...args: Parameters<T["at"]>): ReturnType<T["at"]>;
+  export function TypedArrayPrototypeIncludes<T extends TypedArray>(self: T, ...args: Parameters<T["includes"]>): ReturnType<T["includes"]>;
+  export function TypedArrayPrototypeFill<T extends TypedArray>(self: T, ...args: Parameters<T["fill"]>): ReturnType<T["fill"]>;
+  export function TypedArrayPrototypeSet<T extends TypedArray>(self: T, ...args: Parameters<T["set"]>): ReturnType<T["set"]>;
+  export function TypedArrayPrototypeSubarray<T extends TypedArray>(self: T, ...args: Parameters<T["subarray"]>): ReturnType<T["subarray"]>;
+  export function TypedArrayPrototypeSlice<T extends TypedArray>(self: T, ...args: Parameters<T["slice"]>): ReturnType<T["slice"]>;
   export function TypedArrayPrototypeGetSymbolToStringTag(self: unknown):
     | 'Int8Array'
     | 'Int16Array'

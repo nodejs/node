@@ -448,12 +448,9 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   return handle_scope.Escape(ret);
 }
 
-template <typename T, typename >
-v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                    const T& number,
-                                    v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
-
+template <typename T>
+v8::Local<v8::Value> ConvertNumberToV8Value(v8::Isolate* isolate,
+                                            const T& number) {
   using Limits = std::numeric_limits<T>;
   // Choose Uint32, Int32, or Double depending on range checks.
   // These checks should all collapse at compile time.
@@ -472,6 +469,43 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   }
 
   return v8::Number::New(isolate, static_cast<double>(number));
+}
+
+template <typename T, typename>
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const T& number,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  return ConvertNumberToV8Value(isolate, number);
+}
+
+template <typename T>
+v8::Local<v8::Array> ToV8ValuePrimitiveArray(v8::Local<v8::Context> context,
+                                             const std::vector<T>& vec,
+                                             v8::Isolate* isolate) {
+  static_assert(
+      std::is_same_v<T, bool> || std::is_integral_v<T> ||
+          std::is_floating_point_v<T>,
+      "Only primitive types (bool, integral, floating-point) are supported.");
+
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  v8::EscapableHandleScope handle_scope(isolate);
+
+  v8::LocalVector<v8::Value> elements(isolate);
+  elements.reserve(vec.size());
+
+  for (const auto& value : vec) {
+    if constexpr (std::is_same_v<T, bool>) {
+      elements.emplace_back(v8::Boolean::New(isolate, value));
+    } else {
+      v8::Local<v8::Value> v = ConvertNumberToV8Value(isolate, value);
+      elements.emplace_back(v);
+    }
+  }
+
+  v8::Local<v8::Array> arr =
+      v8::Array::New(isolate, elements.data(), elements.size());
+  return handle_scope.Escape(arr);
 }
 
 SlicedArguments::SlicedArguments(
@@ -589,6 +623,47 @@ constexpr FastStringKey::FastStringKey(std::string_view name)
 
 constexpr std::string_view FastStringKey::as_string_view() const {
   return name_;
+}
+
+// Converts a V8 numeric value to a corresponding C++ primitive or enum type.
+template <typename T,
+          bool loose = false,
+          typename = std::enable_if_t<std::numeric_limits<T>::is_specialized ||
+                                      std::is_enum_v<T>>>
+T FromV8Value(v8::Local<v8::Value> value) {
+  if constexpr (std::is_enum_v<T>) {
+    using Underlying = std::underlying_type_t<T>;
+    return static_cast<T>(FromV8Value<Underlying, loose>(value));
+  } else if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>) {
+    static_assert(
+        std::numeric_limits<T>::max() <= std::numeric_limits<uint32_t>::max() &&
+            std::numeric_limits<T>::min() >=
+                std::numeric_limits<uint32_t>::min(),
+        "Type is out of unsigned integer range");
+    if constexpr (!loose) {
+      CHECK(value->IsUint32());
+    } else {
+      CHECK(value->IsNumber());
+    }
+    return static_cast<T>(value.As<v8::Uint32>()->Value());
+  } else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+    static_assert(
+        std::numeric_limits<T>::max() <= std::numeric_limits<int32_t>::max() &&
+            std::numeric_limits<T>::min() >=
+                std::numeric_limits<int32_t>::min(),
+        "Type is out of signed integer range");
+    if constexpr (!loose) {
+      CHECK(value->IsInt32());
+    } else {
+      CHECK(value->IsNumber());
+    }
+    return static_cast<T>(value.As<v8::Int32>()->Value());
+  } else {
+    static_assert(std::is_floating_point_v<T>,
+                  "Type must be arithmetic or enum.");
+    CHECK(value->IsNumber());
+    return static_cast<T>(value.As<v8::Number>()->Value());
+  }
 }
 
 #ifdef _WIN32

@@ -30,6 +30,7 @@
 #include "absl/base/options.h"
 #include "absl/container/fixed_array.h"
 #include "absl/container/inlined_vector.h"
+#include "absl/hash/hash.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/meta/type_traits.h"
 #include "absl/strings/str_cat.h"
@@ -883,6 +884,18 @@ TEST(Span, Hash) {
        T(array, 1), T(array, 2),
        // Same length, but different array
        T(array + 1, 2), T(array + 2, 2)}));
+}
+
+// std::vector is implicitly convertible to absl::Span.
+// There are real life cases where clients rely on this consistency in order to
+// implement heterogeneous lookup.
+TEST(Span, HashConsistentWithVectorLike) {
+  EXPECT_EQ(absl::HashOf(absl::Span<const int>({1, 2, 3})),
+            absl::HashOf(std::vector<int>{1, 2, 3}));
+  EXPECT_EQ(absl::HashOf(absl::Span<const int>({1, 2, 3})),
+            absl::HashOf(absl::InlinedVector<int, 2>{1, 2, 3}));
+  EXPECT_EQ(absl::HashOf(absl::Span<const int>({1, 2, 3})),
+            absl::HashOf(absl::FixedArray<int>{1, 2, 3}));
 }
 
 }  // namespace

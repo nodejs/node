@@ -270,6 +270,13 @@ GTEST_DEFINE_bool_(
     "disabled test cases) is linked.");
 
 GTEST_DEFINE_bool_(
+    fail_if_no_test_selected,
+    testing::internal::BoolFromGTestEnv("fail_if_no_test_selected", false),
+    "True if and only if the test should fail if no test case is selected to "
+    "run. A test case is selected to run if it is not disabled and is matched "
+    "by the filter flag so that it starts executing.");
+
+GTEST_DEFINE_bool_(
     also_run_disabled_tests,
     testing::internal::BoolFromGTestEnv("also_run_disabled_tests", false),
     "Run disabled tests too, in addition to the tests normally being run.");
@@ -1488,17 +1495,17 @@ class Hunk {
   // Print a unified diff header for one hunk.
   // The format is
   //   "@@ -<left_start>,<left_length> +<right_start>,<right_length> @@"
-  // where the left/right parts are omitted if unnecessary.
+  // where the left/right lengths are omitted if unnecessary.
   void PrintHeader(std::ostream* ss) const {
-    *ss << "@@ ";
-    if (removes_) {
-      *ss << "-" << left_start_ << "," << (removes_ + common_);
+    size_t left_length = removes_ + common_;
+    size_t right_length = adds_ + common_;
+    *ss << "@@ " << "-" << left_start_;
+    if (left_length != 1) {
+      *ss << "," << left_length;
     }
-    if (removes_ && adds_) {
-      *ss << " ";
-    }
-    if (adds_) {
-      *ss << "+" << right_start_ << "," << (adds_ + common_);
+    *ss << " " << "+" << right_start_;
+    if (right_length != 1) {
+      *ss << "," << right_length;
     }
     *ss << " @@\n";
   }
@@ -6079,6 +6086,14 @@ bool UnitTestImpl::RunAllTests() {
                       TearDownEnvironment);
         repeater->OnEnvironmentsTearDownEnd(*parent_);
       }
+    } else if (GTEST_FLAG_GET(fail_if_no_test_selected)) {
+      // If there were no tests to run, bail if we were requested to be strict.
+      constexpr char kNoTestsSelectedMessage[] =
+          "No tests were selected to run. Please make sure at least one test "
+          "exists and is not disabled! If the test is sharded, you may have "
+          "defined more shards than test cases, which is wasteful.";
+      ColoredPrintf(GTestColor::kRed, "%s\n", kNoTestsSelectedMessage);
+      return false;
     }
 
     elapsed_time_ = timer.Elapsed();
@@ -6763,6 +6778,7 @@ static bool ParseGoogleTestFlag(const char* const arg) {
   GTEST_INTERNAL_PARSE_FLAG(death_test_use_fork);
   GTEST_INTERNAL_PARSE_FLAG(fail_fast);
   GTEST_INTERNAL_PARSE_FLAG(fail_if_no_test_linked);
+  GTEST_INTERNAL_PARSE_FLAG(fail_if_no_test_selected);
   GTEST_INTERNAL_PARSE_FLAG(filter);
   GTEST_INTERNAL_PARSE_FLAG(internal_run_death_test);
   GTEST_INTERNAL_PARSE_FLAG(list_tests);

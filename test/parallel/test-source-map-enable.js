@@ -1,7 +1,5 @@
 'use strict';
 
-if (!process.features.inspector) return;
-
 const common = require('../common');
 const assert = require('assert');
 const { dirname } = require('path');
@@ -9,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { pathToFileURL } = require('url');
+
+common.skipIfInspectorDisabled();
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -273,7 +273,7 @@ function nextdir() {
 // Does not attempt to apply path resolution logic to absolute URLs
 // with schemes.
 // Refs: https://github.com/webpack/webpack/issues/9601
-// Refs: https://sourcemaps.info/spec.html#h.75yo6yoyk7x5
+// Refs: https://tc39.es/ecma426/#sec-sources
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',
