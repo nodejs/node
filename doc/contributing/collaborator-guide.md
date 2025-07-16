@@ -174,7 +174,7 @@ collaborator can escalate the issue to the TSC by pinging `@nodejs/tsc` and
 adding the `tsc-agenda` label to the issue and the TSC may choose to overrule
 or dismiss an objection. When the TSC does choose to overrule an objection,
 the TSC must provide a clear explanation of its reasoning in the pull request
-either before or when the pull request lands.
+before the pull request lands.
 
 All objections are considered equal. There is no greater weight given to
 objections from TSC members than from any other collaborator.
