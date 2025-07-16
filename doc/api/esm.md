@@ -334,8 +334,8 @@ fs.readFileSync === readFileSync;
 
 ## `import()` expressions
 
-[Dynamic `import()`][] is supported in both CommonJS and ES modules. In CommonJS
-modules it can be used to load ES modules.
+[Dynamic `import()`][] is supported in both CommonJS and ES modules. In CommonJS, it can be used to load
+ES modules in certain configurations or with third-party loaders such as `esm`.
 
 ## `import.meta`
 
