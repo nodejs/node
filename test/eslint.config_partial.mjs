@@ -91,6 +91,10 @@ export default [
           selector: "ExpressionStatement>CallExpression:matches([callee.name='rejects'], [callee.object.name='assert'][callee.property.name='rejects'])",
           message: 'Calling `assert.rejects` without `await` or `.then(common.mustCall())` will not detect never-settling promises.',
         },
+        {
+          selector: 'CallExpression[callee.property.name="catch"]>:first-child:matches(CallExpression[callee.object.name="common"][callee.property.name="mustNotCall"], CallExpression[callee.name="mustNotCall"])',
+          message: 'Calling `.catch(common.mustNotCall())` will not detect never-settling promises. Use `.then(common.mustCall())` instead.',
+        },
       ],
 
       // Stylistic rules.
