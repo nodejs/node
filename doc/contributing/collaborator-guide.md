@@ -154,10 +154,13 @@ requirements. If a pull request meets all requirements except the
 
 Collaborators can object to a pull request by using the "Request
 Changes" GitHub feature. Dissent comments alone don't constitute an
-objection. Any pull request objection must include a clear reason for that
-objection, and the objector must remain responsive for further discussion
-towards consensus about the direction of the pull request. Where possible,
-provide a set of actionable steps alongside the objection.
+objection, nor do dissenting comments made in any associated issue.
+A blocking objection to a change must be made in the pull request that
+specifically proposes that change. Any pull request objection must include
+a clear reason for that objection, and the objector must remain responsive
+for further discussion towards consensus about the direction of the pull
+request. Where possible, provide a set of actionable steps alongside the
+objection.
 
 If the objection is not clear to others, another collaborator can ask an
 objecting collaborator to explain their objection or to provide actionable
@@ -168,7 +171,24 @@ dismiss the objection.
 Pull requests with outstanding objections must remain open until all
 objections are satisfied. If reaching consensus is not possible, a
 collaborator can escalate the issue to the TSC by pinging `@nodejs/tsc` and
-adding the `tsc-agenda` label to the issue.
+adding the `tsc-agenda` label to the issue and the TSC may choose to overrule
+or dismiss an objection. When the TSC does choose to overrule an objection,
+the TSC must provide a clear explanation of its reasoning in the pull request
+either before or when the pull request lands.
+
+All objections are considered equal. There is no greater weight given to
+objections from TSC members than from any other collaborator.
+
+Mistakes do happen from time to time. If a pull request is merged with an
+outstanding objection, any collaborator can open an issue or pull request
+proposing to revert the change or to make a follow-up change that addresses
+the objection. Such reverts / follow-ups are subject to the same review process
+as any other pull request but may be fast-tracked if uncontroversial.
+Collaborators should always assume good faith on the part of the merging
+collaborator as it is most likely any outstanding objection was simply
+overlooked by mistake. Collaborators objecting to a pull request can best
+ensure their objections are addressed by remaining actively engaged and
+responsive in the discussion.
 
 #### Helpful resources
 
