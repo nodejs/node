@@ -184,7 +184,7 @@ describe('Web Locks with worker threads', () => {
         .request('als-context-test', async () => {
           assert.strictEqual(als.getStore(), store);
         })
-        .catch(common.mustNotCall());
+        .then(common.mustCall());
     });
   });
 
