@@ -3277,21 +3277,20 @@ napi_status napi_get_arraybuffer_info(napi_env env,
 ```
 
 * `[in] env`: The environment that the API is invoked under.
-* `[in] arraybuffer`: `napi_value` representing the `ArrayBuffer` being queried.
+* `[in] arraybuffer`: `napi_value` representing the `ArrayBuffer` or `SharedArrayBuffer` being queried.
 * `[out] data`: The underlying data buffer of the `ArrayBuffer`. If byte\_length
   is `0`, this may be `NULL` or any other pointer value.
 * `[out] byte_length`: Length in bytes of the underlying data buffer.
 
 Returns `napi_ok` if the API succeeded.
 
-This API is used to retrieve the underlying data buffer of an `ArrayBuffer` and
-its length.
+This API is used to retrieve the underlying data buffer of an `ArrayBuffer` or `SharedArrayBuffer` and its length.
 
 _WARNING_: Use caution while using this API. The lifetime of the underlying data
-buffer is managed by the `ArrayBuffer` even after it's returned. A
+buffer is managed by the `ArrayBuffer` or `SharedArrayBuffer` even after it's returned. A
 possible safe way to use this API is in conjunction with
 [`napi_create_reference`][], which can be used to guarantee control over the
-lifetime of the `ArrayBuffer`. It's also safe to use the returned data buffer
+lifetime of the `ArrayBuffer` or `SharedArrayBuffer`. It's also safe to use the returned data buffer
 within the same callback as long as there are no calls to other APIs that might
 trigger a GC.
 
@@ -4246,7 +4245,7 @@ This API represents the invocation of the `ArrayBuffer` `IsDetachedBuffer`
 operation as defined in [Section isDetachedBuffer][] of the ECMAScript Language
 Specification.
 
-## Working with JavaScript SharedArrayBuffers
+### Working with JavaScript SharedArrayBuffers
 
 SharedArrayBuffers are used to represent fixed-length binary data buffers
 that can be shared across multiple workers. They are similar to ArrayBuffers
@@ -4306,64 +4305,6 @@ a typed array or `DataView` object would need to be created.
 
 JavaScript `SharedArrayBuffer` objects are described in
 [Section 24.2][] of the ECMAScript Language Specification.
-
-### `napi_get_sharedarraybuffer_info`
-
-<!-- YAML
-added: REPLACEME
-napiVersion: 10
--->
-
-```c
-napi_status napi_get_sharedarraybuffer_info(napi_env env,
-                                           napi_value sharedarraybuffer,
-                                           void** data,
-                                           size_t* byte_length)
-```
-
-* `[in] env`: The environment that the API is invoked under.
-* `[in] sharedarraybuffer`: `napi_value` representing the `SharedArrayBuffer` being queried.
-* `[out] data`: The underlying data buffer of the `SharedArrayBuffer`. If byte\_length
-  is `0`, this may be `NULL` or any other pointer value.
-* `[out] byte_length`: The length in bytes of the underlying data buffer.
-
-Returns `napi_ok` if the API succeeded.
-
-This API is used to retrieve the underlying data buffer of a `SharedArrayBuffer` and
-its length.
-
-_Warning_: Use caution while using this API. The lifetime of the underlying data
-buffer is managed by the `SharedArrayBuffer` even after it's returned. A
-possible safe way to use this API is in conjunction with
-[`napi_create_reference`][], which can be used to guarantee control over the
-lifetime of the `SharedArrayBuffer`. It's also safe to use the returned data buffer
-within the same callback as long as there are no calls to other APIs that might
-trigger a GC.
-
-#### Example
-
-```c
-napi_value shared_array_buffer;
-void* shared_data;
-size_t shared_byte_length;
-
-// Create a SharedArrayBuffer
-napi_status status = napi_create_sharedarraybuffer(env, 1024, &shared_data, &shared_array_buffer);
-if (status != napi_ok) {
-  // Handle error
-}
-
-// Check if a value is a SharedArrayBuffer
-bool is_shared_array_buffer;
-status = napi_is_sharedarraybuffer(env, shared_array_buffer, &is_shared_array_buffer);
-if (status == napi_ok && is_shared_array_buffer) {
-  // Get SharedArrayBuffer info
-  status = napi_get_sharedarraybuffer_info(env, shared_array_buffer, &shared_data, &shared_byte_length);
-  if (status == napi_ok) {
-    // Use shared_data and shared_byte_length
-  }
-}
-```
 
 ## Working with JavaScript properties
 
