@@ -550,6 +550,7 @@ at runtime:
 $ node --cpu-prof --cpu-prof-name 'CPU.${pid}.cpuprofile' index.js
 $ ls *.cpuprofile
 CPU.15293.cpuprofile
+```
 
 ### `--cpu-prof-dir`
 
