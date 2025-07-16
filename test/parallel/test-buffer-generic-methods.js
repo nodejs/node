@@ -110,9 +110,10 @@ const actualMethods = [
   ...Object.getOwnPropertySymbols(Buffer.prototype).filter(isMethod),
 ];
 
-// If this fails, there is a new method on Buffer that should be tested in this file to be generic.
-// Then update the manually managed list above.
-assert.deepStrictEqual(new Set(actualMethods), new Set(expectedMethods));
+// These methods are not accounted for in the generic tests.
+assert.deepStrictEqual(actualMethods.filter((v) => !expectedMethods.includes(v)), []);
+// These methods have been removed, please update the table in this file.
+assert.deepStrictEqual(expectedMethods.filter((v) => !actualMethods.includes(v)), []);
 
 const {
   compare,
@@ -740,8 +741,8 @@ function assertContentEqual(actualUint8Array, expectedBuffer) {
     const returnValue = write.call(uint8array, testString, 0, 'base64');
     const expectedReturnValue = buffer.write(testString, 0, 'base64');
 
-    assert.strictEqual(returnValue, expectedReturnValue);
     assertContentEqual(uint8array, buffer);
+    assert.strictEqual(returnValue, expectedReturnValue);
   }
 
   // Latin1 encoding
