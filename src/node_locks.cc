@@ -16,7 +16,6 @@ using v8::Exception;
 using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -104,11 +103,9 @@ static void OnLockCallbackFulfilled(const FunctionCallbackInfo<Value>& info) {
   HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info);
 
-  // Extract the LockHolder from V8 External data
-  auto* lock_holder =
-      static_cast<LockHolder*>(info.Data().As<External>()->Value());
+  std::unique_ptr<LockHolder> lock_holder{
+      static_cast<LockHolder*>(info.Data().As<External>()->Value())};
   std::shared_ptr<Lock> lock = lock_holder->lock();
-  delete lock_holder;
 
   // Release the lock and continue processing the queue.
   LockManager::GetCurrent()->ReleaseLockAndProcessQueue(
@@ -120,10 +117,9 @@ static void OnLockCallbackRejected(const FunctionCallbackInfo<Value>& info) {
   HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info);
 
-  auto* lock_holder =
-      static_cast<LockHolder*>(info.Data().As<External>()->Value());
+  std::unique_ptr<LockHolder> lock_holder{
+      static_cast<LockHolder*>(info.Data().As<External>()->Value())};
   std::shared_ptr<Lock> lock = lock_holder->lock();
-  delete lock_holder;
 
   LockManager::GetCurrent()->ReleaseLockAndProcessQueue(
       env, lock, info[0], true);
@@ -132,24 +128,14 @@ static void OnLockCallbackRejected(const FunctionCallbackInfo<Value>& info) {
 // Called when the promise returned from the user's callback resolves
 static void OnIfAvailableFulfill(const FunctionCallbackInfo<Value>& info) {
   HandleScope handle_scope(info.GetIsolate());
-  auto* holder = static_cast<Global<Promise::Resolver>*>(
-      info.Data().As<External>()->Value());
-  USE(holder->Get(info.GetIsolate())
-          ->Resolve(info.GetIsolate()->GetCurrentContext(), info[0]));
-  holder->Reset();
-  delete holder;
+  USE(info.Data().As<Promise::Resolver>()->Resolve(
+      info.GetIsolate()->GetCurrentContext(), info[0]));
 }
 
 // Called when the promise returned from the user's callback rejects
 static void OnIfAvailableReject(const FunctionCallbackInfo<Value>& info) {
-  HandleScope handle_scope(info.GetIsolate());
-  auto* holder = static_cast<Global<Promise::Resolver>*>(
-      info.Data().As<External>()->Value());
-  USE(holder->Get(info.GetIsolate())
-          ->Reject(info.GetIsolate()->GetCurrentContext(), info[0]));
-  holder->Reset();
-
-  delete holder;
+  USE(info.Data().As<Promise::Resolver>()->Reject(
+      info.GetIsolate()->GetCurrentContext(), info[0]));
 }
 
 void LockManager::CleanupStolenLocks(Environment* env) {
@@ -326,27 +312,16 @@ void LockManager::ProcessQueue(Environment* env) {
       if (callback_result->IsPromise()) {
         Local<Promise> p = callback_result.As<Promise>();
 
-        // The resolver survives until the promise settles and is freed
-        // automatically.
-        auto resolve_holder = std::make_unique<Global<Promise::Resolver>>(
-            isolate, if_available_request->released_promise());
-        auto reject_holder = std::make_unique<Global<Promise::Resolver>>(
-            isolate, if_available_request->released_promise());
-
         Local<Function> on_fulfilled;
         Local<Function> on_rejected;
         CHECK(Function::New(context,
                             OnIfAvailableFulfill,
-                            External::New(isolate, resolve_holder.get()))
+                            if_available_request->released_promise())
                   .ToLocal(&on_fulfilled));
         CHECK(Function::New(context,
                             OnIfAvailableReject,
-                            External::New(isolate, reject_holder.get()))
+                            if_available_request->released_promise())
                   .ToLocal(&on_rejected));
-
-        // Transfer ownership to the callbacks.
-        resolve_holder.release();
-        reject_holder.release();
 
         {
           TryCatchScope try_catch_scope(env);
