@@ -69,8 +69,8 @@ static napi_value TestGetSharedArrayBufferInfo(napi_env env,
 
   void* data;
   size_t byte_length;
-  NODE_API_CALL(
-      env, napi_get_sharedarraybuffer_info(env, args[0], &data, &byte_length));
+  NODE_API_CALL(env,
+                napi_get_arraybuffer_info(env, args[0], &data, &byte_length));
 
   napi_value ret;
   NODE_API_CALL(env, napi_create_uint32(env, byte_length, &ret));
@@ -95,8 +95,8 @@ static napi_value TestSharedArrayBufferData(napi_env env,
 
   void* data;
   size_t byte_length;
-  NODE_API_CALL(
-      env, napi_get_sharedarraybuffer_info(env, args[0], &data, &byte_length));
+  NODE_API_CALL(env,
+                napi_get_arraybuffer_info(env, args[0], &data, &byte_length));
 
   // Write some test data
   if (byte_length > 0) {
@@ -129,8 +129,8 @@ static napi_value TestSharedArrayBufferFromExisting(napi_env env,
 
   void* data;
   size_t byte_length;
-  NODE_API_CALL(
-      env, napi_get_sharedarraybuffer_info(env, args[0], &data, &byte_length));
+  NODE_API_CALL(env,
+                napi_get_arraybuffer_info(env, args[0], &data, &byte_length));
 
   // Return the same data pointer validity
   bool data_valid = (data != NULL) && (byte_length > 0);

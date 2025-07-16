@@ -3076,16 +3076,29 @@ napi_status NAPI_CDECL napi_get_arraybuffer_info(napi_env env,
   CHECK_ARG(env, arraybuffer);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
-  RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
 
-  v8::Local<v8::ArrayBuffer> ab = value.As<v8::ArrayBuffer>();
+  if (value->IsArrayBuffer()) {
+    v8::Local<v8::ArrayBuffer> ab = value.As<v8::ArrayBuffer>();
 
-  if (data != nullptr) {
-    *data = ab->Data();
-  }
+    if (data != nullptr) {
+      *data = ab->Data();
+    }
 
-  if (byte_length != nullptr) {
-    *byte_length = ab->ByteLength();
+    if (byte_length != nullptr) {
+      *byte_length = ab->ByteLength();
+    }
+  } else if (value->IsSharedArrayBuffer()) {
+    v8::Local<v8::SharedArrayBuffer> sab = value.As<v8::SharedArrayBuffer>();
+
+    if (data != nullptr) {
+      *data = sab->Data();
+    }
+
+    if (byte_length != nullptr) {
+      *byte_length = sab->ByteLength();
+    }
+  } else {
+    return napi_set_last_error(env, napi_invalid_arg);
   }
 
   return napi_clear_last_error(env);
@@ -3123,31 +3136,6 @@ napi_status NAPI_CDECL napi_create_sharedarraybuffer(napi_env env,
 
   *result = v8impl::JsValueFromV8LocalValue(buffer);
   return GET_RETURN_STATUS(env);
-}
-
-napi_status NAPI_CDECL
-napi_get_sharedarraybuffer_info(napi_env env,
-                                napi_value sharedarraybuffer,
-                                void** data,
-                                size_t* byte_length) {
-  CHECK_ENV_NOT_IN_GC(env);
-  CHECK_ARG(env, sharedarraybuffer);
-
-  v8::Local<v8::Value> value =
-      v8impl::V8LocalValueFromJsValue(sharedarraybuffer);
-  RETURN_STATUS_IF_FALSE(env, value->IsSharedArrayBuffer(), napi_invalid_arg);
-
-  v8::Local<v8::SharedArrayBuffer> sab = value.As<v8::SharedArrayBuffer>();
-
-  if (data != nullptr) {
-    *data = sab->Data();
-  }
-
-  if (byte_length != nullptr) {
-    *byte_length = sab->ByteLength();
-  }
-
-  return napi_clear_last_error(env);
 }
 
 napi_status NAPI_CDECL napi_is_typedarray(napi_env env,
