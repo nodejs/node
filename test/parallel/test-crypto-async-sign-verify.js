@@ -138,9 +138,9 @@ test('dsa_public.pem', 'dsa_private.pem', 'sha256', false,
       verify('sha256', data, publicKey, signature),
       verify('sha256', data, publicKey, signature),
       verify('sha256', data, publicKey, signature),
-    ]).then(common.mustCall());
+    ]);
   })
-  .catch(common.mustNotCall());
+  .then(common.mustCall());
 }
 
 {
