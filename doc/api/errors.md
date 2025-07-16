@@ -1368,8 +1368,10 @@ Path is a directory.
 
 ### `ERR_FS_FILE_TOO_LARGE`
 
-An attempt has been made to read a file whose size is larger than the maximum
-allowed size for a `Buffer`.
+An attempt was made to read a file larger than the supported 2 GiB limit for
+`fs.readFile()`. This is not a limitation of `Buffer`, but an internal I/O constraint.
+For handling larger files, consider using `fs.createReadStream()` to read the
+file in chunks.
 
 <a id="ERR_FS_INVALID_SYMLINK_TYPE"></a>
 
