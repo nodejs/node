@@ -70,4 +70,4 @@ async function main() {
   }
 }
 
-main().catch(common.mustNotCall());
+main().then(common.mustCall());
