@@ -661,7 +661,7 @@ For example, the following script will not emit
 
 ```mjs
 import sys from 'node:sys';
-````
+```
 
 ```cjs
 const sys = require('node:sys');
