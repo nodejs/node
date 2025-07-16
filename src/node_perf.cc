@@ -410,8 +410,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(MarkBootstrapComplete);
   registry->Register(UvMetricsInfo);
   registry->Register(SlowPerformanceNow);
-  registry->Register(FastPerformanceNow);
-  registry->Register(fast_performance_now.GetTypeInfo());
+  registry->Register(fast_performance_now);
   HistogramBase::RegisterExternalReferences(registry);
   IntervalHistogram::RegisterExternalReferences(registry);
 }
