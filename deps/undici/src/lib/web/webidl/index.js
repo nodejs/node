@@ -2,7 +2,6 @@
 
 const { types, inspect } = require('node:util')
 const { markAsUncloneable } = require('node:worker_threads')
-const { toUSVString } = require('../../core/util')
 
 const UNDEFINED = 1
 const BOOLEAN = 2
@@ -23,22 +22,48 @@ const webidl = {
   is: {}
 }
 
+/**
+ * @description Instantiate an error.
+ *
+ * @param {Object} opts
+ * @param {string} opts.header
+ * @param {string} opts.message
+ * @returns {TypeError}
+ */
 webidl.errors.exception = function (message) {
   return new TypeError(`${message.header}: ${message.message}`)
 }
 
-webidl.errors.conversionFailed = function (context) {
-  const plural = context.types.length === 1 ? '' : ' one of'
+/**
+ * @description Instantiate an error when conversion from one type to another has failed.
+ *
+ * @param {Object} opts
+ * @param {string} opts.prefix
+ * @param {string} opts.argument
+ * @param {string[]} opts.types
+ * @returns {TypeError}
+ */
+webidl.errors.conversionFailed = function (opts) {
+  const plural = opts.types.length === 1 ? '' : ' one of'
   const message =
-    `${context.argument} could not be converted to` +
-    `${plural}: ${context.types.join(', ')}.`
+    `${opts.argument} could not be converted to` +
+    `${plural}: ${opts.types.join(', ')}.`
 
   return webidl.errors.exception({
-    header: context.prefix,
+    header: opts.prefix,
     message
   })
 }
 
+/**
+ * @description Instantiate an error when an invalid argument is provided
+ *
+ * @param {Object} context
+ * @param {string} context.prefix
+ * @param {string} context.value
+ * @param {string} context.type
+ * @returns {TypeError}
+ */
 webidl.errors.invalidArgument = function (context) {
   return webidl.errors.exception({
     header: context.prefix,
@@ -278,6 +303,8 @@ webidl.util.Stringify = function (V) {
       return inspect(V)
     case STRING:
       return `"${V}"`
+    case BIGINT:
+      return `${V}n`
     default:
       return `${V}`
   }
@@ -468,6 +495,17 @@ webidl.nullableConverter = function (converter) {
   }
 }
 
+/**
+ * @param {*} value
+ * @returns {boolean}
+ */
+webidl.is.USVString = function (value) {
+  return (
+    typeof value === 'string' &&
+    value.isWellFormed()
+  )
+}
+
 webidl.is.ReadableStream = webidl.util.MakeTypeAssertion(ReadableStream)
 webidl.is.Blob = webidl.util.MakeTypeAssertion(Blob)
 webidl.is.URLSearchParams = webidl.util.MakeTypeAssertion(URLSearchParams)
@@ -529,13 +567,23 @@ webidl.converters.ByteString = function (V, prefix, argument) {
   return x
 }
 
-// https://webidl.spec.whatwg.org/#es-USVString
-// TODO: rewrite this so we can control the errors thrown
-webidl.converters.USVString = toUSVString
+/**
+ * @param {unknown} value
+ * @returns {string}
+ * @see https://webidl.spec.whatwg.org/#es-USVString
+ */
+webidl.converters.USVString = function (value) {
+  // TODO: rewrite this so we can control the errors thrown
+  if (typeof value === 'string') {
+    return value.toWellFormed()
+  }
+  return `${value}`.toWellFormed()
+}
 
 // https://webidl.spec.whatwg.org/#es-boolean
 webidl.converters.boolean = function (V) {
   // 1. Let x be the result of computing ToBoolean(V).
+  // https://262.ecma-international.org/10.0/index.html#table-10
   const x = Boolean(V)
 
   // 2. Return the IDL boolean value that is the one that represents

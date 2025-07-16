@@ -369,7 +369,7 @@ Performance Timeline manually with `performance.clearMeasures`.
 added: v8.5.0
 -->
 
-* {PerformanceNodeTiming}
+* Type: {PerformanceNodeTiming}
 
 _This property is an extension by Node.js. It is not available in Web browsers._
 
@@ -414,7 +414,7 @@ By default the max buffer size is set to 250.
 added: v8.5.0
 -->
 
-* {number}
+* Type: {number}
 
 The [`timeOrigin`][] specifies the high resolution millisecond timestamp at
 which the current `node` process began, measured in Unix time.
@@ -541,7 +541,7 @@ changes:
                  `PerformanceEntry` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The total number of milliseconds elapsed for this entry. This value will not
 be meaningful for all Performance Entry types.
@@ -557,7 +557,7 @@ changes:
                  `PerformanceEntry` object as the receiver.
 -->
 
-* {string}
+* Type: {string}
 
 The type of the performance entry. It may be one of:
 
@@ -583,7 +583,7 @@ changes:
                  `PerformanceEntry` object as the receiver.
 -->
 
-* {string}
+* Type: {string}
 
 The name of the performance entry.
 
@@ -598,7 +598,7 @@ changes:
                  `PerformanceEntry` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp marking the starting time of the
 Performance Entry.
@@ -626,7 +626,7 @@ changes:
                  `PerformanceMark` object as the receiver.
 -->
 
-* {any}
+* Type: {any}
 
 Additional detail specified when creating with `Performance.mark()` method.
 
@@ -655,7 +655,7 @@ changes:
                  `PerformanceMeasure` object as the receiver.
 -->
 
-* {any}
+* Type: {any}
 
 Additional detail specified when creating with `Performance.measure()` method.
 
@@ -684,7 +684,7 @@ changes:
                  `PerformanceNodeEntry` object as the receiver.
 -->
 
-* {any}
+* Type: {any}
 
 Additional detail specific to the `entryType`.
 
@@ -703,7 +703,7 @@ changes:
 
 > Stability: 0 - Deprecated: Use `performanceNodeEntry.detail` instead.
 
-* {number}
+* Type: {number}
 
 When `performanceEntry.entryType` is equal to `'gc'`, the `performance.flags`
 property contains additional information about garbage collection operation.
@@ -730,7 +730,7 @@ changes:
 
 > Stability: 0 - Deprecated: Use `performanceNodeEntry.detail` instead.
 
-* {number}
+* Type: {number}
 
 When `performanceEntry.entryType` is equal to `'gc'`, the `performance.kind`
 property identifies the type of garbage collection operation that occurred.
@@ -871,7 +871,7 @@ is not exposed to users.
 added: v8.5.0
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp at which the Node.js process
 completed bootstrapping. If bootstrapping has not yet finished, the property
@@ -883,7 +883,7 @@ has the value of -1.
 added: v8.5.0
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp at which the Node.js environment was
 initialized.
@@ -896,7 +896,7 @@ added:
   - v12.19.0
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp of the amount of time the event loop
 has been idle within the event loop's event provider (e.g. `epoll_wait`). This
@@ -910,7 +910,7 @@ value of 0.
 added: v8.5.0
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp at which the Node.js event loop
 exited. If the event loop has not yet exited, the property has the value of -1.
@@ -922,7 +922,7 @@ It can only have a value of not -1 in a handler of the [`'exit'`][] event.
 added: v8.5.0
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp at which the Node.js event loop
 started. If the event loop has not yet started (e.g., in the first tick of the
@@ -934,7 +934,7 @@ main script), the property has the value of -1.
 added: v8.5.0
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp at which the Node.js process was
 initialized.
@@ -981,7 +981,7 @@ setImmediate(() => {
 added: v8.5.0
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp at which the V8 platform was
 initialized.
@@ -1014,7 +1014,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp at immediately before dispatching
 the `fetch` request. If the resource is not intercepted by a worker the property
@@ -1033,7 +1033,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp that represents the start time
 of the fetch which initiates the redirect.
@@ -1051,7 +1051,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp that will be created immediately after
 receiving the last byte of the response of the last redirect.
@@ -1069,7 +1069,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp immediately before the Node.js starts
 to fetch the resource.
@@ -1087,7 +1087,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp immediately before the Node.js starts
 the domain name lookup for the resource.
@@ -1105,7 +1105,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp representing the time immediately
 after the Node.js finished the domain name lookup for the resource.
@@ -1123,7 +1123,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp representing the time immediately
 before Node.js starts to establish the connection to the server to retrieve
@@ -1142,7 +1142,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp representing the time immediately
 after Node.js finishes establishing the connection to the server to retrieve
@@ -1161,7 +1161,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp representing the time immediately
 before Node.js starts the handshake process to secure the current connection.
@@ -1179,7 +1179,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp representing the time immediately
 before Node.js receives the first byte of the response from the server.
@@ -1197,7 +1197,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 The high resolution millisecond timestamp representing the time immediately
 after Node.js receives the last byte of the resource or immediately before
@@ -1216,7 +1216,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 A number representing the size (in octets) of the fetched resource. The size
 includes the response header fields plus the response payload body.
@@ -1234,7 +1234,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 A number representing the size (in octets) received from the fetch
 (HTTP or cache), of the payload body, before removing any applied
@@ -1253,7 +1253,7 @@ changes:
                  `PerformanceResourceTiming` object as the receiver.
 -->
 
-* {number}
+* Type: {number}
 
 A number representing the size (in octets) received from the fetch
 (HTTP or cache), of the message body, after removing any applied
@@ -1287,7 +1287,7 @@ added: v8.5.0
 added: v16.0.0
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 Get supported types.
 
@@ -1789,7 +1789,7 @@ added:
   - v16.14.0
 -->
 
-* {number}
+* Type: {number}
 
 The number of samples recorded by the histogram.
 
@@ -1801,7 +1801,7 @@ added:
   - v16.14.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 The number of samples recorded by the histogram.
 
@@ -1811,7 +1811,7 @@ The number of samples recorded by the histogram.
 added: v11.10.0
 -->
 
-* {number}
+* Type: {number}
 
 The number of times the event loop delay exceeded the maximum 1 hour event
 loop delay threshold.
@@ -1824,7 +1824,7 @@ added:
   - v16.14.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 The number of times the event loop delay exceeded the maximum 1 hour event
 loop delay threshold.
@@ -1835,7 +1835,7 @@ loop delay threshold.
 added: v11.10.0
 -->
 
-* {number}
+* Type: {number}
 
 The maximum recorded event loop delay.
 
@@ -1847,7 +1847,7 @@ added:
   - v16.14.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 The maximum recorded event loop delay.
 
@@ -1857,7 +1857,7 @@ The maximum recorded event loop delay.
 added: v11.10.0
 -->
 
-* {number}
+* Type: {number}
 
 The mean of the recorded event loop delays.
 
@@ -1867,7 +1867,7 @@ The mean of the recorded event loop delays.
 added: v11.10.0
 -->
 
-* {number}
+* Type: {number}
 
 The minimum recorded event loop delay.
 
@@ -1879,7 +1879,7 @@ added:
   - v16.14.0
 -->
 
-* {bigint}
+* Type: {bigint}
 
 The minimum recorded event loop delay.
 
@@ -1913,7 +1913,7 @@ Returns the value at the given percentile.
 added: v11.10.0
 -->
 
-* {Map}
+* Type: {Map}
 
 Returns a `Map` object detailing the accumulated percentile distribution.
 
@@ -1925,7 +1925,7 @@ added:
   - v16.14.0
 -->
 
-* {Map}
+* Type: {Map}
 
 Returns a `Map` object detailing the accumulated percentile distribution.
 
@@ -1943,7 +1943,7 @@ Resets the collected histogram data.
 added: v11.10.0
 -->
 
-* {number}
+* Type: {number}
 
 The standard deviation of the recorded event loop delays.
 

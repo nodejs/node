@@ -175,6 +175,7 @@ class EnvironmentOptions : public Options {
   bool cpu_prof = false;
   bool experimental_network_inspection = false;
   bool experimental_worker_inspection = false;
+  bool experimental_inspector_network_resource = false;
   std::string heap_prof_dir;
   std::string heap_prof_name;
   static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
@@ -232,6 +233,7 @@ class EnvironmentOptions : public Options {
   bool watch_mode = false;
   bool watch_mode_report_to_parent = false;
   bool watch_mode_preserve_output = false;
+  std::string watch_mode_kill_signal = "SIGTERM";
   std::vector<std::string> watch_mode_paths;
 
   bool syntax_check_only = false;

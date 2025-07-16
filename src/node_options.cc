@@ -711,6 +711,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-worker-inspection",
             "experimental worker inspection support",
             &EnvironmentOptions::experimental_worker_inspection);
+  AddOption("--experimental-inspector-network-resource",
+            "experimental load network resources via the inspector",
+            &EnvironmentOptions::experimental_inspector_network_resource);
   AddOption(
       "--heap-prof",
       "Start the V8 heap profiler on start up, and write the heap profile "
@@ -956,6 +959,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--watch-path",
             "path to watch",
             &EnvironmentOptions::watch_mode_paths,
+            kAllowedInEnvvar);
+  AddOption("--watch-kill-signal",
+            "kill signal to send to the process on watch mode restarts"
+            "(default: SIGTERM)",
+            &EnvironmentOptions::watch_mode_kill_signal,
             kAllowedInEnvvar);
   AddOption("--watch-preserve-output",
             "preserve outputs on watch mode restart",

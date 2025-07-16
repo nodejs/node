@@ -84,6 +84,8 @@ declare namespace MockInterceptor {
 interface Interceptable extends Dispatcher {
   /** Intercepts any matching requests that use the same origin as this mock client. */
   intercept(options: MockInterceptor.Options): MockInterceptor;
+  /** Clean up all the prepared mocks. */
+  cleanMocks (): void
 }
 
 export {

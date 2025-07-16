@@ -34,6 +34,7 @@ if (commitListingStart === -1) {
 // Normalize for consistent comparison
 commitList = commitList
   .replaceAll('**(SEMVER-MINOR)** ', '')
+  .replaceAll(/(?<= - )\*\*\(CVE-\d{4}-\d+\)\*\* (?=\*\*)/g, '')
   .replaceAll('\\', '');
 
 let expectedNumberOfCommitsLeft = commitList.match(/\n\* \[/g)?.length ?? 0;

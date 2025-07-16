@@ -3,7 +3,7 @@
 const { kConstruct } = require('../../core/symbols')
 const { urlEquals, getFieldValues } = require('./util')
 const { kEnumerableProperty, isDisturbed } = require('../../core/util')
-const { webidl } = require('../fetch/webidl')
+const { webidl } = require('../webidl')
 const { cloneResponse, fromInnerResponse, getResponseState } = require('../fetch/response')
 const { Request, fromInnerRequest, getRequestState } = require('../fetch/request')
 const { fetching } = require('../fetch/index')

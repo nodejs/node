@@ -26,3 +26,4 @@ testWasiPreview1(['preopen_populates']);
 testWasiPreview1(['stat']);
 testWasiPreview1(['sock']);
 testWasiPreview1(['write_file']);
+testWasiPreview1(['--target=wasm32-wasip1-threads', 'pthread']);

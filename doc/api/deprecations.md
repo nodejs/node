@@ -2865,16 +2865,18 @@ To maintain existing behavior `response.finished` should be replaced with
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58536
+    description: End-of-Life.
   - version: v14.0.0
     pr-url: https://github.com/nodejs/node/pull/28396
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Allowing a [`fs.FileHandle`][] object to be closed on garbage collection is
-deprecated. In the future, doing so might result in a thrown error that will
-terminate the process.
+Allowing a [`fs.FileHandle`][] object to be closed on garbage collection used
+to be allowed, but now throws an error.
 
 Please ensure that all `fs.FileHandle` objects are explicitly closed using
 `FileHandle.prototype.close()` when the `fs.FileHandle` is no longer needed:
@@ -3332,6 +3334,9 @@ the errors used for value type validation.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58707
+    description: End-of-Life.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41896
     description: Runtime deprecation.
@@ -3342,10 +3347,10 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-This event was deprecated because it did not work with V8 promise combinators
-which diminished its usefulness.
+This event was deprecated and removed because it did not work with V8 promise
+combinators which diminished its usefulness.
 
 ### DEP0161: `process._getActiveRequests()` and `process._getActiveHandles()`
 
@@ -4055,6 +4060,22 @@ changes:
 Type: Documentation-only
 
 The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError`][] instead.
+
+### DEP0198: Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59008
+    description: Runtime deprecation.
+  - version: v24.4.0
+    pr-url: https://github.com/nodejs/node/pull/58942
+    description: Documentation-only deprecation with support for `--pending-deprecation`.
+-->
+
+Type: Runtime
+
+Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength` is deprecated.
 
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf

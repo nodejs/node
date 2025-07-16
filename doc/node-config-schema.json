@@ -565,6 +565,9 @@
         "watch": {
           "type": "boolean"
         },
+        "watch-kill-signal": {
+          "type": "string"
+        },
         "watch-path": {
           "oneOf": [
             {
