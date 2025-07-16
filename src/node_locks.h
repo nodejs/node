@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "base_object.h"
 #include "env.h"
 #include "node_mutex.h"
 #include "v8.h"
@@ -62,9 +63,15 @@ class Lock final {
   v8::Global<v8::Promise::Resolver> released_promise_;
 };
 
-class LockHolder final {
+class LockHolder final : public BaseObject {
  public:
-  explicit LockHolder(std::shared_ptr<Lock> lock) : lock_(std::move(lock)) {}
+  LockHolder(Environment* env,
+             v8::Local<v8::Object> obj,
+             std::shared_ptr<Lock> lock)
+      : BaseObject(env, obj), lock_(std::move(lock)) {
+    MakeWeak();
+  }
+
   ~LockHolder() = default;
 
   LockHolder(const LockHolder&) = delete;
@@ -72,7 +79,17 @@ class LockHolder final {
 
   std::shared_ptr<Lock> lock() const { return lock_; }
 
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(LockHolder)
+  SET_SELF_SIZE(LockHolder)
+
+  static BaseObjectPtr<LockHolder> Create(Environment* env,
+                                          std::shared_ptr<Lock> lock);
+
  private:
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+
   std::shared_ptr<Lock> lock_;
 };
 

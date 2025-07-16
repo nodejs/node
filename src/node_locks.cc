@@ -1,5 +1,6 @@
 #include "node_locks.h"
 
+#include "base_object-inl.h"
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -13,9 +14,9 @@ using node::errors::TryCatchScope;
 using v8::Array;
 using v8::Context;
 using v8::Exception;
-using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -32,10 +33,10 @@ static constexpr const char* kExclusiveMode = "exclusive";
 static constexpr const char* kLockStolenError = "LOCK_STOLEN";
 
 // Reject two promises and return `false` on failure.
-static bool RejectBoth(v8::Local<v8::Context> ctx,
-                       v8::Local<v8::Promise::Resolver> first,
-                       v8::Local<v8::Promise::Resolver> second,
-                       v8::Local<v8::Value> reason) {
+static bool RejectBoth(Local<Context> ctx,
+                       Local<Promise::Resolver> first,
+                       Local<Promise::Resolver> second,
+                       Local<Value> reason) {
   if (first->Reject(ctx, reason).IsNothing()) return false;
   if (second->Reject(ctx, reason).IsNothing()) return false;
 
@@ -103,8 +104,8 @@ static void OnLockCallbackFulfilled(const FunctionCallbackInfo<Value>& info) {
   HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info);
 
-  std::unique_ptr<LockHolder> lock_holder{
-      static_cast<LockHolder*>(info.Data().As<External>()->Value())};
+  BaseObjectPtr<LockHolder> lock_holder{
+      BaseObject::FromJSObject<LockHolder>(info.Data())};
   std::shared_ptr<Lock> lock = lock_holder->lock();
 
   // Release the lock and continue processing the queue.
@@ -117,8 +118,8 @@ static void OnLockCallbackRejected(const FunctionCallbackInfo<Value>& info) {
   HandleScope handle_scope(info.GetIsolate());
   Environment* env = Environment::GetCurrent(info);
 
-  std::unique_ptr<LockHolder> lock_holder{
-      static_cast<LockHolder*>(info.Data().As<External>()->Value())};
+  BaseObjectPtr<LockHolder> lock_holder{
+      BaseObject::FromJSObject<LockHolder>(info.Data())};
   std::shared_ptr<Lock> lock = lock_holder->lock();
 
   LockManager::GetCurrent()->ReleaseLockAndProcessQueue(
@@ -469,33 +470,26 @@ void LockManager::ProcessQueue(Environment* env) {
       }
     }
 
-    // Allocate a LockHolder on the heap to safely manage the lock's lifetime
+    // Create LockHolder BaseObjects to safely manage the lock's lifetime
     // until the user's callback promise settles.
-    auto lock_resolve_holder = std::make_unique<LockHolder>(granted_lock);
-    auto lock_reject_holder = std::make_unique<LockHolder>(granted_lock);
+    auto lock_resolve_holder = LockHolder::Create(env, granted_lock);
+    auto lock_reject_holder = LockHolder::Create(env, granted_lock);
     Local<Function> on_fulfilled_callback;
     Local<Function> on_rejected_callback;
 
     // Create fulfilled callback first
-    if (!Function::New(context,
-                       OnLockCallbackFulfilled,
-                       External::New(isolate, lock_resolve_holder.get()))
+    if (!Function::New(
+             context, OnLockCallbackFulfilled, lock_resolve_holder->object())
              .ToLocal(&on_fulfilled_callback)) {
       return;
     }
 
     // Create rejected callback second
-    if (!Function::New(context,
-                       OnLockCallbackRejected,
-                       External::New(isolate, lock_reject_holder.get()))
+    if (!Function::New(
+             context, OnLockCallbackRejected, lock_reject_holder->object())
              .ToLocal(&on_rejected_callback)) {
-      lock_resolve_holder.release();
-
       return;
     }
-
-    lock_resolve_holder.release();
-    lock_reject_holder.release();
 
     // Handle promise chain
     if (callback_result->IsPromise()) {
@@ -897,6 +891,34 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(OnLockCallbackRejected);
   registry->Register(OnIfAvailableFulfill);
   registry->Register(OnIfAvailableReject);
+}
+
+BaseObjectPtr<LockHolder> LockHolder::Create(Environment* env,
+                                             std::shared_ptr<Lock> lock) {
+  Local<Object> obj;
+  if (!GetConstructorTemplate(env)
+           ->InstanceTemplate()
+           ->NewInstance(env->context())
+           .ToLocal(&obj)) {
+    return nullptr;
+  }
+
+  return MakeBaseObject<LockHolder>(env, obj, std::move(lock));
+}
+
+Local<FunctionTemplate> LockHolder::GetConstructorTemplate(Environment* env) {
+  IsolateData* isolate_data = env->isolate_data();
+  Local<FunctionTemplate> tmpl =
+      isolate_data->lock_holder_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = isolate_data->isolate();
+    tmpl = NewFunctionTemplate(isolate, nullptr);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "LockHolder"));
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        LockHolder::kInternalFieldCount);
+    isolate_data->set_lock_holder_constructor_template(tmpl);
+  }
+  return tmpl;
 }
 
 }  // namespace node::worker::locks

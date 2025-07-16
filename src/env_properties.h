@@ -453,6 +453,7 @@
   V(intervalhistogram_constructor_template, v8::FunctionTemplate)              \
   V(js_transferable_constructor_template, v8::FunctionTemplate)                \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
+  V(lock_holder_constructor_template, v8::FunctionTemplate)                    \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(module_wrap_constructor_template, v8::FunctionTemplate)                    \
   V(microtask_queue_ctor_template, v8::FunctionTemplate)                       \
