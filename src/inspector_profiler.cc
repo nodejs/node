@@ -478,8 +478,9 @@ static std::string ReplacePlaceholders(const std::string& pattern) {
   for (const auto& [placeholder, getter] : kPlaceholderMap) {
     size_t pos = 0;
     while ((pos = result.find(placeholder, pos)) != std::string::npos) {
-      result.replace(pos, placeholder.length(), getter());
-      pos += getter().length();
+      const std::string value = getter();
+      result.replace(pos, placeholder.length(), value);
+      pos += value.length();
     }
   }
 
