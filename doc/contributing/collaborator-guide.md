@@ -184,8 +184,7 @@ outstanding objection, any collaborator can open an issue or pull request
 proposing to revert the change or to make a follow-up change that addresses
 the objection. Such reverts / follow-ups are subject to the same review process
 as any other pull request but may be fast-tracked if uncontroversial.
-Collaborators should always assume good faith on the part of the merging
-collaborator as it is most likely any outstanding objection was simply
+It is most likely that any outstanding objection was simply
 overlooked by mistake. Collaborators objecting to a pull request can best
 ensure their objections are addressed by remaining actively engaged and
 responsive in the discussion.
