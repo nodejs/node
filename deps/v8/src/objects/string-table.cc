@@ -567,7 +567,7 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
     return internalized.ptr();
   }
 
-  uint64_t seed = HashSeed(isolate);
+  const HashSeed seed = HashSeed(isolate);
 
   CharBuffer<Char> buffer;
   const Char* chars;
@@ -588,7 +588,8 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(
   }
   // TODO(verwaest): Internalize to one-byte when possible.
   SequentialStringKey<Char> key(raw_hash_field,
-                                base::Vector<const Char>(chars, length), seed);
+                                base::Vector<const Char>(chars, length),
+                                seed.seed());
 
   // String could be an array index.
   if (Name::ContainsCachedArrayIndex(raw_hash_field)) {

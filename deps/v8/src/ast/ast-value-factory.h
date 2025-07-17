@@ -35,6 +35,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
+#include "src/numbers/hash-seed.h"
 #include "src/objects/name.h"
 
 // Ast(Raw|Cons)String and AstValueFactory are for storing strings and
@@ -290,7 +291,7 @@ using AstRawStringMap =
 
 class AstStringConstants final {
  public:
-  AstStringConstants(Isolate* isolate, uint64_t hash_seed);
+  AstStringConstants(Isolate* isolate, const HashSeed hash_seed);
   AstStringConstants(const AstStringConstants&) = delete;
   AstStringConstants& operator=(const AstStringConstants&) = delete;
 
@@ -299,13 +300,13 @@ class AstStringConstants final {
   AST_STRING_CONSTANTS(F)
 #undef F
 
-  uint64_t hash_seed() const { return hash_seed_; }
+  const HashSeed hash_seed() const { return hash_seed_; }
   const AstRawStringMap* string_table() const { return &string_table_; }
 
  private:
   Zone zone_;
   AstRawStringMap string_table_;
-  uint64_t hash_seed_;
+  const HashSeed hash_seed_;
 
 #define F(name, str) AstRawString* name##_string_;
   AST_STRING_CONSTANTS(F)
@@ -315,12 +316,12 @@ class AstStringConstants final {
 class AstValueFactory {
  public:
   AstValueFactory(Zone* zone, const AstStringConstants* string_constants,
-                  uint64_t hash_seed)
+                  const HashSeed hash_seed)
       : AstValueFactory(zone, zone, string_constants, hash_seed) {}
 
   AstValueFactory(Zone* ast_raw_string_zone, Zone* single_parse_zone,
                   const AstStringConstants* string_constants,
-                  uint64_t hash_seed)
+                  const HashSeed hash_seed)
       : string_table_(string_constants->string_table()),
         strings_(nullptr),
         strings_end_(&strings_),
@@ -418,7 +419,7 @@ class AstValueFactory {
   Zone* ast_raw_string_zone_;
   Zone* single_parse_zone_;
 
-  uint64_t hash_seed_;
+  const HashSeed hash_seed_;
 };
 
 extern template EXPORT_TEMPLATE_DECLARE(

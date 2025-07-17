@@ -48,7 +48,7 @@ uint32_t StringHasher::GetTrivialHash(int length) {
 
 template <typename char_t>
 uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
-                                            uint64_t seed) {
+                                            const HashSeed seed) {
   static_assert(std::is_integral<char_t>::value);
   static_assert(sizeof(char_t) <= 2);
   using uchar = typename std::make_unsigned<char_t>::type;
@@ -80,7 +80,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
         // Perform a regular hash computation, and additionally check
         // if there are non-digit characters.
         String::HashFieldType type = String::HashFieldType::kIntegerIndex;
-        uint32_t running_hash = static_cast<uint32_t>(seed);
+        uint32_t running_hash = static_cast<uint32_t>(seed.seed());
         uint64_t index_big = 0;
         const uchar* end = &chars[length];
         while (chars != end) {
@@ -112,7 +112,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
   }
 
   // Non-index hash.
-  uint32_t running_hash = static_cast<uint32_t>(seed);
+  uint32_t running_hash = static_cast<uint32_t>(seed.seed());
   const uchar* end = &chars[length];
   while (chars != end) {
     running_hash = AddCharacterCore(running_hash, *chars++);

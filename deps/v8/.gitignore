@@ -80,6 +80,7 @@
 !/third_party/inspector_protocol
 !/third_party/jsoncpp
 /third_party/jsoncpp/source
+!/third_party/rapidhash-v8
 !/third_party/re2
 /third_party/re2/src
 !/third_party/test262-harness

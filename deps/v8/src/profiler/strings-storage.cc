@@ -138,7 +138,7 @@ namespace {
 
 inline uint32_t ComputeStringHash(const char* str, int len) {
   uint32_t raw_hash_field = base::bits::RotateLeft32(
-      StringHasher::HashSequentialString(str, len, kZeroHashSeed), 2);
+      StringHasher::HashSequentialString(str, len, HashSeed::Default()), 2);
   return Name::HashBits::decode(raw_hash_field);
 }
 

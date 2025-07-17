@@ -399,7 +399,7 @@ Char FlatStringReader::Get(int index) const {
 template <typename Char>
 class SequentialStringKey final : public StringTableKey {
  public:
-  SequentialStringKey(base::Vector<const Char> chars, uint64_t seed,
+  SequentialStringKey(base::Vector<const Char> chars, const HashSeed seed,
                       bool convert = false)
       : SequentialStringKey(StringHasher::HashSequentialString<Char>(
                                 chars.begin(), chars.length(), seed),
@@ -798,13 +798,14 @@ String::FlatContent::~FlatContent() {
 
 #ifdef ENABLE_SLOW_DCHECKS
 uint32_t String::FlatContent::ComputeChecksum() const {
-  constexpr uint64_t hashseed = 1;
   uint32_t hash;
   if (state_ == ONE_BYTE) {
-    hash = StringHasher::HashSequentialString(onebyte_start, length_, hashseed);
+    hash = StringHasher::HashSequentialString(onebyte_start, length_,
+                                              HashSeed::Default());
   } else {
     DCHECK_EQ(TWO_BYTE, state_);
-    hash = StringHasher::HashSequentialString(twobyte_start, length_, hashseed);
+    hash = StringHasher::HashSequentialString(twobyte_start, length_,
+                                              HashSeed::Default());
   }
   DCHECK_NE(kChecksumVerificationDisabled, hash);
   return hash;

@@ -428,6 +428,9 @@ declare_args() {
   # Whether custom embedder snapshots may extend (= allocate new objects in)
   # ReadOnlySpace.
   v8_enable_extensible_ro_snapshot = true
+
+  # Use a hard-coded secret value when hashing.
+  v8_use_default_hasher_secret = true
 }
 
 # Derived defaults.
@@ -863,6 +866,7 @@ config("external_startup_data") {
 # Make sure the |v8_generate_features_json| action is also updated when adding
 # or removing defines below.
 external_v8_defines = [
+  "V8_USE_DEFAULT_HASHER_SECRET=${v8_use_default_hasher_secret}",
   "V8_ENABLE_CHECKS",
   "V8_COMPRESS_POINTERS",
   "V8_COMPRESS_POINTERS_IN_SHARED_CAGE",
@@ -880,7 +884,9 @@ external_v8_defines = [
   "V8_MINORMS_STRING_SHORTCUTTING",
 ]
 
-enabled_external_v8_defines = []
+enabled_external_v8_defines = [
+  "V8_USE_DEFAULT_HASHER_SECRET=${v8_use_default_hasher_secret}",
+]
 
 if (v8_enable_v8_checks) {
   enabled_external_v8_defines += [ "V8_ENABLE_CHECKS" ]
@@ -2768,6 +2774,7 @@ generated_file("v8_generate_features_json") {
     v8_random_seed = v8_random_seed
     v8_use_perfetto = v8_use_perfetto
     v8_use_siphash = v8_use_siphash
+    v8_use_default_hasher_secret = v8_use_default_hasher_secret
   }
 }
 
@@ -3763,6 +3770,7 @@ v8_header_set("v8_internal_headers") {
     "src/numbers/conversions-inl.h",
     "src/numbers/conversions.h",
     "src/numbers/hash-seed-inl.h",
+    "src/numbers/hash-seed.h",
     "src/numbers/math-random.h",
     "src/objects/all-objects-inl.h",
     "src/objects/allocation-site-inl.h",
@@ -4116,6 +4124,8 @@ v8_header_set("v8_internal_headers") {
     "src/temporal/temporal-parser.h",
     "src/third_party/siphash/halfsiphash.h",
     "src/third_party/utf8-decoder/utf8-decoder.h",
+    "third_party/rapidhash-v8/rapidhash.h",
+    "third_party/rapidhash-v8/secret.h",
     "src/torque/runtime-macro-shims.h",
     "src/tracing/trace-event.h",
     "src/tracing/traced-value.h",
