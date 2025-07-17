@@ -695,7 +695,9 @@ exception is thrown. This method allows unknown named parameters to be ignored.
 ### `statement.setReturnArrays(enabled)`
 
 <!-- YAML
-added: 24.0.0
+added:
+  - v24.0.0
+  - v22.16.0
 -->
 
 * `enabled` {boolean} Enables or disables the return of query results as arrays.
