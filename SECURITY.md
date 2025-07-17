@@ -118,8 +118,12 @@ does not trust is considered a vulnerability:
   * The memory leak is directly exploitable by an untrusted source without requiring application mistakes
   * The leak cannot be reasonably mitigated through standard operational practices (like process recycling)
   * The leak occurs deterministically under normal usage patterns rather than edge cases
-  * The leak occurs at a rate that would cause practical resource exhaustion within X requests or Y hours under
+  * The leak occurs at a rate that would cause practical resource exhaustion within a practical timeframe under
     typical workloads
+  * The attack demonstrates [asymmetric resource consumption](https://cwe.mitre.org/data/definitions/405.html),
+    where the attacker expends significantly fewer resources than what's required by the server to process the
+    attack. Attacks requiring comparable resources on the attacker's side (which can be mitigated through common
+    practices like rate limiting) may not qualify
 
 If Node.js loads configuration files or runs code by default (without a
 specific request from the user), and this is not documented, it is considered a
