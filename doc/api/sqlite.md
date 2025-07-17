@@ -692,6 +692,19 @@ added:
 By default, if an unknown name is encountered while binding parameters, an
 exception is thrown. This method allows unknown named parameters to be ignored.
 
+### `statement.setReturnArrays(enabled)`
+
+<!-- YAML
+added:
+  - v24.0.0
+  - v22.16.0
+-->
+
+* `enabled` {boolean} Enables or disables the return of query results as arrays.
+
+When enabled, query results returned by the `all()`, `get()`, and `iterate()` methods will be returned as arrays instead
+of objects.
+
 ### `statement.setReadBigInts(enabled)`
 
 <!-- YAML
