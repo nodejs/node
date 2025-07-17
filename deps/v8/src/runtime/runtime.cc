@@ -65,8 +65,8 @@ struct IntrinsicFunctionIdentifier {
   }
 
   uint32_t Hash() {
-    return StringHasher::HashSequentialString<uint8_t>(
-        data_, length_, v8::internal::kZeroHashSeed);
+    return StringHasher::HashSequentialString<uint8_t>(data_, length_,
+                                                       HashSeed::Default());
   }
 
   const unsigned char* data_;

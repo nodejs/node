@@ -1798,7 +1798,7 @@ namespace {
 
 template <typename Char>
 uint32_t HashString(Tagged<String> string, size_t start, uint32_t length,
-                    uint64_t seed,
+                    const HashSeed seed,
                     const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
 
@@ -1841,7 +1841,7 @@ uint32_t String::ComputeAndSetRawHash(
   DCHECK_IMPLIES(!v8_flags.shared_string_table, !HasHashCode());
 
   // Store the hash code in the object.
-  uint64_t seed = HashSeed(EarlyGetReadOnlyRoots());
+  const HashSeed seed = HashSeed(EarlyGetReadOnlyRoots());
   size_t start = 0;
   Tagged<String> string = this;
   StringShape shape(string);

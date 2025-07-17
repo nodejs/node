@@ -13,6 +13,7 @@
 #include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
+#include "src/numbers/hash-seed.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/function-syntax-kind.h"
 #include "src/objects/script.h"
@@ -203,7 +204,7 @@ class V8_EXPORT_PRIVATE ReusableUnoptimizedCompileState {
   AstValueFactory* ast_value_factory() const {
     return ast_value_factory_.get();
   }
-  uint64_t hash_seed() const { return hash_seed_; }
+  HashSeed hash_seed() const { return hash_seed_; }
   AccountingAllocator* allocator() const { return allocator_; }
   const AstStringConstants* ast_string_constants() const {
     return ast_string_constants_;
@@ -213,7 +214,7 @@ class V8_EXPORT_PRIVATE ReusableUnoptimizedCompileState {
   LazyCompileDispatcher* dispatcher() const { return dispatcher_; }
 
  private:
-  uint64_t hash_seed_;
+  const HashSeed hash_seed_;
   AccountingAllocator* allocator_;
   V8FileLogger* v8_file_logger_;
   LazyCompileDispatcher* dispatcher_;
@@ -249,7 +250,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   const UnoptimizedCompileFlags& flags() const { return flags_; }
 
   // Getters for reusable state.
-  uint64_t hash_seed() const { return reusable_state_->hash_seed(); }
+  HashSeed hash_seed() const { return reusable_state_->hash_seed(); }
   AccountingAllocator* allocator() const {
     return reusable_state_->allocator();
   }

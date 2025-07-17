@@ -893,7 +893,8 @@ bool Heap::CreateImportantReadOnlyObjects() {
   // Hash seed for strings
 
   Factory* factory = isolate()->factory();
-  set_hash_seed(*factory->NewByteArray(kInt64Size, AllocationType::kReadOnly));
+  set_hash_seed(
+      *factory->NewByteArray(kInt64Size * 4, AllocationType::kReadOnly));
   InitializeHashSeed();
 
   // Important strings and symbols

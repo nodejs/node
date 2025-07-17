@@ -264,8 +264,6 @@ inline T RoundingAverageUnsigned(T a, T b) {
 // ----------------------------------------------------------------------------
 // Hash function.
 
-static const uint64_t kZeroHashSeed = 0;
-
 // Thomas Wang, Integer Hash Functions.
 // http://www.concentric.net/~Ttwang/tech/inthash.htm`
 inline uint32_t ComputeUnseededHash(uint32_t key) {

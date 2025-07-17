@@ -69,7 +69,8 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, uint32_t length) {
 
 template <typename char_t>
 uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
-                                            uint32_t length, uint64_t seed) {
+                                            uint32_t length,
+                                            const HashSeed seed) {
   static_assert(std::is_integral_v<char_t>);
   static_assert(sizeof(char_t) <= 2);
   using uchar = std::make_unsigned_t<char_t>;
@@ -136,7 +137,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
       // there are non-digit characters.
       String::HashFieldType type = String::HashFieldType::kIntegerIndex;
       uint64_t index_big = index;
-      RunningStringHasher hasher(static_cast<uint32_t>(seed));
+      RunningStringHasher hasher(static_cast<uint32_t>(seed.seed()));
       for (uint32_t j = 0; j < i; j++) {
         hasher.AddCharacter(chars[j]);
       }
@@ -175,7 +176,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw,
 
 non_index_hash:
   // Non-index hash.
-  RunningStringHasher hasher(static_cast<uint32_t>(seed));
+  RunningStringHasher hasher(static_cast<uint32_t>(seed.seed()));
   const uchar* end = &chars[length];
   while (chars != end) {
     hasher.AddCharacter(*chars++);
