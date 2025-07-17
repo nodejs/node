@@ -176,8 +176,8 @@ or dismiss an objection. When the TSC does choose to overrule an objection,
 the TSC must provide a clear explanation of its reasoning in the pull request
 before the pull request lands.
 
-All objections are considered equal. There is no greater weight given to
-objections from TSC members than from any other collaborator.
+All Collaborator objections are considered equal. There is no greater weight given to
+objections from TSC members than from any other Collaborator.
 
 Mistakes do happen from time to time. If a pull request is merged with an
 outstanding objection, any collaborator can open an issue or pull request
