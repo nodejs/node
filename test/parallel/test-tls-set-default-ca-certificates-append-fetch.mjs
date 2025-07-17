@@ -5,13 +5,13 @@
 // with fetch.
 
 import * as common from '../common/index.mjs';
-import { includesCert } from '../common/tls.js';
 import { once } from 'node:events';
 import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 
 if (!common.hasCrypto) common.skip('missing crypto');
 
+const { includesCert } = await import('../common/tls.js');
 const { default: https } = await import('node:https');
 const { default: tls } = await import('node:tls');
 
