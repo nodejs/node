@@ -3084,9 +3084,16 @@ changes:
 -->
 
 * `stream` {Readable|Duplex|ReadableStream}
-* Returns: {boolean}
+* Returns: {boolean|null} - Only returns a `null` if type of `stream.readable` argument passed is not a boolean.
 
 Returns whether the stream is readable.
+
+### `stream.isWritable(stream)`
+
+* `stream` {Writable|Duplex|WritableStream}
+* Returns: {boolean|null} - Only returns a `null` if type of `stream.writable` argument passed is not a boolean.
+
+Returns whether the stream is writable.
 
 ### `stream.Readable.from(iterable[, options])`
 
