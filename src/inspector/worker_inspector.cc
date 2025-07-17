@@ -60,14 +60,12 @@ ParentInspectorHandle::ParentInspectorHandle(
     const std::string& url,
     std::shared_ptr<MainThreadHandle> parent_thread,
     bool wait_for_connect,
-    const std::string& name,
-    std::shared_ptr<NetworkResourceManager> network_resource_manager)
+    const std::string& name)
     : id_(id),
       url_(url),
       parent_thread_(parent_thread),
       wait_(wait_for_connect),
-      name_(name),
-      network_resource_manager_(network_resource_manager) {}
+      name_(name) {}
 
 ParentInspectorHandle::~ParentInspectorHandle() {
   parent_thread_->Post(
@@ -103,13 +101,10 @@ void WorkerManager::WorkerStarted(uint64_t session_id,
 }
 
 std::unique_ptr<ParentInspectorHandle> WorkerManager::NewParentHandle(
-    uint64_t thread_id,
-    const std::string& url,
-    const std::string& name,
-    std::shared_ptr<NetworkResourceManager> network_resource_manager) {
+    uint64_t thread_id, const std::string& url, const std::string& name) {
   bool wait = !delegates_waiting_on_start_.empty();
   return std::make_unique<ParentInspectorHandle>(
-      thread_id, url, thread_, wait, name, network_resource_manager);
+      thread_id, url, thread_, wait, name);
 }
 
 void WorkerManager::RemoveAttachDelegate(int id) {

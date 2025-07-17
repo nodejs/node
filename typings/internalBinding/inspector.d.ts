@@ -33,5 +33,4 @@ export interface InspectorBinding {
   console: Console;
   Connection: InspectorConnectionConstructor;
   MainThreadConnection: InspectorConnectionConstructor;
-  putNetworkResource: (url: string, resource: string) => void;
 }

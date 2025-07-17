@@ -1,6 +1,5 @@
 #pragma once
 
-#include "inspector/network_resource_manager.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #if !HAVE_INSPECTOR
@@ -128,7 +127,6 @@ class Agent {
   std::shared_ptr<WorkerManager> GetWorkerManager();
 
   inline Environment* env() const { return parent_env_; }
-  std::shared_ptr<NetworkResourceManager> GetNetworkResourceManager();
 
  private:
   void ToggleAsyncHook(v8::Isolate* isolate, v8::Local<v8::Function> fn);
@@ -155,7 +153,6 @@ class Agent {
   bool network_tracking_enabled_ = false;
   bool pending_enable_network_tracking = false;
   bool pending_disable_network_tracking = false;
-  std::shared_ptr<NetworkResourceManager> network_resource_manager_;
 };
 
 }  // namespace inspector
