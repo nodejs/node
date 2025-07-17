@@ -182,8 +182,9 @@ objections from TSC members than from any other collaborator.
 Mistakes do happen from time to time. If a pull request is merged with an
 outstanding objection, any collaborator can open an issue or pull request
 proposing to revert the change or to make a follow-up change that addresses
-the objection. Such reverts / follow-ups are subject to the same review process
-as any other pull request but may be fast-tracked if uncontroversial.
+the objection. Such reverts / follow-ups will typically be subject to fast-tracking, particularly if they are uncontroversial, but an
+automatic, immediate revert is not always necessary and, in some
+cases might not be ideal.
 It is most likely that any outstanding objection was simply
 overlooked by mistake. Collaborators objecting to a pull request can best
 ensure their objections are addressed by remaining actively engaged and
