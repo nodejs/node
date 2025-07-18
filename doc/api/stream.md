@@ -3084,14 +3084,14 @@ changes:
 -->
 
 * `stream` {Readable|Duplex|ReadableStream}
-* Returns: {boolean|null} - Only returns a `null` if type of `stream.readable` argument passed is not a boolean.
+* Returns: {boolean|null} - Only returns `null` if `stream` is not a valid `Readable`, `Duplex` or `ReadableStream`.
 
 Returns whether the stream is readable.
 
 ### `stream.isWritable(stream)`
 
 * `stream` {Writable|Duplex|WritableStream}
-* Returns: {boolean|null} - Only returns a `null` if type of `stream.writable` argument passed is not a boolean.
+* Returns: {boolean|null} - Only returns `null` if `stream` is not a valid `Writable`, `Duplex` or `WritableStream`.
 
 Returns whether the stream is writable.
 
