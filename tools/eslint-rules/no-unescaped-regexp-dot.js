@@ -1,5 +1,5 @@
 /**
- * @fileoverview Look for unescaped "literal" dots in regular expressions
+ * @file Look for unescaped "literal" dots in regular expressions
  * @author Brian White
  */
 'use strict';
