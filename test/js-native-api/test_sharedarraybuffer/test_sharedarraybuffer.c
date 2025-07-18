@@ -12,8 +12,8 @@ static napi_value TestIsSharedArrayBuffer(napi_env env,
   NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
 
   bool is_sharedarraybuffer;
-  NODE_API_CALL(env,
-                node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
+  NODE_API_CALL(
+      env, node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
 
   napi_value ret;
   NODE_API_CALL(env, napi_get_boolean(env, is_sharedarraybuffer, &ret));
@@ -46,8 +46,8 @@ static napi_value TestCreateSharedArrayBuffer(napi_env env,
 
   napi_value ret;
   void* data;
-  NODE_API_CALL(env,
-                node_api_create_sharedarraybuffer(env, byte_length, &data, &ret));
+  NODE_API_CALL(
+      env, node_api_create_sharedarraybuffer(env, byte_length, &data, &ret));
 
   return ret;
 }
@@ -61,8 +61,8 @@ static napi_value TestGetSharedArrayBufferInfo(napi_env env,
   NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
 
   bool is_sharedarraybuffer;
-  NODE_API_CALL(env,
-                node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
+  NODE_API_CALL(
+      env, node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
 
   NODE_API_ASSERT(
       env, is_sharedarraybuffer, "Argument should be a SharedArrayBuffer");
@@ -87,8 +87,8 @@ static napi_value TestSharedArrayBufferData(napi_env env,
   NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
 
   bool is_sharedarraybuffer;
-  NODE_API_CALL(env,
-                node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
+  NODE_API_CALL(
+      env, node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
 
   NODE_API_ASSERT(
       env, is_sharedarraybuffer, "Argument should be a SharedArrayBuffer");
@@ -121,8 +121,8 @@ static napi_value TestSharedArrayBufferFromExisting(napi_env env,
   NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
 
   bool is_sharedarraybuffer;
-  NODE_API_CALL(env,
-                node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
+  NODE_API_CALL(
+      env, node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
 
   NODE_API_ASSERT(
       env, is_sharedarraybuffer, "Argument should be a SharedArrayBuffer");
