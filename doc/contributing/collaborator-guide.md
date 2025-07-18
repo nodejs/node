@@ -171,10 +171,10 @@ dismiss the objection.
 Pull requests with outstanding objections must remain open until all
 objections are satisfied. If reaching consensus is not possible, a
 collaborator can escalate the issue to the TSC by pinging `@nodejs/tsc` and
-adding the `tsc-agenda` label to the issue and the TSC may choose to overrule
-or dismiss an objection. When the TSC does choose to overrule an objection,
-the TSC must provide a clear explanation of its reasoning in the pull request
-before the pull request lands.
+adding the `tsc-agenda` label to the issue. The change cannot proceed without
+either reaching consensus or a TSC decision to dismiss the objection(s). If the
+TSC does choose to dismiss any objections, a clear explanation of the reasoning
+must be given in the pull request before it lands.
 
 All Collaborator objections are considered equal. There is no greater weight given to
 objections from TSC members than from any other Collaborator.
