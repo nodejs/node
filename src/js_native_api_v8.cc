@@ -3104,9 +3104,9 @@ napi_status NAPI_CDECL napi_get_arraybuffer_info(napi_env env,
   return napi_clear_last_error(env);
 }
 
-napi_status NAPI_CDECL napi_is_sharedarraybuffer(napi_env env,
-                                                 napi_value value,
-                                                 bool* result) {
+napi_status NAPI_CDECL node_api_is_sharedarraybuffer(napi_env env,
+                                                     napi_value value,
+                                                     bool* result) {
   CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
@@ -3117,10 +3117,10 @@ napi_status NAPI_CDECL napi_is_sharedarraybuffer(napi_env env,
   return napi_clear_last_error(env);
 }
 
-napi_status NAPI_CDECL napi_create_sharedarraybuffer(napi_env env,
-                                                     size_t byte_length,
-                                                     void** data,
-                                                     napi_value* result) {
+napi_status NAPI_CDECL node_api_create_sharedarraybuffer(napi_env env,
+                                                         size_t byte_length,
+                                                         void** data,
+                                                         napi_value* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
