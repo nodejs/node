@@ -18,14 +18,14 @@ const test_sharedarraybuffer = require(`./build/${common.buildType}/test_shareda
   assert.strictEqual(test_sharedarraybuffer.TestIsSharedArrayBuffer(undefined), false);
 }
 
-// Test napi_create_sharedarraybuffer
+// Test node_api_create_sharedarraybuffer
 {
   const sab = test_sharedarraybuffer.TestCreateSharedArrayBuffer(16);
   assert(sab instanceof SharedArrayBuffer);
   assert.strictEqual(sab.byteLength, 16);
 }
 
-// Test napi_get_sharedarraybuffer_info
+// Test node_api_create_get_sharedarraybuffer_info
 {
   const sab = new SharedArrayBuffer(32);
   const byteLength = test_sharedarraybuffer.TestGetSharedArrayBufferInfo(sab);
