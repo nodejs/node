@@ -115,6 +115,215 @@ ModuleCacheKey ModuleCacheKey::From(Local<Context> context,
       context, v8_request->GetSpecifier(), v8_request->GetImportAttributes());
 }
 
+// static
+thread_local ModuleInstantiationContext*
+    ModuleInstantiationContext::thread_local_context_;
+
+// static
+MaybeLocal<Module> ModuleInstantiationContext::ResolveModuleCallback(
+    Local<Context> context,
+    Local<String> specifier,
+    Local<FixedArray> import_attributes,
+    Local<Module> referrer) {
+  CHECK_NOT_NULL(thread_local_context_);
+  return thread_local_context_->ResolveModule(
+      context, specifier, import_attributes, referrer);
+}
+
+// static
+MaybeLocal<Object> ModuleInstantiationContext::ResolveSourceCallback(
+    Local<Context> context,
+    Local<String> specifier,
+    Local<FixedArray> import_attributes,
+    Local<Module> referrer) {
+  CHECK_NOT_NULL(thread_local_context_);
+  return thread_local_context_->ResolveSource(
+      context, specifier, import_attributes, referrer);
+}
+
+ModuleInstantiationContext::ModuleInstantiationContext() {
+  // Only one ModuleInstantiationContext can exist per thread at a time.
+  CHECK_NULL(thread_local_context_);
+  thread_local_context_ = this;
+}
+
+ModuleInstantiationContext::~ModuleInstantiationContext() {
+  // Ensure that the thread-local context is this context.
+  CHECK_EQ(thread_local_context_, this);
+  thread_local_context_ = nullptr;
+}
+
+MaybeLocal<Module> ModuleInstantiationContext::ResolveModule(
+    Local<Context> context,
+    Local<String> specifier,
+    Local<FixedArray> import_attributes,
+    Local<Module> referrer) {
+  Isolate* isolate = context->GetIsolate();
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) {
+    THROW_ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE(isolate);
+    return MaybeLocal<Module>();
+  }
+
+  ModuleCacheKey cache_key =
+      ModuleCacheKey::From(context, specifier, import_attributes);
+
+  ModuleWrap* dependent = ModuleWrap::GetFromModule(env, referrer);
+  if (dependent == nullptr) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' is from invalid module", cache_key.specifier);
+    return MaybeLocal<Module>();
+  }
+  if (!dependent->IsLinked()) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env,
+        "request for '%s' is from a module not been linked",
+        cache_key.specifier);
+    return MaybeLocal<Module>();
+  }
+
+  ResolveCache* resolve_cache;
+  if (!GetModuleResolveCache(env, dependent, &resolve_cache).IsJust()) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env,
+        "request for '%s' failed to get resolve cache",
+        cache_key.specifier);
+    return MaybeLocal<Module>();
+  }
+  DCHECK_NOT_NULL(resolve_cache);
+
+  if (resolve_cache->count(cache_key) != 1) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' is not in cache", cache_key.specifier);
+    return MaybeLocal<Module>();
+  }
+
+  Local<Object> module_object = (*resolve_cache)[cache_key].Get(isolate);
+  if (module_object.IsEmpty() || !module_object->IsObject()) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' did not return an object", cache_key.specifier);
+    return MaybeLocal<Module>();
+  }
+
+  ModuleWrap* module;
+  ASSIGN_OR_RETURN_UNWRAP(&module, module_object, MaybeLocal<Module>());
+  return module->module_.Get(isolate);
+}
+
+MaybeLocal<Object> ModuleInstantiationContext::ResolveSource(
+    Local<Context> context,
+    Local<String> specifier,
+    Local<FixedArray> import_attributes,
+    Local<Module> referrer) {
+  Isolate* isolate = context->GetIsolate();
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) {
+    THROW_ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE(isolate);
+    return MaybeLocal<Object>();
+  }
+
+  ModuleCacheKey cache_key =
+      ModuleCacheKey::From(context, specifier, import_attributes);
+
+  ModuleWrap* dependent = ModuleWrap::GetFromModule(env, referrer);
+  if (dependent == nullptr) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' is from invalid module", cache_key.specifier);
+    return MaybeLocal<Object>();
+  }
+  if (!dependent->IsLinked()) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env,
+        "request for '%s' is from a module not been linked",
+        cache_key.specifier);
+    return MaybeLocal<Object>();
+  }
+
+  ResolveCache* resolve_cache;
+  if (!GetModuleResolveCache(env, dependent, &resolve_cache).IsJust()) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env,
+        "request for '%s' failed to get resolve cache",
+        cache_key.specifier);
+    return MaybeLocal<Object>();
+  }
+  DCHECK_NOT_NULL(resolve_cache);
+
+  if (resolve_cache->count(cache_key) != 1) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' is not in cache", cache_key.specifier);
+    return MaybeLocal<Object>();
+  }
+
+  Local<Object> module_object = (*resolve_cache)[cache_key].Get(isolate);
+  if (module_object.IsEmpty() || !module_object->IsObject()) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(
+        env, "request for '%s' did not return an object", cache_key.specifier);
+    return MaybeLocal<Object>();
+  }
+
+  ModuleWrap* module;
+  ASSIGN_OR_RETURN_UNWRAP(&module, module_object, MaybeLocal<Object>());
+
+  Local<Value> module_source_object =
+      module->object()
+          ->GetInternalField(ModuleWrap::kModuleSourceObjectSlot)
+          .As<Value>();
+  if (module_source_object->IsUndefined()) {
+    Local<String> url =
+        module->object()->GetInternalField(ModuleWrap::kURLSlot).As<String>();
+    THROW_ERR_SOURCE_PHASE_NOT_DEFINED(isolate, url);
+    return MaybeLocal<Object>();
+  }
+  CHECK(module_source_object->IsObject());
+  return module_source_object.As<Object>();
+}
+
+Maybe<void> ModuleInstantiationContext::GetModuleResolveCache(
+    Environment* env, ModuleWrap* module, ResolveCache** out_resolve_cache) {
+  CHECK_NOT_NULL(out_resolve_cache);
+
+  auto it = module_instance_graph_.find(module);
+  if (it != module_instance_graph_.end()) {
+    *out_resolve_cache = &it->second;
+    return JustVoid();
+  }
+
+  Isolate* isolate = env->isolate();
+  HandleScope scope(isolate);
+  Local<Context> context = env->context();
+
+  Local<FixedArray> requests =
+      module->module_.Get(isolate)->GetModuleRequests();
+
+  Local<Data> maybe_linked_requests =
+      module->object()->GetInternalField(ModuleWrap::kLinkedRequestsSlot);
+  CHECK(maybe_linked_requests->IsValue() &&
+        maybe_linked_requests.As<Value>()->IsArray());
+  Local<Array> linked_requests = maybe_linked_requests.As<Array>();
+
+  std::vector<Global<Value>> modules_buffer;
+  if (FromV8Array(context, linked_requests, &modules_buffer).IsNothing()) {
+    return Nothing<void>();
+  }
+
+  auto& resolve_cache = module_instance_graph_[module];
+
+  for (uint32_t i = 0; i < modules_buffer.size(); i++) {
+    Local<Object> module_object = modules_buffer[i].Get(isolate).As<Object>();
+
+    CHECK(env->isolate_data()->module_wrap_constructor_template()->HasInstance(
+        module_object));
+
+    ModuleCacheKey module_cache_key = ModuleCacheKey::From(
+        context, requests->Get(context, i).As<ModuleRequest>());
+    resolve_cache[module_cache_key].Reset(isolate, module_object);
+  }
+
+  *out_resolve_cache = &resolve_cache;
+  return JustVoid();
+}
+
 ModuleWrap::ModuleWrap(Realm* realm,
                        Local<Object> object,
                        Local<Module> module,
@@ -133,6 +342,8 @@ ModuleWrap::ModuleWrap(Realm* realm,
   object->SetInternalField(kSyntheticEvaluationStepsSlot,
                            synthetic_evaluation_step);
   object->SetInternalField(kContextObjectSlot, context_object);
+  object->SetInternalField(kLinkedRequestsSlot,
+                           v8::Undefined(realm->isolate()));
 
   if (!synthetic_evaluation_step->IsUndefined()) {
     synthetic_ = true;
@@ -571,34 +782,28 @@ void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
-  Local<Context> context = realm->context();
 
   ModuleWrap* dependent;
   ASSIGN_OR_RETURN_UNWRAP(&dependent, args.This());
 
   CHECK_EQ(args.Length(), 1);
 
+  Local<Data> linked_requests =
+      args.This()->GetInternalField(kLinkedRequestsSlot);
+  if (linked_requests->IsValue() &&
+      !linked_requests.As<Value>()->IsUndefined()) {
+    // If the module is already linked, we should not link it again.
+    THROW_ERR_VM_MODULE_LINK_FAILURE(realm->env(), "module is already linked");
+    return;
+  }
+
   Local<FixedArray> requests =
       dependent->module_.Get(isolate)->GetModuleRequests();
   Local<Array> modules = args[0].As<Array>();
   CHECK_EQ(modules->Length(), static_cast<uint32_t>(requests->Length()));
 
-  std::vector<Global<Value>> modules_buffer;
-  if (FromV8Array(context, modules, &modules_buffer).IsNothing()) {
-    return;
-  }
-
-  for (uint32_t i = 0; i < modules_buffer.size(); i++) {
-    Local<Object> module_object = modules_buffer[i].Get(isolate).As<Object>();
-
-    CHECK(
-        realm->isolate_data()->module_wrap_constructor_template()->HasInstance(
-            module_object));
-
-    ModuleCacheKey module_cache_key = ModuleCacheKey::From(
-        context, requests->Get(context, i).As<ModuleRequest>());
-    dependent->resolve_cache_[module_cache_key].Reset(isolate, module_object);
-  }
+  args.This()->SetInternalField(kLinkedRequestsSlot, modules);
+  dependent->linked_ = true;
 }
 
 void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
@@ -609,11 +814,16 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
   TryCatchScope try_catch(realm->env());
-  USE(module->InstantiateModule(
-      context, ResolveModuleCallback, ResolveSourceCallback));
 
-  // clear resolve cache on instantiate
-  obj->resolve_cache_.clear();
+  {
+    ModuleInstantiationContext instantiation_context;
+    USE(module->InstantiateModule(
+        context,
+        ModuleInstantiationContext::ResolveModuleCallback,
+        ModuleInstantiationContext::ResolveSourceCallback));
+
+    // instantiation_context goes out of scope.
+  }
 
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     CHECK(!try_catch.Message().IsEmpty());
@@ -719,11 +929,16 @@ void ModuleWrap::InstantiateSync(const FunctionCallbackInfo<Value>& args) {
 
   {
     TryCatchScope try_catch(env);
-    USE(module->InstantiateModule(
-        context, ResolveModuleCallback, ResolveSourceCallback));
 
-    // clear resolve cache on instantiate
-    obj->resolve_cache_.clear();
+    {
+      ModuleInstantiationContext instantiation_context;
+      USE(module->InstantiateModule(
+          context,
+          ModuleInstantiationContext::ResolveModuleCallback,
+          ModuleInstantiationContext::ResolveSourceCallback));
+
+      // instantiation_context goes out of scope.
+    }
 
     if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
       CHECK(!try_catch.Message().IsEmpty());
@@ -963,98 +1178,6 @@ void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
 
   Local<Module> module = obj->module_.Get(isolate);
   args.GetReturnValue().Set(module->GetException());
-}
-
-MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
-    Local<Context> context,
-    Local<String> specifier,
-    Local<FixedArray> import_attributes,
-    Local<Module> referrer) {
-  Isolate* isolate = context->GetIsolate();
-  Environment* env = Environment::GetCurrent(context);
-  if (env == nullptr) {
-    THROW_ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE(isolate);
-    return MaybeLocal<Module>();
-  }
-
-  ModuleCacheKey cache_key =
-      ModuleCacheKey::From(context, specifier, import_attributes);
-
-  ModuleWrap* dependent = GetFromModule(env, referrer);
-  if (dependent == nullptr) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is from invalid module", cache_key.specifier);
-    return MaybeLocal<Module>();
-  }
-
-  if (dependent->resolve_cache_.count(cache_key) != 1) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is not in cache", cache_key.specifier);
-    return MaybeLocal<Module>();
-  }
-
-  Local<Object> module_object =
-      dependent->resolve_cache_[cache_key].Get(isolate);
-  if (module_object.IsEmpty() || !module_object->IsObject()) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' did not return an object", cache_key.specifier);
-    return MaybeLocal<Module>();
-  }
-
-  ModuleWrap* module;
-  ASSIGN_OR_RETURN_UNWRAP(&module, module_object, MaybeLocal<Module>());
-  return module->module_.Get(isolate);
-}
-
-MaybeLocal<Object> ModuleWrap::ResolveSourceCallback(
-    Local<Context> context,
-    Local<String> specifier,
-    Local<FixedArray> import_attributes,
-    Local<Module> referrer) {
-  Isolate* isolate = context->GetIsolate();
-  Environment* env = Environment::GetCurrent(context);
-  if (env == nullptr) {
-    THROW_ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE(isolate);
-    return MaybeLocal<Object>();
-  }
-
-  ModuleCacheKey cache_key =
-      ModuleCacheKey::From(context, specifier, import_attributes);
-
-  ModuleWrap* dependent = GetFromModule(env, referrer);
-  if (dependent == nullptr) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is from invalid module", cache_key.specifier);
-    return MaybeLocal<Object>();
-  }
-
-  if (dependent->resolve_cache_.count(cache_key) != 1) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is not in cache", cache_key.specifier);
-    return MaybeLocal<Object>();
-  }
-
-  Local<Object> module_object =
-      dependent->resolve_cache_[cache_key].Get(isolate);
-  if (module_object.IsEmpty() || !module_object->IsObject()) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' did not return an object", cache_key.specifier);
-    return MaybeLocal<Object>();
-  }
-
-  ModuleWrap* module;
-  ASSIGN_OR_RETURN_UNWRAP(&module, module_object, MaybeLocal<Object>());
-
-  Local<Value> module_source_object =
-      module->object()->GetInternalField(kModuleSourceObjectSlot).As<Value>();
-  if (module_source_object->IsUndefined()) {
-    Local<String> url =
-        module->object()->GetInternalField(kURLSlot).As<String>();
-    THROW_ERR_SOURCE_PHASE_NOT_DEFINED(isolate, url);
-    return MaybeLocal<Object>();
-  }
-  CHECK(module_source_object->IsObject());
-  return module_source_object.As<Object>();
 }
 
 static MaybeLocal<Promise> ImportModuleDynamicallyWithPhase(

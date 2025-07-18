@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <map>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -21,6 +22,9 @@ class ContextifyContext;
 }
 
 namespace loader {
+
+// forward declarations
+class ModuleInstantiationContext;
 
 enum ScriptType : int {
   kScript,
@@ -96,7 +100,8 @@ class ModuleWrap : public BaseObject {
     kURLSlot,
     kModuleSourceObjectSlot,
     kSyntheticEvaluationStepsSlot,
-    kContextObjectSlot,  // Object whose creation context is the target Context
+    kContextObjectSlot,   // Object whose creation context is the target Context
+    kLinkedRequestsSlot,  // Array of linked requests
     kInternalFieldCount
   };
 
@@ -112,9 +117,6 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Module> module,
       v8::Local<v8::Object> meta);
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("resolve_cache", resolve_cache_);
-  }
   static void HasTopLevelAwait(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   v8::Local<v8::Context> context() const;
@@ -122,6 +124,7 @@ class ModuleWrap : public BaseObject {
 
   SET_MEMORY_INFO_NAME(ModuleWrap)
   SET_SELF_SIZE(ModuleWrap)
+  SET_NO_MEMORY_INFO()
 
   bool IsNotIndicativeOfMemoryLeakAtExit() const override {
     // XXX: The garbage collection rules for ModuleWrap are *super* unclear.
@@ -148,6 +151,8 @@ class ModuleWrap : public BaseObject {
 
   static void CreateRequiredModuleFacade(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  bool IsLinked() const { return linked_; }
 
  private:
   ModuleWrap(Realm* realm,
@@ -187,6 +192,26 @@ class ModuleWrap : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateCachedData(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
+
+  v8::Global<v8::Module> module_;
+  contextify::ContextifyContext* contextify_context_ = nullptr;
+  bool synthetic_ = false;
+  bool linked_ = false;
+  int module_hash_;
+
+  friend class ModuleInstantiationContext;
+};
+
+class ModuleInstantiationContext {
+  using ResolveCache = std::unordered_map<ModuleCacheKey,
+                                          v8::Global<v8::Object>,
+                                          ModuleCacheKey::Hash>;
+  // The key (a pointer to ModuleWrap) can be sorted, so we use a map for
+  // efficiency.
+  using ModuleInstanceGraph = std::map<ModuleWrap*, ResolveCache>;
+
+ public:
   static v8::MaybeLocal<v8::Module> ResolveModuleCallback(
       v8::Local<v8::Context> context,
       v8::Local<v8::String> specifier,
@@ -197,16 +222,32 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::String> specifier,
       v8::Local<v8::FixedArray> import_attributes,
       v8::Local<v8::Module> referrer);
-  static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
-  v8::Global<v8::Module> module_;
-  std::unordered_map<ModuleCacheKey,
-                     v8::Global<v8::Object>,
-                     ModuleCacheKey::Hash>
-      resolve_cache_;
-  contextify::ContextifyContext* contextify_context_ = nullptr;
-  bool synthetic_ = false;
-  int module_hash_;
+  ModuleInstantiationContext();
+  ~ModuleInstantiationContext();
+
+  v8::Maybe<bool> InstantiateModule(v8::Local<v8::Context> context,
+                                    v8::Local<v8::Module> module);
+
+ private:
+  static thread_local ModuleInstantiationContext* thread_local_context_;
+
+  v8::MaybeLocal<v8::Module> ResolveModule(
+      v8::Local<v8::Context> context,
+      v8::Local<v8::String> specifier,
+      v8::Local<v8::FixedArray> import_attributes,
+      v8::Local<v8::Module> referrer);
+  v8::MaybeLocal<v8::Object> ResolveSource(
+      v8::Local<v8::Context> context,
+      v8::Local<v8::String> specifier,
+      v8::Local<v8::FixedArray> import_attributes,
+      v8::Local<v8::Module> referrer);
+
+  v8::Maybe<void> GetModuleResolveCache(Environment* env,
+                                        ModuleWrap* module,
+                                        ResolveCache** out_resolve_cache);
+
+  ModuleInstanceGraph module_instance_graph_;
 };
 
 }  // namespace loader
