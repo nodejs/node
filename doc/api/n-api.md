@@ -4251,15 +4251,17 @@ SharedArrayBuffers are used to represent fixed-length binary data buffers
 that can be shared across multiple workers. They are similar to ArrayBuffers
 but allow for concurrent access from multiple threads.
 
-### `napi_is_sharedarraybuffer`
+### `node_api_is_sharedarraybuffer`
 
 <!-- YAML
 added: REPLACEME
 napiVersion: 10
 -->
 
+> Stability: 1 - Experimental
+
 ```c
-napi_status napi_is_sharedarraybuffer(napi_env env, napi_value value, bool* result)
+napi_status node_api_is_sharedarraybuffer(napi_env env, napi_value value, bool* result)
 ```
 
 * `[in] env`: The environment that the API is invoked under.
@@ -4270,18 +4272,20 @@ Returns `napi_ok` if the API succeeded.
 
 This API checks if the Object passed in is a `SharedArrayBuffer`.
 
-### `napi_create_sharedarraybuffer`
+### `node_api_create_sharedarraybuffer`
 
 <!-- YAML
 added: REPLACEME
 napiVersion: 10
 -->
 
+> Stability: 1 - Experimental
+
 ```c
-napi_status napi_create_sharedarraybuffer(napi_env env,
-                                         size_t byte_length,
-                                         void** data,
-                                         napi_value* result)
+napi_status node_api_create_sharedarraybuffer(napi_env env,
+                                             size_t byte_length,
+                                             void** data,
+                                             napi_value* result)
 ```
 
 * `[in] env`: The environment that the API is invoked under.
