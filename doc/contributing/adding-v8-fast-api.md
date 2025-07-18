@@ -26,7 +26,7 @@ for example, they may not trigger garbage collection.
   in a snapshot (either the built-in or a user-land one). Please refer to the
   [binding functions documentation](../../src/README.md#binding-functions) for more
   information.
-* The fast API function must be tested following with the example in
+* Fast API functions must be tested following the example in
   [Test with Fast API path](#test-with-fast-api-path).
 * The fast callback must be idempotent up to the point where error and fallback
   conditions are checked, because otherwise executing the slow callback might
