@@ -531,6 +531,8 @@ int SyncCallAndThrowOnError(Environment* env,
                             FSReqWrapSync* req_wrap,
                             Func fn,
                             Args... args);
+
+std::string ConvertWideToUTF8(const std::wstring& wstr);
 }  // namespace fs
 
 }  // namespace node

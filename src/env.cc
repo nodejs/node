@@ -1140,10 +1140,22 @@ CompileCacheEnableResult Environment::EnableCompileCache(
     return result;
   }
 
+  bool cache_path_is_relative = false;
+  std::string relative_path;
+  credentials::SafeGetenv(
+      "NODE_COMPILE_CACHE_RELATIVE_PATH", &relative_path, this);
+  if (!relative_path.empty() && relative_path != "0" &&
+      relative_path != "false") {
+    cache_path_is_relative = true;
+    Debug(this,
+          DebugCategory::COMPILE_CACHE,
+          "[compile cache] use relative path\n");
+  }
+
   if (!compile_cache_handler_) {
     std::unique_ptr<CompileCacheHandler> handler =
         std::make_unique<CompileCacheHandler>(this);
-    result = handler->Enable(this, cache_dir);
+    result = handler->Enable(this, cache_dir, cache_path_is_relative);
     if (result.status == CompileCacheEnableStatus::ENABLED) {
       compile_cache_handler_ = std::move(handler);
       AtExit(

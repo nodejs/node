@@ -3253,6 +3253,10 @@ added: v22.1.0
 Enable the [module compile cache][] for the Node.js instance. See the documentation of
 [module compile cache][] for details.
 
+### `NODE_COMPILE_CACHE_RELATIVE_PATH=0`
+
+When set to 1, the path for [module compile cache][] is considered relative.
+
 ### `NODE_DEBUG=module[,…]`
 
 <!-- YAML
