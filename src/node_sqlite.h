@@ -6,6 +6,7 @@
 #include "base_object.h"
 #include "node_mem.h"
 #include "sqlite3.h"
+#include "threadpoolwork-inl.h"
 #include "util.h"
 
 #include <map>
@@ -114,6 +115,8 @@ class Database : public BaseObject {
   void FinalizeStatements();
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);
+  void AddAsyncTask(ThreadPoolWork* async_task);
+  void RemoveAsyncTask(ThreadPoolWork* async_task);
   void FinalizeBackups();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
@@ -149,6 +152,7 @@ class Database : public BaseObject {
   bool ignore_next_sqlite_error_;
 
   std::set<BackupJob*> backups_;
+  std::set<ThreadPoolWork*> async_tasks_;
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
 
