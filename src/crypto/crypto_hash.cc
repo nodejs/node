@@ -275,26 +275,23 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
   }
 
   DataPointer output = ([&]() -> DataPointer {
-    Utf8Value utf8(isolate, args[3]);
-    ncrypto::Buffer<const unsigned char> buf;
     if (args[3]->IsString()) {
-      buf = {
+      Utf8Value utf8(isolate, args[3]);
+      ncrypto::Buffer<const unsigned char> buf = {
           .data = reinterpret_cast<const unsigned char*>(utf8.out()),
           .len = utf8.length(),
       };
-    } else {
-      ArrayBufferViewContents<unsigned char> input(args[3]);
-      buf = {
-          .data = reinterpret_cast<const unsigned char*>(input.data()),
-          .len = input.length(),
-      };
+      return is_xof ? ncrypto::xofHashDigest(buf, md, output_length)
+                    : ncrypto::hashDigest(buf, md);
     }
 
-    if (is_xof) {
-      return ncrypto::xofHashDigest(buf, md, output_length);
-    }
-
-    return ncrypto::hashDigest(buf, md);
+    ArrayBufferViewContents<unsigned char> input(args[3]);
+    ncrypto::Buffer<const unsigned char> buf = {
+        .data = reinterpret_cast<const unsigned char*>(input.data()),
+        .len = input.length(),
+    };
+    return is_xof ? ncrypto::xofHashDigest(buf, md, output_length)
+                  : ncrypto::hashDigest(buf, md);
   })();
 
   if (!output) [[unlikely]] {

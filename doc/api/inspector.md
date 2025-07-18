@@ -64,7 +64,7 @@ command.
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when any notification from the V8 Inspector is received.
 
@@ -85,7 +85,7 @@ It is also possible to subscribe only to notifications with specific method:
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when an inspector notification is received that has its method field set
 to the `<inspector-protocol-method>` value.
@@ -243,7 +243,7 @@ command.
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when any notification from the V8 Inspector is received.
 
@@ -264,7 +264,7 @@ It is also possible to subscribe only to notifications with specific method:
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when an inspector notification is received that has its method field set
 to the `<inspector-protocol-method>` value.
@@ -420,7 +420,7 @@ are closed. Once all connections are closed, deactivates the inspector.
 
 ### `inspector.console`
 
-* {Object} An object to send messages to the remote inspector console.
+* Type: {Object} An object to send messages to the remote inspector console.
 
 ```js
 require('node:inspector').console.log('a message');

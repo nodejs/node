@@ -262,17 +262,21 @@ export default [
       // ESLint recommended rules that we disable.
       'no-inner-declarations': 'off',
 
-      // JSDoc recommended rules that we disable.
+      // JSDoc rules.
       'jsdoc/require-jsdoc': 'off',
       'jsdoc/require-param-description': 'off',
-      'jsdoc/newline-after-description': 'off',
       'jsdoc/require-returns-description': 'off',
-      'jsdoc/valid-types': 'off',
-      'jsdoc/no-defaults': 'off',
+      'jsdoc/valid-types': 'error',
+      'jsdoc/no-defaults': 'error',
       'jsdoc/no-undefined-types': 'off',
       'jsdoc/require-param': 'off',
-      'jsdoc/check-tag-names': 'off',
-      'jsdoc/require-returns': 'off',
+      'jsdoc/check-tag-names': 'error',
+      'jsdoc/require-returns': 'error',
+      'jsdoc/check-line-alignment': ['error', 'any', {
+        tags: ['param', 'property', 'returns', 'file'],
+        wrapIndent: '  ',
+      }],
+      'jsdoc/check-alignment': 'error',
 
       // Stylistic rules.
       '@stylistic/js/arrow-parens': 'error',

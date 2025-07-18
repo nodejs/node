@@ -104,7 +104,7 @@ changes:
     description: Added the new optional reason argument.
 -->
 
-* `reason`: {any}
+* `reason` {any}
 * Returns: {AbortSignal}
 
 Returns a new already aborted `AbortSignal`.
@@ -238,7 +238,7 @@ See {Blob}.
 added: v0.1.103
 -->
 
-* {Function}
+* Type: {Function}
 
 Used to handle binary data. See the [buffer section][].
 
@@ -345,7 +345,7 @@ A browser-compatible implementation of [`CompressionStream`][].
 added: v0.1.100
 -->
 
-* {Object}
+* Type: {Object}
 
 Used to print to stdout and stderr. See the [`console`][] section.
 
@@ -589,7 +589,7 @@ added: v0.1.27
 
 > Stability: 3 - Legacy. Use [`globalThis`][] instead.
 
-* {Object} The global namespace object.
+* Type: {Object} The global namespace object.
 
 In browsers, the top-level scope has traditionally been the global scope. This
 means that `var something` will define a new global variable, except within
@@ -688,7 +688,7 @@ A partial implementation of [`window.navigator`][].
 added: v21.0.0
 -->
 
-* {number}
+* Type: {number}
 
 The `navigator.hardwareConcurrency` read-only property returns the number of
 logical processors available to the current Node.js instance.
@@ -703,7 +703,7 @@ console.log(`This process is running on ${navigator.hardwareConcurrency} logical
 added: v21.2.0
 -->
 
-* {string}
+* Type: {string}
 
 The `navigator.language` read-only property returns a string representing the
 preferred language of the Node.js instance. The language will be determined by
@@ -724,7 +724,7 @@ console.log(`The preferred language of the Node.js instance has the tag '${navig
 added: v21.2.0
 -->
 
-* {Array<string>}
+* Type: {Array<string>}
 
 The `navigator.languages` read-only property returns an array of strings
 representing the preferred languages of the Node.js instance.
@@ -744,7 +744,7 @@ console.log(`The preferred languages are '${navigator.languages}'`);
 added: v21.2.0
 -->
 
-* {string}
+* Type: {string}
 
 The `navigator.platform` read-only property returns a string identifying the
 platform on which the Node.js instance is running.
@@ -759,7 +759,7 @@ console.log(`This process is running on ${navigator.platform}`);
 added: v21.1.0
 -->
 
-* {string}
+* Type: {string}
 
 The `navigator.userAgent` read-only property returns user agent
 consisting of the runtime name and major version number.
@@ -767,6 +767,55 @@ consisting of the runtime name and major version number.
 ```js
 console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 ```
+
+### `navigator.locks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The `navigator.locks` read-only property returns a [`LockManager`][] instance that
+can be used to coordinate access to resources that may be shared across multiple
+threads within the same process. This global implementation matches the semantics
+of the [browser `LockManager`][] API.
+
+```mjs
+// Request an exclusive lock
+await navigator.locks.request('my_resource', async (lock) => {
+  // The lock has been acquired.
+  console.log(`Lock acquired: ${lock.name}`);
+  // Lock is automatically released when the function returns
+});
+
+// Request a shared lock
+await navigator.locks.request('shared_resource', { mode: 'shared' }, async (lock) => {
+  // Multiple shared locks can be held simultaneously
+  console.log(`Shared lock acquired: ${lock.name}`);
+});
+```
+
+```cjs
+// Request an exclusive lock
+navigator.locks.request('my_resource', async (lock) => {
+  // The lock has been acquired.
+  console.log(`Lock acquired: ${lock.name}`);
+  // Lock is automatically released when the function returns
+}).then(() => {
+  console.log('Lock released');
+});
+
+// Request a shared lock
+navigator.locks.request('shared_resource', { mode: 'shared' }, async (lock) => {
+  // Multiple shared locks can be held simultaneously
+  console.log(`Shared lock acquired: ${lock.name}`);
+}).then(() => {
+  console.log('Shared lock released');
+});
+```
+
+See [`worker.locks`][] for detailed API documentation.
 
 ## Class: `PerformanceEntry`
 
@@ -832,7 +881,7 @@ The [`perf_hooks.performance`][] object.
 added: v0.1.7
 -->
 
-* {Object}
+* Type: {Object}
 
 The process object. See the [`process` object][] section.
 
@@ -1181,7 +1230,7 @@ The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 added: v8.0.0
 -->
 
-* {Object}
+* Type: {Object}
 
 The object that acts as the namespace for all W3C
 [WebAssembly][webassembly-org] related functionality. See the
@@ -1263,6 +1312,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
+[`LockManager`]: worker_threads.md#class-lockmanager
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessagePort`]: worker_threads.md#class-messageport
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
@@ -1313,6 +1363,8 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`setTimeout`]: timers.md#settimeoutcallback-delay-args
 [`structuredClone`]: https://developer.mozilla.org/en-US/docs/Web/API/structuredClone
 [`window.navigator`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/navigator
+[`worker.locks`]: worker_threads.md#workerlocks
+[browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [timers]: timers.md

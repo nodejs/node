@@ -53,7 +53,7 @@ async function promise() {
   await (await fs.promises.open(__filename, 'r')).close();
 }
 
-promise().then(common.mustCall()).catch(common.mustNotCall());
+promise().then(common.mustCall());
 
 assert.throws(
   () => fs.open(__filename, 'r', 'boom', common.mustNotCall()),

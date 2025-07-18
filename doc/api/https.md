@@ -65,6 +65,14 @@ An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 
 <!-- YAML
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58980
+    description: Add support for `proxyEnv`.
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58980
+    description: Add support for `defaultPort` and `protocol`.
   - version: v12.5.0
     pr-url: https://github.com/nodejs/node/pull/28209
     description: do not automatically set servername if the target host was
@@ -168,7 +176,7 @@ See [`server.closeIdleConnections()`][] in the `node:http` module.
 added: v11.3.0
 -->
 
-* {number} **Default:** `60000`
+* Type: {number} **Default:** `60000`
 
 See [`server.headersTimeout`][] in the `node:http` module.
 
@@ -179,7 +187,7 @@ This method is identical to [`server.listen()`][] from [`net.Server`][].
 
 ### `server.maxHeadersCount`
 
-* {number} **Default:** `2000`
+* Type: {number} **Default:** `2000`
 
 See [`server.maxHeadersCount`][] in the `node:http` module.
 
@@ -194,7 +202,7 @@ changes:
                  from no timeout to 300s (5 minutes).
 -->
 
-* {number} **Default:** `300000`
+* Type: {number} **Default:** `300000`
 
 See [`server.requestTimeout`][] in the `node:http` module.
 
@@ -220,7 +228,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* {number} **Default:** 0 (no timeout)
+* Type: {number} **Default:** 0 (no timeout)
 
 See [`server.timeout`][] in the `node:http` module.
 
@@ -230,7 +238,7 @@ See [`server.timeout`][] in the `node:http` module.
 added: v8.0.0
 -->
 
-* {number} **Default:** `5000` (5 seconds)
+* Type: {number} **Default:** `5000` (5 seconds)
 
 See [`server.keepAliveTimeout`][] in the `node:http` module.
 

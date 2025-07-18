@@ -14,4 +14,4 @@ const assert = require('assert');
   }, {
     message: 'test',
   });
-})().catch(common.mustNotCall());
+})().then(common.mustCall());
