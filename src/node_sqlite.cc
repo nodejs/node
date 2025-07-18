@@ -424,6 +424,52 @@ class CustomAggregate {
   Global<Function> result_fn_;
 };
 
+template <typename T>
+class SQLiteAsyncTask : public ThreadPoolWork {
+ public:
+  explicit SQLiteAsyncTask(
+      Environment* env,
+      Database* db,
+      Local<Promise::Resolver> resolver,
+      std::function<T()> work,
+      std::function<void(T, Local<Promise::Resolver>)> after)
+      : ThreadPoolWork(env, "node_sqlite_async_work"),
+        env_(env),
+        db_(db),
+        work_(work),
+        after_(after) {
+    resolver_.Reset(env->isolate(), resolver);
+  }
+
+  void DoThreadPoolWork() override {
+    if (work_) {
+      result_ = work_();
+    }
+  }
+
+  void AfterThreadPoolWork(int status) override {
+    Isolate* isolate = env_->isolate();
+    HandleScope handle_scope(isolate);
+    Local<Promise::Resolver> resolver =
+        Local<Promise::Resolver>::New(isolate, resolver_);
+
+    if (after_) {
+      after_(result_, resolver);
+      Finalize();
+    }
+  }
+
+  void Finalize() { db_->RemoveAsyncTask(this); }
+
+ private:
+  Environment* env_;
+  Database* db_;
+  Global<Promise::Resolver> resolver_;
+  std::function<T()> work_ = nullptr;
+  std::function<void(T, Local<Promise::Resolver>)> after_ = nullptr;
+  T result_;
+};
+
 class BackupJob : public ThreadPoolWork {
  public:
   explicit BackupJob(Environment* env,
@@ -649,10 +695,10 @@ void UserDefinedFunction::xDestroy(void* self) {
 }
 
 Database::Database(Environment* env,
-                           Local<Object> object,
-                           DatabaseOpenConfiguration&& open_config,
-                           bool open,
-                           bool allow_load_extension)
+                   Local<Object> object,
+                   DatabaseOpenConfiguration&& open_config,
+                   bool open,
+                   bool allow_load_extension)
     : BaseObject(env, object), open_config_(std::move(open_config)) {
   MakeWeak();
   connection_ = nullptr;
@@ -673,6 +719,14 @@ void Database::RemoveBackup(BackupJob* job) {
   backups_.erase(job);
 }
 
+void Database::AddAsyncTask(ThreadPoolWork* async_task) {
+  async_tasks_.insert(async_task);
+}
+
+void Database::RemoveAsyncTask(ThreadPoolWork* async_task) {
+  async_tasks_.erase(async_task);
+}
+
 void Database::DeleteSessions() {
   // all attached sessions need to be deleted before the database is closed
   // https://www.sqlite.org/session/sqlite3session_create.html
@@ -684,6 +738,7 @@ void Database::DeleteSessions() {
 
 Database::~Database() {
   FinalizeBackups();
+  async_tasks_.clear();
 
   if (IsOpen()) {
     FinalizeStatements();
@@ -840,7 +895,8 @@ std::optional<std::string> ValidateDatabasePath(Environment* env,
   return std::nullopt;
 }
 
-inline void DatabaseNew(const FunctionCallbackInfo<Value>& args, bool async = true) {
+inline void DatabaseNew(const FunctionCallbackInfo<Value>& args,
+                        bool async = true) {
   Environment* env = Environment::GetCurrent(args);
   if (!args.IsConstructCall()) {
     THROW_ERR_CONSTRUCT_CALL_REQUIRED(env);
@@ -1052,8 +1108,7 @@ void Database::IsOpenGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(db->IsOpen());
 }
 
-void Database::IsTransactionGetter(
-    const FunctionCallbackInfo<Value>& args) {
+void Database::IsTransactionGetter(const FunctionCallbackInfo<Value>& args) {
   Database* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
@@ -1115,13 +1170,47 @@ void Database::Exec(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  Isolate* isolate = env->isolate();
+  auto sql = Utf8Value(isolate, args[0].As<String>()).ToString();
+  auto task = [sql, db]() -> int {
+    return sqlite3_exec(
+        db->connection_, sql.c_str(), nullptr, nullptr, nullptr);
+  };
+
   if (db->open_config_.get_async()) {
-    // TODO(geeksilva97): Support async by returning a Promise
-    std::cout << "This is async" << std::endl;
+    Local<Promise::Resolver> resolver;
+    if (!Promise::Resolver::New(env->context()).ToLocal(&resolver)) {
+      return;
+    }
+
+    auto after = [db, env, isolate](int exec_result,
+                                    Local<Promise::Resolver> resolver) {
+      if (exec_result != SQLITE_OK) {
+        if (db->ShouldIgnoreSQLiteError()) {
+          db->SetIgnoreNextSQLiteError(false);
+          return;
+        }
+
+        Local<Object> e;
+        if (!CreateSQLiteError(isolate, db->Connection()).ToLocal(&e)) {
+          return;
+        }
+
+        resolver->Reject(env->context(), e).FromJust();
+        return;
+      }
+
+      resolver->Resolve(env->context(), Undefined(env->isolate())).FromJust();
+    };
+
+    auto* work = new SQLiteAsyncTask<int>(env, db, resolver, task, after);
+    work->ScheduleWork();
+    db->AddAsyncTask(work);
+    args.GetReturnValue().Set(resolver->GetPromise());
+    return;
   }
 
-  Utf8Value sql(env->isolate(), args[0].As<String>());
-  int r = sqlite3_exec(db->connection_, *sql, nullptr, nullptr, nullptr);
+  int r = task();
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
@@ -1775,8 +1864,7 @@ void Database::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
   THROW_ERR_SQLITE_ERROR(env->isolate(), r);
 }
 
-void Database::EnableLoadExtension(
-    const FunctionCallbackInfo<Value>& args) {
+void Database::EnableLoadExtension(const FunctionCallbackInfo<Value>& args) {
   Database* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
@@ -2471,8 +2559,9 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
   return tmpl;
 }
 
-BaseObjectPtr<StatementSync> StatementSync::Create(
-    Environment* env, BaseObjectPtr<Database> db, sqlite3_stmt* stmt) {
+BaseObjectPtr<StatementSync> StatementSync::Create(Environment* env,
+                                                   BaseObjectPtr<Database> db,
+                                                   sqlite3_stmt* stmt) {
   Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
@@ -2731,12 +2820,15 @@ void DefineConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, SQLITE_CHANGESET_FOREIGN_KEY);
 }
 
-void DefineAsyncInterface(Isolate* isolate, Local<Object> target, Local<Context> context) {
+void DefineAsyncInterface(Isolate* isolate,
+                          Local<Object> target,
+                          Local<Context> context) {
   Local<FunctionTemplate> db_async_tmpl =
       NewFunctionTemplate(isolate, Database::NewAsync);
   db_async_tmpl->InstanceTemplate()->SetInternalFieldCount(
       Database::kInternalFieldCount);
 
+  SetProtoMethod(isolate, db_async_tmpl, "close", Database::Close);
   SetProtoMethod(isolate, db_async_tmpl, "exec", Database::Exec);
   SetConstructorFunction(context, target, "Database", db_async_tmpl);
 }
