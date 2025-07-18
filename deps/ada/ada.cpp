@@ -1,4 +1,4 @@
-/* auto-generated on 2025-04-28 12:16:36 -0400. Do not edit! */
+/* auto-generated on 2025-06-30 19:51:09 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -134,7 +134,7 @@ ada_really_inline constexpr bool verify_dns_length(
 
 ADA_PUSH_DISABLE_ALL_WARNINGS
 /* begin file src/ada_idna.cpp */
-/* auto-generated on 2025-03-08 13:17:11 -0500. Do not edit! */
+/* auto-generated on 2025-06-26 23:04:30 -0300. Do not edit! */
 /* begin file src/idna.cpp */
 /* begin file src/unicode_transcoding.cpp */
 
@@ -8157,7 +8157,7 @@ bool utf32_to_punycode(std::u32string_view input, std::string &out) {
       ++h;
       out.push_back(char(c));
     }
-    if (c > 0x10ffff || (c >= 0xd880 && c < 0xe000)) {
+    if (c > 0x10ffff || (c >= 0xd800 && c < 0xe000)) {
       return false;
     }
   }
@@ -9547,6 +9547,10 @@ bool is_label_valid(const std::u32string_view label) {
 #include <ranges>
 
 
+#ifdef ADA_USE_SIMDUTF
+#include "simdutf.h"
+#endif
+
 namespace ada::idna {
 
 bool constexpr is_ascii(std::u32string_view view) {
@@ -9659,11 +9663,20 @@ std::string to_ascii(std::string_view ut8_string) {
   }
   static const std::string error = "";
   // We convert to UTF-32
+
+#ifdef ADA_USE_SIMDUTF
+  size_t utf32_length =
+      simdutf::utf32_length_from_utf8(ut8_string.data(), ut8_string.size());
+  std::u32string utf32(utf32_length, '\0');
+  size_t actual_utf32_length = simdutf::convert_utf8_to_utf32(
+      ut8_string.data(), ut8_string.size(), utf32.data());
+#else
   size_t utf32_length =
       ada::idna::utf32_length_from_utf8(ut8_string.data(), ut8_string.size());
   std::u32string utf32(utf32_length, '\0');
   size_t actual_utf32_length = ada::idna::utf8_to_utf32(
       ut8_string.data(), ut8_string.size(), utf32.data());
+#endif
   if (actual_utf32_length == 0) {
     return error;
   }
@@ -9755,6 +9768,10 @@ std::string to_ascii(std::string_view ut8_string) {
 #include <string>
 
 
+#ifdef ADA_USE_SIMDUTF
+#include "simdutf.h"
+#endif
+
 namespace ada::idna {
 std::string to_unicode(std::string_view input) {
   std::string output;
@@ -9773,11 +9790,19 @@ std::string to_unicode(std::string_view input) {
       if (ada::idna::verify_punycode(label_view)) {
         std::u32string tmp_buffer;
         if (ada::idna::punycode_to_utf32(label_view, tmp_buffer)) {
+#ifdef ADA_USE_SIMDUTF
+          auto utf8_size = simdutf::utf8_length_from_utf32(tmp_buffer.data(),
+                                                           tmp_buffer.size());
+          std::string final_utf8(utf8_size, '\0');
+          simdutf::convert_utf32_to_utf8(tmp_buffer.data(), tmp_buffer.size(),
+                                         final_utf8.data());
+#else
           auto utf8_size = ada::idna::utf8_length_from_utf32(tmp_buffer.data(),
                                                              tmp_buffer.size());
           std::string final_utf8(utf8_size, '\0');
           ada::idna::utf32_to_utf8(tmp_buffer.data(), tmp_buffer.size(),
                                    final_utf8.data());
+#endif
           output.append(final_utf8);
         } else {
           // ToUnicode never fails.  If any step fails, then the original input
@@ -11042,7 +11067,7 @@ bool can_parse(std::string_view input, const std::string_view* base_input) {
   return result.is_valid;
 }
 
-ada_warn_unused std::string to_string(ada::encoding_type type) {
+ada_warn_unused std::string_view to_string(ada::encoding_type type) {
   switch (type) {
     case ada::encoding_type::UTF8:
       return "UTF-8";
@@ -12536,35 +12561,67 @@ bool url::set_host_or_hostname(const std::string_view input) {
     // Note: the 'found_colon' value is true if and only if a colon was
     // encountered while not inside brackets.
     if (found_colon) {
+      // If buffer is the empty string, host-missing validation error, return
+      // failure.
+      std::string_view buffer = host_view.substr(0, location);
+      if (buffer.empty()) {
+        return false;
+      }
+
+      // If state override is given and state override is hostname state, then
+      // return failure.
       if constexpr (override_hostname) {
         return false;
       }
-      std::string_view buffer = new_host.substr(location + 1);
-      if (!buffer.empty()) {
-        set_port(buffer);
-      }
-    }
-    // If url is special and host_view is the empty string, validation error,
-    // return failure. Otherwise, if state override is given, host_view is the
-    // empty string, and either url includes credentials or url's port is
-    // non-null, return.
-    else if (host_view.empty() &&
-             (is_special() || has_credentials() || port.has_value())) {
-      return false;
-    }
 
-    // Let host be the result of host parsing host_view with url is not special.
-    if (host_view.empty() && !is_special()) {
-      host = "";
+      // Let host be the result of host parsing buffer with url is not special.
+      bool succeeded = parse_host(buffer);
+      if (!succeeded) {
+        host = std::move(previous_host);
+        update_base_port(previous_port);
+        return false;
+      }
+
+      // Set url's host to host, buffer to the empty string, and state to port
+      // state.
+      std::string_view port_buffer = new_host.substr(location + 1);
+      if (!port_buffer.empty()) {
+        set_port(port_buffer);
+      }
       return true;
     }
+    // Otherwise, if one of the following is true:
+    // - c is the EOF code point, U+002F (/), U+003F (?), or U+0023 (#)
+    // - url is special and c is U+005C (\)
+    else {
+      // If url is special and host_view is the empty string, host-missing
+      // validation error, return failure.
+      if (host_view.empty() && is_special()) {
+        return false;
+      }
 
-    bool succeeded = parse_host(host_view);
-    if (!succeeded) {
-      host = std::move(previous_host);
-      update_base_port(previous_port);
+      // Otherwise, if state override is given, host_view is the empty string,
+      // and either url includes credentials or url's port is non-null, then
+      // return failure.
+      if (host_view.empty() && (has_credentials() || port.has_value())) {
+        return false;
+      }
+
+      // Let host be the result of host parsing host_view with url is not
+      // special.
+      if (host_view.empty() && !is_special()) {
+        host = "";
+        return true;
+      }
+
+      bool succeeded = parse_host(host_view);
+      if (!succeeded) {
+        host = std::move(previous_host);
+        update_base_port(previous_port);
+        return false;
+      }
+      return true;
     }
-    return succeeded;
   }
 
   size_t location = new_host.find_first_of("/\\?");
@@ -12621,10 +12678,16 @@ bool url::set_port(const std::string_view input) {
   if (cannot_have_credentials_or_port()) {
     return false;
   }
+
+  if (input.empty()) {
+    port = std::nullopt;
+    return true;
+  }
+
   std::string trimmed(input);
   helpers::remove_ascii_tab_or_newline(trimmed);
+
   if (trimmed.empty()) {
-    port = std::nullopt;
     return true;
   }
 
@@ -12633,9 +12696,15 @@ bool url::set_port(const std::string_view input) {
     return false;
   }
 
+  // Find the first non-digit character to determine the length of digits
+  auto first_non_digit =
+      std::ranges::find_if_not(trimmed, ada::unicode::is_ascii_digit);
+  std::string_view digits_to_parse =
+      std::string_view(trimmed.data(), first_non_digit - trimmed.begin());
+
   // Revert changes if parse_port fails.
   std::optional<uint16_t> previous_port = port;
-  parse_port(trimmed);
+  parse_port(digits_to_parse);
   if (is_valid) {
     return true;
   }
@@ -13966,10 +14035,16 @@ bool url_aggregator::set_port(const std::string_view input) {
   if (cannot_have_credentials_or_port()) {
     return false;
   }
+
+  if (input.empty()) {
+    clear_port();
+    return true;
+  }
+
   std::string trimmed(input);
   helpers::remove_ascii_tab_or_newline(trimmed);
+
   if (trimmed.empty()) {
-    clear_port();
     return true;
   }
 
@@ -13978,9 +14053,15 @@ bool url_aggregator::set_port(const std::string_view input) {
     return false;
   }
 
+  // Find the first non-digit character to determine the length of digits
+  auto first_non_digit =
+      std::ranges::find_if_not(trimmed, ada::unicode::is_ascii_digit);
+  std::string_view digits_to_parse =
+      std::string_view(trimmed.data(), first_non_digit - trimmed.begin());
+
   // Revert changes if parse_port fails.
   uint32_t previous_port = components.port;
-  parse_port(trimmed);
+  parse_port(digits_to_parse);
   if (is_valid) {
     return true;
   }
@@ -14223,43 +14304,75 @@ bool url_aggregator::set_host_or_hostname(const std::string_view input) {
     // Note: the 'found_colon' value is true if and only if a colon was
     // encountered while not inside brackets.
     if (found_colon) {
+      // If buffer is the empty string, host-missing validation error, return
+      // failure.
+      std::string_view host_buffer = host_view.substr(0, location);
+      if (host_buffer.empty()) {
+        return false;
+      }
+
+      // If state override is given and state override is hostname state, then
+      // return failure.
       if constexpr (override_hostname) {
         return false;
       }
-      std::string_view sub_buffer = new_host.substr(location + 1);
-      if (!sub_buffer.empty()) {
-        set_port(sub_buffer);
-      }
-    }
-    // If url is special and host_view is the empty string, validation error,
-    // return failure. Otherwise, if state override is given, host_view is the
-    // empty string, and either url includes credentials or url's port is
-    // non-null, return.
-    else if (host_view.empty() &&
-             (is_special() || has_credentials() || has_port())) {
-      return false;
-    }
 
-    // Let host be the result of host parsing host_view with url is not special.
-    if (host_view.empty() && !is_special()) {
-      if (has_hostname()) {
-        clear_hostname();  // easy!
+      // Let host be the result of host parsing buffer with url is not special.
+      bool succeeded = parse_host(host_buffer);
+      if (!succeeded) {
+        update_base_hostname(previous_host);
+        update_base_port(previous_port);
+        return false;
+      }
+
+      // Set url's host to host, buffer to the empty string, and state to port
+      // state.
+      std::string_view port_buffer = new_host.substr(location + 1);
+      if (!port_buffer.empty()) {
+        set_port(port_buffer);
+      }
+      return true;
+    }
+    // Otherwise, if one of the following is true:
+    // - c is the EOF code point, U+002F (/), U+003F (?), or U+0023 (#)
+    // - url is special and c is U+005C (\)
+    else {
+      // If url is special and host_view is the empty string, host-missing
+      // validation error, return failure.
+      if (host_view.empty() && is_special()) {
+        return false;
+      }
+
+      // Otherwise, if state override is given, host_view is the empty string,
+      // and either url includes credentials or url's port is non-null, then
+      // return failure.
+      if (host_view.empty() && (has_credentials() || has_port())) {
+        return false;
+      }
+
+      // Let host be the result of host parsing host_view with url is not
+      // special.
+      if (host_view.empty() && !is_special()) {
+        if (has_hostname()) {
+          clear_hostname();  // easy!
+        } else if (has_dash_dot()) {
+          add_authority_slashes_if_needed();
+          delete_dash_dot();
+        }
+        return true;
+      }
+
+      bool succeeded = parse_host(host_view);
+      if (!succeeded) {
+        update_base_hostname(previous_host);
+        update_base_port(previous_port);
+        return false;
       } else if (has_dash_dot()) {
-        add_authority_slashes_if_needed();
+        // Should remove dash_dot from pathname
         delete_dash_dot();
       }
       return true;
     }
-
-    bool succeeded = parse_host(host_view);
-    if (!succeeded) {
-      update_base_hostname(previous_host);
-      update_base_port(previous_port);
-    } else if (has_dash_dot()) {
-      // Should remove dash_dot from pathname
-      delete_dash_dot();
-    }
-    return succeeded;
   }
 
   size_t location = new_host.find_first_of("/\\?");
