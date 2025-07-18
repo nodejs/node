@@ -486,13 +486,11 @@ napi_get_dataview_info(napi_env env,
                        napi_value* arraybuffer,
                        size_t* byte_offset);
 
-#if NAPI_VERSION >= 10
 NAPI_EXTERN napi_status NAPI_CDECL node_api_is_sharedarraybuffer(napi_env env,
                                                                  napi_value value,
                                                                  bool* result);
 NAPI_EXTERN napi_status NAPI_CDECL node_api_create_sharedarraybuffer(
     napi_env env, size_t byte_length, void** data, napi_value* result);
-#endif  // NAPI_VERSION >= 10
 
 // version management
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_version(node_api_basic_env env,
