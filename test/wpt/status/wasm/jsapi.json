@@ -1,0 +1,56 @@
+{
+  "esm-integration/global-exports-live-bindings.tentative.any.js": {
+    "skip": "Live bindings unsupported pending V8 WebAssemblyModuleRecord"
+  },
+  "esm-integration/v128-tdz.tentative.any.js": {
+    "skip": "v128 undefined Wasm bindings not yet supported in V8"
+  },
+  "esm-integration/namespace-instance.tentative.any.js": {
+    "skip": "pending https://github.com/nodejs/node/pull/59024"
+  },
+  "esm-integration/reserved-import-names.tentative.any.js": {
+    "skip": "pending https://github.com/nodejs/node/pull/59020"
+  },
+  "esm-integration/source-phase-string-builtins.tentative.any.js": {
+    "skip": "pending https://github.com/nodejs/node/pull/59020"
+  },
+  "esm-integration/string-builtins.tentative.any.js": {
+    "skip": "pending https://github.com/nodejs/node/pull/59020"
+  },
+  "exception/getArg.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "function/call.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "function/constructor.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "function/table.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "function/type.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "global/type.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "idlharness.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "memory/constructor-types.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "memory/type.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "table/constructor-types.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "table/type.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  },
+  "tag/type.tentative.any.js": {
+    "skip": "track - still tentative / unsupported"
+  }
+}
