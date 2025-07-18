@@ -4308,7 +4308,7 @@ written to directly from native code. To write to this buffer from JavaScript,
 a typed array or `DataView` object would need to be created.
 
 JavaScript `SharedArrayBuffer` objects are described in
-[Section 24.2][] of the ECMAScript Language Specification.
+\[Section 24.2]\[] of the ECMAScript Language Specification.
 
 ## Working with JavaScript properties
 
