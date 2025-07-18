@@ -179,17 +179,15 @@ before the pull request lands.
 All Collaborator objections are considered equal. There is no greater weight given to
 objections from TSC members than from any other Collaborator.
 
-Mistakes do happen from time to time. If a pull request is merged with an
-outstanding objection, any collaborator can open an issue or pull request
-proposing to revert the change or to make a follow-up change that addresses
-the objection. Such reverts / follow-ups will typically be subject to
-fast-tracking, particularly if they are uncontroversial, but an
-automatic, immediate revert is not always necessary and, in some
-cases might not be ideal.
-It is most likely that any outstanding objection was simply
-overlooked by mistake. Collaborators objecting to a pull request can best
-ensure their objections are addressed by remaining actively engaged and
-responsive in the discussion.
+Mistakes do happen from time-to-time. If a pull request is merged with an
+outstanding objection, corrective action should be taken. Any collaborator
+can open a pull request that either reverts the change or makes an additional
+follow-up change that addresses the objection. Such corrections will typically
+be subject to fast-tracking. An automatic, immediate revert is not always
+necessary or ideal.
+
+Collaborators objecting to a pull request can best ensure their objections
+are addressed by remaining actively engaged and responsive in the discussion.
 
 #### Helpful resources
 
