@@ -2260,6 +2260,54 @@ openssl pkcs12 -certpbe AES-256-CBC -export -out client-cert.pem \
 The server can be tested by connecting to it using the example client from
 [`tls.connect()`][].
 
+## `tls.setDefaultCACertificates(certs)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `certs` {string\[]|ArrayBufferView\[]} An array of CA certificates in PEM format.
+
+Sets the default CA certificates used by Node.js TLS clients. If the provided
+certificates are parsed successfully, they will become the default CA
+certificate list returned by [`tls.getCACertificates()`][] and used
+by subsequent TLS connections that don't specify their own CA certificates.
+The certificates will be deduplicated before being set as the default.
+
+This function only affects the current Node.js thread. Previous
+sessions cached by the HTTPS agent won't be affected by this change, so
+this method should be called before any unwanted cachable TLS connections are
+made.
+
+To use system CA certificates as the default:
+
+```cjs
+const tls = require('node:tls');
+tls.setDefaultCACertificates(tls.getCACertificates('system'));
+```
+
+```mjs
+import tls from 'node:tls';
+tls.setDefaultCACertificates(tls.getCACertificates('system'));
+```
+
+This function completely replaces the default CA certificate list. To add additional
+certificates to the existing defaults, get the current certificates and append to them:
+
+```cjs
+const tls = require('node:tls');
+const currentCerts = tls.getCACertificates('default');
+const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];
+tls.setDefaultCACertificates([...currentCerts, ...additionalCerts]);
+```
+
+```mjs
+import tls from 'node:tls';
+const currentCerts = tls.getCACertificates('default');
+const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];
+tls.setDefaultCACertificates([...currentCerts, ...additionalCerts]);
+```
+
 ## `tls.getCACertificates([type])`
 
 <!-- YAML
