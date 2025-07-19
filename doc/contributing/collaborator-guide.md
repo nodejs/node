@@ -180,7 +180,7 @@ All Collaborator objections are considered equal. There is no greater weight giv
 objections from TSC members than from any other Collaborator.
 
 Mistakes do happen from time-to-time. If a pull request is merged with an
-outstanding objection, corrective action should be taken. Any Collaborator
+outstanding objection, corrective action must be taken. Any Collaborator
 can open a pull request that either reverts the change or makes an additional
 follow-up change that addresses the objection. While an automatic or immediate
 revert is not always necessary or ideal, such corrections are typically subject to
