@@ -108,6 +108,10 @@ expected.beforePreExec = new Set([
   'NativeModule internal/data_url',
   'NativeModule internal/mime',
 ]);
+if (common.isWindows) {
+  expected.beforePreExec.add('NativeModule internal/code_integrity');
+  expected.beforePreExec.add('Internal Binding code_integrity');
+}
 
 expected.atRunTime = new Set([
   'Internal Binding worker',
