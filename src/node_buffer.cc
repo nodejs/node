@@ -1061,8 +1061,9 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding enc = static_cast<enum encoding>(args[3].As<Int32>()->Value());
 
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[1]);
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
   ArrayBufferViewContents<char> haystack_contents(args[0]);
   ArrayBufferViewContents<char> needle_contents(args[1]);
   int64_t offset_i64 = args[2].As<Integer>()->Value();
