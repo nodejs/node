@@ -22,6 +22,11 @@ template("node_gn_build") {
     } else {
       defines += [ "HAVE_OPENSSL=0" ]
     }
+    if (node_use_sqlite) {
+      defines += [ "HAVE_SQLITE=1" ]
+    } else {
+      defines += [ "HAVE_SQLITE=0" ]
+    }
     if (node_use_amaro) {
       defines += [ "HAVE_AMARO=1" ]
     } else {
@@ -159,7 +164,6 @@ template("node_gn_build") {
       "deps/nghttp2",
       "deps/ngtcp2",
       "deps/postject",
-      "deps/sqlite",
       "deps/uvwasi",
       "deps/zstd",
       "//third_party/zlib",
@@ -192,6 +196,10 @@ template("node_gn_build") {
       deps += [ "deps/ncrypto" ]
       public_deps += [ "$node_openssl_path" ]
       sources += gypi_values.node_crypto_sources
+    }
+    if (node_use_sqlite) {
+      deps += [ "deps/sqlite" ]
+      sources += gypi_values.node_sqlite_sources
     }
     if (node_enable_inspector) {
       deps += [
