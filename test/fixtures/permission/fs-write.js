@@ -211,6 +211,12 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
   }));
+  assert.rejects(async () => {
+    await fs.promises.mkdtemp(path.join(blockedFolder, 'any-folder'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
 }
 
 // fs.mkdtempDisposableSync
