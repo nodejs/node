@@ -9,6 +9,8 @@ function allow() {
 
 class Benchmark {
   constructor(fn, configs, options = {}) {
+    this.setup = options.setup;
+    this.teardown = options.teardown;
     // Used to make sure a benchmark only start a timer once
     this._started = false;
 
@@ -62,6 +64,9 @@ class Benchmark {
       if (process.env.NODE_RUN_BENCHMARK_FN !== undefined) {
         fn(this.config);
       } else {
+        if (this.setup) {
+          this.setup();
+        }
         // _run will use fork() to create a new process for each configuration
         // combination.
         this._run();
@@ -234,6 +239,8 @@ class Benchmark {
 
         if (queueIndex + 1 < this.queue.length) {
           recursive(queueIndex + 1);
+        } else if (this.teardown) {
+          this.teardown();
         }
       });
     };
