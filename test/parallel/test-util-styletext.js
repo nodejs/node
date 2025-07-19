@@ -65,7 +65,7 @@ assert.strictEqual(
                  'dim' +
     util.styleText('bold', 'bold', { validateStream: false }) +
   'dim', { validateStream: false }),
-  '\x1B[2mdim\x1B[1mbold\x1B[2mdim\x1B[22m'
+  '\x1B[2mdim\x1B[1mbold\x1B[22m\x1B[2mdim\x1B[22m'
 );
 
 assert.strictEqual(
