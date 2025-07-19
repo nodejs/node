@@ -3278,7 +3278,7 @@ napi_status napi_get_arraybuffer_info(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] arraybuffer`: `napi_value` representing the `ArrayBuffer` or `SharedArrayBuffer` being queried.
-* `[out] data`: The underlying data buffer of the `ArrayBuffer`. If byte\_length
+* `[out] data`: The underlying data buffer of the `ArrayBuffer` or `SharedArrayBuffer`
   is `0`, this may be `NULL` or any other pointer value.
 * `[out] byte_length`: Length in bytes of the underlying data buffer.
 
@@ -4307,7 +4307,7 @@ written to directly from native code. To write to this buffer from JavaScript,
 a typed array or `DataView` object would need to be created.
 
 JavaScript `SharedArrayBuffer` objects are described in
-\[Section 24.2]\[] of the ECMAScript Language Specification.
+[Section SharedArrayBuffer objects][] of the ECMAScript Language Specification.
 
 ## Working with JavaScript properties
 
@@ -6822,6 +6822,7 @@ the add-on's file name during loading.
 [Section IsArray]: https://tc39.es/ecma262/#sec-isarray
 [Section IsStrctEqual]: https://tc39.es/ecma262/#sec-strict-equality-comparison
 [Section Promise objects]: https://tc39.es/ecma262/#sec-promise-objects
+[Section SharedArrayBuffer objects]: https://tc39.es/ecma262/#sec-sharedarraybuffer-objects
 [Section ToBoolean]: https://tc39.es/ecma262/#sec-toboolean
 [Section ToNumber]: https://tc39.es/ecma262/#sec-tonumber
 [Section ToObject]: https://tc39.es/ecma262/#sec-toobject
