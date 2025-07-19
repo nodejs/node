@@ -801,8 +801,8 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
 You can use the keyring the project maintains at
 <https://github.com/nodejs/release-keys/raw/refs/heads/main/gpg-only-active-keys/pubring.kbx>.
-Alternatively, you can import them from a public key server, have in mind that
-the project cannot guarantee the disponibility of the server nor the keys on
+Alternatively, you can import them from a public key server. Have in mind that
+the project cannot guarantee the availability of the server nor the keys on
 that server.
 
 ```bash
