@@ -1,5 +1,0 @@
-*%(basename)s:6: SyntaxError: Identifier 'foo' has already been declared
-var [...foo] = [11];
-        ^
-SyntaxError: Identifier 'foo' has already been declared
-

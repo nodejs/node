@@ -1,6 +1,0 @@
-hpayer@chromium.org
-mlippautz@chromium.org
-victorgomes@chromium.org
-
-per-file memory-protection-key.*=sroettger@google.com
-per-file platform-fuchsia.cc=wez@chromium.org

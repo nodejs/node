@@ -1,5 +1,0 @@
-*%(basename)s:6: SyntaxError: Identifier 'foo' has already been declared
-let foo = 2;
-    ^
-SyntaxError: Identifier 'foo' has already been declared
-

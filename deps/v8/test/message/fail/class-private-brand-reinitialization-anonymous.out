@@ -1,6 +1,0 @@
-*%(basename)s:7: TypeError: Cannot initialize private methods of class anonymous twice on the same object
-let B = (0, class extends A { #x() { } });
-            ^
-TypeError: Cannot initialize private methods of class anonymous twice on the same object
-    at new B (*%(basename)s:7:13)
-    at *%(basename)s:10:1

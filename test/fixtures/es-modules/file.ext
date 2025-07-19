@@ -1,3 +1,0 @@
-// fixtures/es-module-loader.mjs tells node to treat this file like ESM
-
-export default function iAmReal() { return true };

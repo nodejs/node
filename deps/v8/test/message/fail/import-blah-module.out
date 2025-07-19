@@ -1,4 +1,0 @@
-*%(basename)s:5: SyntaxError: Unexpected token '{'
-(import{blah})
-       ^
-SyntaxError: Unexpected token '{'

@@ -1,5 +1,0 @@
-*%(basename)s:5: TypeError: x is not iterable (cannot read property undefined)
-console.log(1, ...x);
-                  ^
-TypeError: x is not iterable (cannot read property undefined)
-    at *%(basename)s:5:9

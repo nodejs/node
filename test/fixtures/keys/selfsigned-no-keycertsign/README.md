@@ -1,2 +1,0 @@
-# Self-signed certificate without keyCertSign bit
-The self-signed certificate ([cert.pem](./cert.pem)) and the key ([key.pem](./key.pem)) in this folder are used by the test [test-https-selfsigned-no-keycertsign-no-crash](../../../parallel/test-https-selfsigned-no-keycertsign-no-crash.js). The config ([cert.conf](./cert.conf)) and the file used to generate key and certificate in this folder ([https-renew-cert.sh](./https_renew_cert.sh)) are not used by the test but for reference.

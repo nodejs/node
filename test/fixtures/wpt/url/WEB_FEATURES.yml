@@ -1,4 +1,0 @@
-features:
-- name: url-canparse
-  files:
-  - url-statics-canparse.*

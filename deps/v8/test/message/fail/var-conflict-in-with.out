@@ -1,4 +1,0 @@
-*%(basename)s:5: SyntaxError: Identifier 'x' has already been declared
-{ { with ({}) var x; } let x; }
-                  ^
-SyntaxError: Identifier 'x' has already been declared

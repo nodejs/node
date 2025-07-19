@@ -1,5 +1,0 @@
-*%(basename)s:7: TypeError: p is not iterable (cannot read property undefined)
-var [x] = new t(...p);
-                   ^
-TypeError: p is not iterable (cannot read property undefined)
-    at *%(basename)s:7:11

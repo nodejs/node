@@ -1,5 +1,0 @@
-Tests that stepping over caught exception will pause when asked for
-testFunction:9
-testFunction:11
-testFunction:9
-testFunction:11

@@ -1,5 +1,0 @@
-include_rules = [
-    "+testing/gtest",
-    "+third_party/zlib/contrib/minizip",
-    "+base",
-]

@@ -1,6 +1,0 @@
-{
-    "testRunner": {
-       "test-concurrency": 1,
-       "experimental-test-coverage": true
-    }
-}

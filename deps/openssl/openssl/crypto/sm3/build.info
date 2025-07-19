@@ -1,5 +1,0 @@
-LIBS=../../libcrypto
-
-IF[{- !$disabled{sm3} -}]
-  SOURCE[../../libcrypto]=sm3.c legacy_sm3.c
-ENDIF

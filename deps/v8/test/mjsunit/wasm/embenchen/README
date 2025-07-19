@@ -1,3 +1,0 @@
-This directory contains versions of test/mjsunit/asm/embenchen
-modified to work with the current state of the asm->wasm
-conversion plumbing.

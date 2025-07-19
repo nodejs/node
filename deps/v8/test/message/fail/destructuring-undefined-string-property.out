@@ -1,5 +1,0 @@
-*%(basename)s:5: TypeError: Cannot destructure property 'x' of 'undefined' as it is undefined.
-var { x } = undefined;
-      ^
-TypeError: Cannot destructure property 'x' of 'undefined' as it is undefined.
-    at *%(basename)s:5:7

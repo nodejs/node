@@ -1,7 +1,0 @@
-
-*throw_non_error.js:*
-throw ({ foo: 'bar' });
-^
-{ foo: 'bar' }
-
-Node.js *

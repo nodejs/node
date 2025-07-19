@@ -1,8 +1,0 @@
-# Ignore everything but the stuff following the `*` with the `!`
-# See https://docs.docker.com/engine/reference/builder/#dockerignore-file
-
-*
-!package.json
-!lib
-!deps
-!build

@@ -1,2 +1,0 @@
-Did not crash upon invalid non-dictionary state passed to utils.connectSession()
-

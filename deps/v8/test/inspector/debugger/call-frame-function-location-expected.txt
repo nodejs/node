@@ -1,4 +1,0 @@
-Tests that function location in call frames is correct
-Paused on 'debugger;'
-Top frame location: {"scriptId":"42","lineNumber":3,"columnNumber":4}
-Top frame functionLocation: {"scriptId":"42","lineNumber":0,"columnNumber":21}

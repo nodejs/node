@@ -1,7 +1,0 @@
-Error: test
-    at one ([eval]:2:9)
-    at two ([eval]:15:9)
-    at async three ([eval]:18:3)
-    at async four ([eval]:22:3)
-    at async main ([eval]:28:5)
-

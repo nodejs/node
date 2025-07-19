@@ -1,5 +1,0 @@
-*%(basename)s:5: TypeError: {} is not iterable
-for ([a] of {}) {}
-            ^
-TypeError: {} is not iterable
-    at *%(basename)s:5:13

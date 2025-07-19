@@ -1,5 +1,0 @@
-Type assertion failed! (value/expectedType/nodeId)
-0x5510000ffcf5 <HeapNumber -2147483647.0>
-0x551000058dfd <Other heap object (TURBOFAN_UNION_TYPE_TYPE)>
-5156
-Trace/breakpoint trap (core dumped)

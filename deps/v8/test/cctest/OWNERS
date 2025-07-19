@@ -1,3 +1,0 @@
-per-file *profile*=file:../../src/inspector/OWNERS
-per-file test-debug-helper.cc=seth.brenith@microsoft.com
-per-file test-v8windbg.cc=seth.brenith@microsoft.com

@@ -1,9 +1,0 @@
-Regression test for crbug.com/1274529
-
-Running test: test
-Calling foo() with dynamic name "foo"
-foo (foo.js:0:23)
-(anonymous) (:0:0)
-Calling foo() with dynamic name "bar"
-bar (foo.js:0:23)
-(anonymous) (:0:0)

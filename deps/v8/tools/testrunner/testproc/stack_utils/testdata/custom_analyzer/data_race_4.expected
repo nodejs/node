@@ -1,3 +1,0 @@
-MemMove
-v8::internal::Heap::MoveRange(v8::internal::HeapObject, v8::internal::CompressedObjectSlot, v8::internal::CompressedObjectSlot, int, v8::internal::WriteBarrierMode)
-MoveElements

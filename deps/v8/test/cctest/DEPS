@@ -1,7 +1,0 @@
-include_rules = [
-  "+perfetto",
-  "+protos/perfetto",
-  "+src",
-  "+tools",
-  "+torque-generated",
-]

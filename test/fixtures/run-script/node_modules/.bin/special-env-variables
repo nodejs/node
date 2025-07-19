@@ -1,3 +1,0 @@
-#!/bin/sh
-echo "$NODE_RUN_SCRIPT_NAME"
-echo "$NODE_RUN_PACKAGE_JSON_PATH"

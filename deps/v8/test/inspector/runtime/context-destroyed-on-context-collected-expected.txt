@@ -1,8 +1,0 @@
-Tests that contextDesrtoyed nofitication is fired when context is collected.
-{
-    method : Runtime.executionContextDestroyed
-    params : {
-        executionContextId : <executionContextId>
-        executionContextUniqueId : <executionContextUniqueId>
-    }
-}

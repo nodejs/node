@@ -1,9 +1,0 @@
-{
-  "nodeOptions": {
-    "import": [
-      "./test/fixtures/printA.js",
-      "./test/fixtures/printB.js",
-      "./test/fixtures/printC.js"
-    ]
-  }
-}

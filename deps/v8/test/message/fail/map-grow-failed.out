@@ -1,6 +1,0 @@
-*%(basename)s:{NUMBER}: RangeError: Map maximum size exceeded
-  m.set(i, 0);
-    ^
-RangeError: Map maximum size exceeded
-    at Map.set (<anonymous>)
-    at *%(basename)s:{NUMBER}:{NUMBER}

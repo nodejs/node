@@ -1,2 +1,0 @@
-LIBS=../../libcrypto
-SOURCE[../../libcrypto]=http_client.c http_err.c http_lib.c

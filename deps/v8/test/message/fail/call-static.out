@@ -1,6 +1,0 @@
-*%(basename)s:6: TypeError: static is not a function
-  static()
-  ^
-TypeError: static is not a function
-    at f (*%(basename)s:6:3)
-    at *%(basename)s:8:1

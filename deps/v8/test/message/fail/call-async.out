@@ -1,6 +1,0 @@
-*%(basename)s:6: TypeError: async is not a function
-  async()
-  ^
-TypeError: async is not a function
-    at f (*%(basename)s:6:3)
-    at *%(basename)s:8:1

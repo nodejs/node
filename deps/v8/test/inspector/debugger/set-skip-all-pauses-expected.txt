@@ -1,7 +1,0 @@
-Tests that Debugger.setSkipAllPauses skips breaks and does not block resumed notifications
-paused at:
-#debugger;
-
-paused at:
-#debugger
-

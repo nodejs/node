@@ -1,4 +1,0 @@
-{
-  "include": ["tools"],
-  "exclude": ["tools/gcmole/bootstrap"]
-}

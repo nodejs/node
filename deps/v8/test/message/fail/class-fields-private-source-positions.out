@@ -1,5 +1,0 @@
-*%(basename)s:9: TypeError: Cannot read private member #a from an object whose class did not declare it
-    [o.#a](){}
-       ^
-TypeError: Cannot read private member #a from an object whose class did not declare it
-    at *%(basename)s:9:8

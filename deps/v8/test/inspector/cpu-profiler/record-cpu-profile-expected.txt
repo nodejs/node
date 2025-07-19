@@ -1,7 +1,0 @@
-Test that profiler is able to record a profile. Also it tests that profiler returns an error when it unable to find the profile.
-PASS: startFrontendProfile
-PASS: startConsoleProfile
-PASS: stopConsoleProfile
-PASS: stoppedFrontendProfile
-PASS: startFrontendProfileSecondTime
-PASS: stopFrontendProfileSecondTime

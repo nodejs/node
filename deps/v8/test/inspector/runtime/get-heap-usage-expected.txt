@@ -1,1 +1,0 @@
-Checks that Runtime.getHeapUsage works

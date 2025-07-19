@@ -1,5 +1,0 @@
-Regression test for crbug/1283049
-
-Running test: test
-foo (foo.js:0:17)
-(anonymous) (:0:0)

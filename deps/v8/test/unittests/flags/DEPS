@@ -1,3 +1,0 @@
-include_rules = [
-  "+src/flags/flags-impl.h",
-]

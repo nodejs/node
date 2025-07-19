@@ -1,7 +1,0 @@
-Don't crash while paused in a class method and evaluating 'this'
-{
-    className : A
-    description : A
-    objectId : <objectId>
-    type : object
-}

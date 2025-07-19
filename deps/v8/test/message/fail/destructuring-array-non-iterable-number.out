@@ -1,5 +1,0 @@
-*%(basename)s:5: TypeError: 1 is not iterable
-var [a] = 1;
-          ^
-TypeError: 1 is not iterable
-    at *%(basename)s:5:11

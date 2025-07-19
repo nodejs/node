@@ -1,5 +1,0 @@
-specific_include_rules = {
-  "baseline-compiler\.h": [
-    "+src/interpreter/interpreter-intrinsics.h",
-  ],
-}

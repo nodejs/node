@@ -1,4 +1,0 @@
-*%(basename)s:6: SyntaxError: Unexpected identifier 'yield'
-  function yield() {}
-           ^^^^^
-SyntaxError: Unexpected identifier 'yield'

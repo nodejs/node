@@ -1,2 +1,0 @@
-function Hello(){throw"goodbye"}Hello();
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRocm93LXN0cmluZy1vcmlnaW5hbC5qcyJdLCJuYW1lcyI6WyJIZWxsbyJdLCJtYXBwaW5ncyI6IkFBR0EsU0FBU0EsUUFDUCxLQUFNLFVBR1JBIn0=

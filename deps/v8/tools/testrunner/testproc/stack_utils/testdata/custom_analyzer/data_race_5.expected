@@ -1,3 +1,0 @@
-ActivateSpace
-ActivateSpaces
-v8::internal::MarkingBarrier::ActivateAll(v8::internal::Heap*, bool, v8::internal::MarkingBarrierType)

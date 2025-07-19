@@ -1,6 +1,0 @@
-specific_include_rules = {
-  "tracing-unittest\.cc": [
-    "+perfetto/tracing.h",
-    "+protos/perfetto"
-  ],
-}

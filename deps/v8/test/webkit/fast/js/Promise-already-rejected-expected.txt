@@ -1,9 +1,0 @@
-Resolve or reject do not take effect on a rejected Promise.
-
-On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
-
-PASS result is "foo"
-PASS successfullyParsed is true
-
-TEST COMPLETE
-

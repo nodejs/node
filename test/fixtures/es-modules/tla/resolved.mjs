@@ -1,1 +1,0 @@
-await Promise.resolve('hello');

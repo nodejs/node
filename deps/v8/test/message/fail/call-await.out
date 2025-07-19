@@ -1,7 +1,0 @@
-*%(basename)s:6: TypeError: await is not a function
-  await()
-  ^
-TypeError: await is not a function
-    at f (*%(basename)s:6:3)
-    at *%(basename)s:8:1
-

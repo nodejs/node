@@ -1,5 +1,0 @@
-*%(basename)s:5: SyntaxError: The requested module 'modules-import2.mjs' does not provide an export named 'a'
-import {a as b} from "modules-import2.mjs";
-        ^
-SyntaxError: The requested module 'modules-import2.mjs' does not provide an export named 'a'
-
