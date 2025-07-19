@@ -4255,7 +4255,6 @@ but allow for concurrent access from multiple threads.
 
 <!-- YAML
 added: REPLACEME
-napiVersion: 10
 -->
 
 > Stability: 1 - Experimental
