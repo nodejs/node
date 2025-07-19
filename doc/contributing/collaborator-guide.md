@@ -174,7 +174,7 @@ collaborator can escalate the issue to the TSC by pinging `@nodejs/tsc` and
 adding the `tsc-agenda` label to the issue. The change cannot proceed without
 either reaching consensus or a TSC decision to dismiss the objection(s). If the
 TSC does choose to dismiss any objections, a clear explanation of the reasoning
-must be given in the pull request before it lands.
+or a link to the public vote must be given in the pull request before it lands.
 
 All Collaborator objections are considered equal. There is no greater weight given to
 objections from TSC members than from any other Collaborator.
