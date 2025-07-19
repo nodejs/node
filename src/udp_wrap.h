@@ -158,6 +158,15 @@ class UDPWrap final : public HandleWrap,
               const uv_buf_t& buf,
               const sockaddr* addr,
               unsigned int flags) override;
+  bool using_recvmmsg() {
+    return uv_udp_using_recvmmsg(reinterpret_cast<uv_udp_t*>(&handle_));
+  }
+  void release_buf() {
+    if (mmsg_buf_.base != nullptr) {
+      free(mmsg_buf_.base);
+      mmsg_buf_ = uv_buf_init(nullptr, 0);
+    }
+  }
   ReqWrap<uv_udp_send_t>* CreateSendWrap(size_t msg_size) override;
   void OnSendDone(ReqWrap<uv_udp_send_t>* wrap, int status) override;
 
@@ -189,7 +198,9 @@ class UDPWrap final : public HandleWrap,
             int (*F)(const typename T::HandleType*, sockaddr*, int*)>
   friend void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>&);
 
-  UDPWrap(Environment* env, v8::Local<v8::Object> object);
+  UDPWrap(Environment* env, v8::Local<v8::Object> object, uint32_t msg_count);
+
+  ~UDPWrap();
 
   static void DoBind(const v8::FunctionCallbackInfo<v8::Value>& args,
                      int family);
@@ -213,7 +224,8 @@ class UDPWrap final : public HandleWrap,
                      unsigned int flags);
 
   uv_udp_t handle_;
-
+  uint32_t msg_count_;
+  uv_buf_t mmsg_buf_;
   bool current_send_has_callback_;
   v8::Local<v8::Object> current_send_req_wrap_;
 };
