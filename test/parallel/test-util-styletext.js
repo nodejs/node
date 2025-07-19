@@ -80,6 +80,25 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
+  util.styleText(
+    'red',
+    'red' +
+    util.styleText(
+      'blue',
+      'blue' + util.styleText('red', 'red', {
+        validateStream: false,
+      }) + 'blue',
+      {
+        validateStream: false,
+      }
+    ) + 'red', {
+      validateStream: false,
+    }
+  ),
+  '\x1b[31mred\x1b[34mblue\x1b[31mred\x1b[34mblue\x1b[31mred\x1b[39m'
+);
+
+assert.strictEqual(
   util.styleText(['bold', 'red'], 'test', { validateStream: false }),
   util.styleText(
     'bold',
