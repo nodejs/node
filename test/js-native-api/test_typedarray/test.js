@@ -41,8 +41,9 @@ assert.strictEqual(externalResult[2], 2);
 // Validate creation of all kinds of TypedArrays
 const buffer = new ArrayBuffer(128);
 const arrayTypes = [ Int8Array, Uint8Array, Uint8ClampedArray, Int16Array,
-                     Uint16Array, Int32Array, Uint32Array, Float32Array,
-                     Float64Array, BigInt64Array, BigUint64Array ];
+                     Uint16Array, Int32Array, Uint32Array, Float16Array,
+                     Float32Array, Float64Array, BigInt64Array,
+                     BigUint64Array ];
 
 arrayTypes.forEach((currentType) => {
   const template = Reflect.construct(currentType, buffer);
