@@ -10,7 +10,7 @@ const assert = require('assert');
 // Random port with --inspect-port=0.
 const script = fixtures.path('debugger', 'three-lines.js');
 
-const cli = startCLI([script]);
+const cli = startCLI(['--inspect-port=0', script], [], {}, { randomPort: false });
 
 (async () => {
   await cli.waitForInitialBreak();
