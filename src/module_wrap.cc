@@ -72,6 +72,15 @@ void ModuleCacheKey::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("import_attributes", import_attributes);
 }
 
+std::string ModuleCacheKey::ToString() const {
+  std::string result = "ModuleCacheKey(" + specifier + ", [";
+  for (const auto& attr : import_attributes) {
+    result += attr.first + ": " + attr.second + ", ";
+  }
+  result += "])";
+  return result;
+}
+
 template <int elements_per_attribute>
 ModuleCacheKey ModuleCacheKey::From(Local<Context> context,
                                     Local<String> specifier,
@@ -588,6 +597,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  auto& resolve_cache = dependent->resolve_cache_;
   for (uint32_t i = 0; i < modules_buffer.size(); i++) {
     Local<Object> module_object = modules_buffer[i].Get(isolate).As<Object>();
 
@@ -597,7 +607,15 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
 
     ModuleCacheKey module_cache_key = ModuleCacheKey::From(
         context, requests->Get(context, i).As<ModuleRequest>());
-    dependent->resolve_cache_[module_cache_key].Reset(isolate, module_object);
+
+    if (resolve_cache.find(module_cache_key) != resolve_cache.end() &&
+        resolve_cache[module_cache_key] != module_object) {
+      THROW_ERR_MODULE_LINK_MISMATCH(realm,
+                                     "Module link conflict for key '%s'",
+                                     module_cache_key.ToString());
+      return;
+    }
+    resolve_cache[module_cache_key].Reset(isolate, module_object);
   }
 }
 
