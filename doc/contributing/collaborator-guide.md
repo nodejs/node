@@ -184,7 +184,8 @@ outstanding objection, corrective action must be taken. Any Collaborator
 can open a pull request that either reverts the change or makes an additional
 follow-up change that addresses the objection. While an automatic or immediate
 revert is not always necessary or ideal, such corrections are typically subject to
-fast-tracking.
+fast-tracking, but are not required to be fast-tracked. There are
+times in which taking a slower path may be preferable.
 
 Collaborators objecting to a pull request can best ensure their objections
 are addressed by remaining actively engaged and responsive in the discussion.
