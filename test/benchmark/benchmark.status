@@ -23,3 +23,5 @@ test-benchmark-crypto: PASS, FLAKY
 
 [$arch==arm]
 
+[$system==ibmi]
+test-benchmark-websocket: SKIP
