@@ -1,26 +1,9 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const { describe, it } = require('node:test');
 const assert = require('assert');
-
-const repl = require('repl');
-
-function prepareREPL() {
-  const input = new ArrayStream();
-  const replServer = repl.start({
-    prompt: '',
-    input,
-    output: process.stdout,
-    allowBlockingCompletions: true,
-  });
-
-  // Some errors are passed to the domain, but do not callback
-  replServer._domain.on('error', assert.ifError);
-
-  return { replServer, input };
-}
+const { startNewREPLServer } = require('../common/repl');
 
 function getNoResultsFunction() {
   return common.mustSucceed((data) => {
@@ -44,7 +27,7 @@ describe('REPL tab completion without side effects', () => {
     'arr[incCounter()].b',
   ]) {
     it(`does not evaluate with side effects (${code})`, async () => {
-      const { replServer, input } = prepareREPL();
+      const { replServer, input } = startNewREPLServer();
       input.run(setup);
 
       replServer.complete(code, getNoResultsFunction());

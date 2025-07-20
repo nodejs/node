@@ -1,38 +1,36 @@
 'use strict';
 require('../common');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
-const repl = require('repl');
+const { startNewREPLServer } = require('../common/repl');
 
 let count = 0;
 
 function run({ command, expected, useColors = false }) {
-  let accum = '';
+  const { replServer, output } = startNewREPLServer(
+    {
+      prompt: '',
+      terminal: false,
+      useColors,
+    },
+    {
+      disableDomainErrorAssert: true
+    },
+  );
 
-  const output = new ArrayStream();
-  output.write = (data) => accum += data.replace('\r', '');
+  replServer.write(`${command}\n`);
 
-  const r = repl.start({
-    prompt: '',
-    input: new ArrayStream(),
-    output,
-    terminal: false,
-    useColors
-  });
-
-  r.write(`${command}\n`);
   if (typeof expected === 'string') {
-    assert.strictEqual(accum, expected);
+    assert.strictEqual(output.accumulator, expected);
   } else {
-    assert.match(accum, expected);
+    assert.match(output.accumulator, expected);
   }
 
   // Verify that the repl is still working as expected.
-  accum = '';
-  r.write('1 + 1\n');
+  output.accumulator = '';
+  replServer.write('1 + 1\n');
   // eslint-disable-next-line no-control-regex
-  assert.strictEqual(accum.replace(/\u001b\[[0-9]+m/g, ''), '2\n');
-  r.close();
+  assert.strictEqual(output.accumulator.replace(/\u001b\[[0-9]+m/g, ''), '2\n');
+  replServer.close();
   count++;
 }
 
