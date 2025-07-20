@@ -14,7 +14,7 @@ function delay(ms) {
 
 // Profiles.
 {
-  const cli = startCLI(['--port=0', fixtures.path('debugger/empty.js')], [], {
+  const cli = startCLI([fixtures.path('debugger/empty.js')], [], {
     env: {
       ...process.env,
       // When this test is run with NODE_V8_COVERAGE, it clobbers the inspector

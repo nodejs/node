@@ -8,7 +8,7 @@ import startCLI from '../common/debugger.js';
 import assert from 'assert';
 
 const script = path('debugger', 'three-lines.js');
-const cli = startCLI([script]);
+const cli = startCLI([script], [], {}, { randomPort: false });
 try {
   await cli.waitForInitialBreak();
   await cli.waitForPrompt();
