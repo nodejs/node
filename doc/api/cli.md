@@ -541,8 +541,8 @@ CPU.20190409.202950.15293.0.0.cpuprofile
 ```
 
 If `--cpu-prof-name` is specified, the provided value is used as a template
-for the file name. Some placeholders are supported and will be substituted
-at runtime:
+for the file name. The following placeholder is supported and will be 
+substituted at runtime:
 
 * `${pid}` — the current process ID
 
