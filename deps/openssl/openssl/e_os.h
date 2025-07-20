@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -126,17 +126,6 @@
 #    define EACCES   13
 #   endif
 #   include <string.h>
-#   ifdef _WIN64
-#    define strlen(s) _strlen31(s)
-/* cut strings to 2GB */
-static __inline unsigned int _strlen31(const char *str)
-{
-    unsigned int len = 0;
-    while (*str && len < 0x80000000U)
-        str++, len++;
-    return len & 0x7FFFFFFF;
-}
-#   endif
 #   include <malloc.h>
 #   if defined(_MSC_VER) && !defined(_WIN32_WCE) && !defined(_DLL) && defined(stdin)
 #    if _MSC_VER>=1300 && _MSC_VER<1600

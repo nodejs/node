@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -347,10 +347,8 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
     if (flags & PKCS7_TEXT) {
         if (!SMIME_text(tmpout, out)) {
             ERR_raise(ERR_LIB_PKCS7, PKCS7_R_SMIME_TEXT_ERROR);
-            BIO_free(tmpout);
             goto err;
         }
-        BIO_free(tmpout);
     }
 
     /* Now Verify All Signatures */
@@ -368,6 +366,8 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
     ret = 1;
 
  err:
+    if (flags & PKCS7_TEXT)
+        BIO_free(tmpout);
     X509_STORE_CTX_free(cert_ctx);
     OPENSSL_free(buf);
     if (tmpin == indata) {
