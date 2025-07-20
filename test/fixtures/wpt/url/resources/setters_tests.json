@@ -2214,6 +2214,14 @@
                 "href": "http://example.net/%00",
                 "pathname": "/%00"
             }
+        },
+        {
+            "href": "foo://path/to",
+            "new_value": "/..",
+            "expected": {
+                "href": "foo://path/",
+                "pathname": "/"
+            }
         }
     ],
     "search": [
