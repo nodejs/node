@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -207,6 +207,7 @@ encoder_construct_pkey(OSSL_ENCODER_INSTANCE *encoder_inst, void *arg)
 static void encoder_destruct_pkey(void *arg)
 {
     struct construct_data_st *data = arg;
+    int match = (data->obj == data->constructed_obj);
 
     if (data->encoder_inst != NULL) {
         OSSL_ENCODER *encoder =
@@ -215,6 +216,8 @@ static void encoder_destruct_pkey(void *arg)
         encoder->free_object(data->constructed_obj);
     }
     data->constructed_obj = NULL;
+    if (match)
+        data->obj = NULL;
 }
 
 /*

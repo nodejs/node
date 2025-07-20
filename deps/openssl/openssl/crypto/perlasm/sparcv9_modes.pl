@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2012-2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2012-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -46,8 +46,8 @@ $::code.=<<___;
 .align	32
 ${alg}${bits}_t4_cbc_encrypt:
 	save		%sp, -$::frame, %sp
-	cmp		$len, 0
-	be,pn		$::size_t_cc, .L${bits}_cbc_enc_abort
+	cmp		$len, 15
+	bleu,pn	$::size_t_cc, .L${bits}_cbc_enc_abort
 	srln		$len, 0, $len		! needed on v8+, "nop" on v9
 	sub		$inp, $out, $blk_init	! $inp!=$out
 ___
@@ -264,8 +264,8 @@ $::code.=<<___;
 .align	32
 ${alg}${bits}_t4_cbc_decrypt:
 	save		%sp, -$::frame, %sp
-	cmp		$len, 0
-	be,pn		$::size_t_cc, .L${bits}_cbc_dec_abort
+	cmp		$len, 15
+	bleu,pn		$::size_t_cc, .L${bits}_cbc_dec_abort
 	srln		$len, 0, $len		! needed on v8+, "nop" on v9
 	sub		$inp, $out, $blk_init	! $inp!=$out
 ___

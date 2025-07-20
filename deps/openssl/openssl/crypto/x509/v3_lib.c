@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -99,7 +99,11 @@ int X509V3_EXT_add_alias(int nid_to, int nid_from)
     *tmpext = *ext;
     tmpext->ext_nid = nid_to;
     tmpext->ext_flags |= X509V3_EXT_DYNAMIC;
-    return X509V3_EXT_add(tmpext);
+    if (!X509V3_EXT_add(tmpext)) {
+        OPENSSL_free(tmpext);
+        return 0;
+    }
+    return 1;
 }
 
 void X509V3_EXT_cleanup(void)

@@ -1,5 +1,5 @@
 #!{- $config{HASHBANGPERL} -}
-# Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -19,14 +19,17 @@ my @OPENSSL_CMDS = ("req", "ca", "pkcs12", "x509", "verify");
 
 my $openssl = $ENV{'OPENSSL'} // "openssl";
 $ENV{'OPENSSL'} = $openssl;
+my @openssl = split_val($openssl);
+
 my $OPENSSL_CONFIG = $ENV{"OPENSSL_CONFIG"} // "";
+my @OPENSSL_CONFIG = split_val($OPENSSL_CONFIG);
 
 # Command invocations.
-my $REQ = "$openssl req $OPENSSL_CONFIG";
-my $CA = "$openssl ca $OPENSSL_CONFIG";
-my $VERIFY = "$openssl verify";
-my $X509 = "$openssl x509";
-my $PKCS12 = "$openssl pkcs12";
+my @REQ = (@openssl, "req", @OPENSSL_CONFIG);
+my @CA = (@openssl, "ca", @OPENSSL_CONFIG);
+my @VERIFY = (@openssl, "verify");
+my @X509 = (@openssl, "x509");
+my @PKCS12 = (@openssl, "pkcs12");
 
 # Default values for various configuration settings.
 my $CATOP = "./demoCA";
@@ -34,8 +37,10 @@ my $CAKEY = "cakey.pem";
 my $CAREQ = "careq.pem";
 my $CACERT = "cacert.pem";
 my $CACRL = "crl.pem";
-my $DAYS = "-days 365";
-my $CADAYS = "-days 1095";	# 3 years
+my @DAYS = qw(-days 365);
+my @CADAYS = qw(-days 1095);	# 3 years
+my @EXTENSIONS = qw(-extensions v3_ca);
+my @POLICY = qw(-policy policy_anything);
 my $NEWKEY = "newkey.pem";
 my $NEWREQ = "newreq.pem";
 my $NEWCERT = "newcert.pem";
@@ -43,31 +48,177 @@ my $NEWP12 = "newcert.p12";
 
 # Commandline parsing
 my %EXTRA;
-my $WHAT = shift @ARGV || "";
+my $WHAT = shift @ARGV // "";
 @ARGV = parse_extra(@ARGV);
 my $RET = 0;
+
+sub split_val {
+    return split_val_win32(@_) if ($^O eq 'MSWin32');
+    my ($val) = @_;
+    my (@ret, @frag);
+
+    # Skip leading whitespace
+    $val =~ m{\A[ \t]*}ogc;
+
+    # Unix shell-compatible split
+    #
+    # Handles backslash escapes outside quotes and
+    # in double-quoted strings.  Parameter and
+    # command-substitution is silently ignored.
+    # Bare newlines outside quotes and (trailing) backslashes are disallowed.
+
+    while (1) {
+        last if (pos($val) == length($val));
+
+        # The first char is never a SPACE or TAB.  Possible matches are:
+        # 1. Ordinary string fragment
+        # 2. Single-quoted string
+        # 3. Double-quoted string
+        # 4. Backslash escape
+        # 5. Bare backlash or newline (rejected)
+        #
+        if ($val =~ m{\G([^'" \t\n\\]+)}ogc) {
+            # Ordinary string
+            push @frag, $1;
+        } elsif ($val =~ m{\G'([^']*)'}ogc) {
+            # Single-quoted string
+            push @frag, $1;
+        } elsif ($val =~ m{\G"}ogc) {
+            # Double-quoted string
+            push @frag, "";
+            while (1) {
+                last if ($val =~ m{\G"}ogc);
+                if ($val =~ m{\G([^"\\]+)}ogcs) {
+                    # literals
+                    push @frag, $1;
+                } elsif ($val =~ m{\G.(["\`\$\\])}ogc) {
+                    # backslash-escaped special
+                    push @frag, $1;
+                } elsif ($val =~ m{\G.(.)}ogcs) {
+                    # backslashed non-special
+                    push @frag, "\\$1" unless $1 eq "\n";
+                } else {
+                    die sprintf("Malformed quoted string: %s\n", $val);
+                }
+            }
+        } elsif ($val =~ m{\G\\(.)}ogc) {
+            # Backslash is unconditional escape outside quoted strings
+            push @frag, $1 unless $1 eq "\n";
+        } else {
+            die sprintf("Bare backslash or newline in: '%s'\n", $val);
+        }
+        # Done if at SPACE, TAB or end, otherwise continue current fragment
+        #
+        next unless ($val =~ m{\G(?:[ \t]+|\z)}ogcs);
+        push @ret, join("", splice(@frag)) if (@frag > 0);
+    }
+    # Handle final fragment
+    push @ret, join("", splice(@frag)) if (@frag > 0);
+    return @ret;
+}
+
+sub split_val_win32 {
+    my ($val) = @_;
+    my (@ret, @frag);
+
+    # Skip leading whitespace
+    $val =~ m{\A[ \t]*}ogc;
+
+    # Windows-compatible split
+    # See: "Parsing C++ command-line arguments" in:
+    # https://learn.microsoft.com/en-us/cpp/cpp/main-function-command-line-args?view=msvc-170
+    #
+    # Backslashes are special only when followed by a double-quote
+    # Pairs of double-quotes make a single double-quote.
+    # Closing double-quotes may be omitted.
+
+    while (1) {
+        last if (pos($val) == length($val));
+
+        # The first char is never a SPACE or TAB.
+        # 1. Ordinary string fragment
+        # 2. Double-quoted string
+        # 3. Backslashes preceding a double-quote
+        # 4. Literal backslashes
+        # 5. Bare newline (rejected)
+        #
+        if ($val =~ m{\G([^" \t\n\\]+)}ogc) {
+            # Ordinary string
+            push @frag, $1;
+        } elsif ($val =~ m{\G"}ogc) {
+            # Double-quoted string
+            push @frag, "";
+            while (1) {
+                if ($val =~ m{\G("+)}ogc) {
+                    # Two double-quotes make one literal double-quote
+                    my $l = length($1);
+                    push @frag, q{"} x int($l/2) if ($l > 1);
+                    next if ($l % 2 == 0);
+                    last;
+                }
+                if ($val =~ m{\G([^"\\]+)}ogc) {
+                    push @frag, $1;
+                } elsif ($val =~ m{\G((?>[\\]+))(?=")}ogc) {
+                    # Backslashes before a double-quote are escapes
+                    my $l = length($1);
+                    push @frag, q{\\} x int($l / 2);
+                    if ($l % 2 == 1) {
+                        ++pos($val);
+                        push @frag, q{"};
+                    }
+                } elsif ($val =~ m{\G((?:(?>[\\]+)[^"\\]+)+)}ogc) {
+                    # Backslashes not before a double-quote are not special
+                    push @frag, $1;
+                } else {
+                    # Tolerate missing closing double-quote
+                    last;
+                }
+            }
+        } elsif ($val =~ m{\G((?>[\\]+))(?=")}ogc) {
+            my $l = length($1);
+            push @frag, q{\\} x int($l / 2);
+            if ($l % 2 == 1) {
+                ++pos($val);
+                push @frag, q{"};
+            }
+        } elsif ($val =~ m{\G([\\]+)}ogc) {
+            # Backslashes not before a double-quote are not special
+            push @frag, $1;
+        } else {
+            die sprintf("Bare newline in: '%s'\n", $val);
+        }
+        # Done if at SPACE, TAB or end, otherwise continue current fragment
+        #
+        next unless ($val =~ m{\G(?:[ \t]+|\z)}ogcs);
+        push @ret, join("", splice(@frag)) if (@frag > 0);
+    }
+    # Handle final fragment
+    push @ret, join("", splice(@frag)) if (@frag);
+    return @ret;
+}
 
 # Split out "-extra-CMD value", and return new |@ARGV|. Fill in
 # |EXTRA{CMD}| with list of values.
 sub parse_extra
 {
+    my @args;
     foreach ( @OPENSSL_CMDS ) {
-        $EXTRA{$_} = '';
+        $EXTRA{$_} = [];
     }
-
-    my @result;
-    while ( scalar(@_) > 0 ) {
-        my $arg = shift;
-        if ( $arg !~ m/-extra-([a-z0-9]+)/ ) {
-            push @result, $arg;
+    while (@_) {
+        my $arg = shift(@_);
+        if ( $arg !~ m{^-extra-(\w+)$} ) {
+            push @args, split_val($arg);
             next;
         }
-        $arg =~ s/-extra-//;
-        die("Unknown \"-${arg}-extra\" option, exiting")
-            unless scalar grep { $arg eq $_ } @OPENSSL_CMDS;
-        $EXTRA{$arg} .= " " . shift;
+        $arg = $1;
+        die "Unknown \"-extra-${arg}\" option, exiting\n"
+            unless grep { $arg eq $_ } @OPENSSL_CMDS;
+        die "Missing \"-extra-${arg}\" option value, exiting\n"
+            unless (@_ > 0);
+        push @{$EXTRA{$arg}}, split_val(shift(@_));
     }
-    return @result;
+    return @args;
 }
 
 
@@ -110,9 +261,9 @@ sub copy_pemfile
 # Wrapper around system; useful for debugging.  Returns just the exit status
 sub run
 {
-    my $cmd = shift;
-    print "====\n$cmd\n" if $verbose;
-    my $status = system($cmd);
+    my ($cmd, @args) = @_;
+    print "====\n$cmd @args\n" if $verbose;
+    my $status = system {$cmd} $cmd, @args;
     print "==> $status\n====\n" if $verbose;
     return $status >> 8;
 }
@@ -131,17 +282,15 @@ EOF
 
 if ($WHAT eq '-newcert' ) {
     # create a certificate
-    $RET = run("$REQ -new -x509 -keyout $NEWKEY -out $NEWCERT $DAYS"
-            . " $EXTRA{req}");
+    $RET = run(@REQ, qw(-new -x509 -keyout), $NEWKEY, "-out", $NEWCERT, @DAYS, @{$EXTRA{req}});
     print "Cert is in $NEWCERT, private key is in $NEWKEY\n" if $RET == 0;
 } elsif ($WHAT eq '-precert' ) {
     # create a pre-certificate
-    $RET = run("$REQ -x509 -precert -keyout $NEWKEY -out $NEWCERT $DAYS"
-            . " $EXTRA{req}");
+    $RET = run(@REQ, qw(-x509 -precert -keyout), $NEWKEY, "-out", $NEWCERT, @DAYS, @{$EXTRA{req}});
     print "Pre-cert is in $NEWCERT, private key is in $NEWKEY\n" if $RET == 0;
 } elsif ($WHAT =~ /^\-newreq(\-nodes)?$/ ) {
     # create a certificate request
-    $RET = run("$REQ -new $1 -keyout $NEWKEY -out $NEWREQ $DAYS $EXTRA{req}");
+    $RET = run(@REQ, "-new", (defined $1 ? ($1,) : ()), "-keyout", $NEWKEY, "-out", $NEWREQ, @{$EXTRA{req}});
     print "Request is in $NEWREQ, private key is in $NEWKEY\n" if $RET == 0;
 } elsif ($WHAT eq '-newca' ) {
     # create the directory hierarchy
@@ -174,48 +323,45 @@ if ($WHAT eq '-newcert' ) {
         copy_pemfile($FILE,"${CATOP}/$CACERT", "CERTIFICATE");
     } else {
         print "Making CA certificate ...\n";
-        $RET = run("$REQ -new -keyout ${CATOP}/private/$CAKEY"
-                . " -out ${CATOP}/$CAREQ $EXTRA{req}");
-        $RET = run("$CA -create_serial"
-                . " -out ${CATOP}/$CACERT $CADAYS -batch"
-                . " -keyfile ${CATOP}/private/$CAKEY -selfsign"
-                . " -extensions v3_ca"
-                . " -infiles ${CATOP}/$CAREQ $EXTRA{ca}") if $RET == 0;
+        $RET = run(@REQ, qw(-new -keyout), "${CATOP}/private/$CAKEY",
+                   "-out", "${CATOP}/$CAREQ", @{$EXTRA{req}});
+        $RET = run(@CA, qw(-create_serial -out), "${CATOP}/$CACERT", @CADAYS,
+                   qw(-batch -keyfile), "${CATOP}/private/$CAKEY", "-selfsign",
+                   @EXTENSIONS, "-infiles", "${CATOP}/$CAREQ", @{$EXTRA{ca}})
+            if $RET == 0;
         print "CA certificate is in ${CATOP}/$CACERT\n" if $RET == 0;
     }
 } elsif ($WHAT eq '-pkcs12' ) {
     my $cname = $ARGV[0];
     $cname = "My Certificate" unless defined $cname;
-    $RET = run("$PKCS12 -in $NEWCERT -inkey $NEWKEY"
-            . " -certfile ${CATOP}/$CACERT -out $NEWP12"
-            . " -export -name \"$cname\" $EXTRA{pkcs12}");
-    print "PKCS #12 file is in $NEWP12\n" if $RET == 0;
+    $RET = run(@PKCS12, "-in", $NEWCERT, "-inkey", $NEWKEY,
+               "-certfile", "${CATOP}/$CACERT", "-out", $NEWP12,
+               qw(-export -name), $cname, @{$EXTRA{pkcs12}});
+    print "PKCS#12 file is in $NEWP12\n" if $RET == 0;
 } elsif ($WHAT eq '-xsign' ) {
-    $RET = run("$CA -policy policy_anything -infiles $NEWREQ $EXTRA{ca}");
+    $RET = run(@CA, @POLICY, "-infiles", $NEWREQ, @{$EXTRA{ca}});
 } elsif ($WHAT eq '-sign' ) {
-    $RET = run("$CA -policy policy_anything -out $NEWCERT"
-            . " -infiles $NEWREQ $EXTRA{ca}");
+    $RET = run(@CA, @POLICY, "-out", $NEWCERT,
+               "-infiles", $NEWREQ, @{$EXTRA{ca}});
     print "Signed certificate is in $NEWCERT\n" if $RET == 0;
 } elsif ($WHAT eq '-signCA' ) {
-    $RET = run("$CA -policy policy_anything -out $NEWCERT"
-            . " -extensions v3_ca -infiles $NEWREQ $EXTRA{ca}");
+    $RET = run(@CA, @POLICY, "-out", $NEWCERT, @EXTENSIONS,
+               "-infiles", $NEWREQ, @{$EXTRA{ca}});
     print "Signed CA certificate is in $NEWCERT\n" if $RET == 0;
 } elsif ($WHAT eq '-signcert' ) {
-    $RET = run("$X509 -x509toreq -in $NEWREQ -signkey $NEWREQ"
-            . " -out tmp.pem $EXTRA{x509}");
-    $RET = run("$CA -policy policy_anything -out $NEWCERT"
-            .  "-infiles tmp.pem $EXTRA{ca}") if $RET == 0;
+    $RET = run(@X509, qw(-x509toreq -in), $NEWREQ, "-signkey", $NEWREQ,
+               qw(-out tmp.pem), @{$EXTRA{x509}});
+    $RET = run(@CA, @POLICY, "-out", $NEWCERT,
+               qw(-infiles tmp.pem), @{$EXTRA{ca}}) if $RET == 0;
     print "Signed certificate is in $NEWCERT\n" if $RET == 0;
 } elsif ($WHAT eq '-verify' ) {
     my @files = @ARGV ? @ARGV : ( $NEWCERT );
     foreach my $file (@files) {
-        # -CAfile quoted for VMS, since the C RTL downcases all unquoted
-        # arguments to C programs
-        my $status = run("$VERIFY \"-CAfile\" ${CATOP}/$CACERT $file $EXTRA{verify}");
+        my $status = run(@VERIFY, "-CAfile", "${CATOP}/$CACERT", $file, @{$EXTRA{verify}});
         $RET = $status if $status != 0;
     }
 } elsif ($WHAT eq '-crl' ) {
-    $RET = run("$CA -gencrl -out ${CATOP}/crl/$CACRL $EXTRA{ca}");
+    $RET = run(@CA, qw(-gencrl -out), "${CATOP}/crl/$CACRL", @{$EXTRA{ca}});
     print "Generated CRL is in ${CATOP}/crl/$CACRL\n" if $RET == 0;
 } elsif ($WHAT eq '-revoke' ) {
     my $cname = $ARGV[0];
@@ -223,10 +369,10 @@ if ($WHAT eq '-newcert' ) {
         print "Certificate filename is required; reason optional.\n";
         exit 1;
     }
-    my $reason = $ARGV[1];
-    $reason = " -crl_reason $reason"
-        if defined $reason && crl_reason_ok($reason);
-    $RET = run("$CA -revoke \"$cname\"" . $reason . $EXTRA{ca});
+    my @reason;
+    @reason = ("-crl_reason", $ARGV[1])
+        if defined $ARGV[1] && crl_reason_ok($ARGV[1]);
+    $RET = run(@CA, "-revoke", $cname, @reason, @{$EXTRA{ca}});
 } else {
     print STDERR "Unknown arg \"$WHAT\"\n";
     print STDERR "Use -help for help.\n";
