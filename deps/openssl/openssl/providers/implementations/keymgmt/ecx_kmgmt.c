@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -344,7 +344,6 @@ static const OSSL_PARAM ecx_gettable_params[] = {
     OSSL_PARAM_int(OSSL_PKEY_PARAM_BITS, NULL),
     OSSL_PARAM_int(OSSL_PKEY_PARAM_SECURITY_BITS, NULL),
     OSSL_PARAM_int(OSSL_PKEY_PARAM_MAX_SIZE, NULL),
-    OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_MANDATORY_DIGEST, NULL, 0),
     OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY, NULL, 0),
     ECX_KEY_TYPES(),
     OSSL_PARAM_END
@@ -354,6 +353,7 @@ static const OSSL_PARAM ed_gettable_params[] = {
     OSSL_PARAM_int(OSSL_PKEY_PARAM_BITS, NULL),
     OSSL_PARAM_int(OSSL_PKEY_PARAM_SECURITY_BITS, NULL),
     OSSL_PARAM_int(OSSL_PKEY_PARAM_MAX_SIZE, NULL),
+    OSSL_PARAM_utf8_string(OSSL_PKEY_PARAM_MANDATORY_DIGEST, NULL, 0),
     ECX_KEY_TYPES(),
     OSSL_PARAM_END
 };
@@ -485,6 +485,8 @@ static void *ecx_gen_init(void *provctx, int selection,
         gctx->libctx = libctx;
         gctx->type = type;
         gctx->selection = selection;
+    } else {
+        return NULL;
     }
     if (!ecx_gen_set_params(gctx, params)) {
         ecx_gen_cleanup(gctx);
@@ -693,6 +695,9 @@ static void *ed448_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
 static void ecx_gen_cleanup(void *genctx)
 {
     struct ecx_gen_ctx *gctx = genctx;
+
+    if (gctx == NULL)
+        return;
 
     OPENSSL_free(gctx->propq);
     OPENSSL_free(gctx);

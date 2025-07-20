@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -331,7 +331,7 @@ static int provider_conf_load(OSSL_LIB_CTX *libctx, const char *name,
             ok = provider_conf_params(NULL, &entry, NULL, value, cnf);
         if (ok >= 1 && (entry.path != NULL || entry.parameters != NULL)) {
             ok = ossl_provider_info_add_to_store(libctx, &entry);
-            added = 1;
+            added = ok;
         }
         if (added == 0)
             ossl_provider_info_clear(&entry);

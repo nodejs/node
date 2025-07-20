@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -32,7 +32,7 @@ static OSSL_FUNC_cipher_set_ctx_params_fn chacha20_poly1305_set_ctx_params;
 static OSSL_FUNC_cipher_cipher_fn chacha20_poly1305_cipher;
 static OSSL_FUNC_cipher_final_fn chacha20_poly1305_final;
 static OSSL_FUNC_cipher_gettable_ctx_params_fn chacha20_poly1305_gettable_ctx_params;
-#define chacha20_poly1305_settable_ctx_params ossl_cipher_aead_settable_ctx_params
+static OSSL_FUNC_cipher_settable_ctx_params_fn chacha20_poly1305_settable_ctx_params;
 #define chacha20_poly1305_gettable_params ossl_cipher_generic_gettable_params
 #define chacha20_poly1305_update chacha20_poly1305_cipher
 
@@ -158,6 +158,21 @@ static const OSSL_PARAM *chacha20_poly1305_gettable_ctx_params
     return chacha20_poly1305_known_gettable_ctx_params;
 }
 
+static const OSSL_PARAM chacha20_poly1305_known_settable_ctx_params[] = {
+    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),
+    OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_IVLEN, NULL),
+    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG, NULL, 0),
+    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_AEAD_TLS1_AAD, NULL, 0),
+    OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_AEAD_TLS1_IV_FIXED, NULL, 0),
+    OSSL_PARAM_END
+};
+static const OSSL_PARAM *chacha20_poly1305_settable_ctx_params(
+        ossl_unused void *cctx, ossl_unused void *provctx
+    )
+{
+    return chacha20_poly1305_known_settable_ctx_params;
+}
+
 static int chacha20_poly1305_set_ctx_params(void *vctx,
                                             const OSSL_PARAM params[])
 {
@@ -238,7 +253,6 @@ static int chacha20_poly1305_set_ctx_params(void *vctx,
             return 0;
         }
     }
-    /* ignore OSSL_CIPHER_PARAM_AEAD_MAC_KEY */
     return 1;
 }
 

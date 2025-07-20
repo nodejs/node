@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -612,6 +612,8 @@ int ssl_get_prev_session(SSL *s, CLIENTHELLO_MSG *hello)
     SSL_TICKET_STATUS r;
 
     if (SSL_IS_TLS13(s)) {
+        SSL_SESSION_free(s->session);
+        s->session = NULL;
         /*
          * By default we will send a new ticket. This can be overridden in the
          * ticket processing.
@@ -624,6 +626,7 @@ int ssl_get_prev_session(SSL *s, CLIENTHELLO_MSG *hello)
                                         hello->pre_proc_exts, NULL, 0))
             return -1;
 
+        /* If we resumed, s->session will now be set */
         ret = s->session;
     } else {
         /* sets s->ext.ticket_expected */

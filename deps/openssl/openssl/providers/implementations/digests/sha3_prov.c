@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,7 +19,7 @@
 #include "prov/implementations.h"
 
 #define SHA3_FLAGS PROV_DIGEST_FLAG_ALGID_ABSENT
-#define SHAKE_FLAGS PROV_DIGEST_FLAG_XOF
+#define SHAKE_FLAGS (PROV_DIGEST_FLAG_XOF | PROV_DIGEST_FLAG_ALGID_ABSENT)
 #define KMAC_FLAGS PROV_DIGEST_FLAG_XOF
 
 /*

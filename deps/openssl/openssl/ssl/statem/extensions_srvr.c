@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -275,7 +275,13 @@ int tls_parse_ctos_sig_algs_cert(SSL *s, PACKET *pkt,
         return 0;
     }
 
-    if (!s->hit && !tls1_save_sigalgs(s, &supported_sig_algs, 1)) {
+    /*
+     * We use this routine on both clients and servers, and when clients
+     * get asked for PHA we need to always save the sigalgs regardless
+     * of whether it was a resumption or not.
+     */
+    if ((!s->server || (s->server && !s->hit))
+            && !tls1_save_sigalgs(s, &supported_sig_algs, 1)) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
@@ -294,7 +300,13 @@ int tls_parse_ctos_sig_algs(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         return 0;
     }
 
-    if (!s->hit && !tls1_save_sigalgs(s, &supported_sig_algs, 0)) {
+    /*
+     * We use this routine on both clients and servers, and when clients
+     * get asked for PHA we need to always save the sigalgs regardless
+     * of whether it was a resumption or not.
+     */
+    if ((!s->server || (s->server && !s->hit))
+            && !tls1_save_sigalgs(s, &supported_sig_algs, 0)) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
