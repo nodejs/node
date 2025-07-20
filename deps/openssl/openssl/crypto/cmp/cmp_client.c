@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -611,8 +611,10 @@ static int cert_response(OSSL_CMP_CTX *ctx, int sleep, int rid,
         ERR_add_error_data(1, "; cannot extract certificate from response");
         return 0;
     }
-    if (!ossl_cmp_ctx_set0_newCert(ctx, cert))
+    if (!ossl_cmp_ctx_set0_newCert(ctx, cert)) {
+        X509_free(cert);
         return 0;
+    }
 
     /*
      * if the CMP server returned certificates in the caPubs field, copy them
