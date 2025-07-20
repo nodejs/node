@@ -1,42 +1,32 @@
 'use strict';
 
 require('../common');
-const ArrayStream = require('../common/arraystream');
+const { startNewREPLServer } = require('../common/repl');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 
-const repl = require('repl');
+const testingReplPrompt = '_REPL_TESTING_PROMPT_>';
 
 // Processes some input in a REPL instance and returns a promise that
 // resolves to the produced output (as a string).
-function getReplRunOutput(input, replOptions) {
+function getReplRunOutput(inputStr, replOptions) {
   return new Promise((resolve) => {
-    const inputStream = new ArrayStream();
-    const outputStream = new ArrayStream();
+    const { replServer, input, output } = startNewREPLServer({ prompt: testingReplPrompt, ...replOptions });
 
-    const testingReplPrompt = '_REPL_TESTING_PROMPT_>';
+    output.accumulator = '';
 
-    const replServer = repl.start({
-      input: inputStream,
-      output: outputStream,
-      prompt: testingReplPrompt,
-      ...replOptions,
-    });
-
-    let output = '';
-
-    outputStream.write = (chunk) => {
-      output += chunk;
+    output.write = (chunk) => {
+      output.accumulator += chunk;
       // The prompt appears after the input has been processed
-      if (output.includes(testingReplPrompt)) {
+      if (output.accumulator.includes(testingReplPrompt)) {
         replServer.close();
-        resolve(output);
+        resolve(output.accumulator);
       }
     };
 
-    inputStream.emit('data', input);
+    input.emit('data', inputStr);
 
-    inputStream.run(['']);
+    input.run(['']);
   });
 }
 
@@ -62,23 +52,23 @@ describe('repl with custom eval', { concurrency: true }, () => {
 
   it('provides a repl context to the eval callback', async () => {
     const context = await new Promise((resolve) => {
-      const r = repl.start({
+      const { replServer } = startNewREPLServer({
         eval: (_cmd, context) => resolve(context),
       });
-      r.context = { foo: 'bar' };
-      r.write('\n.exit\n');
+      replServer.context = { foo: 'bar' };
+      replServer.write('\n.exit\n');
     });
     assert.strictEqual(context.foo, 'bar');
   });
 
   it('provides the global context to the eval callback', async () => {
     const context = await new Promise((resolve) => {
-      const r = repl.start({
-        useGlobal: true,
+      const { replServer } = startNewREPLServer({
         eval: (_cmd, context) => resolve(context),
+        useGlobal: true
       });
       global.foo = 'global_foo';
-      r.write('\n.exit\n');
+      replServer.write('\n.exit\n');
     });
 
     assert.strictEqual(context.foo, 'global_foo');
@@ -88,12 +78,12 @@ describe('repl with custom eval', { concurrency: true }, () => {
   it('inherits variables from the global context but does not use it afterwords if `useGlobal` is false', async () => {
     global.bar = 'global_bar';
     const context = await new Promise((resolve) => {
-      const r = repl.start({
+      const { replServer } = startNewREPLServer({
         useGlobal: false,
         eval: (_cmd, context) => resolve(context),
       });
       global.baz = 'global_baz';
-      r.write('\n.exit\n');
+      replServer.write('\n.exit\n');
     });
 
     assert.strictEqual(context.bar, 'global_bar');
@@ -111,10 +101,10 @@ describe('repl with custom eval', { concurrency: true }, () => {
    */
   it('preserves the original input', async () => {
     const cmd = await new Promise((resolve) => {
-      const r = repl.start({
+      const { replServer } = startNewREPLServer({
         eval: (cmd) => resolve(cmd),
       });
-      r.write('function f() {}\n.exit\n');
+      replServer.write('function f() {}\n.exit\n');
     });
     assert.strictEqual(cmd, 'function f() {}\n');
   });

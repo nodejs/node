@@ -1,44 +1,35 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 
 common.skipIfInspectorDisabled();
 
-const repl = require('repl');
+const { startNewREPLServer } = require('../common/repl');
 
 const testingReplPrompt = '_REPL_TESTING_PROMPT_>';
 
 // Processes some input in a REPL instance and returns a promise that
 // resolves to the produced output (as a string).
-function getReplRunOutput(input, replOptions) {
+function getReplRunOutput(inputStr, replOptions) {
   return new Promise((resolve) => {
-    const inputStream = new ArrayStream();
-    const outputStream = new ArrayStream();
+    const { replServer, input, output } = startNewREPLServer({ prompt: testingReplPrompt, ...replOptions });
 
-    const replServer = repl.start({
-      input: inputStream,
-      output: outputStream,
-      prompt: testingReplPrompt,
-      ...replOptions,
-    });
+    output.accumulator = '';
 
-    let output = '';
-
-    outputStream.write = (chunk) => {
-      output += chunk;
+    output.write = (chunk) => {
+      output.accumulator += chunk;
       // The prompt appears after the input has been processed
-      if (output.includes(testingReplPrompt)) {
+      if (output.accumulator.includes(testingReplPrompt)) {
         replServer.close();
-        resolve(output);
+        resolve(output.accumulator);
       }
     };
 
-    inputStream.emit('data', input);
+    input.emit('data', inputStr);
 
-    inputStream.run(['']);
+    input.run(['']);
   });
 }
 

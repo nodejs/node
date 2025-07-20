@@ -1,26 +1,9 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
+const { startNewREPLServer } = require('../common/repl');
 const { describe, it, before, after } = require('node:test');
 const assert = require('assert');
-
-const repl = require('repl');
-
-function prepareREPL() {
-  const input = new ArrayStream();
-  const replServer = repl.start({
-    prompt: '',
-    input,
-    output: process.stdout,
-    allowBlockingCompletions: true,
-  });
-
-  // Some errors are passed to the domain, but do not callback
-  replServer._domain.on('error', assert.ifError);
-
-  return { replServer, input };
-}
 
 function testCompletion(replServer, { input, expectedCompletions }) {
   replServer.complete(
@@ -36,7 +19,7 @@ describe('REPL tab object completion on computed properties', () => {
     let replServer;
 
     before(() => {
-      const { replServer: server, input } = prepareREPL();
+      const { replServer: server, input } = startNewREPLServer();
       replServer = server;
 
       input.run([
@@ -97,7 +80,7 @@ describe('REPL tab object completion on computed properties', () => {
     let replServer;
 
     before(() => {
-      const { replServer: server, input } = prepareREPL();
+      const { replServer: server, input } = startNewREPLServer();
       replServer = server;
 
       input.run([

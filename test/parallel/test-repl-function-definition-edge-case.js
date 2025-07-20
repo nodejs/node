@@ -2,36 +2,18 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
-const repl = require('repl');
-const stream = require('stream');
+const { startNewREPLServer } = require('../common/repl');
 
-const r = initRepl();
+const { replServer } = startNewREPLServer({
+  useColors: false,
+  terminal: false
+});
 
-r.input.emit('data', 'function a() { return 42; } (1)\n');
-r.input.emit('data', 'a\n');
-r.input.emit('data', '.exit\n');
-r.once('exit', common.mustCall());
+replServer.input.emit('data', 'function a() { return 42; } (1)\n');
+replServer.input.emit('data', 'a\n');
+replServer.input.emit('data', '.exit\n');
+replServer.once('exit', common.mustCall());
 
 const expected = '1\n[Function: a]\n';
-const got = r.output.accumulator.join('');
+const got = replServer.output.accumulator;
 assert.strictEqual(got, expected);
-
-function initRepl() {
-  const input = new stream();
-  input.write = input.pause = input.resume = () => {};
-  input.readable = true;
-
-  const output = new stream();
-  output.writable = true;
-  output.accumulator = [];
-
-  output.write = (data) => output.accumulator.push(data);
-
-  return repl.start({
-    input,
-    output,
-    useColors: false,
-    terminal: false,
-    prompt: ''
-  });
-}

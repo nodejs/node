@@ -21,14 +21,18 @@
 
 'use strict';
 require('../common');
+const { startNewREPLServer } = require('../common/repl');
 const ArrayStream = require('../common/arraystream');
 
-const repl = require('repl');
+const stream = new ArrayStream();
 
-const putIn = new ArrayStream();
-repl.start('', putIn);
+startNewREPLServer({
+  input: stream,
+  output: stream,
+  terminal: false,
+});
 
-putIn.write = function(data) {
+stream.write = function(data) {
   // Don't use assert for this because the domain might catch it, and
   // give a false negative.  Don't throw, just print and exit.
   if (data === 'OK\n') {
@@ -39,7 +43,7 @@ putIn.write = function(data) {
   }
 };
 
-putIn.run([
+stream.run([
   'require("domain").create().on("error", function() { console.log("OK") })' +
   '.run(function() { throw new Error("threw") })',
 ]);
