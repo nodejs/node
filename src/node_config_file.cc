@@ -55,6 +55,10 @@ ParseResult ConfigReader::ProcessOptionValue(
       if (result) {
         // If the value is true, we need to set the flag
         output->push_back(option_name);
+      } else {
+        // Ensure negation is made putting the "--no-" prefix
+        output->push_back("--no-" +
+                          option_name.substr(2, option_name.size() - 2));
       }
 
       break;

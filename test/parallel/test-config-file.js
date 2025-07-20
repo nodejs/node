@@ -60,6 +60,17 @@ test('should parse boolean flag', async () => {
   strictEqual(result.code, 0);
 });
 
+test('should parse boolean flag defaulted to true', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--experimental-config-file',
+    fixtures.path('rc/warnings-false.json'),
+    '-p', 'process.emitWarning("A warning")',
+  ]);
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, 'undefined\n');
+  strictEqual(result.code, 0);
+});
+
 test('should throw an error when a flag is declared twice', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
