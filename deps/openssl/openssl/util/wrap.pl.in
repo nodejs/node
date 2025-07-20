@@ -18,6 +18,38 @@ BEGIN {
     OpenSSL::Util->import();
 }
 
+sub quote_cmd_win32 {
+    my $cmd = "";
+
+    foreach my $arg (@_) {
+        if ($arg =~ m{\A[\w,-./@]+\z}) {
+            $cmd .= $arg . q{ };;
+        } else {
+            $cmd .= q{"} . quote_arg_win32($arg) . q{" };
+        }
+    }
+    return substr($cmd, 0, -1);
+}
+
+sub quote_arg_win32 {
+    my ($arg) = @_;
+    my $val = "";
+
+    pos($arg) = 0;
+    while (1) {
+        return $val if (pos($arg) == length($arg));
+        if ($arg =~ m{\G((?:(?>[\\]*)[^"\\]+)+)}ogc) {
+            $val .= $1;
+        } elsif ($arg =~ m{\G"}ogc) {
+            $val .= qq{\\"};
+        } elsif ($arg =~ m{\G((?>[\\]+)(?="|\z))}ogc) {
+            $val .= qq{\\} x (2 * length($1));
+        } else {
+            die sprintf("Internal error quoting: '%s'\n", $arg);
+        }
+    }
+}
+
 my $there = canonpath(catdir(dirname($0), updir()));
 my $std_engines = catdir($there, 'engines');
 my $std_providers = catdir($there, 'providers');
@@ -60,7 +92,12 @@ if ($^O eq 'VMS') {
 
 # The exec() statement on MSWin32 doesn't seem to give back the exit code
 # from the call, so we resort to using system() instead.
-my $waitcode = system @cmd;
+my $waitcode;
+if ($^O eq 'MSWin32') {
+    $waitcode = system(quote_cmd_win32(@cmd));
+} else {
+    $waitcode = system @cmd;
+}
 
 # According to documentation, -1 means that system() couldn't run the command,
 # otherwise, the value is similar to the Unix wait() status value

@@ -128,8 +128,7 @@ available online.
 Wiki
 ----
 
-There is a Wiki at [wiki.openssl.org] which is currently not very active.
-It contains a lot of useful information, not all of which is up to date.
+There is a [GitHub Wiki] which is currently not very active.
 
 License
 =======
@@ -178,8 +177,8 @@ All rights reserved.
     <https://github.com/openssl/openssl>
     "OpenSSL GitHub Mirror"
 
-[wiki.openssl.org]:
-    <https://wiki.openssl.org>
+[GitHub Wiki]:
+    <https://github.com/openssl/openssl/wiki>
     "OpenSSL Wiki"
 
 [migration_guide(7ossl)]:
