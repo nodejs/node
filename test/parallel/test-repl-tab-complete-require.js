@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const { builtinModules } = require('module');
@@ -19,24 +18,11 @@ if (!isMainThread) {
 process.chdir(fixtures.fixturesDir);
 
 const repl = require('repl');
-
-function prepareREPL() {
-  const replServer = repl.start({
-    prompt: '',
-    input: new ArrayStream(),
-    output: process.stdout,
-    allowBlockingCompletions: true,
-  });
-
-  // Some errors are passed to the domain, but do not callback
-  replServer._domain.on('error', assert.ifError);
-
-  return replServer;
-}
+const { startNewREPLServer } = require('../common/repl');
 
 // Tab completion on require on builtin modules works
 {
-  const replServer = prepareREPL();
+  const { replServer } = startNewREPLServer();
 
   replServer.complete(
     "require('",
@@ -65,7 +51,7 @@ function prepareREPL() {
 
 // Tab completion on require on builtin modules works (with extra spaces and "n" prefix)
 {
-  const replServer = prepareREPL();
+  const { replServer } = startNewREPLServer();
 
   replServer.complete(
     "require\t( 'n",
@@ -98,7 +84,7 @@ function prepareREPL() {
 {
   const expected = ['@nodejsscope', '@nodejsscope/'];
 
-  const replServer = prepareREPL();
+  const { replServer } = startNewREPLServer();
 
   // Require calls should handle all types of quotation marks.
   for (const quotationMark of ["'", '"', '`']) {
@@ -124,7 +110,7 @@ function prepareREPL() {
 
 {
   // Completions should find modules and handle whitespace after the opening bracket.
-  const replServer = prepareREPL();
+  const { replServer } = startNewREPLServer();
 
   replServer.complete(
     'require \t("no_ind',
@@ -137,7 +123,7 @@ function prepareREPL() {
 
 // Test tab completion for require() relative to the current directory
 {
-  const replServer = prepareREPL();
+  const { replServer } = startNewREPLServer();
 
   const cwd = process.cwd();
   process.chdir(__dirname);

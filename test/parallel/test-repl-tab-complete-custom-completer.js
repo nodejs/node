@@ -1,21 +1,14 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
-
-const repl = require('repl');
-
-const putIn = new ArrayStream();
+const { startNewREPLServer } = require('../common/repl');
 
 // To test custom completer function.
 // Sync mode.
 {
   const customCompletions = 'aaa aa1 aa2 bbb bb1 bb2 bb3 ccc ddd eee'.split(' ');
-  const testCustomCompleterSyncMode = repl.start({
-    prompt: '',
-    input: putIn,
-    output: putIn,
+  const { replServer } = startNewREPLServer({
     completer: function completer(line) {
       const hits = customCompletions.filter((c) => c.startsWith(line));
       // Show all completions if none found.
@@ -25,7 +18,7 @@ const putIn = new ArrayStream();
 
   // On empty line should output all the custom completions
   // without complete anything.
-  testCustomCompleterSyncMode.complete('', common.mustCall((error, data) => {
+  replServer.complete('', common.mustCall((error, data) => {
     assert.deepStrictEqual(data, [
       customCompletions,
       '',
@@ -33,7 +26,7 @@ const putIn = new ArrayStream();
   }));
 
   // On `a` should output `aaa aa1 aa2` and complete until `aa`.
-  testCustomCompleterSyncMode.complete('a', common.mustCall((error, data) => {
+  replServer.complete('a', common.mustCall((error, data) => {
     assert.deepStrictEqual(data, [
       'aaa aa1 aa2'.split(' '),
       'a',
@@ -45,10 +38,7 @@ const putIn = new ArrayStream();
 // Async mode.
 {
   const customCompletions = 'aaa aa1 aa2 bbb bb1 bb2 bb3 ccc ddd eee'.split(' ');
-  const testCustomCompleterAsyncMode = repl.start({
-    prompt: '',
-    input: putIn,
-    output: putIn,
+  const { replServer } = startNewREPLServer({
     completer: function completer(line, callback) {
       const hits = customCompletions.filter((c) => c.startsWith(line));
       // Show all completions if none found.
@@ -58,7 +48,7 @@ const putIn = new ArrayStream();
 
   // On empty line should output all the custom completions
   // without complete anything.
-  testCustomCompleterAsyncMode.complete('', common.mustCall((error, data) => {
+  replServer.complete('', common.mustCall((error, data) => {
     assert.deepStrictEqual(data, [
       customCompletions,
       '',
@@ -66,7 +56,7 @@ const putIn = new ArrayStream();
   }));
 
   // On `a` should output `aaa aa1 aa2` and complete until `aa`.
-  testCustomCompleterAsyncMode.complete('a', common.mustCall((error, data) => {
+  replServer.complete('a', common.mustCall((error, data) => {
     assert.deepStrictEqual(data, [
       'aaa aa1 aa2'.split(' '),
       'a',

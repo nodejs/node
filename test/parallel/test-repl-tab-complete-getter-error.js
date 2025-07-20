@@ -1,29 +1,15 @@
 'use strict';
 
 const common = require('../common');
-const repl = require('repl');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
+const { startNewREPLServer } = require('../common/repl');
 
 (async function() {
   await runTest();
 })().then(common.mustCall());
 
 async function runTest() {
-  const input = new ArrayStream();
-  const output = new ArrayStream();
-
-  const replServer = repl.start({
-    prompt: '',
-    input,
-    output: output,
-    allowBlockingCompletions: true,
-    terminal: true
-  });
-
-  replServer._domain.on('error', (e) => {
-    assert.fail(`Error in REPL domain: ${e}`);
-  });
+  const { replServer } = startNewREPLServer();
 
   await new Promise((resolve, reject) => {
     replServer.eval(`
