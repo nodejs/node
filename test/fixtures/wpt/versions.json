@@ -96,7 +96,7 @@
     "path": "web-locks"
   },
   "WebCryptoAPI": {
-    "commit": "19d82c57abc7494bdc459a338c5dcfd79e818b4a",
+    "commit": "ab08796857072c5a93e27e0a25effba2e07dad11",
     "path": "WebCryptoAPI"
   },
   "webidl/ecmascript-binding/es-exceptions": {
