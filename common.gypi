@@ -640,6 +640,7 @@
             '-Wendif-labels',
             '-W',
             '-Wno-unused-parameter',
+            '-Wno-cast-function-type-mismatch',
           ],
         },
         'target_conditions': [
