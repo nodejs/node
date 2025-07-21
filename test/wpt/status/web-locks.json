@@ -1,4 +1,14 @@
 {
+  "held.https.any.js": {
+    "fail": {
+      "unexpected": [
+        "evaluation in WPTRunner.runJsTests()"
+      ],
+      "flaky": [
+        "Flaky on ppc, linux x64 and s390x #59142"
+      ]
+    }
+  },
   "idlharness.https.any.js": {
     "fail": {
       "expected": [
