@@ -67,7 +67,7 @@ async function runReplCompleteTests(tests) {
           replServer._completeDomain.removeListener('error', handleError);
           resolve();
         };
-        replServer._completeDomain.on('error', handleError);
+        replServer._completeDomain.on('error', common.mustCall(handleError));
       });
     } else {
       replServer._completeDomain.on('error', onError);
