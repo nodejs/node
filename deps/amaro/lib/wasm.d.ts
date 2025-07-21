@@ -43,6 +43,20 @@ interface TransformConfig {
      * Defaults to false.
      */
     tsEnumIsMutable?: boolean;
+
+    /**
+     * Available only on nightly builds.
+     */
+    jsx?: JsxConfig;
+}
+
+interface JsxConfig {
+    /**
+     * How to transform JSX.
+     * 
+     * @default "react-jsx"
+     */
+    transform?: "react-jsx" | "react-jsxdev";
 }
 
 
