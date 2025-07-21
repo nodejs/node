@@ -21,6 +21,7 @@
 #include <string_view>
 #include <vector>
 
+using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
@@ -1867,6 +1868,117 @@ void GetNamespaceOptionsInputType(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(namespaces_map);
 }
 
+// Return an array containing all currently active options as flag
+// strings from all sources (command line, NODE_OPTIONS, config file)
+void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
+  if (!env->has_run_bootstrapping_code()) {
+    // No code because this is an assertion.
+    THROW_ERR_OPTIONS_BEFORE_BOOTSTRAPPING(
+        isolate, "Should not query options before bootstrapping is done");
+  }
+  env->set_has_serialized_options(true);
+
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  IterateCLIOptionsScope s(env);
+
+  std::vector<std::string> flags;
+  PerProcessOptions* opts = per_process::cli_options.get();
+
+  for (const auto& item : _ppop_instance.options_) {
+    const std::string& option_name = item.first;
+    const auto& option_info = item.second;
+    auto field = option_info.field;
+
+    // TODO(pmarchini): Skip internal options for the moment as probably not
+    // required
+    if (option_name.empty() || option_name.starts_with('[')) {
+      continue;
+    }
+
+    // Skip V8 options and NoOp options - only Node.js-specific options
+    if (option_info.type == kNoOp || option_info.type == kV8Option) {
+      continue;
+    }
+
+    switch (option_info.type) {
+      case kBoolean: {
+        bool current_value = *_ppop_instance.Lookup<bool>(field, opts);
+        // For boolean options with default_is_true, we want the opposite logic
+        if (option_info.default_is_true) {
+          if (!current_value) {
+            // If default is true and current is false, add --no-* flag
+            flags.push_back("--no-" + option_name.substr(2));
+          }
+        } else {
+          if (current_value) {
+            // If default is false and current is true, add --flag
+            flags.push_back(option_name);
+          }
+        }
+        break;
+      }
+      case kInteger: {
+        int64_t current_value = *_ppop_instance.Lookup<int64_t>(field, opts);
+        flags.push_back(option_name + "=" + std::to_string(current_value));
+        break;
+      }
+      case kUInteger: {
+        uint64_t current_value = *_ppop_instance.Lookup<uint64_t>(field, opts);
+        flags.push_back(option_name + "=" + std::to_string(current_value));
+        break;
+      }
+      case kString: {
+        const std::string& current_value =
+            *_ppop_instance.Lookup<std::string>(field, opts);
+        // Only include if not empty
+        if (!current_value.empty()) {
+          flags.push_back(option_name + "=" + current_value);
+        }
+        break;
+      }
+      case kStringList: {
+        const std::vector<std::string>& current_values =
+            *_ppop_instance.Lookup<StringVector>(field, opts);
+        // Add each string in the list as a separate flag
+        for (const std::string& value : current_values) {
+          flags.push_back(option_name + "=" + value);
+        }
+        break;
+      }
+      case kHostPort: {
+        const HostPort& host_port =
+            *_ppop_instance.Lookup<HostPort>(field, opts);
+        // Only include if host is not empty or port is not default
+        if (!host_port.host().empty() || host_port.port() != 0) {
+          std::string host_port_str = host_port.host();
+          if (host_port.port() != 0) {
+            if (!host_port_str.empty()) {
+              host_port_str += ":";
+            }
+            host_port_str += std::to_string(host_port.port());
+          }
+          if (!host_port_str.empty()) {
+            flags.push_back(option_name + "=" + host_port_str);
+          }
+        }
+        break;
+      }
+      default:
+        // Skip unknown types
+        break;
+    }
+  }
+
+  Local<Value> result;
+  CHECK(ToV8Value(context, flags).ToLocal(&result));
+
+  args.GetReturnValue().Set(result);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1877,6 +1989,8 @@ void Initialize(Local<Object> target,
       context, target, "getCLIOptionsValues", GetCLIOptionsValues);
   SetMethodNoSideEffect(
       context, target, "getCLIOptionsInfo", GetCLIOptionsInfo);
+  SetMethodNoSideEffect(
+      context, target, "getOptionsAsFlags", GetOptionsAsFlags);
   SetMethodNoSideEffect(
       context, target, "getEmbedderOptions", GetEmbedderOptions);
   SetMethodNoSideEffect(
@@ -1909,6 +2023,7 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetCLIOptionsValues);
   registry->Register(GetCLIOptionsInfo);
+  registry->Register(GetOptionsAsFlags);
   registry->Register(GetEmbedderOptions);
   registry->Register(GetEnvOptionsInputType);
   registry->Register(GetNamespaceOptionsInputType);
