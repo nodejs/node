@@ -4273,10 +4273,9 @@ added: REPLACEME
 
 > Stability: 1.1 - Active development
 
-When Node.js creates the global agent, it checks the `NODE_USE_ENV_PROXY`
-environment variable. If it is set to `1`, the global agent will be constructed
+When Node.js creates the global agent, if the `NODE_USE_ENV_PROXY` environment variable is
+set to `1` or `--use-env-proxy` is enabled, the global agent will be constructed
 with `proxyEnv: process.env`, enabling proxy support based on the environment variables.
-
 Custom agents can also be created with proxy support by passing a
 `proxyEnv` option when constructing the agent. The value can be `process.env`
 if they just want to inherit the configuration from the environment variables,
@@ -4318,11 +4317,18 @@ Multiple entries should be separated by commas.
 
 ### Example
 
-Starting a Node.js process with proxy support enabled for all requests sent
-through the default global agent:
+To start a Node.js process with proxy support enabled for all requests sent
+through the default global agent, either use the `NODE_USE_ENV_PROXY` environment
+variable:
 
 ```console
 NODE_USE_ENV_PROXY=1 HTTP_PROXY=http://proxy.example.com:8080 NO_PROXY=localhost,127.0.0.1 node client.js
+```
+
+Or the `--use-env-proxy` flag.
+
+```console
+HTTP_PROXY=http://proxy.example.com:8080 NO_PROXY=localhost,127.0.0.1 node --use-env-proxy client.js
 ```
 
 To create a custom agent with built-in proxy support:

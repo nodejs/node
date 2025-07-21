@@ -664,6 +664,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "emit pending deprecation warnings",
             &EnvironmentOptions::pending_deprecation,
             kAllowedInEnvvar);
+  AddOption("--use-env-proxy",
+            "parse proxy settings from HTTP_PROXY/HTTPS_PROXY/NO_PROXY"
+            "environment variables and apply the setting in global HTTP/HTTPS "
+            "clients",
+            &EnvironmentOptions::use_env_proxy,
+            kAllowedInEnvvar);
   AddOption("--preserve-symlinks",
             "preserve symbolic links when resolving",
             &EnvironmentOptions::preserve_symlinks,
@@ -1877,6 +1883,8 @@ void HandleEnvOptions(std::shared_ptr<EnvironmentOptions> env_options,
 
   env_options->preserve_symlinks_main =
       opt_getter("NODE_PRESERVE_SYMLINKS_MAIN") == "1";
+
+  env_options->use_env_proxy = opt_getter("NODE_USE_ENV_PROXY") == "1";
 
   if (env_options->redirect_warnings.empty())
     env_options->redirect_warnings = opt_getter("NODE_REDIRECT_WARNINGS");
