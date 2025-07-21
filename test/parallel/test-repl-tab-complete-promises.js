@@ -42,6 +42,10 @@ async function runReplCompleteTests(tests) {
     terminal: true
   });
 
+  replServer._domain.on('error', (err) => {
+    assert.fail(`Unexpected domain error: ${err.message}`);
+  });
+
   for (const { send, run, completeError = false } of tests) {
     if (run) {
       await new Promise((resolve, reject) => {
