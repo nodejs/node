@@ -12,4 +12,4 @@ test-report-fatal-error: PASS, FLAKY
 
 [$system==ibmi]
 # https://github.com/nodejs/node/issues/58582
-test-report-exclude-network: PASS,FLAKY
+test-report-exclude-network: SKIP
