@@ -21,7 +21,6 @@
 #include <string_view>
 #include <vector>
 
-using v8::Array;
 using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
