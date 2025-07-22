@@ -261,6 +261,7 @@ needs to be pointed out separately during the onboarding.
   git checkout main
   git push upstream main  # Push the landed commit to the upstream main branch.
   ```
+
   GitHub will automatically detect that the PR branch is now identical to the
   `main` branch and will mark the PR as "Merged".
 
@@ -287,7 +288,8 @@ needs to be pointed out separately during the onboarding.
   repository for details.
 * If you are interested in helping to fix coverity reports consider requesting
   access to the projects coverity project as outlined in [static-analysis][].
-* If you are interested in helping out with CI flakes, check out the [reliability respository][].
+* If you are interested in helping out with CI reliability, check out the
+  [reliability respository][] and [guide on how to deal with CI flakes][].
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Labels]: doc/contributing/collaborator-guide.md#labels
@@ -298,6 +300,7 @@ needs to be pointed out separately during the onboarding.
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
 [`node-test-pull-request`]: https://ci.nodejs.org/job/node-test-pull-request/
+[guide on how to deal with CI flakes]: https://github.com/nodejs/test?tab=readme-ov-file#protocols-in-improving-ci-reliability
 [participants' expenses]: https://github.com/openjs-foundation/cross-project-council/blob/main/community-fund/COMMUNITY_FUND_POLICY.md#community-fund-rules
 [reliability respository]: https://github.com/nodejs/reliability
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
