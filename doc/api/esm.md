@@ -722,7 +722,7 @@ Both of these integrations are in line with the
 
 ### Wasm Instance Phase Imports
 
-> Stability: 1.2 - Active development
+> Stability: 1.1 - Active development
 
 Instance imports allow any `.wasm` files to be imported as normal modules,
 supporting their module imports in turn.
