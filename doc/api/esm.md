@@ -712,35 +712,11 @@ changes:
     description: Wasm modules no longer require the `--experimental-wasm-modules` flag.
 -->
 
-> Stability: 1.1 - Active development
-
 Importing both WebAssembly module instances and WebAssembly source phase
 imports is supported.
 
 Both of these integrations are in line with the
 [ES Module Integration Proposal for WebAssembly][].
-
-### Wasm Instance Phase Imports
-
-> Stability: 1.1 - Active development
-
-Instance imports allow any `.wasm` files to be imported as normal modules,
-supporting their module imports in turn.
-
-For example, an `index.js` containing:
-
-```js
-import * as M from './library.wasm';
-console.log(M);
-```
-
-executed under:
-
-```bash
-node index.mjs
-```
-
-would provide the exports interface for the instantiation of `library.wasm`.
 
 ### Wasm Source Phase Imports
 
@@ -829,6 +805,28 @@ import source mod from './string-len.wasm';
 const { exports: { getLength } } = await WebAssembly.instantiate(mod, {});
 getLength('foo'); // Also returns 3.
 ```
+
+### Wasm Instance Phase Imports
+
+> Stability: 1.1 - Active development
+
+Instance imports allow any `.wasm` files to be imported as normal modules,
+supporting their module imports in turn.
+
+For example, an `index.js` containing:
+
+```js
+import * as M from './library.wasm';
+console.log(M);
+```
+
+executed under:
+
+```bash
+node index.mjs
+```
+
+would provide the exports interface for the instantiation of `library.wasm`.
 
 ### Reserved Wasm Namespaces
 
