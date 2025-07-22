@@ -21683,7 +21683,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.33.0";
+var version = "0.34.0";
 
 // sources/Engine.ts
 var import_fs9 = __toESM(require("fs"));
@@ -21697,7 +21697,7 @@ var import_valid4 = __toESM(require_valid2());
 var config_default = {
   definitions: {
     npm: {
-      default: "11.4.1+sha1.80350af543069991de20657ebcd07d9624cfad06",
+      default: "11.4.2+sha1.6f1519a03f7e04023a957a22b812832d0c4a4b33",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -21734,7 +21734,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "10.11.0+sha1.4048eeefd564ff1ab248fac3e2854d38245fe2f1",
+      default: "10.13.1+sha1.aa8c167c4509c97519542ef77a09e4b8ab59fb6a",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -21798,7 +21798,7 @@ var config_default = {
         package: "yarn"
       },
       transparent: {
-        default: "4.9.1+sha224.4285002185abb91fe2b781f27fd1e078086c37a7b095f6ea4ee25971",
+        default: "4.9.2+sha224.b8e0b161ae590950fbda696e6f3ca071362768e5280c5fbfdadf064b",
         commands: [
           [
             "yarn",
