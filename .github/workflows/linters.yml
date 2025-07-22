@@ -104,7 +104,8 @@ jobs:
         run: npx envinfo
       - name: Lint JavaScript files
         run: |
-          NODE=$(command -v node) make lint-js && true
+          set +e
+          NODE=$(command -v node) make lint-js
           EXIT_CODE="$?"
           if [ "$EXIT_CODE" != "0" ]
           then
