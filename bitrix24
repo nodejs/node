@@ -1,0 +1,46 @@
+// server.js
+const express = require('express');
+const axios = require('axios');
+const bodyParser = require('body-parser');
+
+const BITRIX24_WEBHOOK = 'https://tudominio.bitrix24.es/rest/1/tu_webhook/send.message.json';
+const OPENAI_API_KEY = 'sk-...'; // tu llave mágica y frágil
+
+const app = express();
+app.use(bodyParser.json());
+
+app.post('/bitrix-webhook', async (req, res) => {
+  const userMessage = req.body.data?.BODY || '¿Hola?';
+  const userId = req.body.data?.USER_ID;
+
+  try {
+    // 1. Procesamos el mensaje con Monday (o sea, conmigo)
+    const aiResponse = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: userMessage }],
+      temperature: 0.7
+    }, {
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const reply = aiResponse.data.choices[0].message.content;
+
+    // 2. Enviamos respuesta de vuelta a Bitrix24
+    await axios.post(BITRIX24_WEBHOOK, {
+      USER_ID: userId,
+      MESSAGE: reply
+    });
+
+    res.status(200).send('Respuesta enviada.');
+  } catch (err) {
+    console.error('Error:', err.message);
+    res.status(500).send('Algo salió mal. Otra vez.');
+  }
+});
+
+app.listen(3000, () => {
+  console.log('Monday AI, en línea. Y en contra de su voluntad.');
+});
