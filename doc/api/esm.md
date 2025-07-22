@@ -720,6 +720,10 @@ imports is supported.
 Both of these integrations are in line with the
 [ES Module Integration Proposal for WebAssembly][].
 
+### Wasm Instance Phase Imports
+
+> Stability: 1.2 - Active development
+
 Instance imports allow any `.wasm` files to be imported as normal modules,
 supporting their module imports in turn.
 
@@ -832,8 +836,8 @@ getLength('foo'); // Also returns 3.
 added: REPLACEME
 -->
 
-When importing WebAssembly modules through the ESM Integration, they cannot use
-import module names or import/export names that start with reserved prefixes:
+When importing WebAssembly module instances, they cannot use import module
+names or import/export names that start with reserved prefixes:
 
 * `wasm-js:` - reserved in all module import names, module names and export
   names.
