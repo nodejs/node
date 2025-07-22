@@ -146,9 +146,9 @@ extern "C" {
 ** [sqlite3_libversion_number()], [sqlite3_sourceid()],
 ** [sqlite_version()] and [sqlite_source_id()].
 */
-#define SQLITE_VERSION        "3.50.2"
-#define SQLITE_VERSION_NUMBER 3050002
-#define SQLITE_SOURCE_ID      "2025-06-28 14:00:48 2af157d77fb1304a74176eaee7fbc7c7e932d946bf25325e9c26c91db19e3079"
+#define SQLITE_VERSION        "3.50.3"
+#define SQLITE_VERSION_NUMBER 3050003
+#define SQLITE_SOURCE_ID      "2025-07-17 13:25:10 3ce993b8657d6d9deda380a93cdd6404a8c8ba1b185b2bc423703e41ae5f2543"
 
 /*
 ** CAPI3REF: Run-Time Library Version Numbers
@@ -9058,13 +9058,13 @@ SQLITE_API int sqlite3_stmt_status(sqlite3_stmt*, int op,int resetFlg);
 ** [[SQLITE_STMTSTATUS_SORT]] <dt>SQLITE_STMTSTATUS_SORT</dt>
 ** <dd>^This is the number of sort operations that have occurred.
 ** A non-zero value in this counter may indicate an opportunity to
-** improvement performance through careful use of indices.</dd>
+** improve performance through careful use of indices.</dd>
 **
 ** [[SQLITE_STMTSTATUS_AUTOINDEX]] <dt>SQLITE_STMTSTATUS_AUTOINDEX</dt>
 ** <dd>^This is the number of rows inserted into transient indices that
 ** were created automatically in order to help joins run faster.
 ** A non-zero value in this counter may indicate an opportunity to
-** improvement performance by adding permanent indices that do not
+** improve performance by adding permanent indices that do not
 ** need to be reinitialized each time the statement is run.</dd>
 **
 ** [[SQLITE_STMTSTATUS_VM_STEP]] <dt>SQLITE_STMTSTATUS_VM_STEP</dt>
@@ -9073,19 +9073,19 @@ SQLITE_API int sqlite3_stmt_status(sqlite3_stmt*, int op,int resetFlg);
 ** to 2147483647.  The number of virtual machine operations can be
 ** used as a proxy for the total work done by the prepared statement.
 ** If the number of virtual machine operations exceeds 2147483647
-** then the value returned by this statement status code is undefined.
+** then the value returned by this statement status code is undefined.</dd>
 **
 ** [[SQLITE_STMTSTATUS_REPREPARE]] <dt>SQLITE_STMTSTATUS_REPREPARE</dt>
 ** <dd>^This is the number of times that the prepare statement has been
 ** automatically regenerated due to schema changes or changes to
-** [bound parameters] that might affect the query plan.
+** [bound parameters] that might affect the query plan.</dd>
 **
 ** [[SQLITE_STMTSTATUS_RUN]] <dt>SQLITE_STMTSTATUS_RUN</dt>
 ** <dd>^This is the number of times that the prepared statement has
 ** been run.  A single "run" for the purposes of this counter is one
 ** or more calls to [sqlite3_step()] followed by a call to [sqlite3_reset()].
 ** The counter is incremented on the first [sqlite3_step()] call of each
-** cycle.
+** cycle.</dd>
 **
 ** [[SQLITE_STMTSTATUS_FILTER_MISS]]
 ** [[SQLITE_STMTSTATUS_FILTER HIT]]
@@ -9095,7 +9095,7 @@ SQLITE_API int sqlite3_stmt_status(sqlite3_stmt*, int op,int resetFlg);
 ** step was bypassed because a Bloom filter returned not-found.  The
 ** corresponding SQLITE_STMTSTATUS_FILTER_MISS value is the number of
 ** times that the Bloom filter returned a find, and thus the join step
-** had to be processed as normal.
+** had to be processed as normal.</dd>
 **
 ** [[SQLITE_STMTSTATUS_MEMUSED]] <dt>SQLITE_STMTSTATUS_MEMUSED</dt>
 ** <dd>^This is the approximate number of bytes of heap memory
@@ -9200,9 +9200,9 @@ struct sqlite3_pcache_page {
 ** SQLite will typically create one cache instance for each open database file,
 ** though this is not guaranteed. ^The
 ** first parameter, szPage, is the size in bytes of the pages that must
-** be allocated by the cache.  ^szPage will always a power of two.  ^The
+** be allocated by the cache.  ^szPage will always be a power of two.  ^The
 ** second parameter szExtra is a number of bytes of extra storage
-** associated with each page cache entry.  ^The szExtra parameter will
+** associated with each page cache entry.  ^The szExtra parameter will be
 ** a number less than 250.  SQLite will use the
 ** extra szExtra bytes on each page to store metadata about the underlying
 ** database page on disk.  The value passed into szExtra depends
@@ -9210,17 +9210,17 @@ struct sqlite3_pcache_page {
 ** ^The third argument to xCreate(), bPurgeable, is true if the cache being
 ** created will be used to cache database pages of a file stored on disk, or
 ** false if it is used for an in-memory database. The cache implementation
-** does not have to do anything special based with the value of bPurgeable;
+** does not have to do anything special based upon the value of bPurgeable;
 ** it is purely advisory.  ^On a cache where bPurgeable is false, SQLite will
 ** never invoke xUnpin() except to deliberately delete a page.
 ** ^In other words, calls to xUnpin() on a cache with bPurgeable set to
 ** false will always have the "discard" flag set to true.
-** ^Hence, a cache created with bPurgeable false will
+** ^Hence, a cache created with bPurgeable set to false will
 ** never contain any unpinned pages.
 **
 ** [[the xCachesize() page cache method]]
 ** ^(The xCachesize() method may be called at any time by SQLite to set the
-** suggested maximum cache-size (number of pages stored by) the cache
+** suggested maximum cache-size (number of pages stored) for the cache
 ** instance passed as the first argument. This is the value configured using
 ** the SQLite "[PRAGMA cache_size]" command.)^  As with the bPurgeable
 ** parameter, the implementation is not required to do anything with this
@@ -9247,12 +9247,12 @@ struct sqlite3_pcache_page {
 ** implementation must return a pointer to the page buffer with its content
 ** intact.  If the requested page is not already in the cache, then the
 ** cache implementation should use the value of the createFlag
-** parameter to help it determined what action to take:
+** parameter to help it determine what action to take:
 **
 ** <table border=1 width=85% align=center>
 ** <tr><th> createFlag <th> Behavior when page is not already in cache
 ** <tr><td> 0 <td> Do not allocate a new page.  Return NULL.
-** <tr><td> 1 <td> Allocate a new page if it easy and convenient to do so.
+** <tr><td> 1 <td> Allocate a new page if it is easy and convenient to do so.
 **                 Otherwise return NULL.
 ** <tr><td> 2 <td> Make every effort to allocate a new page.  Only return
 **                 NULL if allocating a new page is effectively impossible.
@@ -9269,7 +9269,7 @@ struct sqlite3_pcache_page {
 ** as its second argument.  If the third parameter, discard, is non-zero,
 ** then the page must be evicted from the cache.
 ** ^If the discard parameter is
-** zero, then the page may be discarded or retained at the discretion of
+** zero, then the page may be discarded or retained at the discretion of the
 ** page cache implementation. ^The page cache implementation
 ** may choose to evict unpinned pages at any time.
 **
@@ -9287,7 +9287,7 @@ struct sqlite3_pcache_page {
 ** When SQLite calls the xTruncate() method, the cache must discard all
 ** existing cache entries with page numbers (keys) greater than or equal
 ** to the value of the iLimit parameter passed to xTruncate(). If any
-** of these pages are pinned, they are implicitly unpinned, meaning that
+** of these pages are pinned, they become implicitly unpinned, meaning that
 ** they can be safely discarded.
 **
 ** [[the xDestroy() page cache method]]
@@ -9586,7 +9586,7 @@ SQLITE_API int sqlite3_backup_pagecount(sqlite3_backup *p);
 ** application receives an SQLITE_LOCKED error, it may call the
 ** sqlite3_unlock_notify() method with the blocked connection handle as
 ** the first argument to register for a callback that will be invoked
-** when the blocking connections current transaction is concluded. ^The
+** when the blocking connection's current transaction is concluded. ^The
 ** callback is invoked from within the [sqlite3_step] or [sqlite3_close]
 ** call that concludes the blocking connection's transaction.
 **
@@ -9606,7 +9606,7 @@ SQLITE_API int sqlite3_backup_pagecount(sqlite3_backup *p);
 ** blocked connection already has a registered unlock-notify callback,
 ** then the new callback replaces the old.)^ ^If sqlite3_unlock_notify() is
 ** called with a NULL pointer as its second argument, then any existing
-** unlock-notify callback is canceled. ^The blocked connections
+** unlock-notify callback is canceled. ^The blocked connection's
 ** unlock-notify callback may also be canceled by closing the blocked
 ** connection using [sqlite3_close()].
 **
@@ -10004,7 +10004,7 @@ SQLITE_API int sqlite3_vtab_config(sqlite3*, int op, ...);
 ** support constraints.  In this configuration (which is the default) if
 ** a call to the [xUpdate] method returns [SQLITE_CONSTRAINT], then the entire
 ** statement is rolled back as if [ON CONFLICT | OR ABORT] had been
-** specified as part of the users SQL statement, regardless of the actual
+** specified as part of the user's SQL statement, regardless of the actual
 ** ON CONFLICT mode specified.
 **
 ** If X is non-zero, then the virtual table implementation guarantees
@@ -10038,7 +10038,7 @@ SQLITE_API int sqlite3_vtab_config(sqlite3*, int op, ...);
 ** [[SQLITE_VTAB_INNOCUOUS]]<dt>SQLITE_VTAB_INNOCUOUS</dt>
 ** <dd>Calls of the form
 ** [sqlite3_vtab_config](db,SQLITE_VTAB_INNOCUOUS) from within the
-** the [xConnect] or [xCreate] methods of a [virtual table] implementation
+** [xConnect] or [xCreate] methods of a [virtual table] implementation
 ** identify that virtual table as being safe to use from within triggers
 ** and views.  Conceptually, the SQLITE_VTAB_INNOCUOUS tag means that the
 ** virtual table can do no serious harm even if it is controlled by a
@@ -10206,7 +10206,7 @@ SQLITE_API const char *sqlite3_vtab_collation(sqlite3_index_info*,int);
 ** </table>
 **
 ** ^For the purposes of comparing virtual table output values to see if the
-** values are same value for sorting purposes, two NULL values are considered
+** values are the same value for sorting purposes, two NULL values are considered
 ** to be the same.  In other words, the comparison operator is "IS"
 ** (or "IS NOT DISTINCT FROM") and not "==".
 **
@@ -10216,7 +10216,7 @@ SQLITE_API const char *sqlite3_vtab_collation(sqlite3_index_info*,int);
 **
 ** ^A virtual table implementation is always free to return rows in any order
 ** it wants, as long as the "orderByConsumed" flag is not set.  ^When the
-** the "orderByConsumed" flag is unset, the query planner will add extra
+** "orderByConsumed" flag is unset, the query planner will add extra
 ** [bytecode] to ensure that the final results returned by the SQL query are
 ** ordered correctly.  The use of the "orderByConsumed" flag and the
 ** sqlite3_vtab_distinct() interface is merely an optimization.  ^Careful
@@ -10313,7 +10313,7 @@ SQLITE_API int sqlite3_vtab_in(sqlite3_index_info*, int iCons, int bHandle);
 ** sqlite3_vtab_in_next(X,P) should be one of the parameters to the
 ** xFilter method which invokes these routines, and specifically
 ** a parameter that was previously selected for all-at-once IN constraint
-** processing use the [sqlite3_vtab_in()] interface in the
+** processing using the [sqlite3_vtab_in()] interface in the
 ** [xBestIndex|xBestIndex method].  ^(If the X parameter is not
 ** an xFilter argument that was selected for all-at-once IN constraint
 ** processing, then these routines return [SQLITE_ERROR].)^
@@ -10368,7 +10368,7 @@ SQLITE_API int sqlite3_vtab_in_next(sqlite3_value *pVal, sqlite3_value **ppOut);
 ** and only if *V is set to a value.  ^The sqlite3_vtab_rhs_value(P,J,V)
 ** inteface returns SQLITE_NOTFOUND if the right-hand side of the J-th
 ** constraint is not available.  ^The sqlite3_vtab_rhs_value() interface
-** can return an result code other than SQLITE_OK or SQLITE_NOTFOUND if
+** can return a result code other than SQLITE_OK or SQLITE_NOTFOUND if
 ** something goes wrong.
 **
 ** The sqlite3_vtab_rhs_value() interface is usually only successful if
@@ -10396,8 +10396,8 @@ SQLITE_API int sqlite3_vtab_rhs_value(sqlite3_index_info*, int, sqlite3_value **
 ** KEYWORDS: {conflict resolution mode}
 **
 ** These constants are returned by [sqlite3_vtab_on_conflict()] to
-** inform a [virtual table] implementation what the [ON CONFLICT] mode
-** is for the SQL statement being evaluated.
+** inform a [virtual table] implementation of the [ON CONFLICT] mode
+** for the SQL statement being evaluated.
 **
 ** Note that the [SQLITE_IGNORE] constant is also used as a potential
 ** return value from the [sqlite3_set_authorizer()] callback and that
@@ -10437,39 +10437,39 @@ SQLITE_API int sqlite3_vtab_rhs_value(sqlite3_index_info*, int, sqlite3_value **
 ** [[SQLITE_SCANSTAT_EST]] <dt>SQLITE_SCANSTAT_EST</dt>
 ** <dd>^The "double" variable pointed to by the V parameter will be set to the
 ** query planner's estimate for the average number of rows output from each
-** iteration of the X-th loop.  If the query planner's estimates was accurate,
+** iteration of the X-th loop.  If the query planner's estimate was accurate,
 ** then this value will approximate the quotient NVISIT/NLOOP and the
 ** product of this value for all prior loops with the same SELECTID will
-** be the NLOOP value for the current loop.
+** be the NLOOP value for the current loop.</dd>
 **
 ** [[SQLITE_SCANSTAT_NAME]] <dt>SQLITE_SCANSTAT_NAME</dt>
 ** <dd>^The "const char *" variable pointed to by the V parameter will be set
 ** to a zero-terminated UTF-8 string containing the name of the index or table
-** used for the X-th loop.
+** used for the X-th loop.</dd>
 **
 ** [[SQLITE_SCANSTAT_EXPLAIN]] <dt>SQLITE_SCANSTAT_EXPLAIN</dt>
 ** <dd>^The "const char *" variable pointed to by the V parameter will be set
 ** to a zero-terminated UTF-8 string containing the [EXPLAIN QUERY PLAN]
-** description for the X-th loop.
+** description for the X-th loop.</dd>
 **
 ** [[SQLITE_SCANSTAT_SELECTID]] <dt>SQLITE_SCANSTAT_SELECTID</dt>
 ** <dd>^The "int" variable pointed to by the V parameter will be set to the
 ** id for the X-th query plan element. The id value is unique within the
 ** statement. The select-id is the same value as is output in the first
-** column of an [EXPLAIN QUERY PLAN] query.
+** column of an [EXPLAIN QUERY PLAN] query.</dd>
 **
 ** [[SQLITE_SCANSTAT_PARENTID]] <dt>SQLITE_SCANSTAT_PARENTID</dt>
 ** <dd>The "int" variable pointed to by the V parameter will be set to the
-** the id of the parent of the current query element, if applicable, or
+** id of the parent of the current query element, if applicable, or
 ** to zero if the query element has no parent. This is the same value as
-** returned in the second column of an [EXPLAIN QUERY PLAN] query.
+** returned in the second column of an [EXPLAIN QUERY PLAN] query.</dd>
 **
 ** [[SQLITE_SCANSTAT_NCYCLE]] <dt>SQLITE_SCANSTAT_NCYCLE</dt>
 ** <dd>The sqlite3_int64 output value is set to the number of cycles,
 ** according to the processor time-stamp counter, that elapsed while the
 ** query element was being processed. This value is not available for
 ** all query elements - if it is unavailable the output variable is
-** set to -1.
+** set to -1.</dd>
 ** </dl>
 */
 #define SQLITE_SCANSTAT_NLOOP    0
@@ -10510,8 +10510,8 @@ SQLITE_API int sqlite3_vtab_rhs_value(sqlite3_index_info*, int, sqlite3_value **
 ** sqlite3_stmt_scanstatus_v2() with a zeroed flags parameter.
 **
 ** Parameter "idx" identifies the specific query element to retrieve statistics
-** for. Query elements are numbered starting from zero. A value of -1 may be
-** to query for statistics regarding the entire query. ^If idx is out of range
+** for. Query elements are numbered starting from zero. A value of -1 may
+** retrieve statistics for the entire query. ^If idx is out of range
 ** - less than -1 or greater than or equal to the total number of query
 ** elements used to implement the statement - a non-zero value is returned and
 ** the variable that pOut points to is unchanged.
@@ -10668,8 +10668,8 @@ SQLITE_API int sqlite3_db_cacheflush(sqlite3*);
 ** triggers; and so forth.
 **
 ** When the [sqlite3_blob_write()] API is used to update a blob column,
-** the pre-update hook is invoked with SQLITE_DELETE. This is because the
-** in this case the new values are not available. In this case, when a
+** the pre-update hook is invoked with SQLITE_DELETE, because
+** the new values are not yet available. In this case, when a
 ** callback made with op==SQLITE_DELETE is actually a write using the
 ** sqlite3_blob_write() API, the [sqlite3_preupdate_blobwrite()] returns
 ** the index of the column being written. In other cases, where the
@@ -10922,7 +10922,7 @@ SQLITE_API SQLITE_EXPERIMENTAL int sqlite3_snapshot_recover(sqlite3 *db, const c
 ** For an ordinary on-disk database file, the serialization is just a
 ** copy of the disk file.  For an in-memory database or a "TEMP" database,
 ** the serialization is the same sequence of bytes which would be written
-** to disk if that database where backed up to disk.
+** to disk if that database were backed up to disk.
 **
 ** The usual case is that sqlite3_serialize() copies the serialization of
 ** the database into memory obtained from [sqlite3_malloc64()] and returns
@@ -10931,7 +10931,7 @@ SQLITE_API SQLITE_EXPERIMENTAL int sqlite3_snapshot_recover(sqlite3 *db, const c
 ** contains the SQLITE_SERIALIZE_NOCOPY bit, then no memory allocations
 ** are made, and the sqlite3_serialize() function will return a pointer
 ** to the contiguous memory representation of the database that SQLite
-** is currently using for that database, or NULL if the no such contiguous
+** is currently using for that database, or NULL if no such contiguous
 ** memory representation of the database exists.  A contiguous memory
 ** representation of the database will usually only exist if there has
 ** been a prior call to [sqlite3_deserialize(D,S,...)] with the same
@@ -11002,7 +11002,7 @@ SQLITE_API unsigned char *sqlite3_serialize(
 ** database is currently in a read transaction or is involved in a backup
 ** operation.
 **
-** It is not possible to deserialized into the TEMP database.  If the
+** It is not possible to deserialize into the TEMP database.  If the
 ** S argument to sqlite3_deserialize(D,S,P,N,M,F) is "temp" then the
 ** function returns SQLITE_ERROR.
 **
@@ -11024,7 +11024,7 @@ SQLITE_API int sqlite3_deserialize(
   sqlite3 *db,            /* The database connection */
   const char *zSchema,    /* Which DB to reopen with the deserialization */
   unsigned char *pData,   /* The serialized database content */
-  sqlite3_int64 szDb,     /* Number bytes in the deserialization */
+  sqlite3_int64 szDb,     /* Number of bytes in the deserialization */
   sqlite3_int64 szBuf,    /* Total size of buffer pData[] */
   unsigned mFlags         /* Zero or more SQLITE_DESERIALIZE_* flags */
 );
@@ -11032,7 +11032,7 @@ SQLITE_API int sqlite3_deserialize(
 /*
 ** CAPI3REF: Flags for sqlite3_deserialize()
 **
-** The following are allowed values for 6th argument (the F argument) to
+** The following are allowed values for the 6th argument (the F argument) to
 ** the [sqlite3_deserialize(D,S,P,N,M,F)] interface.
 **
 ** The SQLITE_DESERIALIZE_FREEONCLOSE means that the database serialization
