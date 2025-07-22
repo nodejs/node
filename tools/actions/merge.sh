@@ -36,13 +36,13 @@ if ! expr "X$commit_head" : 'X[a-f0-9]\{40\}' >/dev/null; then
 fi
 [ -z "$validation_error" ] || {
   echo 'Usage:'
-  echo "\t$0 <pr-id-or-url> <commit-hash>"
+  printf '\t%s <pr-id-or-url> <commit-hash>\n' "$0"
   echo 'or:'
-  echo "\t$0 <url-to-PR-commit>"
+  printf '\t%s <url-to-PR-commit>\n' "$0"
   echo 'Examples:'
-  echo "\t$0 12345 aaaaabbbbbcccccdddddeeeeefffff1111122222"
-  echo "\t$0 https://github.com/$OWNER/$REPOSITORY/pull/12345 aaaaabbbbbcccccdddddeeeeefffff1111122222"
-  echo "\t$0 https://github.com/$OWNER/$REPOSITORY/pull/12345/commit/aaaaabbbbbcccccdddddeeeeefffff1111122222"
+  printf '\t%s 12345 aaaaabbbbbcccccdddddeeeeefffff1111122222\n' "$0"
+  printf '\t%s https://github.com/%s/pull/12345 aaaaabbbbbcccccdddddeeeeefffff1111122222\n' "$0" "$OWNER/$REPOSITORY"
+  printf '\t%s https://github.com/%s/pull/12345/commit/aaaaabbbbbcccccdddddeeeeefffff1111122222\n' "$0" "$OWNER/$REPOSITORY"
   exit 1
 }
 
