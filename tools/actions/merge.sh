@@ -24,12 +24,12 @@ if expr "X$pr" : 'Xhttps://github.com/[^/]\{1,\}/[^/]\{1,\}/pull/[0-9]\{1,\}' >/
 fi
 
 validation_error=
-if ! expr "X$pr" : 'X[0-9]\{1,\}' >/dev/null; then
+if ! expr "X${pr}X" : 'X[0-9]\{1,\}X' >/dev/null; then
   set +x
   echo "Invalid PR ID: $pr"
   validation_error=1
 fi
-if ! expr "X$commit_head" : 'X[a-f0-9]\{40\}' >/dev/null; then
+if ! expr "X${commit_head}X" : 'X[a-f0-9]\{40\}X' >/dev/null; then
   set +x
   echo "Invalid PR head: $commit_head"
   validation_error=1
