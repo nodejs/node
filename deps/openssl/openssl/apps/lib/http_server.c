@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -222,7 +222,7 @@ BIO *http_server_init_bio(const char *prog, const char *port)
     int asock;
     char name[40];
 
-    snprintf(name, sizeof(name), "[::]:%s", port); /* port may be "0" */
+    BIO_snprintf(name, sizeof(name), "[::]:%s", port); /* port may be "0" */
     bufbio = BIO_new(BIO_f_buffer());
     if (bufbio == NULL)
         goto err;

@@ -79,6 +79,11 @@ Quick start
        OpenSSL or
     - `perl Configure`              to let Configure figure out the platform
 
+    a. If you don't plan to develop OpenSSL yourself and don't need to rebuild,
+       in other words, if you always do a new build, turning off the build
+       dependency feature can speed up build times by up to 50%:
+       `perl Configure no-makedepend`
+
  6. `nmake`
 
  7. `nmake test`

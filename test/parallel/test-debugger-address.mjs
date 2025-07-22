@@ -55,7 +55,7 @@ function launchTarget(...args) {
   try {
     const { childProc, host, port } = await launchTarget('--inspect=0', script);
     target = childProc;
-    cli = startCLI([`${host || '127.0.0.1'}:${port}`]);
+    cli = startCLI([`${host || '127.0.0.1'}:${port}`], [], {}, { randomPort: false });
     await cli.waitForPrompt();
     await cli.command('sb("alive.js", 3)');
     await cli.waitFor(/break/);

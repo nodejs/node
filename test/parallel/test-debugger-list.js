@@ -8,7 +8,7 @@ const startCLI = require('../common/debugger');
 
 const assert = require('assert');
 
-const cli = startCLI(['--port=0', fixtures.path('debugger/three-lines.js')]);
+const cli = startCLI([fixtures.path('debugger/three-lines.js')]);
 
 (async () => {
   await cli.waitForInitialBreak();
