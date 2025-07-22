@@ -54,4 +54,4 @@ const { cjs, esm } = require('../fixtures/es-modules/custom-condition/load.cjs')
     assert.strictEqual((await esm('foo/fourth')).result, 'foo');
     hooks.deregister();
   }
-})().catch(common.mustNotCall());
+})().then(common.mustCall());

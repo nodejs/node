@@ -67,4 +67,4 @@ const { cjs, esm } = require('../fixtures/es-modules/custom-condition/load.cjs')
     });
     hooks.deregister();
   }
-})().catch(common.mustNotCall());
+})().then(common.mustCall());
