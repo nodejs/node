@@ -6,7 +6,7 @@ import assert from 'node:assert';
 import { open } from 'node:fs/promises';
 import { argv } from 'node:process';
 
-const ghHandleLine = /^\* \[(.+)\]\(https:\/\/github\.com\/\1\) -$/;
+const ghHandleLine = /^\* \[(.+)\]\(https:\/\/github\.com\/(.+)\) -$/;
 const memberInfoLine = /^ {2}\*\*[^*]+\*\* <<[^@]+@.+\.[a-z]+>>( \(\w+(\/[^)/]+)+\))?( - \[Support me\]\(.+\))?$/;
 
 const lists = {
@@ -59,8 +59,12 @@ for await (const line of readme.readLines()) {
       );
     }
 
-    if (!ghHandleLine.test(line)) {
-      throw new Error(`${currentGithubHandle} is not formatted correctly (README.md:${lineNumber})`);
+    const match = line.match(ghHandleLine);
+    if (!match) {
+      throw new Error(`${line} should match ${ghHandleLine} (README.md:${lineNumber})`);
+    }
+    if (match[1] !== match[2]) {
+      throw new Error(`GitHub handle ${match[1]} does not match the URL ${match[2]} (README.md:${lineNumber})`);
     }
 
     if (
