@@ -255,10 +255,7 @@ needs to be pointed out separately during the onboarding.
   after you prepare the landed commit on the local `main` branch, run this:
 
   ```bash
-  git checkout your-pr-branch
-  git reset --hard main  # Synchronize your PR branch with the local main branch you just prepared.
-  git push --force-with-lease your-fork-remote your-pr-branch # Update the PR branch in your fork.
-  git checkout main
+  git push --force-with-lease your-fork-remote HEAD:your-pr-branch # Update the PR branch in your fork.
   git push upstream main  # Push the landed commit to the upstream main branch.
   ```
 
