@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.33.0",
+  "version": "0.34.0",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -10,7 +10,7 @@
     "url": "https://github.com/nodejs/corepack.git"
   },
   "engines": {
-    "node": "^18.17.1 || ^20.10.0 || >=22.11.0"
+    "node": "^20.10.0 || ^22.11.0 || >=24.0.0"
   },
   "exports": {
     "./package.json": "./package.json"
