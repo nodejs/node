@@ -69,6 +69,11 @@ const { once } = require('events');
   assert.strictEqual(fh.fd, -1);
 
   port1.postMessage('second message');
+  await assert.rejects(() => fh.read(), {
+    code: 'EBADF',
+    message: 'The FileHandle has been transferred',
+    syscall: 'read'
+  });
 })().then(common.mustCall());
 
 (async function() {
