@@ -42,7 +42,7 @@ fi
   echo 'Examples:'
   printf '\t%s 12345 aaaaabbbbbcccccdddddeeeeefffff1111122222\n' "$0"
   printf '\t%s https://github.com/%s/pull/12345 aaaaabbbbbcccccdddddeeeeefffff1111122222\n' "$0" "$OWNER/$REPOSITORY"
-  printf '\t%s https://github.com/%s/pull/12345/commit/aaaaabbbbbcccccdddddeeeeefffff1111122222\n' "$0" "$OWNER/$REPOSITORY"
+  printf '\t%s https://github.com/%s/pull/12345/commits/aaaaabbbbbcccccdddddeeeeefffff1111122222\n' "$0" "$OWNER/$REPOSITORY"
   exit 1
 }
 
