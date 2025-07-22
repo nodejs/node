@@ -1,4 +1,4 @@
-/* auto-generated on 2025-04-28 12:16:36 -0400. Do not edit! */
+/* auto-generated on 2025-07-16 22:15:14 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -429,6 +429,10 @@ namespace ada {
 
 #if defined(__aarch64__) || defined(_M_ARM64)
 #define ADA_NEON 1
+#endif
+
+#if defined(__loongarch_sx)
+#define ADA_LSX 1
 #endif
 
 #ifndef __has_cpp_attribute
@@ -1122,7 +1126,7 @@ enum class encoding_type {
 /**
  * Convert a encoding_type to string.
  */
-ada_warn_unused std::string to_string(encoding_type type);
+ada_warn_unused std::string_view to_string(encoding_type type);
 
 }  // namespace ada
 
@@ -4204,6 +4208,7 @@ enum class errors : uint8_t { type_error };
 #include <string_view>
 #include <string>
 #include <optional>
+#include <iostream>
 
 #if ADA_TESTING
 #include <iostream>
@@ -4232,6 +4237,17 @@ struct url_pattern_init {
     url,
     pattern,
   };
+
+  friend std::ostream& operator<<(std::ostream& os, process_type type) {
+    switch (type) {
+      case process_type::url:
+        return os << "url";
+      case process_type::pattern:
+        return os << "pattern";
+      default:
+        return os << "unknown";
+    }
+  }
 
   // All strings must be valid UTF-8.
   // @see https://urlpattern.spec.whatwg.org/#process-a-urlpatterninit
@@ -9410,7 +9426,7 @@ result<std::optional<url_pattern_result>> url_pattern<regex_provider>::match(
 
 #if ADA_INCLUDE_URL_PATTERN
 namespace ada::url_pattern_helpers {
-#ifdef ADA_TESTING
+#if defined(ADA_TESTING) || defined(ADA_LOGGING)
 inline std::string to_string(token_type type) {
   switch (type) {
     case token_type::INVALID_CHAR:
@@ -9437,7 +9453,7 @@ inline std::string to_string(token_type type) {
       ada::unreachable();
   }
 }
-#endif  // ADA_TESTING
+#endif  // defined(ADA_TESTING) || defined(ADA_LOGGING)
 
 template <url_pattern_regex::regex_concept regex_provider>
 constexpr void constructor_string_parser<regex_provider>::rewind() {
@@ -10498,14 +10514,14 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "3.2.4"
+#define ADA_VERSION "3.2.6"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 3,
   ADA_VERSION_MINOR = 2,
-  ADA_VERSION_REVISION = 4,
+  ADA_VERSION_REVISION = 6,
 };
 
 }  // namespace ada

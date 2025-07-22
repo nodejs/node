@@ -1,4 +1,4 @@
-/* auto-generated on 2025-04-28 12:16:36 -0400. Do not edit! */
+/* auto-generated on 2025-07-16 22:15:14 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -67,7 +67,8 @@ static constexpr std::array<uint8_t, 256> path_signature_table =
       std::array<uint8_t, 256> result{};
       for (size_t i = 0; i < 256; i++) {
         if (i <= 0x20 || i == 0x22 || i == 0x23 || i == 0x3c || i == 0x3e ||
-            i == 0x3f || i == 0x60 || i == 0x7b || i == 0x7d || i > 0x7e) {
+            i == 0x3f || i == 0x5e || i == 0x60 || i == 0x7b || i == 0x7d ||
+            i > 0x7e) {
           result[i] = 1;
         } else if (i == 0x25) {
           result[i] = 8;
@@ -134,7 +135,7 @@ ada_really_inline constexpr bool verify_dns_length(
 
 ADA_PUSH_DISABLE_ALL_WARNINGS
 /* begin file src/ada_idna.cpp */
-/* auto-generated on 2025-03-08 13:17:11 -0500. Do not edit! */
+/* auto-generated on 2025-06-26 23:04:30 -0300. Do not edit! */
 /* begin file src/idna.cpp */
 /* begin file src/unicode_transcoding.cpp */
 
@@ -8157,7 +8158,7 @@ bool utf32_to_punycode(std::u32string_view input, std::string &out) {
       ++h;
       out.push_back(char(c));
     }
-    if (c > 0x10ffff || (c >= 0xd880 && c < 0xe000)) {
+    if (c > 0x10ffff || (c >= 0xd800 && c < 0xe000)) {
       return false;
     }
   }
@@ -9547,6 +9548,10 @@ bool is_label_valid(const std::u32string_view label) {
 #include <ranges>
 
 
+#ifdef ADA_USE_SIMDUTF
+#include "simdutf.h"
+#endif
+
 namespace ada::idna {
 
 bool constexpr is_ascii(std::u32string_view view) {
@@ -9659,11 +9664,20 @@ std::string to_ascii(std::string_view ut8_string) {
   }
   static const std::string error = "";
   // We convert to UTF-32
+
+#ifdef ADA_USE_SIMDUTF
+  size_t utf32_length =
+      simdutf::utf32_length_from_utf8(ut8_string.data(), ut8_string.size());
+  std::u32string utf32(utf32_length, '\0');
+  size_t actual_utf32_length = simdutf::convert_utf8_to_utf32(
+      ut8_string.data(), ut8_string.size(), utf32.data());
+#else
   size_t utf32_length =
       ada::idna::utf32_length_from_utf8(ut8_string.data(), ut8_string.size());
   std::u32string utf32(utf32_length, '\0');
   size_t actual_utf32_length = ada::idna::utf8_to_utf32(
       ut8_string.data(), ut8_string.size(), utf32.data());
+#endif
   if (actual_utf32_length == 0) {
     return error;
   }
@@ -9755,6 +9769,10 @@ std::string to_ascii(std::string_view ut8_string) {
 #include <string>
 
 
+#ifdef ADA_USE_SIMDUTF
+#include "simdutf.h"
+#endif
+
 namespace ada::idna {
 std::string to_unicode(std::string_view input) {
   std::string output;
@@ -9773,11 +9791,19 @@ std::string to_unicode(std::string_view input) {
       if (ada::idna::verify_punycode(label_view)) {
         std::u32string tmp_buffer;
         if (ada::idna::punycode_to_utf32(label_view, tmp_buffer)) {
+#ifdef ADA_USE_SIMDUTF
+          auto utf8_size = simdutf::utf8_length_from_utf32(tmp_buffer.data(),
+                                                           tmp_buffer.size());
+          std::string final_utf8(utf8_size, '\0');
+          simdutf::convert_utf32_to_utf8(tmp_buffer.data(), tmp_buffer.size(),
+                                         final_utf8.data());
+#else
           auto utf8_size = ada::idna::utf8_length_from_utf32(tmp_buffer.data(),
                                                              tmp_buffer.size());
           std::string final_utf8(utf8_size, '\0');
           ada::idna::utf32_to_utf8(tmp_buffer.data(), tmp_buffer.size(),
                                    final_utf8.data());
+#endif
           output.append(final_utf8);
         } else {
           // ToUnicode never fails.  If any step fails, then the original input
@@ -10419,6 +10445,8 @@ ADA_POP_DISABLE_WARNINGS
 #include <arm_neon.h>
 #elif ADA_SSE2
 #include <emmintrin.h>
+#elif ADA_LSX
+#include <lsxintrin.h>
 #endif
 
 #include <ranges>
@@ -10526,6 +10554,38 @@ ada_really_inline bool has_tabs_or_newline(
         _mm_cmpeq_epi8(word, mask3));
   }
   return _mm_movemask_epi8(running) != 0;
+}
+#elif ADA_LSX
+ada_really_inline bool has_tabs_or_newline(
+    std::string_view user_input) noexcept {
+  // first check for short strings in which case we do it naively.
+  if (user_input.size() < 16) {  // slow path
+    return std::ranges::any_of(user_input, is_tabs_or_newline);
+  }
+  // fast path for long strings (expected to be common)
+  size_t i = 0;
+  const __m128i mask1 = __lsx_vrepli_b('\r');
+  const __m128i mask2 = __lsx_vrepli_b('\n');
+  const __m128i mask3 = __lsx_vrepli_b('\t');
+  // If we supported SSSE3, we could use the algorithm that we use for NEON.
+  __m128i running{0};
+  for (; i + 15 < user_input.size(); i += 16) {
+    __m128i word = __lsx_vld((const __m128i*)(user_input.data() + i), 0);
+    running = __lsx_vor_v(
+        __lsx_vor_v(running, __lsx_vor_v(__lsx_vseq_b(word, mask1),
+                                         __lsx_vseq_b(word, mask2))),
+        __lsx_vseq_b(word, mask3));
+  }
+  if (i < user_input.size()) {
+    __m128i word = __lsx_vld(
+        (const __m128i*)(user_input.data() + user_input.length() - 16), 0);
+    running = __lsx_vor_v(
+        __lsx_vor_v(running, __lsx_vor_v(__lsx_vseq_b(word, mask1),
+                                         __lsx_vseq_b(word, mask2))),
+        __lsx_vseq_b(word, mask3));
+  }
+  if (__lsx_bz_v(running)) return false;
+  return true;
 }
 #else
 ada_really_inline bool has_tabs_or_newline(
@@ -11042,7 +11102,7 @@ bool can_parse(std::string_view input, const std::string_view* base_input) {
   return result.is_valid;
 }
 
-ada_warn_unused std::string to_string(ada::encoding_type type) {
+ada_warn_unused std::string_view to_string(ada::encoding_type type) {
   switch (type) {
     case ada::encoding_type::UTF8:
       return "UTF-8";
@@ -11360,6 +11420,58 @@ ada_really_inline size_t find_next_host_delimiter_special(
   }
   return size_t(view.length());
 }
+#elif ADA_LSX
+ada_really_inline size_t find_next_host_delimiter_special(
+    std::string_view view, size_t location) noexcept {
+  // first check for short strings in which case we do it naively.
+  if (view.size() - location < 16) {  // slow path
+    for (size_t i = location; i < view.size(); i++) {
+      if (view[i] == ':' || view[i] == '/' || view[i] == '\\' ||
+          view[i] == '?' || view[i] == '[') {
+        return i;
+      }
+    }
+    return size_t(view.size());
+  }
+  // fast path for long strings (expected to be common)
+  size_t i = location;
+  const __m128i mask1 = __lsx_vrepli_b(':');
+  const __m128i mask2 = __lsx_vrepli_b('/');
+  const __m128i mask3 = __lsx_vrepli_b('\\');
+  const __m128i mask4 = __lsx_vrepli_b('?');
+  const __m128i mask5 = __lsx_vrepli_b('[');
+
+  for (; i + 15 < view.size(); i += 16) {
+    __m128i word = __lsx_vld((const __m128i*)(view.data() + i), 0);
+    __m128i m1 = __lsx_vseq_b(word, mask1);
+    __m128i m2 = __lsx_vseq_b(word, mask2);
+    __m128i m3 = __lsx_vseq_b(word, mask3);
+    __m128i m4 = __lsx_vseq_b(word, mask4);
+    __m128i m5 = __lsx_vseq_b(word, mask5);
+    __m128i m =
+        __lsx_vor_v(__lsx_vor_v(__lsx_vor_v(m1, m2), __lsx_vor_v(m3, m4)), m5);
+    int mask = __lsx_vpickve2gr_hu(__lsx_vmsknz_b(m), 0);
+    if (mask != 0) {
+      return i + trailing_zeroes(mask);
+    }
+  }
+  if (i < view.size()) {
+    __m128i word =
+        __lsx_vld((const __m128i*)(view.data() + view.length() - 16), 0);
+    __m128i m1 = __lsx_vseq_b(word, mask1);
+    __m128i m2 = __lsx_vseq_b(word, mask2);
+    __m128i m3 = __lsx_vseq_b(word, mask3);
+    __m128i m4 = __lsx_vseq_b(word, mask4);
+    __m128i m5 = __lsx_vseq_b(word, mask5);
+    __m128i m =
+        __lsx_vor_v(__lsx_vor_v(__lsx_vor_v(m1, m2), __lsx_vor_v(m3, m4)), m5);
+    int mask = __lsx_vpickve2gr_hu(__lsx_vmsknz_b(m), 0);
+    if (mask != 0) {
+      return view.length() - 16 + trailing_zeroes(mask);
+    }
+  }
+  return size_t(view.length());
+}
 #else
 // : / [ \\ ?
 static constexpr std::array<uint8_t, 256> special_host_delimiters =
@@ -11487,6 +11599,53 @@ ada_really_inline size_t find_next_host_delimiter(std::string_view view,
     __m128i m5 = _mm_cmpeq_epi8(word, mask5);
     __m128i m = _mm_or_si128(_mm_or_si128(m1, m2), _mm_or_si128(m4, m5));
     int mask = _mm_movemask_epi8(m);
+    if (mask != 0) {
+      return view.length() - 16 + trailing_zeroes(mask);
+    }
+  }
+  return size_t(view.length());
+}
+#elif ADA_LSX
+ada_really_inline size_t find_next_host_delimiter(std::string_view view,
+                                                  size_t location) noexcept {
+  // first check for short strings in which case we do it naively.
+  if (view.size() - location < 16) {  // slow path
+    for (size_t i = location; i < view.size(); i++) {
+      if (view[i] == ':' || view[i] == '/' || view[i] == '?' ||
+          view[i] == '[') {
+        return i;
+      }
+    }
+    return size_t(view.size());
+  }
+  // fast path for long strings (expected to be common)
+  size_t i = location;
+  const __m128i mask1 = __lsx_vrepli_b(':');
+  const __m128i mask2 = __lsx_vrepli_b('/');
+  const __m128i mask4 = __lsx_vrepli_b('?');
+  const __m128i mask5 = __lsx_vrepli_b('[');
+
+  for (; i + 15 < view.size(); i += 16) {
+    __m128i word = __lsx_vld((const __m128i*)(view.data() + i), 0);
+    __m128i m1 = __lsx_vseq_b(word, mask1);
+    __m128i m2 = __lsx_vseq_b(word, mask2);
+    __m128i m4 = __lsx_vseq_b(word, mask4);
+    __m128i m5 = __lsx_vseq_b(word, mask5);
+    __m128i m = __lsx_vor_v(__lsx_vor_v(m1, m2), __lsx_vor_v(m4, m5));
+    int mask = __lsx_vpickve2gr_hu(__lsx_vmsknz_b(m), 0);
+    if (mask != 0) {
+      return i + trailing_zeroes(mask);
+    }
+  }
+  if (i < view.size()) {
+    __m128i word =
+        __lsx_vld((const __m128i*)(view.data() + view.length() - 16), 0);
+    __m128i m1 = __lsx_vseq_b(word, mask1);
+    __m128i m2 = __lsx_vseq_b(word, mask2);
+    __m128i m4 = __lsx_vseq_b(word, mask4);
+    __m128i m5 = __lsx_vseq_b(word, mask5);
+    __m128i m = __lsx_vor_v(__lsx_vor_v(m1, m2), __lsx_vor_v(m4, m5));
+    int mask = __lsx_vpickve2gr_hu(__lsx_vmsknz_b(m), 0);
     if (mask != 0) {
       return view.length() - 16 + trailing_zeroes(mask);
     }
@@ -11737,8 +11896,8 @@ ada_really_inline void parse_prepared_path(std::string_view input,
               ? path_buffer_tmp
               : path_view;
       if (unicode::is_double_dot_path_segment(path_buffer)) {
-        if ((helpers::shorten_path(path, type) || special) &&
-            location == std::string_view::npos) {
+        helpers::shorten_path(path, type);
+        if (location == std::string_view::npos) {
           path += '/';
         }
       } else if (unicode::is_single_dot_path_segment(path_buffer) &&
@@ -12536,35 +12695,67 @@ bool url::set_host_or_hostname(const std::string_view input) {
     // Note: the 'found_colon' value is true if and only if a colon was
     // encountered while not inside brackets.
     if (found_colon) {
+      // If buffer is the empty string, host-missing validation error, return
+      // failure.
+      std::string_view buffer = host_view.substr(0, location);
+      if (buffer.empty()) {
+        return false;
+      }
+
+      // If state override is given and state override is hostname state, then
+      // return failure.
       if constexpr (override_hostname) {
         return false;
       }
-      std::string_view buffer = new_host.substr(location + 1);
-      if (!buffer.empty()) {
-        set_port(buffer);
-      }
-    }
-    // If url is special and host_view is the empty string, validation error,
-    // return failure. Otherwise, if state override is given, host_view is the
-    // empty string, and either url includes credentials or url's port is
-    // non-null, return.
-    else if (host_view.empty() &&
-             (is_special() || has_credentials() || port.has_value())) {
-      return false;
-    }
 
-    // Let host be the result of host parsing host_view with url is not special.
-    if (host_view.empty() && !is_special()) {
-      host = "";
+      // Let host be the result of host parsing buffer with url is not special.
+      bool succeeded = parse_host(buffer);
+      if (!succeeded) {
+        host = std::move(previous_host);
+        update_base_port(previous_port);
+        return false;
+      }
+
+      // Set url's host to host, buffer to the empty string, and state to port
+      // state.
+      std::string_view port_buffer = new_host.substr(location + 1);
+      if (!port_buffer.empty()) {
+        set_port(port_buffer);
+      }
       return true;
     }
+    // Otherwise, if one of the following is true:
+    // - c is the EOF code point, U+002F (/), U+003F (?), or U+0023 (#)
+    // - url is special and c is U+005C (\)
+    else {
+      // If url is special and host_view is the empty string, host-missing
+      // validation error, return failure.
+      if (host_view.empty() && is_special()) {
+        return false;
+      }
 
-    bool succeeded = parse_host(host_view);
-    if (!succeeded) {
-      host = std::move(previous_host);
-      update_base_port(previous_port);
+      // Otherwise, if state override is given, host_view is the empty string,
+      // and either url includes credentials or url's port is non-null, then
+      // return failure.
+      if (host_view.empty() && (has_credentials() || port.has_value())) {
+        return false;
+      }
+
+      // Let host be the result of host parsing host_view with url is not
+      // special.
+      if (host_view.empty() && !is_special()) {
+        host = "";
+        return true;
+      }
+
+      bool succeeded = parse_host(host_view);
+      if (!succeeded) {
+        host = std::move(previous_host);
+        update_base_port(previous_port);
+        return false;
+      }
+      return true;
     }
-    return succeeded;
   }
 
   size_t location = new_host.find_first_of("/\\?");
@@ -12621,10 +12812,16 @@ bool url::set_port(const std::string_view input) {
   if (cannot_have_credentials_or_port()) {
     return false;
   }
+
+  if (input.empty()) {
+    port = std::nullopt;
+    return true;
+  }
+
   std::string trimmed(input);
   helpers::remove_ascii_tab_or_newline(trimmed);
+
   if (trimmed.empty()) {
-    port = std::nullopt;
     return true;
   }
 
@@ -12633,9 +12830,15 @@ bool url::set_port(const std::string_view input) {
     return false;
   }
 
+  // Find the first non-digit character to determine the length of digits
+  auto first_non_digit =
+      std::ranges::find_if_not(trimmed, ada::unicode::is_ascii_digit);
+  std::string_view digits_to_parse =
+      std::string_view(trimmed.data(), first_non_digit - trimmed.begin());
+
   // Revert changes if parse_port fails.
   std::optional<uint16_t> previous_port = port;
-  parse_port(trimmed);
+  parse_port(digits_to_parse);
   if (is_valid) {
     return true;
   }
@@ -13966,10 +14169,16 @@ bool url_aggregator::set_port(const std::string_view input) {
   if (cannot_have_credentials_or_port()) {
     return false;
   }
+
+  if (input.empty()) {
+    clear_port();
+    return true;
+  }
+
   std::string trimmed(input);
   helpers::remove_ascii_tab_or_newline(trimmed);
+
   if (trimmed.empty()) {
-    clear_port();
     return true;
   }
 
@@ -13978,9 +14187,15 @@ bool url_aggregator::set_port(const std::string_view input) {
     return false;
   }
 
+  // Find the first non-digit character to determine the length of digits
+  auto first_non_digit =
+      std::ranges::find_if_not(trimmed, ada::unicode::is_ascii_digit);
+  std::string_view digits_to_parse =
+      std::string_view(trimmed.data(), first_non_digit - trimmed.begin());
+
   // Revert changes if parse_port fails.
   uint32_t previous_port = components.port;
-  parse_port(trimmed);
+  parse_port(digits_to_parse);
   if (is_valid) {
     return true;
   }
@@ -14223,43 +14438,75 @@ bool url_aggregator::set_host_or_hostname(const std::string_view input) {
     // Note: the 'found_colon' value is true if and only if a colon was
     // encountered while not inside brackets.
     if (found_colon) {
+      // If buffer is the empty string, host-missing validation error, return
+      // failure.
+      std::string_view host_buffer = host_view.substr(0, location);
+      if (host_buffer.empty()) {
+        return false;
+      }
+
+      // If state override is given and state override is hostname state, then
+      // return failure.
       if constexpr (override_hostname) {
         return false;
       }
-      std::string_view sub_buffer = new_host.substr(location + 1);
-      if (!sub_buffer.empty()) {
-        set_port(sub_buffer);
-      }
-    }
-    // If url is special and host_view is the empty string, validation error,
-    // return failure. Otherwise, if state override is given, host_view is the
-    // empty string, and either url includes credentials or url's port is
-    // non-null, return.
-    else if (host_view.empty() &&
-             (is_special() || has_credentials() || has_port())) {
-      return false;
-    }
 
-    // Let host be the result of host parsing host_view with url is not special.
-    if (host_view.empty() && !is_special()) {
-      if (has_hostname()) {
-        clear_hostname();  // easy!
+      // Let host be the result of host parsing buffer with url is not special.
+      bool succeeded = parse_host(host_buffer);
+      if (!succeeded) {
+        update_base_hostname(previous_host);
+        update_base_port(previous_port);
+        return false;
+      }
+
+      // Set url's host to host, buffer to the empty string, and state to port
+      // state.
+      std::string_view port_buffer = new_host.substr(location + 1);
+      if (!port_buffer.empty()) {
+        set_port(port_buffer);
+      }
+      return true;
+    }
+    // Otherwise, if one of the following is true:
+    // - c is the EOF code point, U+002F (/), U+003F (?), or U+0023 (#)
+    // - url is special and c is U+005C (\)
+    else {
+      // If url is special and host_view is the empty string, host-missing
+      // validation error, return failure.
+      if (host_view.empty() && is_special()) {
+        return false;
+      }
+
+      // Otherwise, if state override is given, host_view is the empty string,
+      // and either url includes credentials or url's port is non-null, then
+      // return failure.
+      if (host_view.empty() && (has_credentials() || has_port())) {
+        return false;
+      }
+
+      // Let host be the result of host parsing host_view with url is not
+      // special.
+      if (host_view.empty() && !is_special()) {
+        if (has_hostname()) {
+          clear_hostname();  // easy!
+        } else if (has_dash_dot()) {
+          add_authority_slashes_if_needed();
+          delete_dash_dot();
+        }
+        return true;
+      }
+
+      bool succeeded = parse_host(host_view);
+      if (!succeeded) {
+        update_base_hostname(previous_host);
+        update_base_port(previous_port);
+        return false;
       } else if (has_dash_dot()) {
-        add_authority_slashes_if_needed();
+        // Should remove dash_dot from pathname
         delete_dash_dot();
       }
       return true;
     }
-
-    bool succeeded = parse_host(host_view);
-    if (!succeeded) {
-      update_base_hostname(previous_host);
-      update_base_port(previous_port);
-    } else if (has_dash_dot()) {
-      // Should remove dash_dot from pathname
-      delete_dash_dot();
-    }
-    return succeeded;
   }
 
   size_t location = new_host.find_first_of("/\\?");
@@ -15205,8 +15452,8 @@ inline void url_aggregator::consume_prepared_path(std::string_view input) {
               ? path_buffer_tmp
               : path_view;
       if (unicode::is_double_dot_path_segment(path_buffer)) {
-        if ((helpers::shorten_path(path, type) || special) &&
-            location == std::string_view::npos) {
+        helpers::shorten_path(path, type);
+        if (location == std::string_view::npos) {
           path += '/';
         }
       } else if (unicode::is_single_dot_path_segment(path_buffer) &&
