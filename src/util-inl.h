@@ -618,7 +618,14 @@ constexpr bool FastStringKey::operator==(const FastStringKey& other) const {
   return name_ == other.name_;
 }
 
-constexpr FastStringKey::FastStringKey(std::string_view name)
+consteval FastStringKey::FastStringKey(std::string_view name)
+    : FastStringKey(name, 0) {}
+
+constexpr FastStringKey FastStringKey::AllowDynamic(std::string_view name) {
+  return FastStringKey(name, 0);
+}
+
+constexpr FastStringKey::FastStringKey(std::string_view name, int dummy)
     : name_(name), cached_hash_(HashImpl(name)) {}
 
 constexpr std::string_view FastStringKey::as_string_view() const {

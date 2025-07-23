@@ -1,5 +1,7 @@
 'use strict'
 
+const assert = require('node:assert')
+
 const { kConstruct } = require('../../core/symbols')
 const { urlEquals, getFieldValues } = require('./util')
 const { kEnumerableProperty, isDisturbed } = require('../../core/util')
@@ -7,8 +9,8 @@ const { webidl } = require('../webidl')
 const { cloneResponse, fromInnerResponse, getResponseState } = require('../fetch/response')
 const { Request, fromInnerRequest, getRequestState } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
-const { urlIsHttpHttpsScheme, createDeferredPromise, readAllBytes } = require('../fetch/util')
-const assert = require('node:assert')
+const { urlIsHttpHttpsScheme, readAllBytes } = require('../fetch/util')
+const { createDeferredPromise } = require('../../util/promise')
 
 /**
  * @see https://w3c.github.io/ServiceWorker/#dfn-cache-batch-operation
@@ -46,7 +48,7 @@ class Cache {
     const prefix = 'Cache.match'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     const p = this.#internalMatchAll(request, options, 1)
@@ -62,7 +64,7 @@ class Cache {
     webidl.brandCheck(this, Cache)
 
     const prefix = 'Cache.matchAll'
-    if (request !== undefined) request = webidl.converters.RequestInfo(request, prefix, 'request')
+    if (request !== undefined) request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     return this.#internalMatchAll(request, options)
@@ -74,7 +76,7 @@ class Cache {
     const prefix = 'Cache.add'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
 
     // 1.
     const requests = [request]
@@ -262,7 +264,7 @@ class Cache {
     const prefix = 'Cache.put'
     webidl.argumentLengthCheck(arguments, 2, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
     response = webidl.converters.Response(response, prefix, 'response')
 
     // 1.
@@ -393,7 +395,7 @@ class Cache {
     const prefix = 'Cache.delete'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    request = webidl.converters.RequestInfo(request, prefix, 'request')
+    request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     /**
@@ -458,7 +460,7 @@ class Cache {
 
     const prefix = 'Cache.keys'
 
-    if (request !== undefined) request = webidl.converters.RequestInfo(request, prefix, 'request')
+    if (request !== undefined) request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options, prefix, 'options')
 
     // 1.

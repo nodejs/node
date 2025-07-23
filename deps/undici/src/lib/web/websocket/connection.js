@@ -2,7 +2,6 @@
 
 const { uid, states, sentCloseFrameState, emptyBuffer, opcodes } = require('./constants')
 const { parseExtensions, isClosed, isClosing, isEstablished, validateCloseCodeAndReason } = require('./util')
-const { channels } = require('../../core/diagnostics')
 const { makeRequest } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
 const { Headers, getHeadersList } = require('../fetch/headers')
@@ -199,14 +198,6 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
       response.socket.on('data', handler.onSocketData)
       response.socket.on('close', handler.onSocketClose)
       response.socket.on('error', handler.onSocketError)
-
-      if (channels.open.hasSubscribers) {
-        channels.open.publish({
-          address: response.socket.address(),
-          protocol: secProtocol,
-          extensions: secExtension
-        })
-      }
 
       handler.wasEverConnected = true
       handler.onConnectionEstablished(response, extensions)

@@ -182,6 +182,16 @@ interface WebidlConverters {
 
   ['record<ByteString, ByteString>']: RecordConverter<string, string>
 
+  /**
+  * @see https://fetch.spec.whatwg.org/#requestinfo
+  */
+  RequestInfo (V: unknown): undici.Request | string
+
+  /**
+   * @see https://fetch.spec.whatwg.org/#requestinit
+   */
+  RequestInit (V: unknown): undici.RequestInit
+
   [Key: string]: (...args: any[]) => unknown
 }
 

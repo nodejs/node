@@ -385,8 +385,6 @@ For information about the governance of the Node.js project, see
   **Chengzhong Wu** <<legendecas@gmail.com>> (he/him)
 * [lemire](https://github.com/lemire) -
   **Daniel Lemire** <<daniel@lemire.me>>
-* [Linkgoron](https://github.com/Linkgoron) -
-  **Nitzan Uziely** <<linkgoron@gmail.com>>
 * [LiviaMedeiros](https://github.com/LiviaMedeiros) -
   **LiviaMedeiros** <<livia@cirno.name>>
 * [ljharb](https://github.com/ljharb) -
@@ -599,6 +597,8 @@ For information about the governance of the Node.js project, see
   **Lance Ball** <<lball@redhat.com>> (he/him)
 * [Leko](https://github.com/Leko) -
   **Shingo Inoue** <<leko.noor@gmail.com>> (he/him)
+* [Linkgoron](https://github.com/Linkgoron) -
+  **Nitzan Uziely** <<linkgoron@gmail.com>>
 * [lucamaraschi](https://github.com/lucamaraschi) -
   **Luca Maraschi** <<luca.maraschi@gmail.com>> (he/him)
 * [lundibundi](https://github.com/lundibundi) -

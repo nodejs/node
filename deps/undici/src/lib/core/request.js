@@ -42,7 +42,8 @@ class Request {
     reset,
     expectContinue,
     servername,
-    throwOnError
+    throwOnError,
+    maxRedirections
   }, handler) {
     if (typeof path !== 'string') {
       throw new InvalidArgumentError('path must be a string')
@@ -84,6 +85,10 @@ class Request {
 
     if (throwOnError != null) {
       throw new InvalidArgumentError('invalid throwOnError')
+    }
+
+    if (maxRedirections != null && maxRedirections !== 0) {
+      throw new InvalidArgumentError('maxRedirections is not supported, use the redirect interceptor')
     }
 
     this.headersTimeout = headersTimeout

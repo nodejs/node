@@ -1,7 +1,7 @@
 'use strict'
 
 const { Headers, HeadersList, fill, getHeadersGuard, setHeadersGuard, setHeadersList } = require('./headers')
-const { extractBody, cloneBody, mixinBody, hasFinalizationRegistry, streamRegistry, bodyUnusable } = require('./body')
+const { extractBody, cloneBody, mixinBody, streamRegistry, bodyUnusable } = require('./body')
 const util = require('../../core/util')
 const nodeUtil = require('node:util')
 const { kEnumerableProperty } = util
@@ -352,7 +352,9 @@ function cloneResponse (response) {
   // 3. If response’s body is non-null, then set newResponse’s body to the
   // result of cloning response’s body.
   if (response.body != null) {
-    newResponse.body = cloneBody(newResponse, response.body)
+    newResponse.body = cloneBody(response.body)
+
+    streamRegistry.register(newResponse, new WeakRef(response.body.stream))
   }
 
   // 4. Return newResponse.
@@ -552,7 +554,7 @@ function fromInnerResponse (innerResponse, guard) {
   setHeadersList(headers, innerResponse.headersList)
   setHeadersGuard(headers, guard)
 
-  if (hasFinalizationRegistry && innerResponse.body?.stream) {
+  if (innerResponse.body?.stream) {
     // If the target (response) is reclaimed, the cleanup callback may be called at some point with
     // the held value provided for it (innerResponse.body.stream). The held value can be any value:
     // a primitive or an object, even undefined. If the held value is an object, the registry keeps

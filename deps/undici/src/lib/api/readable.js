@@ -89,9 +89,7 @@ class BodyReadable extends Readable {
     // promise (i.e micro tick) for installing an 'error' listener will
     // never get a chance and will always encounter an unhandled exception.
     if (!this[kUsed]) {
-      setImmediate(() => {
-        callback(err)
-      })
+      setImmediate(callback, err)
     } else {
       callback(err)
     }
