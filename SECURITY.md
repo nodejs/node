@@ -110,20 +110,20 @@ does not trust is considered a vulnerability:
 * The unavailability of the runtime, including the unbounded degradation of its
   performance.
 * Memory leaks qualify as vulnerabilities when all of the following criteria are met:
-  * The API is being correctly used
-  * The API doesn't have a warning against its usage in a production environment
-  * The API is public and documented
-  * The API is on stable (2.0) status
-  * The memory leak is significant, causing a DoS fast or in a user-uncontrolled space (for instance, on HTTP parsing)
-  * The memory leak is directly exploitable by an untrusted source without requiring application mistakes
-  * The leak cannot be reasonably mitigated through standard operational practices (like process recycling)
-  * The leak occurs deterministically under normal usage patterns rather than edge cases
+  * The API is being correctly used.
+  * The API doesn't have a warning against its usage in a production environment.
+  * The API is public and documented.
+  * The API is on stable (2.0) status.
+  * The memory leak is significant, causing a DoS fast or in a user-uncontrolled space (for instance, on HTTP parsing).
+  * The memory leak is directly exploitable by an untrusted source without requiring application mistakes.
+  * The leak cannot be reasonably mitigated through standard operational practices (like process recycling).
+  * The leak occurs deterministically under normal usage patterns rather than edge cases.
   * The leak occurs at a rate that would cause practical resource exhaustion within a practical timeframe under
-    typical workloads
+    typical workloads.
   * The attack demonstrates [asymmetric resource consumption](https://cwe.mitre.org/data/definitions/405.html),
     where the attacker expends significantly fewer resources than what's required by the server to process the
     attack. Attacks requiring comparable resources on the attacker's side (which can be mitigated through common
-    practices like rate limiting) may not qualify
+    practices like rate limiting) may not qualify.
 
 If Node.js loads configuration files or runs code by default (without a
 specific request from the user), and this is not documented, it is considered a
