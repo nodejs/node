@@ -924,17 +924,6 @@ function sameOrigin (A, B) {
   return false
 }
 
-function createDeferredPromise () {
-  let res
-  let rej
-  const promise = new Promise((resolve, reject) => {
-    res = resolve
-    rej = reject
-  })
-
-  return { promise, resolve: res, reject: rej }
-}
-
 function isAborted (fetchParams) {
   return fetchParams.controller.state === 'aborted'
 }
@@ -1177,6 +1166,11 @@ function iteratorMixin (name, object, kInternalIterator, keyIndex = 0, valueInde
 }
 
 /**
+ * @param {import('./body').ExtractBodyResult} body
+ * @param {(bytes: Uint8Array) => void} processBody
+ * @param {(error: Error) => void} processBodyError
+ * @returns {void}
+ *
  * @see https://fetch.spec.whatwg.org/#body-fully-read
  */
 function fullyReadBody (body, processBody, processBodyError) {
@@ -1191,20 +1185,17 @@ function fullyReadBody (body, processBody, processBodyError) {
   //    with taskDestination.
   const errorSteps = processBodyError
 
+  try {
   // 4. Let reader be the result of getting a reader for body’s stream.
   //    If that threw an exception, then run errorSteps with that
   //    exception and return.
-  let reader
+    const reader = body.stream.getReader()
 
-  try {
-    reader = body.stream.getReader()
+    // 5. Read all bytes from reader, given successSteps and errorSteps.
+    readAllBytes(reader, successSteps, errorSteps)
   } catch (e) {
     errorSteps(e)
-    return
   }
-
-  // 5. Read all bytes from reader, given successSteps and errorSteps.
-  readAllBytes(reader, successSteps, errorSteps)
 }
 
 /**
@@ -1241,15 +1232,16 @@ function isomorphicEncode (input) {
 /**
  * @see https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
  * @see https://streams.spec.whatwg.org/#read-loop
- * @param {ReadableStreamDefaultReader} reader
+ * @param {ReadableStream<Uint8Array<ArrayBuffer>>} reader
  * @param {(bytes: Uint8Array) => void} successSteps
  * @param {(error: Error) => void} failureSteps
+ * @returns {Promise<void>}
  */
 async function readAllBytes (reader, successSteps, failureSteps) {
-  const bytes = []
-  let byteLength = 0
-
   try {
+    const bytes = []
+    let byteLength = 0
+
     do {
       const { done, value: chunk } = await reader.read()
 
@@ -1325,9 +1317,16 @@ function urlIsHttpHttpsScheme (url) {
 }
 
 /**
+ * @typedef {Object} RangeHeaderValue
+ * @property {number|null} rangeStartValue
+ * @property {number|null} rangeEndValue
+ */
+
+/**
  * @see https://fetch.spec.whatwg.org/#simple-range-header-value
  * @param {string} value
  * @param {boolean} allowWhitespace
+ * @return {RangeHeaderValue|'failure'}
  */
 function simpleRangeHeaderValue (value, allowWhitespace) {
   // 1. Let data be the isomorphic decoding of value.
@@ -1732,7 +1731,6 @@ module.exports = {
   isAborted,
   isCancelled,
   isValidEncodedURL,
-  createDeferredPromise,
   ReadableStreamFrom,
   tryUpgradeRequestToAPotentiallyTrustworthyURL,
   clampAndCoarsenConnectionTimingInfo,

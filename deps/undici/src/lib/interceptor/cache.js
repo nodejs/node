@@ -301,11 +301,11 @@ module.exports = (opts = {}) => {
   assertCacheMethods(methods, 'opts.methods')
 
   if (typeof cacheByDefault !== 'undefined' && typeof cacheByDefault !== 'number') {
-    throw new TypeError(`exepcted opts.cacheByDefault to be number or undefined, got ${typeof cacheByDefault}`)
+    throw new TypeError(`expected opts.cacheByDefault to be number or undefined, got ${typeof cacheByDefault}`)
   }
 
   if (typeof type !== 'undefined' && type !== 'shared' && type !== 'private') {
-    throw new TypeError(`exepcted opts.type to be shared, private, or undefined, got ${typeof type}`)
+    throw new TypeError(`expected opts.type to be shared, private, or undefined, got ${typeof type}`)
   }
 
   const globalOpts = {

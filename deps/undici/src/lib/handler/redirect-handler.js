@@ -42,7 +42,8 @@ class RedirectHandler {
 
     this.dispatch = dispatch
     this.location = null
-    this.opts = { ...opts, maxRedirections: 0 } // opts must be a copy
+    const { maxRedirections: _, ...cleanOpts } = opts
+    this.opts = cleanOpts // opts must be a copy, exclude maxRedirections
     this.maxRedirections = maxRedirections
     this.handler = handler
     this.history = []
@@ -138,7 +139,6 @@ class RedirectHandler {
     this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin)
     this.opts.path = path
     this.opts.origin = origin
-    this.opts.maxRedirections = 0
     this.opts.query = null
   }
 

@@ -241,7 +241,10 @@ class CacheHandler {
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives} cacheControlDirectives
  */
 function canCacheResponse (cacheType, statusCode, resHeaders, cacheControlDirectives) {
-  if (statusCode !== 200 && statusCode !== 307) {
+  // Allow caching for status codes 200 and 307 (original behavior)
+  // Also allow caching for other status codes that are heuristically cacheable
+  // when they have explicit cache directives
+  if (statusCode !== 200 && statusCode !== 307 && !HEURISTICALLY_CACHEABLE_STATUS_CODES.includes(statusCode)) {
     return false
   }
 

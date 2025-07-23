@@ -4,7 +4,6 @@ const util = require('../../core/util')
 const {
   ReadableStreamFrom,
   readableStreamClose,
-  createDeferredPromise,
   fullyReadBody,
   extractMimeType,
   utf8DecodeBytes
@@ -17,6 +16,8 @@ const { isErrored, isDisturbed } = require('node:stream')
 const { isArrayBuffer } = require('node:util/types')
 const { serializeAMimeType } = require('./data-url')
 const { multipartFormDataParser } = require('./formdata-parser')
+const { createDeferredPromise } = require('../../util/promise')
+
 let random
 
 try {
@@ -29,19 +30,22 @@ try {
 const textEncoder = new TextEncoder()
 function noop () {}
 
-const hasFinalizationRegistry = globalThis.FinalizationRegistry
-let streamRegistry
+const streamRegistry = new FinalizationRegistry((weakRef) => {
+  const stream = weakRef.deref()
+  if (stream && !stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
+    stream.cancel('Response object has been garbage collected').catch(noop)
+  }
+})
 
-if (hasFinalizationRegistry) {
-  streamRegistry = new FinalizationRegistry((weakRef) => {
-    const stream = weakRef.deref()
-    if (stream && !stream.locked && !isDisturbed(stream) && !isErrored(stream)) {
-      stream.cancel('Response object has been garbage collected').catch(noop)
-    }
-  })
-}
-
-// https://fetch.spec.whatwg.org/#concept-bodyinit-extract
+/**
+ * Extract a body with type from a byte sequence or BodyInit object
+ *
+ * @param {import('../../../types').BodyInit} object - The BodyInit object to extract from
+ * @param {boolean} [keepalive=false] - If true, indicates that the body
+ * @returns {[{stream: ReadableStream, source: any, length: number | null}, string | null]} - Returns a tuple containing the body and its type
+ *
+ * @see https://fetch.spec.whatwg.org/#concept-bodyinit-extract
+ */
 function extractBody (object, keepalive = false) {
   // 1. Let stream be null.
   let stream = null
@@ -267,7 +271,22 @@ function extractBody (object, keepalive = false) {
   return [body, type]
 }
 
-// https://fetch.spec.whatwg.org/#bodyinit-safely-extract
+/**
+ * @typedef {object} ExtractBodyResult
+ * @property {ReadableStream<Uint8Array<ArrayBuffer>>} stream - The ReadableStream containing the body data
+ * @property {any} source - The original source of the body data
+ * @property {number | null} length - The length of the body data, or null
+ */
+
+/**
+ * Safely extract a body with type from a byte sequence or BodyInit object.
+ *
+ * @param {import('../../../types').BodyInit} object - The BodyInit object to extract from
+ * @param {boolean} [keepalive=false] - If true, indicates that the body
+ * @returns {[ExtractBodyResult, string | null]} - Returns a tuple containing the body and its type
+ *
+ * @see https://fetch.spec.whatwg.org/#bodyinit-safely-extract
+ */
 function safelyExtractBody (object, keepalive = false) {
   // To safely extract a body and a `Content-Type` value from
   // a byte sequence or BodyInit object object, run these steps:
@@ -275,9 +294,7 @@ function safelyExtractBody (object, keepalive = false) {
   // 1. If object is a ReadableStream object, then:
   if (webidl.is.ReadableStream(object)) {
     // Assert: object is neither disturbed nor locked.
-    // istanbul ignore next
     assert(!util.isDisturbed(object), 'The body has already been consumed.')
-    // istanbul ignore next
     assert(!object.locked, 'The stream is locked.')
   }
 
@@ -285,17 +302,13 @@ function safelyExtractBody (object, keepalive = false) {
   return extractBody(object, keepalive)
 }
 
-function cloneBody (instance, body) {
+function cloneBody (body) {
   // To clone a body body, run these steps:
 
   // https://fetch.spec.whatwg.org/#concept-body-clone
 
   // 1. Let « out1, out2 » be the result of teeing body’s stream.
-  const [out1, out2] = body.stream.tee()
-
-  if (hasFinalizationRegistry) {
-    streamRegistry.register(instance, new WeakRef(out1))
-  }
+  const { 0: out1, 1: out2 } = body.stream.tee()
 
   // 2. Set body’s stream to out1.
   body.stream = out1
@@ -527,6 +540,5 @@ module.exports = {
   cloneBody,
   mixinBody,
   streamRegistry,
-  hasFinalizationRegistry,
   bodyUnusable
 }
