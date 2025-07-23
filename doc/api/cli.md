@@ -3886,23 +3886,11 @@ Sets the max memory size of V8's old memory section. As memory
 consumption approaches the limit, V8 will spend more time on
 garbage collection in an effort to free unused memory.
 
-The `SIZE` parameter can be specified in two formats:
-
-* **Megabytes**: A number representing the heap size in MiB (e.g., `1536`)
-* **Percentage**: A number followed by `%` representing a percentage of available system memory (e.g., `50%`)
-
-When using percentage format, Node.js calculates the heap size based on the available system memory.
-The percentage must be greater than 0 and up to 100.
-
 On a machine with 2 GiB of memory, consider setting this to
 1536 (1.5 GiB) to leave some memory for other uses and avoid swapping.
 
 ```bash
-# Using megabytes
 node --max-old-space-size=1536 index.js
-
-# Using percentage of available memory
-node --max-old-space-size=50% index.js
 ```
 
 <!-- Anchor to make sure old links find a target -->
