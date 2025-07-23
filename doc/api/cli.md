@@ -3039,11 +3039,11 @@ On macOS, the following settings are respected:
 
 * Default and System Keychains
   * Trust:
-    * Any certificate where the "When using this certificate" flag is set to "Always Trust" or
-    * Any certificate where the "Secure Sockets Layer (SSL)" flag is set to "Always Trust."
+    * Any certificate where the “When using this certificate” flag is set to “Always Trust” or
+    * Any certificate where the “Secure Sockets Layer (SSL)” flag is set to “Always Trust.”
   * Distrust:
-    * Any certificate where the "When using this certificate" flag is set to "Never Trust" or
-    * Any certificate where the "Secure Sockets Layer (SSL)" flag is set to "Never Trust."
+    * Any certificate where the “When using this certificate” flag is set to “Never Trust” or
+    * Any certificate where the “Secure Sockets Layer (SSL)” flag is set to “Never Trust.”
 
 On Windows, the following settings are respected (unlike Chromium's policy, distrust
 and intermediate CA are not currently supported):
