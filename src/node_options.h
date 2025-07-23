@@ -285,6 +285,7 @@ class PerIsolateOptions : public Options {
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
   bool experimental_shadow_realm = false;
+  std::string max_old_space_size_percentage;
   std::string max_old_space_size;
   int64_t stack_trace_limit = 10;
   std::string report_signal = "SIGUSR2";

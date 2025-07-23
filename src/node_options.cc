@@ -109,25 +109,23 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
 }
 
 void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
-    std::vector<std::string>* errors, std::string* max_old_space_size) {
-  std::string original_input_for_error = *max_old_space_size;
-
-  // Remove the '%' suffix
-  max_old_space_size->pop_back();
-
-  // Check if the percentage value is empty after removing '%'
-  if (max_old_space_size->empty()) {
-    errors->push_back("--max-old-space-size percentage must not be empty");
+    std::vector<std::string>* errors,
+    std::string* max_old_space_size_percentage) {
+  std::string original_input_for_error = *max_old_space_size_percentage;
+  // Check if the percentage value is empty
+  if (max_old_space_size_percentage->empty()) {
+    errors->push_back("--max-old-space-size-percentage must not be empty");
     return;
   }
 
   // Parse the percentage value
   char* end_ptr;
-  double percentage = std::strtod(max_old_space_size->c_str(), &end_ptr);
+  double percentage =
+      std::strtod(max_old_space_size_percentage->c_str(), &end_ptr);
 
   // Validate the percentage value
   if (*end_ptr != '\0' || percentage <= 0.0 || percentage > 100.0) {
-    errors->push_back("--max-old-space-size percentage must be greater "
+    errors->push_back("--max-old-space-size-percentage must be greater "
                       "than 0 and up to 100. Got: " + original_input_for_error);
     return;
   }
@@ -145,13 +143,13 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
   size_t calculated_mb = static_cast<size_t>(memory_mb * percentage / 100.0);
 
   // Convert back to string
-  *max_old_space_size = std::to_string(calculated_mb);
+  max_old_space_size = std::to_string(calculated_mb);
 }
 
 void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors,
                                      std::vector<std::string>* argv) {
-  if (!max_old_space_size.empty() && max_old_space_size.back() == '%') {
-    HandleMaxOldSpaceSizePercentage(errors, &max_old_space_size);
+  if (!max_old_space_size_percentage.empty()) {
+    HandleMaxOldSpaceSizePercentage(errors, &max_old_space_size_percentage);
   }
 
   per_env->CheckOptions(errors, argv);
@@ -1124,10 +1122,12 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             "help system profilers to translate JavaScript interpreted frames",
             V8Option{},
             kAllowedInEnvvar);
-  AddOption("--max-old-space-size",
-            "set V8's max old space size. SIZE is in Megabytes (e.g., '2048') "
-            "or as a percentage of available memory (e.g., '50%').",
-             &PerIsolateOptions::max_old_space_size, kAllowedInEnvvar);
+  AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--max-old-space-size-percentage",
+            "set V8's max old space size as a percentage of available memory "
+            "(e.g., '50%'). Takes precedence over --max-old-space-size.",
+            &PerIsolateOptions::max_old_space_size_percentage,
+            kAllowedInEnvvar);
   AddOption("--max-semi-space-size", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--perf-basic-prof", "", V8Option{}, kAllowedInEnvvar);
   AddOption(
