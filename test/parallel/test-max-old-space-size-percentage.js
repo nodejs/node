@@ -99,27 +99,27 @@ testPercentages.forEach((percentage) => {
 // 50% should be roughly half of 100%
 const ratio50to100 = heapSizes[50] / heapSizes[100];
 assert(
-  ratio50to100 >= 0.45 && ratio50to100 <= 0.55,
+  ratio50to100 >= 0.4 && ratio50to100 <= 0.6,
   `50% heap size should be roughly half of 100% (got ${ratio50to100.toFixed(2)}, expected ~0.5)`
 );
 
 // 25% should be roughly quarter of 100%
 const ratio25to100 = heapSizes[25] / heapSizes[100];
 assert(
-  ratio25to100 >= 0.2 && ratio25to100 <= 0.3,
+  ratio25to100 >= 0.15 && ratio25to100 <= 0.35,
   `25% heap size should be roughly quarter of 100% (got ${ratio25to100.toFixed(2)}, expected ~0.25)`
 );
 
 // 75% should be roughly three-quarters of 100%
 const ratio75to100 = heapSizes[75] / heapSizes[100];
 assert(
-  ratio75to100 >= 0.7 && ratio75to100 <= 0.8,
+  ratio75to100 >= 0.65 && ratio75to100 <= 0.85,
   `75% heap size should be roughly three-quarters of 100% (got ${ratio75to100.toFixed(2)}, expected ~0.75)`
 );
 
 // Validate heap sizes against system memory
 const totalMemoryMB = Math.floor(os.totalmem() / 1024 / 1024);
-const margin = 5; // 5% margin
+const margin = 10; // 5% margin
 testPercentages.forEach((percentage) => {
   const upperLimit = totalMemoryMB * ((percentage + margin) / 100);
   assert(

@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cstdint>
 #include <limits>
 #include <sstream>
 #include <string_view>
@@ -112,12 +113,6 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
     std::vector<std::string>* errors,
     std::string* max_old_space_size_percentage) {
   std::string original_input_for_error = *max_old_space_size_percentage;
-  // Check if the percentage value is empty
-  if (max_old_space_size_percentage->empty()) {
-    errors->push_back("--max-old-space-size-percentage must not be empty");
-    return;
-  }
-
   // Parse the percentage value
   char* end_ptr;
   double percentage =
@@ -131,17 +126,21 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
     return;
   }
 
-  // Get available memory in MB
-  size_t total_memory = uv_get_total_memory();
-  size_t constrained_memory = uv_get_constrained_memory();
+  // Get available memory in bytes
+  uint64_t total_memory = uv_get_total_memory();
+  uint64_t constrained_memory = uv_get_constrained_memory();
 
   // Use constrained memory if available, otherwise use total memory
-  size_t available_memory =
-      (constrained_memory > 0) ? constrained_memory : total_memory;
+  // This logic correctly handles the documented guarantees.
+  // Use uint64_t for the result to prevent data loss on 32-bit systems.
+  uint64_t available_memory =
+      (constrained_memory > 0 && constrained_memory != UINT64_MAX)
+          ? constrained_memory
+          : total_memory;
 
   // Convert to MB and calculate the percentage
-  size_t memory_mb = available_memory / (1024 * 1024);
-  size_t calculated_mb = static_cast<size_t>(memory_mb * percentage / 100.0);
+  uint64_t memory_mb = available_memory / (1024 * 1024);
+  uint64_t calculated_mb = static_cast<size_t>(memory_mb * percentage / 100.0);
 
   // Convert back to string
   max_old_space_size = std::to_string(calculated_mb);
