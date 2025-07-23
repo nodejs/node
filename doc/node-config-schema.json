@@ -270,7 +270,7 @@
           "type": "number"
         },
         "max-old-space-size-percentage": {
-          "type": "number"
+          "type": "string"
         },
         "network-family-autoselection": {
           "type": "boolean"
