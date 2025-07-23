@@ -169,10 +169,11 @@ This message is published after the client has successfully connected to a serve
 ```js
 import diagnosticsChannel from 'diagnostics_channel'
 
-diagnosticsChannel.channel('undici:websocket:open').subscribe(({ address, protocol, extensions }) => {
+diagnosticsChannel.channel('undici:websocket:open').subscribe(({ address, protocol, extensions, websocket }) => {
   console.log(address) // address, family, and port
   console.log(protocol) // negotiated subprotocols
   console.log(extensions) // negotiated extensions
+  console.log(websocket) // the WebSocket instance
 })
 ```
 
@@ -184,7 +185,7 @@ This message is published after the connection has closed.
 import diagnosticsChannel from 'diagnostics_channel'
 
 diagnosticsChannel.channel('undici:websocket:close').subscribe(({ websocket, code, reason }) => {
-  console.log(websocket) // the WebSocket object
+  console.log(websocket) // the WebSocket instance
   console.log(code) // the closing status code
   console.log(reason) // the closing reason
 })
@@ -209,9 +210,10 @@ This message is published after the client receives a ping frame, if the connect
 ```js
 import diagnosticsChannel from 'diagnostics_channel'
 
-diagnosticsChannel.channel('undici:websocket:ping').subscribe(({ payload }) => {
+diagnosticsChannel.channel('undici:websocket:ping').subscribe(({ payload, websocket }) => {
   // a Buffer or undefined, containing the optional application data of the frame
   console.log(payload)
+  console.log(websocket) // the WebSocket instance
 })
 ```
 
@@ -222,8 +224,9 @@ This message is published after the client receives a pong frame.
 ```js
 import diagnosticsChannel from 'diagnostics_channel'
 
-diagnosticsChannel.channel('undici:websocket:pong').subscribe(({ payload }) => {
+diagnosticsChannel.channel('undici:websocket:pong').subscribe(({ payload, websocket }) => {
   // a Buffer or undefined, containing the optional application data of the frame
   console.log(payload)
+  console.log(websocket) // the WebSocket instance
 })
 ```

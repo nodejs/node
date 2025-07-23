@@ -1,6 +1,7 @@
 'use strict'
 
-const { createDeferredPromise, environmentSettingsObject } = require('../../fetch/util')
+const { createDeferredPromise } = require('../../../util/promise')
+const { environmentSettingsObject } = require('../../fetch/util')
 const { states, opcodes, sentCloseFrameState } = require('../constants')
 const { webidl } = require('../../webidl')
 const { getURLRecord, isValidSubprotocol, isEstablished, utf8Decode } = require('../util')
@@ -21,11 +22,11 @@ class WebSocketStream {
   #url
 
   // Each WebSocketStream object has an associated opened promise , which is a promise.
-  /** @type {ReturnType<typeof createDeferredPromise>} */
+  /** @type {import('../../../util/promise').DeferredPromise} */
   #openedPromise
 
   // Each WebSocketStream object has an associated closed promise , which is a promise.
-  /** @type {ReturnType<typeof createDeferredPromise>} */
+  /** @type {import('../../../util/promise').DeferredPromise} */
   #closedPromise
 
   // Each WebSocketStream object has an associated readable stream , which is a ReadableStream .
@@ -64,6 +65,8 @@ class WebSocketStream {
       this.#handler.socket.destroy()
     },
     onSocketClose: () => this.#onSocketClose(),
+    onPing: () => {},
+    onPong: () => {},
 
     readyState: states.CONNECTING,
     socket: null,
@@ -388,7 +391,7 @@ class WebSocketStream {
     // 6. If the connection was closed cleanly ,
     if (wasClean) {
       // 6.1. Close stream ’s readable stream .
-      this.#readableStream.cancel().catch(() => {})
+      this.#readableStreamController.close()
 
       // 6.2. Error stream ’s writable stream with an " InvalidStateError " DOMException indicating that a closed WebSocketStream cannot be written to.
       if (!this.#writableStream.locked) {
