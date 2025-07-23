@@ -140,7 +140,7 @@ assert.strictEqual(newObject.test_string, 'test string');
   test_object.Wrap(wrapper);
 
   assert(test_object.Unwrap(wrapper));
-  assert(wrapper.protoA);
+  assert.strictEqual(wrapper.protoA, true);
 }
 
 {
@@ -155,8 +155,8 @@ assert.strictEqual(newObject.test_string, 'test string');
   Object.setPrototypeOf(wrapper, protoB);
 
   assert(test_object.Unwrap(wrapper));
-  assert(wrapper.protoA, true);
-  assert(wrapper.protoB, true);
+  assert.strictEqual(wrapper.protoA, true);
+  assert.strictEqual(wrapper.protoB, true);
 }
 
 {

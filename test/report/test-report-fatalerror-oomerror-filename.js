@@ -30,7 +30,7 @@ const REPORT_FIELDS = [
     ...ARGS,
   ];
   const child = spawnSync(process.execPath, args, { encoding: 'utf8' });
-  assert.notStrictEqual(child.status, 0, 'Process exited unexpectedly');
+  assert.notStrictEqual(child.status, 0);
 
   const reports = helper.findReports(child.pid, tmpdir.path);
   assert.strictEqual(reports.length, 0);
