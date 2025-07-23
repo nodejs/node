@@ -294,9 +294,8 @@ class PerIsolateOptions : public Options {
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
-  void HandleMaxOldSpaceSizePercentage(
-    std::vector<std::string>* errors,
-    std::string* max_old_space_size);
+  void HandleMaxOldSpaceSizePercentage(std::vector<std::string>* errors,
+                                       std::string* max_old_space_size);
 
   inline std::shared_ptr<PerIsolateOptions> Clone() const;
 

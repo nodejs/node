@@ -765,12 +765,11 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     v8_args.emplace_back("--harmony-import-attributes");
   }
 
-  if (!per_process::cli_options->
-          per_isolate->
-          max_old_space_size_percentage.empty()) {
-    v8_args.emplace_back("--max_old_space_size=" +
-                         per_process::cli_options->per_isolate->
-                             max_old_space_size);
+  if (!per_process::cli_options->per_isolate->max_old_space_size_percentage
+           .empty()) {
+    v8_args.emplace_back(
+        "--max_old_space_size=" +
+        per_process::cli_options->per_isolate->max_old_space_size);
   }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;

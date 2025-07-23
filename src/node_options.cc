@@ -126,7 +126,8 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
   // Validate the percentage value
   if (*end_ptr != '\0' || percentage <= 0.0 || percentage > 100.0) {
     errors->push_back("--max-old-space-size-percentage must be greater "
-                      "than 0 and up to 100. Got: " + original_input_for_error);
+                      "than 0 and up to 100. Got: " +
+                      original_input_for_error);
     return;
   }
 
@@ -135,8 +136,8 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
   size_t constrained_memory = uv_get_constrained_memory();
 
   // Use constrained memory if available, otherwise use total memory
-  size_t available_memory = (constrained_memory > 0) ? constrained_memory
-                                                     : total_memory;
+  size_t available_memory =
+      (constrained_memory > 0) ? constrained_memory : total_memory;
 
   // Convert to MB and calculate the percentage
   size_t memory_mb = available_memory / (1024 * 1024);
