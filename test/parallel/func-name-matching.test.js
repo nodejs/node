@@ -838,6 +838,37 @@ ruleTester.run("func-name-matching", rule, {
 				},
 			],
 		},
+		// Tests for Node's primordials (ObjectDefineProperty, ObjectDefineProperties, ReflectDefineProperty)
+		{
+			code: "ObjectDefineProperty(foo, 'bar', { value: function baz() {} })",
+			options: ["always", { considerPropertyDescriptor: true }],
+			errors: [
+				{
+					messageId: "matchProperty",
+					data: { funcName: "baz", name: "bar" },
+				},
+			],
+		},
+		{
+			code: "ReflectDefineProperty(foo, 'bar', { value: function baz() {} })",
+			options: ["always", { considerPropertyDescriptor: true }],
+			errors: [
+				{
+					messageId: "matchProperty",
+					data: { funcName: "baz", name: "bar" },
+				},
+			],
+		},
+		{
+			code: "ObjectDefineProperties(foo, { bar: { value: function baz() {} } })",
+			options: ["always", { considerPropertyDescriptor: true }],
+			errors: [
+				{
+					messageId: "matchProperty",
+					data: { funcName: "baz", name: "bar" },
+				},
+			],
+		},
 		{
 			code: "foo({ value: function bar() {} })",
 			options: ["always", { considerPropertyDescriptor: true }],
