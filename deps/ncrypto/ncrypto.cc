@@ -226,7 +226,7 @@ DataPointer DataPointer::resize(size_t len) {
     if (secure_) {
       OPENSSL_secure_clear_free(buf.data, len_);
     } else {
-      OPENSSL_free(buf.data, len_);
+      OPENSSL_clear_free(buf.data, len_);
     }
     return DataPointer(nullptr, 0, secure_);
   }
