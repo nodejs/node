@@ -716,7 +716,7 @@ added: v22.1.0
 
 Parses a string as a URL. If `base` is provided, it will be used as the base
 URL for the purpose of resolving non-absolute `input` URLs. Returns `null`
-if `input` is not a valid.
+if the parameters can't be resolved to a valid URL.
 
 ### Class: `URLPattern`
 
