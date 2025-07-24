@@ -442,8 +442,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Sleep);
   registry->Register(ArrayBufferViewHasBuffer);
   registry->Register(GuessHandleType);
-  registry->Register(FastGuessHandleType);
-  registry->Register(fast_guess_handle_type_.GetTypeInfo());
+  registry->Register(fast_guess_handle_type_);
   registry->Register(ParseEnv);
   registry->Register(IsInsideNodeModules);
   registry->Register(DefineLazyProperties);

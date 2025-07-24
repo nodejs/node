@@ -10,6 +10,7 @@
 
 namespace node {
 
+using v8::CFunction;
 using v8::FastApiCallbackOptions;
 using v8::FastApiTypedArray;
 using v8::FunctionCallbackInfo;
@@ -67,16 +68,18 @@ bool FastTimingSafeEqual(Local<Value> receiver,
   return CRYPTO_memcmp(data_a, data_b, a.length()) == 0;
 }
 
-static v8::CFunction fast_equal(v8::CFunction::Make(FastTimingSafeEqual));
+static CFunction fast_timing_safe_equal(CFunction::Make(FastTimingSafeEqual));
 
 void Initialize(Environment* env, Local<Object> target) {
-  SetFastMethodNoSideEffect(
-      env->context(), target, "timingSafeEqual", TimingSafeEqual, &fast_equal);
+  SetFastMethodNoSideEffect(env->context(),
+                            target,
+                            "timingSafeEqual",
+                            TimingSafeEqual,
+                            &fast_timing_safe_equal);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(TimingSafeEqual);
-  registry->Register(FastTimingSafeEqual);
-  registry->Register(fast_equal.GetTypeInfo());
+  registry->Register(fast_timing_safe_equal);
 }
 }  // namespace Timing
 

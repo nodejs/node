@@ -716,8 +716,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GCProfiler::Stop);
   registry->Register(GetCppHeapStatistics);
   registry->Register(IsStringOneByteRepresentation);
-  registry->Register(FastIsStringOneByteRepresentation);
-  registry->Register(fast_is_string_one_byte_representation_.GetTypeInfo());
+  registry->Register(fast_is_string_one_byte_representation_);
 }
 
 }  // namespace v8_utils
