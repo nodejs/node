@@ -9,8 +9,8 @@
 // Requirements
 //--------------------------------------------------------------------------
 
-const astUtils = require("./utils/ast-utils");
-const esutils = require("esutils");
+const astUtils = require("../eslint/node_modules/eslint/lib/rules/utils/ast-utils");
+const esutils = require("../eslint/node_modules/esutils");
 
 //--------------------------------------------------------------------------
 // Helpers
