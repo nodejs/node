@@ -147,6 +147,14 @@ module.exports = {
 			);
 		}
 
+		function isIdentifierCall(expectedIdentifierName, node) {
+			if (!node) {
+				return false;
+			}
+			return node.type === "CallExpression" && 
+				astUtils.isSpecificId(node.callee, expectedIdentifierName);
+		}
+
 		/**
 		 * Compares identifiers based on the nameMatches option
 		 * @param {string} x the first identifier
@@ -273,7 +281,9 @@ module.exports = {
 								"Reflect",
 								"defineProperty",
 								node.parent.parent,
-							)
+							) ||
+							isIdentifierCall("ObjectDefineProperty", node.parent.parent) ||
+							isIdentifierCall("ReflectDefineProperty", node.parent.parent)
 						) {
 							const property = node.parent.parent.arguments[1];
 
@@ -293,7 +303,8 @@ module.exports = {
 								"Object",
 								"defineProperties",
 								node.parent.parent.parent.parent,
-							)
+							) ||
+							isIdentifierCall("ObjectDefineProperties", node.parent.parent.parent.parent) 
 						) {
 							propertyName = node.parent.parent.key.name;
 							if (
