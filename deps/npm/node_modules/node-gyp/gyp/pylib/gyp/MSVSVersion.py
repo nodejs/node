@@ -5,11 +5,11 @@
 """Handle version information related to Visual Stuio."""
 
 import errno
+import glob
 import os
 import re
 import subprocess
 import sys
-import glob
 
 
 def JoinPath(*args):
@@ -69,7 +69,7 @@ class VisualStudioVersion:
 
     def ProjectExtension(self):
         """Returns the file extension for the project."""
-        return self.uses_vcxproj and ".vcxproj" or ".vcproj"
+        return (self.uses_vcxproj and ".vcxproj") or ".vcproj"
 
     def Path(self):
         """Returns the path to Visual Studio installation."""

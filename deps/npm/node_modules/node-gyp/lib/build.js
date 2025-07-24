@@ -3,7 +3,7 @@
 const gracefulFs = require('graceful-fs')
 const fs = gracefulFs.promises
 const path = require('path')
-const { glob } = require('glob')
+const { glob } = require('tinyglobby')
 const log = require('./log')
 const which = require('which')
 const win = process.platform === 'win32'
@@ -84,9 +84,10 @@ async function build (gyp, argv) {
    */
 
   async function findSolutionFile () {
-    const files = await glob('build/*.sln')
+    const files = await glob('build/*.sln', { expandDirectories: false })
     if (files.length === 0) {
-      if (gracefulFs.existsSync('build/Makefile') || (await glob('build/*.mk')).length !== 0) {
+      if (gracefulFs.existsSync('build/Makefile') ||
+          (await glob('build/*.mk', { expandDirectories: false })).length !== 0) {
         command = makeCommand
         await doWhich(false)
         return
@@ -141,6 +142,8 @@ async function build (gyp, argv) {
     if (msvs) {
       // Turn off the Microsoft logo on Windows
       argv.push('/nologo')
+      // No lingering msbuild processes and open file handles
+      argv.push('/nodeReuse:false')
     }
 
     // Specify the build type, Release by default
@@ -209,7 +212,7 @@ async function build (gyp, argv) {
     await new Promise((resolve, reject) => proc.on('exit', async (code, signal) => {
       if (buildBinsDir) {
         // Clean up the build-time dependency symlinks:
-        await fs.rm(buildBinsDir, { recursive: true })
+        await fs.rm(buildBinsDir, { recursive: true, maxRetries: 3 })
       }
 
       if (code !== 0) {
