@@ -9,8 +9,8 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-const rule = require("../../../lib/rules/func-name-matching"),
-	RuleTester = require("../../../lib/rule-tester/rule-tester");
+const rule = require("../../tools/eslint-rules/func-name-matching");
+const RuleTester = require("../../tools/eslint/node_modules/eslint").RuleTester;
 
 //------------------------------------------------------------------------------
 // Tests
