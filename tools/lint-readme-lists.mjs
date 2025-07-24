@@ -63,9 +63,7 @@ for await (const line of readme.readLines()) {
     if (!match) {
       throw new Error(`${line} should match ${ghHandleLine} (README.md:${lineNumber})`);
     }
-    if (match[1] !== match[2]) {
-      throw new Error(`GitHub handle ${match[1]} does not match the URL ${match[2]} (README.md:${lineNumber})`);
-    }
+    assert.strictEqual(match[1], match[2], `GitHub handle does not match the URL (README.md:${lineNumber})`);
 
     if (
       currentList === 'TSC voting members' ||
