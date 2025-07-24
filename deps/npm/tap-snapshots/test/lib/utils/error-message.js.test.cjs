@@ -15,7 +15,7 @@ Object {
     Array [
       "404",
       "",
-      "'http://evil:***@npmjs.org/not-found' is not in this registry.",
+      "The requested resource 'http://evil:***@npmjs.org/not-found' could not be found or you do not have permission to access it.",
     ],
     Array [
       "404",
@@ -58,7 +58,7 @@ Object {
     Array [
       "404",
       "",
-      "'node_modules' is not in this registry.",
+      "The requested resource 'node_modules' could not be found or you do not have permission to access it.",
     ],
     Array [
       "404",
@@ -67,7 +67,7 @@ Object {
     ],
     Array [
       "404",
-      " 1. node_modules is a blacklisted name",
+      " 1. node_modules is not a valid package name",
     ],
     Array [
       "404",
@@ -101,7 +101,7 @@ Object {
     Array [
       "404",
       "",
-      "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' is not in this registry.",
+      "The requested resource 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' could not be found or you do not have permission to access it.",
     ],
     Array [
       "404",
@@ -156,7 +156,7 @@ Object {
     Array [
       "404",
       "",
-      "'yolo' is not in this registry.",
+      "The requested resource 'yolo' could not be found or you do not have permission to access it.",
     ],
     Array [
       "404",
