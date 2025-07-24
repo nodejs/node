@@ -126,6 +126,34 @@ const packument = (nv, opts) => {
         '1.0.1': {},
       },
     },
+    'cyan-oidc': {
+      _npmUser: {
+        name: 'claudia',
+        email: 'claudia@cyan.com',
+        trustedPublisher: {
+          id: 'github',
+          oidcConfigId: 'oidc:a0e127d0-8d66-45d0-8264-e4f8372c7249',
+        },
+      },
+      name: 'cyan',
+      'dist-tags': {
+        latest: '1.0.0',
+      },
+      versions: {
+        '1.0.0': {
+          version: '1.0.0',
+          name: 'cyan',
+          dist: {
+            shasum: '123',
+            tarball: 'http://hm.cyan.com/1.0.0.tgz',
+            integrity: '---',
+            fileCount: 1,
+            unpackedSize: 1000000,
+          },
+        },
+        '1.0.1': {},
+      },
+    },
     brown: {
       name: 'brown',
     },
@@ -436,6 +464,12 @@ t.test('package with --json and semver range', async t => {
   const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
   await view.exec(['cyan@^1.0.0'])
   t.matchSnapshot(joinedOutput())
+})
+
+t.test('package with _npmUser.trustedPublisher shows cleaned up property with --json', async t => {
+  const { view, joinedOutput } = await loadMockNpm(t, { config: { json: true } })
+  await view.exec(['cyan-oidc@^1.0.0'])
+  t.match(joinedOutput(), /claudia <claudia@cyan.com>/, 'uses oidc trustedPublisher info for _npmUser')
 })
 
 t.test('package with --json and no versions', async t => {

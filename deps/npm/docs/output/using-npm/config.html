@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----config----1142">
+<h1 id="----config----1150">
     <span>config</span>
-    <span class="version">@11.4.2</span>
+    <span class="version">@11.5.0</span>
 </h1>
 <span class="description">More than you probably want to know about npm configuration</span>
 </header>
@@ -321,9 +321,9 @@ config is given, this value will always be set to <code>legacy</code>.</p>
 <li>Type: null or Date</li>
 </ul>
 <p>If passed to <code>npm install</code>, will rebuild the npm tree such that only
-versions that were available <strong>on or before</strong> the <code>--before</code> time get
-installed. If there's no versions available for the current set of direct
-dependencies, the command will error.</p>
+versions that were available <strong>on or before</strong> the given date are installed.
+If there are no versions available for the current set of dependencies, the
+command will error.</p>
 <p>If the requested version is a <code>dist-tag</code> and the given tag does not pass the
 <code>--before</code> filter, the most recent version less than or equal to that tag
 will be used. For example, <code>foo@latest</code> might install <code>foo@1.2</code> even though
@@ -340,7 +340,7 @@ fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.</p>
 <h4 id="browser"><code>browser</code></h4>
 <ul>
-<li>Default: OS X: <code>"open"</code>, Windows: <code>"start"</code>, Others: <code>"xdg-open"</code></li>
+<li>Default: macOS: <code>"open"</code>, Windows: <code>"start"</code>, Others: <code>"xdg-open"</code></li>
 <li>Type: null, Boolean, or String</li>
 </ul>
 <p>The browser that is called by npm commands to open websites.</p>
@@ -1049,7 +1049,8 @@ forces non-global commands to run in the specified folder.</p>
 a semver. Like the <code>rc</code> in <code>1.2.0-rc.8</code>.</p>
 <h4 id="progress"><code>progress</code></h4>
 <ul>
-<li>Default: <code>true</code> unless running in a known CI system</li>
+<li>Default: <code>true</code> when not in CI and both stderr and stdout are TTYs and not
+in a dumb terminal</li>
 <li>Type: Boolean</li>
 </ul>
 <p>When set to <code>true</code>, npm will display a progress bar during time intensive

@@ -20,6 +20,7 @@ class Update extends ArboristWorkspaceCmd {
     'foreground-scripts',
     'ignore-scripts',
     'audit',
+    'before',
     'bin-links',
     'fund',
     'dry-run',
