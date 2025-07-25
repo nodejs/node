@@ -5,7 +5,7 @@ import assert from 'assert';
 import { readFileSync } from 'fs';
 
 import * as html from '../../tools/doc/html.mjs';
-import { replaceLinks } from '../../tools/doc/markdown.mjs';
+import replaceLinks from '../../tools/doc/markdown.mjs';
 import {
   rehypeRaw,
   rehypeStringify,
@@ -14,22 +14,9 @@ import {
   unified,
 } from '../../tools/doc/deps.mjs';
 
-// Test links mapper is an object of the following structure:
-// {
-//   [filename]: {
-//     [link definition identifier]: [url to the linked resource]
-//   }
-// }
-const testLinksMapper = {
-  'foo': {
-    'command line options': 'cli.html#cli-options',
-    'web server': 'example.html',
-  },
-};
-
 function toHTML({ input, filename, nodeVersion, versions }) {
   const content = unified()
-    .use(replaceLinks, { filename, linksMapper: testLinksMapper })
+    .use(replaceLinks)
     .use(remarkParse)
     .use(html.firstHeader)
     .use(html.preprocessText, { nodeVersion })
@@ -119,7 +106,7 @@ const testData = [
     '</a></h2><section><h3>Usage<span><a class="mark" href="#usage"' +
     'id="usage">#</a></span><a aria-hidden="true" class="legacy"' +
     'id="foo_usage"></a></h3><p><code>node \\[options\\] index.js' +
-    '</code></p><p>Please see the<a href="cli.html#cli-options">' +
+    '</code></p><p>Please see the<a href="cli.html#options">' +
     'Command Line Options</a>document for more information.</p>' +
     '</section><section><h3>' +
     'Example<span><a class="mark" href="#example" id="example">' +

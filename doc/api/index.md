@@ -6,7 +6,6 @@
 <!--introduced_in=v0.10.0-->
 
 * [About this documentation](documentation.md)
-* [Usage and example](synopsis.md)
 
 <hr class="line"/>
 
