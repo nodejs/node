@@ -94,6 +94,13 @@ Allow execution of WASI when using the permission model.
 .It Fl -allow-worker
 Allow creating worker threads when using the permission model.
 .
+.It Fl -build-snapshot
+Generates a snapshot blob when the process exits and writes it to disk, which can be loaded later with
+.Sy --snapshot-blob.
+.
+.It Fl build-snapshot-config
+Specifies the path to a JSON configuration file which configures snapshot creation behavior.
+.
 .It Fl -completion-bash
 Print source-able bash completion script for Node.js.
 .
@@ -145,6 +152,15 @@ is `delete`, the property will be removed entirely. If
 is `throw`, accesses to the property will throw an exception with the code
 `ERR_PROTO_ACCESS`.
 .
+.It Fl -disable-sigusr1
+Disable the ability of starting a debugging session by sending a SIGUSR1 signal to the process.
+.
+.It Fl disable-warning Ns = Ns Ar code-or-type
+Disable specific process warnings by
+.Ar code
+or
+.Ar type .
+.
 .It Fl -disable-wasm-trap-handler Ns = Ns Ar mode
 Disable trap-handler-based WebAssembly bound checks and fall back to
 inline bound checks so that WebAssembly can be run with limited virtual
@@ -155,16 +171,35 @@ Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
 `vm` module.
 .
+.It Fl -dns-result-order Ns = Ns Ar order
+Set the default value of order in
+.Ar dns.lookup()
+and
+.Ar dnsPromises.lookup() .
+.
 .It Fl -enable-fips
 Enable FIPS-compliant crypto at startup.
 Requires Node.js to be built with
 .Sy ./configure --openssl-fips .
+.
+.It Fl -enable-network-family-autoselection
+Enables the family autoselection algorithm unless connection options explicitly disables it.
 .
 .It Fl -enable-source-maps
 Enable Source Map V3 support for stack traces.
 .
 .It Fl -entry-url
 Interpret the entry point as a URL.
+.
+.It Fl -env-file-if-exists Ns = Ns Ar config
+Behavior is the same as
+.Ar --env-file
+,
+but an error is not thrown if the file does not exist.
+.
+.It Fl env-file Ns = Ns Ar config
+Loads environment variables from a file relative to the current directory, making them available to applications on
+.Sy process.env .
 .
 .It Fl -experimental-addon-modules
 Enable experimental addon module support.
@@ -182,6 +217,20 @@ Enable experimental ES modules support for import.meta.resolve().
 Specify the
 .Ar module
 to use as a custom module loader.
+.
+.It Fl -experimental-network-inspection
+Enable experimental support for the network inspection with Chrome DevTools.
+.
+.It Fl -experimental-print-required-tla
+If the ES module being
+.Sy require()'d
+contains top-level await, this flag allows Node.js to evaluate the module, try to locate the top-level awaits, and print their location to help users find them.
+.
+.It Fl -experimental-require-module
+Supports loading a synchronous ES module graph in require().
+.
+.It Fl -experimental-sea-config
+Use this flag to generate a blob that can be injected into the Node.js binary to produce a single executable application.
 .
 .It Fl -permission
 Enable the permission model.
@@ -207,8 +256,14 @@ Disable experimental support for the WebSocket API.
 .It Fl -experimental-webstorage
 Enable experimental support for the Web Storage API.
 .
+.It Fl -experimental-worker-inspection
+Enable experimental support for the worker inspection with Chrome DevTools.
+.
 .It Fl -no-experimental-repl-await
 Disable top-level await keyword support in REPL.
+.
+.It Fl -no-experimental-require-module
+Disable support for loading a synchronous ES module graph in require().
 .
 .It Fl -no-experimental-sqlite
 Disable the experimental node:sqlite module.
@@ -237,6 +292,11 @@ Force FIPS-compliant crypto on startup
 (Cannot be disabled from script code).
 Same requirements as
 .Fl -enable-fips .
+.
+.It Fl -force-node-api-uncaught-exceptions-policy
+Enforces
+.Sy uncaughtException
+event on Node-API asynchronous callbacks.
 .
 .It Fl -frozen-intrinsics
 Enable experimental frozen intrinsics support.
@@ -277,6 +337,10 @@ File name of the V8 heap profile generated with
 Specify ICU data load path.
 Overrides
 .Ev NODE_ICU_DATA .
+.
+.It Fl -import Ns = Ns Ar module
+Preload the specified module at startup. If the flag is provided several times, each module will be executed sequentially in the order they appear, starting with the ones provided in
+.Ar NODE_OPTIONS .
 .
 .It Fl -input-type Ns = Ns Ar type
 Set the module resolution type for input via --eval, --print or STDIN.
@@ -339,8 +403,21 @@ Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.
 This option is a no-op.
 It is kept for compatibility.
 .
+.It Fl -network-family-autoselection-attempt-timeout
+Sets the default value for the network family autoselection attempt timeout.
+.
 .It Fl -no-deprecation
 Silence deprecation warnings.
+.
+.It Fl -no-experimental-detect-module
+Disable using
+.Ar syntax detection
+to determine module type.
+.
+.It Fl -no-experimental-global-navigator
+Disable exposition of 
+.Ar Navigator API
+on the global scope.
 .
 .It Fl -no-extra-info-on-fatal-exception
 Hide extra information on fatal exception that causes exit.
@@ -354,8 +431,18 @@ Disable the `node-addons` exports condition as well as disable loading native
 addons. When `--no-addons` is specified, calling `process.dlopen` or requiring
 a native C++ addon will fail and throw an exception.
 .
+.It Fl -no-async-context-frame
+Disables the use of
+.Sy AsyncLocalStorage
+backed by 
+.Sy AsyncContextFrame
+and uses the prior implementation which relied on async_hooks.
+.
 .It Fl -no-global-search-paths
 Do not search modules from global paths.
+.
+.It Fl -no-network-family-autoselection
+Disables the family autoselection algorithm unless connection options explicitly enables it.
 .
 .It Fl -no-warnings
 Silence all process warnings (including deprecations).
@@ -368,6 +455,14 @@ usually only useful for developers debugging Node.js itself.
 Load an OpenSSL configuration file on startup.
 Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is built with
 .Sy ./configure --openssl-fips .
+.
+.It Fl -openssl-legacy-provider
+Enable OpenSSL 3.0 legacy provider.
+.
+.It Fl -openssl-shared-config
+Enable OpenSSL default configuration section,
+.Sy openssl_conf
+to be read from the OpenSSL configuration file. 
 .
 .It Fl -pending-deprecation
 Emit pending deprecation warnings.
@@ -403,6 +498,18 @@ The `file` name may be an absolute path. If it is not, the default directory it 
 be written to is controlled by the
 .Fl -diagnostic-dir .
 command-line option.
+.
+.It Fl -report-exclude-env
+When
+.Sy --report-exclude-env
+is passed the diagnostic report generated will not contain the
+.Sy environmentVariables
+data.
+.
+.It Fl -report-exclude-network
+Exclude
+.Sy header.networkInterfaces
+from the diagnostic report. By default this is not set and the network interfaces are included.
 .
 .It Fl -report-filename
 Name of the file to which the
@@ -440,6 +547,19 @@ the secure heap. The default is 0. The value must be a power of two.
 .
 .It Fl -secure-heap-min Ns = Ns Ar n
 Specify the minimum allocation from the OpenSSL secure heap. The default is 2. The value must be a power of two.
+.
+.It Fl -snapshot-blob Ns = Ns Ar path
+When used with
+.Sy --build-snapshot,
+.Sy --snapshot-blob
+specifies the path where the generated snapshot blob is written to. If not specified, the generated blob is written to
+.Sy snapshot.blob
+in the current working directory.
+.Pp
+When used without 
+.Sy --build-snapshot,
+.Sy --snapshot-blob
+specifies the path to the blob that is used to restore the application state.
 .
 .It Fl -test
 Starts the Node.js command line test runner.
@@ -540,6 +660,15 @@ favour of TLSv1.3, which is more secure.
 .It Fl -trace-deprecation
 Print stack traces for deprecations.
 .
+.It Fl -trace-env
+Print information about any access to environment variables done in the current Node.js instance to stderr.
+.
+.It Fl -trace-env-js-stack
+In addition to what --trace-env does, this prints the JavaScript stack trace of the access.
+.
+.It Fl -trace-env-native-stack
+In addition to what --trace-env does, this prints the native stack trace of the access.
+.
 .It Fl -trace-event-categories Ar categories
 A comma-separated list of categories that should be traced when trace event tracing is enabled using
 .Fl -trace-events-enabled .
@@ -557,6 +686,23 @@ Enable the collection of trace event tracing information.
 .It Fl -trace-exit
 Prints a stack trace whenever an environment is exited proactively,
 i.e. invoking `process.exit()`.
+.
+.It Fl -trace-require-module Ns = Ns Ar mode
+Prints information about usage of
+.Sy Loading ECMAScript modules using require() .
+.Pp
+When
+.Sy mode
+is
+.Sy all
+, all usage is printed. When
+.Sy mode
+is
+.Sy no-node-modules
+, usage from
+.Sy the node_modules
+folder is excluded.
+.
 .It Fl -trace-sigint
 Prints a stack trace on SIGINT.
 .
@@ -613,6 +759,17 @@ must have one of the following values:
 `off` (the default value, meaning do not map), `on` (map and ignore failure,
 reporting it to stderr), or `silent` (map and silently ignore failure).
 .
+.It Fl -use-system-ca
+Node.js uses the trusted CA certificates present in the system store along with the
+.Sy --use-bundled-ca
+option and the
+.Sy NODE_EXTRA_CA_CERTS
+environment variable.
+.Pp
+On platforms other than Windows and macOS, this loads certificates from the directory and file trusted by OpenSSL, similar to
+.Sy --use-openssl-ca
+, with the difference being that it caches the certificates after first load.
+.
 .It Fl -v8-options
 Print V8 command-line options.
 .
@@ -623,13 +780,16 @@ If the value provided is larger than V8's maximum, then the largest value will b
 .
 .It Fl -watch
 Starts Node.js in watch mode. When in watch mode, changes in the watched files cause the Node.js process to restart.
-
+.Pp
 By default, watch mode will watch the entry point and any required or imported module. Use --watch-path to specify what paths to watch.
 .
 .It Fl -watch-path
 Starts Node.js in watch mode and specifies what paths to watch. When in watch mode, changes in the watched paths cause the Node.js process to restart.
-
+.Pp
 This will turn off watching of required or imported modules, even when used in combination with --watch.
+.
+.It Fl -watch-preserve-output
+Disable the clearing of the console when watch mode restarts the process.
 .
 .It Fl -watch-kill-signal
 Customizes the signal sent to the process on watch mode restarts.
@@ -665,6 +825,13 @@ at startup.
 Follows `require()`'s module resolution rules.
 .Ar module
 may be either a path to a file, or a Node.js module name.
+.
+.It Fl -run
+This runs a specified command from a package.json's
+.Sy "scripts"
+object. If a missing
+.Sy "command"
+is provided, it will list the available scripts.
 .
 .It Fl v , Fl -version
 Print node's version.
