@@ -235,7 +235,8 @@ FindPackageJson(const std::filesystem::path& cwd) {
       package_json_path = directory_path / "package.json";
       // This is required for Windows because std::filesystem::path::c_str()
       // returns wchar_t* on Windows, and char* on other platforms.
-      std::string contents = package_json_path.string();
+      auto u8_string = package_json_path.u8string();
+      std::string contents(u8_string.begin(), u8_string.end());
       USE(ReadFileSync(&raw_content, contents.c_str()) > 0);
     }
   }
