@@ -4249,12 +4249,6 @@ This API represents the invocation of the `ArrayBuffer` `IsDetachedBuffer`
 operation as defined in [Section isDetachedBuffer][] of the ECMAScript Language
 Specification.
 
-### Working with JavaScript SharedArrayBuffers
-
-SharedArrayBuffers are used to represent fixed-length binary data buffers
-that can be shared across multiple workers. They are similar to ArrayBuffers
-but allow for concurrent access from multiple threads.
-
 ### `node_api_is_sharedarraybuffer`
 
 <!-- YAML
