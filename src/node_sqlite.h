@@ -6,6 +6,7 @@
 #include "base_object.h"
 #include "node_mem.h"
 #include "sqlite3.h"
+#include "threadpoolwork-inl.h"
 #include "util.h"
 
 #include <map>
@@ -20,6 +21,10 @@ class DatabaseOpenConfiguration {
       : location_(std::move(location)) {}
 
   inline const std::string& location() const { return location_; }
+
+  inline bool get_async() const { return async_; }
+
+  inline void set_async(bool flag) { async_ = flag; }
 
   inline bool get_read_only() const { return read_only_; }
 
@@ -65,6 +70,7 @@ class DatabaseOpenConfiguration {
 
  private:
   std::string location_;
+  bool async_ = true;
   bool read_only_ = false;
   bool enable_foreign_keys_ = true;
   bool enable_dqs_ = false;
@@ -76,17 +82,19 @@ class DatabaseOpenConfiguration {
 };
 
 class StatementSync;
+class Statement;
 class BackupJob;
 
-class DatabaseSync : public BaseObject {
+class Database : public BaseObject {
  public:
-  DatabaseSync(Environment* env,
+  Database(Environment* env,
                v8::Local<v8::Object> object,
                DatabaseOpenConfiguration&& open_config,
                bool open,
                bool allow_load_extension);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void NewAsync(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsTransactionGetter(
@@ -107,6 +115,8 @@ class DatabaseSync : public BaseObject {
   void FinalizeStatements();
   void RemoveBackup(BackupJob* backup);
   void AddBackup(BackupJob* backup);
+  void AddAsyncTask(ThreadPoolWork* async_task);
+  void RemoveAsyncTask(ThreadPoolWork* async_task);
   void FinalizeBackups();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
@@ -127,14 +137,14 @@ class DatabaseSync : public BaseObject {
   void SetIgnoreNextSQLiteError(bool ignore);
   bool ShouldIgnoreSQLiteError();
 
-  SET_MEMORY_INFO_NAME(DatabaseSync)
-  SET_SELF_SIZE(DatabaseSync)
+  SET_MEMORY_INFO_NAME(Database)
+  SET_SELF_SIZE(Database)
 
- private:
+ protected:
   bool Open();
   void DeleteSessions();
 
-  ~DatabaseSync() override;
+  ~Database() override;
   DatabaseOpenConfiguration open_config_;
   bool allow_load_extension_;
   bool enable_load_extension_;
@@ -142,23 +152,26 @@ class DatabaseSync : public BaseObject {
   bool ignore_next_sqlite_error_;
 
   std::set<BackupJob*> backups_;
+  std::set<ThreadPoolWork*> async_tasks_;
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
 
   friend class Session;
 };
 
+class DatabaseSync : public Database { };
+
 class StatementSync : public BaseObject {
  public:
   StatementSync(Environment* env,
                 v8::Local<v8::Object> object,
-                BaseObjectPtr<DatabaseSync> db,
+                BaseObjectPtr<Database> db,
                 sqlite3_stmt* stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<StatementSync> Create(Environment* env,
-                                             BaseObjectPtr<DatabaseSync> db,
+                                             BaseObjectPtr<Database> db,
                                              sqlite3_stmt* stmt);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -182,7 +195,7 @@ class StatementSync : public BaseObject {
 
  private:
   ~StatementSync() override;
-  BaseObjectPtr<DatabaseSync> db_;
+  BaseObjectPtr<Database> db_;
   sqlite3_stmt* statement_;
   bool return_arrays_ = false;
   bool use_big_ints_;
@@ -225,7 +238,7 @@ class Session : public BaseObject {
  public:
   Session(Environment* env,
           v8::Local<v8::Object> object,
-          BaseObjectWeakPtr<DatabaseSync> database,
+          BaseObjectWeakPtr<Database> database,
           sqlite3_session* session);
   ~Session() override;
   template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
@@ -235,7 +248,7 @@ class Session : public BaseObject {
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,
-                                       BaseObjectWeakPtr<DatabaseSync> database,
+                                       BaseObjectWeakPtr<Database> database,
                                        sqlite3_session* session);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -245,14 +258,14 @@ class Session : public BaseObject {
  private:
   void Delete();
   sqlite3_session* session_;
-  BaseObjectWeakPtr<DatabaseSync> database_;  // The Parent Database
+  BaseObjectWeakPtr<Database> database_;  // The Parent Database
 };
 
 class UserDefinedFunction {
  public:
   UserDefinedFunction(Environment* env,
                       v8::Local<v8::Function> fn,
-                      DatabaseSync* db,
+                      Database* db,
                       bool use_bigint_args);
   ~UserDefinedFunction();
   static void xFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv);
@@ -261,7 +274,7 @@ class UserDefinedFunction {
  private:
   Environment* env_;
   v8::Global<v8::Function> fn_;
-  DatabaseSync* db_;
+  Database* db_;
   bool use_bigint_args_;
 };
 
