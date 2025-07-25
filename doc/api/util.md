@@ -2135,6 +2135,37 @@ $ node negate.js --no-logfile --logfile=test.log --color --no-color
 { logfile: 'test.log', color: false }
 ```
 
+## `util.loadEnvFile(path)`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+* `path` {string | URL | Buffer | undefined}. **Default:** `'./.env'`
+
+Parses the `.env` file and returns an object containing its values.
+
+```cjs
+const { loadEnvFile } = require('node:util');
+
+// The `.env` file contains the following line: `MY_VAR = my variable`
+
+loadEnvFile();
+// Returns { MY_VAR: 'my variable' }
+```
+
+```mjs
+import { loadEnvFile } from 'node:util';
+
+// The `.env` file contains the following line: `MY_VAR = my variable`
+
+loadEnvFile();
+// Returns { MY_VAR: 'my variable' }
+```
+
 ## `util.parseEnv(content)`
 
 <!-- YAML
