@@ -62,10 +62,6 @@ const test_sharedarraybuffer = require(`./build/${common.buildType}/test_shareda
 // Test invalid arguments
 {
   assert.throws(() => {
-    test_sharedarraybuffer.TestGetSharedArrayBufferInfo(new ArrayBuffer(16));
-  }, Error);
-
-  assert.throws(() => {
     test_sharedarraybuffer.TestGetSharedArrayBufferInfo({});
   }, Error);
 }

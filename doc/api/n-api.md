@@ -3267,6 +3267,10 @@ Specification.
 <!-- YAML
 added: v8.0.0
 napiVersion: 1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59071
+    description: Added support for `SharedArrayBuffer`.
 -->
 
 ```c
@@ -4275,7 +4279,6 @@ This API checks if the Object passed in is a `SharedArrayBuffer`.
 
 <!-- YAML
 added: REPLACEME
-napiVersion: 10
 -->
 
 > Stability: 1 - Experimental

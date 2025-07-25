@@ -60,13 +60,6 @@ static napi_value TestGetSharedArrayBufferInfo(napi_env env,
 
   NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
 
-  bool is_sharedarraybuffer;
-  NODE_API_CALL(
-      env, node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
-
-  NODE_API_ASSERT(
-      env, is_sharedarraybuffer, "Argument should be a SharedArrayBuffer");
-
   void* data;
   size_t byte_length;
   NODE_API_CALL(env,
@@ -78,6 +71,15 @@ static napi_value TestGetSharedArrayBufferInfo(napi_env env,
   return ret;
 }
 
+static void WriteTestDataToBuffer(void* data, size_t byte_length) {
+  if (byte_length > 0 && data != NULL) {
+    uint8_t* bytes = (uint8_t*)data;
+    for (size_t i = 0; i < byte_length; i++) {
+      bytes[i] = i % 256;
+    }
+  }
+}
+
 static napi_value TestSharedArrayBufferData(napi_env env,
                                             napi_callback_info info) {
   size_t argc = 1;
@@ -86,51 +88,12 @@ static napi_value TestSharedArrayBufferData(napi_env env,
 
   NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
 
-  bool is_sharedarraybuffer;
-  NODE_API_CALL(
-      env, node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
-
-  NODE_API_ASSERT(
-      env, is_sharedarraybuffer, "Argument should be a SharedArrayBuffer");
-
   void* data;
   size_t byte_length;
   NODE_API_CALL(env,
                 napi_get_arraybuffer_info(env, args[0], &data, &byte_length));
 
-  // Write some test data
-  if (byte_length > 0) {
-    uint8_t* bytes = (uint8_t*)data;
-    for (size_t i = 0; i < byte_length; i++) {
-      bytes[i] = i % 256;
-    }
-  }
-
-  napi_value ret;
-  NODE_API_CALL(env, napi_get_boolean(env, true, &ret));
-
-  return ret;
-}
-
-static napi_value TestSharedArrayBufferFromExisting(napi_env env,
-                                                    napi_callback_info info) {
-  size_t argc = 1;
-  napi_value args[1];
-  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
-
-  NODE_API_ASSERT(env, argc >= 1, "Wrong number of arguments");
-
-  bool is_sharedarraybuffer;
-  NODE_API_CALL(
-      env, node_api_is_sharedarraybuffer(env, args[0], &is_sharedarraybuffer));
-
-  NODE_API_ASSERT(
-      env, is_sharedarraybuffer, "Argument should be a SharedArrayBuffer");
-
-  void* data;
-  size_t byte_length;
-  NODE_API_CALL(env,
-                napi_get_arraybuffer_info(env, args[0], &data, &byte_length));
+  WriteTestDataToBuffer(data, byte_length);
 
   // Return the same data pointer validity
   bool data_valid = (data != NULL) && (byte_length > 0);
@@ -152,8 +115,6 @@ napi_value Init(napi_env env, napi_value exports) {
                                 TestGetSharedArrayBufferInfo),
       DECLARE_NODE_API_PROPERTY("TestSharedArrayBufferData",
                                 TestSharedArrayBufferData),
-      DECLARE_NODE_API_PROPERTY("TestSharedArrayBufferFromExisting",
-                                TestSharedArrayBufferFromExisting),
   };
 
   NODE_API_CALL(
