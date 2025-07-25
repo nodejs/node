@@ -308,7 +308,10 @@ int SigintWatchdogHelper::Start() {
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, &savemask));
   sigmask = savemask;
   int ret = pthread_create(&thread_, nullptr, RunSigintWatchdog, nullptr);
-  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
+
+  auto cleanup = OnScopeLeave(
+      [&]() { CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr)); });
+
   if (ret != 0) {
     return ret;
   }
