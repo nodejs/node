@@ -3012,6 +3012,7 @@ environment variables during startup, and tunnels requests over the
 specified proxy.
 
 This is equivalent to setting the [`NODE_USE_ENV_PROXY=1`][] environment variable.
+When both are set, `--use-env-proxy` takes precedence.
 
 ### `--use-largepages=mode`
 
@@ -3669,9 +3670,7 @@ environment variables during startup, and tunnels requests over the
 specified proxy.
 
 This can also be enabled using the [`--use-env-proxy`][] command-line flag.
-
-This currently only affects requests sent over `fetch()`. Support for other
-built-in `http` and `https` methods is under way.
+When both are set, `--use-env-proxy` takes precedence.
 
 ### `NODE_V8_COVERAGE=dir`
 
