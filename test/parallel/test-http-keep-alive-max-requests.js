@@ -10,11 +10,11 @@ const bodySent = 'This is my request';
 function assertResponse(headers, body, expectClosed) {
   if (expectClosed) {
     assert.match(headers, /Connection: close\r\n/m);
-    assert.strictEqual(headers.search(/Keep-Alive: timeout=5\r\n/m), -1);
+    assert.strictEqual(headers.search(/Keep-Alive: timeout=65\r\n/m), -1);
     assert.match(body, /Hello World!/m);
   } else {
     assert.match(headers, /Connection: keep-alive\r\n/m);
-    assert.match(headers, /Keep-Alive: timeout=5, max=3\r\n/m);
+    assert.match(headers, /Keep-Alive: timeout=65, max=3\r\n/m);
     assert.match(body, /Hello World!/m);
   }
 }
@@ -51,6 +51,9 @@ const server = http.createServer((req, res) => {
     res.end();
   });
 });
+
+server.keepAliveTimeout = 65 * 1000; // 65 seconds
+server.maxRequestsPerSocket = 3;
 
 function initialRequests(socket, numberOfRequests, cb) {
   let buffer = '';
