@@ -20,10 +20,24 @@ files.forEach(function(currentFile) {
 // Check the readdir Sync version
 assert.deepStrictEqual(files, fs.readdirSync(readdirDir).sort());
 
+// Check the readdir Sync version (Buffer with utf8 default encoding)
+assert.deepStrictEqual(
+  files,
+  fs.readdirSync(Buffer.from(readdirDir)).sort()
+);
+
 // Check the readdir async version
 fs.readdir(readdirDir, common.mustSucceed((f) => {
   assert.deepStrictEqual(files, f.sort());
 }));
+
+// Check the readdir async version (Buffer with utf8 default encoding)
+fs.readdir(
+  Buffer.from(readdirDir),
+  common.mustSucceed((f) => {
+    assert.deepStrictEqual(files, f.sort());
+  })
+);
 
 // readdir() on file should throw ENOTDIR
 // https://github.com/joyent/node/issues/1869
