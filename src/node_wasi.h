@@ -160,8 +160,7 @@ class WASI : public BaseObject,
                             v8::Local<v8::FunctionTemplate>);
 
    private:
-    static R FastCallback(v8::Local<v8::Object> unused,
-                          v8::Local<v8::Object> receiver,
+    static R FastCallback(v8::Local<v8::Object> receiver,
                           Args...,
                           v8::FastApiCallbackOptions&);
 
