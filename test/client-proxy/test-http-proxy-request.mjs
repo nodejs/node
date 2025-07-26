@@ -78,8 +78,6 @@ if (!common.isWindows) {
     REQUEST_URL: requestUrl,
     http_proxy: `http://localhost:${proxy.address().port}`,
     HTTP_PROXY: `http://localhost:${proxy2.address().port}`,
-  }, {
-    stdout: 'Hello world',
   });
   assert.deepStrictEqual(logs, expectedLogs);
   assert.strictEqual(stderr.trim(), '');
