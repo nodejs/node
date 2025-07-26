@@ -242,7 +242,9 @@ assertInstance.deepStrictEqual({ a: 1 }, { a: 2 });
 // Shows a full diff in the error message.
 ```
 
-**Important**: When destructuring assertion methods from an `Assert` instance, the methods lose their connection to the instance's configuration options (such as `diff` and `strict` settings). The destructured methods will behave with default options instead.
+**Important**: When destructuring assertion methods from an `Assert` instance,
+the methods lose their connection to the instance's configuration options (such as `diff` and `strict` settings).
+The destructured methods will fall back to default behavior instead.
 
 ```js
 const myAssert = new Assert({ diff: 'full' });
@@ -250,12 +252,15 @@ const myAssert = new Assert({ diff: 'full' });
 // This works as expected - uses 'full' diff
 myAssert.strictEqual({ a: 1 }, { b: { c: 1 } });
 
-// This loses the 'full' diff setting - uses default 'simple' diff
+// This loses the 'full' diff setting - falls back to default 'simple' diff
 const { strictEqual } = myAssert;
 strictEqual({ a: 1 }, { b: { c: 1 } });
 ```
 
-To maintain custom options when using destructured methods, pass the options to individual assertion calls or avoid destructuring.
+When destructured, methods lose access to the instance's `this` context and revert to default assertion behavior
+(diff: 'simple', non-strict mode).
+To maintain custom options when using destructured methods, avoid
+destructuring and call methods directly on the instance.
 
 ## `assert(value[, message])`
 
