@@ -280,6 +280,7 @@ declare namespace primordials {
   export const FunctionPrototypeApply: UncurryThis<typeof Function.prototype.apply>
   export const FunctionPrototypeBind: UncurryThis<typeof Function.prototype.bind>
   export const FunctionPrototypeCall: UncurryThis<typeof Function.prototype.call>
+  export const FunctionPrototypeSymbolHasInstance: UncurryMethod<typeof Function.prototype, typeof Symbol.hasInstance>
   export const FunctionPrototypeToString: UncurryThis<typeof Function.prototype.toString>
   export import Int16Array = globalThis.Int16Array;
   export const Int16ArrayPrototype: typeof Int16Array.prototype
@@ -371,6 +372,8 @@ declare namespace primordials {
   export const RegExpPrototypeGetSource: UncurryGetter<typeof RegExp.prototype, "source">;
   export const RegExpPrototypeGetSticky: UncurryGetter<typeof RegExp.prototype, "sticky">;
   export const RegExpPrototypeGetUnicode: UncurryGetter<typeof RegExp.prototype, "unicode">;
+  export const RegExpPrototypeSymbolReplace: UncurryMethod<typeof RegExp.prototype, typeof Symbol.replace>
+  export const RegExpPrototypeSymbolSplit: UncurryMethod<typeof RegExp.prototype, typeof Symbol.split>
   export import Set = globalThis.Set;
   export const SetLength: typeof Set.length
   export const SetName: typeof Set.name
