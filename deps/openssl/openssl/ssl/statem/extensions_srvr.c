@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -181,21 +181,26 @@ int tls_parse_ctos_maxfragmentlen(SSL *s, PACKET *pkt, unsigned int context,
     }
 
     /*
-     * RFC 6066:  The negotiated length applies for the duration of the session
+     * When doing a full handshake or a renegotiation max_fragment_len_mode will
+     * be TLSEXT_max_fragment_length_UNSPECIFIED
+     *
+     * In case of a resumption max_fragment_len_mode will be one of
+     *      TLSEXT_max_fragment_length_DISABLED, TLSEXT_max_fragment_length_512,
+     *      TLSEXT_max_fragment_length_1024, TLSEXT_max_fragment_length_2048.
+     *      TLSEXT_max_fragment_length_4096
+     *
+     * RFC 6066: The negotiated length applies for the duration of the session
      * including session resumptions.
-     * We should receive the same code as in resumed session !
+     *
+     * So we only set the value in case it is unspecified.
      */
-    if (s->hit && s->session->ext.max_fragment_len_mode != value) {
-        SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER,
-                 SSL_R_SSL3_EXT_INVALID_MAX_FRAGMENT_LENGTH);
-        return 0;
-    }
+    if (s->session->ext.max_fragment_len_mode == TLSEXT_max_fragment_length_UNSPECIFIED)
+        /*
+         * Store it in session, so it'll become binding for us
+         * and we'll include it in a next Server Hello.
+         */
+        s->session->ext.max_fragment_len_mode = value;
 
-    /*
-     * Store it in session, so it'll become binding for us
-     * and we'll include it in a next Server Hello.
-     */
-    s->session->ext.max_fragment_len_mode = value;
     return 1;
 }
 
@@ -270,7 +275,13 @@ int tls_parse_ctos_sig_algs_cert(SSL *s, PACKET *pkt,
         return 0;
     }
 
-    if (!s->hit && !tls1_save_sigalgs(s, &supported_sig_algs, 1)) {
+    /*
+     * We use this routine on both clients and servers, and when clients
+     * get asked for PHA we need to always save the sigalgs regardless
+     * of whether it was a resumption or not.
+     */
+    if ((!s->server || (s->server && !s->hit))
+            && !tls1_save_sigalgs(s, &supported_sig_algs, 1)) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
@@ -289,7 +300,13 @@ int tls_parse_ctos_sig_algs(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         return 0;
     }
 
-    if (!s->hit && !tls1_save_sigalgs(s, &supported_sig_algs, 0)) {
+    /*
+     * We use this routine on both clients and servers, and when clients
+     * get asked for PHA we need to always save the sigalgs regardless
+     * of whether it was a resumption or not.
+     */
+    if ((!s->server || (s->server && !s->hit))
+            && !tls1_save_sigalgs(s, &supported_sig_algs, 0)) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
@@ -1078,7 +1095,7 @@ int tls_parse_ctos_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
 
             if (sesstmp == NULL) {
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-                return 0;
+                goto err;
             }
             SSL_SESSION_free(sess);
             sess = sesstmp;
@@ -1231,40 +1248,6 @@ int tls_parse_ctos_post_handshake_auth(SSL *s, PACKET *pkt,
 
     return 1;
 }
-
-#ifndef OPENSSL_NO_QUIC
-int tls_parse_ctos_quic_transport_params_draft(SSL *s, PACKET *pkt, unsigned int context,
-                                               X509 *x, size_t chainidx)
-{
-    OPENSSL_free(s->ext.peer_quic_transport_params_draft);
-    s->ext.peer_quic_transport_params_draft = NULL;
-    s->ext.peer_quic_transport_params_draft_len = 0;
-
-    if (!PACKET_memdup(pkt,
-                       &s->ext.peer_quic_transport_params_draft,
-                       &s->ext.peer_quic_transport_params_draft_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-    return 1;
-}
-
-int tls_parse_ctos_quic_transport_params(SSL *s, PACKET *pkt, unsigned int context,
-                                         X509 *x, size_t chainidx)
-{
-    OPENSSL_free(s->ext.peer_quic_transport_params);
-    s->ext.peer_quic_transport_params = NULL;
-    s->ext.peer_quic_transport_params_len = 0;
-
-    if (!PACKET_memdup(pkt,
-                       &s->ext.peer_quic_transport_params,
-                       &s->ext.peer_quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-    return 1;
-}
-#endif
 
 /*
  * Add the server's renegotiation binding
@@ -1505,9 +1488,10 @@ EXT_RETURN tls_construct_stoc_next_proto_neg(SSL *s, WPACKET *pkt,
             return EXT_RETURN_FAIL;
         }
         s->s3.npn_seen = 1;
+        return EXT_RETURN_SENT;
     }
 
-    return EXT_RETURN_SENT;
+    return EXT_RETURN_NOT_SENT;
 }
 #endif
 
@@ -1905,20 +1889,12 @@ EXT_RETURN tls_construct_stoc_early_data(SSL *s, WPACKET *pkt,
                                          size_t chainidx)
 {
     if (context == SSL_EXT_TLS1_3_NEW_SESSION_TICKET) {
-        uint32_t max_early_data = s->max_early_data;
-
-        if (max_early_data == 0)
+        if (s->max_early_data == 0)
             return EXT_RETURN_NOT_SENT;
-
-#ifndef OPENSSL_NO_QUIC
-        /* QUIC server must always send 0xFFFFFFFF, per RFC9001 S4.6.1 */
-        if (SSL_IS_QUIC(s))
-            max_early_data = 0xFFFFFFFF;
-#endif
 
         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_early_data)
                 || !WPACKET_start_sub_packet_u16(pkt)
-                || !WPACKET_put_bytes_u32(pkt, max_early_data)
+                || !WPACKET_put_bytes_u32(pkt, s->max_early_data)
                 || !WPACKET_close(pkt)) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return EXT_RETURN_FAIL;
@@ -1956,48 +1932,3 @@ EXT_RETURN tls_construct_stoc_psk(SSL *s, WPACKET *pkt, unsigned int context,
 
     return EXT_RETURN_SENT;
 }
-
-#ifndef OPENSSL_NO_QUIC
-EXT_RETURN tls_construct_stoc_quic_transport_params_draft(SSL *s, WPACKET *pkt,
-                                                          unsigned int context,
-                                                          X509 *x,
-                                                          size_t chainidx)
-{
-    if (s->quic_transport_version == TLSEXT_TYPE_quic_transport_parameters
-            || s->ext.peer_quic_transport_params_draft_len == 0
-            || s->ext.quic_transport_params == NULL
-            || s->ext.quic_transport_params_len == 0) {
-        return EXT_RETURN_NOT_SENT;
-    }
-
-    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters_draft)
-        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
-                                   s->ext.quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return EXT_RETURN_FAIL;
-    }
-
-    return EXT_RETURN_SENT;
-}
-
-EXT_RETURN tls_construct_stoc_quic_transport_params(SSL *s, WPACKET *pkt,
-                                                    unsigned int context, X509 *x,
-                                                    size_t chainidx)
-{
-    if (s->quic_transport_version == TLSEXT_TYPE_quic_transport_parameters_draft
-            || s->ext.peer_quic_transport_params_len == 0
-            || s->ext.quic_transport_params == NULL
-            || s->ext.quic_transport_params_len == 0) {
-        return EXT_RETURN_NOT_SENT;
-    }
-
-    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters)
-        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
-                                   s->ext.quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return EXT_RETURN_FAIL;
-    }
-
-    return EXT_RETURN_SENT;
-}
-#endif

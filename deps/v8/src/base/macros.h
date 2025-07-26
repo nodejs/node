@@ -8,21 +8,57 @@
 #include <limits>
 #include <type_traits>
 
+#include "include/v8config.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
-#define EXPAND(x) x
+#define EXPAND(X) X
 
 // This macro does nothing. That's all.
 #define NOTHING(...)
 
-#define CONCAT_(a, b) a##b
-#define CONCAT(a, b) CONCAT_(a, b)
+#define CONCAT_(a, ...) a##__VA_ARGS__
+#define CONCAT(a, ...) CONCAT_(a, __VA_ARGS__)
 // Creates an unique identifier. Useful for scopes to avoid shadowing names.
 #define UNIQUE_IDENTIFIER(base) CONCAT(base, __COUNTER__)
 
+// COUNT_MACRO_ARGS(...) returns the number of arguments passed. Currently, up
+// to 8 arguments are supported.
+#define COUNT_MACRO_ARGS(...) \
+  EXPAND(COUNT_MACRO_ARGS_IMPL(__VA_ARGS__, 8, 7, 6, 5, 4, 3, 2, 1, 0))
+#define COUNT_MACRO_ARGS_IMPL(_8, _7, _6, _5, _4, _3, _2, _1, N, ...) N
+// GET_NTH_ARG(N, ...) returns the Nth argument in the list of arguments
+// following. Currently, up to N=8 is supported.
+#define GET_NTH_ARG(N, ...) CONCAT(GET_NTH_ARG_IMPL_, N)(__VA_ARGS__)
+#define GET_NTH_ARG_IMPL_0(_0, ...) _0
+#define GET_NTH_ARG_IMPL_1(_0, _1, ...) _1
+#define GET_NTH_ARG_IMPL_2(_0, _1, _2, ...) _2
+#define GET_NTH_ARG_IMPL_3(_0, _1, _2, _3, ...) _3
+#define GET_NTH_ARG_IMPL_4(_0, _1, _2, _3, _4, ...) _4
+#define GET_NTH_ARG_IMPL_5(_0, _1, _2, _3, _4, _5, ...) _5
+#define GET_NTH_ARG_IMPL_6(_0, _1, _2, _3, _4, _5, _6, ...) _6
+#define GET_NTH_ARG_IMPL_7(_0, _1, _2, _3, _4, _5, _6, _7, ...) _7
+
+// UNPAREN(x) removes a layer of nested parentheses on x, if any. This means
+// that both UNPAREN(x) and UNPAREN((x)) expand to x. This is helpful for macros
+// that want to support multi argument templates with commas, e.g.
+//
+//   #define FOO(Type, Name) UNPAREN(Type) Name;
+//
+// will work with both
+//
+//   FOO(int, x);
+//   FOO((Foo<int, double, float>), x);
+#define UNPAREN(X) CONCAT(DROP_, UNPAREN_ X)
+#define UNPAREN_(...) UNPAREN_ __VA_ARGS__
+#define DROP_UNPAREN_
+
 #define OFFSET_OF(type, field) offsetof(type, field)
+
+// A comma, to be used in macro arguments where it would otherwise be
+// interpreted as separator of arguments.
+#define LITERAL_COMMA ,
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be
@@ -30,13 +66,11 @@
 // a pointer by mistake, you will get a compile-time error.
 #define arraysize(array) (sizeof(ArraySizeHelper(array)))
 
-
 // This template function declaration is used in defining arraysize.
 // Note that the function doesn't need an implementation, as we only
 // use its type.
 template <typename T, size_t N>
 char (&ArraySizeHelper(T (&array)[N]))[N];
-
 
 #if !V8_CC_MSVC
 // That gcc wants both of these prototypes seems mysterious. VC, for
@@ -46,68 +80,43 @@ template <typename T, size_t N>
 char (&ArraySizeHelper(const T (&array)[N]))[N];
 #endif
 
-// bit_cast<Dest,Source> is a template function that implements the
-// equivalent of "*reinterpret_cast<Dest*>(&source)".  We need this in
-// very low-level functions like the protobuf library and fast math
-// support.
+// This is an equivalent to C++20's std::bit_cast<>(), but with additional
+// warnings. It morally does what `*reinterpret_cast<Dest*>(&source)` does, but
+// the cast/deref pair is undefined behavior, while bit_cast<>() isn't.
 //
-//   float f = 3.14159265358979;
-//   int i = bit_cast<int32>(f);
-//   // i = 0x40490fdb
-//
-// The classical address-casting method is:
-//
-//   // WRONG
-//   float f = 3.14159265358979;            // WRONG
-//   int i = * reinterpret_cast<int*>(&f);  // WRONG
-//
-// The address-casting method actually produces undefined behavior
-// according to ISO C++ specification section 3.10 -15 -.  Roughly, this
-// section says: if an object in memory has one type, and a program
-// accesses it with a different type, then the result is undefined
-// behavior for most values of "different type".
-//
-// This is true for any cast syntax, either *(int*)&f or
-// *reinterpret_cast<int*>(&f).  And it is particularly true for
-// conversions between integral lvalues and floating-point lvalues.
-//
-// The purpose of 3.10 -15- is to allow optimizing compilers to assume
-// that expressions with different types refer to different memory.  gcc
-// 4.0.1 has an optimizer that takes advantage of this.  So a
-// non-conforming program quietly produces wildly incorrect output.
-//
-// The problem is not the use of reinterpret_cast.  The problem is type
-// punning: holding an object in memory of one type and reading its bits
-// back using a different type.
-//
-// The C++ standard is more subtle and complex than this, but that
-// is the basic idea.
-//
-// Anyways ...
-//
-// bit_cast<> calls memcpy() which is blessed by the standard,
-// especially by the example in section 3.9 .  Also, of course,
-// bit_cast<> wraps up the nasty logic in one place.
-//
-// Fortunately memcpy() is very fast.  In optimized mode, with a
-// constant size, gcc 2.95.3, gcc 4.0.1, and msvc 7.1 produce inline
-// code with the minimal amount of data movement.  On a 32-bit system,
-// memcpy(d,s,4) compiles to one load and one store, and memcpy(d,s,8)
-// compiles to two loads and two stores.
-//
-// I tested this code with gcc 2.95.3, gcc 4.0.1, icc 8.1, and msvc 7.1.
-//
-// WARNING: if Dest or Source is a non-POD type, the result of the memcpy
-// is likely to surprise you.
+// This is not a magic "get out of UB free" card. This must only be used on
+// values, not on references or pointers. For pointers, use
+// reinterpret_cast<>(), or static_cast<>() when casting between void* and other
+// pointers, and then look at https://eel.is/c++draft/basic.lval#11 as that's
+// probably UB also.
 namespace v8::base {
+
 template <class Dest, class Source>
 V8_INLINE Dest bit_cast(Source const& source) {
-  static_assert(sizeof(Dest) == sizeof(Source),
-                "source and dest must be same size");
+  static_assert(!std::is_pointer_v<Source>,
+                "bit_cast must not be used on pointer types");
+  static_assert(!std::is_pointer_v<Dest>,
+                "bit_cast must not be used on pointer types");
+  static_assert(!std::is_reference_v<Dest>,
+                "bit_cast must not be used on reference types");
+  static_assert(
+      sizeof(Dest) == sizeof(Source),
+      "bit_cast requires source and destination types to be the same size");
+  static_assert(std::is_trivially_copyable_v<Source>,
+                "bit_cast requires the source type to be trivially copyable");
+  static_assert(
+      std::is_trivially_copyable_v<Dest>,
+      "bit_cast requires the destination type to be trivially copyable");
+
+#if V8_HAS_BUILTIN_BIT_CAST
+  return __builtin_bit_cast(Dest, source);
+#else
   Dest dest;
   memcpy(&dest, &source, sizeof(dest));
   return dest;
+#endif
 }
+
 }  // namespace v8::base
 
 // Explicitly declare the assignment operator as deleted.
@@ -156,6 +165,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #endif
 #endif
 
+// Define V8_USE_HWADDRESS_SANITIZER macro.
+#if defined(__has_feature)
+#if __has_feature(hwaddress_sanitizer)
+#define V8_USE_HWADDRESS_SANITIZER 1
+#endif
+#endif
+
 // Define V8_USE_MEMORY_SANITIZER macro.
 #if defined(__has_feature)
 #if __has_feature(memory_sanitizer)
@@ -169,6 +185,13 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define V8_USE_UNDEFINED_BEHAVIOR_SANITIZER 1
 #endif
 #endif
+
+// Define V8_USE_SAFE_STACK macro.
+#if defined(__has_feature)
+#if __has_feature(safe_stack)
+#define V8_USE_SAFE_STACK 1
+#endif  // __has_feature(safe_stack)
+#endif  // defined(__has_feature)
 
 // DISABLE_CFI_PERF -- Disable Control Flow Integrity checks for Perf reasons.
 #define DISABLE_CFI_PERF V8_CLANG_NO_SANITIZE("cfi")
@@ -188,6 +211,16 @@ V8_INLINE Dest bit_cast(Source const& source) {
   V8_CLANG_NO_SANITIZE("function")
 #endif
 
+// V8_PRETTY_FUNCTION_VALUE_OR(ELSE) emits a pretty function value, if
+// available for this compiler, otherwise it emits ELSE.
+#if defined(V8_CC_GNU)
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) __PRETTY_FUNCTION__
+#elif defined(V8_CC_MSVC)
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) __FUNCSIG__
+#else
+#define V8_PRETTY_FUNCTION_VALUE_OR(ELSE) ELSE
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -197,7 +230,7 @@ namespace base {
 // base::is_trivially_copyable will differ for these cases.
 template <typename T>
 struct is_trivially_copyable {
-#if V8_CC_MSVC
+#if V8_CC_MSVC || (__GNUC__ == 12 && __GNUC_MINOR__ <= 2)
   // Unfortunately, MSVC 2015 is broken in that std::is_trivially_copyable can
   // be false even though it should be true according to the standard.
   // (status at 2018-02-26, observed on the msvc waterfall bot).
@@ -205,6 +238,11 @@ struct is_trivially_copyable {
   // intended, so we reimplement this according to the standard.
   // See also https://developercommunity.visualstudio.com/content/problem/
   //          170883/msvc-type-traits-stdis-trivial-is-bugged.html.
+  //
+  // GCC 12.1 and 12.2 are broken too, they are shipped by some stable Linux
+  // distributions, so the same polyfill is also used.
+  // See
+  // https://gcc.gnu.org/git/?p=gcc.git;a=commitdiff;h=aeba3e009b0abfccaf01797556445dbf891cc8dc
   static constexpr bool value =
       // Copy constructor is trivial or deleted.
       (std::is_trivially_copy_constructible<T>::value ||
@@ -232,6 +270,18 @@ struct is_trivially_copyable {
 #define ASSERT_NOT_TRIVIALLY_COPYABLE(T)                      \
   static_assert(!::v8::base::is_trivially_copyable<T>::value, \
                 #T " should not be trivially copyable")
+
+// Be aware that base::is_trivially_destructible will differ from
+// std::is_trivially_destructible for cases like DirectHandle<T>.
+template <typename T>
+struct is_trivially_destructible : public std::is_trivially_destructible<T> {};
+
+#define ASSERT_TRIVIALLY_DESTRUCTIBLE(T)                         \
+  static_assert(::v8::base::is_trivially_destructible<T>::value, \
+                #T " should be trivially destructible")
+#define ASSERT_NOT_TRIVIALLY_DESTRUCTIBLE(T)                      \
+  static_assert(!::v8::base::is_trivially_destructible<T>::value, \
+                #T " should not be trivially destructible")
 
 // The USE(x, ...) template is used to silence C++ compiler warnings
 // issued for (yet) unused variables (typically parameters).
@@ -318,14 +368,14 @@ inline uint64_t make_uint64(uint32_t high, uint32_t low) {
 
 // Return the largest multiple of m which is <= x.
 template <typename T>
-inline T RoundDown(T x, intptr_t m) {
+constexpr T RoundDown(T x, intptr_t m) {
   static_assert(std::is_integral<T>::value);
   // m must be a power of two.
   DCHECK(m != 0 && ((m & (m - 1)) == 0));
   return x & static_cast<T>(-m);
 }
 template <intptr_t m, typename T>
-constexpr inline T RoundDown(T x) {
+constexpr T RoundDown(T x) {
   static_assert(std::is_integral<T>::value);
   // m must be a power of two.
   static_assert(m != 0 && ((m & (m - 1)) == 0));
@@ -334,7 +384,7 @@ constexpr inline T RoundDown(T x) {
 
 // Return the smallest multiple of m which is >= x.
 template <typename T>
-inline T RoundUp(T x, intptr_t m) {
+constexpr T RoundUp(T x, intptr_t m) {
   static_assert(std::is_integral<T>::value);
   DCHECK_GE(x, 0);
   DCHECK_GE(std::numeric_limits<T>::max() - x, m - 1);  // Overflow check.
@@ -342,7 +392,7 @@ inline T RoundUp(T x, intptr_t m) {
 }
 
 template <intptr_t m, typename T>
-constexpr inline T RoundUp(T x) {
+constexpr T RoundUp(T x) {
   static_assert(std::is_integral<T>::value);
   DCHECK_GE(x, 0);
   DCHECK_GE(std::numeric_limits<T>::max() - x, m - 1);  // Overflow check.
@@ -355,10 +405,13 @@ constexpr inline bool IsAligned(T value, U alignment) {
 }
 
 inline void* AlignedAddress(void* address, size_t alignment) {
-  // The alignment must be a power of two.
-  DCHECK_EQ(alignment & (alignment - 1), 0u);
-  return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(address) &
-                                 ~static_cast<uintptr_t>(alignment - 1));
+  return reinterpret_cast<void*>(
+      RoundDown(reinterpret_cast<uintptr_t>(address), alignment));
+}
+
+inline void* RoundUpAddress(void* address, size_t alignment) {
+  return reinterpret_cast<void*>(
+      RoundUp(reinterpret_cast<uintptr_t>(address), alignment));
 }
 
 // Bounds checks for float to integer conversions, which does truncation. Hence,
@@ -388,10 +441,10 @@ bool is_inbounds(float_t v) {
 
 // Setup for Windows shared library export.
 #define V8_EXPORT_ENUM
-#ifdef BUILDING_V8_SHARED
-#define V8_EXPORT_PRIVATE
-#elif USING_V8_SHARED
-#define V8_EXPORT_PRIVATE
+#ifdef BUILDING_V8_SHARED_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllexport)
+#elif USING_V8_SHARED_PRIVATE
+#define V8_EXPORT_PRIVATE __declspec(dllimport)
 #else
 #define V8_EXPORT_PRIVATE
 #endif  // BUILDING_V8_SHARED
@@ -399,18 +452,14 @@ bool is_inbounds(float_t v) {
 #else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
-#if V8_HAS_ATTRIBUTE_VISIBILITY
-#ifdef BUILDING_V8_SHARED
-#define V8_EXPORT_PRIVATE
-#define V8_EXPORT_ENUM
+#if V8_HAS_ATTRIBUTE_VISIBILITY && \
+    (defined(BUILDING_V8_SHARED_PRIVATE) || USING_V8_SHARED_PRIVATE)
+#define V8_EXPORT_PRIVATE __attribute__((visibility("default")))
+#define V8_EXPORT_ENUM V8_EXPORT_PRIVATE
 #else
 #define V8_EXPORT_PRIVATE
 #define V8_EXPORT_ENUM
-#endif
-#else
-#define V8_EXPORT_PRIVATE
-#define V8_EXPORT_ENUM
-#endif
+#endif  // V8_HAS_ATTRIBUTE_VISIBILITY && ..
 
 #endif  // V8_OS_WIN
 
@@ -423,6 +472,18 @@ bool is_inbounds(float_t v) {
 #define IF_WASM(V, ...)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+#ifdef V8_ENABLE_DRUMBRAKE
+#define IF_WASM_DRUMBRAKE(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_WASM_DRUMBRAKE(V, ...)
+#endif  // V8_ENABLE_DRUMBRAKE
+
+#if defined(V8_ENABLE_DRUMBRAKE) && !defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
+#define IF_WASM_DRUMBRAKE_INSTR_HANDLER(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_WASM_DRUMBRAKE_INSTR_HANDLER(V, ...)
+#endif  // V8_ENABLE_DRUMBRAKE && !V8_DRUMBRAKE_BOUNDS_CHECKS
+
 // Defines IF_TSAN, to be used in macro lists for elements that should only be
 // there if TSAN is enabled.
 #ifdef V8_IS_TSAN
@@ -430,7 +491,25 @@ bool is_inbounds(float_t v) {
 #define IF_TSAN(V, ...) EXPAND(V(__VA_ARGS__))
 #else
 #define IF_TSAN(V, ...)
-#endif  // V8_ENABLE_WEBASSEMBLY
+#endif  // V8_IS_TSAN
+
+// Defines IF_INTL, to be used in macro lists for elements that should only be
+// there if INTL is enabled.
+#ifdef V8_INTL_SUPPORT
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_INTL(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_INTL(V, ...)
+#endif  // V8_INTL_SUPPORT
+
+// Defines IF_SHADOW_STACK, to be used in macro lists for elements that should
+// only be there if CET shadow stack is enabled.
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_SHADOW_STACK(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_SHADOW_STACK(V, ...)
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
 // Defines IF_TARGET_ARCH_64_BIT, to be used in macro lists for elements that
 // should only be there if the target architecture is a 64-bit one.
@@ -439,7 +518,19 @@ bool is_inbounds(float_t v) {
 #define IF_TARGET_ARCH_64_BIT(V, ...) EXPAND(V(__VA_ARGS__))
 #else
 #define IF_TARGET_ARCH_64_BIT(V, ...)
-#endif
+#endif  // V8_TARGET_ARCH_64_BIT
+
+// Defines IF_V8_WASM_RANDOM_FUZZERS and IF_NO_V8_WASM_RANDOM_FUZZERS, to be
+// used in macro lists for elements that should only be there/absent when
+// building the Wasm fuzzers.
+#ifdef V8_WASM_RANDOM_FUZZERS
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_V8_WASM_RANDOM_FUZZERS(V, ...) EXPAND(V(__VA_ARGS__))
+#define IF_NO_V8_WASM_RANDOM_FUZZERS(V, ...)
+#else
+#define IF_V8_WASM_RANDOM_FUZZERS(V, ...)
+#define IF_NO_V8_WASM_RANDOM_FUZZERS(V, ...) EXPAND(V(__VA_ARGS__))
+#endif  // V8_WASM_RANDOM_FUZZERS
 
 #ifdef GOOGLE3
 // Disable FRIEND_TEST macro in Google3.

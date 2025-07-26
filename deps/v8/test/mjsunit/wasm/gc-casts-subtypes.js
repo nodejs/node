@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --experimental-wasm-type-reflection
+// Flags: --experimental-wasm-type-reflection
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -688,7 +688,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     structSuper: [kExprI32Const, 42, kGCPrefix, kExprStructNew, structSuper],
     structSub: [kExprI32Const, 42, kGCPrefix, kExprStructNew, structSub],
     array: [kExprI32Const, 42, kGCPrefix, kExprArrayNewFixed, array, 1],
-    any: [kExprCallFunction, createExternIdx, kGCPrefix, kExprExternInternalize],
+    any: [kExprCallFunction, createExternIdx, kGCPrefix, kExprAnyConvertExtern],
   };
 
   // Each Test lists the following:

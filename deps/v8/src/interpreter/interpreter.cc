@@ -41,19 +41,19 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
 
  protected:
   Status ExecuteJobImpl() final;
-  Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+  Status FinalizeJobImpl(DirectHandle<SharedFunctionInfo> shared_info,
                          Isolate* isolate) final;
-  Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+  Status FinalizeJobImpl(DirectHandle<SharedFunctionInfo> shared_info,
                          LocalIsolate* isolate) final;
 
  private:
   BytecodeGenerator* generator() { return &generator_; }
   template <typename IsolateT>
   void CheckAndPrintBytecodeMismatch(IsolateT* isolate, Handle<Script> script,
-                                     Handle<BytecodeArray> bytecode);
+                                     DirectHandle<BytecodeArray> bytecode);
 
   template <typename IsolateT>
-  Status DoFinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+  Status DoFinalizeJobImpl(DirectHandle<SharedFunctionInfo> shared_info,
                            IsolateT* isolate);
 
   Zone zone_;
@@ -152,14 +152,14 @@ void MaybePrintAst(ParseInfo* parse_info,
 #endif  // DEBUG
 }
 
-bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
+bool ShouldPrintBytecode(DirectHandle<SharedFunctionInfo> shared) {
   if (!v8_flags.print_bytecode) return false;
 
   // Checks whether function passed the filter.
   if (shared->is_toplevel()) {
     base::Vector<const char> filter =
         base::CStrVector(v8_flags.print_bytecode_filter);
-    return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
+    return filter.empty() || (filter.length() == 1 && filter[0] == '*');
   } else {
     return shared->PassesFilter(v8_flags.print_bytecode_filter);
   }
@@ -195,9 +195,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
     MaybePrintAst(parse_info(), compilation_info());
   }
 
-  ParkedScopeIfOnBackground parked_scope(local_isolate_);
-
-  generator()->GenerateBytecode(stack_limit());
+  local_isolate_->ParkIfOnBackgroundAndExecute(
+      [this]() { generator()->GenerateBytecode(stack_limit()); });
 
   if (generator()->HasStackOverflow()) {
     return FAILED;
@@ -208,20 +207,22 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 #ifdef DEBUG
 template <typename IsolateT>
 void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
-    IsolateT* isolate, Handle<Script> script, Handle<BytecodeArray> bytecode) {
+    IsolateT* isolate, Handle<Script> script,
+    DirectHandle<BytecodeArray> bytecode) {
   int first_mismatch = generator()->CheckBytecodeMatches(*bytecode);
   if (first_mismatch >= 0) {
     parse_info()->ast_value_factory()->Internalize(isolate);
-    DeclarationScope::AllocateScopeInfos(parse_info(), isolate);
+    DeclarationScope::AllocateScopeInfos(parse_info(), script, isolate);
 
-    Handle<BytecodeArray> new_bytecode =
+    DirectHandle<BytecodeArray> new_bytecode =
         generator()->FinalizeBytecode(isolate, script);
 
     std::cerr << "Bytecode mismatch";
 #ifdef OBJECT_PRINT
     std::cerr << " found for function: ";
-    MaybeHandle<String> maybe_name = parse_info()->literal()->GetName(isolate);
-    Handle<String> name;
+    MaybeDirectHandle<String> maybe_name =
+        parse_info()->literal()->GetName(isolate);
+    DirectHandle<String> name;
     if (maybe_name.ToHandle(&name) && name->length() != 0) {
       name->PrintUC16(std::cerr);
     } else {
@@ -230,7 +231,7 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     Tagged<Object> script_name = script->GetNameOrSourceURL();
     if (IsString(script_name)) {
       std::cerr << " ";
-      String::cast(script_name)->PrintUC16(std::cerr);
+      Cast<String>(script_name)->PrintUC16(std::cerr);
       std::cerr << ":" << parse_info()->literal()->start_position();
     }
 #endif
@@ -244,7 +245,7 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
 #endif
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
+    DirectHandle<SharedFunctionInfo> shared_info, Isolate* isolate) {
   RCS_SCOPE(parse_info()->runtime_call_stats(),
             RuntimeCallCounterId::kCompileIgnitionFinalization);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -253,7 +254,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
+    DirectHandle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileIgnitionFinalization,
             RuntimeCallStats::kThreadSpecific);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -263,11 +264,11 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 
 template <typename IsolateT>
 InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, IsolateT* isolate) {
+    DirectHandle<SharedFunctionInfo> shared_info, IsolateT* isolate) {
   Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
   if (bytecodes.is_null()) {
     bytecodes = generator()->FinalizeBytecode(
-        isolate, handle(Script::cast(shared_info->script()), isolate));
+        isolate, handle(Cast<Script>(shared_info->script()), isolate));
     if (generator()->HasStackOverflow()) {
       return FAILED;
     }
@@ -276,7 +277,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
 
   if (compilation_info()->SourcePositionRecordingMode() ==
       SourcePositionTableBuilder::RecordingMode::RECORD_SOURCE_POSITIONS) {
-    Handle<ByteArray> source_position_table =
+    DirectHandle<TrustedByteArray> source_position_table =
         generator()->FinalizeSourcePositionTable(isolate);
     bytecodes->set_source_position_table(*source_position_table, kReleaseStore);
   }
@@ -293,8 +294,12 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
   }
 
 #ifdef DEBUG
+  if (parse_info()->literal()->shared_function_info().is_null()) {
+    parse_info()->literal()->set_shared_function_info(
+        indirect_handle(shared_info, isolate));
+  }
   CheckAndPrintBytecodeMismatch(
-      isolate, handle(Script::cast(shared_info->script()), isolate), bytecodes);
+      isolate, handle(Cast<Script>(shared_info->script()), isolate), bytecodes);
 #endif
 
   return SUCCEEDED;
@@ -341,13 +346,13 @@ void Interpreter::Initialize() {
 
   // Set the interpreter entry trampoline entry point now that builtins are
   // initialized.
-  Handle<Code> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
+  DirectHandle<Code> code = BUILTIN_CODE(isolate_, InterpreterEntryTrampoline);
   DCHECK(builtins->is_initialized());
   DCHECK(!code->has_instruction_stream());
   interpreter_entry_trampoline_instruction_start_ = code->instruction_start();
 
   // Initialize the dispatch table.
-  ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
+  ForEachBytecode([=, this](Bytecode bytecode, OperandScale operand_scale) {
     Builtin builtin = BuiltinIndexFromBytecode(bytecode, operand_scale);
     Tagged<Code> handler = builtins->code(builtin);
     if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
@@ -381,8 +386,8 @@ uintptr_t Interpreter::GetDispatchCounter(Bytecode from, Bytecode to) const {
                                            to_index];
 }
 
-Handle<JSObject> Interpreter::GetDispatchCountersObject() {
-  Handle<JSObject> counters_map =
+DirectHandle<JSObject> Interpreter::GetDispatchCountersObject() {
+  DirectHandle<JSObject> counters_map =
       isolate_->factory()->NewJSObjectWithNullProto();
 
   // Output is a JSON-encoded object of objects.
@@ -398,7 +403,7 @@ Handle<JSObject> Interpreter::GetDispatchCountersObject() {
 
   for (int from_index = 0; from_index < kNumberOfBytecodes; ++from_index) {
     Bytecode from_bytecode = Bytecodes::FromByte(from_index);
-    Handle<JSObject> counters_row =
+    DirectHandle<JSObject> counters_row =
         isolate_->factory()->NewJSObjectWithNullProto();
 
     for (int to_index = 0; to_index < kNumberOfBytecodes; ++to_index) {
@@ -406,7 +411,8 @@ Handle<JSObject> Interpreter::GetDispatchCountersObject() {
       uintptr_t counter = GetDispatchCounter(from_bytecode, to_bytecode);
 
       if (counter > 0) {
-        Handle<Object> value = isolate_->factory()->NewNumberFromSize(counter);
+        DirectHandle<Object> value =
+            isolate_->factory()->NewNumberFromSize(counter);
         JSObject::AddProperty(isolate_, counters_row,
                               Bytecodes::ToString(to_bytecode), value, NONE);
       }

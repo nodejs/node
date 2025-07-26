@@ -5,13 +5,18 @@
 #ifndef V8_OBJECTS_DEBUG_OBJECTS_INL_H_
 #define V8_OBJECTS_DEBUG_OBJECTS_INL_H_
 
+#include "src/objects/debug-objects.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/bytecode-array-inl.h"
 #include "src/objects/code-inl.h"
-#include "src/objects/debug-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
+#include "src/torque/runtime-macro-shims.h"
+#include "src/torque/runtime-support.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -38,20 +43,27 @@ BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debugging_id,
                     DebugInfo::DebuggingIdBits)
 
 bool DebugInfo::HasInstrumentedBytecodeArray() {
-  return IsBytecodeArray(debug_bytecode_array(kAcquireLoad));
+  return has_debug_bytecode_array();
 }
 
-Tagged<BytecodeArray> DebugInfo::OriginalBytecodeArray() {
+Tagged<BytecodeArray> DebugInfo::OriginalBytecodeArray(Isolate* isolate) {
   DCHECK(HasInstrumentedBytecodeArray());
-  return BytecodeArray::cast(original_bytecode_array(kAcquireLoad));
+  return original_bytecode_array(isolate, kAcquireLoad);
 }
 
-Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray() {
+Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray(Isolate* isolate) {
   DCHECK(HasInstrumentedBytecodeArray());
-  DCHECK_EQ(shared()->GetActiveBytecodeArray(),
-            debug_bytecode_array(kAcquireLoad));
-  return BytecodeArray::cast(debug_bytecode_array(kAcquireLoad));
+  Tagged<BytecodeArray> result = debug_bytecode_array(isolate, kAcquireLoad);
+  DCHECK_EQ(shared()->GetActiveBytecodeArray(isolate), result);
+  return result;
 }
+
+TRUSTED_POINTER_ACCESSORS(DebugInfo, debug_bytecode_array, BytecodeArray,
+                          kDebugBytecodeArrayOffset,
+                          kBytecodeArrayIndirectPointerTag)
+TRUSTED_POINTER_ACCESSORS(DebugInfo, original_bytecode_array, BytecodeArray,
+                          kOriginalBytecodeArrayOffset,
+                          kBytecodeArrayIndirectPointerTag)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
@@ -59,15 +71,18 @@ NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 Tagged<Script> StackFrameInfo::script() const {
   Tagged<HeapObject> object = shared_or_script();
   if (IsSharedFunctionInfo(object)) {
-    object = SharedFunctionInfo::cast(object)->script();
+    object = Cast<SharedFunctionInfo>(object)->script();
   }
-  return Script::cast(object);
+  return Cast<Script>(object);
 }
 
 BIT_FIELD_ACCESSORS(StackFrameInfo, flags, bytecode_offset_or_source_position,
                     StackFrameInfo::BytecodeOffsetOrSourcePositionBits)
 BIT_FIELD_ACCESSORS(StackFrameInfo, flags, is_constructor,
                     StackFrameInfo::IsConstructorBit)
+
+TQ_OBJECT_CONSTRUCTORS_IMPL(StackTraceInfo)
+NEVER_READ_ONLY_SPACE_IMPL(StackTraceInfo)
 
 NEVER_READ_ONLY_SPACE_IMPL(ErrorStackData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ErrorStackData)
@@ -76,18 +91,16 @@ bool ErrorStackData::HasFormattedStack() const {
   return !IsFixedArray(call_site_infos_or_formatted_stack());
 }
 
-ACCESSORS_RELAXED_CHECKED(ErrorStackData, formatted_stack, Tagged<Object>,
-                          kCallSiteInfosOrFormattedStackOffset,
-                          !IsSmi(limit_or_stack_frame_infos()))
+ACCESSORS_RELAXED_CHECKED2(ErrorStackData, formatted_stack, Tagged<Object>,
+                           kCallSiteInfosOrFormattedStackOffset,
+                           HasFormattedStack(), true)
 
 bool ErrorStackData::HasCallSiteInfos() const { return !HasFormattedStack(); }
 
-ACCESSORS_RELAXED_CHECKED(ErrorStackData, call_site_infos, Tagged<FixedArray>,
-                          kCallSiteInfosOrFormattedStackOffset,
-                          !HasFormattedStack())
-
-NEVER_READ_ONLY_SPACE_IMPL(PromiseOnStack)
-TQ_OBJECT_CONSTRUCTORS_IMPL(PromiseOnStack)
+DEF_GETTER(ErrorStackData, call_site_infos, Tagged<FixedArray>) {
+  DCHECK(HasCallSiteInfos());
+  return Cast<FixedArray>(call_site_infos_or_formatted_stack());
+}
 
 }  // namespace internal
 }  // namespace v8

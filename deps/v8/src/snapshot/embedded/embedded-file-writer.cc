@@ -126,10 +126,6 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
 
 void EmbeddedFileWriter::WriteBuiltinLabels(PlatformEmbeddedFileWriterBase* w,
                                             std::string name) const {
-  if (ENABLE_CONTROL_FLOW_INTEGRITY_BOOL) {
-    w->DeclareSymbolGlobal(name.c_str());
-  }
-
   w->DeclareLabel(name.c_str());
 }
 
@@ -159,6 +155,7 @@ void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
 
   w->AlignToCodeAlignment();
   w->DeclareSymbolGlobal(EmbeddedBlobCodeSymbol().c_str());
+  w->DeclareLabelProlog(EmbeddedBlobCodeSymbol().c_str());
   w->DeclareLabel(EmbeddedBlobCodeSymbol().c_str());
 
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
@@ -168,6 +165,7 @@ void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
     WriteBuiltin(w, blob, builtin);
   }
   w->AlignToPageSizeIfNeeded();
+  w->DeclareLabelEpilogue();
   w->Newline();
 }
 
@@ -213,6 +211,21 @@ void EmbeddedFileWriter::WriteFileEpilogue(PlatformEmbeddedFileWriterBase* w,
 // static
 void EmbeddedFileWriter::WriteBinaryContentsAsInlineAssembly(
     PlatformEmbeddedFileWriterBase* w, const uint8_t* data, uint32_t size) {
+#if V8_OS_ZOS
+  // HLASM source must end at column 71 (followed by an optional
+  // line-continuation char on column 72), so write the binary data
+  // in 32 byte chunks (length 64):
+  uint32_t chunks = (size + 31) / 32;
+  uint32_t i, j;
+  uint32_t offset = 0;
+  for (i = 0; i < chunks; ++i) {
+    fprintf(w->fp(), " DC x'");
+    for (j = 0; offset < size && j < 32; ++j) {
+      fprintf(w->fp(), "%02x", data[offset++]);
+    }
+    fprintf(w->fp(), "'\n");
+  }
+#else
   int current_line_length = 0;
   uint32_t i = 0;
 
@@ -238,6 +251,7 @@ void EmbeddedFileWriter::WriteBinaryContentsAsInlineAssembly(
   }
 
   if (current_line_length != 0) w->Newline();
+#endif  // V8_OS_ZOS
 }
 
 int EmbeddedFileWriter::LookupOrAddExternallyCompiledFilename(
@@ -272,21 +286,13 @@ void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
        ++builtin) {
     // Retrieve the SourcePositionTable and copy it.
     Tagged<Code> code = builtins->code(builtin);
-    Tagged<ByteArray> source_position_table = code->source_position_table();
-    std::vector<unsigned char> data(
-        source_position_table->GetDataStartAddress(),
-        source_position_table->GetDataEndAddress());
+    if (!code->has_source_position_table()) continue;
+    Tagged<TrustedByteArray> source_position_table =
+        code->source_position_table();
+    std::vector<unsigned char> data(source_position_table->begin(),
+                                    source_position_table->end());
     source_positions_[static_cast<int>(builtin)] = data;
   }
-}
-
-void EmbeddedFileWriter::PrepareBuiltinLabelInfoMap(int create_offset,
-                                                    int invoke_offset) {
-  label_info_[static_cast<int>(Builtin::kJSConstructStubGeneric)].push_back(
-      {create_offset, "construct_stub_create_deopt_addr"});
-  label_info_[static_cast<int>(
-                  Builtin::kInterpreterPushArgsThenFastConstructFunction)]
-      .push_back({invoke_offset, "construct_stub_invoke_deopt_addr"});
 }
 
 }  // namespace internal

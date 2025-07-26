@@ -15,6 +15,7 @@
 #include "include/v8-context.h"
 #include "include/v8-cppgc.h"
 #include "include/v8-local-handle.h"
+#include "include/v8-locker.h"
 #include "include/v8-object.h"
 #include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
@@ -23,6 +24,7 @@
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/sweeper.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/heap/cppgc-js/unified-heap-utils.h"
 #include "test/unittests/heap/heap-utils.h"
@@ -58,18 +60,19 @@ using UnifiedHeapDetachedTest = TestWithHeapInternals;
 TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbageWithEmbedderStack(); }
 
 TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
-  v8::HandleScope scope(v8_isolate());
-  uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
   auto* wrappable_object =
       cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
   v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
-      v8_isolate()->GetCurrentContext(), &wrappable_type, wrappable_object);
-  Wrappable::destructor_callcount = 0;
+      v8_isolate()->GetCurrentContext(), wrappable_object);
   EXPECT_FALSE(api_object.IsEmpty());
+  // With direct locals, api_object may be invalid after a stackless GC.
+  auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
+  Wrappable::destructor_callcount = 0;
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
-  WrapperHelper::ResetWrappableConnection(api_object);
+  WrapperHelper::ResetWrappableConnection(
+      v8_isolate(), v8::Utils::ToLocal(handle_api_object));
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(1u, Wrappable::destructor_callcount);
 }
@@ -77,15 +80,20 @@ TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
 TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
   if (!v8_flags.incremental_marking) return;
 
-  v8::HandleScope scope(v8_isolate());
   void* wrappable = cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
-  v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
-      v8_isolate()->GetCurrentContext(), nullptr, nullptr);
+  v8::Local<v8::Object> api_object =
+      WrapperHelper::CreateWrapper(v8_isolate()->GetCurrentContext(), nullptr);
+  EXPECT_FALSE(api_object.IsEmpty());
+  // With direct locals, api_object may be invalid after a stackless GC.
+  auto handle_api_object = v8::Utils::OpenIndirectHandle(*api_object);
+  // Create an additional Global that gets picked up by the incremetnal marker
+  // as root.
+  Global<v8::Object> global(v8_isolate(), api_object);
   Wrappable::destructor_callcount = 0;
-  WrapperHelper::ResetWrappableConnection(api_object);
+  WrapperHelper::ResetWrappableConnection(v8_isolate(), api_object);
   SimulateIncrementalMarking();
-  uint16_t type_info = WrapperHelper::kTracedEmbedderId;
-  WrapperHelper::SetWrappableConnection(api_object, &type_info, wrappable);
+  WrapperHelper::SetWrappableConnection(
+      v8_isolate(), v8::Utils::ToLocal(handle_api_object), wrappable);
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(0u, Wrappable::destructor_callcount);
 }
@@ -99,7 +107,6 @@ class Unreferenced : public cppgc::GarbageCollected<Unreferenced> {
 }  // namespace
 
 TEST_F(UnifiedHeapTest, FreeUnreferencedDuringNoGcScope) {
-  v8::HandleScope handle_scope(v8_isolate());
   auto* unreferenced = cppgc::MakeGarbageCollected<Unreferenced>(
       allocation_handle(),
       cppgc::AdditionalBytes(cppgc::internal::api_constants::kMB));
@@ -126,7 +133,6 @@ TEST_F(UnifiedHeapTest, FreeUnreferencedDuringNoGcScope) {
 #endif  // DEBUG
 
 TEST_F(UnifiedHeapTest, TracedReferenceRetainsFromStack) {
-  v8::HandleScope handle_scope(v8_isolate());
   TracedReference<v8::Object> holder;
   {
     v8::HandleScope inner_handle_scope(v8_isolate());
@@ -139,26 +145,44 @@ TEST_F(UnifiedHeapTest, TracedReferenceRetainsFromStack) {
   EXPECT_TRUE(local->IsObject());
 }
 
-TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
-  auto heap = v8::CppHeap::Create(
-      V8::GetCurrentPlatform(),
-      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
-  auto* object =
-      cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
-  cppgc::WeakPersistent<Wrappable> weak_holder{object};
+template <typename TMixin>
+class WithCppHeapWithAllocationBeforeConfigureHeap : public TMixin {
+ public:
+  WithCppHeapWithAllocationBeforeConfigureHeap() {
+    auto heap =
+        v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}});
+    auto* object =
+        cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
+    weak_holder_ = cppgc::WeakPersistent<Wrappable>{object};
 
+    IsolateWrapper::set_cpp_heap_for_next_isolate(std::move(heap));
+  }
+  cppgc::WeakPersistent<Wrappable> weak_holder_;
+};
+
+using UnifiedHeapTestWithAllocationBeforeConfigureHeap = WithUnifiedHeap<  //
+    WithContextMixin<                                                      //
+        WithHeapInternals<                                                 //
+            WithInternalIsolateMixin<                                      //
+                WithIsolateScopeMixin<                                     //
+                    WithIsolateMixin<                                      //
+                        WithCppHeapWithAllocationBeforeConfigureHeap<      //
+                            WithDefaultPlatformMixin<                      //
+                                ::testing::Test>>>>>>>>;
+
+TEST_F(UnifiedHeapTestWithAllocationBeforeConfigureHeap,
+       AllocationBeforeConfigureHeap) {
   auto& js_heap = *isolate()->heap();
-  js_heap.AttachCppHeap(heap.get());
   auto& cpp_heap = *CppHeap::From(isolate()->heap()->cpp_heap());
+  auto weak_holder = std::move(weak_holder_);
   {
     InvokeMajorGC();
     cpp_heap.AsBase().sweeper().FinishIfRunning();
     EXPECT_TRUE(weak_holder);
   }
-  USE(object);
   {
     EmbedderStackStateScope stack_scope(
-        &js_heap, EmbedderStackStateScope::kExplicitInvocation,
+        &js_heap, EmbedderStackStateOrigin::kExplicitInvocation,
         StackState::kNoHeapPointers);
     InvokeMajorGC();
     cpp_heap.AsBase().sweeper().FinishIfRunning();
@@ -170,9 +194,8 @@ TEST_F(UnifiedHeapDetachedTest, StandAloneCppGC) {
   // Test ensures that stand-alone C++ GC are possible when using CppHeap. This
   // works even in the presence of wrappables using TracedReference as long
   // as the reference is empty.
-  auto heap = v8::CppHeap::Create(
-      V8::GetCurrentPlatform(),
-      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
+  auto heap =
+      v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}});
   auto* object =
       cppgc::MakeGarbageCollected<Wrappable>(heap->GetAllocationHandle());
   cppgc::WeakPersistent<Wrappable> weak_holder{object};
@@ -192,9 +215,8 @@ TEST_F(UnifiedHeapDetachedTest, StandAloneCppGC) {
 
 TEST_F(UnifiedHeapDetachedTest, StandaloneTestingHeap) {
   // Perform garbage collection through the StandaloneTestingHeap API.
-  auto cpp_heap = v8::CppHeap::Create(
-      V8::GetCurrentPlatform(),
-      CppHeapCreateParams{{}, WrapperHelper::DefaultWrapperDescriptor()});
+  auto cpp_heap =
+      v8::CppHeap::Create(V8::GetCurrentPlatform(), CppHeapCreateParams{{}});
   cpp_heap->EnableDetachedGarbageCollectionsForTesting();
   cppgc::testing::StandaloneTestingHeap heap(cpp_heap->GetHeapHandle());
   heap.StartGarbageCollection();
@@ -270,7 +292,8 @@ namespace v8::internal {
 
 namespace {
 
-class UnifiedHeapWithCustomSpaceTest : public UnifiedHeapTest {
+template <typename TMixin>
+class WithCppHeapWithCustomSpace : public TMixin {
  public:
   static std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>
   GetCustomSpaces() {
@@ -278,14 +301,25 @@ class UnifiedHeapWithCustomSpaceTest : public UnifiedHeapTest {
     custom_spaces.emplace_back(std::make_unique<cppgc::CustomSpaceForTest>());
     return custom_spaces;
   }
-  UnifiedHeapWithCustomSpaceTest() : UnifiedHeapTest(GetCustomSpaces()) {}
+
+  WithCppHeapWithCustomSpace() {
+    IsolateWrapper::set_cpp_heap_for_next_isolate(v8::CppHeap::Create(
+        V8::GetCurrentPlatform(), CppHeapCreateParams{GetCustomSpaces()}));
+  }
 };
 
+using UnifiedHeapWithCustomSpaceTest = WithUnifiedHeap<  //
+    WithContextMixin<                                    //
+        WithHeapInternals<                               //
+            WithInternalIsolateMixin<                    //
+                WithIsolateScopeMixin<                   //
+                    WithIsolateMixin<                    //
+                        WithCppHeapWithCustomSpace<      //
+                            WithDefaultPlatformMixin<    //
+                                ::testing::Test>>>>>>>>;
 }  // namespace
 
 TEST_F(UnifiedHeapWithCustomSpaceTest, CollectCustomSpaceStatisticsAtLastGC) {
-  // TPH does not support kIncrementalAndConcurrent yet.
-  if (v8_flags.enable_third_party_heap) return;
   StatisticsReceiver::num_calls_ = 0;
   // Initial state.
   cpp_heap().CollectCustomSpaceStatisticsAtLastGC(
@@ -411,7 +445,7 @@ TEST_F(UnifiedHeapTest, OnStackReferencesAreTemporary) {
     v8::TracedReference<v8::Value> stack_ref;
     v8::HandleScope scope(v8_isolate());
     v8::Local<v8::Object> api_object = WrapperHelper::CreateWrapper(
-        v8_isolate()->GetCurrentContext(), nullptr, nullptr);
+        v8_isolate()->GetCurrentContext(), nullptr);
     stack_ref.Reset(v8_isolate(), api_object);
     observer.Reset(v8_isolate(), api_object);
     observer.SetWeak();
@@ -434,7 +468,7 @@ TEST_F(UnifiedHeapTest, TracedReferenceOnStack) {
   {
     v8::HandleScope scope(v8_isolate());
     v8::Local<v8::Object> object = WrapperHelper::CreateWrapper(
-        v8_isolate()->GetCurrentContext(), nullptr, nullptr);
+        v8_isolate()->GetCurrentContext(), nullptr);
     stack_ref.Reset(v8_isolate(), object);
     observer.Reset(v8_isolate(), object);
     observer.SetWeak();
@@ -480,6 +514,7 @@ class GCedWithHeapRef final : public cppgc::GarbageCollected<GCedWithHeapRef> {
 V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
                                  TargetHandling target_handling) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::ManualGCScope manual_gc_scope(i_isolate);
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle;
   v8::CppHeap* cpp_heap = v8_isolate->GetCppHeap();
@@ -488,22 +523,22 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
           cpp_heap->GetAllocationHandle());
   if (target_handling != TargetHandling::kNonInitialized) {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> to_object = WrapperHelper::CreateWrapper(
-        v8_isolate->GetCurrentContext(), nullptr, nullptr);
-    EXPECT_TRUE(
-        IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
+    v8::Local<v8::Object> to_object =
+        WrapperHelper::CreateWrapper(v8_isolate->GetCurrentContext(), nullptr);
+    EXPECT_TRUE(IsNewObjectInCorrectGeneration(
+        *v8::Utils::OpenDirectHandle(*to_object)));
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
-      EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+      EXPECT_FALSE(i::HeapLayout::InYoungGeneration(
+          *v8::Utils::OpenDirectHandle(*to_object)));
     }
     cpp_heap_obj->heap_handle.Reset(v8_isolate, to_object);
   }
   {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> object = WrapperHelper::CreateWrapper(
-        v8_isolate->GetCurrentContext(), nullptr, nullptr);
+    v8::Local<v8::Object> object =
+        WrapperHelper::CreateWrapper(v8_isolate->GetCurrentContext(), nullptr);
     stack_handle.Reset(v8_isolate, object);
     observer.Reset(v8_isolate, object);
     observer.SetWeak();
@@ -528,6 +563,7 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
 V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
                                  TargetHandling target_handling) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::ManualGCScope manual_gc_scope(i_isolate);
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle;
   v8::CppHeap* cpp_heap = v8_isolate->GetCppHeap();
@@ -536,22 +572,22 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
           cpp_heap->GetAllocationHandle());
   if (target_handling != TargetHandling::kNonInitialized) {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> to_object = WrapperHelper::CreateWrapper(
-        v8_isolate->GetCurrentContext(), nullptr, nullptr);
-    EXPECT_TRUE(
-        IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
+    v8::Local<v8::Object> to_object =
+        WrapperHelper::CreateWrapper(v8_isolate->GetCurrentContext(), nullptr);
+    EXPECT_TRUE(IsNewObjectInCorrectGeneration(
+        *v8::Utils::OpenDirectHandle(*to_object)));
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
-      EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+      EXPECT_FALSE(i::HeapLayout::InYoungGeneration(
+          *v8::Utils::OpenDirectHandle(*to_object)));
     }
     stack_handle.Reset(v8_isolate, to_object);
   }
   {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> object = WrapperHelper::CreateWrapper(
-        v8_isolate->GetCurrentContext(), nullptr, nullptr);
+    v8::Local<v8::Object> object =
+        WrapperHelper::CreateWrapper(v8_isolate->GetCurrentContext(), nullptr);
     cpp_heap_obj->heap_handle.Reset(v8_isolate, object);
     observer.Reset(v8_isolate, object);
     observer.SetWeak();
@@ -576,27 +612,28 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
 V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
                                   TargetHandling target_handling) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::ManualGCScope manual_gc_scope(i_isolate);
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle1;
   v8::TracedReference<v8::Value> stack_handle2;
   if (target_handling != TargetHandling::kNonInitialized) {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> to_object = WrapperHelper::CreateWrapper(
-        v8_isolate->GetCurrentContext(), nullptr, nullptr);
-    EXPECT_TRUE(
-        IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
+    v8::Local<v8::Object> to_object =
+        WrapperHelper::CreateWrapper(v8_isolate->GetCurrentContext(), nullptr);
+    EXPECT_TRUE(IsNewObjectInCorrectGeneration(
+        *v8::Utils::OpenDirectHandle(*to_object)));
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       InvokeMajorGC(i_isolate);
-      EXPECT_FALSE(
-          i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
+      EXPECT_FALSE(i::HeapLayout::InYoungGeneration(
+          *v8::Utils::OpenDirectHandle(*to_object)));
     }
     stack_handle2.Reset(v8_isolate, to_object);
   }
   {
     v8::HandleScope scope(v8_isolate);
-    v8::Local<v8::Object> object = WrapperHelper::CreateWrapper(
-        v8_isolate->GetCurrentContext(), nullptr, nullptr);
+    v8::Local<v8::Object> object =
+        WrapperHelper::CreateWrapper(v8_isolate->GetCurrentContext(), nullptr);
     stack_handle1.Reset(v8_isolate, object);
     observer.Reset(v8_isolate, object);
     observer.SetWeak();
@@ -667,27 +704,23 @@ TEST_F(UnifiedHeapTest, TracedReferenceCopy) {
 TEST_F(UnifiedHeapTest, TracingInEphemerons) {
   // Tests that wrappers that are part of ephemerons are traced.
   ManualGCScope manual_gc(i_isolate());
-  v8::HandleScope scope(v8_isolate());
-  v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
-  v8::Context::Scope context_scope(context);
 
-  uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
   Wrappable::destructor_callcount = 0;
 
   v8::Local<v8::Object> key =
       v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-  Handle<JSWeakMap> weak_map = i_isolate()->factory()->NewJSWeakMap();
+  DirectHandle<JSWeakMap> weak_map = i_isolate()->factory()->NewJSWeakMap();
   {
     v8::HandleScope inner_scope(v8_isolate());
     // C++ object that should be traced through ephemeron value.
     auto* wrappable_object =
         cppgc::MakeGarbageCollected<Wrappable>(allocation_handle());
     v8::Local<v8::Object> value = WrapperHelper::CreateWrapper(
-        v8_isolate()->GetCurrentContext(), &wrappable_type, wrappable_object);
+        v8_isolate()->GetCurrentContext(), wrappable_object);
     EXPECT_FALSE(value.IsEmpty());
-    Handle<JSObject> js_key =
-        handle(JSObject::cast(*v8::Utils::OpenHandle(*key)), i_isolate());
-    Handle<JSReceiver> js_value = v8::Utils::OpenHandle(*value);
+    DirectHandle<JSObject> js_key = direct_handle(
+        Cast<JSObject>(*v8::Utils::OpenDirectHandle(*key)), i_isolate());
+    DirectHandle<JSReceiver> js_value = v8::Utils::OpenDirectHandle(*value);
     int32_t hash = Object::GetOrCreateHash(*js_key, i_isolate()).value();
     JSWeakCollection::Set(weak_map, js_key, js_value, hash);
   }
@@ -700,7 +733,6 @@ TEST_F(UnifiedHeapTest, TracedReferenceHandlesDoNotLeak) {
   // object. To avoid leaks we need to mark these handles during GC.
   // This test checks that unmarked handles do not leak.
   ManualGCScope manual_gc(i_isolate());
-  v8::HandleScope scope(v8_isolate());
   v8::TracedReference<v8::Value> ref;
   ref.Reset(v8_isolate(), v8::Undefined(v8_isolate()));
   auto* traced_handles = i_isolate()->traced_handles();
@@ -722,34 +754,41 @@ class Wrappable2 final : public cppgc::GarbageCollected<Wrappable2> {
 size_t Wrappable2::destructor_call_count = 0;
 }  // namespace
 
-TEST_F(UnifiedHeapTest, WrapperDescriptorGetter) {
-  v8::Isolate* isolate = v8_isolate();
-  v8::HandleScope scope(isolate);
-  auto* wrappable_object =
-      cppgc::MakeGarbageCollected<Wrappable2>(allocation_handle());
-  v8::WrapperDescriptor descriptor =
-      isolate->GetCppHeap()->wrapper_descriptor();
-  v8::Local<v8::ObjectTemplate> tmpl = v8::ObjectTemplate::New(isolate);
-  int size = std::max(descriptor.wrappable_type_index,
-                      descriptor.wrappable_instance_index) +
-             1;
-  tmpl->SetInternalFieldCount(size);
-  v8::Local<v8::Object> api_object =
-      tmpl->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
-  api_object->SetAlignedPointerInInternalField(
-      descriptor.wrappable_type_index,
-      &descriptor.embedder_id_for_garbage_collected);
-  api_object->SetAlignedPointerInInternalField(
-      descriptor.wrappable_instance_index, wrappable_object);
+namespace {
+class WrappedData final : public cppgc::GarbageCollected<WrappedData> {
+ public:
+  WrappedData(v8::Isolate* isolate, v8::Local<v8::Private> data) {
+    data_.Reset(isolate, data);
+  }
 
-  Wrappable2::destructor_call_count = 0;
-  EXPECT_EQ(0u, Wrappable2::destructor_call_count);
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(data_); }
+
+  v8::Local<v8::Private> data(v8::Isolate* isolate) {
+    return data_.Get(isolate);
+  }
+
+ private:
+  TracedReference<v8::Private> data_;
+};
+}  // namespace
+
+TEST_F(UnifiedHeapTest, WrapperWithTracedReferenceData) {
+  v8::Isolate* isolate = v8_isolate();
+
+  cppgc::Persistent<WrappedData> live_wrap;
+  {
+    live_wrap = cppgc::MakeGarbageCollected<WrappedData>(
+        allocation_handle(), isolate,
+        v8::Private::New(isolate,
+                         v8::String::NewFromUtf8Literal(isolate, "test")));
+  }
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(0u, Wrappable2::destructor_call_count);
-  api_object->SetAlignedPointerInInternalField(
-      descriptor.wrappable_instance_index, nullptr);
-  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
-  EXPECT_EQ(1u, Wrappable2::destructor_call_count);
+  {
+    v8::Local<v8::Value> name = live_wrap.Get()->data(isolate)->Name();
+    CHECK(name->IsString());
+    CHECK(name.As<v8::String>()->StringEquals(
+        v8::String::NewFromUtf8Literal(isolate, "test")));
+  }
 }
 
 TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
@@ -787,6 +826,145 @@ TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
   heap->EnsureSweepingCompleted(
       Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
   v8_flags.single_threaded_gc = single_threaded_gc_flag;
+}
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+struct RandomGCIntervalTestSetter {
+  RandomGCIntervalTestSetter() {
+    static constexpr int kInterval = 87;
+    v8_flags.cppgc_random_gc_interval = kInterval;
+  }
+  ~RandomGCIntervalTestSetter() { v8_flags.cppgc_random_gc_interval = 0; }
+};
+
+struct UnifiedHeapTestWithRandomGCInterval : RandomGCIntervalTestSetter,
+                                             UnifiedHeapTest {};
+
+TEST_F(UnifiedHeapTestWithRandomGCInterval, AllocationTimeout) {
+  if (v8_flags.stress_incremental_marking) return;
+  if (v8_flags.stress_concurrent_allocation) return;
+  auto& cpp_heap = *CppHeap::From(isolate()->heap()->cpp_heap());
+  auto& allocator = cpp_heap.object_allocator();
+  const int initial_allocation_timeout =
+      allocator.get_allocation_timeout_for_testing();
+  ASSERT_GT(initial_allocation_timeout, 0);
+  const auto current_epoch = isolate()->heap()->tracer()->CurrentEpoch(
+      GCTracer::Scope::MARK_COMPACTOR);
+  for (int i = 0; i < initial_allocation_timeout - 1; ++i) {
+    MakeGarbageCollected<Wrappable>(allocation_handle());
+  }
+  // Expect no GC happened so far.
+  EXPECT_EQ(current_epoch, isolate()->heap()->tracer()->CurrentEpoch(
+                               GCTracer::Scope::MARK_COMPACTOR));
+  // This allocation must cause a GC.
+  MakeGarbageCollected<Wrappable>(allocation_handle());
+  EXPECT_EQ(current_epoch + 1, isolate()->heap()->tracer()->CurrentEpoch(
+                                   GCTracer::Scope::MARK_COMPACTOR));
+}
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
+namespace {
+using UnifiedHeapMinimalTest = WithIsolateMixin<  //
+    WithCppHeap<                                  //
+        WithDefaultPlatformMixin<                 //
+            ::testing::Test>>>;
+
+class ThreadUsingV8Locker final : public v8::base::Thread {
+ public:
+  ThreadUsingV8Locker(v8::Isolate* isolate, CppHeap* heap,
+                      cppgc::Persistent<Wrappable>& holder)
+      : v8::base::Thread(Options("Thread using V8::Locker.")),
+        isolate_(isolate),
+        heap_(heap),
+        holder_(holder) {}
+
+  void Run() final {
+    v8::Locker locker(isolate_);
+    v8::Isolate::Scope isolate_scope(isolate_);
+    // This should not trigger a DCHECK (when allocating a persistent).
+    cppgc::Persistent<Wrappable> obj =
+        cppgc::MakeGarbageCollected<Wrappable>(heap_->object_allocator());
+    // This should not trigger a DCHECK (when invoking prefinalizers).
+    InvokeMajorGC(heap_->isolate());
+    // This should not trigger a DCHECK (upon assignment, due to pointer
+    // policies).
+    holder_ = obj;
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  CppHeap* heap_;
+  cppgc::Persistent<Wrappable>& holder_;
+};
+}  // anonymous namespace
+
+TEST_F(UnifiedHeapMinimalTest, UsingV8Locker) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate());
+  i::CppHeap* cpp_heap = i::CppHeap::From(isolate->heap()->cpp_heap());
+  // The use of v8::Locker in this test should suppress DCHECKs and CHECKS
+  // that enforce that the current thread is the creation thread of the heap
+  // or of a persistent.
+  cppgc::Persistent<Wrappable> obj;
+  {
+    v8::Locker locker(v8_isolate());
+    v8::Isolate::Scope isolate_scope(v8_isolate());
+    obj = cppgc::MakeGarbageCollected<Wrappable>(cpp_heap->object_allocator());
+  }
+
+  // Exit and unlock the isolate, allowing the thread to lock and enter.
+  auto thread =
+      std::make_unique<ThreadUsingV8Locker>(v8_isolate(), cpp_heap, obj);
+  CHECK(thread->Start());
+  thread->Join();
+
+  {
+    v8::Locker locker(v8_isolate());
+    v8::Isolate::Scope isolate_scope(v8_isolate());
+    obj.Clear();
+  }
+}
+
+namespace {
+class WrappedWithConservativeGCInCtor final
+    : public cppgc::GarbageCollected<WrappedWithConservativeGCInCtor> {
+ public:
+  template <typename GCCallback>
+  WrappedWithConservativeGCInCtor(v8::Isolate* isolate,
+                                  v8::Local<v8::Private> data, GCCallback gc)
+      : data_(isolate, data) {
+    // A GC here means that the object is in construction and data_ will be
+    // traced conservatively. If we miss out on handling the TracedReference it
+    // will be zapped.
+    gc();
+  }
+
+  void Trace(cppgc::Visitor* visitor) const {
+    // For completeness only as GC in ctor won't use the `Trace()` method.
+    visitor->Trace(data_);
+  }
+
+  v8::Local<v8::Private> data(v8::Isolate* isolate) {
+    return data_.Get(isolate);
+  }
+
+ private:
+  TracedReference<v8::Private> data_;
+};
+}  // namespace
+
+TEST_F(UnifiedHeapTest, WrappedWithConservativeGCInCtor) {
+  v8::Isolate* isolate = v8_isolate();
+  WrappedWithConservativeGCInCtor* object =
+      cppgc::MakeGarbageCollected<WrappedWithConservativeGCInCtor>(
+          allocation_handle(), isolate,
+          v8::Private::New(isolate,
+                           v8::String::NewFromUtf8Literal(isolate, "test")),
+          [this]() {
+            this->CollectGarbageWithEmbedderStack(
+                cppgc::Heap::SweepingType::kAtomic);
+          });
+  v8::Local<v8::Value> name = object->data(isolate)->Name();
+  CHECK(name->IsString());
 }
 
 }  // namespace v8::internal

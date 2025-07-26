@@ -7,92 +7,48 @@
 
 #include "v8-internal.h"  // NOLINT(build/include_directory)
 
-namespace v8 {
+namespace v8::api_internal {
 
-namespace internal {
-
-// Helper functions about values contained in handles.
-// A value is either an indirect pointer or a direct pointer, depending on
-// whether direct local support is enabled.
-class ValueHelper final {
+template <bool check_statically_enabled>
+class StackAllocated {
  public:
-#ifdef V8_ENABLE_DIRECT_LOCAL
-  static constexpr Address kTaggedNullAddress = 1;
-  static constexpr Address kEmpty = kTaggedNullAddress;
+  V8_INLINE StackAllocated() = default;
+
+ protected:
+  struct no_checking_tag {};
+  static constexpr no_checking_tag do_not_check{};
+
+  V8_INLINE explicit StackAllocated(no_checking_tag) {}
+  V8_INLINE explicit StackAllocated(const StackAllocated& other,
+                                    no_checking_tag) {}
+
+  V8_INLINE void VerifyOnStack() const {}
+};
+
+template <>
+class V8_TRIVIAL_ABI StackAllocated<true> : public StackAllocated<false> {
+ public:
+  V8_INLINE StackAllocated() { VerifyOnStack(); }
+
+#if V8_HAS_ATTRIBUTE_TRIVIAL_ABI
+  // In this case, StackAllocated becomes not trivially copyable.
+  V8_INLINE StackAllocated(const StackAllocated& other) { VerifyOnStack(); }
+  StackAllocated& operator=(const StackAllocated&) = default;
+#endif
+
+ protected:
+  V8_INLINE explicit StackAllocated(no_checking_tag tag)
+      : StackAllocated<false>(tag) {}
+  V8_INLINE explicit StackAllocated(const StackAllocated& other,
+                                    no_checking_tag tag)
+      : StackAllocated<false>(other, tag) {}
+
+#ifdef ENABLE_SLOW_DCHECKS
+  V8_EXPORT void VerifyOnStack() const;
 #else
-  static constexpr Address kEmpty = kNullAddress;
-#endif  // V8_ENABLE_DIRECT_LOCAL
-
-  template <typename T>
-  V8_INLINE static bool IsEmpty(T* value) {
-    return reinterpret_cast<Address>(value) == kEmpty;
-  }
-
-  // Returns a handle's "value" for all kinds of abstract handles. For Local,
-  // it is equivalent to `*handle`. The variadic parameters support handle
-  // types with extra type parameters, like `Persistent<T, M>`.
-  template <template <typename T, typename... Ms> typename H, typename T,
-            typename... Ms>
-  V8_INLINE static T* HandleAsValue(const H<T, Ms...>& handle) {
-    return handle.template value<T>();
-  }
-
-#ifdef V8_ENABLE_DIRECT_LOCAL
-
-  template <typename T>
-  V8_INLINE static Address ValueAsAddress(const T* value) {
-    return reinterpret_cast<Address>(value);
-  }
-
-  template <typename T, bool check_null = true, typename S>
-  V8_INLINE static T* SlotAsValue(S* slot) {
-    if (check_null && slot == nullptr) {
-      return reinterpret_cast<T*>(kTaggedNullAddress);
-    }
-    return *reinterpret_cast<T**>(slot);
-  }
-
-#else  // !V8_ENABLE_DIRECT_LOCAL
-
-  template <typename T>
-  V8_INLINE static Address ValueAsAddress(const T* value) {
-    return *reinterpret_cast<const Address*>(value);
-  }
-
-  template <typename T, bool check_null = true, typename S>
-  V8_INLINE static T* SlotAsValue(S* slot) {
-    return reinterpret_cast<T*>(slot);
-  }
-
-#endif  // V8_ENABLE_DIRECT_LOCAL
+  V8_INLINE V8_EXPORT void VerifyOnStack() const {}
+#endif
 };
-
-/**
- * Helper functions about handles.
- */
-class HandleHelper final {
- public:
-  /**
-   * Checks whether two handles are equal.
-   * They are equal iff they are both empty or they are both non-empty and the
-   * objects to which they refer are physically equal.
-   *
-   * If both handles refer to JS objects, this is the same as strict equality.
-   * For primitives, such as numbers or strings, a `false` return value does not
-   * indicate that the values aren't equal in the JavaScript sense.
-   * Use `Value::StrictEquals()` to check primitives for equality.
-   */
-  template <typename T1, typename T2>
-  V8_INLINE static bool EqualHandles(const T1& lhs, const T2& rhs) {
-    if (lhs.IsEmpty()) return rhs.IsEmpty();
-    if (rhs.IsEmpty()) return false;
-    return lhs.ptr() == rhs.ptr();
-  }
-
-  static V8_EXPORT void VerifyOnStack(const void* ptr);
-};
-
-}  // namespace internal
 
 /**
  * A base class for abstract handles containing indirect pointers.
@@ -129,16 +85,26 @@ class IndirectHandleBase {
 
   // Returns the handler's "value" (direct or indirect pointer, depending on
   // whether direct local support is enabled).
-  template <typename T>
+  template <typename T, bool check_null = false>
   V8_INLINE T* value() const {
-    return internal::ValueHelper::SlotAsValue<T, false>(slot());
+    return internal::ValueHelper::SlotAsValue<T, check_null>(slot());
   }
+
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  V8_INLINE internal::ValueHelper::InternalRepresentationType repr() const {
+    return location_ ? *location_ : internal::ValueHelper::kEmpty;
+  }
+#else
+  V8_INLINE internal::ValueHelper::InternalRepresentationType repr() const {
+    return location_;
+  }
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
  private:
   internal::Address* location_ = nullptr;
 };
 
-#ifdef V8_ENABLE_DIRECT_LOCAL
+#ifdef V8_ENABLE_DIRECT_HANDLE
 
 /**
  * A base class for abstract handles containing direct pointers.
@@ -169,17 +135,21 @@ class DirectHandleBase {
 
   // Returns the handler's "value" (direct pointer, as direct local support
   // is guaranteed to be enabled here).
-  template <typename T>
+  template <typename T, bool check_null = false>
   V8_INLINE T* value() const {
     return reinterpret_cast<T*>(ptr_);
+  }
+
+  V8_INLINE internal::ValueHelper::InternalRepresentationType repr() const {
+    return ptr_;
   }
 
  private:
   internal::Address ptr_ = internal::ValueHelper::kEmpty;
 };
 
-#endif  // V8_ENABLE_DIRECT_LOCAL
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
-}  // namespace v8
+}  // namespace v8::api_internal
 
 #endif  // INCLUDE_V8_HANDLE_BASE_H_

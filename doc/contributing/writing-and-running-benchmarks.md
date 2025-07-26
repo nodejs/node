@@ -10,6 +10,7 @@
 * [Running benchmarks](#running-benchmarks)
   * [Running individual benchmarks](#running-individual-benchmarks)
   * [Running all benchmarks](#running-all-benchmarks)
+  * [Specifying CPU Cores for Benchmarks with run.js](#specifying-cpu-cores-for-benchmarks-with-runjs)
   * [Filtering benchmarks](#filtering-benchmarks)
   * [Comparing Node.js versions](#comparing-nodejs-versions)
   * [Comparing parameters](#comparing-parameters)
@@ -93,6 +94,16 @@ A list of mirrors is [located here](https://cran.r-project.org/mirrors.html).
 
 ## Running benchmarks
 
+### Setting CPU Frequency scaling governor to "performance"
+
+It is recommended to set the CPU frequency to `performance` before running
+benchmarks. This increases the likelihood of each benchmark achieving peak performance
+according to the hardware. Therefore, run:
+
+```console
+$ ./benchmark/cpu.sh fast
+```
+
 ### Running individual benchmarks
 
 This can be useful for debugging a benchmark or doing a quick performance
@@ -162,6 +173,43 @@ It is possible to execute more groups by adding extra process arguments.
 ```bash
 node benchmark/run.js assert async_hooks
 ```
+
+It's also possible to execute the benchmark more than once using the
+`--runs` flag.
+
+```bash
+node benchmark/run.js --runs 10 assert async_hooks
+```
+
+This command will run the benchmark files in `benchmark/assert` and `benchmark/async_hooks`
+10 times each.
+
+#### Specifying CPU Cores for Benchmarks with run.js
+
+When using `run.js` to execute a group of benchmarks,
+you can specify on which CPU cores the
+benchmarks should execute
+by using the `--set CPUSET=value` option.
+This controls the CPU core
+affinity for the benchmark process,
+potentially reducing
+interference from other processes and allowing
+for performance
+testing under specific hardware configurations.
+
+The `CPUSET` option utilizes the `taskset` command's format
+for setting CPU affinity, where `value` can be a single core
+number or a range of cores.
+
+Examples:
+
+* `node benchmark/run.js --set CPUSET=0` ... runs benchmarks on CPU core 0.
+* `node benchmark/run.js --set CPUSET=0-2` ...
+  specifies that benchmarks should run on CPU cores 0 to 2.
+
+Note: This option is only applicable when using `run.js`.
+Ensure the `taskset` command is available on your system
+and the specified `CPUSET` format matches its requirements.
 
 #### Filtering benchmarks
 
@@ -244,6 +292,19 @@ process/bench-env.js operation="query" n=1000000: 3,625,787.2150573144
 process/bench-env.js operation="delete" n=1000000: 1,521,131.5742806569
 ```
 
+#### Grouping benchmarks
+
+Benchmarks can also have groups, giving the developer greater flexibility in differentiating between test cases
+and also helping reduce the time to run the combination of benchmark parameters.
+
+By default, all groups are executed when running the benchmark.
+However, it is possible to specify individual groups by setting the
+`NODE_RUN_BENCHMARK_GROUPS` environment variable when running `compare.js`:
+
+```bash
+NODE_RUN_BENCHMARK_GROUPS=fewHeaders,manyHeaders node http/headers.js
+```
+
 ### Comparing Node.js versions
 
 To compare the effect of a new Node.js version use the `compare.js` tool. This
@@ -288,8 +349,16 @@ module, you can use the `--filter` option:_
   --old      ./old-node-binary  old node binary (required)
   --runs     30                 number of samples
   --filter   pattern            string to filter benchmark scripts
+  --exclude  pattern            excludes scripts matching <pattern> (can be
+                                repeated)
   --set      variable=value     set benchmark variable (can be repeated)
   --no-progress                 don't show benchmark progress indicator
+
+    Examples:
+    --set CPUSET=0            Runs benchmarks on CPU core 0.
+    --set CPUSET=0-2          Specifies that benchmarks should run on CPU cores 0 to 2.
+
+  Note: The CPUSET format should match the specifications of the 'taskset' command
 ```
 
 For analyzing the benchmark results, use [node-benchmark-compare][] or the R
@@ -456,6 +525,23 @@ The arguments of `createBenchmark` are:
 * `options` {Object} The benchmark options. Supported options:
   * `flags` {Array} Contains node-specific command line flags to pass to
     the child process.
+
+  * `byGroups` {Boolean} option for processing `configs` by groups:
+    ```js
+    const bench = common.createBenchmark(main, {
+      groupA: {
+        source: ['array'],
+        len: [10, 2048],
+        n: [50],
+      },
+      groupB: {
+        source: ['buffer', 'string'],
+        len: [2048],
+        n: [50, 2048],
+      },
+    }, { byGroups: true });
+    ```
+
   * `combinationFilter` {Function} Has a single parameter which is an object
     containing a combination of benchmark parameters. It should return `true`
     or `false` to indicate whether the combination should be included or not.
@@ -486,7 +572,7 @@ the code inside the `main` function if it's more than just declaration.
 ```js
 'use strict';
 const common = require('../common.js');
-const { SlowBuffer } = require('node:buffer');
+const { Buffer } = require('node:buffer');
 
 const configs = {
   // Number of operations, specified here so they show up in the report.
@@ -517,10 +603,11 @@ function main(conf) {
   bench.start();
 
   // Do operations here
-  const BufferConstructor = conf.type === 'fast' ? Buffer : SlowBuffer;
 
   for (let i = 0; i < conf.n; i++) {
-    new BufferConstructor(conf.size);
+    conf.type === 'fast' ?
+      Buffer.allocUnsafe(conf.size) :
+      Buffer.allocUnsafeSlow(conf.size);
   }
 
   // End the timer, pass in the number of operations

@@ -5,20 +5,38 @@
 #ifndef V8_HEAP_MARKING_BARRIER_INL_H_
 #define V8_HEAP_MARKING_BARRIER_INL_H_
 
-#include "src/base/logging.h"
-#include "src/heap/incremental-marking-inl.h"
-#include "src/heap/incremental-marking.h"
 #include "src/heap/marking-barrier.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/base/logging.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/mark-compact-inl.h"
+#include "src/heap/marking.h"
 
 namespace v8 {
 namespace internal {
 
+template <typename TSlot>
+void MarkingBarrier::Write(Tagged<HeapObject> host, TSlot slot,
+                           Tagged<HeapObject> value) {
+  DCHECK(IsCurrentMarkingBarrier(host));
+  DCHECK(is_activated_ || shared_heap_worklists_.has_value());
+  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+
+  MarkValue(host, value);
+
+  if (slot.address() && IsCompacting(host)) {
+    MarkCompactCollector::RecordSlot(host, slot, value);
+  }
+}
+
 void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
                                Tagged<HeapObject> value) {
-  if (value.InReadOnlySpace()) return;
+  if (HeapLayout::InReadOnlySpace(value)) return;
 
   DCHECK(IsCurrentMarkingBarrier(host));
-  DCHECK(is_activated_ || shared_heap_worklist_.has_value());
+  DCHECK(is_activated_ || shared_heap_worklists_.has_value());
 
   // When shared heap isn't enabled all objects are local, we can just run the
   // local marking barrier. Also from the point-of-view of the shared space
@@ -29,18 +47,25 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
       return;
     }
 
-    if (host.InWritableSharedSpace()) {
+    if (v8_flags.black_allocated_pages &&
+        HeapLayout::InBlackAllocatedPage(value)) {
+      return;
+    }
+
+    if (HeapLayout::InWritableSharedSpace(host)) {
       // Invoking shared marking barrier when storing into shared objects.
       MarkValueShared(value);
       return;
-    } else if (value.InWritableSharedSpace()) {
+    } else if (HeapLayout::InWritableSharedSpace(value)) {
       // No marking needed when storing shared objects in local objects.
       return;
     }
   }
 
-  DCHECK_IMPLIES(host.InWritableSharedSpace(), is_shared_space_isolate_);
-  DCHECK_IMPLIES(value.InWritableSharedSpace(), is_shared_space_isolate_);
+  DCHECK_IMPLIES(HeapLayout::InWritableSharedSpace(host),
+                 is_shared_space_isolate_);
+  DCHECK_IMPLIES(HeapLayout::InWritableSharedSpace(value),
+                 is_shared_space_isolate_);
 
   DCHECK(is_activated_);
   MarkValueLocal(value);
@@ -48,35 +73,40 @@ void MarkingBarrier::MarkValue(Tagged<HeapObject> host,
 
 void MarkingBarrier::MarkValueShared(Tagged<HeapObject> value) {
   // Value is either in read-only space or shared heap.
-  DCHECK(value.InAnySharedSpace());
+  DCHECK(HeapLayout::InAnySharedSpace(value));
 
   // We should only reach this on client isolates (= worker isolates).
   DCHECK(!is_shared_space_isolate_);
-  DCHECK(shared_heap_worklist_.has_value());
+  DCHECK(shared_heap_worklists_.has_value());
 
   // Mark shared object and push it onto shared heap worklist.
   if (marking_state_.TryMark(value)) {
-    shared_heap_worklist_->Push(value);
+    shared_heap_worklists_->Push(value);
   }
 }
 
 void MarkingBarrier::MarkValueLocal(Tagged<HeapObject> value) {
-  DCHECK(!value.InReadOnlySpace());
+  DCHECK(!HeapLayout::InReadOnlySpace(value));
   if (is_minor()) {
     // We do not need to insert into RememberedSet<OLD_TO_NEW> here because the
     // C++ marking barrier already does this for us.
     // TODO(v8:13012): Consider updating C++ barriers to respect
     // POINTERS_TO_HERE_ARE_INTERESTING and POINTERS_FROM_HERE_ARE_INTERESTING
     // page flags and make the following branch a DCHECK.
-    if (Heap::InYoungGeneration(value)) {
-      WhiteToGreyAndPush(value);  // NEW->NEW
+    if (HeapLayout::InYoungGeneration(value)) {
+      MarkingHelper::TryMarkAndPush(
+          heap_, current_worklists_.get(), &marking_state_,
+          MarkingHelper::WorklistTarget::kRegular, value);
     }
   } else {
-    if (WhiteToGreyAndPush(value)) {
-      if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-        heap_->AddRetainingRoot(Root::kWriteBarrier, value);
-      }
-    }
+    // At this point `ShouldMarkObject()` should always succeed here because
+    // value has gone through all the necessary filters. However, we do want to
+    // push to the right target worklist immediately.
+    const auto target_worklist = MarkingHelper::ShouldMarkObject(heap_, value);
+    if (!target_worklist) return;
+    MarkingHelper::TryMarkAndPush(heap_, current_worklists_.get(),
+                                  &marking_state_, target_worklist.value(),
+                                  value);
   }
 }
 
@@ -106,15 +136,8 @@ bool MarkingBarrier::IsCompacting(Tagged<HeapObject> object) const {
     return true;
   }
 
-  return shared_heap_worklist_.has_value() && object.InWritableSharedSpace();
-}
-
-bool MarkingBarrier::WhiteToGreyAndPush(Tagged<HeapObject> obj) {
-  if (marking_state_.TryMark(obj)) {
-    current_worklist_->Push(obj);
-    return true;
-  }
-  return false;
+  return shared_heap_worklists_.has_value() &&
+         HeapLayout::InWritableSharedSpace(object);
 }
 
 }  // namespace internal

@@ -64,10 +64,6 @@ class AddressRegion {
     return address_ == other.address_ && size_ == other.size_;
   }
 
-  bool operator!=(AddressRegion other) const {
-    return address_ != other.address_ || size_ != other.size_;
-  }
-
  private:
   Address address_ = 0;
   size_t size_ = 0;

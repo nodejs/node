@@ -6,6 +6,7 @@
 #define V8_EXECUTION_ARGUMENTS_INL_H_
 
 #include "src/execution/arguments.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"  // TODO(jkummerow): Just smi-inl.h.
@@ -19,7 +20,7 @@ Arguments<T>::ChangeValueScope::ChangeValueScope(Isolate* isolate,
                                                  Arguments* args, int index,
                                                  Tagged<Object> value)
     : location_(args->address_of_arg_at(index)) {
-  old_value_ = handle(Tagged<Object>(*location_), isolate);
+  old_value_ = direct_handle(Tagged<Object>(*location_), isolate);
   *location_ = value.ptr();
 }
 
@@ -40,18 +41,18 @@ uint32_t Arguments<T>::positive_smi_value_at(int index) const {
 
 template <ArgumentsType T>
 int Arguments<T>::tagged_index_value_at(int index) const {
-  return static_cast<int>(TaggedIndex::cast((*this)[index]).value());
+  return static_cast<int>(Cast<TaggedIndex>((*this)[index]).value());
 }
 
 template <ArgumentsType T>
 double Arguments<T>::number_value_at(int index) const {
-  return Object::Number((*this)[index]);
+  return Object::NumberValue((*this)[index]);
 }
 
 template <ArgumentsType T>
 Handle<Object> Arguments<T>::atOrUndefined(Isolate* isolate, int index) const {
   if (index >= length_) {
-    return Handle<Object>::cast(isolate->factory()->undefined_value());
+    return Cast<Object>(isolate->factory()->undefined_value());
   }
   return at<Object>(index);
 }

@@ -6,6 +6,7 @@
 #define V8_SNAPSHOT_EMBEDDED_EMBEDDED_DATA_INL_H_
 
 #include "src/snapshot/embedded/embedded-data.h"
+// Include the non-inl header before the rest of the headers.
 
 namespace v8 {
 namespace internal {

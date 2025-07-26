@@ -45,6 +45,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
 #include "test/common/assembler-tester.h"
+#include "third_party/fp16/src/include/fp16.h"
 
 namespace v8 {
 namespace internal {
@@ -134,7 +135,6 @@ static void InitializeVM() {
       AllocateAssemblerBuffer(buf_size, nullptr, JitPermission::kNoJit);      \
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,        \
                       ExternalAssemblerBuffer(owned_buf->start(), buf_size)); \
-  std::optional<AssemblerBufferWriteScope> rw_buffer_scope;                   \
   Decoder<DispatchingDecoderVisitor>* decoder =                               \
       new Decoder<DispatchingDecoderVisitor>();                               \
   Simulator simulator(decoder);                                               \
@@ -191,7 +191,6 @@ static void InitializeVM() {
   HandleScope scope(isolate);                                          \
   CHECK_NOT_NULL(isolate);                                             \
   auto owned_buf = AllocateAssemblerBuffer(buf_size);                  \
-  std::optional<AssemblerBufferWriteScope> rw_buffer_scope;            \
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes, \
                       owned_buf->CreateView());                        \
   HandleScope handle_scope(isolate);                                   \
@@ -199,7 +198,6 @@ static void InitializeVM() {
   RegisterDump core;
 
 #define RESET()                                                \
-  rw_buffer_scope.emplace(*owned_buf);                         \
   __ Reset();                                                  \
   __ CodeEntry();                                              \
   /* Reset the machine state (like simulator.ResetState()). */ \
@@ -216,7 +214,6 @@ static void InitializeVM() {
 #define RUN()                                                  \
   {                                                            \
     /* Reset the scope and thus make the buffer executable. */ \
-    rw_buffer_scope.reset();                                   \
     auto f = GeneratedCode<void>::FromCode(isolate, *code);    \
     f.Call();                                                  \
   }
@@ -250,7 +247,7 @@ static void InitializeVM() {
   CHECK(Equal64(expected, &core, result))
 
 #define CHECK_FULL_HEAP_OBJECT_IN_REGISTER(expected, result) \
-  CHECK(Equal64(expected->ptr(), &core, result))
+  CHECK(Equal64((*expected).ptr(), &core, result))
 
 #define CHECK_NOT_ZERO_AND_NOT_EQUAL_64(reg0, reg1) \
   {                                                 \
@@ -1844,6 +1841,95 @@ TEST(branch_cond) {
   CHECK_EQUAL_64(0x1, x0);
 }
 
+TEST(branch_cond_consistent) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(HBC);
+
+  Label wrong;
+
+  START();
+  __ Mov(x0, 0x1);
+  __ Mov(x1, 0x1);
+  __ Mov(x2, 0x8000000000000000L);
+
+  // For each 'cmp' instruction below, condition codes other than the ones
+  // following it would branch.
+
+  __ Cmp(x1, 0);
+  __ bc(&wrong, eq);
+  __ bc(&wrong, lo);
+  __ bc(&wrong, mi);
+  __ bc(&wrong, vs);
+  __ bc(&wrong, ls);
+  __ bc(&wrong, lt);
+  __ bc(&wrong, le);
+  Label ok_1;
+  __ bc(&ok_1, ne);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_1);
+
+  __ Cmp(x1, 1);
+  __ bc(&wrong, ne);
+  __ bc(&wrong, lo);
+  __ bc(&wrong, mi);
+  __ bc(&wrong, vs);
+  __ bc(&wrong, hi);
+  __ bc(&wrong, lt);
+  __ bc(&wrong, gt);
+  Label ok_2;
+  __ bc(&ok_2, pl);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_2);
+
+  __ Cmp(x1, 2);
+  __ bc(&wrong, eq);
+  __ bc(&wrong, hs);
+  __ bc(&wrong, pl);
+  __ bc(&wrong, vs);
+  __ bc(&wrong, hi);
+  __ bc(&wrong, ge);
+  __ bc(&wrong, gt);
+  Label ok_3;
+  __ bc(&ok_3, vc);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_3);
+
+  __ Cmp(x2, 1);
+  __ bc(&wrong, eq);
+  __ bc(&wrong, lo);
+  __ bc(&wrong, mi);
+  __ bc(&wrong, vc);
+  __ bc(&wrong, ls);
+  __ bc(&wrong, ge);
+  __ bc(&wrong, gt);
+  Label ok_4;
+  __ bc(&ok_4, le);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_4);
+
+  Label ok_5;
+  __ bc(&ok_5, al);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_5);
+
+  Label ok_6;
+  __ bc(&ok_6, nv);
+  __ Mov(x0, 0x0);
+  __ Bind(&ok_6);
+
+  END();
+
+  __ Bind(&wrong);
+  __ Mov(x0, 0x0);
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+    CHECK_EQUAL_64(0x1, x0);
+  }
+}
+
 TEST(branch_to_reg) {
   INIT_V8();
   SETUP();
@@ -3135,6 +3221,13 @@ TEST(neon_ld1_d_postindex) {
          MemOperand(x21, 32, PostIndex));
   __ Ld1(v20.V1D(), v21.V1D(), v22.V1D(), v23.V1D(),
          MemOperand(x22, 32, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld1(v24.V8B(), v25.V8B(), MemOperand(sp, 16, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 16);  // expected sp with post index.
   END();
 
   RUN();
@@ -3163,6 +3256,7 @@ TEST(neon_ld1_d_postindex) {
   CHECK_EQUAL_64(src_base + 3 + 32, x20);
   CHECK_EQUAL_64(src_base + 4 + 32, x21);
   CHECK_EQUAL_64(src_base + 5 + 32, x22);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld1_q) {
@@ -3230,6 +3324,13 @@ TEST(neon_ld1_q_postindex) {
          MemOperand(x20, 64, PostIndex));
   __ Ld1(v30.V2D(), v31.V2D(), v0.V2D(), v1.V2D(),
          MemOperand(x21, 64, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld1(v24.V16B(), MemOperand(sp, 16, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 16);  // expected sp with post index.
   END();
 
   RUN();
@@ -3253,6 +3354,7 @@ TEST(neon_ld1_q_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 48, x19);
   CHECK_EQUAL_64(src_base + 3 + 64, x20);
   CHECK_EQUAL_64(src_base + 4 + 64, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld1_lane) {
@@ -3372,6 +3474,13 @@ TEST(neon_ld2_d_postindex) {
   __ Ld2(v5.V4H(), v6.V4H(), MemOperand(x19, 16, PostIndex));
   __ Ld2(v16.V2S(), v17.V2S(), MemOperand(x20, 16, PostIndex));
   __ Ld2(v31.V2S(), v0.V2S(), MemOperand(x21, 16, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld2(v18.V8B(), v19.V8B(), MemOperand(sp, 16, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 16);  // expected sp with post index.
   END();
 
   RUN();
@@ -3391,6 +3500,7 @@ TEST(neon_ld2_d_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 16, x19);
   CHECK_EQUAL_64(src_base + 3 + 16, x20);
   CHECK_EQUAL_64(src_base + 4 + 16, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld2_q) {
@@ -3452,6 +3562,13 @@ TEST(neon_ld2_q_postindex) {
   __ Ld2(v6.V8H(), v7.V8H(), MemOperand(x19, 32, PostIndex));
   __ Ld2(v16.V4S(), v17.V4S(), MemOperand(x20, 32, PostIndex));
   __ Ld2(v31.V2D(), v0.V2D(), MemOperand(x21, 32, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld2(v18.V16B(), v19.V16B(), MemOperand(sp, 32, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 32);  // expected sp with post index.
   END();
 
   RUN();
@@ -3472,6 +3589,7 @@ TEST(neon_ld2_q_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 32, x19);
   CHECK_EQUAL_64(src_base + 3 + 32, x20);
   CHECK_EQUAL_64(src_base + 4 + 32, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld2_lane) {
@@ -3614,6 +3732,12 @@ TEST(neon_ld2_lane_postindex) {
   __ Ldr(q15, MemOperand(x7));
   __ Ld2(v14.D(), v15.D(), 1, MemOperand(x24, x25, PostIndex));
 
+  // Check PostIndex operation on sp.
+  __ Mov(x25, sp);
+  __ Ld2(v18.D(), v19.D(), 1, MemOperand(sp, 16, PostIndex));
+  __ Mov(x26, sp);  // actual sp with post index.
+  __ Mov(sp, x25);
+  __ Add(x25, x25, 16);  // expected sp with post index.
   END();
 
   RUN();
@@ -3643,6 +3767,7 @@ TEST(neon_ld2_lane_postindex) {
   CHECK_EQUAL_64(src_base + 2, x22);
   CHECK_EQUAL_64(src_base + 3, x23);
   CHECK_EQUAL_64(src_base + 4, x24);
+  CHECK_EQUAL_64(x25, x26);
 }
 
 TEST(neon_ld2_alllanes) {
@@ -3710,6 +3835,13 @@ TEST(neon_ld2_alllanes_postindex) {
   __ Ld2r(v8_.V2S(), v9.V2S(), MemOperand(x17, x19, PostIndex));
   __ Ld2r(v10.V4S(), v11.V4S(), MemOperand(x17, 8, PostIndex));
   __ Ld2r(v12.V2D(), v13.V2D(), MemOperand(x17, 16, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld2r(v18.V2D(), v19.V2D(), MemOperand(sp, 16, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 16);  // expected sp with post index.
   END();
 
   RUN();
@@ -3729,6 +3861,7 @@ TEST(neon_ld2_alllanes_postindex) {
   CHECK_EQUAL_128(0x1918171615141312, 0x1918171615141312, q12);
   CHECK_EQUAL_128(0x21201F1E1D1C1B1A, 0x21201F1E1D1C1B1A, q13);
   CHECK_EQUAL_64(src_base + 34, x17);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld3_d) {
@@ -3790,6 +3923,14 @@ TEST(neon_ld3_d_postindex) {
   __ Ld3(v8_.V4H(), v9.V4H(), v10.V4H(), MemOperand(x19, 24, PostIndex));
   __ Ld3(v11.V2S(), v12.V2S(), v13.V2S(), MemOperand(x20, 24, PostIndex));
   __ Ld3(v31.V2S(), v0.V2S(), v1.V2S(), MemOperand(x21, 24, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x25, 32);
+  __ Mov(x23, sp);
+  __ Ld3(v18.V8B(), v19.V8B(), v20.V8B(), MemOperand(sp, x25, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, x25);  // expected sp with post index.
   END();
 
   RUN();
@@ -3815,6 +3956,7 @@ TEST(neon_ld3_d_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 24, x19);
   CHECK_EQUAL_64(src_base + 3 + 24, x20);
   CHECK_EQUAL_64(src_base + 4 + 24, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld3_q) {
@@ -3882,6 +4024,13 @@ TEST(neon_ld3_q_postindex) {
   __ Ld3(v8_.V8H(), v9.V8H(), v10.V8H(), MemOperand(x19, 48, PostIndex));
   __ Ld3(v11.V4S(), v12.V4S(), v13.V4S(), MemOperand(x20, 48, PostIndex));
   __ Ld3(v31.V2D(), v0.V2D(), v1.V2D(), MemOperand(x21, 48, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld3(v18.V16B(), v19.V16B(), v20.V16B(), MemOperand(sp, 48, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 48);  // expected sp with post index.
   END();
 
   RUN();
@@ -3907,6 +4056,7 @@ TEST(neon_ld3_q_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 48, x19);
   CHECK_EQUAL_64(src_base + 3 + 48, x20);
   CHECK_EQUAL_64(src_base + 4 + 48, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld3_lane) {
@@ -4059,6 +4209,13 @@ TEST(neon_ld3_lane_postindex) {
   __ Ldr(q23, MemOperand(x7));
   __ Ld3(v21.D(), v22.D(), v23.D(), 1, MemOperand(x24, x25, PostIndex));
 
+  // Check PostIndex operation on sp.
+  __ Mov(x27, 32);
+  __ Mov(x25, sp);
+  __ Ld3(v24.D(), v25.D(), v26.D(), 1, MemOperand(sp, x27, PostIndex));
+  __ Mov(x26, sp);  // actual sp with post index.
+  __ Mov(sp, x25);
+  __ Add(x25, x25, x27);  // expected sp with post index.
   END();
 
   RUN();
@@ -4096,6 +4253,7 @@ TEST(neon_ld3_lane_postindex) {
   CHECK_EQUAL_64(src_base + 2, x22);
   CHECK_EQUAL_64(src_base + 3, x23);
   CHECK_EQUAL_64(src_base + 4, x24);
+  CHECK_EQUAL_64(x25, x26);
 }
 
 TEST(neon_ld3_alllanes) {
@@ -4170,6 +4328,14 @@ TEST(neon_ld3_alllanes_postindex) {
   __ Ld3r(v12.V2S(), v13.V2S(), v14.V2S(), MemOperand(x17, x19, PostIndex));
   __ Ld3r(v15.V4S(), v16.V4S(), v17.V4S(), MemOperand(x17, 12, PostIndex));
   __ Ld3r(v18.V2D(), v19.V2D(), v20.V2D(), MemOperand(x17, 24, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x25, 32);
+  __ Mov(x23, sp);
+  __ Ld3r(v21.V2D(), v22.V2D(), v23.V2D(), MemOperand(sp, x25, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, x25);  // expected sp with post index.
   END();
 
   RUN();
@@ -4195,6 +4361,7 @@ TEST(neon_ld3_alllanes_postindex) {
   CHECK_EQUAL_128(0x201F1E1D1C1B1A19, 0x201F1E1D1C1B1A19, q18);
   CHECK_EQUAL_128(0x2827262524232221, 0x2827262524232221, q19);
   CHECK_EQUAL_128(0x302F2E2D2C2B2A29, 0x302F2E2D2C2B2A29, q20);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld4_d) {
@@ -4265,6 +4432,14 @@ TEST(neon_ld4_d_postindex) {
          MemOperand(x20, 32, PostIndex));
   __ Ld4(v30.V2S(), v31.V2S(), v0.V2S(), v1.V2S(),
          MemOperand(x21, 32, PostIndex));
+
+  // Check PostIndex operation on sp.
+  __ Mov(x23, sp);
+  __ Ld4(v18.V8B(), v19.V8B(), v20.V8B(), v21.V8B(),
+         MemOperand(sp, 32, PostIndex));
+  __ Mov(x24, sp);  // actual sp with post index.
+  __ Mov(sp, x23);
+  __ Add(x23, x23, 32);  // expected sp with post index.
   END();
 
   RUN();
@@ -4295,6 +4470,7 @@ TEST(neon_ld4_d_postindex) {
   CHECK_EQUAL_64(src_base + 2 + 32, x19);
   CHECK_EQUAL_64(src_base + 3 + 32, x20);
   CHECK_EQUAL_64(src_base + 4 + 32, x21);
+  CHECK_EQUAL_64(x23, x24);
 }
 
 TEST(neon_ld4_q) {
@@ -11794,7 +11970,7 @@ TEST(system_msr) {
   // All FPCR fields (including fields which may be read-as-zero):
   //  Stride, FZ16, Len
   //  IDE, IXE, UFE, OFE, DZE, IOE
-  const uint64_t fpcr_all = fpcr_core | 0x003F9F00;
+  const uint64_t fpcr_all = fpcr_core | 0x003F9F07;
 
   SETUP();
 
@@ -15671,111 +15847,138 @@ TEST(near_call_no_relocation) {
   CHECK_EQUAL_64(1, x0);
 }
 
-static void AbsHelperX(int64_t value) {
-  int64_t expected;
-
-  SETUP();
-  START();
-
-  Label fail;
-  Label done;
-
-  __ Mov(x0, 0);
-  __ Mov(x1, value);
-
-  if (value != kXMinInt) {
-    expected = std::abs(value);
-
-    Label next;
-    // The result is representable.
-    __ Abs(x10, x1);
-    __ Abs(x11, x1, &fail);
-    __ Abs(x12, x1, &fail, &next);
-    __ Bind(&next);
-    __ Abs(x13, x1, nullptr, &done);
-  } else {
-    // std::abs is undefined for kXMinInt but our implementation in the
-    // MacroAssembler will return kXMinInt in such a case.
-    expected = kXMinInt;
-
-    Label next;
-    // The result is not representable.
-    __ Abs(x10, x1);
-    __ Abs(x11, x1, nullptr, &fail);
-    __ Abs(x12, x1, &next, &fail);
-    __ Bind(&next);
-    __ Abs(x13, x1, &done);
+#define ABS_HELPER_X(can_run, value)                                    \
+  int64_t expected;                                                     \
+                                                                        \
+  START();                                                              \
+                                                                        \
+  Label fail;                                                           \
+  Label done;                                                           \
+                                                                        \
+  __ Mov(x0, 0);                                                        \
+  __ Mov(x1, (value));                                                  \
+                                                                        \
+  if ((value) != kXMinInt) {                                            \
+    expected = std::abs(value);                                         \
+                                                                        \
+    Label next;                                                         \
+    /* The result is representable. */                                  \
+    __ AbsWithOverflow(x10, x1);                                        \
+    __ AbsWithOverflow(x11, x1, &fail);                                 \
+    __ AbsWithOverflow(x12, x1, &fail, &next);                          \
+    __ Bind(&next);                                                     \
+    __ AbsWithOverflow(x13, x1, nullptr, &done);                        \
+  } else {                                                              \
+    /* std::abs is undefined for kXMinInt but our implementation in the \
+       MacroAssembler will return kXMinInt in such a case. */           \
+    expected = kXMinInt;                                                \
+                                                                        \
+    Label next;                                                         \
+    /* The result is not representable. */                              \
+    __ AbsWithOverflow(x10, x1);                                        \
+    __ AbsWithOverflow(x11, x1, nullptr, &fail);                        \
+    __ AbsWithOverflow(x12, x1, &next, &fail);                          \
+    __ Bind(&next);                                                     \
+    __ AbsWithOverflow(x13, x1, &done);                                 \
+  }                                                                     \
+                                                                        \
+  __ Bind(&fail);                                                       \
+  __ Mov(x0, -1);                                                       \
+                                                                        \
+  __ Bind(&done);                                                       \
+                                                                        \
+  END();                                                                \
+                                                                        \
+  if (can_run) {                                                        \
+    RUN();                                                              \
+                                                                        \
+    CHECK_EQUAL_64(0, x0);                                              \
+    CHECK_EQUAL_64((value), x1);                                        \
+    CHECK_EQUAL_64(expected, x10);                                      \
+    CHECK_EQUAL_64(expected, x11);                                      \
+    CHECK_EQUAL_64(expected, x12);                                      \
+    CHECK_EQUAL_64(expected, x13);                                      \
   }
 
-  __ Bind(&fail);
-  __ Mov(x0, -1);
+static void AbsHelperX(int64_t value) {
+  {
+    SETUP();
+    ABS_HELPER_X(true, value);
+  }
 
-  __ Bind(&done);
-
-  END();
-  RUN();
-
-  CHECK_EQUAL_64(0, x0);
-  CHECK_EQUAL_64(value, x1);
-  CHECK_EQUAL_64(expected, x10);
-  CHECK_EQUAL_64(expected, x11);
-  CHECK_EQUAL_64(expected, x12);
-  CHECK_EQUAL_64(expected, x13);
+  {
+    SETUP();
+    SETUP_FEATURE(CSSC);
+    ABS_HELPER_X(CAN_RUN(), value);
+  }
 }
 
-
-static void AbsHelperW(int32_t value) {
-  int32_t expected;
-
-  SETUP();
-  START();
-
-  Label fail;
-  Label done;
-
-  __ Mov(w0, 0);
-  // TODO(jbramley): The cast is needed to avoid a sign-extension bug in VIXL.
-  // Once it is fixed, we should remove the cast.
-  __ Mov(w1, static_cast<uint32_t>(value));
-
-  if (value != kWMinInt) {
-    expected = abs(value);
-
-    Label next;
-    // The result is representable.
-    __ Abs(w10, w1);
-    __ Abs(w11, w1, &fail);
-    __ Abs(w12, w1, &fail, &next);
-    __ Bind(&next);
-    __ Abs(w13, w1, nullptr, &done);
-  } else {
-    // abs is undefined for kWMinInt but our implementation in the
-    // MacroAssembler will return kWMinInt in such a case.
-    expected = kWMinInt;
-
-    Label next;
-    // The result is not representable.
-    __ Abs(w10, w1);
-    __ Abs(w11, w1, nullptr, &fail);
-    __ Abs(w12, w1, &next, &fail);
-    __ Bind(&next);
-    __ Abs(w13, w1, &done);
+#define ABS_HELPER_W(can_run, value)                                           \
+  int32_t expected;                                                            \
+                                                                               \
+  START();                                                                     \
+                                                                               \
+  Label fail;                                                                  \
+  Label done;                                                                  \
+                                                                               \
+  __ Mov(w0, 0);                                                               \
+  /* TODO(jbramley): The cast is needed to avoid a sign-extension bug in VIXL. \
+     Once it is fixed, we should remove the cast. */                           \
+  __ Mov(w1, static_cast<uint32_t>(value));                                    \
+                                                                               \
+  if ((value) != kWMinInt) {                                                   \
+    expected = abs(value);                                                     \
+                                                                               \
+    Label next;                                                                \
+    /* The result is representable. */                                         \
+    __ AbsWithOverflow(w10, w1);                                               \
+    __ AbsWithOverflow(w11, w1, &fail);                                        \
+    __ AbsWithOverflow(w12, w1, &fail, &next);                                 \
+    __ Bind(&next);                                                            \
+    __ AbsWithOverflow(w13, w1, nullptr, &done);                               \
+  } else {                                                                     \
+    /* abs is undefined for kWMinInt but our implementation in the             \
+       MacroAssembler will return kWMinInt in such a case. */                  \
+    expected = kWMinInt;                                                       \
+                                                                               \
+    Label next;                                                                \
+    /* The result is not representable. */                                     \
+    __ AbsWithOverflow(w10, w1);                                               \
+    __ AbsWithOverflow(w11, w1, nullptr, &fail);                               \
+    __ AbsWithOverflow(w12, w1, &next, &fail);                                 \
+    __ Bind(&next);                                                            \
+    __ AbsWithOverflow(w13, w1, &done);                                        \
+  }                                                                            \
+                                                                               \
+  __ Bind(&fail);                                                              \
+  __ Mov(w0, -1);                                                              \
+                                                                               \
+  __ Bind(&done);                                                              \
+                                                                               \
+  END();                                                                       \
+                                                                               \
+  if (can_run) {                                                               \
+    RUN();                                                                     \
+                                                                               \
+    CHECK_EQUAL_32(0, w0);                                                     \
+    CHECK_EQUAL_32((value), w1);                                               \
+    CHECK_EQUAL_32(expected, w10);                                             \
+    CHECK_EQUAL_32(expected, w11);                                             \
+    CHECK_EQUAL_32(expected, w12);                                             \
+    CHECK_EQUAL_32(expected, w13);                                             \
   }
 
-  __ Bind(&fail);
-  __ Mov(w0, -1);
+static void AbsHelperW(int32_t value) {
+  {
+    SETUP();
+    ABS_HELPER_W(true, value);
+  }
 
-  __ Bind(&done);
-
-  END();
-  RUN();
-
-  CHECK_EQUAL_32(0, w0);
-  CHECK_EQUAL_32(value, w1);
-  CHECK_EQUAL_32(expected, w10);
-  CHECK_EQUAL_32(expected, w11);
-  CHECK_EQUAL_32(expected, w12);
-  CHECK_EQUAL_32(expected, w13);
+  {
+    SETUP();
+    SETUP_FEATURE(CSSC);
+    ABS_HELPER_W(CAN_RUN(), value);
+  }
 }
 
 TEST(abs) {
@@ -15799,7 +16002,6 @@ TEST(pool_size) {
 
   // This test does not execute any code. It only tests that the size of the
   // pools is read correctly from the RelocInfo.
-  rw_buffer_scope.emplace(*owned_buf);
 
   Label exit;
   __ b(&exit);
@@ -16021,6 +16223,348 @@ TEST(scalar_movi) {
   RUN();
 
   CHECK_EQUAL_64(0, x0);
+}
+
+TEST(neon_pmull) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(PMULL1Q);
+  START();
+
+  __ Movi(v0.V2D(), 0xDECAFC0FFEE);
+  __ Movi(v1.V8H(), 0xBEEF);
+  __ Movi(v2.V8H(), 0xC0DE);
+  __ Movi(v3.V16B(), 42);
+
+  __ Pmull(v0.V8H(), v0.V8B(), v0.V8B());
+  __ Pmull2(v1.V8H(), v1.V16B(), v1.V16B());
+  __ Pmull(v2.V1Q(), v2.V1D(), v2.V1D());
+  __ Pmull2(v3.V1Q(), v3.V2D(), v3.V2D());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0x515450, 0x4455500055555454, q0);
+    CHECK_EQUAL_128(0x4554545545545455, 0x4554545545545455, q1);
+    CHECK_EQUAL_128(0x5000515450005154, 0x5000515450005154, q2);
+    CHECK_EQUAL_128(0x444044404440444, 0x444044404440444, q3);
+  }
+}
+
+TEST(neon_3extension_dot_product) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(DOTPROD);
+  START();
+
+  __ Movi(v0.V2D(), 0x7122712271227122, 0x7122712271227122);
+  __ Movi(v1.V2D(), 0xe245e245f245f245, 0xe245e245f245f245);
+  __ Movi(v2.V2D(), 0x3939393900000000, 0x3939393900000000);
+
+  __ Movi(v16.V2D(), 0x0000400000004000, 0x0000400000004000);
+  __ Movi(v17.V2D(), 0x0000400000004000, 0x0000400000004000);
+
+  __ Sdot(v16.V4S(), v0.V16B(), v1.V16B());
+  __ Sdot(v17.V2S(), v1.V8B(), v2.V8B());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0x000037d8000045f8, 0x000037d8000045f8, q16);
+    CHECK_EQUAL_128(0, 0x0000515e00004000, q17);
+  }
+}
+
+TEST(neon_sha3) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(SHA3);
+  START();
+
+  __ Movi(v0.V2D(), 0xccaaffee00000000, 0xccaaffee00000000);
+  __ Movi(v1.V2D(), 0x6666666666666666, 0x6666666666666666);
+  __ Movi(v2.V2D(), 0x00000000ccaaffee, 0x00000000ccaaffee);
+
+  __ Movi(v10.V16B(), 0);
+  __ Movi(v11.V16B(), 0);
+
+  __ Bcax(v10.V16B(), v0.V16B(), v1.V16B(), v2.V16B());
+  __ Eor3(v11.V16B(), v0.V16B(), v1.V16B(), v2.V16B());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0xaacc998822440000, 0xaacc998822440000, v10);
+    CHECK_EQUAL_128(0xaacc9988aacc9988, 0xaacc9988aacc9988, v11);
+  }
+}
+
+#define FP16_OP_LIST(V) \
+  V(fadd)               \
+  V(fsub)               \
+  V(fmul)               \
+  V(fdiv)               \
+  V(fmax)               \
+  V(fmin)
+
+namespace {
+
+float f16_round(float f) {
+  return fp16_ieee_to_fp32_value(fp16_ieee_from_fp32_value(f));
+}
+
+float fadd(float a, float b) { return a + b; }
+
+float fsub(float a, float b) { return a - b; }
+
+float fmul(float a, float b) { return a * b; }
+
+float fdiv(float a, float b) { return a / b; }
+
+float fmax(float a, float b) { return a > b ? a : b; }
+
+float fmin(float a, float b) { return a < b ? a : b; }
+}  // namespace
+
+#define TEST_FP16_OP(op)                                             \
+  TEST(vector_fp16_##op) {                                           \
+    INIT_V8();                                                       \
+    SETUP();                                                         \
+    SETUP_FEATURE(FP16);                                             \
+    START();                                                         \
+    float a = 42.15;                                                 \
+    float b = 13.31;                                                 \
+    __ Fmov(s0, a);                                                  \
+    __ Fcvt(s0.H(), s0.S());                                         \
+    __ Dup(v0.V8H(), v0.H(), 0);                                     \
+    __ Fmov(s1, b);                                                  \
+    __ Fcvt(s1.H(), s1.S());                                         \
+    __ Dup(v1.V8H(), v1.H(), 0);                                     \
+    __ op(v2.V8H(), v0.V8H(), v1.V8H());                             \
+    END();                                                           \
+    if (CAN_RUN()) {                                                 \
+      RUN();                                                         \
+      uint64_t res =                                                 \
+          fp16_ieee_from_fp32_value(op(f16_round(a), f16_round(b))); \
+      uint64_t half = res | (res << 16) | (res << 32) | (res << 48); \
+      CHECK_EQUAL_128(half, half, v2);                               \
+    }                                                                \
+  }
+
+FP16_OP_LIST(TEST_FP16_OP)
+
+#undef TEST_FP16_OP
+#undef FP16_OP_LIST
+
+#define FP16_OP_LIST(V) \
+  V(fabs, std::abs)     \
+  V(fsqrt, std::sqrt)   \
+  V(fneg, -)            \
+  V(frintp, ceilf)
+
+#define TEST_FP16_OP(op, cop)                                        \
+  TEST(vector_fp16_##op) {                                           \
+    INIT_V8();                                                       \
+    SETUP();                                                         \
+    SETUP_FEATURE(FP16);                                             \
+    START();                                                         \
+    float f = 42.15f16;                                              \
+    __ Fmov(s0, f);                                                  \
+    __ Fcvt(s0.H(), s0.S());                                         \
+    __ Dup(v0.V8H(), v0.H(), 0);                                     \
+    __ op(v1.V8H(), v0.V8H());                                       \
+    END();                                                           \
+    if (CAN_RUN()) {                                                 \
+      RUN();                                                         \
+      uint64_t res = fp16_ieee_from_fp32_value(cop(f16_round(f)));   \
+      uint64_t half = res | (res << 16) | (res << 32) | (res << 48); \
+      CHECK_EQUAL_128(half, half, v1);                               \
+    }                                                                \
+  }
+
+FP16_OP_LIST(TEST_FP16_OP)
+
+#undef TEST_FP16_OP
+#undef FP16_OP_LIST
+
+TEST(cssc_abs) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(CSSC);
+  START();
+
+  __ Mov(x0, -1);
+  __ Mov(x1, 1);
+  __ Mov(x2, 0);
+  __ Mov(x3, 0x7fff'ffff);
+  __ Mov(x4, 0x8000'0000);
+  __ Mov(x5, 0x8000'0001);
+  __ Mov(x6, 0x7fff'ffff'ffff'ffff);
+  __ Mov(x7, 0x8000'0000'0000'0000);
+  __ Mov(x8, 0x8000'0000'0000'0001);
+
+  __ Abs(w10, w0);
+  __ Abs(x11, x0);
+  __ Abs(w12, w1);
+  __ Abs(x13, x1);
+  __ Abs(w14, w2);
+  __ Abs(x15, x2);
+
+  __ Abs(w19, w3);
+  __ Abs(x20, x3);
+  __ Abs(w21, w4);
+  __ Abs(x22, x4);
+  __ Abs(w23, w5);
+  __ Abs(x24, x5);
+  __ Abs(w25, w6);
+  __ Abs(x26, x6);
+  __ Abs(w27, w7);
+  __ Abs(x28, x7);
+  __ Abs(w29, w8);
+  __ Abs(x30, x8);
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(1, x10);
+    CHECK_EQUAL_64(1, x11);
+    CHECK_EQUAL_64(1, x12);
+    CHECK_EQUAL_64(1, x13);
+    CHECK_EQUAL_64(0, x14);
+    CHECK_EQUAL_64(0, x15);
+    CHECK_EQUAL_64(0x7fff'ffff, x19);
+    CHECK_EQUAL_64(0x7fff'ffff, x20);
+    CHECK_EQUAL_64(0x8000'0000, x21);
+    CHECK_EQUAL_64(0x8000'0000, x22);
+    CHECK_EQUAL_64(0x7fff'ffff, x23);
+    CHECK_EQUAL_64(0x8000'0001, x24);
+    CHECK_EQUAL_64(1, x25);
+    CHECK_EQUAL_64(0x7fff'ffff'ffff'ffff, x26);
+    CHECK_EQUAL_64(0, x27);
+    CHECK_EQUAL_64(0x8000'0000'0000'0000, x28);
+    CHECK_EQUAL_64(1, x29);
+    CHECK_EQUAL_64(0x7fff'ffff'ffff'ffff, x30);
+  }
+}
+
+TEST(cssc_cnt) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(CSSC);
+  START();
+
+  __ Mov(x0, -1);
+  __ Mov(x1, 1);
+  __ Mov(x2, 0);
+  __ Mov(x3, 0x7fff'ffff);
+  __ Mov(x4, 0x8000'0000);
+  __ Mov(x5, 0x8000'0001);
+  __ Mov(x6, 0x7fff'ffff'ffff'ffff);
+  __ Mov(x7, 0x4242'4242'aaaa'aaaa);
+
+  __ Cnt(w10, w0);
+  __ Cnt(x11, x0);
+  __ Cnt(w12, w1);
+  __ Cnt(x13, x1);
+  __ Cnt(w14, w2);
+  __ Cnt(x15, x2);
+  __ Cnt(w19, w3);
+  __ Cnt(x20, x3);
+  __ Cnt(w21, w4);
+  __ Cnt(x22, x4);
+  __ Cnt(w23, w5);
+  __ Cnt(x24, x5);
+  __ Cnt(w25, w6);
+  __ Cnt(x26, x6);
+  __ Cnt(w27, w7);
+  __ Cnt(x28, x7);
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(32, x10);
+    CHECK_EQUAL_64(64, x11);
+    CHECK_EQUAL_64(1, x12);
+    CHECK_EQUAL_64(1, x13);
+    CHECK_EQUAL_64(0, x14);
+    CHECK_EQUAL_64(0, x15);
+    CHECK_EQUAL_64(31, x19);
+    CHECK_EQUAL_64(31, x20);
+    CHECK_EQUAL_64(1, x21);
+    CHECK_EQUAL_64(1, x22);
+    CHECK_EQUAL_64(2, x23);
+    CHECK_EQUAL_64(2, x24);
+    CHECK_EQUAL_64(32, x25);
+    CHECK_EQUAL_64(63, x26);
+    CHECK_EQUAL_64(16, x27);
+    CHECK_EQUAL_64(24, x28);
+  }
+}
+
+TEST(cssc_ctz) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(CSSC);
+  START();
+
+  __ Mov(x0, -1);
+  __ Mov(x1, 1);
+  __ Mov(x2, 2);
+  __ Mov(x3, 0x7fff'ff00);
+  __ Mov(x4, 0x8000'4000);
+  __ Mov(x5, 0x4000'0001);
+  __ Mov(x6, 0x0000'0001'0000'0000);
+  __ Mov(x7, 0x4200'0000'0000'0000);
+
+  __ Ctz(w10, w0);
+  __ Ctz(x11, x0);
+  __ Ctz(w12, w1);
+  __ Ctz(x13, x1);
+  __ Ctz(w14, w2);
+  __ Ctz(x15, x2);
+  __ Ctz(w19, w3);
+  __ Ctz(x20, x3);
+  __ Ctz(w21, w4);
+  __ Ctz(x22, x4);
+  __ Ctz(w23, w5);
+  __ Ctz(x24, x5);
+  __ Ctz(w25, w6);
+  __ Ctz(x26, x6);
+  __ Ctz(w27, w7);
+  __ Ctz(x28, x7);
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_64(0, x10);
+    CHECK_EQUAL_64(0, x11);
+    CHECK_EQUAL_64(0, x12);
+    CHECK_EQUAL_64(0, x13);
+    CHECK_EQUAL_64(1, x14);
+    CHECK_EQUAL_64(1, x15);
+    CHECK_EQUAL_64(8, x19);
+    CHECK_EQUAL_64(8, x20);
+    CHECK_EQUAL_64(14, x21);
+    CHECK_EQUAL_64(14, x22);
+    CHECK_EQUAL_64(0, x23);
+    CHECK_EQUAL_64(0, x24);
+    CHECK_EQUAL_64(32, x25);
+    CHECK_EQUAL_64(32, x26);
+    CHECK_EQUAL_64(32, x27);
+    CHECK_EQUAL_64(57, x28);
+  }
 }
 
 }  // namespace internal

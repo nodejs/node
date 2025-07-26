@@ -8,10 +8,10 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/execution/execution.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
@@ -43,14 +43,15 @@ FunctionTester::FunctionTester(Isolate* isolate, const char* source,
   CHECK_EQ(0u, flags_ & ~supported_flags);
 }
 
-FunctionTester::FunctionTester(Isolate* isolate, Graph* graph, int param_count)
+FunctionTester::FunctionTester(Isolate* isolate, TFGraph* graph,
+                               int param_count)
     : isolate(isolate),
       function(NewFunction(BuildFunction(param_count).c_str())),
       flags_(0) {
   CompileGraph(graph);
 }
 
-FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code,
+FunctionTester::FunctionTester(Isolate* isolate, DirectHandle<Code> code,
                                int param_count)
     : isolate(isolate),
       function((v8_flags.allow_natives_syntax = true,
@@ -58,53 +59,50 @@ FunctionTester::FunctionTester(Isolate* isolate, Handle<Code> code,
       flags_(0) {
   CHECK(!code.is_null());
   Compile(function);
-  function->set_code(*code, kReleaseStore);
+  function->UpdateCode(isolate, *code);
 }
 
 void FunctionTester::CheckThrows(Handle<Object> a) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  MaybeHandle<Object> no_result = Call(a);
-  CHECK(isolate->has_pending_exception());
+  MaybeDirectHandle<Object> no_result = Call(a);
+  CHECK(isolate->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
-  isolate->OptionalRescheduleException(true);
 }
 
 void FunctionTester::CheckThrows(Handle<Object> a, Handle<Object> b) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  MaybeHandle<Object> no_result = Call(a, b);
-  CHECK(isolate->has_pending_exception());
+  MaybeDirectHandle<Object> no_result = Call(a, b);
+  CHECK(isolate->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
-  isolate->OptionalRescheduleException(true);
 }
 
 v8::Local<v8::Message> FunctionTester::CheckThrowsReturnMessage(
     Handle<Object> a, Handle<Object> b) {
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  MaybeHandle<Object> no_result = Call(a, b);
-  CHECK(isolate->has_pending_exception());
+  MaybeDirectHandle<Object> no_result = Call(a, b);
+  CHECK(isolate->has_exception());
   CHECK(try_catch.HasCaught());
   CHECK(no_result.is_null());
-  isolate->OptionalRescheduleException(true);
   CHECK(!try_catch.Message().IsEmpty());
   return try_catch.Message();
 }
 
-void FunctionTester::CheckCall(Handle<Object> expected, Handle<Object> a,
+void FunctionTester::CheckCall(DirectHandle<Object> expected, Handle<Object> a,
                                Handle<Object> b, Handle<Object> c,
                                Handle<Object> d) {
-  Handle<Object> result = Call(a, b, c, d).ToHandleChecked();
+  DirectHandle<Object> result = Call(a, b, c, d).ToHandleChecked();
   CHECK(Object::SameValue(*expected, *result));
 }
 
 Handle<JSFunction> FunctionTester::NewFunction(const char* source) {
-  return Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  return Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(isolate, source))));
 }
 
 Handle<JSObject> FunctionTester::NewObject(const char* source) {
-  return Handle<JSObject>::cast(v8::Utils::OpenHandle(
+  return Cast<JSObject>(v8::Utils::OpenHandle(
       *v8::Local<v8::Object>::Cast(CompileRun(isolate, source))));
 }
 
@@ -116,11 +114,11 @@ Handle<Object> FunctionTester::NewNumber(double value) {
   return isolate->factory()->NewNumber(value);
 }
 
-Handle<Object> FunctionTester::infinity() {
+DirectHandle<Object> FunctionTester::infinity() {
   return isolate->factory()->infinity_value();
 }
 
-Handle<Object> FunctionTester::minus_infinity() {
+DirectHandle<Object> FunctionTester::minus_infinity() {
   return NewNumber(-V8_INFINITY);
 }
 
@@ -149,33 +147,33 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> f) {
 
 // Compile the given machine graph instead of the source of the function
 // and replace the JSFunction's code with the result.
-Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
+Handle<JSFunction> FunctionTester::CompileGraph(TFGraph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
   OptimizedCompilationInfo info(&zone, isolate, shared, function,
-                                CodeKind::TURBOFAN);
+                                CodeKind::TURBOFAN_JS);
 
   auto call_descriptor = Linkage::ComputeIncoming(&zone, &info);
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, call_descriptor, graph,
                                        AssemblerOptions::Default(isolate))
           .ToHandleChecked();
-  function->set_code(*code, kReleaseStore);
+  function->UpdateOptimizedCode(isolate, *code);
   return function;
 }
 
-Handle<JSFunction> FunctionTester::Optimize(Handle<JSFunction> function,
+Handle<JSFunction> FunctionTester::Optimize(Handle<JSFunction> target_function,
                                             Zone* zone, uint32_t flags) {
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  Handle<SharedFunctionInfo> shared(target_function->shared(), isolate);
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
   CHECK(is_compiled_scope.is_compiled() ||
-        Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
+        Compiler::Compile(isolate, target_function, Compiler::CLEAR_EXCEPTION,
                           &is_compiled_scope));
 
   CHECK_NOT_NULL(zone);
 
-  OptimizedCompilationInfo info(zone, isolate, shared, function,
-                                CodeKind::TURBOFAN);
+  OptimizedCompilationInfo info(zone, isolate, shared, target_function,
+                                CodeKind::TURBOFAN_JS);
 
   if (flags & ~OptimizedCompilationInfo::kInlining) UNIMPLEMENTED();
   if (flags & OptimizedCompilationInfo::kInlining) {
@@ -183,12 +181,14 @@ Handle<JSFunction> FunctionTester::Optimize(Handle<JSFunction> function,
   }
 
   CHECK(info.shared_info()->HasBytecodeArray());
-  JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+  JSFunction::EnsureFeedbackVector(isolate, target_function,
+                                   &is_compiled_scope);
 
-  Handle<Code> code = compiler::Pipeline::GenerateCodeForTesting(&info, isolate)
-                          .ToHandleChecked();
-  function->set_code(*code, v8::kReleaseStore);
-  return function;
+  DirectHandle<Code> code =
+      compiler::Pipeline::GenerateCodeForTesting(&info, isolate)
+          .ToHandleChecked();
+  target_function->UpdateOptimizedCode(isolate, *code);
+  return target_function;
 }
 }  // namespace compiler
 }  // namespace internal

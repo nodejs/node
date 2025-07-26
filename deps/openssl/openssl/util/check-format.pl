@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 #
-# Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright Siemens AG 2019-2022
 #
 # Licensed under the Apache License 2.0 (the "License").
@@ -167,7 +167,7 @@ my $local_offset;          # current extra indent due to label, switch case/defa
 my $line_body_start;       # number of line where last function body started, or 0
 my $line_function_start;   # number of line where last function definition started, used for $line_body_start
 my $last_function_header;  # header containing name of last function defined, used if $line_body_start != 0
-my $line_opening_brace;    # number of previous line with opening brace after do/while/for, optionally for if/else
+my $line_opening_brace;    # number of previous line with opening brace after if/do/while/for, optionally for 'else'
 
 my $keyword_opening_brace; # name of previous keyword, used if $line_opening_brace != 0
 my $block_indent;          # currently required normal indentation at block/statement level
@@ -791,7 +791,7 @@ while (<>) { # loop over all lines of all input files
         # treat remaining blinded comments and string literal contents as (single) space during matching below
         $intra_line =~ s/@+/ /g;                     # note that extra SPC has already been handled above
         $intra_line =~ s/\s+$//;                     # strip any (resulting) space at EOL
-        # replace ';;' or '; ;' by ';' in "for(;;)" and in "for (...)" unless "..." contains just SPC and ';' characters:
+        # replace ';;' or '; ;' by ';' in "for (;;)" and in "for (...)" unless "..." contains just SPC and ';' characters:
         $intra_line =~ s/((^|\W)for\s*\()([^;]*?)(\s*)(;\s?);(\s*)([^;]*)(\))/
           "$1$3$4".("$3$4$5$6$7" eq ";" || $3 ne "" || $7 ne "" ? "" : $5).";$6$7$8"/eg;
         # strip trailing ';' or '; ' in "for (...)" except in "for (;;)" or "for (;; )":
@@ -904,7 +904,7 @@ while (<>) { # loop over all lines of all input files
         # handle opening brace '{' after if/else/while/for/switch/do on line before
         if ($hanging_offset > 0 && m/^[\s@]*{/ && # leading opening '{'
             $line_before > 0 &&
-            $contents_before_ =~ m/(^|^.*\W)(if|else|while|for|switch|do)(\W.*$|$)/) {
+            $contents_before_ =~ m/(^|^.*\W)(if|else|while|for|(OSSL_)?LIST_FOREACH(_\w+)?|switch|do)(\W.*$|$)/) {
             $keyword_opening_brace = $1;
             $hanging_offset -= INDENT_LEVEL; # cancel newly hanging_offset
         }
@@ -966,15 +966,18 @@ while (<>) { # loop over all lines of all input files
 
     my $outermost_level = $block_indent - $preproc_offset == 0;
 
-    report("more than one stmt") if !m/(^|\W)for(\W.*|$)/ && # no 'for' - TODO improve matching
+    report("more than one stmt") if !m/(^|\W)(for|(OSSL_)?LIST_FOREACH(_\w+)?)(\W.*|$)/ && # no 'for' - TODO improve matching
         m/;.*;/; # two or more terminators ';', so more than one statement
 
     # check for code block containing a single line/statement
     if ($line_before2 > 0 && !$outermost_level && # within function body
         $in_typedecl == 0 && @nested_indents == 0 && # neither within type declaration nor inside stmt/expr
-        m/^[\s@]*\}/) { # leading closing brace '}', any preceding blinded comment must not be matched
+        m/^[\s@]*\}\s*(\w*)/) { # leading closing brace '}', any preceding blinded comment must not be matched
         # TODO extend detection from single-line to potentially multi-line statement
+        my $next_word = $1;
         if ($line_opening_brace > 0 &&
+            ($keyword_opening_brace ne "if" ||
+             $extended_1_stmt || $next_word ne "else") &&
             ($line_opening_brace == $line_before2 ||
              $line_opening_brace == $line_before)
             && $contents_before =~ m/;/) { # there is at least one terminator ';', so there is some stmt
@@ -1001,7 +1004,7 @@ while (<>) { # loop over all lines of all input files
     my $assignment_start = 0;
     my $tmp = $_;
     $tmp =~ s/[\!<>=]=/@@/g; # blind (in-)equality symbols like '<=' as '@@' to prevent matching them as '=' below
-    if      (m/^((^|.*\W)(if|while|for|switch))(\W.*|$)$/) { # (last) if/for/while/switch
+    if      (m/^((^|.*\W)(if|while|for|(OSSL_)?LIST_FOREACH(_\w+)?|switch))(\W.*|$)$/) { # (last) if/for/while/switch
         $paren_expr_start = 1;
     } elsif (m/^((^|.*\W)(return|enum))(\W.*|$)/             # (last) return/enum
         && !$in_expr && @nested_indents == 0 && parens_balance($1) == 0) { # not nested enum
@@ -1132,9 +1135,9 @@ while (<>) { # loop over all lines of all input files
                     $line_body_start = $contents =~ m/LONG BODY/ ? 0 : $line if $line_function_start != 0;
                 }
             } else {
-                $line_opening_brace = $line if $keyword_opening_brace =~ m/do|while|for/;
+                $line_opening_brace = $line if $keyword_opening_brace =~ m/if|do|while|for|(OSSL_)?LIST_FOREACH(_\w+)?/;
                 # using, not assigning, $keyword_opening_brace here because it could be on an earlier line
-                $line_opening_brace = $line if $keyword_opening_brace =~ m/if|else/ && $extended_1_stmt &&
+                $line_opening_brace = $line if $keyword_opening_brace eq "else" && $extended_1_stmt &&
                 # TODO prevent false positives for if/else where braces around single-statement branches
                 # should be avoided but only if all branches have just single statements
                 # The following helps detecting the exception when handling multiple 'if ... else' branches:
@@ -1145,11 +1148,11 @@ while (<>) { # loop over all lines of all input files
         }
     }
 
-    # check for opening brace after if/while/for/switch/do not on same line
+    # check for opening brace after if/while/for/switch/do missing on same line
     # note that "missing '{' on same line after '} else'" is handled further below
     if (/^[\s@]*{/ && # leading '{'
         $line_before > 0 && !($contents_before_ =~ m/^\s*#/) && # not preprocessor directive '#if
-        (my ($head, $mid, $tail) = ($contents_before_ =~ m/(^|^.*\W)(if|while|for|switch|do)(\W.*$|$)/))) {
+        (my ($head, $mid, $tail) = ($contents_before_ =~ m/(^|^.*\W)(if|while|for|(OSSL_)?LIST_FOREACH(_\w+)?|switch|do)(\W.*$|$)/))) {
         my $brace_after  = $tail =~ /^[\s@]*{/; # any whitespace or comments then '{'
         report("'{' not on same line as preceding '$mid'") if !$brace_after;
     }

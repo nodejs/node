@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -581,56 +581,7 @@ static void clear_ciphers(SSL *s)
     ssl_clear_hash_ctx(&s->write_hash);
 }
 
-#ifndef OPENSSL_NO_QUIC
 int SSL_clear(SSL *s)
-{
-    if (!SSL_clear_not_quic(s))
-        return 0;
-    return SSL_clear_quic(s);
-}
-
-int SSL_clear_quic(SSL *s)
-{
-    OPENSSL_free(s->ext.peer_quic_transport_params_draft);
-    s->ext.peer_quic_transport_params_draft = NULL;
-    s->ext.peer_quic_transport_params_draft_len = 0;
-    OPENSSL_free(s->ext.peer_quic_transport_params);
-    s->ext.peer_quic_transport_params = NULL;
-    s->ext.peer_quic_transport_params_len = 0;
-    s->quic_read_level = ssl_encryption_initial;
-    s->quic_write_level = ssl_encryption_initial;
-    s->quic_latest_level_received = ssl_encryption_initial;
-    while (s->quic_input_data_head != NULL) {
-        QUIC_DATA *qd;
-
-        qd = s->quic_input_data_head;
-        s->quic_input_data_head = qd->next;
-        OPENSSL_free(qd);
-    }
-    s->quic_input_data_tail = NULL;
-    BUF_MEM_free(s->quic_buf);
-    s->quic_buf = NULL;
-    s->quic_next_record_start = 0;
-    memset(s->client_hand_traffic_secret, 0, EVP_MAX_MD_SIZE);
-    memset(s->server_hand_traffic_secret, 0, EVP_MAX_MD_SIZE);
-    memset(s->client_early_traffic_secret, 0, EVP_MAX_MD_SIZE);
-    /*
-     * CONFIG - DON'T CLEAR
-     * s->ext.quic_transport_params
-     * s->ext.quic_transport_params_len
-     * s->quic_transport_version
-     * s->quic_method = NULL;
-     */
-    return 1;
-}
-#endif
-
-/* Keep this conditional very local */
-#ifndef OPENSSL_NO_QUIC
-int SSL_clear_not_quic(SSL *s)
-#else
-int SSL_clear(SSL *s)
-#endif
 {
     if (s->method == NULL) {
         ERR_raise(ERR_LIB_SSL, SSL_R_NO_METHOD_SPECIFIED);
@@ -904,10 +855,6 @@ SSL *SSL_new(SSL_CTX *ctx)
     s->async_cb_arg = ctx->async_cb_arg;
 
     s->job = NULL;
-
-#ifndef OPENSSL_NO_QUIC
-    s->quic_method = ctx->quic_method;
-#endif
 
 #ifndef OPENSSL_NO_CT
     if (!SSL_set_ct_validation_callback(s, ctx->ct_validation_callback,
@@ -1305,20 +1252,6 @@ void SSL_free(SSL *s)
     OPENSSL_free(s->clienthello);
     OPENSSL_free(s->pha_context);
     EVP_MD_CTX_free(s->pha_dgst);
-
-#ifndef OPENSSL_NO_QUIC
-    OPENSSL_free(s->ext.quic_transport_params);
-    OPENSSL_free(s->ext.peer_quic_transport_params_draft);
-    OPENSSL_free(s->ext.peer_quic_transport_params);
-    BUF_MEM_free(s->quic_buf);
-    while (s->quic_input_data_head != NULL) {
-        QUIC_DATA *qd;
-
-        qd = s->quic_input_data_head;
-        s->quic_input_data_head = qd->next;
-        OPENSSL_free(qd);
-    }
-#endif
 
     sk_X509_NAME_pop_free(s->ca_names, X509_NAME_free);
     sk_X509_NAME_pop_free(s->client_ca_names, X509_NAME_free);
@@ -1919,12 +1852,6 @@ static int ssl_io_intern(void *vargs)
 
 int ssl_read_internal(SSL *s, void *buf, size_t num, size_t *readbytes)
 {
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_IS_QUIC(s)) {
-        ERR_raise(ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
-    }
-#endif
     if (s->handshake_func == NULL) {
         ERR_raise(ERR_LIB_SSL, SSL_R_UNINITIALIZED);
         return -1;
@@ -2056,12 +1983,6 @@ int SSL_get_early_data_status(const SSL *s)
 
 static int ssl_peek_internal(SSL *s, void *buf, size_t num, size_t *readbytes)
 {
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_IS_QUIC(s)) {
-        ERR_raise(ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
-    }
-#endif
     if (s->handshake_func == NULL) {
         ERR_raise(ERR_LIB_SSL, SSL_R_UNINITIALIZED);
         return -1;
@@ -2122,12 +2043,6 @@ int SSL_peek_ex(SSL *s, void *buf, size_t num, size_t *readbytes)
 
 int ssl_write_internal(SSL *s, const void *buf, size_t num, size_t *written)
 {
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_IS_QUIC(s)) {
-        ERR_raise(ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        return -1;
-    }
-#endif
     if (s->handshake_func == NULL) {
         ERR_raise(ERR_LIB_SSL, SSL_R_UNINITIALIZED);
         return -1;
@@ -3037,37 +2952,54 @@ int SSL_select_next_proto(unsigned char **out, unsigned char *outlen,
                           unsigned int server_len,
                           const unsigned char *client, unsigned int client_len)
 {
-    unsigned int i, j;
-    const unsigned char *result;
-    int status = OPENSSL_NPN_UNSUPPORTED;
+    PACKET cpkt, csubpkt, spkt, ssubpkt;
+
+    if (!PACKET_buf_init(&cpkt, client, client_len)
+            || !PACKET_get_length_prefixed_1(&cpkt, &csubpkt)
+            || PACKET_remaining(&csubpkt) == 0) {
+        *out = NULL;
+        *outlen = 0;
+        return OPENSSL_NPN_NO_OVERLAP;
+    }
+
+    /*
+     * Set the default opportunistic protocol. Will be overwritten if we find
+     * a match.
+     */
+    *out = (unsigned char *)PACKET_data(&csubpkt);
+    *outlen = (unsigned char)PACKET_remaining(&csubpkt);
 
     /*
      * For each protocol in server preference order, see if we support it.
      */
-    for (i = 0; i < server_len;) {
-        for (j = 0; j < client_len;) {
-            if (server[i] == client[j] &&
-                memcmp(&server[i + 1], &client[j + 1], server[i]) == 0) {
-                /* We found a match */
-                result = &server[i];
-                status = OPENSSL_NPN_NEGOTIATED;
-                goto found;
+    if (PACKET_buf_init(&spkt, server, server_len)) {
+        while (PACKET_get_length_prefixed_1(&spkt, &ssubpkt)) {
+            if (PACKET_remaining(&ssubpkt) == 0)
+                continue; /* Invalid - ignore it */
+            if (PACKET_buf_init(&cpkt, client, client_len)) {
+                while (PACKET_get_length_prefixed_1(&cpkt, &csubpkt)) {
+                    if (PACKET_equal(&csubpkt, PACKET_data(&ssubpkt),
+                                     PACKET_remaining(&ssubpkt))) {
+                        /* We found a match */
+                        *out = (unsigned char *)PACKET_data(&ssubpkt);
+                        *outlen = (unsigned char)PACKET_remaining(&ssubpkt);
+                        return OPENSSL_NPN_NEGOTIATED;
+                    }
+                }
+                /* Ignore spurious trailing bytes in the client list */
+            } else {
+                /* This should never happen */
+                return OPENSSL_NPN_NO_OVERLAP;
             }
-            j += client[j];
-            j++;
         }
-        i += server[i];
-        i++;
+        /* Ignore spurious trailing bytes in the server list */
     }
 
-    /* There's no overlap between our protocols and the server's list. */
-    result = client;
-    status = OPENSSL_NPN_NO_OVERLAP;
-
- found:
-    *out = (unsigned char *)result + 1;
-    *outlen = result[0];
-    return status;
+    /*
+     * There's no overlap between our protocols and the server's list. We use
+     * the default opportunistic protocol selected earlier
+     */
+    return OPENSSL_NPN_NO_OVERLAP;
 }
 
 #ifndef OPENSSL_NO_NEXTPROTONEG
@@ -3821,9 +3753,10 @@ void ssl_update_cache(SSL *s, int mode)
 
     /*
      * If the session_id_length is 0, we are not supposed to cache it, and it
-     * would be rather hard to do anyway :-)
+     * would be rather hard to do anyway :-). Also if the session has already
+     * been marked as not_resumable we should not cache it for later reuse.
      */
-    if (s->session->session_id_length == 0)
+    if (s->session->session_id_length == 0 || s->session->not_resumable)
         return;
 
     /*
@@ -3942,11 +3875,6 @@ int SSL_get_error(const SSL *s, int i)
     }
 
     if (SSL_want_read(s)) {
-#ifndef OPENSSL_NO_QUIC
-        if (SSL_IS_QUIC(s)) {
-            return SSL_ERROR_WANT_READ;
-        }
-#endif
         bio = SSL_get_rbio(s);
         if (BIO_should_read(bio))
             return SSL_ERROR_WANT_READ;
@@ -4046,21 +3974,6 @@ int SSL_do_handshake(SSL *s)
             ret = s->handshake_func(s);
         }
     }
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_IS_QUIC(s) && ret == 1) {
-        if (s->server) {
-            if (s->early_data_state == SSL_EARLY_DATA_ACCEPTING) {
-                s->early_data_state = SSL_EARLY_DATA_FINISHED_READING;
-                s->rwstate = SSL_READING;
-                ret = 0;
-            }
-        } else if (s->early_data_state == SSL_EARLY_DATA_CONNECTING) {
-            s->early_data_state = SSL_EARLY_DATA_WRITE_RETRY;
-            s->rwstate = SSL_READING;
-            ret = 0;
-        }
-    }
-#endif
     return ret;
 }
 
@@ -5594,6 +5507,9 @@ int SSL_free_buffers(SSL *ssl)
     RECORD_LAYER *rl = &ssl->rlayer;
 
     if (RECORD_LAYER_read_pending(rl) || RECORD_LAYER_write_pending(rl))
+        return 0;
+
+    if (RECORD_LAYER_data_present(rl))
         return 0;
 
     RECORD_LAYER_release(rl);

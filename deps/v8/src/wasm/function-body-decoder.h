@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_FUNCTION_BODY_DECODER_H_
+#define V8_WASM_FUNCTION_BODY_DECODER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_FUNCTION_BODY_DECODER_H_
-#define V8_WASM_FUNCTION_BODY_DECODER_H_
 
 #include "src/base/compiler-specific.h"
 #include "src/base/iterator.h"
@@ -15,16 +15,17 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8::internal {
 class AccountingAllocator;
 class BitVector;
+class Zone;
 }  // namespace v8::internal
 
 namespace v8::internal::wasm {
 
-class WasmFeatures;
+class WasmDetectedFeatures;
+class WasmEnabledFeatures;
 struct WasmModule;  // forward declaration of module interface.
 
 // A wrapper around the signature and bytes of a function.
@@ -33,32 +34,22 @@ struct FunctionBody {
   uint32_t offset;         // offset in the module bytes, for error reporting
   const uint8_t* start;    // start of the function body
   const uint8_t* end;      // end of the function body
+  bool is_shared;          // whether this is a shared function
 
   FunctionBody(const FunctionSig* sig, uint32_t offset, const uint8_t* start,
-               const uint8_t* end)
-      : sig(sig), offset(offset), start(start), end(end) {}
+               const uint8_t* end, bool is_shared)
+      : sig(sig),
+        offset(offset),
+        start(start),
+        end(end),
+        is_shared(is_shared) {}
 };
 
 enum class LoadTransformationKind : uint8_t { kSplat, kExtend, kZeroExtend };
 
-V8_EXPORT_PRIVATE DecodeResult ValidateFunctionBody(WasmFeatures enabled,
-                                                    const WasmModule* module,
-                                                    WasmFeatures* detected,
-                                                    const FunctionBody& body);
-
-enum PrintLocals { kPrintLocals, kOmitLocals };
-V8_EXPORT_PRIVATE
-bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const WasmModule* module, PrintLocals print_locals);
-
-V8_EXPORT_PRIVATE
-bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const WasmModule* module, PrintLocals print_locals,
-                      std::ostream& out,
-                      std::vector<int>* line_numbers = nullptr);
-
-// A simplified form of AST printing, e.g. from a debugger.
-void PrintRawWasmCode(const uint8_t* start, const uint8_t* end);
+V8_EXPORT_PRIVATE DecodeResult ValidateFunctionBody(
+    Zone* zone, WasmEnabledFeatures enabled, const WasmModule* module,
+    WasmDetectedFeatures* detected, const FunctionBody& body);
 
 struct BodyLocalDecls {
   // The size of the encoded declarations.
@@ -69,15 +60,16 @@ struct BodyLocalDecls {
 };
 
 // Decode locals; validation is not performed.
-V8_EXPORT_PRIVATE void DecodeLocalDecls(WasmFeatures enabled,
+V8_EXPORT_PRIVATE void DecodeLocalDecls(WasmEnabledFeatures enabled,
                                         BodyLocalDecls* decls,
                                         const uint8_t* start,
                                         const uint8_t* end, Zone* zone);
 
 // Decode locals, including validation.
 V8_EXPORT_PRIVATE bool ValidateAndDecodeLocalDeclsForTesting(
-    WasmFeatures enabled, BodyLocalDecls* decls, const WasmModule* module,
-    const uint8_t* start, const uint8_t* end, Zone* zone);
+    WasmEnabledFeatures enabled, BodyLocalDecls* decls,
+    const WasmModule* module, bool is_shared, const uint8_t* start,
+    const uint8_t* end, Zone* zone);
 
 V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(
     Zone* zone, uint32_t num_locals, const uint8_t* start, const uint8_t* end,
@@ -101,9 +93,6 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
     }
     bool operator==(const iterator_base& that) const {
       return this->ptr_ == that.ptr_;
-    }
-    bool operator!=(const iterator_base& that) const {
-      return this->ptr_ != that.ptr_;
     }
 
    protected:

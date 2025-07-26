@@ -11,7 +11,6 @@
 #include "include/v8-function-callback.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-promise.h"
-#include "src/base/platform/mutex.h"
 
 namespace v8 {
 
@@ -29,6 +28,9 @@ struct AsyncContext {
 
 class AsyncHooksWrap {
  public:
+  static constexpr internal::ExternalPointerTag kManagedTag =
+      internal::kGenericManagedTag;
+
   explicit AsyncHooksWrap(Isolate* isolate)
       : isolate_(isolate), enabled_(false) {}
   void Enable();

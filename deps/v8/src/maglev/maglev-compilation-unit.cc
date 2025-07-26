@@ -15,34 +15,42 @@ namespace internal {
 namespace maglev {
 
 MaglevCompilationUnit::MaglevCompilationUnit(MaglevCompilationInfo* info,
-                                             Handle<JSFunction> function)
+                                             DirectHandle<JSFunction> function)
     : MaglevCompilationUnit(
           info, nullptr,
           MakeRef(info->broker(), info->broker()->CanonicalPersistentHandle(
                                       function->shared())),
           MakeRef(info->broker(), info->broker()->CanonicalPersistentHandle(
-                                      function->feedback_vector()))) {}
+                                      function->raw_feedback_cell()))) {}
 
 MaglevCompilationUnit::MaglevCompilationUnit(
     MaglevCompilationInfo* info, const MaglevCompilationUnit* caller,
     compiler::SharedFunctionInfoRef shared_function_info,
-    compiler::FeedbackVectorRef feedback_vector)
+    compiler::FeedbackCellRef feedback_cell)
     : info_(info),
       caller_(caller),
       shared_function_info_(shared_function_info),
       bytecode_(shared_function_info.GetBytecodeArray(broker())),
-      feedback_(feedback_vector),
+      feedback_cell_(feedback_cell),
       register_count_(bytecode_->register_count()),
       parameter_count_(bytecode_->parameter_count()),
-      inlining_depth_(caller == nullptr ? 0 : caller->inlining_depth_ + 1) {}
+      max_arguments_(bytecode_->max_arguments()),
+      inlining_depth_(caller == nullptr ? 0 : caller->inlining_depth_ + 1) {
+  // Check that the parameter count in the bytecode and in the shared function
+  // info are consistent.
+  DCHECK_EQ(bytecode_->parameter_count(),
+            shared_function_info
+                .internal_formal_parameter_count_with_receiver_deprecated());
+}
 
 MaglevCompilationUnit::MaglevCompilationUnit(
     MaglevCompilationInfo* info, const MaglevCompilationUnit* caller,
-    int register_count, int parameter_count)
+    int register_count, uint16_t parameter_count, uint16_t max_arguments)
     : info_(info),
       caller_(caller),
       register_count_(register_count),
       parameter_count_(parameter_count),
+      max_arguments_(max_arguments),
       inlining_depth_(caller == nullptr ? 0 : caller->inlining_depth_ + 1) {}
 
 compiler::JSHeapBroker* MaglevCompilationUnit::broker() const {
@@ -64,6 +72,15 @@ void MaglevCompilationUnit::RegisterNodeInGraphLabeller(const Node* node) {
   if (has_graph_labeller()) {
     graph_labeller()->RegisterNode(node);
   }
+}
+
+const MaglevCompilationUnit* MaglevCompilationUnit::GetTopLevelCompilationUnit()
+    const {
+  const MaglevCompilationUnit* unit = this;
+  while (unit->is_inline()) {
+    unit = unit->caller();
+  }
+  return unit;
 }
 
 bool MaglevCompilationUnit::is_osr() const {

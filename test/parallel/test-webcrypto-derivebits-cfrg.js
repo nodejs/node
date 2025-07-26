@@ -102,6 +102,16 @@ async function prepareKeys() {
       }
 
       {
+        // Default length
+        const bits = await subtle.deriveBits({
+          name,
+          public: publicKey
+        }, privateKey);
+
+        assert.strictEqual(Buffer.from(bits).toString('hex'), result);
+      }
+
+      {
         // Short Result
         const bits = await subtle.deriveBits({
           name,
@@ -130,9 +140,11 @@ async function prepareKeys() {
           public: publicKey
         }, privateKey, 8 * size - 11);
 
-        assert.strictEqual(
-          Buffer.from(bits).toString('hex'),
-          result.slice(0, -2));
+        const expected = Buffer.from(result.slice(0, -2), 'hex');
+        expected[size - 2] = expected[size - 2] & 0b11111000;
+        assert.deepStrictEqual(
+          Buffer.from(bits),
+          expected);
       }
     }));
 
@@ -170,7 +182,7 @@ async function prepareKeys() {
         },
         keys.X448.privateKey,
         8 * keys.X448.size),
-      { message: 'The public and private keys must be of the same type' });
+      { message: 'algorithm.public must be an X448 key' });
   }
 
   {

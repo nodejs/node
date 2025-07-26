@@ -71,7 +71,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
       auto state = nexus.ic_state();
       if (state == InlineCacheState::MONOMORPHIC ||
           state == InlineCacheState::POLYMORPHIC) {
-        MapHandles maps;
+        MapHandles maps(isolate);
         nexus.ExtractMaps(&maps);
         for (unsigned int j = 0; j < maps.size(); j++) {
           EXPECT_TRUE(IsMap(*maps[j]));
@@ -107,7 +107,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
         FeedbackNexus nexus(feedback_vector_, slot, nexus_config);
         auto state = nexus.ic_state();
         EXPECT_EQ(state, InlineCacheState::MONOMORPHIC);
-        MapHandles maps;
+        MapHandles maps(isolate);
         nexus.ExtractMaps(&maps);
         EXPECT_TRUE(IsMap(*maps[0]));
       }
@@ -118,7 +118,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
         FeedbackNexus nexus(feedback_vector_, slot, nexus_config);
         auto state = nexus.ic_state();
         EXPECT_EQ(state, InlineCacheState::POLYMORPHIC);
-        MapHandles maps;
+        MapHandles maps(isolate);
         nexus.ExtractMaps(&maps);
         for (unsigned int i = 0; i < maps.size(); i++) {
           EXPECT_TRUE(IsMap(*maps[i]));
@@ -166,14 +166,14 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
   std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
   HandleScope handle_scope(i_isolate());
 
-  Handle<HeapObject> o1 =
-      Handle<HeapObject>::cast(Utils::OpenHandle(*RunJS("o1 = { bar: {} };")));
-  Handle<HeapObject> o2 = Handle<HeapObject>::cast(
-      Utils::OpenHandle(*RunJS("o2 = { baz: 3, bar: 3 };")));
-  Handle<HeapObject> o3 = Handle<HeapObject>::cast(
-      Utils::OpenHandle(*RunJS("o3 = { blu: 3, baz: 3, bar: 3 };")));
-  Handle<HeapObject> o4 = Handle<HeapObject>::cast(
-      Utils::OpenHandle(*RunJS("o4 = { ble: 3, blu: 3, baz: 3, bar: 3 };")));
+  DirectHandle<HeapObject> o1 =
+      Cast<HeapObject>(Utils::OpenDirectHandle(*RunJS("o1 = { bar: {} };")));
+  DirectHandle<HeapObject> o2 = Cast<HeapObject>(
+      Utils::OpenDirectHandle(*RunJS("o2 = { baz: 3, bar: 3 };")));
+  DirectHandle<HeapObject> o3 = Cast<HeapObject>(
+      Utils::OpenDirectHandle(*RunJS("o3 = { blu: 3, baz: 3, bar: 3 };")));
+  DirectHandle<HeapObject> o4 = Cast<HeapObject>(Utils::OpenDirectHandle(
+      *RunJS("o4 = { ble: 3, blu: 3, baz: 3, bar: 3 };")));
   auto result = RunJS(
       "function foo(o) {"
       "  let a = o.bar;"
@@ -181,11 +181,11 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
       "}"
       "foo(o1);"
       "foo;");
-  Handle<JSFunction> function =
-      Handle<JSFunction>::cast(Utils::OpenHandle(*result));
+  DirectHandle<JSFunction> function =
+      Cast<JSFunction>(Utils::OpenDirectHandle(*result));
   Handle<FeedbackVector> vector(function->feedback_vector(), i_isolate());
   FeedbackSlot slot(0);
-  FeedbackNexus nexus(vector, slot);
+  FeedbackNexus nexus(i_isolate(), vector, slot);
   EXPECT_TRUE(IsLoadICKind(nexus.kind()));
   EXPECT_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   nexus.ConfigureUninitialized();
@@ -195,7 +195,7 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
   base::Semaphore vector_ready(0);
   base::Semaphore vector_consumed(0);
   Handle<FeedbackVector> persistent_vector =
-      Handle<FeedbackVector>::cast(ph->NewHandle(vector));
+      Cast<FeedbackVector>(ph->NewHandle(vector));
   std::unique_ptr<FeedbackVectorExplorationThread> thread(
       new FeedbackVectorExplorationThread(i_isolate()->heap(), &sema_started,
                                           &vector_ready, &vector_consumed,
@@ -207,7 +207,8 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
 
   // {dummy_handler} is just an arbitrary value to associate with a map in order
   // to fill in the feedback vector slots in a minimally acceptable way.
-  MaybeObjectHandle dummy_handler(Smi::FromInt(10), i_isolate());
+  MaybeObjectDirectHandle dummy_handler(Tagged<Object>(Smi::FromInt(10)),
+                                        i_isolate());
   for (int i = 0; i < kCycles; i++) {
     if (all_states_seen.load(std::memory_order_acquire)) break;
 
@@ -219,8 +220,9 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
       CheckedWait(vector_consumed);
       fprintf(stderr, "Main thread configuring monomorphic\n");
     }
-    nexus.ConfigureMonomorphic(
-        Handle<Name>(), Handle<Map>(o1->map(), i_isolate()), dummy_handler);
+    nexus.ConfigureMonomorphic(DirectHandle<Name>(),
+                               DirectHandle<Map>(o1->map(), i_isolate()),
+                               dummy_handler);
     EXPECT_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 
     if (i == (kCycles - 1)) {
@@ -230,16 +232,16 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
     }
 
     // Go polymorphic.
-    std::vector<MapAndHandler> map_and_handlers;
-    map_and_handlers.push_back(
-        MapAndHandler(Handle<Map>(o1->map(), i_isolate()), dummy_handler));
-    map_and_handlers.push_back(
-        MapAndHandler(Handle<Map>(o2->map(), i_isolate()), dummy_handler));
-    map_and_handlers.push_back(
-        MapAndHandler(Handle<Map>(o3->map(), i_isolate()), dummy_handler));
-    map_and_handlers.push_back(
-        MapAndHandler(Handle<Map>(o4->map(), i_isolate()), dummy_handler));
-    nexus.ConfigurePolymorphic(Handle<Name>(), map_and_handlers);
+    MapsAndHandlers map_and_handlers(i_isolate());
+    map_and_handlers.emplace_back(direct_handle(o1->map(), i_isolate()),
+                                  dummy_handler);
+    map_and_handlers.emplace_back(direct_handle(o2->map(), i_isolate()),
+                                  dummy_handler);
+    map_and_handlers.emplace_back(direct_handle(o3->map(), i_isolate()),
+                                  dummy_handler);
+    map_and_handlers.emplace_back(direct_handle(o4->map(), i_isolate()),
+                                  dummy_handler);
+    nexus.ConfigurePolymorphic(DirectHandle<Name>(), map_and_handlers);
     EXPECT_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
 
     if (i == (kCycles - 1)) {

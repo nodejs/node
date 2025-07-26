@@ -87,10 +87,10 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 constexpr Register no_reg = Register::no_reg();
 
 // ARM calling convention
-constexpr Register arg_reg_1 = r0;
-constexpr Register arg_reg_2 = r1;
-constexpr Register arg_reg_3 = r2;
-constexpr Register arg_reg_4 = r3;
+constexpr Register kCArgRegs[] = {r0, r1, r2, r3};
+static const int kRegisterPassedArguments = arraysize(kCArgRegs);
+// The hardfloat calling convention passes double arguments in registers d0-d7.
+static const int kDoubleRegisterPassedArguments = 8;
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
@@ -316,11 +316,14 @@ constexpr Register kJavaScriptCallCodeStartRegister = r2;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = r3;
 constexpr Register kJavaScriptCallExtraArg1Register = r2;
+// DispatchHandle is only needed for the sandbox which is not available on
+// Arm32.
+constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
 
 constexpr Register kRuntimeCallFunctionRegister = r1;
 constexpr Register kRuntimeCallArgCountRegister = r0;
 constexpr Register kRuntimeCallArgvRegister = r2;
-constexpr Register kWasmInstanceRegister = r3;
+constexpr Register kWasmImplicitArgRegister = r3;
 constexpr Register kWasmCompileLazyFuncIndexRegister = r4;
 
 // Give alias names to registers

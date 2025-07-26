@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_FREE_SPACE_INL_H_
 #define V8_OBJECTS_FREE_SPACE_INL_H_
 
+#include "src/objects/free-space.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
-#include "src/objects/free-space.h"
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -23,6 +25,13 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(FreeSpace)
 
 RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
+// static
+inline void FreeSpace::SetSize(const WritableFreeSpace& writable_free_space,
+                               int size, RelaxedStoreTag tag) {
+  writable_free_space.WriteHeaderSlot<Smi, kSizeOffset>(Smi::FromInt(size),
+                                                        tag);
+}
+
 int FreeSpace::Size() { return size(kRelaxedLoad); }
 
 Tagged<FreeSpace> FreeSpace::next() const {
@@ -34,48 +43,33 @@ Tagged<FreeSpace> FreeSpace::next() const {
     return FreeSpace();
   }
   Address next_ptr = ptr() + diff_to_next * kObjectAlignment;
-  return FreeSpace::unchecked_cast(Tagged<Object>(next_ptr));
+  return UncheckedCast<FreeSpace>(Tagged<Object>(next_ptr));
 #else
-  return FreeSpace::unchecked_cast(
+  return UncheckedCast<FreeSpace>(
       TaggedField<Object, kNextOffset>::load(*this));
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-void FreeSpace::set_next(Tagged<FreeSpace> next) {
+void FreeSpace::SetNext(const WritableFreeSpace& writable_free_space,
+                        Tagged<FreeSpace> next) {
   DCHECK(IsValid());
+
 #ifdef V8_EXTERNAL_CODE_SPACE
   if (next.is_null()) {
-    TaggedField<Smi, kNextOffset>::Relaxed_Store(*this, Smi::zero());
+    writable_free_space.WriteHeaderSlot<Smi, kNextOffset>(Smi::zero(),
+                                                          kRelaxedStore);
     return;
   }
   intptr_t diff_to_next = next.ptr() - ptr();
   DCHECK(IsAligned(diff_to_next, kObjectAlignment));
-  TaggedField<Smi, kNextOffset>::Relaxed_Store(
-      *this, Smi::FromIntptr(diff_to_next / kObjectAlignment));
+  writable_free_space.WriteHeaderSlot<Smi, kNextOffset>(
+      Smi::FromIntptr(diff_to_next / kObjectAlignment), kRelaxedStore);
 #else
-  TaggedField<Object, kNextOffset>::Relaxed_Store(*this, next);
+  writable_free_space.WriteHeaderSlot<Object, kNextOffset>(next, kRelaxedStore);
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-Tagged<FreeSpace> FreeSpace::cast(Tagged<HeapObject> o) {
-  SLOW_DCHECK((!GetHeapFromWritableObject(o)->deserialization_complete()) ||
-              IsFreeSpace(o));
-  return base::bit_cast<FreeSpace>(o);
-}
-
-Tagged<FreeSpace> FreeSpace::unchecked_cast(const Tagged<Object> o) {
-  return base::bit_cast<FreeSpace>(o);
-}
-
-bool FreeSpace::IsValid() const {
-  Heap* heap = GetHeapFromWritableObject(*this);
-  Tagged<Object> free_space_map =
-      Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
-  CHECK(!heap->deserialization_complete() ||
-        map_slot().contains_map_value(free_space_map.ptr()));
-  CHECK_LE(kNextOffset + kTaggedSize, size(kRelaxedLoad));
-  return true;
-}
+bool FreeSpace::IsValid() const { return Heap::IsFreeSpaceValid(*this); }
 
 }  // namespace internal
 }  // namespace v8

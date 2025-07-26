@@ -43,8 +43,11 @@
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/embedder-state.h"
+#include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/flags/flags.h"
+#include "src/heap/memory-chunk.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/spaces.h"
 #include "src/init/v8.h"
 #include "src/libsampler/sampler.h"
@@ -158,8 +161,8 @@ i::Tagged<i::AbstractCode> CreateCode(i::Isolate* isolate, LocalContext* env) {
                  name_start, counter, name_start, name_start);
   CompileRun(script.begin());
 
-  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(
-      v8::Utils::OpenHandle(*GetFunction(env->local(), name_start)));
+  i::DirectHandle<i::JSFunction> fun = i::Cast<i::JSFunction>(
+      v8::Utils::OpenDirectHandle(*GetFunction(env->local(), name_start)));
   return fun->abstract_code(isolate);
 }
 
@@ -172,10 +175,13 @@ TEST(CodeEvents) {
 
   i::HandleScope scope(isolate);
 
-  i::Handle<i::AbstractCode> aaa_code(CreateCode(isolate, &env), isolate);
-  i::Handle<i::AbstractCode> comment_code(CreateCode(isolate, &env), isolate);
-  i::Handle<i::AbstractCode> comment2_code(CreateCode(isolate, &env), isolate);
-  i::Handle<i::AbstractCode> moved_code(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> aaa_code(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> comment_code(CreateCode(isolate, &env),
+                                                isolate);
+  i::DirectHandle<i::AbstractCode> comment2_code(CreateCode(isolate, &env),
+                                                 isolate);
+  i::DirectHandle<i::AbstractCode> moved_code(CreateCode(isolate, &env),
+                                              isolate);
 
   CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
@@ -193,7 +199,8 @@ TEST(CodeEvents) {
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
-  i::Handle<i::String> aaa_name = factory->NewStringFromAsciiChecked(aaa_str);
+  i::DirectHandle<i::String> aaa_name =
+      factory->NewStringFromAsciiChecked(aaa_str);
   profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kFunction,
                                     aaa_code, aaa_name);
   profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kBuiltin,
@@ -248,9 +255,12 @@ TEST(TickEvents) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::Handle<i::AbstractCode> frame1_code(CreateCode(isolate, &env), isolate);
-  i::Handle<i::AbstractCode> frame2_code(CreateCode(isolate, &env), isolate);
-  i::Handle<i::AbstractCode> frame3_code(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> frame1_code(CreateCode(isolate, &env),
+                                               isolate);
+  i::DirectHandle<i::AbstractCode> frame2_code(CreateCode(isolate, &env),
+                                               isolate);
+  i::DirectHandle<i::AbstractCode> frame3_code(CreateCode(isolate, &env),
+                                               isolate);
 
   CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
@@ -318,7 +328,7 @@ TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
   i::HandleScope scope(isolate);
 
   // This gets logged when the profiler starts up and scans the heap.
-  i::Handle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
 
   CpuProfiler profiler(isolate, kDebugNaming, kLazyLogging);
   profiler.StartProfiling("");
@@ -333,7 +343,7 @@ TEST(CodeMapClearedBetweenProfilesWithLazyLogging) {
   profiler.DeleteProfile(profile);
 
   // Create code between profiles. This should not be logged yet.
-  i::Handle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
 
   CHECK(!instruction_stream_map->FindEntry(code2->InstructionStart(isolate)));
 }
@@ -345,7 +355,7 @@ TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
   i::HandleScope scope(isolate);
 
   // This gets logged when the profiler starts up and scans the heap.
-  i::Handle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> code1(CreateCode(isolate, &env), isolate);
 
   CpuProfiler profiler(isolate, kDebugNaming, kEagerLogging);
   profiler.StartProfiling("");
@@ -370,7 +380,7 @@ TEST(CodeMapNotClearedBetweenProfilesWithEagerLogging) {
   CHECK_EQ(0, strcmp("function_1", code1_entry->name()));
 
   // Create code between profiles. This should be logged too.
-  i::Handle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> code2(CreateCode(isolate, &env), isolate);
   CHECK(instruction_stream_map->FindEntry(code2->InstructionStart(cage_base)));
 
   profiler.StartProfiling("");
@@ -421,7 +431,7 @@ TEST(Issue1398) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::Handle<i::AbstractCode> code(CreateCode(isolate, &env), isolate);
+  i::DirectHandle<i::AbstractCode> code(CreateCode(isolate, &env), isolate);
 
   CodeEntryStorage storage;
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
@@ -990,13 +1000,13 @@ class TestApiCallbacks {
   explicit TestApiCallbacks(int min_duration_ms)
       : min_duration_ms_(min_duration_ms), is_warming_up_(false) {}
 
-  static void Getter(v8::Local<v8::String> name,
+  static void Getter(v8::Local<v8::Name> name,
                      const v8::PropertyCallbackInfo<v8::Value>& info) {
     TestApiCallbacks* data = FromInfo(info);
     data->Wait();
   }
 
-  static void Setter(v8::Local<v8::String> name, v8::Local<v8::Value> value,
+  static void Setter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
                      const v8::PropertyCallbackInfo<void>& info) {
     TestApiCallbacks* data = FromInfo(info);
     data->Wait();
@@ -1047,8 +1057,9 @@ TEST(NativeAccessorUninitializedIC) {
 
   TestApiCallbacks accessors(100);
   v8::Local<v8::External> data = v8::External::New(isolate, &accessors);
-  instance_template->SetAccessor(v8_str("foo"), &TestApiCallbacks::Getter,
-                                 &TestApiCallbacks::Setter, data);
+  instance_template->SetNativeDataProperty(v8_str("foo"),
+                                           &TestApiCallbacks::Getter,
+                                           &TestApiCallbacks::Setter, data);
   v8::Local<v8::Function> func =
       func_template->GetFunction(env.local()).ToLocalChecked();
   v8::Local<v8::Object> instance =
@@ -1086,8 +1097,9 @@ TEST(NativeAccessorMonomorphicIC) {
 
   TestApiCallbacks accessors(1);
   v8::Local<v8::External> data = v8::External::New(isolate, &accessors);
-  instance_template->SetAccessor(v8_str("foo"), &TestApiCallbacks::Getter,
-                                 &TestApiCallbacks::Setter, data);
+  instance_template->SetNativeDataProperty(v8_str("foo"),
+                                           &TestApiCallbacks::Getter,
+                                           &TestApiCallbacks::Setter, data);
   v8::Local<v8::Function> func =
       func_template->GetFunction(env.local()).ToLocalChecked();
   v8::Local<v8::Object> instance =
@@ -1308,13 +1320,13 @@ static void TickLines(bool optimize) {
 
   CompileRun(script.begin());
 
-  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
-      v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
+  i::DirectHandle<i::JSFunction> func = i::Cast<i::JSFunction>(
+      v8::Utils::OpenDirectHandle(*GetFunction(env.local(), func_name)));
   CHECK(!func->shared().is_null());
   CHECK(!func->shared()->abstract_code(isolate).is_null());
-  CHECK(!optimize || func->HasAttachedOptimizedCode() ||
-        !CcTest::i_isolate()->use_optimizer());
-  i::Handle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
+  CHECK(!optimize || func->HasAttachedOptimizedCode(isolate) ||
+        !isolate->use_optimizer());
+  i::DirectHandle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
   CHECK(!(*code).is_null());
   i::Address code_address = code->InstructionStart(isolate);
   CHECK_NE(code_address, kNullAddress);
@@ -1342,12 +1354,13 @@ static void TickLines(bool optimize) {
                                      *code_observer->weak_code_registry());
 
   // Enqueue code creation events.
-  i::Handle<i::String> str = factory->NewStringFromAsciiChecked(func_name);
+  i::DirectHandle<i::String> str =
+      factory->NewStringFromAsciiChecked(func_name);
   int line = 1;
   int column = 1;
-  profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kFunction,
-                                    code, handle(func->shared(), isolate), str,
-                                    line, column);
+  profiler_listener.CodeCreateEvent(
+      i::LogEventListener::CodeTag::kFunction, code,
+      direct_handle(func->shared(), isolate), str, line, column);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, code_address);
@@ -1753,17 +1766,21 @@ static void CallCollectSample(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::CpuProfiler::CollectSample(info.GetIsolate());
 }
 
-TEST(CollectSampleAPI) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
-  v8::Context::Scope context_scope(env);
-
+void InstallCollectSampleFunction(v8::Local<v8::Context> env) {
   v8::Local<v8::FunctionTemplate> func_template =
       v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
   v8::Local<v8::Function> func =
       func_template->GetFunction(env).ToLocalChecked();
   func->SetName(v8_str("CallCollectSample"));
   env->Global()->Set(env, v8_str("CallCollectSample"), func).FromJust();
+}
+
+TEST(CollectSampleAPI) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+
+  InstallCollectSampleFunction(env);
 
   CompileRun(js_force_collect_sample_source);
   ProfilerHelper helper(env);
@@ -2124,9 +2141,8 @@ static const char* cross_script_source_c = R"(
     }
     %NeverOptimizeFunction(action);
     function action(n) {
-      var s = 0;
-      for (var i = 0; i < n; ++i) s += i*i*i;
-      return s;
+      CallCollectSample();
+      return n;
     }
   )";
 
@@ -2172,6 +2188,9 @@ TEST(CrossScriptInliningCallerLineNumbers2) {
   v8::HandleScope scope(CcTest::isolate());
   ProfilerHelper helper(env.local());
 
+  // Install CollectSample callback for more deterministic sampling.
+  InstallCollectSampleFunction(env.local());
+
   v8::Local<v8::Script> script_c =
       CompileWithOrigin(cross_script_source_c, "script_c", false);
   v8::Local<v8::Script> script_d =
@@ -2189,7 +2208,7 @@ TEST(CrossScriptInliningCallerLineNumbers2) {
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
 
   v8::Local<v8::Value> args[] = {v8::Integer::New(env->GetIsolate(), 10)};
-  static const unsigned min_samples = 1000;
+  static const unsigned min_samples = 0;
   static const unsigned min_ext_samples = 0;
   v8::CpuProfile* profile =
       helper.Run(function, args, arraysize(args), min_samples, min_ext_samples,
@@ -3627,12 +3646,7 @@ TEST(StandardNaming) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+  InstallCollectSampleFunction(env.local());
 
   v8::CpuProfiler* profiler =
       v8::CpuProfiler::New(env->GetIsolate(), kStandardNaming);
@@ -3658,12 +3672,7 @@ TEST(DebugNaming) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+  InstallCollectSampleFunction(env.local());
 
   v8::CpuProfiler* profiler =
       v8::CpuProfiler::New(env->GetIsolate(), kDebugNaming);
@@ -3913,12 +3922,7 @@ TEST(Bug9151StaleCodeEntries) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+  InstallCollectSampleFunction(env.local());
 
   v8::CpuProfiler* profiler =
       v8::CpuProfiler::New(env->GetIsolate(), kDebugNaming, kEagerLogging);
@@ -3959,14 +3963,7 @@ TEST(ContextIsolation) {
   i::HandleScope scope(CcTest::i_isolate());
 
   // Install CollectSample callback for more deterministic sampling.
-  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
-      execution_env.local()->GetIsolate(), CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(execution_env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  execution_env->Global()
-      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
-      .FromJust();
+  InstallCollectSampleFunction(execution_env.local());
 
   ProfilerHelper helper(execution_env.local());
   CompileRun(R"(
@@ -4036,9 +4033,12 @@ TEST(ContextIsolation) {
 void ValidateEmbedderState(v8::CpuProfile* profile,
                            EmbedderStateTag expected_tag) {
   for (int i = 0; i < profile->GetSamplesCount(); i++) {
-    if (profile->GetSampleState(i) == StateTag::GC) {
-      // Samples captured during a GC do not have an EmbedderState
-      CHECK_EQ(profile->GetSampleEmbedderState(i), EmbedderStateTag::EMPTY);
+    if (profile->GetSampleState(i) == StateTag::GC ||
+        profile->GetSampleState(i) == StateTag::LOGGING) {
+      // Samples captured during a GC (including logging during GC) might not
+      // have an EmbedderState
+      CHECK(profile->GetSampleEmbedderState(i) == expected_tag ||
+            profile->GetSampleEmbedderState(i) == EmbedderStateTag::EMPTY);
     } else {
       CHECK_EQ(profile->GetSampleEmbedderState(i), expected_tag);
     }
@@ -4049,19 +4049,12 @@ void ValidateEmbedderState(v8::CpuProfile* profile,
 TEST(EmbedderContextIsolation) {
   i::v8_flags.allow_natives_syntax = true;
   LocalContext execution_env;
-  i::HandleScope scope(CcTest::i_isolate());
+  i::HandleScope handle_scope(CcTest::i_isolate());
 
   v8::Isolate* isolate = execution_env.local()->GetIsolate();
 
   // Install CollectSample callback for more deterministic sampling.
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(isolate, CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(execution_env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  execution_env->Global()
-      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
-      .FromJust();
+  InstallCollectSampleFunction(execution_env.local());
 
   v8::Local<v8::Context> diff_context = v8::Context::New(isolate);
   {
@@ -4117,14 +4110,7 @@ TEST(EmbedderStatePropagate) {
   v8::Isolate* isolate = execution_env.local()->GetIsolate();
 
   // Install CollectSample callback for more deterministic sampling.
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(isolate, CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(execution_env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  execution_env->Global()
-      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
-      .FromJust();
+  InstallCollectSampleFunction(execution_env.local());
 
   {
     // prepare embedder state
@@ -4174,28 +4160,28 @@ TEST(EmbedderStatePropagate) {
 TEST(EmbedderStatePropagateNativeContextMove) {
   // Reusing context addresses will cause this test to fail.
   if (i::v8_flags.gc_global || i::v8_flags.stress_compaction ||
-      i::v8_flags.stress_incremental_marking ||
-      i::v8_flags.enable_third_party_heap) {
+      i::v8_flags.stress_incremental_marking) {
     return;
   }
+  // If no compaction is performed when a GC with stack is invoked (which
+  // happens, e.g., with conservative stack scanning), this test will fail.
+  if (!i::v8_flags.compact_with_stack) return;
+  if (i::v8_flags.precise_object_pinning) return;
+
   i::v8_flags.allow_natives_syntax = true;
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
       manual_evacuation_candidate_selection_scope(manual_gc_scope);
-  LocalContext execution_env;
   i::HandleScope scope(CcTest::i_isolate());
 
+  // Ensures that the context isn't allocated on a NEVER_EVACUATE page.
+  heap::AbandonCurrentlyFreeMemory(CcTest::i_isolate()->heap()->old_space());
+
+  LocalContext execution_env;
   v8::Isolate* isolate = execution_env.local()->GetIsolate();
 
   // Install CollectSample callback for more deterministic sampling.
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(isolate, CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(execution_env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  execution_env->Global()
-      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
-      .FromJust();
+  InstallCollectSampleFunction(execution_env.local());
 
   {
     // prepare embedder state
@@ -4205,6 +4191,9 @@ TEST(EmbedderStatePropagateNativeContextMove) {
 
     i::Address initial_address =
         CcTest::i_isolate()->current_embedder_state()->native_context_address();
+    CHECK(!PageMetadata::FromAddress(initial_address)
+               ->Chunk()
+               ->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
 
     // Install a function that triggers the native context to be moved.
     v8::Local<v8::FunctionTemplate> move_func_template =
@@ -4213,12 +4202,8 @@ TEST(EmbedderStatePropagateNativeContextMove) {
             [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
-              // We need to invoke GC without stack, otherwise no compaction is
-              // performed.
-              DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-                  isolate->heap());
-              i::heap::ForceEvacuationCandidate(
-                  i::Page::FromHeapObject(isolate->raw_native_context()));
+              i::heap::ForceEvacuationCandidate(i::PageMetadata::FromHeapObject(
+                  isolate->raw_native_context()));
               heap::InvokeMajorGC(isolate->heap());
             });
     v8::Local<v8::Function> move_func =
@@ -4254,7 +4239,6 @@ TEST(EmbedderStatePropagateNativeContextMove) {
 // Tests that when a native context that's being filtered is moved, we continue
 // to track its execution.
 TEST(ContextFilterMovedNativeContext) {
-  if (i::v8_flags.enable_third_party_heap) return;
   i::v8_flags.allow_natives_syntax = true;
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
@@ -4264,14 +4248,7 @@ TEST(ContextFilterMovedNativeContext) {
 
   {
     // Install CollectSample callback for more deterministic sampling.
-    v8::Local<v8::FunctionTemplate> sample_func_template =
-        v8::FunctionTemplate::New(env.local()->GetIsolate(), CallCollectSample);
-    v8::Local<v8::Function> sample_func =
-        sample_func_template->GetFunction(env.local()).ToLocalChecked();
-    sample_func->SetName(v8_str("CallCollectSample"));
-    env->Global()
-        ->Set(env.local(), v8_str("CallCollectSample"), sample_func)
-        .FromJust();
+    InstallCollectSampleFunction(env.local());
 
     // Install a function that triggers the native context to be moved.
     v8::Local<v8::FunctionTemplate> move_func_template =
@@ -4280,8 +4257,8 @@ TEST(ContextFilterMovedNativeContext) {
             [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
-              i::heap::ForceEvacuationCandidate(
-                  i::Page::FromHeapObject(isolate->raw_native_context()));
+              i::heap::ForceEvacuationCandidate(i::PageMetadata::FromHeapObject(
+                  isolate->raw_native_context()));
               heap::InvokeMajorGC(isolate->heap());
             });
     v8::Local<v8::Function> move_func =
@@ -4321,12 +4298,12 @@ enum class EntryCountMode { kAll, kOnlyInlined };
 int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source,
                                 EntryCountMode mode = EntryCountMode::kAll) {
   std::unordered_set<int64_t> raw_position_set;
-  i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(
-      v8::Utils::OpenHandle(*CompileRun(source)));
-  if (function->ActiveTierIsIgnition()) return -1;
-  i::Handle<i::Code> code(function->code(), isolate);
+  i::DirectHandle<i::JSFunction> function =
+      i::Cast<i::JSFunction>(v8::Utils::OpenDirectHandle(*CompileRun(source)));
+  if (function->ActiveTierIsIgnition(isolate)) return -1;
+  i::DirectHandle<i::Code> code(function->code(isolate), isolate);
   i::SourcePositionTableIterator iterator(
-      ByteArray::cast(code->source_position_table()));
+      Cast<TrustedByteArray>(code->source_position_table()));
 
   while (!iterator.done()) {
     if (mode == EntryCountMode::kAll ||
@@ -4450,10 +4427,7 @@ struct FastApiReceiver {
                            v8::FastApiCallbackOptions& options) {
     // TODO(mslekova): The fallback is not used by the test. Replace this
     // with a CHECK.
-    if (!IsValidUnwrapObject(*receiver)) {
-      options.fallback = true;
-      return;
-    }
+    CHECK(IsValidUnwrapObject(*receiver));
     FastApiReceiver* receiver_ptr =
         GetInternalField<FastApiReceiver>(*receiver);
 
@@ -4466,7 +4440,7 @@ struct FastApiReceiver {
   }
 
   static void SlowCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    v8::Object* receiver_obj = v8::Object::Cast(*info.Holder());
+    v8::Object* receiver_obj = *info.This();
     if (!IsValidUnwrapObject(receiver_obj)) {
       info.GetIsolate()->ThrowError("Called with a non-object.");
       return;
@@ -4570,13 +4544,13 @@ TEST(NoProfilingProtectorCPUProfiler) {
 
   // Prepare the code.
   v8::Local<v8::Function> function = CreateApiCode(&env);
-  Handle<JSFunction> i_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(*function));
+  DirectHandle<JSFunction> i_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(*function));
 
-  CHECK(!i_function->code()->is_optimized_code());
+  CHECK(!i_function->code(i_isolate)->is_optimized_code());
   CompileRun("foo(42);");
 
-  Handle<Code> code(i_function->code(), i_isolate);
+  DirectHandle<Code> code(i_function->code(i_isolate), i_isolate);
   CHECK(code->is_optimized_code());
   CHECK(!code->marked_for_deoptimization());
   CHECK(Protectors::IsNoProfilingIntact(i_isolate));
@@ -4748,9 +4722,9 @@ TEST(BytecodeFlushEventsEagerLogging) {
   v8_flags.always_turbofan = false;
   v8_flags.optimize_for_size = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
-#endif  // ENABLE_SPARKPLUG
+#endif  // V8_ENABLE_SPARKPLUG
   v8_flags.flush_bytecode = true;
   v8_flags.allow_natives_syntax = true;
 
@@ -4777,7 +4751,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
         "  var z = x + y;"
         "};"
         "foo()";
-    Handle<String> foo_name = factory->InternalizeUtf8String("foo");
+    DirectHandle<String> foo_name = factory->InternalizeUtf8String("foo");
 
     // This compile will add the code to the compilation cache.
     {
@@ -4786,11 +4760,11 @@ TEST(BytecodeFlushEventsEagerLogging) {
     }
 
     // Check function is compiled.
-    Handle<Object> func_value =
+    DirectHandle<Object> func_value =
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
     CHECK(IsJSFunction(*func_value));
-    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    DirectHandle<JSFunction> function = Cast<JSFunction>(func_value);
     CHECK(function->shared()->is_compiled());
 
     Tagged<BytecodeArray> compiled_data =
@@ -4809,7 +4783,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
 
     // foo should no longer be in the compilation cache
     CHECK(!function->shared()->is_compiled());
-    CHECK(!function->is_compiled());
+    CHECK(!function->is_compiled(i_isolate));
 
     CHECK(!instruction_stream_map->FindEntry(bytecode_start));
   }

@@ -17,10 +17,12 @@
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
+#include "src/base/sanitizer/msan.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/disasm.h"
+#include "src/heap/base/stack.h"
 #include "src/heap/combined-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
@@ -81,6 +83,7 @@ bool Simulator::ProbeMemory(uintptr_t address, uintptr_t access_size) {
       trap_handler::ProbeMemory(last_accessed_byte, current_pc);
   if (!landing_pad) return true;
   set_pc(landing_pad);
+  set_reg(kWasmTrapHandlerFaultAddressRegister.code(), current_pc);
   return false;
 #else
   return true;
@@ -319,12 +322,41 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return stack_limit_ + kAdditionalStackMargin;
 }
 
-base::Vector<uint8_t> Simulator::GetCurrentStackView() const {
+uintptr_t Simulator::StackBase() const {
+  uintptr_t result = stack_ + AllocatedStackSize() - kStackProtectionSize;
+  // The stack base is 16-byte aligned.
+  return result & ~0xFULL;
+}
+
+void Simulator::SetStackLimit(uintptr_t limit) {
+  stack_limit_ = static_cast<uintptr_t>(limit - kAdditionalStackMargin);
+}
+
+base::Vector<uint8_t> Simulator::GetCentralStackView() const {
   // We do not add an additional safety margin as above in
   // Simulator::StackLimit, as users of this method are expected to add their
   // own margin.
-  return base::VectorOf(reinterpret_cast<uint8_t*>(stack_limit_),
-                        UsableStackSize());
+  return base::VectorOf(
+      reinterpret_cast<uint8_t*>(stack_ + kStackProtectionSize),
+      UsableStackSize());
+}
+
+// We touch the stack, which may or may not have been initialized properly. Msan
+// reports here are not interesting.
+DISABLE_MSAN void Simulator::IterateRegistersAndStack(
+    ::heap::base::StackVisitor* visitor) {
+  for (int i = 0; i < kNumberOfRegisters; ++i) {
+    visitor->VisitPointer(reinterpret_cast<const void*>(xreg(i)));
+  }
+  for (const void* const* current =
+           reinterpret_cast<const void* const*>(get_sp());
+       current < reinterpret_cast<const void* const*>(StackBase()); ++current) {
+    const void* address = *current;
+    if (address == nullptr) {
+      continue;
+    }
+    visitor->VisitPointer(address);
+  }
 }
 
 void Simulator::SetRedirectInstruction(Instruction* instruction) {
@@ -367,11 +399,9 @@ void Simulator::Init(FILE* stream) {
   // Allocate and setup the simulator stack.
   size_t stack_size = AllocatedStackSize();
 
-  stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size]);
+  stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size]());
   stack_limit_ = stack_ + kStackProtectionSize;
-  uintptr_t tos = stack_ + stack_size - kStackProtectionSize;
-  // The stack pointer must be 16-byte aligned.
-  set_sp(tos & ~0xFULL);
+  set_sp(StackBase());
 
   stream_ = stream;
   print_disasm_ = new PrintDisassembler(stream_);
@@ -380,6 +410,12 @@ void Simulator::Init(FILE* stream) {
   // instruction, so we create a dedicated decoder.
   disassembler_decoder_ = new Decoder<DispatchingDecoderVisitor>();
   disassembler_decoder_->AppendVisitor(print_disasm_);
+
+  global_monitor_ = GlobalMonitor::Get();
+  global_monitor_->PrependProcessor(&global_monitor_processor_);
+
+  // Enabling deadlock detection while simulating is too slow.
+  SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
 }
 
 void Simulator::ResetState() {
@@ -407,7 +443,7 @@ void Simulator::ResetState() {
 }
 
 Simulator::~Simulator() {
-  GlobalMonitor::Get()->RemoveProcessor(&global_monitor_processor_);
+  global_monitor_->RemoveProcessor(&global_monitor_processor_);
   delete[] reinterpret_cast<uint8_t*>(stack_);
   delete disassembler_decoder_;
   delete print_disasm_;
@@ -469,6 +505,7 @@ using SimulatorRuntimeCompareCall = int64_t (*)(double arg1, double arg2);
 using SimulatorRuntimeFPFPCall = double (*)(double arg1, double arg2);
 using SimulatorRuntimeFPCall = double (*)(double arg1);
 using SimulatorRuntimeFPIntCall = double (*)(double arg1, int32_t arg2);
+using SimulatorRuntimeIntFPCall = int32_t (*)(double darg0);
 // Define four args for future flexibility; at the time of this writing only
 // one is ever used.
 using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
@@ -676,6 +713,44 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
   const int64_t arg19 = stack_pointer[11];
   static_assert(kMaxCParameters == 20);
 
+#ifdef V8_USE_MEMORY_SANITIZER
+  // `UnsafeGenericFunctionCall()` dispatches calls to functions with
+  // varying signatures and relies on the fact that the mismatched prototype
+  // used by the caller and the prototype used by the callee (defined using
+  // the `RUNTIME_FUNCTION*()` macros happen to line up so that things more
+  // or less work out [1].
+  //
+  // Unfortunately, this confuses MSan's uninit tracking with eager checks
+  // enabled; it's unclear if these are all false positives or if there are
+  // legitimate reports. For now, unconditionally unpoison args to
+  // unblock finding and fixing more violations with MSan eager checks.
+  //
+  // TODO(crbug.com/v8/14712): Fix the MSan violations and migrate to
+  // something like crrev.com/c/5422076 instead.
+  //
+  // [1] Yes, this is undefined behaviour. 🙈🙉🙊
+  MSAN_MEMORY_IS_INITIALIZED(&arg0, sizeof(arg0));
+  MSAN_MEMORY_IS_INITIALIZED(&arg1, sizeof(arg1));
+  MSAN_MEMORY_IS_INITIALIZED(&arg2, sizeof(arg2));
+  MSAN_MEMORY_IS_INITIALIZED(&arg3, sizeof(arg3));
+  MSAN_MEMORY_IS_INITIALIZED(&arg4, sizeof(arg4));
+  MSAN_MEMORY_IS_INITIALIZED(&arg5, sizeof(arg5));
+  MSAN_MEMORY_IS_INITIALIZED(&arg6, sizeof(arg6));
+  MSAN_MEMORY_IS_INITIALIZED(&arg7, sizeof(arg7));
+  MSAN_MEMORY_IS_INITIALIZED(&arg8, sizeof(arg8));
+  MSAN_MEMORY_IS_INITIALIZED(&arg9, sizeof(arg9));
+  MSAN_MEMORY_IS_INITIALIZED(&arg10, sizeof(arg10));
+  MSAN_MEMORY_IS_INITIALIZED(&arg11, sizeof(arg11));
+  MSAN_MEMORY_IS_INITIALIZED(&arg12, sizeof(arg12));
+  MSAN_MEMORY_IS_INITIALIZED(&arg13, sizeof(arg13));
+  MSAN_MEMORY_IS_INITIALIZED(&arg14, sizeof(arg14));
+  MSAN_MEMORY_IS_INITIALIZED(&arg15, sizeof(arg15));
+  MSAN_MEMORY_IS_INITIALIZED(&arg16, sizeof(arg16));
+  MSAN_MEMORY_IS_INITIALIZED(&arg17, sizeof(arg17));
+  MSAN_MEMORY_IS_INITIALIZED(&arg18, sizeof(arg18));
+  MSAN_MEMORY_IS_INITIALIZED(&arg19, sizeof(arg19));
+#endif  // V8_USE_MEMORY_SANITIZER
+
   switch (redirection->type()) {
     default:
       TraceSim("Type: Unknown.\n");
@@ -770,6 +845,24 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       ObjectPair result = UnsafeGenericFunctionCall(
           external, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
           arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19);
+#ifdef V8_USE_MEMORY_SANITIZER
+      // `UnsafeGenericFunctionCall()` dispatches calls to functions with
+      // varying signatures and relies on the fact that the mismatched prototype
+      // used by the caller and the prototype used by the callee (defined using
+      // the `RUNTIME_FUNCTION*()` macros happen to line up so that things more
+      // or less work out [1].
+      //
+      // Unfortunately, this confuses MSan's uninit tracking with eager checks
+      // enabled; it's unclear if these are all false positives or if there are
+      // legitimate reports. For now, unconditionally unpoison `result` to
+      // unblock finding and fixing more violations with MSan eager checks.
+      //
+      // TODO(crbug.com/v8/14712): Fix the MSan violations and migrate to
+      // something like crrev.com/c/5422076 instead.
+      //
+      // [1] Yes, this is undefined behaviour. 🙈🙉🙊
+      MSAN_MEMORY_IS_INITIALIZED(&result, sizeof(result));
+#endif
       TraceSim("Returned: {%p, %p}\n", reinterpret_cast<void*>(result.x),
                reinterpret_cast<void*>(result.y));
 #ifdef DEBUG
@@ -837,6 +930,21 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       CorruptAllCallerSavedCPURegisters();
 #endif
       set_dreg(0, result);
+      break;
+    }
+
+    case ExternalReference::BUILTIN_INT_FP_CALL: {
+      // int f(double)
+      TraceSim("Type: BUILTIN_INT_FP_CALL\n");
+      SimulatorRuntimeIntFPCall target =
+          reinterpret_cast<SimulatorRuntimeIntFPCall>(external);
+      TraceSim("Argument: %f", dreg(0));
+      int32_t result = target(dreg(0));
+      TraceSim("Returned: %d\n", result);
+#ifdef DEBUG
+      CorruptAllCallerSavedCPURegisters();
+#endif
+      set_xreg(0, result);
       break;
     }
 
@@ -1025,6 +1133,10 @@ int Simulator::CodeFromName(const char* name) {
   if ((strcmp("sp", name) == 0) || (strcmp("wsp", name) == 0)) {
     return kSPRegInternalCode;
   }
+  if (strcmp("x16", name) == 0) return CodeFromName("ip0");
+  if (strcmp("x17", name) == 0) return CodeFromName("ip1");
+  if (strcmp("x29", name) == 0) return CodeFromName("fp");
+  if (strcmp("x30", name) == 0) return CodeFromName("lr");
   return -1;
 }
 
@@ -1032,7 +1144,7 @@ int Simulator::CodeFromName(const char* name) {
 template <typename T>
 T Simulator::AddWithCarry(bool set_flags, T left, T right, int carry_in) {
   // Use unsigned types to avoid implementation-defined overflow behaviour.
-  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "operands must be unsigned");
   static_assert((sizeof(T) == kWRegSize) || (sizeof(T) == kXRegSize),
                 "Only W- or X-sized operands are tested");
 
@@ -1063,7 +1175,7 @@ T Simulator::AddWithCarry(bool set_flags, T left, T right, int carry_in) {
 template <typename T>
 void Simulator::AddSubWithCarry(Instruction* instr) {
   // Use unsigned types to avoid implementation-defined overflow behaviour.
-  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "operands must be unsigned");
 
   T op2 = reg<T>(instr->Rm());
   T new_val;
@@ -1078,9 +1190,35 @@ void Simulator::AddSubWithCarry(Instruction* instr) {
   set_reg<T>(instr->Rd(), new_val);
 }
 
+sim_uint128_t Simulator::PolynomialMult128(uint64_t op1, uint64_t op2,
+                                           int lane_size_in_bits) const {
+  DCHECK_LE(static_cast<unsigned>(lane_size_in_bits), kDRegSizeInBits);
+  sim_uint128_t result = std::make_pair(0, 0);
+  sim_uint128_t op2q = std::make_pair(0, op2);
+  for (int i = 0; i < lane_size_in_bits; i++) {
+    if ((op1 >> i) & 1) {
+      result = Eor128(result, Lsl128(op2q, i));
+    }
+  }
+  return result;
+}
+
+sim_uint128_t Simulator::Lsl128(sim_uint128_t x, unsigned shift) const {
+  DCHECK_LE(shift, 64);
+  if (shift == 0) return x;
+  if (shift == 64) return std::make_pair(x.second, 0);
+  uint64_t lo = x.second << shift;
+  uint64_t hi = (x.first << shift) | (x.second >> (64 - shift));
+  return std::make_pair(hi, lo);
+}
+
+sim_uint128_t Simulator::Eor128(sim_uint128_t x, sim_uint128_t y) const {
+  return std::make_pair(x.first ^ y.first, x.second ^ y.second);
+}
+
 template <typename T>
 T Simulator::ShiftOperand(T value, Shift shift_type, unsigned amount) {
-  using unsignedT = typename std::make_unsigned<T>::type;
+  using unsignedT = std::make_unsigned_t<T>;
 
   if (amount == 0) {
     return value;
@@ -1111,7 +1249,7 @@ T Simulator::ExtendValue(T value, Extend extend_type, unsigned left_shift) {
   const unsigned kSignExtendBShift = (sizeof(T) - 1) * 8;
   const unsigned kSignExtendHShift = (sizeof(T) - 2) * 8;
   const unsigned kSignExtendWShift = (sizeof(T) - 4) * 8;
-  using unsignedT = typename std::make_unsigned<T>::type;
+  using unsignedT = std::make_unsigned_t<T>;
 
   switch (extend_type) {
     case UXTB:
@@ -1685,7 +1823,7 @@ void Simulator::VisitUnconditionalBranch(Instruction* instr) {
   switch (instr->Mask(UnconditionalBranchMask)) {
     case BL:
       set_lr(instr->following());
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case B:
       set_pc(instr->ImmPCOffsetTarget());
       break;
@@ -1695,7 +1833,8 @@ void Simulator::VisitUnconditionalBranch(Instruction* instr) {
 }
 
 void Simulator::VisitConditionalBranch(Instruction* instr) {
-  DCHECK(instr->Mask(ConditionalBranchMask) == B_cond);
+  DCHECK(instr->Mask(ConditionalBranchMask) == B_cond ||
+         instr->Mask(ConditionalBranchMask) == BC_cond);
   if (ConditionPassed(static_cast<Condition>(instr->ConditionBranch()))) {
     set_pc(instr->ImmPCOffsetTarget());
   }
@@ -1725,7 +1864,7 @@ void Simulator::VisitUnconditionalBranchToRegister(Instruction* instr) {
         // this, but if we do trap to allow debugging.
         Debug();
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case BR:
     case RET:
@@ -1782,7 +1921,7 @@ void Simulator::VisitCompareBranch(Instruction* instr) {
 template <typename T>
 void Simulator::AddSubHelper(Instruction* instr, T op2) {
   // Use unsigned types to avoid implementation-defined overflow behaviour.
-  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "operands must be unsigned");
 
   bool set_flags = instr->FlagsUpdate();
   T new_val = 0;
@@ -1884,7 +2023,7 @@ void Simulator::LogicalHelper(Instruction* instr, T op2) {
   switch (instr->Mask(LogicalOpMask & ~NOT)) {
     case ANDS:
       update_flags = true;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case AND:
       result = op1 & op2;
       break;
@@ -1928,7 +2067,7 @@ void Simulator::VisitConditionalCompareImmediate(Instruction* instr) {
 template <typename T>
 void Simulator::ConditionalCompareHelper(Instruction* instr, T op2) {
   // Use unsigned types to avoid implementation-defined overflow behaviour.
-  static_assert(std::is_unsigned<T>::value, "operands must be unsigned");
+  static_assert(std::is_unsigned_v<T>, "operands must be unsigned");
 
   T op1 = reg<T>(instr->Rn());
 
@@ -1986,12 +2125,12 @@ void Simulator::LoadStoreHelper(Instruction* instr, int64_t offset,
   if (!ProbeMemory(address, access_size)) return;
 
   {
-    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     if (instr->IsLoad()) {
       local_monitor_.NotifyLoad();
     } else {
       local_monitor_.NotifyStore();
-      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
+      global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
     }
   }
 
@@ -2149,12 +2288,12 @@ void Simulator::LoadStorePairHelper(Instruction* instr, AddrMode addrmode) {
   uintptr_t stack = 0;
 
   {
-    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     if (instr->IsLoad()) {
       local_monitor_.NotifyLoad();
     } else {
       local_monitor_.NotifyStore();
-      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
+      global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
     }
   }
 
@@ -2300,7 +2439,7 @@ void Simulator::VisitLoadLiteral(Instruction* instr) {
   unsigned rt = instr->Rt();
 
   {
-    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     local_monitor_.NotifyLoad();
   }
 
@@ -2432,12 +2571,13 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
   DCHECK_EQ(address % access_size, 0);
   // First, check whether the memory is accessible (for wasm trap handling).
   if (!ProbeMemory(address, access_size)) return;
-  base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+  GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
+
   if (is_load != 0) {
     if (is_exclusive) {
       local_monitor_.NotifyLoadExcl(address, get_transaction_size(access_size));
-      GlobalMonitor::Get()->NotifyLoadExcl_Locked(address,
-                                                  &global_monitor_processor_);
+      global_monitor_->NotifyLoadExcl_Locked(address,
+                                             &global_monitor_processor_);
     } else {
       local_monitor_.NotifyLoad();
     }
@@ -2469,8 +2609,8 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
       DCHECK_NE(rs, rn);
       if (local_monitor_.NotifyStoreExcl(address,
                                          get_transaction_size(access_size)) &&
-          GlobalMonitor::Get()->NotifyStoreExcl_Locked(
-              address, &global_monitor_processor_)) {
+          global_monitor_->NotifyStoreExcl_Locked(address,
+                                                  &global_monitor_processor_)) {
         switch (op) {
           case STLXR_b:
             MemoryWrite<uint8_t>(address, wreg(rt));
@@ -2494,7 +2634,7 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
       }
     } else {
       local_monitor_.NotifyStore();
-      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
+      global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
       switch (op) {
         case STLR_b:
           MemoryWrite<uint8_t>(address, wreg(rt));
@@ -2544,11 +2684,11 @@ void Simulator::CompareAndSwapHelper(const Instruction* instr) {
   }
 
   if (data == comparevalue) {
-    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
 
     if (is_release) {
       local_monitor_.NotifyStore();
-      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
+      global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
       // Approximate store-release by issuing a full barrier before the store.
       std::atomic_thread_fence(std::memory_order_seq_cst);
     }
@@ -2602,11 +2742,11 @@ void Simulator::CompareAndSwapPairHelper(const Instruction* instr) {
   bool same =
       (data_high == comparevalue_high) && (data_low == comparevalue_low);
   if (same) {
-    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
 
     if (is_release) {
       local_monitor_.NotifyStore();
-      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
+      global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
       // Approximate store-release by issuing a full barrier before the store.
       std::atomic_thread_fence(std::memory_order_seq_cst);
     }
@@ -2685,9 +2825,9 @@ void Simulator::AtomicMemorySimpleHelper(const Instruction* instr) {
   }
 
   if (is_release) {
-    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     local_monitor_.NotifyStore();
-    GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
+    global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
     // Approximate store-release by issuing a full barrier before the store.
     std::atomic_thread_fence(std::memory_order_seq_cst);
   }
@@ -2724,9 +2864,9 @@ void Simulator::AtomicMemorySwapHelper(const Instruction* instr) {
   }
 
   if (is_release) {
-    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     local_monitor_.NotifyStore();
-    GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
+    global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
     // Approximate store-release by issuing a full barrier before the store.
     std::atomic_thread_fence(std::memory_order_seq_cst);
   }
@@ -2956,6 +3096,24 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
       set_xreg(dst, CountLeadingSignBits(xreg(src), kXRegSizeInBits));
       break;
     }
+    case CTZ_w:
+      set_wreg(dst, CountTrailingZeros(wreg(src), kWRegSizeInBits));
+      break;
+    case CTZ_x:
+      set_xreg(dst, CountTrailingZeros(xreg(src), kXRegSizeInBits));
+      break;
+    case CNT_w:
+      set_wreg(dst, CountSetBits(wreg(src), kWRegSizeInBits));
+      break;
+    case CNT_x:
+      set_xreg(dst, CountSetBits(xreg(src), kXRegSizeInBits));
+      break;
+    case ABS_w:
+      set_wreg(dst, Abs(wreg(src)));
+      break;
+    case ABS_x:
+      set_xreg(dst, Abs(xreg(src)));
+      break;
     default:
       UNIMPLEMENTED();
   }
@@ -2982,7 +3140,7 @@ void Simulator::DataProcessing2Source(Instruction* instr) {
     }
     case UDIV_w:
     case UDIV_x: {
-      using unsignedT = typename std::make_unsigned<T>::type;
+      using unsignedT = std::make_unsigned_t<T>;
       unsignedT rn = static_cast<unsignedT>(reg<T>(instr->Rn()));
       unsignedT rm = static_cast<unsignedT>(reg<T>(instr->Rm()));
       if (rm == 0) {
@@ -3090,7 +3248,7 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
 
 template <typename T>
 void Simulator::BitfieldHelper(Instruction* instr) {
-  using unsignedT = typename std::make_unsigned<T>::type;
+  using unsignedT = std::make_unsigned_t<T>;
   T reg_size = sizeof(T) * 8;
   T R = instr->ImmR();
   T S = instr->ImmS();
@@ -3714,6 +3872,7 @@ void Simulator::VisitSystem(Instruction* instr) {
     DCHECK(instr->Mask(SystemHintMask) == HINT);
     switch (instr->ImmHint()) {
       case NOP:
+      case YIELD:
       case CSDB:
       case BTI_jc:
       case BTI:
@@ -3776,11 +3935,13 @@ bool Simulator::PrintValue(const char* desc) {
   if (i < 0 || static_cast<unsigned>(i) >= kNumberOfVRegisters) return false;
 
   if (desc[0] == 'v') {
-    PrintF(stream_, "%s %s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
-           clr_vreg_name, VRegNameForCode(i), clr_vreg_value,
-           base::bit_cast<uint64_t>(dreg(i)), clr_normal, clr_vreg_name,
-           DRegNameForCode(i), clr_vreg_value, dreg(i), clr_vreg_name,
-           SRegNameForCode(i), clr_vreg_value, sreg(i), clr_normal);
+    struct qreg_t reg = qreg(i);
+    PrintF(stream_, "%s %s:%s (%s0x%02x%s", clr_vreg_name, VRegNameForCode(i),
+           clr_normal, clr_vreg_value, reg.val[0], clr_normal);
+    for (int b = 1; b < kQRegSize; b++) {
+      PrintF(stream_, ", %s0x%02x%s", clr_vreg_value, reg.val[b], clr_normal);
+    }
+    PrintF(stream_, ")\n");
     return true;
   } else if (desc[0] == 'd') {
     PrintF(stream_, "%s %s:%s %g%s\n", clr_vreg_name, DRegNameForCode(i),
@@ -4006,7 +4167,7 @@ bool Simulator::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
         Tagged<Object> obj(*cur);
         Heap* current_heap = isolate_->heap();
         if (IsSmi(obj) ||
-            IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
+            IsValidHeapObject(current_heap, Cast<HeapObject>(obj))) {
           PrintF(" (");
           if (IsSmi(obj)) {
             PrintF("smi %" PRId32, Smi::ToInt(obj));
@@ -4348,13 +4509,16 @@ void Simulator::VisitNEON2RegMisc(Instruction* instr) {
         break;
     }
   } else {
-    VectorFormat fpf = nfd.GetVectorFormat(nfd.FPFormatMap());
+    VectorFormat fpf = nfd.GetVectorFormat(instr->Mask(NEON2RegMiscHPFixed) ==
+                                                   NEON2RegMiscHPFixed
+                                               ? nfd.FPHPFormatMap()
+                                               : nfd.FPFormatMap());
     FPRounding fpcr_rounding = static_cast<FPRounding>(fpcr().RMode());
     bool inexact_exception = false;
 
     // These instructions all use a one bit size field, except XTN, SQXTUN,
     // SHLL, SQXTN and UQXTN, which use a two bit size field.
-    switch (instr->Mask(NEON2RegMiscFPMask)) {
+    switch (instr->Mask(NEON2RegMiscFPMask ^ NEON2RegMiscHPFixed)) {
       case NEON_FABS:
         fabs_(fpf, rd, rn);
         return;
@@ -4510,6 +4674,87 @@ void Simulator::VisitNEON2RegMisc(Instruction* instr) {
   }
 }
 
+void Simulator::VisitNEON3SameFP(NEON3SameOp op, VectorFormat vf,
+                                 SimVRegister& rd, SimVRegister& rn,
+                                 SimVRegister& rm) {
+  switch (op) {
+    case NEON_FADD:
+      fadd(vf, rd, rn, rm);
+      break;
+    case NEON_FSUB:
+      fsub(vf, rd, rn, rm);
+      break;
+    case NEON_FMUL:
+      fmul(vf, rd, rn, rm);
+      break;
+    case NEON_FDIV:
+      fdiv(vf, rd, rn, rm);
+      break;
+    case NEON_FMAX:
+      fmax(vf, rd, rn, rm);
+      break;
+    case NEON_FMIN:
+      fmin(vf, rd, rn, rm);
+      break;
+    case NEON_FMAXNM:
+      fmaxnm(vf, rd, rn, rm);
+      break;
+    case NEON_FMINNM:
+      fminnm(vf, rd, rn, rm);
+      break;
+    case NEON_FMLA:
+      fmla(vf, rd, rn, rm);
+      break;
+    case NEON_FMLS:
+      fmls(vf, rd, rn, rm);
+      break;
+    case NEON_FMULX:
+      fmulx(vf, rd, rn, rm);
+      break;
+    case NEON_FACGE:
+      fabscmp(vf, rd, rn, rm, ge);
+      break;
+    case NEON_FACGT:
+      fabscmp(vf, rd, rn, rm, gt);
+      break;
+    case NEON_FCMEQ:
+      fcmp(vf, rd, rn, rm, eq);
+      break;
+    case NEON_FCMGE:
+      fcmp(vf, rd, rn, rm, ge);
+      break;
+    case NEON_FCMGT:
+      fcmp(vf, rd, rn, rm, gt);
+      break;
+    case NEON_FRECPS:
+      frecps(vf, rd, rn, rm);
+      break;
+    case NEON_FRSQRTS:
+      frsqrts(vf, rd, rn, rm);
+      break;
+    case NEON_FABD:
+      fabd(vf, rd, rn, rm);
+      break;
+    case NEON_FADDP:
+      faddp(vf, rd, rn, rm);
+      break;
+    case NEON_FMAXP:
+      fmaxp(vf, rd, rn, rm);
+      break;
+    case NEON_FMAXNMP:
+      fmaxnmp(vf, rd, rn, rm);
+      break;
+    case NEON_FMINP:
+      fminp(vf, rd, rn, rm);
+      break;
+    case NEON_FMINNMP:
+      fminnmp(vf, rd, rn, rm);
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
 void Simulator::VisitNEON3Same(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
   SimVRegister& rd = vreg(instr->Rd());
@@ -4548,82 +4793,7 @@ void Simulator::VisitNEON3Same(Instruction* instr) {
     }
   } else if (instr->Mask(NEON3SameFPFMask) == NEON3SameFPFixed) {
     VectorFormat vf = nfd.GetVectorFormat(nfd.FPFormatMap());
-    switch (instr->Mask(NEON3SameFPMask)) {
-      case NEON_FADD:
-        fadd(vf, rd, rn, rm);
-        break;
-      case NEON_FSUB:
-        fsub(vf, rd, rn, rm);
-        break;
-      case NEON_FMUL:
-        fmul(vf, rd, rn, rm);
-        break;
-      case NEON_FDIV:
-        fdiv(vf, rd, rn, rm);
-        break;
-      case NEON_FMAX:
-        fmax(vf, rd, rn, rm);
-        break;
-      case NEON_FMIN:
-        fmin(vf, rd, rn, rm);
-        break;
-      case NEON_FMAXNM:
-        fmaxnm(vf, rd, rn, rm);
-        break;
-      case NEON_FMINNM:
-        fminnm(vf, rd, rn, rm);
-        break;
-      case NEON_FMLA:
-        fmla(vf, rd, rn, rm);
-        break;
-      case NEON_FMLS:
-        fmls(vf, rd, rn, rm);
-        break;
-      case NEON_FMULX:
-        fmulx(vf, rd, rn, rm);
-        break;
-      case NEON_FACGE:
-        fabscmp(vf, rd, rn, rm, ge);
-        break;
-      case NEON_FACGT:
-        fabscmp(vf, rd, rn, rm, gt);
-        break;
-      case NEON_FCMEQ:
-        fcmp(vf, rd, rn, rm, eq);
-        break;
-      case NEON_FCMGE:
-        fcmp(vf, rd, rn, rm, ge);
-        break;
-      case NEON_FCMGT:
-        fcmp(vf, rd, rn, rm, gt);
-        break;
-      case NEON_FRECPS:
-        frecps(vf, rd, rn, rm);
-        break;
-      case NEON_FRSQRTS:
-        frsqrts(vf, rd, rn, rm);
-        break;
-      case NEON_FABD:
-        fabd(vf, rd, rn, rm);
-        break;
-      case NEON_FADDP:
-        faddp(vf, rd, rn, rm);
-        break;
-      case NEON_FMAXP:
-        fmaxp(vf, rd, rn, rm);
-        break;
-      case NEON_FMAXNMP:
-        fmaxnmp(vf, rd, rn, rm);
-        break;
-      case NEON_FMINP:
-        fminp(vf, rd, rn, rm);
-        break;
-      case NEON_FMINNMP:
-        fminnmp(vf, rd, rn, rm);
-        break;
-      default:
-        UNIMPLEMENTED();
-    }
+    VisitNEON3SameFP(instr->Mask(NEON3SameFPMask), vf, rd, rn, rm);
   } else {
     VectorFormat vf = nfd.GetVectorFormat();
     switch (instr->Mask(NEON3SameMask)) {
@@ -4768,6 +4938,16 @@ void Simulator::VisitNEON3Same(Instruction* instr) {
   }
 }
 
+void Simulator::VisitNEON3SameHP(Instruction* instr) {
+  NEONFormatDecoder nfd(instr);
+  SimVRegister& rd = vreg(instr->Rd());
+  SimVRegister& rn = vreg(instr->Rn());
+  SimVRegister& rm = vreg(instr->Rm());
+  VectorFormat vf = nfd.GetVectorFormat(nfd.FPHPFormatMap());
+  VisitNEON3SameFP(instr->Mask(NEON3SameFPMask) | NEON3SameHPMask, vf, rd, rn,
+                   rm);
+}
+
 void Simulator::VisitNEON3Different(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
   VectorFormat vf = nfd.GetVectorFormat();
@@ -4776,13 +4956,24 @@ void Simulator::VisitNEON3Different(Instruction* instr) {
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
   SimVRegister& rm = vreg(instr->Rm());
+  int size = instr->NEONSize();
 
   switch (instr->Mask(NEON3DifferentMask)) {
     case NEON_PMULL:
-      pmull(vf_l, rd, rn, rm);
+      if ((size == 1) || (size == 2)) {  // S/D reserved.
+        VisitUnallocated(instr);
+      } else {
+        if (size == 3) vf_l = kFormat1Q;
+        pmull(vf_l, rd, rn, rm);
+      }
       break;
     case NEON_PMULL2:
-      pmull2(vf_l, rd, rn, rm);
+      if ((size == 1) || (size == 2)) {  // S/D reserved.
+        VisitUnallocated(instr);
+      } else {
+        if (size == 3) vf_l = kFormat1Q;
+        pmull2(vf_l, rd, rn, rm);
+      }
       break;
     case NEON_UADDL:
       uaddl(vf_l, rd, rn, rm);
@@ -4933,6 +5124,27 @@ void Simulator::VisitNEON3Different(Instruction* instr) {
       break;
     case NEON_RSUBHN2:
       rsubhn2(vf, rd, rn, rm);
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
+void Simulator::VisitNEON3Extension(Instruction* instr) {
+  NEONFormatDecoder nfd(instr);
+  SimVRegister& rd = vreg(instr->Rd());
+  SimVRegister& rm = vreg(instr->Rm());
+  SimVRegister& rn = vreg(instr->Rn());
+  VectorFormat vf = nfd.GetVectorFormat();
+
+  switch (instr->Mask(NEON3ExtensionMask)) {
+    case NEON_SDOT:
+      if (vf == kFormat4S || vf == kFormat2S) {
+        sdot(vf, rd, rn, rm);
+      } else {
+        VisitUnallocated(instr);
+      }
+
       break;
     default:
       UNIMPLEMENTED();
@@ -5209,17 +5421,17 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
     case NEON_LD1_4v_post:
       ld1(vf, vreg(reg[3]), addr[3]);
       count++;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case NEON_LD1_3v:
     case NEON_LD1_3v_post:
       ld1(vf, vreg(reg[2]), addr[2]);
       count++;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case NEON_LD1_2v:
     case NEON_LD1_2v_post:
       ld1(vf, vreg(reg[1]), addr[1]);
       count++;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case NEON_LD1_1v:
     case NEON_LD1_1v_post:
       ld1(vf, vreg(reg[0]), addr[0]);
@@ -5228,17 +5440,17 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
     case NEON_ST1_4v_post:
       st1(vf, vreg(reg[3]), addr[3]);
       count++;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case NEON_ST1_3v:
     case NEON_ST1_3v_post:
       st1(vf, vreg(reg[2]), addr[2]);
       count++;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case NEON_ST1_2v:
     case NEON_ST1_2v_post:
       st1(vf, vreg(reg[1]), addr[1]);
       count++;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case NEON_ST1_1v:
     case NEON_ST1_1v_post:
       st1(vf, vreg(reg[0]), addr[0]);
@@ -5282,12 +5494,12 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
   }
 
   {
-    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     if (log_read) {
       local_monitor_.NotifyLoad();
     } else {
       local_monitor_.NotifyStore();
-      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
+      global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
     }
   }
 
@@ -5310,7 +5522,7 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
     // The immediate is implied by the number of vector registers used.
     addr_base +=
         (rm == 31) ? RegisterSizeInBytesFromFormat(vf) * count : xreg(rm);
-    set_xreg(instr->Rn(), addr_base);
+    set_xreg(instr->Rn(), addr_base, Reg31IsStackPointer);
   } else {
     DCHECK_EQ(addr_mode, Offset);
   }
@@ -5352,7 +5564,7 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
     case NEON_LD4_b:
     case NEON_LD4_b_post:
       do_load = true;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case NEON_ST1_b:
     case NEON_ST1_b_post:
     case NEON_ST2_b:
@@ -5372,7 +5584,7 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
     case NEON_LD4_h:
     case NEON_LD4_h_post:
       do_load = true;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case NEON_ST1_h:
     case NEON_ST1_h_post:
     case NEON_ST2_h:
@@ -5393,7 +5605,7 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
     case NEON_LD4_s:
     case NEON_LD4_s_post:
       do_load = true;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case NEON_ST1_s:
     case NEON_ST1_s_post:
     case NEON_ST2_s:
@@ -5536,19 +5748,20 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
   }
 
   {
-    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::SimulatorMutex lock_guard(global_monitor_);
     if (do_load) {
       local_monitor_.NotifyLoad();
     } else {
       local_monitor_.NotifyStore();
-      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
+      global_monitor_->NotifyStore_Locked(&global_monitor_processor_);
     }
   }
 
   if (addr_mode == PostIndex) {
     int rm = instr->Rm();
     int lane_size = LaneSizeInBytesFromFormat(vf);
-    set_xreg(instr->Rn(), addr + ((rm == 31) ? (scale * lane_size) : xreg(rm)));
+    set_xreg(instr->Rn(), addr + ((rm == 31) ? (scale * lane_size) : xreg(rm)),
+             Reg31IsStackPointer);
   }
 }
 
@@ -6349,6 +6562,29 @@ void Simulator::VisitNEONTable(Instruction* instr) {
   }
 }
 
+void Simulator::VisitNEONSHA3(Instruction* instr) {
+  NEONFormatDecoder nfd(instr);
+  VectorFormat vf = nfd.GetVectorFormat();
+
+  SimVRegister& rd = vreg(instr->Rd());
+  SimVRegister& rn = vreg(instr->Rn());
+  SimVRegister& rm = vreg(instr->Rm());
+  SimVRegister& ra = vreg(instr->Ra());
+  SimVRegister temp;
+
+  switch (instr->Mask(NEONSHA3Mask)) {
+    case NEON_BCAX:
+      bic(vf, temp, rm, ra);
+      eor(vf, rd, rn, temp);
+      break;
+    case NEON_EOR3:
+      eor(vf, temp, rm, ra);
+      eor(vf, rd, rn, temp);
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
 void Simulator::VisitNEONPerm(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
   VectorFormat vf = nfd.GetVectorFormat();
@@ -6383,7 +6619,13 @@ void Simulator::VisitNEONPerm(Instruction* instr) {
 
 void Simulator::DoSwitchStackLimit(Instruction* instr) {
   const int64_t stack_limit = xreg(16);
-  stack_limit_ = static_cast<uintptr_t>(stack_limit);
+  // stack_limit represents js limit and adjusted by extra runaway gap.
+  // Also, stack switching code reads js_limit generated by
+  // {Simulator::StackLimit} and then resets it back here.
+  // So without adjusting back incoming value by safety gap
+  // {stack_limit_} will be shortened by kAdditionalStackMargin yielding
+  // positive feedback loop.
+  SetStackLimit(stack_limit);
 }
 
 void Simulator::DoPrintf(Instruction* instr) {
@@ -6624,7 +6866,6 @@ bool Simulator::GlobalMonitor::Processor::NotifyStoreExcl_Locked(
 void Simulator::GlobalMonitor::NotifyLoadExcl_Locked(uintptr_t addr,
                                                      Processor* processor) {
   processor->NotifyLoadExcl_Locked(addr);
-  PrependProcessor_Locked(processor);
 }
 
 void Simulator::GlobalMonitor::NotifyStore_Locked(Processor* processor) {
@@ -6637,7 +6878,6 @@ void Simulator::GlobalMonitor::NotifyStore_Locked(Processor* processor) {
 
 bool Simulator::GlobalMonitor::NotifyStoreExcl_Locked(uintptr_t addr,
                                                       Processor* processor) {
-  DCHECK(IsProcessorInLinkedList_Locked(processor));
   if (processor->NotifyStoreExcl_Locked(addr, true)) {
     // Notify the other processors that this StoreExcl succeeded.
     for (Processor* iter = head_; iter; iter = iter->next_) {
@@ -6651,30 +6891,19 @@ bool Simulator::GlobalMonitor::NotifyStoreExcl_Locked(uintptr_t addr,
   }
 }
 
-bool Simulator::GlobalMonitor::IsProcessorInLinkedList_Locked(
-    Processor* processor) const {
-  return head_ == processor || processor->next_ || processor->prev_;
-}
-
-void Simulator::GlobalMonitor::PrependProcessor_Locked(Processor* processor) {
-  if (IsProcessorInLinkedList_Locked(processor)) {
-    return;
-  }
-
+void Simulator::GlobalMonitor::PrependProcessor(Processor* processor) {
+  base::MutexGuard lock_guard(&mutex_);
   if (head_) {
     head_->prev_ = processor;
   }
   processor->prev_ = nullptr;
   processor->next_ = head_;
   head_ = processor;
+  num_processors_++;
 }
 
 void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
-  base::MutexGuard lock_guard(&mutex);
-  if (!IsProcessorInLinkedList_Locked(processor)) {
-    return;
-  }
-
+  base::MutexGuard lock_guard(&mutex_);
   if (processor->prev_) {
     processor->prev_->next_ = processor->next_;
   } else {
@@ -6685,6 +6914,7 @@ void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
   }
   processor->prev_ = nullptr;
   processor->next_ = nullptr;
+  num_processors_--;
 }
 
 #undef SScanF
@@ -6710,8 +6940,7 @@ void Simulator::GlobalMonitor::RemoveProcessor(Processor* processor) {
 //
 // The following functions are used by our gdb macros.
 //
-V8_DONT_STRIP_SYMBOL
-V8_EXPORT_PRIVATE extern bool _v8_internal_Simulator_ExecDebugCommand(
+V8_DEBUGGING_EXPORT extern bool _v8_internal_Simulator_ExecDebugCommand(
     const char* command) {
   i::Isolate* isolate = i::Isolate::Current();
   if (!isolate) {

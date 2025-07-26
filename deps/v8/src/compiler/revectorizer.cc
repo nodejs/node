@@ -7,6 +7,7 @@
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
 #include "src/compiler/all-nodes.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-observer.h"
 #include "src/compiler/opcodes.h"
@@ -120,6 +121,7 @@ namespace {
   V(F32x4SConvertI32x4, F32x8SConvertI32x8) \
   V(F32x4UConvertI32x4, F32x8UConvertI32x8) \
   V(I32x4UConvertF32x4, I32x8UConvertF32x8) \
+  V(I32x4SConvertF32x4, I32x8SConvertF32x8) \
   V(S128And, S256And)                       \
   V(S128Or, S256Or)                         \
   V(S128Xor, S256Xor)                       \
@@ -339,7 +341,7 @@ bool MaybePackSignExtensionOp(const ZoneVector<Node*>& node_group) {
 
 class EffectChainIterator {
  public:
-  explicit EffectChainIterator(Node* node) : node_(node) {}
+  explicit EffectChainIterator(Node* node) : node_(node), prev_(nullptr) {}
 
   Node* Advance() {
     prev_ = node_;
@@ -882,11 +884,13 @@ void SLPTree::ForEach(FunctionType callback) {
 
 //////////////////////////////////////////////////////
 
-Revectorizer::Revectorizer(Zone* zone, Graph* graph, MachineGraph* mcgraph)
+Revectorizer::Revectorizer(Zone* zone, TFGraph* graph, MachineGraph* mcgraph,
+                           SourcePositionTable* source_positions)
     : zone_(zone),
       graph_(graph),
       mcgraph_(mcgraph),
       group_of_stores_(zone),
+      source_positions_(source_positions),
       support_simd256_(false) {
   DetectCPUFeatures();
   slp_tree_ = zone_->New<SLPTree>(zone, graph);
@@ -1056,12 +1060,12 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
         // shuffling across 128-bit lane.
         if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
           new_op = mcgraph_->machine()->LoadTransform(
-              MemoryAccessKind::kProtected,
+              MemoryAccessKind::kProtectedByTrapHandler,
               LoadTransformation::kS256Load32Splat);
           offset = index * 4;
         } else if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle, &index)) {
           new_op = mcgraph_->machine()->LoadTransform(
-              MemoryAccessKind::kProtected,
+              MemoryAccessKind::kProtectedByTrapHandler,
               LoadTransformation::kS256Load64Splat);
           offset = index * 8;
         } else {
@@ -1070,9 +1074,10 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 
         source = node0->InputAt(offset >> 4);
         DCHECK_EQ(source->opcode(), IrOpcode::kProtectedLoad);
-        inputs.resize_no_init(4);
+        inputs.resize(4);
         // Update LoadSplat offset.
         if (index) {
+          SourcePositionTable::Scope scope(source_positions_, source);
           inputs[0] = graph()->NewNode(mcgraph_->machine()->Int64Add(),
                                        source->InputAt(0),
                                        mcgraph_->Int64Constant(offset));
@@ -1220,6 +1225,7 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 
   DCHECK(pnode->RevectorizedNode() || new_op);
   if (new_op != nullptr) {
+    SourcePositionTable::Scope scope(source_positions_, node0);
     Node* new_node =
         graph()->NewNode(new_op, input_count, inputs.begin(), true);
     pnode->SetRevectorizedNode(new_node);
@@ -1291,6 +1297,8 @@ void Revectorizer::DetectCPUFeatures() {
 }
 
 bool Revectorizer::TryRevectorize(const char* function) {
+  source_positions_->AddDecorator();
+
   bool success = false;
   if (support_simd256_ && graph_->GetSimdStoreNodes().size()) {
     TRACE("TryRevectorize %s\n", function);
@@ -1307,6 +1315,7 @@ bool Revectorizer::TryRevectorize(const char* function) {
     }
     TRACE("Finish revectorize %s\n", function);
   }
+  source_positions_->RemoveDecorator();
   return success;
 }
 

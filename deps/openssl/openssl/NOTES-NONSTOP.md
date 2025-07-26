@@ -56,7 +56,10 @@ relating to `atexit()` processing when a shared library is unloaded and when
 the program terminates. This limitation applies to all OpenSSL shared library
 components.
 
-A resolution to this situation is under investigation.
+It is possible to configure the build with `no-atexit` to avoid the SIGSEGV.
+Preferably, you can explicitly call `OPENSSL_cleanup()` from your application.
+It is not mandatory as it just deallocates various global data structures
+OpenSSL allocated.
 
 About Prefix and OpenSSLDir
 ---------------------------
@@ -116,12 +119,9 @@ correctly, you also need the `COMP_ROOT` set, as in:
 
 `COMP_ROOT` needs to be in Windows form.
 
-`Configure` must specify the `no-makedepend` option otherwise errors will
-result when running the build because the c99 cross-compiler does not support
-the `gcc -MT` option. An example of a `Configure` command to be run from the
-OpenSSL directory is:
+An example of a `Configure` command to be run from the OpenSSL directory is:
 
-    ./Configure nonstop-nsx_64 no-makedepend --with-rand-seed=rdcpu
+    ./Configure nonstop-nsx_64 --with-rand-seed=rdcpu
 
 Do not forget to include any OpenSSL cross-compiling prefix and certificate
 options when creating your libraries.

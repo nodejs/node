@@ -5,11 +5,15 @@
 #ifndef V8_HEAP_CPPGC_HEAP_PAGE_H_
 #define V8_HEAP_CPPGC_HEAP_PAGE_H_
 
+#include <atomic>
+
 #include "include/cppgc/internal/base-page-handle.h"
+#include "src/base/hashing.h"
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/heap/base/basic-slot-set.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
 
@@ -38,7 +42,7 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
 
   HeapBase& heap() const;
 
-  BaseSpace& space() const { return space_; }
+  BaseSpace& space() const { return *space_; }
 
   bool is_large() const { return type_ == PageType::kLarge; }
 
@@ -92,6 +96,25 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
   void ResetDiscardedMemory() { discarded_memory_ = 0; }
   size_t discarded_memory() const { return discarded_memory_; }
 
+  void IncrementMarkedBytes(size_t value) {
+    const size_t old_marked_bytes =
+        marked_bytes_.fetch_add(value, std::memory_order_relaxed);
+    USE(old_marked_bytes);
+    DCHECK_GE(old_marked_bytes + value, old_marked_bytes);
+  }
+  void DecrementMarkedBytes(size_t value) {
+    const size_t old_marked_bytes =
+        marked_bytes_.fetch_sub(value, std::memory_order_relaxed);
+    USE(old_marked_bytes);
+    DCHECK_LE(old_marked_bytes - value, old_marked_bytes);
+  }
+  void ResetMarkedBytes(size_t new_value = 0) {
+    marked_bytes_.store(new_value, std::memory_order_relaxed);
+  }
+  size_t marked_bytes() const {
+    return marked_bytes_.load(std::memory_order_relaxed);
+  }
+
   bool contains_young_objects() const { return contains_young_objects_; }
   void set_as_containing_young_objects(bool value) {
     contains_young_objects_ = value;
@@ -102,6 +125,8 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
   V8_INLINE SlotSet& GetOrAllocateSlotSet();
   void ResetSlotSet();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
+
+  void ChangeOwner(BaseSpace&);
 
  protected:
   enum class PageType : uint8_t { kNormal, kLarge };
@@ -114,13 +139,14 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
   };
   void AllocateSlotSet();
 
-  BaseSpace& space_;
+  BaseSpace* space_;
   PageType type_;
   bool contains_young_objects_ = false;
 #if defined(CPPGC_YOUNG_GENERATION)
   std::unique_ptr<SlotSet, SlotSetDeleter> slot_set_;
 #endif  // defined(CPPGC_YOUNG_GENERATION)
   size_t discarded_memory_ = 0;
+  std::atomic<size_t> marked_bytes_{0};
 };
 
 class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
@@ -200,7 +226,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
   Address PayloadEnd();
   ConstAddress PayloadEnd() const;
 
-  static size_t PayloadSize();
+  static constexpr size_t PayloadSize();
 
   bool PayloadContains(ConstAddress address) const {
     return (PayloadStart() <= address) && (address < PayloadEnd());
@@ -221,7 +247,7 @@ class V8_EXPORT_PRIVATE NormalPage final : public BasePage {
 
  private:
   NormalPage(HeapBase& heap, BaseSpace& space);
-  ~NormalPage();
+  ~NormalPage() = default;
 
   size_t allocated_bytes_at_last_gc_ = 0;
   PlatformAwareObjectStartBitmap object_start_bitmap_;
@@ -279,7 +305,7 @@ class V8_EXPORT_PRIVATE LargePage final : public BasePage {
       2 * kAllocationGranularity;
 
   LargePage(HeapBase& heap, BaseSpace& space, size_t);
-  ~LargePage();
+  ~LargePage() = default;
 
   size_t payload_size_;
 };
@@ -338,7 +364,30 @@ SlotSet& BasePage::GetOrAllocateSlotSet() {
 }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
+// static
+constexpr inline size_t NormalPage::PayloadSize() {
+  return kPageSize - RoundUp(sizeof(NormalPage), kAllocationGranularity);
+}
+
 }  // namespace internal
 }  // namespace cppgc
+
+namespace v8::base {
+
+template <>
+struct hash<const cppgc::internal::BasePage*> {
+  V8_INLINE size_t
+  operator()(const cppgc::internal::BasePage* base_page) const {
+#ifdef CPPGC_POINTER_COMPRESSION
+    using AddressType = uint32_t;
+#else
+    using AddressType = uintptr_t;
+#endif
+    return static_cast<AddressType>(reinterpret_cast<uintptr_t>(base_page)) >>
+           cppgc::internal::api_constants::kPageSizeBits;
+  }
+};
+
+}  // namespace v8::base
 
 #endif  // V8_HEAP_CPPGC_HEAP_PAGE_H_

@@ -184,7 +184,7 @@ Notation stem_to_object::notation(skeleton::StemEnum stem) {
 MeasureUnit stem_to_object::unit(skeleton::StemEnum stem) {
     switch (stem) {
         case STEM_BASE_UNIT:
-            return MeasureUnit();
+            return {};
         case STEM_PERCENT:
             return MeasureUnit::getPercent();
         case STEM_PERMILLE:
@@ -1015,6 +1015,12 @@ blueprint_helpers::parseExponentSignOption(const StringSegment& segment, MacroPr
     return true;
 }
 
+// The function is called by skeleton::parseOption which called by skeleton::parseSkeleton
+// the data pointed in the return macros.unit is stack allocated in the parseSkeleton function.
+#if U_GCC_MAJOR_MINOR >= 1204
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
 void blueprint_helpers::parseCurrencyOption(const StringSegment& segment, MacroProps& macros,
                                             UErrorCode& status) {
     // Unlike ICU4J, have to check length manually because ICU4C CurrencyUnit does not check it for us
@@ -1034,6 +1040,9 @@ void blueprint_helpers::parseCurrencyOption(const StringSegment& segment, MacroP
     // Slicing is OK
     macros.unit = currency; // NOLINT
 }
+#if U_GCC_MAJOR_MINOR >= 1204
+#pragma GCC diagnostic pop
+#endif
 
 void
 blueprint_helpers::generateCurrencyOption(const CurrencyUnit& currency, UnicodeString& sb, UErrorCode&) {
@@ -1287,7 +1296,6 @@ void blueprint_helpers::parseScientificStem(const StringSegment& segment, MacroP
     fail: void();
     // throw new SkeletonSyntaxException("Invalid scientific stem", segment);
     status = U_NUMBER_SKELETON_SYNTAX_ERROR;
-    return;
 }
 
 void blueprint_helpers::parseIntegerStem(const StringSegment& segment, MacroProps& macros, UErrorCode& status) {
@@ -1305,7 +1313,6 @@ void blueprint_helpers::parseIntegerStem(const StringSegment& segment, MacroProp
         return;
     }
     macros.integerWidth = IntegerWidth::zeroFillTo(offset);
-    return;
 }
 
 bool blueprint_helpers::parseFracSigOption(const StringSegment& segment, MacroProps& macros,
@@ -1344,7 +1351,7 @@ bool blueprint_helpers::parseFracSigOption(const StringSegment& segment, MacroPr
         // @, @@, @@@
         maxSig = minSig;
     }
-    auto& oldPrecision = static_cast<const FractionPrecision&>(macros.precision);
+    const auto& oldPrecision = static_cast<const FractionPrecision&>(macros.precision);
     if (offset < segment.length()) {
         UNumberRoundingPriority priority;
         if (maxSig == -1) {

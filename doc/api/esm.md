@@ -8,8 +8,19 @@
 added: v8.5.0
 changes:
   - version:
+    - v23.1.0
+    - v22.12.0
+    - v20.18.3
+    - v18.20.5
+    pr-url: https://github.com/nodejs/node/pull/55333
+    description: Import attributes are no longer experimental.
+  - version: v22.0.0
+    pr-url: https://github.com/nodejs/node/pull/52104
+    description: Drop support for import assertions.
+  - version:
     - v21.0.0
     - v20.10.0
+    - v18.20.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: Add experimental support for import attributes.
   - version:
@@ -115,14 +126,13 @@ Node.js has two module systems: [CommonJS][] modules and ECMAScript modules.
 
 Authors can tell Node.js to interpret JavaScript as an ES module via the `.mjs`
 file extension, the `package.json` [`"type"`][] field with a value `"module"`,
-the [`--input-type`][] flag with a value of `"module"`, or the
-[`--experimental-default-type`][] flag with a value of `"module"`. These are
-explicit markers of code being intended to run as an ES module.
+or the [`--input-type`][] flag with a value of `"module"`. These are explicit
+markers of code being intended to run as an ES module.
 
-Inversely, authors can tell Node.js to interpret JavaScript as CommonJS via the
-`.cjs` file extension, the `package.json` [`"type"`][] field with a value
-`"commonjs"`, the [`--input-type`][] flag with a value of `"commonjs"`, or the
-[`--experimental-default-type`][] flag with a value of `"commonjs"`.
+Inversely, authors can explicitly tell Node.js to interpret JavaScript as
+CommonJS via the `.cjs` file extension, the `package.json` [`"type"`][] field
+with a value `"commonjs"`, or the [`--input-type`][] flag with a value of
+`"commonjs"`.
 
 When code lacks explicit markers for either module system, Node.js will inspect
 the source code of a module to look for ES module syntax. If such syntax is
@@ -264,18 +274,12 @@ changes:
   - version:
     - v21.0.0
     - v20.10.0
-    - v18.19.0
+    - v18.20.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: Switch from Import Assertions to Import Attributes.
 -->
 
-> Stability: 1.1 - Active development
-
-> This feature was previously named "Import assertions", and using the `assert`
-> keyword instead of `with`. Any uses in code of the prior `assert` keyword
-> should be updated to use `with` instead.
-
-The [Import Attributes proposal][] adds an inline syntax for module import
+[Import attributes][Import Attributes MDN] are an inline syntax for module import
 statements to pass on more information alongside the module specifier.
 
 ```js
@@ -285,19 +289,20 @@ const { default: barData } =
   await import('./bar.json', { with: { type: 'json' } });
 ```
 
-Node.js supports the following `type` values, for which the attribute is
-mandatory:
+Node.js only supports the `type` attribute, for which it supports the following values:
 
 | Attribute `type` | Needed for       |
 | ---------------- | ---------------- |
 | `'json'`         | [JSON modules][] |
 
-## Builtin modules
+The `type: 'json'` attribute is mandatory when importing JSON modules.
 
-[Core modules][] provide named exports of their public API. A
+## Built-in modules
+
+[Built-in modules][] provide named exports of their public API. A
 default export is also provided which is the value of the CommonJS exports.
 The default export can be used for, among other things, modifying the named
-exports. Named exports of builtin modules are updated only by calling
+exports. Named exports of built-in modules are updated only by calling
 [`module.syncBuiltinESMExports()`][].
 
 ```js
@@ -334,10 +339,10 @@ modules it can be used to load ES modules.
 
 ## `import.meta`
 
-* {Object}
+* Type: {Object}
 
 The `import.meta` meta property is an `Object` that contains the following
-properties.
+properties. It is only supported in ES modules.
 
 ### `import.meta.dirname`
 
@@ -345,12 +350,17 @@ properties.
 added:
   - v21.2.0
   - v20.11.0
+changes:
+  - version:
+     - v24.0.0
+     - v22.16.0
+    pr-url: https://github.com/nodejs/node/pull/58011
+    description: This property is no longer experimental.
 -->
 
-> Stability: 1.2 - Release candidate
+* Type: {string} The directory name of the current module.
 
-* {string} The directory name of the current module. This is the same as the
-  [`path.dirname()`][] of the [`import.meta.filename`][].
+This is the same as the [`path.dirname()`][] of the [`import.meta.filename`][].
 
 > **Caveat**: only present on `file:` modules.
 
@@ -360,21 +370,25 @@ added:
 added:
   - v21.2.0
   - v20.11.0
+changes:
+  - version:
+     - v24.0.0
+     - v22.16.0
+    pr-url: https://github.com/nodejs/node/pull/58011
+    description: This property is no longer experimental.
 -->
 
-> Stability: 1.2 - Release candidate
+* Type: {string} The full absolute path and filename of the current module, with
+  symlinks resolved.
 
-* {string} The full absolute path and filename of the current module, with
-* symlinks resolved.
-* This is the same as the [`url.fileURLToPath()`][] of the
-* [`import.meta.url`][].
+This is the same as the [`url.fileURLToPath()`][] of the [`import.meta.url`][].
 
 > **Caveat** only local modules support this property. Modules not using the
 > `file:` protocol will not provide it.
 
 ### `import.meta.url`
 
-* {string} The absolute `file:` URL of the module.
+* Type: {string} The absolute `file:` URL of the module.
 
 This is defined exactly the same as it is in browsers providing the URL of the
 current module file.
@@ -384,6 +398,35 @@ This enables useful patterns such as relative file loading:
 ```js
 import { readFileSync } from 'node:fs';
 const buffer = readFileSync(new URL('./data.proto', import.meta.url));
+```
+
+### `import.meta.main`
+
+<!-- YAML
+added:
+  - v24.2.0
+-->
+
+> Stability: 1.0 - Early development
+
+* Type: {boolean} `true` when the current module is the entry point of the current process; `false` otherwise.
+
+Equivalent to `require.main === module` in CommonJS.
+
+Analogous to Python's `__name__ == "__main__"`.
+
+```js
+export function foo() {
+  return 'Hello, world';
+}
+
+function main() {
+  const message = foo();
+  console.log(message);
+}
+
+if (import.meta.main) main();
+// `foo` can be imported from another module without possible side-effects from `main`
 ```
 
 ### `import.meta.resolve(specifier)`
@@ -397,8 +440,8 @@ changes:
     - v20.6.0
     - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49028
-    description: Unflag `import.meta.resolve`, with `parentURL` parameter still
-                 flagged.
+    description: No longer behind `--experimental-import-meta-resolve` CLI flag,
+                 except for the non-standard `parentURL` parameter.
   - version:
     - v20.6.0
     - v18.19.0
@@ -466,15 +509,37 @@ compatibility.
 
 ### `require`
 
-The CommonJS module `require` always treats the files it references as CommonJS.
+The CommonJS module `require` currently only supports loading synchronous ES
+modules (that is, ES modules that do not use top-level `await`).
 
-Using `require` to load an ES module is not supported because ES modules have
-asynchronous execution. Instead, use [`import()`][] to load an ES module
-from a CommonJS module.
+See [Loading ECMAScript modules using `require()`][] for details.
 
 ### CommonJS Namespaces
 
+<!-- YAML
+added: v14.13.0
+changes:
+  - version: v23.0.0
+    pr-url: https://github.com/nodejs/node/pull/53848
+    description: Added `'module.exports'` export marker to CJS namespaces.
+-->
+
 CommonJS modules consist of a `module.exports` object which can be of any type.
+
+To support this, when importing CommonJS from an ECMAScript module, a namespace
+wrapper for the CommonJS module is constructed, which always provides a
+`default` export key pointing to the CommonJS `module.exports` value.
+
+In addition, a heuristic static analysis is performed against the source text of
+the CommonJS module to get a best-effort static list of exports to provide on
+the namespace from values on `module.exports`. This is necessary since these
+namespaces must be constructed prior to the evaluation of the CJS module.
+
+These CommonJS namespace objects also provide the `default` export as a
+`'module.exports'` named export, in order to unambiguously indicate that their
+representation in CommonJS uses this value, and not the namespace value. This
+mirrors the semantics of the handling of the `'module.exports'` export name in
+[`require(esm)`][] interop support.
 
 When importing a CommonJS module, it can be reliably imported using the ES
 module default import or its corresponding sugar syntax:
@@ -483,9 +548,7 @@ module default import or its corresponding sugar syntax:
 
 ```js
 import { default as cjs } from 'cjs';
-
-// The following import statement is "syntax sugar" (equivalent but sweeter)
-// for `{ default as cjsSugar }` in the above import statement:
+// Identical to the above
 import cjsSugar from 'cjs';
 
 console.log(cjs);
@@ -494,10 +557,6 @@ console.log(cjs === cjsSugar);
 //   <module.exports>
 //   true
 ```
-
-The ECMAScript Module Namespace representation of a CommonJS module is always
-a namespace with a `default` export key pointing to the CommonJS
-`module.exports` value.
 
 This Module Namespace Exotic Object can be directly observed either when using
 `import * as m from 'cjs'` or a dynamic import:
@@ -509,7 +568,7 @@ import * as m from 'cjs';
 console.log(m);
 console.log(m === await import('cjs'));
 // Prints:
-//   [Module] { default: <module.exports> }
+//   [Module] { default: <module.exports>, 'module.exports': <module.exports> }
 //   true
 ```
 
@@ -540,7 +599,12 @@ console.log(cjs);
 
 import * as m from './cjs.cjs';
 console.log(m);
-// Prints: [Module] { default: { name: 'exported' }, name: 'exported' }
+// Prints:
+//   [Module] {
+//     default: { name: 'exported' },
+//     'module.exports': { name: 'exported' },
+//     name: 'exported'
+//   }
 ```
 
 As can be seen from the last example of the Module Namespace Exotic Object being
@@ -581,6 +645,10 @@ These CommonJS variables are not available in ES modules.
 They can instead be loaded with [`module.createRequire()`][] or
 [`process.dlopen`][].
 
+#### No `require.main`
+
+To replace `require.main === module`, there is the [`import.meta.main`][] API.
+
 #### No `require.resolve`
 
 Relative resolution can be handled via `new URL('./local', import.meta.url)`.
@@ -609,7 +677,16 @@ separate cache.
 
 ## JSON modules
 
-> Stability: 1 - Experimental
+<!-- YAML
+changes:
+  - version:
+    - v23.1.0
+    - v22.12.0
+    - v20.18.3
+    - v18.20.5
+    pr-url: https://github.com/nodejs/node/pull/55333
+    description: JSON modules are no longer experimental.
+-->
 
 JSON files can be referenced by `import`:
 
@@ -628,29 +705,145 @@ imported from the same path.
 
 ## Wasm modules
 
-> Stability: 1 - Experimental
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57038
+    description: Wasm modules no longer require the `--experimental-wasm-modules` flag.
+-->
 
-Importing WebAssembly modules is supported under the
-`--experimental-wasm-modules` flag, allowing any `.wasm` files to be
-imported as normal modules while also supporting their module imports.
+Importing both WebAssembly module instances and WebAssembly source phase
+imports is supported.
 
-This integration is in line with the
+Both of these integrations are in line with the
 [ES Module Integration Proposal for WebAssembly][].
 
-For example, an `index.mjs` containing:
+### Wasm Source Phase Imports
+
+> Stability: 1.2 - Release candidate
+
+<!-- YAML
+added: v24.0.0
+-->
+
+The [Source Phase Imports][] proposal allows the `import source` keyword
+combination to import a `WebAssembly.Module` object directly, instead of getting
+a module instance already instantiated with its dependencies.
+
+This is useful when needing custom instantiations for Wasm, while still
+resolving and loading it through the ES module integration.
+
+For example, to create multiple instances of a module, or to pass custom imports
+into a new instance of `library.wasm`:
 
 ```js
-import * as M from './module.wasm';
+import source libraryModule from './library.wasm';
+
+const instance1 = await WebAssembly.instantiate(libraryModule, importObject1);
+
+const instance2 = await WebAssembly.instantiate(libraryModule, importObject2);
+```
+
+In addition to the static source phase, there is also a dynamic variant of the
+source phase via the `import.source` dynamic phase import syntax:
+
+```js
+const dynamicLibrary = await import.source('./library.wasm');
+
+const instance = await WebAssembly.instantiate(dynamicLibrary, importObject);
+```
+
+### JavaScript String Builtins
+
+> Stability: 1.2 - Release candidate
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When importing WebAssembly modules, the
+[WebAssembly JS String Builtins Proposal][] is automatically enabled through the
+ESM Integration. This allows WebAssembly modules to directly use efficient
+compile-time string builtins from the `wasm:js-string` namespace.
+
+For example, the following Wasm module exports a string `getLength` function using
+the `wasm:js-string` `length` builtin:
+
+```text
+(module
+  ;; Compile-time import of the string length builtin.
+  (import "wasm:js-string" "length" (func $string_length (param externref) (result i32)))
+
+  ;; Define getLength, taking a JS value parameter assumed to be a string,
+  ;; calling string length on it and returning the result.
+  (func $getLength (param $str externref) (result i32)
+    local.get $str
+    call $string_length
+  )
+
+  ;; Export the getLength function.
+  (export "getLength" (func $get_length))
+)
+```
+
+```js
+import { getLength } from './string-len.wasm';
+getLength('foo'); // Returns 3.
+```
+
+Wasm builtins are compile-time imports that are linked during module compilation
+rather than during instantiation. They do not behave like normal module graph
+imports and they cannot be inspected via `WebAssembly.Module.imports(mod)`
+or virtualized unless recompiling the module using the direct
+`WebAssembly.compile` API with string builtins disabled.
+
+Importing a module in the source phase before it has been instantiated will also
+use the compile-time builtins automatically:
+
+```js
+import source mod from './string-len.wasm';
+const { exports: { getLength } } = await WebAssembly.instantiate(mod, {});
+getLength('foo'); // Also returns 3.
+```
+
+### Wasm Instance Phase Imports
+
+> Stability: 1.1 - Active development
+
+Instance imports allow any `.wasm` files to be imported as normal modules,
+supporting their module imports in turn.
+
+For example, an `index.js` containing:
+
+```js
+import * as M from './library.wasm';
 console.log(M);
 ```
 
 executed under:
 
 ```bash
-node --experimental-wasm-modules index.mjs
+node index.mjs
 ```
 
-would provide the exports interface for the instantiation of `module.wasm`.
+would provide the exports interface for the instantiation of `library.wasm`.
+
+### Reserved Wasm Namespaces
+
+<!-- YAML
+added: REPLACEME
+-->
+
+When importing WebAssembly module instances, they cannot use import module
+names or import/export names that start with reserved prefixes:
+
+* `wasm-js:` - reserved in all module import names, module names and export
+  names.
+* `wasm:` - reserved in module import names and export names (imported module
+  names are allowed in order to support future builtin polyfills).
+
+Importing a module using the above reserved names will throw a
+`WebAssembly.LinkError`.
 
 <i id="esm_experimental_top_level_await"></i>
 
@@ -697,71 +890,6 @@ spawn(execPath, [
 });
 ```
 
-## HTTPS and HTTP imports
-
-> Stability: 1 - Experimental
-
-Importing network based modules using `https:` and `http:` is supported under
-the `--experimental-network-imports` flag. This allows web browser-like imports
-to work in Node.js with a few differences due to application stability and
-security concerns that are different when running in a privileged environment
-instead of a browser sandbox.
-
-### Imports are limited to HTTP/1
-
-Automatic protocol negotiation for HTTP/2 and HTTP/3 is not yet supported.
-
-### HTTP is limited to loopback addresses
-
-`http:` is vulnerable to man-in-the-middle attacks and is not allowed to be
-used for addresses outside of the IPv4 address `127.0.0.0/8` (`127.0.0.1` to
-`127.255.255.255`) and the IPv6 address `::1`. Support for `http:` is intended
-to be used for local development.
-
-### Authentication is never sent to the destination server.
-
-`Authorization`, `Cookie`, and `Proxy-Authorization` headers are not sent to the
-server. Avoid including user info in parts of imported URLs. A security model
-for safely using these on the server is being worked on.
-
-### CORS is never checked on the destination server
-
-CORS is designed to allow a server to limit the consumers of an API to a
-specific set of hosts. This is not supported as it does not make sense for a
-server-based implementation.
-
-### Cannot load non-network dependencies
-
-These modules cannot access other modules that are not over `http:` or `https:`.
-To still access local modules while avoiding the security concern, pass in
-references to the local dependencies:
-
-```mjs
-// file.mjs
-import worker_threads from 'node:worker_threads';
-import { configure, resize } from 'https://example.com/imagelib.mjs';
-configure({ worker_threads });
-```
-
-```mjs
-// https://example.com/imagelib.mjs
-let worker_threads;
-export function configure(opts) {
-  worker_threads = opts.worker_threads;
-}
-export function resize(img, size) {
-  // Perform resizing in worker_thread to avoid main thread blocking
-}
-```
-
-### Network-based loading is not enabled by default
-
-For now, the `--experimental-network-imports` flag is required to enable loading
-resources over `http:` or `https:`. In the future, a different mechanism will be
-used to enforce this. Opt-in is required to prevent transitive dependencies
-inadvertently using potentially mutable state that could affect reliability
-of Node.js applications.
-
 <i id="esm_experimental_loaders"></i>
 
 ## Loaders
@@ -804,8 +932,7 @@ does not determine whether the resolved URL protocol can be loaded,
 or whether the file extensions are permitted, instead these validations
 are applied by Node.js during the load phase
 (for example, if it was asked to load a URL that has a protocol that is
-not `file:`, `data:`, `node:`, or if `--experimental-network-imports`
-is enabled, `https:`).
+not `file:`, `data:` or `node:`.
 
 The algorithm also tries to determine the format of the file based
 on the extension (see `ESM_FILE_FORMAT` algorithm below). If it does
@@ -896,14 +1023,12 @@ The resolver can throw the following errors:
 >    1. Throw an _Invalid Module Specifier_ error.
 > 7. Let _packageSubpath_ be _"."_ concatenated with the substring of
 >    _packageSpecifier_ from the position at the length of _packageName_.
-> 8. If _packageSubpath_ ends in _"/"_, then
->    1. Throw an _Invalid Module Specifier_ error.
-> 9. Let _selfUrl_ be the result of
+> 8. Let _selfUrl_ be the result of
 >    **PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_).
-> 10. If _selfUrl_ is not **undefined**, return _selfUrl_.
-> 11. While _parentURL_ is not the file system root,
+> 9. If _selfUrl_ is not **undefined**, return _selfUrl_.
+> 10. While _parentURL_ is not the file system root,
 >     1. Let _packageURL_ be the URL resolution of _"node\_modules/"_
->        concatenated with _packageSpecifier_, relative to _parentURL_.
+>        concatenated with _packageName_, relative to _parentURL_.
 >     2. Set _parentURL_ to the parent folder URL of _parentURL_.
 >     3. If the folder at _packageURL_ does not exist, then
 >        1. Continue the next loop iteration.
@@ -917,7 +1042,7 @@ The resolver can throw the following errors:
 >           1. Return the URL resolution of _main_ in _packageURL_.
 >     7. Otherwise,
 >        1. Return the URL resolution of _packageSubpath_ in _packageURL_.
-> 12. Throw a _Module Not Found_ error.
+> 11. Throw a _Module Not Found_ error.
 
 **PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_)
 
@@ -934,6 +1059,8 @@ The resolver can throw the following errors:
 > 6. Otherwise, return **undefined**.
 
 **PACKAGE\_EXPORTS\_RESOLVE**(_packageURL_, _subpath_, _exports_, _conditions_)
+
+Note: This function is directly invoked by the CommonJS resolution algorithm.
 
 > 1. If _exports_ is an Object with both a key starting with _"."_ and a key not
 >    starting with _"."_, throw an _Invalid Package Configuration_ error.
@@ -958,6 +1085,8 @@ The resolver can throw the following errors:
 
 **PACKAGE\_IMPORTS\_RESOLVE**(_specifier_, _parentURL_, _conditions_)
 
+Note: This function is directly invoked by the CommonJS resolution algorithm.
+
 > 1. Assert: _specifier_ begins with _"#"_.
 > 2. If _specifier_ is exactly equal to _"#"_ or starts with _"#/"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
@@ -974,14 +1103,16 @@ The resolver can throw the following errors:
 **PACKAGE\_IMPORTS\_EXPORTS\_RESOLVE**(_matchKey_, _matchObj_, _packageURL_,
 _isImports_, _conditions_)
 
-> 1. If _matchKey_ is a key of _matchObj_ and does not contain _"\*"_, then
+> 1. If _matchKey_ ends in _"/"_, then
+>    1. Throw an _Invalid Module Specifier_ error.
+> 2. If _matchKey_ is a key of _matchObj_ and does not contain _"\*"_, then
 >    1. Let _target_ be the value of _matchObj_\[_matchKey_].
 >    2. Return the result of **PACKAGE\_TARGET\_RESOLVE**(_packageURL_,
 >       _target_, **null**, _isImports_, _conditions_).
-> 2. Let _expansionKeys_ be the list of keys of _matchObj_ containing only a
+> 3. Let _expansionKeys_ be the list of keys of _matchObj_ containing only a
 >    single _"\*"_, sorted by the sorting function **PATTERN\_KEY\_COMPARE**
 >    which orders in descending order of specificity.
-> 3. For each key _expansionKey_ in _expansionKeys_, do
+> 4. For each key _expansionKey_ in _expansionKeys_, do
 >    1. Let _patternBase_ be the substring of _expansionKey_ up to but excluding
 >       the first _"\*"_ character.
 >    2. If _matchKey_ starts with but is not equal to _patternBase_, then
@@ -996,23 +1127,19 @@ _isImports_, _conditions_)
 >             _matchKey_ minus the length of _patternTrailer_.
 >          3. Return the result of **PACKAGE\_TARGET\_RESOLVE**(_packageURL_,
 >             _target_, _patternMatch_, _isImports_, _conditions_).
-> 4. Return **null**.
+> 5. Return **null**.
 
 **PATTERN\_KEY\_COMPARE**(_keyA_, _keyB_)
 
-> 1. Assert: _keyA_ ends with _"/"_ or contains only a single _"\*"_.
-> 2. Assert: _keyB_ ends with _"/"_ or contains only a single _"\*"_.
-> 3. Let _baseLengthA_ be the index of _"\*"_ in _keyA_ plus one, if _keyA_
->    contains _"\*"_, or the length of _keyA_ otherwise.
-> 4. Let _baseLengthB_ be the index of _"\*"_ in _keyB_ plus one, if _keyB_
->    contains _"\*"_, or the length of _keyB_ otherwise.
+> 1. Assert: _keyA_ contains only a single _"\*"_.
+> 2. Assert: _keyB_ contains only a single _"\*"_.
+> 3. Let _baseLengthA_ be the index of _"\*"_ in _keyA_.
+> 4. Let _baseLengthB_ be the index of _"\*"_ in _keyB_.
 > 5. If _baseLengthA_ is greater than _baseLengthB_, return -1.
 > 6. If _baseLengthB_ is greater than _baseLengthA_, return 1.
-> 7. If _keyA_ does not contain _"\*"_, return 1.
-> 8. If _keyB_ does not contain _"\*"_, return -1.
-> 9. If the length of _keyA_ is greater than the length of _keyB_, return -1.
-> 10. If the length of _keyB_ is greater than the length of _keyA_, return 1.
-> 11. Return 0.
+> 7. If the length of _keyA_ is greater than the length of _keyB_, return -1.
+> 8. If the length of _keyB_ is greater than the length of _keyA_, return 1.
+> 9. Return 0.
 
 **PACKAGE\_TARGET\_RESOLVE**(_packageURL_, _target_, _patternMatch_,
 _isImports_, _conditions_)
@@ -1075,33 +1202,33 @@ _isImports_, _conditions_)
 >    1. Return _"commonjs"_.
 > 4. If _url_ ends in _".json"_, then
 >    1. Return _"json"_.
-> 5. If `--experimental-wasm-modules` is enabled and _url_ ends in
+> 5. If _url_ ends in
 >    _".wasm"_, then
 >    1. Return _"wasm"_.
-> 6. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_url_).
-> 7. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
-> 8. Let _packageType_ be **null**.
-> 9. If _pjson?.type_ is _"module"_ or _"commonjs"_, then
->    1. Set _packageType_ to _pjson.type_.
-> 10. If _url_ ends in _".js"_, then
+> 6. If `--experimental-addon-modules` is enabled and _url_ ends in
+>    _".node"_, then
+>    1. Return _"addon"_.
+> 7. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_url_).
+> 8. Let _pjson_ be the result of **READ\_PACKAGE\_JSON**(_packageURL_).
+> 9. Let _packageType_ be **null**.
+> 10. If _pjson?.type_ is _"module"_ or _"commonjs"_, then
+>     1. Set _packageType_ to _pjson.type_.
+> 11. If _url_ ends in _".js"_, then
 >     1. If _packageType_ is not **null**, then
 >        1. Return _packageType_.
->     2. If `--experimental-detect-module` is enabled and the source of
->        module contains static import or export syntax, then
+>     2. If the result of **DETECT\_MODULE\_SYNTAX**(_source_) is true, then
 >        1. Return _"module"_.
 >     3. Return _"commonjs"_.
-> 11. If _url_ does not have any extension, then
->     1. If _packageType_ is _"module"_ and `--experimental-wasm-modules` is
->        enabled and the file at _url_ contains the header for a WebAssembly
->        module, then
+> 12. If _url_ does not have any extension, then
+>     1. If _packageType_ is _"module"_ and the file at _url_ contains the
+>        "application/wasm" content type header for a WebAssembly module, then
 >        1. Return _"wasm"_.
 >     2. If _packageType_ is not **null**, then
 >        1. Return _packageType_.
->     3. If `--experimental-detect-module` is enabled and the source of
->        module contains static import or export syntax, then
+>     3. If the result of **DETECT\_MODULE\_SYNTAX**(_source_) is true, then
 >        1. Return _"module"_.
 >     4. Return _"commonjs"_.
-> 12. Return **undefined** (will throw during load phase).
+> 13. Return **undefined** (will throw during load phase).
 
 **LOOKUP\_PACKAGE\_SCOPE**(_url_)
 
@@ -1124,6 +1251,17 @@ _isImports_, _conditions_)
 >    1. Throw an _Invalid Package Configuration_ error.
 > 4. Return the parsed JSON source of the file at _pjsonURL_.
 
+**DETECT\_MODULE\_SYNTAX**(_source_)
+
+> 1. Parse _source_ as an ECMAScript module.
+> 2. If the parse is successful, then
+>    1. If _source_ contains top-level `await`, static `import` or `export`
+>       statements, or `import.meta`, return **true**.
+>    2. If _source_ contains a top-level lexical declaration (`const`, `let`,
+>       or `class`) of any of the CommonJS wrapper variables (`require`,
+>       `exports`, `module`, `__filename`, or `__dirname`) then return **true**.
+> 3. Else return **false**.
+
 ### Customizing ESM specifier resolution algorithm
 
 [Module customization hooks][] provide a mechanism for customizing the ESM
@@ -1134,27 +1272,30 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [Addons]: addons.md
+[Built-in modules]: modules.md#built-in-modules
 [CommonJS]: modules.md
-[Core modules]: modules.md#core-modules
 [Determining module system]: packages.md#determining-module-system
 [Dynamic `import()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import
 [ES Module Integration Proposal for WebAssembly]: https://github.com/webassembly/esm-integration
 [Import Attributes]: #import-attributes
-[Import Attributes proposal]: https://github.com/tc39/proposal-import-attributes
+[Import Attributes MDN]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import/with
 [JSON modules]: #json-modules
+[Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
+[Source Phase Imports]: https://github.com/tc39/proposal-source-phase-imports
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
+[WebAssembly JS String Builtins Proposal]: https://github.com/WebAssembly/js-string-builtins
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
-[`--experimental-default-type`]: cli.md#--experimental-default-typetype
 [`--input-type`]: cli.md#--input-typetype
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #import-expressions
 [`import.meta.dirname`]: #importmetadirname
 [`import.meta.filename`]: #importmetafilename
+[`import.meta.main`]: #importmetamain
 [`import.meta.resolve`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import.meta/resolve
 [`import.meta.url`]: #importmetaurl
 [`import`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import
@@ -1163,8 +1304,9 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`path.dirname()`]: path.md#pathdirnamepath
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
-[`url.fileURLToPath()`]: url.md#urlfileurltopathurl
-[cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/1.2.2
+[`require(esm)`]: modules.md#loading-ecmascript-modules-using-require
+[`url.fileURLToPath()`]: url.md#urlfileurltopathurl-options
+[cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/2.0.0
 [commonjs-extension-resolution-loader]: https://github.com/nodejs/loaders-test/tree/main/commonjs-extension-resolution-loader
 [custom https loader]: module.md#import-from-https
 [import.meta.resolve]: #importmetaresolvespecifier
@@ -1172,4 +1314,4 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [status code]: process.md#exit-codes
 [the official standard format]: https://tc39.github.io/ecma262/#sec-modules
-[url.pathToFileURL]: url.md#urlpathtofileurlpath
+[url.pathToFileURL]: url.md#urlpathtofileurlpath-options

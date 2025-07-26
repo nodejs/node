@@ -4,10 +4,15 @@
 
 #include "test/inspector/isolate-data.h"
 
+#include <optional>
+
+#include "include/libplatform/libplatform.h"
 #include "include/v8-context.h"
 #include "include/v8-exception.h"
 #include "include/v8-microtask-queue.h"
 #include "include/v8-template.h"
+#include "src/execution/isolate.h"
+#include "src/heap/heap.h"
 #include "src/init/v8.h"
 #include "src/inspector/test-interface.h"
 #include "test/inspector/frontend-channel.h"
@@ -54,7 +59,6 @@ InspectorIsolateData::InspectorIsolateData(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
   params.array_buffer_allocator = array_buffer_allocator_.get();
   params.snapshot_blob = startup_data;
-  params.only_terminate_in_safe_scope = true;
   isolate_.reset(v8::Isolate::New(params));
   v8::Isolate::Scope isolate_scope(isolate_.get());
   isolate_->SetMicrotasksPolicy(v8::MicrotasksPolicy::kScoped);
@@ -100,6 +104,10 @@ InspectorIsolateData::~InspectorIsolateData() {
   for (int session_id : session_ids_for_cleanup_) {
     ChannelHolder::RemoveChannel(session_id);
   }
+
+  // We don't care about completing pending per-isolate tasks, just delete
+  // them in case they still reference this Isolate.
+  v8::platform::NotifyIsolateShutdown(V8::GetCurrentPlatform(), isolate());
 }
 
 int InspectorIsolateData::CreateContextGroup() {
@@ -169,7 +177,7 @@ void InspectorIsolateData::RegisterModule(v8::Local<v8::Context> context,
 // static
 v8::MaybeLocal<v8::Module> InspectorIsolateData::ModuleResolveCallback(
     v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
-    v8::Local<v8::FixedArray> import_assertions,
+    v8::Local<v8::FixedArray> import_attributes,
     v8::Local<v8::Module> referrer) {
   // TODO(v8:11189) Consider JSON modules support in the InspectorClient
   InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
@@ -184,10 +192,10 @@ v8::MaybeLocal<v8::Module> InspectorIsolateData::ModuleResolveCallback(
   return maybe_module;
 }
 
-base::Optional<int> InspectorIsolateData::ConnectSession(
+std::optional<int> InspectorIsolateData::ConnectSession(
     int context_group_id, const v8_inspector::StringView& state,
     std::unique_ptr<FrontendChannelImpl> channel, bool is_fully_trusted) {
-  if (contexts_.find(context_group_id) == contexts_.end()) return base::nullopt;
+  if (contexts_.find(context_group_id) == contexts_.end()) return std::nullopt;
 
   v8::SealHandleScope seal_handle_scope(isolate());
   int session_id = ++last_session_id_;
@@ -195,7 +203,7 @@ base::Optional<int> InspectorIsolateData::ConnectSession(
   // inspector will already send notifications.
   auto* c = channel.get();
   ChannelHolder::AddChannel(session_id, std::move(channel));
-  sessions_[session_id] = inspector_->connect(
+  sessions_[session_id] = inspector_->connectShared(
       context_group_id, c, state,
       is_fully_trusted ? v8_inspector::V8Inspector::kFullyTrusted
                        : v8_inspector::V8Inspector::kUntrusted,
@@ -407,6 +415,10 @@ void InspectorIsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
         v8_inspector::StringView(reinterpret_cast<const uint8_t*>(reason_str),
                                  strlen(reason_str)));
     return;
+  } else if (data.GetEvent() == v8::kPromiseRejectAfterResolved ||
+             data.GetEvent() == v8::kPromiseResolveAfterResolved) {
+    // Ignore reject/resolve after resolved, like the blink handler.
+    return;
   }
 
   v8::Local<v8::Value> exception = data.GetValue();
@@ -507,6 +519,14 @@ v8::MaybeLocal<v8::Value> InspectorIsolateData::memoryInfo(
 
 void InspectorIsolateData::runMessageLoopOnPause(int) {
   v8::SealHandleScope seal_handle_scope(isolate());
+  // Pumping the message loop below may trigger the execution of a stackless
+  // GC. We need to override the embedder stack state, to force scanning the
+  // stack, if this happens.
+  i::Heap* heap =
+      reinterpret_cast<i::Isolate*>(task_runner_->isolate())->heap();
+  i::EmbedderStackStateScope scope(
+      heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
+      StackState::kMayContainHeapPointers);
   task_runner_->RunMessageLoop(true);
 }
 
@@ -525,8 +545,8 @@ void InspectorIsolateData::installAdditionalCommandLineAPI(
   CHECK(context->GetIsolate() == isolate());
   v8::HandleScope handle_scope(isolate());
   v8::Context::Scope context_scope(context);
-  v8::ScriptOrigin origin(isolate(), v8::String::NewFromUtf8Literal(
-                                         isolate(), "internal-console-api"));
+  v8::ScriptOrigin origin(
+      v8::String::NewFromUtf8Literal(isolate(), "internal-console-api"));
   v8::ScriptCompiler::Source scriptSource(
       additional_console_api_.Get(isolate()), origin);
   v8::MaybeLocal<v8::Script> script =

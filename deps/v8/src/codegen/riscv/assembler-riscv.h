@@ -49,14 +49,17 @@
 #include "src/codegen/riscv/base-assembler-riscv.h"
 #include "src/codegen/riscv/base-riscv-i.h"
 #include "src/codegen/riscv/extension-riscv-a.h"
+#include "src/codegen/riscv/extension-riscv-b.h"
 #include "src/codegen/riscv/extension-riscv-c.h"
 #include "src/codegen/riscv/extension-riscv-d.h"
 #include "src/codegen/riscv/extension-riscv-f.h"
 #include "src/codegen/riscv/extension-riscv-m.h"
 #include "src/codegen/riscv/extension-riscv-v.h"
+#include "src/codegen/riscv/extension-riscv-zicond.h"
 #include "src/codegen/riscv/extension-riscv-zicsr.h"
 #include "src/codegen/riscv/extension-riscv-zifencei.h"
 #include "src/codegen/riscv/register-riscv.h"
+#include "src/common/code-memory-access.h"
 #include "src/objects/contexts.h"
 #include "src/objects/smi.h"
 
@@ -92,7 +95,8 @@ class Operand {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
 
-  explicit Operand(Handle<HeapObject> handle);
+  explicit Operand(Handle<HeapObject> handle,
+                   RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
 
@@ -101,6 +105,12 @@ class Operand {
 
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const { return rm_.is_valid(); }
+
+  inline intptr_t immediate_for_heap_number_request() const {
+    DCHECK(rmode() == RelocInfo::FULL_EMBEDDED_OBJECT);
+    return value_.immediate;
+  }
+
   inline intptr_t immediate() const {
     DCHECK(!is_reg());
     DCHECK(!IsHeapNumberRequest());
@@ -165,12 +175,14 @@ class V8_EXPORT_PRIVATE MemOperand : public Operand {
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                     public AssemblerRISCVI,
                                     public AssemblerRISCVA,
+                                    public AssemblerRISCVB,
                                     public AssemblerRISCVF,
                                     public AssemblerRISCVD,
                                     public AssemblerRISCVM,
                                     public AssemblerRISCVC,
                                     public AssemblerRISCVZifencei,
                                     public AssemblerRISCVZicsr,
+                                    public AssemblerRISCVZicond,
                                     public AssemblerRISCVV {
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -182,14 +194,22 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // own buffer. Otherwise it takes ownership of the provided buffer.
   explicit Assembler(const AssemblerOptions&,
                      std::unique_ptr<AssemblerBuffer> = {});
+  // For compatibility with assemblers that require a zone.
+  Assembler(const MaybeAssemblerZone&, const AssemblerOptions& options,
+            std::unique_ptr<AssemblerBuffer> buffer = {})
+      : Assembler(options, std::move(buffer)) {}
 
   virtual ~Assembler();
+
+  static RegList DefaultTmpList();
+  static DoubleRegList DefaultFPTmpList();
+
   void AbortedCodeGeneration();
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
   void GetCode(LocalIsolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
   // Convenience wrapper for allocating with an Isolate.
@@ -227,8 +247,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Get offset from instr.
   int BranchOffset(Instr instr);
   static int BrachlongOffset(Instr auipc, Instr jalr);
-  static int PatchBranchlongOffset(Address pc, Instr auipc, Instr instr_I,
-                                   int32_t offset);
+  static int PatchBranchlongOffset(
+      Address pc, Instr auipc, Instr instr_I, int32_t offset,
+      WritableJitAllocation* jit_allocation = nullptr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
@@ -248,17 +269,13 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Read/Modify the code target address in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
-  static Address target_address_at(Address pc);
-  V8_INLINE static void set_target_address_at(
-      Address pc, Address target,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
-    set_target_value_at(pc, target, icache_flush_mode);
-  }
+  static Address target_constant_address_at(Address pc);
 
   static Address target_address_at(Address pc, Address constant_pool);
 
   static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
+      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
@@ -266,6 +283,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                                       Address constant_pool);
   inline static void set_target_compressed_address_at(
       Address pc, Address constant_pool, Tagged_t target,
+      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   inline Handle<Object> code_target_object_handle_at(Address pc,
@@ -273,14 +291,34 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   inline Handle<HeapObject> compressed_embedded_object_handle_at(
       Address pc, Address constant_pool);
 
+  inline Handle<HeapObject> embedded_object_handle_at(Address pc);
+
+#ifdef V8_TARGET_ARCH_RISCV64
+  inline void set_embedded_object_index_referenced_from(
+      Address p, EmbeddedObjectIndex index);
+#endif
+
   static bool IsConstantPoolAt(Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
   // See Assembler::CheckConstPool for more info.
   void EmitPoolGuard();
 
+#if defined(V8_TARGET_ARCH_RISCV64)
   static void set_target_value_at(
-      Address pc, uintptr_t target,
+      Address pc, uint64_t target,
+      WritableJitAllocation* jit_allocation = nullptr,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+#elif defined(V8_TARGET_ARCH_RISCV32)
+  static void set_target_value_at(
+      Address pc, uint32_t target,
+      WritableJitAllocation* jit_allocation = nullptr,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+#endif
+
+  static inline int32_t target_constant32_at(Address pc);
+  static inline void set_target_constant32_at(
+      Address pc, uint32_t target, WritableJitAllocation* jit_allocation,
+      ICacheFlushMode icache_flush_mode);
 
   static void JumpLabelToJumpRegister(Address pc);
 
@@ -297,8 +335,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Address pc, Address target, WritableJitAllocation& jit_allocation,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
+
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      WritableJitAllocation* jit_allocation,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Here we are patching the address in the LUI/ADDI instruction pair.
   // These values are used in the serialization process and must be zero for
@@ -340,6 +385,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   static constexpr int kTrampolineSlotsSize = 2 * kInstrSize;
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
+  DoubleRegList* GetScratchDoubleRegisterList() {
+    return &scratch_double_register_list_;
+  }
 
   // ---------------------------------------------------------------------------
   // InstructionStream generation.
@@ -375,24 +423,28 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Assembler Pseudo Instructions (Tables 25.2, 25.3, RISC-V Unprivileged ISA)
   void nop();
 #if defined(V8_TARGET_ARCH_RISCV64)
-  void RecursiveLiImpl(Register rd, intptr_t imm);
-  void RecursiveLi(Register rd, intptr_t imm);
-  static int RecursiveLiCount(intptr_t imm);
-  static int RecursiveLiImplCount(intptr_t imm);
-  void RV_li(Register rd, intptr_t imm);
+  void RecursiveLiImpl(Register rd, int64_t imm);
+  void RecursiveLi(Register rd, int64_t imm);
+  static int RecursiveLiCount(int64_t imm);
+  static int RecursiveLiImplCount(int64_t imm);
+  void RV_li(Register rd, int64_t imm);
   static int RV_li_count(int64_t imm, bool is_get_temp_reg = false);
   // Returns the number of instructions required to load the immediate
   void GeneralLi(Register rd, int64_t imm);
-  static int GeneralLiCount(intptr_t imm, bool is_get_temp_reg = false);
+  static int GeneralLiCount(int64_t imm, bool is_get_temp_reg = false);
+  // Loads an immediate, always using 8 instructions, regardless of the value,
+  // so that it can be modified later.
+  void li_constant(Register rd, int64_t imm);
+  void li_constant32(Register rd, int32_t imm);
+  void li_ptr(Register rd, int64_t imm);
 #endif
 #if defined(V8_TARGET_ARCH_RISCV32)
   void RV_li(Register rd, int32_t imm);
   static int RV_li_count(int32_t imm, bool is_get_temp_reg = false);
+
+  void li_constant(Register rd, int32_t imm);
+  void li_ptr(Register rd, int32_t imm);
 #endif
-  // Loads an immediate, always using 8 instructions, regardless of the value,
-  // so that it can be modified later.
-  void li_constant(Register rd, intptr_t imm);
-  void li_ptr(Register rd, intptr_t imm);
 
   void break_(uint32_t code, bool break_as_stop = false);
   void stop(uint32_t code = kMaxStopCode);
@@ -413,6 +465,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
    public:
     explicit BlockTrampolinePoolScope(Assembler* assem, int margin = 0)
         : assem_(assem) {
+      if (margin > 0) {
+        assem_->CheckTrampolinePoolQuick(margin / kInstrSize);
+      }
       assem_->StartBlockTrampolinePool();
     }
 
@@ -425,6 +480,26 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
    private:
     Assembler* assem_;
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockTrampolinePoolScope);
+  };
+
+  class V8_NODISCARD BlockPoolsScope {
+   public:
+    // Block Trampoline Pool and Constant Pool. Emits pools if necessary to
+    // ensure that {margin} more bytes can be emitted without triggering pool
+    // emission.
+    explicit BlockPoolsScope(Assembler* assem, int margin = 0)
+        : block_const_pool_(assem, margin),
+          block_trampoline_pool_(assem, margin) {}
+
+    BlockPoolsScope(Assembler* assem, PoolEmissionCheck check, int margin = 0)
+        : block_const_pool_(assem, check),
+          block_trampoline_pool_(assem, margin) {}
+    ~BlockPoolsScope() {}
+
+   private:
+    BlockConstPoolScope block_const_pool_;
+    BlockTrampolinePoolScope block_trampoline_pool_;
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
   };
 
   // Class for postponing the assembly buffer growth. Typically used for
@@ -448,11 +523,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // Use --trace-deopt to enable.
   void RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
                          SourcePosition position, int id);
-
-  static int RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
-                                       intptr_t pc_delta);
-  static void RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
-                                        intptr_t pc_delta);
+  static int RelocateInternalReference(
+      RelocInfo::Mode rmode, Address pc, intptr_t pc_delta,
+      WritableJitAllocation* jit_allocation = nullptr);
+  static void RelocateRelativeReference(
+      RelocInfo::Mode rmode, Address pc, intptr_t pc_delta,
+      WritableJitAllocation* jit_allocation = nullptr);
 
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
@@ -463,6 +539,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   void dd(Label* label);
 
   Instruction* pc() const { return reinterpret_cast<Instruction*>(pc_); }
+
+  Instruction* InstructionAt(ptrdiff_t offset) const {
+    return reinterpret_cast<Instruction*>(buffer_start_ + offset);
+  }
 
   // Postpone the generation of the trampoline pool for the specified number of
   // instructions.
@@ -480,19 +560,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Read/patch instructions.
   static Instr instr_at(Address pc) { return *reinterpret_cast<Instr*>(pc); }
-  static void instr_at_put(Address pc, Instr instr) {
-    *reinterpret_cast<Instr*>(pc) = instr;
-  }
+  static void instr_at_put(Address pc, Instr instr,
+                           WritableJitAllocation* jit_allocation = nullptr);
+
   Instr instr_at(int pos) {
     return *reinterpret_cast<Instr*>(buffer_start_ + pos);
   }
-  void instr_at_put(int pos, Instr instr) {
-    *reinterpret_cast<Instr*>(buffer_start_ + pos) = instr;
-  }
+  void instr_at_put(int pos, Instr instr,
+                    WritableJitAllocation* jit_allocation = nullptr);
 
-  void instr_at_put(int pos, ShortInstr instr) {
-    *reinterpret_cast<ShortInstr*>(buffer_start_ + pos) = instr;
-  }
+  void instr_at_put(int pos, ShortInstr instr,
+                    WritableJitAllocation* jit_allocation = nullptr);
 
   Address toAddress(int pos) {
     return reinterpret_cast<Address>(buffer_start_ + pos);
@@ -505,8 +583,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
       Address pc_) const;
 
   inline int UnboundLabelsCount() { return unbound_labels_count_; }
-
-  using BlockPoolsScope = BlockTrampolinePoolScope;
 
   void RecordConstPool(int size);
 
@@ -526,16 +602,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
     constpool_.Check(Emission::kIfNeeded, Jump::kOmitted, margin);
   }
 
-  void RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
-    constpool_.RecordEntry(data, rmode);
+  RelocInfoStatus RecordEntry(uint32_t data, RelocInfo::Mode rmode) {
+    return constpool_.RecordEntry(data, rmode);
   }
 
-  void RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
-    constpool_.RecordEntry(data, rmode);
+  RelocInfoStatus RecordEntry(uint64_t data, RelocInfo::Mode rmode) {
+    return constpool_.RecordEntry(data, rmode);
   }
 
   void CheckTrampolinePoolQuick(int extra_instructions = 0) {
-    DEBUG_PRINTF("\tpc_offset:%d %d\n", pc_offset(),
+    DEBUG_PRINTF("\tCheckTrampolinePoolQuick pc_offset:%d %d\n", pc_offset(),
                  next_buffer_check_ - extra_instructions * kInstrSize);
     if (pc_offset() >= next_buffer_check_ - extra_instructions * kInstrSize) {
       CheckTrampolinePool();
@@ -643,8 +719,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   int target_at(int pos, bool is_internal);
 
   // Patch branch instruction at pos to branch to given branch target pos.
-  void target_at_put(int pos, int target_pos, bool is_internal,
-                     bool trampoline = false);
+  void target_at_put(int pos, int target_pos, bool is_internal);
 
   // Say if we need to relocate with this mode.
   bool MustUseReg(RelocInfo::Mode rmode);
@@ -745,7 +820,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   template <typename T>
   inline void EmitHelper(T x);
 
-  static void disassembleInstr(Instr instr);
+  static void disassembleInstr(uint8_t* pc);
 
   // Labels.
   void print(const Label* L);
@@ -788,6 +863,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
         trampoline_slot = next_slot_;
         free_slot_count_--;
         next_slot_ += kTrampolineSlotsSize;
+        DEBUG_PRINTF("\ttrampoline  slot %d next %d free %d\n", trampoline_slot,
+                     next_slot_, free_slot_count_)
       }
       return trampoline_slot;
     }
@@ -821,6 +898,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   bool internal_trampoline_exception_;
 
   RegList scratch_register_list_;
+  DoubleRegList scratch_double_register_list_;
 
  private:
   ConstantPool constpool_;
@@ -842,50 +920,108 @@ class EnsureSpace {
 };
 
 // This scope utility allows scratch registers to be managed safely. The
-// Assembler's GetScratchRegisterList() is used as a pool of scratch
-// registers. These registers can be allocated on demand, and will be returned
+// Assembler's {GetScratchRegisterList()}/{GetScratchDoubleRegisterList()}
+// are used as pools of general-purpose/double scratch registers.
+// These registers can be allocated on demand, and will be returned
 // at the end of the scope.
 //
-// When the scope ends, the Assembler's list will be restored to its original
-// state, even if the list is modified by some other means. Note that this scope
-// can be nested but the destructors need to run in the opposite order as the
-// constructors. We do not have assertions for this.
+// When the scope ends, the Assembler's lists will be restored to their original
+// states, even if the lists are modified by some other means. Note that this
+// scope can be nested but the destructors need to run in the opposite order as
+// the constructors. We do not have assertions for this.
 class V8_EXPORT_PRIVATE UseScratchRegisterScope {
  public:
   explicit UseScratchRegisterScope(Assembler* assembler)
-      : available_(assembler->GetScratchRegisterList()),
-        old_available_(*available_) {}
+      : assembler_(assembler),
+        old_available_(*assembler->GetScratchRegisterList()),
+        old_available_double_(*assembler->GetScratchDoubleRegisterList()) {}
 
-  ~UseScratchRegisterScope() { *available_ = old_available_; }
+  ~UseScratchRegisterScope() {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DoubleRegList* available_double =
+        assembler_->GetScratchDoubleRegisterList();
+    *available = old_available_;
+    *available_double = old_available_double_;
+  }
 
-  // Take a register from the list and return it.
   Register Acquire() {
-    DCHECK_NOT_NULL(available_);
-    DCHECK(!available_->is_empty());
-    int index =
-        static_cast<int>(base::bits::CountTrailingZeros32(available_->bits()));
-    *available_ &= RegList::FromBits(~(1U << index));
+    RegList* available = assembler_->GetScratchRegisterList();
+    return available->PopFirst();
+  }
 
-    return Register::from_code(index);
+  DoubleRegister AcquireDouble() {
+    DoubleRegList* available_double =
+        assembler_->GetScratchDoubleRegisterList();
+    return available_double->PopFirst();
   }
-  bool hasAvailable() const;
-  void Include(const RegList& list) { *available_ |= list; }
+
+  // Check if we have registers available to acquire.
+  bool CanAcquire() const {
+    RegList* available = assembler_->GetScratchRegisterList();
+    return !available->is_empty();
+  }
+
+  void Include(const Register& reg1, const Register& reg2) {
+    Include(reg1);
+    Include(reg2);
+  }
+  void Include(const Register& reg) {
+    DCHECK_NE(reg, no_reg);
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK(!available->has(reg));
+    available->set(reg);
+  }
+  void Include(RegList list) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    *available = *available | list;
+  }
   void Exclude(const RegList& list) {
-    *available_ &= RegList::FromBits(~list.bits());
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    available->clear(list);
   }
-  void Include(const Register& reg1, const Register& reg2 = no_reg) {
-    RegList list({reg1, reg2});
-    Include(list);
+  void Exclude(const Register& reg1, const Register& reg2) {
+    Exclude(reg1);
+    Exclude(reg2);
   }
-  void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
-    RegList list({reg1, reg2});
+  void Exclude(const Register& reg) {
+    DCHECK_NE(reg, no_reg);
+    RegList list({reg});
     Exclude(list);
   }
 
+  void Include(DoubleRegList list) {
+    DoubleRegList* available_double =
+        assembler_->GetScratchDoubleRegisterList();
+    DCHECK_NOT_NULL(available_double);
+    DCHECK_EQ((*available_double & list).bits(), 0x0);
+    *available_double = *available_double | list;
+  }
+
+  RegList Available() { return *assembler_->GetScratchRegisterList(); }
+  void SetAvailable(RegList available) {
+    *assembler_->GetScratchRegisterList() = available;
+  }
+  DoubleRegList AvailableDouble() {
+    return *assembler_->GetScratchDoubleRegisterList();
+  }
+  void SetAvailableDouble(DoubleRegList available_double) {
+    *assembler_->GetScratchDoubleRegisterList() = available_double;
+  }
+
  private:
-  RegList* available_;
+  friend class Assembler;
+  friend class MacroAssembler;
+
+  Assembler* assembler_;
   RegList old_available_;
+  DoubleRegList old_available_double_;
 };
+
+[[nodiscard]] static inline Instr SetHi20Offset(int32_t hi29, Instr instr);
+[[nodiscard]] static inline Instr SetLo12Offset(int32_t lo12, Instr instr);
 
 }  // namespace internal
 }  // namespace v8

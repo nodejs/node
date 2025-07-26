@@ -22,11 +22,18 @@ struct FrameStateData {
     kDematerializedObjectReference,  // 1 Operand: id
     kArgumentsElements,              // 1 Operand: type
     kArgumentsLength,
+    kRestLength,
+    kDematerializedStringConcat,  // 1 Operand: id
+    // TODO(dmercadier): do escape analysis for objects and string-concat in a
+    // single pass, and always use kDematerializedObjectReference rather than
+    // kDematerializedStringConcatReference (and thus remove
+    // kDematerializedStringConcatReference).
+    kDematerializedStringConcatReference  // 1 Operand: id
   };
 
   class Builder {
    public:
-    void AddParentFrameState(OpIndex parent) {
+    void AddParentFrameState(V<FrameState> parent) {
       DCHECK(inputs_.empty());
       inlined_ = true;
       inputs_.push_back(parent);
@@ -52,6 +59,16 @@ struct FrameStateData {
       int_operands_.push_back(field_count);
     }
 
+    void AddDematerializedStringConcat(uint32_t id) {
+      instructions_.push_back(Instr::kDematerializedStringConcat);
+      int_operands_.push_back(id);
+    }
+
+    void AddDematerializedStringConcatReference(uint32_t id) {
+      instructions_.push_back(Instr::kDematerializedStringConcatReference);
+      int_operands_.push_back(id);
+    }
+
     void AddArgumentsElements(CreateArgumentsType type) {
       instructions_.push_back(Instr::kArgumentsElements);
       int_operands_.push_back(static_cast<int>(type));
@@ -61,12 +78,14 @@ struct FrameStateData {
       instructions_.push_back(Instr::kArgumentsLength);
     }
 
-    const FrameStateData* AllocateFrameStateData(
-        const FrameStateInfo& frame_state_info, Zone* zone) {
-      return zone->New<FrameStateData>(FrameStateData{
-          frame_state_info, zone->CloneVector(base::VectorOf(instructions_)),
-          zone->CloneVector(base::VectorOf(machine_types_)),
-          zone->CloneVector(base::VectorOf(int_operands_))});
+    void AddRestLength() { instructions_.push_back(Instr::kRestLength); }
+
+    const FrameStateData* AllocateFrameStateData(const FrameStateInfo& info,
+                                                 Zone* zone) {
+      return zone->New<FrameStateData>(
+          FrameStateData{info, zone->CloneVector(base::VectorOf(instructions_)),
+                         zone->CloneVector(base::VectorOf(machine_types_)),
+                         zone->CloneVector(base::VectorOf(int_operands_))});
     }
 
     base::Vector<const OpIndex> Inputs() { return base::VectorOf(inputs_); }
@@ -77,6 +96,7 @@ struct FrameStateData {
     base::SmallVector<MachineType, 32> machine_types_;
     base::SmallVector<uint32_t, 16> int_operands_;
     base::SmallVector<OpIndex, 32> inputs_;
+
     bool inlined_ = false;
   };
 
@@ -120,6 +140,18 @@ struct FrameStateData {
       *id = int_operands[0];
       int_operands += 1;
     }
+    void ConsumeDematerializedStringConcat(uint32_t* id) {
+      DCHECK_EQ(instructions[0], Instr::kDematerializedStringConcat);
+      instructions += 1;
+      *id = int_operands[0];
+      int_operands += 1;
+    }
+    void ConsumeDematerializedStringConcatReference(uint32_t* id) {
+      DCHECK_EQ(instructions[0], Instr::kDematerializedStringConcatReference);
+      instructions += 1;
+      *id = int_operands[0];
+      int_operands += 1;
+    }
     void ConsumeArgumentsElements(CreateArgumentsType* type) {
       DCHECK_EQ(instructions[0], Instr::kArgumentsElements);
       instructions += 1;
@@ -128,6 +160,10 @@ struct FrameStateData {
     }
     void ConsumeArgumentsLength() {
       DCHECK_EQ(instructions[0], Instr::kArgumentsLength);
+      instructions += 1;
+    }
+    void ConsumeRestLength() {
+      DCHECK_EQ(instructions[0], Instr::kRestLength);
       instructions += 1;
     }
   };

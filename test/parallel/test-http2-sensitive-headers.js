@@ -4,7 +4,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 const assert = require('assert');
 const http2 = require('http2');
-const makeDuplexPair = require('../common/duplexpair');
+const { duplexPair } = require('stream');
 
 {
   const testData = '<h1>Hello World</h1>';
@@ -22,7 +22,7 @@ const makeDuplexPair = require('../common/duplexpair');
     stream.end(testData);
   }));
 
-  const { clientSide, serverSide } = makeDuplexPair();
+  const [ clientSide, serverSide ] = duplexPair();
   server.emit('connection', serverSide);
 
   const client = http2.connect('http://localhost:80', {
@@ -36,6 +36,44 @@ const makeDuplexPair = require('../common/duplexpair');
     assert.strictEqual(headers.cookie, 'donotindex');
     assert.deepStrictEqual(headers[http2.sensitiveHeaders],
                            ['cookie', 'sensitive']);
+  }));
+
+  req.on('end', common.mustCall(() => {
+    clientSide.destroy();
+    clientSide.end();
+  }));
+  req.resume();
+  req.end();
+}
+
+{
+  const server = http2.createServer();
+  server.on('stream', common.mustCall((stream, headers) => {
+    assert.deepStrictEqual(
+      headers[http2.sensitiveHeaders],
+      ['secret']
+    );
+    stream.respond({ ':status': 200 });
+    stream.end();
+  }));
+
+  const [ clientSide, serverSide ] = duplexPair();
+  server.emit('connection', serverSide);
+
+  const client = http2.connect('http://localhost:80', {
+    createConnection: common.mustCall(() => clientSide)
+  });
+
+  const rawHeaders = [
+    ':path', '/',
+    'secret', 'secret-value',
+  ];
+  rawHeaders[http2.sensitiveHeaders] = ['secret'];
+
+  const req = client.request(rawHeaders);
+
+  req.on('response', common.mustCall((headers) => {
+    assert.strictEqual(headers[':status'], 200);
   }));
 
   req.on('end', common.mustCall(() => {

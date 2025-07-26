@@ -5,11 +5,11 @@
 #ifndef V8_TEMPORAL_TEMPORAL_PARSER_H_
 #define V8_TEMPORAL_TEMPORAL_PARSER_H_
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/execution/isolate.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 /**
  * ParsedISO8601Result contains the parsed result of ISO 8601 grammar
@@ -127,15 +127,15 @@ struct ParsedISO8601Duration {
  * TemporalParser is low level parsing functions to support the implementation
  * of various ParseTemporal*String Abstract Operations listed after
  * #sec-temporal-parsetemporalinstantstring.
- * All the methods take an Isolate, a Handle<String> as input, and also a
+ * All the methods take an Isolate, a DirectHandle<String> as input, and also a
  * pointer to a bool to answer the "satisfy the syntax of a Temporal*String"
  * question and return the parsed result.
  */
 class V8_EXPORT_PRIVATE TemporalParser {
  public:
-#define DEFINE_PARSE_METHOD(R, NAME)                          \
-  V8_WARN_UNUSED_RESULT static base::Optional<R> Parse##NAME( \
-      Isolate* isolate, Handle<String> iso_string)
+#define DEFINE_PARSE_METHOD(R, NAME)                         \
+  V8_WARN_UNUSED_RESULT static std::optional<R> Parse##NAME( \
+      Isolate* isolate, DirectHandle<String> iso_string)
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalDateString);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalDateTimeString);
   DEFINE_PARSE_METHOD(ParsedISO8601Result, TemporalTimeString);
@@ -151,7 +151,6 @@ class V8_EXPORT_PRIVATE TemporalParser {
 };
 #undef DEFINE_PARSE_METHOD
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_TEMPORAL_TEMPORAL_PARSER_H_

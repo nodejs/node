@@ -35,20 +35,20 @@ Local<FunctionTemplate> LogStream::GetConstructorTemplate(Environment* env) {
 }
 
 BaseObjectPtr<LogStream> LogStream::Create(Environment* env) {
-  v8::Local<v8::Object> obj;
+  Local<Object> obj;
   if (!GetConstructorTemplate(env)
            ->InstanceTemplate()
            ->NewInstance(env->context())
            .ToLocal(&obj)) {
-    return BaseObjectPtr<LogStream>();
+    return {};
   }
   return MakeDetachedBaseObject<LogStream>(env, obj);
 }
 
 LogStream::LogStream(Environment* env, Local<Object> obj)
-    : AsyncWrap(env, obj, AsyncWrap::PROVIDER_QUIC_LOGSTREAM), StreamBase(env) {
+    : AsyncWrap(env, obj, PROVIDER_QUIC_LOGSTREAM), StreamBase(env) {
   MakeWeak();
-  StreamBase::AttachToObject(GetObject());
+  AttachToObject(GetObject());
 }
 
 void LogStream::Emit(const uint8_t* data, size_t len, EmitOption option) {

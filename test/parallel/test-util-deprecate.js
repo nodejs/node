@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 require('../common');
@@ -6,8 +7,26 @@ require('../common');
 
 const assert = require('assert');
 const util = require('util');
+const internalUtil = require('internal/util');
 
 const expectedWarnings = new Map();
+
+// Deprecated function length is preserved
+for (const fn of [
+  function() {},
+  function(a) {},
+  function(a, b, c) {},
+  function(...args) {},
+  function(a, b, c, ...args) {},
+  () => {},
+  (a) => {},
+  (a, b, c) => {},
+  (...args) => {},
+  (a, b, c, ...args) => {},
+]) {
+  assert.strictEqual(util.deprecate(fn).length, fn.length);
+  assert.strictEqual(internalUtil.pendingDeprecate(fn).length, fn.length);
+}
 
 // Emits deprecation only once if same function is called.
 {

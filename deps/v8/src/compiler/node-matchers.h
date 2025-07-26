@@ -20,9 +20,7 @@
 #include "src/compiler/operator.h"
 #include "src/objects/heap-object.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
+namespace v8::internal::compiler {
 
 class JSHeapBroker;
 
@@ -59,7 +57,7 @@ inline Node* SkipValueIdentities(Node* node) {
   return node;
 }
 
-// A pattern matcher for abitrary value constants.
+// A pattern matcher for arbitrary value constants.
 //
 // Note that value identities on the input node are skipped when matching. The
 // resolved value may not be a parameter of the input node. The node() method
@@ -67,6 +65,13 @@ inline Node* SkipValueIdentities(Node* node) {
 // match value constants but delay reducing the node until a later phase.
 template <typename T, IrOpcode::Value kOpcode>
 struct ValueMatcher : public NodeMatcher {
+  // TODO(42203211): Although value matchers will work with if `T` is a direct
+  // handle type, the special instance for indirect handles uses handle location
+  // equality for performing the match. This is designed to work with canonical
+  // handles, used by the compiler. As of now, it is not clear if direct handles
+  // can replace such canonical handles, hence the following assertion.
+  static_assert(!is_direct_handle_v<T>);
+
   using ValueType = T;
 
   explicit ValueMatcher(Node* node)
@@ -160,8 +165,10 @@ using Int32Matcher = IntMatcher<int32_t, IrOpcode::kInt32Constant>;
 using Uint32Matcher = IntMatcher<uint32_t, IrOpcode::kInt32Constant>;
 using Int64Matcher = IntMatcher<int64_t, IrOpcode::kInt64Constant>;
 using Uint64Matcher = IntMatcher<uint64_t, IrOpcode::kInt64Constant>;
+#if V8_ENABLE_WEBASSEMBLY
 using V128ConstMatcher =
     ValueMatcher<S128ImmediateParameter, IrOpcode::kS128Const>;
+#endif  // V8_ENABLE_WEBASSEMBLY
 #if V8_HOST_ARCH_32_BIT
 using IntPtrMatcher = Int32Matcher;
 using UintPtrMatcher = Uint32Matcher;
@@ -218,11 +225,11 @@ using NumberMatcher = FloatMatcher<double, IrOpcode::kNumberConstant>;
 // A pattern matcher for heap object constants.
 template <IrOpcode::Value kHeapConstantOpcode>
 struct HeapObjectMatcherImpl final
-    : public ValueMatcher<Handle<HeapObject>, kHeapConstantOpcode> {
+    : public ValueMatcher<IndirectHandle<HeapObject>, kHeapConstantOpcode> {
   explicit HeapObjectMatcherImpl(Node* node)
-      : ValueMatcher<Handle<HeapObject>, kHeapConstantOpcode>(node) {}
+      : ValueMatcher<IndirectHandle<HeapObject>, kHeapConstantOpcode>(node) {}
 
-  bool Is(Handle<HeapObject> const& value) const {
+  bool Is(IndirectHandle<HeapObject> const& value) const {
     return this->HasResolvedValue() &&
            this->ResolvedValue().address() == value.address();
   }
@@ -828,6 +835,7 @@ struct V8_EXPORT_PRIVATE DiamondMatcher
   Node* if_false_;
 };
 
+#if V8_ENABLE_WEBASSEMBLY
 struct LoadTransformMatcher
     : ValueMatcher<LoadTransformParameters, IrOpcode::kLoadTransform> {
   explicit LoadTransformMatcher(Node* node) : ValueMatcher(node) {}
@@ -835,9 +843,8 @@ struct LoadTransformMatcher
     return HasResolvedValue() && ResolvedValue().transformation == t;
   }
 };
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::compiler
 
 #endif  // V8_COMPILER_NODE_MATCHERS_H_

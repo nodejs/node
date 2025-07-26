@@ -33,6 +33,7 @@ const intrinsics = new Set([
   'Int8Array',
   'Uint16Array',
   'Int16Array',
+  'Float16Array',
   'Uint32Array',
   'Int32Array',
   'Float32Array',
@@ -63,6 +64,10 @@ const intrinsics = new Set([
   'SharedArrayBuffer',
   'Atomics',
   'WebAssembly',
+  'Iterator',
+  'SuppressedError',
+  'DisposableStack',
+  'AsyncDisposableStack',
 ]);
 
 if (global.gc) {
@@ -78,6 +83,7 @@ const webIdlExposedWildcard = new Set([
   'TextDecoder',
   'AbortController',
   'AbortSignal',
+  'CustomEvent',
   'EventTarget',
   'Event',
   'URL',
@@ -124,6 +130,8 @@ const webIdlExposedWindow = new Set([
   'Request',
   'Response',
   'WebSocket',
+  'EventSource',
+  'CloseEvent',
 ]);
 
 const nodeGlobals = new Set([

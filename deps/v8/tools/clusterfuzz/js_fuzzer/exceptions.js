@@ -44,6 +44,16 @@ const SKIPPED_FILES = [
 
     // Just recursively loads itself.
     'regress-8510.js',
+
+    // Contains an expected SyntaxError. From:
+    // spidermonkey/non262/Unicode/regress-352044-02-n.js
+    'regress-352044-02-n.js',
+
+    // Very slow pattern that just makes fuzz tests time out.
+    'regress-crbug-400504688.js',
+
+    // Empty test that just sets flags.
+    'regress-392928803.js',
 ];
 
 const SKIPPED_DIRECTORIES = [
@@ -83,12 +93,47 @@ const SOFT_SKIPPED_FILES = [
     // Tests slow to parse.
     // CrashTests:
     /^jquery.*\.js/,
+    /^js-test-pre\.js/,
     // Spidermonkey:
     'regress-308085.js',
     'regress-74474-002.js',
     'regress-74474-003.js',
     // V8:
     'object-literal.js',
+    'regress-390568195.js',
+];
+
+// Used with a lower probability if paths match.
+const SOFT_SKIPPED_PATHS = [
+    /webgl/,
+];
+
+// Files that can't be combined with `use strict`.
+const SLOPPY_FILES = new Set([
+  "chakra/UnitTestFramework/UnitTestFramework.js",
+]);
+
+// Flags that lead to false positives. Furthermore choose files using these
+// flags with a lower probability, as the absence of the flags typically
+// renders the tests useless.
+const DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES = [
+    // Disallowed due to noise. We explicitly add --harmony and --js-staging
+    // to trials, and all of these features are staged before launch.
+    /^--harmony-(?!shipping)/,
+    /^--js-(?!staging|shipping)/,
+
+    /^--icu-data-file.*/,
+
+    // Disallowed due to false positives.
+    '--correctness-fuzzer-suppressions',
+    '--expose-trigger-failure',
+
+    // Doesn't make much sense without the memory-corruption API. In the future
+    // we might want to enable the latter only on builds with the API
+    // available. Using tests that need one of these flags is also not
+    // resulting in useful cases.
+    '--sandbox-testing',
+    '--sandbox-fuzzing',
 ];
 
 // Flags that lead to false positives or that are already passed by default.
@@ -97,30 +142,28 @@ const DISALLOWED_FLAGS = [
     // stabilized yet and would cause too much noise when enabled.
     /^--experimental-.*/,
 
-    // Disallowed due to noise. We explicitly add --harmony to job
-    // definitions, and all of these features are staged before launch.
-    /^--harmony-.*/,
-
     // Disallowed because they are passed explicitly on the command line.
     '--allow-natives-syntax',
     '--debug-code',
-    '--harmony',
-    '--js-staging',
-    '--wasm-staging',
+    '--disable-abortjs',
+    '--enable-slow-asserts',
     '--expose-gc',
     '--expose_gc',
-    '--icu-data-file',
-    '--random-seed',
+    '--fuzzing',
+    '--omit-quit',
+    '--disable-in-process-stack-traces',
+    '--invoke-weak-callbacks',
+    '--verify-heap',
+
+    /^--random-seed.*/,
 
     // Disallowed due to false positives.
     '--check-handle-count',
-    '--correctness-fuzzer-suppressions',
     '--expose-debug-as',
     '--expose-natives-as',
-    '--expose-trigger-failure',
     '--mock-arraybuffer-allocator',
-    'natives',  // Used in conjuction with --expose-natives-as.
     /^--trace-path.*/,
+    /.*\.mjs$/,
 ];
 
 // Flags only used with 25% probability.
@@ -143,6 +186,17 @@ const DISALLOWED_DIFFERENTIAL_FUZZ_FLAGS = [
     '--interpreted-frames-native-stack',
     '--validate-asm',
 ];
+
+// Pairs of flags that shouldn't be used together.
+const CONTRADICTORY_FLAGS = [
+    ['--assert-types', '--stress-concurrent-inlining'],
+    ['--assert-types', '--stress-concurrent-inlining-attach-code'],
+    ['--jitless', '--maglev'],
+    ['--jitless', '--maglev-future'],
+    ['--jitless', '--stress-maglev'],
+    ['--jitless', '--stress-concurrent-inlining'],
+    ['--jitless', '--stress-concurrent-inlining-attach-code'],
+]
 
 const MAX_FILE_SIZE_BYTES = 128 * 1024;  // 128KB
 const MEDIUM_FILE_SIZE_BYTES = 32 * 1024;  // 32KB
@@ -200,6 +254,11 @@ function getSoftSkipped() {
 }
 
 // For testing.
+function getSoftSkippedPaths() {
+  return SOFT_SKIPPED_PATHS;
+}
+
+// For testing.
 function getGeneratedSoftSkipped() {
   return generatedSoftSkipped;
 }
@@ -210,6 +269,10 @@ function getGeneratedSloppy() {
 }
 
 function isTestSoftSkippedAbs(absPath) {
+  if (_findMatch(this.getSoftSkippedPaths(), absPath)) {
+    return true;
+  }
+
   const basename = path.basename(absPath);
   if (_findMatch(this.getSoftSkipped(), basename)) {
     return true;
@@ -225,16 +288,39 @@ function isTestSoftSkippedRel(relPath) {
 }
 
 function isTestSloppyRel(relPath) {
-  return this.getGeneratedSloppy().has(normalize(relPath));
+  const path = normalize(relPath);
+  return this.getGeneratedSloppy().has(path) || SLOPPY_FILES.has(path);
 }
 
 function filterFlags(flags) {
   return flags.filter(flag => {
     return (
+        flag.startsWith('--') &&
+        _doesntMatch(DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES, flag) &&
         _doesntMatch(DISALLOWED_FLAGS, flag) &&
         (_doesntMatch(LOW_PROB_FLAGS, flag) ||
          random.choose(LOW_PROB_FLAGS_PROB)));
   });
+}
+
+function hasFlagsDiscouragingFiles(flags) {
+  return flags.some(flag => {
+    return _findMatch(DISALLOWED_FLAGS_WITH_DISCOURAGED_FILES, flag);
+  });
+}
+
+/**
+ * Randomly drops flags to resolve contradicions defined by
+ * `CONTRADICTORY_FLAGS`.
+ */
+function resolveContradictoryFlags(flags) {
+  const flagSet = new Set(flags);
+  for (const [flag1, flag2] of this.CONTRADICTORY_FLAGS) {
+    if (flagSet.has(flag1) && flagSet.has(flag2)) {
+      flagSet.delete(random.single([flag1, flag2]));
+    }
+  }
+  return Array.from(flagSet.values());
 }
 
 function filterDifferentialFuzzFlags(flags) {
@@ -244,14 +330,18 @@ function filterDifferentialFuzzFlags(flags) {
 
 
 module.exports = {
+  CONTRADICTORY_FLAGS: CONTRADICTORY_FLAGS,
   filterDifferentialFuzzFlags: filterDifferentialFuzzFlags,
   filterFlags: filterFlags,
   getGeneratedSoftSkipped: getGeneratedSoftSkipped,
   getGeneratedSloppy: getGeneratedSloppy,
   getSoftSkipped: getSoftSkipped,
+  getSoftSkippedPaths: getSoftSkippedPaths,
+  hasFlagsDiscouragingFiles: hasFlagsDiscouragingFiles,
   isTestSkippedAbs: isTestSkippedAbs,
   isTestSkippedRel: isTestSkippedRel,
   isTestSoftSkippedAbs: isTestSoftSkippedAbs,
   isTestSoftSkippedRel: isTestSoftSkippedRel,
   isTestSloppyRel: isTestSloppyRel,
+  resolveContradictoryFlags: resolveContradictoryFlags,
 }

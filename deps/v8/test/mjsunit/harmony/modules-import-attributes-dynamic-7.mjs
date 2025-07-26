@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-import-attributes
+// Flags: --allow-natives-syntax
 
 var result1;
 var result2;
@@ -48,16 +48,16 @@ import('modules-skip-1.json', { with: { a: 7 }}).then(
 %PerformMicrotaskCheckpoint();
 
 const argumentNotObjectError = 'The second argument to import() must be an object';
-const assertOptionNotObjectError = 'The \'assert\' option must be an object';
-const assertionValueNotStringError = 'Import assertion value must be a string';
+const attributesOptionNotObjectError = 'The \'with\' option must be an object';
+const attributeValueNotStringError = 'Import attribute value must be a string';
 
 assertEquals(argumentNotObjectError, result1);
 assertEquals(argumentNotObjectError, result2);
 assertEquals(argumentNotObjectError, result3);
-assertEquals(assertOptionNotObjectError, result4);
-assertEquals(assertOptionNotObjectError, result5);
-assertEquals(assertOptionNotObjectError, result6);
-assertEquals(assertionValueNotStringError, result7);
-assertEquals(assertionValueNotStringError, result8);
-assertEquals(assertionValueNotStringError, result9);
-assertEquals(assertionValueNotStringError, result10);
+assertEquals(attributesOptionNotObjectError, result4);
+assertEquals(attributesOptionNotObjectError, result5);
+assertEquals(attributesOptionNotObjectError, result6);
+assertEquals(attributeValueNotStringError, result7);
+assertEquals(attributeValueNotStringError, result8);
+assertEquals(attributeValueNotStringError, result9);
+assertEquals(attributeValueNotStringError, result10);

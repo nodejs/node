@@ -44,6 +44,7 @@ extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
   platform.reset(
     new node::NodePlatform(kV8ThreadPoolSize, tracing_controller));
   v8::V8::InitializePlatform(platform.get());
+  cppgc::InitializeProcess(platform->GetPageAllocator());
   v8::V8::Initialize();
   return 0;
 }
@@ -64,8 +65,7 @@ public:
   void Teardown() {
     platform->DrainTasks(isolate_);
     isolate_->Exit();
-    platform->UnregisterIsolate(isolate_);
-    isolate_->Dispose();
+    platform->DisposeIsolate(isolate_);
     isolate_ = nullptr;
   }
 };

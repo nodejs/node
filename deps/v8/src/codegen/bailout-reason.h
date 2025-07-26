@@ -22,6 +22,7 @@ namespace internal {
   V(kAllocationIsNotDoubleAligned, "Allocation is not double aligned")         \
   V(kExpectedOptimizationSentinel,                                             \
     "Expected optimized code cell or optimization sentinel")                   \
+  V(kExpectedOsrCode, "Expected OSR code")                                     \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
   V(kExpectedFeedbackCell, "Expected feedback cell")                           \
   V(kExpectedFeedbackVector, "Expected feedback vector")                       \
@@ -34,6 +35,7 @@ namespace internal {
   V(kInputDoesNotFitSmi, "Input number is too large to fit in a Smi")          \
   V(kInvalidBytecode, "Invalid bytecode")                                      \
   V(kInvalidBytecodeAdvance, "Cannot advance current bytecode, ")              \
+  V(kInvalidDeoptimizedCode, "Invoked code which is deoptimized")              \
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                     \
   V(kInvalidJumpTableIndex, "Invalid jump table index")                        \
   V(kInvalidParametersAndRegistersInGenerator,                                 \
@@ -60,7 +62,6 @@ namespace internal {
   V(kOperandIsNotACode, "Operand is not a Code object")                        \
   V(kOperandIsNotAMap, "Operand is not a Map object")                          \
   V(kOperandIsNotASmi, "Operand is not a smi")                                 \
-  V(kMaglevOsrTodo, "OSR into maglev is not implemented yet")                  \
   V(kPromiseAlreadySettled, "Promise already settled")                         \
   V(kReceivedInvalidReturnAddress, "Received invalid return address")          \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root")  \
@@ -91,6 +92,7 @@ namespace internal {
     "Should not return after throwing a wasm trap")                            \
   V(kUnexpectedStackPointer, "The stack pointer is not the expected value")    \
   V(kUnexpectedValue, "Unexpected value")                                      \
+  V(kUninhabitableType, "Uninhabitable type")                                  \
   V(kUnsupportedModuleOperation, "Unsupported module operation")               \
   V(kUnsupportedNonPrimitiveCompare, "Unsupported non-primitive compare")      \
   V(kWrongAddressOrValuePassedToRecordWrite,                                   \
@@ -99,15 +101,28 @@ namespace internal {
     "Wrong number of arguments for intrinsic")                                 \
   V(kWrongFunctionCodeStart, "Wrong value in code start register passed")      \
   V(kWrongFunctionContext, "Wrong context passed to function")                 \
+  V(kWrongFunctionDispatchHandle,                                              \
+    "Wrong value in dispatch handle register passed")                          \
   V(kUnexpectedThreadInWasmSet, "thread_in_wasm flag was already set")         \
   V(kUnexpectedThreadInWasmUnset, "thread_in_wasm flag was not set")           \
   V(kInvalidReceiver, "Expected JS object or primitive object")                \
-  V(kUnexpectedInstanceType, "Unexpected instance type encountered")
-
+  V(kUnexpectedInstanceType, "Unexpected instance type encountered")           \
+  V(kTurboshaftTypeAssertionFailed,                                            \
+    "A type assertion failed in Turboshaft-generated code")                    \
+  V(kMetadataAreaStartDoesNotMatch,                                            \
+    "The metadata doesn't belong to the chunk")                                \
+  V(kExternalPointerTagMismatch,                                               \
+    "Tag mismatch during external pointer access")                             \
+  V(kJSSignatureMismatch, "Signature mismatch during JS function call")        \
+  V(kWasmSignatureMismatch, "Signature mismatch during Wasm indirect call")    \
+  V(kFastCallFallbackInvalid, "Fast call fallback returned incorrect type")    \
+  V(k32BitValueInRegisterIsNotSignExtended,                                    \
+    "32 bit value in register is not sign-extended")
 #define BAILOUT_MESSAGES_LIST(V)                                             \
   V(kNoReason, "no reason")                                                  \
                                                                              \
   V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change")  \
+  V(kCancelled, "Job got cancelled")                                         \
   V(kConcurrentMapDeprecation, "Maps became deprecated during optimization") \
   V(kCodeGenerationFailed, "Code generation failed")                         \
   V(kFunctionBeingDebugged, "Function is being debugged")                    \

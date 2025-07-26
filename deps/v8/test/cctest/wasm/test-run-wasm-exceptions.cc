@@ -350,8 +350,8 @@ WASM_COMPILED_EXEC_TEST(TryCatchCallExternal) {
   TestSignatures sigs;
   HandleScope scope(CcTest::InitIsolateOnce());
   const char* source = "(function() { throw 'ball'; })";
-  Handle<JSFunction> js_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> js_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.i_ii(), js_function};
   WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, &import);
@@ -378,8 +378,8 @@ WASM_COMPILED_EXEC_TEST(TryCatchAllCallExternal) {
   TestSignatures sigs;
   HandleScope scope(CcTest::InitIsolateOnce());
   const char* source = "(function() { throw 'ball'; })";
-  Handle<JSFunction> js_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> js_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.i_ii(), js_function};
   WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, &import);
@@ -467,7 +467,7 @@ WASM_EXEC_TEST(TryCatchTrapTableFill) {
 }
 
 namespace {
-// TODO(cleanup): Define in cctest.h and re-use where appropriate.
+// TODO(cleanup): Define in cctest.h and reuse where appropriate.
 class IsolateScope {
  public:
   IsolateScope() {

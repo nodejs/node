@@ -122,6 +122,13 @@ var assertNotNull;
 // compared to the message of the thrown exception.
 var assertThrows;
 
+// Asserts that the found value is an exception of specific type with a specific
+// error message. The optional second argument is an exception constructor that
+// the thrown exception is checked against with "instanceof". The optional third
+// argument is a message type string or RegExp object that is compared to the
+// message of the thrown exception.
+var assertException;
+
 // Assert that the passed function throws an exception.
 // The exception is checked against the second argument using assertEquals.
 var assertThrowsEquals;
@@ -198,6 +205,9 @@ var V8OptimizationStatus = {
   kIsLazy: 1 << 18,
   kTopmostFrameIsMaglev: 1 << 19,
   kOptimizeOnNextCallOptimizesToMaglev: 1 << 20,
+  kOptimizeMaglevOptimizesToTurbofan: 1 << 21,
+  kMarkedForMagkevOptimization: 1 << 22,
+  kMarkedForConcurrentMaglevOptimization: 1 << 23,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
@@ -235,6 +245,25 @@ var isMaglevved;
 
 // Returns true if given function is compiled by TurboFan.
 var isTurboFanned;
+
+// Returns true if the top frame in interpreted according to the status
+// passed as a parameter.
+var topFrameIsInterpreted;
+
+// Returns true if the top frame in baseline according to the status
+// passed as a parameter.
+var topFrameIsBaseline;
+
+// Returns true if the top frame in compiled by Maglev according to the
+// status passed as a parameter.
+var topFrameIsMaglevved;
+
+// Returns true if the top frame in compiled by Turbofan according to the
+// status passed as a parameter.
+var topFrameIsTurboFanned;
+
+// Monkey-patchable all-purpose failure handler.
+var fail;
 
 // Monkey-patchable all-purpose failure handler.
 var failWithMessage;
@@ -389,7 +418,7 @@ var prettyPrinted;
     return message;
   }
 
-  function fail(expectedText, found, name_opt) {
+  fail = function fail(expectedText, found, name_opt) {
     throw new MjsUnitAssertionError(
         ()=>formatFailureText(expectedText, found, name_opt));
   }
@@ -567,7 +596,7 @@ var prettyPrinted;
         ': <' + prettyPrinted(code) + '>');
   }
 
-  function checkException(e, type_opt, cause_opt) {
+  assertException = function assertException(e, type_opt, cause_opt) {
     if (type_opt !== undefined) {
       assertEquals('function', typeof type_opt);
       assertInstanceof(e, type_opt);
@@ -590,7 +619,7 @@ var prettyPrinted;
     try {
       executeCode(code);
     } catch (e) {
-      checkException(e, type_opt, cause_opt);
+      assertException(e, type_opt, cause_opt);
       return;
     }
     let msg = 'Did not throw exception';
@@ -625,14 +654,14 @@ var prettyPrinted;
         // Use setTimeout to throw the error again to get out of the promise
         // chain.
         res => setTimeout(_ => fail('<throw>', res, msg), 0),
-        e => checkException(e, type_opt, cause_opt));
+        e => assertException(e, type_opt, cause_opt));
   };
 
   assertEarlyError = function assertEarlyError(code) {
     try {
       new Function(code);
     } catch (e) {
-      checkException(e, SyntaxError);
+      assertException(e, SyntaxError);
       return;
     }
     failWithMessage('Did not throw exception while parsing');
@@ -809,6 +838,13 @@ var prettyPrinted;
       // to stress test the deoptimizer.
       return;
     }
+    if ((opt_status &
+         V8OptimizationStatus.kOptimizeMaglevOptimizesToTurbofan) !== 0) {
+      // When --optimize-maglev-optimizes-to-turbofan is used it's no longer
+      // guaranteed that a particular function stays optimized the same way
+      // as with Maglev.
+      return;
+    }
     assertTrue(
         (opt_status & V8OptimizationStatus.kOptimized) !== 0,
         'should be optimized: ' + name_opt);
@@ -867,8 +903,16 @@ var prettyPrinted;
     var opt_status = OptimizationStatus(fun, "");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
                "not a function");
-    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
-           (opt_status & V8OptimizationStatus.kMaglevved) !== 0;
+
+    const is_optimized = (opt_status & V8OptimizationStatus.kOptimized) !== 0;
+    const is_maglevved = (opt_status & V8OptimizationStatus.kMaglevved) !== 0;
+    // When --optimize-maglev-optimizes-to-turbofan is used, in many tests this
+    // method is synonym with isTurboFanned. Tests where this doesn't hold
+    // might need to negate that flag.
+    const is_turbofanned_by_flag = (
+        (opt_status & V8OptimizationStatus.kTurboFanned) !== 0 &&
+        (opt_status & V8OptimizationStatus.kOptimizeMaglevOptimizesToTurbofan) !== 0);
+    return is_optimized && (is_maglevved || is_turbofanned_by_flag);
   }
 
   willBeMaglevved = function willBeMaglevved(fun) {
@@ -891,6 +935,26 @@ var prettyPrinted;
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
            (opt_status & V8OptimizationStatus.kTurboFanned) !== 0;
+  }
+
+  topFrameIsInterpreted = function topFrameIsInterpreted(opt_status) {
+    assertNotEquals(opt_status, undefined);
+    return (opt_status & V8OptimizationStatus.kTopmostFrameIsInterpreted) !== 0;
+  }
+
+  topFrameIsBaseline = function topFrameIsBaseline(opt_status) {
+    assertNotEquals(opt_status, undefined);
+    return (opt_status & V8OptimizationStatus.kTopmostFrameIsBaseline) !== 0;
+  }
+
+  topFrameIsMaglevved = function topFrameIsMaglevved(opt_status) {
+    assertNotEquals(opt_status, undefined);
+    return (opt_status & V8OptimizationStatus.kTopmostFrameIsMaglev) !== 0;
+  }
+
+  topFrameIsTurboFanned = function topFrameIsTurboFanned(opt_status) {
+    assertNotEquals(opt_status, undefined);
+    return (opt_status & V8OptimizationStatus.kTopmostFrameIsTurboFanned) !== 0;
   }
 
   // Custom V8-specific stack trace formatter that is temporarily installed on

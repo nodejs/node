@@ -15,7 +15,7 @@
 #include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
 #include "src/tracing/trace-categories.h"
 #else
-#include "base/trace_event/common/trace_event_common.h"
+#include "src/tracing/trace-event-no-perfetto.h"
 #endif  // !defined(V8_USE_PERFETTO)
 
 #include "include/v8-platform.h"
@@ -23,7 +23,7 @@
 #include "src/base/macros.h"
 
 // This header file defines implementation details of how the trace macros in
-// trace_event_common.h collect and store trace events. Anything not
+// trace-event-no-perfetto.h collect and store trace events. Anything not
 // implementation-specific should go in trace_macros_common.h instead of here.
 
 
@@ -429,9 +429,9 @@ static V8_INLINE uint64_t AddTraceEventWithTimestampImpl(
 // structures so that it is portable to third_party libraries.
 // This is the base implementation for integer types (including bool) and enums.
 template <typename T>
-static V8_INLINE typename std::enable_if<
-    std::is_integral<T>::value || std::is_enum<T>::value, void>::type
-SetTraceValue(T arg, unsigned char* type, uint64_t* value) {
+static V8_INLINE void SetTraceValue(T arg, unsigned char* type, uint64_t* value)
+  requires(std::is_integral<T>::value || std::is_enum<T>::value)
+{
   *type = std::is_same<T, bool>::value
               ? TRACE_VALUE_TYPE_BOOL
               : std::is_signed<T>::value ? TRACE_VALUE_TYPE_INT
@@ -461,9 +461,10 @@ static V8_INLINE void SetTraceValue(ConvertableToTraceFormat* convertable_value,
 }
 
 template <typename T>
-static V8_INLINE typename std::enable_if<
-    std::is_convertible<T*, ConvertableToTraceFormat*>::value>::type
-SetTraceValue(std::unique_ptr<T> ptr, unsigned char* type, uint64_t* value) {
+static V8_INLINE void SetTraceValue(std::unique_ptr<T> ptr, unsigned char* type,
+                                    uint64_t* value)
+  requires std::is_convertible<T*, ConvertableToTraceFormat*>::value
+{
   SetTraceValue(ptr.release(), type, value);
 }
 

@@ -214,7 +214,7 @@ function genBinop(name, f32) {
 }
 
 function assertUnop(name, math_func, asm_func) {
-  for (val of inputs) {
+  for (let val of inputs) {
     verbose('  ', val);
     let m = math_func(val);
     let w = asm_func(val);
@@ -224,9 +224,9 @@ function assertUnop(name, math_func, asm_func) {
 
 function assertBinop(name, math_func, asm_func) {
   let inputs2 = [1, 0.5, -1, -0.5, 0, -0, 1 / 0, -1 / 0, 0 / 0];
-  for (val of inputs) {
+  for (let val of inputs) {
     verbose('  ', val);
-    for (val2 of inputs2) {
+    for (let val2 of inputs2) {
       verbose('    ', val2);
       let m = math_func(val, val2);
       let w = asm_func(val, val2);
@@ -242,12 +242,10 @@ function assertBinop(name, math_func, asm_func) {
   let f64_intrinsics = [
     'acos',  'asin', 'atan', 'cos',   'sin',   'tan',  'exp', 'log',
     'atan2', 'pow',  'ceil', 'floor', 'sqrt',  'min',  'max', 'abs',
-    'min',   'max',  'abs',  'ceil',  'floor', 'sqrt',
   ];
 
-  for (name of f64_intrinsics) {
+  for (let name of f64_intrinsics) {
     let math_func = Math[name];
-    let f32 = false;
     print('Testing (f64) Math.' + name);
     switch (math_func.length) {
       case 1: {
@@ -269,7 +267,7 @@ function assertBinop(name, math_func, asm_func) {
 (function TestF32() {
   let f32_intrinsics = ['min', 'max', 'abs', 'ceil', 'floor', 'sqrt'];
 
-  for (name of f32_intrinsics) {
+  for (let name of f32_intrinsics) {
     let r = Math.fround, f = Math[name];
     print('Testing (f32) Math.' + name);
     switch (f.length) {

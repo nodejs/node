@@ -42,7 +42,7 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
 
   inline ObjectStartBitmap();
 
-  // Finds an object header based on a
+  // Finds an object header based on an
   // address_maybe_pointing_to_the_middle_of_object. Will search for an object
   // start in decreasing address order.
   template <AccessMode = AccessMode::kNonAtomic>
@@ -240,12 +240,12 @@ class V8_EXPORT_PRIVATE PlatformAwareObjectStartBitmap
 // static
 template <AccessMode mode>
 bool PlatformAwareObjectStartBitmap::ShouldForceNonAtomic() {
-#if defined(V8_TARGET_ARCH_ARM)
+#if defined(V8_HOST_ARCH_ARM)
   // Use non-atomic accesses on ARMv7 when marking is not active.
   if (mode == AccessMode::kAtomic) {
     if (V8_LIKELY(!WriteBarrier::IsEnabled())) return true;
   }
-#endif  // defined(V8_TARGET_ARCH_ARM)
+#endif  // defined(V8_HOST_ARCH_ARM)
   return false;
 }
 

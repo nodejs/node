@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 namespace runtime {
-extern runtime TierUpWasmToJSWrapper(NoContext, WasmApiFunctionRef): JSAny;
+extern runtime TierUpWasmToJSWrapper(NoContext, WasmImportData): JSAny;
+extern runtime WasmThrowJSTypeError(Context): never;
 }  // namespace runtime
 
 namespace wasm {
@@ -16,14 +17,6 @@ struct WasmToJSResult {
   result3: float64;
 }
 
-extern builtin CallVarargs(
-    Context,
-    JSAny,      // target
-    int32,      // number of arguments already on the stack
-    int32,      // number of arguments in the FixedArray
-    FixedArray  // arguments list
-    ): JSAny;
-
 extern builtin IterableToFixedArrayForWasm(Context, JSAny, Smi): FixedArray;
 
 extern macro StackAlignmentInBytes(): intptr;
@@ -31,35 +24,65 @@ extern macro StackAlignmentInBytes(): intptr;
 const kSignatureOffset: constexpr intptr
     generates 'WasmToJSWrapperConstants::kSignatureOffset';
 
+// macro for handling platform specific f32 returns.
+macro HandleF32Returns(
+    context: NativeContext, locationAllocator: LocationAllocator,
+    toRef: &intptr, retVal: JSAny): void {
+  if constexpr (kIsFpAlwaysDouble) {
+    if (locationAllocator.GetRemainingFPRegs() >= 0) {
+      *RefCast<float64>(toRef) = ChangeTaggedToFloat64(retVal);
+    } else {
+      *RefCast<float32>(toRef) = WasmTaggedToFloat32(retVal);
+    }
+  } else if constexpr (kIsBigEndian) {
+    *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal)))
+        << 32;
+  } else if constexpr (kIsBigEndianOnSim) {
+    if (locationAllocator.GetRemainingFPRegs() >= 0) {
+      *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal)))
+          << 32;
+    } else {
+      *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal)));
+    }
+  }
+}
+
 @export
-transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
+transitioning macro WasmToJSWrapper(data: WasmImportData): WasmToJSResult {
+  const oldSP = SwitchToTheCentralStackIfNeeded();
+  dcheck(Is<WasmImportData>(data));
   // Spill the signature on the stack so that it can be read by the GC. This is
   // done in the very beginning before a GC could be triggered.
   // Caller FP + return address.
   const sigSlot = LoadFramePointer() + kSignatureOffset;
-  *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(ref.sig);
-  const sizeOfSig = StackAlignmentInBytes() / torque_internal::SizeOf<intptr>();
+  *GetRefAt<RawPtr>(sigSlot, 0) = data.sig;
+  const alignment: intptr =
+      StackAlignmentInBytes() / torque_internal::SizeOf<intptr>();
+  // 1 fixed slot, rounded up to stack alignment.
+  const numFixedSlots = alignment;
 
-  ModifyWasmToJSCounter(1);
   ModifyThreadInWasmFlag(0);
   // Trigger a wrapper tier-up when this function got called often enough.
-  dcheck(ref.wrapper_budget > 0);
-  ref.wrapper_budget = ref.wrapper_budget - 1;
-  if (ref.wrapper_budget == 0) {
-    runtime::TierUpWasmToJSWrapper(kNoContext, ref);
+  dcheck(data.wrapper_budget > 0);
+  data.wrapper_budget = data.wrapper_budget - 1;
+  if (data.wrapper_budget == 0) {
+    runtime::TierUpWasmToJSWrapper(kNoContext, data);
   }
 
-  const signaturePod = &ref.sig.bytes;
-  const serializedSig = torque_internal::unsafe::NewConstSlice<int32>(
-      signaturePod.object, signaturePod.offset,
-      signaturePod.length / torque_internal::SizeOf<int32>());
-  const returnCount =
-      Convert<intptr>(*torque_internal::unsafe::NewReference<int32>(
-          serializedSig.object, serializedSig.offset));
-  const paramCount: intptr = serializedSig.length - returnCount - 1;
-  const returnTypes = Subslice(serializedSig, Convert<intptr>(1), returnCount)
-      otherwise unreachable;
-  const paramTypes = Subslice(serializedSig, returnCount + 1, paramCount)
+  const returnCount = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<intptr>>(data.sig + 0));
+  const paramCount = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<intptr>>(
+          data.sig + torque_internal::SizeOf<intptr>()));
+  const valueTypesStorage = *torque_internal::unsafe::NewOffHeapReference(
+      %RawDownCast<RawPtr<RawPtr<uint32>>>(
+          data.sig + 2 * torque_internal::SizeOf<intptr>()));
+  const signatureValueTypes =
+      torque_internal::unsafe::NewOffHeapConstSlice<uint32>(
+          valueTypesStorage, paramCount + returnCount);
+  const returnTypes =
+      Subslice(signatureValueTypes, 0, returnCount) otherwise unreachable;
+  const paramTypes = Subslice(signatureValueTypes, returnCount, paramCount)
       otherwise unreachable;
 
   // The number of parameters that get pushed on the stack is (at least) the
@@ -72,13 +95,13 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   // builtin takes care of it automatically
   outParams.objects[nextIndex++] = Undefined;
 
-  // Caller FP + return address + signature.
-  const stackParamStart =
-      LoadFramePointer() + (2 + sizeOfSig) * torque_internal::SizeOf<intptr>();
+  // Caller FP + return address + fixed slots.
+  const stackParamStart = LoadFramePointer() +
+      (2 + numFixedSlots) * torque_internal::SizeOf<intptr>();
   const inParams = torque_internal::unsafe::NewOffHeapReference(
       %RawDownCast<RawPtr<intptr>>(stackParamStart));
 
-  let locationAllocator = LocationAllocatorForParams(inParams);
+  let locationAllocator = LocationAllocatorForParams(inParams, 0);
 
   let paramIt = paramTypes.Iterator();
 
@@ -87,11 +110,32 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
     const paramType = paramIt.NextNotEmpty();
     if (paramType == kWasmI32Type) {
       const slot = locationAllocator.GetGPSlot();
-      const val = *RefCast<int32>(slot);
+      let val: int32;
+      if constexpr (kIsBigEndian) {
+        val = TruncateInt64ToInt32(*RefCast<int64>(slot));
+      } else {
+        val = *RefCast<int32>(slot);
+      }
       outParams.objects[nextIndex++] = Convert<Number>(val);
     } else if (paramType == kWasmF32Type) {
       const slot = locationAllocator.GetFP32Slot();
-      const val = *RefCast<float32>(slot);
+      let val: float32;
+      if constexpr (kIsFpAlwaysDouble) {
+        if (locationAllocator.GetRemainingFPRegs() >= 0) {
+          val = TruncateFloat64ToFloat32(*RefCast<float64>(slot));
+        } else {
+          val = *RefCast<float32>(slot);
+        }
+      } else if constexpr (kIsBigEndianOnSim) {
+        if (locationAllocator.GetRemainingFPRegs() >= 0) {
+          val = BitcastInt32ToFloat32(
+              TruncateInt64ToInt32(*RefCast<int64>(slot) >> 32));
+        } else {
+          val = *RefCast<float32>(slot);
+        }
+      } else {
+        val = *RefCast<float32>(slot);
+      }
       outParams.objects[nextIndex++] = Convert<Number>(val);
     } else if (paramType == kWasmI64Type) {
       if constexpr (Is64()) {
@@ -110,6 +154,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
       const val = *RefCast<float64>(slot);
       outParams.objects[nextIndex++] = Convert<Number>(val);
     } else {
+      check((paramType & kValueTypeIsRefBit) != 0);
       nextIndex++;
       hasTaggedParams = true;
     }
@@ -122,20 +167,19 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
     paramIt = paramTypes.Iterator();
     while (!paramIt.Empty()) {
       const paramType = paramIt.NextNotEmpty();
-      const paramKind = paramType & kValueTypeKindBitsMask;
-      if (paramKind == ValueKind::kRef || paramKind == ValueKind::kRefNull) {
+      if ((paramType & kValueTypeIsRefBit) != 0) {
         const slot = locationAllocator.GetGPSlot();
         const rawRef = *slot;
         const value = BitcastWordToTagged(rawRef);
         outParams.objects[nextIndex] =
-            WasmToJSObject(ref.native_context, value, paramType);
+            WasmToJSObject(data.native_context, value, paramType);
       }
       nextIndex++;
     }
   }
-  const target = ref.callable;
+  const target = data.callable;
 
-  const context = ref.native_context;
+  const context = data.native_context;
   // Reset the signature on the stack, so that incoming parameters don't get
   // scanned anymore.
   *GetRefAt<intptr>(sigSlot, 0) = 0;
@@ -147,7 +191,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   // to JavaScript is finished. For asm.js source positions it is important to
   // know if an exception happened in the call to JS, or in the ToNumber
   // conversion afterwards.
-  *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(SmiConstant(-1));
+  *GetRefAt<intptr>(sigSlot, 0) = -1;
   let resultFixedArray: FixedArray;
   if (returnCount > 1) {
     resultFixedArray =
@@ -191,7 +235,11 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
       }
     } else if (retType == kWasmF32Type) {
       let toRef = locationAllocator.GetFP32Slot();
-      *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal)));
+      if constexpr (kIsFpAlwaysDouble || kIsBigEndian || kIsBigEndianOnSim) {
+        HandleF32Returns(context, locationAllocator, toRef, retVal);
+      } else {
+        *toRef = Convert<intptr>(Bitcast<uint32>(WasmTaggedToFloat32(retVal)));
+      }
     } else if (retType == kWasmF64Type) {
       let toRef = locationAllocator.GetFP64Slot();
       *RefCast<float64>(toRef) = ChangeTaggedToFloat64(retVal);
@@ -209,16 +257,20 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
         *toHighRef = Signed(pair.high);
       }
     } else {
-      const converted = JSToWasmObject(context, ref.instance, retType, retVal);
-      let toRef = locationAllocator.GetGPSlot();
+      check((retType & kValueTypeIsRefBit) != 0);
+      const converted = JSToWasmObject(context, retType, retVal);
       if (returnCount == 1) {
         // There are no other values, we can write the object directly into the
         // result buffer.
+        let toRef = locationAllocator.GetGPSlot();
         *toRef = BitcastTaggedToWord(converted);
       } else {
-        // There may be other parameters that could still trigger a GC when they
-        // get transformed. For now we just store the converted value back in
-        // the FixedArray.
+        // Storing the converted value back in the FixedArray serves two
+        // purposes:
+        // (1) There may be other parameters that could still trigger a GC when
+        //     they get transformed.
+        // (2) Tagged values are reordered to the end, so we can't assign their
+        //     locations yet.
         hasTagged = true;
         resultFixedArray.objects[nextIndex] = converted;
       }
@@ -226,26 +278,12 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
     nextIndex++;
   }
   if (hasTagged) {
+    locationAllocator.StartRefs();
     returnIt = returnTypes.Iterator();
     nextIndex = 0;
-    locationAllocator =
-        LocationAllocatorForReturns(gpRegSlots, fpRegSlots, stackSlots);
     while (!returnIt.Empty()) {
       const retType = returnIt.NextNotEmpty();
-      if (retType == kWasmI32Type) {
-        locationAllocator.GetGPSlot();
-      } else if (retType == kWasmF32Type) {
-        locationAllocator.GetFP32Slot();
-      } else if (retType == kWasmF64Type) {
-        locationAllocator.GetFP64Slot();
-      } else if (retType == kWasmI64Type) {
-        if constexpr (Is64()) {
-          locationAllocator.GetGPSlot();
-        } else {
-          locationAllocator.GetGPSlot();
-          locationAllocator.GetGPSlot();
-        }
-      } else {
+      if ((retType & kValueTypeIsRefBit) != 0) {
         let toRef = locationAllocator.GetGPSlot();
         const value = resultFixedArray.objects[nextIndex];
         *toRef = BitcastTaggedToWord(value);
@@ -257,16 +295,17 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const popCount =
       (Convert<intptr>(stackSlots) - Convert<intptr>(stackParamStart)) /
           torque_internal::SizeOf<intptr>() +
-      sizeOfSig;
+      numFixedSlots;
 
   ModifyThreadInWasmFlag(1);
-  ModifyWasmToJSCounter(-1);
-  return WasmToJSResult{
+  const wasmToJSResult = WasmToJSResult{
     popCount: popCount,
     result0: *GetRefAt<intptr>(gpRegSlots, 0),
     result1: *GetRefAt<intptr>(gpRegSlots, torque_internal::SizeOf<intptr>()),
     result2: *GetRefAt<float64>(fpRegSlots, 0),
     result3: *GetRefAt<float64>(fpRegSlots, torque_internal::SizeOf<float64>())
   };
+  SwitchFromTheCentralStack(oldSP);
+  return wasmToJSResult;
 }
 }  // namespace wasm

@@ -207,7 +207,7 @@ void CodeEntry::set_deopt_info(
 
 void CodeEntry::FillFunctionInfo(Tagged<SharedFunctionInfo> shared) {
   if (!IsScript(shared->script())) return;
-  Tagged<Script> script = Script::cast(shared->script());
+  Tagged<Script> script = Cast<Script>(shared->script());
   set_script_id(script->id());
   set_position(shared->StartPosition());
   if (shared->optimization_disabled()) {
@@ -242,7 +242,7 @@ size_t CodeEntry::EstimatedSize() const {
   }
 
   if (line_info_) {
-    estimated_size += line_info_.get()->Size();
+    estimated_size += line_info_->Size();
   }
   return sizeof(*this) + estimated_size;
 }
@@ -541,7 +541,7 @@ template <typename Callback>
 void ProfileTree::TraverseDepthFirst(Callback* callback) {
   std::vector<Position> stack;
   stack.emplace_back(root_);
-  while (stack.size() > 0) {
+  while (!stack.empty()) {
     Position& current = stack.back();
     if (current.has_current_child()) {
       callback->BeforeTraversingChild(current.node, current.current_child());
@@ -622,9 +622,9 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
                          const ProfileStackTrace& path, int src_line,
                          bool update_stats, base::TimeDelta sampling_interval,
                          StateTag state_tag,
-                         EmbedderStateTag embedder_state_tag) {
+                         EmbedderStateTag embedder_state_tag,
+                         const std::optional<uint64_t> trace_id) {
   if (!CheckSubsample(sampling_interval)) return;
-
   ProfileNode* top_frame_node =
       top_down_.AddPathFromEnd(path, src_line, update_stats, options_.mode());
 
@@ -635,8 +635,8 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
       !timestamp.IsNull() && timestamp >= start_time_ && !is_buffer_full;
 
   if (should_record_sample) {
-    samples_.push_back(
-        {top_frame_node, timestamp, src_line, state_tag, embedder_state_tag});
+    samples_.push_back({top_frame_node, timestamp, src_line, state_tag,
+                        embedder_state_tag, trace_id});
   } else if (is_buffer_full && delegate_ != nullptr) {
     const auto task_runner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
         reinterpret_cast<v8::Isolate*>(profiler_->isolate()));
@@ -707,6 +707,16 @@ void CpuProfile::StreamPendingTraceEvents() {
         value->AppendInteger(samples_[i].node->id());
       }
       value->EndArray();
+      value->BeginDictionary("trace_ids");
+      for (size_t i = streaming_next_sample_; i < samples_.size(); ++i) {
+        if (!samples_[i].trace_id.has_value()) {
+          continue;
+        }
+        value->SetUnsignedInteger(
+            std::to_string(samples_[i].trace_id.value()).c_str(),
+            samples_[i].node->id());
+      }
+      value->EndDictionary();
     }
     value->EndDictionary();
   }
@@ -1186,7 +1196,8 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
     base::TimeTicks timestamp, const ProfileStackTrace& path, int src_line,
     bool update_stats, base::TimeDelta sampling_interval, StateTag state,
     EmbedderStateTag embedder_state_tag, Address native_context_address,
-    Address embedder_native_context_address) {
+    Address embedder_native_context_address,
+    const std::optional<uint64_t> trace_id) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
@@ -1200,15 +1211,17 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
         context_filter.Accept(embedder_native_context_address);
 
     // if FilterContext is set, do not propagate StateTag if not accepted.
-    // GC is exception because native context address is guaranteed to be empty.
-    DCHECK(state != StateTag::GC || native_context_address == kNullAddress);
-    if (!accepts_context && state != StateTag::GC) {
+    // GC (and LOGGING when during GC) is the exception, because native context
+    // address can be empty but we still want to know that this is GC.
+    if (!accepts_context && state != StateTag::GC &&
+        state != StateTag::LOGGING) {
       state = StateTag::IDLE;
     }
-    profile->AddPath(timestamp, accepts_context ? path : empty_path, src_line,
-                     update_stats, sampling_interval, state,
-                     accepts_embedder_context ? embedder_state_tag
-                                              : EmbedderStateTag::EMPTY);
+    profile->AddPath(
+        timestamp, accepts_context ? path : empty_path, src_line, update_stats,
+        sampling_interval, state,
+        accepts_embedder_context ? embedder_state_tag : EmbedderStateTag::EMPTY,
+        trace_id);
   }
 }
 

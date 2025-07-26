@@ -6,16 +6,16 @@
 #define V8_TORQUE_TYPE_ORACLE_H_
 
 #include <memory>
+#include <optional>
 
 #include "src/base/contextual.h"
+#include "src/torque/constants.h"
 #include "src/torque/declarable.h"
 #include "src/torque/declarations.h"
 #include "src/torque/types.h"
 #include "src/torque/utils.h"
 
-namespace v8 {
-namespace internal {
-namespace torque {
+namespace v8::internal::torque {
 
 class TypeOracle : public base::ContextualClass<TypeOracle> {
  public:
@@ -69,7 +69,7 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
     TypeOracle& self = Get();
     const Type* builtin_type = self.GetBuiltinType(BUILTIN_POINTER_TYPE_STRING);
     const BuiltinPointerType* result = self.function_pointer_types_.Add(
-        BuiltinPointerType(builtin_type, argument_types, return_type,
+        BuiltinPointerType(builtin_type, std::move(argument_types), return_type,
                            self.all_builtin_pointer_types_.size()));
     if (result->function_pointer_type_id() ==
         self.all_builtin_pointer_types_.size()) {
@@ -94,7 +94,7 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
     return GetReferenceGeneric(false);
   }
 
-  static base::Optional<const Type*> MatchReferenceGeneric(
+  static std::optional<const Type*> MatchReferenceGeneric(
       const Type* reference_type, bool* is_const = nullptr);
 
   static GenericType* GetMutableSliceGeneric() {
@@ -143,7 +143,7 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
   }
 
   static const Type* GetUnionType(UnionType type) {
-    if (base::Optional<const Type*> single = type.GetSingleMember()) {
+    if (std::optional<const Type*> single = type.GetSingleMember()) {
       return *single;
     }
     return Get().union_types_.Add(std::move(type));
@@ -201,8 +201,20 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(EXTERNALPTR_TYPE_STRING);
   }
 
-  static const Type* GetIndirectPointerType() {
-    return Get().GetBuiltinType(INDIRECTPTR_TYPE_STRING);
+  static const Type* GetCppHeapPointerType() {
+    return Get().GetBuiltinType(CPPHEAPPTR_TYPE_STRING);
+  }
+
+  static const Type* GetTrustedPointerType() {
+    return Get().GetBuiltinType(TRUSTEDPTR_TYPE_STRING);
+  }
+
+  static const Type* GetProtectedPointerType() {
+    return Get().GetBuiltinType(PROTECTEDPTR_TYPE_STRING);
+  }
+
+  static const Type* GetDispatchHandleType() {
+    return Get().GetBuiltinType(DISPATCH_HANDLE_TYPE_STRING);
   }
 
   static const Type* GetMapType() {
@@ -311,8 +323,8 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(FLOAT64_TYPE_STRING);
   }
 
-  static const Type* GetFloat64OrHoleType() {
-    return Get().GetBuiltinType(FLOAT64_OR_HOLE_TYPE_STRING);
+  static const Type* GetFloat64OrUndefinedOrHoleType() {
+    return Get().GetBuiltinType(FLOAT64_OR_UNDEFINED_OR_HOLE_TYPE_STRING);
   }
 
   static const Type* GetConstFloat64Type() {
@@ -359,12 +371,12 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(FIXED_ARRAY_BASE_TYPE_STRING);
   }
 
-  static base::Optional<const Type*> ImplicitlyConvertableFrom(
+  static std::optional<const Type*> ImplicitlyConvertableFrom(
       const Type* to, const Type* from) {
     while (from != nullptr) {
       for (GenericCallable* from_constexpr :
            Declarations::LookupGeneric(kFromConstexprMacroName)) {
-        if (base::Optional<const Callable*> specialization =
+        if (std::optional<const Callable*> specialization =
                 from_constexpr->GetSpecialization({to, from})) {
           if ((*specialization)->signature().GetExplicitTypes() ==
               TypeVector{from}) {
@@ -374,7 +386,7 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
       }
       from = from->parent();
     }
-    return base::nullopt;
+    return std::nullopt;
   }
 
   static const std::vector<std::unique_ptr<AggregateType>>& GetAggregateTypes();
@@ -411,8 +423,6 @@ class TypeOracle : public base::ContextualClass<TypeOracle> {
   size_t next_type_id_ = 0;
 };
 
-}  // namespace torque
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::torque
 
 #endif  // V8_TORQUE_TYPE_ORACLE_H_

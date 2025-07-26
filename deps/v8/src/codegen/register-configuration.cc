@@ -95,11 +95,9 @@ static int get_num_allocatable_double_registers() {
       kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_LOONG64
       kMaxAllocatableDoubleRegisterCount;
-#elif V8_TARGET_ARCH_PPC
-      kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_PPC64
       kMaxAllocatableDoubleRegisterCount;
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
       kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_RISCV64
       kMaxAllocatableDoubleRegisterCount;

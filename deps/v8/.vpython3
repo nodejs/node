@@ -22,7 +22,7 @@
 # Read more about `vpython` and how to modify this file here:
 #   https://chromium.googlesource.com/infra/infra/+/main/doc/users/vpython.md
 
-python_version: "3.8"
+python_version: "3.11"
 
 # The default set of platforms vpython checks does not yet include mac-arm64.
 # Setting `verify_pep425_tag` to the list of platforms we explicitly must support
@@ -47,12 +47,17 @@ wheel: <
 
 wheel: <
   name: "infra/python/wheels/coverage/${vpython_platform}"
-  version: "version:5.5.chromium.3"
+  version: "version:7.3.1"
 >
 
 wheel: <
  name: "infra/python/wheels/pbr-py2_py3"
  version: "version:3.0.0"
+>
+
+wheel: <
+ name: "infra/python/wheels/filecheck-py2_py3"
+ version: "version:1.0.1"
 >
 
 wheel: <
@@ -67,7 +72,7 @@ wheel: <
 
 wheel: <
   name: "infra/python/wheels/numpy/${vpython_platform}"
-  version: "version:1.2x.supported.1"
+  version: "version:1.23.5.chromium.4"
 >
 
 wheel: <
@@ -95,4 +100,8 @@ wheel: <
 wheel: <
   name: "infra/python/wheels/charset_normalizer-py3"
   version: "version:2.0.4"
+>
+wheel: <
+  name: "infra/python/wheels/pyfakefs-py3"
+  version: "version:5.7.3"
 >

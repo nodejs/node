@@ -27,10 +27,15 @@ Data types
       typedef enum {
           /* Initial/normal terminal mode */
           UV_TTY_MODE_NORMAL,
-          /* Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled) */
+          /*
+          * Raw input mode (On Windows, ENABLE_WINDOW_INPUT is also enabled).
+          * May become equivalent to UV_TTY_MODE_RAW_VT in future libuv versions.
+          */
           UV_TTY_MODE_RAW,
           /* Binary-safe I/O mode for IPC (Unix-only) */
-          UV_TTY_MODE_IO
+          UV_TTY_MODE_IO,
+          /* Raw input mode. On Windows ENABLE_VIRTUAL_TERMINAL_INPUT is also set. */
+          UV_TTY_MODE_RAW_VT
       } uv_tty_mode_t;
 
 .. c:enum:: uv_tty_vtermstate_t
@@ -98,7 +103,7 @@ API
 .. c:function:: int uv_tty_set_mode(uv_tty_t* handle, uv_tty_mode_t mode)
 
     .. versionchanged:: 1.2.0: the mode is specified as a
-                        :c:type:`uv_tty_mode_t` value.
+                        :c:enum:`uv_tty_mode_t` value.
 
     Set the TTY using the specified terminal mode.
 

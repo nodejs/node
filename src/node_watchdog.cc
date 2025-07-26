@@ -147,7 +147,7 @@ void TraceSigintWatchdog::New(const FunctionCallbackInfo<Value>& args) {
 
 void TraceSigintWatchdog::Start(const FunctionCallbackInfo<Value>& args) {
   TraceSigintWatchdog* watchdog;
-  ASSIGN_OR_RETURN_UNWRAP(&watchdog, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&watchdog, args.This());
   Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   // Register this watchdog with the global SIGINT/Ctrl+C listener.
   SigintWatchdogHelper::GetInstance()->Register(watchdog);
@@ -158,7 +158,7 @@ void TraceSigintWatchdog::Start(const FunctionCallbackInfo<Value>& args) {
 
 void TraceSigintWatchdog::Stop(const FunctionCallbackInfo<Value>& args) {
   TraceSigintWatchdog* watchdog;
-  ASSIGN_OR_RETURN_UNWRAP(&watchdog, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&watchdog, args.This());
   Mutex::ScopedLock lock(SigintWatchdogHelper::GetInstanceActionMutex());
   SigintWatchdogHelper::GetInstance()->Unregister(watchdog);
   SigintWatchdogHelper::GetInstance()->Stop();
@@ -308,7 +308,10 @@ int SigintWatchdogHelper::Start() {
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, &savemask));
   sigmask = savemask;
   int ret = pthread_create(&thread_, nullptr, RunSigintWatchdog, nullptr);
-  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
+
+  auto cleanup = OnScopeLeave(
+      [&]() { CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr)); });
+
   if (ret != 0) {
     return ret;
   }
@@ -389,7 +392,7 @@ void SigintWatchdogHelper::Register(SigintWatchdogBase* wd) {
 void SigintWatchdogHelper::Unregister(SigintWatchdogBase* wd) {
   Mutex::ScopedLock lock(list_mutex_);
 
-  auto it = std::find(watchdogs_.begin(), watchdogs_.end(), wd);
+  auto it = std::ranges::find(watchdogs_, wd);
 
   CHECK_NE(it, watchdogs_.end());
   watchdogs_.erase(it);

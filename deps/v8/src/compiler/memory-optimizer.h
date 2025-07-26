@@ -36,7 +36,7 @@ class TickCounter;
 namespace compiler {
 
 class JSGraph;
-class Graph;
+class TFGraph;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
@@ -50,7 +50,8 @@ class MemoryOptimizer final {
  public:
   MemoryOptimizer(JSHeapBroker* broker, JSGraph* jsgraph, Zone* zone,
                   MemoryLowering::AllocationFolding allocation_folding,
-                  const char* function_debug_name, TickCounter* tick_counter);
+                  const char* function_debug_name, TickCounter* tick_counter,
+                  bool is_wasm);
   ~MemoryOptimizer() = default;
 
   void Optimize();
@@ -103,7 +104,7 @@ class MemoryOptimizer final {
   WasmAddressReassociation* wasm_address_reassociation() {
     return &wasm_address_reassociation_;
   }
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return zone_; }
 

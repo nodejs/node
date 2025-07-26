@@ -5,12 +5,14 @@
 #ifndef V8_HEAP_MARKING_BARRIER_H_
 #define V8_HEAP_MARKING_BARRIER_H_
 
+#include <optional>
+
 #include "include/v8-internal.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/common/globals.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page-metadata.h"
 
 namespace v8 {
 namespace internal {
@@ -42,7 +44,8 @@ class MarkingBarrier {
   static void DeactivateYoung(Heap* heap);
   V8_EXPORT_PRIVATE static void PublishYoung(Heap* heap);
 
-  void Write(Tagged<HeapObject> host, HeapObjectSlot, Tagged<HeapObject> value);
+  template <typename TSlot>
+  void Write(Tagged<HeapObject> host, TSlot slot, Tagged<HeapObject> value);
   void Write(Tagged<HeapObject> host, IndirectPointerSlot slot);
   void Write(Tagged<InstructionStream> host, RelocInfo*,
              Tagged<HeapObject> value);
@@ -56,18 +59,27 @@ class MarkingBarrier {
 
   bool is_minor() const { return marking_mode_ == MarkingMode::kMinorMarking; }
 
+  bool is_not_major() const {
+    switch (marking_mode_) {
+      case MarkingMode::kMajorMarking:
+        return false;
+      case MarkingMode::kNoMarking:
+      case MarkingMode::kMinorMarking:
+        return true;
+    }
+  }
+
   Heap* heap() const { return heap_; }
 
 #if DEBUG
   void AssertMarkingIsActivated() const;
   void AssertSharedMarkingIsActivated() const;
+  bool IsMarked(const Tagged<HeapObject> value) const;
 #endif  // DEBUG
 
  private:
   inline void MarkValueShared(Tagged<HeapObject> value);
   inline void MarkValueLocal(Tagged<HeapObject> value);
-
-  inline bool WhiteToGreyAndPush(Tagged<HeapObject> value);
 
   void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
                        Tagged<HeapObject> target);
@@ -87,11 +99,11 @@ class MarkingBarrier {
   MarkCompactCollector* major_collector_;
   MinorMarkSweepCollector* minor_collector_;
   IncrementalMarking* incremental_marking_;
-  std::unique_ptr<MarkingWorklist::Local> current_worklist_;
-  base::Optional<MarkingWorklist::Local> shared_heap_worklist_;
+  std::unique_ptr<MarkingWorklists::Local> current_worklists_;
+  std::optional<MarkingWorklists::Local> shared_heap_worklists_;
   MarkingState marking_state_;
-  std::unordered_map<MemoryChunk*, std::unique_ptr<TypedSlots>,
-                     base::hash<MemoryChunk*>>
+  std::unordered_map<MutablePageMetadata*, std::unique_ptr<TypedSlots>,
+                     base::hash<MutablePageMetadata*>>
       typed_slots_map_;
   bool is_compacting_ = false;
   bool is_activated_ = false;

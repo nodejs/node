@@ -27,12 +27,21 @@ int32_t ClockMath::floorDivide(int32_t numerator, int32_t denominator) {
         numerator / denominator : ((numerator + 1) / denominator) - 1;
 }
 
-int64_t ClockMath::floorDivide(int64_t numerator, int64_t denominator) {
+int64_t ClockMath::floorDivideInt64(int64_t numerator, int64_t denominator) {
     return (numerator >= 0) ?
         numerator / denominator : ((numerator + 1) / denominator) - 1;
 }
 
-int32_t ClockMath::floorDivide(double numerator, int32_t denominator,
+int32_t ClockMath::floorDivide(int32_t numerator, int32_t denominator,
+                          int32_t* remainder) {
+    int64_t quotient = floorDivide(numerator, denominator);
+    if (remainder != nullptr) {
+      *remainder = numerator - (quotient * denominator);
+    }
+    return quotient;
+}
+
+double ClockMath::floorDivide(double numerator, int32_t denominator,
                           int32_t* remainder) {
     // For an integer n and representable ⌊x/n⌋, ⌊RN(x/n)⌋=⌊x/n⌋, where RN is
     // rounding to nearest.
@@ -42,9 +51,9 @@ int32_t ClockMath::floorDivide(double numerator, int32_t denominator,
       // expression `(int32_t) (x + n)` evaluated with rounding to nearest
       // differs from ⌊x+n⌋ if 0 < ⌈x⌉−x ≪ x+n, as `x + n` is rounded up to
       // n+⌈x⌉ = ⌊x+n⌋ + 1.  Rewriting it as ⌊x⌋+n makes the addition exact.
-      *remainder = (int32_t) (uprv_floor(numerator) - (quotient * denominator));
+      *remainder = static_cast<int32_t>(uprv_floor(numerator) - (quotient * denominator));
     }
-    return (int32_t) quotient;
+    return quotient;
 }
 
 double ClockMath::floorDivide(double dividend, double divisor,
@@ -95,64 +104,124 @@ const int8_t Grego::MONTH_LENGTH[24] =
     {31,28,31,30,31,30,31,31,30,31,30,31,
      31,29,31,30,31,30,31,31,30,31,30,31};
 
-double Grego::fieldsToDay(int32_t year, int32_t month, int32_t dom) {
+int64_t Grego::fieldsToDay(int32_t year, int32_t month, int32_t dom) {
 
-    int32_t y = year - 1;
+    int64_t y = year - 1;
 
-    double julian = 365 * y + ClockMath::floorDivide(y, 4) + (JULIAN_1_CE - 3) + // Julian cal
-        ClockMath::floorDivide(y, 400) - ClockMath::floorDivide(y, 100) + 2 + // => Gregorian cal
+    int64_t julian = 365LL * y +
+        ClockMath::floorDivideInt64(y, 4LL) + (JULIAN_1_CE - 3) + // Julian cal
+        ClockMath::floorDivideInt64(y, 400LL) -
+        ClockMath::floorDivideInt64(y, 100LL) + 2 + // => Gregorian cal
         DAYS_BEFORE[month + (isLeapYear(year) ? 12 : 0)] + dom; // => month/dom
 
     return julian - JULIAN_1970_CE; // JD => epoch day
 }
 
-void Grego::dayToFields(double day, int32_t& year, int32_t& month,
-                        int32_t& dom, int32_t& dow, int32_t& doy) {
+void Grego::dayToFields(int32_t day, int32_t& year, int8_t& month,
+                        int8_t& dom, int8_t& dow, int16_t& doy, UErrorCode& status) {
+    year = dayToYear(day, doy, status); // one-based doy
+    if (U_FAILURE(status)) return;
 
     // Convert from 1970 CE epoch to 1 CE epoch (Gregorian calendar)
-    day += JULIAN_1970_CE - JULIAN_1_CE;
+    if (uprv_add32_overflow(day, JULIAN_1970_CE - JULIAN_1_CE, &day)) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+
+    // Gregorian day zero is a Monday.
+    dow = (day + 1) % 7;
+    dow += (dow < 0) ? (UCAL_SUNDAY + 7) : UCAL_SUNDAY;
+
+    // Common Julian/Gregorian calculation
+    int32_t correction = 0;
+    bool isLeap = isLeapYear(year);
+    int32_t march1 = isLeap ? 60 : 59; // zero-based DOY for March 1
+    if (doy > march1) {
+        correction = isLeap ? 1 : 2;
+    }
+    month = (12 * (doy - 1 + correction) + 6) / 367; // zero-based month
+    dom = doy - DAYS_BEFORE[month + (isLeap ? 12 : 0)]; // one-based DOM
+}
+
+int32_t Grego::dayToYear(int32_t day, UErrorCode& status) {
+    int16_t unusedDOY;
+    return dayToYear(day, unusedDOY, status);
+}
+
+int32_t Grego::dayToYear(int32_t day, int16_t& doy, UErrorCode& status) {
+    if (U_FAILURE(status)) return 0;
+    // Convert from 1970 CE epoch to 1 CE epoch (Gregorian calendar)
+    if (uprv_add32_overflow(day, JULIAN_1970_CE - JULIAN_1_CE, &day)) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
 
     // Convert from the day number to the multiple radix
     // representation.  We use 400-year, 100-year, and 4-year cycles.
     // For example, the 4-year cycle has 4 years + 1 leap day; giving
     // 1461 == 365*4 + 1 days.
-    int32_t n400 = ClockMath::floorDivide(day, 146097, &doy); // 400-year cycle length
-    int32_t n100 = ClockMath::floorDivide(doy, 36524, &doy); // 100-year cycle length
-    int32_t n4   = ClockMath::floorDivide(doy, 1461, &doy); // 4-year cycle length
-    int32_t n1   = ClockMath::floorDivide(doy, 365, &doy);
-    year = 400*n400 + 100*n100 + 4*n4 + n1;
+    int32_t doy32;
+    int32_t n400 = ClockMath::floorDivide(day, 146097, &doy32); // 400-year cycle length
+    int32_t n100 = ClockMath::floorDivide(doy32, 36524, &doy32); // 100-year cycle length
+    int32_t n4   = ClockMath::floorDivide(doy32, 1461, &doy32); // 4-year cycle length
+    int32_t n1   = ClockMath::floorDivide(doy32, 365, &doy32);
+    int32_t year = 400*n400 + 100*n100 + 4*n4 + n1;
     if (n100 == 4 || n1 == 4) {
         doy = 365; // Dec 31 at end of 4- or 400-year cycle
     } else {
+        doy = doy32;
         ++year;
     }
-    
-    UBool isLeap = isLeapYear(year);
-    
-    // Gregorian day zero is a Monday.
-    dow = (int32_t) uprv_fmod(day + 1, 7);
-    dow += (dow < 0) ? (UCAL_SUNDAY + 7) : UCAL_SUNDAY;
-
-    // Common Julian/Gregorian calculation
-    int32_t correction = 0;
-    int32_t march1 = isLeap ? 60 : 59; // zero-based DOY for March 1
-    if (doy >= march1) {
-        correction = isLeap ? 1 : 2;
-    }
-    month = (12 * (doy + correction) + 6) / 367; // zero-based month
-    dom = doy - DAYS_BEFORE[month + (isLeap ? 12 : 0)] + 1; // one-based DOM
     doy++; // one-based doy
+    return year;
 }
 
-void Grego::timeToFields(UDate time, int32_t& year, int32_t& month,
-                        int32_t& dom, int32_t& dow, int32_t& doy, int32_t& mid) {
-    double millisInDay;
-    double day = ClockMath::floorDivide((double)time, (double)U_MILLIS_PER_DAY, &millisInDay);
-    mid = (int32_t)millisInDay;
-    dayToFields(day, year, month, dom, dow, doy);
+void Grego::dayToFields(int32_t day, int32_t& year, int8_t& month,
+                        int8_t& dom, int8_t& dow, UErrorCode& status) {
+    int16_t unusedDOY;
+    dayToFields(day, year, month, dom, dow, unusedDOY, status);
 }
 
-int32_t Grego::dayOfWeek(double day) {
+void Grego::dayToFields(int32_t day, int32_t& year, int8_t& month,
+                        int8_t& dom, int16_t& doy, UErrorCode& status) {
+    int8_t unusedDOW;
+    dayToFields(day, year, month, dom, unusedDOW, doy, status);
+}
+
+void Grego::timeToFields(UDate time, int32_t& year, int8_t& month,
+                        int8_t& dom, int32_t& mid, UErrorCode& status) {
+    int8_t unusedDOW;
+    timeToFields(time, year, month, dom, unusedDOW, mid, status);
+}
+
+void Grego::timeToFields(UDate time, int32_t& year, int8_t& month,
+                        int8_t& dom, int8_t& dow, int32_t& mid, UErrorCode& status) {
+    int16_t unusedDOY;
+    timeToFields(time, year, month, dom, dow, unusedDOY, mid, status);
+}
+
+void Grego::timeToFields(UDate time, int32_t& year, int8_t& month,
+                        int8_t& dom, int8_t& dow, int16_t& doy, int32_t& mid, UErrorCode& status) {
+    if (U_FAILURE(status)) return;
+    double day = ClockMath::floorDivide(time, U_MILLIS_PER_DAY, &mid);
+    if (day > INT32_MAX || day < INT32_MIN) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+    dayToFields(day, year, month, dom, dow, doy, status);
+}
+
+int32_t Grego::timeToYear(UDate time, UErrorCode& status) {
+    if (U_FAILURE(status)) return 0;
+    double day = ClockMath::floorDivide(time, double(U_MILLIS_PER_DAY));
+    if (day > INT32_MAX || day < INT32_MIN) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+    return Grego::dayToYear(day, status);
+}
+
+int32_t Grego::dayOfWeek(int32_t day) {
     int32_t dow;
     ClockMath::floorDivide(day + int{UCAL_THURSDAY}, 7, &dow);
     return (dow == 0) ? UCAL_SATURDAY : dow;

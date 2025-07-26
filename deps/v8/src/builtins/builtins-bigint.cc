@@ -27,7 +27,7 @@ BUILTIN(BigIntConstructor) {
   if (IsJSReceiver(*value)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, value,
-        JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(value),
+        JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(value),
                                 ToPrimitiveHint::kNumber));
   }
 
@@ -43,17 +43,17 @@ BUILTIN(BigIntAsUintN) {
   Handle<Object> bits_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> bigint_obj = args.atOrUndefined(isolate, 2);
 
-  Handle<Object> bits;
+  DirectHandle<Object> bits;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, bits,
       Object::ToIndex(isolate, bits_obj, MessageTemplate::kInvalidIndex));
 
-  Handle<BigInt> bigint;
+  DirectHandle<BigInt> bigint;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, bigint_obj));
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, BigInt::AsUintN(isolate, Object::Number(*bits), bigint));
+      isolate, BigInt::AsUintN(isolate, Object::NumberValue(*bits), bigint));
 }
 
 BUILTIN(BigIntAsIntN) {
@@ -61,16 +61,16 @@ BUILTIN(BigIntAsIntN) {
   Handle<Object> bits_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> bigint_obj = args.atOrUndefined(isolate, 2);
 
-  Handle<Object> bits;
+  DirectHandle<Object> bits;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, bits,
       Object::ToIndex(isolate, bits_obj, MessageTemplate::kInvalidIndex));
 
-  Handle<BigInt> bigint;
+  DirectHandle<BigInt> bigint;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, bigint_obj));
 
-  return *BigInt::AsIntN(isolate, Object::Number(*bits), bigint);
+  return *BigInt::AsIntN(isolate, Object::NumberValue(*bits), bigint);
 }
 
 namespace {
@@ -78,27 +78,26 @@ namespace {
 MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
                                     const char* caller) {
   // 1. If Type(value) is BigInt, return value.
-  if (IsBigInt(*value)) return Handle<BigInt>::cast(value);
+  if (IsBigInt(*value)) return Cast<BigInt>(value);
   // 2. If Type(value) is Object and value has a [[BigIntData]] internal slot:
   if (IsJSPrimitiveWrapper(*value)) {
     // 2a. Assert: value.[[BigIntData]] is a BigInt value.
     // 2b. Return value.[[BigIntData]].
-    Tagged<Object> data = JSPrimitiveWrapper::cast(*value)->value();
-    if (IsBigInt(data)) return handle(BigInt::cast(data), isolate);
+    Tagged<Object> data = Cast<JSPrimitiveWrapper>(*value)->value();
+    if (IsBigInt(data)) return handle(Cast<BigInt>(data), isolate);
   }
   // 3. Throw a TypeError exception.
   THROW_NEW_ERROR(
       isolate,
       NewTypeError(MessageTemplate::kNotGeneric,
                    isolate->factory()->NewStringFromAsciiChecked(caller),
-                   isolate->factory()->BigInt_string()),
-      BigInt);
+                   isolate->factory()->BigInt_string()));
 }
 
 Tagged<Object> BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
                                   Isolate* isolate, const char* builtin_name) {
   // 1. Let x be ? thisBigIntValue(this value).
-  Handle<BigInt> x;
+  DirectHandle<BigInt> x;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, x, ThisBigIntValue(isolate, receiver, builtin_name));
   // 2. If radix is not present, let radixNumber be 10.
@@ -106,9 +105,9 @@ Tagged<Object> BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
   int radix_number = 10;
   if (!IsUndefined(*radix, isolate)) {
     // 4. Else, let radixNumber be ? ToInteger(radix).
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix,
-                                       Object::ToInteger(isolate, radix));
-    double radix_double = Object::Number(*radix);
+    double radix_double;
+    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, radix_double, Object::IntegerValue(isolate, radix));
     // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
     if (radix_double < 2 || radix_double > 36) {
       THROW_NEW_ERROR_RETURN_FAILURE(
@@ -136,7 +135,7 @@ BUILTIN(BigIntPrototypeToLocaleString) {
       isolate,
       Intl::NumberToLocaleString(isolate, x, args.atOrUndefined(isolate, 1),
                                  args.atOrUndefined(isolate, 2), method_name));
-  // Fallbacks to old toString implemention if no V8_INTL_SUPPORT
+  // Fallbacks to old toString implementation if no V8_INTL_SUPPORT.
 #endif  // V8_INTL_SUPPORT
   Handle<Object> radix = isolate->factory()->undefined_value();
   return BigIntToStringImpl(args.receiver(), radix, isolate, method_name);

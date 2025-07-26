@@ -8,37 +8,30 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
-#include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/schedule.h"
 #include "src/objects/tagged-index.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-template <typename Adapter>
 struct CaseInfoT {
   int32_t value;  // The case value.
   int32_t order;  // The order for lowering to comparisons (less means earlier).
-  typename Adapter::block_t
+  turboshaft::Block*
       branch;  // The basic blocks corresponding to the case value.
 };
 
-template <typename Adapter>
-inline bool operator<(const CaseInfoT<Adapter>& l,
-                      const CaseInfoT<Adapter>& r) {
+inline bool operator<(const CaseInfoT& l, const CaseInfoT& r) {
   return l.order < r.order;
 }
 
 // Helper struct containing data about a table or lookup switch.
-template <typename Adapter>
 class SwitchInfoT {
  public:
-  using CaseInfo = CaseInfoT<Adapter>;
-  using block_t = typename Adapter::block_t;
+  using CaseInfo = CaseInfoT;
   SwitchInfoT(ZoneVector<CaseInfo> const& cases, int32_t min_value,
-              int32_t max_value, block_t default_branch)
+              int32_t max_value, turboshaft::Block* default_branch)
       : cases_(cases),
         min_value_(min_value),
         max_value_(max_value),
@@ -65,93 +58,67 @@ class SwitchInfoT {
   int32_t max_value() const { return max_value_; }
   size_t value_range() const { return value_range_; }
   size_t case_count() const { return cases_.size(); }
-  block_t default_branch() const { return default_branch_; }
+  turboshaft::Block* default_branch() const { return default_branch_; }
 
  private:
   const ZoneVector<CaseInfo>& cases_;
   int32_t min_value_;   // minimum value of {cases_}
   int32_t max_value_;   // maximum value of {cases_}
   size_t value_range_;  // |max_value - min_value| + 1
-  block_t default_branch_;
+  turboshaft::Block* default_branch_;
 };
-
-#define OPERAND_GENERATOR_T_BOILERPLATE(adapter)           \
-  using super = OperandGeneratorT<adapter>;                \
-  using node_t = typename adapter::node_t;                 \
-  using RegisterMode = typename super::RegisterMode;       \
-  using RegisterUseKind = typename super::RegisterUseKind; \
-  using super::selector;                                   \
-  using super::DefineAsRegister;                           \
-  using super::TempImmediate;                              \
-  using super::UseFixed;                                   \
-  using super::UseImmediate;                               \
-  using super::UseImmediate64;                             \
-  using super::UseNegatedImmediate;                        \
-  using super::UseRegister;                                \
-  using super::UseRegisterWithMode;                        \
-  using super::UseUniqueRegister;
 
 // A helper class for the instruction selector that simplifies construction of
 // Operands. This class implements a base for architecture-specific helpers.
-template <typename Adapter>
-class OperandGeneratorT : public Adapter {
+class OperandGeneratorT : public TurboshaftAdapter {
  public:
-  using block_t = typename Adapter::block_t;
-  using node_t = typename Adapter::node_t;
-
-  explicit OperandGeneratorT(InstructionSelectorT<Adapter>* selector)
-      : Adapter(selector->schedule()), selector_(selector) {}
+  explicit OperandGeneratorT(InstructionSelectorT* selector)
+      : TurboshaftAdapter(selector->schedule()), selector_(selector) {}
 
   InstructionOperand NoOutput() {
     return InstructionOperand();  // Generates an invalid operand.
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, DefineAsRegister)
-  InstructionOperand DefineAsRegister(node_t node) {
+  InstructionOperand DefineAsRegister(turboshaft::OpIndex node) {
     return Define(node,
                   UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
                                      GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, DefineSameAsInput)
-  InstructionOperand DefineSameAsInput(node_t node, int input_index) {
+  InstructionOperand DefineSameAsInput(turboshaft::OpIndex node,
+                                       int input_index) {
     return Define(node, UnallocatedOperand(GetVReg(node), input_index));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, DefineSameAsFirst)
-  InstructionOperand DefineSameAsFirst(node_t node) {
+  InstructionOperand DefineSameAsFirst(turboshaft::OpIndex node) {
     return DefineSameAsInput(node, 0);
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, DefineAsFixed)
-  InstructionOperand DefineAsFixed(node_t node, Register reg) {
+  InstructionOperand DefineAsFixed(turboshaft::OpIndex node, Register reg) {
     return Define(node, UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
                                            reg.code(), GetVReg(node)));
   }
 
   template <typename FPRegType>
-  InstructionOperand DefineAsFixed(node_t node, FPRegType reg) {
+  InstructionOperand DefineAsFixed(turboshaft::OpIndex node, FPRegType reg) {
     return Define(node,
                   UnallocatedOperand(UnallocatedOperand::FIXED_FP_REGISTER,
                                      reg.code(), GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, DefineAsConstant)
-  InstructionOperand DefineAsConstant(node_t node) {
+  InstructionOperand DefineAsConstant(turboshaft::OpIndex node) {
     selector()->MarkAsDefined(node);
     int virtual_register = GetVReg(node);
     sequence()->AddConstant(virtual_register, ToConstant(node));
     return ConstantOperand(virtual_register);
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, DefineAsLocation)
-  InstructionOperand DefineAsLocation(node_t node, LinkageLocation location) {
+  InstructionOperand DefineAsLocation(turboshaft::OpIndex node,
+                                      LinkageLocation location) {
     return Define(node, ToUnallocatedOperand(location, GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand,
-                                          DefineAsDualLocation)
-  InstructionOperand DefineAsDualLocation(node_t node,
+  InstructionOperand DefineAsDualLocation(turboshaft::OpIndex node,
                                           LinkageLocation primary_location,
                                           LinkageLocation secondary_location) {
     return Define(node,
@@ -159,81 +126,71 @@ class OperandGeneratorT : public Adapter {
                       primary_location, secondary_location, GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, Use)
-  InstructionOperand Use(node_t node) {
+  InstructionOperand Use(turboshaft::OpIndex node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::NONE,
                                         UnallocatedOperand::USED_AT_START,
                                         GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseAnyAtEnd)
-  InstructionOperand UseAnyAtEnd(node_t node) {
+  InstructionOperand UseAnyAtEnd(turboshaft::OpIndex node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT,
                                         UnallocatedOperand::USED_AT_END,
                                         GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseAny)
-  InstructionOperand UseAny(node_t node) {
+  InstructionOperand UseAny(turboshaft::OpIndex node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT,
                                         UnallocatedOperand::USED_AT_START,
                                         GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand,
-                                          UseRegisterOrSlotOrConstant)
-  InstructionOperand UseRegisterOrSlotOrConstant(node_t node) {
+  InstructionOperand UseRegisterOrSlotOrConstant(turboshaft::OpIndex node) {
     return Use(node, UnallocatedOperand(
                          UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
                          UnallocatedOperand::USED_AT_START, GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand,
-                                          UseUniqueRegisterOrSlotOrConstant)
-  InstructionOperand UseUniqueRegisterOrSlotOrConstant(node_t node) {
+  InstructionOperand UseUniqueRegisterOrSlotOrConstant(
+      turboshaft::OpIndex node) {
     return Use(node, UnallocatedOperand(
                          UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
                          GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseRegister)
-  InstructionOperand UseRegister(node_t node) {
+  InstructionOperand UseRegister(turboshaft::OpIndex node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
                                         UnallocatedOperand::USED_AT_START,
                                         GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseRegisterAtEnd)
-  InstructionOperand UseRegisterAtEnd(node_t node) {
+  InstructionOperand UseRegisterAtEnd(turboshaft::OpIndex node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
                                         UnallocatedOperand::USED_AT_END,
                                         GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseUniqueSlot)
-  InstructionOperand UseUniqueSlot(node_t node) {
+  InstructionOperand UseUniqueSlot(turboshaft::OpIndex node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_SLOT,
                                         GetVReg(node)));
   }
 
   // Use register or operand for the node. If a register is chosen, it won't
   // alias any temporary or output registers.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseUnique)
-  InstructionOperand UseUnique(node_t node) {
+  InstructionOperand UseUnique(turboshaft::OpIndex node) {
     return Use(node,
                UnallocatedOperand(UnallocatedOperand::NONE, GetVReg(node)));
   }
 
   // Use a unique register for the node that does not alias any temporary or
   // output registers.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseUniqueRegister)
-  InstructionOperand UseUniqueRegister(node_t node) {
+  InstructionOperand UseUniqueRegister(turboshaft::OpIndex node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
                                         GetVReg(node)));
   }
 
   enum class RegisterUseKind { kUseRegister, kUseUniqueRegister };
-  InstructionOperand UseRegister(node_t node, RegisterUseKind unique_reg) {
+  InstructionOperand UseRegister(turboshaft::OpIndex node,
+                                 RegisterUseKind unique_reg) {
     if (V8_LIKELY(unique_reg == RegisterUseKind::kUseRegister)) {
       return UseRegister(node);
     } else {
@@ -242,14 +199,13 @@ class OperandGeneratorT : public Adapter {
     }
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseFixed)
-  InstructionOperand UseFixed(node_t node, Register reg) {
+  InstructionOperand UseFixed(turboshaft::OpIndex node, Register reg) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
                                         reg.code(), GetVReg(node)));
   }
 
   template <typename FPRegType>
-  InstructionOperand UseFixed(node_t node, FPRegType reg) {
+  InstructionOperand UseFixed(turboshaft::OpIndex node, FPRegType reg) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::FIXED_FP_REGISTER,
                                         reg.code(), GetVReg(node)));
   }
@@ -262,19 +218,16 @@ class OperandGeneratorT : public Adapter {
     return sequence()->AddImmediate(Constant(immediate));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseImmediate)
-  InstructionOperand UseImmediate(node_t node) {
+  InstructionOperand UseImmediate(turboshaft::OpIndex node) {
     return sequence()->AddImmediate(ToConstant(node));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand,
-                                          UseNegatedImmediate)
-  InstructionOperand UseNegatedImmediate(node_t node) {
+  InstructionOperand UseNegatedImmediate(turboshaft::OpIndex node) {
     return sequence()->AddImmediate(ToNegatedConstant(node));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseLocation)
-  InstructionOperand UseLocation(node_t node, LinkageLocation location) {
+  InstructionOperand UseLocation(turboshaft::OpIndex node,
+                                 LinkageLocation location) {
     return Use(node, ToUnallocatedOperand(location, GetVReg(node)));
   }
 
@@ -317,9 +270,7 @@ class OperandGeneratorT : public Adapter {
     kUniqueRegister,
   };
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand,
-                                          UseRegisterWithMode)
-  InstructionOperand UseRegisterWithMode(node_t node,
+  InstructionOperand UseRegisterWithMode(turboshaft::OpIndex node,
                                          RegisterMode register_mode) {
     return register_mode == kRegister ? UseRegister(node)
                                       : UseUniqueRegister(node);
@@ -380,82 +331,53 @@ class OperandGeneratorT : public Adapter {
     return ToUnallocatedOperand(location, sequence()->NextVirtualRegister());
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, Label)
-  InstructionOperand Label(block_t block) {
+  InstructionOperand Label(turboshaft::Block* block) {
     return sequence()->AddImmediate(Constant(this->rpo_number(block)));
   }
 
  protected:
-  InstructionSelectorT<Adapter>* selector() const { return selector_; }
+  InstructionSelectorT* selector() const { return selector_; }
   InstructionSequence* sequence() const { return selector()->sequence(); }
   Zone* zone() const { return selector()->instruction_zone(); }
 
  private:
-  int GetVReg(node_t node) const { return selector_->GetVirtualRegister(node); }
+  int GetVReg(turboshaft::OpIndex node) const {
+    return selector_->GetVirtualRegister(node);
+  }
 
-  Constant ToConstant(node_t node) {
-    if constexpr (Adapter::IsTurboshaft) {
-      using Kind = turboshaft::ConstantOp::Kind;
-      if (const turboshaft::ConstantOp* constant =
-              this->turboshaft_graph()
-                  ->Get(node)
-                  .template TryCast<turboshaft::ConstantOp>()) {
-        switch (constant->kind) {
-          case Kind::kWord32:
-            return Constant(static_cast<int32_t>(constant->word32()));
-          case Kind::kWord64:
-            return Constant(static_cast<int64_t>(constant->word64()));
-          case Kind::kHeapObject:
-          case Kind::kCompressedHeapObject:
-            return Constant(constant->handle(),
-                            constant->kind == Kind::kCompressedHeapObject);
-          case Kind::kExternal:
-            return Constant(constant->external_reference());
-          case Kind::kNumber:
-            return Constant(constant->number());
-          case Kind::kFloat32:
-            return Constant(constant->float32());
-          case Kind::kFloat64:
-            return Constant(constant->float64());
-          case Kind::kTaggedIndex: {
-            // Unencoded index value.
-            intptr_t value = static_cast<intptr_t>(constant->tagged_index());
-            DCHECK(TaggedIndex::IsValid(value));
-            // Generate it as 32/64-bit constant in a tagged form.
-            Address tagged_index = TaggedIndex::FromIntptr(value).ptr();
-            if (kSystemPointerSize == kInt32Size) {
-              return Constant(static_cast<int32_t>(tagged_index));
-            } else {
-              return Constant(static_cast<int64_t>(tagged_index));
-            }
+  Constant ToConstant(turboshaft::OpIndex node) {
+    using Kind = turboshaft::ConstantOp::Kind;
+    if (const turboshaft::ConstantOp* constant =
+            this->turboshaft_graph()
+                ->Get(node)
+                .template TryCast<turboshaft::ConstantOp>()) {
+      switch (constant->kind) {
+        case Kind::kWord32:
+          return Constant(static_cast<int32_t>(constant->word32()));
+        case Kind::kWord64:
+          return Constant(static_cast<int64_t>(constant->word64()));
+        case Kind::kSmi:
+          if constexpr (Is64()) {
+            return Constant(static_cast<int64_t>(constant->smi().ptr()));
+          } else {
+            return Constant(static_cast<int32_t>(constant->smi().ptr()));
           }
-          case Kind::kRelocatableWasmCall:
-          case Kind::kRelocatableWasmStubCall: {
-            uint64_t value = constant->integral();
-            auto mode = constant->kind == Kind::kRelocatableWasmCall
-                            ? RelocInfo::WASM_CALL
-                            : RelocInfo::WASM_STUB_CALL;
-            if (Is64()) {
-              return Constant(RelocatablePtrConstantInfo(
-                  base::checked_cast<int64_t>(value), mode));
-            } else {
-              return Constant(RelocatablePtrConstantInfo(
-                  base::checked_cast<int32_t>(value), mode));
-            }
-          }
-        }
-      }
-      UNREACHABLE();
-    } else {
-      switch (node->opcode()) {
-        case IrOpcode::kInt32Constant:
-          return Constant(OpParameter<int32_t>(node->op()));
-        case IrOpcode::kInt64Constant:
-          return Constant(OpParameter<int64_t>(node->op()));
-        case IrOpcode::kTaggedIndexConstant: {
+        case Kind::kHeapObject:
+        case Kind::kCompressedHeapObject:
+        case Kind::kTrustedHeapObject:
+          return Constant(constant->handle(),
+                          constant->kind == Kind::kCompressedHeapObject);
+        case Kind::kExternal:
+          return Constant(constant->external_reference());
+        case Kind::kNumber:
+          return Constant(constant->number());
+        case Kind::kFloat32:
+          return Constant(constant->float32());
+        case Kind::kFloat64:
+          return Constant(constant->float64());
+        case Kind::kTaggedIndex: {
           // Unencoded index value.
-          intptr_t value =
-              static_cast<intptr_t>(OpParameter<int32_t>(node->op()));
+          intptr_t value = static_cast<intptr_t>(constant->tagged_index());
           DCHECK(TaggedIndex::IsValid(value));
           // Generate it as 32/64-bit constant in a tagged form.
           Address tagged_index = TaggedIndex::FromIntptr(value).ptr();
@@ -465,72 +387,59 @@ class OperandGeneratorT : public Adapter {
             return Constant(static_cast<int64_t>(tagged_index));
           }
         }
-        case IrOpcode::kFloat32Constant:
-          return Constant(OpParameter<float>(node->op()));
-        case IrOpcode::kRelocatableInt32Constant:
-        case IrOpcode::kRelocatableInt64Constant:
-          return Constant(OpParameter<RelocatablePtrConstantInfo>(node->op()));
-        case IrOpcode::kFloat64Constant:
-        case IrOpcode::kNumberConstant:
-          return Constant(OpParameter<double>(node->op()));
-        case IrOpcode::kExternalConstant:
-          return Constant(OpParameter<ExternalReference>(node->op()));
-        case IrOpcode::kComment: {
-          // We cannot use {intptr_t} here, since the Constant constructor would
-          // be ambiguous on some architectures.
-          using ptrsize_int_t =
-              std::conditional<kSystemPointerSize == 8, int64_t, int32_t>::type;
-          return Constant(reinterpret_cast<ptrsize_int_t>(
-              OpParameter<const char*>(node->op())));
+        case Kind::kRelocatableWasmCall:
+        case Kind::kRelocatableWasmStubCall: {
+          uint64_t value = constant->integral();
+          auto mode = constant->kind == Kind::kRelocatableWasmCall
+                          ? RelocInfo::WASM_CALL
+                          : RelocInfo::WASM_STUB_CALL;
+          using constant_type = std::conditional_t<Is64(), int64_t, int32_t>;
+          return Constant(RelocatablePtrConstantInfo(
+              base::checked_cast<constant_type>(value), mode));
         }
-        case IrOpcode::kHeapConstant:
-          return Constant(HeapConstantOf(node->op()));
-        case IrOpcode::kCompressedHeapConstant:
-          return Constant(HeapConstantOf(node->op()), true);
-        case IrOpcode::kDeadValue: {
-          switch (DeadValueRepresentationOf(node->op())) {
-            case MachineRepresentation::kBit:
-            case MachineRepresentation::kWord32:
-            case MachineRepresentation::kTagged:
-            case MachineRepresentation::kTaggedSigned:
-            case MachineRepresentation::kTaggedPointer:
-            case MachineRepresentation::kCompressed:
-            case MachineRepresentation::kCompressedPointer:
-              return Constant(static_cast<int32_t>(0));
-            case MachineRepresentation::kWord64:
-              return Constant(static_cast<int64_t>(0));
-            case MachineRepresentation::kFloat64:
-              return Constant(static_cast<double>(0));
-            case MachineRepresentation::kFloat32:
-              return Constant(static_cast<float>(0));
-            default:
-              UNREACHABLE();
-          }
-          break;
-        }
-        default:
-          break;
+        case Kind::kRelocatableWasmCanonicalSignatureId:
+          return Constant(RelocatablePtrConstantInfo(
+              base::checked_cast<int32_t>(constant->integral()),
+              RelocInfo::WASM_CANONICAL_SIG_ID));
+        case Kind::kRelocatableWasmIndirectCallTarget:
+          uint64_t value = constant->integral();
+          return Constant(RelocatablePtrConstantInfo(
+              base::checked_cast<int32_t>(value),
+              RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY));
       }
     }
     UNREACHABLE();
   }
 
-  Constant ToNegatedConstant(node_t node) {
-    auto constant = this->constant_view(node);
-    if (constant.is_int32()) return Constant(-constant.int32_value());
-    DCHECK(constant.is_int64());
-    return Constant(-constant.int64_value());
+  Constant ToNegatedConstant(turboshaft::OpIndex node) {
+    const turboshaft::ConstantOp& constant =
+        Get(node).Cast<turboshaft::ConstantOp>();
+    switch (constant.kind) {
+      case turboshaft::ConstantOp::Kind::kWord32:
+        return Constant(-static_cast<int32_t>(constant.word32()));
+      case turboshaft::ConstantOp::Kind::kWord64:
+        return Constant(-static_cast<int64_t>(constant.word64()));
+      case turboshaft::ConstantOp::Kind::kSmi:
+        if (Is64()) {
+          return Constant(-static_cast<int64_t>(constant.smi().ptr()));
+        } else {
+          return Constant(-static_cast<int32_t>(constant.smi().ptr()));
+        }
+      default:
+        UNREACHABLE();
+    }
   }
 
-  UnallocatedOperand Define(node_t node, UnallocatedOperand operand) {
-    DCHECK(this->valid(node));
+  UnallocatedOperand Define(turboshaft::OpIndex node,
+                            UnallocatedOperand operand) {
+    DCHECK(node.valid());
     DCHECK_EQ(operand.virtual_register(), GetVReg(node));
     selector()->MarkAsDefined(node);
     return operand;
   }
 
-  UnallocatedOperand Use(node_t node, UnallocatedOperand operand) {
-    DCHECK(this->valid(node));
+  UnallocatedOperand Use(turboshaft::OpIndex node, UnallocatedOperand operand) {
+    DCHECK(node.valid());
     DCHECK_EQ(operand.virtual_register(), GetVReg(node));
     selector()->MarkAsUsed(node);
     return operand;
@@ -574,7 +483,7 @@ class OperandGeneratorT : public Adapter {
                               location.AsRegister(), virtual_register);
   }
 
-  InstructionSelectorT<Adapter>* selector_;
+  InstructionSelectorT* selector_;
 };
 
 }  // namespace compiler

@@ -22,7 +22,10 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
-common.skipIfDumbTerminal();
+
+if (process.env.TERM === 'dumb') {
+  common.skip('skipping - dumb terminal');
+}
 
 const assert = require('assert');
 const readline = require('readline');
@@ -44,7 +47,7 @@ class FakeInput extends EventEmitter {
 function isWarned(emitter) {
   for (const name in emitter) {
     const listeners = emitter[name];
-    if (listeners && listeners.warned) return true;
+    if (listeners?.warned) return true;
   }
   return false;
 }
@@ -1061,6 +1064,16 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // Calling only the first question callback
+  {
+    const [rli] = getInterface({ terminal });
+    rli.question('foo?', common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.question('hello?', common.mustNotCall());
+    rli.write('bar\n');
+  }
+
   // Calling the question multiple times
   {
     const [rli] = getInterface({ terminal });
@@ -1185,6 +1198,47 @@ for (let i = 0; i < 12; i++) {
           name: 'Error'
         }));
       assert.notStrictEqual(rli.getPrompt(), 'How are you?');
+    }));
+    fi.emit('data', 'Node.js\n');
+  }
+
+  // Call write after close
+  {
+    const [rli, fi] = getInterface({ terminal });
+    rli.question('What\'s your name?', common.mustCall((name) => {
+      assert.strictEqual(name, 'Node.js');
+      rli.close();
+      assert.throws(() => {
+        rli.write('I said Node.js');
+      }, {
+        name: 'Error',
+        code: 'ERR_USE_AFTER_CLOSE'
+      });
+    }));
+    fi.emit('data', 'Node.js\n');
+  }
+
+  // Call pause/resume after close
+  {
+    const [rli, fi] = getInterface({ terminal });
+    rli.question('What\'s your name?', common.mustCall((name) => {
+      assert.strictEqual(name, 'Node.js');
+      rli.close();
+      // No 'resume' nor 'pause' event should be emitted after close
+      rli.on('resume', common.mustNotCall());
+      rli.on('pause', common.mustNotCall());
+      assert.throws(() => {
+        rli.pause();
+      }, {
+        name: 'Error',
+        code: 'ERR_USE_AFTER_CLOSE'
+      });
+      assert.throws(() => {
+        rli.resume();
+      }, {
+        name: 'Error',
+        code: 'ERR_USE_AFTER_CLOSE'
+      });
     }));
     fi.emit('data', 'Node.js\n');
   }
@@ -1328,6 +1382,26 @@ for (let i = 0; i < 12; i++) {
       assert.strictEqual(callCount, 1);
       rli.close();
     }), delay);
+  }
+
+  // Write correctly if paused
+  {
+    const [rli] = getInterface({ terminal });
+    rli.on('line', common.mustCall((line) => {
+      assert.strictEqual(line, 'bar');
+    }));
+    rli.pause();
+    rli.write('bar\n');
+    assert.strictEqual(rli.paused, false);
+    rli.close();
+  }
+
+  // Write undefined
+  {
+    const [rli] = getInterface({ terminal });
+    rli.on('line', common.mustNotCall());
+    rli.write();
+    rli.close();
   }
 });
 

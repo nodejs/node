@@ -1,8 +1,9 @@
 const t = require('tap')
-const { spawnSync } = require('child_process')
-const { resolve, join, extname, basename, sep } = require('path')
-const { copyFileSync, readFileSync, chmodSync, readdirSync, rmSync, statSync } = require('fs')
+const { spawnSync } = require('node:child_process')
+const { resolve, join, extname, basename } = require('node:path')
+const { readFileSync, chmodSync, readdirSync, statSync } = require('node:fs')
 const Diff = require('diff')
+const { moveRemove } = require('rimraf')
 const { sync: which } = require('which')
 const { version } = require('../../package.json')
 
@@ -19,12 +20,9 @@ const BIN = join(ROOT, 'bin')
 const SHIMS = readNonJsFiles(BIN)
 const NODE_GYP = readNonJsFiles(join(BIN, 'node-gyp-bin'))
 const SHIM_EXTS = [...new Set(Object.keys(SHIMS).map(p => extname(p)))]
-
-// windows requires each segment of a command path to be quoted when using shell: true
-const quotePath = (cmd) => cmd
-  .split(sep)
-  .map(p => p.includes(' ') ? `"${p}"` : p)
-  .join(sep)
+const PACKAGE_NAME = 'test'
+const PACKAGE_VERSION = '1.0.0'
+const SCRIPT_NAME = 'args.js'
 
 t.test('shim contents', t => {
   // these scripts should be kept in sync so this tests the contents of each
@@ -44,23 +42,21 @@ t.test('shim contents', t => {
 
   t.test('bash', t => {
     const { diff, letters } = diffFiles(SHIMS.npm, SHIMS.npx)
-    t.match(diff[0].split('\n').reverse().join(''), /^NPX_CLI_JS=/, 'has NPX_CLI')
-    t.equal(diff.length, 1)
+    t.strictSame(diff, [])
     t.strictSame([...letters], ['M', 'X'], 'all other changes are m->x')
     t.end()
   })
 
   t.test('cmd', t => {
     const { diff, letters } = diffFiles(SHIMS['npm.cmd'], SHIMS['npx.cmd'])
-    t.match(diff[0], /^SET "NPX_CLI_JS=/, 'has NPX_CLI')
-    t.equal(diff.length, 1)
+    t.strictSame(diff, [])
     t.strictSame([...letters], ['M', 'X'], 'all other changes are m->x')
     t.end()
   })
 
   t.test('pwsh', t => {
     const { diff, letters } = diffFiles(SHIMS['npm.ps1'], SHIMS['npx.ps1'])
-    t.equal(diff.length, 0)
+    t.strictSame(diff, [])
     t.strictSame([...letters], ['M', 'X'], 'all other changes are m->x')
     t.end()
   })
@@ -84,6 +80,7 @@ t.test('node-gyp', t => {
 t.test('run shims', t => {
   const path = t.testdir({
     ...SHIMS,
+    'node.exe': readFileSync(process.execPath),
     // simulate the state where one version of npm is installed
     // with node, but we should load the globally installed one
     'global-prefix': {
@@ -96,38 +93,52 @@ t.test('run shims', t => {
     node_modules: {
       npm: {
         bin: {
-          'npx-cli.js': `throw new Error('this should not be called')`,
-          'npm-cli.js': `
-            const assert = require('assert')
+          'npm-prefix.js': `
             const { resolve } = require('path')
-            assert.equal(process.argv.slice(2).join(' '), 'prefix -g')
             console.log(resolve(__dirname, '../../../global-prefix'))
           `,
+          'npx-cli.js': `throw new Error('local npx should not be called')`,
+          'npm-cli.js': `throw new Error('local npm should not be called')`,
         },
       },
     },
+    // test script returning all command line arguments
+    [SCRIPT_NAME]: `#!/usr/bin/env node\n\nprocess.argv.slice(2).forEach((arg) => console.log(arg))`,
+    // package.json for the test script
+    'package.json': `
+      {
+        "name": "${PACKAGE_NAME}",
+        "version": "${PACKAGE_VERSION}",
+        "scripts": {
+          "test": "node ${SCRIPT_NAME}"
+        },
+        "bin": "${SCRIPT_NAME}"
+      }`,
   })
 
-  // hacky fix to decrease flakes of this test from `NOTEMPTY: directory not empty, rmdir`
-  // this should get better in tap@18 and we can try removing it then
-  copyFileSync(process.execPath, join(path, 'node.exe'))
-  t.teardown(async () => {
-    rmSync(join(path, 'node.exe'))
-    await new Promise(res => setTimeout(res, 100))
-    // this is superstition
-    rmSync(join(path, 'node.exe'), { force: true })
-  })
+  // The removal of this fixture causes this test to fail when done with
+  // the default tap removal. Using rimraf's `moveRemove` seems to make this
+  // work reliably. Don't remove this line in the future without making sure
+  // this test passes the full windows suite at least 3 consecutive times.
+  t.teardown(() => moveRemove(join(path, 'node.exe')))
 
   const spawnPath = (cmd, args, { log, stdioString = true, ...opts } = {}) => {
     if (cmd.endsWith('bash.exe')) {
       // only cygwin *requires* the -l, but the others are ok with it
       args.unshift('-l')
     }
-    const result = spawnSync(cmd, args, {
+    if (cmd.toLowerCase().endsWith('powershell.exe') || cmd.toLowerCase().endsWith('pwsh.exe')) {
+      // pwsh *requires* the -Command, Windows PowerShell defaults to it
+      args.unshift('-Command')
+      // powershell requires escaping double-quotes for this test
+      args = args.map(elem => elem.replaceAll('"', '\\"'))
+    }
+    const result = spawnSync(`"${cmd}"`, args, {
       // don't hit the registry for the update check
       env: { PATH: path, npm_config_update_notifier: 'false' },
       cwd: path,
       windowsHide: true,
+      shell: true,
       ...opts,
     })
     if (stdioString) {
@@ -172,6 +183,7 @@ t.test('run shims', t => {
 
   const shells = Object.entries({
     cmd: 'cmd',
+    powershell: 'powershell',
     pwsh: 'pwsh',
     git: join(ProgramFiles, 'Git', 'bin', 'bash.exe'),
     'user git': join(ProgramFiles, 'Git', 'usr', 'bin', 'bash.exe'),
@@ -226,7 +238,7 @@ t.test('run shims', t => {
     }
   })
 
-  const matchCmd = (t, cmd, bin, match) => {
+  const matchCmd = (t, cmd, bin, match, params, expected) => {
     const args = []
     const opts = {}
 
@@ -237,26 +249,39 @@ t.test('run shims', t => {
       case 'bash.exe':
         args.push(bin)
         break
+      case 'powershell.exe':
       case 'pwsh.exe':
-        cmd = quotePath(cmd)
         args.push(`${bin}.ps1`)
-        opts.shell = true
         break
       default:
         throw new Error('unknown shell')
     }
 
-    const isNpm = bin === 'npm'
-    const result = spawnPath(cmd, [...args, isNpm ? 'help' : '--version'], opts)
+    const result = spawnPath(cmd, [...args, ...params], opts)
+
+    // skip the first 3 lines of "npm test" to get the actual script output
+    if (params[0].startsWith('test')) {
+      result.stdout = result.stdout?.toString().split('\n').slice(3).join('\n').trim()
+    }
 
     t.match(result, {
       status: 0,
       signal: null,
       stderr: '',
-      stdout: isNpm ? `npm@${version} ${ROOT}` : version,
+      stdout: expected,
       ...match,
-    }, `${cmd} ${bin}`)
+    }, `${cmd} ${bin} ${params[0]}`)
   }
+
+  // Array with command line parameters and expected output
+  const tests = [
+    { bin: 'npm', params: ['help'], expected: `npm@${version} ${ROOT}` },
+    { bin: 'npx', params: ['--version'], expected: version },
+    { bin: 'npm', params: ['test'], expected: '' },
+    { bin: 'npm', params: [`test -- hello -p1 world -p2 "hello world" --q1=hello world --q2="hello world"`], expected: `hello\n-p1\nworld\n-p2\nhello world\n--q1=hello\nworld\n--q2=hello world` },
+    { bin: 'npm', params: ['test -- a=1,b=2,c=3'], expected: `a=1,b=2,c=3` },
+    { bin: 'npx', params: ['. -- a=1,b=2,c=3'], expected: `a=1,b=2,c=3` },
+  ]
 
   // ensure that all tests are either run or skipped
   t.plan(shells.length)
@@ -271,9 +296,17 @@ t.test('run shims', t => {
         }
         return t.end()
       }
-      t.plan(2)
-      matchCmd(t, cmd, 'npm', match)
-      matchCmd(t, cmd, 'npx', match)
+      t.plan(tests.length)
+      for (const { bin, params, expected } of tests) {
+        if (name === 'cygwin bash' && (
+          (bin === 'npm' && params[0].startsWith('test')) ||
+          (bin === 'npx' && params[0].startsWith('.'))
+        )) {
+          t.skip("`cygwin bash` doesn't respect option `{ cwd: path }` when calling `spawnSync`")
+        } else {
+          matchCmd(t, cmd, bin, match, params, expected)
+        }
+      }
     })
   }
 })

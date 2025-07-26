@@ -9,21 +9,21 @@
 #include "src/common/globals.h"
 #include "src/compiler/common-node-cache.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Implements a facade on a Graph, enhancing the graph with machine-specific
+// Implements a facade on a TFGraph, enhancing the graph with machine-specific
 // notions, including a builder for common and machine operators, as well
 // as caching primitive constants.
 class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  MachineGraph(Graph* graph, CommonOperatorBuilder* common,
+  MachineGraph(TFGraph* graph, CommonOperatorBuilder* common,
                MachineOperatorBuilder* machine)
       : graph_(graph),
         common_(common),
@@ -38,7 +38,7 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
 
   Node* UniqueInt64Constant(int64_t value);
 
-  // Creates a Int32Constant node, usually canonicalized.
+  // Creates an Int32Constant node, usually canonicalized.
   Node* Int32Constant(int32_t value);
   Node* Uint32Constant(uint32_t value) {
     return Int32Constant(base::bit_cast<int32_t>(value));
@@ -50,7 +50,7 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
     return Int64Constant(base::bit_cast<int64_t>(value));
   }
 
-  // Creates a Int32Constant/Int64Constant node, depending on the word size of
+  // Creates an Int32Constant/Int64Constant node, depending on the word size of
   // the target machine.
   // TODO(turbofan): Code using Int32Constant/Int64Constant to store pointer
   // constants is probably not serializable.
@@ -75,7 +75,7 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   Node* PointerConstant(intptr_t value);
   template <typename T>
   Node* PointerConstant(T* value) {
-    return PointerConstant(base::bit_cast<intptr_t>(value));
+    return PointerConstant(reinterpret_cast<intptr_t>(value));
   }
 
   // Creates an ExternalConstant node, usually canonicalized.
@@ -99,11 +99,11 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
 
   CommonOperatorBuilder* common() const { return common_; }
   MachineOperatorBuilder* machine() const { return machine_; }
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   Zone* zone() const { return graph()->zone(); }
 
  protected:
-  Graph* graph_;
+  TFGraph* graph_;
   CommonOperatorBuilder* common_;
   MachineOperatorBuilder* machine_;
   CommonNodeCache cache_;

@@ -49,14 +49,14 @@ struct PerfectKeywordHashTableEntry {
   Token::Value value;
 };
 enum {
-  TOTAL_KEYWORDS = 49,
+  TOTAL_KEYWORDS = 52,
   MIN_WORD_LENGTH = 2,
   MAX_WORD_LENGTH = 10,
-  MIN_HASH_VALUE = 2,
-  MAX_HASH_VALUE = 55
+  MIN_HASH_VALUE = 3,
+  MAX_HASH_VALUE = 64
 };
 
-/* maximum key range = 54, duplicates = 0 */
+/* maximum key range = 62, duplicates = 0 */
 
 class PerfectKeywordHash {
  private:
@@ -67,95 +67,162 @@ class PerfectKeywordHash {
 };
 
 inline unsigned int PerfectKeywordHash::Hash(const char* str, int len) {
-  DCHECK_LT(str[1], 128);
-  DCHECK_LT(str[0], 128);
-  static const unsigned char asso_values[128] = {
-      56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
-      56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
-      56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
-      56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
-      56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
-      56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
-      56, 8,  0,  6,  0,  0,  9,  9,  9,  0,  56, 56, 34, 41, 0,  3,
-      6,  56, 19, 10, 13, 16, 39, 26, 37, 36, 56, 56, 56, 56, 56, 56};
-  return len + asso_values[static_cast<unsigned char>(str[1])] +
+  DCHECK_LT(str[1] + 1, 129);
+  DCHECK_LT(str[0], 129);
+  static const unsigned char asso_values[129] = {
+      65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
+      65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
+      65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
+      65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
+      65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
+      65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 65, 33, 0,  24, 18, 17,
+      0,  31, 65, 15, 33, 65, 0,  25, 24, 14, 1,  65, 0,  10, 3,  36, 4,
+      23, 26, 13, 1,  65, 65, 65, 65, 65, 65};
+  return len + asso_values[static_cast<unsigned char>(str[1] + 1)] +
          asso_values[static_cast<unsigned char>(str[0])];
 }
 
-static const unsigned char kPerfectKeywordLengthTable[64] = {
-    0, 0, 2, 3, 4, 2, 6, 7,  8, 9, 10, 2, 3, 3, 5, 3, 7, 8, 4, 5, 4, 7,
-    5, 5, 5, 6, 4, 5, 6, 6,  4, 5, 7,  8, 9, 3, 4, 3, 4, 5, 5, 5, 6, 6,
-    7, 5, 4, 6, 0, 0, 3, 10, 0, 0, 0,  6, 0, 0, 0, 0, 0, 0, 0, 0};
+static const unsigned char kPerfectKeywordLengthTable[128] = {
+    0, 0, 0, 3, 3, 5,  6, 3, 7, 4, 6, 6, 8, 3, 0, 5, 3, 4,  7, 5, 9, 2,
+    4, 5, 6, 7, 8, 3,  4, 5, 5, 2, 4, 8, 3, 4, 6, 7, 9, 10, 7, 5, 6, 5,
+    5, 6, 4, 2, 2, 10, 0, 5, 6, 0, 5, 0, 0, 0, 0, 8, 4, 0,  0, 0, 5, 0,
+    0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-static const struct PerfectKeywordHashTableEntry kPerfectKeywordHashTable[64] =
-    {{"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER},
-     {"in", Token::IN},
-     {"new", Token::NEW},
-     {"enum", Token::ENUM},
-     {"do", Token::DO},
-     {"delete", Token::DELETE},
-     {"default", Token::DEFAULT},
-     {"debugger", Token::DEBUGGER},
-     {"interface", Token::FUTURE_STRICT_RESERVED_WORD},
-     {"instanceof", Token::INSTANCEOF},
-     {"if", Token::IF},
-     {"get", Token::GET},
-     {"set", Token::SET},
-     {"const", Token::CONST},
-     {"for", Token::FOR},
-     {"finally", Token::FINALLY},
-     {"continue", Token::CONTINUE},
-     {"case", Token::CASE},
-     {"catch", Token::CATCH},
-     {"null", Token::NULL_LITERAL},
-     {"package", Token::FUTURE_STRICT_RESERVED_WORD},
-     {"false", Token::FALSE_LITERAL},
-     {"async", Token::ASYNC},
-     {"break", Token::BREAK},
-     {"return", Token::RETURN},
-     {"this", Token::THIS},
-     {"throw", Token::THROW},
-     {"public", Token::FUTURE_STRICT_RESERVED_WORD},
-     {"static", Token::STATIC},
-     {"with", Token::WITH},
-     {"super", Token::SUPER},
-     {"private", Token::FUTURE_STRICT_RESERVED_WORD},
-     {"function", Token::FUNCTION},
-     {"protected", Token::FUTURE_STRICT_RESERVED_WORD},
-     {"try", Token::TRY},
-     {"true", Token::TRUE_LITERAL},
-     {"let", Token::LET},
-     {"else", Token::ELSE},
-     {"await", Token::AWAIT},
-     {"while", Token::WHILE},
-     {"yield", Token::YIELD},
-     {"switch", Token::SWITCH},
-     {"export", Token::EXPORT},
-     {"extends", Token::EXTENDS},
-     {"class", Token::CLASS},
-     {"void", Token::VOID},
-     {"import", Token::IMPORT},
-     {"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER},
-     {"var", Token::VAR},
-     {"implements", Token::FUTURE_STRICT_RESERVED_WORD},
-     {"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER},
-     {"typeof", Token::TYPEOF},
-     {"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER},
-     {"", Token::IDENTIFIER}};
+static const struct PerfectKeywordHashTableEntry kPerfectKeywordHashTable[128] =
+    {{"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"let", Token::kLet},
+     {"for", Token::kFor},
+     {"false", Token::kFalseLiteral},
+     {"return", Token::kReturn},
+     {"var", Token::kVar},
+     {"package", Token::kFutureStrictReservedWord},
+     {"void", Token::kVoid},
+     {"typeof", Token::kTypeOf},
+     {"public", Token::kFutureStrictReservedWord},
+     {"function", Token::kFunction},
+     {"set", Token::kSet},
+     {"", Token::kIdentifier},
+     {"break", Token::kBreak},
+     {"try", Token::kTry},
+     {"true", Token::kTrueLiteral},
+     {"private", Token::kFutureStrictReservedWord},
+     {"super", Token::kSuper},
+     {"protected", Token::kFutureStrictReservedWord},
+     {"do", Token::kDo},
+     {"this", Token::kThis},
+     {"throw", Token::kThrow},
+     {"delete", Token::kDelete},
+     {"default", Token::kDefault},
+     {"debugger", Token::kDebugger},
+     {"new", Token::kNew},
+     {"case", Token::kCase},
+     {"catch", Token::kCatch},
+     {"const", Token::kConst},
+     {"in", Token::kIn},
+     {"null", Token::kNullLiteral},
+     {"continue", Token::kContinue},
+     {"get", Token::kGet},
+     {"enum", Token::kEnum},
+     {"export", Token::kExport},
+     {"extends", Token::kExtends},
+     {"interface", Token::kFutureStrictReservedWord},
+     {"instanceof", Token::kInstanceOf},
+     {"finally", Token::kFinally},
+     {"async", Token::kAsync},
+     {"switch", Token::kSwitch},
+     {"while", Token::kWhile},
+     {"using", Token::kUsing},
+     {"import", Token::kImport},
+     {"else", Token::kElse},
+     {"of", Token::kOf},
+     {"if", Token::kIf},
+     {"implements", Token::kFutureStrictReservedWord},
+     {"", Token::kIdentifier},
+     {"yield", Token::kYield},
+     {"static", Token::kStatic},
+     {"", Token::kIdentifier},
+     {"class", Token::kClass},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"accessor", Token::kAccessor},
+     {"with", Token::kWith},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"await", Token::kAwait},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier},
+     {"", Token::kIdentifier}};
 
 inline Token::Value PerfectKeywordHash::GetToken(const char* str, int len) {
   if (base::IsInRange(len, MIN_WORD_LENGTH, MAX_WORD_LENGTH)) {
-    unsigned int key = Hash(str, len) & 0x3f;
+    unsigned int key = Hash(str, len) & 0x7f;
 
     DCHECK_LT(key, arraysize(kPerfectKeywordLengthTable));
     DCHECK_LT(key, arraysize(kPerfectKeywordHashTable));
@@ -163,12 +230,12 @@ inline Token::Value PerfectKeywordHash::GetToken(const char* str, int len) {
       const char* s = kPerfectKeywordHashTable[key].name;
 
       while (*s != 0) {
-        if (*s++ != *str++) return Token::IDENTIFIER;
+        if (*s++ != *str++) return Token::kIdentifier;
       }
       return kPerfectKeywordHashTable[key].value;
     }
   }
-  return Token::IDENTIFIER;
+  return Token::kIdentifier;
 }
 
 }  // namespace internal

@@ -4,7 +4,7 @@
 
 Report security bugs in Node.js via [HackerOne](https://hackerone.com/nodejs).
 
-Normally your report will be acknowledged within 5 days, and you'll receive
+Normally, your report will be acknowledged within 5 days, and you'll receive
 a more detailed response to your report within 10 days indicating the
 next steps in handling your submission. These timelines may extend when
 our triage volunteers are away on holiday, particularly at the end of the
@@ -21,9 +21,9 @@ The Node.js project engages in an official bug bounty program for security
 researchers and responsible public disclosures.  The program is managed through
 the HackerOne platform. See <https://hackerone.com/nodejs> for further details.
 
-## Reporting a bug in a third party module
+## Reporting a bug in a third-party module
 
-Security bugs in third party modules should be reported to their respective
+Security bugs in third-party modules should be reported to their respective
 maintainers.
 
 ## Disclosure policy
@@ -41,20 +41,54 @@ Here is the security disclosure policy for Node.js
 * A suggested embargo date for this vulnerability is chosen and a CVE (Common
   Vulnerabilities and Exposures (CVE®)) is requested for the vulnerability.
 
-* On the embargo date, the Node.js security mailing list is sent a copy of the
-  announcement. The changes are pushed to the public repository and new builds
-  are deployed to nodejs.org. Within 6 hours of the mailing list being
+* On the embargo date, a copy of the announcement is sent to the Node.js
+  security mailing list. The changes are pushed to the public repository and new
+  builds are deployed to nodejs.org. Within 6 hours of the mailing list being
   notified, a copy of the advisory will be published on the Node.js blog.
 
-* Typically the embargo date will be set 72 hours from the time the CVE is
+* Typically, the embargo date will be set 72 hours from the time the CVE is
   issued. However, this may vary depending on the severity of the bug or
   difficulty in applying a fix.
 
-* This process can take some time, especially when coordination is required
-  with maintainers of other projects. Every effort will be made to handle the
-  bug in as timely a manner as possible; however, it's important that we follow
-  the release process above to ensure that the disclosure is handled in a
-  consistent manner.
+* This process can take some time, especially when we need to coordinate with
+  maintainers of other projects. We will try to handle the bug as quickly as
+  possible; however, we must follow the release process above to ensure that we
+  handle disclosure consistently.
+
+## Code of Conduct and Vulnerability Reporting Guidelines
+
+When reporting security vulnerabilities, reporters must adhere to the following guidelines:
+
+1. **Code of Conduct Compliance**: All security reports must comply with our
+   [Code of Conduct](CODE_OF_CONDUCT.md). Reports that violate our code of conduct
+   will not be considered and may result in being banned from future participation.
+
+2. **No Harmful Actions**: Security research and vulnerability reporting must not:
+   * Cause damage to running systems or production environments.
+   * Disrupt Node.js development or infrastructure.
+   * Affect other users' applications or systems.
+   * Include actual exploits that could harm users.
+   * Involve social engineering or phishing attempts.
+
+3. **Responsible Testing**: When testing potential vulnerabilities:
+   * Use isolated, controlled environments.
+   * Do not test on production systems without prior authorization. Contact
+     the Node.js Technical Steering Committee (<tsc@iojs.org>) for permission or open
+     a HackerOne report.
+   * Do not attempt to access or modify other users' data.
+   * Immediately stop testing if unauthorized access is gained accidentally.
+
+4. **Report Quality**
+   * Provide clear, detailed steps to reproduce the vulnerability.
+   * Include only the minimum proof of concept required to demonstrate the issue.
+   * Remove any malicious payloads or components that could cause harm.
+
+Failure to follow these guidelines may result in:
+
+* Rejection of the vulnerability report.
+* Forfeiture of any potential bug bounty.
+* Temporary or permanent ban from the bug bounty program.
+* Legal action in cases of malicious intent.
 
 ## The Node.js threat model
 
@@ -75,6 +109,22 @@ does not trust is considered a vulnerability:
   the correct use of Node.js APIs.
 * The unavailability of the runtime, including the unbounded degradation of its
   performance.
+* Memory leaks qualify as vulnerabilities when all of the following criteria are met:
+  * The API is being correctly used.
+  * The API doesn't have a warning against its usage in a production environment.
+  * The API is public and documented.
+  * The API is on stable (2.0) status.
+  * The memory leak is significant enough to cause a denial of service quickly
+    or in a context not controlled by the user (for example, HTTP parsing).
+  * The memory leak is directly exploitable by an untrusted source without requiring application mistakes.
+  * The leak cannot be reasonably mitigated through standard operational practices (like process recycling).
+  * The leak occurs deterministically under normal usage patterns rather than edge cases.
+  * The leak occurs at a rate that would cause practical resource exhaustion within a practical timeframe under
+    typical workloads.
+  * The attack demonstrates [asymmetric resource consumption](https://cwe.mitre.org/data/definitions/405.html),
+    where the attacker expends significantly fewer resources than what's required by the server to process the
+    attack. Attacks requiring comparable resources on the attacker's side (which can be mitigated through common
+    practices like rate limiting) may not qualify.
 
 If Node.js loads configuration files or runs code by default (without a
 specific request from the user), and this is not documented, it is considered a
@@ -83,23 +133,23 @@ Vulnerabilities related to this case may be fixed by a documentation update.
 
 **Node.js does NOT trust**:
 
-1. Data received from the remote end of inbound network connections
-   that are accepted through the use of Node.js APIs and
-   which is transformed/validated by Node.js before being passed
-   to the application. This includes:
-   * HTTP APIs (all flavors) server APIs.
-2. The data received from the remote end of outbound network connections
-   that are created through the use of Node.js APIs and
-   which is transformed/validated by Node.js before being passed
-   to the application EXCEPT in respect to payload length. Node.js trusts
-   that applications make connections/requests which will avoid payload
-   sizes that will result in a Denial of Service.
-   * HTTP APIs (all flavors) client APIs.
-   * DNS APIs.
-3. Consumers of data protected through the use of Node.js APIs (for example
-   people who have access to data encrypted through the Node.js crypto APIs).
-4. The file content or other I/O that is opened for reading or writing by the
-   use of Node.js APIs (ex: stdin, stdout, stderr).
+* Data received from the remote end of inbound network connections
+  that are accepted through the use of Node.js APIs and
+  which is transformed/validated by Node.js before being passed
+  to the application. This includes:
+  * HTTP APIs (all flavors) server APIs.
+* The data received from the remote end of outbound network connections
+  that are created through the use of Node.js APIs and
+  which is transformed/validated by Node.js before being passed
+  to the application **except** with respect to payload length. Node.js trusts
+  that applications make connections/requests which will avoid payload
+  sizes that will result in a Denial of Service.
+  * HTTP APIs (all flavors) client APIs.
+  * DNS APIs.
+* Consumers of data protected through the use of Node.js APIs (for example,
+  people who have access to data encrypted through the Node.js crypto APIs).
+* The file content or other I/O that is opened for reading or writing by the
+  use of Node.js APIs (ex: stdin, stdout, stderr).
 
 In other words, if the data passing through Node.js to/from the application
 can trigger actions other than those documented for the APIs, there is likely
@@ -107,25 +157,28 @@ a security vulnerability. Examples of unwanted actions are polluting globals,
 causing an unrecoverable crash, or any other unexpected side effects that can
 lead to a loss of confidentiality, integrity, or availability.
 
-**Node.js trusts everything else**. As some examples this includes:
+For example, if trusted input (like secure application code) is correct,
+then untrusted input must not lead to arbitrary JavaScript code execution.
 
-1. The developers and infrastructure that runs it.
-2. The operating system that Node.js is running under and its configuration,
-   along with anything under control of the operating system.
-3. The code it is asked to run including JavaScript and native code, even if
-   said code is dynamically loaded, e.g. all dependencies installed from the
-   npm registry.
-   The code run inherits all the privileges of the execution user.
-4. Inputs provided to it by the code it is asked to run, as it is the
-   responsibility of the application to perform the required input validations,
-   e.g. the input to `JSON.parse()`.
-5. Any connection used for inspector (debugger protocol) regardless of being
-   opened by command line options or Node.js APIs, and regardless of the remote
-   end being on the local machine or remote.
-6. The file system when requiring a module.
-   See <https://nodejs.org/api/modules.html#all-together>.
-7. The `node:wasi` module does not currently provide the comprehensive file
-   system security properties provided by some WASI runtimes.
+**Node.js trusts everything else**. Examples include:
+
+* The developers and infrastructure that run it.
+* The operating system that Node.js is running under and its configuration,
+  along with anything under the control of the operating system.
+* The code it is asked to run, including JavaScript, WASM and native code, even
+  if said code is dynamically loaded, e.g., all dependencies installed from the
+  npm registry.
+  The code run inherits all the privileges of the execution user.
+* Inputs provided to it by the code it is asked to run, as it is the
+  responsibility of the application to perform the required input validations,
+  e.g. the input to `JSON.parse()`.
+* Any connection used for inspector (debugger protocol) regardless of being
+  opened by command line options or Node.js APIs, and regardless of the remote
+  end being on the local machine or remote.
+* The file system when requiring a module.
+  See <https://nodejs.org/api/modules.html#all-together>.
+* The `node:wasi` module does not currently provide the comprehensive file
+  system security properties provided by some WASI runtimes.
 
 Any unexpected behavior from the data manipulation from Node.js Internal
 functions may be considered a vulnerability if they are exploitable via
@@ -135,7 +188,7 @@ In addition to addressing vulnerabilities based on the above, the project works
 to avoid APIs and internal implementations that make it "easy" for application
 code to use the APIs incorrectly in a way that results in vulnerabilities within
 the application code itself. While we don’t consider those vulnerabilities in
-Node.js itself and will not necessarily issue a CVE we do want them to be
+Node.js itself and will not necessarily issue a CVE, we do want them to be
 reported privately to Node.js first.
 We often choose to work to improve our APIs based on those reports and issue
 fixes either in regular or security releases depending on how much of a risk to
@@ -147,12 +200,12 @@ the community they pose.
 
 * Node.js provides APIs to validate handling of Subject Alternative Names (SANs)
   in certificates used to connect to a TLS/SSL endpoint. If certificates can be
-  crafted which result in incorrect validation by the Node.js APIs that is
+  crafted that result in incorrect validation by the Node.js APIs that is
   considered a vulnerability.
 
 #### Inconsistent Interpretation of HTTP Requests (CWE-444)
 
-* Node.js provides APIs to accept http connections. Those APIs parse the
+* Node.js provides APIs to accept HTTP connections. Those APIs parse the
   headers received for a connection and pass them on to the application.
   Bugs in parsing those headers which can result in request smuggling are
   considered vulnerabilities.
@@ -165,21 +218,21 @@ the community they pose.
 
 #### External Control of System or Configuration Setting (CWE-15)
 
-* If Node.js automatically loads a configuration file which is not documented
+* If Node.js automatically loads a configuration file that is not documented
   and modification of that configuration can affect the confidentiality of
-  data protected using the Node.js APIs this is considered a vulnerability.
+  data protected using the Node.js APIs, then this is considered a vulnerability.
 
 ### Examples of non-vulnerabilities
 
 #### Malicious Third-Party Modules (CWE-1357)
 
-* Code is trusted by Node.js, therefore any scenario that requires a malicious
+* Code is trusted by Node.js. Therefore any scenario that requires a malicious
   third-party module cannot result in a vulnerability in Node.js.
 
 #### Prototype Pollution Attacks (CWE-1321)
 
 * Node.js trusts the inputs provided to it by application code.
-  It is up to the application to sanitize appropriately, therefore any scenario
+  It is up to the application to sanitize appropriately. Therefore any scenario
   that requires control over user input is not considered a vulnerability.
 
 #### Uncontrolled Search Path Element (CWE-427)
@@ -190,7 +243,7 @@ the community they pose.
 
 #### External Control of System or Configuration Setting (CWE-15)
 
-* If Node.js automatically loads a configuration file which is documented
+* If Node.js automatically loads a configuration file that is documented,
   no scenario that requires modification of that configuration file is
   considered a vulnerability.
 
@@ -205,24 +258,24 @@ the community they pose.
 
 * Corepack defaults to downloading the latest version of the software requested
   by the user, or a specific version requested by the user. For this reason,
-  Node.js releases won't be affected by such vulnerabilities, users are
-  responsible to keep the software they use through Corepack up-to-date.
+  Node.js releases won't be affected by such vulnerabilities. Users are
+  responsible for keeping the software they use through Corepack up-to-date.
 
 ## Assessing experimental features reports
 
-Experimental features are eligible to reports as any other stable feature of
-Node.js. They will also be susceptible to receiving the same severity score
-as any other stable feature.
+Experimental features are eligible for security reports just like any other
+stable feature of Node.js. They may also receive the same severity score that a
+stable feature would.
 
 ## Receiving security updates
 
 Security notifications will be distributed via the following methods.
 
 * <https://groups.google.com/group/nodejs-sec>
-* <https://nodejs.org/en/blog/>
+* <https://nodejs.org/en/blog/vulnerability>
 
 ## Comments on this policy
 
-If you have suggestions on how this process could be improved please submit a
-[pull request](https://github.com/nodejs/nodejs.org) or
-[file an issue](https://github.com/nodejs/security-wg/issues/new) to discuss.
+If you have suggestions on how this process could be improved, please visit
+the [nodejs/security-wg](https://github.com/nodejs/security-wg)
+repository.

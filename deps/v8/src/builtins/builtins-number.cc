@@ -21,12 +21,12 @@ namespace internal {
 // ES6 section 20.1.3.2 Number.prototype.toExponential ( fractionDigits )
 BUILTIN(NumberPrototypeToExponential) {
   HandleScope scope(isolate);
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
   if (IsJSPrimitiveWrapper(*value)) {
-    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
+    value = direct_handle(Cast<JSPrimitiveWrapper>(value)->value(), isolate);
   }
   if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -35,12 +35,13 @@ BUILTIN(NumberPrototypeToExponential) {
                                   "Number.prototype.toExponential"),
                               isolate->factory()->Number_string()));
   }
-  double const value_number = Object::Number(*value);
+  double const value_number = Object::NumberValue(*value);
 
   // Convert the {fraction_digits} to an integer first.
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, fraction_digits, Object::ToInteger(isolate, fraction_digits));
-  double const fraction_digits_number = Object::Number(*fraction_digits);
+  double fraction_digits_number;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, fraction_digits_number,
+      Object::IntegerValue(isolate, fraction_digits));
 
   if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {
@@ -57,21 +58,23 @@ BUILTIN(NumberPrototypeToExponential) {
   int const f = IsUndefined(*args.atOrUndefined(isolate, 1), isolate)
                     ? -1
                     : static_cast<int>(fraction_digits_number);
-  char* const str = DoubleToExponentialCString(value_number, f);
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
+  char chars[kDoubleToExponentialMaxChars];
+  base::Vector<char> buffer = base::ArrayVector(chars);
+  std::string_view str = DoubleToExponentialStringView(value_number, f, buffer);
+  DirectHandle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(str);
   return *result;
 }
 
 // ES6 section 20.1.3.3 Number.prototype.toFixed ( fractionDigits )
 BUILTIN(NumberPrototypeToFixed) {
   HandleScope scope(isolate);
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
   if (IsJSPrimitiveWrapper(*value)) {
-    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
+    value = direct_handle(Cast<JSPrimitiveWrapper>(value)->value(), isolate);
   }
   if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -80,12 +83,13 @@ BUILTIN(NumberPrototypeToFixed) {
                                   "Number.prototype.toFixed"),
                               isolate->factory()->Number_string()));
   }
-  double const value_number = Object::Number(*value);
+  double const value_number = Object::NumberValue(*value);
 
   // Convert the {fraction_digits} to an integer first.
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, fraction_digits, Object::ToInteger(isolate, fraction_digits));
-  double const fraction_digits_number = Object::Number(*fraction_digits);
+  double fraction_digits_number;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, fraction_digits_number,
+      Object::IntegerValue(isolate, fraction_digits));
 
   // Check if the {fraction_digits} are in the supported range.
   if (fraction_digits_number < 0.0 ||
@@ -101,10 +105,12 @@ BUILTIN(NumberPrototypeToFixed) {
     return (value_number < 0.0) ? ReadOnlyRoots(isolate).minus_Infinity_string()
                                 : ReadOnlyRoots(isolate).Infinity_string();
   }
-  char* const str = DoubleToFixedCString(
-      value_number, static_cast<int>(fraction_digits_number));
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
+  char chars[kDoubleToFixedMaxChars];
+  base::Vector<char> buffer = base::ArrayVector(chars);
+  std::string_view str = DoubleToFixedStringView(
+      value_number, static_cast<int>(fraction_digits_number), buffer);
+  DirectHandle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(str);
   return *result;
 }
 
@@ -119,7 +125,7 @@ BUILTIN(NumberPrototypeToLocaleString) {
 
   // Unwrap the receiver {value}.
   if (IsJSPrimitiveWrapper(*value)) {
-    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
+    value = handle(Cast<JSPrimitiveWrapper>(value)->value(), isolate);
   }
   // 1. Let x be ? thisNumberValue(this value)
   if (!IsNumber(*value)) {
@@ -144,12 +150,12 @@ BUILTIN(NumberPrototypeToLocaleString) {
 // ES6 section 20.1.3.5 Number.prototype.toPrecision ( precision )
 BUILTIN(NumberPrototypeToPrecision) {
   HandleScope scope(isolate);
-  Handle<Object> value = args.at(0);
+  DirectHandle<Object> value = args.at(0);
   Handle<Object> precision = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
   if (IsJSPrimitiveWrapper(*value)) {
-    value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
+    value = direct_handle(Cast<JSPrimitiveWrapper>(value)->value(), isolate);
   }
   if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -158,7 +164,7 @@ BUILTIN(NumberPrototypeToPrecision) {
                                   "Number.prototype.toPrecision"),
                               isolate->factory()->Number_string()));
   }
-  double const value_number = Object::Number(*value);
+  double const value_number = Object::NumberValue(*value);
 
   // If no {precision} was specified, just return ToString of {value}.
   if (IsUndefined(*precision, isolate)) {
@@ -166,9 +172,9 @@ BUILTIN(NumberPrototypeToPrecision) {
   }
 
   // Convert the {precision} to an integer first.
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, precision,
-                                     Object::ToInteger(isolate, precision));
-  double const precision_number = Object::Number(*precision);
+  double precision_number;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, precision_number, Object::IntegerValue(isolate, precision));
 
   if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {
@@ -179,10 +185,12 @@ BUILTIN(NumberPrototypeToPrecision) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kToPrecisionFormatRange));
   }
-  char* const str = DoubleToPrecisionCString(
-      value_number, static_cast<int>(precision_number));
-  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
-  DeleteArray(str);
+  char chars[kDoubleToPrecisionMaxChars];
+  base::Vector<char> buffer = base::ArrayVector(chars);
+  std::string_view str = DoubleToPrecisionStringView(
+      value_number, static_cast<int>(precision_number), buffer);
+  DirectHandle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(str);
   return *result;
 }
 

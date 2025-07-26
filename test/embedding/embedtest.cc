@@ -1,9 +1,10 @@
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
-#include "node.h"
-#include "uv.h"
 #include <assert.h>
+#include "cppgc/platform.h"
+#include "executable_wrapper.h"
+#include "node.h"
 
 #include <algorithm>
 
@@ -27,14 +28,24 @@ static int RunNodeInstance(MultiIsolatePlatform* platform,
                            const std::vector<std::string>& args,
                            const std::vector<std::string>& exec_args);
 
-int main(int argc, char** argv) {
-  argv = uv_setup_args(argc, argv);
+NODE_MAIN(int argc, node::argv_type raw_argv[]) {
+  char** argv = nullptr;
+  node::FixupMain(argc, raw_argv, &argv);
+
   std::vector<std::string> args(argv, argv + argc);
-  std::unique_ptr<node::InitializationResult> result =
+  std::shared_ptr<node::InitializationResult> result =
       node::InitializeOncePerProcess(
           args,
-          {node::ProcessInitializationFlags::kNoInitializeV8,
-           node::ProcessInitializationFlags::kNoInitializeNodeV8Platform});
+          {
+              node::ProcessInitializationFlags::kNoInitializeV8,
+              node::ProcessInitializationFlags::kNoInitializeNodeV8Platform,
+              // This is used to test NODE_REPL_EXTERNAL_MODULE is disabled with
+              // kDisableNodeOptionsEnv. If other tests need NODE_OPTIONS
+              // support in the future, split this configuration out as a
+              // command line option.
+              node::ProcessInitializationFlags::kDisableNodeOptionsEnv,
+              node::ProcessInitializationFlags::kNoInitializeCppgc,
+          });
 
   for (const std::string& error : result->errors())
     fprintf(stderr, "%s: %s\n", args[0].c_str(), error.c_str());
@@ -45,6 +56,7 @@ int main(int argc, char** argv) {
   std::unique_ptr<MultiIsolatePlatform> platform =
       MultiIsolatePlatform::Create(4);
   V8::InitializePlatform(platform.get());
+  cppgc::InitializeProcess(platform->GetPageAllocator());
   V8::Initialize();
 
   int ret =
@@ -106,7 +118,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   }
 
   if (!snapshot_blob_path.empty() && !is_building_snapshot) {
-    FILE* fp = fopen(snapshot_blob_path.c_str(), "r");
+    FILE* fp = fopen(snapshot_blob_path.c_str(), "rb");
     assert(fp != nullptr);
     if (snapshot_as_file) {
       snapshot = node::EmbedderSnapshotData::FromFile(fp);
@@ -204,7 +216,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     snapshot = setup->CreateSnapshot();
     assert(snapshot);
 
-    FILE* fp = fopen(snapshot_blob_path.c_str(), "w");
+    FILE* fp = fopen(snapshot_blob_path.c_str(), "wb");
     assert(fp != nullptr);
     if (snapshot_as_file) {
       snapshot->ToFile(fp);

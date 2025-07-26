@@ -1,6 +1,7 @@
 const t = require('tap')
-const fs = require('fs/promises')
-const { resolve, basename } = require('path')
+const fs = require('node:fs/promises')
+const nodePath = require('node:path')
+const { resolve, basename } = require('node:path')
 const _mockNpm = require('../../fixtures/mock-npm')
 const { cleanTime } = require('../../fixtures/clean-snapshot')
 
@@ -238,8 +239,7 @@ t.test('npm init cancel', async t => {
 
   await npm.exec('init', [])
 
-  t.equal(logs.warn[0][0], 'init', 'should have init title')
-  t.equal(logs.warn[0][1], 'canceled', 'should log canceled')
+  t.equal(logs.warn[0], 'init canceled', 'should have init title and canceled')
 })
 
 t.test('npm init error', async t => {
@@ -335,7 +335,7 @@ t.test('workspaces', async t => {
       'should exit with missing package.json file error'
     )
 
-    t.equal(logs.warn[0][0], 'Missing package.json. Try with `--include-workspace-root`.')
+    t.equal(logs.warn[0], 'init Missing package.json. Try with `--include-workspace-root`.')
   })
 
   await t.test('bad package.json when settting workspace', async t => {
@@ -429,4 +429,155 @@ t.test('workspaces', async t => {
     t.equal(ws.version, '1.0.0')
     t.equal(ws.license, 'ISC')
   })
+  t.test('init pkg - installed workspace package', async t => {
+    const { npm } = await mockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'init-ws-test',
+          dependencies: {
+            '@npmcli/create': '1.0.0',
+          },
+          workspaces: ['test/workspace-init-a'],
+        }),
+        'test/workspace-init-a': {
+          'package.json': JSON.stringify({
+            version: '1.0.0',
+            name: '@npmcli/create',
+            bin: { 'init-create': 'index.js' },
+          }),
+          'index.js': `#!/usr/bin/env node
+    require('fs').writeFileSync('npm-init-test-success', '')
+    console.log('init-create ran')`,
+        },
+      },
+    })
+    await npm.exec('install', []) // reify
+    npm.config.set('workspace', ['test/workspace-init-b'])
+    await npm.exec('init', ['@npmcli'])
+    const exists = await fs.stat(nodePath.join(
+      npm.prefix, 'test/workspace-init-b', 'npm-init-test-success'))
+    t.ok(exists.isFile(), 'bin ran, creating file inside workspace')
+  })
+})
+
+t.test('npm init with init-private config set', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    config: { yes: true, 'init-private': true },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'package.json'))
+  t.equal(pkg.private, true, 'should set private to true when init-private is set')
+})
+
+t.test('npm init does not set private by default', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    config: { yes: true },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'package.json'))
+  t.strictSame(pkg.private, undefined, 'should not set private by default')
+})
+
+t.test('user‑set init-private IS forwarded', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    config: { yes: true, 'init-private': true },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'package.json'))
+  t.strictSame(pkg.private, true, 'should set private to true when init-private is set')
+})
+
+t.test('user‑set init-private IS forwarded when false', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    config: { yes: true, 'init-private': false },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'package.json'))
+  t.strictSame(pkg.private, false, 'should set private to false when init-private is false')
+})
+
+t.test('No init-private is respected in workspaces', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'top-level',
+      }),
+    },
+    config: { workspace: 'a', yes: true },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'a/package.json'))
+  t.strictSame(pkg.private, undefined, 'workspace package.json has no private field set')
+})
+
+t.test('init-private is respected in workspaces', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'top-level',
+      }),
+    },
+    config: { workspace: 'a', yes: true, 'init-private': true },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'a/package.json'))
+  t.equal(pkg.private, true, 'workspace package.json has private field set')
+})
+
+t.test('create‑initializer path: init-private flag is forwarded via args', async t => {
+  const calls = []
+  const libexecStub = async opts => calls.push(opts)
+
+  const { npm } = await mockNpm(t, {
+    libnpmexec: libexecStub,
+    // user set the flag in their config
+    config: { yes: true, 'init-private': true },
+    noLog: true,
+  })
+
+  await npm.exec('init', ['create-bar'])
+
+  t.ok(calls[0].initPrivate, 'init-private included in options')
+
+  // Also verify the test for when isDefault returns true
+  calls.length = 0
+  npm.config.isDefault = () => true
+
+  await npm.exec('init', ['create-bar'])
+
+  t.equal(calls[0].initPrivate, undefined, 'init-private not included when using default')
+})
+
+t.test('create‑initializer path: false init-private is forwarded', async t => {
+  const calls = []
+  const libexecStub = async opts => calls.push(opts)
+
+  const { npm } = await mockNpm(t, {
+    libnpmexec: libexecStub,
+    // explicitly set to false
+    config: { yes: true, 'init-private': false },
+    noLog: true,
+  })
+
+  await npm.exec('init', ['create-baz'])
+
+  t.equal(calls[0].initPrivate, false, 'false init-private value is properly forwarded')
 })

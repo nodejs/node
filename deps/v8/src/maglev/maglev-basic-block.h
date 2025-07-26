@@ -19,55 +19,74 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-using NodeIterator = Node::List::Iterator;
-using NodeConstIterator = Node::List::Iterator;
+using NodeIterator = ZoneVector<Node*>::iterator;
+using NodeConstIterator = ZoneVector<Node*>::const_iterator;
 
 class BasicBlock {
  public:
-  using Snapshot = compiler::turboshaft::SnapshotTable<ValueNode*>::Snapshot;
-  using MaybeSnapshot =
-      compiler::turboshaft::SnapshotTable<ValueNode*>::MaybeSnapshot;
-
   explicit BasicBlock(MergePointInterpreterFrameState* state, Zone* zone)
-      : control_node_(nullptr),
-        state_(state),
-        reload_hints_(0, zone),
-        spill_hints_(0, zone) {
-    if (state == nullptr) {
-      type_ = kOther;
-    }
+      : type_(state ? kMerge : kOther),
+        nodes_(zone),
+        control_node_(nullptr),
+        state_(state) {}
+
+  NodeIdT first_id() const {
+    if (has_phi()) return phis()->first()->id();
+    return first_non_phi_id();
   }
 
-  uint32_t first_id() const {
-    if (has_phi()) return phis()->first()->id();
-    if (nodes_.is_empty()) {
-      return control_node()->id();
-    }
-    auto node = nodes_.first();
-    while (node && node->Is<Identity>()) {
-      node = node->NextNode();
-    }
-    return node ? node->id() : control_node()->id();
-  }
+  // For GDB: Print any basic block with `print bb->Print()`.
+  void Print() const;
 
-  uint32_t FirstNonGapMoveId() const {
-    if (has_phi()) return phis()->first()->id();
-    if (!nodes_.is_empty()) {
-      for (const Node* node : nodes_) {
-        if (IsGapMoveNode(node->opcode())) continue;
-        if (node->Is<Identity>()) continue;
-        return node->id();
-      }
+  NodeIdT first_non_phi_id() const {
+    for (const Node* node : nodes_) {
+      if (node == nullptr) continue;
+      if (!node->Is<Identity>()) return node->id();
     }
     return control_node()->id();
   }
 
-  Node::List& nodes() { return nodes_; }
+  NodeIdT FirstNonGapMoveId() const {
+    if (has_phi()) return phis()->first()->id();
+    for (const Node* node : nodes_) {
+      if (node == nullptr) continue;
+      if (IsGapMoveNode(node->opcode())) continue;
+      if (node->Is<Identity>()) continue;
+      return node->id();
+    }
+    return control_node()->id();
+  }
+
+  ZoneVector<Node*>& nodes() { return nodes_; }
 
   ControlNode* control_node() const { return control_node_; }
   void set_control_node(ControlNode* control_node) {
     DCHECK_NULL(control_node_);
     control_node_ = control_node;
+  }
+
+  ControlNode* reset_control_node() {
+    DCHECK_NOT_NULL(control_node_);
+    ControlNode* control = control_node_;
+    control_node_ = nullptr;
+    return control;
+  }
+
+  // Moves all nodes after |node| to the resulting ZoneVector, while keeping all
+  // nodes before |node| in the basic block. |node| itself is dropped.
+  ZoneVector<Node*> Split(Node* node, Zone* zone) {
+    size_t split = 0;
+    for (; split < nodes_.size(); split++) {
+      if (nodes_[split] == node) break;
+    }
+    DCHECK_NE(split, nodes_.size());
+    size_t after_split = split + 1;
+    ZoneVector<Node*> result(nodes_.size() - after_split, zone);
+    for (size_t i = 0; i < result.size(); i++) {
+      result[i] = nodes_[i + after_split];
+    }
+    nodes_.resize(split);
+    return result;
   }
 
   bool has_phi() const { return has_state() && state_->has_phi(); }
@@ -78,7 +97,8 @@ class BasicBlock {
   bool is_loop() const { return has_state() && state()->is_loop(); }
 
   MergePointRegisterState& edge_split_block_register_state() {
-    DCHECK(is_edge_split_block());
+    DCHECK_EQ(type_, kEdgeSplit);
+    DCHECK_NOT_NULL(edge_split_block_register_state_);
     return *edge_split_block_register_state_;
   }
 
@@ -88,14 +108,14 @@ class BasicBlock {
 
   void set_edge_split_block_register_state(
       MergePointRegisterState* register_state) {
-    DCHECK(is_edge_split_block());
+    DCHECK_EQ(type_, kEdgeSplit);
     edge_split_block_register_state_ = register_state;
   }
 
   void set_edge_split_block(BasicBlock* predecessor) {
-    DCHECK(nodes_.is_empty());
+    DCHECK_EQ(type_, kOther);
+    DCHECK(nodes_.empty());
     DCHECK(control_node()->Is<Jump>());
-    DCHECK_NULL(state_);
     type_ = kEdgeSplit;
     predecessor_ = predecessor;
   }
@@ -117,6 +137,10 @@ class BasicBlock {
     is_start_block_of_switch_case_ = value;
   }
 
+  bool is_dead() const { return is_dead_; }
+
+  void mark_dead() { is_dead_ = true; }
+
   Phi::List* phis() const {
     DCHECK(has_phi());
     return state_->phis();
@@ -124,6 +148,14 @@ class BasicBlock {
   void AddPhi(Phi* phi) const {
     DCHECK(has_state());
     state_->phis()->Add(phi);
+  }
+
+  ExceptionHandlerInfo::List& exception_handlers() {
+    return exception_handlers_;
+  }
+
+  void AddExceptionHandler(ExceptionHandlerInfo* handler) {
+    exception_handlers_.Add(handler);
   }
 
   int predecessor_count() const {
@@ -136,6 +168,11 @@ class BasicBlock {
     return state_->predecessor_at(i);
   }
 
+  BasicBlock* backedge_predecessor() const {
+    DCHECK(is_loop());
+    return predecessor_at(predecessor_count() - 1);
+  }
+
   int predecessor_id() const {
     return control_node()->Cast<UnconditionalControlNode>()->predecessor_id();
   }
@@ -145,7 +182,50 @@ class BasicBlock {
 
   base::SmallVector<BasicBlock*, 2> successors() const;
 
-  Label* label() { return &label_; }
+  template <typename Func>
+  void ForEachPredecessor(Func&& functor) const {
+    if (type_ == kEdgeSplit || type_ == kOther) {
+      BasicBlock* predecessor_block = predecessor();
+      if (predecessor_block) {
+        functor(predecessor_block);
+      }
+    } else {
+      for (int i = 0; i < predecessor_count(); i++) {
+        functor(predecessor_at(i));
+      }
+    }
+  }
+
+  template <typename Func>
+  static void ForEachSuccessorFollowing(ControlNode* control, Func&& functor) {
+    if (auto unconditional_control =
+            control->TryCast<UnconditionalControlNode>()) {
+      functor(unconditional_control->target());
+    } else if (auto branch = control->TryCast<BranchControlNode>()) {
+      functor(branch->if_true());
+      functor(branch->if_false());
+    } else if (auto switch_node = control->TryCast<Switch>()) {
+      for (int i = 0; i < switch_node->size(); i++) {
+        functor(switch_node->targets()[i].block_ptr());
+      }
+      if (switch_node->has_fallthrough()) {
+        functor(switch_node->fallthrough());
+      }
+    }
+  }
+
+  template <typename Func>
+  void ForEachSuccessor(Func&& functor) const {
+    ControlNode* control = control_node();
+    ForEachSuccessorFollowing(control, functor);
+  }
+
+  Label* label() {
+    // If this fails, jump threading is missing for the node. See
+    // MaglevCodeGeneratingNodeProcessor::PatchJumps.
+    DCHECK_EQ(this, ComputeRealJumpTarget());
+    return &label_;
+  }
   MergePointInterpreterFrameState* state() const {
     DCHECK(has_state());
     return state_;
@@ -156,52 +236,122 @@ class BasicBlock {
     return has_state() && state_->is_exception_handler();
   }
 
-  Snapshot snapshot() const {
-    DCHECK(snapshot_.has_value());
-    return snapshot_.value();
+  // If the basic block is an empty (unnecessary) block containing only an
+  // unconditional jump to the successor block, return the successor block.
+  BasicBlock* ComputeRealJumpTarget() {
+    BasicBlock* current = this;
+    while (true) {
+      if (!current->nodes_.empty() || current->is_loop() ||
+          current->is_exception_handler_block() ||
+          current->HasPhisOrRegisterMerges()) {
+        break;
+      }
+      Jump* control = current->control_node()->TryCast<Jump>();
+      if (!control) {
+        break;
+      }
+      BasicBlock* next = control->target();
+      if (next->HasPhisOrRegisterMerges()) {
+        break;
+      }
+      current = next;
+    }
+    return current;
   }
 
-  void SetSnapshot(Snapshot snapshot) { snapshot_.Set(snapshot); }
+  bool is_deferred() const { return deferred_; }
+  void set_deferred(bool deferred) { deferred_ = deferred; }
 
-  ZonePtrList<ValueNode>& reload_hints() { return reload_hints_; }
-  ZonePtrList<ValueNode>& spill_hints() { return spill_hints_; }
+  using Id = uint32_t;
+  constexpr static Id kInvalidBlockId = 0xffffffff;
+
+  void set_id(Id id) {
+    DCHECK(!has_id());
+    id_ = id;
+  }
+  bool has_id() const { return id_ != kInvalidBlockId; }
+  Id id() const {
+    DCHECK(has_id());
+    return id_;
+  }
 
  private:
-  enum : uint8_t { kMerge, kEdgeSplit, kOther } type_ = kMerge;
-  bool is_start_block_of_switch_case_ = false;
-  Node::List nodes_;
+  bool HasPhisOrRegisterMerges() const {
+    if (!has_state()) {
+      return false;
+    }
+    if (has_phi()) {
+      return true;
+    }
+    bool has_register_merge = false;
+#ifdef V8_ENABLE_MAGLEV
+    if (!state()->register_state().is_initialized()) {
+      // This can happen when the graph has disconnected blocks; bail out and
+      // don't jump thread them.
+      return true;
+    }
+
+    state()->register_state().ForEachGeneralRegister(
+        [&](Register reg, RegisterState& state) {
+          ValueNode* node;
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &node, &merge)) {
+            has_register_merge = true;
+          }
+        });
+    state()->register_state().ForEachDoubleRegister(
+        [&](DoubleRegister reg, RegisterState& state) {
+          ValueNode* node;
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &node, &merge)) {
+            has_register_merge = true;
+          }
+        });
+#endif  // V8_ENABLE_MAGLEV
+    return has_register_merge;
+  }
+
+  enum : uint8_t { kMerge, kEdgeSplit, kOther } type_;
+  bool deferred_ : 1 = false;
+  bool is_start_block_of_switch_case_ : 1 = false;
+  bool is_dead_ : 1 = false;
+
+  Id id_ = kInvalidBlockId;
+
+  ZoneVector<Node*> nodes_;
   ControlNode* control_node_;
+  ExceptionHandlerInfo::List exception_handlers_;
+
   union {
     MergePointInterpreterFrameState* state_;
     MergePointRegisterState* edge_split_block_register_state_;
-    // For kEdgeSplit and kOther blocks, predecessor_ contains a pointer to
-    // the (only) predecessor of the block. This is only valid before register
-    // allocation where this field is used for edge_split_block_register_state_.
-    BasicBlock* predecessor_;
   };
+  // For kEdgeSplit and kOther blocks.
+  BasicBlock* predecessor_ = nullptr;
   Label label_;
-  // Hints about which nodes should be in registers or spilled when entering
-  // this block. Only relevant for loop headers.
-  ZonePtrList<ValueNode> reload_hints_;
-  ZonePtrList<ValueNode> spill_hints_;
-  // {snapshot_} is used during PhiRepresentationSelection in order to track to
-  // phi tagging nodes that come out of this basic block.
-  MaybeSnapshot snapshot_;
+
+  inline void check_layout();
 };
+
+void BasicBlock::check_layout() {
+  // Ensure non pointer sized values are nicely packed.
+  static_assert(offsetof(BasicBlock, nodes_) == 8);
+}
 
 inline base::SmallVector<BasicBlock*, 2> BasicBlock::successors() const {
   ControlNode* control = control_node();
-  if (auto node = control->TryCast<UnconditionalControlNode>()) {
-    return {node->target()};
-  } else if (auto node = control->TryCast<BranchControlNode>()) {
-    return {node->if_true(), node->if_false()};
-  } else if (auto node = control->TryCast<Switch>()) {
+  if (auto unconditional_control =
+          control->TryCast<UnconditionalControlNode>()) {
+    return {unconditional_control->target()};
+  } else if (auto branch = control->TryCast<BranchControlNode>()) {
+    return {branch->if_true(), branch->if_false()};
+  } else if (auto switch_node = control->TryCast<Switch>()) {
     base::SmallVector<BasicBlock*, 2> succs;
-    for (int i = 0; i < node->size(); i++) {
-      succs.push_back(node->targets()[i].block_ptr());
+    for (int i = 0; i < switch_node->size(); i++) {
+      succs.push_back(switch_node->targets()[i].block_ptr());
     }
-    if (node->has_fallthrough()) {
-      succs.push_back(node->fallthrough());
+    if (switch_node->has_fallthrough()) {
+      succs.push_back(switch_node->fallthrough());
     }
     return succs;
   } else {

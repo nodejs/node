@@ -6,6 +6,7 @@
 #if !UCONFIG_NO_FORMATTING
 
 #include "bytesinkutil.h"
+#include "charstr.h"
 #include "cstring.h"
 #include "measunit_impl.h"
 #include "number_decimalquantity.h"
@@ -80,6 +81,7 @@ class ConversionRateDataSink : public ResourceSink {
             UnicodeString baseUnit = ICU_Utility::makeBogusString();
             UnicodeString factor = ICU_Utility::makeBogusString();
             UnicodeString offset = ICU_Utility::makeBogusString();
+            UnicodeString special = ICU_Utility::makeBogusString();
             UnicodeString systems = ICU_Utility::makeBogusString();
             for (int32_t i = 0; unitTable.getKeyAndValue(i, key, value); i++) {
                 if (uprv_strcmp(key, "target") == 0) {
@@ -88,12 +90,14 @@ class ConversionRateDataSink : public ResourceSink {
                     factor = value.getUnicodeString(status);
                 } else if (uprv_strcmp(key, "offset") == 0) {
                     offset = value.getUnicodeString(status);
+                } else if (uprv_strcmp(key, "special") == 0) {
+                    special = value.getUnicodeString(status); // the name of a special mapping used instead of factor + optional offset.
                 } else if (uprv_strcmp(key, "systems") == 0) {
                     systems = value.getUnicodeString(status);
                 }
             }
             if (U_FAILURE(status)) { return; }
-            if (baseUnit.isBogus() || factor.isBogus()) {
+            if (baseUnit.isBogus() || (factor.isBogus() && special.isBogus())) {
                 // We could not find a usable conversion rate: bad resource.
                 status = U_MISSING_RESOURCE_ERROR;
                 return;
@@ -107,13 +111,15 @@ class ConversionRateDataSink : public ResourceSink {
             } else {
                 cr->sourceUnit.append(srcUnit, status);
                 cr->baseUnit.appendInvariantChars(baseUnit, status);
-                cr->factor.appendInvariantChars(factor, status);
-                cr->systems.appendInvariantChars(systems, status);
-                trimSpaces(cr->factor, status);
+                if (!factor.isBogus()) {
+                    cr->factor.appendInvariantChars(factor, status);
+                    trimSpaces(cr->factor, status);
+                }
                 if (!offset.isBogus()) cr->offset.appendInvariantChars(offset, status);
+                if (!special.isBogus()) cr->specialMappingName.appendInvariantChars(special, status);
+                cr->systems.appendInvariantChars(systems, status);
             }
         }
-        return;
     }
 
   private:
@@ -382,7 +388,7 @@ void U_I18N_API getAllConversionRates(MaybeStackVector<ConversionRateInfo> &resu
 const ConversionRateInfo *ConversionRates::extractConversionInfo(StringPiece source,
                                                                  UErrorCode &status) const {
     for (size_t i = 0, n = conversionInfo_.length(); i < n; ++i) {
-        if (conversionInfo_[i]->sourceUnit.toStringPiece() == source) return conversionInfo_[i];
+        if (conversionInfo_[i]->sourceUnit == source) return conversionInfo_[i];
     }
 
     status = U_INTERNAL_PROGRAM_ERROR;
@@ -396,12 +402,8 @@ U_I18N_API UnitPreferences::UnitPreferences(UErrorCode &status) {
 }
 
 CharString getKeyWordValue(const Locale &locale, StringPiece kw, UErrorCode &status) {
-    CharString result;
-    if (U_FAILURE(status)) { return result; }
-    {
-        CharStringByteSink sink(&result);
-        locale.getKeywordValue(kw, sink, status);
-    }
+    if (U_FAILURE(status)) { return {}; }
+    auto result = locale.getKeywordValue<CharString>(kw, status);
     if (U_SUCCESS(status) && result.isEmpty()) {
         status = U_MISSING_RESOURCE_ERROR;
     }
@@ -437,10 +439,8 @@ MaybeStackVector<UnitPreference>
         }
     }
 
-    char regionBuf[8];
-    ulocimp_getRegionForSupplementalData(locale.getName(), false, regionBuf, 8, &status);
-    CharString region(regionBuf, status);
-        
+    CharString region = ulocimp_getRegionForSupplementalData(locale.getName(), true, status);
+
     // Check the locale system tag, e.g `ms=metric`.
     UErrorCode internalMeasureTagStatus = U_ZERO_ERROR;
     CharString localeSystem = getKeyWordValue(locale, "measure", internalMeasureTagStatus);

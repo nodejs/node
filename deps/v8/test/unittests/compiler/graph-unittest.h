@@ -8,10 +8,10 @@
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-origin-table.h"
-#include "src/compiler/typer.h"
+#include "src/compiler/turbofan-graph.h"
+#include "src/compiler/turbofan-typer.h"
 #include "src/handles/handles.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -29,7 +29,9 @@ using ::testing::Matcher;
 class GraphTest : public TestWithNativeContextAndZone {
  public:
   explicit GraphTest(int num_parameters = 1);
-  ~GraphTest() override;
+  ~GraphTest() override = default;
+
+  void Reset();
 
   Node* start() { return graph()->start(); }
   Node* end() { return graph()->end(); }
@@ -47,7 +49,8 @@ class GraphTest : public TestWithNativeContextAndZone {
     return Int64Constant(base::bit_cast<int64_t>(value));
   }
   Node* NumberConstant(double value);
-  Node* HeapConstant(const Handle<HeapObject>& value);
+  Node* HeapConstantNoHole(const Handle<HeapObject>& value);
+  Node* HeapConstantHole(const Handle<HeapObject>& value);
   Node* FalseConstant();
   Node* TrueConstant();
   Node* UndefinedConstant();
@@ -62,36 +65,46 @@ class GraphTest : public TestWithNativeContextAndZone {
   Matcher<Node*> IsNullConstant();
   Matcher<Node*> IsUndefinedConstant();
 
-  CommonOperatorBuilder* common() { return &common_; }
-  Graph* graph() { return &graph_; }
-  SourcePositionTable* source_positions() { return &source_positions_; }
-  NodeOriginTable* node_origins() { return &node_origins_; }
-  JSHeapBroker* broker() { return &broker_; }
+  CommonOperatorBuilder* common() { return &data_->common_; }
+  TFGraph* graph() { return &data_->graph_; }
+  SourcePositionTable* source_positions() { return &data_->source_positions_; }
+  NodeOriginTable* node_origins() { return &data_->node_origins_; }
+  JSHeapBroker* broker() { return &data_->broker_; }
   template <typename T>
-  Handle<T> CanonicalHandle(T object) {
+  IndirectHandle<T> CanonicalHandle(T object) {
     static_assert(kTaggedCanConvertToRawObjects);
     return CanonicalHandle(Tagged<T>(object));
   }
   template <typename T>
-  Handle<T> CanonicalHandle(Tagged<T> object) {
+  IndirectHandle<T> CanonicalHandle(Tagged<T> object) {
     return broker()->CanonicalPersistentHandle(object);
   }
   template <typename T>
-  Handle<T> CanonicalHandle(Handle<T> handle) {
+  IndirectHandle<T> CanonicalHandle(IndirectHandle<T> handle) {
     return CanonicalHandle(*handle);
   }
-  TickCounter* tick_counter() { return &tick_counter_; }
+  template <typename T>
+  IndirectHandle<T> CanonicalHandle(DirectHandle<T> handle) {
+    return CanonicalHandle(*handle);
+  }
+  TickCounter* tick_counter() { return &data_->tick_counter_; }
 
  private:
-  CommonOperatorBuilder common_;
-  Graph graph_;
-  JSHeapBroker broker_;
-  JSHeapBrokerScopeForTesting broker_scope_;
-  std::unique_ptr<PersistentHandlesScope> persistent_scope_;
-  CurrentHeapBrokerScope current_broker_;
-  SourcePositionTable source_positions_;
-  NodeOriginTable node_origins_;
-  TickCounter tick_counter_;
+  struct Data {
+    Data(Isolate* isolate, Zone* zone, int num_parameters);
+    ~Data();
+    CommonOperatorBuilder common_;
+    TFGraph graph_;
+    JSHeapBroker broker_;
+    JSHeapBrokerScopeForTesting broker_scope_;
+    std::optional<PersistentHandlesScope> persistent_scope_;
+    CurrentHeapBrokerScope current_broker_;
+    SourcePositionTable source_positions_;
+    NodeOriginTable node_origins_;
+    TickCounter tick_counter_;
+    int num_parameters_;
+  };
+  std::unique_ptr<Data> data_;
 };
 
 

@@ -105,11 +105,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // - Resume copies only the registers from the generator, the arguments
   //   are copied by the ResumeGenerator trampoline.
   TNode<FixedArray> ExportParametersAndRegisterFile(
-      TNode<FixedArray> array, const RegListNodePair& registers,
-      TNode<Int32T> formal_parameter_count);
+      TNode<FixedArray> array, const RegListNodePair& registers);
   TNode<FixedArray> ImportRegisterFile(TNode<FixedArray> array,
-                                       const RegListNodePair& registers,
-                                       TNode<Int32T> formal_parameter_count);
+                                       const RegListNodePair& registers);
 
   // Loads from and stores to the interpreter register file.
   TNode<Object> LoadRegister(Register reg);
@@ -147,9 +145,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Load the FeedbackVector for the current function. The returned node could
   // be undefined.
-  TNode<HeapObject> LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> LoadFeedbackVector();
 
-  TNode<HeapObject> LoadFeedbackVectorOrUndefinedIfJitless() {
+  auto LoadFeedbackVectorOrUndefinedIfJitless() {
 #ifndef V8_JITLESS
     return LoadFeedbackVector();
 #else
@@ -168,7 +166,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Call JSFunction or Callable |function| with |args| arguments, possibly
   // including the receiver depending on |receiver_mode|. After the call returns
   // directly dispatches to the next bytecode.
-  void CallJSAndDispatch(TNode<Object> function, TNode<Context> context,
+  void CallJSAndDispatch(TNode<JSAny> function, TNode<Context> context,
                          const RegListNodePair& args,
                          ConvertReceiverMode receiver_mode);
 
@@ -177,14 +175,14 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // depending on |receiver_mode|. After the call returns directly dispatches to
   // the next bytecode.
   template <class... TArgs>
-  void CallJSAndDispatch(TNode<Object> function, TNode<Context> context,
+  void CallJSAndDispatch(TNode<JSAny> function, TNode<Context> context,
                          TNode<Word32T> arg_count,
                          ConvertReceiverMode receiver_mode, TArgs... args);
 
   // Call JSFunction or Callable |function| with |args|
   // arguments (not including receiver), and the final argument being spread.
   // After the call returns directly dispatches to the next bytecode.
-  void CallJSWithSpreadAndDispatch(TNode<Object> function,
+  void CallJSWithSpreadAndDispatch(TNode<JSAny> function,
                                    TNode<Context> context,
                                    const RegListNodePair& args,
                                    TNode<UintPtrT> slot_id);
@@ -192,20 +190,26 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Call constructor |target| with |args| arguments (not including receiver).
   // The |new_target| is the same as the |target| for the new keyword, but
   // differs for the super keyword.
-  TNode<Object> Construct(TNode<Object> target, TNode<Context> context,
-                          TNode<Object> new_target, const RegListNodePair& args,
-                          TNode<UintPtrT> slot_id,
-                          TNode<HeapObject> maybe_feedback_vector);
+  TNode<Object> Construct(
+      TNode<JSAny> target, TNode<Context> context, TNode<JSAny> new_target,
+      const RegListNodePair& args, TNode<UintPtrT> slot_id,
+      TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector);
 
   // Call constructor |target| with |args| arguments (not including
   // receiver). The last argument is always a spread. The |new_target| is the
   // same as the |target| for the new keyword, but differs for the super
   // keyword.
-  TNode<Object> ConstructWithSpread(TNode<Object> target,
-                                    TNode<Context> context,
-                                    TNode<Object> new_target,
+  TNode<Object> ConstructWithSpread(TNode<JSAny> target, TNode<Context> context,
+                                    TNode<JSAny> new_target,
                                     const RegListNodePair& args,
                                     TNode<UintPtrT> slot_id);
+
+  // Call constructor |target|, forwarding all arguments in the current JS
+  // frame.
+  TNode<Object> ConstructForwardAllArgs(TNode<JSAny> target,
+                                        TNode<Context> context,
+                                        TNode<JSAny> new_target,
+                                        TNode<TaggedIndex> slot_id);
 
   // Call runtime function with |args| arguments.
   template <class T = Object>
@@ -289,9 +293,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void AbortIfWordNotEqual(TNode<WordT> lhs, TNode<WordT> rhs,
                            AbortReason abort_reason);
   // Abort if |register_count| is invalid for given register file array.
-  void AbortIfRegisterCountInvalid(
-      TNode<FixedArrayBase> parameters_and_registers,
-      TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count);
+  void AbortIfRegisterCountInvalid(TNode<FixedArray> parameters_and_registers,
+                                   TNode<IntPtrT> parameter_count,
+                                   TNode<UintPtrT> register_count);
 
   // Attempts to OSR.
   enum OnStackReplacementParams {
@@ -324,6 +328,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Load the bytecode at |bytecode_offset|.
   TNode<WordT> LoadBytecode(TNode<IntPtrT> bytecode_offset);
+
+  // Load the parameter count of the current function from its BytecodeArray.
+  TNode<IntPtrT> LoadParameterCountWithoutReceiver();
 
  private:
   // Returns a pointer to the current function's BytecodeArray object.

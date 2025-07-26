@@ -5,10 +5,13 @@
 #ifndef V8_OBJECTS_DICTIONARY_INL_H_
 #define V8_OBJECTS_DICTIONARY_INL_H_
 
-#include "src/base/optional.h"
+#include "src/objects/dictionary.h"
+// Include the non-inl header before the rest of the headers.
+
+#include <optional>
+
 #include "src/execution/isolate-utils-inl.h"
 #include "src/numbers/hash-seed-inl.h"
-#include "src/objects/dictionary.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
@@ -17,35 +20,25 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
-
-CAST_ACCESSOR(GlobalDictionary)
-CAST_ACCESSOR(NameDictionary)
-CAST_ACCESSOR(NumberDictionary)
-CAST_ACCESSOR(SimpleNumberDictionary)
-
-template <typename Derived, typename Shape>
-Dictionary<Derived, Shape>::Dictionary(Address ptr)
-    : HashTable<Derived, Shape>(ptr) {}
+namespace v8::internal {
 
 template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::ValueAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return ValueAt(cage_base, entry);
 }
 
 template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
                                                    InternalIndex entry) {
-  return this->get(cage_base, DerivedHashTable::EntryToIndex(entry) +
-                                  Derived::kEntryValueIndex);
+  return this->get(DerivedHashTable::EntryToIndex(entry) +
+                   Derived::kEntryValueIndex);
 }
 
 template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::ValueAt(InternalIndex entry,
                                                    SeqCstAccessTag tag) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return ValueAt(cage_base, entry, tag);
 }
 
@@ -54,18 +47,17 @@ Tagged<Object> Dictionary<Derived, Shape>::ValueAt(PtrComprCageBase cage_base,
                                                    InternalIndex entry,
                                                    SeqCstAccessTag tag) {
   return this->get(
-      cage_base,
       DerivedHashTable::EntryToIndex(entry) + Derived::kEntryValueIndex, tag);
 }
 
 template <typename Derived, typename Shape>
-base::Optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
+std::optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
     InternalIndex entry) {
 #if DEBUG
   Isolate* isolate;
-  GetIsolateFromHeapObject(*this, &isolate);
+  GetIsolateFromHeapObject(this, &isolate);
   DCHECK_NE(isolate, nullptr);
-  SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(Tagged(*this)));
+  SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(Tagged(this)));
 #endif  // DEBUG
   // We can read length() in a non-atomic way since we are reading an
   // initialized object which is not pending allocation.
@@ -111,18 +103,14 @@ Tagged<Object> Dictionary<Derived, Shape>::ValueAtCompareAndSwap(
 
 template <typename Derived, typename Shape>
 PropertyDetails Dictionary<Derived, Shape>::DetailsAt(InternalIndex entry) {
-  return Shape::DetailsAt(Derived::cast(*this), entry);
+  return Shape::DetailsAt(Cast<Derived>(this), entry);
 }
 
 template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::DetailsAtPut(InternalIndex entry,
                                               PropertyDetails value) {
-  Shape::DetailsAtPut(Derived::cast(*this), entry, value);
+  Shape::DetailsAtPut(Cast<Derived>(this), entry, value);
 }
-
-template <typename Derived, typename Shape>
-BaseNameDictionary<Derived, Shape>::BaseNameDictionary(Address ptr)
-    : Dictionary<Derived, Shape>(ptr) {}
 
 template <typename Derived, typename Shape>
 void BaseNameDictionary<Derived, Shape>::set_next_enumeration_index(int index) {
@@ -149,26 +137,6 @@ int BaseNameDictionary<Derived, Shape>::Hash() const {
   return hash;
 }
 
-GlobalDictionary::GlobalDictionary(Address ptr)
-    : BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsGlobalDictionary(*this));
-}
-
-NameDictionary::NameDictionary(Address ptr)
-    : BaseNameDictionary<NameDictionary, NameDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsNameDictionary(*this));
-}
-
-NumberDictionary::NumberDictionary(Address ptr)
-    : Dictionary<NumberDictionary, NumberDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsNumberDictionary(*this));
-}
-
-SimpleNumberDictionary::SimpleNumberDictionary(Address ptr)
-    : Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>(ptr) {
-  SLOW_DCHECK(IsSimpleNumberDictionary(*this));
-}
-
 bool NumberDictionary::requires_slow_elements() {
   Tagged<Object> max_index_object = get(kMaxNumberKeyIndex);
   if (!IsSmi(max_index_object)) return false;
@@ -189,9 +157,9 @@ void NumberDictionary::set_requires_slow_elements() {
 
 template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::ClearEntry(InternalIndex entry) {
-  Tagged<Object> the_hole = this->GetReadOnlyRoots().the_hole_value();
+  Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
   PropertyDetails details = PropertyDetails::Empty();
-  Derived::cast(*this)->SetEntry(entry, the_hole, the_hole, details);
+  Cast<Derived>(this)->SetEntry(entry, the_hole, the_hole, details);
 }
 
 template <typename Derived, typename Shape>
@@ -200,7 +168,7 @@ void Dictionary<Derived, Shape>::SetEntry(InternalIndex entry,
                                           Tagged<Object> value,
                                           PropertyDetails details) {
   DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
-  DCHECK(!IsName(key) || details.dictionary_index() > 0);
+  DCHECK(!IsName(key) || details.dictionary_index() > 0 || !Shape::kHasDetails);
   int index = DerivedHashTable::EntryToIndex(entry);
   DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = this->GetWriteBarrierMode(no_gc);
@@ -221,7 +189,7 @@ PropertyDetails BaseDictionaryShape<Key>::DetailsAt(Tagged<Dictionary> dict,
                                                     InternalIndex entry) {
   static_assert(Dictionary::kEntrySize == 3);
   DCHECK(entry.is_found());
-  return PropertyDetails(Smi::cast(dict->get(Dictionary::EntryToIndex(entry) +
+  return PropertyDetails(Cast<Smi>(dict->get(Dictionary::EntryToIndex(entry) +
                                              Dictionary::kEntryDetailsIndex)));
 }
 
@@ -236,25 +204,25 @@ void BaseDictionaryShape<Key>::DetailsAtPut(Tagged<Dictionary> dict,
 }
 
 Tagged<Object> GlobalDictionaryShape::Unwrap(Tagged<Object> object) {
-  return PropertyCell::cast(object)->name();
+  return Cast<PropertyCell>(object)->name();
 }
 
-Handle<Map> GlobalDictionary::GetMap(ReadOnlyRoots roots) {
-  return roots.global_dictionary_map_handle();
+DirectHandle<Map> GlobalDictionary::GetMap(RootsTable& roots) {
+  return roots.global_dictionary_map();
 }
 
 Tagged<Name> NameDictionary::NameAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return NameAt(cage_base, entry);
 }
 
 Tagged<Name> NameDictionary::NameAt(PtrComprCageBase cage_base,
                                     InternalIndex entry) {
-  return Name::cast(KeyAt(cage_base, entry));
+  return Cast<Name>(KeyAt(cage_base, entry));
 }
 
-Handle<Map> NameDictionary::GetMap(ReadOnlyRoots roots) {
-  return roots.name_dictionary_map_handle();
+DirectHandle<Map> NameDictionary::GetMap(RootsTable& roots) {
+  return roots.name_dictionary_map();
 }
 
 uint32_t NameDictionary::flags() const {
@@ -269,18 +237,18 @@ BIT_FIELD_ACCESSORS(NameDictionary, flags, may_have_interesting_properties,
                     NameDictionary::MayHaveInterestingPropertiesBit)
 
 Tagged<PropertyCell> GlobalDictionary::CellAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return CellAt(cage_base, entry);
 }
 
 Tagged<PropertyCell> GlobalDictionary::CellAt(PtrComprCageBase cage_base,
                                               InternalIndex entry) {
   DCHECK(IsPropertyCell(KeyAt(cage_base, entry), cage_base));
-  return PropertyCell::cast(KeyAt(cage_base, entry));
+  return Cast<PropertyCell>(KeyAt(cage_base, entry));
 }
 
 Tagged<Name> GlobalDictionary::NameAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return NameAt(cage_base, entry);
 }
 
@@ -290,7 +258,7 @@ Tagged<Name> GlobalDictionary::NameAt(PtrComprCageBase cage_base,
 }
 
 Tagged<Object> GlobalDictionary::ValueAt(InternalIndex entry) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  PtrComprCageBase cage_base = GetPtrComprCageBase();
   return ValueAt(cage_base, entry);
 }
 
@@ -301,13 +269,13 @@ Tagged<Object> GlobalDictionary::ValueAt(PtrComprCageBase cage_base,
 
 void GlobalDictionary::SetEntry(InternalIndex entry, Tagged<Object> key,
                                 Tagged<Object> value, PropertyDetails details) {
-  DCHECK_EQ(key, PropertyCell::cast(value)->name());
+  DCHECK_EQ(key, Cast<PropertyCell>(value)->name());
   set(EntryToIndex(entry) + kEntryKeyIndex, value);
   DetailsAtPut(entry, details);
 }
 
 void GlobalDictionary::ClearEntry(InternalIndex entry) {
-  Tagged<Hole> the_hole = this->GetReadOnlyRoots().the_hole_value();
+  Tagged<Hole> the_hole = GetReadOnlyRoots().the_hole_value();
   set(EntryToIndex(entry) + kEntryKeyIndex, the_hole);
 }
 
@@ -316,8 +284,7 @@ void GlobalDictionary::ValueAtPut(InternalIndex entry, Tagged<Object> value) {
 }
 
 bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Tagged<Object> other) {
-  DCHECK(IsNumber(other));
-  return key == static_cast<uint32_t>(Object::Number(other));
+  return key == static_cast<uint32_t>(Object::NumberValue(Cast<Number>(other)));
 }
 
 uint32_t NumberDictionaryBaseShape::Hash(ReadOnlyRoots roots, uint32_t key) {
@@ -327,37 +294,44 @@ uint32_t NumberDictionaryBaseShape::Hash(ReadOnlyRoots roots, uint32_t key) {
 uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
                                                   Tagged<Object> other) {
   DCHECK(IsNumber(other));
-  return ComputeSeededHash(static_cast<uint32_t>(Object::Number(other)),
-                           HashSeed(roots));
+  return ComputeSeededHash(
+      static_cast<uint32_t>(Object::NumberValue(Cast<Number>(other))),
+      HashSeed(roots));
 }
 
 template <AllocationType allocation>
-Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
-                                                   uint32_t key) {
+DirectHandle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,
+                                                         uint32_t key) {
   return isolate->factory()->NewNumberFromUint<allocation>(key);
 }
 
 template <AllocationType allocation>
-Handle<Object> NumberDictionaryBaseShape::AsHandle(LocalIsolate* isolate,
-                                                   uint32_t key) {
+DirectHandle<Object> NumberDictionaryBaseShape::AsHandle(LocalIsolate* isolate,
+                                                         uint32_t key) {
   return isolate->factory()->NewNumberFromUint<allocation>(key);
 }
 
-Handle<Map> NumberDictionary::GetMap(ReadOnlyRoots roots) {
-  return roots.number_dictionary_map_handle();
+DirectHandle<Map> NumberDictionary::GetMap(RootsTable& roots) {
+  return roots.number_dictionary_map();
 }
 
-Handle<Map> SimpleNumberDictionary::GetMap(ReadOnlyRoots roots) {
-  return roots.simple_number_dictionary_map_handle();
+DirectHandle<Map> SimpleNameDictionary::GetMap(RootsTable& roots) {
+  return roots.simple_name_dictionary_map();
 }
 
-bool BaseNameDictionaryShape::IsMatch(Handle<Name> key, Tagged<Object> other) {
-  DCHECK(IsTheHole(other) || IsUniqueName(Name::cast(other)));
+DirectHandle<Map> SimpleNumberDictionary::GetMap(RootsTable& roots) {
+  return roots.simple_number_dictionary_map();
+}
+
+bool BaseNameDictionaryShape::IsMatch(DirectHandle<Name> key,
+                                      Tagged<Object> other) {
+  DCHECK(IsTheHole(other) || IsUniqueName(Cast<Name>(other)));
   DCHECK(IsUniqueName(*key));
   return *key == other;
 }
 
-uint32_t BaseNameDictionaryShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
+uint32_t BaseNameDictionaryShape::Hash(ReadOnlyRoots roots,
+                                       DirectHandle<Name> key) {
   DCHECK(IsUniqueName(*key));
   return key->hash();
 }
@@ -365,30 +339,31 @@ uint32_t BaseNameDictionaryShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
 uint32_t BaseNameDictionaryShape::HashForObject(ReadOnlyRoots roots,
                                                 Tagged<Object> other) {
   DCHECK(IsUniqueName(other));
-  return Name::cast(other)->hash();
+  return Cast<Name>(other)->hash();
 }
 
-bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Tagged<Object> other) {
+bool GlobalDictionaryShape::IsMatch(DirectHandle<Name> key,
+                                    Tagged<Object> other) {
   DCHECK(IsUniqueName(*key));
-  DCHECK(IsUniqueName(PropertyCell::cast(other)->name()));
-  return *key == PropertyCell::cast(other)->name();
+  DCHECK(IsUniqueName(Cast<PropertyCell>(other)->name()));
+  return *key == Cast<PropertyCell>(other)->name();
 }
 
 uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
                                               Tagged<Object> other) {
-  return PropertyCell::cast(other)->name()->hash();
+  return Cast<PropertyCell>(other)->name()->hash();
 }
 
 template <AllocationType allocation>
-Handle<Object> BaseNameDictionaryShape::AsHandle(Isolate* isolate,
-                                                 Handle<Name> key) {
+DirectHandle<Object> BaseNameDictionaryShape::AsHandle(Isolate* isolate,
+                                                       DirectHandle<Name> key) {
   DCHECK(IsUniqueName(*key));
   return key;
 }
 
 template <AllocationType allocation>
-Handle<Object> BaseNameDictionaryShape::AsHandle(LocalIsolate* isolate,
-                                                 Handle<Name> key) {
+DirectHandle<Object> BaseNameDictionaryShape::AsHandle(LocalIsolate* isolate,
+                                                       DirectHandle<Name> key) {
   DCHECK(IsUniqueName(*key));
   return key;
 }
@@ -408,8 +383,7 @@ void GlobalDictionaryShape::DetailsAtPut(Tagged<Dictionary> dict,
   dict->CellAt(entry)->UpdatePropertyDetailsExceptCellType(value);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

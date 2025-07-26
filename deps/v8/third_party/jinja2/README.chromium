@@ -2,7 +2,7 @@ Name: Jinja2 Python Template Engine
 Short Name: jinja2
 URL: https://jinja.palletsprojects.com/
 Version: 3.1.2
-License: BSD 3-Clause
+License: BSD-3-Clause
 License File: LICENSE.rst
 Security Critical: no
 Shipped: no
@@ -19,4 +19,9 @@ LICENSE.rst and README.rst files.  Other files have been removed.
 Additional chromium-specific files are:
 * README.chromium (this file)
 * OWNERS
+* DIR_METADATA
 * jinja2.gni
+* .gitignore
+
+Patches:
+- Set create_system=3 (unix) to ZipInfo for cross platform determinism. (patches/0001-canonicalize-zipinfo-create-system)

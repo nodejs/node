@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_SMI_H_
 #define V8_OBJECTS_SMI_H_
 
+#include <type_traits>
+
 #include "src/common/globals.h"
 #include "src/objects/tagged.h"
 
@@ -35,7 +37,7 @@ class Smi : public AllStatic {
   // Convert a value to a Smi object.
   static inline constexpr Tagged<Smi> FromInt(int value) {
     DCHECK(Smi::IsValid(value));
-    return Tagged<Smi>(Internals::IntToSmi(value));
+    return Tagged<Smi>(Internals::IntegralToSmi(value));
   }
 
   static inline constexpr Tagged<Smi> FromIntptr(intptr_t value) {
@@ -52,17 +54,28 @@ class Smi : public AllStatic {
                         (32 - kSmiValueSize));
   }
 
-  template <typename E,
-            typename = typename std::enable_if<std::is_enum<E>::value>::type>
-  static inline constexpr Tagged<Smi> FromEnum(E value) {
+  template <typename E>
+  static inline constexpr Tagged<Smi> FromEnum(E value)
+    requires std::is_enum<E>::value
+  {
     static_assert(sizeof(E) <= sizeof(int));
     return FromInt(static_cast<int>(value));
   }
 
   // Returns whether value can be represented in a Smi.
-  static inline bool constexpr IsValid(intptr_t value) {
+  template <typename T>
+  static inline bool constexpr IsValid(T value)
+    requires(std::is_integral_v<T> && std::is_signed_v<T>)
+  {
     DCHECK_EQ(Internals::IsValidSmi(value),
               value >= kMinValue && value <= kMaxValue);
+    return Internals::IsValidSmi(value);
+  }
+  template <typename T>
+  static inline bool constexpr IsValid(T value)
+    requires(std::is_integral_v<T> && std::is_unsigned_v<T>)
+  {
+    DCHECK_EQ(Internals::IsValidSmi(value), value <= kMaxValue);
     return Internals::IsValidSmi(value);
   }
 
@@ -76,8 +89,6 @@ class Smi : public AllStatic {
   V8_EXPORT_PRIVATE static Address LexicographicCompare(Isolate* isolate,
                                                         Tagged<Smi> x,
                                                         Tagged<Smi> y);
-
-  DECL_CAST(Smi)
 
   // Dispatched behavior.
   V8_EXPORT_PRIVATE static void SmiPrint(Tagged<Smi> smi, std::ostream& os);
@@ -104,11 +115,6 @@ class Smi : public AllStatic {
     return Tagged<Smi>(kNullAddress);
   }
 };
-
-Tagged<Smi> Smi::cast(Tagged<Object> object) {
-  DCHECK(object.IsSmi());
-  return Tagged<Smi>(object.ptr());
-}
 
 }  // namespace internal
 }  // namespace v8

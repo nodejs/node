@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_COMMON_OPERATOR_H_
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
+#include <optional>
+
 #include "src/base/compiler-specific.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/reloc-info.h"
@@ -101,6 +103,34 @@ V8_EXPORT_PRIVATE const BranchParameters& BranchParametersOf(
 V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const)
     V8_WARN_UNUSED_RESULT;
 
+class AssertParameters final {
+ public:
+  AssertParameters(BranchSemantics semantics, const char* condition_string,
+                   const char* file, int line)
+      : semantics_(semantics),
+        condition_string_(condition_string),
+        file_(file),
+        line_(line) {}
+
+  BranchSemantics semantics() const { return semantics_; }
+  const char* condition_string() const { return condition_string_; }
+  const char* file() const { return file_; }
+  int line() const { return line_; }
+
+ private:
+  const BranchSemantics semantics_;
+  const char* condition_string_;
+  const char* file_;
+  const int line_;
+};
+
+bool operator==(const AssertParameters& lhs, const AssertParameters& rhs);
+size_t hash_value(const AssertParameters& p);
+std::ostream& operator<<(std::ostream&, const AssertParameters& p);
+
+V8_EXPORT_PRIVATE const AssertParameters& AssertParametersOf(
+    const Operator* const) V8_WARN_UNUSED_RESULT;
+
 // Helper function for return nodes, because returns have a hidden value input.
 int ValueInputCountOfReturn(Operator const* const op);
 
@@ -130,16 +160,19 @@ DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const)
 
 class SelectParameters final {
  public:
-  explicit SelectParameters(MachineRepresentation representation,
-                            BranchHint hint = BranchHint::kNone)
-      : representation_(representation), hint_(hint) {}
+  explicit SelectParameters(
+      MachineRepresentation representation, BranchHint hint = BranchHint::kNone,
+      BranchSemantics semantics = BranchSemantics::kUnspecified)
+      : representation_(representation), hint_(hint), semantics_(semantics) {}
 
   MachineRepresentation representation() const { return representation_; }
   BranchHint hint() const { return hint_; }
+  BranchSemantics semantics() const { return semantics_; }
 
  private:
   const MachineRepresentation representation_;
   const BranchHint hint_;
+  const BranchSemantics semantics_;
 };
 
 bool operator==(SelectParameters const&, SelectParameters const&);
@@ -451,17 +484,17 @@ const char* StaticAssertSourceOf(const Operator* op);
 class SLVerifierHintParameters final {
  public:
   explicit SLVerifierHintParameters(const Operator* semantics,
-                                    base::Optional<Type> override_output_type)
+                                    std::optional<Type> override_output_type)
       : semantics_(semantics), override_output_type_(override_output_type) {}
 
   const Operator* semantics() const { return semantics_; }
-  const base::Optional<Type>& override_output_type() const {
+  const std::optional<Type>& override_output_type() const {
     return override_output_type_;
   }
 
  private:
   const Operator* semantics_;
-  base::Optional<Type> override_output_type_;
+  std::optional<Type> override_output_type_;
 };
 
 V8_EXPORT_PRIVATE bool operator==(const SLVerifierHintParameters& p1,
@@ -534,7 +567,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   // are removed at the end of SimplifiedLowering after verification.
   const Operator* SLVerifierHint(
       const Operator* semantics,
-      const base::Optional<Type>& override_output_type);
+      const std::optional<Type>& override_output_type);
   const Operator* End(size_t control_input_count);
   // TODO(nicohartmann@): Remove the default argument for {semantics} once all
   // uses are updated.
@@ -556,6 +589,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                                FeedbackSource const& feedback);
   const Operator* DeoptimizeUnless(DeoptimizeReason reason,
                                    FeedbackSource const& feedback);
+  const Operator* Assert(BranchSemantics semantics,
+                         const char* condition_string, const char* file,
+                         int line);
 
 #if V8_ENABLE_WEBASSEMBLY
   const Operator* TrapIf(TrapId trap_id, bool has_frame_state);
@@ -581,6 +617,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* PointerConstant(intptr_t);
   const Operator* HeapConstant(const Handle<HeapObject>&);
   const Operator* CompressedHeapConstant(const Handle<HeapObject>&);
+  const Operator* TrustedHeapConstant(const Handle<HeapObject>&);
   const Operator* ObjectId(uint32_t);
 
   const Operator* RelocatableInt32Constant(int32_t value,
@@ -588,7 +625,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* RelocatableInt64Constant(int64_t value,
                                            RelocInfo::Mode rmode);
 
-  const Operator* Select(MachineRepresentation, BranchHint = BranchHint::kNone);
+  const Operator* Select(
+      MachineRepresentation, BranchHint = BranchHint::kNone,
+      BranchSemantics semantics = BranchSemantics::kUnspecified);
   const Operator* Phi(MachineRepresentation representation,
                       int value_input_count);
   const Operator* EffectPhi(int effect_input_count);
@@ -625,13 +664,14 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
 
   // Constructs function info for frame state construction.
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(
-      FrameStateType type, int parameter_count, int local_count,
-      Handle<SharedFunctionInfo> shared_info);
+      FrameStateType type, uint16_t parameter_count, uint16_t max_arguments,
+      int local_count, IndirectHandle<SharedFunctionInfo> shared_info,
+      IndirectHandle<BytecodeArray> bytecode_array);
 #if V8_ENABLE_WEBASSEMBLY
   const FrameStateFunctionInfo* CreateJSToWasmFrameStateFunctionInfo(
-      FrameStateType type, int parameter_count, int local_count,
+      FrameStateType type, uint16_t parameter_count, int local_count,
       Handle<SharedFunctionInfo> shared_info,
-      const wasm::FunctionSig* signature);
+      const wasm::CanonicalSig* signature);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
  private:
@@ -729,7 +769,8 @@ class StartNode final : public CommonNodeWrapperBase {
   // The receiver is counted as part of formal parameters.
   static constexpr int kReceiverOutputCount = 1;
   // These outputs are in addition to formal parameters.
-  static constexpr int kExtraOutputCount = 4;
+  static constexpr int kExtraOutputCount =
+      4 + V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL;
 
   // Takes the formal parameter count of the current function (including
   // receiver) and returns the number of value outputs of the start node.
@@ -737,16 +778,25 @@ class StartNode final : public CommonNodeWrapperBase {
     constexpr int kClosure = 1;
     constexpr int kNewTarget = 1;
     constexpr int kArgCount = 1;
+    constexpr int kDispatchHandle =
+        V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0;
     constexpr int kContext = 1;
-    static_assert(kClosure + kNewTarget + kArgCount + kContext ==
+    static_assert(kClosure + kNewTarget + kArgCount + kDispatchHandle +
+                      kContext ==
                   kExtraOutputCount);
     // Checking related linkage methods here since they rely on Start node
     // layout.
     DCHECK_EQ(-1, Linkage::kJSCallClosureParamIndex);
     DCHECK_EQ(argc + 0, Linkage::GetJSCallNewTargetParamIndex(argc));
     DCHECK_EQ(argc + 1, Linkage::GetJSCallArgCountParamIndex(argc));
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+    DCHECK_EQ(argc + 2, Linkage::GetJSCallDispatchHandleParamIndex(argc));
+    DCHECK_EQ(argc + 3, Linkage::GetJSCallContextParamIndex(argc));
+#else
     DCHECK_EQ(argc + 2, Linkage::GetJSCallContextParamIndex(argc));
-    return argc + kClosure + kNewTarget + kArgCount + kContext;
+#endif
+    return argc + kClosure + kNewTarget + kArgCount + kDispatchHandle +
+           kContext;
   }
 
   int FormalParameterCount() const {
@@ -771,6 +821,11 @@ class StartNode final : public CommonNodeWrapperBase {
   int ArgCountParameterIndex() const {
     return Linkage::GetJSCallArgCountParamIndex(FormalParameterCount());
   }
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  int DispatchHandleOutputIndex() const {
+    return Linkage::GetJSCallDispatchHandleParamIndex(FormalParameterCount());
+  }
+#endif
   int ContextParameterIndex() const {
     return Linkage::GetJSCallContextParamIndex(FormalParameterCount());
   }
@@ -799,27 +854,18 @@ class StartNode final : public CommonNodeWrapperBase {
   // output indices (and not the index assigned to a Parameter).
   int NewTargetOutputIndex() const {
     // Indices assigned to parameters are off-by-one (Parameters indices start
-    // at -1).
-    // TODO(jgruber): Consider starting at 0.
-    DCHECK_EQ(Linkage::GetJSCallNewTargetParamIndex(FormalParameterCount()) + 1,
-              node()->op()->ValueOutputCount() - 3);
-    return node()->op()->ValueOutputCount() - 3;
+    // at -1). TODO(jgruber): Consider starting at 0.
+    return Linkage::GetJSCallNewTargetParamIndex(FormalParameterCount()) + 1;
   }
   int ArgCountOutputIndex() const {
     // Indices assigned to parameters are off-by-one (Parameters indices start
-    // at -1).
-    // TODO(jgruber): Consider starting at 0.
-    DCHECK_EQ(Linkage::GetJSCallArgCountParamIndex(FormalParameterCount()) + 1,
-              node()->op()->ValueOutputCount() - 2);
-    return node()->op()->ValueOutputCount() - 2;
+    // at -1). TODO(jgruber): Consider starting at 0.
+    return Linkage::GetJSCallArgCountParamIndex(FormalParameterCount()) + 1;
   }
   int ContextOutputIndex() const {
     // Indices assigned to parameters are off-by-one (Parameters indices start
-    // at -1).
-    // TODO(jgruber): Consider starting at 0.
-    DCHECK_EQ(Linkage::GetJSCallContextParamIndex(FormalParameterCount()) + 1,
-              node()->op()->ValueOutputCount() - 1);
-    return node()->op()->ValueOutputCount() - 1;
+    // at -1). TODO(jgruber): Consider starting at 0.
+    return Linkage::GetJSCallContextParamIndex(FormalParameterCount()) + 1;
   }
   int LastOutputIndex() const { return ContextOutputIndex(); }
 };

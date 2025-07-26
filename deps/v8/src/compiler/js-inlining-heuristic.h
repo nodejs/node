@@ -25,22 +25,27 @@ class JSInliningHeuristic final : public AdvancedReducer {
                       JSHeapBroker* broker,
                       SourcePositionTable* source_positions,
                       NodeOriginTable* node_origins, Mode mode,
-                      const wasm::WasmModule* wasm_module = nullptr)
+                      // The two following arguments should be `nullptr` iff
+                      // inlining with `mode == kJSOnly`.
+                      const wasm::WasmModule* wasm_module,
+                      JsWasmCallsSidetable* js_wasm_calls_sidetable)
       : AdvancedReducer(editor),
         inliner_(editor, local_zone, info, jsgraph, broker, source_positions,
-                 node_origins, wasm_module, mode == kWasmFullInlining),
+                 node_origins, wasm_module, js_wasm_calls_sidetable,
+                 mode == kWasmFullInlining),
         candidates_(local_zone),
         seen_(local_zone),
         source_positions_(source_positions),
         jsgraph_(jsgraph),
         broker_(broker),
+        info_(info),
         mode_(mode),
         max_inlined_bytecode_size_cumulative_(
             v8_flags.max_inlined_bytecode_size_cumulative),
         max_inlined_bytecode_size_absolute_(
             v8_flags.max_inlined_bytecode_size_absolute) {
     DCHECK_EQ(mode == kWasmWrappersOnly || mode == kWasmFullInlining,
-              wasm_module != nullptr);
+              wasm_module != nullptr && js_wasm_calls_sidetable != nullptr);
   }
 
   const char* reducer_name() const override { return "JSInliningHeuristic"; }
@@ -77,6 +82,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
     Node* node = nullptr;     // The call site at which to inline.
     CallFrequency frequency;  // Relative frequency of this call site.
     int total_size = 0;
+    bool has_heapnumber_params = false;
   };
 
   // Comparator for candidates.
@@ -105,7 +111,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   Candidate CollectFunctions(Node* node, int functions_size);
 
   CommonOperatorBuilder* common() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   // TODO(neis): Make heap broker a component of JSGraph?
   JSHeapBroker* broker() const { return broker_; }
@@ -120,6 +126,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   SourcePositionTable* source_positions_;
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
+  OptimizedCompilationInfo* info_;
   int total_inlined_bytecode_size_ = 0;
   const Mode mode_;
   const int max_inlined_bytecode_size_cumulative_;

@@ -45,7 +45,7 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
 // static
 UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
     Isolate* isolate, Tagged<SharedFunctionInfo> shared) {
-  Tagged<Script> script = Script::cast(shared->script());
+  Tagged<Script> script = Cast<Script>(shared->script());
 
   UnoptimizedCompileFlags flags(isolate, script->id());
 
@@ -57,7 +57,7 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForFunctionCompile(
 #if V8_ENABLE_WEBASSEMBLY
   flags.set_is_asm_wasm_broken(shared->is_asm_wasm_broken());
 #endif  // V8_ENABLE_WEBASSEMBLY
-  flags.set_is_repl_mode(shared->is_repl_mode());
+  flags.set_is_repl_mode(script->is_repl_mode());
 
   // Do not support re-parsing top-level function of a wrapped script.
   DCHECK_IMPLIES(flags.is_toplevel(), !script->is_wrapped());
@@ -91,9 +91,6 @@ UnoptimizedCompileFlags UnoptimizedCompileFlags::ForToplevelCompile(
   UnoptimizedCompileFlags flags(isolate, isolate->GetNextScriptId());
   flags.SetFlagsForToplevelCompile(is_user_javascript, language_mode, repl_mode,
                                    type, lazy);
-  flags.set_compile_hints_magic_enabled(v8_flags.compile_hints_magic ||
-                                        isolate->allow_compile_hints_magic());
-
   LOG(isolate, ScriptEvent(ScriptEventType::kReserveId, flags.script_id()));
   return flags;
 }
@@ -152,10 +149,6 @@ void UnoptimizedCompileFlags::SetFlagsForFunctionFromScript(
   DCHECK_EQ(script_id(), script->id());
 
   set_is_eval(script->compilation_type() == Script::CompilationType::kEval);
-  if (is_eval()) {
-    DCHECK(script->has_eval_from_shared());
-    set_outer_language_mode(script->eval_from_shared()->language_mode());
-  }
   set_is_module(script->origin_options().IsModule());
   DCHECK_IMPLIES(is_eval(), !is_module());
 
@@ -205,7 +198,7 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
       script_scope_(nullptr),
       stack_limit_(stack_limit),
       parameters_end_pos_(kNoSourcePosition),
-      max_function_literal_id_(kFunctionLiteralIdInvalid),
+      max_info_id_(kInvalidInfoId),
       character_stream_(nullptr),
       function_name_(nullptr),
       runtime_call_stats_(runtime_call_stats),
@@ -217,7 +210,8 @@ ParseInfo::ParseInfo(const UnoptimizedCompileFlags flags,
 #endif  // V8_ENABLE_WEBASSEMBLY
       language_mode_(flags.outer_language_mode()),
       is_background_compilation_(false),
-      is_streaming_compilation_(false) {
+      is_streaming_compilation_(false),
+      has_module_in_scope_chain_(flags.is_module()) {
   if (flags.block_coverage_enabled()) {
     AllocateSourceRangeMap();
   }
@@ -243,8 +237,8 @@ DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
 template <typename IsolateT>
 Handle<Script> ParseInfo::CreateScript(
-    IsolateT* isolate, Handle<String> source,
-    MaybeHandle<FixedArray> maybe_wrapped_arguments,
+    IsolateT* isolate, DirectHandle<String> source,
+    MaybeDirectHandle<FixedArray> maybe_wrapped_arguments,
     ScriptOriginOptions origin_options, NativesFlag natives) {
   // Create a script object describing the script to be compiled.
   DCHECK(flags().script_id() >= 0 ||
@@ -288,13 +282,13 @@ Handle<Script> ParseInfo::CreateScript(
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Script> ParseInfo::CreateScript(
-        Isolate* isolate, Handle<String> source,
-        MaybeHandle<FixedArray> maybe_wrapped_arguments,
+        Isolate* isolate, DirectHandle<String> source,
+        MaybeDirectHandle<FixedArray> maybe_wrapped_arguments,
         ScriptOriginOptions origin_options, NativesFlag natives);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<Script> ParseInfo::CreateScript(
-        LocalIsolate* isolate, Handle<String> source,
-        MaybeHandle<FixedArray> maybe_wrapped_arguments,
+        LocalIsolate* isolate, DirectHandle<String> source,
+        MaybeDirectHandle<FixedArray> maybe_wrapped_arguments,
         ScriptOriginOptions origin_options, NativesFlag natives);
 
 void ParseInfo::AllocateSourceRangeMap() {

@@ -7,15 +7,15 @@ This module helps emulate Visual Studio 2008 behavior on top of other
 build systems, primarily ninja.
 """
 
-import collections
 import os
 import re
 import subprocess
 import sys
+from collections import namedtuple
 
-from gyp.common import OrderedSet
 import gyp.MSVSUtil
 import gyp.MSVSVersion
+from gyp.common import OrderedSet
 
 windows_quoter_regex = re.compile(r'(\\*)"')
 
@@ -247,9 +247,7 @@ class MsvsSettings:
         the target type.
         """
         ext = self.spec.get("product_extension", None)
-        if ext:
-            return ext
-        return gyp.MSVSUtil.TARGET_TYPE_EXT.get(self.spec["type"], "")
+        return ext or gyp.MSVSUtil.TARGET_TYPE_EXT.get(self.spec["type"], "")
 
     def GetVSMacroEnv(self, base_to_build=None, config=None):
         """Get a dict of variables mapping internal VS macro names to their gyp
@@ -625,8 +623,7 @@ class MsvsSettings:
     def _GetDefFileAsLdflags(self, ldflags, gyp_to_build_path):
         """.def files get implicitly converted to a ModuleDefinitionFile for the
         linker in the VS generator. Emulate that behaviour here."""
-        def_file = self.GetDefFile(gyp_to_build_path)
-        if def_file:
+        if def_file := self.GetDefFile(gyp_to_build_path):
             ldflags.append('/DEF:"%s"' % def_file)
 
     def GetPGDName(self, config, expand_special):
@@ -674,14 +671,11 @@ class MsvsSettings:
         )
         ld("DelayLoadDLLs", prefix="/DELAYLOAD:")
         ld("TreatLinkerWarningAsErrors", prefix="/WX", map={"true": "", "false": ":NO"})
-        out = self.GetOutputName(config, expand_special)
-        if out:
+        if out := self.GetOutputName(config, expand_special):
             ldflags.append("/OUT:" + out)
-        pdb = self.GetPDBName(config, expand_special, output_name + ".pdb")
-        if pdb:
+        if pdb := self.GetPDBName(config, expand_special, output_name + ".pdb"):
             ldflags.append("/PDB:" + pdb)
-        pgd = self.GetPGDName(config, expand_special)
-        if pgd:
+        if pgd := self.GetPGDName(config, expand_special):
             ldflags.append("/PGD:" + pgd)
         map_file = self.GetMapFileName(config, expand_special)
         ld("GenerateMapFile", map={"true": "/MAP:" + map_file if map_file else "/MAP"})
@@ -830,17 +824,15 @@ class MsvsSettings:
                 ("VCLinkerTool", "UACUIAccess"), config, default="false"
             )
 
-            inner = """
+            level = execution_level_map[execution_level]
+            inner = f"""
 <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
   <security>
     <requestedPrivileges>
-      <requestedExecutionLevel level='{}' uiAccess='{}' />
+      <requestedExecutionLevel level='{level}' uiAccess='{ui_access}' />
     </requestedPrivileges>
   </security>
-</trustInfo>""".format(
-                execution_level_map[execution_level],
-                ui_access,
-            )
+</trustInfo>"""
         else:
             inner = ""
 
@@ -935,7 +927,7 @@ class MsvsSettings:
         )
         return cmd
 
-    RuleShellFlags = collections.namedtuple("RuleShellFlags", ["cygwin", "quote"])
+    RuleShellFlags = namedtuple("RuleShellFlags", ["cygwin", "quote"])  # noqa: PYI024
 
     def GetRuleShellFlags(self, rule):
         """Return RuleShellFlags about how the given rule should be run. This

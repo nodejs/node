@@ -4,8 +4,11 @@
 
 #include "src/compiler/turboshaft/memory-optimization-reducer.h"
 
+#include <optional>
+
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/compiler/linkage.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -18,11 +21,10 @@ const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone,
           CallDescriptor::kCanUseRoots, Operator::kNoThrow,
           isolate != nullptr ? StubCallMode::kCallCodeObject
                              : StubCallMode::kCallBuiltinPointer),
-      CanThrow::kNo, zone);
+      CanThrow::kNo, LazyDeoptOnThrow::kNo, zone);
 }
 
 void MemoryAnalyzer::Run() {
-  if (allocation_folding == AllocationFolding::kDontAllocationFolding) return;
   block_states[current_block] = BlockState{};
   BlockIndex end = BlockIndex(input_graph.block_count());
   while (current_block < end) {
@@ -48,7 +50,7 @@ void MemoryAnalyzer::Process(const Operation& op) {
     return;
   }
   if (auto* store = op.TryCast<StoreOp>()) {
-    ProcessStore(input_graph.Index(op), store->base());
+    ProcessStore(*store);
     return;
   }
   if (op.Effects().can_allocate) {
@@ -62,10 +64,10 @@ void MemoryAnalyzer::Process(const Operation& op) {
 // Update the successor block states based on the state of the current block.
 // For loop backedges, we need to re-start the analysis from the loop header
 // unless the backedge state is unchanged.
-void MemoryAnalyzer::ProcessBlockTerminator(const Operation& op) {
-  if (auto* goto_op = op.TryCast<GotoOp>()) {
+void MemoryAnalyzer::ProcessBlockTerminator(const Operation& terminator) {
+  if (auto* goto_op = terminator.TryCast<GotoOp>()) {
     if (input_graph.IsLoopBackedge(*goto_op)) {
-      base::Optional<BlockState>& target_state =
+      std::optional<BlockState>& target_state =
           block_states[goto_op->destination->index()];
       BlockState old_state = *target_state;
       MergeCurrentStateIntoSuccessor(goto_op->destination);
@@ -74,7 +76,7 @@ void MemoryAnalyzer::ProcessBlockTerminator(const Operation& op) {
         // allocation before the loop, since this leads to unbounded
         // allocation size. An unknown `reserved_size` will prevent adding
         // allocations inside of the loop.
-        target_state->reserved_size = base::nullopt;
+        target_state->reserved_size = std::nullopt;
         // Redo the analysis from the beginning of the loop.
         current_block = goto_op->destination->index();
       }
@@ -91,7 +93,7 @@ void MemoryAnalyzer::ProcessBlockTerminator(const Operation& op) {
       }
     }
   }
-  for (Block* successor : SuccessorBlocks(op)) {
+  for (Block* successor : SuccessorBlocks(terminator)) {
     MergeCurrentStateIntoSuccessor(successor);
   }
 }
@@ -101,7 +103,7 @@ void MemoryAnalyzer::ProcessBlockTerminator(const Operation& op) {
 // dominating relationship.
 void MemoryAnalyzer::ProcessAllocation(const AllocateOp& alloc) {
   if (ShouldSkipOptimizationStep()) return;
-  base::Optional<uint64_t> new_size;
+  std::optional<uint64_t> new_size;
   if (auto* size =
           input_graph.Get(alloc.size()).template TryCast<ConstantOp>()) {
     new_size = size->integral();
@@ -109,9 +111,11 @@ void MemoryAnalyzer::ProcessAllocation(const AllocateOp& alloc) {
   // If the new allocation has a static size and is of the same type, then we
   // can fold it into the previous allocation unless the folded allocation would
   // exceed `kMaxRegularHeapObjectSize`.
-  if (state.last_allocation && new_size.has_value() &&
+  if (allocation_folding == AllocationFolding::kDoAllocationFolding &&
+      state.last_allocation && new_size.has_value() &&
       state.reserved_size.has_value() &&
       alloc.type == state.last_allocation->type &&
+      alloc.type != AllocationType::kSharedOld &&
       *new_size <= kMaxRegularHeapObjectSize - *state.reserved_size) {
     state.reserved_size =
         static_cast<uint32_t>(*state.reserved_size + *new_size);
@@ -121,7 +125,7 @@ void MemoryAnalyzer::ProcessAllocation(const AllocateOp& alloc) {
     return;
   }
   state.last_allocation = &alloc;
-  state.reserved_size = base::nullopt;
+  state.reserved_size = std::nullopt;
   if (new_size.has_value() && *new_size <= kMaxRegularHeapObjectSize) {
     state.reserved_size = static_cast<uint32_t>(*new_size);
   }
@@ -131,18 +135,20 @@ void MemoryAnalyzer::ProcessAllocation(const AllocateOp& alloc) {
   folded_into.erase(&alloc);
 }
 
-void MemoryAnalyzer::ProcessStore(OpIndex store, OpIndex object) {
-  if (SkipWriteBarrier(input_graph.Get(object))) {
-    skipped_write_barriers.insert(store);
+void MemoryAnalyzer::ProcessStore(const StoreOp& store) {
+  V<None> store_op_index = input_graph.Index(store);
+  if (SkipWriteBarrier(store)) {
+    skipped_write_barriers.insert(store_op_index);
   } else {
     // We might be re-visiting the current block. In this case, we need to
     // still update the information.
-    skipped_write_barriers.erase(store);
+    DCHECK_NE(store.write_barrier, WriteBarrierKind::kAssertNoWriteBarrier);
+    skipped_write_barriers.erase(store_op_index);
   }
 }
 
 void MemoryAnalyzer::MergeCurrentStateIntoSuccessor(const Block* successor) {
-  base::Optional<BlockState>& target_state = block_states[successor->index()];
+  std::optional<BlockState>& target_state = block_states[successor->index()];
   if (!target_state.has_value()) {
     target_state = state;
     return;
@@ -161,7 +167,7 @@ void MemoryAnalyzer::MergeCurrentStateIntoSuccessor(const Block* successor) {
     target_state->reserved_size =
         std::max(*target_state->reserved_size, *state.reserved_size);
   } else {
-    target_state->reserved_size = base::nullopt;
+    target_state->reserved_size = std::nullopt;
   }
 }
 

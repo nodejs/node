@@ -26,6 +26,7 @@ const objects = [
   Buffer.from([1, 2, 3, 4]),
   new BigInt64Array([42n]),
   new BigUint64Array([42n]),
+  new Float16Array([1, 2, 3, 4]),
   undefined,
   null,
   42,

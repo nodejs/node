@@ -2,23 +2,23 @@
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me)",
   "name": "minimatch",
   "description": "a glob matcher in javascript",
-  "version": "9.0.3",
+  "version": "10.0.3",
   "repository": {
     "type": "git",
     "url": "git://github.com/isaacs/minimatch.git"
   },
-  "main": "./dist/cjs/index.js",
-  "module": "./dist/mjs/index.js",
-  "types": "./dist/cjs/index.d.ts",
+  "main": "./dist/commonjs/index.js",
+  "types": "./dist/commonjs/index.d.ts",
   "exports": {
+    "./package.json": "./package.json",
     ".": {
       "import": {
-        "types": "./dist/mjs/index.d.ts",
-        "default": "./dist/mjs/index.js"
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
       },
       "require": {
-        "types": "./dist/cjs/index.d.ts",
-        "default": "./dist/cjs/index.js"
+        "types": "./dist/commonjs/index.d.ts",
+        "default": "./dist/commonjs/index.js"
       }
     }
   },
@@ -29,17 +29,15 @@
     "preversion": "npm test",
     "postversion": "npm publish",
     "prepublishOnly": "git push origin --follow-tags",
-    "preprepare": "rm -rf dist",
-    "prepare": "tsc -p tsconfig.json && tsc -p tsconfig-esm.json",
-    "postprepare": "bash fixup.sh",
+    "prepare": "tshy",
     "pretest": "npm run prepare",
     "presnap": "npm run prepare",
-    "test": "c8 tap",
-    "snap": "c8 tap",
+    "test": "tap",
+    "snap": "tap",
     "format": "prettier --write . --loglevel warn",
     "benchmark": "node benchmark/index.js",
     "typedoc": "typedoc --tsconfig tsconfig-esm.json ./src/*.ts",
-    "node-build": "esbuild ./dist/cjs/index.js --bundle --platform=node --outfile=index.js"
+    "node-build": "esbuild ./dist/commonjs/index.js --bundle --platform=node --outfile=index.js"
   },
   "prettier": {
     "semi": false,
@@ -53,36 +51,31 @@
     "endOfLine": "lf"
   },
   "engines": {
-    "node": ">=16 || 14 >=14.17"
-  },
-  "dependencies": {
-    "brace-expansion": "^2.0.1"
+    "node": "20 || >=22"
   },
   "devDependencies": {
-    "@types/brace-expansion": "^1.1.0",
-    "@types/node": "^18.15.11",
-    "@types/tap": "^15.0.8",
-    "c8": "^7.12.0",
-    "esbuild": "^0.19.5",
-    "eslint-config-prettier": "^8.6.0",
-    "mkdirp": "1",
-    "prettier": "^2.8.2",
-    "tap": "^16.3.7",
-    "ts-node": "^10.9.1",
-    "typedoc": "^0.23.21",
-    "typescript": "^4.9.3"
-  },
-  "tap": {
-    "coverage": false,
-    "node-arg": [
-      "--no-warnings",
-      "--loader",
-      "ts-node/esm"
-    ],
-    "ts": false
+    "@types/brace-expansion": "^1.1.2",
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.25.5",
+    "mkdirp": "^3.0.1",
+    "prettier": "^3.3.2",
+    "tap": "^21.1.0",
+    "tshy": "^3.0.2",
+    "typedoc": "^0.28.5"
   },
   "funding": {
     "url": "https://github.com/sponsors/isaacs"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "tshy": {
+    "exports": {
+      "./package.json": "./package.json",
+      ".": "./src/index.ts"
+    }
+  },
+  "type": "module",
+  "module": "./dist/esm/index.js",
+  "dependencies": {
+    "@isaacs/brace-expansion": "^5.0.0"
+  }
 }

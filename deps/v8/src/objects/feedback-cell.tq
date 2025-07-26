@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 extern class FeedbackCell extends Struct {
-  value: Undefined|FeedbackVector|FixedArray;
+  value: Undefined|FeedbackVector|ClosureFeedbackCellArray;
+  dispatch_handle: int32;
   interrupt_budget: int32;
 }

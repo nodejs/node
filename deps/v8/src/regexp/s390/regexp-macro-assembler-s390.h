@@ -17,7 +17,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   RegExpMacroAssemblerS390(Isolate* isolate, Zone* zone, Mode mode,
                            int registers_to_save);
   ~RegExpMacroAssemblerS390() override;
-  int stack_limit_slack() override;
+  int stack_limit_slack_slot_count() override;
   void AdvanceCurrentPosition(int by) override;
   void AdvanceRegister(int reg, int by) override;
   void Backtrack() override;
@@ -53,6 +53,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
                                      Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
+  void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
+                           Handle<ByteArray> nibble_table,
+                           int advance_by) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
@@ -60,7 +63,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   bool CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void Fail() override;
-  Handle<HeapObject> GetCode(Handle<String> source) override;
+  DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
+                                   RegExpFlags flags) override;
   void GoTo(Label* label) override;
   void IfRegisterGE(int reg, int comparand, Label* if_ge) override;
   void IfRegisterLT(int reg, int comparand, Label* if_lt) override;
@@ -88,7 +92,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
   // returning.
   // {raw_code} is an Address because this is called via ExternalReference.
   static int CheckStackGuardState(Address* return_address, Address raw_code,
-                                  Address re_frame);
+                                  Address re_frame, uintptr_t extra_space);
 
  private:
   // Offsets from frame_pointer() of function parameters and stored registers.
@@ -144,9 +148,11 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerS390
 
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
+  void AssertAboveStackLimitMinusSlack();
   void CallCFunctionUsingStub(ExternalReference function, int num_arguments);
 
-  void CallCheckStackGuardState(Register scratch);
+  void CallCheckStackGuardState(
+      Register scratch, Operand extra_space_for_variables = Operand::Zero());
   void CallIsCharacterInRangeArray(const ZoneList<CharacterRange>* ranges);
 
   // The ebp-relative location of a regexp register.

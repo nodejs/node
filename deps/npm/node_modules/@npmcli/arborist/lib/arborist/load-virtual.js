@@ -1,7 +1,7 @@
 // mixin providing the loadVirtual method
 const mapWorkspaces = require('@npmcli/map-workspaces')
 
-const { resolve } = require('path')
+const { resolve } = require('node:path')
 
 const nameFromFolder = require('@npmcli/name-from-folder')
 const consistentResolve = require('../consistent-resolve.js')
@@ -149,7 +149,7 @@ module.exports = cls => class VirtualLoader extends cls {
     })
 
     for (const [name, path] of workspaces.entries()) {
-      lockWS[name] = `file:${path.replace(/#/g, '%23')}`
+      lockWS[name] = `file:${path}`
     }
 
     // Should rootNames exclude optional?
@@ -200,6 +200,18 @@ module.exports = cls => class VirtualLoader extends cls {
       const targetPath = resolve(this.path, meta.resolved)
       const targetLoc = relpath(this.path, targetPath)
       const target = nodes.get(targetLoc)
+
+      if (!target) {
+        const err = new Error(
+`Missing target in lock file: "${targetLoc}" is referenced by "${location}" but does not exist.
+To fix:
+1. rm package-lock.json
+2. npm install`
+        )
+        err.code = 'EMISSINGTARGET'
+        throw err
+      }
+
       const link = this.#loadLink(location, targetLoc, target, meta)
       nodes.set(location, link)
       nodes.set(targetLoc, link.target)
@@ -267,6 +279,7 @@ module.exports = cls => class VirtualLoader extends cls {
       integrity: sw.integrity,
       resolved: consistentResolve(sw.resolved, this.path, path),
       pkg: sw,
+      ideallyInert: sw.ideallyInert,
       hasShrinkwrap: sw.hasShrinkwrap,
       dev,
       optional,
@@ -283,7 +296,7 @@ module.exports = cls => class VirtualLoader extends cls {
     return node
   }
 
-  #loadLink (location, targetLoc, target, meta) {
+  #loadLink (location, targetLoc, target) {
     const path = resolve(this.path, location)
     const link = new Link({
       installLinks: this.installLinks,

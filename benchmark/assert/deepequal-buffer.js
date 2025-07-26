@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
   len: [1e2, 1e3],
   strict: [0, 1],
   arrayBuffer: [0, 1],
-  method: ['deepEqual', 'notDeepEqual', 'unequal_length'],
+  method: ['deepEqual', 'notDeepEqual', 'unequal_length', 'partial'],
 }, {
   combinationFilter: (p) => {
     return p.strict === 1 || p.method === 'deepEqual';
@@ -18,9 +18,14 @@ function main({ len, n, method, strict, arrayBuffer }) {
   let actual = Buffer.alloc(len);
   let expected = Buffer.alloc(len + Number(method === 'unequal_length'));
 
-
   if (method === 'unequal_length') {
     method = 'notDeepEqual';
+  }
+
+  if (method === 'partial') {
+    method = 'partialDeepStrictEqual';
+  } else if (strict) {
+    method = method.replace('eep', 'eepStrict');
   }
 
   for (let i = 0; i < len; i++) {
@@ -31,10 +36,6 @@ function main({ len, n, method, strict, arrayBuffer }) {
   if (method.includes('not')) {
     const position = Math.floor(len / 2);
     expected[position] = expected[position] + 1;
-  }
-
-  if (strict) {
-    method = method.replace('eep', 'eepStrict');
   }
 
   const fn = assert[method];

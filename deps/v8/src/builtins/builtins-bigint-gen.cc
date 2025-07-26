@@ -6,11 +6,13 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/objects/dictionary.h"
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 // https://tc39.github.io/proposal-bigint/#sec-to-big-int64
 TF_BUILTIN(BigIntToI64, CodeStubAssembler) {
@@ -72,6 +74,8 @@ TF_BUILTIN(I32PairToBigInt, CodeStubAssembler) {
 
   Return(BigIntFromInt32Pair(low, high));
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

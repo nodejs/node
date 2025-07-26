@@ -12,7 +12,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/typer.h"
+#include "src/compiler/turbofan-typer.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/objects.h"
@@ -53,7 +53,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
   MachineOperatorBuilder machine;
   SimplifiedOperatorBuilder simplified;
   CommonOperatorBuilder common;
-  Graph graph;
+  TFGraph graph;
   Typer typer;
   Node* context_node;
   CompilationDependencies deps;
@@ -69,7 +69,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
     return graph.NewNode(common.HeapConstant(value));
   }
 
-  Node* HeapConstant(Handle<HeapObject> constant) {
+  Node* HeapConstantNoHole(Handle<HeapObject> constant) {
     return graph.NewNode(common.HeapConstant(constant));
   }
 
@@ -190,9 +190,9 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
     CheckHandle(isolate->factory()->false_value(), result);
   }
 
-  void CheckHandle(Handle<HeapObject> expected, Node* result) {
+  void CheckHandle(DirectHandle<HeapObject> expected, Node* result) {
     CHECK_EQ(IrOpcode::kHeapConstant, result->opcode());
-    Handle<HeapObject> value = HeapConstantOf(result->op());
+    DirectHandle<HeapObject> value = HeapConstantOf(result->op());
     CHECK_EQ(*expected, *value);
   }
 };

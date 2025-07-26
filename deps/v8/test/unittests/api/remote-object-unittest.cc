@@ -23,8 +23,10 @@ bool AccessCheck(Local<Context> accessing_context,
   return false;
 }
 
-void NamedGetter(Local<Name> property,
-                 const PropertyCallbackInfo<Value>& info) {}
+v8::Intercepted NamedGetter(Local<Name> property,
+                            const PropertyCallbackInfo<Value>& info) {
+  return v8::Intercepted::kNo;
+}
 
 void Constructor(const FunctionCallbackInfo<Value>& info) {
   ASSERT_TRUE(info.IsConstructCall());
@@ -40,7 +42,7 @@ TEST_F(RemoteObjectTest, CreationContextOfRemoteContext) {
 
   Local<Object> remote_context =
       Context::NewRemoteContext(isolate(), global_template).ToLocalChecked();
-  EXPECT_TRUE(remote_context->GetCreationContext().IsEmpty());
+  EXPECT_TRUE(remote_context->GetCreationContext(isolate()).IsEmpty());
 }
 
 TEST_F(RemoteObjectTest, CreationContextOfRemoteObject) {
@@ -52,7 +54,7 @@ TEST_F(RemoteObjectTest, CreationContextOfRemoteObject) {
 
   Local<Object> remote_object =
       constructor_template->NewRemoteInstance().ToLocalChecked();
-  EXPECT_TRUE(remote_object->GetCreationContext().IsEmpty());
+  EXPECT_TRUE(remote_object->GetCreationContext(isolate()).IsEmpty());
 }
 
 TEST_F(RemoteObjectTest, RemoteContextInstanceChecks) {

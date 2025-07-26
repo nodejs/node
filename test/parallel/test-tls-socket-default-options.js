@@ -10,11 +10,11 @@ const {
 } = require(fixtures.path('tls-connect'));
 
 test(undefined, (err) => {
-  assert.strictEqual(err.message, 'unable to verify the first certificate');
+  assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
 });
 
 test({}, (err) => {
-  assert.strictEqual(err.message, 'unable to verify the first certificate');
+  assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
 });
 
 test(
@@ -30,8 +30,8 @@ test(
 test(
   { secureContext: tls.createSecureContext(), ca: keys.agent1.ca },
   (err) => {
-    assert.strictEqual(err.message,
-                       'unable to verify the first certificate');
+    assert.strictEqual(err.code,
+                       'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
   });
 
 function test(client, callback) {
@@ -42,7 +42,7 @@ function test(client, callback) {
       cert: keys.agent1.cert,
     },
   }, function(err, pair, cleanup) {
-    assert.strictEqual(err.message, 'unable to verify the first certificate');
+    assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
     let recv = '';
     pair.server.server.once('secureConnection', common.mustCall((conn) => {
       conn.on('data', (data) => recv += data);

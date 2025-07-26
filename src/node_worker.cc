@@ -54,7 +54,8 @@ Worker::Worker(Environment* env,
                std::shared_ptr<PerIsolateOptions> per_isolate_opts,
                std::vector<std::string>&& exec_argv,
                std::shared_ptr<KVStore> env_vars,
-               const SnapshotData* snapshot_data)
+               const SnapshotData* snapshot_data,
+               const bool is_internal)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER),
       per_isolate_opts_(per_isolate_opts),
       exec_argv_(exec_argv),
@@ -63,7 +64,8 @@ Worker::Worker(Environment* env,
       name_(name),
       env_vars_(env_vars),
       embedder_preload_(env->embedder_preload()),
-      snapshot_data_(snapshot_data) {
+      snapshot_data_(snapshot_data),
+      is_internal_(is_internal) {
   Debug(this, "Creating new worker instance with thread id %llu",
         thread_id_.id);
 
@@ -89,7 +91,7 @@ Worker::Worker(Environment* env,
   // Without this check, to use the permission model with
   // workers (--allow-worker) one would need to pass --allow-inspector as well
   if (env->permission()->is_granted(
-          node::permission::PermissionScope::kInspector)) {
+          env, node::permission::PermissionScope::kInspector)) {
     inspector_parent_handle_ =
         GetInspectorParentHandle(env, thread_id_, url.c_str(), name.c_str());
   }
@@ -185,16 +187,15 @@ class WorkerThreadData {
       isolate->SetStackLimit(w->stack_base_);
 
       HandleScope handle_scope(isolate);
-      isolate_data_.reset(
-          CreateIsolateData(isolate,
-                            &loop_,
-                            w_->platform_,
-                            allocator.get(),
-                            w->snapshot_data()->AsEmbedderWrapper().get()));
+      isolate_data_.reset(IsolateData::CreateIsolateData(
+          isolate,
+          &loop_,
+          w_->platform_,
+          allocator.get(),
+          w->snapshot_data()->AsEmbedderWrapper().get(),
+          std::move(w_->per_isolate_opts_)));
       CHECK(isolate_data_);
       CHECK(!isolate_data_->is_building_snapshot());
-      if (w_->per_isolate_opts_)
-        isolate_data_->set_options(std::move(w_->per_isolate_opts_));
       isolate_data_->set_worker_context(w_);
       isolate_data_->max_young_gen_size =
           params.constraints.max_young_generation_size_in_bytes();
@@ -229,13 +230,7 @@ class WorkerThreadData {
         *static_cast<bool*>(data) = true;
       }, &platform_finished);
 
-      // The order of these calls is important; if the Isolate is first disposed
-      // and then unregistered, there is a race condition window in which no
-      // new Isolate at the same address can successfully be registered with
-      // the platform.
-      // (Refs: https://github.com/nodejs/node/issues/30846)
-      w_->platform_->UnregisterIsolate(isolate);
-      isolate->Dispose();
+      w_->platform_->DisposeIsolate(isolate);
 
       // Wait until the platform has cleaned up all relevant resources.
       while (!platform_finished) {
@@ -359,6 +354,9 @@ void Worker::Run() {
       CHECK(!context.IsEmpty());
       Context::Scope context_scope(context);
       {
+#if HAVE_INSPECTOR
+        environment_flags_ |= EnvironmentFlags::kNoWaitForInspectorFrontend;
+#endif
         env_.reset(CreateEnvironment(
             data.isolate_data_.get(),
             context,
@@ -380,6 +378,10 @@ void Worker::Run() {
         this->env_ = env_.get();
       }
       Debug(this, "Created Environment for worker with id %llu", thread_id_.id);
+
+#if HAVE_INSPECTOR
+      this->env_->WaitForInspectorFrontendByOptions();
+#endif
       if (is_stopped()) return;
       {
         if (!CreateEnvMessagePort(env_.get())) {
@@ -443,6 +445,9 @@ void Worker::JoinThread() {
 
   env()->remove_sub_worker_context(this);
 
+  // Join may happen after the worker exits and disposes the isolate
+  if (!env()->can_call_into_js()) return;
+
   {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
@@ -484,12 +489,9 @@ Worker::~Worker() {
 
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  auto is_internal = args[5];
-  CHECK(is_internal->IsBoolean());
-  if (is_internal->IsFalse()) {
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kWorkerThreads, "");
-  }
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kWorkerThreads, "");
+  bool is_internal = args[5]->IsTrue();
   Isolate* isolate = args.GetIsolate();
 
   CHECK(args.IsConstructCall());
@@ -526,35 +528,71 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   } else if (args[1]->IsObject()) {
     // User provided env.
     env_vars = KVStore::CreateMapKVStore();
-    env_vars->AssignFromObject(isolate->GetCurrentContext(),
-                               args[1].As<Object>());
+    if (env_vars
+            ->AssignFromObject(isolate->GetCurrentContext(),
+                               args[1].As<Object>())
+            .IsNothing()) {
+      return;
+    }
   } else {
     // Env is shared.
     env_vars = env->env_vars();
+  }
+
+  if (!env_vars) {
+    THROW_ERR_OPERATION_FAILED(env, "Failed to copy environment variables");
   }
 
   if (args[1]->IsObject() || args[2]->IsArray()) {
     per_isolate_opts.reset(new PerIsolateOptions());
 
     HandleEnvOptions(per_isolate_opts->per_env, [&env_vars](const char* name) {
-      return env_vars->Get(name).FromMaybe("");
+      return env_vars->Get(name).value_or("");
     });
 
 #ifndef NODE_WITHOUT_NODE_OPTIONS
-    std::string node_options;
-    if (env_vars->Get("NODE_OPTIONS").To(&node_options)) {
+    std::optional<std::string> node_options = env_vars->Get("NODE_OPTIONS");
+    if (node_options.has_value()) {
       std::vector<std::string> errors{};
       std::vector<std::string> env_argv =
-          ParseNodeOptionsEnvVar(node_options, &errors);
+          ParseNodeOptionsEnvVar(node_options.value(), &errors);
       // [0] is expected to be the program name, add dummy string.
       env_argv.insert(env_argv.begin(), "");
       std::vector<std::string> invalid_args{};
-      options_parser::Parse(&env_argv,
-                            nullptr,
-                            &invalid_args,
-                            per_isolate_opts.get(),
-                            kAllowedInEnvvar,
-                            &errors);
+
+      std::optional<std::string> parent_node_options =
+          env->env_vars()->Get("NODE_OPTIONS");
+
+      // If the worker code passes { env: { ...process.env, ... } } or
+      // the NODE_OPTIONS is otherwise character-for-character equal to the
+      // original NODE_OPTIONS, allow per-process options inherited into
+      // the worker since worker spawning code is not usually in charge of
+      // how the NODE_OPTIONS is configured for the parent.
+      // TODO(joyeecheung): a more intelligent filter may be more desirable.
+      // but a string comparison is good enough(TM) for the case where the
+      // worker spawning code just wants to pass the parent configuration down
+      // and does not intend to modify NODE_OPTIONS.
+      if (parent_node_options == node_options) {
+        // Creates a wrapper per-process option over the per_isolate_opts
+        // to allow per-process options copied from the parent.
+        std::unique_ptr<PerProcessOptions> per_process_opts =
+            std::make_unique<PerProcessOptions>();
+        per_process_opts->per_isolate = per_isolate_opts;
+        options_parser::Parse(&env_argv,
+                              nullptr,
+                              &invalid_args,
+                              per_process_opts.get(),
+                              kAllowedInEnvvar,
+                              &errors);
+      } else {
+        options_parser::Parse(&env_argv,
+                              nullptr,
+                              &invalid_args,
+                              per_isolate_opts.get(),
+                              kAllowedInEnvvar,
+                              &errors);
+      }
+
       if (!errors.empty() && args[1]->IsObject()) {
         // Only fail for explicitly provided env, this protects from failures
         // when NODE_OPTIONS from parent's env is used (which is the default).
@@ -569,26 +607,29 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
       }
     }
 #endif  // NODE_WITHOUT_NODE_OPTIONS
-  }
 
-  if (args[2]->IsArray()) {
-    Local<Array> array = args[2].As<Array>();
     // The first argument is reserved for program name, but we don't need it
     // in workers.
     std::vector<std::string> exec_argv = {""};
-    uint32_t length = array->Length();
-    for (uint32_t i = 0; i < length; i++) {
-      Local<Value> arg;
-      if (!array->Get(env->context(), i).ToLocal(&arg)) {
-        return;
+    if (args[2]->IsArray()) {
+      Local<Array> array = args[2].As<Array>();
+      uint32_t length = array->Length();
+      for (uint32_t i = 0; i < length; i++) {
+        Local<Value> arg;
+        if (!array->Get(env->context(), i).ToLocal(&arg)) {
+          return;
+        }
+        Local<String> arg_v8;
+        if (!arg->ToString(env->context()).ToLocal(&arg_v8)) {
+          return;
+        }
+        Utf8Value arg_utf8_value(args.GetIsolate(), arg_v8);
+        std::string arg_string(arg_utf8_value.out(), arg_utf8_value.length());
+        exec_argv.push_back(arg_string);
       }
-      Local<String> arg_v8;
-      if (!arg->ToString(env->context()).ToLocal(&arg_v8)) {
-        return;
-      }
-      Utf8Value arg_utf8_value(args.GetIsolate(), arg_v8);
-      std::string arg_string(arg_utf8_value.out(), arg_utf8_value.length());
-      exec_argv.push_back(arg_string);
+    } else {
+      exec_argv.insert(
+          exec_argv.end(), env->exec_argv().begin(), env->exec_argv().end());
     }
 
     std::vector<std::string> invalid_args{};
@@ -604,11 +645,12 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
 
     // The first argument is program name.
     invalid_args.erase(invalid_args.begin());
-    if (errors.size() > 0 || invalid_args.size() > 0) {
+    // Only fail for explicitly provided execArgv, this protects from failures
+    // when execArgv from parent's execArgv is used (which is the default).
+    if (errors.size() > 0 || (invalid_args.size() > 0 && args[2]->IsArray())) {
       Local<Value> error;
-      if (!ToV8Value(env->context(),
-                     errors.size() > 0 ? errors : invalid_args)
-                         .ToLocal(&error)) {
+      if (!ToV8Value(env->context(), errors.size() > 0 ? errors : invalid_args)
+               .ToLocal(&error)) {
         return;
       }
       Local<String> key =
@@ -619,7 +661,19 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
       return;
     }
   } else {
+    // Copy the parent's execArgv.
     exec_argv_out = env->exec_argv();
+    per_isolate_opts = env->isolate_data()->options()->Clone();
+  }
+
+  // Internal workers should not wait for inspector frontend to connect or
+  // break on the first line of internal scripts. Module loader threads are
+  // essential to load user codes and must not be blocked by the inspector
+  // for internal scripts.
+  // Still, `--inspect-node` can break on the first line of internal scripts.
+  if (is_internal) {
+    per_isolate_opts->per_env->get_debug_options()
+        ->DisableWaitOrBreakFirstLine();
   }
 
   const SnapshotData* snapshot_data = env->isolate_data()->snapshot_data();
@@ -631,7 +685,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
                               per_isolate_opts,
                               std::move(exec_argv_out),
                               env_vars,
-                              snapshot_data);
+                              snapshot_data,
+                              is_internal);
 
   CHECK(args[3]->IsFloat64Array());
   Local<Float64Array> limit_info = args[3].As<Float64Array>();
@@ -683,6 +738,7 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
     Worker* w = static_cast<Worker*>(arg);
     const uintptr_t stack_top = reinterpret_cast<uintptr_t>(&arg);
 
+    uv_thread_setname(w->name_.c_str());
     // Leave a few kilobytes just to make sure we're within limits and have
     // some space to do work in C++ land.
     w->stack_base_ = stack_top - (w->stack_size_ - kStackBufferSize);
@@ -751,6 +807,116 @@ void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
   if (w->has_ref_ && w->tid_.has_value()) {
     w->has_ref_ = false;
     w->env()->add_refs(-1);
+  }
+}
+
+class WorkerHeapStatisticsTaker : public AsyncWrap {
+ public:
+  WorkerHeapStatisticsTaker(Environment* env, Local<Object> obj)
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERHEAPSTATISTICS) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WorkerHeapStatisticsTaker)
+  SET_SELF_SIZE(WorkerHeapStatisticsTaker)
+};
+
+void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Environment* env = w->env();
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_statistics_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  // The created WorkerHeapStatisticsTaker is an object owned by main
+  // thread's Isolate, it can not be accessed by worker thread
+  std::unique_ptr<BaseObjectPtr<WorkerHeapStatisticsTaker>> taker =
+      std::make_unique<BaseObjectPtr<WorkerHeapStatisticsTaker>>(
+          MakeDetachedBaseObject<WorkerHeapStatisticsTaker>(env, wrap));
+
+  // Interrupt the worker thread and take a snapshot, then schedule a call
+  // on the parent thread that turns that snapshot into a readable stream.
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    // We create a unique pointer to HeapStatistics so that the actual object
+    // it's not copied in the lambda, but only the pointer is.
+    auto heap_stats = std::make_unique<v8::HeapStatistics>();
+    worker_env->isolate()->GetHeapStatistics(heap_stats.get());
+
+    // Here, the worker thread temporarily owns the WorkerHeapStatisticsTaker
+    // object.
+
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         heap_stats = std::move(heap_stats)](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker->get());
+
+          Local<v8::Name> heap_stats_names[] = {
+              FIXED_ONE_BYTE_STRING(isolate, "total_heap_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_heap_size_executable"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_physical_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_available_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "used_heap_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "heap_size_limit"),
+              FIXED_ONE_BYTE_STRING(isolate, "malloced_memory"),
+              FIXED_ONE_BYTE_STRING(isolate, "peak_malloced_memory"),
+              FIXED_ONE_BYTE_STRING(isolate, "does_zap_garbage"),
+              FIXED_ONE_BYTE_STRING(isolate, "number_of_native_contexts"),
+              FIXED_ONE_BYTE_STRING(isolate, "number_of_detached_contexts"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_global_handles_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "used_global_handles_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "external_memory")};
+
+          // Define an array of property values
+          Local<Value> heap_stats_values[] = {
+              Number::New(isolate, heap_stats->total_heap_size()),
+              Number::New(isolate, heap_stats->total_heap_size_executable()),
+              Number::New(isolate, heap_stats->total_physical_size()),
+              Number::New(isolate, heap_stats->total_available_size()),
+              Number::New(isolate, heap_stats->used_heap_size()),
+              Number::New(isolate, heap_stats->heap_size_limit()),
+              Number::New(isolate, heap_stats->malloced_memory()),
+              Number::New(isolate, heap_stats->peak_malloced_memory()),
+              Boolean::New(isolate, heap_stats->does_zap_garbage()),
+              Number::New(isolate, heap_stats->number_of_native_contexts()),
+              Number::New(isolate, heap_stats->number_of_detached_contexts()),
+              Number::New(isolate, heap_stats->total_global_handles_size()),
+              Number::New(isolate, heap_stats->used_global_handles_size()),
+              Number::New(isolate, heap_stats->external_memory())};
+
+          DCHECK_EQ(arraysize(heap_stats_names), arraysize(heap_stats_values));
+
+          // Create the object with the property names and values
+          Local<Object> stats = Object::New(isolate,
+                                            Null(isolate),
+                                            heap_stats_names,
+                                            heap_stats_values,
+                                            arraysize(heap_stats_names));
+
+          Local<Value> args[] = {stats};
+          taker->get()->MakeCallback(
+              env->ondone_string(), arraysize(args), args);
+          // implicitly delete `taker`
+        },
+        CallbackFlags::kUnrefed);
+
+    // Now, the lambda is delivered to the main thread, as a result, the
+    // WorkerHeapStatisticsTaker object is delivered to the main thread, too.
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  } else {
+    args.GetReturnValue().Set(Local<Object>());
   }
 }
 
@@ -934,6 +1100,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "takeHeapSnapshot", Worker::TakeHeapSnapshot);
     SetProtoMethod(isolate, w, "loopIdleTime", Worker::LoopIdleTime);
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
+    SetProtoMethod(isolate, w, "getHeapStatistics", Worker::GetHeapStatistics);
 
     SetConstructorFunction(isolate, target, "Worker", w);
   }
@@ -949,6 +1116,20 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
         FIXED_ONE_BYTE_STRING(isolate, "WorkerHeapSnapshotTaker");
     wst->SetClassName(wst_string);
     isolate_data->set_worker_heap_snapshot_taker_template(
+        wst->InstanceTemplate());
+  }
+
+  {
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
+
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerHeapSnapshotTaker::kInternalFieldCount);
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+
+    Local<String> wst_string =
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerHeapStatisticsTaker");
+    wst->SetClassName(wst_string);
+    isolate_data->set_worker_heap_statistics_taker_template(
         wst->InstanceTemplate());
   }
 
@@ -972,6 +1153,16 @@ void CreateWorkerPerContextProperties(Local<Object> target,
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(isolate, "isMainThread"),
             Boolean::New(isolate, env->is_main_thread()))
+      .Check();
+
+  Worker* worker = env->isolate_data()->worker_context();
+  bool is_internal = worker != nullptr && worker->is_internal();
+
+  // Set the is_internal property
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "isInternalThread"),
+            Boolean::New(isolate, is_internal))
       .Check();
 
   target
@@ -1007,6 +1198,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::TakeHeapSnapshot);
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
+  registry->Register(Worker::GetHeapStatistics);
 }
 
 }  // anonymous namespace

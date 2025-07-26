@@ -9,6 +9,10 @@ node_root  = os.path.normpath(os.path.join(script_dir, os.pardir))
 sys.path.insert(0, os.path.join(node_root, 'tools', 'gyp', 'pylib'))
 import gyp
 
+# Add search path for `pymod_do_main` first to avoid depending on
+# load order of gyp files.
+sys.path.insert(0, os.path.join(node_root, 'tools', 'v8_gypfiles'))
+
 # Directory within which we want all generated files (including Makefiles)
 # to be written.
 output_dir = os.path.join(os.path.abspath(node_root), 'out')

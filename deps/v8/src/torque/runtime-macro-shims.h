@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file contains runtime implementations of a few macros that are defined
-// as external in Torque, so that generated runtime code can work.
-
 #ifndef V8_TORQUE_RUNTIME_MACRO_SHIMS_H_
 #define V8_TORQUE_RUNTIME_MACRO_SHIMS_H_
+
+// This file contains runtime implementations of a few macros that are defined
+// as external in Torque, so that generated runtime code can work.
 
 #include <cstdint>
 
 #include "src/numbers/integer-literal.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -46,6 +47,8 @@ inline int31_t ConstexprIntegerLiteralToInt31(const IntegerLiteral& i) {
 inline intptr_t ConstexprIntegerLiteralToIntptr(const IntegerLiteral& i) {
   return i.To<intptr_t>();
 }
+
+inline void Print(const char* str) { PrintF("%s", str); }
 
 }  // namespace CodeStubAssembler
 }  // namespace TorqueRuntimeMacroShims

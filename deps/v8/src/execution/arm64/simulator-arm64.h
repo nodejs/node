@@ -372,6 +372,8 @@ class SimRegisterBase {
 using SimRegister = SimRegisterBase<kXRegSize>;   // r0-r31
 using SimVRegister = SimRegisterBase<kQRegSize>;  // v0-v31
 
+using sim_uint128_t = std::pair<uint64_t, uint64_t>;
+
 // Representation of a vector register, with typed getters and setters for lanes
 // and additional information to represent lane state.
 class LogicVRegister {
@@ -486,6 +488,16 @@ class LogicVRegister {
         UNREACHABLE();
         return;
     }
+  }
+
+  void SetUint(VectorFormat vform, int index, sim_uint128_t value) const {
+    if (LaneSizeInBitsFromFormat(vform) <= 64) {
+      SetUint(vform, index, value.second);
+      return;
+    }
+    DCHECK((vform == kFormat1Q) && (index == 0));
+    SetUint(kFormat2D, 0, value.second);
+    SetUint(kFormat2D, 1, value.first);
   }
 
   void SetUintArray(VectorFormat vform, const uint64_t* src) const {
@@ -686,9 +698,6 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     }
 
     explicit CallArgument(float argument) {
-      // TODO(all): CallArgument(float) is untested, remove this check once
-      //            tested.
-      UNIMPLEMENTED();
       // Make the D register a NaN to try to trap errors if the callee expects a
       // double. If it expects a float, the callee should ignore the top word.
       DCHECK(sizeof(kFP64SignallingNaN) == sizeof(bits_));
@@ -741,17 +750,22 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   bool PrintValue(const char* desc);
 
   // Push an address onto the JS stack.
-  uintptr_t PushAddress(uintptr_t address);
+  V8_EXPORT_PRIVATE uintptr_t PushAddress(uintptr_t address);
 
   // Pop an address from the JS stack.
-  uintptr_t PopAddress();
+  V8_EXPORT_PRIVATE uintptr_t PopAddress();
 
   // Accessor to the internal simulator stack area. Adds a safety
   // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
-  // Return current stack view, without additional safety margins.
+  uintptr_t StackBase() const;
+  void SetStackLimit(uintptr_t limit);
+  // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
-  base::Vector<uint8_t> GetCurrentStackView() const;
+  base::Vector<uint8_t> GetCentralStackView() const;
+  static constexpr int JSStackLimitMargin() { return kAdditionalStackMargin; }
+
+  void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
 
   V8_EXPORT_PRIVATE void ResetState();
 
@@ -912,6 +926,8 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 #define DECLARE(A) void Visit##A(Instruction* instr);
   VISITOR_LIST(DECLARE)
 #undef DECLARE
+  void VisitNEON3SameFP(NEON3SameOp op, VectorFormat vf, SimVRegister& rd,
+                        SimVRegister& rn, SimVRegister& rm);
 
   bool IsZeroRegister(unsigned code, Reg31Mode r31mode) const {
     return ((code == 31) && (r31mode == Reg31IsZeroRegister));
@@ -1409,7 +1425,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     int number;
   };
 
-  static const PACKey kPACKeyIB;
+  static V8_EXPORT_PRIVATE const PACKey kPACKeyIB;
 
   // Current implementation is that all pointers are tagged.
   static bool HasTBI(uint64_t ptr, PointerType type) {
@@ -1558,6 +1574,10 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   template <typename T>
   void BitfieldHelper(Instruction* instr);
   uint16_t PolynomialMult(uint8_t op1, uint8_t op2);
+  sim_uint128_t PolynomialMult128(uint64_t op1, uint64_t op2,
+                                  int lane_size_in_bits) const;
+  sim_uint128_t Lsl128(sim_uint128_t x, unsigned shift) const;
+  sim_uint128_t Eor128(sim_uint128_t x, sim_uint128_t y) const;
 
   void ld1(VectorFormat vform, LogicVRegister dst, uint64_t addr);
   void ld1(VectorFormat vform, LogicVRegister dst, int index, uint64_t addr);
@@ -2002,6 +2022,11 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   LogicVRegister sqrdmulh(VectorFormat vform, LogicVRegister dst,
                           const LogicVRegister& src1,
                           const LogicVRegister& src2, bool round = true);
+  LogicVRegister dot(VectorFormat vform, LogicVRegister dst,
+                     const LogicVRegister& src1, const LogicVRegister& src2,
+                     bool is_src1_signed, bool is_src2_signed);
+  LogicVRegister sdot(VectorFormat vform, LogicVRegister dst,
+                      const LogicVRegister& src1, const LogicVRegister& src2);
   LogicVRegister sqdmulh(VectorFormat vform, LogicVRegister dst,
                          const LogicVRegister& src1,
                          const LogicVRegister& src2);
@@ -2207,8 +2232,12 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   double UFixedToDouble(uint64_t src, int fbits, FPRounding round_mode);
   float FixedToFloat(int64_t src, int fbits, FPRounding round_mode);
   float UFixedToFloat(uint64_t src, int fbits, FPRounding round_mode);
+  float16 FixedToFloat16(int64_t src, int fbits, FPRounding round_mode);
+  float16 UFixedToFloat16(uint64_t src, int fbits, FPRounding round_mode);
+  int16_t FPToInt16(double value, FPRounding rmode);
   int32_t FPToInt32(double value, FPRounding rmode);
   int64_t FPToInt64(double value, FPRounding rmode);
+  uint16_t FPToUInt16(double value, FPRounding rmode);
   uint32_t FPToUInt32(double value, FPRounding rmode);
   uint64_t FPToUInt64(double value, FPRounding rmode);
   int32_t FPToFixedJS(double value);
@@ -2415,6 +2444,18 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   class GlobalMonitor {
    public:
+    class SimulatorMutex final {
+     public:
+      explicit SimulatorMutex(GlobalMonitor* global_monitor) {
+        if (!global_monitor->IsSingleThreaded()) {
+          guard.emplace(global_monitor->mutex_);
+        }
+      }
+
+     private:
+      std::optional<base::MutexGuard> guard;
+    };
+
     class Processor {
      public:
       Processor();
@@ -2440,31 +2481,32 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
       int failure_counter_;
     };
 
-    // Exposed so it can be accessed by Simulator::{Read,Write}Ex*.
-    base::Mutex mutex;
-
     void NotifyLoadExcl_Locked(uintptr_t addr, Processor* processor);
     void NotifyStore_Locked(Processor* processor);
     bool NotifyStoreExcl_Locked(uintptr_t addr, Processor* processor);
 
+    // Called when the simulator is constructed.
+    void PrependProcessor(Processor* processor);
     // Called when the simulator is destroyed.
     void RemoveProcessor(Processor* processor);
 
     static GlobalMonitor* Get();
 
    private:
+    bool IsSingleThreaded() const { return num_processors_ == 1; }
+
     // Private constructor. Call {GlobalMonitor::Get()} to get the singleton.
     GlobalMonitor() = default;
     friend class base::LeakyObject<GlobalMonitor>;
 
-    bool IsProcessorInLinkedList_Locked(Processor* processor) const;
-    void PrependProcessor_Locked(Processor* processor);
-
     Processor* head_ = nullptr;
+    std::atomic<uint32_t> num_processors_ = 0;
+    base::Mutex mutex_;
   };
 
   LocalMonitor local_monitor_;
   GlobalMonitor::Processor global_monitor_processor_;
+  GlobalMonitor* global_monitor_;
 
  private:
   void Init(FILE* stream);
@@ -2476,14 +2518,16 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   // Read floating point return values.
   template <typename T>
-  typename std::enable_if<std::is_floating_point<T>::value, T>::type
-  ReadReturn() {
+  T ReadReturn()
+    requires std::is_floating_point<T>::value
+  {
     return static_cast<T>(dreg(0));
   }
   // Read non-float return values.
   template <typename T>
-  typename std::enable_if<!std::is_floating_point<T>::value, T>::type
-  ReadReturn() {
+  T ReadReturn()
+    requires(!std::is_floating_point<T>::value)
+  {
     return ConvertReturn<T>(xreg(0));
   }
 
@@ -2549,6 +2593,11 @@ inline double Simulator::FPDefaultNaN<double>() {
 template <>
 inline float Simulator::FPDefaultNaN<float>() {
   return kFP32DefaultNaN;
+}
+
+template <>
+inline float16 Simulator::FPDefaultNaN<float16>() {
+  return kFP16DefaultNaN;
 }
 
 }  // namespace internal

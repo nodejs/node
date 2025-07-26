@@ -55,14 +55,14 @@ void copy_to_transport_params(ngtcp2_transport_params* params,
                               const sockaddr* addr) {
   params->preferred_addr_present = true;
   if constexpr (FAMILY == AF_INET) {
-    const sockaddr_in* src = reinterpret_cast<const sockaddr_in*>(addr);
+    const auto* src = reinterpret_cast<const sockaddr_in*>(addr);
     params->preferred_addr.ipv4.sin_port = SocketAddress::GetPort(addr);
     memcpy(&params->preferred_addr.ipv4.sin_addr,
            &src->sin_addr,
            sizeof(params->preferred_addr.ipv4.sin_addr));
   } else {
     DCHECK_EQ(FAMILY, AF_INET6);
-    const sockaddr_in6* src = reinterpret_cast<const sockaddr_in6*>(addr);
+    const auto* src = reinterpret_cast<const sockaddr_in6*>(addr);
     params->preferred_addr.ipv6.sin6_port = SocketAddress::GetPort(addr);
     memcpy(&params->preferred_addr.ipv6.sin6_addr,
            &src->sin6_addr,
@@ -96,23 +96,6 @@ bool resolve(const PreferredAddress::AddressInfo& address,
          req->addrinfo != nullptr;
 }
 }  // namespace
-
-Maybe<PreferredAddress::Policy> PreferredAddress::GetPolicy(
-    Environment* env, Local<Value> value) {
-  CHECK(value->IsUint32());
-  uint32_t val = 0;
-  if (value->Uint32Value(env->context()).To(&val)) {
-    switch (val) {
-      case QUIC_PREFERRED_ADDRESS_USE:
-        return Just(Policy::USE_PREFERRED_ADDRESS);
-      case QUIC_PREFERRED_ADDRESS_IGNORE:
-        return Just(Policy::IGNORE_PREFERRED_ADDRESS);
-    }
-  }
-  THROW_ERR_INVALID_ARG_VALUE(
-      env, "%d is not a valid preferred address policy", val);
-  return Nothing<Policy>();
-}
 
 PreferredAddress::PreferredAddress(ngtcp2_path* dest,
                                    const ngtcp2_preferred_addr* paddr)
@@ -153,6 +136,8 @@ void PreferredAddress::Set(ngtcp2_transport_params* params,
       return copy_to_transport_params<AF_INET>(params, addr);
     case AF_INET6:
       return copy_to_transport_params<AF_INET6>(params, addr);
+    default:
+      UNREACHABLE("Unreachable");
   }
   // Any other value is just ignored.
 }
@@ -160,23 +145,25 @@ void PreferredAddress::Set(ngtcp2_transport_params* params,
 Maybe<PreferredAddress::Policy> PreferredAddress::tryGetPolicy(
     Environment* env, Local<Value> value) {
   if (value->IsUndefined()) {
-    return Just(PreferredAddress::Policy::USE_PREFERRED_ADDRESS);
+    return Just(Policy::USE_PREFERRED);
   }
   if (value->IsUint32()) {
-    auto val = value.As<Uint32>()->Value();
-    if (val == static_cast<uint32_t>(Policy::IGNORE_PREFERRED_ADDRESS))
-      return Just(Policy::IGNORE_PREFERRED_ADDRESS);
-    if (val == static_cast<uint32_t>(Policy::USE_PREFERRED_ADDRESS))
-      return Just(Policy::USE_PREFERRED_ADDRESS);
+    switch (value.As<Uint32>()->Value()) {
+      case PREFERRED_ADDRESS_IGNORE:
+        return Just(Policy::IGNORE_PREFERRED);
+      case PREFERRED_ADDRESS_USE:
+        return Just(Policy::USE_PREFERRED);
+      default:
+        UNREACHABLE("Unreachable");
+    }
   }
   THROW_ERR_INVALID_ARG_VALUE(env, "invalid preferred address policy");
-  return Nothing<PreferredAddress::Policy>();
+  return Nothing<Policy>();
 }
 
-void PreferredAddress::Initialize(Environment* env,
-                                  v8::Local<v8::Object> target) {
-  NODE_DEFINE_CONSTANT(target, QUIC_PREFERRED_ADDRESS_IGNORE);
-  NODE_DEFINE_CONSTANT(target, QUIC_PREFERRED_ADDRESS_USE);
+void PreferredAddress::Initialize(Environment* env, Local<v8::Object> target) {
+  NODE_DEFINE_CONSTANT(target, PREFERRED_ADDRESS_IGNORE);
+  NODE_DEFINE_CONSTANT(target, PREFERRED_ADDRESS_USE);
   NODE_DEFINE_CONSTANT(target, DEFAULT_PREFERRED_ADDRESS_POLICY);
 }
 

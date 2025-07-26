@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 let {session, contextGroup, Protocol} =
-    InspectorTest.start('Regression test for crbug.com/1140845. Check that a "then" gettter on the object prototype does not crash V8');
+    InspectorTest.start('Regression test for crbug.com/1140845. Check that a "then" getter on the object prototype does not crash V8');
 
 const setupScript = `
   let obj = Object.prototype;
@@ -13,13 +13,12 @@ const setupScript = `
 (async function() {
   await Protocol.Debugger.enable();
 
-  // Set a custom `then` method on the Object prototype. This causes termination
-  // when 'then' is retrieved, as the 'then' getter is side-effecting.
+  // Set a custom `then` method on the Object prototype. This should have no effect on replMode.
   await Protocol.Runtime.evaluate({
     expression: setupScript,
   });
 
-  InspectorTest.log(`Evaluating a simple string 'foo' does not cause a crash, but a side-effect exception.`);
+  InspectorTest.log(`Evaluating a simple string 'foo' without side-effects should give us the string.`);
   InspectorTest.logMessage(await Protocol.Runtime.evaluate({
     expression: `"foo"`,
     replMode: true,

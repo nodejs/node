@@ -343,7 +343,9 @@ used when using `dgram.Socket` objects with the [`cluster`][] module. When
 `exclusive` is set to `false` (the default), cluster workers will use the same
 underlying socket handle allowing connection handling duties to be shared.
 When `exclusive` is `true`, however, the handle is not shared and attempted
-port sharing results in an error.
+port sharing results in an error. Creating a `dgram.Socket` with the `reusePort`
+option set to `true` causes `exclusive` to always be `true` when `socket.bind()`
+is called.
 
 A bound datagram socket keeps the Node.js process running to receive
 datagram messages.
@@ -378,9 +380,11 @@ provided, it is added as a listener for the [`'close'`][] event.
 added:
  - v20.5.0
  - v18.18.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`socket.close()`][] and returns a promise that fulfills when the
 socket has closed.
@@ -741,7 +745,7 @@ added: v8.6.0
 * `multicastInterface` {string}
 
 _All references to scope in this section are referring to
-[IPv6 Zone Indices][], which are defined by [RFC 4007][]. In string form, an IP
+[IPv6 Zone Indexes][], which are defined by [RFC 4007][]. In string form, an IP
 with a scope index is written as `'IP%scope'` where scope is an interface name
 or interface number._
 
@@ -916,6 +920,11 @@ chained.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version:
+    - v23.1.0
+    - v22.12.0
+    pr-url: https://github.com/nodejs/node/pull/55403
+    description: The `reusePort` option is supported.
   - version: v15.8.0
     pr-url: https://github.com/nodejs/node/pull/37026
     description: AbortSignal support was added.
@@ -935,7 +944,15 @@ changes:
   * `type` {string} The family of socket. Must be either `'udp4'` or `'udp6'`.
     Required.
   * `reuseAddr` {boolean} When `true` [`socket.bind()`][] will reuse the
-    address, even if another process has already bound a socket on it.
+    address, even if another process has already bound a socket on it, but
+    only one socket can receive the data.
+    **Default:** `false`.
+  * `reusePort` {boolean} When `true` [`socket.bind()`][] will reuse the
+    port, even if another process has already bound a socket on it. Incoming
+    datagrams are distributed to listening sockets. The option is available
+    only on some platforms, such as Linux 3.9+, DragonFlyBSD 3.6+, FreeBSD 12.0+,
+    Solaris 11.4, and AIX 7.2.5+. On unsupported platforms this option raises an
+    an error when the socket is bound.
     **Default:** `false`.
   * `ipv6Only` {boolean} Setting `ipv6Only` to `true` will
     disable dual-stack support, i.e., binding to address `::` won't make
@@ -944,6 +961,13 @@ changes:
   * `sendBufferSize` {number} Sets the `SO_SNDBUF` socket value.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
   * `signal` {AbortSignal} An AbortSignal that may be used to close a socket.
+  * `receiveBlockList` {net.BlockList} `receiveBlockList` can be used for discarding
+    inbound datagram to specific IP addresses, IP ranges, or IP subnets. This does not
+    work if the server is behind a reverse proxy, NAT, etc. because the address
+    checked against the blocklist is the address of the proxy, or the one
+    specified by the NAT.
+  * `sendBlockList` {net.BlockList} `sendBlockList` can be used for disabling outbound
+    access to specific IP addresses, IP ranges, or IP subnets.
 * `callback` {Function} Attached as a listener for `'message'` events. Optional.
 * Returns: {dgram.Socket}
 
@@ -988,7 +1012,7 @@ interfaces" address on a random port (it does the right thing for both `udp4`
 and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
 
-[IPv6 Zone Indices]: https://en.wikipedia.org/wiki/IPv6_address#Scoped_literal_IPv6_addresses
+[IPv6 Zone Indexes]: https://en.wikipedia.org/wiki/IPv6_address#Scoped_literal_IPv6_addresses
 [RFC 4007]: https://tools.ietf.org/html/rfc4007
 [`'close'`]: #event-close
 [`ERR_SOCKET_BAD_PORT`]: errors.md#err_socket_bad_port

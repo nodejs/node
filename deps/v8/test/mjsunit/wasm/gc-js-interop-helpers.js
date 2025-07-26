@@ -5,8 +5,7 @@
 // Helpers to test interoperability of Wasm objects in JavaScript.
 
 // The following flags are required:
-// Flags: --turbofan --no-always-turbofan --experimental-wasm-gc
-// Flags: --allow-natives-syntax
+// Flags: --turbofan --no-always-turbofan --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -19,14 +18,14 @@ function CreateWasmObjects() {
       .addBody([
         kExprI32Const, 42,                       // --
         kGCPrefix, kExprStructNew, struct_type,  // --
-        kGCPrefix, kExprExternExternalize        // --
+        kGCPrefix, kExprExternConvertAny        // --
       ]);
   builder.addFunction('MakeArray', makeSig([], [kWasmExternRef]))
       .exportFunc()
       .addBody([
         kExprI32Const, 2,                             // length
         kGCPrefix, kExprArrayNewDefault, array_type,  // --
-        kGCPrefix, kExprExternExternalize             // --
+        kGCPrefix, kExprExternConvertAny             // --
       ]);
 
   let instance = builder.instantiate();
@@ -36,26 +35,32 @@ function CreateWasmObjects() {
   };
 }
 
-function testThrowsRepeated(fn, ErrorType, ignoreDeopts = false) {
+function testThrowsRepeated(fn, ErrorType) {
+  // Make sure there's no left over optimized code from other
+  // instances of the function.
+  %DeoptimizeFunction(fn);
   const maxRuns = 3;
   for (let run = 0; run < maxRuns; ++run) {
     %PrepareFunctionForOptimization(fn);
     for (let i = 0; i < 5; i++) assertThrows(fn, ErrorType);
     %OptimizeFunctionOnNextCall(fn);
     assertThrows(fn, ErrorType);
-    if (isOptimized(fn) || ignoreDeopts) return;
+    if (isOptimized(fn)) return;
   }
   assertOptimized(fn);
 }
 
-function repeated(fn, ignoreDeopts = false) {
+function repeated(fn) {
+  // Make sure there's no left over optimized code from other
+  // instances of the function.
+  %DeoptimizeFunction(fn);
   const maxRuns = 3;
   for (let run = 0; run < maxRuns; ++run) {
     %PrepareFunctionForOptimization(fn);
     for (let i = 0; i < 5; i++) fn();
     %OptimizeFunctionOnNextCall(fn);
     fn();
-    if (isOptimized(fn) || ignoreDeopts) return;
+    if (isOptimized(fn)) return;
   }
   assertOptimized(fn);
 }

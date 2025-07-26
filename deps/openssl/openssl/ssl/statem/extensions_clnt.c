@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1196,47 +1196,7 @@ EXT_RETURN tls_construct_ctos_post_handshake_auth(SSL *s, WPACKET *pkt,
 #endif
 }
 
-#ifndef OPENSSL_NO_QUIC
-EXT_RETURN tls_construct_ctos_quic_transport_params_draft(SSL *s, WPACKET *pkt,
-                                                          unsigned int context, X509 *x,
-                                                          size_t chainidx)
-{
-    if (s->quic_transport_version == TLSEXT_TYPE_quic_transport_parameters
-            || s->ext.quic_transport_params == NULL
-            || s->ext.quic_transport_params_len == 0) {
-        return EXT_RETURN_NOT_SENT;
-    }
 
-    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters_draft)
-        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
-                                   s->ext.quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return EXT_RETURN_FAIL;
-    }
-
-    return EXT_RETURN_SENT;
-}
-
-EXT_RETURN tls_construct_ctos_quic_transport_params(SSL *s, WPACKET *pkt,
-                                                    unsigned int context, X509 *x,
-                                                    size_t chainidx)
-{
-    if (s->quic_transport_version == TLSEXT_TYPE_quic_transport_parameters_draft
-            || s->ext.quic_transport_params == NULL
-            || s->ext.quic_transport_params_len == 0) {
-        return EXT_RETURN_NOT_SENT;
-    }
-
-    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters)
-        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
-                                   s->ext.quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return EXT_RETURN_FAIL;
-    }
-
-    return EXT_RETURN_SENT;
-}
-#endif
 /*
  * Parse the server's renegotiation binding and abort if it's not right
  */
@@ -1576,7 +1536,8 @@ int tls_parse_stoc_npn(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
                                   PACKET_data(pkt),
                                   PACKET_remaining(pkt),
                                   s->ctx->ext.npn_select_cb_arg) !=
-             SSL_TLSEXT_ERR_OK) {
+                                  SSL_TLSEXT_ERR_OK
+            || selected_len == 0) {
         SSLfatal(s, SSL_AD_HANDSHAKE_FAILURE, SSL_R_BAD_EXTENSION);
         return 0;
     }
@@ -1605,6 +1566,8 @@ int tls_parse_stoc_alpn(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
                         size_t chainidx)
 {
     size_t len;
+    PACKET confpkt, protpkt;
+    int valid = 0;
 
     /* We must have requested it. */
     if (!s->s3.alpn_sent) {
@@ -1623,6 +1586,28 @@ int tls_parse_stoc_alpn(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
+
+    /* It must be a protocol that we sent */
+    if (!PACKET_buf_init(&confpkt, s->ext.alpn, s->ext.alpn_len)) {
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+        return 0;
+    }
+    while (PACKET_get_length_prefixed_1(&confpkt, &protpkt)) {
+        if (PACKET_remaining(&protpkt) != len)
+            continue;
+        if (memcmp(PACKET_data(pkt), PACKET_data(&protpkt), len) == 0) {
+            /* Valid protocol found */
+            valid = 1;
+            break;
+        }
+    }
+
+    if (!valid) {
+        /* The protocol sent from the server does not match one we advertised */
+        SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
+        return 0;
+    }
+
     OPENSSL_free(s->s3.alpn_selected);
     s->s3.alpn_selected = OPENSSL_malloc(len);
     if (s->s3.alpn_selected == NULL) {
@@ -1939,17 +1924,6 @@ int tls_parse_stoc_early_data(SSL *s, PACKET *pkt, unsigned int context,
             return 0;
         }
 
-#ifndef OPENSSL_NO_QUIC
-        /*
-         * QUIC server must send 0xFFFFFFFF or it's a PROTOCOL_VIOLATION
-         * per RFC9001 S4.6.1
-         */
-        if (SSL_IS_QUIC(s) && max_early_data != 0xFFFFFFFF) {
-            SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER, SSL_R_INVALID_MAX_EARLY_DATA);
-            return 0;
-        }
-#endif
-
         s->session->ext.max_early_data = max_early_data;
 
         return 1;
@@ -2032,37 +2006,3 @@ int tls_parse_stoc_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
 
     return 1;
 }
-#ifndef OPENSSL_NO_QUIC
-int tls_parse_stoc_quic_transport_params_draft(SSL *s, PACKET *pkt,
-                                               unsigned int context, X509 *x,
-                                               size_t chainidx)
-{
-    OPENSSL_free(s->ext.peer_quic_transport_params_draft);
-    s->ext.peer_quic_transport_params_draft = NULL;
-    s->ext.peer_quic_transport_params_draft_len = 0;
-
-    if (!PACKET_memdup(pkt,
-                       &s->ext.peer_quic_transport_params_draft,
-                       &s->ext.peer_quic_transport_params_draft_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-    return 1;
-}
-
-int tls_parse_stoc_quic_transport_params(SSL *s, PACKET *pkt, unsigned int context,
-                                         X509 *x, size_t chainidx)
-{
-    OPENSSL_free(s->ext.peer_quic_transport_params);
-    s->ext.peer_quic_transport_params = NULL;
-    s->ext.peer_quic_transport_params_len = 0;
-
-    if (!PACKET_memdup(pkt,
-                       &s->ext.peer_quic_transport_params,
-                       &s->ext.peer_quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-    return 1;
-}
-#endif

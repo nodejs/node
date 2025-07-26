@@ -16,6 +16,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/function-compiler.h"
+#include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -40,7 +41,8 @@ CallDescriptor* CreateCallDescriptor(Zone* zone, int return_count,
   for (int i = 0; i < return_count; i++) {
     builder.AddReturn(wasm::ValueType::For(type));
   }
-  return compiler::GetWasmCallDescriptor(zone, builder.Build());
+  return compiler::GetWasmCallDescriptor(zone, builder.Get(),
+                                         WasmCallKind::kWasmIndirectFunction);
 }
 
 Node* MakeConstant(RawMachineAssembler* m, MachineType type, int value) {
@@ -126,7 +128,8 @@ std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   auto native_module = wasm::GetWasmEngine()->NewNativeModule(
-      isolate, wasm::WasmFeatures::All(), std::move(module), code_size);
+      isolate, wasm::WasmEnabledFeatures::All(), wasm::WasmDetectedFeatures{},
+      wasm::CompileTimeImports{}, std::move(module), code_size);
   native_module->SetWireBytes({});
   return native_module;
 }
@@ -144,7 +147,7 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       HandleAndZoneScope handles(kCompressGraphZone);
       RawMachineAssembler m(
           handles.main_isolate(),
-          handles.main_zone()->New<Graph>(handles.main_zone()), desc,
+          handles.main_zone()->New<TFGraph>(handles.main_zone()), desc,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags());
 
@@ -163,11 +166,12 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       OptimizedCompilationInfo info(base::ArrayVector("testing"),
                                     handles.main_zone(),
                                     CodeKind::WASM_FUNCTION);
-      Handle<Code> code = Pipeline::GenerateCodeForTesting(
-                              &info, handles.main_isolate(), desc, m.graph(),
-                              AssemblerOptions::Default(handles.main_isolate()),
-                              m.ExportForTest())
-                              .ToHandleChecked();
+      DirectHandle<Code> code =
+          Pipeline::GenerateCodeForTesting(
+              &info, handles.main_isolate(), desc, m.graph(),
+              AssemblerOptions::Default(handles.main_isolate()),
+              m.ExportForTest())
+              .ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
       if (v8_flags.print_code) {
         StdoutStream os;
@@ -187,13 +191,17 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
       std::shared_ptr<wasm::NativeModule> module = AllocateNativeModule(
           handles.main_isolate(), code->instruction_size());
       wasm::WasmCodeRefScope wasm_code_ref_scope;
-      uint8_t* code_start =
-          module->AddCodeForTesting(code)->instructions().begin();
+      wasm::WasmCode* wasm_code =
+          module->AddCodeForTesting(code, desc->signature_hash());
+      WasmCodePointer code_pointer =
+          wasm::GetProcessWideWasmCodePointerTable()
+              ->AllocateAndInitializeEntry(wasm_code->instruction_start(),
+                                           wasm_code->signature_hash());
 
       RawMachineAssemblerTester<int32_t> mt(CodeKind::JS_TO_WASM_FUNCTION);
       const int input_count = 2 + param_count;
       Node* call_inputs[2 + kMaxParamCount];
-      call_inputs[0] = mt.PointerConstant(code_start);
+      call_inputs[0] = mt.IntPtrConstant(code_pointer.value());
       // WasmContext dummy
       call_inputs[1] = mt.PointerConstant(nullptr);
       // Special inputs for the test.
@@ -218,11 +226,12 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
 #ifdef ENABLE_DISASSEMBLER
       if (v8_flags.print_code) {
         StdoutStream os;
-        Handle<Code> code2 = mt.GetCode();
+        DirectHandle<Code> code2 = mt.GetCode();
         code2->Disassemble("multi_value_call", os, handles.main_isolate());
       }
 #endif
       CHECK_EQ(expect, mt.Call());
+      wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
     }
   }
 }
@@ -236,7 +245,9 @@ void TestReturnMultipleValues(MachineType type, int min_count, int max_count) {
 // Create a frame larger than UINT16_MAX to force TF to use an extra register
 // when popping the frame.
 TEST(TestReturnMultipleValuesLargeFrame) {
-  TestReturnMultipleValues<20000, 20000>(MachineType::Int32(), 2, 3);
+  TestReturnMultipleValues<wasm::kV8MaxWasmFunctionParams,
+                           wasm::kV8MaxWasmFunctionParams>(MachineType::Int32(),
+                                                           2, 3);
 }
 
 TEST_MULTI(Int32, MachineType::Int32())
@@ -260,10 +271,11 @@ void ReturnLastValue(MachineType type) {
     CallDescriptor* desc = CreateCallDescriptor(&zone, return_count, 0, type);
 
     HandleAndZoneScope handles(kCompressGraphZone);
-    RawMachineAssembler m(handles.main_isolate(),
-                          handles.main_zone()->New<Graph>(handles.main_zone()),
-                          desc, MachineType::PointerRepresentation(),
-                          InstructionSelector::SupportedMachineOperatorFlags());
+    RawMachineAssembler m(
+        handles.main_isolate(),
+        handles.main_zone()->New<TFGraph>(handles.main_zone()), desc,
+        MachineType::PointerRepresentation(),
+        InstructionSelector::SupportedMachineOperatorFlags());
 
     std::unique_ptr<Node* []> returns(new Node*[return_count]);
 
@@ -275,22 +287,26 @@ void ReturnLastValue(MachineType type) {
 
     OptimizedCompilationInfo info(base::ArrayVector("testing"),
                                   handles.main_zone(), CodeKind::WASM_FUNCTION);
-    Handle<Code> code = Pipeline::GenerateCodeForTesting(
-                            &info, handles.main_isolate(), desc, m.graph(),
-                            AssemblerOptions::Default(handles.main_isolate()),
-                            m.ExportForTest())
-                            .ToHandleChecked();
+    DirectHandle<Code> code =
+        Pipeline::GenerateCodeForTesting(
+            &info, handles.main_isolate(), desc, m.graph(),
+            AssemblerOptions::Default(handles.main_isolate()),
+            m.ExportForTest())
+            .ToHandleChecked();
 
     std::shared_ptr<wasm::NativeModule> module =
         AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    uint8_t* code_start =
-        module->AddCodeForTesting(code)->instructions().begin();
+    wasm::WasmCode* wasm_code =
+        module->AddCodeForTesting(code, desc->signature_hash());
+    WasmCodePointer code_pointer =
+        wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+            wasm_code->instruction_start(), wasm_code->signature_hash());
 
     // Generate caller.
     int expect = return_count - 1;
     RawMachineAssemblerTester<int32_t> mt;
-    Node* inputs[] = {mt.PointerConstant(code_start),
+    Node* inputs[] = {mt.IntPtrConstant(code_pointer.value()),
                       // WasmContext dummy
                       mt.PointerConstant(nullptr)};
 
@@ -301,6 +317,8 @@ void ReturnLastValue(MachineType type) {
                 mt.AddNode(mt.common()->Projection(return_count - 1), call)));
 
     CHECK_EQ(expect, mt.Call());
+
+    wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
   }
 }
 
@@ -324,10 +342,11 @@ void ReturnSumOfReturns(MachineType type) {
     CallDescriptor* desc = CreateCallDescriptor(&zone, return_count, 0, type);
 
     HandleAndZoneScope handles(kCompressGraphZone);
-    RawMachineAssembler m(handles.main_isolate(),
-                          handles.main_zone()->New<Graph>(handles.main_zone()),
-                          desc, MachineType::PointerRepresentation(),
-                          InstructionSelector::SupportedMachineOperatorFlags());
+    RawMachineAssembler m(
+        handles.main_isolate(),
+        handles.main_zone()->New<TFGraph>(handles.main_zone()), desc,
+        MachineType::PointerRepresentation(),
+        InstructionSelector::SupportedMachineOperatorFlags());
 
     std::unique_ptr<Node* []> returns(new Node*[return_count]);
 
@@ -339,21 +358,25 @@ void ReturnSumOfReturns(MachineType type) {
 
     OptimizedCompilationInfo info(base::ArrayVector("testing"),
                                   handles.main_zone(), CodeKind::WASM_FUNCTION);
-    Handle<Code> code = Pipeline::GenerateCodeForTesting(
-                            &info, handles.main_isolate(), desc, m.graph(),
-                            AssemblerOptions::Default(handles.main_isolate()),
-                            m.ExportForTest())
-                            .ToHandleChecked();
+    DirectHandle<Code> code =
+        Pipeline::GenerateCodeForTesting(
+            &info, handles.main_isolate(), desc, m.graph(),
+            AssemblerOptions::Default(handles.main_isolate()),
+            m.ExportForTest())
+            .ToHandleChecked();
 
     std::shared_ptr<wasm::NativeModule> module =
         AllocateNativeModule(handles.main_isolate(), code->instruction_size());
     wasm::WasmCodeRefScope wasm_code_ref_scope;
-    uint8_t* code_start =
-        module->AddCodeForTesting(code)->instructions().begin();
+    wasm::WasmCode* wasm_code =
+        module->AddCodeForTesting(code, desc->signature_hash());
+    WasmCodePointer code_pointer =
+        wasm::GetProcessWideWasmCodePointerTable()->AllocateAndInitializeEntry(
+            wasm_code->instruction_start(), wasm_code->signature_hash());
 
     // Generate caller.
     RawMachineAssemblerTester<int32_t> mt;
-    Node* call_inputs[] = {mt.PointerConstant(code_start),
+    Node* call_inputs[] = {mt.IntPtrConstant(code_pointer.value()),
                            // WasmContext dummy
                            mt.PointerConstant(nullptr)};
 
@@ -372,6 +395,7 @@ void ReturnSumOfReturns(MachineType type) {
     mt.Return(result);
 
     CHECK_EQ(expect, mt.Call());
+    wasm::GetProcessWideWasmCodePointerTable()->FreeEntry(code_pointer);
   }
 }
 

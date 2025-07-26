@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Force TurboFan code for serialization.
-// Flags: --expose-wasm --allow-natives-syntax --expose-gc --no-liftoff
+// Flags: --allow-natives-syntax --expose-gc --no-liftoff
 // Flags: --no-wasm-lazy-compilation
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
@@ -174,7 +174,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function GlobalsArePrivateBetweenClones() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  builder.addGlobal(kWasmI32, true);
+  builder.addGlobal(kWasmI32, true, false);
   builder.addFunction("read", kSig_i_v)
     .addBody([
       kExprGlobalGet, 0])

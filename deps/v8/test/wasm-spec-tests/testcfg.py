@@ -2,10 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import os
-
 from testrunner.local import testsuite
 from testrunner.objects import testcase
+
+# We use the 'wasm-3.0' branch on the main spec repo, so enable all proposals
+# that were merged into that branch.
+default_flags = ['--experimental-wasm-exnref']
 
 proposal_flags = [
     {
@@ -14,33 +16,49 @@ proposal_flags = [
     },
     {
         'name': 'tail-call',
-        'flags': ['--experimental-wasm-return-call']
+        'flags': []
     },
     {
-        'name': 'memory64',
-        'flags': ['--experimental-wasm-memory64']
-    },
-    {
-        'name': 'extended-const',
-        'flags': ['--experimental-wasm-extended-const']
-    },
-    {
-        'name': 'function-references',
-        # Some of these tests need `global.get` to be a constant instruction,
-        # which is part of the GC proposal. We'll ship both proposals at once
-        # anyway, so we might as well enable both for these tests.
+        'name':
+            'memory64',
         'flags': [
-            '--experimental-wasm-typed-funcref', '--experimental-wasm-gc'
+            # The memory64 repository is rebased on the upstream 'wasm-3.0'
+            # branch, which contains exnref.
+            '--experimental-wasm-exnref'
         ]
     },
     {
+        'name': 'extended-const',
+        'flags': []
+    },
+    {
+        'name': 'function-references',
+        'flags': []
+    },
+    {
         'name': 'gc',
-        'flags': ['--experimental-wasm-gc', '--wasm-final-types']
+        'flags': []
     },
     {
         'name': 'multi-memory',
         'flags': ['--experimental-wasm-multi-memory']
     },
+    {
+        'name': 'exception-handling',
+        # This flag enables the *new* exception handling proposal. The legacy
+        # proposal is enabled by default.
+        'flags': ['--experimental-wasm-exnref']
+    },
+    {
+        'name':
+            'js-promise-integration',
+        'flags': [
+            '--experimental-wasm-jspi',
+            # The jspi repository is rebased on the upstream 'wasm-3.0'
+            # branch, which contains exnref.
+            '--experimental-wasm-exnref'
+        ]
+    }
 ]
 
 
@@ -68,4 +86,4 @@ class TestCase(testcase.D8TestCase):
     for proposal in proposal_flags:
       if f"proposals/{proposal['name']}" in self.name:
         return proposal['flags']
-    return []
+    return default_flags

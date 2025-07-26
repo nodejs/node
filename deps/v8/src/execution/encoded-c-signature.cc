@@ -16,6 +16,7 @@ int EncodedCSignature::FPParameterCount() const {
   return base::bits::CountPopulation(bitfield_ & ~(1 << kReturnIndex));
 }
 
+START_ALLOW_USE_DEPRECATED()
 EncodedCSignature::EncodedCSignature(const CFunctionInfo* signature) {
   parameter_count_ = static_cast<int>(signature->ArgumentCount());
   for (int i = 0; i < parameter_count_; ++i) {
@@ -33,9 +34,14 @@ EncodedCSignature::EncodedCSignature(const CFunctionInfo* signature) {
   if (signature->ReturnInfo().GetSequenceType() ==
           CTypeInfo::SequenceType::kScalar &&
       CTypeInfo::IsFloatingPointType(signature->ReturnInfo().GetType())) {
-    SetFloat(EncodedCSignature::kReturnIndex);
+    if (signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat64) {
+      SetReturnFloat64();
+    } else {
+      SetReturnFloat32();
+    }
   }
 }
+END_ALLOW_USE_DEPRECATED()
 
 }  // namespace internal
 }  // namespace v8

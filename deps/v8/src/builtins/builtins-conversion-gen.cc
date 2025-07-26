@@ -4,14 +4,15 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-factory.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/tnode.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 // ES6 section 7.1.3 ToNumber ( argument )
 TF_BUILTIN(ToNumber, CodeStubAssembler) {
@@ -120,6 +121,15 @@ TF_BUILTIN(Typeof, CodeStubAssembler) {
 
   Return(Typeof(object));
 }
+
+TF_BUILTIN(Typeof_Baseline, CodeStubAssembler) {
+  auto object = Parameter<Object>(Descriptor::kValue);
+  auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
+  auto feedback_vector = LoadFeedbackVectorFromBaseline();
+  Return(Typeof(object, slot, feedback_vector));
+}
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

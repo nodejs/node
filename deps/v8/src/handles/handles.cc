@@ -10,6 +10,8 @@
 #include "src/execution/isolate.h"
 #include "src/execution/thread-id.h"
 #include "src/handles/maybe-handles.h"
+#include "src/heap/base/stack.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/roots/roots-inl.h"
 #include "src/utils/address-map.h"
@@ -26,20 +28,53 @@
 #include "src/execution/isolate-utils-inl.h"
 #endif
 
+#ifdef V8_ENABLE_DIRECT_HANDLE
+// For Isolate::Current() in indirect_handle.
+#include "src/execution/isolate-inl.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
-// Handles should be trivially copyable so that they can be efficiently passed
-// by value. If they are not trivially copyable, they cannot be passed in
-// registers.
+// Handles should be trivially copyable so that the contained value can be
+// efficiently passed by value in a register. This is important for two
+// reasons: better performance and a simpler ABI for generated code and fast
+// API calls.
 ASSERT_TRIVIALLY_COPYABLE(HandleBase);
 ASSERT_TRIVIALLY_COPYABLE(Handle<Object>);
 ASSERT_TRIVIALLY_COPYABLE(MaybeHandle<Object>);
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
 
+#if !(defined(DEBUG) && V8_HAS_ATTRIBUTE_TRIVIAL_ABI)
+// Direct handles should be trivially copyable, for the same reasons as above.
+// In debug builds, however, we want to define a non-default copy constructor
+// and destructor for debugging purposes. This makes them non-trivially
+// copyable. We only do it in builds where we can declare them as "trivial ABI",
+// which guarantees that they can be efficiently passed by value in a register.
 ASSERT_TRIVIALLY_COPYABLE(DirectHandle<Object>);
 ASSERT_TRIVIALLY_COPYABLE(MaybeDirectHandle<Object>);
+#endif
+
+// static
+Address* HandleBase::indirect_handle(Address object) {
+  return HandleScope::CreateHandle(Isolate::Current(), object);
+}
+
+// static
+Address* HandleBase::indirect_handle(Address object, Isolate* isolate) {
+  return HandleScope::CreateHandle(isolate, object);
+}
+
+// static
+Address* HandleBase::indirect_handle(Address object, LocalIsolate* isolate) {
+  return LocalHandleScope::GetHandle(isolate->heap(), object);
+}
+
+// static
+Address* HandleBase::indirect_handle(Address object, LocalHeap* local_heap) {
+  return LocalHandleScope::GetHandle(local_heap, object);
+}
 
 #endif  // V8_ENABLE_DIRECT_HANDLE
 
@@ -49,9 +84,9 @@ bool HandleBase::IsDereferenceAllowed() const {
   DCHECK_NOT_NULL(location_);
   Tagged<Object> object(*location_);
   if (IsSmi(object)) return true;
-  Tagged<HeapObject> heap_object = HeapObject::cast(object);
-  if (IsReadOnlyHeapObject(heap_object)) return true;
-  Isolate* isolate = GetIsolateFromWritableObject(heap_object);
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
+  if (HeapLayout::InReadOnlySpace(heap_object)) return true;
+  Isolate* isolate = Isolate::Current();
   RootIndex root_index;
   if (isolate->roots_table().IsRootHandleLocation(location_, &root_index) &&
       RootsTable::IsImmortalImmovable(root_index)) {
@@ -61,11 +96,11 @@ bool HandleBase::IsDereferenceAllowed() const {
   if (!AllowHandleDereference::IsAllowed()) return false;
 
   // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (heap_object.InWritableSharedSpace()) return true;
+  if (HeapLayout::InWritableSharedSpace(heap_object)) return true;
 
   // Deref is explicitly allowed from any thread. Used for running internal GC
   // epilogue callbacks in the safepoint after a GC.
-  if (AllowHandleDereferenceAllThreads::IsAllowed()) return true;
+  if (AllowHandleUsageOnAllThreads::IsAllowed()) return true;
 
   LocalHeap* local_heap = isolate->CurrentLocalHeap();
 
@@ -94,18 +129,21 @@ bool HandleBase::IsDereferenceAllowed() const {
 }
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
-
 bool DirectHandleBase::IsDereferenceAllowed() const {
   DCHECK_NE(obj_, kTaggedNullAddress);
   Tagged<Object> object(obj_);
   if (IsSmi(object)) return true;
-  Tagged<HeapObject> heap_object = HeapObject::cast(object);
-  if (IsReadOnlyHeapObject(heap_object)) return true;
-  Isolate* isolate = GetIsolateFromWritableObject(heap_object);
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
+  if (HeapLayout::InReadOnlySpace(heap_object)) return true;
+  Isolate* isolate = Isolate::Current();
   if (!AllowHandleDereference::IsAllowed()) return false;
 
   // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (heap_object.InWritableSharedSpace()) return true;
+  if (HeapLayout::InWritableSharedSpace(heap_object)) return true;
+
+  // Deref is explicitly allowed from any thread. Used for running internal GC
+  // epilogue callbacks in the safepoint after a GC.
+  if (AllowHandleUsageOnAllThreads::IsAllowed()) return true;
 
   LocalHeap* local_heap = isolate->CurrentLocalHeap();
 
@@ -116,6 +154,11 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
     return false;
   }
 
+  // We are pretty strict with handle dereferences on background threads: A
+  // background local heap is only allowed to dereference its own local handles.
+  if (!local_heap->is_main_thread())
+    return ::heap::base::Stack::IsOnStack(this);
+
   // If LocalHeap::Current() is null, we're on the main thread -- if we were to
   // check main thread HandleScopes here, we should additionally check the
   // main-thread LocalHeap.
@@ -123,14 +166,6 @@ bool DirectHandleBase::IsDereferenceAllowed() const {
 
   return true;
 }
-
-void DirectHandleBase::VerifyOnStackAndMainThread() const {
-  internal::HandleHelper::VerifyOnStack(this);
-  // The following verifies that we are on the main thread, as
-  // LocalHeap::Current is not set in that case.
-  DCHECK_NULL(LocalHeap::Current());
-}
-
 #endif  // V8_ENABLE_DIRECT_HANDLE
 
 #endif  // DEBUG
@@ -187,11 +222,12 @@ void HandleScope::DeleteExtensions(Isolate* isolate) {
   isolate->handle_scope_implementer()->DeleteExtensions(current->limit);
 }
 
-#ifdef ENABLE_HANDLE_ZAPPING
-void HandleScope::ZapRange(Address* start, Address* end) {
+#if defined(ENABLE_GLOBAL_HANDLE_ZAPPING) || \
+    defined(ENABLE_LOCAL_HANDLE_ZAPPING)
+void HandleScope::ZapRange(Address* start, Address* end, uintptr_t zap_value) {
   DCHECK_LE(end - start, kHandleBlockSize);
   for (Address* p = start; p != end; p++) {
-    *p = static_cast<Address>(kHandleZapValue);
+    *p = static_cast<Address>(zap_value);
   }
 }
 #endif

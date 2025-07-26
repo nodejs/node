@@ -53,7 +53,7 @@ help, questions, and discussions.
 development of Node.js core specifically.
 
 Node.js also has an unofficial IRC channel:
-[#Node.js](https://web.libera.chat/?channels=node.js).
+[#Node.js](https://web.libera.chat/#node.js).
 
 ## Setting up your local environment
 
@@ -122,7 +122,7 @@ If you are modifying code, please be sure to run `make lint` (or
 code style guide.
 
 Any documentation you write (including code comments and API documentation)
-should follow the [Style Guide](../../README.md). Code samples
+should follow the [Style Guide](../../doc/README.md). Code samples
 included in the API docs will also be checked when running `make lint` (or
 `vcbuild.bat lint` on Windows). If you are adding to or deprecating an API,
 add or change the appropriate YAML documentation. Use `REPLACEME` for the
@@ -183,6 +183,11 @@ A good commit message should describe what changed and why.
 4. If your patch fixes an open issue, you can add a reference to it at the end
    of the log. Use the `Fixes:` prefix and the full issue URL. For other
    references use `Refs:`.
+
+   `Fixes:` and `Refs:` trailers get automatically added to your commit message
+   when the Pull Request lands as long as they are included in the
+   Pull Request's description. If the Pull Request lands in several commits,
+   by default the trailers found in the description are added to each commits.
 
    Examples:
 
@@ -441,6 +446,11 @@ credit for the work they started (either by preserving their name and email
 address) in the commit log, or by using an `Author:` meta-data tag in the
 commit.
 
+If a pull request has been inactive for more than six months, add the `stalled` label
+to it. That will trigger an automation that adds a comment explaining the pull request
+may be close for inactivity, giving a heads-up to the contributor before actually
+closing it if it remains inactive.
+
 ### Approving a change
 
 Any Node.js core collaborator (any GitHub user with commit rights in the
@@ -548,8 +558,7 @@ A pull request is approved either by saying LGTM, which stands for
 "Looks Good To Me", or by using GitHub's Approve button.
 GitHub's pull request review feature can be used during the process.
 For more information, check out
-[the video tutorial](https://www.youtube.com/watch?v=HW0RPaJqm4g)
-or [the official documentation](https://help.github.com/articles/reviewing-changes-in-pull-requests/).
+[the official documentation](https://help.github.com/articles/reviewing-changes-in-pull-requests/).
 
 After you push new changes to your branch, you need to get
 approval for these new changes again, even if GitHub shows "Approved"

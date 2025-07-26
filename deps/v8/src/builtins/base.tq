@@ -13,6 +13,7 @@
 #include 'src/objects/elements-kind.h'
 #include 'src/objects/free-space.h'
 #include 'src/objects/js-atomics-synchronization.h'
+#include 'src/objects/js-disposable-stack.h'
 #include 'src/objects/js-function.h'
 #include 'src/objects/js-generator.h'
 #include 'src/objects/js-iterator-helpers.h'
@@ -41,7 +42,9 @@ type TaggedIndex extends StrongTagged
     generates 'TNode<TaggedIndex>' constexpr 'TaggedIndex';
 // A possibly cleared weak pointer with a bit pattern that distinguishes it from
 // strong HeapObject pointers and Smi values.
-type WeakHeapObject extends Tagged;
+type WeakHeapObject extends Tagged
+    generates 'TNode<MaybeWeak<HeapObject>>'
+    constexpr 'MaybeWeak<HeapObject>';
 type Weak<T : type extends HeapObject> extends WeakHeapObject;
 
 type Object = Smi|HeapObject;
@@ -60,12 +63,16 @@ type Uninitialized extends Tagged;
 
 type BuiltinsName extends int31 constexpr 'Builtin';
 
+type UseCounterFeature extends int31
+    constexpr 'v8::Isolate::UseCounterFeature';
+
 extern macro MakeWeak(HeapObject): WeakHeapObject;
 extern macro GetHeapObjectAssumeWeak(MaybeObject): HeapObject labels IfCleared;
 extern macro GetHeapObjectIfStrong(MaybeObject): HeapObject labels IfNotStrong;
 extern macro IsWeakOrCleared(MaybeObject): bool;
 extern macro IsWeakReferenceToObject(MaybeObject, Object): bool;
 extern macro IsStrong(MaybeObject): bool;
+extern runtime IncrementUseCounter(Context, Smi): void;
 
 macro StrongToWeak<T: type>(x: T): Weak<T> {
   return %RawDownCast<Weak<T>>(MakeWeak(x));
@@ -73,6 +80,13 @@ macro StrongToWeak<T: type>(x: T): Weak<T> {
 macro WeakToStrong<T: type>(x: Weak<T>): T labels ClearedWeakPointer {
   const x = GetHeapObjectAssumeWeak(x) otherwise ClearedWeakPointer;
   return %RawDownCast<T>(x);
+}
+
+macro MaybeObjectToStrong(maybeObject: MaybeObject):
+    HeapObject labels IfCleared {
+  dcheck(IsWeakOrCleared(maybeObject));
+  const weakObject = %RawDownCast<Weak<HeapObject>>(maybeObject);
+  return WeakToStrong(weakObject) otherwise IfCleared;
 }
 
 // Defined to coincide with https://tc39.es/ecma262/#sec-ispropertykey
@@ -89,10 +103,11 @@ type JSPrimitive = Numeric|String|Symbol|Boolean|Null|Undefined;
 
 // A user-exposed JavaScript value, as opposed to V8-internal values like Holes
 // or a FixedArray.
-type JSAny = JSReceiver|JSPrimitive;
+type JSAny = JSPrimitive|JSReceiver;
 
 type JSAnyNotNumeric = String|Symbol|Boolean|Null|Undefined|JSReceiver;
 type JSAnyNotNumber = BigInt|JSAnyNotNumeric;
+type JSAnyNotNumberOrUndefined = String|Symbol|Boolean|Null|JSReceiver|BigInt;
 
 // This is the intersection of JSAny and HeapObject.
 type JSAnyNotSmi = JSAnyNotNumber|HeapNumber;
@@ -116,11 +131,14 @@ type int64 generates 'TNode<Int64T>' constexpr 'int64_t';
 type uint64 generates 'TNode<Uint64T>' constexpr 'uint64_t';
 type intptr generates 'TNode<IntPtrT>' constexpr 'intptr_t';
 type uintptr generates 'TNode<UintPtrT>' constexpr 'uintptr_t';
+type float16_raw_bits
+    generates 'TNode<Float16RawBitsT>' constexpr 'uint16_t';
 type float32 generates 'TNode<Float32T>' constexpr 'float';
 type float64 generates 'TNode<Float64T>' constexpr 'double';
 type bool generates 'TNode<BoolT>' constexpr 'bool';
 type bint generates 'TNode<BInt>' constexpr 'BInt';
 type string constexpr 'const char*';
+type DispatchHandle generates 'TNode<JSDispatchHandleT>';
 
 type Simd128 generates 'TNode<Simd128T>';
 type I8X16 extends Simd128 generates 'TNode<I8x16T>';
@@ -155,59 +173,93 @@ extern macro RunLazy(Lazy<JSAny>): JSAny;
 // A Smi value containing a bitfield struct as its integer data.
 @useParentTypeChecker type SmiTagged<T : type extends uint31> extends Smi;
 
+const kEnableExperimentalUndefinedDouble:
+    constexpr bool generates 'V8_EXPERIMENTAL_UNDEFINED_DOUBLE_BOOL';
 // WARNING: The memory representation (i.e., in class fields and arrays) of
-// float64_or_hole is just a float64 that may be the hole-representing
-// signalling NaN bit-pattern. So it's memory size is that of float64 and
-// loading and storing float64_or_hole emits special code.
-struct float64_or_hole {
-  macro Value(): float64 labels IfHole {
+// float64_or_undefined_or_hole is just a float64 that may be the undefined- or
+// hole-representing signalling NaN bit-pattern. So it's memory size is that of
+// float64 and loading and storing float64_or_undefined_or_hole emits special
+// code.
+struct float64_or_undefined_or_hole {
+  @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+  macro Value(): float64 labels IfUndefined, IfHole {
+    if (this.is_undefined) {
+      goto IfUndefined;
+    }
     if (this.is_hole) {
       goto IfHole;
     }
     return this.value;
   }
+
+  @ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+  macro Value(): float64 labels _IfUndefined, IfHole {
+    if (this.is_hole) {
+      goto IfHole;
+    }
+    return this.value;
+  }
+
   macro ValueUnsafeAssumeNotHole(): float64 {
+    @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+      dcheck(!this.is_undefined);
+    }
     dcheck(!this.is_hole);
     return this.value;
   }
 
+  @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) is_undefined: bool;
   is_hole: bool;
   value: float64;
 }
-const kDoubleHole: float64_or_hole = float64_or_hole{is_hole: true, value: 0};
+
+@if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+  const kDoubleHole: float64_or_undefined_or_hole =
+  float64_or_undefined_or_hole{is_undefined: false, is_hole: true, value: 0};
+@if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+  const kDoubleUndefined: float64_or_undefined_or_hole =
+  float64_or_undefined_or_hole{is_undefined: true, is_hole: false, value: 0};
+
+@ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+  const kDoubleHole: float64_or_undefined_or_hole =
+  float64_or_undefined_or_hole{is_hole: true, value: 0};
+@ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
+  const kDoubleUndefined: float64_or_undefined_or_hole =
+  float64_or_undefined_or_hole{is_hole: false, value: 0};
 
 @doNotGenerateCast
 @abstract
-extern class JSPrototype extends JSObject generates 'TNode<JSObject>';
-@doNotGenerateCast
-extern class JSObjectPrototype extends JSPrototype
+extern class JSInternalPrototypeBase extends JSObject
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSRegExpPrototype extends JSPrototype
+extern class JSObjectPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSPromisePrototype extends JSPrototype
+extern class JSRegExpPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSTypedArrayPrototype extends JSPrototype
+extern class JSPromisePrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSSetPrototype extends JSPrototype
+extern class JSTypedArrayPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSIteratorPrototype extends JSPrototype
+extern class JSSetPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSArrayIteratorPrototype extends JSPrototype
+extern class JSIteratorPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSMapIteratorPrototype extends JSPrototype
+extern class JSArrayIteratorPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSSetIteratorPrototype extends JSPrototype
+extern class JSMapIteratorPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 @doNotGenerateCast
-extern class JSStringIteratorPrototype extends JSPrototype
+extern class JSSetIteratorPrototype extends JSInternalPrototypeBase
+    generates 'TNode<JSObject>';
+@doNotGenerateCast
+extern class JSStringIteratorPrototype extends JSInternalPrototypeBase
     generates 'TNode<JSObject>';
 
 // The HashTable inheritance hierarchy doesn't actually look like this in C++
@@ -222,6 +274,7 @@ extern class NameToIndexHashTable extends HashTable;
 extern class RegisteredSymbolTable extends HashTable;
 extern class NameDictionary extends HashTable;
 extern class GlobalDictionary extends HashTable;
+extern class SimpleNameDictionary extends HashTable;
 extern class SimpleNumberDictionary extends HashTable;
 extern class EphemeronHashTable extends HashTable;
 type ObjectHashTable extends HashTable
@@ -232,20 +285,19 @@ type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
 type RawPtr<To: type> extends RawPtr;
 type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
-type IndirectPointer
-    generates 'TNode<IndirectPointerHandleT>'
-    constexpr 'IndirectPointerHandle';
-// TODO(saelo): implement accessors and type checkers for these fields.
-type IndirectPointer<To: type> extends IndirectPointer;
-extern class InstructionStream extends HeapObject;
+type CppHeapPointer
+    generates 'TNode<CppHeapPointerT>' constexpr 'CppHeapPointer_t';
+type TrustedPointer
+    generates 'TNode<TrustedPointerT>' constexpr 'TrustedPointer_t';
+type TrustedPointer<To : type extends ExposedTrustedObject> extends
+    TrustedPointer;
+type ProtectedPointer extends Tagged;
+type ProtectedPointer<To : type extends TrustedObject> extends ProtectedPointer;
+extern class InstructionStream extends TrustedObject;
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 
 type Number = Smi|HeapNumber;
 type Numeric = Number|BigInt;
-
-extern class ObjectBoilerplateDescription extends FixedArray;
-extern class ClosureFeedbackCellArray extends FixedArray;
-extern class ScriptContextTable extends FixedArray;
 
 extern class TransitionArray extends WeakFixedArray;
 
@@ -321,6 +373,7 @@ extern enum ElementsKind extends int32 {
   INT16_ELEMENTS,
   UINT32_ELEMENTS,
   INT32_ELEMENTS,
+  FLOAT16_ELEMENTS,
   FLOAT32_ELEMENTS,
   FLOAT64_ELEMENTS,
   UINT8_CLAMPED_ELEMENTS,
@@ -332,6 +385,7 @@ extern enum ElementsKind extends int32 {
   RAB_GSAB_INT16_ELEMENTS,
   RAB_GSAB_UINT32_ELEMENTS,
   RAB_GSAB_INT32_ELEMENTS,
+  RAB_GSAB_FLOAT16_ELEMENTS,
   RAB_GSAB_FLOAT32_ELEMENTS,
   RAB_GSAB_FLOAT64_ELEMENTS,
   RAB_GSAB_UINT8_CLAMPED_ELEMENTS,
@@ -416,6 +470,7 @@ extern enum MessageTemplate {
   kTypedArraySetOffsetOutOfBounds,
   kInvalidArgument,
   kInvalidRegExpExecResult,
+  kInvalidSizeValue,
   kRegExpNonRegExp,
   kRegExpNonObject,
   kPromiseNonCallable,
@@ -472,6 +527,10 @@ extern enum MessageTemplate {
   kGeneratorRunning,
   kFirstArgumentAsyncIteratorSymbolNonCallable,
   kIteratorResultNotAnObject,
+  kFlattenPastSafeLength,
+  kStrictReadOnlyProperty,
+  kInvalidUsingInForInLoop,
+  kIllegalInvocation,
   ...
 }
 
@@ -536,19 +595,24 @@ const kHeapObjectHeaderSize:
     constexpr int32 generates 'HeapObject::kHeaderSize';
 
 type TheHole extends Hole;
+type PromiseHole extends Hole;
 type Exception extends Oddball;
 type EmptyString extends String;
 
 type NumberOrUndefined = Number|Undefined;
 
+extern macro ConstructorStringConstant(): String;
 extern macro DefaultStringConstant(): String;
+extern macro DisposeSymbolConstant(): String;
 extern macro EmptyStringConstant(): EmptyString;
+extern macro ErrorStringConstant(): String;
 extern macro ErrorsStringConstant(): String;
 extern macro FalseConstant(): False;
 extern macro GetStringConstant(): String;
 extern macro HasStringConstant(): String;
 extern macro Int32FalseConstant(): bool;
 extern macro Int32TrueConstant(): bool;
+extern macro IteratorStringConstant(): String;
 extern macro IteratorSymbolConstant(): PublicSymbol;
 extern macro KeysStringConstant(): String;
 extern macro AsyncIteratorSymbolConstant(): PublicSymbol;
@@ -560,19 +624,24 @@ extern macro NameStringConstant(): String;
 extern macro NextStringConstant(): String;
 extern macro NullConstant(): Null;
 extern macro NumberStringConstant(): String;
+extern macro objectStringConstant(): String;
 extern macro ReturnStringConstant(): String;
 extern macro SearchSymbolConstant(): Symbol;
 extern macro SizeStringConstant(): String;
 extern macro StringStringConstant(): String;
+extern macro SuppressedStringConstant(): String;
 extern macro TheHoleConstant(): TheHole;
+extern macro PromiseHoleConstant(): PromiseHole;
 extern macro ToPrimitiveSymbolConstant(): PublicSymbol;
 extern macro ToStringStringConstant(): String;
+extern macro ToStringTagSymbolConstant(): PublicSymbol;
 extern macro TrueConstant(): True;
 extern macro UndefinedConstant(): Undefined;
 extern macro ValueOfStringConstant(): String;
-extern macro WasmWrappedObjectSymbolConstant(): Symbol;
+extern macro InvalidDispatchHandleConstant(): DispatchHandle;
 
 const TheHole: TheHole = TheHoleConstant();
+const PromiseHole: PromiseHole = PromiseHoleConstant();
 const Null: Null = NullConstant();
 const Undefined: Undefined = UndefinedConstant();
 const True: True = TrueConstant();
@@ -597,6 +666,13 @@ const false: constexpr bool generates 'false';
 extern enum LanguageMode extends bool { kStrict, kSloppy }
 type LanguageModeSmi extends Smi;
 
+// Dispatch handle constant used when tailcalling into C++ builtins. As these
+// currently don't use the dispatch handle parameter, we can just use a constant
+// here. Alternatively, we could obtain the "real" dispatch handle (the one used
+// for calling the torque builtin) through a new CSA function that accesses the
+// kJSCallDispatchHandle parameter.
+const kInvalidDispatchHandle: DispatchHandle = InvalidDispatchHandleConstant();
+
 const SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'SKIP_WRITE_BARRIER';
 const UNSAFE_SKIP_WRITE_BARRIER:
@@ -613,7 +689,7 @@ extern class Filler extends HeapObject generates 'TNode<HeapObject>';
 // Like JSObject, but created from API function.
 @apiExposedInstanceTypeValue(0x422)
 @doNotGenerateCast
-extern class JSApiObject extends JSObjectWithEmbedderSlots
+extern class JSApiObject extends JSAPIObjectWithEmbedderSlots
     generates 'TNode<JSObject>';
 
 // TODO(gsathya): This only exists to make JSApiObject instance type into a
@@ -646,6 +722,9 @@ extern macro PrintErr(constexpr string, Object): void;
 extern macro PrintErr(Object): void;
 extern macro Comment(constexpr string): void;
 extern macro DebugBreak(): void;
+
+extern macro SetSupportsDynamicParameterCount(
+    JSFunction, DispatchHandle): void;
 
 // ES6 7.1.4 ToInteger ( argument )
 transitioning macro ToIntegerImpl(
@@ -733,7 +812,7 @@ extern transitioning macro HasProperty_Inline(
 extern builtin LoadIC(
     Context, JSAny, JSAny, TaggedIndex, FeedbackVector): JSAny;
 
-extern macro SetPropertyStrict(Context, Object, Object, Object): Object;
+extern macro SetPropertyStrict(Context, JSAny, Object, Object): Object;
 
 extern macro ThrowRangeError(
     implicit context: Context)(constexpr MessageTemplate): never;
@@ -830,6 +909,8 @@ transitioning macro ToPrimitiveDefault(
     }
   }
 }
+
+extern macro ArrayBufferMaxByteLength(): uintptr;
 
 extern transitioning runtime NormalizeElements(Context, JSObject): void;
 extern transitioning runtime TransitionElementsKindWithKind(
@@ -986,10 +1067,10 @@ macro Float64IsNaN(n: float64): bool {
 // The type of all tagged values that can safely be compared with TaggedEqual.
 @if(V8_ENABLE_WEBASSEMBLY)
   type TaggedWithIdentity = JSReceiver|FixedArrayBase|Oddball|Hole|Map|WeakCell|
-      Context|EmptyString|Symbol|WasmInternalFunction|WasmNull;
+      Context|EmptyString|Symbol|FunctionTemplateInfo|WasmFuncRef|WasmNull;
 @ifnot(V8_ENABLE_WEBASSEMBLY)
   type TaggedWithIdentity = JSReceiver|FixedArrayBase|Oddball|Hole|Map|WeakCell|
-      Context|EmptyString|Symbol;
+      Context|EmptyString|Symbol|FunctionTemplateInfo;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
@@ -1235,6 +1316,7 @@ extern macro IsInteger(JSAny): bool;
 extern macro IsInteger(HeapNumber): bool;
 
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
+extern macro AllocateContextCell(Object): ContextCell;
 extern macro ChangeInt32ToTagged(int32): Number;
 extern macro ChangeUint32ToTagged(uint32): Number;
 extern macro ChangeUintPtrToFloat64(uintptr): float64;
@@ -1275,9 +1357,9 @@ extern macro IntPtrRoundUpToPowerOfTwo32(intptr): intptr;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro RoundInt32ToFloat32(int32): float32;
 extern macro ChangeNumberToFloat64(Number): float64;
-extern macro ChangeNumberToUint32(Number): uint32;
 extern macro ChangeTaggedNonSmiToInt32(
     implicit context: Context)(HeapObject): int32;
+extern macro ChangeFloat16ToFloat64(float16_raw_bits): float64;
 extern macro ChangeFloat32ToTagged(float32): Number;
 extern macro ChangeTaggedToFloat64(implicit context: Context)(JSAny): float64;
 extern macro ChangeFloat64ToTagged(float64): Number;
@@ -1290,6 +1372,8 @@ extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 extern macro ChangeInt32ToInt64(int32): int64;  // Sign-extends.
 extern macro ChangeUint32ToUint64(uint32): uint64;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
+extern macro TruncateFloat64ToFloat16(float64): float16_raw_bits;
+extern macro TruncateFloat32ToFloat16(float32): float16_raw_bits;
 extern macro TruncateFloat64ToFloat32(float64): float32;
 extern macro TruncateHeapNumberValueToWord32(HeapNumber): int32;
 extern macro LoadJSArrayElementsMap(
@@ -1330,6 +1414,8 @@ extern macro PointerConstant(constexpr RawPtr): RawPtr;
 extern macro SingleCharacterStringConstant(constexpr string): String;
 extern macro Float64SilenceNaN(float64): float64;
 
+extern macro BitcastFloat16ToUint32(float16_raw_bits): uint32;
+extern macro BitcastUint32ToFloat16(uint32): float16_raw_bits;
 extern macro BitcastWordToTaggedSigned(intptr): Smi;
 extern macro BitcastWordToTaggedSigned(uintptr): Smi;
 extern macro BitcastWordToTagged(intptr): Object;
@@ -1346,6 +1432,8 @@ extern macro EmptyFixedArrayConstant(): EmptyFixedArray;
 extern macro PromiseCapabilityMapConstant(): Map;
 extern macro SeqOneByteStringMapConstant(): Map;
 extern macro SeqTwoByteStringMapConstant(): Map;
+extern macro ConsOneByteStringMapConstant(): Map;
+extern macro ConsTwoByteStringMapConstant(): Map;
 
 const kFixedArrayMap: Map = FixedArrayMapConstant();
 const kFixedDoubleArrayMap: Map = FixedDoubleArrayMapConstant();
@@ -1357,6 +1445,8 @@ const kPromiseCapabilityMap: Map = PromiseCapabilityMapConstant();
 const kSeqOneByteStringMap: Map = SeqOneByteStringMapConstant();
 // The map of a non-internalized internal SeqTwoByteString.
 const kSeqTwoByteStringMap: Map = SeqTwoByteStringMapConstant();
+const kConsOneByteStringMap: Map = ConsOneByteStringMapConstant();
+const kConsTwoByteStringMap: Map = ConsTwoByteStringMapConstant();
 
 macro OutOfBounds<T: type, X: type>(index: T, length: X): bool {
   return UintPtrGreaterThanOrEqual(
@@ -1378,6 +1468,7 @@ extern macro IsPrototypeTypedArrayPrototype(
     implicit context: Context)(Map): bool;
 extern macro IsSetIteratorProtectorCellInvalid(): bool;
 extern macro IsMapIteratorProtectorCellInvalid(): bool;
+extern macro InvalidateStringWrapperToPrimitiveProtector(): void;
 
 extern operator '.data_ptr' macro LoadJSTypedArrayDataPtr(JSTypedArray): RawPtr;
 
@@ -1453,6 +1544,9 @@ macro GetArrayBufferNoInitFunction(implicit context: Context)(): JSFunction {
 macro GetIteratorFunction(implicit context: Context)(): JSFunction {
   return *NativeContextSlot(ContextSlot::ITERATOR_FUNCTION_INDEX);
 }
+macro GetStringFunction(implicit context: Context)(): JSFunction {
+  return *NativeContextSlot(ContextSlot::STRING_FUNCTION_INDEX);
+}
 macro GetFastPackedElementsJSArrayMap(implicit context: Context)(): Map {
   return *NativeContextSlot(ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
 }
@@ -1489,6 +1583,9 @@ macro GetWeakCellMap(implicit context: Context)(): Map {
 }
 macro GetPrototypeApplyFunction(implicit context: Context)(): JSFunction {
   return *NativeContextSlot(ContextSlot::FUNCTION_PROTOTYPE_APPLY_INDEX);
+}
+macro GetIteratorPrototype(implicit context: Context)(): JSObject {
+  return *NativeContextSlot(ContextSlot::INITIAL_ITERATOR_PROTOTYPE_INDEX);
 }
 
 // Call(Context, Target, Receiver, ...Args)
@@ -1549,26 +1646,12 @@ macro RequireObjectCoercible(
   return value;
 }
 
-extern macro BranchIfSameValue(JSAny, JSAny): never labels Taken, NotTaken;
-macro SameValue(a: JSAny, b: JSAny): bool {
+extern macro BranchIfSameValue(
+    JSAny|TaggedWithIdentity, JSAny|TaggedWithIdentity): never labels Taken,
+    NotTaken;
+macro SameValue(
+    a: JSAny|TaggedWithIdentity, b: JSAny|TaggedWithIdentity): bool {
   BranchIfSameValue(a, b) otherwise return true, return false;
-}
-macro SameValue(a: (JSAny|TheHole), b: (JSAny|TheHole)): bool {
-  typeswitch (a) {
-    case (a: TheHole): {
-      return UnsafeCast<TheHole>(b) == a;
-    }
-    case (a: JSAny): {
-      typeswitch (b) {
-        case (TheHole): {
-          return false;
-        }
-        case (b: JSAny): {
-          return SameValue(a, b);
-        }
-      }
-    }
-  }
 }
 
 // Does "if (index1 + index2 > limit) goto IfOverflow" in an uintptr overflow
@@ -1611,7 +1694,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
       if (kMode == kModeValueIsAnyNumber) {
         if (valueSmi < 0) goto IfLessThanZero;
       } else {
-        dcheck(valueSmi >= 0);
+        sbxcheck(valueSmi >= 0);
       }
       const value: uintptr = Unsigned(Convert<intptr>(valueSmi));
       // Positive Smi values definitely fit into both [0, kMaxSafeInteger] and
@@ -1622,11 +1705,11 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
       dcheck(IsNumberNormalized(valueHeapNumber));
       const valueDouble: float64 = Convert<float64>(valueHeapNumber);
       // NaNs must be handled outside.
-      dcheck(!Float64IsNaN(valueDouble));
+      sbxcheck(!Float64IsNaN(valueDouble));
       if (kMode == kModeValueIsAnyNumber) {
         if (valueDouble < 0) goto IfLessThanZero;
       } else {
-        dcheck(valueDouble >= 0);
+        sbxcheck(valueDouble >= 0);
       }
 
       if constexpr (Is64()) {
@@ -1635,7 +1718,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
         if (kMode == kModeValueIsAnyNumber) {
           if (valueDouble > kMaxSafeInteger) goto IfSafeIntegerOverflow;
         } else {
-          dcheck(valueDouble <= kMaxSafeInteger);
+          sbxcheck(valueDouble <= kMaxSafeInteger);
         }
       } else {
         // On 32-bit architectures uintptr range is smaller than safe integer
@@ -1644,7 +1727,7 @@ macro TryNumberToUintPtr(valueNumber: Number, kMode: constexpr int31):
             kMode == kModeValueIsSafeInteger) {
           if (valueDouble > kMaxUInt32Double) goto IfUIntPtrOverflow;
         } else {
-          dcheck(valueDouble <= kMaxUInt32Double);
+          sbxcheck(valueDouble <= kMaxUInt32Double);
         }
       }
       return ChangeFloat64ToUintPtr(valueDouble);
@@ -1781,6 +1864,7 @@ transitioning macro GetInterestingMethod(
   }
 }
 
+extern macro IsOneByteStringMap(Map): bool;
 extern macro IsOneByteStringInstanceType(InstanceType): bool;
 
 // After converting an index to an integer, calculate a relative index:

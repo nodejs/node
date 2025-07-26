@@ -6,6 +6,7 @@
 #define V8_UTILS_UTILS_INL_H_
 
 #include "src/utils/utils.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "include/v8-platform.h"
 #include "src/base/platform/time.h"
@@ -34,7 +35,7 @@ class V8_NODISCARD TimedScope {
 
 template <typename Char>
 bool TryAddArrayIndexChar(uint32_t* index, Char c) {
-  if (!IsDecimalDigit(c)) return false;
+  DCHECK(IsDecimalDigit(c));
   int d = c - '0';
   // The maximum index is 4294967294; for the computation below to not
   // exceed that, the previous index value must be <= 429496729 if d <= 4,
@@ -47,7 +48,7 @@ bool TryAddArrayIndexChar(uint32_t* index, Char c) {
 
 template <typename Char>
 bool TryAddIntegerIndexChar(uint64_t* index, Char c) {
-  if (!IsDecimalDigit(c)) return false;
+  DCHECK(IsDecimalDigit(c));
   int d = c - '0';
   *index = (*index) * 10 + d;
   return (*index <= kMaxSafeIntegerUint64);
@@ -71,16 +72,16 @@ bool StringToIndex(Stream* stream, index_t* index) {
   while (stream->HasMore()) {
     // Clang on Mac doesn't think that size_t and uint*_t should be
     // implicitly convertible.
+    base::uc32 c = stream->GetNext();
+    if (!IsDecimalDigit(c)) return false;
     if (sizeof(result) == 8) {
       DCHECK_EQ(kToIntegerIndex, mode);
-      if (!TryAddIntegerIndexChar(reinterpret_cast<uint64_t*>(&result),
-                                  stream->GetNext())) {
+      if (!TryAddIntegerIndexChar(reinterpret_cast<uint64_t*>(&result), c)) {
         return false;
       }
     } else {
       // Either mode is fine here.
-      if (!TryAddArrayIndexChar(reinterpret_cast<uint32_t*>(&result),
-                                stream->GetNext()))
+      if (!TryAddArrayIndexChar(reinterpret_cast<uint32_t*>(&result), c))
         return false;
     }
   }

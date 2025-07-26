@@ -78,3 +78,23 @@ function shouldThrowOnFewerBytes() {
 shouldThrowOnMoreBytes();
 shouldNotThrow();
 shouldThrowOnFewerBytes();
+
+
+{
+  const server = http.createServer(common.mustCall((req, res) => {
+    res.strictContentLength = true;
+    // Pass content-length as string
+    res.setHeader('content-length', '5');
+    res.end('12345');
+  }));
+
+
+  server.listen(0, common.mustCall(() => {
+    http.get({ port: server.address().port }, common.mustCall((res) => {
+      res.resume().on('end', common.mustCall(() => {
+        assert.strictEqual(res.statusCode, 200);
+        server.close();
+      }));
+    }));
+  }));
+}

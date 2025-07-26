@@ -14,29 +14,28 @@ namespace v8 {
 namespace internal {
 
 // https://tc39.es/proposal-json-parse-with-source/#sec-json.rawjson
-MaybeHandle<JSRawJson> JSRawJson::Create(Isolate* isolate,
-                                         Handle<Object> text) {
-  DCHECK(v8_flags.harmony_json_parse_with_source);
+MaybeDirectHandle<JSRawJson> JSRawJson::Create(Isolate* isolate,
+                                               Handle<Object> text) {
   Handle<String> json_string;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, json_string,
-                             Object::ToString(isolate, text), JSRawJson);
+                             Object::ToString(isolate, text));
   Handle<String> flat = String::Flatten(isolate, json_string);
   if (String::IsOneByteRepresentationUnderneath(*flat)) {
     if (!JsonParser<uint8_t>::CheckRawJson(isolate, flat)) {
-      DCHECK(isolate->has_pending_exception());
-      return MaybeHandle<JSRawJson>();
+      DCHECK(isolate->has_exception());
+      return MaybeDirectHandle<JSRawJson>();
     }
   } else {
     if (!JsonParser<uint16_t>::CheckRawJson(isolate, flat)) {
-      DCHECK(isolate->has_pending_exception());
-      return MaybeHandle<JSRawJson>();
+      DCHECK(isolate->has_exception());
+      return MaybeDirectHandle<JSRawJson>();
     }
   }
-  Handle<JSObject> result =
+  DirectHandle<JSObject> result =
       isolate->factory()->NewJSObjectFromMap(isolate->js_raw_json_map());
   result->InObjectPropertyAtPut(JSRawJson::kRawJsonInitialIndex, *flat);
   JSObject::SetIntegrityLevel(isolate, result, FROZEN, kThrowOnError).Check();
-  return Handle<JSRawJson>::cast(result);
+  return Cast<JSRawJson>(result);
 }
 
 }  // namespace internal

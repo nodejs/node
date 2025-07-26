@@ -65,7 +65,7 @@ TransliterationRule::TransliterationRule(const UnicodeString& input,
                                          const TransliterationRuleData* theData,
                                          UErrorCode& status) :
     UMemory(),
-    segments(0),
+    segments(nullptr),
     data(theData) {
 
     if (U_FAILURE(status)) {
@@ -121,7 +121,7 @@ TransliterationRule::TransliterationRule(const UnicodeString& input,
         anteContext = new StringMatcher(pattern, 0, anteContextLength,
                                         false, *data);
         /* test for nullptr */
-        if (anteContext == 0) {
+        if (anteContext == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -132,7 +132,7 @@ TransliterationRule::TransliterationRule(const UnicodeString& input,
         key = new StringMatcher(pattern, anteContextLength, anteContextLength + keyLength,
                                 false, *data);
         /* test for nullptr */
-        if (key == 0) {
+        if (key == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -144,7 +144,7 @@ TransliterationRule::TransliterationRule(const UnicodeString& input,
         postContext = new StringMatcher(pattern, anteContextLength + keyLength, pattern.length(),
                                         false, *data);
         /* test for nullptr */
-        if (postContext == 0) {
+        if (postContext == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
             return;
         }
@@ -152,7 +152,7 @@ TransliterationRule::TransliterationRule(const UnicodeString& input,
 
     this->output = new StringReplacer(outputStr, cursorPosition + cursorOffset, data);
     /* test for nullptr */
-    if (this->output == 0) {
+    if (this->output == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return;
     }
@@ -175,7 +175,7 @@ TransliterationRule::TransliterationRule(TransliterationRule& other) :
     segments = nullptr;
     segmentsCount = 0;
     if (other.segmentsCount > 0) {
-        segments = (UnicodeFunctor **)uprv_malloc(other.segmentsCount * sizeof(UnicodeFunctor *));
+        segments = static_cast<UnicodeFunctor**>(uprv_malloc(other.segmentsCount * sizeof(UnicodeFunctor*)));
         uprv_memcpy(segments, other.segments, (size_t)other.segmentsCount*sizeof(segments[0]));
     }
 
@@ -225,7 +225,7 @@ int16_t TransliterationRule::getIndexValue() const {
         return -1;
     }
     UChar32 c = pattern.char32At(anteContextLength);
-    return (int16_t)(data->lookupMatcher(c) == nullptr ? (c & 0xFF) : -1);
+    return static_cast<int16_t>(data->lookupMatcher(c) == nullptr ? (c & 0xFF) : -1);
 }
 
 /**
@@ -481,27 +481,27 @@ UnicodeString& TransliterationRule::toRule(UnicodeString& rule,
 
     // Emit start anchor
     if ((flags & ANCHOR_START) != 0) {
-        rule.append((char16_t)94/*^*/);
+        rule.append(static_cast<char16_t>(94)/*^*/);
     }
 
     // Emit the input pattern
     ICU_Utility::appendToRule(rule, anteContext, escapeUnprintable, quoteBuf);
 
     if (emitBraces) {
-        ICU_Utility::appendToRule(rule, (char16_t) 0x007B /*{*/, true, escapeUnprintable, quoteBuf);
+        ICU_Utility::appendToRule(rule, static_cast<char16_t>(0x007B) /*{*/, true, escapeUnprintable, quoteBuf);
     }
 
     ICU_Utility::appendToRule(rule, key, escapeUnprintable, quoteBuf);
 
     if (emitBraces) {
-        ICU_Utility::appendToRule(rule, (char16_t) 0x007D /*}*/, true, escapeUnprintable, quoteBuf);
+        ICU_Utility::appendToRule(rule, static_cast<char16_t>(0x007D) /*}*/, true, escapeUnprintable, quoteBuf);
     }
 
     ICU_Utility::appendToRule(rule, postContext, escapeUnprintable, quoteBuf);
 
     // Emit end anchor
     if ((flags & ANCHOR_END) != 0) {
-        rule.append((char16_t)36/*$*/);
+        rule.append(static_cast<char16_t>(36)/*$*/);
     }
 
     ICU_Utility::appendToRule(rule, UnicodeString(true, FORWARD_OP, 3), true, escapeUnprintable, quoteBuf);
@@ -511,7 +511,7 @@ UnicodeString& TransliterationRule::toRule(UnicodeString& rule,
     ICU_Utility::appendToRule(rule, output->toReplacer()->toReplacerPattern(str, escapeUnprintable),
                               true, escapeUnprintable, quoteBuf);
 
-    ICU_Utility::appendToRule(rule, (char16_t) 0x003B /*;*/, true, escapeUnprintable, quoteBuf);
+    ICU_Utility::appendToRule(rule, static_cast<char16_t>(0x003B) /*;*/, true, escapeUnprintable, quoteBuf);
 
     return rule;
 }

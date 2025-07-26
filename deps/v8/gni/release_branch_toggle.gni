@@ -3,5 +3,5 @@
 # found in the LICENSE file.
 
 declare_args() {
-  is_on_release_branch = true
+  v8_is_on_release_branch = true
 }

@@ -36,9 +36,12 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
+using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Object;
 using v8::ScriptCompiler;
+using v8::ScriptOrigin;
 using v8::String;
 using v8::Value;
 
@@ -261,25 +264,6 @@ void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
       sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
 }
 
-void GetCodePath(const FunctionCallbackInfo<Value>& args) {
-  DCHECK(IsSingleExecutable());
-
-  Isolate* isolate = args.GetIsolate();
-
-  SeaResource sea_resource = FindSingleExecutableResource();
-
-  Local<String> code_path;
-  if (!String::NewFromUtf8(isolate,
-                           sea_resource.code_path.data(),
-                           NewStringType::kNormal,
-                           sea_resource.code_path.length())
-           .ToLocal(&code_path)) {
-    return;
-  }
-
-  args.GetReturnValue().Set(code_path);
-}
-
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   // Repeats argv[0] at position 1 on argv as a replacement for the missing
   // entry point file path.
@@ -373,7 +357,14 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
     return std::nullopt;
   }
   if (use_code_cache.value()) {
-    result.flags |= SeaFlags::kUseCodeCache;
+    if (use_snapshot.value()) {
+      // TODO(joyeecheung): code cache in snapshot should be configured by
+      // separate snapshot configurations.
+      FPrintF(stderr,
+              "\"useCodeCache\" is redundant when \"useSnapshot\" is true\n");
+    } else {
+      result.flags |= SeaFlags::kUseCodeCache;
+    }
   }
 
   auto assets_opt = parser.GetTopLevelStringDict("assets");
@@ -409,10 +400,9 @@ ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
     return exit_code;
   }
   auto& persistents = snapshot.env_info.principal_realm.persistent_values;
-  auto it = std::find_if(
-      persistents.begin(), persistents.end(), [](const PropInfo& prop) {
-        return prop.name == "snapshot_deserialize_main";
-      });
+  auto it = std::ranges::find_if(persistents, [](const PropInfo& prop) {
+    return prop.name == "snapshot_deserialize_main";
+  });
   if (it == persistents.end()) {
     FPrintF(
         stderr,
@@ -461,23 +451,32 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
     return std::nullopt;
   }
 
-  std::vector<Local<String>> parameters = {
-      FIXED_ONE_BYTE_STRING(isolate, "exports"),
-      FIXED_ONE_BYTE_STRING(isolate, "require"),
-      FIXED_ONE_BYTE_STRING(isolate, "module"),
-      FIXED_ONE_BYTE_STRING(isolate, "__filename"),
-      FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
-  };
+  LocalVector<String> parameters(
+      isolate,
+      {
+          FIXED_ONE_BYTE_STRING(isolate, "exports"),
+          FIXED_ONE_BYTE_STRING(isolate, "require"),
+          FIXED_ONE_BYTE_STRING(isolate, "module"),
+          FIXED_ONE_BYTE_STRING(isolate, "__filename"),
+          FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
+      });
+  ScriptOrigin script_origin(filename, 0, 0, true);
+  ScriptCompiler::Source script_source(content, script_origin);
+  MaybeLocal<Function> maybe_fn =
+      ScriptCompiler::CompileFunction(context,
+                                      &script_source,
+                                      parameters.size(),
+                                      parameters.data(),
+                                      0,
+                                      nullptr);
+  Local<Function> fn;
+  if (!maybe_fn.ToLocal(&fn)) {
+    return std::nullopt;
+  }
 
   // TODO(RaisinTen): Using the V8 code cache prevents us from using `import()`
   // in the SEA code. Support it.
   // Refs: https://github.com/nodejs/node/pull/48191#discussion_r1213271430
-  Local<Function> fn;
-  if (!contextify::CompileFunction(context, filename, content, &parameters)
-           .ToLocal(&fn)) {
-    return std::nullopt;
-  }
-
   std::unique_ptr<ScriptCompiler::CachedData> cache{
       ScriptCompiler::CreateCodeCacheForFunction(fn)};
   std::string code_cache(cache->data, cache->data + cache->length);
@@ -529,19 +528,14 @@ ExitCode GenerateSingleExecutableBlob(
   std::optional<std::string_view> optional_sv_code_cache;
   std::string code_cache;
   if (static_cast<bool>(config.flags & SeaFlags::kUseCodeCache)) {
-    if (builds_snapshot_from_main) {
-      FPrintF(stderr,
-              "\"useCodeCache\" is redundant when \"useSnapshot\" is true\n");
-    } else {
-      std::optional<std::string> optional_code_cache =
-          GenerateCodeCache(config.main_path, main_script);
-      if (!optional_code_cache.has_value()) {
-        FPrintF(stderr, "Cannot generate V8 code cache\n");
-        return ExitCode::kGenericUserError;
-      }
-      code_cache = optional_code_cache.value();
-      optional_sv_code_cache = code_cache;
+    std::optional<std::string> optional_code_cache =
+        GenerateCodeCache(config.main_path, main_script);
+    if (!optional_code_cache.has_value()) {
+      FPrintF(stderr, "Cannot generate V8 code cache\n");
+      return ExitCode::kGenericUserError;
     }
+    code_cache = optional_code_cache.value();
+    optional_sv_code_cache = code_cache;
   }
 
   std::unordered_map<std::string, std::string> assets;
@@ -617,6 +611,47 @@ void GetAsset(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ab);
 }
 
+MaybeLocal<Value> LoadSingleExecutableApplication(
+    const StartExecutionCallbackInfo& info) {
+  // Here we are currently relying on the fact that in NodeMainInstance::Run(),
+  // env->context() is entered.
+  Local<Context> context = Isolate::GetCurrent()->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+  SeaResource sea = FindSingleExecutableResource();
+
+  CHECK(!sea.use_snapshot());
+  // TODO(joyeecheung): this should be an external string. Refactor UnionBytes
+  // and make it easy to create one based on static content on the fly.
+  Local<Value> main_script =
+      ToV8Value(env->context(), sea.main_code_or_snapshot).ToLocalChecked();
+  return info.run_cjs->Call(
+      env->context(), Null(env->isolate()), 1, &main_script);
+}
+
+bool MaybeLoadSingleExecutableApplication(Environment* env) {
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (!IsSingleExecutable()) {
+    return false;
+  }
+
+  SeaResource sea = FindSingleExecutableResource();
+
+  if (sea.use_snapshot()) {
+    // The SEA preparation blob building process should already enforce this,
+    // this check is just here to guard against the unlikely case where
+    // the SEA preparation blob has been manually modified by someone.
+    CHECK(!env->snapshot_deserialize_main().IsEmpty());
+    LoadEnvironment(env, StartExecutionCallback{});
+    return true;
+  }
+
+  LoadEnvironment(env, LoadSingleExecutableApplication);
+  return true;
+#else
+  return false;
+#endif
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -626,14 +661,12 @@ void Initialize(Local<Object> target,
             target,
             "isExperimentalSeaWarningNeeded",
             IsExperimentalSeaWarningNeeded);
-  SetMethod(context, target, "getCodePath", GetCodePath);
   SetMethod(context, target, "getAsset", GetAsset);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsSea);
   registry->Register(IsExperimentalSeaWarningNeeded);
-  registry->Register(GetCodePath);
   registry->Register(GetAsset);
 }
 

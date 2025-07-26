@@ -267,9 +267,10 @@ static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
 // Assign |source| value to |no_reg| and return the |source|'s previous value.
-inline Register ReassignRegister(Register& source) {
-  Register result = source;
-  source = Register::no_reg();
+template <typename RegT>
+inline RegT ReassignRegister(RegT& source) {
+  RegT result = source;
+  source = RegT::no_reg();
   return result;
 }
 
@@ -311,7 +312,9 @@ enum VectorFormat {
   kFormatB = NEON_B | NEONScalar,
   kFormatH = NEON_H | NEONScalar,
   kFormatS = NEON_S | NEONScalar,
-  kFormatD = NEON_D | NEONScalar
+  kFormatD = NEON_D | NEONScalar,
+
+  kFormat1Q = 0xfffffffd
 };
 
 VectorFormat VectorFormatHalfWidth(VectorFormat vform);
@@ -384,6 +387,9 @@ class VRegister : public CPURegister {
   VRegister V1D() const {
     return VRegister::Create(code(), kDRegSizeInBits, 1);
   }
+  VRegister V1Q() const {
+    return VRegister::Create(code(), kQRegSizeInBits, 1);
+  }
 
   VRegister Format(VectorFormat f) const {
     return VRegister::Create(code(), f);
@@ -397,6 +403,7 @@ class VRegister : public CPURegister {
   bool Is4S() const { return (Is128Bits() && (lane_count_ == 4)); }
   bool Is1D() const { return (Is64Bits() && (lane_count_ == 1)); }
   bool Is2D() const { return (Is128Bits() && (lane_count_ == 2)); }
+  bool Is1Q() const { return (Is128Bits() && (lane_count_ == 1)); }
 
   // For consistency, we assert the number of lanes of these scalar registers,
   // even though there are no vectors of equivalent total size with which they
@@ -531,10 +538,9 @@ ALIAS_REGISTER(VRegister, fp_scratch2, d31);
 #undef ALIAS_REGISTER
 
 // Arm64 calling convention
-constexpr Register arg_reg_1 = x0;
-constexpr Register arg_reg_2 = x1;
-constexpr Register arg_reg_3 = x2;
-constexpr Register arg_reg_4 = x3;
+constexpr Register kCArgRegs[] = {x0, x1, x2, x3, x4, x5, x6, x7};
+constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
+constexpr int kFPRegisterPassedArguments = 8;
 
 // AreAliased returns true if any of the named registers overlap. Arguments set
 // to NoReg are ignored. The system stack pointer may be specified.
@@ -603,12 +609,15 @@ constexpr Register kJavaScriptCallCodeStartRegister = x2;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = x3;
 constexpr Register kJavaScriptCallExtraArg1Register = x2;
+constexpr Register kJavaScriptCallDispatchHandleRegister = x4;
 
 constexpr Register kRuntimeCallFunctionRegister = x1;
 constexpr Register kRuntimeCallArgCountRegister = x0;
 constexpr Register kRuntimeCallArgvRegister = x11;
-constexpr Register kWasmInstanceRegister = x7;
+constexpr Register kWasmImplicitArgRegister = x7;
 constexpr Register kWasmCompileLazyFuncIndexRegister = x8;
+constexpr Register kWasmTrapHandlerFaultAddressRegister = x16;
+constexpr Register kSimulatorHltArgument = x16;
 
 constexpr DoubleRegister kFPReturnRegister0 = d0;
 

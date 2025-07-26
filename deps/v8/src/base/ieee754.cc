@@ -707,7 +707,7 @@ V8_INLINE double __kernel_sin(double x, double y, int iy) {
  * Algorithm
  *      1. Since tan(-x) = -tan(x), we need only to consider positive x.
  *      2. if x < 2^-28 (hx<0x3E300000 0), return x with inexact if x!=0.
- *      3. tan(x) is approximated by a odd polynomial of degree 27 on
+ *      3. tan(x) is approximated by an odd polynomial of degree 27 on
  *         [0,0.67434]
  *                               3             27
  *              tan(x) ~ x + T1*x + ... + T13*x
@@ -2594,6 +2594,7 @@ double cosh(double x) {
   return huge * huge;
 }
 
+namespace legacy {
 /*
  * ES2019 Draft 2019-01-02 12.6.4
  * Math.pow & Exponentiation Operator
@@ -2746,7 +2747,7 @@ double pow(double x, double y) {
   /* special value of x */
   if (lx == 0) {
     if (ix == 0x7ff00000 || ix == 0 || ix == 0x3ff00000) {
-      z = ax;                         /*x is +-0,+-inf,+-1*/
+      z = ax;                               /*x is +-0,+-inf,+-1*/
       if (hy < 0) z = base::Divide(one, z); /* z = (1/|x|) */
       if (hx < 0) {
         if (((ix - 0x3ff00000) | yisint) == 0) {
@@ -2904,6 +2905,8 @@ double pow(double x, double y) {
   }
   return s * z;
 }
+
+}  // namespace legacy
 
 /*
  * ES6 draft 09-27-13, section 20.2.2.30.

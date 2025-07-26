@@ -20,11 +20,6 @@ namespace base {
 // dynamic storage when it overflows.
 template <typename T, size_t kSize, typename Allocator = std::allocator<T>>
 class SmallVector {
-  // Currently only support trivially copyable and trivially destructible data
-  // types, as it uses memcpy to copy elements and never calls destructors.
-  ASSERT_TRIVIALLY_COPYABLE(T);
-  static_assert(std::is_trivially_destructible<T>::value);
-
  public:
   static constexpr size_t kInlineSize = kSize;
   using value_type = T;
@@ -34,7 +29,12 @@ class SmallVector {
   explicit V8_INLINE SmallVector(size_t size,
                                  const Allocator& allocator = Allocator())
       : allocator_(allocator) {
-    resize_no_init(size);
+    resize(size);
+  }
+  explicit V8_INLINE SmallVector(size_t size, const T& initial_value,
+                                 const Allocator& allocator = Allocator())
+      : allocator_(allocator) {
+    resize(size, initial_value);
   }
   SmallVector(const SmallVector& other) V8_NOEXCEPT
       : allocator_(other.allocator_) {
@@ -54,30 +54,45 @@ class SmallVector {
   }
   V8_INLINE SmallVector(std::initializer_list<T> init,
                         const Allocator& allocator = Allocator())
-      : SmallVector(init.size(), allocator) {
-    memcpy(begin_, init.begin(), sizeof(T) * init.size());
+      : allocator_(allocator) {
+    if (init.size() > capacity()) Grow(init.size());
+    DCHECK_GE(capacity(), init.size());  // Sanity check.
+    std::uninitialized_move(init.begin(), init.end(), begin_);
+    end_ = begin_ + init.size();
   }
   explicit V8_INLINE SmallVector(base::Vector<const T> init,
                                  const Allocator& allocator = Allocator())
-      : SmallVector(init.size(), allocator) {
-    memcpy(begin_, init.begin(), sizeof(T) * init.size());
+      : allocator_(allocator) {
+    if (init.size() > capacity()) Grow(init.size());
+    DCHECK_GE(capacity(), init.size());  // Sanity check.
+    std::uninitialized_copy(init.begin(), init.end(), begin_);
+    end_ = begin_ + init.size();
   }
 
-  ~SmallVector() {
-    static_assert(std::is_trivially_destructible_v<T>);
-    if (is_big()) FreeDynamicStorage();
-  }
+  ~SmallVector() { FreeStorage(); }
 
   SmallVector& operator=(const SmallVector& other) V8_NOEXCEPT {
     if (this == &other) return *this;
     size_t other_size = other.size();
     if (capacity() < other_size) {
       // Create large-enough heap-allocated storage.
-      if (is_big()) FreeDynamicStorage();
+      FreeStorage();
       begin_ = AllocateDynamicStorage(other_size);
       end_of_storage_ = begin_ + other_size;
+      std::uninitialized_copy(other.begin_, other.end_, begin_);
+    } else if constexpr (kHasTrivialElement) {
+      std::copy(other.begin_, other.end_, begin_);
+    } else {
+      ptrdiff_t to_copy =
+          std::min(static_cast<ptrdiff_t>(other_size), end_ - begin_);
+      std::copy(other.begin_, other.begin_ + to_copy, begin_);
+      if (other.begin_ + to_copy < other.end_) {
+        std::uninitialized_copy(other.begin_ + to_copy, other.end_,
+                                begin_ + to_copy);
+      } else {
+        std::destroy_n(begin_ + to_copy, size() - to_copy);
+      }
     }
-    memcpy(begin_, other.begin_, sizeof(T) * other_size);
     end_ = begin_ + other_size;
     return *this;
   }
@@ -85,14 +100,26 @@ class SmallVector {
   SmallVector& operator=(SmallVector&& other) V8_NOEXCEPT {
     if (this == &other) return *this;
     if (other.is_big()) {
-      if (is_big()) FreeDynamicStorage();
+      FreeStorage();
       begin_ = other.begin_;
       end_ = other.end_;
       end_of_storage_ = other.end_of_storage_;
     } else {
       DCHECK_GE(capacity(), other.size());  // Sanity check.
       size_t other_size = other.size();
-      memcpy(begin_, other.begin_, sizeof(T) * other_size);
+      if constexpr (kHasTrivialElement) {
+        std::move(other.begin_, other.end_, begin_);
+      } else {
+        ptrdiff_t to_move =
+            std::min(static_cast<ptrdiff_t>(other_size), end_ - begin_);
+        std::move(other.begin_, other.begin_ + to_move, begin_);
+        if (other.begin_ + to_move < other.end_) {
+          std::uninitialized_move(other.begin_ + to_move, other.end_,
+                                  begin_ + to_move);
+        } else {
+          std::destroy_n(begin_ + to_move, size() - to_move);
+        }
+      }
       end_ = begin_ + other_size;
     }
     other.reset_to_inline_storage();
@@ -136,6 +163,11 @@ class SmallVector {
     return end_[-1];
   }
 
+  T& at(size_t index) {
+    DCHECK_GT(size(), index);
+    return begin_[index];
+  }
+
   T& operator[](size_t index) {
     DCHECK_GT(size(), index);
     return begin_[index];
@@ -161,14 +193,17 @@ class SmallVector {
   void pop_back(size_t count = 1) {
     DCHECK_GE(size(), count);
     end_ -= count;
+    std::destroy_n(end_, count);
   }
 
-  T* insert(T* pos, const T& value) { return insert(pos, 1, value); }
+  T* insert(T* pos, const T& value) {
+    return insert(pos, static_cast<size_t>(1), value);
+  }
   T* insert(T* pos, size_t count, const T& value) {
     DCHECK_LE(pos, end_);
     size_t offset = pos - begin_;
     size_t old_size = size();
-    resize_no_init(old_size + count);
+    resize(old_size + count);
     pos = begin_ + offset;
     T* old_end = begin_ + old_size;
     DCHECK_LE(old_end, end_);
@@ -182,7 +217,7 @@ class SmallVector {
     size_t offset = pos - begin_;
     size_t count = std::distance(begin, end);
     size_t old_size = size();
-    resize_no_init(old_size + count);
+    resize(old_size + count);
     pos = begin_ + offset;
     T* old_end = begin_ + old_size;
     DCHECK_LE(old_end, end_);
@@ -191,19 +226,38 @@ class SmallVector {
     return pos;
   }
 
-  void resize_no_init(size_t new_size) {
-    // Resizing without initialization is safe if T is trivially copyable.
-    ASSERT_TRIVIALLY_COPYABLE(T);
-    if (new_size > capacity()) Grow(new_size);
-    end_ = begin_ + new_size;
+  T* insert(T* pos, std::initializer_list<T> values) {
+    return insert(pos, values.begin(), values.end());
   }
 
-  void resize_and_init(size_t new_size) {
-    static_assert(std::is_trivially_destructible_v<T>);
+  void erase(T* erase_start) {
+    DCHECK_GE(erase_start, begin_);
+    DCHECK_LE(erase_start, end_);
+    ptrdiff_t count = end_ - erase_start;
+    end_ = erase_start;
+    std::destroy_n(end_, count);
+  }
+
+  void resize(size_t new_size) {
+    if (new_size > capacity()) Grow(new_size);
+    T* new_end = begin_ + new_size;
+    if constexpr (!kHasTrivialElement) {
+      if (new_end > end_) {
+        std::uninitialized_default_construct(end_, new_end);
+      } else {
+        std::destroy_n(new_end, end_ - new_end);
+      }
+    }
+    end_ = new_end;
+  }
+
+  void resize(size_t new_size, const T& initial_value) {
     if (new_size > capacity()) Grow(new_size);
     T* new_end = begin_ + new_size;
     if (new_end > end_) {
-      std::uninitialized_fill(end_, new_end, T{});
+      std::uninitialized_fill(end_, new_end, initial_value);
+    } else {
+      std::destroy_n(new_end, end_ - new_end);
     }
     end_ = new_end;
   }
@@ -213,7 +267,10 @@ class SmallVector {
   }
 
   // Clear without reverting back to inline storage.
-  void clear() { end_ = begin_; }
+  void clear() {
+    std::destroy_n(begin_, end_ - begin_);
+    end_ = begin_;
+  }
 
   Allocator get_allocator() const { return allocator_; }
 
@@ -229,14 +286,10 @@ class SmallVector {
         base::bits::RoundUpToPowerOfTwo(std::max(min_capacity, 2 * capacity()));
     T* new_storage = AllocateDynamicStorage(new_capacity);
     if (new_storage == nullptr) {
-      // Should be: V8::FatalProcessOutOfMemory, but we don't include V8 from
-      // base. The message is intentionally the same as FatalProcessOutOfMemory
-      // since that will help fuzzers and chromecrash to categorize such
-      // crashes appropriately.
-      FATAL("Fatal process out of memory: base::SmallVector::Grow");
+      FatalOOM(OOMType::kProcess, "base::SmallVector::Grow");
     }
-    memcpy(new_storage, begin_, sizeof(T) * in_use);
-    if (is_big()) FreeDynamicStorage();
+    std::uninitialized_move(begin_, end_, new_storage);
+    FreeStorage();
     begin_ = new_storage;
     end_ = new_storage + in_use;
     end_of_storage_ = new_storage + new_capacity;
@@ -246,14 +299,17 @@ class SmallVector {
     return allocator_.allocate(number_of_elements);
   }
 
-  V8_NOINLINE V8_PRESERVE_MOST void FreeDynamicStorage() {
-    DCHECK(is_big());
-    allocator_.deallocate(begin_, end_of_storage_ - begin_);
+  V8_NOINLINE V8_PRESERVE_MOST void FreeStorage() {
+    std::destroy_n(begin_, end_ - begin_);
+    if (is_big()) allocator_.deallocate(begin_, end_of_storage_ - begin_);
   }
 
   // Clear and go back to inline storage. Dynamic storage is *not* freed. For
   // internal use only.
   void reset_to_inline_storage() {
+    if constexpr (!kHasTrivialElement) {
+      if (!is_big()) std::destroy_n(begin_, end_ - begin_);
+    }
     begin_ = inline_storage_begin();
     end_ = begin_;
     end_of_storage_ = begin_ + kInlineSize;
@@ -261,18 +317,26 @@ class SmallVector {
 
   bool is_big() const { return begin_ != inline_storage_begin(); }
 
-  T* inline_storage_begin() { return reinterpret_cast<T*>(&inline_storage_); }
+  T* inline_storage_begin() { return reinterpret_cast<T*>(inline_storage_); }
   const T* inline_storage_begin() const {
-    return reinterpret_cast<const T*>(&inline_storage_);
+    return reinterpret_cast<const T*>(inline_storage_);
   }
 
   V8_NO_UNIQUE_ADDRESS Allocator allocator_;
 
+  // Invariants:
+  // 1. The elements in the range between `begin_` (included) and `end_` (not
+  //    included) will be initialized at all times.
+  // 2. All other elements outside the range, both in the inline storage and in
+  //    the dynamic storage (if it exists), will be uninitialized at all times.
+
   T* begin_ = inline_storage_begin();
   T* end_ = begin_;
   T* end_of_storage_ = begin_ + kInlineSize;
-  typename std::aligned_storage<sizeof(T) * kInlineSize, alignof(T)>::type
-      inline_storage_;
+  alignas(T) char inline_storage_[sizeof(T) * kInlineSize];
+
+  static constexpr bool kHasTrivialElement =
+      is_trivially_copyable<T>::value && is_trivially_destructible<T>::value;
 };
 
 }  // namespace base

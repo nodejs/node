@@ -55,10 +55,11 @@ static inline constexpr bool needs_fp_reg_pair(ValueKind kind) {
 
 static inline constexpr RegClass reg_class_for(ValueKind kind) {
   // Statically generate an array that we use for lookup at runtime.
-  constexpr size_t kNumValueKinds = static_cast<size_t>(kBottom);
+  constexpr size_t kNumValueKinds = static_cast<size_t>(kTop);
   constexpr auto kRegClasses =
       base::make_array<kNumValueKinds>([](std::size_t kind) {
         switch (kind) {
+          case kF16:
           case kF32:
           case kF64:
             return kFpReg;
@@ -72,7 +73,6 @@ static inline constexpr RegClass reg_class_for(ValueKind kind) {
             return kNeedS128RegPair ? kFpRegPair : kFpReg;
           case kRef:
           case kRefNull:
-          case kRtt:
             return kGpReg;
           case kVoid:
             return kNoReg;  // unsupported kind
@@ -88,7 +88,7 @@ static inline constexpr RegClass reg_class_for(ValueKind kind) {
 // Description of LiftoffRegister code encoding.
 // This example uses the ARM architecture, which as of writing has:
 // - 9 GP registers, requiring 4 bits
-// - 13 FP regitsters, requiring 5 bits
+// - 13 FP registers, requiring 5 bits
 // - kNeedI64RegPair is true
 // - kNeedS128RegPair is true
 // - thus, kBitsPerRegPair is 2 + 2 * 4 = 10
@@ -167,6 +167,16 @@ class LiftoffRegister {
     DCHECK(kLiftoffAssemblerFpCacheRegs.has(reg));
     DCHECK_EQ(reg, fp());
   }
+
+#if defined(V8_TARGET_ARCH_IA32)
+  // IA32 needs a fixed xmm0 register as a LiftoffRegister, however, xmm0 is not
+  // an allocatable double register (see register-ia32.h). This constructor
+  // allows bypassing the DCHECK that the LiftoffRegister has to be allocatable.
+  static LiftoffRegister from_uncached(DoubleRegister reg) {
+    DCHECK(!kLiftoffAssemblerFpCacheRegs.has(reg));
+    return LiftoffRegister(kAfterMaxLiftoffGpRegCode + reg.code());
+  }
+#endif
 
   static LiftoffRegister from_liftoff_code(int code) {
     LiftoffRegister reg{static_cast<storage_t>(code)};
@@ -306,11 +316,6 @@ class LiftoffRegister {
     DCHECK_EQ(is_fp_pair(), other.is_fp_pair());
     return code_ == other.code_;
   }
-  bool operator!=(const LiftoffRegister other) const {
-    DCHECK_EQ(is_gp_pair(), other.is_gp_pair());
-    DCHECK_EQ(is_fp_pair(), other.is_fp_pair());
-    return code_ != other.code_;
-  }
   bool overlaps(const LiftoffRegister other) const {
     if (is_pair()) return low().overlaps(other) || high().overlaps(other);
     if (other.is_pair()) return *this == other.low() || *this == other.high();
@@ -361,12 +366,13 @@ class LiftoffRegList {
 
   // Allow to construct LiftoffRegList from a number of
   // {Register|DoubleRegister|LiftoffRegister}.
-  template <
-      typename... Regs,
-      typename = std::enable_if_t<std::conjunction_v<std::disjunction<
-          std::is_same<Register, Regs>, std::is_same<DoubleRegister, Regs>,
-          std::is_same<LiftoffRegister, Regs>>...>>>
-  constexpr explicit LiftoffRegList(Regs... regs) {
+  template <typename... Regs>
+  constexpr explicit LiftoffRegList(Regs... regs)
+    requires(
+        std::conjunction_v<std::disjunction<
+            std::is_same<Register, Regs>, std::is_same<DoubleRegister, Regs>,
+            std::is_same<LiftoffRegister, Regs>>...>)
+  {
     (..., set(regs));
   }
 
@@ -423,8 +429,18 @@ class LiftoffRegList {
     return LiftoffRegList(regs_ & other.regs_);
   }
 
+  constexpr LiftoffRegList& operator&=(const LiftoffRegList other) {
+    regs_ &= other.regs_;
+    return *this;
+  }
+
   constexpr LiftoffRegList operator|(const LiftoffRegList other) const {
     return LiftoffRegList(regs_ | other.regs_);
+  }
+
+  constexpr LiftoffRegList& operator|=(const LiftoffRegList other) {
+    regs_ |= other.regs_;
+    return *this;
   }
 
   constexpr LiftoffRegList GetAdjacentFpRegsSet() const {
@@ -448,12 +464,7 @@ class LiftoffRegList {
                     ((even_regs << 1) & kFpMask));
   }
 
-  constexpr bool operator==(const LiftoffRegList other) const {
-    return regs_ == other.regs_;
-  }
-  constexpr bool operator!=(const LiftoffRegList other) const {
-    return regs_ != other.regs_;
-  }
+  constexpr bool operator==(const LiftoffRegList&) const = default;
 
   LiftoffRegister GetFirstRegSet() const {
     V8_ASSUME(regs_ != 0);
@@ -518,8 +529,7 @@ class LiftoffRegList::Iterator {
     remaining_.clear(remaining_.GetFirstRegSet());
     return *this;
   }
-  bool operator==(Iterator other) { return remaining_ == other.remaining_; }
-  bool operator!=(Iterator other) { return remaining_ != other.remaining_; }
+  bool operator==(const Iterator& other) const = default;
 
  private:
   explicit Iterator(LiftoffRegList remaining) : remaining_(remaining) {}

@@ -8,6 +8,8 @@
 </tr>
 <tr>
 <td>
+<a href="#21.7.3">21.7.3</a><br/>
+<a href="#21.7.2">21.7.2</a><br/>
 <a href="#21.7.1">21.7.1</a><br/>
 <a href="#21.7.0">21.7.0</a><br/>
 <a href="#21.6.2">21.6.2</a><br/>
@@ -24,6 +26,9 @@
 </table>
 
 * Other Versions
+  * [24.x](CHANGELOG_V24.md)
+  * [23.x](CHANGELOG_V23.md)
+  * [22.x](CHANGELOG_V22.md)
   * [20.x](CHANGELOG_V20.md)
   * [19.x](CHANGELOG_V19.md)
   * [18.x](CHANGELOG_V18.md)
@@ -45,6 +50,41 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="21.7.3"></a>
+
+## 2024-04-10, Version 21.7.3 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* CVE-2024-27980 - Command injection via args parameter of `child_process.spawn` without shell option enabled on Windows
+
+### Commits
+
+* \[[`9095c914ed`](https://github.com/nodejs/node/commit/9095c914ed)] - **src**: disallow direct .bat and .cmd file spawning (Ben Noordhuis) [nodejs-private/node-private#562](https://github.com/nodejs-private/node-private/pull/562)
+
+<a id="21.7.2"></a>
+
+## 2024-04-03, Version 21.7.2 (Current), @RafaelGSS prepared by @marco-ippolito
+
+This is a security release.
+
+### Notable changes
+
+* CVE-2024-27983 - Assertion failed in node::http2::Http2Session::\~Http2Session() leads to HTTP/2 server crash- (High)
+* CVE-2024-27982 - HTTP Request Smuggling via Content Length Obfuscation- (Medium)
+* llhttp version 9.2.1
+* undici version 6.11.1
+
+### Commits
+
+* \[[`3dfc10c851`](https://github.com/nodejs/node/commit/3dfc10c851)] - **deps**: update undici to 6.11.1 (Node.js GitHub Bot) [#52328](https://github.com/nodejs/node/pull/52328)
+* \[[`aceea1c5e7`](https://github.com/nodejs/node/commit/aceea1c5e7)] - **deps**: update undici to 6.10.2 (Node.js GitHub Bot) [#52227](https://github.com/nodejs/node/pull/52227)
+* \[[`5f0f96b275`](https://github.com/nodejs/node/commit/5f0f96b275)] - **deps**: update llhttp to 9.2.0 (Node.js GitHub Bot) [#51719](https://github.com/nodejs/node/pull/51719)
+* \[[`1a65e98e22`](https://github.com/nodejs/node/commit/1a65e98e22)] - **http**: do not allow OBS fold in headers by default (Paolo Insogna) [nodejs-private/node-private#556](https://github.com/nodejs-private/node-private/pull/556)
+* \[[`3bd39fb474`](https://github.com/nodejs/node/commit/3bd39fb474)] - **src**: ensure to close stream when destroying session (RafaelGSS) [nodejs-private/node-private#561](https://github.com/nodejs-private/node-private/pull/561)
 
 <a id="21.7.1"></a>
 
@@ -515,7 +555,7 @@ Node.js 21.6.0 comes with several fixes for the experimental permission model an
 We're adding a new flag `--allow-addons` to enable addon usage when using the Permission Model.
 
 ```console
-$ node --experimental-permission --allow-addons
+node --experimental-permission --allow-addons
 ```
 
 Contributed by Rafael Gonzaga in [#51183](https://github.com/nodejs/node/pull/51183)
@@ -524,7 +564,7 @@ And relative paths are now supported through the `--allow-fs-*` flags.
 Therefore, with this release one can use:
 
 ```console
-$ node --experimental-permission --allow-fs-read=./index.js
+node --experimental-permission --allow-fs-read=./index.js
 ```
 
 To give only read access to the entrypoint of the application.
@@ -536,7 +576,7 @@ Contributed by Rafael Gonzaga and Carlos Espa in [#50758](https://github.com/nod
 We are adding a new flag `--build-snapshot-config` to configure snapshots through a custom JSON configuration file.
 
 ```console
-$ node --build-snapshot-config=/path/to/myconfig.json
+node --build-snapshot-config=/path/to/myconfig.json
 ```
 
 When using this flag, additional script files provided on the command line will

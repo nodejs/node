@@ -20,8 +20,8 @@ namespace v8 {
 namespace internal {
 
 // Other platforms have CSA support, see builtins-sharedarraybuffer-gen.h.
-#if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_PPC || \
-    V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_LOONG64
+#if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X || \
+    V8_TARGET_ARCH_LOONG64
 
 namespace {
 
@@ -248,12 +248,12 @@ inline int32_t FromObject<int32_t>(Handle<Object> number) {
 
 template <>
 inline uint64_t FromObject<uint64_t>(Handle<Object> bigint) {
-  return Handle<BigInt>::cast(bigint)->AsUint64();
+  return Cast<BigInt>(bigint)->AsUint64();
 }
 
 template <>
 inline int64_t FromObject<int64_t>(Handle<Object> bigint) {
-  return Handle<BigInt>::cast(bigint)->AsInt64();
+  return Cast<BigInt>(bigint)->AsInt64();
 }
 
 inline Tagged<Object> ToObject(Isolate* isolate, int8_t t) {
@@ -622,14 +622,13 @@ RUNTIME_FUNCTION(Runtime_AtomicsOr) { UNREACHABLE(); }
 RUNTIME_FUNCTION(Runtime_AtomicsXor) { UNREACHABLE(); }
 
 #endif  // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
-        // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
-        // || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64 ||
-        // V8_TARGET_ARCH_RISCV32
+        // || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_RISCV64 ||
+        // V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV32
 
 RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
+  DirectHandle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
@@ -643,8 +642,9 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructOrArray) {
 namespace {
 
 template <typename WriteOperation>
-Tagged<Object> AtomicFieldWrite(Isolate* isolate, Handle<JSObject> object,
-                                Handle<Name> field_name, Handle<Object> value,
+Tagged<Object> AtomicFieldWrite(Isolate* isolate, DirectHandle<JSObject> object,
+                                Handle<Name> field_name,
+                                DirectHandle<Object> value,
                                 WriteOperation write_operation) {
   LookupIterator it(isolate, object, PropertyKey(isolate, field_name),
                     LookupIterator::OWN);
@@ -673,7 +673,7 @@ Tagged<Object> AtomicFieldWrite(Isolate* isolate, Handle<JSObject> object,
 RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
+  DirectHandle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
@@ -691,7 +691,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
 RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
+  DirectHandle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
@@ -709,7 +709,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
 RUNTIME_FUNCTION(Runtime_AtomicsCompareExchangeSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
+  DirectHandle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));

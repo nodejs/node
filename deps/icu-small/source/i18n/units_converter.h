@@ -82,6 +82,7 @@ struct U_I18N_API Factor {
 
     void multiplyBy(const Factor &rhs);
     void divideBy(const Factor &rhs);
+    void divideBy(const uint64_t constant);
 
     // Apply the power to the factor.
     void power(int32_t power);
@@ -110,10 +111,14 @@ void U_I18N_API addSingleFactorConstant(StringPiece baseStr, int32_t power, Sign
 
 /**
  * Represents the conversion rate between `source` and `target`.
+ * TODO ICU-22683: COnsider moving the handling of special mappings (e.g. beaufort) to a separate
+ * struct.
  */
 struct U_I18N_API ConversionRate : public UMemory {
     const MeasureUnitImpl source;
     const MeasureUnitImpl target;
+    CharString specialSource;
+    CharString specialTarget;
     double factorNum = 1;
     double factorDen = 1;
     double sourceOffset = 0;
@@ -121,7 +126,7 @@ struct U_I18N_API ConversionRate : public UMemory {
     bool reciprocal = false;
 
     ConversionRate(MeasureUnitImpl &&source, MeasureUnitImpl &&target)
-        : source(std::move(source)), target(std::move(target)) {}
+        : source(std::move(source)), target(std::move(target)), specialSource(), specialTarget() {}
 };
 
 enum Convertibility {
@@ -224,6 +229,21 @@ class U_I18N_API UnitsConverter : public UMemory {
      * Initialises the object.
      */
     void init(const ConversionRates &ratesInfo, UErrorCode &status);
+
+    /**
+     * Convert from what should be discrete scale values for a particular unit like beaufort
+     * to a corresponding value in the base unit (which can have any decimal value, like meters/sec).
+     * This can handle different scales, specified by minBaseForScaleValues[].
+     */
+    double scaleToBase(double scaleValue, double minBaseForScaleValues[], int scaleMax) const;
+
+    /**
+     * Convert from a value in the base unit (which can have any decimal value, like meters/sec) to a corresponding
+     * discrete value in a scale (like beaufort), where each scale value represents a range of base values.
+     * This can handle different scales, specified by minBaseForScaleValues[].
+     */
+    double baseToScale(double baseValue, double minBaseForScaleValues[], int scaleMax) const;
+
 };
 
 } // namespace units

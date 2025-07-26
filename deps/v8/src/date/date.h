@@ -5,6 +5,8 @@
 #ifndef V8_DATE_DATE_H_
 #define V8_DATE_DATE_H_
 
+#include <cmath>
+
 #include "src/base/small-vector.h"
 #include "src/base/timezone-cache.h"
 #include "src/common/globals.h"
@@ -61,8 +63,19 @@ class V8_EXPORT_PRIVATE DateCache {
     return static_cast<int>(time_ms - days * kMsPerDay);
   }
 
+  // Performs the success path of the ECMA 262 TimeClip operation (when the
+  // value is within the range, truncates it to an integer). Returns false if
+  // the value is outside the range, and should be clipped to NaN.
   // ECMA 262 - ES#sec-timeclip TimeClip (time)
-  static double TimeClip(double time);
+  static bool TryTimeClip(double* time) {
+    if (-kMaxTimeInMs <= *time && *time <= kMaxTimeInMs) {
+      // Inline the finite part of DoubleToInteger here, since the range check
+      // already covers the non-finite checks.
+      *time = ((*time > 0) ? std::floor(*time) : std::ceil(*time)) + 0.0;
+      return true;
+    }
+    return false;
+  }
 
   // Given the number of days since the epoch, computes the weekday.
   // ECMA 262 - 15.9.1.6.
@@ -76,9 +89,7 @@ class V8_EXPORT_PRIVATE DateCache {
   }
 
   // ECMA 262 - ES#sec-local-time-zone-adjustment
-  int LocalOffsetInMs(int64_t time, bool is_utc) {
-    return GetLocalOffsetFromOS(time, is_utc);
-  }
+  int LocalOffsetInMs(int64_t time, bool is_utc);
 
   const char* LocalTimezone(int64_t time_ms) {
     if (time_ms < 0 || time_ms > kMaxEpochTimeInMs) {
@@ -168,58 +179,59 @@ class V8_EXPORT_PRIVATE DateCache {
   virtual int GetLocalOffsetFromOS(int64_t time_ms, bool is_utc);
 
  private:
-  // The implementation relies on the fact that no time zones have
-  // more than one daylight savings offset change per 19 days.
-  // In Egypt in 2010 they decided to suspend DST during Ramadan. This
-  // led to a short interval where DST is in effect from September 10 to
-  // September 30.
-  static const int kDefaultDSTDeltaInSec = 19 * kSecPerDay;
+  // The implementation relies on the fact that no time zones have more than one
+  // time zone offset change (including DST offset changes) per 19 days. In
+  // Egypt in 2010 they decided to suspend DST during Ramadan. This led to a
+  // short interval where DST is in effect from September 10 to September 30.
+  static const int kDefaultTimeZoneOffsetDeltaInMs = 19 * kSecPerDay * 1000;
 
-  // Size of the Daylight Savings Time cache.
-  static const int kDSTSize = 32;
+  static const int kCacheSize = 32;
 
-  // Daylight Savings Time segment stores a segment of time where
-  // daylight savings offset does not change.
-  struct DST {
-    int start_sec;
-    int end_sec;
+  // Stores a segment of time where time zone offset does not change.
+  struct CacheItem {
+    int64_t start_ms;
+    int64_t end_ms;
     int offset_ms;
     int last_used;
   };
 
   // Computes the daylight savings offset for the given time.
   // ECMA 262 - 15.9.1.8
-  int DaylightSavingsOffsetInMs(int64_t time_ms);
+  int DaylightSavingsOffsetInMs(int64_t time_ms) {
+    int time_sec = (time_ms >= 0 && time_ms <= kMaxEpochTimeInMs)
+                       ? static_cast<int>(time_ms / 1000)
+                       : static_cast<int>(EquivalentTime(time_ms) / 1000);
+    return GetDaylightSavingsOffsetFromOS(time_sec);
+  }
 
-  // Sets the before_ and the after_ segments from the DST cache such that
-  // the before_ segment starts earlier than the given time and
-  // the after_ segment start later than the given time.
-  // Both segments might be invalid.
-  // The last_used counters of the before_ and after_ are updated.
-  void ProbeDST(int time_sec);
+  // Sets the before_ and the after_ segments from the timezone offset cache
+  // such that the before_ segment starts earlier than the given time and the
+  // after_ segment start later than the given time. Both segments might be
+  // invalid. The last_used counters of the before_ and after_ are updated.
+  void ProbeCache(int64_t time_ms);
 
-  // Finds the least recently used segment from the DST cache that is not
-  // equal to the given 'skip' segment.
-  DST* LeastRecentlyUsedDST(DST* skip);
+  // Finds the least recently used segment from the timezone offset cache that
+  // is not equal to the given 'skip' segment.
+  CacheItem* LeastRecentlyUsedCacheItem(CacheItem* skip);
 
   // Extends the after_ segment with the given point or resets it
-  // if it starts later than the given time + kDefaultDSTDeltaInSec.
-  inline void ExtendTheAfterSegment(int time_sec, int offset_ms);
+  // if it starts later than the given time + kDefaultDSTDeltaInMs.
+  inline void ExtendTheAfterSegment(int64_t time_sec, int offset_ms);
 
   // Makes the given segment invalid.
-  inline void ClearSegment(DST* segment);
+  inline void ClearSegment(CacheItem* segment);
 
-  bool InvalidSegment(DST* segment) {
-    return segment->start_sec > segment->end_sec;
+  bool InvalidSegment(CacheItem* segment) {
+    return segment->start_ms > segment->end_ms;
   }
 
   Tagged<Smi> stamp_;
 
   // Daylight Saving Time cache.
-  DST dst_[kDSTSize];
-  int dst_usage_counter_;
-  DST* before_;
-  DST* after_;
+  CacheItem cache_[kCacheSize];
+  int cache_usage_counter_;
+  CacheItem* before_;
+  CacheItem* after_;
 
   int local_offset_ms_;
 
@@ -261,6 +273,8 @@ enum class ToDateStringMode {
 // ES6 section 20.3.4.41.1 ToDateString(tv)
 DateBuffer ToDateString(double time_val, DateCache* date_cache,
                         ToDateStringMode mode);
+
+double ParseDateTimeString(Isolate* isolate, DirectHandle<String> str);
 
 }  // namespace internal
 }  // namespace v8

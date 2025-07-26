@@ -30,9 +30,7 @@ const kinds = [
     assert(entry);
     assert.strictEqual(entry.name, 'gc');
     assert.strictEqual(entry.entryType, 'gc');
-    assert(kinds.includes(entry.kind));
     assert(kinds.includes(entry.detail.kind));
-    assert.strictEqual(entry.flags, NODE_PERFORMANCE_GC_FLAGS_FORCED);
     assert.strictEqual(entry.detail.flags, NODE_PERFORMANCE_GC_FLAGS_FORCED);
     assert.strictEqual(typeof entry.startTime, 'number');
     assert(entry.startTime < 1e4, 'startTime should be relative to performance.timeOrigin.');
@@ -40,7 +38,7 @@ const kinds = [
     obs.disconnect();
   }));
   obs.observe({ entryTypes: ['gc'] });
-  global.gc();
+  globalThis.gc();
   // Keep the event loop alive to witness the GC async callback happen.
   setImmediate(() => setImmediate(() => 0));
 }
@@ -51,6 +49,6 @@ const kinds = [
   process.on('beforeExit', () => {
     assert(!didCall);
     didCall = true;
-    global.gc();
+    globalThis.gc();
   });
 }

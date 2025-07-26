@@ -110,6 +110,7 @@ void DotPrinterImpl::VisitChoice(ChoiceNode* that) {
     GuardedAlternative alt = that->alternatives()->at(i);
     alt.node()->Accept(this);
   }
+  PrintAttributes(that);
 }
 
 void DotPrinterImpl::VisitLoopChoice(LoopChoiceNode* that) {
@@ -231,6 +232,10 @@ void DotPrinterImpl::VisitAction(ActionNode* that) {
       os_ << "label=\"clear $" << that->data_.u_clear_captures.range_from
           << " to $" << that->data_.u_clear_captures.range_to
           << "\", shape=septagon";
+      break;
+    }
+    case ActionNode::MODIFY_FLAGS: {
+      os_ << "label=\"flags $" << that->flags() << "\", shape=septagon";
       break;
     }
   }

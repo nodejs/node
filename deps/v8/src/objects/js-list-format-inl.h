@@ -2,14 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_LIST_FORMAT_INL_H_
+#define V8_OBJECTS_JS_LIST_FORMAT_INL_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
 
-#ifndef V8_OBJECTS_JS_LIST_FORMAT_INL_H_
-#define V8_OBJECTS_JS_LIST_FORMAT_INL_H_
-
 #include "src/objects/js-list-format.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -27,7 +29,7 @@ ACCESSORS(JSListFormat, icu_formatter, Tagged<Managed<icu::ListFormatter>>,
           kIcuFormatterOffset)
 
 inline void JSListFormat::set_style(Style style) {
-  DCHECK_GE(StyleBits::kMax, style);
+  DCHECK(StyleBits::is_valid(style));
   int hints = flags();
   hints = StyleBits::update(hints, style);
   set_flags(hints);
@@ -38,7 +40,7 @@ inline JSListFormat::Style JSListFormat::style() const {
 }
 
 inline void JSListFormat::set_type(Type type) {
-  DCHECK_GE(TypeBits::kMax, type);
+  DCHECK(TypeBits::is_valid(type));
   int hints = flags();
   hints = TypeBits::update(hints, type);
   set_flags(hints);

@@ -45,6 +45,8 @@
    preface handling. */
 extern int nghttp2_enable_strict_preface;
 
+extern nghttp2_stream nghttp2_stream_root;
+
 /*
  * Option flags.
  */
@@ -53,8 +55,6 @@ typedef enum {
   NGHTTP2_OPTMASK_NO_RECV_CLIENT_MAGIC = 1 << 1,
   NGHTTP2_OPTMASK_NO_HTTP_MESSAGING = 1 << 2,
   NGHTTP2_OPTMASK_NO_AUTO_PING_ACK = 1 << 3,
-  NGHTTP2_OPTMASK_NO_CLOSED_STREAMS = 1 << 4,
-  NGHTTP2_OPTMASK_SERVER_FALLBACK_RFC7540_PRIORITIES = 1 << 5,
   NGHTTP2_OPTMASK_NO_RFC9113_LEADING_AND_TRAILING_WS_VALIDATION = 1 << 6,
 } nghttp2_optmask;
 
@@ -89,10 +89,6 @@ typedef struct {
 /* The default maximum number of incoming reserved streams */
 #define NGHTTP2_MAX_INCOMING_RESERVED_STREAMS 200
 
-/* Even if we have less SETTINGS_MAX_CONCURRENT_STREAMS than this
-   number, we keep NGHTTP2_MIN_IDLE_STREAMS streams in idle state */
-#define NGHTTP2_MIN_IDLE_STREAMS 16
-
 /* The maximum number of items in outbound queue, which is considered
    as flooding caused by peer.  All frames are not considered here.
    We only consider PING + ACK and SETTINGS + ACK.  This is because
@@ -109,6 +105,10 @@ typedef struct {
 /* The default values for stream reset rate limiter. */
 #define NGHTTP2_DEFAULT_STREAM_RESET_BURST 1000
 #define NGHTTP2_DEFAULT_STREAM_RESET_RATE 33
+
+/* The default max number of CONTINUATION frames following an incoming
+   HEADER frame. */
+#define NGHTTP2_DEFAULT_MAX_CONTINUATIONS 8
 
 /* Internal state when receiving incoming frame */
 typedef enum {
@@ -201,8 +201,6 @@ typedef struct nghttp2_inflight_settings nghttp2_inflight_settings;
 
 struct nghttp2_session {
   nghttp2_map /* <nghttp2_stream*> */ streams;
-  /* root of dependency tree*/
-  nghttp2_stream root;
   /* Queue for outbound urgent frames (PING and SETTINGS) */
   nghttp2_outbound_queue ob_urgent;
   /* Queue for non-DATA frames */
@@ -225,20 +223,6 @@ struct nghttp2_session {
   /* Memory allocator */
   nghttp2_mem mem;
   void *user_data;
-  /* Points to the latest incoming closed stream.  NULL if there is no
-     closed stream.  Only used when session is initialized as
-     server. */
-  nghttp2_stream *closed_stream_head;
-  /* Points to the oldest incoming closed stream.  NULL if there is no
-     closed stream.  Only used when session is initialized as
-     server. */
-  nghttp2_stream *closed_stream_tail;
-  /* Points to the latest idle stream.  NULL if there is no idle
-     stream.  Only used when session is initialized as server .*/
-  nghttp2_stream *idle_stream_head;
-  /* Points to the oldest idle stream.  NULL if there is no idle
-     stream.  Only used when session is initialized as erver. */
-  nghttp2_stream *idle_stream_tail;
   /* Queue of In-flight SETTINGS values.  SETTINGS bearing ACK is not
      considered as in-flight. */
   nghttp2_inflight_settings *inflight_settings_head;
@@ -272,10 +256,9 @@ struct nghttp2_session {
      |closed_stream_head|.  The current implementation only keeps
      incoming streams and session is initialized as server. */
   size_t num_closed_streams;
-  /* The number of idle streams kept in |streams| hash.  The idle
-     streams can be accessed through doubly linked list
-     |idle_stream_head|.  The current implementation only keeps idle
-     streams if session is initialized as server. */
+  /* The number of idle streams kept in |streams| hash.  The current
+     implementation only keeps idle streams if session is initialized
+     as server. */
   size_t num_idle_streams;
   /* The number of bytes allocated for nvbuf */
   size_t nvbuflen;
@@ -290,6 +273,12 @@ struct nghttp2_session {
   size_t max_send_header_block_length;
   /* The maximum number of settings accepted per SETTINGS frame. */
   size_t max_settings;
+  /* The maximum number of CONTINUATION frames following an incoming
+     HEADER frame. */
+  size_t max_continuations;
+  /* The number of CONTINUATION frames following an incoming HEADER
+     frame.  This variable is reset when END_HEADERS flag is seen. */
+  size_t num_continuations;
   /* Next Stream ID. Made unsigned int to detect >= (1 << 31). */
   uint32_t next_stream_id;
   /* The last stream ID this session initiated.  For client session,
@@ -352,8 +341,6 @@ struct nghttp2_session {
   /* Unacked local SETTINGS_NO_RFC7540_PRIORITIES value, which is
      effective before it is acknowledged. */
   uint8_t pending_no_rfc7540_priorities;
-  /* Turn on fallback to RFC 7540 priorities; for server use only. */
-  uint8_t fallback_rfc7540_priorities;
   /* Nonzero if the session is server side. */
   uint8_t server;
   /* Flags indicating GOAWAY is sent and/or received. The flags are
@@ -416,13 +403,22 @@ int nghttp2_session_add_item(nghttp2_session *session,
                              nghttp2_outbound_item *item);
 
 /*
+ * This function wraps around nghttp2_session_add_rst_stream_continue
+ * with continue_without_stream = 1.
+ */
+int nghttp2_session_add_rst_stream(nghttp2_session *session, int32_t stream_id,
+                                   uint32_t error_code);
+
+/*
  * Adds RST_STREAM frame for the stream |stream_id| with the error
  * code |error_code|. This is a convenient function built on top of
  * nghttp2_session_add_frame() to add RST_STREAM easily.
  *
  * This function simply returns 0 without adding RST_STREAM frame if
  * given stream is in NGHTTP2_STREAM_CLOSING state, because multiple
- * RST_STREAM for a stream is redundant.
+ * RST_STREAM for a stream is redundant.  It also returns 0 without
+ * adding the frame if |continue_without_stream| is nonzero, and
+ * stream was already gone.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -430,8 +426,10 @@ int nghttp2_session_add_item(nghttp2_session *session,
  * NGHTTP2_ERR_NOMEM
  *     Out of memory.
  */
-int nghttp2_session_add_rst_stream(nghttp2_session *session, int32_t stream_id,
-                                   uint32_t error_code);
+int nghttp2_session_add_rst_stream_continue(nghttp2_session *session,
+                                            int32_t stream_id,
+                                            uint32_t error_code,
+                                            int continue_without_stream);
 
 /*
  * Adds PING frame. This is a convenient function built on top of
@@ -517,15 +515,9 @@ int nghttp2_session_add_settings(nghttp2_session *session, uint8_t flags,
  *
  * This function returns a pointer to created new stream object, or
  * NULL.
- *
- * This function adjusts neither the number of closed streams or idle
- * streams.  The caller should manually call
- * nghttp2_session_adjust_closed_stream() or
- * nghttp2_session_adjust_idle_stream() respectively.
  */
 nghttp2_stream *nghttp2_session_open_stream(nghttp2_session *session,
                                             int32_t stream_id, uint8_t flags,
-                                            nghttp2_priority_spec *pri_spec,
                                             nghttp2_stream_state initial_state,
                                             void *stream_user_data);
 
@@ -533,11 +525,6 @@ nghttp2_stream *nghttp2_session_open_stream(nghttp2_session *session,
  * Closes stream whose stream ID is |stream_id|. The reason of closure
  * is indicated by the |error_code|. When closing the stream,
  * on_stream_close_callback will be called.
- *
- * If the session is initialized as server and |stream| is incoming
- * stream, stream is just marked closed and this function calls
- * nghttp2_session_keep_closed_stream() with |stream|.  Otherwise,
- * |stream| will be deleted from memory.
  *
  * This function returns 0 if it succeeds, or one the following
  * negative error codes:
@@ -555,63 +542,9 @@ int nghttp2_session_close_stream(nghttp2_session *session, int32_t stream_id,
 /*
  * Deletes |stream| from memory.  After this function returns, stream
  * cannot be accessed.
- *
- * This function returns 0 if it succeeds, or one the following
- * negative error codes:
- *
- * NGHTTP2_ERR_NOMEM
- *     Out of memory
  */
-int nghttp2_session_destroy_stream(nghttp2_session *session,
-                                   nghttp2_stream *stream);
-
-/*
- * Tries to keep incoming closed stream |stream|.  Due to the
- * limitation of maximum number of streams in memory, |stream| is not
- * closed and just deleted from memory (see
- * nghttp2_session_destroy_stream).
- */
-void nghttp2_session_keep_closed_stream(nghttp2_session *session,
-                                        nghttp2_stream *stream);
-
-/*
- * Appends |stream| to linked list |session->idle_stream_head|.  We
- * apply fixed limit for list size.  To fit into that limit, one or
- * more oldest streams are removed from list as necessary.
- */
-void nghttp2_session_keep_idle_stream(nghttp2_session *session,
-                                      nghttp2_stream *stream);
-
-/*
- * Detaches |stream| from idle streams linked list.
- */
-void nghttp2_session_detach_idle_stream(nghttp2_session *session,
-                                        nghttp2_stream *stream);
-
-/*
- * Deletes closed stream to ensure that number of incoming streams
- * including active and closed is in the maximum number of allowed
- * stream.
- *
- * This function returns 0 if it succeeds, or one the following
- * negative error codes:
- *
- * NGHTTP2_ERR_NOMEM
- *     Out of memory
- */
-int nghttp2_session_adjust_closed_stream(nghttp2_session *session);
-
-/*
- * Deletes idle stream to ensure that number of idle streams is in
- * certain limit.
- *
- * This function returns 0 if it succeeds, or one the following
- * negative error codes:
- *
- * NGHTTP2_ERR_NOMEM
- *     Out of memory
- */
-int nghttp2_session_adjust_idle_stream(nghttp2_session *session);
+void nghttp2_session_destroy_stream(nghttp2_session *session,
+                                    nghttp2_stream *stream);
 
 /*
  * If further receptions and transmissions over the stream |stream_id|
@@ -904,24 +837,6 @@ nghttp2_session_get_next_ob_item(nghttp2_session *session);
 int nghttp2_session_update_local_settings(nghttp2_session *session,
                                           nghttp2_settings_entry *iv,
                                           size_t niv);
-
-/*
- * Re-prioritize |stream|. The new priority specification is
- * |pri_spec|.  Caller must ensure that stream->hd.stream_id !=
- * pri_spec->stream_id.
- *
- * This function does not adjust the number of idle streams.  The
- * caller should call nghttp2_session_adjust_idle_stream() later.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGHTTP2_ERR_NOMEM
- *     Out of memory
- */
-int nghttp2_session_reprioritize_stream(nghttp2_session *session,
-                                        nghttp2_stream *stream,
-                                        const nghttp2_priority_spec *pri_spec);
 
 /*
  * Terminates current |session| with the |error_code|.  The |reason|

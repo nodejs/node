@@ -1,7 +1,8 @@
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
 const assert = require('assert');
 const crypto = require('crypto');
@@ -40,7 +41,7 @@ assert.throws(
 
 function testHmac(algo, key, data, expected) {
   // FIPS does not support MD5.
-  if (common.hasFipsCrypto && algo === 'md5')
+  if (crypto.getFips() && algo === 'md5')
     return;
 
   if (!Array.isArray(data))
@@ -272,8 +273,8 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
                        .update(rfc4231[i].data)
                        .digest('hex');
     if (rfc4231[i].truncate) {
-      actual = actual.substr(0, 32); // first 128 bits == 32 hex chars
-      strRes = strRes.substr(0, 32);
+      actual = actual.slice(0, 32); // first 128 bits == 32 hex chars
+      strRes = strRes.slice(0, 32);
     }
     const expected = rfc4231[i].hmac[hash];
     assert.strictEqual(
@@ -458,4 +459,14 @@ assert.strictEqual(
     crypto.createHmac('sha256', buf).update('foo').digest(),
     crypto.createHmac('sha256', keyObject).update('foo').digest(),
   );
+}
+
+{
+  crypto.Hmac('sha256', 'Node');
+  common.expectWarning({
+    DeprecationWarning: [
+      ['crypto.Hmac constructor is deprecated.',
+       'DEP0181'],
+    ]
+  });
 }

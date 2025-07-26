@@ -75,8 +75,8 @@ http.get('http://localhost:8080');
 http.get('http://localhost:8080');
 // Prints:
 //   0: start
-//   1: start
 //   0: finish
+//   1: start
 //   1: finish
 ```
 
@@ -107,8 +107,8 @@ http.get('http://localhost:8080');
 http.get('http://localhost:8080');
 // Prints:
 //   0: start
-//   1: start
 //   0: finish
+//   1: start
 //   1: finish
 ```
 
@@ -116,13 +116,16 @@ Each instance of `AsyncLocalStorage` maintains an independent storage context.
 Multiple instances can safely exist simultaneously without risk of interfering
 with each other's data.
 
-### `new AsyncLocalStorage()`
+### `new AsyncLocalStorage([options])`
 
 <!-- YAML
 added:
  - v13.10.0
  - v12.17.0
 changes:
+ - version: v24.0.0
+   pr-url: https://github.com/nodejs/node/pull/57766
+   description: Add `defaultValue` and `name` options.
  - version:
     - v19.7.0
     - v18.16.0
@@ -135,6 +138,10 @@ changes:
    description: Add option onPropagate.
 -->
 
+* `options` {Object}
+  * `defaultValue` {any} The default value to be used when no store is provided.
+  * `name` {string} A name for the `AsyncLocalStorage` value.
+
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 `run()` call or after an `enterWith()` call.
 
@@ -144,9 +151,13 @@ Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 added:
  - v19.8.0
  - v18.16.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function} The function to bind to the current execution context.
 * Returns: {Function} A new function that calls `fn` within the captured
@@ -160,9 +171,13 @@ Binds the given function to the current execution context.
 added:
  - v19.8.0
  - v18.16.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * Returns: {Function} A new function with the signature
   `(fn: (...args) : R, ...args) : R`.
@@ -281,6 +296,16 @@ asyncLocalStorage.getStore(); // Returns undefined
 emitter.emit('my-event');
 asyncLocalStorage.getStore(); // Returns the same object
 ```
+
+### `asyncLocalStorage.name`
+
+<!-- YAML
+added: v24.0.0
+-->
+
+* Type: {string}
+
+The name of the `AsyncLocalStorage` instance if provided.
 
 ### `asyncLocalStorage.run(store, callback[, ...args])`
 
@@ -626,7 +651,6 @@ a Worker pool around it could use the following structure:
 ```mjs
 import { AsyncResource } from 'node:async_hooks';
 import { EventEmitter } from 'node:events';
-import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 
 const kTaskInfo = Symbol('kTaskInfo');

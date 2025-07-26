@@ -47,9 +47,14 @@ LoadJoinElement<array::FastDoubleElements>(
   const array: JSArray = UnsafeCast<JSArray>(receiver);
   const fixedDoubleArray: FixedDoubleArray =
       UnsafeCast<FixedDoubleArray>(array.elements);
-  const element: float64 =
-      fixedDoubleArray.floats[k].Value() otherwise return kEmptyString;
-  return AllocateHeapNumberWithValue(element);
+  try {
+    const element: float64 =
+        fixedDoubleArray.values[k].Value() otherwise IfUndefined,
+                   return kEmptyString;
+    return AllocateHeapNumberWithValue(element);
+  } label IfUndefined {
+    return Undefined;
+  }
 }
 
 builtin LoadJoinTypedElement<T : type extends ElementsKind>(
@@ -158,7 +163,7 @@ macro StoreAndGrowFixedArray<T: type>(
       const newLength: intptr = CalculateNewElementsCapacity(length);
       dcheck(index < newLength);
       const newfixedArray: FixedArray =
-          ExtractFixedArray(fixedArray, 0, length, newLength);
+          ExtractFixedArray(fixedArray, 0, length, newLength, TheHole);
       newfixedArray.objects[index] = element;
       return newfixedArray;
     }
@@ -187,8 +192,7 @@ struct Buffer {
           StoreAndGrowFixedArray(this.fixedArray, this.index++, str);
       this.lastString = str;
     }
-    this.isOneByte =
-        IsOneByteStringInstanceType(str.instanceType) & this.isOneByte;
+    this.isOneByte = IsOneByteStringMap(str.map) & this.isOneByte;
   }
 
   macro AddSeparators(
@@ -275,13 +279,13 @@ macro NewBuffer(len: uintptr, sep: String): Buffer {
     fixedArray: AllocateZeroedFixedArray(cappedBufferSize),
     index: 0,
     totalStringLength: 0,
-    isOneByte: IsOneByteStringInstanceType(sep.instanceType),
+    isOneByte: IsOneByteStringMap(sep.map),
     lastString: Null
   };
 }
 
-macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
-    String {
+macro BufferJoin(implicit context: Context)(buffer: Buffer,
+                    sep: String): String {
   dcheck(IsValidPositiveSmi(buffer.totalStringLength));
   if (buffer.totalStringLength == 0) return kEmptyString;
 
@@ -443,6 +447,8 @@ transitioning ArrayJoin<JSTypedArray>(
   if (IsElementsKindGreaterThan(kind, ElementsKind::UINT32_ELEMENTS)) {
     if (kind == ElementsKind::INT32_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::Int32Elements>;
+    } else if (kind == ElementsKind::FLOAT16_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Float16Elements>;
     } else if (kind == ElementsKind::FLOAT32_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::Float32Elements>;
     } else if (kind == ElementsKind::FLOAT64_ELEMENTS) {
@@ -465,6 +471,8 @@ transitioning ArrayJoin<JSTypedArray>(
       loadFn = LoadJoinTypedElement<typed_array::Uint32Elements>;
     } else if (kind == ElementsKind::RAB_GSAB_INT32_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::Int32Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_FLOAT16_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Float16Elements>;
     } else if (kind == ElementsKind::RAB_GSAB_FLOAT32_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::Float32Elements>;
     } else if (kind == ElementsKind::RAB_GSAB_FLOAT64_ELEMENTS) {
@@ -549,8 +557,8 @@ builtin JoinStackPush(
 
 // Fast path the common non-nested calls. If the receiver is not already on
 // the stack, add it to the stack and return true. Otherwise return false.
-macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver):
-    bool {
+macro JoinStackPushInline(implicit context: Context)(
+                             receiver: JSReceiver): bool {
   try {
     const stack: FixedArray = LoadJoinStack()
         otherwise IfUninitialized;
@@ -594,8 +602,8 @@ builtin JoinStackPop(
 }
 
 // Fast path the common non-nested calls.
-macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver):
-    void {
+macro JoinStackPopInline(implicit context: Context)(
+                            receiver: JSReceiver): void {
   const stack: FixedArray = LoadJoinStack()
       otherwise unreachable;
   const len: intptr = stack.length_intptr;

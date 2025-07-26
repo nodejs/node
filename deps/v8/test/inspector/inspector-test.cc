@@ -2,12 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if !defined(_WIN32) && !defined(_WIN64)
-#include <unistd.h>
-#endif  // !defined(_WIN32) && !defined(_WIN64)
-
 #include <locale.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -25,6 +22,10 @@
 #include "test/inspector/task-runner.h"
 #include "test/inspector/tasks.h"
 #include "test/inspector/utils.h"
+
+#if !defined(V8_OS_WIN)
+#include <unistd.h>
+#endif  // !defined(V8_OS_WIN)
 
 namespace v8 {
 namespace internal {
@@ -139,8 +140,7 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
       }
 
       v8::String::Utf8Value str(info.GetIsolate(), str_obj);
-      int n =
-          static_cast<int>(fwrite(*str, sizeof(**str), str.length(), stdout));
+      size_t n = fwrite(*str, sizeof(**str), str.length(), stdout);
       if (n != str.length()) {
         FATAL("Error in fwrite\n");
       }
@@ -384,7 +384,7 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     int context_group_id = info[0].As<v8::Int32>()->Value();
     bool is_fully_trusted =
         info.Length() == 3 || info[3].As<v8::Boolean>()->Value();
-    base::Optional<int> session_id;
+    std::optional<int> session_id;
     RunSyncTask(backend_runner_,
                 [context_group_id, &session_id, &channel, &state,
                  is_fully_trusted](InspectorIsolateData* data) {
@@ -461,13 +461,13 @@ class ConsoleExtension : public InspectorIsolateData::SetupGlobalTask {
            v8::Local<v8::ObjectTemplate> global) override {
     v8::Local<v8::String> name =
         v8::String::NewFromUtf8Literal(isolate, "console");
-    global->SetAccessor(name, &ConsoleGetterCallback, nullptr, {}, v8::DEFAULT,
-                        v8::DontEnum);
+    global->SetNativeDataProperty(name, &ConsoleGetterCallback, nullptr, {},
+                                  v8::DontEnum);
   }
 
  private:
   static void ConsoleGetterCallback(
-      v8::Local<v8::String>, const v8::PropertyCallbackInfo<v8::Value>& info) {
+      v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -520,9 +520,10 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
         isolate, "markObjectAsNotInspectable",
         v8::FunctionTemplate::New(
             isolate, &InspectorExtension::MarkObjectAsNotInspectable));
-    inspector->Set(isolate, "createObjectWithAccessor",
-                   v8::FunctionTemplate::New(
-                       isolate, &InspectorExtension::CreateObjectWithAccessor));
+    inspector->Set(
+        isolate, "createObjectWithNativeDataProperty",
+        v8::FunctionTemplate::New(
+            isolate, &InspectorExtension::CreateObjectWithNativeDataProperty));
     inspector->Set(isolate, "storeCurrentStackTrace",
                    v8::FunctionTemplate::New(
                        isolate, &InspectorExtension::StoreCurrentStackTrace));
@@ -672,32 +673,33 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
         .ToChecked();
   }
 
-  static void CreateObjectWithAccessor(
+  static void CreateObjectWithNativeDataProperty(
       const v8::FunctionCallbackInfo<v8::Value>& info) {
     if (info.Length() != 2 || !info[0]->IsString() || !info[1]->IsBoolean()) {
       FATAL(
-          "Internal error: createObjectWithAccessor('accessor name', "
+          "Internal error: createObjectWithNativeDataProperty('accessor name', "
           "hasSetter)\n");
     }
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
     if (info[1].As<v8::Boolean>()->Value()) {
-      templ->SetAccessor(v8::Local<v8::String>::Cast(info[0]), AccessorGetter,
-                         AccessorSetter);
+      templ->SetNativeDataProperty(v8::Local<v8::String>::Cast(info[0]),
+                                   AccessorGetter, AccessorSetter);
     } else {
-      templ->SetAccessor(v8::Local<v8::String>::Cast(info[0]), AccessorGetter);
+      templ->SetNativeDataProperty(v8::Local<v8::String>::Cast(info[0]),
+                                   AccessorGetter);
     }
     info.GetReturnValue().Set(
         templ->NewInstance(isolate->GetCurrentContext()).ToLocalChecked());
   }
 
-  static void AccessorGetter(v8::Local<v8::String> property,
+  static void AccessorGetter(v8::Local<v8::Name> property,
                              const v8::PropertyCallbackInfo<v8::Value>& info) {
     v8::Isolate* isolate = info.GetIsolate();
     isolate->ThrowError("Getter is called");
   }
 
-  static void AccessorSetter(v8::Local<v8::String> property,
+  static void AccessorSetter(v8::Local<v8::Name> property,
                              v8::Local<v8::Value> value,
                              const v8::PropertyCallbackInfo<void>& info) {
     v8::Isolate* isolate = info.GetIsolate();
@@ -824,9 +826,11 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
     v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(info[0]);
-    v8::MaybeLocal<v8::Value> result =
-        callback->Call(context, v8::Undefined(isolate), 0, nullptr);
-    info.GetReturnValue().Set(result.ToLocalChecked());
+    v8::Local<v8::Value> result;
+    if (callback->Call(context, v8::Undefined(isolate), 0, nullptr)
+            .ToLocal(&result)) {
+      info.GetReturnValue().Set(result);
+    }
   }
 
   static void RunNestedMessageLoop(

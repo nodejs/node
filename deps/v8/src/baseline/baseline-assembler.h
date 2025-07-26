@@ -5,11 +5,6 @@
 #ifndef V8_BASELINE_BASELINE_ASSEMBLER_H_
 #define V8_BASELINE_BASELINE_ASSEMBLER_H_
 
-// TODO(v8:11421): Remove #if once baseline compiler is ported to other
-// architectures.
-#include "src/flags/flags.h"
-#if ENABLE_SPARKPLUG
-
 #include "src/codegen/macro-assembler.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/objects/tagged-index.h"
@@ -207,15 +202,23 @@ class BaselineAssembler {
   inline void AddToInterruptBudgetAndJumpIfNotExceeded(
       Register weight, Label* skip_interrupt_label);
 
-  inline void LdaContextSlot(Register context, uint32_t index, uint32_t depth);
-  inline void StaContextSlot(Register context, Register value, uint32_t index,
-                             uint32_t depth);
+  // By default, the output register may be compressed on 64-bit architectures
+  // that support pointer compression.
+  enum class CompressionMode {
+    kDefault,
+    kForceDecompression,
+  };
+  inline void LdaContextSlotNoCell(
+      Register context, uint32_t index, uint32_t depth,
+      CompressionMode compression_mode = CompressionMode::kDefault);
+  inline void StaContextSlotNoCell(Register context, Register value,
+                                   uint32_t index, uint32_t depth);
   inline void LdaModuleVariable(Register context, int cell_index,
                                 uint32_t depth);
   inline void StaModuleVariable(Register context, Register value,
                                 int cell_index, uint32_t depth);
 
-  inline void AddSmi(Register lhs, Tagged<Smi> rhs);
+  inline void IncrementSmi(MemOperand lhs);
   inline void SmiUntag(Register value);
   inline void SmiUntag(Register output, Register value);
 
@@ -235,6 +238,12 @@ class BaselineAssembler {
 
   inline void LoadFeedbackCell(Register output);
   inline void AssertFeedbackCell(Register object);
+
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  // If CET shadow stack is enabled, reserves a few bytes as NOP that can be
+  // patched later.
+  inline void MaybeEmitPlaceHolderForDeopt();
+#endif  // V8_ENABLE_CET_SHADOW_STACK
 
   inline static void EmitReturn(MacroAssembler* masm);
 
@@ -263,7 +272,5 @@ class EnsureAccumulatorPreservedScope final {
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8
-
-#endif
 
 #endif  // V8_BASELINE_BASELINE_ASSEMBLER_H_

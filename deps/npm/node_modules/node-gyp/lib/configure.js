@@ -1,6 +1,6 @@
 'use strict'
 
-const { promises: fs } = require('graceful-fs')
+const { promises: fs, readFileSync } = require('graceful-fs')
 const path = require('path')
 const log = require('./log')
 const os = require('os')
@@ -12,6 +12,10 @@ const { format: msgFormat } = require('util')
 const { findAccessibleSync } = require('./util')
 const { findPython } = require('./find-python')
 const { findVisualStudio } = win ? require('./find-visualstudio') : {}
+
+const majorRe = /^#define NODE_MAJOR_VERSION (\d+)/m
+const minorRe = /^#define NODE_MINOR_VERSION (\d+)/m
+const patchRe = /^#define NODE_PATCH_VERSION (\d+)/m
 
 async function configure (gyp, argv) {
   const buildDir = path.resolve('build')
@@ -26,6 +30,28 @@ async function configure (gyp, argv) {
   async function getNodeDir () {
     // 'python' should be set by now
     process.env.PYTHON = python
+
+    if (!gyp.opts.nodedir &&
+        process.config.variables.use_prefix_to_find_headers) {
+      // check if the headers can be found using the prefix specified
+      // at build time. Use them if they match the version expected
+      const prefix = process.config.variables.node_prefix
+      let availVersion
+      try {
+        const nodeVersionH = readFileSync(path.join(prefix,
+          'include', 'node', 'node_version.h'), { encoding: 'utf8' })
+        const major = nodeVersionH.match(majorRe)[1]
+        const minor = nodeVersionH.match(minorRe)[1]
+        const patch = nodeVersionH.match(patchRe)[1]
+        availVersion = major + '.' + minor + '.' + patch
+      } catch {}
+      if (availVersion === release.version) {
+        // ok version matches, use the headers
+        gyp.opts.nodedir = prefix
+        log.verbose('using local node headers based on prefix',
+          'setting nodedir to ' + gyp.opts.nodedir)
+      }
+    }
 
     if (gyp.opts.nodedir) {
       // --nodedir was specified. use that for the dev files
@@ -66,8 +92,28 @@ async function configure (gyp, argv) {
     log.verbose(
       'build dir', '"build" dir needed to be created?', isNew ? 'Yes' : 'No'
     )
-    const vsInfo = win ? await findVisualStudio(release.semver, gyp.opts['msvs-version']) : null
-    return createConfigFile(vsInfo)
+    if (win) {
+      let usingMakeGenerator = false
+      for (let i = argv.length - 1; i >= 0; --i) {
+        const arg = argv[i]
+        if (arg === '-f' || arg === '--format') {
+          const format = argv[i + 1]
+          if (typeof format === 'string' && format.startsWith('make')) {
+            usingMakeGenerator = true
+            break
+          }
+        } else if (arg.startsWith('--format=make')) {
+          usingMakeGenerator = true
+          break
+        }
+      }
+      let vsInfo = {}
+      if (!usingMakeGenerator) {
+        vsInfo = await findVisualStudio(release.semver, gyp.opts['msvs-version'])
+      }
+      return createConfigFile(vsInfo)
+    }
+    return createConfigFile(null)
   }
 
   async function createConfigFile (vsInfo) {

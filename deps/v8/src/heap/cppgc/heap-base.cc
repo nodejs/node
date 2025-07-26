@@ -9,10 +9,10 @@
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
 #include "src/base/logging.h"
-#include "src/base/platform/platform.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-statistics-collector.h"
@@ -110,16 +110,15 @@ HeapBase::HeapBase(
 #endif  // LEAK_SANITIZER
       page_backend_(InitializePageBackend(*page_allocator())),
       stats_collector_(std::make_unique<StatsCollector>(platform_.get())),
-      stack_(std::make_unique<heap::base::Stack>(
-          v8::base::Stack::GetStackStart())),
+      stack_(std::make_unique<heap::base::Stack>()),
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>(*this)),
       compactor_(raw_heap_),
       object_allocator_(raw_heap_, *page_backend_, *stats_collector_,
                         *prefinalizer_handler_, *oom_handler_,
                         garbage_collector),
       sweeper_(*this),
-      strong_persistent_region_(*oom_handler_),
-      weak_persistent_region_(*oom_handler_),
+      strong_persistent_region_(*this, *oom_handler_),
+      weak_persistent_region_(*this, *oom_handler_),
       strong_cross_thread_persistent_region_(*oom_handler_),
       weak_cross_thread_persistent_region_(*oom_handler_),
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -130,6 +129,7 @@ HeapBase::HeapBase(
       sweeping_support_(sweeping_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
+  stack_->SetStackStart();
 }
 
 HeapBase::~HeapBase() = default;
@@ -174,6 +174,10 @@ size_t HeapBase::ExecutePreFinalizers() {
 void HeapBase::EnableGenerationalGC() {
   DCHECK(in_atomic_pause());
   if (HeapHandle::is_young_generation_enabled_) return;
+#if defined(CPPGC_CAGED_HEAP)
+  // Commit storage for the age table.
+  CagedHeap::CommitAgeTable(*(page_allocator()));
+#endif  // defined(CPPGC_CAGED_HEAP)
   // Notify the global flag that the write barrier must always be enabled.
   YoungGenerationEnabler::Enable();
   // Enable young generation for the current heap.
@@ -219,7 +223,7 @@ void HeapBase::ResetRememberedSet() {
 
 void HeapBase::Terminate() {
   CHECK(!IsMarking());
-  CHECK(!in_disallow_gc_scope());
+  CHECK(!IsGCForbidden());
   // Cannot use IsGCAllowed() as `Terminate()` will be invoked after detaching
   // which implies GC is prohibited at this point.
   CHECK(!sweeper().IsSweepingOnMutatorThread());
@@ -268,8 +272,7 @@ void HeapBase::Terminate() {
     sweeper().Start({SweepingConfig::SweepingType::kAtomic,
                      SweepingConfig::CompactableSpaceHandling::kSweep});
     in_atomic_pause_ = false;
-
-    sweeper().NotifyDoneIfNeeded();
+    sweeper().FinishIfRunning();
     more_termination_gcs_needed =
         strong_persistent_region_.NodesInUse() ||
         weak_persistent_region_.NodesInUse() || [this]() {
@@ -296,9 +299,16 @@ void HeapBase::Terminate() {
 HeapStatistics HeapBase::CollectStatistics(
     HeapStatistics::DetailLevel detail_level) {
   if (detail_level == HeapStatistics::DetailLevel::kBrief) {
-    return {stats_collector_->allocated_memory_size(),
-            stats_collector_->resident_memory_size(),
+    const size_t pooled_memory = page_backend_->page_pool().PooledMemory();
+    const size_t committed_memory =
+        stats_collector_->allocated_memory_size() + pooled_memory;
+    const size_t resident_memory =
+        stats_collector_->resident_memory_size() + pooled_memory;
+
+    return {committed_memory,
+            resident_memory,
             stats_collector_->allocated_object_size(),
+            pooled_memory,
             HeapStatistics::DetailLevel::kBrief,
             {},
             {}};
@@ -330,10 +340,16 @@ void HeapBase::UnregisterMoveListener(MoveListener* listener) {
   move_listeners_.erase(it, move_listeners_.end());
 }
 
+bool HeapBase::IsGCForbidden() const { return disallow_gc_scope_ > 0; }
+
 bool HeapBase::IsGCAllowed() const {
   // GC is prohibited in a GC forbidden scope, or when currently sweeping an
   // object.
   return !sweeper().IsSweepingOnMutatorThread() && !in_no_gc_scope();
+}
+
+bool HeapBase::CurrentThreadIsHeapThread() const {
+  return heap_thread_id_ == v8::base::OS::GetCurrentThreadId();
 }
 
 ClassNameAsHeapObjectNameScope::ClassNameAsHeapObjectNameScope(HeapBase& heap)

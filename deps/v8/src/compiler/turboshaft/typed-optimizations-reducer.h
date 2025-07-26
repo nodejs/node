@@ -25,7 +25,7 @@ class TypedOptimizationsReducer
 #endif
 
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(TypedOptimizations)
 
   using Adapter = UniformReducerAdapter<TypedOptimizationsReducer, Next>;
 

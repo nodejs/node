@@ -4,9 +4,6 @@
 .\" * Language reference:
 .\"   https://man.openbsd.org/mdoc.7
 .\"
-.\" * Atom editor support:
-.\"   https://atom.io/packages/language-roff
-.\"
 .\" * Linting changes:
 .\"   mandoc -Wall -Tlint /path/to/this.file  # BSD
 .\"   groff -w all -z /path/to/this.file      # GNU/Linux, macOS
@@ -88,6 +85,12 @@ Allow using native addons when using the permission model.
 .It Fl -allow-child-process
 Allow spawning process when using the permission model.
 .
+.It Fl -allow-net
+Allow network access when using the permission model.
+.
+.It Fl -allow-wasi
+Allow execution of WASI when using the permission model.
+.
 .It Fl -allow-worker
 Allow creating worker threads when using the permission model.
 .
@@ -142,6 +145,11 @@ is `delete`, the property will be removed entirely. If
 is `throw`, accesses to the property will throw an exception with the code
 `ERR_PROTO_ACCESS`.
 .
+.It Fl -disable-wasm-trap-handler Ns = Ns Ar mode
+Disable trap-handler-based WebAssembly bound checks and fall back to
+inline bound checks so that WebAssembly can be run with limited virtual
+memory.
+.
 .It Fl -disallow-code-generation-from-strings
 Make built-in language features like `eval` and `new Function` that generate
 code from strings throw an exception instead. This does not affect the Node.js
@@ -155,10 +163,17 @@ Requires Node.js to be built with
 .It Fl -enable-source-maps
 Enable Source Map V3 support for stack traces.
 .
-.It Fl -experimental-default-type Ns = Ns Ar type
-Interpret as either ES modules or CommonJS modules input via --eval or STDIN, when --input-type is unspecified;
-.js or extensionless files with no sibling or parent package.json;
-.js or extensionless files whose nearest parent package.json lacks a "type" field, unless under node_modules.
+.It Fl -entry-url
+Interpret the entry point as a URL.
+.
+.It Fl -experimental-addon-modules
+Enable experimental addon module support.
+.
+.It Fl -experimental-config-file
+Specifies the configuration file to load.
+.
+.It Fl -experimental-default-config-file
+Enable support for automatically loading node.config.json.
 .
 .It Fl -experimental-import-meta-resolve
 Enable experimental ES modules support for import.meta.resolve().
@@ -168,14 +183,8 @@ Specify the
 .Ar module
 to use as a custom module loader.
 .
-.It Fl -experimental-network-imports
-Enable experimental support for loading modules using `import` over `https:`.
-.
-.It Fl -experimental-permission
-Enable the experimental permission model.
-.
-.It Fl -experimental-policy
-Use the specified file as a security policy.
+.It Fl -permission
+Enable the permission model.
 .
 .It Fl -experimental-shadow-realm
 Use this flag to enable ShadowRealm support.
@@ -183,20 +192,29 @@ Use this flag to enable ShadowRealm support.
 .It Fl -experimental-test-coverage
 Enable code coverage in the test runner.
 .
-.It Fl -no-experimental-fetch
-Disable experimental support for the Fetch API.
+.It Fl -experimental-test-module-mocks
+Enable module mocking in the test runner.
+.
+.It Fl -experimental-transform-types
+Enable transformation of TypeScript-only syntax into JavaScript code.
+.
+.It Fl -experimental-eventsource
+Enable experimental support for the EventSource Web API.
 .
 .It Fl -no-experimental-websocket
 Disable experimental support for the WebSocket API.
 .
-.It Fl -no-experimental-global-customevent
-Disable exposition of the CustomEvent on the global scope.
-.
-.It Fl -no-experimental-global-webcrypto
-Disable exposition of the Web Crypto API on the global scope.
+.It Fl -experimental-webstorage
+Enable experimental support for the Web Storage API.
 .
 .It Fl -no-experimental-repl-await
 Disable top-level await keyword support in REPL.
+.
+.It Fl -no-experimental-sqlite
+Disable the experimental node:sqlite module.
+.
+.It Fl -no-experimental-strip-types
+Disable experimental type-stripping for TypeScript files.
 .
 .It Fl -experimental-vm-modules
 Enable experimental ES module support in VM module.
@@ -205,8 +223,11 @@ Enable experimental ES module support in VM module.
 Enable experimental WebAssembly System Interface support. This
 flag is no longer required as WASI is enabled by default.
 .
-.It Fl -experimental-wasm-modules
-Enable experimental WebAssembly module support.
+.It Fl -experimental-quic
+Enable the experimental QUIC support.
+.
+.It Fl -experimental-inspector-network-resource
+Enable experimental support for inspector network resources.
 .
 .It Fl -force-context-aware
 Disable loading native addons that are not context-aware.
@@ -279,6 +300,11 @@ and
 Default is
 .Sy stderr,http .
 .
+.It Fl -inspect-wait Ns = Ns Ar [host:]port
+Activate inspector on
+.Ar host:port
+and wait for debugger to be attached.
+.
 .It Fl -inspect Ns = Ns Ar [host:]port
 Activate inspector on
 .Ar host:port .
@@ -302,6 +328,9 @@ other platforms, but the performance impact may be severe.
 .Pp
 This flag is inherited from V8 and is subject to change upstream. It may
 disappear in a non-semver-major release.
+.
+.It Fl -localstorage-file Ns = Ns Ar file
+The file used to store localStorage data.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.
@@ -342,9 +371,6 @@ Among other uses, this can be used to enable FIPS-compliant crypto if Node.js is
 .
 .It Fl -pending-deprecation
 Emit pending deprecation warnings.
-.
-.It Fl -policy-integrity Ns = Ns Ar sri
-Instructs Node.js to error prior to running any code if the policy does not have the specified integrity. It expects a Subresource Integrity string as a parameter.
 .
 .It Fl -preserve-symlinks
 Instructs the module loader to preserve symbolic links when resolving and caching modules other than the main module.
@@ -422,9 +448,30 @@ Starts the Node.js command line test runner.
 The maximum number of test files that the test runner CLI will execute
 concurrently.
 .
+.It Fl -test-coverage-branches Ns = Ns Ar threshold
+Require a minimum threshold for branch coverage (0 - 100).
+.
+.It Fl -test-coverage-exclude
+A glob pattern that excludes matching files from the coverage report
+.
+.It Fl -test-coverage-functions Ns = Ns Ar threshold
+Require a minimum threshold for function coverage (0 - 100).
+.
+.It Fl -test-coverage-include
+A glob pattern that only includes matching files in the coverage report
+.
+.It Fl -test-coverage-lines Ns = Ns Ar threshold
+Require a minimum threshold for line coverage (0 - 100).
+.
 .It Fl -test-force-exit
 Configures the test runner to exit the process once all known tests have
 finished executing even if the event loop would otherwise remain active.
+.
+.It Fl -test-global-setup
+Specifies a module containing global setup and teardown functions for the test runner.
+.
+.It Fl -test-isolation Ns = Ns Ar mode
+Configures the type of test isolation used in the test runner.
 .
 .It Fl -test-name-pattern
 A regular expression that configures the test runner to only execute tests
@@ -442,9 +489,16 @@ option set.
 .
 .It Fl -test-shard
 Test suite shard to execute in a format of <index>/<total>.
-
+.
+.It Fl -test-skip-pattern
+A regular expression that configures the test runner to skip tests
+whose name matches the provided pattern.
+.
 .It Fl -test-timeout
 A number of milliseconds the test execution will fail after.
+.
+.It Fl -test-update-snapshots
+Regenerates the snapshot file used by the test runner for snapshot testing.
 .
 .It Fl -throw-deprecation
 Throw errors for deprecations.
@@ -483,11 +537,6 @@ but the option is supported for compatibility with older Node.js versions.
 Set default minVersion to 'TLSv1.3'. Use to disable support for TLSv1.2 in
 favour of TLSv1.3, which is more secure.
 .
-.It Fl -trace-atomics-wait
-Print short summaries of calls to
-.Sy Atomics.wait() .
-.
-This flag is deprecated.
 .It Fl -trace-deprecation
 Print stack traces for deprecations.
 .
@@ -572,8 +621,21 @@ Set V8's thread pool size which will be used to allocate background jobs.
 If set to 0 then V8 will choose an appropriate size of the thread pool based on the number of online processors.
 If the value provided is larger than V8's maximum, then the largest value will be chosen.
 .
+.It Fl -watch
+Starts Node.js in watch mode. When in watch mode, changes in the watched files cause the Node.js process to restart.
+
+By default, watch mode will watch the entry point and any required or imported module. Use --watch-path to specify what paths to watch.
+.
+.It Fl -watch-path
+Starts Node.js in watch mode and specifies what paths to watch. When in watch mode, changes in the watched paths cause the Node.js process to restart.
+
+This will turn off watching of required or imported modules, even when used in combination with --watch.
+.
+.It Fl -watch-kill-signal
+Customizes the signal sent to the process on watch mode restarts.
+.
 .It Fl -zero-fill-buffers
-Automatically zero-fills all newly allocated Buffer and SlowBuffer instances.
+Automatically zero-fills all newly allocated Buffer instances.
 .
 .It Fl c , Fl -check
 Check the script's syntax without executing it.
@@ -631,11 +693,21 @@ disabled.
 .It Ev NO_COLOR
 Alias for NODE_DISABLE_COLORS
 .
+.It Ev NODE_COMPILE_CACHE Ar dir
+Enable the
+.Sy module compile cache
+for the Node.js instance.
+.
 .It Ev NODE_DEBUG Ar modules...
 Comma-separated list of core modules that should print debug information.
 .
 .It Ev NODE_DEBUG_NATIVE Ar modules...
 Comma-separated list of C++ core modules that should print debug information.
+.
+.It Ev NODE_DISABLE_COMPILE_CACHE
+Disable the
+.Sy module compile cache
+for the Node.js instance.
 .
 .It Ev NODE_DISABLE_COLORS
 When set to
@@ -692,6 +764,9 @@ When set to
 .Ar 1 ,
 emit pending deprecation warnings.
 .
+.It Ev NODE_PENDING_PIPE_INSTANCES
+Set the number of pending pipe instance handles when the pipe server is waiting for connections. This setting applies to Windows only.
+.
 .It Ev NODE_PRESERVE_SYMLINKS
 When set to
 .Ar 1 ,
@@ -725,10 +800,29 @@ the check for a supported platform is skipped during Node.js startup.
 Node.js might not execute correctly.
 Any issues encountered on unsupported platforms will not be fixed.
 .
+.It Ev NODE_TEST_CONTEXT
+When set to
+.Ar 'child'
+, test reporter options will be overridden and test output will be sent to stdout in the TAP format.
+If any other value is provided, Node.js makes no guarantees about the reporter format used or its stability.
+.
 .It Ev NODE_TLS_REJECT_UNAUTHORIZED
 When set to
 .Ar 0 ,
 TLS certificate validation is disabled.
+.
+.It Ev NODE_USE_ENV_PROXY
+When enabled, Node.js parses the
+.Ar HTTP_PROXY
+,
+.Ar HTTPS_PROXY
+and
+.Ar NO_PROXY
+environment variables during startup, and tunnels requests over the specified proxy.
+.Pp
+This currently only affects requests sent over
+.Ar fetch() .
+Support for other built-in http and https methods is under way.
 .
 .It Ev NODE_V8_COVERAGE Ar dir
 When set, Node.js writes JavaScript code coverage information to
@@ -789,13 +883,3 @@ Documentation:
 .Pp
 GitHub repository and issue tracker:
 .Sy https://github.com/nodejs/node
-.
-.Pp
-IRC (general questions):
-.Sy "libera.chat #node.js"
-(unofficial)
-.
-.\"======================================================================
-.Sh AUTHORS
-Written and maintained by 1000+ contributors:
-.Sy https://github.com/nodejs/node/blob/HEAD/AUTHORS

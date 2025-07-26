@@ -20,19 +20,23 @@
 #include "src/execution/arm64/simulator-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/execution/arm/simulator-arm.h"
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 #include "src/execution/ppc/simulator-ppc.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/execution/mips64/simulator-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64
 #include "src/execution/loong64/simulator-loong64.h"
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
 #include "src/execution/s390/simulator-s390.h"
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
 #include "src/execution/riscv/simulator-riscv.h"
 #else
 #error Unsupported target architecture.
 #endif
+
+namespace heap::base {
+class StackVisitor;
+}
 
 namespace v8 {
 namespace internal {
@@ -51,9 +55,22 @@ class SimulatorStack : public v8::internal::AllStatic {
     return Simulator::current(isolate)->StackLimit(c_limit);
   }
 
-  static inline base::Vector<uint8_t> GetCurrentStackView(
+#if V8_ENABLE_WEBASSEMBLY
+  // Includes the safety stack limit gap.
+  static inline base::Vector<uint8_t> GetCentralStackView(
       v8::internal::Isolate* isolate) {
-    return Simulator::current(isolate)->GetCurrentStackView();
+    return Simulator::current(isolate)->GetCentralStackView();
+  }
+
+  // Size of the safety stack limit gap.
+  static int JSStackLimitMargin() { return Simulator::JSStackLimitMargin(); }
+#endif
+
+  // Iterates the simulator registers and stack for conservative stack scanning.
+  static void IterateRegistersAndStack(Isolate* isolate,
+                                       ::heap::base::StackVisitor* visitor) {
+    DCHECK_NOT_NULL(isolate);
+    Simulator::current(isolate)->IterateRegistersAndStack(visitor);
   }
 
   // When running on the simulator, we should leave the C stack limits alone
@@ -90,14 +107,22 @@ class SimulatorStack : public v8::internal::AllStatic {
     return c_limit;
   }
 
-  static inline base::Vector<uint8_t> GetCurrentStackView(
+#if V8_ENABLE_WEBASSEMBLY
+  static inline base::Vector<uint8_t> GetCentralStackView(
       v8::internal::Isolate* isolate) {
-    uintptr_t limit = isolate->stack_guard()->real_jslimit();
-    uintptr_t stack_start = base::Stack::GetStackStart();
-    DCHECK_LE(limit, stack_start);
-    size_t size = stack_start - limit;
-    return base::VectorOf(reinterpret_cast<uint8_t*>(limit), size);
+    uintptr_t upper_bound = base::Stack::GetStackStart();
+    size_t size = isolate->stack_size() + JSStackLimitMargin();
+    uintptr_t lower_bound = upper_bound - size;
+    return base::VectorOf(reinterpret_cast<uint8_t*>(lower_bound), size);
   }
+
+  static constexpr int JSStackLimitMargin() {
+    return wasm::StackMemory::kJSLimitOffsetKB * KB;
+  }
+#endif
+
+  static void IterateRegistersAndStack(Isolate* isolate,
+                                       ::heap::base::StackVisitor* visitor) {}
 
   // When running on real hardware, we should also switch the C stack limit
   // when switching stacks for Wasm.
@@ -165,6 +190,14 @@ class GeneratedCode {
     FATAL("Generated code execution not possible during cross-compilation.");
 #endif  // defined(V8_TARGET_OS_WIN) && !defined(V8_OS_WIN)
 #if ABI_USES_FUNCTION_DESCRIPTORS
+#if V8_OS_ZOS
+    // z/OS ABI requires function descriptors (FD). Artificially create a pseudo
+    // FD to ensure correct dispatch to generated code.
+    void* function_desc[2] = {0, reinterpret_cast<void*>(fn_ptr_)};
+    asm volatile(" stg 5,%0 " : "=m"(function_desc[0])::"r5");
+    Signature* fn = reinterpret_cast<Signature*>(function_desc);
+    return fn(args...);
+#else
     // AIX ABI requires function descriptors (FD).  Artificially create a pseudo
     // FD to ensure correct dispatch to generated code.  The 'volatile'
     // declaration is required to avoid the compiler from not observing the
@@ -174,6 +207,7 @@ class GeneratedCode {
                                         0};
     Signature* fn = reinterpret_cast<Signature*>(function_desc);
     return fn(args...);
+#endif  // V8_OS_ZOS
 #else
     return fn_ptr_(args...);
 #endif  // ABI_USES_FUNCTION_DESCRIPTORS

@@ -34,7 +34,6 @@ class AccessCheckTest : public TestWithIsolate {
 
     // Running script in this context should work.
     RunJS("this.foo = 42; this[23] = true;");
-    EXPECT_THAT(RunJS("this.all_can_read"), IsInt32(42));
     RunJS("this.cross_context_int = 23");
     CHECK_EQ(g_cross_context_int, 23);
     EXPECT_THAT(RunJS("this.cross_context_int"), IsInt32(23));
@@ -58,12 +57,6 @@ class AccessCheckTest : public TestWithIsolate {
     {
       TryCatch try_catch(isolate());
       CHECK(TryRunJS("this.other[23]").IsEmpty());
-    }
-
-    // AllCanRead properties are also inaccessible.
-    {
-      TryCatch try_catch(isolate());
-      CHECK(TryRunJS("this.other.all_can_read").IsEmpty());
     }
 
     // Intercepted properties are accessible, however.
@@ -126,14 +119,21 @@ class AccessCheckTest : public TestWithIsolate {
 
 namespace {
 
+inline v8::Local<v8::String> v8_str(const char* x) {
+  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
+}
+
+inline v8::Local<v8::String> v8_str(v8::Isolate* isolate, const char* x) {
+  return v8::String::NewFromUtf8(isolate, x).ToLocalChecked();
+}
+
 bool AccessCheck(Local<Context> accessing_context,
                  Local<Object> accessed_object, Local<Value> data) {
   return false;
 }
 
 MaybeLocal<Value> CompileRun(Isolate* isolate, const char* source) {
-  Local<String> source_string =
-      String::NewFromUtf8(isolate, source).ToLocalChecked();
+  Local<String> source_string = v8_str(isolate, source);
   Local<Context> context = isolate->GetCurrentContext();
   Local<Script> script =
       Script::Compile(context, source_string).ToLocalChecked();
@@ -197,16 +197,16 @@ TEST_F(AccessCheckTest, GetOwnPropertyDescriptor) {
 
 class AccessRegressionTest : public AccessCheckTest {
  protected:
-  i::Handle<i::JSFunction> RetrieveFunctionFrom(Local<Context> context,
-                                                const char* script) {
+  i::DirectHandle<i::JSFunction> RetrieveFunctionFrom(Local<Context> context,
+                                                      const char* script) {
     Context::Scope context_scope(context);
     Local<Value> getter = CompileRun(isolate(), script).ToLocalChecked();
     EXPECT_TRUE(getter->IsFunction());
 
-    i::Handle<i::JSReceiver> r =
-        Utils::OpenHandle(*Local<Function>::Cast(getter));
+    i::DirectHandle<i::JSReceiver> r =
+        Utils::OpenDirectHandle(*Local<Function>::Cast(getter));
     EXPECT_TRUE(IsJSFunction(*r));
-    return i::Handle<i::JSFunction>::cast(r);
+    return i::Cast<i::JSFunction>(r);
   }
 };
 
@@ -236,11 +236,11 @@ TEST_F(AccessRegressionTest,
       ->Set(context2, NewString("object_from_context1"), object)
       .Check();
 
-  i::Handle<i::JSFunction> getter = RetrieveFunctionFrom(
+  i::DirectHandle<i::JSFunction> getter = RetrieveFunctionFrom(
       context2,
       "Object.getOwnPropertyDescriptor(object_from_context1, 'property').get");
 
-  ASSERT_EQ(getter->native_context(), *Utils::OpenHandle(*context1));
+  ASSERT_EQ(getter->native_context(), *Utils::OpenDirectHandle(*context1));
 }
 
 // Regression test for https://crbug.com/986063.
@@ -253,7 +253,7 @@ TEST_F(AccessRegressionTest,
   //    - a normal function "breakfn".
   //
   // The test sets a break point on {object.breakfn} in the first context.
-  // This forces instantation of the JSFunction for the {object.property}
+  // This forces instantiation of the JSFunction for the {object.property}
   // accessor pair. The test verifies afterwards that the respective
   // JSFunction of the getter have the correct native context.
 
@@ -287,7 +287,7 @@ TEST_F(AccessRegressionTest,
   {
     Context::Scope context_scope(context1);
     i::Isolate* iso = reinterpret_cast<i::Isolate*>(isolate());
-    i::Handle<i::JSFunction> break_fn =
+    i::DirectHandle<i::JSFunction> break_fn =
         RetrieveFunctionFrom(context1, "object.breakfn");
 
     int id;
@@ -295,67 +295,63 @@ TEST_F(AccessRegressionTest,
                                            iso->factory()->empty_string(), &id);
   }
 
-  i::Handle<i::JSFunction> getter_c1 = RetrieveFunctionFrom(
+  i::DirectHandle<i::JSFunction> getter_c1 = RetrieveFunctionFrom(
       context1, "Object.getOwnPropertyDescriptor(object, 'property').get");
-  i::Handle<i::JSFunction> getter_c2 = RetrieveFunctionFrom(
+  i::DirectHandle<i::JSFunction> getter_c2 = RetrieveFunctionFrom(
       context2, "Object.getOwnPropertyDescriptor(object, 'property').get");
 
-  ASSERT_EQ(getter_c1->native_context(), *Utils::OpenHandle(*context1));
-  ASSERT_EQ(getter_c2->native_context(), *Utils::OpenHandle(*context2));
+  ASSERT_EQ(getter_c1->native_context(), *Utils::OpenDirectHandle(*context1));
+  ASSERT_EQ(getter_c2->native_context(), *Utils::OpenDirectHandle(*context2));
 }
 
-void NamedGetter(Local<Name> property,
-                 const PropertyCallbackInfo<Value>& info) {
+v8::Intercepted NamedGetter(Local<Name> property,
+                            const PropertyCallbackInfo<Value>& info) {
   CHECK(g_expect_interceptor_call);
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  if (property
-          ->Equals(context, String::NewFromUtf8(isolate, "cross_context_int")
-                                .ToLocalChecked())
-          .FromJust())
-    info.GetReturnValue().Set(g_cross_context_int);
+  if (!property->Equals(context, v8_str("cross_context_int")).FromJust()) {
+    return v8::Intercepted::kNo;
+  }
+  info.GetReturnValue().Set(g_cross_context_int);
+  return v8::Intercepted::kYes;
 }
 
-void NamedSetter(Local<Name> property, Local<Value> value,
-                 const PropertyCallbackInfo<Value>& info) {
+v8::Intercepted NamedSetter(Local<Name> property, Local<Value> value,
+                            const PropertyCallbackInfo<void>& info) {
   CHECK(g_expect_interceptor_call);
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  if (!property
-           ->Equals(context, String::NewFromUtf8(isolate, "cross_context_int")
-                                 .ToLocalChecked())
-           .FromJust())
-    return;
+  if (!property->Equals(context, v8_str("cross_context_int")).FromJust()) {
+    return v8::Intercepted::kNo;
+  }
   if (value->IsInt32()) {
     g_cross_context_int = value->ToInt32(context).ToLocalChecked()->Value();
   }
-  info.GetReturnValue().Set(value);
+  return v8::Intercepted::kYes;
 }
 
-void NamedQuery(Local<Name> property,
-                const PropertyCallbackInfo<Integer>& info) {
+v8::Intercepted NamedQuery(Local<Name> property,
+                           const PropertyCallbackInfo<Integer>& info) {
   CHECK(g_expect_interceptor_call);
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  if (!property
-           ->Equals(context, String::NewFromUtf8(isolate, "cross_context_int")
-                                 .ToLocalChecked())
-           .FromJust())
-    return;
+  if (!property->Equals(context, v8_str("cross_context_int")).FromJust()) {
+    return v8::Intercepted::kNo;
+  }
   info.GetReturnValue().Set(DontDelete);
+  return v8::Intercepted::kYes;
 }
 
-void NamedDeleter(Local<Name> property,
-                  const PropertyCallbackInfo<Boolean>& info) {
+v8::Intercepted NamedDeleter(Local<Name> property,
+                             const PropertyCallbackInfo<Boolean>& info) {
   CHECK(g_expect_interceptor_call);
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
-  if (!property
-           ->Equals(context, String::NewFromUtf8(isolate, "cross_context_int")
-                                 .ToLocalChecked())
-           .FromJust())
-    return;
+  if (!property->Equals(context, v8_str("cross_context_int")).FromJust()) {
+    return v8::Intercepted::kNo;
+  }
   info.GetReturnValue().Set(false);
+  return v8::Intercepted::kYes;
 }
 
 void NamedEnumerator(const PropertyCallbackInfo<Array>& info) {
@@ -363,38 +359,52 @@ void NamedEnumerator(const PropertyCallbackInfo<Array>& info) {
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
   Local<Array> names = Array::New(isolate, 1);
-  names
-      ->Set(context, 0,
-            String::NewFromUtf8(isolate, "cross_context_int").ToLocalChecked())
-      .FromJust();
+  names->Set(context, 0, v8_str("cross_context_int")).FromJust();
   info.GetReturnValue().Set(names);
 }
 
-void IndexedGetter(uint32_t index, const PropertyCallbackInfo<Value>& info) {
+v8::Intercepted IndexedGetter(uint32_t index,
+                              const PropertyCallbackInfo<Value>& info) {
   CHECK(g_expect_interceptor_call);
-  if (index == 7) info.GetReturnValue().Set(g_cross_context_int);
-}
-
-void IndexedSetter(uint32_t index, Local<Value> value,
-                   const PropertyCallbackInfo<Value>& info) {
-  CHECK(g_expect_interceptor_call);
-  Isolate* isolate = info.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
-  if (index != 7) return;
-  if (value->IsInt32()) {
-    g_cross_context_int = value->ToInt32(context).ToLocalChecked()->Value();
+  if (index == 7) {
+    info.GetReturnValue().Set(g_cross_context_int);
+    return v8::Intercepted::kYes;
   }
-  info.GetReturnValue().Set(value);
+  return v8::Intercepted::kNo;
 }
 
-void IndexedQuery(uint32_t index, const PropertyCallbackInfo<Integer>& info) {
+v8::Intercepted IndexedSetter(uint32_t index, Local<Value> value,
+                              const PropertyCallbackInfo<void>& info) {
   CHECK(g_expect_interceptor_call);
-  if (index == 7) info.GetReturnValue().Set(DontDelete);
+  if (index == 7) {
+    Isolate* isolate = info.GetIsolate();
+    Local<Context> context = isolate->GetCurrentContext();
+    if (value->IsInt32()) {
+      g_cross_context_int = value->ToInt32(context).ToLocalChecked()->Value();
+    }
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
 }
 
-void IndexedDeleter(uint32_t index, const PropertyCallbackInfo<Boolean>& info) {
+v8::Intercepted IndexedQuery(uint32_t index,
+                             const PropertyCallbackInfo<Integer>& info) {
   CHECK(g_expect_interceptor_call);
-  if (index == 7) info.GetReturnValue().Set(false);
+  if (index == 7) {
+    info.GetReturnValue().Set(DontDelete);
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
+}
+
+v8::Intercepted IndexedDeleter(uint32_t index,
+                               const PropertyCallbackInfo<Boolean>& info) {
+  CHECK(g_expect_interceptor_call);
+  if (index == 7) {
+    info.GetReturnValue().Set(false);
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
 }
 
 void IndexedEnumerator(const PropertyCallbackInfo<Array>& info) {
@@ -402,13 +412,12 @@ void IndexedEnumerator(const PropertyCallbackInfo<Array>& info) {
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
   Local<Array> names = Array::New(isolate, 1);
-  names->Set(context, 0, String::NewFromUtf8(isolate, "7").ToLocalChecked())
-      .FromJust();
+  names->Set(context, 0, v8_str(isolate, "7")).FromJust();
   info.GetReturnValue().Set(names);
 }
 
-void MethodGetter(Local<Name> property,
-                  const PropertyCallbackInfo<Value>& info) {
+v8::Intercepted MethodGetter(Local<Name> property,
+                             const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
@@ -418,43 +427,50 @@ void MethodGetter(Local<Name> property,
 
   info.GetReturnValue().Set(
       function_template->GetFunction(context).ToLocalChecked());
+  return v8::Intercepted::kYes;
 }
 
 void MethodCallback(const FunctionCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(8);
 }
 
-void NamedGetterThrowsException(Local<Name> property,
-                                const PropertyCallbackInfo<Value>& info) {
-  info.GetIsolate()->ThrowException(
-      String::NewFromUtf8(info.GetIsolate(), "exception").ToLocalChecked());
+v8::Intercepted NamedGetterThrowsException(
+    Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  isolate->ThrowException(v8_str(isolate, "exception"));
+  return v8::Intercepted::kYes;
 }
 
-void NamedSetterThrowsException(Local<Name> property, Local<Value> value,
-                                const PropertyCallbackInfo<Value>& info) {
-  info.GetIsolate()->ThrowException(
-      String::NewFromUtf8(info.GetIsolate(), "exception").ToLocalChecked());
+v8::Intercepted NamedSetterThrowsException(
+    Local<Name> property, Local<Value> value,
+    const PropertyCallbackInfo<void>& info) {
+  Isolate* isolate = info.GetIsolate();
+  isolate->ThrowException(v8_str(isolate, "exception"));
+  return v8::Intercepted::kYes;
 }
 
-void IndexedGetterThrowsException(uint32_t index,
-                                  const PropertyCallbackInfo<Value>& info) {
-  info.GetIsolate()->ThrowException(
-      String::NewFromUtf8(info.GetIsolate(), "exception").ToLocalChecked());
+v8::Intercepted IndexedGetterThrowsException(
+    uint32_t index, const PropertyCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  isolate->ThrowException(v8_str(isolate, "exception"));
+  return v8::Intercepted::kYes;
 }
 
-void IndexedSetterThrowsException(uint32_t index, Local<Value> value,
-                                  const PropertyCallbackInfo<Value>& info) {
-  info.GetIsolate()->ThrowException(
-      String::NewFromUtf8(info.GetIsolate(), "exception").ToLocalChecked());
+v8::Intercepted IndexedSetterThrowsException(
+    uint32_t index, Local<Value> value,
+    const PropertyCallbackInfo<void>& info) {
+  Isolate* isolate = info.GetIsolate();
+  isolate->ThrowException(v8_str(isolate, "exception"));
+  return v8::Intercepted::kYes;
 }
 
-void GetCrossContextInt(Local<String> property,
+void GetCrossContextInt(Local<Name> property,
                         const PropertyCallbackInfo<Value>& info) {
   CHECK(!g_expect_interceptor_call);
   info.GetReturnValue().Set(g_cross_context_int);
 }
 
-void SetCrossContextInt(Local<String> property, Local<Value> value,
+void SetCrossContextInt(Local<Name> property, Local<Value> value,
                         const PropertyCallbackInfo<void>& info) {
   CHECK(!g_expect_interceptor_call);
   Isolate* isolate = info.GetIsolate();
@@ -483,9 +499,6 @@ TEST_F(AccessCheckTest, AccessCheckWithInterceptor) {
                                           IndexedEnumerator));
   global_template->SetNativeDataProperty(
       NewString("cross_context_int"), GetCrossContextInt, SetCrossContextInt);
-  global_template->SetNativeDataProperty(NewString("all_can_read"), Return42,
-                                         nullptr, Local<Value>(), None,
-                                         ALL_CAN_READ);
 
   Local<Context> context0 = Context::New(isolate(), nullptr, global_template);
   CheckCanRunScriptInContext(context0);
@@ -562,9 +575,6 @@ TEST_F(AccessCheckTest, NewRemoteContext) {
                                           IndexedEnumerator));
   global_template->SetNativeDataProperty(
       NewString("cross_context_int"), GetCrossContextInt, SetCrossContextInt);
-  global_template->SetNativeDataProperty(NewString("all_can_read"), Return42,
-                                         nullptr, Local<Value>(), None,
-                                         ALL_CAN_READ);
 
   Local<Object> global0 =
       Context::NewRemoteContext(isolate(), global_template).ToLocalChecked();
@@ -621,9 +631,6 @@ TEST_F(AccessCheckTest, NewRemoteInstance) {
       IndexedPropertyHandlerConfiguration(IndexedGetter, IndexedSetter,
                                           IndexedQuery, IndexedDeleter,
                                           IndexedEnumerator));
-  tmpl->SetNativeDataProperty(NewString("all_can_read"), Return42, nullptr,
-                              Local<Value>(), None, ALL_CAN_READ);
-
   Local<Object> obj = tmpl->NewRemoteInstance().ToLocalChecked();
 
   Local<Context> context = Context::New(isolate());

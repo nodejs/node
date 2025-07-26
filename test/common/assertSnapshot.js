@@ -16,6 +16,10 @@ function replaceStackTrace(str, replacement = '$1*$7$8\n') {
   return str.replace(stackFramesRegexp, replacement);
 }
 
+function replaceInternalStackTrace(str) {
+  return str.replaceAll(/(\W+).*node:internal.*/g, '$1*');
+}
+
 function replaceWindowsLineEndings(str) {
   return str.replace(windowNewlineRegexp, '');
 }
@@ -24,8 +28,11 @@ function replaceWindowsPaths(str) {
   return common.isWindows ? str.replaceAll(path.win32.sep, path.posix.sep) : str;
 }
 
-function replaceFullPaths(str) {
-  return str.replaceAll(process.cwd(), '');
+function transformProjectRoot(replacement = '') {
+  const projectRoot = path.resolve(__dirname, '../..');
+  return (str) => {
+    return str.replaceAll('\\\'', "'").replaceAll(projectRoot, replacement);
+  };
 }
 
 function transform(...args) {
@@ -77,9 +84,16 @@ async function spawnAndAssert(filename, transform = (x) => x, { tty = false, ...
     test({ skip: 'Skipping pseudo-tty tests, as pseudo terminals are not available on Windows.' });
     return;
   }
-  const flags = common.parseTestFlags(filename);
-  const executable = tty ? 'tools/pseudo-tty.py' : process.execPath;
-  const args = tty ? [process.execPath, ...flags, filename] : [...flags, filename];
+  let flags = common.parseTestFlags(filename);
+  if (options.flags) {
+    flags = [...options.flags, ...flags];
+  }
+
+  const executable = tty ? (process.env.PYTHON || 'python3') : process.execPath;
+  const args =
+    tty ?
+      [path.join(__dirname, '../..', 'tools/pseudo-tty.py'), process.execPath, ...flags, filename] :
+      [...flags, filename];
   const { stdout, stderr } = await common.spawnPromisified(executable, args, options);
   await assertSnapshot(transform(`${stdout}${stderr}`), filename);
 }
@@ -87,11 +101,12 @@ async function spawnAndAssert(filename, transform = (x) => x, { tty = false, ...
 module.exports = {
   assertSnapshot,
   getSnapshotPath,
-  replaceFullPaths,
   replaceNodeVersion,
   replaceStackTrace,
+  replaceInternalStackTrace,
   replaceWindowsLineEndings,
   replaceWindowsPaths,
   spawnAndAssert,
   transform,
+  transformProjectRoot,
 };

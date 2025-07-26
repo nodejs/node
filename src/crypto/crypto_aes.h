@@ -9,28 +9,25 @@
 #include "env.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
-constexpr size_t kAesBlockSize = 16;
+namespace node::crypto {
 constexpr unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
-constexpr const char* kDefaultWrapIV = "\xa6\xa6\xa6\xa6\xa6\xa6\xa6\xa6";
 
-#define VARIANTS(V)                                                           \
-  V(CTR_128, AES_CTR_Cipher)                                                  \
-  V(CTR_192, AES_CTR_Cipher)                                                  \
-  V(CTR_256, AES_CTR_Cipher)                                                  \
-  V(CBC_128, AES_Cipher)                                                      \
-  V(CBC_192, AES_Cipher)                                                      \
-  V(CBC_256, AES_Cipher)                                                      \
-  V(GCM_128, AES_Cipher)                                                      \
-  V(GCM_192, AES_Cipher)                                                      \
-  V(GCM_256, AES_Cipher)                                                      \
-  V(KW_128, AES_Cipher)                                                       \
-  V(KW_192, AES_Cipher)                                                       \
-  V(KW_256, AES_Cipher)
+#define VARIANTS(V)                                                            \
+  V(CTR_128, AES_CTR_Cipher, ncrypto::Cipher::AES_128_CTR)                     \
+  V(CTR_192, AES_CTR_Cipher, ncrypto::Cipher::AES_192_CTR)                     \
+  V(CTR_256, AES_CTR_Cipher, ncrypto::Cipher::AES_256_CTR)                     \
+  V(CBC_128, AES_Cipher, ncrypto::Cipher::AES_128_CBC)                         \
+  V(CBC_192, AES_Cipher, ncrypto::Cipher::AES_192_CBC)                         \
+  V(CBC_256, AES_Cipher, ncrypto::Cipher::AES_256_CBC)                         \
+  V(GCM_128, AES_Cipher, ncrypto::Cipher::AES_128_GCM)                         \
+  V(GCM_192, AES_Cipher, ncrypto::Cipher::AES_192_GCM)                         \
+  V(GCM_256, AES_Cipher, ncrypto::Cipher::AES_256_GCM)                         \
+  V(KW_128, AES_Cipher, ncrypto::Cipher::AES_128_KW)                           \
+  V(KW_192, AES_Cipher, ncrypto::Cipher::AES_192_KW)                           \
+  V(KW_256, AES_Cipher, ncrypto::Cipher::AES_256_KW)
 
-enum AESKeyVariant {
-#define V(name, _) kKeyVariantAES_ ## name,
+enum class AESKeyVariant {
+#define V(name, _, __) name,
   VARIANTS(V)
 #undef V
 };
@@ -38,7 +35,7 @@ enum AESKeyVariant {
 struct AESCipherConfig final : public MemoryRetainer {
   CryptoJobMode mode;
   AESKeyVariant variant;
-  const EVP_CIPHER* cipher;
+  ncrypto::Cipher cipher;
   size_t length;
   ByteSource iv;  // Used for both iv or counter
   ByteSource additional_data;
@@ -60,20 +57,19 @@ struct AESCipherTraits final {
 
   using AdditionalParameters = AESCipherConfig;
 
-  static v8::Maybe<bool> AdditionalConfig(
+  static v8::Maybe<void> AdditionalConfig(
       CryptoJobMode mode,
       const v8::FunctionCallbackInfo<v8::Value>& args,
       unsigned int offset,
       WebCryptoCipherMode cipher_mode,
       AESCipherConfig* config);
 
-  static WebCryptoCipherStatus DoCipher(
-      Environment* env,
-      std::shared_ptr<KeyObjectData> key_data,
-      WebCryptoCipherMode cipher_mode,
-      const AESCipherConfig& params,
-      const ByteSource& in,
-      ByteSource* out);
+  static WebCryptoCipherStatus DoCipher(Environment* env,
+                                        const KeyObjectData& key_data,
+                                        WebCryptoCipherMode cipher_mode,
+                                        const AESCipherConfig& params,
+                                        const ByteSource& in,
+                                        ByteSource* out);
 };
 
 using AESCryptoJob = CipherJob<AESCipherTraits>;
@@ -82,8 +78,7 @@ namespace AES {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace AES
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_AES_H_

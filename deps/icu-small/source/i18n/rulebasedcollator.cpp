@@ -32,7 +32,6 @@
 #include "unicode/utf8.h"
 #include "unicode/uversion.h"
 #include "bocsu.h"
-#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "collation.h"
@@ -428,7 +427,7 @@ RuleBasedCollator::getAttribute(UColAttribute attr, UErrorCode &errorCode) const
         option = CollationSettings::CHECK_FCD;
         break;
     case UCOL_STRENGTH:
-        return (UColAttributeValue)settings->getStrength();
+        return static_cast<UColAttributeValue>(settings->getStrength());
     case UCOL_HIRAGANA_QUATERNARY_MODE:
         // Deprecated attribute, unsettable.
         return UCOL_OFF;
@@ -540,7 +539,7 @@ RuleBasedCollator::setMaxVariable(UColReorderCode group, UErrorCode &errorCode) 
     }
 
     if(group == UCOL_REORDER_CODE_DEFAULT) {
-        group = (UColReorderCode)(
+        group = static_cast<UColReorderCode>(
             UCOL_REORDER_CODE_FIRST + int32_t{defaultSettings.getMaxVariable()});
     }
     uint32_t varTop = data->getLastPrimaryForGroup(group);
@@ -559,7 +558,7 @@ RuleBasedCollator::setMaxVariable(UColReorderCode group, UErrorCode &errorCode) 
 
 UColReorderCode
 RuleBasedCollator::getMaxVariable() const {
-    return (UColReorderCode)(UCOL_REORDER_CODE_FIRST + int32_t{settings->getMaxVariable()});
+    return static_cast<UColReorderCode>(UCOL_REORDER_CODE_FIRST + int32_t{settings->getMaxVariable()});
 }
 
 uint32_t
@@ -594,7 +593,7 @@ RuleBasedCollator::setVariableTop(const char16_t *varTop, int32_t len, UErrorCod
         errorCode = U_CE_NOT_FOUND_ERROR;
         return 0;
     }
-    setVariableTop((uint32_t)(ce1 >> 32), errorCode);
+    setVariableTop(static_cast<uint32_t>(ce1 >> 32), errorCode);
     return settings->variableTop;
 }
 
@@ -863,7 +862,7 @@ public:
             s = text;
             limit = spanLimit;
         } else {
-            str.setTo(text, (int32_t)(spanLimit - text));
+            str.setTo(text, static_cast<int32_t>(spanLimit - text));
             {
                 ReorderingBuffer r_buffer(nfcImpl, str);
                 if(r_buffer.init(str.length(), errorCode)) {
@@ -1064,7 +1063,7 @@ RuleBasedCollator::doCompare(const char16_t *left, int32_t leftLength,
         }
     }
     if(result != UCOL_EQUAL || settings->getStrength() < UCOL_IDENTICAL || U_FAILURE(errorCode)) {
-        return (UCollationResult)result;
+        return static_cast<UCollationResult>(result);
     }
 
     // Note: If NUL-terminated, we could get the actual limits from the iterators now.
@@ -1189,7 +1188,7 @@ RuleBasedCollator::doCompare(const uint8_t *left, int32_t leftLength,
         }
     }
     if(result != UCOL_EQUAL || settings->getStrength() < UCOL_IDENTICAL || U_FAILURE(errorCode)) {
-        return (UCollationResult)result;
+        return static_cast<UCollationResult>(result);
     }
 
     // Note: If NUL-terminated, we could get the actual limits from the iterators now.
@@ -1365,13 +1364,13 @@ RuleBasedCollator::writeIdenticalLevel(const char16_t *s, const char16_t *limit,
     sink.Append(Collation::LEVEL_SEPARATOR_BYTE);
     UChar32 prev = 0;
     if(nfdQCYesLimit != s) {
-        prev = u_writeIdenticalLevelRun(prev, s, (int32_t)(nfdQCYesLimit - s), sink);
+        prev = u_writeIdenticalLevelRun(prev, s, static_cast<int32_t>(nfdQCYesLimit - s), sink);
     }
     // Is there non-NFD text?
     int32_t destLengthEstimate;
     if(limit != nullptr) {
         if(nfdQCYesLimit == limit) { return; }
-        destLengthEstimate = (int32_t)(limit - nfdQCYesLimit);
+        destLengthEstimate = static_cast<int32_t>(limit - nfdQCYesLimit);
     } else {
         // s is NUL-terminated
         if(*nfdQCYesLimit == 0) { return; }
@@ -1433,10 +1432,10 @@ RuleBasedCollator::internalNextSortKeyPart(UCharIterator *iter, uint32_t state[2
     if(count == 0) { return 0; }
 
     FixedSortKeyByteSink sink(reinterpret_cast<char *>(dest), count);
-    sink.IgnoreBytes((int32_t)state[1]);
+    sink.IgnoreBytes(static_cast<int32_t>(state[1]));
     iter->move(iter, 0, UITER_START);
 
-    Collation::Level level = (Collation::Level)state[0];
+    Collation::Level level = static_cast<Collation::Level>(state[0]);
     if(level <= Collation::QUATERNARY_LEVEL) {
         UBool numeric = settings->isNumeric();
         PartLevelCallback callback(sink);
@@ -1451,8 +1450,8 @@ RuleBasedCollator::internalNextSortKeyPart(UCharIterator *iter, uint32_t state[2
         }
         if(U_FAILURE(errorCode)) { return 0; }
         if(sink.NumberOfBytesAppended() > count) {
-            state[0] = (uint32_t)callback.getLevel();
-            state[1] = (uint32_t)callback.getLevelCapacity();
+            state[0] = static_cast<uint32_t>(callback.getLevel());
+            state[1] = static_cast<uint32_t>(callback.getLevelCapacity());
             return count;
         }
         // All of the normal levels are done.
@@ -1469,20 +1468,20 @@ RuleBasedCollator::internalNextSortKeyPart(UCharIterator *iter, uint32_t state[2
         for(;;) {
             UChar32 c = iter->next(iter);
             if(c < 0) { break; }
-            s.append((char16_t)c);
+            s.append(static_cast<char16_t>(c));
         }
         const char16_t *sArray = s.getBuffer();
         writeIdenticalLevel(sArray, sArray + s.length(), sink, errorCode);
         if(U_FAILURE(errorCode)) { return 0; }
         if(sink.NumberOfBytesAppended() > count) {
-            state[0] = (uint32_t)level;
-            state[1] = (uint32_t)levelCapacity;
+            state[0] = static_cast<uint32_t>(level);
+            state[1] = static_cast<uint32_t>(levelCapacity);
             return count;
         }
     }
 
     // ZERO_LEVEL: Fill the remainder of dest with 00 bytes.
-    state[0] = (uint32_t)Collation::ZERO_LEVEL;
+    state[0] = static_cast<uint32_t>(Collation::ZERO_LEVEL);
     state[1] = 0;
     int32_t length = sink.NumberOfBytesAppended();
     int32_t i = length;
@@ -1561,7 +1560,6 @@ RuleBasedCollator::internalGetShortDefinitionString(const char *locale,
 
     // Append items in alphabetic order of their short definition letters.
     CharString result;
-    char subtag[ULOC_KEYWORD_AND_VALUES_CAPACITY];
 
     if(attributeHasBeenSetExplicitly(UCOL_ALTERNATE_HANDLING)) {
         appendAttribute(result, 'A', getAttribute(UCOL_ALTERNATE_HANDLING, errorCode), errorCode);
@@ -1581,30 +1579,27 @@ RuleBasedCollator::internalGetShortDefinitionString(const char *locale,
         appendAttribute(result, 'F', getAttribute(UCOL_FRENCH_COLLATION, errorCode), errorCode);
     }
     // Note: UCOL_HIRAGANA_QUATERNARY_MODE is deprecated and never changes away from default.
-    {
-        CharString collation;
-        CharStringByteSink sink(&collation);
-        ulocimp_getKeywordValue(resultLocale, "collation", sink, &errorCode);
-        appendSubtag(result, 'K', collation.data(), collation.length(), errorCode);
-    }
-    length = uloc_getLanguage(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    if (length == 0) {
+    CharString collation = ulocimp_getKeywordValue(resultLocale, "collation", errorCode);
+    appendSubtag(result, 'K', collation.data(), collation.length(), errorCode);
+    CharString language;
+    CharString script;
+    CharString region;
+    CharString variant;
+    ulocimp_getSubtags(resultLocale, &language, &script, &region, &variant, nullptr, errorCode);
+    if (language.isEmpty()) {
         appendSubtag(result, 'L', "root", 4, errorCode);
     } else {
-        appendSubtag(result, 'L', subtag, length, errorCode);
+        appendSubtag(result, 'L', language.data(), language.length(), errorCode);
     }
     if(attributeHasBeenSetExplicitly(UCOL_NORMALIZATION_MODE)) {
         appendAttribute(result, 'N', getAttribute(UCOL_NORMALIZATION_MODE, errorCode), errorCode);
     }
-    length = uloc_getCountry(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    appendSubtag(result, 'R', subtag, length, errorCode);
+    appendSubtag(result, 'R', region.data(), region.length(), errorCode);
     if(attributeHasBeenSetExplicitly(UCOL_STRENGTH)) {
         appendAttribute(result, 'S', getAttribute(UCOL_STRENGTH, errorCode), errorCode);
     }
-    length = uloc_getVariant(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    appendSubtag(result, 'V', subtag, length, errorCode);
-    length = uloc_getScript(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    appendSubtag(result, 'Z', subtag, length, errorCode);
+    appendSubtag(result, 'V', variant.data(), variant.length(), errorCode);
+    appendSubtag(result, 'Z', script.data(), script.length(), errorCode);
 
     if(U_FAILURE(errorCode)) { return 0; }
     return result.extract(buffer, capacity, errorCode);

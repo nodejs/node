@@ -235,13 +235,12 @@ static char *dl_name_converter(DSO *dso, const char *filename)
         ERR_raise(ERR_LIB_DSO, DSO_R_NAME_TRANSLATION_FAILED);
         return NULL;
     }
-    if (transform) {
-        if ((DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0)
-            sprintf(translated, "lib%s%s", filename, DSO_EXTENSION);
-        else
-            sprintf(translated, "%s%s", filename, DSO_EXTENSION);
-    } else
-        sprintf(translated, "%s", filename);
+    if (transform)
+        BIO_snprintf(translated, rsize,
+                     (DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0
+                     ? "lib%s%s" : "%s%s", filename, DSO_EXTENSION);
+    else
+        BIO_snprintf(translated, rsize, "%s", filename);
     return translated;
 }
 

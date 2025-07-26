@@ -138,6 +138,15 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
 
     return true;
   }
+
+  void MarkObject(void* payload) {
+    HeapObjectHeader& header = HeapObjectHeader::FromObject(payload);
+    header.TryMarkAtomic();
+    BasePage* page = BasePage::FromPayload(&header);
+    page->IncrementMarkedBytes(page->is_large()
+                                   ? LargePage::From(page)->PayloadSize()
+                                   : header.AllocatedSize());
+  }
 };
 
 TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
@@ -146,7 +155,7 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfNormalPage) {
 
   auto* unmarked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
   auto* marked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
-  HeapObjectHeader::FromObject(marked_object).TryMarkAtomic();
+  MarkObject(marked_object);
 
   auto* page = BasePage::FromPayload(unmarked_object);
   auto& space = page->space();
@@ -187,7 +196,7 @@ TEST_F(ConcurrentSweeperTest, BackgroundSweepOfLargePage) {
 
   auto* unmarked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
   auto* marked_object = MakeGarbageCollected<GCedType>(GetAllocationHandle());
-  HeapObjectHeader::FromObject(marked_object).TryMarkAtomic();
+  MarkObject(marked_object);
 
   auto* unmarked_page = BasePage::FromPayload(unmarked_object);
   auto* marked_page = BasePage::FromPayload(marked_object);
@@ -315,7 +324,8 @@ TEST_F(ConcurrentSweeperTest, IncrementalSweeping) {
   testing::TestPlatform::DisableBackgroundTasksScope disable_concurrent_sweeper(
       &GetPlatform());
 
-  auto task_runner = GetPlatform().GetForegroundTaskRunner();
+  auto task_runner =
+      GetPlatform().GetForegroundTaskRunner(TaskPriority::kUserBlocking);
 
   // Create two unmarked objects.
   MakeGarbageCollected<NormalFinalizable>(GetAllocationHandle());
@@ -331,14 +341,19 @@ TEST_F(ConcurrentSweeperTest, IncrementalSweeping) {
       HeapObjectHeader::FromObject(marked_normal_object);
   auto& marked_large_header = HeapObjectHeader::FromObject(marked_large_object);
 
-  marked_normal_header.TryMarkAtomic();
-  marked_large_header.TryMarkAtomic();
+  MarkObject(marked_normal_object);
+  MarkObject(marked_large_object);
 
   StartSweeping();
 
   EXPECT_EQ(0u, g_destructor_callcount);
   EXPECT_TRUE(marked_normal_header.IsMarked());
-  EXPECT_TRUE(marked_large_header.IsMarked());
+  // Live large objects are eagerly swept.
+  if (Heap::From(GetHeap())->generational_gc_supported()) {
+    EXPECT_TRUE(marked_large_header.IsMarked());
+  } else {
+    EXPECT_FALSE(marked_large_header.IsMarked());
+  }
 
   // Wait for incremental sweeper to finish.
   GetPlatform().RunAllForegroundTasks();

@@ -22,19 +22,19 @@ typedef size_t AliasedBufferIndex;
  *
  * While this technique is computationally efficient, it is effectively a
  * write to JS program state w/out going through the standard
- * (monitored) API. Thus any VM capabilities to detect the modification are
+ * (monitored) API. Thus, any VM capabilities to detect the modification are
  * circumvented.
  *
  * The encapsulation herein provides a placeholder where such writes can be
  * observed. Any notification APIs will be left as a future exercise.
  */
 template <class NativeT, class V8T>
-class AliasedBufferBase : public MemoryRetainer {
+class AliasedBufferBase final : public MemoryRetainer {
  public:
-  static_assert(std::is_scalar<NativeT>::value);
+  static_assert(std::is_scalar_v<NativeT>);
 
   AliasedBufferBase(v8::Isolate* isolate,
-                    const size_t count,
+                    size_t count,
                     const AliasedBufferIndex* index = nullptr);
 
   /**
@@ -43,13 +43,13 @@ class AliasedBufferBase : public MemoryRetainer {
    * a native buffer, but will each read/write to different sections of the
    * native buffer.
    *
-   *  Note that byte_offset must by aligned by sizeof(NativeT).
+   *  Note that byte_offset must be aligned by sizeof(NativeT).
    */
   // TODO(refack): refactor into a non-owning `AliasedBufferBaseView`
   AliasedBufferBase(
       v8::Isolate* isolate,
-      const size_t byte_offset,
-      const size_t count,
+      size_t byte_offset,
+      size_t count,
       const AliasedBufferBase<uint8_t, v8::Uint8Array>& backing_buffer,
       const AliasedBufferIndex* index = nullptr);
 
@@ -58,7 +58,7 @@ class AliasedBufferBase : public MemoryRetainer {
   AliasedBufferIndex Serialize(v8::Local<v8::Context> context,
                                v8::SnapshotCreator* creator);
 
-  inline void Deserialize(v8::Local<v8::Context> context);
+  void Deserialize(v8::Local<v8::Context> context);
 
   AliasedBufferBase& operator=(AliasedBufferBase&& that) noexcept;
 
@@ -68,7 +68,7 @@ class AliasedBufferBase : public MemoryRetainer {
    */
   class Reference {
    public:
-    Reference(AliasedBufferBase<NativeT, V8T>* aliased_buffer, size_t index)
+    Reference(AliasedBufferBase* aliased_buffer, const size_t index)
         : aliased_buffer_(aliased_buffer), index_(index) {}
 
     Reference(const Reference& that)
@@ -76,12 +76,12 @@ class AliasedBufferBase : public MemoryRetainer {
           index_(that.index_) {
     }
 
-    inline Reference& operator=(const NativeT& val) {
+    Reference& operator=(const NativeT& val) {
       aliased_buffer_->SetValue(index_, val);
       return *this;
     }
 
-    inline Reference& operator=(const Reference& val) {
+    Reference& operator=(const Reference& val) {
       return *this = static_cast<NativeT>(val);
     }
 
@@ -89,29 +89,29 @@ class AliasedBufferBase : public MemoryRetainer {
       return aliased_buffer_->GetValue(index_);
     }
 
-    inline Reference& operator+=(const NativeT& val) {
+    Reference& operator+=(const NativeT& val) {
       const NativeT current = aliased_buffer_->GetValue(index_);
       aliased_buffer_->SetValue(index_, current + val);
       return *this;
     }
 
-    inline Reference& operator+=(const Reference& val) {
+    Reference& operator+=(const Reference& val) {
       return this->operator+=(static_cast<NativeT>(val));
     }
 
-    inline Reference& operator-=(const NativeT& val) {
+    Reference& operator-=(const NativeT& val) {
       const NativeT current = aliased_buffer_->GetValue(index_);
       aliased_buffer_->SetValue(index_, current - val);
       return *this;
     }
 
    private:
-    AliasedBufferBase<NativeT, V8T>* aliased_buffer_;
+    AliasedBufferBase* aliased_buffer_;
     size_t index_;
   };
 
   /**
-   *  Get the underlying v8 TypedArray overlayed on top of the native buffer
+   *  Get the underlying v8 TypedArray overlaid on top of the native buffer
    */
   v8::Local<V8T> GetJSArray() const;
 
@@ -123,7 +123,7 @@ class AliasedBufferBase : public MemoryRetainer {
    * array becomes unreachable. Usually this means the caller must maintain
    * a JS reference to the typed array from JS object.
    */
-  inline void MakeWeak();
+  void MakeWeak();
 
   /**
   *  Get the underlying v8::ArrayBuffer underlying the TypedArray and
@@ -135,22 +135,22 @@ class AliasedBufferBase : public MemoryRetainer {
    *  Get the underlying native buffer. Note that all reads/writes should occur
    *  through the GetValue/SetValue/operator[] methods
    */
-  inline const NativeT* GetNativeBuffer() const;
+  const NativeT* GetNativeBuffer() const;
 
   /**
    *  Synonym for GetBuffer()
    */
-  inline const NativeT* operator*() const;
+  const NativeT* operator*() const;
 
   /**
    *  Set position index to given value.
    */
-  inline void SetValue(const size_t index, NativeT value);
+  void SetValue(size_t index, NativeT value);
 
   /**
    *  Get value at position index
    */
-  inline const NativeT GetValue(const size_t index) const;
+  const NativeT GetValue(size_t index) const;
 
   /**
    *  Effectively, a synonym for GetValue/SetValue
@@ -166,13 +166,13 @@ class AliasedBufferBase : public MemoryRetainer {
   // an owning `AliasedBufferBase`.
   void reserve(size_t new_capacity);
 
-  inline size_t SelfSize() const override;
+  size_t SelfSize() const override;
 
-  inline const char* MemoryInfoName() const override;
-  inline void MemoryInfo(node::MemoryTracker* tracker) const override;
+  const char* MemoryInfoName() const override;
+  void MemoryInfo(MemoryTracker* tracker) const override;
 
  private:
-  inline bool is_valid() const;
+  bool is_valid() const;
   v8::Isolate* isolate_ = nullptr;
   size_t count_ = 0;
   size_t byte_offset_ = 0;

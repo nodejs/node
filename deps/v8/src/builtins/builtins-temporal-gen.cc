@@ -5,13 +5,15 @@
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/growable-fixed-array-gen.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 class TemporalBuiltinsAssembler : public IteratorBuiltinsAssembler {
  public:
@@ -21,18 +23,18 @@ class TemporalBuiltinsAssembler : public IteratorBuiltinsAssembler {
   // Step 3 and later of #sec-temporal.calendar.prototype.fields
   TNode<JSArray> CalendarFieldsArrayFromIterable(
       TNode<Context> context, TNode<JSTemporalCalendar> calendar,
-      TNode<Object> iterable);
+      TNode<JSAny> iterable);
 
   // For the use inside Temporal GetPossibleInstantFor
   TNode<FixedArray> TemporalInstantFixedArrayFromIterable(
-      TNode<Context> context, TNode<Object> iterable);
+      TNode<Context> context, TNode<JSAny> iterable);
 };
 
 // Step 3 and later of
 // #sec-temporal.calendar.prototype.fields
 TNode<JSArray> TemporalBuiltinsAssembler::CalendarFieldsArrayFromIterable(
     TNode<Context> context, TNode<JSTemporalCalendar> calendar,
-    TNode<Object> iterable) {
+    TNode<JSAny> iterable) {
   Label done(this), add_fields(this, Label::kDeferred);
   // 4. Let iteratorRecord be ? GetIterator(items).
 
@@ -132,7 +134,7 @@ TNode<JSArray> TemporalBuiltinsAssembler::CalendarFieldsArrayFromIterable(
 // #sec-iterabletolistoftype
 TNode<FixedArray>
 TemporalBuiltinsAssembler::TemporalInstantFixedArrayFromIterable(
-    TNode<Context> context, TNode<Object> iterable) {
+    TNode<Context> context, TNode<JSAny> iterable) {
   GrowableFixedArray list(state());
   Label done(this);
   // 1. If iterable is undefined, then
@@ -192,7 +194,7 @@ TemporalBuiltinsAssembler::TemporalInstantFixedArrayFromIterable(
 
 TF_BUILTIN(TemporalInstantFixedArrayFromIterable, TemporalBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto iterable = Parameter<Object>(Descriptor::kIterable);
+  auto iterable = Parameter<JSAny>(Descriptor::kIterable);
 
   Return(TemporalInstantFixedArrayFromIterable(context, iterable));
 }
@@ -205,7 +207,7 @@ TF_BUILTIN(TemporalCalendarPrototypeFields, TemporalBuiltinsAssembler) {
   CodeStubArguments args(this, argc);
 
   // 1. Let calendar be this value.
-  TNode<Object> receiver = args.GetReceiver();
+  TNode<JSAny> receiver = args.GetReceiver();
 
   // 2. Perform ? RequireInternalSlot(calendar,
   // [[InitializedTemporalCalendar]]).
@@ -214,9 +216,11 @@ TF_BUILTIN(TemporalCalendarPrototypeFields, TemporalBuiltinsAssembler) {
   TNode<JSTemporalCalendar> calendar = CAST(receiver);
 
   // Step 3 and later is inside CalendarFieldsArrayFromIterable
-  TNode<Object> iterable = args.GetOptionalArgumentValue(0);
+  TNode<JSAny> iterable = args.GetOptionalArgumentValue(0);
   Return(CalendarFieldsArrayFromIterable(context, calendar, iterable));
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

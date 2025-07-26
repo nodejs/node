@@ -4,8 +4,9 @@
 
 #include "src/compiler/wasm-compiler-definitions.h"
 
+#include <optional>
+
 #include "src/base/strings.h"
-#include "src/codegen/signature.h"
 #include "src/compiler/linkage.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-linkage.h"
@@ -17,11 +18,15 @@ base::Vector<const char> GetDebugName(Zone* zone,
                                       const wasm::WasmModule* module,
                                       const wasm::WireBytesStorage* wire_bytes,
                                       int index) {
-  base::Optional<wasm::ModuleWireBytes> module_bytes =
+  std::optional<wasm::ModuleWireBytes> module_bytes =
       wire_bytes->GetModuleBytes();
   if (module_bytes.has_value() &&
       (v8_flags.trace_turbo || v8_flags.trace_turbo_scheduled ||
-       v8_flags.trace_turbo_graph || v8_flags.print_wasm_code)) {
+       v8_flags.trace_turbo_graph || v8_flags.print_wasm_code
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+       || v8_flags.trace_wasm_revectorize
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+       )) {
     wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
         module_bytes.value(), index);
     if (!name.is_empty()) {
@@ -43,19 +48,12 @@ base::Vector<const char> GetDebugName(Zone* zone,
   return base::Vector<const char>(index_name, name_len);
 }
 
-MachineRepresentation GetMachineRepresentation(wasm::ValueType type) {
-  return type.machine_representation();
-}
-
-MachineRepresentation GetMachineRepresentation(MachineType type) {
-  return type.representation();
-}
-
 // General code uses the above configuration data.
-CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
+template <typename T>
+CallDescriptor* GetWasmCallDescriptor(Zone* zone, const Signature<T>* fsig,
                                       WasmCallKind call_kind,
                                       bool need_frame_state) {
-  // The extra here is to accomodate the instance object as first parameter
+  // The extra here is to accommodate the instance object as first parameter
   // and, when specified, the additional callable.
   bool extra_callable_param =
       call_kind == kWasmImportWrapper || call_kind == kWasmCapiFunction;
@@ -73,13 +71,22 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
   CallDescriptor::Kind descriptor_kind;
-  if (call_kind == kWasmFunction) {
-    descriptor_kind = CallDescriptor::kCallWasmFunction;
-  } else if (call_kind == kWasmImportWrapper) {
-    descriptor_kind = CallDescriptor::kCallWasmImportWrapper;
-  } else {
-    DCHECK_EQ(call_kind, kWasmCapiFunction);
-    descriptor_kind = CallDescriptor::kCallWasmCapiFunction;
+  uint64_t signature_hash = kInvalidWasmSignatureHash;
+
+  switch (call_kind) {
+    case kWasmFunction:
+      descriptor_kind = CallDescriptor::kCallWasmFunction;
+      break;
+    case kWasmIndirectFunction:
+      descriptor_kind = CallDescriptor::kCallWasmFunctionIndirect;
+      signature_hash = wasm::SignatureHasher::Hash(fsig);
+      break;
+    case kWasmImportWrapper:
+      descriptor_kind = CallDescriptor::kCallWasmImportWrapper;
+      break;
+    case kWasmCapiFunction:
+      descriptor_kind = CallDescriptor::kCallWasmCapiFunction;
+      break;
   }
 
   CallDescriptor::Flags flags = need_frame_state
@@ -87,6 +94,7 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
                                     : CallDescriptor::kNoFlags;
   return zone->New<CallDescriptor>(       // --
       descriptor_kind,                    // kind
+      kWasmEntrypointTag,                 // tag
       target_type,                        // target MachineType
       target_loc,                         // target location
       location_sig,                       // location_sig
@@ -98,8 +106,16 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
       "wasm-call",                        // debug name
       StackArgumentOrder::kDefault,       // order of the arguments in the stack
       RegList{},                          // allocatable registers
-      return_slots);                      // return slot count
+      return_slots,                       // return slot count
+      signature_hash);
 }
+
+template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    CallDescriptor* GetWasmCallDescriptor(Zone*,
+                                          const Signature<wasm::ValueType>*,
+                                          WasmCallKind, bool);
+template CallDescriptor* GetWasmCallDescriptor(
+    Zone*, const Signature<wasm::CanonicalValueType>*, WasmCallKind, bool);
 
 std::ostream& operator<<(std::ostream& os, CheckForNull null_check) {
   return os << (null_check == kWithoutNullCheck ? "no null check"

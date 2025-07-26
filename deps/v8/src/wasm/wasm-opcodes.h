@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_OPCODES_H_
+#define V8_WASM_WASM_OPCODES_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_WASM_OPCODES_H_
-#define V8_WASM_WASM_OPCODES_H_
 
 #include <memory>
 
@@ -21,64 +21,67 @@ namespace internal {
 
 namespace wasm {
 
-class WasmFeatures;
 struct WasmModule;
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const FunctionSig& function);
-V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
+
+V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
 
 // Format of all opcode macros: kExprName, binary, signature, wat name
 
 // Control expressions and blocks.
-#define FOREACH_CONTROL_OPCODE(V) /* 80 columns                             */ \
-  V(Unreachable, 0x00, _, "unreachable")                                       \
-  V(Nop, 0x01, _, "nop")                                                       \
-  V(Block, 0x02, _, "block")                                                   \
-  V(Loop, 0x03, _, "loop")                                                     \
-  V(If, 0x04, _, "if")                                                         \
-  V(Else, 0x05, _, "else")                                                     \
-  V(Try, 0x06, _, "try")                                                       \
-  V(Catch, 0x07, _, "catch")                                                   \
-  V(Throw, 0x08, _, "throw")                                                   \
-  V(Rethrow, 0x09, _, "rethrow")                                               \
-  V(End, 0x0b, _, "end")                                                       \
-  V(Br, 0x0c, _, "br")                                                         \
-  V(BrIf, 0x0d, _, "br_if")                                                    \
-  V(BrTable, 0x0e, _, "br_table")                                              \
-  V(Return, 0x0f, _, "return")                                                 \
-  V(Delegate, 0x18, _, "delegate")                                             \
-  V(CatchAll, 0x19, _, "catch_all")                                            \
-  V(BrOnNull, 0xd5, _, "br_on_null")        /* typed_funcref prototype */      \
-  V(BrOnNonNull, 0xd6, _, "br_on_non_null") /* typed_funcref prototype */      \
+#define FOREACH_CONTROL_OPCODE(V)           \
+  V(Unreachable, 0x00, _, "unreachable")    \
+  V(Nop, 0x01, _, "nop")                    \
+  V(Block, 0x02, _, "block")                \
+  V(Loop, 0x03, _, "loop")                  \
+  V(If, 0x04, _, "if")                      \
+  V(Else, 0x05, _, "else")                  \
+  V(Try, 0x06, _, "try")                    \
+  V(Catch, 0x07, _, "catch")                \
+  V(Throw, 0x08, _, "throw")                \
+  V(Rethrow, 0x09, _, "rethrow")            \
+  V(TryTable, 0x1f, _, "try_table")         \
+  V(ThrowRef, 0x0a, _, "throw_ref")         \
+  V(End, 0x0b, _, "end")                    \
+  V(Br, 0x0c, _, "br")                      \
+  V(BrIf, 0x0d, _, "br_if")                 \
+  V(BrTable, 0x0e, _, "br_table")           \
+  V(Return, 0x0f, _, "return")              \
+  V(Delegate, 0x18, _, "delegate")          \
+  V(CatchAll, 0x19, _, "catch_all")         \
+  V(BrOnNull, 0xd5, _, "br_on_null")        \
+  V(BrOnNonNull, 0xd6, _, "br_on_non_null") \
   V(NopForTestingUnsupportedInLiftoff, 0x16, _, "nop_for_testing")
 
-// Constants, locals, globals, and calls.
-#define FOREACH_MISC_OPCODE(V)                                               \
-  V(CallFunction, 0x10, _, "call")                                           \
-  V(CallIndirect, 0x11, _, "call_indirect")                                  \
-  V(ReturnCall, 0x12, _, "return_call")                                      \
-  V(ReturnCallIndirect, 0x13, _, "return_call_indirect")                     \
-  V(CallRef, 0x14, _, "call_ref")              /* typed_funcref prototype */ \
-  V(ReturnCallRef, 0x15, _, "return_call_ref") /* typed_funcref prototype */ \
-  V(Drop, 0x1a, _, "drop")                                                   \
-  V(Select, 0x1b, _, "select")                                               \
-  V(SelectWithType, 0x1c, _, "select")                                       \
-  V(LocalGet, 0x20, _, "local.get")                                          \
-  V(LocalSet, 0x21, _, "local.set")                                          \
-  V(LocalTee, 0x22, _, "local.tee")                                          \
-  V(GlobalGet, 0x23, _, "global.get")                                        \
-  V(GlobalSet, 0x24, _, "global.set")                                        \
-  V(TableGet, 0x25, _, "table.get")                                          \
-  V(TableSet, 0x26, _, "table.set")                                          \
-  V(I32Const, 0x41, _, "i32.const")                                          \
-  V(I64Const, 0x42, _, "i64.const")                                          \
-  V(F32Const, 0x43, _, "f32.const")                                          \
-  V(F64Const, 0x44, _, "f64.const")                                          \
-  V(RefNull, 0xd0, _, "ref.null")                                            \
-  V(RefIsNull, 0xd1, _, "ref.is_null")                                       \
-  V(RefFunc, 0xd2, _, "ref.func")                                            \
-  V(RefAsNonNull, 0xd4, _, "ref.as_non_null") /* typed_funcref prototype */
+// Constants, locals, globals, calls, etc.
+#define FOREACH_MISC_OPCODE(V)                           \
+  V(CallFunction, 0x10, _, "call")                       \
+  V(CallIndirect, 0x11, _, "call_indirect")              \
+  V(ReturnCall, 0x12, _, "return_call")                  \
+  V(ReturnCallIndirect, 0x13, _, "return_call_indirect") \
+  V(CallRef, 0x14, _, "call_ref")                        \
+  V(ReturnCallRef, 0x15, _, "return_call_ref")           \
+  V(Drop, 0x1a, _, "drop")                               \
+  V(Select, 0x1b, _, "select")                           \
+  V(SelectWithType, 0x1c, _, "select")                   \
+  V(LocalGet, 0x20, _, "local.get")                      \
+  V(LocalSet, 0x21, _, "local.set")                      \
+  V(LocalTee, 0x22, _, "local.tee")                      \
+  V(GlobalGet, 0x23, _, "global.get")                    \
+  V(GlobalSet, 0x24, _, "global.set")                    \
+  V(TableGet, 0x25, _, "table.get")                      \
+  V(TableSet, 0x26, _, "table.set")                      \
+  V(I32Const, 0x41, _, "i32.const")                      \
+  V(I64Const, 0x42, _, "i64.const")                      \
+  V(F32Const, 0x43, _, "f32.const")                      \
+  V(F64Const, 0x44, _, "f64.const")                      \
+  V(RefNull, 0xd0, _, "ref.null")                        \
+  V(RefIsNull, 0xd1, _, "ref.is_null")                   \
+  V(RefFunc, 0xd2, _, "ref.func")                        \
+  V(RefAsNonNull, 0xd4, _, "ref.as_non_null")            \
+  V(RefEq, 0xd3, _, "ref.eq")
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V)            \
@@ -95,7 +98,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I64LoadMem16S, 0x32, l_i, "i64.load16_s") \
   V(I64LoadMem16U, 0x33, l_i, "i64.load16_u") \
   V(I64LoadMem32S, 0x34, l_i, "i64.load32_s") \
-  V(I64LoadMem32U, 0x35, l_i, "i64.load32_u")
+  V(I64LoadMem32U, 0x35, l_i, "i64.load32_u") \
+  V(F32LoadMemF16, 0xfc30, f_i, "f32.load_f16")
 
 // Store memory expressions.
 #define FOREACH_STORE_MEM_OPCODE(V)           \
@@ -107,7 +111,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I32StoreMem16, 0x3b, v_ii, "i32.store16") \
   V(I64StoreMem8, 0x3c, v_il, "i64.store8")   \
   V(I64StoreMem16, 0x3d, v_il, "i64.store16") \
-  V(I64StoreMem32, 0x3e, v_il, "i64.store32")
+  V(I64StoreMem32, 0x3e, v_il, "i64.store32") \
+  V(F32StoreMemF16, 0xfc31, v_if, "f32.store_f16")
 
 // Miscellaneous memory expressions
 #define FOREACH_MISC_MEM_OPCODE(V)        \
@@ -116,8 +121,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
 
 // Expressions with signatures.
 
-// The following opcodes can be used as constant expressions under
-// --experimental-wasm-extended-const.
+// Opcodes that can also be used in constant expressions (via the 'extended
+// constant expressions' proposal).
 #define FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(V) \
   V(I32Add, 0x6a, i_ii, "i32.add")              \
   V(I32Sub, 0x6b, i_ii, "i32.sub")              \
@@ -250,47 +255,55 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I64SExtendI16, 0xc3, l_l, "i64.extend16_s")          \
   V(I64SExtendI32, 0xc4, l_l, "i64.extend32_s")
 
+#define FOREACH_WASMFX_OPCODE(V)          \
+  V(ContNew, 0xe0, _, "cont.new")         \
+  V(ContBind, 0xe1, _, "cont.bind")       \
+  V(Suspend, 0xe2, _, "suspend")          \
+  V(Resume, 0xe3, _, "resume")            \
+  V(ResumeThrow, 0xe4, _, "resume_throw") \
+  V(Switch, 0xe5, _, "switch")
+
 #define FOREACH_SIMPLE_OPCODE(V)          \
   FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(V) \
   FOREACH_SIMPLE_NON_CONST_OPCODE(V)
 
-#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) V(RefEq, 0xd3, i_qq, "ref.eq")
+#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V)
 
 // For compatibility with Asm.js.
 // These opcodes are not spec'ed (or visible) externally; the idea is
 // to use unused ranges for internal purposes.
-#define FOREACH_ASMJS_COMPAT_OPCODE(V)                         \
-  V(F64Acos, 0xdc, d_d, "f64.acos")                            \
-  V(F64Asin, 0xdd, d_d, "f64.asin")                            \
-  V(F64Atan, 0xde, d_d, "f64.atan")                            \
-  V(F64Cos, 0xdf, d_d, "f64.cos")                              \
-  V(F64Sin, 0xe0, d_d, "f64.sin")                              \
-  V(F64Tan, 0xe1, d_d, "f64.tan")                              \
-  V(F64Exp, 0xe2, d_d, "f64.exp")                              \
-  V(F64Log, 0xe3, d_d, "f64.log")                              \
-  V(F64Atan2, 0xe4, d_dd, "f64.atan2")                         \
-  V(F64Pow, 0xe5, d_dd, "f64.pow")                             \
-  V(F64Mod, 0xe6, d_dd, "f64.mod")                             \
-  V(I32AsmjsDivS, 0xe7, i_ii, "i32.asmjs_div_s")               \
-  V(I32AsmjsDivU, 0xe8, i_ii, "i32.asmjs_div_u")               \
-  V(I32AsmjsRemS, 0xe9, i_ii, "i32.asmjs_rem_s")               \
-  V(I32AsmjsRemU, 0xea, i_ii, "i32.asmjs_rem_u")               \
-  V(I32AsmjsLoadMem8S, 0xeb, i_i, "i32.asmjs_load8_s")         \
-  V(I32AsmjsLoadMem8U, 0xec, i_i, "i32.asmjs_load8_u")         \
-  V(I32AsmjsLoadMem16S, 0xed, i_i, "i32.asmjs_load16_s")       \
-  V(I32AsmjsLoadMem16U, 0xee, i_i, "i32.asmjs_load16_u")       \
-  V(I32AsmjsLoadMem, 0xef, i_i, "i32.asmjs_load32")            \
-  V(F32AsmjsLoadMem, 0xf0, f_i, "f32.asmjs_load")              \
-  V(F64AsmjsLoadMem, 0xf1, d_i, "f64.asmjs_load")              \
-  V(I32AsmjsStoreMem8, 0xf2, i_ii, "i32.asmjs_store8")         \
-  V(I32AsmjsStoreMem16, 0xf3, i_ii, "i32.asmjs_store16")       \
-  V(I32AsmjsStoreMem, 0xf4, i_ii, "i32.asmjs_store")           \
-  V(F32AsmjsStoreMem, 0xf5, f_if, "f32.asmjs_store")           \
-  V(F64AsmjsStoreMem, 0xf6, d_id, "f64.asmjs_store")           \
-  V(I32AsmjsSConvertF32, 0xf7, i_f, "i32.asmjs_convert_f32_s") \
-  V(I32AsmjsUConvertF32, 0xf8, i_f, "i32.asmjs_convert_f32_u") \
-  V(I32AsmjsSConvertF64, 0xf9, i_d, "i32.asmjs_convert_f64_s") \
-  V(I32AsmjsUConvertF64, 0xfa, i_d, "i32.asmjs_convert_f64_u")
+#define FOREACH_ASMJS_COMPAT_OPCODE(V)                           \
+  V(F64Acos, 0xfa3c, d_d, "f64.acos")                            \
+  V(F64Asin, 0xfa3d, d_d, "f64.asin")                            \
+  V(F64Atan, 0xfa3e, d_d, "f64.atan")                            \
+  V(F64Cos, 0xfa3f, d_d, "f64.cos")                              \
+  V(F64Sin, 0xfa40, d_d, "f64.sin")                              \
+  V(F64Tan, 0xfa41, d_d, "f64.tan")                              \
+  V(F64Exp, 0xfa42, d_d, "f64.exp")                              \
+  V(F64Log, 0xfa43, d_d, "f64.log")                              \
+  V(F64Atan2, 0xfa44, d_dd, "f64.atan2")                         \
+  V(F64Pow, 0xfa45, d_dd, "f64.pow")                             \
+  V(F64Mod, 0xfa46, d_dd, "f64.mod")                             \
+  V(I32AsmjsDivS, 0xfa47, i_ii, "i32.asmjs_div_s")               \
+  V(I32AsmjsDivU, 0xfa48, i_ii, "i32.asmjs_div_u")               \
+  V(I32AsmjsRemS, 0xfa49, i_ii, "i32.asmjs_rem_s")               \
+  V(I32AsmjsRemU, 0xfa4a, i_ii, "i32.asmjs_rem_u")               \
+  V(I32AsmjsLoadMem8S, 0xfa4b, i_i, "i32.asmjs_load8_s")         \
+  V(I32AsmjsLoadMem8U, 0xfa4c, i_i, "i32.asmjs_load8_u")         \
+  V(I32AsmjsLoadMem16S, 0xfa4d, i_i, "i32.asmjs_load16_s")       \
+  V(I32AsmjsLoadMem16U, 0xfa4e, i_i, "i32.asmjs_load16_u")       \
+  V(I32AsmjsLoadMem, 0xfa4f, i_i, "i32.asmjs_load32")            \
+  V(F32AsmjsLoadMem, 0xfa50, f_i, "f32.asmjs_load")              \
+  V(F64AsmjsLoadMem, 0xfa51, d_i, "f64.asmjs_load")              \
+  V(I32AsmjsStoreMem8, 0xfa52, i_ii, "i32.asmjs_store8")         \
+  V(I32AsmjsStoreMem16, 0xfa53, i_ii, "i32.asmjs_store16")       \
+  V(I32AsmjsStoreMem, 0xfa54, i_ii, "i32.asmjs_store")           \
+  V(F32AsmjsStoreMem, 0xfa55, f_if, "f32.asmjs_store")           \
+  V(F64AsmjsStoreMem, 0xfa56, d_id, "f64.asmjs_store")           \
+  V(I32AsmjsSConvertF32, 0xfa57, i_f, "i32.asmjs_convert_f32_s") \
+  V(I32AsmjsUConvertF32, 0xfa58, i_f, "i32.asmjs_convert_f32_u") \
+  V(I32AsmjsSConvertF64, 0xfa59, i_d, "i32.asmjs_convert_f64_s") \
+  V(I32AsmjsUConvertF64, 0xfa5a, i_d, "i32.asmjs_convert_f64_u")
 
 #define FOREACH_SIMD_MEM_OPCODE(V)                     \
   V(S128LoadMem, 0xfd00, s_i, "v128.load")             \
@@ -523,29 +536,60 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(F64x2ConvertLowI32x4S, 0xfdfe, s_s, "f64x2.convert_low_i32x4_s")         \
   V(F64x2ConvertLowI32x4U, 0xfdff, s_s, "f64x2.convert_low_i32x4_u")
 
-#define FOREACH_RELAXED_SIMD_OPCODE(V)                                    \
-  V(I8x16RelaxedSwizzle, 0xfd100, s_ss, "i8x16.relaxed_swizzle")          \
-  V(I32x4RelaxedTruncF32x4S, 0xfd101, s_s, "i32x4.relaxed_trunc_f32x4_s") \
-  V(I32x4RelaxedTruncF32x4U, 0xfd102, s_s, "i32x4.relaxed_trunc_f32x4_u") \
-  V(I32x4RelaxedTruncF64x2SZero, 0xfd103, s_s,                            \
-    "i32x4.relaxed_trunc_f64x2_s_zero")                                   \
-  V(I32x4RelaxedTruncF64x2UZero, 0xfd104, s_s,                            \
-    "i32x4.relaxed_trunc_f64x2_u_zero")                                   \
-  V(F32x4Qfma, 0xfd105, s_sss, "f32x4.qfma")                              \
-  V(F32x4Qfms, 0xfd106, s_sss, "f32x4.qfms")                              \
-  V(F64x2Qfma, 0xfd107, s_sss, "f64x2.qfma")                              \
-  V(F64x2Qfms, 0xfd108, s_sss, "f64x2.qfms")                              \
-  V(I8x16RelaxedLaneSelect, 0xfd109, s_sss, "i8x16.relaxed_laneselect")   \
-  V(I16x8RelaxedLaneSelect, 0xfd10a, s_sss, "i16x8.relaxed_laneselect")   \
-  V(I32x4RelaxedLaneSelect, 0xfd10b, s_sss, "i32x4.relaxed_laneselect")   \
-  V(I64x2RelaxedLaneSelect, 0xfd10c, s_sss, "i64x2.relaxed_laneselect")   \
-  V(F32x4RelaxedMin, 0xfd10d, s_ss, "f32x4.relaxed_min")                  \
-  V(F32x4RelaxedMax, 0xfd10e, s_ss, "f32x4.relaxed_max")                  \
-  V(F64x2RelaxedMin, 0xfd10f, s_ss, "f64x2.relaxed_min")                  \
-  V(F64x2RelaxedMax, 0xfd110, s_ss, "f64x2.relaxed_max")                  \
-  V(I16x8RelaxedQ15MulRS, 0xfd111, s_ss, "i16x8.relaxed_q15mulr_s")       \
-  V(I16x8DotI8x16I7x16S, 0xfd112, s_ss, "i16x8.dot_i8x16_i7x16_s")        \
-  V(I32x4DotI8x16I7x16AddS, 0xfd113, s_sss, "i32x4.dot_i8x16_i7x16_add_s")
+#define FOREACH_RELAXED_SIMD_OPCODE(V)                                     \
+  V(I8x16RelaxedSwizzle, 0xfd100, s_ss, "i8x16.relaxed_swizzle")           \
+  V(I32x4RelaxedTruncF32x4S, 0xfd101, s_s, "i32x4.relaxed_trunc_f32x4_s")  \
+  V(I32x4RelaxedTruncF32x4U, 0xfd102, s_s, "i32x4.relaxed_trunc_f32x4_u")  \
+  V(I32x4RelaxedTruncF64x2SZero, 0xfd103, s_s,                             \
+    "i32x4.relaxed_trunc_f64x2_s_zero")                                    \
+  V(I32x4RelaxedTruncF64x2UZero, 0xfd104, s_s,                             \
+    "i32x4.relaxed_trunc_f64x2_u_zero")                                    \
+  V(F32x4Qfma, 0xfd105, s_sss, "f32x4.qfma")                               \
+  V(F32x4Qfms, 0xfd106, s_sss, "f32x4.qfms")                               \
+  V(F64x2Qfma, 0xfd107, s_sss, "f64x2.qfma")                               \
+  V(F64x2Qfms, 0xfd108, s_sss, "f64x2.qfms")                               \
+  V(I8x16RelaxedLaneSelect, 0xfd109, s_sss, "i8x16.relaxed_laneselect")    \
+  V(I16x8RelaxedLaneSelect, 0xfd10a, s_sss, "i16x8.relaxed_laneselect")    \
+  V(I32x4RelaxedLaneSelect, 0xfd10b, s_sss, "i32x4.relaxed_laneselect")    \
+  V(I64x2RelaxedLaneSelect, 0xfd10c, s_sss, "i64x2.relaxed_laneselect")    \
+  V(F32x4RelaxedMin, 0xfd10d, s_ss, "f32x4.relaxed_min")                   \
+  V(F32x4RelaxedMax, 0xfd10e, s_ss, "f32x4.relaxed_max")                   \
+  V(F64x2RelaxedMin, 0xfd10f, s_ss, "f64x2.relaxed_min")                   \
+  V(F64x2RelaxedMax, 0xfd110, s_ss, "f64x2.relaxed_max")                   \
+  V(I16x8RelaxedQ15MulRS, 0xfd111, s_ss, "i16x8.relaxed_q15mulr_s")        \
+  V(I16x8DotI8x16I7x16S, 0xfd112, s_ss, "i16x8.dot_i8x16_i7x16_s")         \
+  V(I32x4DotI8x16I7x16AddS, 0xfd113, s_sss, "i32x4.dot_i8x16_i7x16_add_s") \
+  V(F16x8Splat, 0xfd120, s_f, "f16x8.splat")                               \
+  V(F16x8Abs, 0xfd130, s_s, "f16x8.abs")                                   \
+  V(F16x8Neg, 0xfd131, s_s, "f16x8.neg")                                   \
+  V(F16x8Sqrt, 0xfd132, s_s, "f16x8.sqrt")                                 \
+  V(F16x8Ceil, 0xfd133, s_s, "f16x8.ceil")                                 \
+  V(F16x8Floor, 0xfd134, s_s, "f16x8.floor")                               \
+  V(F16x8Trunc, 0xfd135, s_s, "f16x8.trunc")                               \
+  V(F16x8NearestInt, 0xfd136, s_s, "f16x8.nearest")                        \
+  V(F16x8Eq, 0xfd137, s_ss, "f16x8.eq")                                    \
+  V(F16x8Ne, 0xfd138, s_ss, "f16x8.ne")                                    \
+  V(F16x8Lt, 0xfd139, s_ss, "f16x8.lt")                                    \
+  V(F16x8Gt, 0xfd13a, s_ss, "f16x8.gt")                                    \
+  V(F16x8Le, 0xfd13b, s_ss, "f16x8.le")                                    \
+  V(F16x8Ge, 0xfd13c, s_ss, "f16x8.ge")                                    \
+  V(F16x8Add, 0xfd13d, s_ss, "f16x8.add")                                  \
+  V(F16x8Sub, 0xfd13e, s_ss, "f16x8.sub")                                  \
+  V(F16x8Mul, 0xfd13f, s_ss, "f16x8.mul")                                  \
+  V(F16x8Div, 0xfd140, s_ss, "f16x8.div")                                  \
+  V(F16x8Min, 0xfd141, s_ss, "f16x8.min")                                  \
+  V(F16x8Max, 0xfd142, s_ss, "f16x8.max")                                  \
+  V(F16x8Pmin, 0xfd143, s_ss, "f16x8.pmin")                                \
+  V(F16x8Pmax, 0xfd144, s_ss, "f16x8.pmax")                                \
+  V(I16x8SConvertF16x8, 0xfd145, s_s, "i16x8.trunc_sat_f16x8_s")           \
+  V(I16x8UConvertF16x8, 0xfd146, s_s, "i16x8.trunc_sat_f16x8_u")           \
+  V(F16x8SConvertI16x8, 0xfd147, s_s, "f16x8.convert_i16x8_s")             \
+  V(F16x8UConvertI16x8, 0xfd148, s_s, "f16x8.convert_i16x8_u")             \
+  V(F16x8DemoteF32x4Zero, 0xfd149, s_s, "f16x8.demote_f32x4_zero")         \
+  V(F16x8DemoteF64x2Zero, 0xfd14a, s_s, "f16x8.demote_f64x2_zero")         \
+  V(F32x4PromoteLowF16x8, 0xfd14b, s_s, "f32x4.promote_low_f16x8")         \
+  V(F16x8Qfma, 0xfd14e, s_sss, "f16x8.madd")                               \
+  V(F16x8Qfms, 0xfd14f, s_sss, "f16x8.nmadd")
 
 #define FOREACH_SIMD_1_OPERAND_1_PARAM_OPCODE(V)          \
   V(I8x16ExtractLaneS, 0xfd15, _, "i8x16.extract_lane_s") \
@@ -555,7 +599,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I32x4ExtractLane, 0xfd1b, _, "i32x4.extract_lane")    \
   V(I64x2ExtractLane, 0xfd1d, _, "i64x2.extract_lane")    \
   V(F32x4ExtractLane, 0xfd1f, _, "f32x4.extract_lane")    \
-  V(F64x2ExtractLane, 0xfd21, _, "f64x2.extract_lane")
+  V(F64x2ExtractLane, 0xfd21, _, "f64x2.extract_lane")    \
+  V(F16x8ExtractLane, 0xfd121, _, "f16x8.extract_lane")
 
 #define FOREACH_SIMD_1_OPERAND_2_PARAM_OPCODE(V)       \
   V(I8x16ReplaceLane, 0xfd17, _, "i8x16.replace_lane") \
@@ -563,7 +608,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(I32x4ReplaceLane, 0xfd1c, _, "i32x4.replace_lane") \
   V(I64x2ReplaceLane, 0xfd1e, _, "i64x2.replace_lane") \
   V(F32x4ReplaceLane, 0xfd20, _, "f32x4.replace_lane") \
-  V(F64x2ReplaceLane, 0xfd22, _, "f64x2.replace_lane")
+  V(F64x2ReplaceLane, 0xfd22, _, "f64x2.replace_lane") \
+  V(F16x8ReplaceLane, 0xfd122, _, "f16x8.replace_lane")
 
 #define FOREACH_SIMD_0_OPERAND_OPCODE(V) \
   FOREACH_SIMD_MVP_0_OPERAND_OPCODE(V)   \
@@ -713,13 +759,19 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(RefTestNull, 0xfb15, _, "ref.test null")                                   \
   V(RefCast, 0xfb16, _, "ref.cast")                                            \
   V(RefCastNull, 0xfb17, _, "ref.cast null")                                   \
-  V(BrOnCastGeneric, 0xfb18, _, "br_on_cast")                                  \
-  V(BrOnCastFailGeneric, 0xfb19, _, "br_on_cast_fail")                         \
-  V(ExternInternalize, 0xfb1a, _, "extern.internalize")                        \
-  V(ExternExternalize, 0xfb1b, _, "extern.externalize")                        \
+  V(BrOnCast, 0xfb18, _, "br_on_cast")                                         \
+  V(BrOnCastFail, 0xfb19, _, "br_on_cast_fail")                                \
+  V(AnyConvertExtern, 0xfb1a, _, "any.convert_extern")                         \
+  V(ExternConvertAny, 0xfb1b, _, "extern.convert_any")                         \
   V(RefI31, 0xfb1c, _, "ref.i31")                                              \
   V(I31GetS, 0xfb1d, _, "i31.get_s")                                           \
   V(I31GetU, 0xfb1e, _, "i31.get_u")                                           \
+  /* Custom Descriptors proposal */                                            \
+  V(RefGetDesc, 0xfb22, _, "ref.get_desc")                                     \
+  V(RefCastDesc, 0xfb23, _, "ref.cast_desc")                                   \
+  V(RefCastDescNull, 0xfb24, _, "ref.cast_desc null")                          \
+  V(BrOnCastDesc, 0xfb25, _, "br_on_cast_desc")                                \
+  V(BrOnCastDescFail, 0xfb26, _, "br_on_cast_desc_fail")                       \
   V(RefCastNop, 0xfb4c, _, "ref.cast_nop")                                     \
   /* Stringref proposal. */                                                    \
   V(StringNewUtf8, 0xfb80, _, "string.new_utf8")                               \
@@ -782,7 +834,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   FOREACH_ATOMIC_OPCODE(V)           \
   FOREACH_ATOMIC_0_OPERAND_OPCODE(V) \
   FOREACH_NUMERIC_OPCODE(V)          \
-  FOREACH_GC_OPCODE(V)
+  FOREACH_GC_OPCODE(V)               \
+  FOREACH_WASMFX_OPCODE(V)
 
 // All signatures.
 #define FOREACH_SIGNATURE(V)                        \
@@ -850,6 +903,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(s_is, kWasmS128, kWasmI32, kWasmS128)
 
 #define FOREACH_PREFIX(V) \
+  V(AsmJs, 0xfa)          \
   V(GC, 0xfb)             \
   V(Numeric, 0xfc)        \
   V(Simd, 0xfd)           \
@@ -902,6 +956,10 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static constexpr bool IsExternRefOpcode(WasmOpcode);
   static constexpr bool IsThrowingOpcode(WasmOpcode);
   static constexpr bool IsRelaxedSimdOpcode(WasmOpcode);
+  static constexpr bool IsFP16SimdOpcode(WasmOpcode);
+#if DEBUG
+  static constexpr bool IsMemoryAccessOpcode(WasmOpcode);
+#endif  // DEBUG
   // Check whether the given opcode always jumps, i.e. all instructions after
   // this one in the current block are dead. Returns false for |end|.
   static constexpr bool IsUnconditionalJump(WasmOpcode);

@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 
 #include "include/v8-array-buffer.h"
@@ -14,7 +15,6 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-locker.h"
 #include "include/v8-script.h"
-#include "src/base/optional.h"
 
 namespace v8 {
 
@@ -65,7 +65,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
                       v8::ScriptCompiler::Source* source);
 
   // Working with V8Inspector api.
-  base::Optional<int> ConnectSession(
+  std::optional<int> ConnectSession(
       int context_group_id, const v8_inspector::StringView& state,
       std::unique_ptr<FrontendChannelImpl> channel, bool is_fully_trusted);
   std::vector<uint8_t> DisconnectSession(int session_id,
@@ -112,7 +112,7 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
  private:
   static v8::MaybeLocal<v8::Module> ModuleResolveCallback(
       v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
-      v8::Local<v8::FixedArray> import_assertions,
+      v8::Local<v8::FixedArray> import_attributes,
       v8::Local<v8::Module> referrer);
   static void MessageHandler(v8::Local<v8::Message> message,
                              v8::Local<v8::Value> exception);
@@ -162,13 +162,13 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
   std::unique_ptr<v8::Isolate, IsolateDeleter> isolate_;
   // The locker_ field has to come after isolate_ because the locker has to
   // outlive the isolate.
-  base::Optional<v8::Locker> locker_;
+  std::optional<v8::Locker> locker_;
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
   int last_context_group_id_ = 0;
   std::map<int, std::vector<v8::Global<v8::Context>>> contexts_;
   std::map<std::vector<uint16_t>, v8::Global<v8::Module>> modules_;
   int last_session_id_ = 0;
-  std::map<int, std::unique_ptr<v8_inspector::V8InspectorSession>> sessions_;
+  std::map<int, std::shared_ptr<v8_inspector::V8InspectorSession>> sessions_;
   std::map<v8_inspector::V8InspectorSession*, int> context_group_by_session_;
   std::set<int> session_ids_for_cleanup_;
   v8::Global<v8::Value> memory_info_;

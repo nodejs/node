@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_DURATION_FORMAT_H_
+#define V8_OBJECTS_JS_DURATION_FORMAT_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_DURATION_FORMAT_H_
-#define V8_OBJECTS_JS_DURATION_FORMAT_H_
 
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -34,18 +34,20 @@ class JSDurationFormat
  public:
   // Creates duration format object with properties derived from input
   // locales and options.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSDurationFormat> New(
-      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
-      Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSDurationFormat> New(
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+      DirectHandle<Object> options);
 
-  V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
-      Isolate* isolate, Handle<JSDurationFormat> format_holder);
+  V8_WARN_UNUSED_RESULT static DirectHandle<JSObject> ResolvedOptions(
+      Isolate* isolate, DirectHandle<JSDurationFormat> format_holder);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> Format(
-      Isolate* isolate, Handle<JSDurationFormat> df, Handle<Object> duration);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<String> Format(
+      Isolate* isolate, DirectHandle<JSDurationFormat> df,
+      Handle<Object> duration);
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
-      Isolate* isolate, Handle<JSDurationFormat> df, Handle<Object> duration);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSArray> FormatToParts(
+      Isolate* isolate, DirectHandle<JSDurationFormat> df,
+      Handle<Object> duration);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
@@ -85,10 +87,11 @@ class JSDurationFormat
     kNarrow,
     kNumeric,
     k2Digit,
+    kFractional,
     kUndefined,
 
     kStyle3Max = kNarrow,
-    kStyle4Max = kNumeric,
+    kStyle4Max = kFractional,
     kStyle5Max = k2Digit,
   };
 

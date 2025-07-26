@@ -67,6 +67,14 @@ MODULE_FROM_RESOURCES_PATTERN = re.compile(
 MODULE_IMPORT_RESOURCES_PATTERN = re.compile(
     r"import\s*\(?['\"]([^'\"\n]+)['\"]",
     re.MULTILINE)
+# Pattern to detect files to push on Android for statements like:
+# import source x from "path/to/file.js"
+# import.source("module.mjs").catch()...
+# Require the matched path in one line. Note this might include some
+# false matches, which is safe, since files are tested for existence.
+MODULE_IMPORT_SOURCE_RESOURCES_PATTERN = re.compile(
+    r"import\s*\.?\s*source\s*\(?['\"]([^'\"\n]+)['\"]",
+    re.MULTILINE)
 # Pattern to detect files to push on Android for expressions like:
 # shadowRealm.importValue("path/to/file.js", "obj")
 SHADOWREALM_IMPORTVALUE_RESOURCES_PATTERN = re.compile(
@@ -190,6 +198,12 @@ class TestCase(object):
       self._expected_outcomes = (
           self.expected_outcomes + [statusfile.PASS])
 
+  # TODO(jgruber): Due to flag contradiction logic complexity, we will never
+  # fully match the v8 logic here. What we should do instead is simply ask v8
+  # whether given flags produce a flag contradiction or not, and use that to
+  # determine the expected outcome. E.g.: add a flag to d8 called
+  # --only-check-flag-contradictions, which exits with an appropriate code
+  # after running flag contradiction logic.
   @property
   def expected_outcomes(self):
     def is_flag(maybe_flag):
@@ -216,17 +230,21 @@ class TestCase(object):
     def negate_flags(normalized_flags):
       return [negate_flag(flag) for flag in normalized_flags]
 
-    def has_flag(conflicting_flag, flags):
+    def find_flag(conflicting_flag, flags):
       conflicting_flag = normalize_flag(conflicting_flag)
       if conflicting_flag in flags:
-        return True
+        return conflicting_flag
       if conflicting_flag.endswith("*"):
-        return any(flag.startswith(conflicting_flag[:-1]) for flag in flags)
-      return False
+        conflicting_flag = conflicting_flag[:-1]
+        for flag in flags:
+          if flag.startswith(conflicting_flag):
+            return flag
+      return None
 
-    def check_flags(incompatible_flags, actual_flags, rule):
+    def check_flags(incompatible_flags, actual_flags, rule, other_flag=None):
       for incompatible_flag in incompatible_flags:
-        if has_flag(incompatible_flag, actual_flags):
+        conflicting_flag = find_flag(incompatible_flag, actual_flags)
+        if conflicting_flag and (conflicting_flag != other_flag):
           self._statusfile_outcomes = outproc.OUTCOMES_FAIL
           self._expected_outcomes = outproc.OUTCOMES_FAIL
           self.expected_failure_reason = (
@@ -234,49 +252,71 @@ class TestCase(object):
               "tools/testrunner/local/variants.py expected a flag " +
               "contradiction error with " + incompatible_flag + ".")
 
+    def remove_flags_after(flags, flag):
+      try:
+        pos = flags.index(normalize_flag(flag))
+      except:
+        pass
+      else:
+        flags = flags[0:pos]
+      return flags
+
+    # Flags can be ignored with respect to contradictions by passing
+    # --fuzzing or --no-abort-on-contradictory-flags, which ignores all
+    # following flags; or by passing --allow-overwriting-for-next-flag,
+    # which ignores just the next flag. Remove these flags from the list.
+    # See Flag::ShouldCheckFlagContradictions.
+    def remove_ignored_flags(flags):
+      flags = remove_flags_after(flags, "--fuzzing")
+      flags = remove_flags_after(flags, "--no-abort-on-contradictory-flags")
+      flag_aofnf = normalize_flag("--allow-overwriting-for-next-flag")
+      while flag_aofnf in flags:
+        pos = flags.index(flag_aofnf)
+        flags.pop(pos)
+        flags.pop(pos)
+      return flags
+
     if not self._checked_flag_contradictions:
       self._checked_flag_contradictions = True
 
-      file_specific_flags = (self._get_source_flags() + self._get_suite_flags()
-                             + self._get_statusfile_flags())
-      file_specific_flags = normalize_flags(file_specific_flags)
-      extra_flags = normalize_flags(self._get_extra_flags())
+      test_flags = remove_ignored_flags(normalize_flags(self.get_flags()))
+      test_flags_without_extra = remove_ignored_flags(
+          normalize_flags(self.get_flags_without_extra()))
+      extra_flags = remove_ignored_flags(
+          normalize_flags(self._get_extra_flags()))
 
-      # Contradiction: flags contains both a flag --foo and its negation
-      # --no-foo.
-      if self.variant in ALL_VARIANT_FLAGS:
-        for flags in ALL_VARIANT_FLAGS[self.variant]:
-          all_flags = (file_specific_flags + extra_flags
-                       + normalize_flags(flags))
-          check_flags(negate_flags(all_flags), all_flags, "Flag negations")
+      # Contradiction: flags contains both a flag --foo and its negation --no-foo.
+      check_flags(negate_flags(test_flags), test_flags, "Flag negations")
 
-      # Contradiction: flags specified through the "Flags:" annotation are
-      # incompatible with the variant.
+      # Contradiction: flags are incompatible with the variant.
       if self.variant in INCOMPATIBLE_FLAGS_PER_VARIANT:
-        check_flags(INCOMPATIBLE_FLAGS_PER_VARIANT[self.variant], file_specific_flags,
-                    "INCOMPATIBLE_FLAGS_PER_VARIANT[\""+self.variant+"\"]")
+        check_flags(INCOMPATIBLE_FLAGS_PER_VARIANT[self.variant], test_flags,
+                    "INCOMPATIBLE_FLAGS_PER_VARIANT[\"" + self.variant + "\"]")
 
-      # Contradiction: flags specified through the "Flags:" annotation are
-      # incompatible with the build.
-      for variable, incompatible_flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
-        if variable.startswith("!"):
-          # `variable` is negated, apply the rule if the build variable is NOT set.
-          if not self.suite.statusfile.variables[variable[1:]]:
+      # Contradiction: flags are incompatible with the build.
+      for var, flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
+        if var.startswith("!"):
+          # `var` is negated, apply the rule if the build variable is NOT set.
+          if not self.suite.statusfile.variables[var[1:]]:
             check_flags(
-                incompatible_flags, file_specific_flags,
-                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
+                flags, test_flags,
+                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + var + "\"]")
         else:
-          if self.suite.statusfile.variables[variable]:
+          if self.suite.statusfile.variables[var]:
             check_flags(
-                incompatible_flags, file_specific_flags,
-                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
+                flags, test_flags,
+                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + var + "\"]")
 
-      # Contradiction: flags passed through --extra-flags are incompatible.
-      for extra_flag, incompatible_flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
-        if has_flag(extra_flag, extra_flags):
-          check_flags(
-              incompatible_flags, file_specific_flags,
-              "INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG[\"" + extra_flag + "\"]")
+      # Contradiction: flags passed through --extra-flags are incompatible with
+      # other test flags.
+      for extra_flag, flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
+        flag = find_flag(extra_flag, extra_flags)
+        if not flag:
+          continue
+        check_flags(flags, test_flags_without_extra,
+                    "INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG[\"" + extra_flag + "\"]",
+                    flag)
+
     return self._expected_outcomes
 
   @property
@@ -306,7 +346,7 @@ class TestCase(object):
 
   @property
   def is_slow(self):
-    return self.is_heavy or statusfile.SLOW in self._statusfile_outcomes
+    return statusfile.SLOW in self._statusfile_outcomes
 
   @property
   def is_fail_ok(self):
@@ -370,6 +410,19 @@ class TestCase(object):
         self._get_suite_flags() +
         self._get_statusfile_flags()
     )
+
+  def get_flags_without_extra(self):
+    """Gets all flags except extra, and combines them in the following order:
+      - random seed
+      - mode flags (based on chosen mode)
+      - user flags (variant/fuzzer flags)
+      - source flags (from source code) [empty by default]
+      - test-suite flags
+      - statusfile flags
+    """
+    return (self._get_random_seed_flags() + self._get_mode_flags() +
+            self._get_variant_flags() + self._get_source_flags() +
+            self._get_suite_flags() + self._get_statusfile_flags())
 
   def _get_cmd_env(self):
     return {}
@@ -451,6 +504,7 @@ class TestCase(object):
         verbose=self.test_config.verbose,
         test_case=self,
         handle_sigterm=True,
+        log_process_stats=self.test_config.log_process_stats,
     )
 
   def _parse_source_flags(self, source=None):
@@ -540,6 +594,8 @@ class TestCase(object):
       add_import_path(match.group(1))
     for match in MODULE_IMPORT_RESOURCES_PATTERN.finditer(source):
       add_import_path(match.group(1))
+    for match in MODULE_IMPORT_SOURCE_RESOURCES_PATTERN.finditer(source):
+      add_import_path(match.group(1))
     for match in SHADOWREALM_IMPORTVALUE_RESOURCES_PATTERN.finditer(source):
       add_import_path(match.group(1))
     return result
@@ -583,6 +639,9 @@ class D8TestCase(TestCase):
 
   def _get_shell_flags(self):
     return ['--test']
+
+  def _get_extra_flags(self):
+    return self.test_config.extra_flags + self.test_config.extra_d8_flags
 
   def skip_predictable(self):
     """Returns True if the test case is not suitable for predictable testing."""

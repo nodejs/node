@@ -14,9 +14,3 @@ const tls = require('tls');
   assert.throws(() => cctx._external, TypeError);
   pctx._external; // eslint-disable-line no-unused-expressions
 }
-{
-  const pctx = tls.createSecurePair().credentials.context;
-  const cctx = { __proto__: pctx };
-  assert.throws(() => cctx._external, TypeError);
-  pctx._external; // eslint-disable-line no-unused-expressions
-}

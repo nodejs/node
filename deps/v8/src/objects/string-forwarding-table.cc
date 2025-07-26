@@ -6,6 +6,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/common/globals.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
@@ -82,7 +83,7 @@ bool UpdateForwardedSlot(Tagged<HeapObject> object, OffHeapObjectSlot slot) {
 
 bool UpdateForwardedSlot(Tagged<Object> object, OffHeapObjectSlot slot) {
   if (!IsHeapObject(object)) return false;
-  return UpdateForwardedSlot(HeapObject::cast(object), slot);
+  return UpdateForwardedSlot(Cast<HeapObject>(object), slot);
 }
 
 }  // namespace
@@ -93,9 +94,9 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
     OffHeapObjectSlot slot = record(index)->OriginalStringSlot();
     Tagged<Object> original = slot.Acquire_Load(cage_base);
     if (!IsHeapObject(original)) continue;
-    Tagged<HeapObject> object = HeapObject::cast(original);
+    Tagged<HeapObject> object = Cast<HeapObject>(original);
     if (Heap::InFromPage(object)) {
-      DCHECK(!object.InWritableSharedSpace());
+      DCHECK(!HeapLayout::InWritableSharedSpace(object));
       const bool was_forwarded = UpdateForwardedSlot(object, slot);
       if (!was_forwarded) {
         // The object died in young space.
@@ -110,7 +111,7 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
     Tagged<Object> forward =
         record(index)->ForwardStringObjectOrHash(cage_base);
     if (IsHeapObject(forward)) {
-      DCHECK(!Heap::InYoungGeneration(HeapObject::cast(forward)));
+      DCHECK(!HeapLayout::InYoungGeneration(Cast<HeapObject>(forward)));
     }
 #endif
   }
@@ -122,7 +123,7 @@ void StringForwardingTable::Block::UpdateAfterFullEvacuation(
     OffHeapObjectSlot original_slot = record(index)->OriginalStringSlot();
     Tagged<Object> original = original_slot.Acquire_Load(cage_base);
     if (!IsHeapObject(original)) continue;
-    UpdateForwardedSlot(HeapObject::cast(original), original_slot);
+    UpdateForwardedSlot(Cast<HeapObject>(original), original_slot);
     // During mark compact the forwarded (internalized) string may have been
     // evacuated.
     OffHeapObjectSlot forward_slot = record(index)->ForwardStringOrHashSlot();
@@ -206,9 +207,9 @@ StringForwardingTable::BlockVector* StringForwardingTable::EnsureCapacity(
 int StringForwardingTable::AddForwardString(Tagged<String> string,
                                             Tagged<String> forward_to) {
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 Object::InSharedHeap(string));
+                 HeapLayout::InAnySharedSpace(string));
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 Object::InSharedHeap(forward_to));
+                 HeapLayout::InAnySharedSpace(forward_to));
   int index = next_free_index_++;
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);
@@ -237,7 +238,7 @@ int StringForwardingTable::AddExternalResourceAndHash(Tagged<String> string,
       std::is_base_of_v<v8::String::ExternalOneByteStringResource, T>;
 
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 Object::InSharedHeap(string));
+                 HeapLayout::InAnySharedSpace(string));
   int index = next_free_index_++;
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);

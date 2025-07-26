@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "src/base/small-vector.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/linear-scheduler.h"
 #include "src/compiler/machine-graph.h"
 #include "src/compiler/machine-operator.h"
@@ -22,11 +21,14 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+class SourcePositionTable;
 
 struct V8_EXPORT_PRIVATE MemoryOffsetComparer {
   bool operator()(const Node* lhs, const Node* rhs) const;
@@ -87,7 +89,7 @@ class PackNode final : public NON_EXPORTED_BASE(ZoneObject) {
 //         [Store0, Store1]
 class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  explicit SLPTree(Zone* zone, Graph* graph)
+  explicit SLPTree(Zone* zone, TFGraph* graph)
       : zone_(zone),
         graph_(graph),
         root_(nullptr),
@@ -126,7 +128,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 
   bool CanBePacked(const ZoneVector<Node*>& node_group);
 
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   Zone* zone() const { return zone_; }
 
   // Node stack operations.
@@ -144,7 +146,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   Zone* const zone_;
-  Graph* const graph_;
+  TFGraph* const graph_;
   PackNode* root_;
   LinearScheduler* scheduler_;
   ZoneSet<Node*> on_stack_;
@@ -161,7 +163,8 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 class V8_EXPORT_PRIVATE Revectorizer final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  Revectorizer(Zone* zone, Graph* graph, MachineGraph* mcgraph);
+  Revectorizer(Zone* zone, TFGraph* graph, MachineGraph* mcgraph,
+               SourcePositionTable* source_positions);
   void DetectCPUFeatures();
   bool TryRevectorize(const char* name);
 
@@ -173,7 +176,7 @@ class V8_EXPORT_PRIVATE Revectorizer final
 
   void PrintStores(ZoneMap<Node*, StoreNodeSet>* store_chains);
   Zone* zone() const { return zone_; }
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   MachineGraph* mcgraph() const { return mcgraph_; }
 
   PackNode* GetPackNode(Node* node) const {
@@ -189,11 +192,12 @@ class V8_EXPORT_PRIVATE Revectorizer final
   void UpdateSources();
 
   Zone* const zone_;
-  Graph* const graph_;
+  TFGraph* const graph_;
   MachineGraph* const mcgraph_;
   ZoneMap<Node*, ZoneMap<Node*, StoreNodeSet>*> group_of_stores_;
   std::unordered_set<Node*> sources_;
   SLPTree* slp_tree_;
+  SourcePositionTable* source_positions_;
 
   bool support_simd256_;
 

@@ -28,8 +28,8 @@ at $main (0:72):
  - scope (wasm-expression-stack):
    stack:
  - scope (local):
-   $var0: Array ((ref $type0))
-   $var1: Struct ((ref $type0))
+   $var0: Array ((ref $canon6))
+   $var1: Struct ((ref $canon3))
  - scope (module):
    instance: exports: "createStruct" (Function), "main" (Function)
    module: Module
@@ -45,8 +45,8 @@ at $main (0:108):
  - scope (wasm-expression-stack):
    stack:
  - scope (local):
-   $var0: Array ((ref $type0))
-   $var1: Struct ((ref $type0))
+   $var0: Array ((ref $canon6))
+   $var1: Struct ((ref $canon3))
  - scope (module):
    instance: exports: "createStruct" (Function), "createArray" (Function), "main" (Function)
    module: Module

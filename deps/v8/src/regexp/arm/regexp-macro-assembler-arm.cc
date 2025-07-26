@@ -128,10 +128,9 @@ void RegExpMacroAssemblerARM::AbortedCodeGeneration() {
   fallback_label_.Unuse();
 }
 
-int RegExpMacroAssemblerARM::stack_limit_slack()  {
-  return RegExpStack::kStackLimitSlack;
+int RegExpMacroAssemblerARM::stack_limit_slack_slot_count() {
+  return RegExpStack::kStackLimitSlackSlotCount;
 }
-
 
 void RegExpMacroAssemblerARM::AdvanceCurrentPosition(int by) {
   if (by != 0) {
@@ -481,12 +480,11 @@ void RegExpMacroAssemblerARM::CheckCharacterNotInRange(base::uc16 from,
 
 void RegExpMacroAssemblerARM::CallIsCharacterInRangeArray(
     const ZoneList<CharacterRange>* ranges) {
-  static const int kNumArguments = 3;
+  static const int kNumArguments = 2;
   __ PrepareCallCFunction(kNumArguments);
 
   __ mov(r0, current_character());
   __ mov(r1, Operand(GetOrAddRangeArray(ranges)));
-  __ mov(r2, Operand(ExternalReference::isolate_address(isolate())));
 
   {
     // We have a frame (set up in GetCode), but the assembler doesn't know.
@@ -520,15 +518,27 @@ void RegExpMacroAssemblerARM::CheckBitInTable(
   __ mov(r0, Operand(table));
   if (mode_ != LATIN1 || kTableMask != String::kMaxOneByteCharCode) {
     __ and_(r1, current_character(), Operand(kTableSize - 1));
-    __ add(r1, r1, Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+    __ add(r1, r1, Operand(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
   } else {
-    __ add(r1,
-           current_character(),
-           Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+    __ add(r1, current_character(),
+           Operand(OFFSET_OF_DATA_START(ByteArray) - kHeapObjectTag));
   }
   __ ldrb(r0, MemOperand(r0, r1));
   __ cmp(r0, Operand::Zero());
   BranchOrBacktrack(ne, on_bit_set);
+}
+
+void RegExpMacroAssemblerARM::SkipUntilBitInTable(
+    int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
+    int advance_by) {
+  // TODO(pthier): Optimize. Table can be loaded outside of the loop.
+  Label cont, again;
+  Bind(&again);
+  LoadCurrentCharacter(cp_offset, &cont, true);
+  CheckBitInTable(table, &cont);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&again);
+  Bind(&cont);
 }
 
 bool RegExpMacroAssemblerARM::CheckSpecialClassRanges(StandardCharacterSet type,
@@ -686,7 +696,8 @@ void RegExpMacroAssemblerARM::PopRegExpBasePointer(Register stack_pointer_out,
   StoreRegExpStackPointerToMemory(stack_pointer_out, scratch);
 }
 
-Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
+DirectHandle<HeapObject> RegExpMacroAssemblerARM::GetCode(
+    DirectHandle<String> source, RegExpFlags flags) {
   Label return_r0;
   // Finalize code - write the entry point code now we know how many
   // registers we need.
@@ -754,11 +765,13 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     __ mov(r0, Operand(stack_limit));
     __ ldr(r0, MemOperand(r0));
     __ sub(r0, sp, r0, SetCC);
+    Operand extra_space_for_variables(num_registers_ * kSystemPointerSize);
+
     // Handle it if the stack pointer is already below the stack limit.
     __ b(ls, &stack_limit_hit);
     // Check if there is room for the variable number of registers above
     // the stack limit.
-    __ cmp(r0, Operand(num_registers_ * kSystemPointerSize));
+    __ cmp(r0, extra_space_for_variables);
     __ b(hs, &stack_ok);
     // Exit with OutOfMemory exception. There is not enough space on the stack
     // for our working registers.
@@ -766,7 +779,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     __ jmp(&return_r0);
 
     __ bind(&stack_limit_hit);
-    CallCheckStackGuardState();
+    CallCheckStackGuardState(extra_space_for_variables);
     __ cmp(r0, Operand::Zero());
     // If returned value is non-zero, we exit with the returned value as result.
     __ b(ne, &return_r0);
@@ -1013,12 +1026,12 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate(), code_desc, CodeKind::REGEXP)
           .set_self_reference(masm_->CodeObject())
+          .set_empty_source_position_table()
           .Build();
   PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source, flags));
+  return Cast<HeapObject>(code);
 }
-
 
 void RegExpMacroAssemblerARM::GoTo(Label* to) {
   BranchOrBacktrack(al, to);
@@ -1077,6 +1090,7 @@ void RegExpMacroAssemblerARM::PushBacktrack(Label* label) {
 
 void RegExpMacroAssemblerARM::PushCurrentPosition() {
   Push(current_input_offset());
+  CheckStackLimit();
 }
 
 
@@ -1084,7 +1098,11 @@ void RegExpMacroAssemblerARM::PushRegister(int register_index,
                                            StackCheckFlag check_stack_limit) {
   __ ldr(r0, register_location(register_index));
   Push(r0);
-  if (check_stack_limit) CheckStackLimit();
+  if (check_stack_limit) {
+    CheckStackLimit();
+  } else if (V8_UNLIKELY(v8_flags.slow_debug_code)) {
+    AssertAboveStackLimitMinusSlack();
+  }
 }
 
 
@@ -1157,16 +1175,18 @@ void RegExpMacroAssemblerARM::ClearRegisters(int reg_from, int reg_to) {
 
 // Private methods:
 
-void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
+void RegExpMacroAssemblerARM::CallCheckStackGuardState(Operand extra_space) {
   DCHECK(!isolate()->IsGeneratingEmbeddedBuiltins());
   DCHECK(!masm_->options().isolate_independent_code);
 
-  __ PrepareCallCFunction(3);
+  __ PrepareCallCFunction(4);
 
+  // Extra space for variables to consider in stack check.
+  __ mov(kCArgRegs[3], extra_space);
   // RegExp code frame pointer.
-  __ mov(r2, frame_pointer());
+  __ mov(kCArgRegs[2], frame_pointer());
   // InstructionStream of self.
-  __ mov(r1, Operand(masm_->CodeObject()));
+  __ mov(kCArgRegs[1], Operand(masm_->CodeObject()));
 
   // We need to make room for the return address on the stack.
   int stack_alignment = base::OS::ActivationFrameAlignment();
@@ -1194,7 +1214,6 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState() {
   __ mov(code_pointer(), Operand(masm_->CodeObject()));
 }
 
-
 // Helper function for reading a value out of a stack frame.
 template <typename T>
 static T& frame_entry(Address re_frame, int frame_offset) {
@@ -1209,9 +1228,10 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 
 int RegExpMacroAssemblerARM::CheckStackGuardState(Address* return_address,
                                                   Address raw_code,
-                                                  Address re_frame) {
+                                                  Address re_frame,
+                                                  uintptr_t extra_space) {
   Tagged<InstructionStream> re_code =
-      InstructionStream::cast(Tagged<Object>(raw_code));
+      Cast<InstructionStream>(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       frame_entry<int>(re_frame, kStartIndexOffset),
@@ -1220,9 +1240,9 @@ int RegExpMacroAssemblerARM::CheckStackGuardState(Address* return_address,
       return_address, re_code,
       frame_entry_address<Address>(re_frame, kInputStringOffset),
       frame_entry_address<const uint8_t*>(re_frame, kInputStartOffset),
-      frame_entry_address<const uint8_t*>(re_frame, kInputEndOffset));
+      frame_entry_address<const uint8_t*>(re_frame, kInputEndOffset),
+      extra_space);
 }
-
 
 MemOperand RegExpMacroAssemblerARM::register_location(int register_index) {
   DCHECK(register_index < (1<<30));
@@ -1309,8 +1329,7 @@ void RegExpMacroAssemblerARM::CallCFunctionFromIrregexpCode(
   //    fail.
   //
   // See also: crbug.com/v8/12670#c17.
-  __ CallCFunction(function, num_arguments,
-                   MacroAssembler::SetIsolateDataSlots::kNo);
+  __ CallCFunction(function, num_arguments, SetIsolateDataSlots::kNo);
 }
 
 void RegExpMacroAssemblerARM::CheckPreemption() {
@@ -1333,6 +1352,19 @@ void RegExpMacroAssemblerARM::CheckStackLimit() {
   SafeCall(&stack_overflow_label_, ls);
 }
 
+void RegExpMacroAssemblerARM::AssertAboveStackLimitMinusSlack() {
+  DCHECK(v8_flags.slow_debug_code);
+  Label no_stack_overflow;
+  ASM_CODE_COMMENT_STRING(masm_.get(), "AssertAboveStackLimitMinusSlack");
+  auto l = ExternalReference::address_of_regexp_stack_limit_address(isolate());
+  __ mov(r0, Operand(l));
+  __ ldr(r0, MemOperand(r0));
+  __ sub(r0, r0, Operand(RegExpStack::kStackLimitSlackSize));
+  __ cmp(backtrack_stackpointer(), Operand(r0));
+  __ b(hi, &no_stack_overflow);
+  __ DebugBreak();
+  __ bind(&no_stack_overflow);
+}
 
 void RegExpMacroAssemblerARM::LoadCurrentCharacterUnchecked(int cp_offset,
                                                             int characters) {

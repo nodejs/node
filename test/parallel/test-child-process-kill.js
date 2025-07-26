@@ -39,3 +39,42 @@ assert.strictEqual(cat.signalCode, null);
 assert.strictEqual(cat.killed, false);
 cat.kill();
 assert.strictEqual(cat.killed, true);
+
+// Test different types of kill signals on Windows.
+if (common.isWindows) {
+  for (const sendSignal of ['SIGTERM', 'SIGKILL', 'SIGQUIT', 'SIGINT']) {
+    const process = spawn('cmd');
+    process.on('exit', (code, signal) => {
+      assert.strictEqual(code, null);
+      assert.strictEqual(signal, sendSignal);
+    });
+    process.kill(sendSignal);
+  }
+
+  const process = spawn('cmd');
+  process.on('exit', (code, signal) => {
+    assert.strictEqual(code, null);
+    assert.strictEqual(signal, 'SIGKILL');
+  });
+  process.kill('SIGHUP');
+}
+
+// Test that the process is not killed when sending a 0 signal.
+// This is a no-op signal that is used to check if the process is alive.
+const code = `const interval = setInterval(() => {}, 1000);
+process.stdin.on('data', () => { clearInterval(interval); });
+process.stdout.write('x');`;
+
+const checkProcess = spawn(process.execPath, ['-e', code]);
+
+checkProcess.on('exit', (code, signal) => {
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+});
+
+checkProcess.stdout.on('data', common.mustCall((chunk) => {
+  assert.strictEqual(chunk.toString(), 'x');
+  checkProcess.kill(0);
+  checkProcess.stdin.write('x');
+  checkProcess.stdin.end();
+}));

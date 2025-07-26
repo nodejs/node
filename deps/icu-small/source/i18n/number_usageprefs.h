@@ -23,8 +23,7 @@ U_NAMESPACE_BEGIN
 using ::icu::units::ComplexUnitsConverter;
 using ::icu::units::UnitsRouter;
 
-namespace number {
-namespace impl {
+namespace number::impl {
 
 /**
  * A MicroPropsGenerator which uses UnitsRouter to produce output converted to a
@@ -62,8 +61,7 @@ class U_I18N_API UsagePrefsHandler : public MicroPropsGenerator, public UMemory 
     const MicroPropsGenerator *fParent;
 };
 
-} // namespace impl
-} // namespace number
+} // namespace number::impl
 
 // Export explicit template instantiations of LocalPointerBase and LocalPointer.
 // This is required when building DLLs for Windows. (See datefmt.h,
@@ -72,20 +70,11 @@ class U_I18N_API UsagePrefsHandler : public MicroPropsGenerator, public UMemory 
 // Note: These need to be outside of the number::impl namespace, or Clang will
 // generate a compile error.
 #if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-#if defined(_MSC_VER)
-// Ignore warning 4661 as LocalPointerBase does not use operator== or operator!=
-#pragma warning(push)
-#pragma warning(disable: 4661)
-#endif
 template class U_I18N_API LocalPointerBase<ComplexUnitsConverter>;
 template class U_I18N_API LocalPointer<ComplexUnitsConverter>;
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
 #endif
 
-namespace number {
-namespace impl {
+namespace number::impl {
 
 /**
  * A MicroPropsGenerator which converts a measurement from one MeasureUnit to
@@ -118,8 +107,8 @@ class U_I18N_API UnitConversionHandler : public MicroPropsGenerator, public UMem
     const MicroPropsGenerator *fParent;
 };
 
-} // namespace impl
-} // namespace number
+} // namespace number::impl
+
 U_NAMESPACE_END
 
 #endif // __NUMBER_USAGEPREFS_H__

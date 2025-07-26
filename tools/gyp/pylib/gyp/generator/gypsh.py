@@ -17,7 +17,6 @@ The expected usage is "gyp -f gypsh -D OS=desired_os".
 import code
 import sys
 
-
 # All of this stuff about generator variables was lovingly ripped from gypd.py.
 # That module has a much better description of what's going on and why.
 _generator_identity_variables = [
@@ -49,10 +48,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
     # Use a banner that looks like the stock Python one and like what
     # code.interact uses by default, but tack on something to indicate what
     # locals are available, and identify gypsh.
-    banner = "Python {} on {}\nlocals.keys() = {}\ngypsh".format(
-        sys.version,
-        sys.platform,
-        repr(sorted(locals.keys())),
+    banner = (
+        f"Python {sys.version} on {sys.platform}\nlocals.keys() = "
+        f"{sorted(locals.keys())!r}\ngypsh"
     )
 
     code.interact(banner, local=locals)

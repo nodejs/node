@@ -42,8 +42,7 @@ extern transitioning runtime StringParseInt(
     implicit context: Context)(JSAny, JSAny): Number;
 
 extern runtime BigIntUnaryOp(Context, BigInt, SmiTagged<Operation>): BigInt;
-extern runtime BigIntBinaryOp(Context, Numeric, Numeric, SmiTagged<Operation>):
-    BigInt;
+extern runtime BigIntExponentiate(Context, Numeric, Numeric): BigInt;
 }  // namespace runtime
 
 namespace number {
@@ -370,10 +369,10 @@ transitioning javascript builtin NumberParseInt(
 extern builtin NonNumberToNumeric(implicit context: Context)(JSAny): Numeric;
 extern builtin Subtract(implicit context: Context)(Number, Number): Number;
 extern builtin Add(implicit context: Context)(Number, Number): Number;
-extern builtin StringAddConvertLeft(implicit context: Context)(JSAny, String):
-    JSAny;
-extern builtin StringAddConvertRight(implicit context: Context)(String, JSAny):
-    JSAny;
+extern builtin StringAddConvertLeft(implicit context: Context)(JSAny,
+                                    String): JSAny;
+extern builtin StringAddConvertRight(implicit context: Context)(String,
+                                     JSAny): JSAny;
 
 extern macro BitwiseOp(int32, int32, constexpr Operation): Number;
 extern macro RelationalComparison(constexpr Operation, JSAny, JSAny, Context):
@@ -540,8 +539,8 @@ Smi(Smi), HeapNumber(HeapNumber), BigInt(BigInt) {
 }
 
 // Binary type switch on Number | BigInt.
-macro BinaryOp1(implicit context: Context)(leftVal: JSAny, rightVal: JSAny):
-    never labels
+macro BinaryOp1(implicit context: Context)(leftVal: JSAny,
+                   rightVal: JSAny): never labels
 Number(Number, Number), AtLeastOneBigInt(Numeric, Numeric) {
   let left: JSAny = leftVal;
   let right: JSAny = rightVal;
@@ -644,8 +643,8 @@ macro BinaryOp2(implicit context: Context)(leftVal: JSAny, rightVal: JSAny):
   unreachable;
 }
 
-builtin Subtract(implicit context: Context)(left: JSAny, right: JSAny):
-    Numeric {
+builtin Subtract(implicit context: Context)(left: JSAny,
+                  right: JSAny): Numeric {
   try {
     BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
   } label Smis(left: Smi, right: Smi) {
@@ -661,8 +660,8 @@ builtin Subtract(implicit context: Context)(left: JSAny, right: JSAny):
   }
 }
 
-builtin Multiply(implicit context: Context)(left: JSAny, right: JSAny):
-    Numeric {
+builtin Multiply(implicit context: Context)(left: JSAny,
+                  right: JSAny): Numeric {
   try {
     BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
   } label Smis(left: Smi, right: Smi) {
@@ -680,8 +679,8 @@ const kMinInt32: constexpr int32 generates 'kMinInt';
 const kMinInt31: constexpr int32 generates 'kMinInt31';
 const kMinimumDividend: int32 = (kSmiValueSize == 32) ? kMinInt32 : kMinInt31;
 
-builtin Divide(implicit context: Context)(left: JSAny, right: JSAny):
-    Numeric {
+builtin Divide(implicit context: Context)(left: JSAny,
+                right: JSAny): Numeric {
   try {
     BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
   } label Smis(left: Smi, right: Smi) {
@@ -715,8 +714,8 @@ builtin Divide(implicit context: Context)(left: JSAny, right: JSAny):
   }
 }
 
-builtin Modulus(implicit context: Context)(left: JSAny, right: JSAny):
-    Numeric {
+builtin Modulus(implicit context: Context)(left: JSAny,
+                 right: JSAny): Numeric {
   try {
     BinaryOp2(left, right) otherwise Smis, Float64s, AtLeastOneBigInt;
   } label Smis(left: Smi, right: Smi) {
@@ -728,15 +727,14 @@ builtin Modulus(implicit context: Context)(left: JSAny, right: JSAny):
   }
 }
 
-builtin Exponentiate(implicit context: Context)(left: JSAny, right: JSAny):
-    Numeric {
+builtin Exponentiate(implicit context: Context)(left: JSAny,
+                      right: JSAny): Numeric {
   try {
     BinaryOp1(left, right) otherwise Numbers, AtLeastOneBigInt;
   } label Numbers(left: Number, right: Number) {
     return math::MathPowImpl(left, right);
   } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
-    tail runtime::BigIntBinaryOp(
-        context, left, right, SmiTag<Operation>(Operation::kExponentiate));
+    tail runtime::BigIntExponentiate(context, left, right);
   }
 }
 
@@ -791,13 +789,13 @@ builtin Increment(implicit context: Context)(value: JSAny): Numeric {
 extern macro BinaryOpAssembler::Generate_BitwiseBinaryOp(
     constexpr Operation, JSAny, JSAny, Context): Object;
 
-builtin ShiftLeft(implicit context: Context)(left: JSAny, right: JSAny):
-    Object {
+builtin ShiftLeft(implicit context: Context)(left: JSAny,
+                   right: JSAny): Object {
   return Generate_BitwiseBinaryOp(Operation::kShiftLeft, left, right, context);
 }
 
-builtin ShiftRight(implicit context: Context)(left: JSAny, right: JSAny):
-    Object {
+builtin ShiftRight(implicit context: Context)(left: JSAny,
+                    right: JSAny): Object {
   return Generate_BitwiseBinaryOp(Operation::kShiftRight, left, right, context);
 }
 
@@ -807,8 +805,8 @@ builtin ShiftRightLogical(
       Operation::kShiftRightLogical, left, right, context);
 }
 
-builtin BitwiseAnd(implicit context: Context)(left: JSAny, right: JSAny):
-    Numeric {
+builtin BitwiseAnd(implicit context: Context)(left: JSAny,
+                    right: JSAny): Numeric {
   try {
     BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
   } label Number(left: Number, right: Number) {
@@ -820,8 +818,8 @@ builtin BitwiseAnd(implicit context: Context)(left: JSAny, right: JSAny):
   }
 }
 
-builtin BitwiseOr(implicit context: Context)(left: JSAny, right: JSAny):
-    Numeric {
+builtin BitwiseOr(implicit context: Context)(left: JSAny,
+                   right: JSAny): Numeric {
   try {
     BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
   } label Number(left: Number, right: Number) {
@@ -833,8 +831,8 @@ builtin BitwiseOr(implicit context: Context)(left: JSAny, right: JSAny):
   }
 }
 
-builtin BitwiseXor(implicit context: Context)(left: JSAny, right: JSAny):
-    Numeric {
+builtin BitwiseXor(implicit context: Context)(left: JSAny,
+                    right: JSAny): Numeric {
   try {
     BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
   } label Number(left: Number, right: Number) {
@@ -848,19 +846,19 @@ builtin BitwiseXor(implicit context: Context)(left: JSAny, right: JSAny):
 
 // Relational builtins.
 
-builtin LessThan(implicit context: Context)(left: JSAny, right: JSAny):
-    Object {
+builtin LessThan(implicit context: Context)(left: JSAny,
+                  right: JSAny): Object {
   return RelationalComparison(Operation::kLessThan, left, right, context);
 }
 
-builtin LessThanOrEqual(implicit context: Context)(left: JSAny, right: JSAny):
-    Object {
+builtin LessThanOrEqual(implicit context: Context)(left: JSAny,
+                         right: JSAny): Object {
   return RelationalComparison(
       Operation::kLessThanOrEqual, left, right, context);
 }
 
-builtin GreaterThan(implicit context: Context)(left: JSAny, right: JSAny):
-    Object {
+builtin GreaterThan(implicit context: Context)(left: JSAny,
+                     right: JSAny): Object {
   return RelationalComparison(Operation::kGreaterThan, left, right, context);
 }
 
@@ -874,8 +872,8 @@ builtin Equal(implicit context: Context)(left: JSAny, right: JSAny): Object {
   return Equal(left, right, context);
 }
 
-builtin StrictEqual(implicit context: Context)(left: JSAny, right: JSAny):
-    Object {
+builtin StrictEqual(implicit context: Context)(left: JSAny,
+                     right: JSAny): Object {
   return ::StrictEqual(left, right);
 }
 

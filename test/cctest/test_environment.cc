@@ -438,6 +438,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
   // This test sets a global variable in the child Environment, and reads it
   // back both through the inspector and inside the child Environment, and
   // makes sure that those correspond to the value that was originally set.
+  v8::Locker locker(isolate_);
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
   Env env {handle_scope, argv};
@@ -507,6 +508,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
     CHECK_NOT_NULL(isolate);
 
     {
+      v8::Locker locker(isolate);
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
 
@@ -542,8 +544,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
       node::FreeIsolateData(isolate_data);
     }
 
-    data->platform->UnregisterIsolate(isolate);
-    isolate->Dispose();
+    data->platform->DisposeIsolate(isolate);
     uv_run(&loop, UV_RUN_DEFAULT);
     CHECK_EQ(uv_loop_close(&loop), 0);
 
@@ -620,12 +621,12 @@ TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
 
 #ifndef _WIN32  // No SIGINT on Windows.
 TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
-  // We need to go through the whole setup dance here because we want to
-  // set only_terminate_in_safe_scope.
   // Allocate and initialize Isolate.
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator.get();
-  create_params.only_terminate_in_safe_scope = true;
+  create_params.cpp_heap =
+      v8::CppHeap::Create(platform.get(), v8::CppHeapCreateParams{{}})
+          .release();
   v8::Isolate* isolate = v8::Isolate::Allocate();
   CHECK_NOT_NULL(isolate);
   platform->RegisterIsolate(isolate, &current_loop);
@@ -633,6 +634,7 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
 
   // Try creating Context + IsolateData + Environment.
   {
+    v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
 
@@ -675,8 +677,7 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
   }
 
   // Cleanup.
-  platform->UnregisterIsolate(isolate);
-  isolate->Dispose();
+  platform->DisposeIsolate(isolate);
 }
 #endif  // _WIN32
 

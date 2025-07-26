@@ -8,6 +8,7 @@
 
 #include "src/deoptimizer/translated-state.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/objects/casting.h"
 #include "src/objects/code.h"
 #include "src/objects/deoptimization-data-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -19,35 +20,63 @@
 namespace v8 {
 namespace internal {
 
+DirectHandle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
+  Validate();
+  switch (kind_) {
+    case DeoptimizationLiteralKind::kObject: {
+      return object_;
+    }
+    case DeoptimizationLiteralKind::kNumber: {
+      return isolate->factory()->NewNumber(number_);
+    }
+    case DeoptimizationLiteralKind::kSignedBigInt64: {
+      return BigInt::FromInt64(isolate, int64_);
+    }
+    case DeoptimizationLiteralKind::kUnsignedBigInt64: {
+      return BigInt::FromUint64(isolate, uint64_);
+    }
+    case DeoptimizationLiteralKind::kHoleNaN: {
+      // Hole NaNs that made it to here represent the undefined value.
+      return isolate->factory()->undefined_value();
+    }
+    case DeoptimizationLiteralKind::kWasmI31Ref:
+    case DeoptimizationLiteralKind::kWasmInt32:
+    case DeoptimizationLiteralKind::kWasmFloat32:
+    case DeoptimizationLiteralKind::kWasmFloat64:
+    case DeoptimizationLiteralKind::kInvalid: {
+      UNREACHABLE();
+    }
+  }
+  UNREACHABLE();
+}
+
 Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
-                                                   int deopt_entry_count,
-                                                   AllocationType allocation) {
-  return Handle<DeoptimizationData>::cast(isolate->factory()->NewFixedArray(
-      LengthFor(deopt_entry_count), allocation));
+                                                   int deopt_entry_count) {
+  return Cast<DeoptimizationData>(
+      isolate->factory()->NewProtectedFixedArray(LengthFor(deopt_entry_count)));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::New(LocalIsolate* isolate,
-                                                   int deopt_entry_count,
-                                                   AllocationType allocation) {
-  return Handle<DeoptimizationData>::cast(isolate->factory()->NewFixedArray(
-      LengthFor(deopt_entry_count), allocation));
+                                                   int deopt_entry_count) {
+  return Cast<DeoptimizationData>(
+      isolate->factory()->NewProtectedFixedArray(LengthFor(deopt_entry_count)));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
-  return Handle<DeoptimizationData>::cast(
-      isolate->factory()->empty_fixed_array());
+  return Cast<DeoptimizationData>(
+      isolate->factory()->empty_protected_fixed_array());
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
-  return Handle<DeoptimizationData>::cast(
-      isolate->factory()->empty_fixed_array());
+  return Cast<DeoptimizationData>(
+      isolate->factory()->empty_protected_fixed_array());
 }
 
 Tagged<SharedFunctionInfo> DeoptimizationData::GetInlinedFunction(int index) {
   if (index == -1) {
-    return SharedFunctionInfo::cast(SharedFunctionInfo());
+    return GetSharedFunctionInfo();
   } else {
-    return SharedFunctionInfo::cast(LiteralArray()->get(index));
+    return Cast<i::SharedFunctionInfo>(LiteralArray()->get(index));
   }
 }
 
@@ -123,7 +152,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
   os << "Inlined functions (count = " << inlined_function_count << ")\n";
   for (int id = 0; id < inlined_function_count; ++id) {
     Tagged<Object> info = LiteralArray()->get(id);
-    os << " " << Brief(SharedFunctionInfo::cast(info)) << "\n";
+    os << " " << Brief(Cast<i::SharedFunctionInfo>(info)) << "\n";
   }
   os << "\n";
   int deopt_count = DeoptCount();
@@ -149,6 +178,7 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
 
     if (v8_flags.print_code_verbose) {
       FrameTranslation()->PrintFrameTranslation(os, TranslationIndex(i).value(),
+                                                ProtectedLiteralArray(),
                                                 LiteralArray());
     }
   }
@@ -156,83 +186,87 @@ void DeoptimizationData::PrintDeoptimizationData(std::ostream& os) const {
 
 #endif  // ENABLE_DISASSEMBLER
 
-DeoptimizationFrameTranslation::Iterator::Iterator(
-    Tagged<DeoptimizationFrameTranslation> buffer, int index)
+DeoptTranslationIterator::DeoptTranslationIterator(
+    base::Vector<const uint8_t> buffer, int index)
     : buffer_(buffer), index_(index) {
 #ifdef V8_USE_ZLIB
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
-    const int size = buffer_->get_int(kUncompressedSizeOffset);
+    const int size =
+        base::ReadUnalignedValue<uint32_t>(reinterpret_cast<Address>(
+            &buffer_[DeoptimizationFrameTranslation::kUncompressedSizeOffset]));
     uncompressed_contents_.insert(uncompressed_contents_.begin(), size, 0);
 
-    uLongf uncompressed_size =
-        size * kDeoptimizationFrameTranslationElementSize;
+    uLongf uncompressed_size = size *
+                               DeoptimizationFrameTranslation::
+                                   kDeoptimizationFrameTranslationElementSize;
 
     CHECK_EQ(zlib_internal::UncompressHelper(
                  zlib_internal::ZRAW,
-                 base::bit_cast<Bytef*>(uncompressed_contents_.data()),
+                 reinterpret_cast<Bytef*>(uncompressed_contents_.data()),
                  &uncompressed_size,
-                 buffer_->GetDataStartAddress() + kCompressedDataOffset,
-                 buffer_->DataSize()),
+                 buffer_.begin() +
+                     DeoptimizationFrameTranslation::kCompressedDataOffset,
+                 buffer_.length()),
              Z_OK);
     DCHECK(index >= 0 && index < size);
     return;
   }
 #endif  // V8_USE_ZLIB
   DCHECK(!v8_flags.turbo_compress_frame_translations);
-  DCHECK(index >= 0 && index < buffer->length());
+  DCHECK(index >= 0 && index < buffer_.length());
   // Starting at a location other than a BEGIN would make
   // MATCH_PREVIOUS_TRANSLATION instructions not work.
-  DCHECK(TranslationOpcodeIsBegin(
-      static_cast<TranslationOpcode>(buffer_->GetDataStartAddress()[index])));
+  DCHECK(
+      TranslationOpcodeIsBegin(static_cast<TranslationOpcode>(buffer_[index])));
 }
 
-int32_t DeoptimizationFrameTranslation::Iterator::NextOperand() {
+DeoptimizationFrameTranslation::Iterator::Iterator(
+    Tagged<DeoptimizationFrameTranslation> buffer, int index)
+    : DeoptTranslationIterator(
+          base::Vector<uint8_t>(buffer->begin(), buffer->length()), index) {}
+
+int32_t DeoptTranslationIterator::NextOperand() {
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
     return uncompressed_contents_[index_++];
   } else if (remaining_ops_to_use_from_previous_translation_) {
-    int32_t value =
-        base::VLQDecode(buffer_->GetDataStartAddress(), &previous_index_);
+    int32_t value = base::VLQDecode(buffer_.begin(), &previous_index_);
     DCHECK_LT(previous_index_, index_);
     return value;
   } else {
-    int32_t value = base::VLQDecode(buffer_->GetDataStartAddress(), &index_);
-    DCHECK_LE(index_, buffer_->length());
+    int32_t value = base::VLQDecode(buffer_.begin(), &index_);
+    DCHECK_LE(index_, buffer_.length());
     return value;
   }
 }
 
-TranslationOpcode
-DeoptimizationFrameTranslation::Iterator::NextOpcodeAtPreviousIndex() {
+TranslationOpcode DeoptTranslationIterator::NextOpcodeAtPreviousIndex() {
   TranslationOpcode opcode =
-      static_cast<TranslationOpcode>(buffer_->get(previous_index_++));
+      static_cast<TranslationOpcode>(buffer_[previous_index_++]);
   DCHECK_LT(static_cast<uint32_t>(opcode), kNumTranslationOpcodes);
   DCHECK_NE(opcode, TranslationOpcode::MATCH_PREVIOUS_TRANSLATION);
   DCHECK_LT(previous_index_, index_);
   return opcode;
 }
 
-uint32_t
-DeoptimizationFrameTranslation::Iterator::NextUnsignedOperandAtPreviousIndex() {
-  uint32_t value =
-      base::VLQDecodeUnsigned(buffer_->GetDataStartAddress(), &previous_index_);
+uint32_t DeoptTranslationIterator::NextUnsignedOperandAtPreviousIndex() {
+  uint32_t value = base::VLQDecodeUnsigned(buffer_.begin(), &previous_index_);
   DCHECK_LT(previous_index_, index_);
   return value;
 }
 
-uint32_t DeoptimizationFrameTranslation::Iterator::NextOperandUnsigned() {
+uint32_t DeoptTranslationIterator::NextOperandUnsigned() {
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
     return uncompressed_contents_[index_++];
   } else if (remaining_ops_to_use_from_previous_translation_) {
     return NextUnsignedOperandAtPreviousIndex();
   } else {
-    uint32_t value =
-        base::VLQDecodeUnsigned(buffer_->GetDataStartAddress(), &index_);
-    DCHECK_LE(index_, buffer_->length());
+    uint32_t value = base::VLQDecodeUnsigned(buffer_.begin(), &index_);
+    DCHECK_LE(index_, buffer_.length());
     return value;
   }
 }
 
-TranslationOpcode DeoptimizationFrameTranslation::Iterator::NextOpcode() {
+TranslationOpcode DeoptTranslationIterator::NextOpcode() {
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
     return static_cast<TranslationOpcode>(NextOperandUnsigned());
   }
@@ -242,8 +276,8 @@ TranslationOpcode DeoptimizationFrameTranslation::Iterator::NextOpcode() {
   if (remaining_ops_to_use_from_previous_translation_) {
     return NextOpcodeAtPreviousIndex();
   }
-  CHECK_LT(index_, buffer_->length());
-  uint8_t opcode_byte = buffer_->get(index_++);
+  CHECK_LT(index_, buffer_.length());
+  uint8_t opcode_byte = buffer_[index_++];
 
   // If the opcode byte is greater than any valid opcode, then the opcode is
   // implicitly MATCH_PREVIOUS_TRANSLATION and the operand is the opcode byte
@@ -261,7 +295,7 @@ TranslationOpcode DeoptimizationFrameTranslation::Iterator::NextOpcode() {
   }
 
   TranslationOpcode opcode = static_cast<TranslationOpcode>(opcode_byte);
-  DCHECK_LE(index_, buffer_->length());
+  DCHECK_LE(index_, buffer_.length());
   DCHECK_LT(static_cast<uint32_t>(opcode), kNumTranslationOpcodes);
   if (TranslationOpcodeIsBegin(opcode)) {
     int temp_index = index_;
@@ -269,14 +303,14 @@ TranslationOpcode DeoptimizationFrameTranslation::Iterator::NextOpcode() {
     // previous BEGIN, or zero to indicate that MATCH_PREVIOUS_TRANSLATION will
     // not be used in this translation.
     uint32_t lookback_distance =
-        base::VLQDecodeUnsigned(buffer_->GetDataStartAddress(), &temp_index);
+        base::VLQDecodeUnsigned(buffer_.begin(), &temp_index);
     if (lookback_distance) {
       previous_index_ = index_ - 1 - lookback_distance;
       DCHECK(TranslationOpcodeIsBegin(
-          static_cast<TranslationOpcode>(buffer_->get(previous_index_))));
+          static_cast<TranslationOpcode>(buffer_[previous_index_])));
       // The previous BEGIN should specify zero as its lookback distance,
       // meaning it won't use MATCH_PREVIOUS_TRANSLATION.
-      DCHECK_EQ(buffer_->get(previous_index_ + 1), 0);
+      DCHECK_EQ(buffer_[previous_index_ + 1], 0);
     }
     ops_since_previous_index_was_updated_ = 1;
   } else if (opcode == TranslationOpcode::MATCH_PREVIOUS_TRANSLATION) {
@@ -292,7 +326,7 @@ TranslationOpcode DeoptimizationFrameTranslation::Iterator::NextOpcode() {
 }
 
 DeoptimizationFrameTranslation::FrameCount
-DeoptimizationFrameTranslation::Iterator::EnterBeginOpcode() {
+DeoptTranslationIterator::EnterBeginOpcode() {
   TranslationOpcode opcode = NextOpcode();
   DCHECK(TranslationOpcodeIsBegin(opcode));
   USE(opcode);
@@ -302,7 +336,7 @@ DeoptimizationFrameTranslation::Iterator::EnterBeginOpcode() {
   return {frame_count, jsframe_count};
 }
 
-TranslationOpcode DeoptimizationFrameTranslation::Iterator::SeekNextJSFrame() {
+TranslationOpcode DeoptTranslationIterator::SeekNextJSFrame() {
   while (HasNextOpcode()) {
     TranslationOpcode opcode = NextOpcode();
     DCHECK(!TranslationOpcodeIsBegin(opcode));
@@ -316,7 +350,7 @@ TranslationOpcode DeoptimizationFrameTranslation::Iterator::SeekNextJSFrame() {
   UNREACHABLE();
 }
 
-TranslationOpcode DeoptimizationFrameTranslation::Iterator::SeekNextFrame() {
+TranslationOpcode DeoptTranslationIterator::SeekNextFrame() {
   while (HasNextOpcode()) {
     TranslationOpcode opcode = NextOpcode();
     DCHECK(!TranslationOpcodeIsBegin(opcode));
@@ -330,17 +364,16 @@ TranslationOpcode DeoptimizationFrameTranslation::Iterator::SeekNextFrame() {
   UNREACHABLE();
 }
 
-bool DeoptimizationFrameTranslation::Iterator::HasNextOpcode() const {
+bool DeoptTranslationIterator::HasNextOpcode() const {
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
     return index_ < static_cast<int>(uncompressed_contents_.size());
   } else {
-    return index_ < buffer_->length() ||
+    return index_ < buffer_.length() ||
            remaining_ops_to_use_from_previous_translation_ > 1;
   }
 }
 
-void DeoptimizationFrameTranslation::Iterator::
-    SkipOpcodeAndItsOperandsAtPreviousIndex() {
+void DeoptTranslationIterator::SkipOpcodeAndItsOperandsAtPreviousIndex() {
   TranslationOpcode opcode = NextOpcodeAtPreviousIndex();
   for (int count = TranslationOpcodeOperandCount(opcode); count != 0; --count) {
     NextUnsignedOperandAtPreviousIndex();
@@ -351,23 +384,24 @@ void DeoptimizationFrameTranslation::Iterator::
 
 void DeoptimizationFrameTranslation::PrintFrameTranslation(
     std::ostream& os, int index,
+    Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
     Tagged<DeoptimizationLiteralArray> literal_array) const {
   DisallowGarbageCollection gc_oh_noes;
 
-  DeoptimizationFrameTranslation::Iterator iterator(*this, index);
-  TranslationOpcode opcode = iterator.NextOpcode();
-  DCHECK(TranslationOpcodeIsBegin(opcode));
-  os << opcode << " ";
-  DeoptimizationFrameTranslationPrintSingleOpcode(os, opcode, iterator,
-                                                  literal_array);
+  DeoptimizationFrameTranslation::Iterator iterator(this, index);
+  TranslationOpcode first_opcode = iterator.NextOpcode();
+  DCHECK(TranslationOpcodeIsBegin(first_opcode));
+  os << first_opcode << " ";
+  DeoptimizationFrameTranslationPrintSingleOpcode(
+      os, first_opcode, iterator, protected_literal_array, literal_array);
   while (iterator.HasNextOpcode()) {
     TranslationOpcode opcode = iterator.NextOpcode();
     if (TranslationOpcodeIsBegin(opcode)) {
       break;
     }
     os << opcode << " ";
-    DeoptimizationFrameTranslationPrintSingleOpcode(os, opcode, iterator,
-                                                    literal_array);
+    DeoptimizationFrameTranslationPrintSingleOpcode(
+        os, opcode, iterator, protected_literal_array, literal_array);
   }
 }
 

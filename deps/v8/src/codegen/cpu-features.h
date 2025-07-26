@@ -21,13 +21,17 @@ enum CpuFeature {
   SAHF,
   AVX,
   AVX2,
+  AVX_VNNI,
+  AVX_VNNI_INT8,
   FMA3,
   BMI1,
   BMI2,
   LZCNT,
   POPCNT,
   INTEL_ATOM,
+  INTEL_JCC_ERRATUM_MITIGATION,
   CETSS,
+  F16C,
 
 #elif V8_TARGET_ARCH_ARM
   // - Standard configurations. The baseline is ARMv6+VFPv2.
@@ -47,6 +51,15 @@ enum CpuFeature {
   // Large System Extension, include atomic operations on memory: CAS, LDADD,
   // STADD, SWP, etc.
   LSE,
+  // A form of PMULL{2} with a 128-bit (1Q) result.
+  PMULL1Q,
+  // Half-precision NEON ops support.
+  FP16,
+  SHA3,
+  // Hinted Conditional Branches
+  HBC,
+  // Common short sequence compression instructions
+  CSSC,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,
@@ -59,9 +72,7 @@ enum CpuFeature {
 #elif V8_TARGET_ARCH_LOONG64
   FPU,
 
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
-  PPC_6_PLUS,
-  PPC_7_PLUS,
+#elif V8_TARGET_ARCH_PPC64
   PPC_8_PLUS,
   PPC_9_PLUS,
   PPC_10_PLUS,
@@ -76,14 +87,14 @@ enum CpuFeature {
   VECTOR_ENHANCE_FACILITY_2,
   MISC_INSTR_EXT2,
 
-#elif V8_TARGET_ARCH_RISCV64
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
   FPU,
   FP64FPU,
   RISCV_SIMD,
-#elif V8_TARGET_ARCH_RISCV32
-  FPU,
-  FP64FPU,
-  RISCV_SIMD,
+  ZBA,
+  ZBB,
+  ZBS,
+  ZICOND,
 #endif
 
   NUMBER_OF_CPU_FEATURES

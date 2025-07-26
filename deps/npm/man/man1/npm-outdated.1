@@ -1,4 +1,4 @@
-.TH "NPM-OUTDATED" "1" "February 2024" "" ""
+.TH "NPM-OUTDATED" "1" "July 2025" "NPM@11.5.1" ""
 .SH "NAME"
 \fBnpm-outdated\fR - Check for outdated packages
 .SS "Synopsis"
@@ -28,6 +28,8 @@ In the output:
 \fBpackage type\fR (when using \fB--long\fR / \fB-l\fR) tells you whether this package is a \fBdependency\fR or a dev/peer/optional dependency. Packages not included in \fBpackage.json\fR are always marked \fBdependencies\fR.
 .IP \(bu 4
 \fBhomepage\fR (when using \fB--long\fR / \fB-l\fR) is the \fBhomepage\fR value contained in the package's packument
+.IP \(bu 4
+\fBdepended by location\fR (when using \fB--long\fR / \fB-l\fR) shows location of the package that depends on the displayed dependency
 .IP \(bu 4
 Red means there's a newer version matching your semver requirements, so you should update now.
 .IP \(bu 4
@@ -165,6 +167,18 @@ Path to a parent workspace directory (will result in selecting all workspaces wi
 When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
 .P
 This value is not exported to the environment for child processes.
+.SS "\fBbefore\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Date
+.RE 0
+
+.P
+If passed to \fBnpm install\fR, will rebuild the npm tree such that only versions that were available \fBon or before\fR the given date are installed. If there are no versions available for the current set of dependencies, the command will error.
+.P
+If the requested version is a \fBdist-tag\fR and the given tag does not pass the \fB--before\fR filter, the most recent version less than or equal to that tag will be used. For example, \fBfoo@latest\fR might install \fBfoo@1.2\fR even though \fBlatest\fR is \fB2.0\fR.
 .SS "See Also"
 .RS 0
 .IP \(bu 4

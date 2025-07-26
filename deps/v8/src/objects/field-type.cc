@@ -24,29 +24,24 @@ Tagged<FieldType> FieldType::Any() {
 }
 
 // static
-Handle<FieldType> FieldType::None(Isolate* isolate) {
-  return handle(None(), isolate);
+DirectHandle<FieldType> FieldType::None(Isolate* isolate) {
+  return direct_handle(None(), isolate);
 }
 
 // static
-Handle<FieldType> FieldType::Any(Isolate* isolate) {
-  return handle(Any(), isolate);
+DirectHandle<FieldType> FieldType::Any(Isolate* isolate) {
+  return direct_handle(Any(), isolate);
 }
 
 // static
 Tagged<FieldType> FieldType::Class(Tagged<Map> map) {
-  return FieldType::cast(Tagged<Object>(map));
+  return Cast<FieldType>(Tagged<Object>(map));
 }
 
 // static
-Handle<FieldType> FieldType::Class(Handle<Map> map, Isolate* isolate) {
-  return handle(Class(*map), isolate);
-}
-
-// static
-Tagged<FieldType> FieldType::cast(Tagged<Object> object) {
-  DCHECK(object == None() || object == Any() || IsMap(object));
-  return Tagged<FieldType>(object.ptr());
+DirectHandle<FieldType> FieldType::Class(DirectHandle<Map> map,
+                                         Isolate* isolate) {
+  return direct_handle(Class(*map), isolate);
 }
 
 // static
@@ -55,13 +50,13 @@ bool IsClass(Tagged<FieldType> obj) { return IsMap(obj); }
 // static
 Tagged<Map> FieldType::AsClass(Tagged<FieldType> type) {
   DCHECK(IsClass(type));
-  return Map::cast(type);
+  return Cast<Map>(type);
 }
 
 // static
-Handle<Map> FieldType::AsClass(Handle<FieldType> type) {
+DirectHandle<Map> FieldType::AsClass(DirectHandle<FieldType> type) {
   DCHECK(IsClass(*type));
-  return Handle<Map>::cast(type);
+  return Cast<Map>(type);
 }
 
 // static
@@ -91,7 +86,7 @@ bool FieldType::Equals(Tagged<FieldType> type, Tagged<FieldType> other) {
 }
 
 // static
-bool FieldType::NowIs(Tagged<FieldType> type, Handle<FieldType> other) {
+bool FieldType::NowIs(Tagged<FieldType> type, DirectHandle<FieldType> other) {
   return NowIs(type, *other);
 }
 
@@ -112,7 +107,7 @@ bool FieldType::NowContains(Tagged<FieldType> type, Tagged<Object> value) {
   if (type == Any()) return true;
   if (type == None()) return false;
   if (!IsHeapObject(value)) return false;
-  return HeapObject::cast(value)->map() == Map::cast(type);
+  return Cast<HeapObject>(value)->map() == Cast<Map>(type);
 }
 
 }  // namespace internal

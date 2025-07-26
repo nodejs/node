@@ -11,6 +11,7 @@
 #include "memory_tracker.h"
 #include "node.h"
 #include "node_internals.h"
+#include "permission/permission.h"
 #include "util.h"
 
 #include "ares.h"
@@ -30,6 +31,9 @@ namespace cares_wrap {
 
 constexpr int ns_t_cname_or_a = -1;
 constexpr int DNS_ESETSRVPENDING = -1000;
+constexpr uint8_t DNS_ORDER_VERBATIM = 0;
+constexpr uint8_t DNS_ORDER_IPV4_FIRST = 1;
+constexpr uint8_t DNS_ORDER_IPV6_FIRST = 2;
 
 class ChannelWrap;
 
@@ -148,11 +152,11 @@ struct NodeAresTask final : public MemoryRetainer {
 
 class ChannelWrap final : public AsyncWrap {
  public:
-  ChannelWrap(
-      Environment* env,
-      v8::Local<v8::Object> object,
-      int timeout,
-      int tries);
+  ChannelWrap(Environment* env,
+              v8::Local<v8::Object> object,
+              int timeout,
+              int tries,
+              int max_timeout);
   ~ChannelWrap() override;
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -187,6 +191,7 @@ class ChannelWrap final : public AsyncWrap {
   bool library_inited_ = false;
   int timeout_;
   int tries_;
+  int max_timeout_;
   int active_query_count_ = 0;
   NodeAresTask::List task_list_;
 };
@@ -195,21 +200,23 @@ class GetAddrInfoReqWrap final : public ReqWrap<uv_getaddrinfo_t> {
  public:
   GetAddrInfoReqWrap(Environment* env,
                      v8::Local<v8::Object> req_wrap_obj,
-                     bool verbatim);
+                     uint8_t order);
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(GetAddrInfoReqWrap)
   SET_SELF_SIZE(GetAddrInfoReqWrap)
 
-  bool verbatim() const { return verbatim_; }
+  uint8_t order() const { return order_; }
 
  private:
-  const bool verbatim_;
+  const uint8_t order_;
 };
 
 class GetNameInfoReqWrap final : public ReqWrap<uv_getnameinfo_t> {
  public:
   GetNameInfoReqWrap(Environment* env, v8::Local<v8::Object> req_wrap_obj);
+
+  SET_INSUFFICIENT_PERMISSION_ERROR_CALLBACK(permission::PermissionScope::kNet)
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(GetNameInfoReqWrap)
@@ -243,19 +250,32 @@ class QueryWrap final : public AsyncWrap {
     return Traits::Send(this, name);
   }
 
-  void AresQuery(const char* name, int dnsclass, int type) {
+  void AresQuery(const char* name,
+                 ares_dns_class_t dnsclass,
+                 ares_dns_rec_type_t type) {
+    permission::PermissionScope scope = permission::PermissionScope::kNet;
+    Environment* env_holder = env();
+
+    if (!env_holder->permission()->is_granted(env_holder, scope, name))
+        [[unlikely]] {
+      QueuePermissionModelResponseCallback(name);
+      return;
+    }
+
     channel_->EnsureServers();
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
       TRACING_CATEGORY_NODE2(dns, native), trace_name_, this,
       "name", TRACE_STR_COPY(name));
-    ares_query(
-        channel_->cares_channel(),
-        name,
-        dnsclass,
-        type,
-        Callback,
-        MakeCallbackPointer());
+    ares_query_dnsrec(channel_->cares_channel(),
+                      name,
+                      dnsclass,
+                      type,
+                      Callback,
+                      MakeCallbackPointer(),
+                      nullptr);
   }
+
+  SET_INSUFFICIENT_PERMISSION_ERROR_CALLBACK(permission::PermissionScope::kNet)
 
   void ParseError(int status) {
     CHECK_NE(status, ARES_SUCCESS);
@@ -279,7 +299,9 @@ class QueryWrap final : public AsyncWrap {
     if (status != ARES_SUCCESS)
       return ParseError(status);
 
-    status = Traits::Parse(this, response_data_);
+    if (!Traits::Parse(this, response_data_).To(&status)) {
+      return ParseError(ARES_ECANCELLED);
+    }
 
     if (status != ARES_SUCCESS)
       ParseError(status);
@@ -301,19 +323,20 @@ class QueryWrap final : public AsyncWrap {
     return wrap;
   }
 
-  static void Callback(
-      void* arg,
-      int status,
-      int timeouts,
-      unsigned char* answer_buf,
-      int answer_len) {
+  static void Callback(void* arg,
+                       ares_status_t status,
+                       size_t timeouts,
+                       const ares_dns_record_t* dnsrec) {
     QueryWrap<Traits>* wrap = FromCallbackPointer(arg);
     if (wrap == nullptr) return;
 
     unsigned char* buf_copy = nullptr;
+    size_t answer_len = 0;
     if (status == ARES_SUCCESS) {
-      buf_copy = node::Malloc<unsigned char>(answer_len);
-      memcpy(buf_copy, answer_buf, answer_len);
+      // No need to explicitly call ares_free_string here,
+      // as it is a wrapper around free, which is already
+      // invoked when MallocedBuffer is destructed.
+      ares_dns_write(dnsrec, &buf_copy, &answer_len);
     }
 
     wrap->response_data_ = std::make_unique<ResponseData>();
@@ -346,6 +369,20 @@ class QueryWrap final : public AsyncWrap {
     data->is_host = true;
 
     wrap->QueueResponseCallback(status);
+  }
+
+  void QueuePermissionModelResponseCallback(const char* resource) {
+    BaseObjectPtr<QueryWrap<Traits>> strong_ref{this};
+    const std::string res{resource};
+    env()->SetImmediate([this, strong_ref, res](Environment*) {
+      InsufficientPermissionError(res);
+
+      // Delete once strong_ref goes out of scope.
+      Detach();
+    });
+
+    channel_->set_query_last_ok(true);
+    channel_->ModifyActivityQueryCount(-1);
   }
 
   void QueueResponseCallback(int status) {
@@ -398,124 +435,38 @@ class QueryWrap final : public AsyncWrap {
   QueryWrap<Traits>** callback_ptr_ = nullptr;
 };
 
-struct AnyTraits final {
-  static constexpr const char* name = "resolveAny";
-  static int Send(QueryWrap<AnyTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<AnyTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
+#define QUERY_TYPES(V)                                                         \
+  V(Reverse, reverse, getHostByAddr)                                           \
+  V(A, resolve4, queryA)                                                       \
+  V(Any, resolveAny, queryAny)                                                 \
+  V(Aaaa, resolve6, queryAaaa)                                                 \
+  V(Caa, resolveCaa, queryCaa)                                                 \
+  V(Cname, resolveCname, queryCname)                                           \
+  V(Mx, resolveMx, queryMx)                                                    \
+  V(Naptr, resolveNaptr, queryNaptr)                                           \
+  V(Ns, resolveNs, queryNs)                                                    \
+  V(Ptr, resolvePtr, queryPtr)                                                 \
+  V(Srv, resolveSrv, querySrv)                                                 \
+  V(Soa, resolveSoa, querySoa)                                                 \
+  V(Tlsa, resolveTlsa, queryTlsa)                                              \
+  V(Txt, resolveTxt, queryTxt)
 
-struct ATraits final {
-  static constexpr const char* name = "resolve4";
-  static int Send(QueryWrap<ATraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<ATraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
+// All query type handlers share the same basic structure, so we can simplify
+// the code a bit by using a macro to define that structure.
+#define TYPE_TRAITS(Name, label)                                               \
+  struct Name##Traits final {                                                  \
+    static constexpr const char* name = #label;                                \
+    static int Send(QueryWrap<Name##Traits>* wrap, const char* name);          \
+    static v8::Maybe<int> Parse(                                               \
+        QueryWrap<Name##Traits>* wrap,                                         \
+        const std::unique_ptr<ResponseData>& response);                        \
+  };                                                                           \
+  using Query##Name##Wrap = QueryWrap<Name##Traits>;
 
-struct AaaaTraits final {
-  static constexpr const char* name = "resolve6";
-  static int Send(QueryWrap<AaaaTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<AaaaTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-struct CaaTraits final {
-  static constexpr const char* name = "resolveCaa";
-  static int Send(QueryWrap<CaaTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<CaaTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-struct CnameTraits final {
-  static constexpr const char* name = "resolveCname";
-  static int Send(QueryWrap<CnameTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<CnameTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-struct MxTraits final {
-  static constexpr const char* name = "resolveMx";
-  static int Send(QueryWrap<MxTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<MxTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-struct NsTraits final {
-  static constexpr const char* name = "resolveNs";
-  static int Send(QueryWrap<NsTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<NsTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-struct TxtTraits final {
-  static constexpr const char* name = "resolveTxt";
-  static int Send(QueryWrap<TxtTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<TxtTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-struct SrvTraits final {
-  static constexpr const char* name = "resolveSrv";
-  static int Send(QueryWrap<SrvTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<SrvTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-struct PtrTraits final {
-  static constexpr const char* name = "resolvePtr";
-  static int Send(QueryWrap<PtrTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<PtrTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-struct NaptrTraits final {
-  static constexpr const char* name = "resolveNaptr";
-  static int Send(QueryWrap<NaptrTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<NaptrTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-struct SoaTraits final {
-  static constexpr const char* name = "resolveSoa";
-  static int Send(QueryWrap<SoaTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<SoaTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-struct ReverseTraits final {
-  static constexpr const char* name = "reverse";
-  static int Send(QueryWrap<ReverseTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<ReverseTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
-};
-
-using QueryAnyWrap = QueryWrap<AnyTraits>;
-using QueryAWrap = QueryWrap<ATraits>;
-using QueryAaaaWrap = QueryWrap<AaaaTraits>;
-using QueryCaaWrap = QueryWrap<CaaTraits>;
-using QueryCnameWrap = QueryWrap<CnameTraits>;
-using QueryMxWrap = QueryWrap<MxTraits>;
-using QueryNsWrap = QueryWrap<NsTraits>;
-using QueryTxtWrap = QueryWrap<TxtTraits>;
-using QuerySrvWrap = QueryWrap<SrvTraits>;
-using QueryPtrWrap = QueryWrap<PtrTraits>;
-using QueryNaptrWrap = QueryWrap<NaptrTraits>;
-using QuerySoaWrap = QueryWrap<SoaTraits>;
-using GetHostByAddrWrap = QueryWrap<ReverseTraits>;
-
+#define V(NAME, LABEL, _) TYPE_TRAITS(NAME, LABEL)
+QUERY_TYPES(V)
+#undef V
+#undef TYPE_TRAITS
 }  // namespace cares_wrap
 }  // namespace node
 

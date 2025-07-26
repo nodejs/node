@@ -1,0 +1,274 @@
+## Proposed language features
+#
+# This project accepts tests for language proposals that have reached stage 3
+# in TC39's standardization process. Those tests should be annotated with a
+# dedicated feature flag so that consumers may more easily omit them as
+# necessary.
+#
+# Generally, feature flags should be per proposal, not per individual API
+# that a proposal adds. To filter for specific APIs, use the directory
+# structure.
+#
+# https://github.com/tc39/process-document
+
+# Intl.Locale Info
+# https://github.com/tc39/proposal-intl-locale-info
+Intl.Locale-info
+
+# Intl.NumberFormat V3
+# https://github.com/tc39/proposal-intl-numberformat-v3
+Intl.NumberFormat-v3
+
+# Legacy RegExp features
+# https://github.com/tc39/proposal-regexp-legacy-features
+legacy-regexp
+
+# Temporal
+# https://github.com/tc39/proposal-temporal
+Temporal
+
+# ShadowRealm, née Callable Boundary Realms
+# https://github.com/tc39/proposal-realms
+ShadowRealm
+
+# Intl.DurationFormat
+# https://github.com/tc39/proposal-intl-duration-format
+Intl.DurationFormat
+
+# Decorators
+# https://github.com/tc39/proposal-decorators
+decorators
+
+# Duplicate named capturing groups
+# https://github.com/tc39/proposal-duplicate-named-capturing-groups
+regexp-duplicate-named-groups
+
+# https://tc39.es/proposal-array-from-async/
+Array.fromAsync
+
+# JSON.parse with source
+# https://github.com/tc39/proposal-json-parse-with-source
+json-parse-with-source
+
+# RegExp.escape
+# https://github.com/tc39/proposal-regex-escaping
+RegExp.escape
+
+# Explicit Resource Management
+# https://github.com/tc39/proposal-explicit-resource-management
+explicit-resource-management
+
+# Float16Array + Math.f16round
+# https://github.com/tc39/proposal-float16array
+Float16Array
+
+# Math.sumPrecise
+# https://github.com/tc39/proposal-math-sum
+Math.sumPrecise
+
+# Source Phase Imports
+## https://github.com/tc39/proposal-source-phase-imports
+source-phase-imports
+## test262 special specifier
+source-phase-imports-module-source
+
+# Uint8Array Base64
+# https://github.com/tc39/proposal-arraybuffer-base64
+uint8array-base64
+
+# Atomics.pause
+# https://github.com/tc39/proposal-atomics-microwait
+Atomics.pause
+
+# Error.isError
+# https://github.com/tc39/proposal-is-error
+Error.isError
+
+# Deferred import evaluation
+# https://tc39.es/proposal-defer-import-eval
+import-defer
+
+# Iterator Sequencing
+# https://github.com/tc39/proposal-iterator-sequencing
+iterator-sequencing
+
+# Time Zone Canonicalization
+# https://github.com/tc39/proposal-canonical-tz
+canonical-tz
+
+## Standard language features
+#
+# Language features that have been included in a published version of the
+# ECMA-262 specification. These flags are largely maintained for historical
+# reasons, though their use for relatively new features (i.e. prior to
+# availability across major implementations) is appreciated.
+
+AggregateError
+align-detached-buffer-semantics-with-web-reality  # https://github.com/tc39/ecma262/pull/2164
+arbitrary-module-namespace-names  # https://github.com/tc39/ecma262/pull/2154
+ArrayBuffer
+array-find-from-last
+Array.prototype.at
+Array.prototype.flat
+Array.prototype.flatMap
+Array.prototype.includes
+Array.prototype.values
+Atomics.waitAsync
+array-grouping
+arraybuffer-transfer
+arrow-function
+async-iteration
+async-functions
+Atomics
+BigInt
+caller
+change-array-by-copy
+class
+class-fields-private
+class-fields-private-in
+class-fields-public
+class-methods-private
+class-static-block
+class-static-fields-private
+class-static-fields-public
+class-static-methods-private
+coalesce-expression
+computed-property-names
+const
+cross-realm
+DataView
+DataView.prototype.getFloat32
+DataView.prototype.getFloat64
+DataView.prototype.getInt16
+DataView.prototype.getInt32
+DataView.prototype.getInt8
+DataView.prototype.getUint16
+DataView.prototype.getUint32
+DataView.prototype.setUint8
+default-parameters
+destructuring-assignment
+destructuring-binding
+dynamic-import
+error-cause
+exponentiation
+export-star-as-namespace-from-module  # https://github.com/tc39/ecma262/pull/1174
+FinalizationRegistry
+for-in-order
+for-of
+Float32Array
+Float64Array
+generators
+globalThis
+hashbang
+import-attributes
+import.meta
+iterator-helpers
+Int8Array
+Int16Array
+Int32Array
+Intl-enumeration
+intl-normative-optional  # https://tc39.es/ecma402/#legacy-constructor
+Intl.DateTimeFormat-datetimestyle
+Intl.DateTimeFormat-dayPeriod  # https://github.com/tc39/ecma402/pull/346
+Intl.DateTimeFormat-extend-timezonename
+Intl.DateTimeFormat-formatRange
+Intl.DateTimeFormat-fractionalSecondDigits  # https://github.com/tc39/ecma402/pull/347
+Intl.DisplayNames
+Intl.DisplayNames-v2
+Intl.ListFormat
+Intl.Locale
+Intl.NumberFormat-unified
+Intl.RelativeTimeFormat
+Intl.Segmenter
+json-modules
+json-superset
+let
+logical-assignment-operators
+Map
+new.target
+numeric-separator-literal
+object-rest
+object-spread
+Object.fromEntries
+Object.hasOwn
+Object.is
+optional-catch-binding
+optional-chaining
+Promise
+Promise.allSettled
+Promise.any
+Promise.prototype.finally
+promise-with-resolvers
+promise-try
+Proxy
+proxy-missing-checks  # https://github.com/tc39/ecma262/pull/666
+Reflect
+Reflect.construct
+Reflect.set
+Reflect.setPrototypeOf
+regexp-dotall
+regexp-lookbehind
+regexp-match-indices
+regexp-modifiers
+regexp-named-groups
+regexp-unicode-property-escapes
+regexp-v-flag
+resizable-arraybuffer
+rest-parameters
+Set
+set-methods
+SharedArrayBuffer
+string-trimming
+String.fromCodePoint
+String.prototype.at
+String.prototype.endsWith
+String.prototype.includes
+String.prototype.isWellFormed
+String.prototype.matchAll
+String.prototype.replaceAll
+String.prototype.trimEnd
+String.prototype.trimStart
+String.prototype.toWellFormed
+super
+Symbol
+symbols-as-weakmap-keys
+Symbol.asyncIterator
+Symbol.hasInstance
+Symbol.isConcatSpreadable
+Symbol.iterator
+Symbol.match
+Symbol.matchAll
+Symbol.prototype.description
+Symbol.replace
+Symbol.search
+Symbol.species
+Symbol.split
+Symbol.toPrimitive
+Symbol.toStringTag
+Symbol.unscopables
+tail-call-optimization
+template
+top-level-await
+TypedArray
+TypedArray.prototype.at
+u180e
+Uint8Array
+Uint16Array
+Uint32Array
+Uint8ClampedArray
+WeakMap
+WeakRef
+WeakSet
+well-formed-json-stringify
+__proto__
+__getter__
+__setter__
+
+## Test-Harness Features
+#
+# The rare cases where testing language functionality requires non-standard
+# language features, exposed through global-environment functions on the $262
+# object, go here.
+
+IsHTMLDDA
+host-gc-required

@@ -45,6 +45,8 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
   // Why 3 slots? Because of the eval cache.
   static const int kEntrySize = 3;
   static const bool kMatchNeedsHoleCheck = true;
+  static const bool kDoHashSpreading = false;
+  static const uint32_t kHashBits = 0;
 };
 
 class InfoCellPair {
@@ -117,11 +119,12 @@ class CompilationCacheTable
   // SharedFunctionInfo has become old enough that its bytecode is flushed, the
   // entry is still present and can be used to get the Script.
   static CompilationCacheScriptLookupResult LookupScript(
-      Handle<CompilationCacheTable> table, Handle<String> src,
+      DirectHandle<CompilationCacheTable> table, Handle<String> src,
       const ScriptDetails& script_details, Isolate* isolate);
-  static Handle<CompilationCacheTable> PutScript(
+  static DirectHandle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<SharedFunctionInfo> value, Isolate* isolate);
+      MaybeHandle<FixedArray> maybe_wrapped_arguments,
+      DirectHandle<SharedFunctionInfo> value, Isolate* isolate);
 
   // Eval code only gets cached after a second probe for the
   // code object. To do so, on first "put" only a hash identifying the
@@ -134,22 +137,33 @@ class CompilationCacheTable
   // either the recompilation stub, or to "old" code. This avoids memory
   // leaks due to premature caching of eval strings that are
   // never needed later.
-  static InfoCellPair LookupEval(Handle<CompilationCacheTable> table,
-                                 Handle<String> src,
-                                 Handle<SharedFunctionInfo> shared,
-                                 Handle<Context> native_context,
+  static InfoCellPair LookupEval(DirectHandle<CompilationCacheTable> table,
+                                 DirectHandle<String> src,
+                                 DirectHandle<SharedFunctionInfo> shared,
+                                 DirectHandle<NativeContext> native_context,
                                  LanguageMode language_mode, int position);
-  static Handle<CompilationCacheTable> PutEval(
-      Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
-      Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
-      int position);
+  // Adds a new native-context-specific feedback back to an existing entry.
+  // Bails out if no existing entry was found.
+  static void UpdateEval(DirectHandle<CompilationCacheTable> table,
+                         DirectHandle<String> src,
+                         DirectHandle<SharedFunctionInfo> outer_info,
+                         DirectHandle<NativeContext> native_context,
+                         DirectHandle<FeedbackCell> feedback_cell,
+                         LanguageMode language_mode, int position);
+  static DirectHandle<CompilationCacheTable> PutEval(
+      DirectHandle<CompilationCacheTable> cache, DirectHandle<String> src,
+      DirectHandle<SharedFunctionInfo> outer_info,
+      DirectHandle<SharedFunctionInfo> value,
+      DirectHandle<NativeContext> native_context,
+      DirectHandle<FeedbackCell> feedback_cell, int position);
 
-  // The RegExp cache contains JSRegExp::data fixed arrays.
-  Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
-  static Handle<CompilationCacheTable> PutRegExp(
-      Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
-      JSRegExp::Flags flags, Handle<FixedArray> value);
+  // The RegExp cache contains RegExpData objects.
+  DirectHandle<Object> LookupRegExp(DirectHandle<String> source,
+                                    JSRegExp::Flags flags);
+  static DirectHandle<CompilationCacheTable> PutRegExp(
+      Isolate* isolate, DirectHandle<CompilationCacheTable> cache,
+      DirectHandle<String> src, JSRegExp::Flags flags,
+      DirectHandle<RegExpData> value);
 
   void Remove(Tagged<Object> value);
   void RemoveEntry(InternalIndex entry);
@@ -165,14 +179,9 @@ class CompilationCacheTable
   // The initial placeholder insertion of the eval cache survives this many GCs.
   static constexpr int kHashGenerations = 10;
 
-  DECL_CAST(CompilationCacheTable)
-
  private:
   static Handle<CompilationCacheTable> EnsureScriptTableCapacity(
       Isolate* isolate, Handle<CompilationCacheTable> cache);
-
-  OBJECT_CONSTRUCTORS(CompilationCacheTable,
-                      HashTable<CompilationCacheTable, CompilationCacheShape>);
 };
 
 }  // namespace internal

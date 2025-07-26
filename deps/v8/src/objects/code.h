@@ -7,6 +7,7 @@
 
 #include "src/codegen/maglev-safepoint-table.h"
 #include "src/objects/code-kind.h"
+#include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -17,12 +18,16 @@ namespace internal {
 
 class BytecodeArray;
 class CodeDesc;
+class CodeWrapper;
 class Factory;
 template <typename Impl>
 class FactoryBase;
 class LocalFactory;
+class SafepointEntry;
+class RootVisitor;
 
 enum class Builtin;
+enum class LazyDeoptimizeReason : uint8_t;
 
 // Code is a container for data fields related to its associated
 // {InstructionStream} object. Since {InstructionStream} objects reside on
@@ -48,6 +53,7 @@ enum class Builtin;
 //  |           ...            |  <-- MS + handler_table_offset()
 //  |                          |  <-- MS + constant_pool_offset()
 //  |                          |  <-- MS + code_comments_offset()
+//  |                          |  <-- MS + jump_table_info_offset()
 //  |                          |  <-- MS + unwinding_info_offset()
 //  +--------------------------+  <-- MetadataEnd()
 //
@@ -86,18 +92,19 @@ class Code : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(instruction_size, int)
   inline Address instruction_end() const;
 
-  inline void init_instruction_start(Isolate* isolate, Address initial_value);
+  inline CodeEntrypointTag entrypoint_tag() const;
+
   inline void SetInstructionStreamAndInstructionStart(
-      Isolate* isolate_for_sandbox, Tagged<InstructionStream> code,
+      IsolateForSandbox isolate, Tagged<InstructionStream> code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
+  inline void SetInstructionStartForOffHeapBuiltin(IsolateForSandbox isolate,
                                                    Address entry);
-  inline void ClearInstructionStartForSerialization(Isolate* isolate);
-  inline void UpdateInstructionStart(Isolate* isolate_for_sandbox,
+  inline void ClearInstructionStartForSerialization(IsolateForSandbox isolate);
+  inline void UpdateInstructionStart(IsolateForSandbox isolate,
                                      Tagged<InstructionStream> istream);
 
-  inline void initialize_flags(CodeKind kind, bool is_turbofanned,
-                               int stack_slots);
+  inline void initialize_flags(CodeKind kind, bool is_context_specialized,
+                               bool is_turbofanned);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -108,35 +115,72 @@ class Code : public ExposedTrustedObject {
   void FlushICache() const;
 
   DECL_PRIMITIVE_ACCESSORS(can_have_weak_objects, bool)
-  DECL_PRIMITIVE_ACCESSORS(marked_for_deoptimization, bool)
+  DECL_PRIMITIVE_GETTER(marked_for_deoptimization, bool)
 
   DECL_PRIMITIVE_ACCESSORS(metadata_size, int)
   // [handler_table_offset]: The offset where the exception handler table
   // starts.
   DECL_PRIMITIVE_ACCESSORS(handler_table_offset, int)
+  // [jump_table_info offset]: Offset of the jump table info.
+  DECL_PRIMITIVE_ACCESSORS(jump_table_info_offset, int32_t)
   // [unwinding_info_offset]: Offset of the unwinding info section.
   DECL_PRIMITIVE_ACCESSORS(unwinding_info_offset, int32_t)
   // [deoptimization_data]: Array containing data for deopt for non-baseline
   // code.
-  DECL_ACCESSORS(deoptimization_data, Tagged<FixedArray>)
+  DECL_ACCESSORS(deoptimization_data, Tagged<ProtectedFixedArray>)
+  // [parameter_count]: The number of formal parameters, including the
+  // receiver. Currently only available for optimized functions.
+  // TODO(saelo): make this always available. This is just a matter of figuring
+  // out how to obtain the parameter count during code generation when no
+  // BytecodeArray is available from which it can be copied.
+  DECL_PRIMITIVE_ACCESSORS(parameter_count, uint16_t)
+  inline uint16_t parameter_count_without_receiver() const;
+  DECL_PRIMITIVE_ACCESSORS(wasm_js_tagged_parameter_count, uint16_t)
+  DECL_PRIMITIVE_ACCESSORS(wasm_js_first_tagged_parameter, uint16_t)
+
+  // Whether this type of Code uses deoptimization data, in which case the
+  // deoptimization_data field will be populated.
+  inline bool uses_deoptimization_data() const;
+
+  // If neither deoptimization data nor bytecode/interpreter data are used
+  // (e.g. for builtin code), the respective field will contain Smi::zero().
+  inline void clear_deoptimization_data_and_interpreter_data();
+  inline bool has_deoptimization_data_or_interpreter_data() const;
+
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  DECL_ACCESSORS(bytecode_or_interpreter_data, Tagged<HeapObject>)
+  inline Tagged<TrustedObject> bytecode_or_interpreter_data() const;
+  inline void set_bytecode_or_interpreter_data(
+      Tagged<TrustedObject> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
-  DECL_ACCESSORS(source_position_table, Tagged<ByteArray>)
+  DECL_ACCESSORS(source_position_table, Tagged<TrustedByteArray>)
   // [bytecode_offset_table]: ByteArray for the bytecode offset for baseline
   // code.
-  DECL_ACCESSORS(bytecode_offset_table, Tagged<ByteArray>)
+  DECL_ACCESSORS(bytecode_offset_table, Tagged<TrustedByteArray>)
+
+  inline bool has_source_position_table_or_bytecode_offset_table() const;
+  inline bool has_source_position_table() const;
+  inline bool has_bytecode_offset_table() const;
+  inline void clear_source_position_table_and_bytecode_offset_table();
+
   DECL_PRIMITIVE_ACCESSORS(inlined_bytecode_size, unsigned)
   DECL_PRIMITIVE_ACCESSORS(osr_offset, BytecodeOffset)
   // [code_comments_offset]: Offset of the code comment section.
   DECL_PRIMITIVE_ACCESSORS(code_comments_offset, int)
   // [constant_pool offset]: Offset of the constant pool.
   DECL_PRIMITIVE_ACCESSORS(constant_pool_offset, int)
+  // [wrapper] The CodeWrapper for this Code. When the sandbox is enabled, the
+  // Code object lives in trusted space outside of the sandbox, but the wrapper
+  // object lives inside the main heap and therefore inside the sandbox. As
+  // such, the wrapper object can be used in cases where a Code object needs to
+  // be referenced alongside other tagged pointer references (so for example
+  // inside a FixedArray).
+  DECL_ACCESSORS(wrapper, Tagged<CodeWrapper>)
 
   // Unchecked accessors to be used during GC.
-  inline Tagged<FixedArray> unchecked_deoptimization_data() const;
+  inline Tagged<ProtectedFixedArray> unchecked_deoptimization_data() const;
 
   DECL_RELAXED_UINT32_ACCESSORS(flags)
 
@@ -155,6 +199,7 @@ class Code : public ExposedTrustedObject {
 
   // Tells whether the code checks the tiering state in the function's feedback
   // vector.
+  // TODO(olivfi, 42204201): Remove this once leaptiering is enabled everywhere.
   inline bool checks_tiering_state() const;
 
   // Tells whether the outgoing parameters of this code are tagged pointers.
@@ -168,6 +213,10 @@ class Code : public ExposedTrustedObject {
   // TurboFan optimizing compiler.
   inline bool is_turbofanned() const;
 
+  // [is_context_specialized]: Tells whether the code object was specialized to
+  // a constant context.
+  inline bool is_context_specialized() const;
+
   // [uses_safepoint_table]: Whether this InstructionStream object uses
   // safepoint tables (note the table may still be empty, see
   // has_safepoint_table).
@@ -175,10 +224,12 @@ class Code : public ExposedTrustedObject {
 
   // [stack_slots]: If {uses_safepoint_table()}, the number of stack slots
   // reserved in the code prologue; otherwise 0.
-  inline int stack_slots() const;
+  inline uint32_t stack_slots() const;
 
-  inline Tagged<ByteArray> SourcePositionTable(
+  inline Tagged<TrustedByteArray> SourcePositionTable(
       Isolate* isolate, Tagged<SharedFunctionInfo> sfi) const;
+  int SourcePosition(int offset) const;
+  int SourceStatementPosition(int offset) const;
 
   inline Address safepoint_table_address() const;
   inline int safepoint_table_size() const;
@@ -189,16 +240,16 @@ class Code : public ExposedTrustedObject {
   inline bool has_handler_table() const;
 
   inline Address constant_pool() const;
-  // An accessor to be used during GC if the instruction_stream moved and the
-  // field was not updated yet.
-  inline Address constant_pool(
-      Tagged<InstructionStream> instruction_stream) const;
   inline int constant_pool_size() const;
   inline bool has_constant_pool() const;
 
   inline Address code_comments() const;
   inline int code_comments_size() const;
   inline bool has_code_comments() const;
+
+  inline Address jump_table_info() const;
+  inline int jump_table_info_size() const;
+  inline bool has_jump_table_info() const;
 
   inline Address unwinding_info_start() const;
   inline Address unwinding_info_end() const;
@@ -217,6 +268,11 @@ class Code : public ExposedTrustedObject {
 
   inline Address metadata_start() const;
   inline Address metadata_end() const;
+
+#ifdef V8_ENABLE_LEAPTIERING
+  inline void set_js_dispatch_handle(JSDispatchHandle handle);
+  inline JSDispatchHandle js_dispatch_handle() const;
+#endif  // V8_ENABLE_LEAPTIERING
 
   // The size of the associated InstructionStream object, if it exists.
   inline int InstructionStreamObjectSize() const;
@@ -248,7 +304,10 @@ class Code : public ExposedTrustedObject {
   SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
   MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
 
-  void SetMarkedForDeoptimization(Isolate* isolate, const char* reason);
+  inline void SetMarkedForDeoptimization(Isolate* isolate,
+                                         LazyDeoptimizeReason reason);
+  void TraceMarkForDeoptimization(Isolate* isolate,
+                                  LazyDeoptimizeReason reason);
 
   inline bool CanContainWeakObjects();
   inline bool IsWeakObject(Tagged<HeapObject> object);
@@ -257,7 +316,7 @@ class Code : public ExposedTrustedObject {
       Tagged<Object> object);
 
   // This function should be called only from GC.
-  void ClearEmbeddedObjects(Heap* heap);
+  void ClearEmbeddedObjectsAndJSDispatchHandles(Heap* heap);
 
   // [embedded_objects_cleared]: If CodeKindIsOptimizedJSFunction(kind), tells
   // whether the embedded objects in the code marked for deoptimization were
@@ -307,41 +366,59 @@ class Code : public ExposedTrustedObject {
                  Address current_pc = kNullAddress);
 #endif
 
-  DECL_CAST(Code)
   DECL_VERIFIER(Code)
 
 // Layout description.
-#define CODE_DATA_FIELDS(V)                                                   \
-  /* Strong pointer fields. */                                                \
-  V(kStartOfStrongFieldsOffset, 0)                                            \
-  V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
-  V(kPositionTableOffset, kTaggedSize)                                        \
-  V(kEndOfStrongFieldsWithMainCageBaseOffset, 0)                              \
-  /* The InstructionStream field is special: it uses code_cage_base. */       \
-  V(kInstructionStreamOffset, kTaggedSize)                                    \
-  V(kEndOfStrongFieldsOffset, 0)                                              \
-  /* Untagged data not directly visited by GC starts here. */                 \
-  /* When the sandbox is off, the instruction_start field contains a raw */   \
-  /* pointer to the first instruction of this Code. */                        \
-  /* If the sandbox is on, this field does not exist. Instead, the */         \
-  /* instruction_start is stored in this Code's code pointer table entry */   \
-  /* referenced via the kSelfIndirectPointerOffset field */                   \
-  V(kInstructionStartOffset, V8_ENABLE_SANDBOX_BOOL ? 0 : kSystemPointerSize) \
-  /* The serializer needs to copy bytes starting from here verbatim. */       \
-  V(kFlagsOffset, kUInt32Size)                                                \
-  V(kInstructionSizeOffset, kIntSize)                                         \
-  V(kMetadataSizeOffset, kIntSize)                                            \
-  /* TODO(jgruber): TF-specific fields could be merged with builtin_id. */    \
-  V(kInlinedBytecodeSizeOffset, kIntSize)                                     \
-  V(kOsrOffsetOffset, kInt32Size)                                             \
-  V(kHandlerTableOffsetOffset, kIntSize)                                      \
-  V(kUnwindingInfoOffsetOffset, kInt32Size)                                   \
-  V(kConstantPoolOffsetOffset, V8_EMBEDDED_CONSTANT_POOL_BOOL ? kIntSize : 0) \
-  V(kCodeCommentsOffsetOffset, kIntSize)                                      \
-  /* TODO(jgruber): 12 bits would suffice, steal from here if needed. */      \
-  V(kBuiltinIdOffset, kInt16Size)                                             \
-  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))                   \
-  /* Total size. */                                                           \
+#define CODE_DATA_FIELDS(V)                                                    \
+  /* The deoptimization_data_or_interpreter_data field contains: */            \
+  /*  - A DeoptimizationData for optimized code (maglev or turbofan) */        \
+  /*  - A BytecodeArray or InterpreterData for baseline code */                \
+  /*  - Smi::zero() for all other types of code (e.g. builtin) */              \
+  V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                   \
+  /* This field contains: */                                                   \
+  /*  - A bytecode offset table (trusted byte array) for baseline code */      \
+  /*  - A (possibly empty) source position table (trusted byte array) for */   \
+  /*    most other types of code */                                            \
+  /*  - Smi::zero() for embedded builtin code (in RO space) */                 \
+  /*    TODO(saelo) once we have a  trusted RO space, we could instead use */  \
+  /*    empty_trusted_byte_array to avoid using Smi::zero() at all. */         \
+  V(kPositionTableOffset, kTaggedSize)                                         \
+  /* Strong pointer fields. */                                                 \
+  V(kStartOfStrongFieldsOffset, 0)                                             \
+  V(kWrapperOffset, kTaggedSize)                                               \
+  V(kEndOfStrongFieldsWithMainCageBaseOffset, 0)                               \
+  /* The InstructionStream field is special: it uses code_cage_base. */        \
+  V(kInstructionStreamOffset, kTaggedSize)                                     \
+  V(kEndOfStrongFieldsOffset, 0)                                               \
+  /* Untagged data not directly visited by GC starts here. */                  \
+  /* When the sandbox is off, the instruction_start field contains a raw */    \
+  /* pointer to the first instruction of this Code. */                         \
+  /* If the sandbox is on, this field does not exist. Instead, the */          \
+  /* instruction_start is stored in this Code's code pointer table entry */    \
+  /* referenced via the kSelfIndirectPointerOffset field */                    \
+  V(kInstructionStartOffset, V8_ENABLE_SANDBOX_BOOL ? 0 : kSystemPointerSize)  \
+  /* The serializer needs to copy bytes starting from here verbatim. */        \
+  V(kDispatchHandleOffset,                                                     \
+    V8_ENABLE_LEAPTIERING_BOOL ? kJSDispatchHandleSize : 0)                    \
+  V(kFlagsOffset, kUInt32Size)                                                 \
+  V(kInstructionSizeOffset, kIntSize)                                          \
+  V(kMetadataSizeOffset, kIntSize)                                             \
+  /* TODO(jgruber): TF-specific fields could be merged with builtin_id. */     \
+  V(kInlinedBytecodeSizeOffset, kIntSize)                                      \
+  V(kOsrOffsetOffset, kInt32Size)                                              \
+  V(kHandlerTableOffsetOffset, kIntSize)                                       \
+  V(kUnwindingInfoOffsetOffset, kInt32Size)                                    \
+  V(kConstantPoolOffsetOffset, V8_EMBEDDED_CONSTANT_POOL_BOOL ? kIntSize : 0)  \
+  V(kCodeCommentsOffsetOffset, kIntSize)                                       \
+  V(kJumpTableInfoOffsetOffset, V8_JUMP_TABLE_INFO_BOOL ? kInt32Size : 0)      \
+  /* This field is currently only used during deoptimization. If this space */ \
+  /* is ever needed for other purposes, it would probably be possible to */    \
+  /* obtain the parameter count from the BytecodeArray instead. */             \
+  V(kParameterCountOffset, kUInt16Size)                                        \
+  /* TODO(jgruber): 12 bits would suffice, steal from here if needed. */       \
+  V(kBuiltinIdOffset, kInt16Size)                                              \
+  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))                    \
+  /* Total size. */                                                            \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize,
@@ -364,14 +441,12 @@ class Code : public ExposedTrustedObject {
 #define FLAGS_BIT_FIELDS(V, _)                \
   V(KindField, CodeKind, 4, _)                \
   V(IsTurbofannedField, bool, 1, _)           \
-  /* Steal bits from here if needed: */       \
-  V(StackSlotsField, int, 24, _)              \
+  V(IsContextSpecializedField, bool, 1, _)    \
   V(MarkedForDeoptimizationField, bool, 1, _) \
   V(EmbeddedObjectsClearedField, bool, 1, _)  \
   V(CanHaveWeakObjectsField, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
-  static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 32);
   static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                 FIELD_SIZE(kFlagsOffset) * kBitsPerByte);
   static_assert(kCodeKindCount <= KindField::kNumValues);
@@ -381,17 +456,20 @@ class Code : public ExposedTrustedObject {
       MarkedForDeoptimizationField::kShift;
   static const int kIsTurbofannedBit = IsTurbofannedField::kShift;
 
-  // Reserve one argument count value as the "don't adapt arguments" sentinel.
   static const int kArgumentsBits = 16;
-  static const int kMaxArguments = (1 << kArgumentsBits) - 2;
+  // Slightly less than 2^kArgumentBits-1 to allow for extra implicit arguments
+  // on the call nodes without overflowing the uint16_t input_count.
+  static const int kMaxArguments = (1 << kArgumentsBits) - 10;
 
  private:
-  inline void set_instruction_start(Isolate* isolate, Address value);
+  DECL_PRIMITIVE_SETTER(marked_for_deoptimization, bool)
+
+  inline void set_instruction_start(IsolateForSandbox isolate, Address value);
 
   // TODO(jgruber): These field names are incomplete, we've squashed in more
   // overloaded contents in the meantime. Update the field names.
-  Tagged<HeapObject> raw_deoptimization_data_or_interpreter_data() const;
-  Tagged<ByteArray> raw_position_table() const;
+  Tagged<Object> raw_deoptimization_data_or_interpreter_data() const;
+  Tagged<Object> raw_position_table() const;
 
   enum BytecodeToPCPosition {
     kPcAtStartOfBytecode,
@@ -433,8 +511,6 @@ class Code : public ExposedTrustedObject {
 // (checked) casts do not work on GcSafeCode.
 class GcSafeCode : public HeapObject {
  public:
-  DECL_CAST(GcSafeCode)
-
   // Use with care, this casts away knowledge that we're dealing with a
   // special-semantics object.
   inline Tagged<Code> UnsafeCastToCode() const;
@@ -455,9 +531,8 @@ class GcSafeCode : public HeapObject {
   inline bool marked_for_deoptimization() const;
   inline Tagged<Object> raw_instruction_stream() const;
   inline Address constant_pool() const;
-  inline Address constant_pool(Tagged<InstructionStream> istream) const;
   inline Address safepoint_table_address() const;
-  inline int stack_slots() const;
+  inline uint32_t stack_slots() const;
 
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
@@ -465,9 +540,36 @@ class GcSafeCode : public HeapObject {
   inline bool CanDeoptAt(Isolate* isolate, Address pc) const;
   inline Tagged<Object> raw_instruction_stream(
       PtrComprCageBase code_cage_base) const;
+  // The two following accessors repurpose the InlinedBytecodeSize field, see
+  // comment in code-inl.h.
+  inline uint16_t wasm_js_tagged_parameter_count() const;
+  inline uint16_t wasm_js_first_tagged_parameter() const;
 
  private:
   OBJECT_CONSTRUCTORS(GcSafeCode, HeapObject);
+};
+
+// A CodeWrapper wraps a Code but lives inside the sandbox. This can be useful
+// for example when a reference to a Code needs to be stored along other tagged
+// pointers inside an array or similar container datastructure.
+class CodeWrapper : public Struct {
+ public:
+  DECL_CODE_POINTER_ACCESSORS(code)
+
+  DECL_PRINTER(CodeWrapper)
+  DECL_VERIFIER(CodeWrapper)
+
+#define FIELD_LIST(V)              \
+  V(kCodeOffset, kCodePointerSize) \
+  V(kHeaderSize, 0)                \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(CodeWrapper, Struct);
 };
 
 }  // namespace internal

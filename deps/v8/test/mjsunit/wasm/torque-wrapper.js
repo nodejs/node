@@ -382,11 +382,25 @@ function RunTest(params, returns, map) {
 
   // Check result
   for (let i = 0; i < returns.length; ++i) {
+    let details = undefined;
+    if (debug) {
+      details = `${i}, converting ${args[map[i]]} \
+                 from ${TypeString(params[map[i]])} \
+                 to ${TypeString(returns[i])}`;
+    }
     assertEquals(
         ConversionFunction(returns[i], params[map[i]], args[map[i]]),
-        result[i]);
+        result[i], details);
   }
 }
+
+// Regression test for crbug.com/390035515.
+RunTest(
+    [
+      kWasmI64, kWasmI64, kWasmI64, kWasmI64, kWasmI64, kWasmI64, kWasmI64,
+      kWasmI64, kWasmI64, kWasmI64
+    ],
+    [kWasmI64], [0]);
 
 for (let i = 0; i < (debug ? 200 : 2); ++i) {
   GenerateAndRunTest();

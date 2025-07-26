@@ -1,4 +1,4 @@
-.TH "NPM-RESTART" "1" "February 2024" "" ""
+.TH "NPM-RESTART" "1" "July 2025" "NPM@11.5.1" ""
 .SH "NAME"
 \fBnpm-restart\fR - Restart a package
 .SS "Synopsis"
@@ -10,7 +10,7 @@ npm restart \[lB]-- <args>\[rB]
 .RE
 .SS "Description"
 .P
-This restarts a project. It is equivalent to running \fBnpm run-script
+This restarts a project. It is equivalent to running \fBnpm run
 restart\fR.
 .P
 If the current project has a \fB"restart"\fR script specified in \fBpackage.json\fR, then the following scripts will be run:
@@ -56,7 +56,7 @@ Type: Boolean
 .P
 If true, npm does not run scripts specified in package.json files.
 .P
-Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run-script\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
 .SS "\fBscript-shell\fR"
 .RS 0
 .IP \(bu 4
@@ -71,7 +71,7 @@ init <package-spec>\fR commands.
 .SS "See Also"
 .RS 0
 .IP \(bu 4
-npm help run-script
+npm help run
 .IP \(bu 4
 npm help scripts
 .IP \(bu 4

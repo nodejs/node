@@ -278,23 +278,23 @@ Precision IncrementPrecision::withMinFraction(int32_t minFrac) const {
 }
 
 FractionPrecision Precision::constructFraction(int32_t minFrac, int32_t maxFrac) {
-    FractionSignificantSettings settings;
+    FractionSignificantSettings settings{};
     settings.fMinFrac = static_cast<digits_t>(minFrac);
     settings.fMaxFrac = static_cast<digits_t>(maxFrac);
     settings.fMinSig = -1;
     settings.fMaxSig = -1;
-    PrecisionUnion union_;
+    PrecisionUnion union_{};
     union_.fracSig = settings;
     return {RND_FRACTION, union_};
 }
 
 Precision Precision::constructSignificant(int32_t minSig, int32_t maxSig) {
-    FractionSignificantSettings settings;
+    FractionSignificantSettings settings{};
     settings.fMinFrac = -1;
     settings.fMaxFrac = -1;
     settings.fMinSig = static_cast<digits_t>(minSig);
     settings.fMaxSig = static_cast<digits_t>(maxSig);
-    PrecisionUnion union_;
+    PrecisionUnion union_{};
     union_.fracSig = settings;
     return {RND_SIGNIFICANT, union_};
 }
@@ -311,20 +311,20 @@ Precision::constructFractionSignificant(
     settings.fMaxSig = static_cast<digits_t>(maxSig);
     settings.fPriority = priority;
     settings.fRetain = retain;
-    PrecisionUnion union_;
+    PrecisionUnion union_{};
     union_.fracSig = settings;
     return {RND_FRACTION_SIGNIFICANT, union_};
 }
 
 IncrementPrecision Precision::constructIncrement(uint64_t increment, digits_t magnitude) {
-    IncrementSettings settings;
+    IncrementSettings settings{};
     // Note: For number formatting, fIncrement is used for RND_INCREMENT but not
     // RND_INCREMENT_ONE or RND_INCREMENT_FIVE. However, fIncrement is used in all
     // three when constructing a skeleton.
     settings.fIncrement = increment;
     settings.fIncrementMagnitude = magnitude;
     settings.fMinFrac = magnitude > 0 ? 0 : -magnitude;
-    PrecisionUnion union_;
+    PrecisionUnion union_{};
     union_.increment = settings;
     if (increment == 1) {
         // NOTE: In C++, we must return the correct value type with the correct union.
@@ -339,7 +339,7 @@ IncrementPrecision Precision::constructIncrement(uint64_t increment, digits_t ma
 }
 
 CurrencyPrecision Precision::constructCurrency(UCurrencyUsage usage) {
-    PrecisionUnion union_;
+    PrecisionUnion union_{};
     union_.currencyUsage = usage;
     return {RND_CURRENCY, union_};
 }
@@ -437,7 +437,7 @@ void RoundingImpl::apply(impl::DecimalQuantity &value, UErrorCode& status) const
                     uprv_max(0, -getDisplayMagnitudeSignificant(value, fPrecision.fUnion.fracSig.fMinSig));
             // Make sure that digits are displayed on zero.
             if (value.isZeroish() && fPrecision.fUnion.fracSig.fMinSig > 0) {
-                value.setMinInteger(1);
+                value.increaseMinIntegerTo(1);
             }
             break;
 

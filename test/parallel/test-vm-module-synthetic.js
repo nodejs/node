@@ -66,13 +66,10 @@ const assert = require('assert');
     });
   }
 
-  {
+  for (const value of [null, {}, SyntheticModule.prototype]) {
     assert.throws(() => {
-      SyntheticModule.prototype.setExport.call({}, 'foo');
-    }, {
-      code: 'ERR_VM_MODULE_NOT_MODULE',
-      message: /Provided module is not an instance of Module/
-    });
+      SyntheticModule.prototype.setExport.call(value, 'foo');
+    }, { code: 'ERR_INVALID_THIS' });
   }
 
 })().then(common.mustCall());

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --experimental-wasm-typed-funcref
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 var debug = true;
@@ -118,7 +116,7 @@ function instantiate(buffer, ffi) {
   builder.addFunction('load', kSig_i_i)
       .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
       .exportAs('load');
-  builder.addDataSegment(0, [9, 9, 9, 9]);
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], [9, 9, 9, 9]);
 
   var buffer = builder.toBuffer(debug);
   var instance = instantiate(buffer);
@@ -195,7 +193,7 @@ function instantiate(buffer, ffi) {
     builder.addType(kSig_i_i);
     builder.addFunction(undefined, i)
            .addBody([kExprLocalGet, 0]);
-    builder.addGlobal(wasmRefType(i), false,
+    builder.addGlobal(wasmRefType(i), false, false,
                       [kExprRefFunc, ...wasmSignedLeb(i)]);
   }
   for (let i of indices) {

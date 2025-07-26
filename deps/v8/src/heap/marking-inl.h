@@ -5,14 +5,15 @@
 #ifndef V8_HEAP_MARKING_INL_H_
 #define V8_HEAP_MARKING_INL_H_
 
+#include "src/heap/marking.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
-#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/marking.h"
 #include "src/heap/memory-chunk-layout.h"
+#include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/spaces.h"
-#include "src/objects/instance-type-inl.h"
 
 namespace v8::internal {
 
@@ -25,7 +26,7 @@ inline void MarkingBitmap::SetBitsInCell<AccessMode::NON_ATOMIC>(
 template <>
 inline void MarkingBitmap::SetBitsInCell<AccessMode::ATOMIC>(
     uint32_t cell_index, MarkBit::CellType mask) {
-  base::AsAtomicWord::SetBits(cells() + cell_index, mask, mask);
+  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index, mask, mask);
 }
 
 template <>
@@ -37,8 +38,8 @@ inline void MarkingBitmap::ClearBitsInCell<AccessMode::NON_ATOMIC>(
 template <>
 inline void MarkingBitmap::ClearBitsInCell<AccessMode::ATOMIC>(
     uint32_t cell_index, MarkBit::CellType mask) {
-  base::AsAtomicWord::SetBits(cells() + cell_index,
-                              static_cast<MarkBit::CellType>(0u), mask);
+  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index,
+                                      static_cast<MarkBit::CellType>(0u), mask);
 }
 
 template <>
@@ -149,27 +150,41 @@ inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
 
 // static
 MarkingBitmap* MarkingBitmap::FromAddress(Address address) {
-  Address page_address = address & ~kPageAlignmentMask;
-  return Cast(page_address + MemoryChunkLayout::kMarkingBitmapOffset);
+  Address metadata_address =
+      MutablePageMetadata::FromAddress(address)->MetadataAddress();
+  return Cast(metadata_address + MutablePageMetadata::MarkingBitmapOffset());
 }
 
 // static
 MarkBit MarkingBitmap::MarkBitFromAddress(Address address) {
+  return MarkBitFromAddress(FromAddress(address), address);
+}
+
+// static
+MarkBit MarkingBitmap::MarkBitFromAddress(MarkingBitmap* bitmap,
+                                          Address address) {
+  DCHECK_EQ(bitmap, FromAddress(address));
   const auto index = AddressToIndex(address);
   const auto mask = IndexInCellMask(index);
-  MarkBit::CellType* cell = FromAddress(address)->cells() + IndexToCell(index);
+  MarkBit::CellType* cell = bitmap->cells() + IndexToCell(index);
   return MarkBit(cell, mask);
+}
+
+// static
+constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::AddressToIndex(
+    Address address) {
+  return MemoryChunk::AddressToOffset(address) >> kTaggedSizeLog2;
 }
 
 // static
 constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::LimitAddressToIndex(
     Address address) {
-  if (IsAligned(address, BasicMemoryChunk::kAlignment)) return kLength;
+  if (MemoryChunk::IsAligned(address)) return kLength;
   return AddressToIndex(address);
 }
 
 // static
-inline Address MarkingBitmap::FindPreviousValidObject(const Page* page,
+inline Address MarkingBitmap::FindPreviousValidObject(const PageMetadata* page,
                                                       Address maybe_inner_ptr) {
   DCHECK(page->Contains(maybe_inner_ptr));
   const auto* bitmap = page->marking_bitmap();
@@ -212,12 +227,14 @@ inline Address MarkingBitmap::FindPreviousValidObject(const Page* page,
   const auto index_of_last_leftmost_one =
       MarkingBitmap::kBitsPerCell - leading_zeros - leftmost_ones;
 
+  const MemoryChunk* chunk = page->Chunk();
+
   // If the leftmost sequence of set bits does not reach the start of the cell,
   // we found it.
   if (index_of_last_leftmost_one > 0) {
-    return page->address() + MarkingBitmap::IndexToAddressOffset(
-                                 cell_index * MarkingBitmap::kBitsPerCell +
-                                 index_of_last_leftmost_one);
+    return chunk->address() + MarkingBitmap::IndexToAddressOffset(
+                                  cell_index * MarkingBitmap::kBitsPerCell +
+                                  index_of_last_leftmost_one);
   }
 
   // The leftmost sequence of set bits reaches the start of the cell. We must
@@ -242,9 +259,9 @@ inline Address MarkingBitmap::FindPreviousValidObject(const Page* page,
   const auto index_of_last_leading_one =
       MarkingBitmap::kBitsPerCell - leading_ones;
   DCHECK_LT(0, index_of_last_leading_one);
-  return page->address() + MarkingBitmap::IndexToAddressOffset(
-                               cell_index * MarkingBitmap::kBitsPerCell +
-                               index_of_last_leading_one);
+  return chunk->address() + MarkingBitmap::IndexToAddressOffset(
+                                cell_index * MarkingBitmap::kBitsPerCell +
+                                index_of_last_leading_one);
 }
 
 // static
@@ -257,95 +274,93 @@ MarkBit MarkBit::From(Tagged<HeapObject> heap_object) {
   return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
 }
 
-LiveObjectRange::iterator::iterator() : cage_base_(kNullAddress) {}
-
-LiveObjectRange::iterator::iterator(const Page* page)
-    : page_(page),
-      cells_(page->marking_bitmap()->cells()),
-      cage_base_(page->heap()->isolate()),
-      current_cell_index_(MarkingBitmap::IndexToCell(
-          MarkingBitmap::AddressToIndex(page->area_start()))),
-      current_cell_(cells_[current_cell_index_]) {
-  AdvanceToNextValidObject();
-}
-
-LiveObjectRange::iterator& LiveObjectRange::iterator::operator++() {
-  AdvanceToNextValidObject();
-  return *this;
-}
-
-LiveObjectRange::iterator LiveObjectRange::iterator::operator++(int) {
-  iterator retval = *this;
-  ++(*this);
-  return retval;
-}
-
-void LiveObjectRange::iterator::AdvanceToNextValidObject() {
-  // If we found a regular object we are done. In case of free space, we
-  // need to continue.
+// static
+std::optional<MarkingHelper::WorklistTarget> MarkingHelper::ShouldMarkObject(
+    Heap* heap, Tagged<HeapObject> object) {
+  const auto* chunk = MemoryChunk::FromHeapObject(object);
+  const auto flags = chunk->GetFlags();
+  if (flags & MemoryChunk::READ_ONLY_HEAP) {
+    return {};
+  }
+  if (v8_flags.black_allocated_pages &&
+      V8_UNLIKELY(flags & MemoryChunk::BLACK_ALLOCATED)) {
+    DCHECK(!(flags & MemoryChunk::kIsInYoungGenerationMask));
+    return {};
+  }
+  if (V8_LIKELY(!(flags & MemoryChunk::IN_WRITABLE_SHARED_SPACE))) {
+    return {MarkingHelper::WorklistTarget::kRegular};
+  }
+  // Object in shared writable space. Only mark it if the Isolate is owning the
+  // shared space.
   //
-  // Reading the instance type of the map is safe here even in the presence
-  // of the mutator writing a new Map because Map objects are published with
-  // release stores (or are otherwise read-only) and the map is retrieved  in
-  // `AdvanceToNextMarkedObject()` using an acquire load.
-  while (AdvanceToNextMarkedObject() &&
-         InstanceTypeChecker::IsFreeSpaceOrFiller(current_map_)) {
+  // TODO(340989496): Speed up check here by keeping the flag on Heap.
+  if (heap->isolate()->is_shared_space_isolate()) {
+    return {MarkingHelper::WorklistTarget::kRegular};
   }
+  return {};
 }
 
-bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
-  // The following block moves the iterator to the next cell from the current
-  // object. This means skipping all possibly set mark bits (in case of black
-  // allocation).
-  if (!current_object_.is_null()) {
-    // Compute an end address that is inclusive. This allows clearing the cell
-    // up and including the end address. This works for one word fillers as
-    // well as other objects.
-    Address next_object = current_object_.address() + current_size_;
-    current_object_ = HeapObject();
-    if (IsAligned(next_object, BasicMemoryChunk::kAlignment)) {
-      return false;
-    }
-    // Area end may not be exactly aligned to kAlignment. We don't need to bail
-    // out for area_end() though as we are guaranteed to have a bit for the
-    // whole page.
-    DCHECK_LE(next_object, page_->area_end());
-    // Move to the corresponding cell of the end index.
-    const auto next_markbit_index = MarkingBitmap::AddressToIndex(next_object);
-    DCHECK_GE(MarkingBitmap::IndexToCell(next_markbit_index),
-              current_cell_index_);
-    current_cell_index_ = MarkingBitmap::IndexToCell(next_markbit_index);
-    DCHECK_LT(current_cell_index_, MarkingBitmap::kCellsCount);
-    // Mask out lower addresses in the cell.
-    const MarkBit::CellType mask =
-        MarkingBitmap::IndexInCellMask(next_markbit_index);
-    current_cell_ = cells_[current_cell_index_] & ~(mask - 1);
+// static
+MarkingHelper::LivenessMode MarkingHelper::GetLivenessMode(
+    Heap* heap, Tagged<HeapObject> object) {
+  const auto* chunk = MemoryChunk::FromHeapObject(object);
+  const auto flags = chunk->GetFlags();
+  if (flags & MemoryChunk::READ_ONLY_HEAP) {
+    return MarkingHelper::LivenessMode::kAlwaysLive;
   }
-  // The next block finds any marked object starting from the current cell.
-  while (true) {
-    if (current_cell_) {
-      const auto trailing_zeros = base::bits::CountTrailingZeros(current_cell_);
-      Address current_cell_base =
-          page_->address() + MarkingBitmap::CellToBase(current_cell_index_);
-      Address object_address = current_cell_base + trailing_zeros * kTaggedSize;
-      // The object may be a filler which we want to skip.
-      current_object_ = HeapObject::FromAddress(object_address);
-      current_map_ = current_object_->map(cage_base_, kAcquireLoad);
-      DCHECK(MapWord::IsMapOrForwarded(current_map_));
-      current_size_ = ALIGN_TO_ALLOCATION_ALIGNMENT(
-          current_object_->SizeFromMap(current_map_));
-      CHECK(page_->ContainsLimit(object_address + current_size_));
-      return true;
+  if (v8_flags.black_allocated_pages &&
+      (flags & MemoryChunk::BLACK_ALLOCATED)) {
+    return MarkingHelper::LivenessMode::kAlwaysLive;
+  }
+  if (V8_LIKELY(!(flags & MemoryChunk::IN_WRITABLE_SHARED_SPACE))) {
+    return MarkingHelper::LivenessMode::kMarkbit;
+  }
+  // Object in shared writable space. Only mark it if the Isolate is owning the
+  // shared space.
+  //
+  // TODO(340989496): Speed up check here by keeping the flag on Heap.
+  if (heap->isolate()->is_shared_space_isolate()) {
+    return MarkingHelper::LivenessMode::kMarkbit;
+  }
+  return MarkingHelper::LivenessMode::kAlwaysLive;
+}
+
+// static
+template <typename MarkingStateT>
+bool MarkingHelper::IsMarkedOrAlwaysLive(Heap* heap,
+                                         MarkingStateT* marking_state,
+                                         Tagged<HeapObject> object) {
+  return (MarkingHelper::GetLivenessMode(heap, object) ==
+          MarkingHelper::LivenessMode::kAlwaysLive) ||
+         marking_state->IsMarked(object);
+}
+
+// static
+template <typename MarkingStateT>
+bool MarkingHelper::IsUnmarkedAndNotAlwaysLive(Heap* heap,
+                                               MarkingStateT* marking_state,
+                                               Tagged<HeapObject> object) {
+  return (MarkingHelper::GetLivenessMode(heap, object) !=
+          MarkingHelper::LivenessMode::kAlwaysLive) &&
+         marking_state->IsUnmarked(object);
+}
+
+// static
+template <typename MarkingState>
+bool MarkingHelper::TryMarkAndPush(Heap* heap,
+                                   MarkingWorklists::Local* marking_worklist,
+                                   MarkingState* marking_state,
+                                   WorklistTarget target_worklist,
+                                   Tagged<HeapObject> object) {
+  DCHECK(heap->Contains(object));
+  if (marking_state->TryMark(object)) {
+    if (V8_LIKELY(target_worklist == WorklistTarget::kRegular)) {
+      marking_worklist->Push(object);
     }
-    if (++current_cell_index_ >= MarkingBitmap::kCellsCount) break;
-    current_cell_ = cells_[current_cell_index_];
+    return true;
   }
   return false;
 }
-
-LiveObjectRange::iterator LiveObjectRange::begin() { return iterator(page_); }
-
-LiveObjectRange::iterator LiveObjectRange::end() { return iterator(); }
 
 }  // namespace v8::internal
 

@@ -3,10 +3,3 @@
 # in this file.
 #
 # (see the original file at data/lint.exceptions for more information)
-../local-tests/test/language/expressions/class/fields-inner-arrow-err-contains-arguments.js  NEGATIVE
-../local-tests/test/language/module-code/comment-single-line-html-close-comment-before-function.js ESID NEGATIVE
-../local-tests/test/language/module-code/comment-single-line-html-close-comment-newline-before-function.js ESID NEGATIVE
-../local-tests/test/language/statements/class/fields-inner-arrow-err-contains-arguments.js NEGATIVE
-../local-tests/test/staging/set-methods/set-intersect-other-is-set-like.js FRONTMATTER FEATURES
-../local-tests/test/staging/set-methods/set-intersection-other-is-map.js FRONTMATTER FEATURES
-../local-tests/test/staging/set-methods/set-intersection-other-is-set.js FRONTMATTER FEATURES

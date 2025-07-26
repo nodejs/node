@@ -6,7 +6,7 @@ import { Blob } from 'buffer'
 import { URL, URLSearchParams } from 'url'
 import { ReadableStream } from 'stream/web'
 import { FormData } from './formdata'
-
+import { HeaderRecord } from './header'
 import Dispatcher from './dispatcher'
 
 export type RequestInfo = string | URL | Request
@@ -27,12 +27,30 @@ export type BodyInit =
   | null
   | string
 
-export interface BodyMixin {
+export class BodyMixin {
   readonly body: ReadableStream | null
   readonly bodyUsed: boolean
 
   readonly arrayBuffer: () => Promise<ArrayBuffer>
   readonly blob: () => Promise<Blob>
+  readonly bytes: () => Promise<Uint8Array>
+  /**
+   * @deprecated This method is not recommended for parsing multipart/form-data bodies in server environments.
+   * It is recommended to use a library such as [@fastify/busboy](https://www.npmjs.com/package/@fastify/busboy) as follows:
+   *
+   * @example
+   * ```js
+   * import { Busboy } from '@fastify/busboy'
+   * import { Readable } from 'node:stream'
+   *
+   * const response = await fetch('...')
+   * const busboy = new Busboy({ headers: { 'content-type': response.headers.get('content-type') } })
+   *
+   * // handle events emitted from `busboy`
+   *
+   * Readable.fromWeb(response.body).pipe(busboy)
+   * ```
+   */
   readonly formData: () => Promise<FormData>
   readonly json: () => Promise<unknown>
   readonly text: () => Promise<string>
@@ -50,7 +68,7 @@ export interface SpecIterable<T> {
   [Symbol.iterator](): SpecIterator<T>;
 }
 
-export type HeadersInit = string[][] | Record<string, string | ReadonlyArray<string>> | Headers
+export type HeadersInit = [string, string][] | HeaderRecord | Headers
 
 export declare class Headers implements SpecIterable<[string, string]> {
   constructor (init?: HeadersInit)
@@ -68,7 +86,7 @@ export declare class Headers implements SpecIterable<[string, string]> {
   readonly keys: () => SpecIterableIterator<string>
   readonly values: () => SpecIterableIterator<string>
   readonly entries: () => SpecIterableIterator<[string, string]>
-  readonly [Symbol.iterator]: () => SpecIterator<[string, string]>
+  readonly [Symbol.iterator]: () => SpecIterableIterator<[string, string]>
 }
 
 export type RequestCache =
@@ -102,20 +120,21 @@ type RequestDestination =
   | 'xslt'
 
 export interface RequestInit {
-  method?: string
-  keepalive?: boolean
-  headers?: HeadersInit
-  body?: BodyInit
-  redirect?: RequestRedirect
-  integrity?: string
-  signal?: AbortSignal | null
+  body?: BodyInit | null
+  cache?: RequestCache
   credentials?: RequestCredentials
-  mode?: RequestMode
-  referrer?: string
-  referrerPolicy?: ReferrerPolicy
-  window?: null
   dispatcher?: Dispatcher
   duplex?: RequestDuplex
+  headers?: HeadersInit
+  integrity?: string
+  keepalive?: boolean
+  method?: string
+  mode?: RequestMode
+  redirect?: RequestRedirect
+  referrer?: string
+  referrerPolicy?: ReferrerPolicy
+  signal?: AbortSignal | null
+  window?: null
 }
 
 export type ReferrerPolicy =
@@ -127,7 +146,7 @@ export type ReferrerPolicy =
   | 'same-origin'
   | 'strict-origin'
   | 'strict-origin-when-cross-origin'
-  | 'unsafe-url';
+  | 'unsafe-url'
 
 export type RequestMode = 'cors' | 'navigate' | 'no-cors' | 'same-origin'
 
@@ -135,7 +154,7 @@ export type RequestRedirect = 'error' | 'follow' | 'manual'
 
 export type RequestDuplex = 'half'
 
-export declare class Request implements BodyMixin {
+export declare class Request extends BodyMixin {
   constructor (input: RequestInfo, init?: RequestInit)
 
   readonly cache: RequestCache
@@ -146,21 +165,13 @@ export declare class Request implements BodyMixin {
   readonly method: string
   readonly mode: RequestMode
   readonly redirect: RequestRedirect
-  readonly referrerPolicy: string
+  readonly referrer: string
+  readonly referrerPolicy: ReferrerPolicy
   readonly url: string
 
   readonly keepalive: boolean
   readonly signal: AbortSignal
   readonly duplex: RequestDuplex
-
-  readonly body: ReadableStream | null
-  readonly bodyUsed: boolean
-
-  readonly arrayBuffer: () => Promise<ArrayBuffer>
-  readonly blob: () => Promise<Blob>
-  readonly formData: () => Promise<FormData>
-  readonly json: () => Promise<unknown>
-  readonly text: () => Promise<string>
 
   readonly clone: () => Request
 }
@@ -181,7 +192,7 @@ export type ResponseType =
 
 export type ResponseRedirectStatus = 301 | 302 | 303 | 307 | 308
 
-export declare class Response implements BodyMixin {
+export declare class Response extends BodyMixin {
   constructor (body?: BodyInit, init?: ResponseInit)
 
   readonly headers: Headers
@@ -192,18 +203,9 @@ export declare class Response implements BodyMixin {
   readonly url: string
   readonly redirected: boolean
 
-  readonly body: ReadableStream | null
-  readonly bodyUsed: boolean
-
-  readonly arrayBuffer: () => Promise<ArrayBuffer>
-  readonly blob: () => Promise<Blob>
-  readonly formData: () => Promise<FormData>
-  readonly json: () => Promise<unknown>
-  readonly text: () => Promise<string>
-
   readonly clone: () => Response
 
   static error (): Response
-  static json(data: any, init?: ResponseInit): Response
+  static json (data: any, init?: ResponseInit): Response
   static redirect (url: string | URL, status: ResponseRedirectStatus): Response
 }

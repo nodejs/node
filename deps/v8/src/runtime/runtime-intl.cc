@@ -17,6 +17,7 @@
 #include "src/objects/js-list-format.h"
 #include "src/objects/js-number-format-inl.h"
 #include "src/objects/js-plural-rules-inl.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -25,8 +26,8 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_FormatList) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSListFormat> list_format = args.at<JSListFormat>(0);
-  Handle<FixedArray> list = args.at<FixedArray>(1);
+  DirectHandle<JSListFormat> list_format = args.at<JSListFormat>(0);
+  DirectHandle<FixedArray> list = args.at<FixedArray>(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, JSListFormat::FormatList(isolate, list_format, list));
 }
@@ -35,13 +36,18 @@ RUNTIME_FUNCTION(Runtime_FormatList) {
 RUNTIME_FUNCTION(Runtime_FormatListToParts) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSListFormat> list_format = args.at<JSListFormat>(0);
-  Handle<FixedArray> list = args.at<FixedArray>(1);
+  DirectHandle<JSListFormat> list_format = args.at<JSListFormat>(0);
+  DirectHandle<FixedArray> list = args.at<FixedArray>(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, JSListFormat::FormatListToParts(isolate, list_format, list));
 }
 
 RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
+  // When this is called from Wasm code, clear the "thread in wasm" flag,
+  // which is important in case any GC needs to happen.
+  // TODO(40192807): Find a better fix, likely by replacing the global flag.
+  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
+
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   Handle<String> s = args.at<String>(0);
@@ -50,6 +56,11 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseIntl) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
+  // When this is called from Wasm code, clear the "thread in wasm" flag,
+  // which is important in case any GC needs to happen.
+  // TODO(40192807): Find a better fix, likely by replacing the global flag.
+  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
+
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   Handle<String> s = args.at<String>(0);
@@ -58,10 +69,15 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseIntl) {
 }
 
 RUNTIME_FUNCTION(Runtime_StringToLocaleLowerCase) {
+  // When this is called from Wasm code, clear the "thread in wasm" flag,
+  // which is important in case any GC needs to happen.
+  // TODO(40192807): Find a better fix, likely by replacing the global flag.
+  SaveAndClearThreadInWasmFlag clear_wasm_flag(isolate);
+
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 2);
-  Handle<String> s = args.at<String>(0);
-  Handle<Object> locale = args.at<Object>(1);
+  DirectHandle<String> s = args.at<String>(0);
+  DirectHandle<Object> locale = args.at<Object>(1);
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringToLocaleLowerCase);
 

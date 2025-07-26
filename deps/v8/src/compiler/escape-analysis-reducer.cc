@@ -14,15 +14,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#ifdef DEBUG
-#define TRACE(...)                                        \
-  do {                                                    \
-    if (v8_flags.trace_turbo_escape) PrintF(__VA_ARGS__); \
-  } while (false)
-#else
-#define TRACE(...)
-#endif  // DEBUG
-
 EscapeAnalysisReducer::EscapeAnalysisReducer(
     Editor* editor, JSGraph* jsgraph, JSHeapBroker* broker,
     EscapeAnalysisResult analysis_result, Zone* zone)
@@ -280,7 +271,8 @@ void EscapeAnalysisReducer::Finalize() {
           }
           break;
         case IrOpcode::kLoadField:
-          if (FieldAccessOf(use->op()).offset == FixedArray::kLengthOffset) {
+          if (FieldAccessOf(use->op()).offset ==
+              offsetof(FixedArray, length_)) {
             loads.push_back(use);
           } else {
             escaping_use = true;
@@ -305,12 +297,12 @@ void EscapeAnalysisReducer::Finalize() {
           case IrOpcode::kLoadElement: {
             Node* index = NodeProperties::GetValueInput(load, 1);
             Node* formal_parameter_count =
-                jsgraph()->Constant(params.formal_parameter_count());
+                jsgraph()->ConstantNoHole(params.formal_parameter_count());
             NodeProperties::SetType(
                 formal_parameter_count,
                 Type::Constant(params.formal_parameter_count(),
                                jsgraph()->graph()->zone()));
-            Node* offset_to_first_elem = jsgraph()->Constant(
+            Node* offset_to_first_elem = jsgraph()->ConstantNoHole(
                 CommonFrameConstants::kFixedSlotCountAboveFp);
             if (!NodeProperties::IsTyped(offset_to_first_elem)) {
               NodeProperties::SetType(
@@ -348,7 +340,7 @@ void EscapeAnalysisReducer::Finalize() {
           }
           case IrOpcode::kLoadField: {
             DCHECK_EQ(FieldAccessOf(load->op()).offset,
-                      FixedArray::kLengthOffset);
+                      offsetof(FixedArray, length_));
             Node* length = NodeProperties::GetValueInput(node, 0);
             ReplaceWithValue(load, length);
             break;
@@ -374,7 +366,7 @@ NodeHashCache::Constructor::Constructor(NodeHashCache* cache,
                                         const Operator* op, int input_count,
                                         Node** inputs, Type type)
     : node_cache_(cache), from_(nullptr) {
-  if (node_cache_->temp_nodes_.size() > 0) {
+  if (!node_cache_->temp_nodes_.empty()) {
     tmp_ = node_cache_->temp_nodes_.back();
     node_cache_->temp_nodes_.pop_back();
     int tmp_input_count = tmp_->InputCount();
@@ -440,8 +432,6 @@ Node* NodeHashCache::Constructor::MutableNode() {
   }
   return tmp_;
 }
-
-#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

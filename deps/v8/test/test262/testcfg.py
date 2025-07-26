@@ -25,17 +25,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import imp
-import itertools
-import os
-import re
+import importlib.machinery
 import sys
 
+from functools import cached_property
 from pathlib import Path
 
 from testrunner.local import statusfile
 from testrunner.local import testsuite
-from testrunner.local import utils
 from testrunner.objects import testcase
 from testrunner.outproc import base as outproc
 from testrunner.outproc import test262
@@ -45,28 +42,33 @@ from testrunner.outproc import test262
 #
 # Multiple flags are allowed, separated by space.
 FEATURE_FLAGS = {
-    'Intl.DurationFormat': '--harmony-intl-duration-format',
     'Intl.Locale-info': '--harmony-intl-locale-info-func',
     'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
     'WeakRef': '--harmony-weak-refs-with-cleanup-some',
     'host-gc-required': '--expose-gc-as=v8GC',
     'IsHTMLDDA': '--allow-natives-syntax',
     'import-assertions': '--harmony-import-assertions',
-    'resizable-arraybuffer': '--harmony-rab-gsab-transfer',
     'Temporal': '--harmony-temporal',
     'array-find-from-last': '--harmony-array-find-last',
     'ShadowRealm': '--harmony-shadow-realm',
     'regexp-v-flag': '--harmony-regexp-unicode-sets',
-    'array-grouping': '--harmony-array-grouping',
-    'change-array-by-copy': '--harmony-change-array-by-copy',
     'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
     'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
-    'arraybuffer-transfer': '--harmony-rab-gsab-transfer',
     'json-parse-with-source': '--harmony-json-parse-with-source',
     'iterator-helpers': '--harmony-iterator-helpers',
     'set-methods': '--harmony-set-methods',
-    'promise-with-resolvers': '--js-promise-withresolvers',
-    'Array.fromAsync': '--harmony-array-from-async',
+    'import-attributes': '--harmony-import-attributes',
+    'regexp-duplicate-named-groups': '--js-regexp-duplicate-named-groups',
+    'regexp-modifiers': '--js-regexp-modifiers',
+    'Float16Array': '--js-float16array',
+    'explicit-resource-management': '--js-explicit-resource-management',
+    'decorators': '--js-decorators',
+    'promise-try': '--js-promise-try',
+    'Atomics.pause': '--js-atomics-pause',
+    'source-phase-imports': '--js-source-phase-imports --allow-natives-syntax',
+    'Error.isError': '--js-error-iserror',
+    'uint8array-base64': '--js-base-64',
+    'RegExp.escape': '--js-regexp-escape',
 }
 
 SKIPPED_FEATURES = set([])
@@ -79,7 +81,7 @@ TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
 
 TEST_262_SUITE_PATH = Path("data") / "test"
 TEST_262_HARNESS_PATH = Path("data") / "harness"
-TEST_262_TOOLS_ABS_PATH = BASE_DIR / "third_party" / "test262-harness" / "src"
+TEST_262_TOOLS_ABS_PATH = TEST262_DIR / Path("data") / "tools" / "packaging"
 TEST_262_LOCAL_TESTS_PATH = Path("local-tests") / "test"
 
 sys.path.append(str(TEST_262_TOOLS_ABS_PATH))
@@ -109,12 +111,20 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 
 
 class TestLoader(testsuite.JSTestLoader):
+  @cached_property
+  def local_staging_implementations(self):
+    return set()
+
   @property
   def test_dirs(self):
+    self.reset_local_implementations_filtering()
     return [
       self.test_root,
       self.suite.root / TEST_262_LOCAL_TESTS_PATH,
     ]
+
+  def reset_local_implementations_filtering(self):
+    self.local_staging_implementations.clear()
 
   @property
   def excluded_suffixes(self):
@@ -125,6 +135,11 @@ class TestLoader(testsuite.JSTestLoader):
     return {"intl402", "Intl402"} if self.test_config.noi18n else set()
 
   def _should_filter_by_test(self, test):
+    if test.has_local_staging_implementation:
+      if test.path_js in self.local_staging_implementations:
+        print(f"Skipping test {test.path_js} as it has a local implementation")
+        return True
+      self.local_staging_implementations.add(test.path_js)
     features = test.test_record.get("features", [])
     return SKIPPED_FEATURES.intersection(features)
 
@@ -146,11 +161,12 @@ class TestSuite(testsuite.TestSuite):
     root = TEST_262_TOOLS_ABS_PATH
     f = None
     try:
-      (f, pathname, description) = imp.find_module("parseTestRecord", [root])
-      module = imp.load_module("parseTestRecord", f, pathname, description)
+      loader = importlib.machinery.SourceFileLoader(
+          "parseTestRecord", f"{root}/parseTestRecord.py")
+      module = loader.load_module()
       return module.parseTestRecord
-    except:
-      print('Cannot load parseTestRecord')
+    except Exception as e:
+      print(f'Cannot load parseTestRecord: {e}')
       raise
     finally:
       if f:
@@ -207,10 +223,14 @@ class TestCase(testcase.D8TestCase):
     harness_args = []
     if "raw" not in self.test_record.get("flags", []):
       harness_args = list(self.suite.harness)
-    return (harness_args + ([self.suite.root / "harness-agent.js"]
-                            if self.__needs_harness_agent() else []) +
+    return (harness_args +
+            ([self.suite.root /
+              "harness-agent.js"] if self.__needs_harness_agent() else []) +
             ([self.suite.root / "harness-ishtmldda.js"]
              if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
+            ([self.suite.root /
+              "harness-abstractmodulesource.js"] if "source-phase-imports"
+             in self.test_record.get("features", []) else []) +
             ([self.suite.root / "harness-adapt-donotevaluate.js"]
              if self.fail_phase_only and not self._fail_phase_reverse else []) +
             ([self.suite.root / "harness-done.js"]
@@ -247,6 +267,12 @@ class TestCase(testcase.D8TestCase):
     if path.exists():
       return path
     return self.suite.test_root / self.path_js
+
+  @cached_property
+  def has_local_staging_implementation(self):
+    return  (str(self.path_js).startswith("staging")
+        and (self.suite.local_test_root / self.path_js).exists()
+    )
 
   @property
   def output_proc(self):

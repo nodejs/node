@@ -15,7 +15,7 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 struct ElementAccess;
-class Graph;
+class TFGraph;
 class JSGraph;
 class MachineOperatorBuilder;
 class Node;
@@ -75,6 +75,7 @@ class MemoryLowering final : public Reducer {
 
   MemoryLowering(
       JSGraph* jsgraph, Zone* zone, JSGraphAssembler* graph_assembler,
+      bool is_wasm,
       AllocationFolding allocation_folding =
           AllocationFolding::kDontAllocationFolding,
       WriteBarrierAssertFailedCallback callback = [](Node*, Node*, const char*,
@@ -118,7 +119,7 @@ class MemoryLowering final : public Reducer {
   // defined.
   Node* AlignToAllocationAlignment(Node* address);
 
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
   inline Zone* graph_zone() const;
@@ -130,10 +131,11 @@ class MemoryLowering final : public Reducer {
   SetOncePointer<Node> wasm_instance_node_;
   Isolate* isolate_;
   Zone* zone_;
-  Graph* graph_;
+  TFGraph* graph_;
   CommonOperatorBuilder* common_;
   MachineOperatorBuilder* machine_;
   JSGraphAssembler* graph_assembler_;
+  bool is_wasm_;
   AllocationFolding allocation_folding_;
   WriteBarrierAssertFailedCallback write_barrier_assert_failed_;
   const char* function_debug_name_;

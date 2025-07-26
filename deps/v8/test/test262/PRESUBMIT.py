@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import pathlib
+import platform
 from subprocess import STDOUT, PIPE, Popen
 
 # This line is 'magic' in that git-cl looks for it to decide whether to
@@ -15,7 +16,8 @@ def _CheckLint(input_api, output_api):
   vpython_spec = root / '.lint-vpython3'
   workdir = root / 'data'
   lint_exe = workdir / 'tools' / 'lint' / 'lint.py'
-  test_path = (workdir / '..' / 'local-tests' / 'test').relative_to(workdir)
+  test_path = workdir / '..' / 'local-tests' / 'test'
+  staging_path = (test_path / 'staging').relative_to(workdir)
   lint_exceptions = root / 'lint.exceptions'
   command = [
       'vpython3',
@@ -24,9 +26,16 @@ def _CheckLint(input_api, output_api):
       lint_exe,
       '--exceptions',
       lint_exceptions,
-      test_path,
+      '--features',
+      staging_path / 'features.txt',
+      staging_path,
   ]
-  proc = Popen(command, cwd=workdir, stderr=STDOUT, stdout=PIPE)
+  proc = Popen(
+      command,
+      cwd=workdir,
+      stderr=STDOUT,
+      stdout=PIPE,
+      shell=platform.system() == 'Windows')
   output, exit_code = proc.communicate()[0], proc.returncode
   if exit_code == 0:
     return []
@@ -36,9 +45,21 @@ def _CheckLint(input_api, output_api):
   ]
 
 
+def _PyUnitTest(input_api, output_api):
+  return input_api.RunTests(
+      input_api.canned_checks.GetUnitTestsRecursively(
+          input_api,
+          output_api,
+          input_api.os_path.join(input_api.PresubmitLocalPath()),
+          files_to_check=[r'.+_test\.py$'],
+          files_to_skip=[],
+          run_on_python2=False,
+      ))
+
 def _CommonChecks(input_api, output_api):
   checks = [
       _CheckLint,
+      _PyUnitTest,
   ]
   return sum([check(input_api, output_api) for check in checks], [])
 

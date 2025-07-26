@@ -16,18 +16,16 @@ class Memory64Runner : public WasmRunner<ReturnType, ParamTypes...> {
  public:
   explicit Memory64Runner(TestExecutionTier execution_tier)
       : WasmRunner<ReturnType, ParamTypes...>(execution_tier, kWasmOrigin,
-                                              nullptr, "main") {
-    this->builder().EnableFeature(kFeature_memory64);
-  }
+                                              nullptr, "main") {}
 
   template <typename T>
   T* AddMemoryElems(uint32_t count) {
-    return this->builder().template AddMemoryElems<T>(count, kMemory64);
+    return this->builder().template AddMemoryElems<T>(count, AddressType::kI64);
   }
 
-  uint8_t* AddMemory(uint32_t size,
+  uint8_t* AddMemory(uint32_t size, size_t max_size,
                      SharedFlag shared = SharedFlag::kNotShared) {
-    return this->builder().AddMemory(size, shared, kMemory64);
+    return this->builder().AddMemory(size, shared, AddressType::kI64, max_size);
   }
 };
 
@@ -61,7 +59,6 @@ WASM_EXEC_TEST(Load) {
 // TODO(clemensb): Test atomic instructions.
 
 WASM_EXEC_TEST(InitExpression) {
-  EXPERIMENTAL_FLAG_SCOPE(memory64);
   Isolate* isolate = CcTest::InitIsolateOnce();
   HandleScope scope(isolate);
 
@@ -82,8 +79,8 @@ WASM_EXEC_TEST(InitExpression) {
               'c')                            // data bytes
   };
 
-  testing::CompileAndInstantiateForTesting(
-      isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
+  testing::CompileAndInstantiateForTesting(isolate, &thrower,
+                                           base::VectorOf(data));
   if (thrower.error()) {
     Print(*thrower.Reify());
     FATAL("compile or instantiate error");
@@ -102,8 +99,7 @@ WASM_EXEC_TEST(MemorySize) {
 
 WASM_EXEC_TEST(MemoryGrow) {
   Memory64Runner<int64_t, int64_t> r(execution_tier);
-  r.AddMemory(kWasmPageSize);
-  r.builder().SetMaxMemPages(13);
+  r.AddMemory(kWasmPageSize, 13 * kWasmPageSize);
 
   r.Build({WASM_MEMORY_GROW(WASM_LOCAL_GET(0))});
   CHECK_EQ(1, r.Call(6));

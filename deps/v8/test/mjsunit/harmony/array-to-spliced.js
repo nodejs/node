@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-change-array-by-copy
-
 assertEquals(2, Array.prototype.toSpliced.length);
 assertEquals("toSpliced", Array.prototype.toSpliced.name);
 
@@ -130,7 +128,6 @@ TestFastSourceEmpty([true,false,1,42.42], [null,"foo"]);
     assertTrue(s.hasOwnProperty(i));
   }
 })();
-
 (function TestMidIterationShenanigans() {
   {
     const a = { length: 4,

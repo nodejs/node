@@ -5,7 +5,7 @@ module.exports = async opts => {
   const tag = (await spawn(
     ['describe', '--tags', '--abbrev=0', '--match=*.*.*'],
     opts)).stdout.trim()
-  const ver = semver.coerce(tag, { loose: true })
+  const ver = semver.coerce(tag, { loose: true, includePrerelease: true })
   if (ver) {
     return ver.version
   }

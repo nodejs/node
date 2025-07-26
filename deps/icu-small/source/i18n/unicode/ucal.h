@@ -442,7 +442,6 @@ enum UCalendarDateFields {
    */
   UCAL_IS_LEAP_MONTH,
 
-#ifndef U_HIDE_DRAFT_API
   /**
    * Field number indicating the month. This is a calendar-specific value.
    * Differ from UCAL_MONTH, this value is continuous and unique within a
@@ -464,10 +463,9 @@ enum UCalendarDateFields {
    * and there is an extra "Leap Month 5" which associated with UCAL_ORDINAL_MONTH
    * value 5 before "Month 6" of year 4664.
    *
-   * @draft ICU 73
+   * @stable ICU 73
    */
   UCAL_ORDINAL_MONTH,
-#endif // U_HIDE_DRAFT_API
 
     /* Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
      * it is needed for layout of Calendar, DateFormat, and other objects */
@@ -476,12 +474,7 @@ enum UCalendarDateFields {
      * One more than the highest normal UCalendarDateFields value.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-#ifdef U_HIDE_DRAFT_API
-    // Must include all fields that will be in structs
-    UCAL_FIELD_COUNT = UCAL_IS_LEAP_MONTH + 2,
-#else  // U_HIDE_DRAFT_API (for UCAL_ORDINAL_MONTH)
     UCAL_FIELD_COUNT = UCAL_ORDINAL_MONTH + 1,
-#endif  // U_HIDE_DRAFT_API (for UCAL_ORDINAL_MONTH)
 
 #endif  // U_FORCE_HIDE_DEPRECATED_API
 
@@ -1394,7 +1387,6 @@ U_CAPI int32_t U_EXPORT2
 ucal_getCanonicalTimeZoneID(const UChar* id, int32_t len,
                             UChar* result, int32_t resultCapacity, UBool *isSystemID, UErrorCode* status);
 
-#ifndef U_HIDE_DRAFT_API
 /**
  * Returns the preferred time zone ID in the IANA time zone database for the given time zone ID.
  * There are two types of preferred IDs. The first type is the one defined in zone.tab file,
@@ -1418,12 +1410,11 @@ ucal_getCanonicalTimeZoneID(const UChar* id, int32_t len,
  * @param status    Receives the status.  When the given time zone ID is not a known system time zone
  *                  ID, U_ILLEGAL_ARGUMENT_ERROR is set.
  * @return          The result string length, not including the terminating null.
- * @draft ICU 74
+ * @stable ICU 74
  */
 U_CAPI int32_t U_EXPORT2
 ucal_getIanaTimeZoneID(const UChar* id, int32_t len,
                         UChar* result, int32_t resultCapacity, UErrorCode* status);
-#endif // U_HIDE_DRAFT_API
 
 /**
  * Get the resource keyword value string designating the calendar type for the UCalendar.

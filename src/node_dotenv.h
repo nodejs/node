@@ -13,26 +13,29 @@ namespace node {
 class Dotenv {
  public:
   enum ParseResult { Valid, FileError, InvalidContent };
+  struct env_file_data {
+    std::string path;
+    bool is_optional;
+  };
 
   Dotenv() = default;
-  Dotenv(const Dotenv& d) = default;
+  Dotenv(const Dotenv& d) = delete;
   Dotenv(Dotenv&& d) noexcept = default;
   Dotenv& operator=(Dotenv&& d) noexcept = default;
-  Dotenv& operator=(const Dotenv& d) = default;
+  Dotenv& operator=(const Dotenv& d) = delete;
   ~Dotenv() = default;
 
   void ParseContent(const std::string_view content);
   ParseResult ParsePath(const std::string_view path);
-  void AssignNodeOptionsIfAvailable(std::string* node_options);
-  void SetEnvironment(Environment* env);
-  v8::Local<v8::Object> ToObject(Environment* env);
+  void AssignNodeOptionsIfAvailable(std::string* node_options) const;
+  v8::Maybe<void> SetEnvironment(Environment* env);
+  v8::MaybeLocal<v8::Object> ToObject(Environment* env) const;
 
-  static std::vector<std::string> GetPathFromArgs(
+  static std::vector<env_file_data> GetDataFromArgs(
       const std::vector<std::string>& args);
 
  private:
   std::map<std::string, std::string> store_;
-  std::string_view trim_quotes(std::string_view str);
 };
 
 }  // namespace node

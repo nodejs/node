@@ -15,13 +15,13 @@
 #include "src/regexp/arm64/regexp-macro-assembler-arm64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "src/regexp/arm/regexp-macro-assembler-arm.h"
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 #include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/regexp/mips64/regexp-macro-assembler-mips64.h"
 #elif V8_TARGET_ARCH_LOONG64
 #include "src/regexp/loong64/regexp-macro-assembler-loong64.h"
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
 #include "src/regexp/s390/regexp-macro-assembler-s390.h"
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
 #include "src/regexp/riscv/regexp-macro-assembler-riscv.h"

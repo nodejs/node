@@ -26,7 +26,6 @@ using namespace regexp_compiler_constants;  // NOLINT(build/namespaces)
 constexpr base::uc32 kMaxCodePoint = 0x10ffff;
 constexpr int kMaxUtf16CodeUnit = 0xffff;
 constexpr uint32_t kMaxUtf16CodeUnitU = 0xffff;
-constexpr int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
 
 // -------------------------------------------------------------------
 // Tree to graph conversion
@@ -424,6 +423,7 @@ RegExpNode* UnanchoredAdvance(RegExpCompiler* compiler,
 }  // namespace
 
 // static
+// Only for /ui and /vi, not for /i regexps.
 void CharacterRange::AddUnicodeCaseEquivalents(ZoneList<CharacterRange>* ranges,
                                                Zone* zone) {
 #ifdef V8_INTL_SUPPORT
@@ -1023,9 +1023,8 @@ namespace {
 //         \B to (?<=\w)(?=\w)|(?<=\W)(?=\W)
 RegExpNode* BoundaryAssertionAsLookaround(RegExpCompiler* compiler,
                                           RegExpNode* on_success,
-                                          RegExpAssertion::Type type,
-                                          RegExpFlags flags) {
-  CHECK(NeedsUnicodeCaseEquivalents(flags));
+                                          RegExpAssertion::Type type) {
+  CHECK(NeedsUnicodeCaseEquivalents(compiler->flags()));
   Zone* zone = compiler->zone();
   ZoneList<CharacterRange>* word_range =
       zone->New<ZoneList<CharacterRange>>(2, zone);
@@ -1069,14 +1068,13 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
       return AssertionNode::AtStart(on_success);
     case Type::BOUNDARY:
       return NeedsUnicodeCaseEquivalents(compiler->flags())
-                 ? BoundaryAssertionAsLookaround(
-                       compiler, on_success, Type::BOUNDARY, compiler->flags())
+                 ? BoundaryAssertionAsLookaround(compiler, on_success,
+                                                 Type::BOUNDARY)
                  : AssertionNode::AtBoundary(on_success);
     case Type::NON_BOUNDARY:
       return NeedsUnicodeCaseEquivalents(compiler->flags())
                  ? BoundaryAssertionAsLookaround(compiler, on_success,
-                                                 Type::NON_BOUNDARY,
-                                                 compiler->flags())
+                                                 Type::NON_BOUNDARY)
                  : AssertionNode::AtNonBoundary(on_success);
     case Type::END_OF_INPUT:
       return AssertionNode::AtEnd(on_success);
@@ -1095,16 +1093,17 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
                                      newline_ranges, false, zone);
       RegExpClassRanges* newline_atom =
           zone->New<RegExpClassRanges>(StandardCharacterSet::kLineTerminator);
+      ActionNode* submatch_success = ActionNode::PositiveSubmatchSuccess(
+          stack_pointer_register, position_register,
+          0,   // No captures inside.
+          -1,  // Ignored if no captures.
+          on_success);
       TextNode* newline_matcher =
-          zone->New<TextNode>(newline_atom, false,
-                              ActionNode::PositiveSubmatchSuccess(
-                                  stack_pointer_register, position_register,
-                                  0,   // No captures inside.
-                                  -1,  // Ignored if no captures.
-                                  on_success));
+          zone->New<TextNode>(newline_atom, false, submatch_success);
       // Create an end-of-input matcher.
       RegExpNode* end_of_line = ActionNode::BeginPositiveSubmatch(
-          stack_pointer_register, position_register, newline_matcher);
+          stack_pointer_register, position_register, newline_matcher,
+          submatch_success);
       // Add the two alternatives to the ChoiceNode.
       GuardedAlternative eol_alternative(end_of_line);
       result->AddAlternative(eol_alternative);
@@ -1119,10 +1118,17 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
 
 RegExpNode* RegExpBackReference::ToNode(RegExpCompiler* compiler,
                                         RegExpNode* on_success) {
-  return compiler->zone()->New<BackReferenceNode>(
-      RegExpCapture::StartRegister(index()),
-      RegExpCapture::EndRegister(index()), flags_, compiler->read_backward(),
-      on_success);
+  RegExpNode* backref_node = on_success;
+  // Only one of the captures in the list can actually match. Since
+  // back-references to unmatched captures are treated as empty, we can simply
+  // create back-references to all possible captures.
+  for (auto capture : *captures()) {
+    backref_node = compiler->zone()->New<BackReferenceNode>(
+        RegExpCapture::StartRegister(capture->index()),
+        RegExpCapture::EndRegister(capture->index()), compiler->read_backward(),
+        backref_node);
+  }
+  return backref_node;
 }
 
 RegExpNode* RegExpEmpty::ToNode(RegExpCompiler* compiler,
@@ -1130,9 +1136,40 @@ RegExpNode* RegExpEmpty::ToNode(RegExpCompiler* compiler,
   return on_success;
 }
 
+namespace {
+
+class V8_NODISCARD ModifiersScope {
+ public:
+  ModifiersScope(RegExpCompiler* compiler, RegExpFlags flags)
+      : compiler_(compiler), previous_flags_(compiler->flags()) {
+    compiler->set_flags(flags);
+  }
+  ~ModifiersScope() { compiler_->set_flags(previous_flags_); }
+
+ private:
+  RegExpCompiler* compiler_;
+  const RegExpFlags previous_flags_;
+};
+
+}  // namespace
+
 RegExpNode* RegExpGroup::ToNode(RegExpCompiler* compiler,
                                 RegExpNode* on_success) {
-  return body_->ToNode(compiler, on_success);
+  // If no flags are modified, simply convert and return the body.
+  if (flags() == compiler->flags()) {
+    return body_->ToNode(compiler, on_success);
+  }
+  // Reset flags for successor node.
+  const RegExpFlags old_flags = compiler->flags();
+  on_success = ActionNode::ModifyFlags(old_flags, on_success);
+
+  // Convert body using modifier.
+  ModifiersScope modifiers_scope(compiler, flags());
+  RegExpNode* body = body_->ToNode(compiler, on_success);
+
+  // Wrap body into modifier node.
+  RegExpNode* modified_body = ActionNode::ModifyFlags(flags(), body);
+  return modified_body;
 }
 
 RegExpLookaround::Builder::Builder(bool is_positive, RegExpNode* on_success,
@@ -1158,14 +1195,15 @@ RegExpLookaround::Builder::Builder(bool is_positive, RegExpNode* on_success,
 
 RegExpNode* RegExpLookaround::Builder::ForMatch(RegExpNode* match) {
   if (is_positive_) {
-    return ActionNode::BeginPositiveSubmatch(stack_pointer_register_,
-                                             position_register_, match);
+    ActionNode* on_match_success = on_match_success_->AsActionNode();
+    return ActionNode::BeginPositiveSubmatch(
+        stack_pointer_register_, position_register_, match, on_match_success);
   } else {
     Zone* zone = on_success_->zone();
     // We use a ChoiceNode to represent the negative lookaround. The first
     // alternative is the negative match. On success, the end node backtracks.
     // On failure, the second alternative is tried and leads to success.
-    // NegativeLookaheadChoiceNode is a special ChoiceNode that ignores the
+    // NegativeLookaroundChoiceNode is a special ChoiceNode that ignores the
     // first exit when calculating quick checks.
     ChoiceNode* choice_node = zone->New<NegativeLookaroundChoiceNode>(
         GuardedAlternative(match), GuardedAlternative(on_success_), zone);
@@ -1176,6 +1214,8 @@ RegExpNode* RegExpLookaround::Builder::ForMatch(RegExpNode* match) {
 
 RegExpNode* RegExpLookaround::ToNode(RegExpCompiler* compiler,
                                      RegExpNode* on_success) {
+  compiler->ToNodeMaybeCheckForStackOverflow();
+
   int stack_pointer_register = compiler->AllocateRegister();
   int position_register = compiler->AllocateRegister();
 
@@ -1412,6 +1452,7 @@ void CharacterRange::AddClassEscape(StandardCharacterSet standard_character_set,
 }
 
 // static
+// Only for /i, not for /ui or /vi.
 void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                         ZoneList<CharacterRange>* ranges,
                                         bool is_one_byte) {
@@ -1427,8 +1468,8 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
     // Nothing to be done for surrogates.
     if (from >= kLeadSurrogateStart && to <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
-      if (from > kMaxOneByteCharCode) continue;
-      if (to > kMaxOneByteCharCode) to = kMaxOneByteCharCode;
+      if (from > String::kMaxOneByteCharCode) continue;
+      if (to > String::kMaxOneByteCharCode) to = String::kMaxOneByteCharCode;
     }
     others.add(from, to);
   }
@@ -1470,17 +1511,17 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
     // Nothing to be done for surrogates.
     if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
-      if (bottom > kMaxOneByteCharCode) continue;
-      if (top > kMaxOneByteCharCode) top = kMaxOneByteCharCode;
+      if (bottom > String::kMaxOneByteCharCode) continue;
+      if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
     }
     unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     if (top == bottom) {
       // If this is a singleton we just expand the one character.
       int length = isolate->jsregexp_uncanonicalize()->get(bottom, '\0', chars);
-      for (int i = 0; i < length; i++) {
-        base::uc32 chr = chars[i];
+      for (int j = 0; j < length; j++) {
+        base::uc32 chr = chars[j];
         if (chr != bottom) {
-          ranges->Add(CharacterRange::Singleton(chars[i]), zone);
+          ranges->Add(CharacterRange::Singleton(chars[j]), zone);
         }
       }
     } else {
@@ -1515,8 +1556,8 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
         int end = (block_end > top) ? top : block_end;
         length = isolate->jsregexp_uncanonicalize()->get(block_end, '\0',
                                                          equivalents);
-        for (int i = 0; i < length; i++) {
-          base::uc32 c = equivalents[i];
+        for (int j = 0; j < length; j++) {
+          base::uc32 c = equivalents[j];
           base::uc32 range_from = c - (block_end - pos);
           base::uc32 range_to = c - (block_end - end);
           if (!(bottom <= range_from && range_to <= top)) {

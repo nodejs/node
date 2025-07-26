@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_VARIABLE_REDUCER_H_
 
 #include <algorithm>
+#include <optional>
 
 #include "src/base/logging.h"
 #include "src/codegen/machine-type.h"
@@ -49,10 +50,13 @@ namespace v8::internal::compiler::turboshaft {
 //
 // Note that the VariableAssembler does not do "old-OpIndex => Variable"
 // book-keeping: the users of the Variable should do that themselves (which
-// is what OptimizationPhase does for instance).
+// is what CopyingPhase does for instance).
 
-template <class Next>
-class VariableReducer : public Next {
+// VariableReducer always adds a RequiredOptimizationReducer, because phis
+// with constant inputs introduced by `VariableReducer` need to be eliminated.
+template <class AfterNext>
+class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
+  using Next = RequiredOptimizationReducer<AfterNext>;
   using Snapshot = SnapshotTable<OpIndex, VariableData>::Snapshot;
 
   struct GetActiveLoopVariablesIndex {
@@ -85,14 +89,7 @@ class VariableReducer : public Next {
   };
 
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
-
-#if defined(__clang__)
-  // Phis with constant inputs introduced by `VariableReducer` need to be
-  // eliminated.
-  static_assert(
-      reducer_list_contains<ReducerList, RequiredOptimizationReducer>::value);
-#endif
+  TURBOSHAFT_REDUCER_BOILERPLATE(VariableReducer)
 
   void Bind(Block* new_block) {
     Next::Bind(new_block);
@@ -101,7 +98,7 @@ class VariableReducer : public Next {
 
     predecessors_.clear();
     for (const Block* pred : new_block->PredecessorsIterable()) {
-      base::Optional<Snapshot> pred_snapshot =
+      std::optional<Snapshot> pred_snapshot =
           block_to_snapshot_mapping_[pred->index()];
       DCHECK(pred_snapshot.has_value());
       predecessors_.push_back(pred_snapshot.value());
@@ -115,6 +112,12 @@ class VariableReducer : public Next {
           // If any of the predecessors' value is Invalid, then we shouldn't
           // merge {var}.
           return OpIndex::Invalid();
+        } else if (__ output_graph()
+                       .Get(idx)
+                       .template Is<LoadRootRegisterOp>()) {
+          // Variables that once contain the root register never contain another
+          // value.
+          return __ LoadRootRegister();
         }
       }
       return MergeOpIndices(predecessors, var.data().rep);
@@ -123,20 +126,27 @@ class VariableReducer : public Next {
     table_.StartNewSnapshot(base::VectorOf(predecessors_), merge_variables);
     current_block_ = new_block;
     if (new_block->IsLoop()) {
-      for (Variable var : table_.active_loop_variables) {
-        MaybeRegisterRepresentation rep = var.data().rep;
-        DCHECK_NE(rep, MaybeRegisterRepresentation::None());
-        table_.Set(var, __ PendingLoopPhi(table_.Get(var),
-                                          RegisterRepresentation(rep)));
+      // When starting a loop, we need to create a PendingLoopPhi for each
+      // currently active variable (except those that are marked as
+      // loop-invariant).
+      auto active_loop_variables_begin = table_.active_loop_variables.begin();
+      auto active_loop_variables_end = table_.active_loop_variables.end();
+      if (active_loop_variables_begin != active_loop_variables_end) {
+        ZoneVector<std::pair<Variable, OpIndex>> pending_phis(__ phase_zone());
+        for (Variable var : table_.active_loop_variables) {
+          MaybeRegisterRepresentation rep = var.data().rep;
+          DCHECK_NE(rep, MaybeRegisterRepresentation::None());
+          V<Any> pending_loop_phi =
+              __ PendingLoopPhi(table_.Get(var), RegisterRepresentation(rep));
+          SetVariable(var, pending_loop_phi);
+          pending_phis.push_back({var, pending_loop_phi});
+        }
+        loop_pending_phis_[new_block->index()].emplace(pending_phis);
       }
-      Snapshot loop_header_snapshot = table_.Seal();
-      block_to_snapshot_mapping_[new_block->LastPredecessor()->index()] =
-          loop_header_snapshot;
-      table_.StartNewSnapshot(loop_header_snapshot);
     }
   }
 
-  void RestoreTemporaryVariableSnapshotAfter(Block* block) {
+  void RestoreTemporaryVariableSnapshotAfter(const Block* block) {
     DCHECK(table_.IsSealed());
     DCHECK(block_to_snapshot_mapping_[block->index()].has_value());
     table_.StartNewSnapshot(*block_to_snapshot_mapping_[block->index()]);
@@ -148,42 +158,28 @@ class VariableReducer : public Next {
     is_temporary_ = false;
   }
 
-  OpIndex REDUCE(Goto)(Block* destination) {
-    OpIndex result = Next::ReduceGoto(destination);
+  V<None> REDUCE(Goto)(Block* destination, bool is_backedge) {
+    V<None> result = Next::ReduceGoto(destination, is_backedge);
     if (!destination->IsBound()) {
       return result;
     }
-    DCHECK(destination->IsLoop());
-    DCHECK(destination->HasExactlyNPredecessors(2));
-    Snapshot loop_header_snapshot =
-        *block_to_snapshot_mapping_
-            [destination->LastPredecessor()->NeighboringPredecessor()->index()];
-    Snapshot backedge_snapshot = table_.Seal();
-    block_to_snapshot_mapping_[current_block_->index()] = backedge_snapshot;
-    auto fix_loop_phis =
-        [&](Variable var, base::Vector<const OpIndex> predecessors) -> OpIndex {
-      if (var.data().loop_invariant) {
-        return predecessors[0];
-      }
-      const OpIndex backedge_value = predecessors[1];
-      if (!backedge_value.valid()) {
-        return OpIndex::Invalid();
-      }
-      const PendingLoopPhiOp& pending_phi =
-          __ Get(predecessors[0]).template Cast<PendingLoopPhiOp>();
-      __ output_graph().template Replace<PhiOp>(
-          predecessors[0],
-          base::VectorOf({pending_phi.first(), backedge_value}),
-          pending_phi.rep);
-      return predecessors[0];
-    };
 
-    table_.StartNewSnapshot(
-        base::VectorOf({loop_header_snapshot, backedge_snapshot}),
-        fix_loop_phis);
-    // We throw away this snapshot.
-    table_.Seal();
-    current_block_ = nullptr;
+    // For loops, we have to "fix" the PendingLoopPhis (= replace them with
+    // regular loop phis).
+    DCHECK(destination->IsLoop());
+    DCHECK_EQ(destination->PredecessorCount(), 2);
+
+    if (loop_pending_phis_.contains(destination->index())) {
+      for (auto [var, pending_phi_idx] :
+           loop_pending_phis_[destination->index()].value()) {
+        const PendingLoopPhiOp& pending_phi =
+            __ Get(pending_phi_idx).template Cast<PendingLoopPhiOp>();
+        __ output_graph().template Replace<PhiOp>(
+            pending_phi_idx,
+            base::VectorOf({pending_phi.first(), GetVariable(var)}),
+            pending_phi.rep);
+      }
+    }
 
     return result;
   }
@@ -203,7 +199,8 @@ class VariableReducer : public Next {
   void Set(Variable var, V<Rep> value) {
     DCHECK(!is_temporary_);
     if (V8_UNLIKELY(__ generating_unreachable_operations())) return;
-    DCHECK(Rep::allows_representation(RegisterRepresentation(var.data().rep)));
+    DCHECK(
+        V<Rep>::allows_representation(RegisterRepresentation(var.data().rep)));
     table_.Set(var, value);
   }
 
@@ -259,7 +256,7 @@ class VariableReducer : public Next {
     for (auto frame_state : frame_states) {
       DCHECK_EQ(first_frame->input_count, frame_state->input_count);
       DCHECK_EQ(first_frame->inlined, frame_state->inlined);
-      DCHECK_EQ(first_frame->data, frame_state->data);
+      DCHECK_EQ(*first_frame->data, *frame_state->data);
     }
 #endif
 
@@ -313,13 +310,19 @@ class VariableReducer : public Next {
 
   VariableTable table_{__ phase_zone()};
   const Block* current_block_ = nullptr;
-  GrowingBlockSidetable<base::Optional<Snapshot>> block_to_snapshot_mapping_{
-      __ input_graph().block_count(), base::nullopt, __ phase_zone()};
+  GrowingBlockSidetable<std::optional<Snapshot>> block_to_snapshot_mapping_{
+      __ input_graph().block_count(), std::nullopt, __ phase_zone()};
   bool is_temporary_ = false;
 
   // {predecessors_} is used during merging, but we use an instance variable for
   // it, in order to save memory and not reallocate it for each merge.
   ZoneVector<Snapshot> predecessors_{__ phase_zone()};
+
+  // Map from loop headers to the pending loop phis in these headers which have
+  // to be patched on backedges.
+  ZoneAbslFlatHashMap<BlockIndex,
+                      std::optional<ZoneVector<std::pair<Variable, OpIndex>>>>
+      loop_pending_phis_{__ phase_zone()};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

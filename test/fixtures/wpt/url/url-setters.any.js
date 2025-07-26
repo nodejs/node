@@ -8,27 +8,26 @@
 
 promise_test(() => fetch("resources/setters_tests.json").then(res => res.json()).then(runURLSettersTests), "Loading data…");
 
-function runURLSettersTests(all_test_cases) {
-  for (var attribute_to_be_set in all_test_cases) {
-    if (attribute_to_be_set == "comment") {
+function runURLSettersTests(allTestCases) {
+  for (const [propertyToBeSet, testCases] of Object.entries(allTestCases)) {
+    if (propertyToBeSet === "comment") {
       continue;
     }
-    var test_cases = all_test_cases[attribute_to_be_set];
-    for(var i = 0, l = test_cases.length; i < l; i++) {
-      var test_case = test_cases[i];
-      var name = "Setting <" + test_case.href + ">." + attribute_to_be_set +
-                 " = '" + test_case.new_value + "'";
-      if ("comment" in test_case) {
-        name += " " + test_case.comment;
-      }
+
+    for (const test_case of testCases) {
+      const name = `Setting <${test_case.href}>.${propertyToBeSet} = '${test_case.new_value}'${
+        test_case.comment ? ` ${test_case.comment}` : ''
+      }`;
+
       const key = test_case.href.split(":")[0];
-      subsetTestByKey(key, test, function() {
-        var url = new URL(test_case.href);
-        url[attribute_to_be_set] = test_case.new_value;
-        for (var attribute in test_case.expected) {
-          assert_equals(url[attribute], test_case.expected[attribute])
+      subsetTestByKey(key, test, () => {
+        const url = new URL(test_case.href);
+        url[propertyToBeSet] = test_case.new_value;
+
+        for (const [property, expectedValue] of Object.entries(test_case.expected)) {
+          assert_equals(url[property], expectedValue);
         }
-      }, "URL: " + name)
+      }, `URL: ${name}`);
     }
   }
 }

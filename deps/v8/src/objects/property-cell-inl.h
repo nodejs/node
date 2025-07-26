@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_PROPERTY_CELL_INL_H_
 #define V8_OBJECTS_PROPERTY_CELL_INL_H_
 
+#include "src/objects/property-cell.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dependent-code-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/property-cell.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -31,11 +33,11 @@ ACCESSORS(PropertyCell, value, Tagged<Object>, kValueOffset)
 RELEASE_ACQUIRE_ACCESSORS(PropertyCell, value, Tagged<Object>, kValueOffset)
 
 PropertyDetails PropertyCell::property_details() const {
-  return PropertyDetails(Smi::cast(property_details_raw()));
+  return PropertyDetails(Cast<Smi>(property_details_raw()));
 }
 
 PropertyDetails PropertyCell::property_details(AcquireLoadTag tag) const {
-  return PropertyDetails(Smi::cast(property_details_raw(tag)));
+  return PropertyDetails(Cast<Smi>(property_details_raw(tag)));
 }
 
 void PropertyCell::UpdatePropertyDetailsExceptCellType(
@@ -57,7 +59,7 @@ void PropertyCell::UpdatePropertyDetailsExceptCellType(
 }
 
 void PropertyCell::Transition(PropertyDetails new_details,
-                              Handle<Object> new_value) {
+                              DirectHandle<Object> new_value) {
   DCHECK(CanTransitionTo(new_details, *new_value));
   // This code must be in sync with its counterpart in
   // PropertyCellData::Serialize.

@@ -14,7 +14,7 @@ namespace internal {
 std::ostream& operator<<(std::ostream& out, const SourcePositionInfo& pos) {
   out << "<";
   if (!pos.script.is_null() && IsString(pos.script->name())) {
-    out << String::cast(pos.script->name())->ToCString(DISALLOW_NULLS).get();
+    out << Cast<String>(pos.script->name())->ToCString().get();
   } else {
     out << "unknown";
   }
@@ -64,19 +64,19 @@ std::vector<SourcePositionInfo> SourcePosition::InliningStack(
 std::vector<SourcePositionInfo> SourcePosition::InliningStack(
     Isolate* isolate, Tagged<Code> code) const {
   Tagged<DeoptimizationData> deopt_data =
-      DeoptimizationData::cast(code->deoptimization_data());
+      Cast<DeoptimizationData>(code->deoptimization_data());
   SourcePosition pos = *this;
   std::vector<SourcePositionInfo> stack;
   while (pos.isInlined()) {
     InliningPosition inl =
         deopt_data->InliningPositions()->get(pos.InliningId());
-    Handle<SharedFunctionInfo> function(
+    DirectHandle<SharedFunctionInfo> function(
         deopt_data->GetInlinedFunction(inl.inlined_function_id), isolate);
     stack.push_back(SourcePositionInfo(isolate, pos, function));
     pos = inl.position;
   }
-  Handle<SharedFunctionInfo> function(
-      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()), isolate);
+  DirectHandle<SharedFunctionInfo> function(deopt_data->GetSharedFunctionInfo(),
+                                            isolate);
   stack.push_back(SourcePositionInfo(isolate, pos, function));
   return stack;
 }
@@ -85,17 +85,17 @@ SourcePositionInfo SourcePosition::FirstInfo(Isolate* isolate,
                                              Tagged<Code> code) const {
   DisallowGarbageCollection no_gc;
   Tagged<DeoptimizationData> deopt_data =
-      DeoptimizationData::cast(code->deoptimization_data());
+      Cast<DeoptimizationData>(code->deoptimization_data());
   SourcePosition pos = *this;
   if (pos.isInlined()) {
     InliningPosition inl =
         deopt_data->InliningPositions()->get(pos.InliningId());
-    Handle<SharedFunctionInfo> function(
+    DirectHandle<SharedFunctionInfo> function(
         deopt_data->GetInlinedFunction(inl.inlined_function_id), isolate);
     return SourcePositionInfo(isolate, pos, function);
   }
-  Handle<SharedFunctionInfo> function(
-      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()), isolate);
+  DirectHandle<SharedFunctionInfo> function(deopt_data->GetSharedFunctionInfo(),
+                                            isolate);
   return SourcePositionInfo(isolate, pos, function);
 }
 
@@ -104,15 +104,13 @@ void SourcePosition::Print(std::ostream& out,
   Script::PositionInfo pos;
   Tagged<Object> source_name;
   if (IsScript(function->script())) {
-    Tagged<Script> script = Script::cast(function->script());
+    Tagged<Script> script = Cast<Script>(function->script());
     source_name = script->name();
     script->GetPositionInfo(ScriptOffset(), &pos);
   }
   out << "<";
   if (IsString(source_name)) {
-    out << String::cast(source_name)
-               ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
-               .get();
+    out << Cast<String>(source_name)->ToCString().get();
   } else {
     out << "unknown";
   }
@@ -132,10 +130,9 @@ void SourcePosition::PrintJson(std::ostream& out) const {
 
 void SourcePosition::Print(std::ostream& out, Tagged<Code> code) const {
   Tagged<DeoptimizationData> deopt_data =
-      DeoptimizationData::cast(code->deoptimization_data());
+      Cast<DeoptimizationData>(code->deoptimization_data());
   if (!isInlined()) {
-    Tagged<SharedFunctionInfo> function(
-        SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo()));
+    Tagged<SharedFunctionInfo> function(deopt_data->GetSharedFunctionInfo());
     Print(out, function);
   } else {
     InliningPosition inl = deopt_data->InliningPositions()->get(InliningId());
@@ -152,14 +149,14 @@ void SourcePosition::Print(std::ostream& out, Tagged<Code> code) const {
 }
 
 SourcePositionInfo::SourcePositionInfo(Isolate* isolate, SourcePosition pos,
-                                       Handle<SharedFunctionInfo> sfi)
-    : position(pos), shared(sfi), script(Handle<Script>::null()) {
+                                       DirectHandle<SharedFunctionInfo> sfi)
+    : position(pos), shared(indirect_handle(sfi, isolate)) {
   {
     DisallowGarbageCollection no_gc;
     if (sfi.is_null()) return;
     Tagged<Object> maybe_script = sfi->script();
     if (!IsScript(maybe_script)) return;
-    script = handle(Script::cast(maybe_script), isolate);
+    script = handle(Cast<Script>(maybe_script), isolate);
   }
   Script::PositionInfo info;
   if (Script::GetPositionInfo(script, pos.ScriptOffset(), &info)) {

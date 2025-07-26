@@ -17,9 +17,9 @@ extern enum PromiseAnyRejectElementContextSlots extends intptr
   kPromiseAnyRejectElementLength
 }
 
-extern operator '[]=' macro StoreContextElement(
+extern operator '[]=' macro StoreContextElementNoCell(
     Context, constexpr PromiseAnyRejectElementContextSlots, Object): void;
-extern operator '[]' macro LoadContextElement(
+extern operator '[]' macro LoadContextElementNoCell(
     Context, constexpr PromiseAnyRejectElementContextSlots): Object;
 
 // Creates the context used by all Promise.any reject element closures,
@@ -53,17 +53,18 @@ transitioning macro CreatePromiseAnyRejectElementContext(
   return rejectContext;
 }
 
+const kPromiseAnyRejectElementClosureSharedFun: constexpr intptr
+    generates 'RootIndex::kPromiseAnyRejectElementClosureSharedFun';
+
 macro CreatePromiseAnyRejectElementFunction(
     implicit context: Context)(
     rejectElementContext: PromiseAnyRejectElementContext, index: Smi,
     nativeContext: NativeContext): JSFunction {
   dcheck(index > 0);
   dcheck(index < kPropertyArrayHashFieldMax);
-  const map = *ContextSlot(
-      nativeContext, ContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-  const rejectInfo = PromiseAnyRejectElementSharedFunConstant();
-  const reject =
-      AllocateFunctionWithMapAndContext(map, rejectInfo, rejectElementContext);
+  const reject = AllocateRootFunctionWithContext(
+      kPromiseAnyRejectElementClosureSharedFun, rejectElementContext,
+      nativeContext);
   dcheck(kPropertyArrayNoHashSentinel == 0);
   reject.properties_or_hash = index;
   return reject;
@@ -133,7 +134,8 @@ transitioning javascript builtin PromiseAnyRejectElementClosure(
   const newCapacity =
       IntPtrMax(SmiUntag(remainingElementsCount) - 1, index + 1);
   if (newCapacity > errors.length_intptr) deferred {
-      errors = ExtractFixedArray(errors, 0, errors.length_intptr, newCapacity);
+      errors = ExtractFixedArray(
+          errors, 0, errors.length_intptr, newCapacity, PromiseHole);
       *errorsRef = errors;
     }
   errors.objects[index] = value;
@@ -295,7 +297,7 @@ Reject(JSAny) {
         }
     }
   } catch (e, _message) deferred {
-    iterator::IteratorCloseOnException(iteratorRecord);
+    iterator::IteratorCloseOnException(iteratorRecord.object);
     goto Reject(e);
   } label Done {}
 
@@ -334,6 +336,7 @@ Reject(JSAny) {
 }
 
 // https://tc39.es/ecma262/#sec-promise.any
+@incrementUseCounter('v8::Isolate::kPromiseAny')
 transitioning javascript builtin PromiseAny(
     js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
   const nativeContext = LoadNativeContext(context);
@@ -383,7 +386,7 @@ transitioning javascript builtin PromiseAny(
     goto Reject(e);
   } label Reject(e: JSAny) deferred {
     // Exception must be bound to a JS value.
-    dcheck(e != TheHole);
+    dcheck(e != PromiseHole);
     Call(
         context, UnsafeCast<Callable>(capability.reject), Undefined,
         UnsafeCast<JSAny>(e));

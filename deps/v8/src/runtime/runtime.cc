@@ -175,6 +175,7 @@ bool Runtime::IsNonReturning(FunctionId id) {
 #if V8_ENABLE_WEBASSEMBLY
     case Runtime::kThrowWasmError:
     case Runtime::kThrowWasmStackOverflow:
+    case Runtime::kThrowWasmSuspendError:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return true;
     default:
@@ -186,61 +187,137 @@ bool Runtime::MayAllocate(FunctionId id) {
   switch (id) {
     case Runtime::kCompleteInobjectSlackTracking:
     case Runtime::kCompleteInobjectSlackTrackingForMap:
+    case Runtime::kGlobalPrint:
       return false;
     default:
       return true;
   }
 }
 
-bool Runtime::IsAllowListedForFuzzing(FunctionId id) {
+bool Runtime::IsEnabledForFuzzing(FunctionId id) {
   CHECK(v8_flags.fuzzing);
-  switch (id) {
-    // Runtime functions allowlisted for all fuzzers. Only add functions that
-    // help increase coverage.
-    case Runtime::kArrayBufferDetach:
-    case Runtime::kDeoptimizeFunction:
-    case Runtime::kDeoptimizeNow:
-    case Runtime::kDisableOptimizationFinalization:
-    case Runtime::kEnableCodeLoggingForTesting:
-    case Runtime::kFinalizeOptimization:
-    case Runtime::kGetUndetectable:
-    case Runtime::kNeverOptimizeFunction:
-    case Runtime::kOptimizeFunctionOnNextCall:
-    case Runtime::kOptimizeOsr:
-    case Runtime::kPrepareFunctionForOptimization:
-    case Runtime::kPretenureAllocationSite:
-    case Runtime::kSetAllocationTimeout:
-    case Runtime::kSimulateNewspaceFull:
-    case Runtime::kWaitForBackgroundOptimization:
-      return true;
-    // Runtime functions only permitted for non-differential fuzzers.
-    // This list may contain functions performing extra checks or returning
-    // different values in the context of different flags passed to V8.
-    case Runtime::kGetOptimizationStatus:
-    case Runtime::kHeapObjectVerify:
-    case Runtime::kIsBeingInterpreted:
-      return !v8_flags.allow_natives_for_differential_fuzzing;
-    case Runtime::kVerifyType:
-      return !v8_flags.allow_natives_for_differential_fuzzing &&
-             !v8_flags.concurrent_recompilation;
-    case Runtime::kBaselineOsr:
-    case Runtime::kCompileBaseline:
-      return ENABLE_SPARKPLUG;
-    default:
-      return false;
-  }
-}
 
-bool Runtime::SwitchToTheCentralStackForTarget(FunctionId id) {
-  // Runtime functions called from Wasm directly or
-  // from Wasm runtime stubs should execute on the central stack.
-  switch (id) {
+  // In general, all runtime functions meant for testing should also be exposed
+  // to the fuzzers. That way, the fuzzers are able to import and mutate
+  // regression tests that use those functions. Internal runtime functions
+  // (which are e.g. only called from other builtins, etc.) should not directly
+  // be exposed as they are not meant to be called directly from JavaScript.
+  // However, exceptions exist: some test functions cannot be used for certain
+  // types of fuzzing (e.g. differential fuzzing), or would cause false
+  // positive crashes and therefore should not be exposed to fuzzers at all.
+
+  // For differential fuzzing, only a handful of functions are allowed,
+  // everything else is disabled. Many runtime functions are unsuited for
+  // differential fuzzing as they for example expose internal engine state
+  // (e.g. functions such as %HasFastProperties). To avoid having to maintain a
+  // large denylist of such functions, we instead use an allowlist for
+  // differential fuzzing.
+  bool is_differential_fuzzing =
+      v8_flags.allow_natives_for_differential_fuzzing;
+  if (is_differential_fuzzing) {
+    switch (id) {
+      case Runtime::kArrayBufferDetach:
+      case Runtime::kDeoptimizeFunction:
+      case Runtime::kDeoptimizeNow:
+      case Runtime::kDisableOptimizationFinalization:
+      case Runtime::kEnableCodeLoggingForTesting:
+      case Runtime::kFinalizeOptimization:
+      case Runtime::kGetUndetectable:
+      case Runtime::kNeverOptimizeFunction:
+      case Runtime::kOptimizeFunctionOnNextCall:
+      case Runtime::kOptimizeMaglevOnNextCall:
+      case Runtime::kOptimizeOsr:
+      case Runtime::kPrepareFunctionForOptimization:
+      case Runtime::kPretenureAllocationSite:
+      case Runtime::kSetAllocationTimeout:
+      case Runtime::kSetForceSlowPath:
+      case Runtime::kSimulateNewspaceFull:
+      case Runtime::kWaitForBackgroundOptimization:
+      case Runtime::kSetBatterySaverMode:
+      case Runtime::kSetPriorityBestEffort:
+      case Runtime::kSetPriorityUserVisible:
+      case Runtime::kSetPriorityUserBlocking:
+      case Runtime::kIsEfficiencyModeEnabled:
+      case Runtime::kBaselineOsr:
+      case Runtime::kCompileBaseline:
+#if V8_ENABLE_WEBASSEMBLY && V8_WASM_RANDOM_FUZZERS
+      case Runtime::kWasmGenerateRandomModule:
+#endif  // V8_ENABLE_WEBASSEMBLY && V8_WASM_RANDOM_FUZZERS
 #if V8_ENABLE_WEBASSEMBLY
-#define WASM_CASE(Name, ...) case Runtime::k##Name:
-    FOR_EACH_INTRINSIC_WASM(WASM_CASE, WASM_CASE)
-#undef WASM_CASE
-    return true;
+      case Runtime::kWasmArray:
+      case Runtime::kWasmStruct:
+      case Runtime::kWasmTierUpFunction:
+      case Runtime::kWasmTriggerTierUpForTesting:
 #endif  // V8_ENABLE_WEBASSEMBLY
+        return true;
+
+      default:
+        return false;
+    }
+  }
+
+  // Runtime functions disabled for all/most types of fuzzing.
+  // Reasons for a function to be in this list include that it is not useful
+  // for fuzzing (e.g. %DebugPrint) or not fuzzing-safe and therefore would
+  // cause false-positive crashes (e.g. %AbortJS).
+  switch (id) {
+    case Runtime::kAbort:
+    case Runtime::kAbortCSADcheck:
+    case Runtime::kAbortJS:
+    case Runtime::kSystemBreak:
+    case Runtime::kBenchMaglev:
+    case Runtime::kBenchTurbofan:
+    case Runtime::kDebugPrint:
+    case Runtime::kDisassembleFunction:
+    case Runtime::kGetFunctionForCurrentFrame:
+    case Runtime::kGetCallable:
+    case Runtime::kGetAbstractModuleSource:
+    case Runtime::kTurbofanStaticAssert:
+    case Runtime::kClearFunctionFeedback:
+    case Runtime::kStringIsFlat:
+    case Runtime::kGetInitializerFunction:
+#ifdef V8_ENABLE_WEBASSEMBLY
+    case Runtime::kWasmTraceEnter:
+    case Runtime::kWasmTraceExit:
+    case Runtime::kWasmTraceMemory:
+    case Runtime::kCheckIsOnCentralStack:
+    case Runtime::kSetWasmInstantiateControls:
+    case Runtime::kWasmNull:
+    case Runtime::kFreezeWasmLazyCompilation:
+    case Runtime::kDeserializeWasmModule:
+#endif  // V8_ENABLE_WEBASSEMBLY
+    // TODO(353685107): investigate whether these should be exposed to fuzzers.
+    case Runtime::kConstructDouble:
+    case Runtime::kConstructConsString:
+    case Runtime::kConstructSlicedString:
+    case Runtime::kConstructInternalizedString:
+    case Runtime::kConstructThinString:
+    // TODO(353971258): investigate whether this should be exposed to fuzzers.
+    case Runtime::kSerializeDeserializeNow:
+    // TODO(353928347): investigate whether this should be exposed to fuzzers.
+    case Runtime::kCompleteInobjectSlackTracking:
+    // TODO(354005312): investigate whether this should be exposed to fuzzers.
+    case Runtime::kShareObject:
+    // TODO(354310130): investigate whether this should be exposed to fuzzers.
+    case Runtime::kForceFlush:
+      return false;
+
+    case Runtime::kLeakHole:
+      return v8_flags.hole_fuzzing;
+
+    default:
+      break;
+  }
+
+  // The default case: test functions are exposed, everything else is not.
+  switch (id) {
+#define F(name, nargs, ressize) case k##name:
+#define I(name, nargs, ressize) case kInline##name:
+    FOR_EACH_INTRINSIC_TEST(F, I)
+    IF_WASM(FOR_EACH_INTRINSIC_WASM_TEST, F, I)
+#undef I
+#undef F
+    return true;
     default:
       return false;
   }
@@ -302,6 +379,7 @@ std::ostream& operator<<(std::ostream& os, Runtime::FunctionId id) {
   return os << Runtime::FunctionForId(id)->name;
 }
 
+int g_num_isolates_for_testing = 1;
 
 }  // namespace internal
 }  // namespace v8

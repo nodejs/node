@@ -261,7 +261,7 @@ For example v18.15.0 supports only Node-API version 8. ABI stability was
 achieved because 8 was a strict superset of all previous versions.
 
 As of version 9, while Node-API versions continue to be versioned
-independently an add-on that ran with Node-API version 9 may need
+independently, an add-on that ran with Node-API version 9 may need
 code updates to run with Node-API version 10. ABI stability
 is maintained, however, because Node.js versions that support
 Node-API versions higher than 8 will support all versions
@@ -290,6 +290,10 @@ information is in the latest API documentation in:
   <tr>
     <th>Node-API version</th>
     <th scope="col">Supported In</th>
+  </tr>
+  <tr>
+    <th scope="row">10</th>
+    <td>v22.14.0+, 23.6.0+ and all later versions</td>
   </tr>
   <tr>
     <th scope="row">9</th>
@@ -442,7 +446,7 @@ NAPI_MODULE_INIT(/* napi_env env, napi_value exports */) {
 
 ## Environment life cycle APIs
 
-[Section 8.7][] of the [ECMAScript Language Specification][] defines the concept
+[Section Agents][] of the [ECMAScript Language Specification][] defines the concept
 of an "Agent" as a self-contained environment in which JavaScript code runs.
 Multiple such Agents may be started and terminated either concurrently or in
 sequence by the process.
@@ -477,7 +481,7 @@ napiVersion: 6
 -->
 
 ```c
-napi_status napi_set_instance_data(node_api_nogc_env env,
+napi_status napi_set_instance_data(node_api_basic_env env,
                                    void* data,
                                    napi_finalize finalize_cb,
                                    void* finalize_hint);
@@ -509,7 +513,7 @@ napiVersion: 6
 -->
 
 ```c
-napi_status napi_get_instance_data(node_api_nogc_env env,
+napi_status napi_get_instance_data(node_api_basic_env env,
                                    void** data);
 ```
 
@@ -611,16 +615,16 @@ when an instance of a native addon is unloaded. Notification of this event is
 delivered through the callbacks given to [`napi_add_env_cleanup_hook`][] and
 [`napi_set_instance_data`][].
 
-### `node_api_nogc_env`
+### `node_api_basic_env`
 
 > Stability: 1 - Experimental
 
 This variant of `napi_env` is passed to synchronous finalizers
-([`node_api_nogc_finalize`][]). There is a subset of Node-APIs which accept
-a parameter of type `node_api_nogc_env` as their first argument. These APIs do
+([`node_api_basic_finalize`][]). There is a subset of Node-APIs which accept
+a parameter of type `node_api_basic_env` as their first argument. These APIs do
 not access the state of the JavaScript engine and are thus safe to call from
 synchronous finalizers. Passing a parameter of type `napi_env` to these APIs is
-allowed, however, passing a parameter of type `node_api_nogc_env` to APIs that
+allowed, however, passing a parameter of type `node_api_basic_env` to APIs that
 access the JavaScript engine state is not allowed. Attempting to do so without
 a cast will produce a compiler warning or an error when add-ons are compiled
 with flags which cause them to emit warnings and/or errors when incorrect
@@ -791,10 +795,13 @@ typedef napi_value (*napi_callback)(napi_env, napi_callback_info);
 Unless for reasons discussed in [Object Lifetime Management][], creating a
 handle and/or callback scope inside a `napi_callback` is not necessary.
 
-#### `node_api_nogc_finalize`
+#### `node_api_basic_finalize`
 
 <!-- YAML
-added: v21.6.0
+added:
+  - v21.6.0
+  - v20.12.0
+  - v18.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -803,11 +810,11 @@ Function pointer type for add-on provided functions that allow the user to be
 notified when externally-owned data is ready to be cleaned up because the
 object it was associated with has been garbage-collected. The user must provide
 a function satisfying the following signature which would get called upon the
-object's collection. Currently, `node_api_nogc_finalize` can be used for
+object's collection. Currently, `node_api_basic_finalize` can be used for
 finding out when objects that have external data are collected.
 
 ```c
-typedef void (*node_api_nogc_finalize)(node_api_nogc_env env,
+typedef void (*node_api_basic_finalize)(node_api_basic_env env,
                                       void* finalize_data,
                                       void* finalize_hint);
 ```
@@ -817,7 +824,7 @@ handle and/or callback scope inside the function body is not necessary.
 
 Since these functions may be called while the JavaScript engine is in a state
 where it cannot execute JavaScript code, only Node-APIs which accept a
-`node_api_nogc_env` as their first parameter may be called.
+`node_api_basic_env` as their first parameter may be called.
 [`node_api_post_finalizer`][] can be used to schedule Node-API calls that
 require access to the JavaScript engine's state to run after the current
 garbage collection cycle has completed.
@@ -831,10 +838,10 @@ Change History:
 
 * experimental (`NAPI_EXPERIMENTAL`):
 
-  Only Node-API calls that accept a `node_api_nogc_env` as their first
+  Only Node-API calls that accept a `node_api_basic_env` as their first
   parameter may be called, otherwise the application will be terminated with an
   appropriate error message. This feature can be turned off by defining
-  `NODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT`.
+  `NODE_API_EXPERIMENTAL_BASIC_ENV_OPT_OUT`.
 
 #### `napi_finalize`
 
@@ -859,9 +866,9 @@ Change History:
 * experimental (`NAPI_EXPERIMENTAL` is defined):
 
   A function of this type may no longer be used as a finalizer, except with
-  [`node_api_post_finalizer`][]. [`node_api_nogc_finalize`][] must be used
+  [`node_api_post_finalizer`][]. [`node_api_basic_finalize`][] must be used
   instead. This feature can be turned off by defining
-  `NODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT`.
+  `NODE_API_EXPERIMENTAL_BASIC_ENV_OPT_OUT`.
 
 #### `napi_async_execute_callback`
 
@@ -1063,7 +1070,7 @@ napiVersion: 1
 
 ```c
 napi_status
-napi_get_last_error_info(node_api_nogc_env env,
+napi_get_last_error_info(node_api_basic_env env,
                          const napi_extended_error_info** result);
 ```
 
@@ -1745,7 +1752,7 @@ will not be freed. This can be avoided by calling
 
 **Change History:**
 
-* Experimental (`NAPI_EXPERIMENTAL` is defined):
+* Version 10 (`NAPI_VERSION` is defined as `10` or higher):
 
   References can be created for all value types. The new supported value
   types do not support weak reference semantic and the values of these types
@@ -1882,7 +1889,7 @@ napiVersion: 3
 -->
 
 ```c
-NODE_EXTERN napi_status napi_add_env_cleanup_hook(node_api_nogc_env env,
+NODE_EXTERN napi_status napi_add_env_cleanup_hook(node_api_basic_env env,
                                                   napi_cleanup_hook fun,
                                                   void* arg);
 ```
@@ -1912,7 +1919,7 @@ napiVersion: 3
 -->
 
 ```c
-NAPI_EXTERN napi_status napi_remove_env_cleanup_hook(node_api_nogc_env env,
+NAPI_EXTERN napi_status napi_remove_env_cleanup_hook(node_api_basic_env env,
                                                      void (*fun)(void* arg),
                                                      void* arg);
 ```
@@ -1941,7 +1948,7 @@ changes:
 
 ```c
 NAPI_EXTERN napi_status napi_add_async_cleanup_hook(
-    node_api_nogc_env env,
+    node_api_basic_env env,
     napi_async_cleanup_hook hook,
     void* arg,
     napi_async_cleanup_hook_handle* remove_handle);
@@ -2132,7 +2139,7 @@ API.
 ## Working with JavaScript values
 
 Node-API exposes a set of APIs to create all types of JavaScript values.
-Some of these types are documented under [Section 6][]
+Some of these types are documented under [Section language types][]
 of the [ECMAScript Language Specification][].
 
 Fundamentally, these APIs are used to do one of the following:
@@ -2215,9 +2222,9 @@ typedef enum {
 } napi_key_conversion;
 ```
 
-`napi_key_numbers_to_strings` will convert integer indices to
+`napi_key_numbers_to_strings` will convert integer indexes to
 strings. `napi_key_keep_numbers` will return numbers for integer
-indices.
+indexes.
 
 #### `napi_valuetype`
 
@@ -2238,7 +2245,7 @@ typedef enum {
 ```
 
 Describes the type of a `napi_value`. This generally corresponds to the types
-described in [Section 6.1][] of the ECMAScript Language Specification.
+described in [Section language types][] of the ECMAScript Language Specification.
 In addition to types in that section, `napi_valuetype` can also represent
 `Function`s and `Object`s with external data.
 
@@ -2265,7 +2272,7 @@ typedef enum {
 
 This represents the underlying binary scalar datatype of the `TypedArray`.
 Elements of this enum correspond to
-[Section 22.2][] of the [ECMAScript Language Specification][].
+[Section TypedArray objects][] of the [ECMAScript Language Specification][].
 
 ### Object creation functions
 
@@ -2287,7 +2294,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns a Node-API value corresponding to a JavaScript `Array` type.
 JavaScript arrays are described in
-[Section 22.1][] of the ECMAScript Language Specification.
+[Section Array objects][] of the ECMAScript Language Specification.
 
 #### `napi_create_array_with_length`
 
@@ -2317,7 +2324,7 @@ directly read and/or written via C, consider using
 [`napi_create_external_arraybuffer`][].
 
 JavaScript arrays are described in
-[Section 22.1][] of the ECMAScript Language Specification.
+[Section Array objects][] of the ECMAScript Language Specification.
 
 #### `napi_create_arraybuffer`
 
@@ -2352,7 +2359,7 @@ written to directly from native code. To write to this buffer from JavaScript,
 a typed array or `DataView` object would need to be created.
 
 JavaScript `ArrayBuffer` objects are described in
-[Section 24.1][] of the ECMAScript Language Specification.
+[Section ArrayBuffer objects][] of the ECMAScript Language Specification.
 
 #### `napi_create_buffer`
 
@@ -2435,7 +2442,7 @@ ECMAScript aligns with POSIX time specification.
 This API allocates a JavaScript `Date` object.
 
 JavaScript `Date` objects are described in
-[Section 20.3][] of the ECMAScript Language Specification.
+[Section Date objects][] of the ECMAScript Language Specification.
 
 #### `napi_create_external`
 
@@ -2524,7 +2531,7 @@ The API adds a `napi_finalize` callback which will be called when the JavaScript
 object just created has been garbage collected.
 
 JavaScript `ArrayBuffer`s are described in
-[Section 24.1][] of the ECMAScript Language Specification.
+[Section ArrayBuffer objects][] of the ECMAScript Language Specification.
 
 #### `napi_create_external_buffer`
 
@@ -2595,7 +2602,7 @@ Returns `napi_ok` if the API succeeded.
 This API allocates a default JavaScript `Object`.
 It is the equivalent of doing `new Object()` in JavaScript.
 
-The JavaScript `Object` type is described in [Section 6.1.7][] of the
+The JavaScript `Object` type is described in [Section object type][] of the
 ECMAScript Language Specification.
 
 #### `napi_create_symbol`
@@ -2620,7 +2627,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `symbol` value from a UTF8-encoded C string.
 
-The JavaScript `symbol` type is described in [Section 19.4][]
+The JavaScript `symbol` type is described in [Section symbol type][]
 of the ECMAScript Language Specification.
 
 #### `node_api_symbol_for`
@@ -2652,7 +2659,7 @@ This API searches in the global registry for an existing symbol with the given
 description. If the symbol already exists it will be returned, otherwise a new
 symbol will be created in the registry.
 
-The JavaScript `symbol` type is described in [Section 19.4][] of the ECMAScript
+The JavaScript `symbol` type is described in [Section symbol type][] of the ECMAScript
 Language Specification.
 
 #### `napi_create_typedarray`
@@ -2691,7 +2698,39 @@ be <= the size in bytes of the array passed in. If not, a `RangeError` exception
 is raised.
 
 JavaScript `TypedArray` objects are described in
-[Section 22.2][] of the ECMAScript Language Specification.
+[Section TypedArray objects][] of the ECMAScript Language Specification.
+
+#### `node_api_create_buffer_from_arraybuffer`
+
+<!-- YAML
+added:
+  - v23.0.0
+  - v22.12.0
+napiVersion: 10
+-->
+
+```c
+napi_status NAPI_CDECL node_api_create_buffer_from_arraybuffer(napi_env env,
+                                                              napi_value arraybuffer,
+                                                              size_t byte_offset,
+                                                              size_t byte_length,
+                                                              napi_value* result)
+```
+
+* **`[in] env`**: The environment that the API is invoked under.
+* **`[in] arraybuffer`**: The `ArrayBuffer` from which the buffer will be created.
+* **`[in] byte_offset`**: The byte offset within the `ArrayBuffer` from which to start creating the buffer.
+* **`[in] byte_length`**: The length in bytes of the buffer to be created from the `ArrayBuffer`.
+* **`[out] result`**: A `napi_value` representing the created JavaScript `Buffer` object.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates a JavaScript `Buffer` object from an existing `ArrayBuffer`.
+The `Buffer` object is a Node.js-specific class that provides a way to work with binary data directly in JavaScript.
+
+The byte range `[byte_offset, byte_offset + byte_length)`
+must be within the bounds of the `ArrayBuffer`. If `byte_offset + byte_length`
+exceeds the size of the `ArrayBuffer`, a `RangeError` exception is raised.
 
 #### `napi_create_dataview`
 
@@ -2726,7 +2765,7 @@ size in bytes of the array passed in. If not, a `RangeError` exception is
 raised.
 
 JavaScript `DataView` objects are described in
-[Section 24.3][] of the ECMAScript Language Specification.
+[Section DataView objects][] of the ECMAScript Language Specification.
 
 ### Functions to convert from C types to Node-API
 
@@ -2751,7 +2790,7 @@ This API is used to convert from the C `int32_t` type to the JavaScript
 `number` type.
 
 The JavaScript `number` type is described in
-[Section 6.1.6][] of the ECMAScript Language Specification.
+[Section number type][] of the ECMAScript Language Specification.
 
 #### `napi_create_uint32`
 
@@ -2774,7 +2813,7 @@ This API is used to convert from the C `uint32_t` type to the JavaScript
 `number` type.
 
 The JavaScript `number` type is described in
-[Section 6.1.6][] of the ECMAScript Language Specification.
+[Section number type][] of the ECMAScript Language Specification.
 
 #### `napi_create_int64`
 
@@ -2796,7 +2835,7 @@ Returns `napi_ok` if the API succeeded.
 This API is used to convert from the C `int64_t` type to the JavaScript
 `number` type.
 
-The JavaScript `number` type is described in [Section 6.1.6][]
+The JavaScript `number` type is described in [Section number type][]
 of the ECMAScript Language Specification. Note the complete range of `int64_t`
 cannot be represented with full precision in JavaScript. Integer values
 outside the range of [`Number.MIN_SAFE_INTEGER`][] `-(2**53 - 1)` -
@@ -2823,7 +2862,7 @@ This API is used to convert from the C `double` type to the JavaScript
 `number` type.
 
 The JavaScript `number` type is described in
-[Section 6.1.6][] of the ECMAScript Language Specification.
+[Section number type][] of the ECMAScript Language Specification.
 
 #### `napi_create_bigint_int64`
 
@@ -2923,7 +2962,7 @@ This API creates a JavaScript `string` value from an ISO-8859-1-encoded C
 string. The native string is copied.
 
 The JavaScript `string` type is described in
-[Section 6.1.4][] of the ECMAScript Language Specification.
+[Section string type][] of the ECMAScript Language Specification.
 
 #### `node_api_create_external_string_latin1`
 
@@ -2931,9 +2970,8 @@ The JavaScript `string` type is described in
 added:
  - v20.4.0
  - v18.18.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status
@@ -2975,7 +3013,7 @@ string. The native string may not be copied and must thus exist for the entire
 life cycle of the JavaScript value.
 
 The JavaScript `string` type is described in
-[Section 6.1.4][] of the ECMAScript Language Specification.
+[Section string type][] of the ECMAScript Language Specification.
 
 #### `napi_create_string_utf16`
 
@@ -3003,7 +3041,7 @@ This API creates a JavaScript `string` value from a UTF16-LE-encoded C string.
 The native string is copied.
 
 The JavaScript `string` type is described in
-[Section 6.1.4][] of the ECMAScript Language Specification.
+[Section string type][] of the ECMAScript Language Specification.
 
 #### `node_api_create_external_string_utf16`
 
@@ -3011,9 +3049,8 @@ The JavaScript `string` type is described in
 added:
  - v20.4.0
  - v18.18.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status
@@ -3055,7 +3092,7 @@ The native string may not be copied and must thus exist for the entire life
 cycle of the JavaScript value.
 
 The JavaScript `string` type is described in
-[Section 6.1.4][] of the ECMAScript Language Specification.
+[Section string type][] of the ECMAScript Language Specification.
 
 #### `napi_create_string_utf8`
 
@@ -3083,15 +3120,65 @@ This API creates a JavaScript `string` value from a UTF8-encoded C string.
 The native string is copied.
 
 The JavaScript `string` type is described in
-[Section 6.1.4][] of the ECMAScript Language Specification.
+[Section string type][] of the ECMAScript Language Specification.
+
+### Functions to create optimized property keys
+
+Many JavaScript engines including V8 use internalized strings as keys
+to set and get property values. They typically use a hash table to create
+and lookup such strings. While it adds some cost per key creation, it improves
+the performance after that by enabling comparison of string pointers instead
+of the whole strings.
+
+If a new JavaScript string is intended to be used as a property key, then for
+some JavaScript engines it will be more efficient to use the functions in this
+section. Otherwise, use the `napi_create_string_utf8` or
+`node_api_create_external_string_utf8` series functions as there may be
+additional overhead in creating/storing strings with the property key
+creation methods.
+
+#### `node_api_create_property_key_latin1`
+
+<!-- YAML
+added:
+  - v22.9.0
+  - v20.18.0
+napiVersion: 10
+-->
+
+```c
+napi_status NAPI_CDECL node_api_create_property_key_latin1(napi_env env,
+                                                           const char* str,
+                                                           size_t length,
+                                                           napi_value* result);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing an ISO-8859-1-encoded string.
+* `[in] length`: The length of the string in bytes, or `NAPI_AUTO_LENGTH` if it
+  is null-terminated.
+* `[out] result`: A `napi_value` representing an optimized JavaScript `string`
+  to be used as a property key for objects.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates an optimized JavaScript `string` value from
+an ISO-8859-1-encoded C string to be used as a property key for objects.
+The native string is copied. In contrast with `napi_create_string_latin1`,
+subsequent calls to this function with the same `str` pointer may benefit from a speedup
+in the creation of the requested `napi_value`, depending on the engine.
+
+The JavaScript `string` type is described in
+[Section string type][] of the ECMAScript Language Specification.
 
 #### `node_api_create_property_key_utf16`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
@@ -3113,21 +3200,40 @@ This API creates an optimized JavaScript `string` value from
 a UTF16-LE-encoded C string to be used as a property key for objects.
 The native string is copied.
 
-Many JavaScript engines including V8 use internalized strings as keys
-to set and get property values. They typically use a hash table to create
-and lookup such strings. While it adds some cost per key creation, it improves
-the performance after that by enabling comparison of string pointers instead
-of the whole strings.
+The JavaScript `string` type is described in
+[Section string type][] of the ECMAScript Language Specification.
 
-If a new JavaScript string is intended to be used as a property key, then for
-some JavaScript engines it will be more efficient to use
-the `node_api_create_property_key_utf16` function.
-Otherwise, use the `napi_create_string_utf16` or
-`node_api_create_external_string_utf16` functions as there may be additional
-overhead in creating/storing strings with this method.
+#### `node_api_create_property_key_utf8`
+
+<!-- YAML
+added:
+  - v22.9.0
+  - v20.18.0
+napiVersion: 10
+-->
+
+```c
+napi_status NAPI_CDECL node_api_create_property_key_utf8(napi_env env,
+                                                         const char* str,
+                                                         size_t length,
+                                                         napi_value* result);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing a UTF8-encoded string.
+* `[in] length`: The length of the string in two-byte code units, or
+  `NAPI_AUTO_LENGTH` if it is null-terminated.
+* `[out] result`: A `napi_value` representing an optimized JavaScript `string`
+  to be used as a property key for objects.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates an optimized JavaScript `string` value from
+a UTF8-encoded C string to be used as a property key for objects.
+The native string is copied.
 
 The JavaScript `string` type is described in
-[Section 6.1.4][] of the ECMAScript Language Specification.
+[Section string type][] of the ECMAScript Language Specification.
 
 ### Functions to convert from Node-API to C types
 
@@ -3153,7 +3259,7 @@ Returns `napi_ok` if the API succeeded.
 
 This API returns the length of an array.
 
-`Array` length is described in [Section 22.1.4.1][] of the ECMAScript Language
+`Array` length is described in [Section Array instance length][] of the ECMAScript Language
 Specification.
 
 #### `napi_get_arraybuffer_info`
@@ -3583,6 +3689,8 @@ napi_status napi_get_value_string_latin1(napi_env env,
   is returned in `result`.
 * `[in] bufsize`: Size of the destination buffer. When this value is
   insufficient, the returned string is truncated and null-terminated.
+  If this value is zero, then the string is not returned and no changes are done
+  to the buffer.
 * `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
@@ -3614,6 +3722,8 @@ napi_status napi_get_value_string_utf8(napi_env env,
   returned in `result`.
 * `[in] bufsize`: Size of the destination buffer. When this value is
   insufficient, the returned string is truncated and null-terminated.
+  If this value is zero, then the string is not returned and no changes are done
+  to the buffer.
 * `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
@@ -3644,6 +3754,8 @@ napi_status napi_get_value_string_utf16(napi_env env,
   null terminator is returned.
 * `[in] bufsize`: Size of the destination buffer. When this value is
   insufficient, the returned string is truncated and null-terminated.
+  If this value is zero, then the string is not returned and no changes are done
+  to the buffer.
 * `[out] result`: Number of 2-byte code units copied into the buffer, excluding
   the null terminator.
 
@@ -3756,8 +3868,7 @@ This API returns the Undefined object.
 ## Working with JavaScript values and abstract operations
 
 Node-API exposes a set of APIs to perform some abstract operations on JavaScript
-values. Some of these operations are documented under [Section 7][]
-of the [ECMAScript Language Specification][].
+values.
 
 These APIs support doing one of the following:
 
@@ -3786,7 +3897,7 @@ napi_status napi_coerce_to_bool(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToBoolean()` as defined in
-[Section 7.1.2][] of the ECMAScript Language Specification.
+[Section ToBoolean][] of the ECMAScript Language Specification.
 
 ### `napi_coerce_to_number`
 
@@ -3808,7 +3919,7 @@ napi_status napi_coerce_to_number(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToNumber()` as defined in
-[Section 7.1.3][] of the ECMAScript Language Specification.
+[Section ToNumber][] of the ECMAScript Language Specification.
 This function potentially runs JS code if the passed-in value is an
 object.
 
@@ -3832,7 +3943,7 @@ napi_status napi_coerce_to_object(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToObject()` as defined in
-[Section 7.1.13][] of the ECMAScript Language Specification.
+[Section ToObject][] of the ECMAScript Language Specification.
 
 ### `napi_coerce_to_string`
 
@@ -3854,7 +3965,7 @@ napi_status napi_coerce_to_string(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API implements the abstract operation `ToString()` as defined in
-[Section 7.1.13][] of the ECMAScript Language Specification.
+[Section ToString][] of the ECMAScript Language Specification.
 This function potentially runs JS code if the passed-in value is an
 object.
 
@@ -3879,7 +3990,7 @@ Returns `napi_ok` if the API succeeded.
   `value` is not an External value.
 
 This API represents behavior similar to invoking the `typeof` Operator on
-the object as defined in [Section 12.5.5][] of the ECMAScript Language
+the object as defined in [Section typeof operator][] of the ECMAScript Language
 Specification. However, there are some differences:
 
 1. It has support for detecting an External value.
@@ -3912,7 +4023,7 @@ napi_status napi_instanceof(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API represents invoking the `instanceof` Operator on the object as
-defined in [Section 12.10.4][] of the ECMAScript Language Specification.
+defined in [Section instanceof operator][] of the ECMAScript Language Specification.
 
 ### `napi_is_array`
 
@@ -3932,7 +4043,7 @@ napi_status napi_is_array(napi_env env, napi_value value, bool* result)
 Returns `napi_ok` if the API succeeded.
 
 This API represents invoking the `IsArray` operation on the object
-as defined in [Section 7.2.2][] of the ECMAScript Language Specification.
+as defined in [Section IsArray][] of the ECMAScript Language Specification.
 
 ### `napi_is_arraybuffer`
 
@@ -4076,7 +4187,7 @@ napi_status napi_strict_equals(napi_env env,
 Returns `napi_ok` if the API succeeded.
 
 This API represents the invocation of the Strict Equality algorithm as
-defined in [Section 7.2.14][] of the ECMAScript Language Specification.
+defined in [Section IsStrctEqual][] of the ECMAScript Language Specification.
 
 ### `napi_detach_arraybuffer`
 
@@ -4105,7 +4216,7 @@ detachable. For example, V8 requires that the `ArrayBuffer` be external,
 that is, created with [`napi_create_external_arraybuffer`][].
 
 This API represents the invocation of the `ArrayBuffer` detach operation as
-defined in [Section 24.1.1.3][] of the ECMAScript Language Specification.
+defined in [Section detachArrayBuffer][] of the ECMAScript Language Specification.
 
 ### `napi_is_detached_arraybuffer`
 
@@ -4132,14 +4243,13 @@ Returns `napi_ok` if the API succeeded.
 The `ArrayBuffer` is considered detached if its internal data is `null`.
 
 This API represents the invocation of the `ArrayBuffer` `IsDetachedBuffer`
-operation as defined in [Section 24.1.1.2][] of the ECMAScript Language
+operation as defined in [Section isDetachedBuffer][] of the ECMAScript Language
 Specification.
 
 ## Working with JavaScript properties
 
 Node-API exposes a set of APIs to get and set properties on JavaScript
-objects. Some of these types are documented under [Section 7][] of the
-[ECMAScript Language Specification][].
+objects.
 
 Properties in JavaScript are represented as a tuple of a key and a value.
 Fundamentally, all property keys in Node-API can be represented in one of the
@@ -4309,7 +4419,7 @@ typedef enum {
 
 `napi_property_attributes` are flags used to control the behavior of properties
 set on a JavaScript object. Other than `napi_static` they correspond to the
-attributes listed in [Section 6.1.7.1][]
+attributes listed in [Section property attributes][]
 of the [ECMAScript Language Specification][].
 They can be one or more of the following bitflags:
 
@@ -4318,7 +4428,7 @@ They can be one or more of the following bitflags:
 * `napi_writable`: The property is writable.
 * `napi_enumerable`: The property is enumerable.
 * `napi_configurable`: The property is configurable as defined in
-  [Section 6.1.7.1][] of the [ECMAScript Language Specification][].
+  [Section property attributes][] of the [ECMAScript Language Specification][].
 * `napi_static`: The property will be defined as a static property on a class as
   opposed to an instance property, which is the default. This is used only by
   [`napi_define_class`][]. It is ignored by `napi_define_properties`.
@@ -4744,7 +4854,7 @@ This method allows the efficient definition of multiple properties on a given
 object. The properties are defined using property descriptors (see
 [`napi_property_descriptor`][]). Given an array of such property descriptors,
 this API will set the properties on the object one at a time, as defined by
-`DefineOwnProperty()` (described in [Section 9.1.6][] of the ECMA-262
+`DefineOwnProperty()` (described in [Section DefineOwnProperty][] of the ECMA-262
 specification).
 
 #### `napi_object_freeze`
@@ -4972,7 +5082,7 @@ be associated with the resulting JavaScript function (which is returned in the
 `result` parameter) and freed whenever the function is garbage-collected by
 passing both the JavaScript function and the data to [`napi_add_finalizer`][].
 
-JavaScript `Function`s are described in [Section 19.2][] of the ECMAScript
+JavaScript `Function`s are described in [Section Function objects][] of the ECMAScript
 Language Specification.
 
 ### `napi_get_cb_info`
@@ -5528,7 +5638,7 @@ napiVersion: 5
 napi_status napi_add_finalizer(napi_env env,
                                napi_value js_object,
                                void* finalize_data,
-                               node_api_nogc_finalize finalize_cb,
+                               node_api_basic_finalize finalize_cb,
                                void* finalize_hint,
                                napi_ref* result);
 ```
@@ -5569,7 +5679,7 @@ added:
 > Stability: 1 - Experimental
 
 ```c
-napi_status node_api_post_finalizer(node_api_nogc_env env,
+napi_status node_api_post_finalizer(node_api_basic_env env,
                                     napi_finalize finalize_cb,
                                     void* finalize_data,
                                     void* finalize_hint);
@@ -5639,7 +5749,7 @@ Once created the async worker can be queued
 for execution using the [`napi_queue_async_work`][] function:
 
 ```c
-napi_status napi_queue_async_work(node_api_nogc_env env,
+napi_status napi_queue_async_work(node_api_basic_env env,
                                   napi_async_work work);
 ```
 
@@ -5731,7 +5841,7 @@ napiVersion: 1
 -->
 
 ```c
-napi_status napi_queue_async_work(node_api_nogc_env env,
+napi_status napi_queue_async_work(node_api_basic_env env,
                                   napi_async_work work);
 ```
 
@@ -5752,7 +5862,7 @@ napiVersion: 1
 -->
 
 ```c
-napi_status napi_cancel_async_work(node_api_nogc_env env,
+napi_status napi_cancel_async_work(node_api_basic_env env,
                                    napi_async_work work);
 ```
 
@@ -5956,7 +6066,7 @@ typedef struct {
   const char* release;
 } napi_node_version;
 
-napi_status napi_get_node_version(node_api_nogc_env env,
+napi_status napi_get_node_version(node_api_basic_env env,
                                   const napi_node_version** version);
 ```
 
@@ -5979,7 +6089,7 @@ napiVersion: 1
 -->
 
 ```c
-napi_status napi_get_version(node_api_nogc_env env,
+napi_status napi_get_version(node_api_basic_env env,
                              uint32_t* result);
 ```
 
@@ -6012,7 +6122,7 @@ napiVersion: 1
 -->
 
 ```c
-NAPI_EXTERN napi_status napi_adjust_external_memory(node_api_nogc_env env,
+NAPI_EXTERN napi_status napi_adjust_external_memory(node_api_basic_env env,
                                                     int64_t change_in_bytes,
                                                     int64_t* result);
 ```
@@ -6020,20 +6130,29 @@ NAPI_EXTERN napi_status napi_adjust_external_memory(node_api_nogc_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] change_in_bytes`: The change in externally allocated memory that is kept
   alive by JavaScript objects.
-* `[out] result`: The adjusted value
+* `[out] result`: The adjusted value. This value should reflect the
+  total amount of external memory with the given `change_in_bytes` included.
+  The absolute value of the returned value should not  be depended on.
+  For example, implementations may use a single counter for all addons, or a
+  counter for each addon.
 
 Returns `napi_ok` if the API succeeded.
 
-This function gives V8 an indication of the amount of externally allocated
-memory that is kept alive by JavaScript objects (i.e. a JavaScript object
-that points to its own memory allocated by a native addon). Registering
-externally allocated memory will trigger global garbage collections more
+This function gives the runtime an indication of the amount of externally
+allocated memory that is kept alive by JavaScript objects
+(i.e. a JavaScript object that points to its own memory allocated by a
+native addon). Registering externally allocated memory may, but is not
+guaranteed to, trigger global garbage collections more
 often than it would otherwise.
+
+This function is expected to be called in a manner such that an
+addon does not decrease the external memory more than it has
+increased the external memory.
 
 ## Promises
 
 Node-API provides facilities for creating `Promise` objects as described in
-[Section 25.4][] of the ECMA specification. It implements promises as a pair of
+[Section Promise objects][] of the ECMA specification. It implements promises as a pair of
 objects. When a promise is created by `napi_create_promise()`, a "deferred"
 object is created and returned alongside the `Promise`. The deferred object is
 bound to the created `Promise` and is the only means to resolve or reject the
@@ -6229,12 +6348,18 @@ napiVersion: 2
 -->
 
 ```c
-NAPI_EXTERN napi_status napi_get_uv_event_loop(node_api_nogc_env env,
+NAPI_EXTERN napi_status napi_get_uv_event_loop(node_api_basic_env env,
                                                struct uv_loop_s** loop);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
 * `[out] loop`: The current libuv loop instance.
+
+Note: While libuv has been relatively stable over time, it does
+not provide an ABI stability guarantee. Use of this function should be avoided.
+Its use may result in an addon that does not work across Node.js versions.
+[asynchronous-thread-safe-function-calls](https://nodejs.org/docs/latest/api/n-api.html#asynchronous-thread-safe-function-calls)
+are an alternative for many use cases.
 
 ## Asynchronous thread-safe function calls
 
@@ -6419,7 +6544,7 @@ napi_create_threadsafe_function(napi_env env,
 
 **Change History:**
 
-* Experimental (`NAPI_EXPERIMENTAL` is defined):
+* Version 10 (`NAPI_VERSION` is defined as `10` or higher):
 
   Uncaught exceptions thrown in `call_js_cb` are handled with the
   [`'uncaughtException'`][] event, instead of being ignored.
@@ -6543,7 +6668,7 @@ napiVersion: 4
 
 ```c
 NAPI_EXTERN napi_status
-napi_ref_threadsafe_function(node_api_nogc_env env, napi_threadsafe_function func);
+napi_ref_threadsafe_function(node_api_basic_env env, napi_threadsafe_function func);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
@@ -6569,7 +6694,7 @@ napiVersion: 4
 
 ```c
 NAPI_EXTERN napi_status
-napi_unref_threadsafe_function(node_api_nogc_env env, napi_threadsafe_function func);
+napi_unref_threadsafe_function(node_api_basic_env env, napi_threadsafe_function func);
 ```
 
 * `[in] env`: The environment that the API is invoked under.
@@ -6595,7 +6720,7 @@ napiVersion: 9
 
 ```c
 NAPI_EXTERN napi_status
-node_api_get_module_file_name(node_api_nogc_env env, const char** result);
+node_api_get_module_file_name(node_api_basic_env env, const char** result);
 
 ```
 
@@ -6613,7 +6738,7 @@ the add-on's file name during loading.
 [C++ Addons]: addons.md
 [CMake]: https://cmake.org
 [CMake.js]: https://github.com/cmake-js/cmake-js
-[ECMAScript Language Specification]: https://tc39.github.io/ecma262/
+[ECMAScript Language Specification]: https://tc39.es/ecma262/
 [Error handling]: #error-handling
 [GCC]: https://gcc.gnu.org
 [GYP]: https://gyp.gsrc.io
@@ -6623,43 +6748,42 @@ the add-on's file name during loading.
 [Node-API Media]: https://github.com/nodejs/abi-stable-node/blob/HEAD/node-api-media.md
 [Object lifetime management]: #object-lifetime-management
 [Object wrap]: #object-wrap
-[Section 12.10.4]: https://tc39.github.io/ecma262/#sec-instanceofoperator
-[Section 12.5.5]: https://tc39.github.io/ecma262/#sec-typeof-operator
-[Section 19.2]: https://tc39.github.io/ecma262/#sec-function-objects
-[Section 19.4]: https://tc39.github.io/ecma262/#sec-symbol-objects
-[Section 20.3]: https://tc39.github.io/ecma262/#sec-date-objects
-[Section 22.1]: https://tc39.github.io/ecma262/#sec-array-objects
-[Section 22.1.4.1]: https://tc39.github.io/ecma262/#sec-properties-of-array-instances-length
-[Section 22.2]: https://tc39.github.io/ecma262/#sec-typedarray-objects
-[Section 24.1]: https://tc39.github.io/ecma262/#sec-arraybuffer-objects
-[Section 24.1.1.2]: https://tc39.es/ecma262/#sec-isdetachedbuffer
-[Section 24.1.1.3]: https://tc39.es/ecma262/#sec-detacharraybuffer
-[Section 24.3]: https://tc39.github.io/ecma262/#sec-dataview-objects
-[Section 25.4]: https://tc39.github.io/ecma262/#sec-promise-objects
-[Section 6]: https://tc39.github.io/ecma262/#sec-ecmascript-data-types-and-values
-[Section 6.1]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types
-[Section 6.1.4]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-string-type
-[Section 6.1.6]: https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
-[Section 6.1.7]: https://tc39.github.io/ecma262/#sec-object-type
-[Section 6.1.7.1]: https://tc39.github.io/ecma262/#table-2
-[Section 7]: https://tc39.github.io/ecma262/#sec-abstract-operations
-[Section 7.1.13]: https://tc39.github.io/ecma262/#sec-toobject
-[Section 7.1.2]: https://tc39.github.io/ecma262/#sec-toboolean
-[Section 7.1.3]: https://tc39.github.io/ecma262/#sec-tonumber
-[Section 7.2.14]: https://tc39.github.io/ecma262/#sec-strict-equality-comparison
-[Section 7.2.2]: https://tc39.github.io/ecma262/#sec-isarray
-[Section 8.7]: https://tc39.es/ecma262/#sec-agents
-[Section 9.1.6]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
+[Section Agents]: https://tc39.es/ecma262/#sec-agents
+[Section Array instance length]: https://tc39.es/ecma262/#sec-properties-of-array-instances-length
+[Section Array objects]: https://tc39.es/ecma262/#sec-array-objects
+[Section ArrayBuffer objects]: https://tc39.es/ecma262/#sec-arraybuffer-objects
+[Section DataView objects]: https://tc39.es/ecma262/#sec-dataview-objects
+[Section Date objects]: https://tc39.es/ecma262/#sec-date-objects
+[Section DefineOwnProperty]: https://tc39.es/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots-defineownproperty-p-desc
+[Section Function objects]: https://tc39.es/ecma262/#sec-function-objects
+[Section IsArray]: https://tc39.es/ecma262/#sec-isarray
+[Section IsStrctEqual]: https://tc39.es/ecma262/#sec-strict-equality-comparison
+[Section Promise objects]: https://tc39.es/ecma262/#sec-promise-objects
+[Section ToBoolean]: https://tc39.es/ecma262/#sec-toboolean
+[Section ToNumber]: https://tc39.es/ecma262/#sec-tonumber
+[Section ToObject]: https://tc39.es/ecma262/#sec-toobject
+[Section ToString]: https://tc39.es/ecma262/#sec-tostring
+[Section TypedArray objects]: https://tc39.es/ecma262/#sec-typedarray-objects
+[Section detachArrayBuffer]: https://tc39.es/ecma262/#sec-detacharraybuffer
+[Section instanceof operator]: https://tc39.es/ecma262/#sec-instanceofoperator
+[Section isDetachedBuffer]: https://tc39.es/ecma262/#sec-isdetachedbuffer
+[Section language types]: https://tc39.es/ecma262/#sec-ecmascript-data-types-and-values
+[Section number type]: https://tc39.es/ecma262/#sec-ecmascript-language-types-number-type
+[Section object type]: https://tc39.es/ecma262/#sec-object-type
+[Section property attributes]: https://tc39.es/ecma262/#sec-property-attributes
+[Section string type]: https://tc39.es/ecma262/#sec-ecmascript-language-types-string-type
+[Section symbol type]: https://tc39.es/ecma262/#sec-ecmascript-language-types-symbol-type
+[Section typeof operator]: https://tc39.es/ecma262/#sec-typeof-operator
 [Travis CI]: https://travis-ci.org
 [Visual Studio]: https://visualstudio.microsoft.com
 [Working with JavaScript properties]: #working-with-javascript-properties
 [Xcode]: https://developer.apple.com/xcode/
 [`'uncaughtException'`]: process.md#event-uncaughtexception
-[`Number.MAX_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.max_safe_integer
-[`Number.MIN_SAFE_INTEGER`]: https://tc39.github.io/ecma262/#sec-number.min_safe_integer
+[`Number.MAX_SAFE_INTEGER`]: https://tc39.es/ecma262/#sec-number.max_safe_integer
+[`Number.MIN_SAFE_INTEGER`]: https://tc39.es/ecma262/#sec-number.min_safe_integer
 [`Worker`]: worker_threads.md#class-worker
 [`async_hooks.executionAsyncResource()`]: async_hooks.md#async_hooksexecutionasyncresource
-[`build_with_cmake`]: https://github.com/nodejs/node-addon-examples/tree/main/build_with_cmake
+[`build_with_cmake`]: https://github.com/nodejs/node-addon-examples/tree/main/src/8-tooling/build_with_cmake
 [`global`]: globals.md#global
 [`init` hooks]: async_hooks.md#initasyncid-type-triggerasyncid-resource
 [`napi_add_async_cleanup_hook`]: #napi_add_async_cleanup_hook
@@ -6720,10 +6844,10 @@ the add-on's file name during loading.
 [`napi_wrap`]: #napi_wrap
 [`node-addon-api`]: https://github.com/nodejs/node-addon-api
 [`node_api.h`]: https://github.com/nodejs/node/blob/HEAD/src/node_api.h
+[`node_api_basic_finalize`]: #node_api_basic_finalize
 [`node_api_create_external_string_latin1`]: #node_api_create_external_string_latin1
 [`node_api_create_external_string_utf16`]: #node_api_create_external_string_utf16
 [`node_api_create_syntax_error`]: #node_api_create_syntax_error
-[`node_api_nogc_finalize`]: #node_api_nogc_finalize
 [`node_api_post_finalizer`]: #node_api_post_finalizer
 [`node_api_throw_syntax_error`]: #node_api_throw_syntax_error
 [`process.release`]: process.md#processrelease

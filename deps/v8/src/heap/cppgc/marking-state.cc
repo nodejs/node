@@ -41,6 +41,10 @@ BasicMarkingState::BasicMarkingState(HeapBase& heap,
   }
 }
 
+BasicMarkingState::~BasicMarkingState() {
+  DCHECK_EQ(last_marked_bytes_, marked_bytes_);
+}
+
 void BasicMarkingState::Publish() {
   MarkingStateBase::Publish();
   previously_not_fully_constructed_worklist_.Publish();
@@ -52,6 +56,10 @@ void BasicMarkingState::Publish() {
   discovered_ephemeron_pairs_worklist_.Publish();
   ephemeron_pairs_for_processing_worklist_.Publish();
   if (movable_slots_worklist_) movable_slots_worklist_->Publish();
+
+  for (const auto& entry : marked_bytes_map_.Take()) {
+    entry.first->IncrementMarkedBytes(static_cast<size_t>(entry.second));
+  }
 }
 
 void MutatorMarkingState::FlushNotFullyConstructedObjects() {

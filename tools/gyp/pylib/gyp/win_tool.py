@@ -13,9 +13,9 @@ These functions are executed via gyp-win-tool when using the ninja generator.
 import os
 import re
 import shutil
-import subprocess
 import stat
 import string
+import subprocess
 import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,8 +27,7 @@ _LINK_EXE_OUT_ARG = re.compile("/OUT:(?P<out>.+)$", re.IGNORECASE)
 
 def main(args):
     executor = WinTool()
-    exit_code = executor.Dispatch(args)
-    if exit_code is not None:
+    if (exit_code := executor.Dispatch(args)) is not None:
         sys.exit(exit_code)
 
 

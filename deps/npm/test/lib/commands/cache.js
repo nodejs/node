@@ -3,13 +3,28 @@ const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 const MockRegistry = require('@npmcli/mock-registry')
 
 const cacache = require('cacache')
-const fs = require('fs')
-const path = require('path')
+const fs = require('node:fs')
+const path = require('node:path')
+const { cleanCwd } = require('../../fixtures/clean-snapshot.js')
 
 const pkg = 'test-package'
 
+const createNpxCacheEntry = (npxCacheDir, hash, pkgJson, shrinkwrapJson) => {
+  fs.mkdirSync(path.join(npxCacheDir, hash))
+  fs.writeFileSync(
+    path.join(npxCacheDir, hash, 'package.json'),
+    JSON.stringify(pkgJson)
+  )
+  if (shrinkwrapJson) {
+    fs.writeFileSync(
+      path.join(npxCacheDir, hash, 'npm-shrinkwrap.json'),
+      JSON.stringify(shrinkwrapJson)
+    )
+  }
+}
+
 t.cleanSnapshot = str => {
-  return str
+  return cleanCwd(str)
     .replace(/Finished in [0-9.s]+/g, 'Finished in xxxs')
     .replace(/Cache verified and compressed (.*)/, 'Cache verified and compressed ({PATH})')
 }
@@ -71,12 +86,14 @@ t.test('cache add single pkg', async t => {
     registry: npm.config.get('registry'),
   })
   const manifest = registry.manifest({ name: pkg })
-  await registry.package({ manifest, tarballs: { '1.0.0': path.join(npm.prefix, 'package') } })
+  await registry.package({
+    manifest,
+    times: 2,
+    tarballs: { '1.0.0': path.join(npm.prefix, 'package') },
+  })
   await npm.exec('cache', ['add', pkg])
   t.equal(joinedOutput(), '')
-  // eslint-disable-next-line max-len
   t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz'))
-  // eslint-disable-next-line max-len
   t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package'))
 })
 
@@ -99,26 +116,25 @@ t.test('cache add multiple pkgs', async t => {
   })
   const manifest = registry.manifest({ name: pkg })
   const manifest2 = registry.manifest({ name: pkg2 })
-  await registry.package({ manifest, tarballs: { '1.0.0': path.join(npm.prefix, 'package') } })
   await registry.package({
-    manifest: manifest2, tarballs: { '1.0.0': path.join(npm.prefix, 'package') },
+    manifest,
+    times: 2,
+    tarballs: { '1.0.0': path.join(npm.prefix, 'package') },
+  })
+  await registry.package({
+    manifest: manifest2, times: 2, tarballs: { '1.0.0': path.join(npm.prefix, 'package') },
   })
   await npm.exec('cache', ['add', pkg, pkg2])
   t.equal(joinedOutput(), '')
-  // eslint-disable-next-line max-len
   t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz'))
-  // eslint-disable-next-line max-len
   t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package'))
-  // eslint-disable-next-line max-len
   t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package-two/-/test-package-two-1.0.0.tgz'))
-  // eslint-disable-next-line max-len
   t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package-two'))
 })
 
 t.test('cache ls', async t => {
   const keys = [
     'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package',
-    // eslint-disable-next-line max-len
     'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz',
   ]
   const { npm, joinedOutput } = await loadMockNpm(t)
@@ -196,10 +212,8 @@ t.test('cache ls tagged', async t => {
 
 t.test('cache ls scoped and scoped slash', async t => {
   const keys = [
-    // eslint-disable-next-line max-len
     'make-fetch-happen:request-cache:https://registry.npmjs.org/@fritzy/staydown/-/@fritzy/staydown-3.1.1.tgz',
     'make-fetch-happen:request-cache:https://registry.npmjs.org/@fritzy%2fstaydown',
-    // eslint-disable-next-line max-len
     'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar/npm-expansion/-/@gar/npm-expansion-2.1.0.tgz',
     'make-fetch-happen:request-cache:https://registry.npmjs.org/@gar%2fnpm-expansion',
   ]
@@ -240,16 +254,11 @@ t.test('cache ls missing packument version not an object', async t => {
 t.test('cache rm', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t)
   const cache = path.join(npm.cache, '_cacache')
-  // eslint-disable-next-line max-len
   await cacache.put(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package', '{}')
-  // eslint-disable-next-line max-len
   await cacache.put(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz', 'test data')
-  // eslint-disable-next-line max-len
   await npm.exec('cache', ['rm', 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz'])
   t.matchSnapshot(joinedOutput(), 'logs deleting single entry')
-  // eslint-disable-next-line max-len
   t.resolves(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package'))
-  // eslint-disable-next-line max-len
   t.rejects(cacache.get(cache, 'make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz'))
 })
 
@@ -315,4 +324,394 @@ t.test('cache completion', async t => {
     testComp(['npm', 'cache', 'clean'], []),
     testComp(['npm', 'cache', 'verify'], []),
   ])
+})
+
+t.test('cache npx ls: empty cache', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  await npm.exec('cache', ['npx', 'ls'])
+  t.matchSnapshot(joinedOutput(), 'logs message for empty npx cache')
+})
+
+t.test('cache npx ls: some entries', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  // Make two fake entries: one valid, one invalid
+  const hash1 = 'abc123'
+  const hash2 = 'z9y8x7'
+  fs.mkdirSync(path.join(npxCacheDir, hash1))
+  fs.writeFileSync(
+    path.join(npxCacheDir, hash1, 'package.json'),
+    JSON.stringify({
+      name: 'fake-npx-package',
+      version: '1.0.0',
+      _npx: { packages: ['fake-npx-package@1.0.0'] },
+    })
+  )
+  // invalid (missing or broken package.json) directory
+  fs.mkdirSync(path.join(npxCacheDir, hash2))
+
+  await npm.exec('cache', ['npx', 'ls'])
+  t.matchSnapshot(joinedOutput(), 'lists one valid and one invalid entry')
+})
+
+t.test('cache npx info: valid and invalid entry', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  const goodHash = 'deadbeef'
+  fs.mkdirSync(path.join(npxCacheDir, goodHash))
+  fs.writeFileSync(
+    path.join(npxCacheDir, goodHash, 'package.json'),
+    JSON.stringify({
+      name: 'good-npx-package',
+      version: '2.0.0',
+      dependencies: {
+        rimraf: '^3.0.0',
+      },
+      _npx: { packages: ['good-npx-package@2.0.0'] },
+    })
+  )
+
+  const badHash = 'badc0de'
+  fs.mkdirSync(path.join(npxCacheDir, badHash))
+
+  await npm.exec('cache', ['npx', 'info', goodHash])
+  t.matchSnapshot(joinedOutput(), 'shows valid package info')
+
+  await npm.exec('cache', ['npx', 'info', badHash])
+  t.matchSnapshot(joinedOutput(), 'shows invalid package info')
+})
+
+t.test('cache npx rm: remove single entry', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  const removableHash = '123removeme'
+  fs.mkdirSync(path.join(npxCacheDir, removableHash))
+  fs.writeFileSync(
+    path.join(npxCacheDir, removableHash, 'package.json'),
+    JSON.stringify({ name: 'removable-package', _npx: { packages: ['removable-package@1.0.0'] } })
+  )
+
+  npm.config.set('dry-run', true)
+  await npm.exec('cache', ['npx', 'rm', removableHash])
+  t.ok(fs.existsSync(path.join(npxCacheDir, removableHash)), 'entry folder remains')
+  npm.config.set('dry-run', false)
+
+  await npm.exec('cache', ['npx', 'rm', removableHash])
+  t.matchSnapshot(joinedOutput(), 'logs removing single npx cache entry')
+  t.notOk(fs.existsSync(path.join(npxCacheDir, removableHash)), 'entry folder removed')
+})
+
+t.test('cache npx rm: removing all without --force fails', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  const testHash = 'remove-all-no-force'
+  fs.mkdirSync(path.join(npxCacheDir, testHash))
+  fs.writeFileSync(
+    path.join(npxCacheDir, testHash, 'package.json'),
+    JSON.stringify({ name: 'no-force-pkg', _npx: { packages: ['no-force-pkg@1.0.0'] } })
+  )
+
+  await t.rejects(
+    npm.exec('cache', ['npx', 'rm']),
+    /Please use --force to remove entire npx cache/,
+    'fails without --force'
+  )
+  t.matchSnapshot(joinedOutput(), 'logs usage error when removing all without --force')
+
+  t.ok(fs.existsSync(path.join(npxCacheDir, testHash)), 'folder still exists')
+})
+
+t.test('cache npx rm: removing all with --force works', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: { force: true },
+  })
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  const testHash = 'remove-all-yes-force'
+  fs.mkdirSync(path.join(npxCacheDir, testHash))
+  fs.writeFileSync(
+    path.join(npxCacheDir, testHash, 'package.json'),
+    JSON.stringify({ name: 'yes-force-pkg', _npx: { packages: ['yes-force-pkg@1.0.0'] } })
+  )
+
+  npm.config.set('dry-run', true)
+  await npm.exec('cache', ['npx', 'rm'])
+  t.ok(fs.existsSync(npxCacheDir), 'npx cache directory remains')
+  npm.config.set('dry-run', false)
+
+  await npm.exec('cache', ['npx', 'rm'])
+
+  t.matchSnapshot(joinedOutput(), 'logs removing everything')
+  t.notOk(fs.existsSync(npxCacheDir), 'npx cache directory removed')
+})
+
+t.test('cache npx rm: removing more than 1, less than all entries', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  // Removable folder
+  const removableHash = '123removeme'
+  fs.mkdirSync(path.join(npxCacheDir, removableHash))
+  fs.writeFileSync(
+    path.join(npxCacheDir, removableHash, 'package.json'),
+    JSON.stringify({ name: 'removable-package', _npx: { packages: ['removable-package@1.0.0'] } })
+  )
+
+  // Another Removable folder
+  const anotherRemovableHash = '456removeme'
+  fs.mkdirSync(path.join(npxCacheDir, anotherRemovableHash))
+  fs.writeFileSync(
+    path.join(npxCacheDir, anotherRemovableHash, 'package.json'),
+    JSON.stringify({ name: 'another-removable-package', _npx: { packages: ['another-removable-package@1.0.0'] } })
+  )
+
+  // Another folder that should remain
+  const keepHash = '999keep'
+  fs.mkdirSync(path.join(npxCacheDir, keepHash))
+  fs.writeFileSync(
+    path.join(npxCacheDir, keepHash, 'package.json'),
+    JSON.stringify({ name: 'keep-package', _npx: { packages: ['keep-package@1.0.0'] } })
+  )
+
+  npm.config.set('dry-run', true)
+  await npm.exec('cache', ['npx', 'rm', removableHash, anotherRemovableHash])
+  t.ok(fs.existsSync(path.join(npxCacheDir, removableHash)), 'entry folder remains')
+  t.ok(fs.existsSync(path.join(npxCacheDir, anotherRemovableHash)), 'entry folder remains')
+  t.ok(fs.existsSync(path.join(npxCacheDir, keepHash)), 'entry folder remains')
+  npm.config.set('dry-run', false)
+
+  await npm.exec('cache', ['npx', 'rm', removableHash, anotherRemovableHash])
+  t.matchSnapshot(joinedOutput(), 'logs removing 2 of 3 entries')
+
+  t.notOk(fs.existsSync(path.join(npxCacheDir, removableHash)), 'removed folder no longer exists')
+  t.notOk(fs.existsSync(path.join(npxCacheDir, anotherRemovableHash)), 'the other folder no longer exists')
+  t.ok(fs.existsSync(path.join(npxCacheDir, keepHash)), 'the other folder remains')
+})
+
+t.test('cache npx should throw usage error', async t => {
+  const { npm } = await loadMockNpm(t)
+  await t.rejects(
+    npm.exec('cache', ['npx', 'badcommand']),
+    { code: 'EUSAGE' },
+    'should throw usage error'
+  )
+})
+
+t.test('cache npx should throw usage error for invalid key', async t => {
+  const { npm } = await loadMockNpm(t)
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  const key = 'badkey'
+  await t.rejects(
+    npm.exec('cache', ['npx', 'rm', key]),
+    { code: 'EUSAGE' },
+    `Invalid npx key ${key}`
+  )
+})
+
+t.test('cache npx ls: entry with unknown package', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  // Create an entry without the _npx property
+  const unknownHash = 'unknown123'
+  fs.mkdirSync(path.join(npxCacheDir, unknownHash))
+  fs.writeFileSync(
+    path.join(npxCacheDir, unknownHash, 'package.json'),
+    JSON.stringify({
+      name: 'unknown-package',
+      version: '1.0.0',
+    })
+  )
+
+  await npm.exec('cache', ['npx', 'ls'])
+  t.matchSnapshot(joinedOutput(), 'lists entry with unknown package')
+})
+
+t.test('cache npx info: should throw usage error when no keys are provided', async t => {
+  const { npm } = await loadMockNpm(t)
+  await t.rejects(
+    npm.exec('cache', ['npx', 'info']),
+    { code: 'EUSAGE' },
+    'should throw usage error when no keys are provided'
+  )
+})
+
+t.test('cache npx info: valid entry with _npx packages', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  const validHash = 'valid123'
+  createNpxCacheEntry(npxCacheDir, validHash, {
+    name: 'valid-package',
+    version: '1.0.0',
+    _npx: { packages: ['valid-package@1.0.0'] },
+  }, {
+    name: 'valid-package',
+    version: '1.0.0',
+    dependencies: {
+      'valid-package': {
+        version: '1.0.0',
+        resolved: 'https://registry.npmjs.org/valid-package/-/valid-package-1.0.0.tgz',
+        integrity: 'sha512-...',
+      },
+    },
+  })
+
+  const nodeModulesDir = path.join(npxCacheDir, validHash, 'node_modules')
+  fs.mkdirSync(nodeModulesDir, { recursive: true })
+  fs.mkdirSync(path.join(nodeModulesDir, 'valid-package'))
+  fs.writeFileSync(
+    path.join(nodeModulesDir, 'valid-package', 'package.json'),
+    JSON.stringify({
+      name: 'valid-package',
+      version: '1.0.0',
+    })
+  )
+
+  await npm.exec('cache', ['npx', 'info', validHash])
+  t.matchSnapshot(joinedOutput(), 'shows valid package info with _npx packages')
+})
+
+t.test('cache npx info: valid entry with dependencies', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  const validHash = 'valid456'
+  createNpxCacheEntry(npxCacheDir, validHash, {
+    name: 'valid-package',
+    version: '1.0.0',
+    dependencies: {
+      'dep-package': '1.0.0',
+    },
+  }, {
+    name: 'valid-package',
+    version: '1.0.0',
+    dependencies: {
+      'dep-package': {
+        version: '1.0.0',
+        resolved: 'https://registry.npmjs.org/dep-package/-/dep-package-1.0.0.tgz',
+        integrity: 'sha512-...',
+      },
+    },
+  })
+
+  const nodeModulesDir = path.join(npxCacheDir, validHash, 'node_modules')
+  fs.mkdirSync(nodeModulesDir, { recursive: true })
+  fs.mkdirSync(path.join(nodeModulesDir, 'dep-package'))
+  fs.writeFileSync(
+    path.join(nodeModulesDir, 'dep-package', 'package.json'),
+    JSON.stringify({
+      name: 'dep-package',
+      version: '1.0.0',
+    })
+  )
+
+  await npm.exec('cache', ['npx', 'info', validHash])
+  t.matchSnapshot(joinedOutput(), 'shows valid package info with dependencies')
+})
+
+t.test('cache npx info: valid entry with _npx directory package', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const npxCacheDir = path.join(npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx'))
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  const validHash = 'valid123'
+  createNpxCacheEntry(npxCacheDir, validHash, {
+    name: 'valid-package',
+    version: '1.0.0',
+    _npx: { packages: ['/path/to/valid-package'] },
+  }, {
+    name: 'valid-package',
+    version: '1.0.0',
+    dependencies: {
+      'valid-package': {
+        version: '1.0.0',
+        resolved: 'https://registry.npmjs.org/valid-package/-/valid-package-1.0.0.tgz',
+        integrity: 'sha512-...',
+      },
+    },
+  })
+
+  const nodeModulesDir = path.join(npxCacheDir, validHash, 'node_modules')
+  fs.mkdirSync(nodeModulesDir, { recursive: true })
+  fs.mkdirSync(path.join(nodeModulesDir, 'valid-package'))
+  fs.writeFileSync(
+    path.join(nodeModulesDir, 'valid-package', 'package.json'),
+    JSON.stringify({
+      name: 'valid-package',
+      version: '1.0.0',
+    })
+  )
+
+  await npm.exec('cache', ['npx', 'info', validHash])
+  t.matchSnapshot(joinedOutput(), 'shows valid package info with _npx directory package')
+})
+
+t.test('cache npx info: valid entry with a link dependency', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t)
+  const npxCacheDir = path.join(
+    npm.flatOptions.npxCache || path.join(npm.cache, '..', '_npx')
+  )
+  fs.mkdirSync(npxCacheDir, { recursive: true })
+
+  const validHash = 'link123'
+  const pkgDir = path.join(npxCacheDir, validHash)
+  fs.mkdirSync(pkgDir)
+
+  fs.writeFileSync(
+    path.join(pkgDir, 'package.json'),
+    JSON.stringify({
+      name: 'link-package',
+      version: '1.0.0',
+      dependencies: {
+        'linked-dep': 'file:./some-other-loc',
+      },
+    })
+  )
+
+  fs.writeFileSync(
+    path.join(pkgDir, 'npm-shrinkwrap.json'),
+    JSON.stringify({
+      name: 'link-package',
+      version: '1.0.0',
+      dependencies: {
+        'linked-dep': {
+          version: 'file:../some-other-loc',
+        },
+      },
+    })
+  )
+
+  const nodeModulesDir = path.join(pkgDir, 'node_modules')
+  fs.mkdirSync(nodeModulesDir, { recursive: true })
+
+  const linkTarget = path.join(pkgDir, 'some-other-loc')
+  fs.mkdirSync(linkTarget)
+  fs.writeFileSync(
+    path.join(linkTarget, 'package.json'),
+    JSON.stringify({ name: 'linked-dep', version: '1.0.0' })
+  )
+
+  fs.symlinkSync('../some-other-loc', path.join(nodeModulesDir, 'linked-dep'))
+  await npm.exec('cache', ['npx', 'info', validHash])
+
+  t.matchSnapshot(
+    joinedOutput(),
+    'shows link dependency realpath (child.isLink branch)'
+  )
 })

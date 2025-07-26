@@ -40,7 +40,8 @@ ProfilerListener::ProfilerListener(Isolate* isolate,
 
 ProfilerListener::~ProfilerListener() = default;
 
-void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
+void ProfilerListener::CodeCreateEvent(CodeTag tag,
+                                       DirectHandle<AbstractCode> code,
                                        const char* name) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -55,8 +56,9 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                                       Handle<Name> name) {
+void ProfilerListener::CodeCreateEvent(CodeTag tag,
+                                       DirectHandle<AbstractCode> code,
+                                       DirectHandle<Name> name) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   PtrComprCageBase cage_base(isolate_);
@@ -70,9 +72,10 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                                       Handle<SharedFunctionInfo> shared,
-                                       Handle<Name> script_name) {
+void ProfilerListener::CodeCreateEvent(CodeTag tag,
+                                       DirectHandle<AbstractCode> code,
+                                       DirectHandle<SharedFunctionInfo> shared,
+                                       DirectHandle<Name> script_name) {
   PtrComprCageBase cage_base(isolate_);
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -106,9 +109,9 @@ CodeEntry* GetOrInsertCachedEntry(
 }  // namespace
 
 void ProfilerListener::CodeCreateEvent(CodeTag tag,
-                                       Handle<AbstractCode> abstract_code,
-                                       Handle<SharedFunctionInfo> shared,
-                                       Handle<Name> script_name, int line,
+                                       DirectHandle<AbstractCode> abstract_code,
+                                       DirectHandle<SharedFunctionInfo> shared,
+                                       DirectHandle<Name> script_name, int line,
                                        int column) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -120,21 +123,21 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
       cached_inline_entries;
   bool is_shared_cross_origin = false;
   if (IsScript(shared->script(cage_base), cage_base)) {
-    Handle<Script> script =
-        handle(Script::cast(shared->script(cage_base)), isolate_);
+    DirectHandle<Script> script(Cast<Script>(shared->script(cage_base)),
+                                isolate_);
     line_table.reset(new SourcePositionTable());
 
     is_shared_cross_origin = script->origin_options().IsSharedCrossOrigin();
 
     bool is_baseline = abstract_code->kind(cage_base) == CodeKind::BASELINE;
-    Handle<ByteArray> source_position_table(
+    Handle<TrustedByteArray> source_position_table(
         abstract_code->SourcePositionTable(isolate_, *shared), isolate_);
     std::unique_ptr<baseline::BytecodeOffsetIterator> baseline_iterator;
     if (is_baseline) {
       Handle<BytecodeArray> bytecodes(shared->GetBytecodeArray(isolate_),
                                       isolate_);
-      Handle<ByteArray> bytecode_offsets(
-          abstract_code->GetCode()->bytecode_offset_table(cage_base), isolate_);
+      Handle<TrustedByteArray> bytecode_offsets(
+          abstract_code->GetCode()->bytecode_offset_table(), isolate_);
       baseline_iterator = std::make_unique<baseline::BytecodeOffsetIterator>(
           bytecode_offsets, bytecodes);
     }
@@ -183,7 +186,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
 
           const char* resource_name =
               (IsName(pos_info.script->name()))
-                  ? GetName(Name::cast(pos_info.script->name()))
+                  ? GetName(Cast<Name>(pos_info.script->name()))
                   : CodeEntry::kEmptyResourceName;
 
           bool inline_is_shared_cross_origin =
@@ -202,7 +205,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
               inline_is_shared_cross_origin);
           inline_entry->FillFunctionInfo(*pos_info.shared);
 
-          // Create a canonical CodeEntry for each inlined frame and then re-use
+          // Create a canonical CodeEntry for each inlined frame and then reuse
           // them for subsequent inline stacks to avoid a lot of duplication.
           CodeEntry* cached_entry = GetOrInsertCachedEntry(
               &cached_inline_entries, inline_entry, code_entries_);
@@ -247,7 +250,8 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void ProfilerListener::CallbackEvent(Handle<Name> name, Address entry_point) {
+void ProfilerListener::CallbackEvent(DirectHandle<Name> name,
+                                     Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = entry_point;
@@ -257,7 +261,7 @@ void ProfilerListener::CallbackEvent(Handle<Name> name, Address entry_point) {
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::GetterCallbackEvent(Handle<Name> name,
+void ProfilerListener::GetterCallbackEvent(DirectHandle<Name> name,
                                            Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -268,7 +272,7 @@ void ProfilerListener::GetterCallbackEvent(Handle<Name> name,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::SetterCallbackEvent(Handle<Name> name,
+void ProfilerListener::SetterCallbackEvent(DirectHandle<Name> name,
                                            Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
@@ -279,8 +283,9 @@ void ProfilerListener::SetterCallbackEvent(Handle<Name> name,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
-                                             Handle<String> source) {
+void ProfilerListener::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
+                                             DirectHandle<String> source,
+                                             RegExpFlags flags) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeCreation);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   PtrComprCageBase cage_base(isolate_);
@@ -321,8 +326,8 @@ void ProfilerListener::NativeContextMoveEvent(Address from, Address to) {
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDisableOptEvent(Handle<AbstractCode> code,
-                                           Handle<SharedFunctionInfo> shared) {
+void ProfilerListener::CodeDisableOptEvent(
+    DirectHandle<AbstractCode> code, DirectHandle<SharedFunctionInfo> shared) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDisableOpt);
   CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
   PtrComprCageBase cage_base(isolate_);
@@ -332,8 +337,9 @@ void ProfilerListener::CodeDisableOptEvent(Handle<AbstractCode> code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
-                                      Address pc, int fp_to_sp_delta) {
+void ProfilerListener::CodeDeoptEvent(DirectHandle<Code> code,
+                                      DeoptimizeKind kind, Address pc,
+                                      int fp_to_sp_delta) {
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDeopt);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
@@ -363,6 +369,10 @@ const char* ProfilerListener::GetName(base::Vector<const char> name) {
   // TODO(all): Change {StringsStorage} to accept non-null-terminated strings.
   base::OwnedVector<char> null_terminated =
       base::OwnedVector<char>::New(name.size() + 1);
+#if defined(__GNUC__) && !defined(__clang__)
+  // Work around a spurious GCC-12 warning (-Werror=array-bounds).
+  if (name.end() < name.begin()) return nullptr;
+#endif
   std::copy(name.begin(), name.end(), null_terminated.begin());
   null_terminated[name.size()] = '\0';
   return GetName(null_terminated.begin());
@@ -370,10 +380,10 @@ const char* ProfilerListener::GetName(base::Vector<const char> name) {
 
 Tagged<Name> ProfilerListener::InferScriptName(
     Tagged<Name> name, Tagged<SharedFunctionInfo> info) {
-  if (IsString(name) && String::cast(name)->length()) return name;
+  if (IsString(name) && Cast<String>(name)->length()) return name;
   if (!IsScript(info->script())) return name;
-  Tagged<Object> source_url = Script::cast(info->script())->source_url();
-  return IsName(source_url) ? Name::cast(source_url) : name;
+  Tagged<Object> source_url = Cast<Script>(info->script())->source_url();
+  return IsName(source_url) ? Cast<Name>(source_url) : name;
 }
 
 const char* ProfilerListener::GetFunctionName(
@@ -388,7 +398,7 @@ const char* ProfilerListener::GetFunctionName(
   }
 }
 
-void ProfilerListener::AttachDeoptInlinedFrames(Handle<Code> code,
+void ProfilerListener::AttachDeoptInlinedFrames(DirectHandle<Code> code,
                                                 CodeDeoptEventRecord* rec) {
   int deopt_id = rec->deopt_id;
   SourcePosition last_position = SourcePosition::Unknown();

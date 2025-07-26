@@ -13,10 +13,11 @@ of targets within Xcode.
 """
 
 import errno
-import gyp.generator.ninja
 import os
 import re
 import xml.sax.saxutils
+
+import gyp.generator.ninja
 
 
 def _WriteWorkspace(main_gyp, sources_gyp, params):
@@ -69,12 +70,11 @@ def _TargetFromSpec(old_spec, params):
 
     target_name = old_spec.get("target_name")
     product_name = old_spec.get("product_name", target_name)
-    product_extension = old_spec.get("product_extension")
 
     ninja_target = {}
     ninja_target["target_name"] = target_name
     ninja_target["product_name"] = product_name
-    if product_extension:
+    if product_extension := old_spec.get("product_extension"):
         ninja_target["product_extension"] = product_extension
     ninja_target["toolset"] = old_spec.get("toolset")
     ninja_target["default_configuration"] = old_spec.get("default_configuration")

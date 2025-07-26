@@ -208,7 +208,7 @@ void MovableReferences::RelocateInteriorReferences(Address from, Address to,
   while (offset < size) {
     if (!interior_it->second) {
       // Update the interior reference value, so that when the object the slot
-      // is pointing to is moved, it can re-use this value.
+      // is pointing to is moved, it can reuse this value.
       Address reference = to + offset;
       interior_it->second = reference;
 
@@ -284,8 +284,7 @@ class CompactionState final {
       ReturnCurrentPageToSpace();
     }
 
-    // Return remaining available pages to the free page pool, decommitting
-    // them from the pagefile.
+    // Return remaining available pages back to the backend.
     for (NormalPage* page : available_pages_) {
       SetMemoryInaccessible(page->PayloadStart(), page->PayloadSize());
       NormalPage::Destroy(page);
@@ -331,11 +330,6 @@ class CompactionState final {
   // Additional pages in the current space that can be used as compaction
   // targets. Pages that remain available at the compaction can be released.
   Pages available_pages_;
-};
-
-enum class StickyBits : uint8_t {
-  kDisabled,
-  kEnabled,
 };
 
 void CompactPage(NormalPage* page, CompactionState& compaction_state,
@@ -436,6 +430,7 @@ void CompactSpace(NormalPageSpace* space, MovableReferences& movable_references,
 
   CompactionState compaction_state(space, movable_references);
   for (BasePage* page : pages) {
+    page->ResetMarkedBytes();
     // Large objects do not belong to this arena.
     CompactPage(NormalPage::From(page), compaction_state, sticky_bits);
   }
@@ -523,12 +518,10 @@ Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
   }
   compaction_worklists_.reset();
 
-  const bool young_gen_enabled = heap_.heap()->generational_gc_supported();
+  const StickyBits sticky_bits = heap_.heap()->sticky_bits();
 
   for (NormalPageSpace* space : compactable_spaces_) {
-    CompactSpace(
-        space, movable_references,
-        young_gen_enabled ? StickyBits::kEnabled : StickyBits::kDisabled);
+    CompactSpace(space, movable_references, sticky_bits);
   }
 
   enable_for_next_gc_for_testing_ = false;

@@ -1,11 +1,11 @@
-.TH "NPM-INIT" "1" "February 2024" "" ""
+.TH "NPM-INIT" "1" "July 2025" "NPM@11.5.1" ""
 .SH "NAME"
 \fBnpm-init\fR - Create a package.json file
 .SS "Synopsis"
 .P
 .RS 2
 .nf
-npm init <package-spec> (same as `npx <package-spec>`)
+npm init <package-spec> (same as `npx create-<package-spec>`)
 npm init <@scope> (same as `npx <@scope>/create`)
 
 aliases: create, innit
@@ -89,6 +89,14 @@ Generate it without having it ask any questions:
 .RS 2
 .nf
 $ npm init -y
+.fi
+.RE
+.P
+Set the private flag to \fBtrue\fR in package.json:
+.P
+.RS 2
+.nf
+$ npm init --init-private -y
 .fi
 .RE
 .SS "Workspaces support"
@@ -188,6 +196,16 @@ Type: Path
 
 .P
 A module that will be loaded by the \fBnpm init\fR command. See the documentation for the \fBinit-package-json\fR \fI\(lahttps://github.com/npm/init-package-json\(ra\fR module for more information, or npm help init.
+.SS "\fBinit-type\fR"
+.RS 0
+.IP \(bu 4
+Default: "commonjs"
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+The value that \fBnpm init\fR should use by default for the package.json type field.
 .SS "\fBinit-version\fR"
 .RS 0
 .IP \(bu 4
@@ -198,6 +216,16 @@ Type: SemVer string
 
 .P
 The value that \fBnpm init\fR should use by default for the package version number, if not already set in package.json.
+.SS "\fBinit-private\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+The value \fBnpm init\fR should use by default for the package's private flag.
 .SS "\fByes\fR"
 .RS 0
 .IP \(bu 4

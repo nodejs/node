@@ -34,6 +34,7 @@ from io import open
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 LS_RE = re.compile(r'^test-.*\.m?js$')
+ENV_PATTERN = re.compile(r"//\s+Env:(.*)")
 
 class SimpleTestCase(test.TestCase):
 
@@ -48,6 +49,14 @@ class SimpleTestCase(test.TestCase):
     else:
       self.additional_flags = []
 
+  def _parse_source_env(self, source):
+    env_match = ENV_PATTERN.search(source)
+    env = {}
+    if env_match:
+      for env_pair in env_match.group(1).strip().split():
+        var, value = env_pair.split('=')
+        env[var] = value
+    return env
 
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
@@ -55,10 +64,11 @@ class SimpleTestCase(test.TestCase):
   def GetName(self):
     return self.path[-1]
 
-  def GetCommand(self):
+  def GetRunConfiguration(self):
     result = [self.config.context.GetVm(self.arch, self.mode)]
     source = open(self.file, encoding='utf8').read()
     flags_match = FLAGS_PATTERN.search(source)
+    envs = self._parse_source_env(source)
     if flags_match:
       flags = flags_match.group(1).strip().split()
       # The following block reads config.gypi to extract the v8_enable_inspector
@@ -68,16 +78,22 @@ class SimpleTestCase(test.TestCase):
       # is currently when Node is configured --without-ssl and the tests should
       # still be runnable but skip any tests that require ssl (which includes the
       # inspector related tests). Also, if there is no ssl support the options
-      # '--use-bundled-ca' and '--use-openssl-ca' will also cause a similar
-      # failure so such tests are also skipped.
+      # '--use-bundled-ca', '--use-system-ca' and '--use-openssl-ca' will also
+      # cause a similar failure so such tests are also skipped.
       if (any(flag.startswith('--inspect') for flag in flags) and
           not self.context.v8_enable_inspector):
         print(': Skipping as node was compiled without inspector support')
       elif (('--use-bundled-ca' in flags or
           '--use-openssl-ca' in flags or
+          '--use-system-ca' in flags or
+          '--no-use-bundled-ca' in flags or
+          '--no-use-openssl-ca' in flags or
+          '--no-use-system-ca' in flags or
           '--tls-v1.0' in flags or
           '--tls-v1.1' in flags) and
           not self.context.node_has_crypto):
+        # TODO(joyeecheung): add this to the status file variables so that we can
+        # list the crypto dependency in the status files explicitly instead.
         print(': Skipping as node was compiled without crypto support')
       else:
         result += flags
@@ -87,7 +103,10 @@ class SimpleTestCase(test.TestCase):
 
     result += [self.file]
 
-    return result
+    return {
+        'command': result,
+        'envs': envs
+    }
 
   def GetSource(self):
     return open(self.file).read()
@@ -166,4 +185,16 @@ class AbortTestConfiguration(SimpleTestConfiguration):
          current_path, path, arch, mode)
     for tst in result:
       tst.disable_core_files = True
+    return result
+
+class WasmAllocationTestConfiguration(SimpleTestConfiguration):
+  def __init__(self, context, root, section, additional=None):
+    super(WasmAllocationTestConfiguration, self).__init__(context, root, section,
+                                                          additional)
+
+  def ListTests(self, current_path, path, arch, mode):
+    result = super(WasmAllocationTestConfiguration, self).ListTests(
+         current_path, path, arch, mode)
+    for tst in result:
+      tst.max_virtual_memory = 5 * 1024 * 1024 * 1024 # 5GB
     return result

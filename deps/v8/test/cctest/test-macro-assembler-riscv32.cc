@@ -772,8 +772,8 @@ TEST(Ulw) {
 
 TEST(ULoadFloat) {
   auto fn = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ ULoadFloat(fa0, MemOperand(a0, in_offset), t0);
-    __ UStoreFloat(fa0, MemOperand(a0, out_offset), t0);
+    __ ULoadFloat(fa0, MemOperand(a0, in_offset));
+    __ UStoreFloat(fa0, MemOperand(a0, out_offset));
   };
   CcTest::InitializeVM();
 
@@ -804,8 +804,8 @@ TEST(ULoadDouble) {
   char* buffer_middle = memory_buffer + (kBufferSize / 2);
 
   auto fn = [](MacroAssembler& masm, int32_t in_offset, int32_t out_offset) {
-    __ ULoadDouble(fa0, MemOperand(a0, in_offset), t0);
-    __ UStoreDouble(fa0, MemOperand(a0, out_offset), t0);
+    __ ULoadDouble(fa0, MemOperand(a0, in_offset));
+    __ UStoreDouble(fa0, MemOperand(a0, out_offset));
   };
 
   FOR_FLOAT64_INPUTS(i) {
@@ -1198,10 +1198,26 @@ TEST(Ctz32) {
   }
 }
 
+template <bool USE_SCRATCH>
+static void ByteSwapHelper() {
+  Func fn;
+  if (USE_SCRATCH) {
+    fn = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 4, t0); };
+  } else {
+    fn = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 4); };
+  }
+
+  CHECK_EQ((int32_t)0x89ab'cdef, GenAndRunTest<int32_t>(0xefcd'ab89, fn));
+}
+
 TEST(ByteSwap) {
   CcTest::InitializeVM();
-  auto fn0 = [](MacroAssembler& masm) { __ ByteSwap(a0, a0, 4, t0); };
-  CHECK_EQ((int32_t)0x89ab'cdef, GenAndRunTest<int32_t>(0xefcd'ab89, fn0));
+  ByteSwapHelper<true>();
+}
+
+TEST(ByteSwap_no_scratch) {
+  CcTest::InitializeVM();
+  ByteSwapHelper<false>();
 }
 
 TEST(Popcnt) {

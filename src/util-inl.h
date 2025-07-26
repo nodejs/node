@@ -27,42 +27,13 @@
 #include <cmath>
 #include <cstring>
 #include <locale>
+#include <ranges>
+#include "node_revert.h"
 #include "util.h"
 
-// These are defined by <sys/byteorder.h> or <netinet/in.h> on some systems.
-// To avoid warnings, undefine them before redefining them.
-#ifdef BSWAP_2
-# undef BSWAP_2
-#endif
-#ifdef BSWAP_4
-# undef BSWAP_4
-#endif
-#ifdef BSWAP_8
-# undef BSWAP_8
-#endif
-
-#if defined(_MSC_VER)
-#include <intrin.h>
-#define BSWAP_2(x) _byteswap_ushort(x)
-#define BSWAP_4(x) _byteswap_ulong(x)
-#define BSWAP_8(x) _byteswap_uint64(x)
-#else
-#define BSWAP_2(x) ((x) << 8) | ((x) >> 8)
-#define BSWAP_4(x)                                                            \
-  (((x) & 0xFF) << 24) |                                                      \
-  (((x) & 0xFF00) << 8) |                                                     \
-  (((x) >> 8) & 0xFF00) |                                                     \
-  (((x) >> 24) & 0xFF)
-#define BSWAP_8(x)                                                            \
-  (((x) & 0xFF00000000000000ull) >> 56) |                                     \
-  (((x) & 0x00FF000000000000ull) >> 40) |                                     \
-  (((x) & 0x0000FF0000000000ull) >> 24) |                                     \
-  (((x) & 0x000000FF00000000ull) >> 8) |                                      \
-  (((x) & 0x00000000FF000000ull) << 8) |                                      \
-  (((x) & 0x0000000000FF0000ull) << 24) |                                     \
-  (((x) & 0x000000000000FF00ull) << 40) |                                     \
-  (((x) & 0x00000000000000FFull) << 56)
-#endif
+#ifdef _WIN32
+#include <regex>  // NOLINT(build/c++11)
+#endif            // _WIN32
 
 #define CHAR_TEST(bits, name, expr)                                           \
   template <typename T>                                                       \
@@ -213,73 +184,9 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
       .ToLocalChecked();
 }
 
-void SwapBytes16(char* data, size_t nbytes) {
-  CHECK_EQ(nbytes % 2, 0);
-
-#if defined(_MSC_VER)
-  if (AlignUp(data, sizeof(uint16_t)) == data) {
-    // MSVC has no strict aliasing, and is able to highly optimize this case.
-    uint16_t* data16 = reinterpret_cast<uint16_t*>(data);
-    size_t len16 = nbytes / sizeof(*data16);
-    for (size_t i = 0; i < len16; i++) {
-      data16[i] = BSWAP_2(data16[i]);
-    }
-    return;
-  }
-#endif
-
-  uint16_t temp;
-  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
-    memcpy(&temp, &data[i], sizeof(temp));
-    temp = BSWAP_2(temp);
-    memcpy(&data[i], &temp, sizeof(temp));
-  }
-}
-
-void SwapBytes32(char* data, size_t nbytes) {
-  CHECK_EQ(nbytes % 4, 0);
-
-#if defined(_MSC_VER)
-  // MSVC has no strict aliasing, and is able to highly optimize this case.
-  if (AlignUp(data, sizeof(uint32_t)) == data) {
-    uint32_t* data32 = reinterpret_cast<uint32_t*>(data);
-    size_t len32 = nbytes / sizeof(*data32);
-    for (size_t i = 0; i < len32; i++) {
-      data32[i] = BSWAP_4(data32[i]);
-    }
-    return;
-  }
-#endif
-
-  uint32_t temp;
-  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
-    memcpy(&temp, &data[i], sizeof(temp));
-    temp = BSWAP_4(temp);
-    memcpy(&data[i], &temp, sizeof(temp));
-  }
-}
-
-void SwapBytes64(char* data, size_t nbytes) {
-  CHECK_EQ(nbytes % 8, 0);
-
-#if defined(_MSC_VER)
-  if (AlignUp(data, sizeof(uint64_t)) == data) {
-    // MSVC has no strict aliasing, and is able to highly optimize this case.
-    uint64_t* data64 = reinterpret_cast<uint64_t*>(data);
-    size_t len64 = nbytes / sizeof(*data64);
-    for (size_t i = 0; i < len64; i++) {
-      data64[i] = BSWAP_8(data64[i]);
-    }
-    return;
-  }
-#endif
-
-  uint64_t temp;
-  for (size_t i = 0; i < nbytes; i += sizeof(temp)) {
-    memcpy(&temp, &data[i], sizeof(temp));
-    temp = BSWAP_8(temp);
-    memcpy(&data[i], &temp, sizeof(temp));
-  }
+inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
+                                           std::string_view str) {
+  return OneByteString(isolate, str.data(), str.size());
 }
 
 char ToLower(char c) {
@@ -349,7 +256,7 @@ T* UncheckedRealloc(T* pointer, size_t n) {
 
   void* allocated = realloc(pointer, full_size);
 
-  if (UNLIKELY(allocated == nullptr)) {
+  if (allocated == nullptr) [[unlikely]] {
     // Tell V8 that memory is low and retry.
     LowMemoryNotification();
     allocated = realloc(pointer, full_size);
@@ -428,7 +335,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     std::string_view str,
                                     v8::Isolate* isolate) {
   if (isolate == nullptr) isolate = context->GetIsolate();
-  if (UNLIKELY(str.size() >= static_cast<size_t>(v8::String::kMaxLength))) {
+  if (str.size() >= static_cast<size_t>(v8::String::kMaxLength)) [[unlikely]] {
     // V8 only has a TODO comment about adding an exception when the maximum
     // string size is exceeded.
     ThrowErrStringTooLong(isolate);
@@ -437,6 +344,32 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 
   return v8::String::NewFromUtf8(
              isolate, str.data(), v8::NewStringType::kNormal, str.size())
+      .FromMaybe(v8::Local<v8::String>());
+}
+
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    v8_inspector::StringView str,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (str.length() >= static_cast<size_t>(v8::String::kMaxLength))
+      [[unlikely]] {
+    // V8 only has a TODO comment about adding an exception when the maximum
+    // string size is exceeded.
+    ThrowErrStringTooLong(isolate);
+    return v8::MaybeLocal<v8::Value>();
+  }
+
+  if (str.is8Bit()) {
+    return v8::String::NewFromOneByte(isolate,
+                                      str.characters8(),
+                                      v8::NewStringType::kNormal,
+                                      str.length())
+        .FromMaybe(v8::Local<v8::String>());
+  }
+  return v8::String::NewFromTwoByte(isolate,
+                                    str.characters16(),
+                                    v8::NewStringType::kNormal,
+                                    str.length())
       .FromMaybe(v8::Local<v8::String>());
 }
 
@@ -476,6 +409,25 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   return set_js;
 }
 
+template <typename T, std::size_t U>
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const std::ranges::elements_view<T, U>& vec,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  v8::EscapableHandleScope handle_scope(isolate);
+
+  MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
+  arr.SetLength(vec.size());
+  auto it = vec.begin();
+  for (size_t i = 0; i < vec.size(); ++i) {
+    if (!ToV8Value(context, *it, isolate).ToLocal(&arr[i]))
+      return v8::MaybeLocal<v8::Value>();
+    std::advance(it, 1);
+  }
+
+  return handle_scope.Escape(v8::Array::New(isolate, arr.out(), arr.length()));
+}
+
 template <typename T, typename U>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const std::unordered_map<T, U>& map,
@@ -496,12 +448,9 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   return handle_scope.Escape(ret);
 }
 
-template <typename T, typename >
-v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                    const T& number,
-                                    v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
-
+template <typename T>
+v8::Local<v8::Value> ConvertNumberToV8Value(v8::Isolate* isolate,
+                                            const T& number) {
   using Limits = std::numeric_limits<T>;
   // Choose Uint32, Int32, or Double depending on range checks.
   // These checks should all collapse at compile time.
@@ -520,6 +469,43 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   }
 
   return v8::Number::New(isolate, static_cast<double>(number));
+}
+
+template <typename T, typename>
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const T& number,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  return ConvertNumberToV8Value(isolate, number);
+}
+
+template <typename T>
+v8::Local<v8::Array> ToV8ValuePrimitiveArray(v8::Local<v8::Context> context,
+                                             const std::vector<T>& vec,
+                                             v8::Isolate* isolate) {
+  static_assert(
+      std::is_same_v<T, bool> || std::is_integral_v<T> ||
+          std::is_floating_point_v<T>,
+      "Only primitive types (bool, integral, floating-point) are supported.");
+
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  v8::EscapableHandleScope handle_scope(isolate);
+
+  v8::LocalVector<v8::Value> elements(isolate);
+  elements.reserve(vec.size());
+
+  for (const auto& value : vec) {
+    if constexpr (std::is_same_v<T, bool>) {
+      elements.emplace_back(v8::Boolean::New(isolate, value));
+    } else {
+      v8::Local<v8::Value> v = ConvertNumberToV8Value(isolate, value);
+      elements.emplace_back(v);
+    }
+  }
+
+  v8::Local<v8::Array> arr =
+      v8::Array::New(isolate, elements.data(), elements.size());
+  return handle_scope.Escape(arr);
 }
 
 SlicedArguments::SlicedArguments(
@@ -603,7 +589,7 @@ void ArrayBufferViewContents<T, S>::ReadValue(v8::Local<v8::Value> buf) {
   }
 }
 
-// ECMA262 20.1.2.5
+// ECMA-262, 15th edition, 21.1.2.5. Number.isSafeInteger
 inline bool IsSafeJsInt(v8::Local<v8::Value> v) {
   if (!v->IsNumber()) return false;
   double v_d = v.As<v8::Number>()->Value();
@@ -632,12 +618,91 @@ constexpr bool FastStringKey::operator==(const FastStringKey& other) const {
   return name_ == other.name_;
 }
 
-constexpr FastStringKey::FastStringKey(std::string_view name)
+consteval FastStringKey::FastStringKey(std::string_view name)
+    : FastStringKey(name, 0) {}
+
+constexpr FastStringKey FastStringKey::AllowDynamic(std::string_view name) {
+  return FastStringKey(name, 0);
+}
+
+constexpr FastStringKey::FastStringKey(std::string_view name, int dummy)
     : name_(name), cached_hash_(HashImpl(name)) {}
 
 constexpr std::string_view FastStringKey::as_string_view() const {
   return name_;
 }
+
+// Converts a V8 numeric value to a corresponding C++ primitive or enum type.
+template <typename T,
+          bool loose = false,
+          typename = std::enable_if_t<std::numeric_limits<T>::is_specialized ||
+                                      std::is_enum_v<T>>>
+T FromV8Value(v8::Local<v8::Value> value) {
+  if constexpr (std::is_enum_v<T>) {
+    using Underlying = std::underlying_type_t<T>;
+    return static_cast<T>(FromV8Value<Underlying, loose>(value));
+  } else if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>) {
+    static_assert(
+        std::numeric_limits<T>::max() <= std::numeric_limits<uint32_t>::max() &&
+            std::numeric_limits<T>::min() >=
+                std::numeric_limits<uint32_t>::min(),
+        "Type is out of unsigned integer range");
+    if constexpr (!loose) {
+      CHECK(value->IsUint32());
+    } else {
+      CHECK(value->IsNumber());
+    }
+    return static_cast<T>(value.As<v8::Uint32>()->Value());
+  } else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+    static_assert(
+        std::numeric_limits<T>::max() <= std::numeric_limits<int32_t>::max() &&
+            std::numeric_limits<T>::min() >=
+                std::numeric_limits<int32_t>::min(),
+        "Type is out of signed integer range");
+    if constexpr (!loose) {
+      CHECK(value->IsInt32());
+    } else {
+      CHECK(value->IsNumber());
+    }
+    return static_cast<T>(value.As<v8::Int32>()->Value());
+  } else {
+    static_assert(std::is_floating_point_v<T>,
+                  "Type must be arithmetic or enum.");
+    CHECK(value->IsNumber());
+    return static_cast<T>(value.As<v8::Number>()->Value());
+  }
+}
+
+#ifdef _WIN32
+inline bool IsWindowsBatchFile(const char* filename) {
+  std::string file_with_extension = filename;
+  // Regex to match the last extension part after the last dot, ignoring
+  // trailing spaces and dots
+  std::regex extension_regex(R"(\.([a-zA-Z0-9]+)\s*[\.\s]*$)");
+  std::smatch match;
+  std::string extension;
+
+  if (std::regex_search(file_with_extension, match, extension_regex)) {
+    extension = ToLower(match[1].str());
+  }
+
+  return !extension.empty() && (extension == "cmd" || extension == "bat");
+}
+
+inline std::wstring ConvertToWideString(const std::string& str,
+                                        UINT code_page) {
+  int size_needed = MultiByteToWideChar(
+      code_page, 0, &str[0], static_cast<int>(str.size()), nullptr, 0);
+  std::wstring wstrTo(size_needed, 0);
+  MultiByteToWideChar(code_page,
+                      0,
+                      &str[0],
+                      static_cast<int>(str.size()),
+                      &wstrTo[0],
+                      size_needed);
+  return wstrTo;
+}
+#endif  // _WIN32
 
 }  // namespace node
 

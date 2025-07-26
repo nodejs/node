@@ -13,7 +13,6 @@
 
 namespace node {
 using v8::Context;
-using v8::DEFAULT;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -23,21 +22,20 @@ using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Name;
-using v8::NewStringType;
 using v8::None;
 using v8::Object;
 using v8::PropertyCallbackInfo;
 using v8::SideEffectType;
-using v8::String;
 using v8::Value;
 
 static void ProcessTitleGetter(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
   std::string title = GetProcessTitle("node");
-  info.GetReturnValue().Set(
-      String::NewFromUtf8(info.GetIsolate(), title.data(),
-                          NewStringType::kNormal, title.size())
-      .ToLocalChecked());
+  Local<Value> ret;
+  auto isolate = info.GetIsolate();
+  if (ToV8Value(isolate->GetCurrentContext(), title, isolate).ToLocal(&ret)) {
+    info.GetReturnValue().Set(ret);
+  }
 }
 
 static void ProcessTitleSetter(Local<Name> property,
@@ -78,6 +76,40 @@ static void GetParentProcessId(Local<Name> property,
   info.GetReturnValue().Set(uv_os_getppid());
 }
 
+static void SetVersions(Isolate* isolate, Local<Object> versions) {
+  Local<Context> context = isolate->GetCurrentContext();
+
+  // Node.js version is always on the top
+  READONLY_STRING_PROPERTY(
+      versions, "node", per_process::metadata.versions.node);
+
+#define V(key) +1
+  std::pair<std::string_view, std::string_view>
+      versions_array[NODE_VERSIONS_KEYS(V)];
+#undef V
+  auto* slot = &versions_array[0];
+
+#define V(key)                                                                 \
+  do {                                                                         \
+    *slot++ = std::pair<std::string_view, std::string_view>(                   \
+        #key, per_process::metadata.versions.key);                             \
+  } while (0);
+  NODE_VERSIONS_KEYS(V)
+#undef V
+
+  std::ranges::sort(versions_array,
+                    [](auto& a, auto& b) { return a.first < b.first; });
+
+  for (const auto& version : versions_array) {
+    versions
+        ->DefineOwnProperty(context,
+                            OneByteString(isolate, version.first),
+                            OneByteString(isolate, version.second),
+                            v8::ReadOnly)
+        .Check();
+  }
+}
+
 MaybeLocal<Object> CreateProcessObject(Realm* realm) {
   Isolate* isolate = realm->isolate();
   EscapableHandleScope scope(isolate);
@@ -105,41 +137,9 @@ MaybeLocal<Object> CreateProcessObject(Realm* realm) {
   READONLY_PROPERTY(
       process, "version", FIXED_ONE_BYTE_STRING(isolate, NODE_VERSION));
 
-  Local<Object> versions = Object::New(isolate);
-  // Node.js version is always on the top
-  READONLY_STRING_PROPERTY(
-      versions, "node", per_process::metadata.versions.node);
-
-#define V(key) +1
-  std::pair<std::string_view, std::string_view>
-      versions_array[NODE_VERSIONS_KEYS(V)];
-#undef V
-  auto* slot = &versions_array[0];
-
-#define V(key)                                                                 \
-  do {                                                                         \
-    *slot++ = std::pair<std::string_view, std::string_view>(                   \
-        #key, per_process::metadata.versions.key);                             \
-  } while (0);
-  NODE_VERSIONS_KEYS(V)
-#undef V
-
-  std::sort(&versions_array[0],
-            &versions_array[arraysize(versions_array)],
-            [](auto& a, auto& b) { return a.first < b.first; });
-
-  for (const auto& version : versions_array) {
-    versions
-        ->DefineOwnProperty(
-            context,
-            OneByteString(isolate, version.first.data(), version.first.size()),
-            OneByteString(
-                isolate, version.second.data(), version.second.size()),
-            v8::ReadOnly)
-        .Check();
-  }
-
   // process.versions
+  Local<Object> versions = Object::New(isolate);
+  SetVersions(isolate, versions);
   READONLY_PROPERTY(process, "versions", versions);
 
   // process.arch
@@ -183,34 +183,45 @@ void PatchProcessObject(const FunctionCallbackInfo<Value>& args) {
 
   // process.title
   CHECK(process
-            ->SetAccessor(
+            ->SetNativeDataProperty(
                 context,
                 FIXED_ONE_BYTE_STRING(isolate, "title"),
                 ProcessTitleGetter,
                 env->owns_process_state() ? ProcessTitleSetter : nullptr,
                 Local<Value>(),
-                DEFAULT,
                 None,
                 SideEffectType::kHasNoSideEffect)
             .FromJust());
 
   // process.argv
-  process->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "argv"),
-               ToV8Value(context, env->argv()).ToLocalChecked()).Check();
+  Local<Value> val;
+  if (!ToV8Value(context, env->argv()).ToLocal(&val) ||
+      !process->Set(context, FIXED_ONE_BYTE_STRING(isolate, "argv"), val)
+           .IsJust()) {
+    return;
+  }
 
   // process.execArgv
-  process->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "execArgv"),
-               ToV8Value(context, env->exec_argv())
-                   .ToLocalChecked()).Check();
+  if (!ToV8Value(context, env->exec_argv()).ToLocal(&val) ||
+      !process->Set(context, FIXED_ONE_BYTE_STRING(isolate, "execArgv"), val)
+           .IsJust()) {
+    return;
+  }
 
   READONLY_PROPERTY(process, "pid",
                     Integer::New(isolate, uv_os_getpid()));
 
-  CHECK(process->SetAccessor(context,
-                             FIXED_ONE_BYTE_STRING(isolate, "ppid"),
-                             GetParentProcessId).FromJust());
+  if (!process
+           ->SetNativeDataProperty(context,
+                                   FIXED_ONE_BYTE_STRING(isolate, "ppid"),
+                                   GetParentProcessId,
+                                   nullptr,
+                                   Local<Value>(),
+                                   None,
+                                   SideEffectType::kHasNoSideEffect)
+           .IsJust()) {
+    return;
+  }
 
   // --security-revert flags
 #define V(code, _, __)                                                        \
@@ -223,24 +234,30 @@ void PatchProcessObject(const FunctionCallbackInfo<Value>& args) {
 #undef V
 
   // process.execPath
-  process
-      ->Set(context,
-            FIXED_ONE_BYTE_STRING(isolate, "execPath"),
-            String::NewFromUtf8(isolate,
-                                env->exec_path().c_str(),
-                                NewStringType::kInternalized,
-                                env->exec_path().size())
-                .ToLocalChecked())
-      .Check();
+  if (!ToV8Value(context, env->exec_path(), isolate).ToLocal(&val) ||
+      !process->Set(context, FIXED_ONE_BYTE_STRING(isolate, "execPath"), val)
+           .IsJust()) {
+    return;
+  }
 
   // process.debugPort
-  CHECK(process
-            ->SetAccessor(context,
-                          FIXED_ONE_BYTE_STRING(isolate, "debugPort"),
-                          DebugPortGetter,
-                          env->owns_process_state() ? DebugPortSetter : nullptr,
-                          Local<Value>())
-            .FromJust());
+  if (!process
+           ->SetNativeDataProperty(
+               context,
+               FIXED_ONE_BYTE_STRING(isolate, "debugPort"),
+               DebugPortGetter,
+               env->owns_process_state() ? DebugPortSetter : nullptr,
+               Local<Value>(),
+               None,
+               SideEffectType::kHasNoSideEffect)
+           .IsJust()) {
+    return;
+  }
+
+  // process.versions
+  Local<Object> versions = Object::New(isolate);
+  SetVersions(isolate, versions);
+  READONLY_PROPERTY(process, "versions", versions);
 }
 
 void RegisterProcessExternalReferences(ExternalReferenceRegistry* registry) {

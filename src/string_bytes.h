@@ -37,19 +37,19 @@ class StringBytes {
  public:
   class InlineDecoder : public MaybeStackBuffer<char> {
    public:
-    inline v8::Maybe<bool> Decode(Environment* env,
+    inline v8::Maybe<void> Decode(Environment* env,
                                   v8::Local<v8::String> string,
                                   enum encoding enc) {
       size_t storage;
       if (!StringBytes::StorageSize(env->isolate(), string, enc).To(&storage))
-        return v8::Nothing<bool>();
+        return v8::Nothing<void>();
       AllocateSufficientStorage(storage);
       const size_t length =
           StringBytes::Write(env->isolate(), out(), storage, string, enc);
 
       // No zero terminator is included when using this method.
       SetLength(length);
-      return v8::Just(true);
+      return v8::JustVoid();
     }
 
     inline size_t size() const { return length(); }
@@ -81,8 +81,7 @@ class StringBytes {
   static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
                                           const char* buf,
                                           size_t buflen,
-                                          enum encoding encoding,
-                                          v8::Local<v8::Value>* error);
+                                          enum encoding encoding);
 
   // Warning: This reverses endianness on BE platforms, even though the
   // signature using uint16_t implies that it should not.
@@ -90,27 +89,17 @@ class StringBytes {
   // be changed easily.
   static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
                                           const uint16_t* buf,
-                                          size_t buflen,
-                                          v8::Local<v8::Value>* error);
+                                          size_t buflen);
 
   static v8::MaybeLocal<v8::Value> Encode(v8::Isolate* isolate,
                                           const char* buf,
-                                          enum encoding encoding,
-                                          v8::Local<v8::Value>* error);
-
-  static size_t hex_encode(const char* src,
-                           size_t slen,
-                           char* dst,
-                           size_t dlen);
-
-  static std::string hex_encode(const char* src, size_t slen);
+                                          enum encoding encoding);
 
  private:
   static size_t WriteUCS2(v8::Isolate* isolate,
                           char* buf,
                           size_t buflen,
-                          v8::Local<v8::String> str,
-                          int flags);
+                          v8::Local<v8::String> str);
 };
 
 }  // namespace node

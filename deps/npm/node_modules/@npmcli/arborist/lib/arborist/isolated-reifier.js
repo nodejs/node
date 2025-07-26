@@ -1,11 +1,11 @@
 const _makeIdealGraph = Symbol('makeIdealGraph')
 const _createIsolatedTree = Symbol.for('createIsolatedTree')
 const _createBundledTree = Symbol('createBundledTree')
-const fs = require('fs')
+const { mkdirSync } = require('node:fs')
 const pacote = require('pacote')
-const { join } = require('path')
+const { join } = require('node:path')
 const { depth } = require('treeverse')
-const crypto = require('crypto')
+const crypto = require('node:crypto')
 
 // cache complicated function results
 const memoize = (fn) => {
@@ -81,7 +81,7 @@ module.exports = cls => class IsolatedReifier extends cls {
         }
         queue.push(e.to)
       })
-      if (!next.isProjectRoot && !next.isWorkspace) {
+      if (!next.isProjectRoot && !next.isWorkspace && !next.ideallyInert) {
         root.external.push(await this.externalProxyMemo(next))
       }
     }
@@ -108,7 +108,7 @@ module.exports = cls => class IsolatedReifier extends cls {
         '.store',
         `${node.name}@${node.version}`
       )
-      fs.mkdirSync(dir, { recursive: true })
+      mkdirSync(dir, { recursive: true })
       // TODO this approach feels wrong
       // and shouldn't be necessary for shrinkwraps
       await pacote.extract(node.resolved, dir, {
@@ -147,8 +147,8 @@ module.exports = cls => class IsolatedReifier extends cls {
     const nonOptionalDeps = edges.filter(e => !e.optional).map(e => e.to.target)
 
     result.localDependencies = await Promise.all(nonOptionalDeps.filter(n => n.isWorkspace).map(this.workspaceProxyMemo))
-    result.externalDependencies = await Promise.all(nonOptionalDeps.filter(n => !n.isWorkspace).map(this.externalProxyMemo))
-    result.externalOptionalDependencies = await Promise.all(optionalDeps.map(this.externalProxyMemo))
+    result.externalDependencies = await Promise.all(nonOptionalDeps.filter(n => !n.isWorkspace && !n.ideallyInert).map(this.externalProxyMemo))
+    result.externalOptionalDependencies = await Promise.all(optionalDeps.filter(n => !n.ideallyInert).map(this.externalProxyMemo))
     result.dependencies = [
       ...result.externalDependencies,
       ...result.localDependencies,
@@ -212,7 +212,7 @@ module.exports = cls => class IsolatedReifier extends cls {
     return { edges, nodes }
   }
 
-  async [_createIsolatedTree] (idealTree) {
+  async [_createIsolatedTree] () {
     await this[_makeIdealGraph](this.options)
 
     const proxiedIdealTree = this.idealGraph

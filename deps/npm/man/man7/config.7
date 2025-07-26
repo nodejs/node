@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "February 2024" "" ""
+.TH "CONFIG" "7" "July 2025" "NPM@11.5.1" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -228,7 +228,7 @@ Type: null or Date
 .RE 0
 
 .P
-If passed to \fBnpm install\fR, will rebuild the npm tree such that only versions that were available \fBon or before\fR the \fB--before\fR time get installed. If there's no versions available for the current set of direct dependencies, the command will error.
+If passed to \fBnpm install\fR, will rebuild the npm tree such that only versions that were available \fBon or before\fR the given date are installed. If there are no versions available for the current set of dependencies, the command will error.
 .P
 If the requested version is a \fBdist-tag\fR and the given tag does not pass the \fB--before\fR filter, the most recent version less than or equal to that tag will be used. For example, \fBfoo@latest\fR might install \fBfoo@1.2\fR even though \fBlatest\fR is \fB2.0\fR.
 .SS "\fBbin-links\fR"
@@ -246,7 +246,7 @@ Set to false to have it not do this. This can be used to work around the fact th
 .SS "\fBbrowser\fR"
 .RS 0
 .IP \(bu 4
-Default: OS X: \fB"open"\fR, Windows: \fB"start"\fR, Others: \fB"xdg-open"\fR
+Default: macOS: \fB"open"\fR, Windows: \fB"start"\fR, Others: \fB"xdg-open"\fR
 .IP \(bu 4
 Type: null, Boolean, or String
 .RE 0
@@ -365,7 +365,7 @@ Override CPU architecture of native modules to install. Acceptable values are sa
 .SS "\fBdepth\fR"
 .RS 0
 .IP \(bu 4
-Default: \fBInfinity\fR if \fB--all\fR is set, otherwise \fB1\fR
+Default: \fBInfinity\fR if \fB--all\fR is set, otherwise \fB0\fR
 .IP \(bu 4
 Type: null or Number
 .RE 0
@@ -723,7 +723,7 @@ Type: Boolean
 .RE 0
 
 .P
-If true, npm will not exit with an error code when \fBrun-script\fR is invoked for a script that isn't defined in the \fBscripts\fR section of \fBpackage.json\fR. This option can be used when it's desirable to optionally run a script when it's present and fail if the script fails. This is useful, for example, when running scripts that may only apply for some builds in an otherwise generic CI setup.
+If true, npm will not exit with an error code when \fBrun\fR is invoked for a script that isn't defined in the \fBscripts\fR section of \fBpackage.json\fR. This option can be used when it's desirable to optionally run a script when it's present and fail if the script fails. This is useful, for example, when running scripts that may only apply for some builds in an otherwise generic CI setup.
 .P
 This value is not exported to the environment for child processes.
 .SS "\fBignore-scripts\fR"
@@ -737,7 +737,7 @@ Type: Boolean
 .P
 If true, npm does not run scripts specified in package.json files.
 .P
-Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run-script\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
 .SS "\fBinclude\fR"
 .RS 0
 .IP \(bu 4
@@ -828,6 +828,26 @@ Type: Path
 
 .P
 A module that will be loaded by the \fBnpm init\fR command. See the documentation for the \fBinit-package-json\fR \fI\(lahttps://github.com/npm/init-package-json\(ra\fR module for more information, or npm help init.
+.SS "\fBinit-private\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+The value \fBnpm init\fR should use by default for the package's private flag.
+.SS "\fBinit-type\fR"
+.RS 0
+.IP \(bu 4
+Default: "commonjs"
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+The value that \fBnpm init\fR should use by default for the package.json type field.
 .SS "\fBinit-version\fR"
 .RS 0
 .IP \(bu 4
@@ -1026,6 +1046,18 @@ Type: String
 Commit message which is used by \fBnpm version\fR when creating version commit.
 .P
 Any "%s" in the message will be replaced with the version number.
+.SS "\fBnode-gyp\fR"
+.RS 0
+.IP \(bu 4
+Default: The path to the node-gyp bin that ships with npm
+.IP \(bu 4
+Type: Path
+.RE 0
+
+.P
+This is the location of the "node-gyp" bin. By default it uses one that ships with npm itself.
+.P
+You can use this config to specify your own "node-gyp" to run when it is required to build a package.
 .SS "\fBnode-options\fR"
 .RS 0
 .IP \(bu 4
@@ -1213,13 +1245,13 @@ The "prerelease identifier" to use as a prefix for the "prerelease" part of a se
 .SS "\fBprogress\fR"
 .RS 0
 .IP \(bu 4
-Default: \fBtrue\fR unless running in a known CI system
+Default: \fBtrue\fR when not in CI and both stderr and stdout are TTYs and not in a dumb terminal
 .IP \(bu 4
 Type: Boolean
 .RE 0
 
 .P
-When set to \fBtrue\fR, npm will display a progress bar during time intensive operations, if \fBprocess.stderr\fR is a TTY.
+When set to \fBtrue\fR, npm will display a progress bar during time intensive operations, if \fBprocess.stderr\fR and \fBprocess.stdout\fR are a TTY.
 .P
 Set to \fBfalse\fR to suppress the progress bar.
 .SS "\fBprovenance\fR"
@@ -1336,6 +1368,8 @@ Type: Boolean
 
 .P
 Save installed packages to a package.json file as \fBdevDependencies\fR.
+.P
+This config can not be used with: \fBsave-optional\fR, \fBsave-peer\fR, \fBsave-prod\fR
 .SS "\fBsave-exact\fR"
 .RS 0
 .IP \(bu 4
@@ -1356,6 +1390,8 @@ Type: Boolean
 
 .P
 Save installed packages to a package.json file as \fBoptionalDependencies\fR.
+.P
+This config can not be used with: \fBsave-dev\fR, \fBsave-peer\fR, \fBsave-prod\fR
 .SS "\fBsave-peer\fR"
 .RS 0
 .IP \(bu 4
@@ -1366,6 +1402,8 @@ Type: Boolean
 
 .P
 Save installed packages to a package.json file as \fBpeerDependencies\fR
+.P
+This config can not be used with: \fBsave-dev\fR, \fBsave-optional\fR, \fBsave-prod\fR
 .SS "\fBsave-prefix\fR"
 .RS 0
 .IP \(bu 4
@@ -1391,6 +1429,8 @@ Type: Boolean
 Save installed packages into \fBdependencies\fR specifically. This is useful if a package already exists in \fBdevDependencies\fR or \fBoptionalDependencies\fR, but you want to move it to be a non-optional production dependency.
 .P
 This is the default behavior if \fB--save\fR is true, and neither \fB--save-dev\fR or \fB--save-optional\fR are true.
+.P
+This config can not be used with: \fBsave-dev\fR, \fBsave-optional\fR, \fBsave-peer\fR
 .SS "\fBsbom-format\fR"
 .RS 0
 .IP \(bu 4
@@ -1567,9 +1607,12 @@ Type: String
 .P
 If you ask npm to install a package and don't tell it a specific version, then it will install the specified tag.
 .P
-Also the tag that is added to the package@version specified by the \fBnpm tag\fR command, if no explicit tag is given.
+It is the tag added to the package@version specified in the \fBnpm dist-tag
+add\fR command, if no explicit tag is given.
 .P
 When used by the \fBnpm diff\fR command, this is the tag used to fetch the tarball that will be compared with the local files by default.
+.P
+If used in the \fBnpm publish\fR command, this is the tag that will be added to the package submitted to the registry.
 .SS "\fBtag-version-prefix\fR"
 .RS 0
 .IP \(bu 4
@@ -1832,7 +1875,7 @@ Default: null
 .IP \(bu 4
 Type: null or String
 .IP \(bu 4
-DEPRECATED: \fBkey\fR and \fBcert\fR are no longer used for most registry operations. Use registry scoped \fBkeyfile\fR and \fBcertfile\fR instead. Example: //other-registry.tld/:keyfile=/path/to/key.pem //other-registry.tld/:certfile=/path/to/cert.crt
+DEPRECATED: \fBkey\fR and \fBcert\fR are no longer used for most registry operations. Use registry scoped \fBkeyfile\fR and \fBcafile\fR instead. Example: //other-registry.tld/:keyfile=/path/to/key.pem //other-registry.tld/:cafile=/path/to/cert.crt
 .RE 0
 
 .P
@@ -1844,7 +1887,7 @@ cert="-----BEGIN CERTIFICATE-----\[rs]nXXXX\[rs]nXXXX\[rs]n-----END CERTIFICATE-
 .fi
 .RE
 .P
-It is \fInot\fR the path to a certificate file, though you can set a registry-scoped "certfile" path like "//other-registry.tld/:certfile=/path/to/cert.pem".
+It is \fInot\fR the path to a certificate file, though you can set a registry-scoped "cafile" path like "//other-registry.tld/:cafile=/path/to/cert.pem".
 .SS "\fBdev\fR"
 .RS 0
 .IP \(bu 4
@@ -1948,7 +1991,7 @@ Default: null
 .IP \(bu 4
 Type: null or String
 .IP \(bu 4
-DEPRECATED: \fBkey\fR and \fBcert\fR are no longer used for most registry operations. Use registry scoped \fBkeyfile\fR and \fBcertfile\fR instead. Example: //other-registry.tld/:keyfile=/path/to/key.pem //other-registry.tld/:certfile=/path/to/cert.crt
+DEPRECATED: \fBkey\fR and \fBcert\fR are no longer used for most registry operations. Use registry scoped \fBkeyfile\fR and \fBcafile\fR instead. Example: //other-registry.tld/:keyfile=/path/to/key.pem //other-registry.tld/:cafile=/path/to/cert.crt
 .RE 0
 
 .P

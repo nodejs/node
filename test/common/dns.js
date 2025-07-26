@@ -40,7 +40,7 @@ function readDomainFromPacket(buffer, offset) {
   }
   // Pointer to another part of the packet.
   assert.strictEqual(length & 0xC0, 0xC0);
-  // eslint-disable-next-line space-infix-ops, space-unary-ops
+  // eslint-disable-next-line @stylistic/js/space-infix-ops, @stylistic/js/space-unary-ops
   const pointeeOffset = buffer.readUInt16BE(offset) &~ 0xC000;
   return {
     nread: 2,
@@ -196,11 +196,11 @@ function writeDNSPacket(parsed) {
 
   buffers.push(new Uint16Array([
     parsed.id,
-    parsed.flags === undefined ? kStandardResponseFlags : parsed.flags,
-    parsed.questions && parsed.questions.length,
-    parsed.answers && parsed.answers.length,
-    parsed.authorityAnswers && parsed.authorityAnswers.length,
-    parsed.additionalRecords && parsed.additionalRecords.length,
+    parsed.flags ?? kStandardResponseFlags,
+    parsed.questions?.length,
+    parsed.answers?.length,
+    parsed.authorityAnswers?.length,
+    parsed.additionalRecords?.length,
   ]));
 
   for (const q of parsed.questions) {

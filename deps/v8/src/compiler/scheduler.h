@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_SCHEDULER_H_
 #define V8_COMPILER_SCHEDULER_H_
 
+#include <optional>
+
 #include "src/base/flags.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
@@ -21,7 +23,7 @@ namespace compiler {
 // Forward declarations.
 class CFGBuilder;
 class ControlEquivalence;
-class Graph;
+class TFGraph;
 class SpecialRPONumberer;
 
 // Computes a schedule from a graph, placing nodes into basic blocks and
@@ -34,7 +36,7 @@ class V8_EXPORT_PRIVATE Scheduler {
 
   // The complete scheduling algorithm. Creates a new schedule and places all
   // nodes from the graph into it.
-  static Schedule* ComputeSchedule(Zone* temp_zone, Graph* graph, Flags flags,
+  static Schedule* ComputeSchedule(Zone* temp_zone, TFGraph* graph, Flags flags,
                                    TickCounter* tick_counter,
                                    const ProfileDataFromFile* profile_data);
 
@@ -77,7 +79,7 @@ class V8_EXPORT_PRIVATE Scheduler {
   };
 
   Zone* zone_;
-  Graph* graph_;
+  TFGraph* graph_;
   Schedule* schedule_;
   Flags flags_;
   ZoneVector<NodeVector*>
@@ -92,7 +94,7 @@ class V8_EXPORT_PRIVATE Scheduler {
   const ProfileDataFromFile* profile_data_;
   CommonDominatorCache common_dominator_cache_;
 
-  Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
+  Scheduler(Zone* zone, TFGraph* graph, Schedule* schedule, Flags flags,
             size_t node_count_hint_, TickCounter* tick_counter,
             const ProfileDataFromFile* profile_data);
 
@@ -105,7 +107,7 @@ class V8_EXPORT_PRIVATE Scheduler {
   bool IsLive(Node* node);
 
   // If the node is coupled, returns the coupled control edge index.
-  inline base::Optional<int> GetCoupledControlEdge(Node* node);
+  inline std::optional<int> GetCoupledControlEdge(Node* node);
   void IncrementUnscheduledUseCount(Node* node, Node* from);
   void DecrementUnscheduledUseCount(Node* node, Node* from);
 

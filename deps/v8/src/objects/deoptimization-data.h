@@ -9,6 +9,7 @@
 
 #include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array.h"
+#include "src/utils/boxed-float.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -18,20 +19,154 @@ namespace internal {
 
 // This class holds data required during deoptimization. It does not have its
 // own instance type.
-class DeoptimizationLiteralArray : public WeakFixedArray {
+class DeoptimizationLiteralArray : public TrustedWeakFixedArray {
  public:
   // Getters for literals. These include runtime checks that the pointer was not
   // cleared, if the literal was held weakly.
   inline Tagged<Object> get(int index) const;
   inline Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
 
+  // TODO(jgruber): Swap these names around. It's confusing that this
+  // WeakFixedArray subclass redefines `get` with different semantics.
+  inline Tagged<MaybeObject> get_raw(int index) const;
+
   // Setter for literals. This will set the object as strong or weak depending
   // on InstructionStream::IsWeakObjectInOptimizedCode.
   inline void set(int index, Tagged<Object> value);
+};
 
-  DECL_CAST(DeoptimizationLiteralArray)
+using ProtectedDeoptimizationLiteralArray = ProtectedFixedArray;
 
-  OBJECT_CONSTRUCTORS(DeoptimizationLiteralArray, WeakFixedArray);
+enum class DeoptimizationLiteralKind {
+  kObject,
+  kNumber,
+  kSignedBigInt64,
+  kUnsignedBigInt64,
+  kHoleNaN,
+  kInvalid,
+
+  // These kinds are used by wasm only (as unoptimized JS doesn't have these
+  // types).
+  kWasmI31Ref,
+  kWasmInt32,
+  kWasmFloat32,
+  kWasmFloat64,
+  kWasmInt64 = kSignedBigInt64,
+};
+
+// A deoptimization literal during code generation. For JS this is transformed
+// into a heap object after code generation. For wasm the DeoptimizationLiteral
+// is directly used by the deoptimizer.
+class DeoptimizationLiteral {
+ public:
+  DeoptimizationLiteral()
+      : kind_(DeoptimizationLiteralKind::kInvalid), object_() {}
+  explicit DeoptimizationLiteral(IndirectHandle<Object> object)
+      : kind_(DeoptimizationLiteralKind::kObject), object_(object) {
+    CHECK(!object_.is_null());
+  }
+  explicit DeoptimizationLiteral(Float32 number)
+      : kind_(DeoptimizationLiteralKind::kWasmFloat32), float32_(number) {}
+  explicit DeoptimizationLiteral(Float64 number)
+      : kind_(DeoptimizationLiteralKind::kWasmFloat64), float64_(number) {}
+  explicit DeoptimizationLiteral(double number)
+      : kind_(DeoptimizationLiteralKind::kNumber), number_(number) {}
+  explicit DeoptimizationLiteral(int64_t signed_bigint64)
+      : kind_(DeoptimizationLiteralKind::kSignedBigInt64),
+        int64_(signed_bigint64) {}
+  explicit DeoptimizationLiteral(uint64_t unsigned_bigint64)
+      : kind_(DeoptimizationLiteralKind::kUnsignedBigInt64),
+        uint64_(unsigned_bigint64) {}
+  explicit DeoptimizationLiteral(int32_t int32)
+      : kind_(DeoptimizationLiteralKind::kWasmInt32), int64_(int32) {}
+  explicit DeoptimizationLiteral(Tagged<Smi> smi)
+      : kind_(DeoptimizationLiteralKind::kWasmI31Ref), int64_(smi.value()) {}
+
+  static DeoptimizationLiteral HoleNaN() {
+    DeoptimizationLiteral literal;
+    literal.kind_ = DeoptimizationLiteralKind::kHoleNaN;
+    return literal;
+  }
+
+  IndirectHandle<Object> object() const { return object_; }
+
+  bool operator==(const DeoptimizationLiteral& other) const {
+    if (kind_ != other.kind_) {
+      return false;
+    }
+    switch (kind_) {
+      case DeoptimizationLiteralKind::kObject:
+        return object_.equals(other.object_);
+      case DeoptimizationLiteralKind::kNumber:
+        return base::bit_cast<uint64_t>(number_) ==
+               base::bit_cast<uint64_t>(other.number_);
+      case DeoptimizationLiteralKind::kWasmI31Ref:
+      case DeoptimizationLiteralKind::kWasmInt32:
+      case DeoptimizationLiteralKind::kSignedBigInt64:
+        return int64_ == other.int64_;
+      case DeoptimizationLiteralKind::kUnsignedBigInt64:
+        return uint64_ == other.uint64_;
+      case DeoptimizationLiteralKind::kHoleNaN:
+        return other.kind() == DeoptimizationLiteralKind::kHoleNaN;
+      case DeoptimizationLiteralKind::kInvalid:
+        return true;
+      case DeoptimizationLiteralKind::kWasmFloat32:
+        return float32_.get_bits() == other.float32_.get_bits();
+      case DeoptimizationLiteralKind::kWasmFloat64:
+        return float64_.get_bits() == other.float64_.get_bits();
+    }
+    UNREACHABLE();
+  }
+
+  DirectHandle<Object> Reify(Isolate* isolate) const;
+
+#if V8_ENABLE_WEBASSEMBLY
+  Float64 GetFloat64() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmFloat64);
+    return float64_;
+  }
+
+  Float32 GetFloat32() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmFloat32);
+    return float32_;
+  }
+
+  int64_t GetInt64() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmInt64);
+    return int64_;
+  }
+
+  int32_t GetInt32() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmInt32);
+    return static_cast<int32_t>(int64_);
+  }
+
+  Tagged<Smi> GetSmi() const {
+    DCHECK_EQ(kind_, DeoptimizationLiteralKind::kWasmI31Ref);
+    return Smi::FromInt(static_cast<int>(int64_));
+  }
+#endif
+
+  void Validate() const {
+    CHECK_NE(kind_, DeoptimizationLiteralKind::kInvalid);
+  }
+
+  DeoptimizationLiteralKind kind() const {
+    Validate();
+    return kind_;
+  }
+
+ private:
+  DeoptimizationLiteralKind kind_;
+
+  union {
+    IndirectHandle<Object> object_;
+    double number_;
+    Float32 float32_;
+    Float64 float64_;
+    int64_t int64_;
+    uint64_t uint64_;
+  };
 };
 
 // The DeoptimizationFrameTranslation is the on-heap representation of
@@ -39,10 +174,8 @@ class DeoptimizationLiteralArray : public WeakFixedArray {
 // DeoptimizationFrameTranslationBuilder. The translation specifies how to
 // transform an optimized frame back into one or more unoptimized frames.
 enum class TranslationOpcode;
-class DeoptimizationFrameTranslation : public ByteArray {
+class DeoptimizationFrameTranslation : public TrustedByteArray {
  public:
-  DECL_CAST(DeoptimizationFrameTranslation)
-
   struct FrameCount {
     int total_frame_count;
     int js_frame_count;
@@ -64,15 +197,14 @@ class DeoptimizationFrameTranslation : public ByteArray {
 #ifdef ENABLE_DISASSEMBLER
   void PrintFrameTranslation(
       std::ostream& os, int index,
+      Tagged<ProtectedDeoptimizationLiteralArray> protected_literal_array,
       Tagged<DeoptimizationLiteralArray> literal_array) const;
 #endif
-
-  OBJECT_CONSTRUCTORS(DeoptimizationFrameTranslation, ByteArray);
 };
 
-class DeoptimizationFrameTranslation::Iterator {
+class DeoptTranslationIterator {
  public:
-  Iterator(Tagged<DeoptimizationFrameTranslation> buffer, int index);
+  DeoptTranslationIterator(base::Vector<const uint8_t> buffer, int index);
 
   int32_t NextOperand();
 
@@ -97,7 +229,7 @@ class DeoptimizationFrameTranslation::Iterator {
   void SkipOpcodeAndItsOperandsAtPreviousIndex();
 
   std::vector<int32_t> uncompressed_contents_;
-  Tagged<DeoptimizationFrameTranslation> buffer_;
+  const base::Vector<const uint8_t> buffer_;
   int index_;
 
   // This decrementing counter indicates how many more times to read operations
@@ -113,27 +245,39 @@ class DeoptimizationFrameTranslation::Iterator {
   int ops_since_previous_index_was_updated_ = 0;
 };
 
+// Iterator over the deoptimization values. The iterator is not GC-safe.
+class DeoptimizationFrameTranslation::Iterator
+    : public DeoptTranslationIterator {
+ public:
+  Iterator(Tagged<DeoptimizationFrameTranslation> buffer, int index);
+  DisallowGarbageCollection no_gc_;
+};
+
 // DeoptimizationData is a fixed array used to hold the deoptimization data for
 // optimized code.  It also contains information about functions that were
 // inlined.  If N different functions were inlined then the first N elements of
 // the literal array will contain these functions.
 //
 // It can be empty.
-class DeoptimizationData : public FixedArray {
+class DeoptimizationData : public ProtectedFixedArray {
  public:
+  using SharedFunctionInfoWrapperOrSmi =
+      UnionOf<Smi, SharedFunctionInfoWrapper>;
+
   // Layout description.  Indices in the array.
   static const int kFrameTranslationIndex = 0;
   static const int kInlinedFunctionCountIndex = 1;
-  static const int kLiteralArrayIndex = 2;
-  static const int kOsrBytecodeOffsetIndex = 3;
-  static const int kOsrPcOffsetIndex = 4;
-  static const int kOptimizationIdIndex = 5;
-  static const int kSharedFunctionInfoIndex = 6;
-  static const int kInliningPositionsIndex = 7;
-  static const int kDeoptExitStartIndex = 8;
-  static const int kEagerDeoptCountIndex = 9;
-  static const int kLazyDeoptCountIndex = 10;
-  static const int kFirstDeoptEntryIndex = 11;
+  static const int kProtectedLiteralArrayIndex = 2;
+  static const int kLiteralArrayIndex = 3;
+  static const int kOsrBytecodeOffsetIndex = 4;
+  static const int kOsrPcOffsetIndex = 5;
+  static const int kOptimizationIdIndex = 6;
+  static const int kWrappedSharedFunctionInfoIndex = 7;
+  static const int kInliningPositionsIndex = 8;
+  static const int kDeoptExitStartIndex = 9;
+  static const int kEagerDeoptCountIndex = 10;
+  static const int kLazyDeoptCountIndex = 11;
+  static const int kFirstDeoptEntryIndex = 12;
 
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kBytecodeOffsetRawOffset = 0;
@@ -154,17 +298,23 @@ class DeoptimizationData : public FixedArray {
   DECL_ELEMENT_ACCESSORS(FrameTranslation,
                          Tagged<DeoptimizationFrameTranslation>)
   DECL_ELEMENT_ACCESSORS(InlinedFunctionCount, Tagged<Smi>)
+  DECL_ELEMENT_ACCESSORS(ProtectedLiteralArray,
+                         Tagged<ProtectedDeoptimizationLiteralArray>)
   DECL_ELEMENT_ACCESSORS(LiteralArray, Tagged<DeoptimizationLiteralArray>)
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Tagged<Smi>)
-  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Tagged<Object>)
-  DECL_ELEMENT_ACCESSORS(InliningPositions, Tagged<PodArray<InliningPosition>>)
+  DECL_ELEMENT_ACCESSORS(WrappedSharedFunctionInfo,
+                         Tagged<SharedFunctionInfoWrapperOrSmi>)
+  DECL_ELEMENT_ACCESSORS(InliningPositions,
+                         Tagged<TrustedPodArray<InliningPosition>>)
   DECL_ELEMENT_ACCESSORS(DeoptExitStart, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(EagerDeoptCount, Tagged<Smi>)
   DECL_ELEMENT_ACCESSORS(LazyDeoptCount, Tagged<Smi>)
 
 #undef DECL_ELEMENT_ACCESSORS
+
+  inline Tagged<SharedFunctionInfo> GetSharedFunctionInfo() const;
 
 // Accessors for elements of the ith deoptimization entry.
 #define DECL_ENTRY_ACCESSORS(name, type) \
@@ -195,21 +345,18 @@ class DeoptimizationData : public FixedArray {
 
   // Returns the inlined function at the given position in LiteralArray, or the
   // outer function if index == kNotInlinedIndex.
-  Tagged<class SharedFunctionInfo> GetInlinedFunction(int index);
+  Tagged<SharedFunctionInfo> GetInlinedFunction(int index);
 
   // Allocates a DeoptimizationData.
-  static Handle<DeoptimizationData> New(Isolate* isolate, int deopt_entry_count,
-                                        AllocationType allocation);
+  static Handle<DeoptimizationData> New(Isolate* isolate,
+                                        int deopt_entry_count);
   static Handle<DeoptimizationData> New(LocalIsolate* isolate,
-                                        int deopt_entry_count,
-                                        AllocationType allocation);
+                                        int deopt_entry_count);
 
   // Return an empty DeoptimizationData.
   V8_EXPORT_PRIVATE static Handle<DeoptimizationData> Empty(Isolate* isolate);
   V8_EXPORT_PRIVATE static Handle<DeoptimizationData> Empty(
       LocalIsolate* isolate);
-
-  DECL_CAST(DeoptimizationData)
 
 #ifdef DEBUG
   void Verify(Handle<BytecodeArray> bytecode) const;
@@ -224,8 +371,6 @@ class DeoptimizationData : public FixedArray {
   }
 
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
-
-  OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray);
 };
 
 }  // namespace internal

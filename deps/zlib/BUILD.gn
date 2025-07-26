@@ -70,7 +70,7 @@ source_set("zlib_common_headers") {
 use_arm_neon_optimizations = false
 if ((current_cpu == "arm" || current_cpu == "arm64") &&
     !(is_win && !is_clang)) {
-  # TODO(richard.townsend@arm.com): Optimizations temporarily disabled for
+  # TODO(ritownsend@google.com): Optimizations temporarily disabled for
   # Windows on Arm MSVC builds, see http://crbug.com/v8/10012.
   if (arm_use_neon) {
     use_arm_neon_optimizations = true
@@ -151,7 +151,13 @@ if (use_arm_neon_optimizations) {
     if (!is_win && !is_clang) {
       assert(!use_thin_lto,
              "ThinLTO fails mixing different module-level targets")
-      cflags_c = [ "-march=armv8-a+aes+crc" ]
+      if (current_cpu == "arm64") {
+        cflags_c = [ "-march=armv8-a+aes+crc" ]
+      } else if (current_cpu == "arm") {
+        cflags_c = [ "-march=armv8-a+crc" ]
+      } else {
+        assert(false, "Unexpected cpu: $current_cpu")
+      }
     }
 
     sources = [
@@ -167,12 +173,15 @@ if (use_arm_neon_optimizations) {
   }
 }
 
-config("zlib_inflate_chunk_simd_config") {
+config("zlib_data_chunk_simd_config") {
   if (use_x86_x64_optimizations) {
     defines = [ "INFLATE_CHUNK_SIMD_SSE2" ]
 
     if (current_cpu == "x64") {
-      defines += [ "INFLATE_CHUNK_READ_64LE" ]
+      defines += [
+        "INFLATE_CHUNK_READ_64LE",
+        "DEFLATE_CHUNK_WRITE_64LE",
+      ]
     }
   }
 
@@ -180,12 +189,15 @@ config("zlib_inflate_chunk_simd_config") {
     defines = [ "INFLATE_CHUNK_SIMD_NEON" ]
 
     if (current_cpu == "arm64") {
-      defines += [ "INFLATE_CHUNK_READ_64LE" ]
+      defines += [
+        "INFLATE_CHUNK_READ_64LE",
+        "DEFLATE_CHUNK_WRITE_64LE",
+      ]
     }
   }
 }
 
-source_set("zlib_inflate_chunk_simd") {
+source_set("zlib_data_chunk_simd") {
   visibility = [ ":*" ]
 
   if (use_x86_x64_optimizations || use_arm_neon_optimizations) {
@@ -207,7 +219,7 @@ source_set("zlib_inflate_chunk_simd") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":zlib_warnings" ]
 
-  public_configs = [ ":zlib_inflate_chunk_simd_config" ]
+  public_configs = [ ":zlib_data_chunk_simd_config" ]
 
   public_deps = [ ":zlib_common_headers" ]
 }
@@ -274,7 +286,6 @@ source_set("zlib_slide_hash_simd") {
 config("zlib_warnings") {
   if (is_clang) {
     cflags = [
-      "-Wno-deprecated-non-prototype",
       "-Wno-incompatible-pointer-types",
       "-Wunused-variable",
     ]
@@ -331,7 +342,7 @@ component("zlib") {
   if (use_x86_x64_optimizations || use_arm_neon_optimizations) {
     deps += [
       ":zlib_adler32_simd",
-      ":zlib_inflate_chunk_simd",
+      ":zlib_data_chunk_simd",
       ":zlib_slide_hash_simd",
     ]
 
@@ -380,7 +391,6 @@ config("minizip_warnings") {
     cflags = [
       # zlib uses `if ((a == b))` for some reason.
       "-Wno-parentheses-equality",
-      "-Wno-deprecated-non-prototype",
     ]
   }
 }
@@ -443,6 +453,36 @@ executable("zlib_bench") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
 
+executable("minigzip") {
+  include_dirs = [ "." ]
+
+  sources = [ "test/minigzip.c" ]
+  if (!is_debug) {
+    configs -= [ "//build/config/compiler:default_optimization" ]
+    configs += [ "//build/config/compiler:optimize_speed" ]
+  }
+
+  deps = [ ":zlib" ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
+executable("zpipe") {
+  include_dirs = [ "." ]
+
+  sources = [ "examples/zpipe.c" ]
+  if (!is_debug) {
+    configs -= [ "//build/config/compiler:default_optimization" ]
+    configs += [ "//build/config/compiler:optimize_speed" ]
+  }
+
+  deps = [ ":zlib" ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
 if (!is_win || target_os != "winuwp") {
   executable("minizip_bin") {
     include_dirs = [ "." ]
@@ -450,11 +490,7 @@ if (!is_win || target_os != "winuwp") {
     sources = [ "contrib/minizip/minizip.c" ]
 
     if (is_clang) {
-      cflags = [
-        "-Wno-incompatible-pointer-types-discards-qualifiers",
-
-        "-Wno-deprecated-non-prototype",
-      ]
+      cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
     }
 
     if (!is_debug) {
@@ -474,10 +510,7 @@ if (!is_win || target_os != "winuwp") {
     sources = [ "contrib/minizip/miniunz.c" ]
 
     if (is_clang) {
-      cflags = [
-        "-Wno-incompatible-pointer-types-discards-qualifiers",
-        "-Wno-deprecated-non-prototype",
-      ]
+      cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
     }
 
     if (!is_debug) {

@@ -25,10 +25,14 @@ void PipelineStatisticsBase::CommonStats::Begin(
       pipeline_stats->total_stats_.outer_zone_initial_size_ +
       pipeline_stats->zone_stats_->GetCurrentAllocatedBytes();
   // TODO(pthier): Move turboshaft specifics out of common class.
-  if (turboshaft::PipelineData::HasScope()) {
-    graph_size_at_start_ =
-        turboshaft::PipelineData::Get().graph().number_of_operations();
-  }
+  // TODO(nicohartmann): This is a bit more difficult to do cleanly here without
+  // the use of contextual variables. Add proper Turboshaft statistics in a
+  // follow up CL.
+  //
+  // if (turboshaft::PipelineData::HasScope()) {
+  //   graph_size_at_start_ =
+  //       turboshaft::PipelineData::Get().graph().number_of_operations();
+  // }
   timer_.Start();
 }
 
@@ -46,10 +50,14 @@ void PipelineStatisticsBase::CommonStats::End(
   diff->total_allocated_bytes_ =
       outer_zone_diff + scope_->GetTotalAllocatedBytes();
   diff->input_graph_size_ = graph_size_at_start_;
-  if (turboshaft::PipelineData::HasScope()) {
-    diff->output_graph_size_ =
-        turboshaft::PipelineData::Get().graph().number_of_operations();
-  }
+  // TODO(nicohartmann): This is a bit more difficult to do cleanly here without
+  // the use of contextual variables. Add proper Turboshaft statistics in a
+  // follow up CL.
+  //
+  // if (turboshaft::PipelineData::HasScope()) {
+  //   diff->output_graph_size_ =
+  //       turboshaft::PipelineData::Get().graph().number_of_operations();
+  // }
   scope_.reset();
   timer_.Stop();
 }
@@ -61,23 +69,18 @@ PipelineStatisticsBase::PipelineStatisticsBase(
     : outer_zone_(outer_zone),
       zone_stats_(zone_stats),
       compilation_stats_(compilation_stats),
-      code_kind_(code_kind),
-      phase_kind_name_(nullptr),
-      phase_name_(nullptr) {
+      code_kind_(code_kind) {
   total_stats_.Begin(this);
 }
 
 PipelineStatisticsBase::~PipelineStatisticsBase() {
   CompilationStatistics::BasicStats diff;
-  if (InPhaseKind()) EndPhaseKind(&diff);
   total_stats_.End(this, &diff);
   compilation_stats_->RecordTotalStats(diff);
 }
 
 void PipelineStatisticsBase::BeginPhaseKind(const char* phase_kind_name) {
   DCHECK(!InPhase());
-  CompilationStatistics::BasicStats diff;
-  if (InPhaseKind()) EndPhaseKind(&diff);
   phase_kind_name_ = phase_kind_name;
   phase_kind_stats_.Begin(this);
 }
@@ -113,7 +116,12 @@ TurbofanPipelineStatistics::TurbofanPipelineStatistics(
   }
 }
 
+TurbofanPipelineStatistics::~TurbofanPipelineStatistics() {
+  if (Base::InPhaseKind()) EndPhaseKind();
+}
+
 void TurbofanPipelineStatistics::BeginPhaseKind(const char* name) {
+  if (Base::InPhaseKind()) EndPhaseKind();
   Base::BeginPhaseKind(name);
   TRACE_EVENT_BEGIN1(kTraceCategory, name, "kind",
                      CodeKindToString(code_kind()));

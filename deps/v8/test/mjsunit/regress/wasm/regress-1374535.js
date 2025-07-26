@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-inlining --no-liftoff
+// Flags: --wasm-inlining --no-liftoff
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let builder = new WasmModuleBuilder();
-let global = builder.addGlobal(kWasmI32);
+let global = builder.addGlobal(kWasmI32, false, false);
 let callee =
     builder.addFunction('callee', kSig_v_v).addBody([kExprLocalGet, 11]);
 builder.addFunction('main', kSig_v_v)

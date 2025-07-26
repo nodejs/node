@@ -129,7 +129,7 @@ class SnapshotFileWriter {
   const char* snapshot_blob_path_ = nullptr;
 };
 
-char* GetExtraCode(char* filename, const char* description) {
+std::unique_ptr<char[]> GetExtraCode(char* filename, const char* description) {
   if (filename == nullptr || strlen(filename) == 0) return nullptr;
   ::printf("Loading script for %s: %s\n", description, filename);
   FILE* file = v8::base::OS::FOpen(filename, "rb");
@@ -151,17 +151,17 @@ char* GetExtraCode(char* filename, const char* description) {
     i += read;
   }
   v8::base::Fclose(file);
-  return chars;
+  return std::unique_ptr<char[]>(chars);
 }
 
-v8::StartupData CreateSnapshotDataBlob(i::Isolate* isolate,
+v8::StartupData CreateSnapshotDataBlob(v8::SnapshotCreator& snapshot_creator,
                                        const char* embedded_source) {
   v8::base::ElapsedTimer timer;
   timer.Start();
 
   v8::StartupData result = i::CreateSnapshotDataBlobInternal(
       v8::SnapshotCreator::FunctionCodeHandling::kClear, embedded_source,
-      isolate);
+      snapshot_creator);
 
   if (i::v8_flags.profile_deserialization) {
     i::PrintF("[Creating snapshot took %0.3f ms]\n",
@@ -226,6 +226,11 @@ int main(int argc, char** argv) {
   // Make mksnapshot runs predictable to create reproducible snapshots.
   i::v8_flags.predictable = true;
 
+  // Disable ICs globally in mksnapshot to avoid problems with Code handlers.
+  // See https://crbug.com/345280736.
+  // TODO(jgruber): Re-enable once a better fix is available.
+  i::v8_flags.use_ic = false;
+
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   using HelpOptions = i::FlagList::HelpOptions;
@@ -258,10 +263,10 @@ int main(int argc, char** argv) {
     embedded_writer.SetTargetArch(i::v8_flags.target_arch);
     embedded_writer.SetTargetOs(i::v8_flags.target_os);
 
-    std::unique_ptr<char> embed_script(
-        GetExtraCode(argc >= 2 ? argv[1] : nullptr, "embedding"));
-    std::unique_ptr<char> warmup_script(
-        GetExtraCode(argc >= 3 ? argv[2] : nullptr, "warm up"));
+    std::unique_ptr<char[]> embed_script =
+        GetExtraCode(argc >= 2 ? argv[1] : nullptr, "embedding");
+    std::unique_ptr<char[]> warmup_script =
+        GetExtraCode(argc >= 3 ? argv[2] : nullptr, "warm up");
 
     v8::StartupData blob;
     {
@@ -269,30 +274,40 @@ int main(int argc, char** argv) {
 
       MaybeSetCounterFunction(isolate);
 
+      // The isolate contains data from builtin compilation that needs
+      // to be written out if builtins are embedded.
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      i_isolate->RegisterEmbeddedFileWriter(&embedded_writer);
+
+      std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
+          v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+      v8::Isolate::CreateParams create_params;
+      create_params.array_buffer_allocator = array_buffer_allocator.get();
+
       // Set code range such that relative jumps for builtins to
       // builtin calls in the snapshot are possible.
-      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
       size_t code_range_size_mb =
           i::kMaximalCodeRangeSize == 0
               ? i::kMaxPCRelativeCodeRangeInMB
               : std::min(i::kMaximalCodeRangeSize / i::MB,
                          i::kMaxPCRelativeCodeRangeInMB);
-      v8::ResourceConstraints constraints;
-      constraints.set_code_range_size_in_bytes(code_range_size_mb * i::MB);
-      i_isolate->heap()->ConfigureHeap(constraints);
-      // The isolate contains data from builtin compilation that needs
-      // to be written out if builtins are embedded.
-      i_isolate->RegisterEmbeddedFileWriter(&embedded_writer);
+      create_params.constraints.set_code_range_size_in_bytes(
+          code_range_size_mb * i::MB);
 
-      blob = CreateSnapshotDataBlob(i_isolate, embed_script.get());
+      {
+        v8::SnapshotCreator creator(isolate, create_params);
 
-      WriteEmbeddedFile(&embedded_writer);
+        blob = CreateSnapshotDataBlob(creator, embed_script.get());
+
+        WriteEmbeddedFile(&embedded_writer);
 
 #if V8_STATIC_ROOTS_GENERATION_BOOL
-      if (i::v8_flags.static_roots_src) {
-        i::StaticRootsTableGen::write(i_isolate, i::v8_flags.static_roots_src);
-      }
+        if (i::v8_flags.static_roots_src) {
+          i::StaticRootsTableGen::write(i_isolate,
+                                        i::v8_flags.static_roots_src);
+        }
 #endif
+      }
       isolate->Dispose();
     }
 

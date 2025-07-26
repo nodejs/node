@@ -14,6 +14,8 @@ bool InstructionScheduler::SchedulerSupported() { return true; }
 int InstructionScheduler::GetTargetInstructionFlags(
     const Instruction* instr) const {
   switch (instr->arch_opcode()) {
+    case kRiscvEnableDebugTrace:
+    case kRiscvDisableDebugTrace:
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvAdd32:
     case kRiscvBitcastDL:
@@ -28,7 +30,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvAdd64:
     case kRiscvAddOvf64:
     case kRiscvClz64:
-    case kRiscvCtz64:
     case kRiscvDiv64:
     case kRiscvDivU64:
     case kRiscvZeroExtendWord:
@@ -37,7 +38,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvModU64:
     case kRiscvMul64:
     case kRiscvMulOvf64:
-    case kRiscvPopcnt64:
     case kRiscvRor64:
     case kRiscvSar64:
     case kRiscvShl64:
@@ -53,9 +53,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvTruncLS:
     case kRiscvTruncUlD:
     case kRiscvTruncUlS:
-    case kRiscvLoadDecodeSandboxedPointer:
-    case kRiscvStoreEncodeSandboxedPointer:
     case kRiscvCmp32:
+    case kRiscvCmpZero32:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvAdd32:
     case kRiscvAddPair:
@@ -71,6 +70,43 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvSubOvf:
     case kRiscvSub32:
 #endif
+    case kRiscvSh1add:
+    case kRiscvSh2add:
+    case kRiscvSh3add:
+#if V8_TARGET_ARCH_RISCV64
+    case kRiscvAdduw:
+    case kRiscvSh1adduw:
+    case kRiscvSh2adduw:
+    case kRiscvSh3adduw:
+    case kRiscvSlliuw:
+#endif
+    case kRiscvAndn:
+    case kRiscvOrn:
+    case kRiscvXnor:
+    case kRiscvClz:
+    case kRiscvCtz:
+    case kRiscvCpop:
+#if V8_TARGET_ARCH_RISCV64
+    case kRiscvClzw:
+    case kRiscvCtzw:
+    case kRiscvCpopw:
+#endif
+    case kRiscvMax:
+    case kRiscvMaxu:
+    case kRiscvMin:
+    case kRiscvMinu:
+    case kRiscvSextb:
+    case kRiscvSexth:
+    case kRiscvZexth:
+    case kRiscvRev8:
+    case kRiscvBclr:
+    case kRiscvBclri:
+    case kRiscvBext:
+    case kRiscvBexti:
+    case kRiscvBinv:
+    case kRiscvBinvi:
+    case kRiscvBset:
+    case kRiscvBseti:
     case kRiscvAbsD:
     case kRiscvAbsS:
     case kRiscvAddD:
@@ -88,7 +124,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvCmpZero:
     case kRiscvCmpD:
     case kRiscvCmpS:
-    case kRiscvCtz32:
     case kRiscvCvtDS:
     case kRiscvCvtDUw:
     case kRiscvCvtDW:
@@ -193,11 +228,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvMulS:
     case kRiscvNegD:
     case kRiscvNegS:
-    case kRiscvNor:
-    case kRiscvNor32:
     case kRiscvOr:
     case kRiscvOr32:
-    case kRiscvPopcnt32:
     case kRiscvRor32:
     case kRiscvRoundWD:
     case kRiscvRoundWS:
@@ -292,9 +324,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvWord64AtomicLoadUint64:
     case kRiscvLoadDecompressTaggedSigned:
     case kRiscvLoadDecompressTagged:
+    case kRiscvLoadDecodeSandboxedPointer:
     case kRiscvAtomicLoadDecompressTaggedSigned:
     case kRiscvAtomicLoadDecompressTagged:
     case kRiscvAtomicStoreCompressTagged:
+    case kRiscvLoadDecompressProtected:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvWord32AtomicPairLoad:
 #endif
@@ -331,6 +365,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvWord64AtomicExchangeUint64:
     case kRiscvWord64AtomicCompareExchangeUint64:
     case kRiscvStoreCompressTagged:
+    case kRiscvStoreEncodeSandboxedPointer:
+    case kRiscvStoreIndirectPointer:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvWord32AtomicPairStore:
     case kRiscvWord32AtomicPairAdd:
@@ -371,26 +407,30 @@ int InstructionScheduler::GetTargetInstructionFlags(
 }
 
 enum Latency {
+  ADD = 1,
+
   BRANCH = 4,  // Estimated max.
   RINT_S = 4,  // Estimated.
   RINT_D = 4,  // Estimated.
 
   // TODO(RISCV): remove MULT instructions (MIPS legacy).
-  MULT = 4,
-  MULTU = 4,
-  DMULT = 4,
+  MUL = 4,
+  MULW = 4,
+  MULH = 4,
+  MULHS = 4,
+  MULHU = 4,
 
-  MUL32 = 7,
+  DIVW = 50,  // Min:11 Max:50
+  DIV = 50,
+  DIVU = 50,
+  DIVUW = 50,
 
-  DIV32 = 50,  // Min:11 Max:50
-  DIV64 = 50,
-  DIVU32 = 50,
-  DIVU64 = 50,
-
-  ABS_S = 4,
-  ABS_D = 4,
-  NEG_S = 4,
-  NEG_D = 4,
+  FSGNJ_S = 4,
+  FSGNJ_D = 4,
+  ABS_S = FSGNJ_S,
+  ABS_D = FSGNJ_S,
+  NEG_S = FSGNJ_S,
+  NEG_D = FSGNJ_S,
   ADD_S = 4,
   ADD_D = 4,
   SUB_S = 4,
@@ -494,18 +534,30 @@ enum Latency {
   STORE_DOUBLE = 1,
 };
 
-int Add64Latency(bool is_operand_register = true) {
-  if (is_operand_register) {
-    return 1;
-  } else {
-    return 2;  // Estimated max.
+inline int LoadConstantLatency() {
+  return 1;
+  // #if V8_TARGET_ARCH_RISCV32
+  //   return 2; //lui+aii Estimated max.
+  // #elif V8_TARGET_ARCH_RISCV64
+  //   return 4;
+  // #endif
+}
+
+inline int Add64Latency(bool is_operand_register = true) {
+  int latency = Latency::ADD;
+  if (!is_operand_register) {
+    latency += LoadConstantLatency();
   }
+  return latency;
 }
 
 int Sub64Latency(bool is_operand_register = true) {
   return Add64Latency(is_operand_register);
 }
 
+int ShiftLatency(bool is_operand_register = true) {
+  return Add64Latency(is_operand_register);
+}
 int AndLatency(bool is_operand_register = true) {
   return Add64Latency(is_operand_register);
 }
@@ -518,7 +570,7 @@ int NorLatency(bool is_operand_register = true) {
   if (is_operand_register) {
     return 1;
   } else {
-    return 2;  // Estimated max.
+    return 1 + LoadConstantLatency();  // Estimated max.
   }
 }
 
@@ -528,104 +580,106 @@ int XorLatency(bool is_operand_register = true) {
 
 int Mul32Latency(bool is_operand_register = true) {
   if (is_operand_register) {
-    return Latency::MUL32;
+    return Latency::MULW;
   } else {
-    return Latency::MUL32 + 1;
+    return Latency::MULW + 1;
   }
 }
 
 int Mul64Latency(bool is_operand_register = true) {
-  int latency = Latency::DMULT + Latency::MOVF_LOW;
+  int latency = Latency::MUL;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Mulh32Latency(bool is_operand_register = true) {
-  int latency = Latency::MULT + Latency::MOVF_HIGH;
+  int latency = Latency::MULH + ShiftLatency(true);
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Mulhu32Latency(bool is_operand_register = true) {
-  int latency = Latency::MULTU + Latency::MOVF_HIGH;
+  int latency = Latency::MULHU + ShiftLatency(true) * 2;
   if (!is_operand_register) {
+    latency += LoadConstantLatency();
+  } else {
     latency += 1;
   }
   return latency;
 }
 
 int Mulh64Latency(bool is_operand_register = true) {
-  int latency = Latency::DMULT + Latency::MOVF_HIGH;
+  int latency = Latency::MULH;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Div32Latency(bool is_operand_register = true) {
   if (is_operand_register) {
-    return Latency::DIV32;
+    return Latency::DIVW;
   } else {
-    return Latency::DIV32 + 1;
+    return Latency::DIVW + 1;
   }
 }
 
 int Divu32Latency(bool is_operand_register = true) {
   if (is_operand_register) {
-    return Latency::DIVU32;
+    return Latency::DIVUW;
   } else {
-    return Latency::DIVU32 + 1;
+    return Latency::DIVUW + LoadConstantLatency();
   }
 }
 
 int Div64Latency(bool is_operand_register = true) {
-  int latency = Latency::DIV64 + Latency::MOVF_LOW;
+  int latency = Latency::DIV;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Divu64Latency(bool is_operand_register = true) {
-  int latency = Latency::DIVU64 + Latency::MOVF_LOW;
+  int latency = Latency::DIVU;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Mod32Latency(bool is_operand_register = true) {
-  int latency = Latency::DIV32 + Latency::MOVF_HIGH;
+  int latency = Latency::DIVW;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Modu32Latency(bool is_operand_register = true) {
-  int latency = Latency::DIVU32 + Latency::MOVF_HIGH;
+  int latency = Latency::DIVUW;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Mod64Latency(bool is_operand_register = true) {
-  int latency = Latency::DIV64 + Latency::MOVF_HIGH;
+  int latency = Latency::DIV;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
 
 int Modu64Latency(bool is_operand_register = true) {
-  int latency = Latency::DIV64 + Latency::MOVF_HIGH;
+  int latency = Latency::DIV;
   if (!is_operand_register) {
-    latency += 1;
+    latency += LoadConstantLatency();
   }
   return latency;
 }
@@ -870,30 +924,11 @@ int MulOverflow64Latency() {
 }
 
 // TODO(RISCV): This is incorrect for RISC-V.
-int Clz64Latency() { return 1; }
-
-int Ctz32Latency() {
-  return Add64Latency(false) + XorLatency() + AndLatency() + Clz64Latency() +
-         1 + Sub64Latency();
+int Clz64Latency() {
+  if (CpuFeatures::IsSupported(ZBB)) return 1;
+  return 12;
 }
 
-int Ctz64Latency() {
-  return Add64Latency(false) + XorLatency() + AndLatency() + 1 + Sub64Latency();
-}
-
-int Popcnt32Latency() {
-  return 2 + AndLatency() + Sub64Latency() + 1 + AndLatency() + 1 +
-         AndLatency() + Add64Latency() + 1 + Add64Latency() + 1 + AndLatency() +
-         1 + Mul32Latency() + 1;
-}
-
-#if V8_TARGET_ARCH_RISCV64
-int Popcnt64Latency() {
-  return 2 + AndLatency() + Sub64Latency() + 1 + AndLatency() + 1 +
-         AndLatency() + Add64Latency() + 1 + Add64Latency() + 1 + AndLatency() +
-         1 + Mul64Latency() + 1;
-}
-#endif
 int CompareFLatency() { return Latency::C_cond_S; }
 
 int CompareF32Latency() { return CompareFLatency(); }
@@ -1205,17 +1240,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
         return latency + 1;
       }
     }
-    case kRiscvNor:
-      return NorLatency(instr->InputAt(1)->IsRegister());
-    case kRiscvNor32: {
-      bool is_operand_register = instr->InputAt(1)->IsRegister();
-      int latency = NorLatency(is_operand_register);
-      if (is_operand_register) {
-        return latency + 2;
-      } else {
-        return latency + 1;
-      }
-    }
     case kRiscvXor:
       return XorLatency(instr->InputAt(1)->IsRegister());
     case kRiscvXor32: {
@@ -1232,16 +1256,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvClz64:
 #endif
       return Clz64Latency();
-#if V8_TARGET_ARCH_RISCV64
-    case kRiscvCtz64:
-      return Ctz64Latency();
-    case kRiscvPopcnt64:
-      return Popcnt64Latency();
-#endif
-    case kRiscvCtz32:
-      return Ctz32Latency();
-    case kRiscvPopcnt32:
-      return Popcnt32Latency();
     case kRiscvShl32:
       return 1;
     case kRiscvShr32:
@@ -1441,8 +1455,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return UldLatency();
     case kRiscvUsd:
       return UsdLatency();
-    case kRiscvByteSwap64:
-      return ByteSwapSignedLatency();
 #endif
     case kRiscvUlw:
       return UlwLatency();
@@ -1501,8 +1513,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       }
       return latency;
     }
-    case kRiscvByteSwap32:
-      return ByteSwapSignedLatency();
     case kAtomicLoadInt8:
     case kAtomicLoadUint8:
     case kAtomicLoadInt16:
@@ -1536,6 +1546,10 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
              BranchShortLatency() + 1;
     case kRiscvAssertEqual:
       return AssertLatency();
+#ifdef V8_TARGET_ARCH_RISCV64
+    case kRiscvLoadDecompressProtected:
+      return 11;
+#endif
     default:
       return 1;
   }

@@ -22,7 +22,6 @@
 #include "unicode/numfmt.h"
 #include "unicode/decimfmt.h"
 #include "unicode/numberrangeformatter.h"
-#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
@@ -656,6 +655,11 @@ PluralRuleParser::parse(const UnicodeString& ruleData, PluralRules *prules, UErr
         case tEqual:
             {
                 U_ASSERT(curAndConstraint != nullptr);
+                if (curAndConstraint->rangeList != nullptr) {
+                    // Already get a '='.
+                    status = U_UNEXPECTED_TOKEN;
+                    break;
+                }
                 LocalPointer<UVector32> newRangeList(new UVector32(status), status);
                 if (U_FAILURE(status)) {
                     break;
@@ -673,20 +677,40 @@ PluralRuleParser::parse(const UnicodeString& ruleData, PluralRules *prules, UErr
             U_ASSERT(curAndConstraint != nullptr);
             if ( (curAndConstraint->op==AndConstraint::MOD)&&
                  (curAndConstraint->opNum == -1 ) ) {
-                curAndConstraint->opNum=getNumberValue(token);
+                int32_t num = getNumberValue(token);
+                if (num == -1) {
+                    status = U_UNEXPECTED_TOKEN;
+                    break;
+                }
+                curAndConstraint->opNum=num;
             }
             else {
                 if (curAndConstraint->rangeList == nullptr) {
                     // this is for an 'is' rule
-                    curAndConstraint->value = getNumberValue(token);
+                    int32_t num = getNumberValue(token);
+                    if (num == -1) {
+                        status = U_UNEXPECTED_TOKEN;
+                        break;
+                    }
+                    curAndConstraint->value = num;
                 } else {
                     // this is for an 'in' or 'within' rule
                     if (curAndConstraint->rangeList->elementAti(rangeLowIdx) == -1) {
-                        curAndConstraint->rangeList->setElementAt(getNumberValue(token), rangeLowIdx);
-                        curAndConstraint->rangeList->setElementAt(getNumberValue(token), rangeHiIdx);
+                        int32_t num = getNumberValue(token);
+                        if (num == -1) {
+                            status = U_UNEXPECTED_TOKEN;
+                            break;
+                        }
+                        curAndConstraint->rangeList->setElementAt(num, rangeLowIdx);
+                        curAndConstraint->rangeList->setElementAt(num, rangeHiIdx);
                     }
                     else {
-                        curAndConstraint->rangeList->setElementAt(getNumberValue(token), rangeHiIdx);
+                        int32_t num = getNumberValue(token);
+                        if (num == -1) {
+                            status = U_UNEXPECTED_TOKEN;
+                            break;
+                        }
+                        curAndConstraint->rangeList->setElementAt(num, rangeHiIdx);
                         if (curAndConstraint->rangeList->elementAti(rangeLowIdx) >
                                 curAndConstraint->rangeList->elementAti(rangeHiIdx)) {
                             // Range Lower bound > Range Upper bound.
@@ -836,9 +860,7 @@ PluralRules::getRuleFromResource(const Locale& locale, UPluralType type, UErrorC
 
         for (;;) {
             {
-                CharString tmp;
-                CharStringByteSink sink(&tmp);
-                ulocimp_getParent(parentLocaleName.data(), sink, &status);
+                CharString tmp = ulocimp_getParent(parentLocaleName.data(), status);
                 if (tmp.isEmpty()) break;
                 parentLocaleName = std::move(tmp);
             }
@@ -1258,13 +1280,8 @@ PluralRuleParser::~PluralRuleParser() {
 
 int32_t
 PluralRuleParser::getNumberValue(const UnicodeString& token) {
-    int32_t i;
-    char digits[128];
-
-    i = token.extract(0, token.length(), digits, UPRV_LENGTHOF(digits), US_INV);
-    digits[i]='\0';
-
-    return((int32_t)atoi(digits));
+    int32_t pos = 0;
+    return ICU_Utility::parseNumber(token, pos, 10);
 }
 
 
@@ -1582,7 +1599,7 @@ PluralKeywordEnumeration::PluralKeywordEnumeration(RuleChain *header, UErrorCode
 const UnicodeString*
 PluralKeywordEnumeration::snext(UErrorCode& status) {
     if (U_SUCCESS(status) && pos < fKeywordNames.size()) {
-        return (const UnicodeString*)fKeywordNames.elementAt(pos++);
+        return static_cast<const UnicodeString*>(fKeywordNames.elementAt(pos++));
     }
     return nullptr;
 }
@@ -1758,13 +1775,15 @@ void FixedDecimal::init(double n, int32_t v, int64_t f, int32_t e, int32_t c) {
     if (exponent == 0) {
         exponent = c;
     }
-    if (_isNaN || _isInfinite) {
+    if (_isNaN || _isInfinite ||
+        source > static_cast<double>(U_INT64_MAX) ||
+        source < static_cast<double>(U_INT64_MIN)) {
         v = 0;
         f = 0;
         intValue = 0;
         _hasIntegerValue = false;
     } else {
-        intValue = (int64_t)source;
+        intValue = static_cast<int64_t>(source);
         _hasIntegerValue = (source == intValue);
     }
 
@@ -1848,17 +1867,17 @@ int64_t FixedDecimal::getFractionalDigits(double n, int32_t v) {
     n = fabs(n);
     double fract = n - floor(n);
     switch (v) {
-      case 1: return (int64_t)(fract*10.0 + 0.5);
-      case 2: return (int64_t)(fract*100.0 + 0.5);
-      case 3: return (int64_t)(fract*1000.0 + 0.5);
+      case 1: return static_cast<int64_t>(fract * 10.0 + 0.5);
+      case 2: return static_cast<int64_t>(fract * 100.0 + 0.5);
+      case 3: return static_cast<int64_t>(fract * 1000.0 + 0.5);
       default:
-          double scaled = floor(fract * pow(10.0, (double)v) + 0.5);
+          double scaled = floor(fract * pow(10.0, static_cast<double>(v)) + 0.5);
           if (scaled >= static_cast<double>(U_INT64_MAX)) {
               // Note: a double cannot accurately represent U_INT64_MAX. Casting it to double
               //       will round up to the next representable value, which is U_INT64_MAX + 1.
               return U_INT64_MAX;
           } else {
-              return (int64_t)scaled;
+              return static_cast<int64_t>(scaled);
           }
       }
 }
@@ -1883,7 +1902,7 @@ void FixedDecimal::adjustForMinFractionDigits(int32_t minFractionDigits) {
 double FixedDecimal::getPluralOperand(PluralOperand operand) const {
     switch(operand) {
         case PLURAL_OPERAND_N: return (exponent == 0 ? source : source * pow(10.0, exponent));
-        case PLURAL_OPERAND_I: return (double) longValue();
+        case PLURAL_OPERAND_I: return static_cast<double>(longValue());
         case PLURAL_OPERAND_F: return static_cast<double>(decimalDigits);
         case PLURAL_OPERAND_T: return static_cast<double>(decimalDigitsWithoutTrailingZeros);
         case PLURAL_OPERAND_V: return visibleDecimalDigitCount;
@@ -1940,7 +1959,7 @@ int64_t FixedDecimal::longValue() const {
     if (exponent == 0) {
         return intValue;
     } else {
-        return (long) (pow(10.0, exponent) * intValue);
+        return static_cast<long>(pow(10.0, exponent) * intValue);
     }
 }
 

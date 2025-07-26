@@ -54,7 +54,12 @@ class VisualStudioFinder {
     }
 
     const checks = [
-      () => this.findVisualStudio2017OrNewer(),
+      () => this.findVisualStudio2019OrNewerFromSpecifiedLocation(),
+      () => this.findVisualStudio2019OrNewerUsingSetupModule(),
+      () => this.findVisualStudio2019OrNewer(),
+      () => this.findVisualStudio2017FromSpecifiedLocation(),
+      () => this.findVisualStudio2017UsingSetupModule(),
+      () => this.findVisualStudio2017(),
       () => this.findVisualStudio2015(),
       () => this.findVisualStudio2013()
     ]
@@ -113,9 +118,127 @@ class VisualStudioFinder {
     throw new Error('Could not find any Visual Studio installation to use')
   }
 
+  async findVisualStudio2019OrNewerFromSpecifiedLocation () {
+    return this.findVSFromSpecifiedLocation([2019, 2022])
+  }
+
+  async findVisualStudio2017FromSpecifiedLocation () {
+    if (this.nodeSemver.major >= 22) {
+      this.addLog(
+        'not looking for VS2017 as it is only supported up to Node.js 21')
+      return null
+    }
+    return this.findVSFromSpecifiedLocation([2017])
+  }
+
+  async findVSFromSpecifiedLocation (supportedYears) {
+    if (!this.envVcInstallDir) {
+      return null
+    }
+    const info = {
+      path: path.resolve(this.envVcInstallDir),
+      // Assume the version specified by the user is correct.
+      // Since Visual Studio 2015, the Developer Command Prompt sets the
+      // VSCMD_VER environment variable which contains the version information
+      // for Visual Studio.
+      // https://learn.microsoft.com/en-us/visualstudio/ide/reference/command-prompt-powershell?view=vs-2022
+      version: process.env.VSCMD_VER,
+      packages: [
+        'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+        'Microsoft.VisualStudio.Component.VC.Tools.ARM64',
+        // Assume MSBuild exists. It will be checked in processing.
+        'Microsoft.VisualStudio.VC.MSBuild.Base'
+      ]
+    }
+
+    // Is there a better way to get SDK information?
+    const envWindowsSDKVersion = process.env.WindowsSDKVersion
+    const sdkVersionMatched = envWindowsSDKVersion?.match(/^(\d+)\.(\d+)\.(\d+)\..*/)
+    if (sdkVersionMatched) {
+      info.packages.push(`Microsoft.VisualStudio.Component.Windows10SDK.${sdkVersionMatched[3]}.Desktop`)
+    }
+    // pass for further processing
+    return this.processData([info], supportedYears)
+  }
+
+  async findVisualStudio2019OrNewerUsingSetupModule () {
+    return this.findNewVSUsingSetupModule([2019, 2022])
+  }
+
+  async findVisualStudio2017UsingSetupModule () {
+    if (this.nodeSemver.major >= 22) {
+      this.addLog(
+        'not looking for VS2017 as it is only supported up to Node.js 21')
+      return null
+    }
+    return this.findNewVSUsingSetupModule([2017])
+  }
+
+  async findNewVSUsingSetupModule (supportedYears) {
+    const ps = path.join(process.env.SystemRoot, 'System32',
+      'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    const vcInstallDir = this.envVcInstallDir
+
+    const checkModuleArgs = [
+      '-NoProfile',
+      '-Command',
+      '&{@(Get-Module -ListAvailable -Name VSSetup).Version.ToString()}'
+    ]
+    this.log.silly('Running', ps, checkModuleArgs)
+    const [cErr] = await this.execFile(ps, checkModuleArgs)
+    if (cErr) {
+      this.addLog('VSSetup module doesn\'t seem to exist. You can install it via: "Install-Module VSSetup -Scope CurrentUser"')
+      this.log.silly('VSSetup error = %j', cErr && (cErr.stack || cErr))
+      return null
+    }
+    const filterArg = vcInstallDir !== undefined ? `| where {$_.InstallationPath -eq '${vcInstallDir}' }` : ''
+    const psArgs = [
+      '-NoProfile',
+      '-Command',
+      `&{Get-VSSetupInstance ${filterArg} | ConvertTo-Json -Depth 3}`
+    ]
+
+    this.log.silly('Running', ps, psArgs)
+    const [err, stdout, stderr] = await this.execFile(ps, psArgs)
+    let parsedData = this.parseData(err, stdout, stderr)
+    if (parsedData === null) {
+      return null
+    }
+    this.log.silly('Parsed data', parsedData)
+    if (!Array.isArray(parsedData)) {
+      // if there are only 1 result, then Powershell will output non-array
+      parsedData = [parsedData]
+    }
+    // normalize output
+    parsedData = parsedData.map((info) => {
+      info.path = info.InstallationPath
+      info.version = `${info.InstallationVersion.Major}.${info.InstallationVersion.Minor}.${info.InstallationVersion.Build}.${info.InstallationVersion.Revision}`
+      info.packages = info.Packages.map((p) => p.Id)
+      return info
+    })
+    // pass for further processing
+    return this.processData(parsedData, supportedYears)
+  }
+
+  // Invoke the PowerShell script to get information about Visual Studio 2019
+  // or newer installations
+  async findVisualStudio2019OrNewer () {
+    return this.findNewVS([2019, 2022])
+  }
+
+  // Invoke the PowerShell script to get information about Visual Studio 2017
+  async findVisualStudio2017 () {
+    if (this.nodeSemver.major >= 22) {
+      this.addLog(
+        'not looking for VS2017 as it is only supported up to Node.js 21')
+      return null
+    }
+    return this.findNewVS([2017])
+  }
+
   // Invoke the PowerShell script to get information about Visual Studio 2017
   // or newer installations
-  async findVisualStudio2017OrNewer () {
+  async findNewVS (supportedYears) {
     const ps = path.join(process.env.SystemRoot, 'System32',
       'WindowsPowerShell', 'v1.0', 'powershell.exe')
     const csFile = path.join(__dirname, 'Find-VisualStudio.cs')
@@ -128,24 +251,35 @@ class VisualStudioFinder {
     ]
 
     this.log.silly('Running', ps, psArgs)
-    const [err, stdout, stderr] = await execFile(ps, psArgs, { encoding: 'utf8' })
-    return this.parseData(err, stdout, stderr)
+    const [err, stdout, stderr] = await this.execFile(ps, psArgs)
+    const parsedData = this.parseData(err, stdout, stderr, { checkIsArray: true })
+    if (parsedData === null) {
+      return null
+    }
+    return this.processData(parsedData, supportedYears)
   }
 
-  // Parse the output of the PowerShell script and look for an installation
-  // of Visual Studio 2017 or newer to use
-  parseData (err, stdout, stderr) {
+  // Parse the output of the PowerShell script, make sanity checks
+  parseData (err, stdout, stderr, sanityCheckOptions) {
+    const defaultOptions = {
+      checkIsArray: false
+    }
+
+    // Merging provided options with the default options
+    const sanityOptions = { ...defaultOptions, ...sanityCheckOptions }
+
     this.log.silly('PS stderr = %j', stderr)
 
-    const failPowershell = () => {
+    const failPowershell = (failureDetails) => {
       this.addLog(
-        'could not use PowerShell to find Visual Studio 2017 or newer, try re-running with \'--loglevel silly\' for more details')
+        `could not use PowerShell to find Visual Studio 2017 or newer, try re-running with '--loglevel silly' for more details. \n
+        Failure details: ${failureDetails}`)
       return null
     }
 
     if (err) {
       this.log.silly('PS err = %j', err && (err.stack || err))
-      return failPowershell()
+      return failPowershell(`${err}`.substring(0, 40))
     }
 
     let vsInfo
@@ -157,11 +291,16 @@ class VisualStudioFinder {
       return failPowershell()
     }
 
-    if (!Array.isArray(vsInfo)) {
+    if (sanityOptions.checkIsArray && !Array.isArray(vsInfo)) {
       this.log.silly('PS stdout = %j', stdout)
-      return failPowershell()
+      return failPowershell('Expected array as output of the PS script')
     }
+    return vsInfo
+  }
 
+  // Process parsed data containing information about VS installations
+  // Look for the required parts, extract and output them back
+  processData (vsInfo, supportedYears) {
     vsInfo = vsInfo.map((info) => {
       this.log.silly(`processing installation: "${info.path}"`)
       info.path = path.resolve(info.path)
@@ -175,11 +314,12 @@ class VisualStudioFinder {
     this.log.silly('vsInfo:', vsInfo)
 
     // Remove future versions or errors parsing version number
+    // Also remove any unsupported versions
     vsInfo = vsInfo.filter((info) => {
-      if (info.versionYear) {
+      if (info.versionYear && supportedYears.indexOf(info.versionYear) !== -1) {
         return true
       }
-      this.addLog(`unknown version "${info.version}" found at "${info.path}"`)
+      this.addLog(`${info.versionYear ? 'unsupported' : 'unknown'} version "${info.version}" found at "${info.path}"`)
       return false
     })
 
@@ -226,7 +366,7 @@ class VisualStudioFinder {
 
   // Helper - process version information
   getVersionInfo (info) {
-    const match = /^(\d+)\.(\d+)\..*/.exec(info.version)
+    const match = /^(\d+)\.(\d+)(?:\..*)?/.exec(info.version)
     if (!match) {
       this.log.silly('- failed to parse version:', info.version)
       return {}
@@ -268,7 +408,11 @@ class VisualStudioFinder {
         return path.join(info.path, 'MSBuild', '15.0', 'Bin', 'MSBuild.exe')
       }
       if (versionYear === 2019) {
-        return msbuildPath
+        if (process.arch === 'arm64' && this.msBuildPathExists(msbuildPathArm64)) {
+          return msbuildPathArm64
+        } else {
+          return msbuildPath
+        }
       }
     }
     /**
@@ -286,12 +430,21 @@ class VisualStudioFinder {
 
   // Helper - process toolset information
   getToolset (info, versionYear) {
-    const pkg = 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
+    const vcToolsArm64 = 'VC.Tools.ARM64'
+    const pkgArm64 = `Microsoft.VisualStudio.Component.${vcToolsArm64}`
+    const vcToolsX64 = 'VC.Tools.x86.x64'
+    const pkgX64 = `Microsoft.VisualStudio.Component.${vcToolsX64}`
     const express = 'Microsoft.VisualStudio.WDExpress'
 
-    if (info.packages.indexOf(pkg) !== -1) {
-      this.log.silly('- found VC.Tools.x86.x64')
-    } else if (info.packages.indexOf(express) !== -1) {
+    if (process.arch === 'arm64' && info.packages.includes(pkgArm64)) {
+      this.log.silly(`- found ${vcToolsArm64}`)
+    } else if (info.packages.includes(pkgX64)) {
+      if (process.arch === 'arm64') {
+        this.addLog(`- found ${vcToolsX64} on ARM64 platform. Expect less performance and/or link failure with ARM64 binary.`)
+      } else {
+        this.log.silly(`- found ${vcToolsX64}`)
+      }
+    } else if (info.packages.includes(express)) {
       this.log.silly('- found Visual Studio Express (looking for toolset)')
     } else {
       return null
@@ -437,6 +590,10 @@ class VisualStudioFinder {
     }
 
     return true
+  }
+
+  async execFile (exec, args) {
+    return await execFile(exec, args, { encoding: 'utf8' })
   }
 }
 

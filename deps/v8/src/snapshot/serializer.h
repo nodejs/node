@@ -41,8 +41,8 @@ class CodeAddressMap : public CodeEventLogger {
     address_to_name_map_.Move(from.address(), to.address());
   }
 
-  void CodeDisableOptEvent(Handle<AbstractCode> code,
-                           Handle<SharedFunctionInfo> shared) override {}
+  void CodeDisableOptEvent(DirectHandle<AbstractCode> code,
+                           DirectHandle<SharedFunctionInfo> shared) override {}
 
   const char* Lookup(Address address) {
     return address_to_name_map_.Lookup(address);
@@ -62,7 +62,7 @@ class CodeAddressMap : public CodeEventLogger {
       }
     }
 
-    void Insert(Address code_address, const char* name, int name_size) {
+    void Insert(Address code_address, const char* name, size_t name_size) {
       base::HashMap::Entry* entry = FindOrCreateEntry(code_address);
       if (entry->value == nullptr) {
         entry->value = CopyName(name, name_size);
@@ -95,9 +95,9 @@ class CodeAddressMap : public CodeEventLogger {
     }
 
    private:
-    static char* CopyName(const char* name, int name_size) {
+    static char* CopyName(const char* name, size_t name_size) {
       char* result = NewArray<char>(name_size + 1);
-      for (int i = 0; i < name_size; ++i) {
+      for (size_t i = 0; i < name_size; ++i) {
         char c = name[i];
         if (c == '\0') c = ' ';
         result[i] = c;
@@ -124,15 +124,15 @@ class CodeAddressMap : public CodeEventLogger {
   };
 
   void LogRecordedBuffer(Tagged<AbstractCode> code,
-                         MaybeHandle<SharedFunctionInfo>, const char* name,
-                         int length) override {
+                         MaybeDirectHandle<SharedFunctionInfo>,
+                         const char* name, size_t length) override {
     DisallowGarbageCollection no_gc;
     address_to_name_map_.Insert(code.address(), name, length);
   }
 
 #if V8_ENABLE_WEBASSEMBLY
   void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
-                         int length) override {
+                         size_t length) override {
     UNREACHABLE();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -157,7 +157,7 @@ class ObjectCacheIndexMap {
     *index_out = *find_result.entry;
     return find_result.already_exists;
   }
-  bool LookupOrInsert(Handle<HeapObject> obj, int* index_out) {
+  bool LookupOrInsert(DirectHandle<HeapObject> obj, int* index_out) {
     return LookupOrInsert(*obj, index_out);
   }
 
@@ -170,7 +170,7 @@ class ObjectCacheIndexMap {
     return true;
   }
 
-  Handle<FixedArray> Values(Isolate* isolate);
+  DirectHandle<FixedArray> Values(Isolate* isolate);
 
   int size() const { return next_index_; }
 
@@ -188,7 +188,7 @@ class Serializer : public SerializerDeserializer {
 
   const std::vector<uint8_t>* Payload() const { return sink_.data(); }
 
-  bool ReferenceMapContains(Handle<HeapObject> o) {
+  bool ReferenceMapContains(DirectHandle<HeapObject> o) {
     return reference_map()->LookupReference(o) != nullptr;
   }
 
@@ -249,7 +249,7 @@ class Serializer : public SerializerDeserializer {
                         SerializerReference reference);
   void PutAttachedReference(SerializerReference reference);
   void PutNextChunk(SnapshotSpace space);
-  void PutRepeat(int repeat_count);
+  void PutRepeatRoot(int repeat_count, RootIndex root_index);
 
   // Emit a marker noting that this slot is a forward reference to the an
   // object which has not yet been serialized.
@@ -311,7 +311,7 @@ class Serializer : public SerializerDeserializer {
   void CountAllocation(Tagged<Map> map, int size, SnapshotSpace space);
 
 #ifdef DEBUG
-  void PushStack(Handle<HeapObject> o) { stack_.Push(*o); }
+  void PushStack(DirectHandle<HeapObject> o) { stack_.Push(*o); }
   void PopStack();
   void PrintStack();
   void PrintStack(std::ostream&);
@@ -405,6 +405,9 @@ class Serializer : public SerializerDeserializer {
       deferred_objects_;  // To handle stack overflow.
   int num_back_refs_ = 0;
 
+  // Used to provide deterministic IDs to the serialized dispatch handles.
+  std::unordered_map<JSDispatchHandle, uint32_t> dispatch_handle_map_;
+
   // Objects which have started being serialized, but haven't yet been allocated
   // with the allocator, are considered "pending". References to them don't have
   // an allocation to backref to, so instead they are registered as pending
@@ -491,6 +494,16 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
                             ExternalPointerSlot slot) override;
   void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
                             IndirectPointerMode mode) override;
+  void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
+                                     IndirectPointerSlot slot) override;
+  void VisitProtectedPointer(Tagged<TrustedObject> host,
+                             ProtectedPointerSlot slot) override;
+  void VisitProtectedPointer(Tagged<TrustedObject> host,
+                             ProtectedMaybeObjectSlot slot) override;
+  void VisitCppHeapPointer(Tagged<HeapObject> host,
+                           CppHeapPointerSlot slot) override;
+  void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                 JSDispatchHandle handle) override;
 
   Isolate* isolate() { return isolate_; }
 

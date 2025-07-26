@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_EXECUTION_PPC_SIMULATOR_PPC_H_
+#define V8_EXECUTION_PPC_SIMULATOR_PPC_H_
+
 // Declares a Simulator for PPC instructions if we are not generating a native
 // PPC binary. This Simulator allows us to run and debug PPC code generation on
 // regular desktop machines.
 // V8 calls into generated code via the GeneratedCode wrapper,
 // which will start execution in the Simulator or forwards to the real entry
 // on a PPC HW platform.
-
-#ifndef V8_EXECUTION_PPC_SIMULATOR_PPC_H_
-#define V8_EXECUTION_PPC_SIMULATOR_PPC_H_
 
 // globals.h defines USE_SIMULATOR.
 #include "src/common/globals.h"
@@ -25,6 +25,10 @@
 #include "src/codegen/ppc/constants-ppc.h"
 #include "src/execution/simulator-base.h"
 #include "src/utils/allocation.h"
+
+namespace heap::base {
+class StackVisitor;
+}
 
 namespace v8 {
 namespace internal {
@@ -176,11 +180,11 @@ class Simulator : public SimulatorBase {
   double get_double_from_register_pair(int reg);
   void set_d_register_from_double(int dreg, const double dbl) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    *base::bit_cast<double*>(&fp_registers_[dreg]) = dbl;
+    fp_registers_[dreg] = base::bit_cast<int64_t>(dbl);
   }
   double get_double_from_d_register(int dreg) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
-    return *base::bit_cast<double*>(&fp_registers_[dreg]);
+    return base::bit_cast<double>(fp_registers_[dreg]);
   }
   void set_d_register(int dreg, int64_t value) {
     DCHECK(dreg >= 0 && dreg < kNumFPRs);
@@ -203,9 +207,15 @@ class Simulator : public SimulatorBase {
   // Accessor to the internal simulator stack area. Adds a safety
   // margin to prevent overflows.
   uintptr_t StackLimit(uintptr_t c_limit) const;
-  // Return current stack view, without additional safety margins.
+
+  uintptr_t StackBase() const;
+
+  // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
-  base::Vector<uint8_t> GetCurrentStackView() const;
+  base::Vector<uint8_t> GetCentralStackView() const;
+  static constexpr int JSStackLimitMargin() { return kStackProtectionSize; }
+
+  void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
 
   // Executes PPC instructions until the PC reaches end_sim_pc.
   void Execute();
@@ -221,10 +231,10 @@ class Simulator : public SimulatorBase {
   double CallFPReturnsDouble(Address entry, double d0, double d1);
 
   // Push an address onto the JS stack.
-  uintptr_t PushAddress(uintptr_t address);
+  V8_EXPORT_PRIVATE uintptr_t PushAddress(uintptr_t address);
 
   // Pop an address from the JS stack.
-  uintptr_t PopAddress();
+  V8_EXPORT_PRIVATE uintptr_t PopAddress();
 
   // Debugger input.
   void set_last_debugger_input(char* input);
@@ -241,6 +251,11 @@ class Simulator : public SimulatorBase {
   // Returns true if pc register contains one of the 'special_values' defined
   // below (bad_lr, end_sim_pc).
   bool has_bad_pc() const;
+
+  // Manage instruction tracing.
+  bool InstructionTracingEnabled();
+
+  void ToggleInstructionTracing();
 
   enum special_values {
     // Known bad pc value to ensure that the simulator does not execute
@@ -276,6 +291,10 @@ class Simulator : public SimulatorBase {
   void HandleVList(Instruction* inst);
   void SoftwareInterrupt(Instruction* instr);
   void DebugAtNextPC();
+
+  // Take a copy of v8 simulator tracing flag because flags are frozen after
+  // start.
+  bool instruction_tracing_ = v8_flags.trace_sim;
 
   // Stop helper functions.
   inline bool isStopInstruction(Instruction* instr);
@@ -437,7 +456,7 @@ class Simulator : public SimulatorBase {
   T get_simd_register_bytes(int reg, int byte_from) {
     // Byte location is reversed in memory.
     int from = kSimd128Size - 1 - (byte_from + sizeof(T) - 1);
-    void* src = base::bit_cast<uint8_t*>(&simd_registers_[reg]) + from;
+    void* src = reinterpret_cast<uint8_t*>(&simd_registers_[reg]) + from;
     T dst;
     memcpy(&dst, src, sizeof(T));
     return dst;
@@ -460,7 +479,7 @@ class Simulator : public SimulatorBase {
   void set_simd_register_bytes(int reg, int byte_from, T value) {
     // Byte location is reversed in memory.
     int from = kSimd128Size - 1 - (byte_from + sizeof(T) - 1);
-    void* dst = base::bit_cast<uint8_t*>(&simd_registers_[reg]) + from;
+    void* dst = reinterpret_cast<uint8_t*>(&simd_registers_[reg]) + from;
     memcpy(dst, &value, sizeof(T));
   }
 
@@ -470,16 +489,12 @@ class Simulator : public SimulatorBase {
     simd_registers_[reg] = value;
   }
 
-  // Simulator support.
+  // Simulator support for the stack.
   uint8_t* stack_;
   static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
   // This includes a protection margin at each end of the stack area.
   static size_t AllocatedStackSize() {
-#if V8_TARGET_ARCH_PPC64
     size_t stack_size = v8_flags.sim_stack_size * KB;
-#else
-    size_t stack_size = MB;  // allocate 1MB for stack
-#endif
     return stack_size + (2 * kStackProtectionSize);
   }
   static size_t UsableStackSize() {

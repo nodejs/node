@@ -6,6 +6,7 @@
 #define V8_TEST_CCTEST_TEST_SWISS_HASH_TABLE_SHARED_TESTS_H_
 
 #include <algorithm>
+#include <optional>
 #include <string>
 
 #include "test/cctest/test-swiss-name-dictionary-infra.h"
@@ -33,7 +34,7 @@ extern const char kCSATestFileName[];
 // Whenever creating an instance of this class in a file bar.cc, the template
 // parameter |kTestFileName| should be set to the name of the file that
 // *instantiates the class* (i.e., "bar.cc"). This ensures that the tests
-// defined below are then registred within the overall cctest machinery as if
+// defined below are then registered within the overall cctest machinery as if
 // they were directly written within bar.cc.
 template <typename TestRunner, char const* kTestFileName>
 struct SharedSwissTableTests {
@@ -59,7 +60,7 @@ struct SharedSwissTableTests {
   static const int kBigModulus = (1 << 22);
   static_assert(SwissNameDictionary::IsValidCapacity(kBigModulus));
 
-  // Returns elements from TS::distinct_property_details in a determinstic
+  // Returns elements from TS::distinct_property_details in a deterministic
   // order. Subsequent calls with increasing |index| (and the same |offset|)
   // will return pairwise different values until |index| has risen by more than
   // {TS::distinct_property_details.size()}.
@@ -145,7 +146,8 @@ struct SharedSwissTableTests {
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(4, [](TS& s) {
-      Handle<String> key1 = s.isolate->factory()->InternalizeUtf8String("foo");
+      DirectHandle<String> key1 =
+          s.isolate->factory()->InternalizeUtf8String("foo");
       Handle<String> value1 =
           s.isolate->factory()->InternalizeUtf8String("bar");
       PropertyDetails details1 =
@@ -159,7 +161,7 @@ struct SharedSwissTableTests {
       s.CheckDataAtKey(key1, kIndexUnknown, value1, details1);
       s.CheckCounts(4, 1, 0);
 
-      Handle<Symbol> key2 = s.isolate->factory()->NewSymbol();
+      DirectHandle<Symbol> key2 = s.isolate->factory()->NewSymbol();
       Handle<Smi> value2 = handle(Smi::FromInt(123), s.isolate);
       PropertyDetails details2 =
           PropertyDetails(PropertyKind::kData, PropertyAttributes::DONT_DELETE,
@@ -180,8 +182,9 @@ struct SharedSwissTableTests {
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(4, [](TS& s) {
-      Handle<String> key1 = s.isolate->factory()->InternalizeUtf8String("foo");
-      Handle<String> value1 =
+      DirectHandle<String> key1 =
+          s.isolate->factory()->InternalizeUtf8String("foo");
+      DirectHandle<String> value1 =
           s.isolate->factory()->InternalizeUtf8String("bar");
       PropertyDetails details1 =
           PropertyDetails(PropertyKind::kData, PropertyAttributes::DONT_DELETE,
@@ -189,7 +192,7 @@ struct SharedSwissTableTests {
 
       s.Add(key1, value1, details1);
 
-      Handle<Symbol> key2 = s.isolate->factory()->NewSymbol();
+      DirectHandle<Symbol> key2 = s.isolate->factory()->NewSymbol();
       Handle<Smi> value2 = handle(Smi::FromInt(123), s.isolate);
       PropertyDetails details2 =
           PropertyDetails(PropertyKind::kData, PropertyAttributes::DONT_DELETE,
@@ -224,8 +227,9 @@ struct SharedSwissTableTests {
     // non-SSSE3/AVX configurations.
     if (!TestRunner::IsEnabled()) return;
     TS::WithInitialCapacity(4, [](TS& s) {
-      Handle<String> key1 = s.isolate->factory()->InternalizeUtf8String("foo");
-      Handle<String> value1 =
+      DirectHandle<String> key1 =
+          s.isolate->factory()->InternalizeUtf8String("foo");
+      DirectHandle<String> value1 =
           s.isolate->factory()->InternalizeUtf8String("bar");
       PropertyDetails details1 =
           PropertyDetails(PropertyKind::kData, PropertyAttributes::DONT_DELETE,
@@ -233,7 +237,7 @@ struct SharedSwissTableTests {
 
       s.Add(key1, value1, details1);
 
-      Handle<Symbol> key2 = s.isolate->factory()->NewSymbol();
+      DirectHandle<Symbol> key2 = s.isolate->factory()->NewSymbol();
       Handle<Smi> value2 = handle(Smi::FromInt(123), s.isolate);
       PropertyDetails details2 =
           PropertyDetails(PropertyKind::kData, PropertyAttributes::DONT_DELETE,
@@ -255,7 +259,7 @@ struct SharedSwissTableTests {
     });
   }
 
-  // Adds entries that occuppy the boundaries (first and last
+  // Adds entries that occupy the boundaries (first and last
   // buckets) of the hash table.
   MEMBER_TEST(AddAtBoundaries) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
@@ -282,7 +286,7 @@ struct SharedSwissTableTests {
     });
   }
 
-  // Adds entries that occuppy the boundaries of the hash table, then updates
+  // Adds entries that occupy the boundaries of the hash table, then updates
   // their values and property details.
   MEMBER_TEST(UpdateAtBoundaries) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
@@ -318,7 +322,7 @@ struct SharedSwissTableTests {
     });
   }
 
-  // Adds entries that occuppy the boundaries of the hash table, then updates
+  // Adds entries that occupy the boundaries of the hash table, then updates
   // their values and property details.
   MEMBER_TEST(DeleteAtBoundaries) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
@@ -365,7 +369,7 @@ struct SharedSwissTableTests {
     }
   }
 
-  // Adds entries that occuppy the boundaries of the hash table, then add
+  // Adds entries that occupy the boundaries of the hash table, then add
   // further entries targeting the same buckets.
   MEMBER_TEST(OverwritePresentAtBoundaries) {
     // TODO(v8:11330): Remove once CSA implementation has a fallback for
@@ -401,7 +405,7 @@ struct SharedSwissTableTests {
 
         // We don't know the indices where the new entries will land.
         s.CheckDataAtKey(Key{key, FakeH1{entry + kBigModulus}},
-                         base::Optional<InternalIndex>(), value, d);
+                         std::optional<InternalIndex>(), value, d);
         count++;
       }
 
@@ -637,7 +641,7 @@ struct SharedSwissTableTests {
     if (!TestRunner::IsEnabled()) return;
     int i = 0;
     TS::WithAllInterestingInitialCapacities([&](TS& s) {
-      // Let's try a few differnet values for h1, starting at big_modulus;.
+      // Let's try a few different values for h1, starting at big_modulus;.
       int first_h1 = i * 13 + kBigModulus;
       int second_h1 = first_h1 + s.initial_capacity;
 
@@ -709,9 +713,9 @@ struct SharedSwissTableTests {
     });
   }
 
-  // Check that we correclty "wrap around" when probing the control table. This
+  // Check that we correctly "wrap around" when probing the control table. This
   // means that when we probe a group starting at a bucket such that there are
-  // fewer than kGroupWidth bucktets before the end of the control table, we
+  // fewer than kGroupWidth buckets before the end of the control table, we
   // (logically) continue at bucket 0. Note that actually, we use the copy of
   // first group at the end of the control table.
   MEMBER_TEST(WrapAround) {
@@ -745,7 +749,7 @@ struct SharedSwissTableTests {
           return;
         }
 
-        // Starting at bucket |first_bucket|, add a sequence of |kGroupWitdth|
+        // Starting at bucket |first_bucket|, add a sequence of |kGroupWidth|
         // - 1 (if table can take that many, see calculation of |filler_entries|
         // above) entries in a single collision chain.
         for (int f = 0; f < filler_entries; ++f) {
@@ -908,7 +912,7 @@ struct SharedSwissTableTests {
           SwissNameDictionary::MaxUsableCapacity(s.initial_capacity) - 2);
       AddMultiple(s, fill);
 
-      // Occupy first and last bucket (another key may occuppy these already,
+      // Occupy first and last bucket (another key may occupy these already,
       // but let's don't bother with that):
       s.Add(Key{"first_bucket_key", FakeH1{kBigModulus}});
       s.Add(Key{"last_bucket_key", FakeH1{s.initial_capacity - 1}});

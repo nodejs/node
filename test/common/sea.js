@@ -5,7 +5,7 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const { inspect } = require('util');
 
-const { readFileSync, copyFileSync } = require('fs');
+const { readFileSync, copyFileSync, statSync } = require('fs');
 const {
   spawnSyncAndExitWithoutError,
 } = require('../common/child_process');
@@ -46,12 +46,27 @@ function skipIfSingleExecutableIsNotSupported() {
     }
   }
 
+  if (process.config.variables.ubsan) {
+    common.skip('UndefinedBehavior Sanitizer is not supported');
+  }
+
+  try {
+    readFileSync(process.execPath);
+  } catch (e) {
+    if (e.code === 'ERR_FS_FILE_TOO_LARGE') {
+      common.skip('The Node.js binary is too large to be supported by postject');
+    }
+  }
+
   tmpdir.refresh();
 
   // The SEA tests involve making a copy of the executable and writing some fixtures
-  // to the tmpdir. To be safe, ensure that at least 120MB disk space is available.
-  if (!tmpdir.hasEnoughSpace(120 * 1024 * 1024)) {
-    common.skip('Available disk space < 120MB');
+  // to the tmpdir. To be safe, ensure that the disk space has at least a copy of the
+  // executable and some extra space for blobs and configs is available.
+  const stat = statSync(process.execPath);
+  const expectedSpace = stat.size + 10 * 1024 * 1024;
+  if (!tmpdir.hasEnoughSpace(expectedSpace)) {
+    common.skip(`Available disk space < ${Math.floor(expectedSpace / 1024 / 1024)} MB`);
   }
 }
 
@@ -88,8 +103,8 @@ function generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow
 
   if (process.platform === 'darwin') {
     try {
-      spawnSyncAndExitWithoutError('codesign', [ '--sign', '-', targetExecutable ], {});
-      spawnSyncAndExitWithoutError('codesign', [ '--verify', targetExecutable ], {});
+      spawnSyncAndExitWithoutError('codesign', [ '--sign', '-', targetExecutable ]);
+      spawnSyncAndExitWithoutError('codesign', [ '--verify', targetExecutable ]);
     } catch (e) {
       const message = `Cannot sign ${targetExecutable}: ${inspect(e)}`;
       if (verifyWorkflow) {
@@ -100,7 +115,7 @@ function generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow
     console.log(`Signed ${targetExecutable}`);
   } else if (process.platform === 'win32') {
     try {
-      spawnSyncAndExitWithoutError('where', [ 'signtool' ], {});
+      spawnSyncAndExitWithoutError('where', [ 'signtool' ]);
     } catch (e) {
       const message = `Cannot find signtool: ${inspect(e)}`;
       if (verifyWorkflow) {
@@ -110,8 +125,8 @@ function generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow
     }
     let stderr;
     try {
-      ({ stderr } = spawnSyncAndExitWithoutError('signtool', [ 'sign', '/fd', 'SHA256', targetExecutable ], {}));
-      spawnSyncAndExitWithoutError('signtool', 'verify', '/pa', 'SHA256', targetExecutable, {});
+      ({ stderr } = spawnSyncAndExitWithoutError('signtool', [ 'sign', '/fd', 'SHA256', targetExecutable ]));
+      spawnSyncAndExitWithoutError('signtool', ['verify', '/pa', 'SHA256', targetExecutable]);
     } catch (e) {
       const message = `Cannot sign ${targetExecutable}: ${inspect(e)}\n${stderr}`;
       if (verifyWorkflow) {

@@ -6,14 +6,16 @@
 #define V8_OBJECTS_LITERAL_OBJECTS_INL_H_
 
 #include "src/objects/literal-objects.h"
+// Include the non-inl header before the rest of the headers.
+
+#include <optional>
 
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/literal-objects-tq-inl.inc"
 
@@ -21,102 +23,88 @@ namespace internal {
 // ObjectBoilerplateDescription
 //
 
-OBJECT_CONSTRUCTORS_IMPL(ObjectBoilerplateDescription, FixedArray)
+// static
+template <class IsolateT>
+Handle<ObjectBoilerplateDescription> ObjectBoilerplateDescription::New(
+    IsolateT* isolate, int boilerplate, int all_properties, int index_keys,
+    bool has_seen_proto, AllocationType allocation) {
+  DCHECK_GE(boilerplate, 0);
+  DCHECK_GE(all_properties, index_keys);
+  DCHECK_GE(index_keys, 0);
 
-CAST_ACCESSOR(ObjectBoilerplateDescription)
+  int capacity = boilerplate * kElementsPerEntry;
+  CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
 
-SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
-              FixedArray::OffsetOfElementAt(kLiteralTypeOffset))
+  int backing_store_size =
+      all_properties - index_keys - (has_seen_proto ? 1 : 0);
+  DCHECK_GE(backing_store_size, 0);
 
-Tagged<Object> ObjectBoilerplateDescription::name(int index) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return name(cage_base, index);
+  // Note we explicitly do NOT canonicalize to the
+  // empty_object_boilerplate_description here since `flags` may be modified
+  // even on empty descriptions.
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  auto result = Cast<ObjectBoilerplateDescription>(
+      Allocate(isolate, capacity, &no_gc, allocation));
+  result->set_flags(0);
+  result->set_backing_store_size(backing_store_size);
+  MemsetTagged((*result)->RawFieldOfFirstElement(),
+               ReadOnlyRoots{isolate}.undefined_value(), capacity);
+  return result;
 }
 
-Tagged<Object> ObjectBoilerplateDescription::name(PtrComprCageBase cage_base,
-                                                  int index) const {
-  // get() already checks for out of bounds access, but we do not want to allow
-  // access to the last element, if it is the number of properties.
-  DCHECK_NE(size(), index);
-  return get(cage_base, 2 * index + kDescriptionStartIndex);
+int ObjectBoilerplateDescription::backing_store_size() const {
+  return backing_store_size_.load().value();
+}
+void ObjectBoilerplateDescription::set_backing_store_size(int value) {
+  backing_store_size_.store(this, Smi::FromInt(value));
+}
+int ObjectBoilerplateDescription::flags() const {
+  return flags_.load().value();
+}
+void ObjectBoilerplateDescription::set_flags(int value) {
+  flags_.store(this, Smi::FromInt(value));
+}
+
+Tagged<Object> ObjectBoilerplateDescription::name(int index) const {
+  return get(NameIndex(index));
 }
 
 Tagged<Object> ObjectBoilerplateDescription::value(int index) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return value(cage_base, index);
-}
-
-Tagged<Object> ObjectBoilerplateDescription::value(PtrComprCageBase cage_base,
-                                                   int index) const {
-  return get(cage_base, 2 * index + 1 + kDescriptionStartIndex);
+  return get(ValueIndex(index));
 }
 
 void ObjectBoilerplateDescription::set_key_value(int index, Tagged<Object> key,
                                                  Tagged<Object> value) {
-  DCHECK_LT(index, size());
-  DCHECK_GE(index, 0);
-  set(2 * index + kDescriptionStartIndex, key);
-  set(2 * index + 1 + kDescriptionStartIndex, value);
+  DCHECK_LT(static_cast<unsigned>(index), boilerplate_properties_count());
+  set(NameIndex(index), key);
+  set(ValueIndex(index), value);
 }
 
-int ObjectBoilerplateDescription::size() const {
-  DCHECK_EQ(0, (length() - kDescriptionStartIndex -
-                (this->has_number_of_properties() ? 1 : 0)) %
-                   2);
-  // Rounding is intended.
-  return (length() - kDescriptionStartIndex) / 2;
-}
-
-bool ObjectBoilerplateDescription::has_number_of_properties() const {
-  return (length() - kDescriptionStartIndex) % 2 != 0;
-}
-
-int ObjectBoilerplateDescription::backing_store_size() const {
-  if (has_number_of_properties()) {
-    // If present, the last entry contains the number of properties.
-    return Smi::ToInt(this->get(length() - 1));
-  }
-  // If the number is not given explicitly, we assume there are no
-  // properties with computed names.
-  return size();
-}
-
-void ObjectBoilerplateDescription::set_backing_store_size(
-    int backing_store_size) {
-  DCHECK(has_number_of_properties());
-  DCHECK_NE(size(), backing_store_size);
-  CHECK(Smi::IsValid(backing_store_size));
-  // TODO(ishell): move this value to the header
-  set(length() - 1, Smi::FromInt(backing_store_size));
+int ObjectBoilerplateDescription::boilerplate_properties_count() const {
+  DCHECK_EQ(0, capacity() % kElementsPerEntry);
+  return capacity() / kElementsPerEntry;
 }
 
 //
 // ClassBoilerplate
 //
 
-OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, FixedArray)
-CAST_ACCESSOR(ClassBoilerplate)
+OBJECT_CONSTRUCTORS_IMPL(ClassBoilerplate, Struct)
 
-SMI_ACCESSORS(ClassBoilerplate, arguments_count,
-              FixedArray::OffsetOfElementAt(kArgumentsCountIndex))
-
+SMI_ACCESSORS(ClassBoilerplate, arguments_count, kArgumentsCountOffset)
 ACCESSORS(ClassBoilerplate, static_properties_template, Tagged<Object>,
-          FixedArray::OffsetOfElementAt(kClassPropertiesTemplateIndex))
-
+          kStaticPropertiesTemplateOffset)
 ACCESSORS(ClassBoilerplate, static_elements_template, Tagged<Object>,
-          FixedArray::OffsetOfElementAt(kClassElementsTemplateIndex))
-
+          kStaticElementsTemplateOffset)
 ACCESSORS(ClassBoilerplate, static_computed_properties, Tagged<FixedArray>,
-          FixedArray::OffsetOfElementAt(kClassComputedPropertiesIndex))
-
+          kStaticComputedPropertiesOffset)
 ACCESSORS(ClassBoilerplate, instance_properties_template, Tagged<Object>,
-          FixedArray::OffsetOfElementAt(kPrototypePropertiesTemplateIndex))
-
+          kInstancePropertiesTemplateOffset)
 ACCESSORS(ClassBoilerplate, instance_elements_template, Tagged<Object>,
-          FixedArray::OffsetOfElementAt(kPrototypeElementsTemplateIndex))
-
+          kInstanceElementsTemplateOffset)
 ACCESSORS(ClassBoilerplate, instance_computed_properties, Tagged<FixedArray>,
-          FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex))
+          kInstanceComputedPropertiesOffset)
 
 //
 // ArrayBoilerplateDescription
@@ -140,10 +128,13 @@ bool ArrayBoilerplateDescription::is_empty() const {
 // RegExpBoilerplateDescription
 //
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(RegExpBoilerplateDescription)
+OBJECT_CONSTRUCTORS_IMPL(RegExpBoilerplateDescription, Struct)
+TRUSTED_POINTER_ACCESSORS(RegExpBoilerplateDescription, data, RegExpData,
+                          kDataOffset, kRegExpDataIndirectPointerTag)
+ACCESSORS(RegExpBoilerplateDescription, source, Tagged<String>, kSourceOffset)
+SMI_ACCESSORS(RegExpBoilerplateDescription, flags, kFlagsOffset)
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

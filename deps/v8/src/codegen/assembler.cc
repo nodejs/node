@@ -70,7 +70,8 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   options.enable_simulator_code = !serializer || v8_flags.target_is_simulator;
 #endif
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_LOONG64 || \
+    V8_TARGET_ARCH_RISCV64
   options.code_range_base = isolate->heap()->code_range_base();
 #endif
   bool short_builtin_calls =
@@ -131,9 +132,9 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
   const int size_;
 };
 
-static thread_local std::aligned_storage_t<sizeof(ExternalAssemblerBufferImpl),
-                                           alignof(ExternalAssemblerBufferImpl)>
-    tls_singleton_storage;
+alignas(
+    ExternalAssemblerBufferImpl) static thread_local char tls_singleton_storage
+    [sizeof(ExternalAssemblerBufferImpl)];
 
 static thread_local bool tls_singleton_taken{false};
 
@@ -141,13 +142,13 @@ void* ExternalAssemblerBufferImpl::operator new(std::size_t count) {
   DCHECK_EQ(count, sizeof(ExternalAssemblerBufferImpl));
   if (V8_LIKELY(!tls_singleton_taken)) {
     tls_singleton_taken = true;
-    return &tls_singleton_storage;
+    return tls_singleton_storage;
   }
   return ::operator new(count);
 }
 
 void ExternalAssemblerBufferImpl::operator delete(void* ptr) noexcept {
-  if (V8_LIKELY(ptr == &tls_singleton_storage)) {
+  if (V8_LIKELY(ptr == tls_singleton_storage)) {
     DCHECK(tls_singleton_taken);
     tls_singleton_taken = false;
     return;
@@ -233,6 +234,7 @@ void Assembler::RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
   static_assert(RelocInfoWriter::kMaxSize * 2 <= kGap);
   {
     EnsureSpace space(this);
+    DCHECK(position.IsKnown());
     RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
     RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
   }
@@ -262,7 +264,7 @@ void AssemblerBase::RequestHeapNumber(HeapNumberRequest request) {
   heap_number_requests_.push_front(request);
 }
 
-int AssemblerBase::AddCodeTarget(Handle<Code> target) {
+int AssemblerBase::AddCodeTarget(IndirectHandle<Code> target) {
   int current = static_cast<int>(code_targets_.size());
   if (current > 0 && !target.is_null() &&
       code_targets_.back().address() == target.address()) {
@@ -274,13 +276,14 @@ int AssemblerBase::AddCodeTarget(Handle<Code> target) {
   }
 }
 
-Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
+IndirectHandle<Code> AssemblerBase::GetCodeTarget(
+    intptr_t code_target_index) const {
   DCHECK_LT(static_cast<size_t>(code_target_index), code_targets_.size());
   return code_targets_[code_target_index];
 }
 
 AssemblerBase::EmbeddedObjectIndex AssemblerBase::AddEmbeddedObject(
-    Handle<HeapObject> object) {
+    IndirectHandle<HeapObject> object) {
   EmbeddedObjectIndex current = embedded_objects_.size();
   // Do not deduplicate invalid handles, they are to heap object requests.
   if (!object.is_null()) {
@@ -294,12 +297,11 @@ AssemblerBase::EmbeddedObjectIndex AssemblerBase::AddEmbeddedObject(
   return current;
 }
 
-Handle<HeapObject> AssemblerBase::GetEmbeddedObject(
+IndirectHandle<HeapObject> AssemblerBase::GetEmbeddedObject(
     EmbeddedObjectIndex index) const {
   DCHECK_LT(index, embedded_objects_.size());
   return embedded_objects_[index];
 }
-
 
 int Assembler::WriteCodeComments() {
   if (!v8_flags.code_comments) return 0;
@@ -315,12 +317,13 @@ int Assembler::WriteCodeComments() {
 
 #ifdef V8_CODE_COMMENTS
 int Assembler::CodeComment::depth() const { return assembler_->comment_depth_; }
-void Assembler::CodeComment::Open(const std::string& comment) {
+void Assembler::CodeComment::Open(const std::string& comment,
+                                  const SourceLocation& loc) {
   std::stringstream sstream;
   sstream << std::setfill(' ') << std::setw(depth() * kIndentWidth + 2);
   sstream << "[ " << comment;
   assembler_->comment_depth_++;
-  assembler_->RecordComment(sstream.str());
+  assembler_->RecordComment(sstream.str(), loc);
 }
 
 void Assembler::CodeComment::Close() {
@@ -328,7 +331,8 @@ void Assembler::CodeComment::Close() {
   std::string comment = "]";
   comment.insert(0, depth() * kIndentWidth, ' ');
   DCHECK_LE(0, depth());
-  assembler_->RecordComment(comment);
+  // Don't record source information for the closed comment.
+  assembler_->RecordComment(comment, SourceLocation());
 }
 #endif
 

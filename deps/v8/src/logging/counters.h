@@ -9,14 +9,12 @@
 
 #include "include/v8-callbacks.h"
 #include "src/base/atomic-utils.h"
-#include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
 #include "src/logging/counters-definitions.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/code-kind.h"
-#include "src/objects/fixed-array.h"
 #include "src/objects/objects.h"
 #include "src/utils/allocation.h"
 
@@ -57,7 +55,7 @@ class StatsTable {
   // is successful, returns a non-nullptr pointer for writing the
   // value of the counter.  Each thread calling this function
   // may receive a different location to store it's counter.
-  // The return value must not be cached and re-used across
+  // The return value must not be cached and reused across
   // threads, although a single thread is free to cache it.
   int* FindLocation(const char* name) {
     if (!lookup_function_) return nullptr;
@@ -383,7 +381,7 @@ class V8_NODISCARD AggregatedHistogramTimerScope {
 };
 
 // AggretatedMemoryHistogram collects (time, value) sample pairs and turns
-// them into time-uniform samples for the backing historgram, such that the
+// them into time-uniform samples for the backing histogram, such that the
 // backing histogram receives one sample every T ms, where the T is controlled
 // by the v8_flags.histogram_interval.
 //
@@ -530,6 +528,16 @@ class Counters : public std::enable_shared_from_this<Counters> {
   HISTOGRAM_RANGE_LIST(HR)
 #undef HR
 
+#if V8_ENABLE_DRUMBRAKE
+#define HR(name, caption, min, max, num_buckets)     \
+  Histogram* name() {                                \
+    name##_.EnsureCreated(v8_flags.slow_histograms); \
+    return &name##_;                                 \
+  }
+  HISTOGRAM_RANGE_LIST_SLOW(HR)
+#undef HR
+#endif  // V8_ENABLE_DRUMBRAKE
+
 #define HT(name, caption, max, res) \
   NestedTimedHistogram* name() {    \
     name##_.EnsureCreated();        \
@@ -652,6 +660,9 @@ class Counters : public std::enable_shared_from_this<Counters> {
 
 #define HR(name, caption, min, max, num_buckets) Histogram name##_;
   HISTOGRAM_RANGE_LIST(HR)
+#if V8_ENABLE_DRUMBRAKE
+  HISTOGRAM_RANGE_LIST_SLOW(HR)
+#endif  // V8_ENABLE_DRUMBRAKE
 #undef HR
 
 #define HT(name, caption, max, res) NestedTimedHistogram name##_;

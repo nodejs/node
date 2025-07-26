@@ -21,19 +21,6 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
   }
 })();
 
-// Mock Math.pow. Work around an optimization for -0.5.
-(function() {
-  const origMathPow = Math.pow;
-  Math.pow = function(a, b) {
-    if (b === -0.5) {
-      return 0;
-    } else {
-      return origMathPow(a, b);
-    }
-  }
-})();
-
-
 // Mock Date.
 (function() {
   let index = 0;
@@ -104,6 +91,8 @@ Object.defineProperty(
   const origArrayFrom = Array.from;
   const origArrayIsArray = Array.isArray;
   const origFunctionPrototype = Function.prototype;
+  const origArrayMap = Array.prototype.map;
+  const applyOrigArrayMap = origFunctionPrototype.apply.bind(origArrayMap);
   const origIsNaN = isNaN;
   const origIterator = Symbol.iterator;
   const deNaNify = function(value) { return origIsNaN(value) ? 1 : value; };
@@ -112,8 +101,8 @@ Object.defineProperty(
     // Remove NaN values from parameters to "set" function.
     const set = type.prototype.set;
     type.prototype.set = function(array, offset) {
-      if (Array.isArray(array)) {
-        array = array.map(deNaNify);
+      if (origArrayIsArray(array)) {
+        array = applyOrigArrayMap(array, [deNaNify]);
       }
       set.apply(this, [array, offset]);
     };
@@ -128,7 +117,7 @@ Object.defineProperty(
             args[i] = origArrayFrom(args[i]);
           }
           if (origArrayIsArray(args[i])) {
-            args[i] = args[i].map(deNaNify);
+            args[i] = applyOrigArrayMap(args[i], [deNaNify]);
           }
         }
 
@@ -294,3 +283,9 @@ Atomics.waitAsync = function() {
 
 // Mock serializer API with no-ops.
 d8.serializer = {'serialize': (x) => x, 'deserialize': (x) => x}
+
+// Mock profiler API with no-ops.
+d8.profiler = {'setOnProfileEndListener': (x) => x, 'triggerSample': (x) => x}
+
+// Mock logging API with no-ops.
+d8.log = {'getAndStop': (x) => x}

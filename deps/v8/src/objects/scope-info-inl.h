@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_SCOPE_INFO_INL_H_
 #define V8_OBJECTS_SCOPE_INFO_INL_H_
 
+#include "src/objects/scope-info.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/fixed-array-inl.h"
-#include "src/objects/scope-info.h"
 #include "src/objects/string.h"
 #include "src/roots/roots-inl.h"
 #include "src/torque/runtime-macro-shims.h"
@@ -29,9 +31,13 @@ bool ScopeInfo::HasSimpleParameters() const {
   return HasSimpleParametersBit::decode(Flags());
 }
 
-int ScopeInfo::Flags() const { return flags(); }
+uint32_t ScopeInfo::Flags() const { return flags(kRelaxedLoad); }
 int ScopeInfo::ParameterCount() const { return parameter_count(); }
 int ScopeInfo::ContextLocalCount() const { return context_local_count(); }
+
+Tagged<DependentCode> ScopeInfo::dependent_code() const {
+  return Cast<DependentCode>(TorqueGeneratedScopeInfo::dependent_code());
+}
 
 ObjectSlot ScopeInfo::data_start() { return RawField(OffsetOfElementAt(0)); }
 
@@ -72,7 +78,7 @@ class ScopeInfo::LocalNamesRange {
         return scope_info()->ContextInlinedLocalName(cage_base,
                                                      index_.as_int());
       }
-      return String::cast(table()->KeyAt(cage_base, index_));
+      return Cast<String>(table()->KeyAt(cage_base, index_));
     }
 
     Tagged<String> name() const {
@@ -99,7 +105,7 @@ class ScopeInfo::LocalNamesRange {
 
     void advance_hashtable_index() {
       DisallowGarbageCollection no_gc;
-      ReadOnlyRoots roots = scope_info()->GetReadOnlyRoots();
+      ReadOnlyRoots roots = GetReadOnlyRoots();
       InternalIndex max = range_->max_index();
       // Increment until iterator points to a valid key or max.
       while (index_ < max) {
@@ -132,9 +138,9 @@ class ScopeInfo::LocalNamesRange {
 };
 
 // static
-ScopeInfo::LocalNamesRange<Handle<ScopeInfo>> ScopeInfo::IterateLocalNames(
-    Handle<ScopeInfo> scope_info) {
-  return LocalNamesRange<Handle<ScopeInfo>>(scope_info);
+ScopeInfo::LocalNamesRange<DirectHandle<ScopeInfo>>
+ScopeInfo::IterateLocalNames(DirectHandle<ScopeInfo> scope_info) {
+  return LocalNamesRange<DirectHandle<ScopeInfo>>(scope_info);
 }
 
 // static

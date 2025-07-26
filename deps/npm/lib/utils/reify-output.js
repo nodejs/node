@@ -9,13 +9,12 @@
 // found 37 vulnerabilities (5 low, 7 moderate, 25 high)
 //   run `npm audit fix` to fix them, or `npm audit` for details
 
-const log = require('./log-shim.js')
+const { log, output } = require('proc-log')
 const { depth } = require('treeverse')
 const ms = require('ms')
 const npmAuditReport = require('npm-audit-report')
 const { readTree: getFundingInfo } = require('libnpmfund')
 const auditError = require('./audit-error.js')
-const Table = require('cli-table3')
 
 // TODO: output JSON if flatOptions.json is true
 const reifyOutput = (npm, arb) => {
@@ -34,60 +33,66 @@ const reifyOutput = (npm, arb) => {
   }
 
   const summary = {
+    add: [],
     added: 0,
-    removed: 0,
-    changed: 0,
+    // audit gets added later
     audited: auditReport && !auditReport.error ? actualTree.inventory.size : 0,
+    change: [],
+    changed: 0,
     funding: 0,
+    remove: [],
+    removed: 0,
   }
 
   if (diff) {
-    let diffTable
-    if (npm.config.get('dry-run') || npm.config.get('long')) {
-      diffTable = new Table({
-        chars: {
-          top: '',
-          'top-mid': '',
-          'top-left': '',
-          'top-right': '',
-          bottom: '',
-          'bottom-mid': '',
-          'bottom-left': '',
-          'bottom-right': '',
-          left: '',
-          'left-mid': '',
-          mid: '',
-          'mid-mid': '',
-          right: '',
-          'right-mid': '',
-          middle: '  ',
-        },
-        style: {
-          'padding-left': 0,
-          'padding-right': 0,
-          border: 0,
-        },
-      })
-    }
+    const showDiff = npm.config.get('dry-run') || npm.config.get('long')
+    const chalk = npm.chalk
 
     depth({
       tree: diff,
       visit: d => {
         switch (d.action) {
           case 'REMOVE':
-            diffTable?.push(['remove', d.actual.name, d.actual.package.version])
+            if (showDiff) {
+              output.standard(`${chalk.blue('remove')} ${d.actual.name} ${d.actual.package.version}`)
+            }
             summary.removed++
+            summary.remove.push({
+              name: d.actual.name,
+              version: d.actual.package.version,
+              path: d.actual.path,
+            })
             break
           case 'ADD':
-            diffTable?.push(['add', d.ideal.name, d.ideal.package.version])
-            actualTree.inventory.has(d.ideal) && summary.added++
+            if (showDiff) {
+              output.standard(`${chalk.green('add')} ${d.ideal.name} ${d.ideal.package.version}`)
+            }
+            if (actualTree.inventory.has(d.ideal)) {
+              summary.added++
+              summary.add.push({
+                name: d.ideal.name,
+                version: d.ideal.package.version,
+                path: d.ideal.path,
+              })
+            }
             break
           case 'CHANGE':
-            diffTable?.push(['change',
-              d.actual.name,
-              d.actual.package.version + ' -> ' + d.ideal.package.version,
-            ])
+            if (showDiff) {
+              output.standard(`${chalk.cyan('change')} ${d.actual.name} ${d.actual.package.version} => ${d.ideal.package.version}`)
+            }
             summary.changed++
+            summary.change.push({
+              from: {
+                name: d.actual.name,
+                version: d.actual.package.version,
+                path: d.actual.path,
+              },
+              to: {
+                name: d.ideal.name,
+                version: d.ideal.package.version,
+                path: d.ideal.path,
+              },
+            })
             break
           default:
             return
@@ -97,10 +102,6 @@ const reifyOutput = (npm, arb) => {
       },
       getChildren: d => d.children,
     })
-
-    if (diffTable) {
-      npm.output('\n' + diffTable.toString())
-    }
   }
 
   if (npm.flatOptions.fund) {
@@ -115,7 +116,7 @@ const reifyOutput = (npm, arb) => {
       summary.audit = npm.command === 'audit' ? auditReport
         : auditReport.toJSON().metadata
     }
-    npm.output(JSON.stringify(summary, null, 2))
+    output.buffer(summary)
   } else {
     packagesChangedMessage(npm, summary)
     packagesFundingMessage(npm, summary)
@@ -134,7 +135,7 @@ const printAuditReport = (npm, report) => {
   if (!res || !res.report) {
     return
   }
-  npm.output(`\n${res.report}`)
+  output.standard(`\n${res.report}`)
 }
 
 const getAuditReport = (npm, report) => {
@@ -206,7 +207,7 @@ const packagesChangedMessage = (npm, { added, removed, changed, audited }) => {
   }
 
   msg.push(` in ${ms(Date.now() - npm.started)}`)
-  npm.output(msg.join(''))
+  output.standard(msg.join(''))
 }
 
 const packagesFundingMessage = (npm, { funding }) => {
@@ -214,11 +215,11 @@ const packagesFundingMessage = (npm, { funding }) => {
     return
   }
 
-  npm.output('')
+  output.standard('')
   const pkg = funding === 1 ? 'package' : 'packages'
   const is = funding === 1 ? 'is' : 'are'
-  npm.output(`${funding} ${pkg} ${is} looking for funding`)
-  npm.output('  run `npm fund` for details')
+  output.standard(`${funding} ${pkg} ${is} looking for funding`)
+  output.standard('  run `npm fund` for details')
 }
 
 module.exports = reifyOutput

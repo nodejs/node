@@ -93,6 +93,10 @@ function objectToString(obj) {
 // Is key a CryptoKey object with correct algorithm, extractable, and usages?
 // Is it a secret, private, or public kind of key?
 function assert_goodCryptoKey(key, algorithm, extractable, usages, kind) {
+    if (typeof algorithm === "string") {
+        algorithm = { name: algorithm };
+    }
+
     var correctUsages = [];
 
     var registeredAlgorithmName;
@@ -203,6 +207,7 @@ function allAlgorithmSpecifiersFor(algorithmName) {
             results.push({name: algorithmName, namedCurve: curveName});
         });
     } else if (algorithmName.toUpperCase().substring(0, 1) === "X" || algorithmName.toUpperCase().substring(0, 2) === "ED") {
+        results.push(algorithmName);
         results.push({ name: algorithmName });
     }
 
@@ -258,4 +263,42 @@ function allNameVariants(name, slowTest) {
     // returning one variation
     if (slowTest) return [mixedCaseName];
     return unique([upCaseName, lowCaseName, mixedCaseName]);
+}
+
+// Builds a hex string representation for an array-like input.
+// "bytes" can be an Array of bytes, an ArrayBuffer, or any TypedArray.
+// The output looks like this:
+//    ab034c99
+function bytesToHexString(bytes)
+{
+    if (!bytes)
+        return null;
+
+    bytes = new Uint8Array(bytes);
+    var hexBytes = [];
+
+    for (var i = 0; i < bytes.length; ++i) {
+        var byteString = bytes[i].toString(16);
+        if (byteString.length < 2)
+            byteString = "0" + byteString;
+        hexBytes.push(byteString);
+    }
+
+    return hexBytes.join("");
+}
+
+function hexStringToUint8Array(hexString)
+{
+    if (hexString.length % 2 != 0)
+        throw "Invalid hexString";
+    var arrayBuffer = new Uint8Array(hexString.length / 2);
+
+    for (var i = 0; i < hexString.length; i += 2) {
+        var byteValue = parseInt(hexString.substr(i, 2), 16);
+        if (byteValue == NaN)
+            throw "Invalid hexString";
+        arrayBuffer[i/2] = byteValue;
+    }
+
+    return arrayBuffer;
 }

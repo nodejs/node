@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_OBJECT_ACCESS_H_
+#define V8_WASM_OBJECT_ACCESS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_OBJECT_ACCESS_H_
-#define V8_WASM_OBJECT_ACCESS_H_
 
 #include "src/common/globals.h"
 #include "src/objects/fixed-array.h"
@@ -43,9 +43,15 @@ class ObjectAccess : public AllStatic {
     return ToTagged(FixedAddressArray::OffsetOfElementAt(index));
   }
 
-  // Get the offset into a external pointer array for a given {index}.
-  static constexpr int ElementOffsetInTaggedExternalPointerArray(int index) {
-    return ToTagged(ExternalPointerArray::OffsetOfElementAt(index));
+  // Get the offset into a trusted fixed address array for a given {index}.
+  static constexpr int ElementOffsetInTaggedTrustedFixedAddressArray(
+      int index) {
+    return ToTagged(TrustedFixedAddressArray::OffsetOfElementAt(index));
+  }
+
+  // Get the offset into a ProtectedFixedArray for a given {index}.
+  static constexpr int ElementOffsetInProtectedFixedArray(int index) {
+    return ToTagged(ProtectedFixedArray::OffsetOfElementAt(index));
   }
 
   // Get the offset of the context stored in a {JSFunction} object.
@@ -56,12 +62,6 @@ class ObjectAccess : public AllStatic {
   // Get the offset of the shared function info in a {JSFunction} object.
   static constexpr int SharedFunctionInfoOffsetInTaggedJSFunction() {
     return ToTagged(JSFunction::kSharedFunctionInfoOffset);
-  }
-
-  // Get the offset of the formal parameter count in a {SharedFunctionInfo}
-  // object.
-  static constexpr int FormalParameterCountOffsetInSharedFunctionInfo() {
-    return ToTagged(SharedFunctionInfo::kFormalParameterCountOffset);
   }
 
   // Get the offset of the flags in a {SharedFunctionInfo} object.

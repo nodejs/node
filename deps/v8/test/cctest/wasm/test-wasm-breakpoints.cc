@@ -145,9 +145,10 @@ Handle<BreakPoint> SetBreakpoint(WasmRunnerBase* runner, int function_index,
       runner->builder().GetFunctionAt(function_index)->code.offset();
   int code_offset = func_offset + byte_offset;
   if (expected_set_byte_offset == -1) expected_set_byte_offset = byte_offset;
-  Handle<WasmInstanceObject> instance = runner->builder().instance_object();
-  Handle<Script> script(instance->module_object()->script(),
-                        runner->main_isolate());
+  DirectHandle<WasmInstanceObject> instance =
+      runner->builder().instance_object();
+  DirectHandle<Script> script(instance->module_object()->script(),
+                              runner->main_isolate());
   static int break_index = 0;
   Handle<BreakPoint> break_point =
       runner->main_isolate()->factory()->NewBreakPoint(
@@ -157,13 +158,14 @@ Handle<BreakPoint> SetBreakpoint(WasmRunnerBase* runner, int function_index,
 }
 
 void ClearBreakpoint(WasmRunnerBase* runner, int function_index,
-                     int byte_offset, Handle<BreakPoint> break_point) {
+                     int byte_offset, DirectHandle<BreakPoint> break_point) {
   int func_offset =
       runner->builder().GetFunctionAt(function_index)->code.offset();
   int code_offset = func_offset + byte_offset;
-  Handle<WasmInstanceObject> instance = runner->builder().instance_object();
-  Handle<Script> script(instance->module_object()->script(),
-                        runner->main_isolate());
+  DirectHandle<WasmInstanceObject> instance =
+      runner->builder().instance_object();
+  DirectHandle<Script> script(instance->module_object()->script(),
+                              runner->main_isolate());
   CHECK(WasmScript::ClearBreakPoint(script, code_offset, break_point));
 }
 
@@ -235,7 +237,7 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
     WasmFrame* frame = WasmFrame::cast(frame_it.frame());
     DebugInfo* debug_info = frame->native_module()->GetDebugInfo();
 
-    int num_locals = debug_info->GetNumLocals(frame->pc());
+    int num_locals = debug_info->GetNumLocals(frame->pc(), isolate_);
     CHECK_EQ(expected.locals.size(), num_locals);
     for (int i = 0; i < num_locals; ++i) {
       WasmValue local_value = debug_info->GetLocalValue(
@@ -243,7 +245,7 @@ class CollectValuesBreakHandler : public debug::DebugDelegate {
       CHECK_EQ(WasmValWrapper{expected.locals[i]}, WasmValWrapper{local_value});
     }
 
-    int stack_depth = debug_info->GetStackDepth(frame->pc());
+    int stack_depth = debug_info->GetStackDepth(frame->pc(), isolate_);
     CHECK_EQ(expected.stack.size(), stack_depth);
     for (int i = 0; i < stack_depth; ++i) {
       WasmValue stack_value = debug_info->GetStackValue(
@@ -272,7 +274,7 @@ std::vector<WasmValue> wasmVec(Args... args) {
   return std::vector<WasmValue>{arr.begin(), arr.end()};
 }
 
-int GetIntReturnValue(MaybeHandle<Object> retval) {
+int GetIntReturnValue(MaybeDirectHandle<Object> retval) {
   CHECK(!retval.is_null());
   int result;
   CHECK(Object::ToInt32(*retval.ToHandleChecked(), &result));
@@ -314,15 +316,15 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
 
   runner.Build({WASM_NOP, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3))});
 
-  Handle<JSFunction> main_fun_wrapper =
+  DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
   SetBreakpoint(&runner, runner.function_index(), 4, 4);
 
   BreakHandler count_breaks(isolate, {{4, BreakHandler::Continue}});
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
@@ -332,15 +334,15 @@ WASM_COMPILED_EXEC_TEST(WasmNonBreakablePosition) {
 
   runner.Build({WASM_RETURN(WASM_I32V_2(1024))});
 
-  Handle<JSFunction> main_fun_wrapper =
+  DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
   SetBreakpoint(&runner, runner.function_index(), 2, 4);
 
   BreakHandler count_breaks(isolate, {{4, BreakHandler::Continue}});
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(1024, GetIntReturnValue(retval));
 }
 
@@ -349,7 +351,7 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
   runner.Build({WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3))});
 
   Isolate* isolate = runner.main_isolate();
-  Handle<JSFunction> main_fun_wrapper =
+  DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
 
   // Set breakpoint at the first I32Const.
@@ -362,9 +364,9 @@ WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
                                 {5, BreakHandler::Continue}   // I32Add
                             });
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
@@ -389,7 +391,7 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
       WASM_BR(1))});
 
   Isolate* isolate = runner.main_isolate();
-  Handle<JSFunction> main_fun_wrapper =
+  DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(f2.function_index());
 
   // Set first breakpoint on the LocalGet (offset 19) before the Call.
@@ -403,9 +405,8 @@ WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
                                 {23, BreakHandler::Continue}   // After Call
                             });
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr)
-             .is_null());
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  CHECK(!Execution::Call(isolate, main_fun_wrapper, global, {}).is_null());
 }
 
 WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
@@ -424,7 +425,7 @@ WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
                                       WASM_F64(2)))});
 
   Isolate* isolate = runner.main_isolate();
-  Handle<JSFunction> main_fun_wrapper =
+  DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
 
   // Set breakpoint at the first instruction (7 bytes for local decls: num
@@ -448,9 +449,11 @@ WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
           {wasmVec(7, 17L, 7.f, 8.5), wasmVec()},        // 10: end
       });
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  Handle<Object> args[]{handle(Smi::FromInt(7), isolate)};
-  CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 1, args).is_null());
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  DirectHandle<Object> args[]{direct_handle(Smi::FromInt(7), isolate)};
+  CHECK(
+      !Execution::Call(isolate, main_fun_wrapper, global, base::VectorOf(args))
+           .is_null());
 }
 
 WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
@@ -460,7 +463,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
   runner.Build(
       {WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_I32V_1(14)});
 
-  Handle<JSFunction> main_fun_wrapper =
+  DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
 
   SetBreakpoint(&runner, runner.function_index(), 1, 1);
@@ -478,9 +481,9 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveBreakPoint) {
                                        }},
                                       {4, BreakHandler::Continue}});
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
@@ -491,7 +494,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
   runner.Build(
       {WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_I32V_1(14)});
 
-  Handle<JSFunction> main_fun_wrapper =
+  DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
 
   SetBreakpoint(&runner, runner.function_index(), 1, 1);
@@ -506,9 +509,9 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveLastBreakPoint) {
                                    to_delete);
                  }}});
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
@@ -519,7 +522,7 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
   runner.Build(
       {WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_NOP, WASM_I32V_1(14)});
 
-  Handle<JSFunction> main_fun_wrapper =
+  DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
 
   Handle<BreakPoint> bp1 =
@@ -536,9 +539,9 @@ WASM_COMPILED_EXEC_TEST(WasmRemoveAllBreakPoint) {
                    ClearBreakpoint(&runner, runner.function_index(), 2, bp2);
                  }}});
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(14, GetIntReturnValue(retval));
 }
 
@@ -553,7 +556,7 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
   // [] -> [i32, i32]
   ValueType sig_types[] = {kWasmI32, kWasmI32};
   FunctionSig sig{2, 0, sig_types};
-  uint8_t sig_idx = runner.builder().AddSignature(&sig);
+  ModuleTypeIndex sig_idx = runner.builder().AddSignature(&sig);
 
   constexpr int kReturn = 13;
   constexpr int kIgnored = 23;
@@ -561,16 +564,16 @@ WASM_COMPILED_EXEC_TEST(WasmBreakInPostMVP) {
       {WASM_BLOCK_X(sig_idx, WASM_I32V_1(kReturn), WASM_I32V_1(kIgnored)),
        WASM_DROP});
 
-  Handle<JSFunction> main_fun_wrapper =
+  DirectHandle<JSFunction> main_fun_wrapper =
       runner.builder().WrapCode(runner.function_index());
 
   SetBreakpoint(&runner, runner.function_index(), 3, 3);
 
   BreakHandler count_breaks(isolate, {{3, BreakHandler::Continue}});
 
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, {});
   CHECK_EQ(kReturn, GetIntReturnValue(retval));
 }
 

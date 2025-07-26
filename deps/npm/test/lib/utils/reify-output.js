@@ -8,10 +8,22 @@ const mockReify = async (t, reify, { command, ...config } = {}) => {
   const mock = await mockNpm(t, {
     command,
     config,
-    setCmd: true,
+  })
+
+  // Hack to adapt existing fake test. Make npm.command
+  // return whatever was passed in to this function.
+  // What it should be doing is npm.exec(command) but that
+  // breaks most of these tests because they dont expect
+  // a command to actually run.
+  Object.defineProperty(mock.npm, 'command', {
+    get () {
+      return command
+    },
+    enumerable: true,
   })
 
   reifyOutput(mock.npm, reify)
+  mock.npm.finish()
 
   return mock.joinedOutput()
 }
@@ -298,16 +310,16 @@ t.test('packages changed message', async t => {
       },
     }
     for (let i = 0; i < added; i++) {
-      mock.diff.children.push({ action: 'ADD', ideal: { location: 'loc' } })
+      mock.diff.children.push({ action: 'ADD', ideal: { path: `test/${i}`, name: `@npmcli/pkg${i}`, location: 'loc', package: { version: `1.0.${i}` } } })
     }
 
     for (let i = 0; i < removed; i++) {
-      mock.diff.children.push({ action: 'REMOVE', actual: { location: 'loc' } })
+      mock.diff.children.push({ action: 'REMOVE', actual: { path: `test/${i}`, name: `@npmcli/pkg${i}`, location: 'loc', package: { version: `1.0.${i}` } } })
     }
 
     for (let i = 0; i < changed; i++) {
-      const actual = { location: 'loc' }
-      const ideal = { location: 'loc' }
+      const actual = { path: `test/a/${i}`, name: `@npmcli/pkg${i}`, location: 'loc', package: { version: `1.0.${i}` } }
+      const ideal = { path: `test/i/${i}`, name: `@npmcli/pkg${i}`, location: 'loc', package: { version: `1.1.${i}` } }
       mock.diff.children.push({ action: 'CHANGE', actual, ideal })
     }
 
@@ -354,7 +366,7 @@ t.test('added packages should be looked up within returned tree', async t => {
       },
       diff: {
         children: [
-          { action: 'ADD', ideal: { name: 'baz' } },
+          { action: 'ADD', ideal: { path: 'test/baz', name: 'baz', package: { version: '1.0.0' } } },
         ],
       },
     })
@@ -372,7 +384,7 @@ t.test('added packages should be looked up within returned tree', async t => {
       },
       diff: {
         children: [
-          { action: 'ADD', ideal: { name: 'baz' } },
+          { action: 'ADD', ideal: { path: 'test/baz', name: 'baz', package: { version: '1.0.0' } } },
         ],
       },
     })
@@ -391,12 +403,12 @@ t.test('prints dedupe difference on dry-run', async t => {
     },
     diff: {
       children: [
-        { action: 'ADD', ideal: { name: 'foo', package: { version: '1.0.0' } } },
-        { action: 'REMOVE', actual: { name: 'bar', package: { version: '1.0.0' } } },
+        { action: 'ADD', ideal: { path: 'test/foo', name: 'foo', package: { version: '1.0.0' } } },
+        { action: 'REMOVE', actual: { path: 'test/foo', name: 'bar', package: { version: '1.0.0' } } },
         {
           action: 'CHANGE',
-          actual: { name: 'bar', package: { version: '1.0.0' } },
-          ideal: { package: { version: '2.1.0' } },
+          actual: { path: 'test/a/bar', name: 'bar', package: { version: '1.0.0' } },
+          ideal: { path: 'test/i/bar', name: 'bar', package: { version: '2.1.0' } },
         },
       ],
     },
@@ -419,12 +431,12 @@ t.test('prints dedupe difference on long', async t => {
     },
     diff: {
       children: [
-        { action: 'ADD', ideal: { name: 'foo', package: { version: '1.0.0' } } },
-        { action: 'REMOVE', actual: { name: 'bar', package: { version: '1.0.0' } } },
+        { action: 'ADD', ideal: { path: 'test/foo', name: 'foo', package: { version: '1.0.0' } } },
+        { action: 'REMOVE', actual: { path: 'test/bar', name: 'bar', package: { version: '1.0.0' } } },
         {
           action: 'CHANGE',
-          actual: { name: 'bar', package: { version: '1.0.0' } },
-          ideal: { package: { version: '2.1.0' } },
+          actual: { path: 'test/a/bar', name: 'bar', package: { version: '1.0.0' } },
+          ideal: { path: 'test/i/bar', name: 'bar', package: { version: '2.1.0' } },
         },
       ],
     },

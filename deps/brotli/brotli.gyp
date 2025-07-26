@@ -59,14 +59,15 @@
           'defines': [
             'OS_MACOSX'
           ]
+        }, {
+          'libraries': [
+            '-lm',
+          ],
         }],
       ],
       'direct_dependent_settings': {
         'include_dirs': [ 'c/include' ]
       },
-      'libraries': [
-        '-lm',
-      ],
       'sources': [
         '<@(brotli_sources)',
       ]

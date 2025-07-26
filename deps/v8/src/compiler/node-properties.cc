@@ -4,13 +4,15 @@
 
 #include "src/compiler/node-properties.h"
 
+#include <optional>
+
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/verifier.h"
 
 namespace v8 {
@@ -147,15 +149,14 @@ void NodeProperties::RemoveValueInputs(Node* node) {
   }
 }
 
-
-void NodeProperties::MergeControlToEnd(Graph* graph,
+void NodeProperties::MergeControlToEnd(TFGraph* graph,
                                        CommonOperatorBuilder* common,
                                        Node* node) {
   graph->end()->AppendInput(graph->zone(), node);
   graph->end()->set_op(common->End(graph->end()->InputCount()));
 }
 
-void NodeProperties::RemoveControlFromEnd(Graph* graph,
+void NodeProperties::RemoveControlFromEnd(TFGraph* graph,
                                           CommonOperatorBuilder* common,
                                           Node* node) {
   int index_to_remove = -1;
@@ -316,12 +317,14 @@ MachineRepresentation NodeProperties::GetProjectionType(
     case IrOpcode::kInt32AddWithOverflow:
     case IrOpcode::kInt32SubWithOverflow:
     case IrOpcode::kInt32MulWithOverflow:
+    case IrOpcode::kInt32AbsWithOverflow:
       CHECK_LE(index, static_cast<size_t>(1));
       return index == 0 ? MachineRepresentation::kWord32
                         : MachineRepresentation::kBit;
     case IrOpcode::kInt64AddWithOverflow:
     case IrOpcode::kInt64SubWithOverflow:
     case IrOpcode::kInt64MulWithOverflow:
+    case IrOpcode::kInt64AbsWithOverflow:
       CHECK_LE(index, static_cast<size_t>(1));
       return index == 0 ? MachineRepresentation::kWord64
                         : MachineRepresentation::kBit;
@@ -341,6 +344,8 @@ MachineRepresentation NodeProperties::GetProjectionType(
       auto call_descriptor = CallDescriptorOf(input->op());
       return call_descriptor->GetReturnType(index).representation();
     }
+    case IrOpcode::kInt32PairAdd:
+    case IrOpcode::kInt32PairSub:
     case IrOpcode::kWord32AtomicPairLoad:
     case IrOpcode::kWord32AtomicPairAdd:
     case IrOpcode::kWord32AtomicPairSub:
@@ -359,11 +364,13 @@ MachineRepresentation NodeProperties::GetProjectionType(
 // static
 bool NodeProperties::IsSame(Node* a, Node* b) {
   for (;;) {
-    if (a->opcode() == IrOpcode::kCheckHeapObject) {
+    if (a->opcode() == IrOpcode::kCheckHeapObject ||
+        a->opcode() == IrOpcode::kTypeGuard) {
       a = GetValueInput(a, 0);
       continue;
     }
-    if (b->opcode() == IrOpcode::kCheckHeapObject) {
+    if (b->opcode() == IrOpcode::kCheckHeapObject ||
+        b->opcode() == IrOpcode::kTypeGuard) {
       b = GetValueInput(b, 0);
       continue;
     }
@@ -392,7 +399,7 @@ OptionalMapRef NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
       }
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 // static
@@ -422,6 +429,12 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
   InferMapsResult result = kReliableMaps;
   while (true) {
     switch (effect->opcode()) {
+      case IrOpcode::kTypeGuard: {
+        DCHECK_EQ(1, effect->op()->EffectInputCount());
+        effect = NodeProperties::GetEffectInput(effect);
+        continue;
+      }
+
       case IrOpcode::kMapGuard: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
@@ -436,6 +449,18 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
           *maps_out = CheckMapsParametersOf(effect->op()).maps();
           return result;
         }
+        break;
+      }
+      case IrOpcode::kTransitionElementsKindOrCheckMap: {
+        Node* const object = GetValueInput(effect, 0);
+        if (IsSame(receiver, object)) {
+          *maps_out = ZoneRefSet<Map>{
+              ElementsTransitionWithMultipleSourcesOf(effect->op()).target()};
+          return result;
+        }
+        // `receiver` and `object` might alias, so
+        // TransitionElementsKindOrCheckMaps might change receiver's map.
+        result = kUnreliableMaps;
         break;
       }
       case IrOpcode::kJSCreate: {
@@ -579,6 +604,7 @@ bool NodeProperties::CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
     switch (receiver->opcode()) {
       case IrOpcode::kCheckInternalizedString:
       case IrOpcode::kCheckNumber:
+      case IrOpcode::kCheckNumberFitsInt32:
       case IrOpcode::kCheckSmi:
       case IrOpcode::kCheckString:
       case IrOpcode::kCheckSymbol:

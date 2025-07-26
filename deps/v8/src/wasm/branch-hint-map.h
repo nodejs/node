@@ -8,33 +8,29 @@
 #include <unordered_map>
 
 #include "src/base/macros.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 
 namespace wasm {
 
-enum class WasmBranchHint : uint8_t {
-  kNoHint = 0,
-  kUnlikely = 1,
-  kLikely = 2,
-};
-
 class V8_EXPORT_PRIVATE BranchHintMap {
  public:
-  void insert(uint32_t offset, WasmBranchHint hint) {
-    map_.emplace(offset, hint);
-  }
-  WasmBranchHint GetHintFor(uint32_t offset) const {
+  void insert(uint32_t offset, BranchHint hint) { map_.emplace(offset, hint); }
+
+  BranchHint GetHintFor(uint32_t offset) const {
     auto it = map_.find(offset);
     if (it == map_.end()) {
-      return WasmBranchHint::kNoHint;
+      return BranchHint::kNone;
     }
     return it->second;
   }
 
+  size_t NumHintsForTesting() const { return map_.size(); }
+
  private:
-  std::unordered_map<uint32_t, WasmBranchHint> map_;
+  std::unordered_map<uint32_t, BranchHint> map_;
 };
 
 using BranchHintInfo = std::unordered_map<uint32_t, BranchHintMap>;

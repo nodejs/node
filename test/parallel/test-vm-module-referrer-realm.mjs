@@ -3,6 +3,18 @@ import * as common from '../common/index.mjs';
 import assert from 'node:assert';
 import { Script, SourceTextModule, createContext } from 'node:vm';
 
+/**
+ * This test verifies that dynamic import in an indirect eval without JS stacks.
+ * In this case, the referrer for the dynamic import will be null and the
+ * per-context importModuleDynamically callback will be invoked.
+ *
+ * Caveat: this test can be unstable if the loader internals are changed and performs
+ * microtasks with a JS stack (e.g. with CallbackScope). In this case, the
+ * referrer will be resolved to the top JS stack frame `node:internal/process/task_queues.js`.
+ * This is due to the implementation detail of how V8 finds the referrer for a dynamic import
+ * call.
+ */
+
 async function test() {
   const foo = new SourceTextModule('export const a = 1;');
   await foo.link(common.mustNotCall());

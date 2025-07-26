@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/logging.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/property-details.h"
@@ -16,6 +16,8 @@
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 namespace {
 
@@ -37,17 +39,17 @@ Handle<Name> NewNameWithHash(Isolate* isolate, const char* str, uint32_t hash,
 }
 
 template <typename... Args>
-MaybeHandle<Object> Call(Isolate* isolate, Handle<JSFunction> function,
+MaybeHandle<Object> Call(Isolate* isolate, DirectHandle<JSFunction> function,
                          Args... args) {
   const int nof_args = sizeof...(Args);
-  Handle<Object> call_args[] = {args...};
-  Handle<Object> receiver = isolate->factory()->undefined_value();
-  return Execution::Call(isolate, function, receiver, nof_args, call_args);
+  DirectHandle<Object> call_args[] = {args...};
+  DirectHandle<Object> receiver = isolate->factory()->undefined_value();
+  return Execution::Call(isolate, function, receiver, {call_args, nof_args});
 }
 
 void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
                                  std::vector<Handle<Name>>& names,
-                                 Handle<JSFunction> csa_lookup) {
+                                 DirectHandle<JSFunction> csa_lookup) {
   // Test C++ implementation.
   {
     DisallowGarbageCollection no_gc;
@@ -66,7 +68,7 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
   // Test CSA implementation.
   if (!v8_flags.jitless) {
     for (size_t i = 0; i < names.size(); ++i) {
-      Handle<Object> name_index =
+      DirectHandle<Object> name_index =
           Call(isolate, csa_lookup, map, names[i]).ToHandleChecked();
       CHECK(IsSmi(*name_index));
       CHECK_EQ(DescriptorArray::ToKeyIndex(static_cast<int>(i)),
@@ -78,7 +80,7 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
 void CheckTransitionArrayLookups(Isolate* isolate,
                                  Handle<TransitionArray> transitions,
                                  std::vector<Handle<Map>>& maps,
-                                 Handle<JSFunction> csa_lookup) {
+                                 DirectHandle<JSFunction> csa_lookup) {
   // Test C++ implementation.
   {
     DisallowGarbageCollection no_gc;
@@ -99,12 +101,12 @@ void CheckTransitionArrayLookups(Isolate* isolate,
   // Test CSA implementation.
   if (!v8_flags.jitless) {
     for (size_t i = 0; i < maps.size(); ++i) {
-      Handle<Map> expected_map = maps[i];
+      DirectHandle<Map> expected_map = maps[i];
       Handle<Name> name(expected_map->instance_descriptors(isolate)->GetKey(
                             expected_map->LastAdded()),
                         isolate);
 
-      Handle<Object> transition_map =
+      DirectHandle<Object> transition_map =
           Call(isolate, csa_lookup, transitions, name).ToHandleChecked();
       CHECK(IsMap(*transition_map));
       CHECK_EQ(*expected_map, *transition_map);
@@ -115,9 +117,9 @@ void CheckTransitionArrayLookups(Isolate* isolate,
 // Creates function with (Map, Name) arguments. Returns Smi with the index of
 // the name value of the found descriptor (DescriptorArray::ToKeyIndex())
 // or null otherwise.
-Handle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
+DirectHandle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
   // We are not allowed to generate code in jitless mode.
-  if (v8_flags.jitless) return Handle<JSFunction>();
+  if (v8_flags.jitless) return DirectHandle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
   Handle<JSFunction> result_function(JSFunction{}, isolate);
@@ -160,9 +162,9 @@ Handle<JSFunction> CreateCsaDescriptorArrayLookup(Isolate* isolate) {
 
 // Creates function with (TransitionArray, Name) arguments. Returns transition
 // map if transition is found or null otherwise.
-Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
+DirectHandle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
   // We are not allowed to generate code in jitless mode.
-  if (v8_flags.jitless) return Handle<JSFunction>();
+  if (v8_flags.jitless) return DirectHandle<JSFunction>();
 
   // Preallocate handle for the result in the current handle scope.
   Handle<JSFunction> result_function(JSFunction{}, isolate);
@@ -191,7 +193,7 @@ Handle<JSFunction> CreateCsaTransitionArrayLookup(Isolate* isolate) {
                                       TransitionArray::kEntryKeyIndex) *
                                      kTaggedSize;
       TNode<Map> transition_map = m.CAST(m.GetHeapObjectAssumeWeak(
-          m.LoadArrayElement(transitions, WeakFixedArray::kHeaderSize,
+          m.LoadArrayElement(transitions, OFFSET_OF_DATA_START(WeakFixedArray),
                              var_name_index.value(), kKeyToTargetOffset)));
       m.Return(transition_map);
     }
@@ -241,7 +243,7 @@ TEST(DescriptorArrayHashCollisionMassive) {
   // owning map.
   Handle<Map> map = Map::Create(isolate, 0);
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   for (size_t i = 0; i < names.size(); ++i) {
     map = Map::CopyWithField(isolate, map, names[i], any_type, NONE,
@@ -250,7 +252,7 @@ TEST(DescriptorArrayHashCollisionMassive) {
               .ToHandleChecked();
   }
 
-  Handle<JSFunction> csa_lookup = CreateCsaDescriptorArrayLookup(isolate);
+  DirectHandle<JSFunction> csa_lookup = CreateCsaDescriptorArrayLookup(isolate);
 
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
@@ -292,7 +294,7 @@ TEST(DescriptorArrayHashCollision) {
   // owning map.
   Handle<Map> map = Map::Create(isolate, 0);
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   for (size_t i = 0; i < names.size(); ++i) {
     map = Map::CopyWithField(isolate, map, names[i], any_type, NONE,
@@ -301,7 +303,7 @@ TEST(DescriptorArrayHashCollision) {
               .ToHandleChecked();
   }
 
-  Handle<JSFunction> csa_lookup = CreateCsaDescriptorArrayLookup(isolate);
+  DirectHandle<JSFunction> csa_lookup = CreateCsaDescriptorArrayLookup(isolate);
 
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
@@ -336,11 +338,11 @@ TEST(TransitionArrayHashCollisionMassive) {
   }
 
   // Create transitions for each name.
-  Handle<Map> root_map = Map::Create(isolate, 0);
+  DirectHandle<Map> root_map = Map::Create(isolate, 0);
 
   std::vector<Handle<Map>> maps;
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   for (size_t i = 0; i < names.size(); ++i) {
     Handle<Map> map =
@@ -351,7 +353,7 @@ TEST(TransitionArrayHashCollisionMassive) {
     maps.push_back(map);
   }
 
-  Handle<JSFunction> csa_lookup = CreateCsaTransitionArrayLookup(isolate);
+  DirectHandle<JSFunction> csa_lookup = CreateCsaTransitionArrayLookup(isolate);
 
   Handle<TransitionArray> transition_array(
       TestTransitionsAccessor(isolate, root_map).transitions(), isolate);
@@ -394,11 +396,11 @@ TEST(TransitionArrayHashCollision) {
   }
 
   // Create transitions for each name.
-  Handle<Map> root_map = Map::Create(isolate, 0);
+  DirectHandle<Map> root_map = Map::Create(isolate, 0);
 
   std::vector<Handle<Map>> maps;
 
-  Handle<FieldType> any_type = FieldType::Any(isolate);
+  DirectHandle<FieldType> any_type = FieldType::Any(isolate);
 
   for (size_t i = 0; i < names.size(); ++i) {
     Handle<Map> map =
@@ -409,7 +411,7 @@ TEST(TransitionArrayHashCollision) {
     maps.push_back(map);
   }
 
-  Handle<JSFunction> csa_lookup = CreateCsaTransitionArrayLookup(isolate);
+  DirectHandle<JSFunction> csa_lookup = CreateCsaTransitionArrayLookup(isolate);
 
   Handle<TransitionArray> transition_array(
       TestTransitionsAccessor(isolate, root_map).transitions(), isolate);
@@ -420,6 +422,8 @@ TEST(TransitionArrayHashCollision) {
   transition_array->Sort();
   CheckTransitionArrayLookups(isolate, transition_array, maps, csa_lookup);
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

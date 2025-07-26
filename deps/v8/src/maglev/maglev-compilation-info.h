@@ -6,9 +6,12 @@
 #define V8_MAGLEV_MAGLEV_COMPILATION_INFO_H_
 
 #include <memory>
+#include <optional>
 
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
+#include "src/utils/utils.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 
@@ -22,7 +25,6 @@ class Isolate;
 class PersistentHandles;
 class SharedFunctionInfo;
 class TranslationArrayBuilder;
-class Zone;
 
 namespace compiler {
 class JSHeapBroker;
@@ -45,9 +47,18 @@ class MaglevCodeGenerator;
 
 class MaglevCompilationInfo final {
  public:
-  static std::unique_ptr<MaglevCompilationInfo> New(Isolate* isolate,
-                                                    Handle<JSFunction> function,
-                                                    BytecodeOffset osr_offset) {
+  static std::unique_ptr<MaglevCompilationInfo> NewForTurboshaft(
+      Isolate* isolate, compiler::JSHeapBroker* broker,
+      IndirectHandle<JSFunction> function, BytecodeOffset osr_offset,
+      bool specialize_to_function_context) {
+    // Doesn't use make_unique due to the private ctor.
+    return std::unique_ptr<MaglevCompilationInfo>(new MaglevCompilationInfo(
+        isolate, function, osr_offset, broker, specialize_to_function_context,
+        /*for_turboshaft_frontend*/ true));
+  }
+  static std::unique_ptr<MaglevCompilationInfo> New(
+      Isolate* isolate, IndirectHandle<JSFunction> function,
+      BytecodeOffset osr_offset) {
     // Doesn't use make_unique due to the private ctor.
     return std::unique_ptr<MaglevCompilationInfo>(
         new MaglevCompilationInfo(isolate, function, osr_offset));
@@ -55,18 +66,22 @@ class MaglevCompilationInfo final {
   ~MaglevCompilationInfo();
 
   Zone* zone() { return &zone_; }
-  compiler::JSHeapBroker* broker() const { return broker_.get(); }
+  compiler::JSHeapBroker* broker() const { return broker_; }
   MaglevCompilationUnit* toplevel_compilation_unit() const {
     return toplevel_compilation_unit_;
   }
-  Handle<JSFunction> toplevel_function() const { return toplevel_function_; }
+  IndirectHandle<JSFunction> toplevel_function() const {
+    return toplevel_function_;
+  }
   BytecodeOffset toplevel_osr_offset() const { return osr_offset_; }
   bool toplevel_is_osr() const { return osr_offset_ != BytecodeOffset::None(); }
-  void set_code(Handle<Code> code) {
+  void set_code(IndirectHandle<Code> code) {
     DCHECK(code_.is_null());
     code_ = code;
   }
-  MaybeHandle<Code> get_code() { return code_; }
+  MaybeIndirectHandle<Code> get_code() { return code_; }
+
+  bool is_turbolev() const { return is_turbolev_; }
 
   bool has_graph_labeller() const { return !!graph_labeller_; }
   void set_graph_labeller(MaglevGraphLabeller* graph_labeller);
@@ -75,8 +90,10 @@ class MaglevCompilationInfo final {
     return graph_labeller_.get();
   }
 
+#ifdef V8_ENABLE_MAGLEV
   void set_code_generator(std::unique_ptr<MaglevCodeGenerator> code_generator);
   MaglevCodeGenerator* code_generator() const { return code_generator_.get(); }
+#endif
 
   // Flag accessors (for thread-safe access to global flags).
   // TODO(v8:7700): Consider caching these.
@@ -105,9 +122,20 @@ class MaglevCompilationInfo final {
 
   bool is_detached();
 
+  bool could_not_inline_all_candidates() {
+    return could_not_inline_all_candidates_;
+  }
+  void set_could_not_inline_all_candidates() {
+    could_not_inline_all_candidates_ = true;
+  }
+
  private:
-  MaglevCompilationInfo(Isolate* isolate, Handle<JSFunction> function,
-                        BytecodeOffset osr_offset);
+  MaglevCompilationInfo(
+      Isolate* isolate, IndirectHandle<JSFunction> function,
+      BytecodeOffset osr_offset,
+      std::optional<compiler::JSHeapBroker*> broker = std::nullopt,
+      std::optional<bool> specialize_to_function_context = std::nullopt,
+      bool for_turboshaft_frontend = false);
 
   // Storing the raw pointer to the CanonicalHandlesMap is generally not safe.
   // Use DetachCanonicalHandles() to transfer ownership instead.
@@ -118,17 +146,31 @@ class MaglevCompilationInfo final {
   friend compiler::JSHeapBroker;
 
   Zone zone_;
-  const std::unique_ptr<compiler::JSHeapBroker> broker_;
+  compiler::JSHeapBroker* broker_;
   // Must be initialized late since it requires an initialized heap broker.
   MaglevCompilationUnit* toplevel_compilation_unit_ = nullptr;
-  Handle<JSFunction> toplevel_function_;
-  Handle<Code> code_;
+  IndirectHandle<JSFunction> toplevel_function_;
+  IndirectHandle<Code> code_;
   BytecodeOffset osr_offset_;
+
+  // True if this MaglevCompilationInfo owns its broker and false otherwise. In
+  // particular, when used as Turboshaft front-end, this will use Turboshaft's
+  // broker.
+  bool owns_broker_ = true;
+
+  // When this MaglevCompilationInfo is created to be used in Turboshaft's
+  // frontend, {for_turboshaft_frontend_} is true.
+  bool is_turbolev_ = false;
+
+  // True if some inlinees were skipped due to total size constraints.
+  bool could_not_inline_all_candidates_ = false;
 
   std::unique_ptr<MaglevGraphLabeller> graph_labeller_;
 
+#ifdef V8_ENABLE_MAGLEV
   // Produced off-thread during ExecuteJobImpl.
   std::unique_ptr<MaglevCodeGenerator> code_generator_;
+#endif
 
 #define V(Name) const bool Name##_;
   MAGLEV_COMPILATION_FLAG_LIST(V)

@@ -7,7 +7,7 @@ description: Create a package.json file
 ### Synopsis
 
 ```bash
-npm init <package-spec> (same as `npx <package-spec>`)
+npm init <package-spec> (same as `npx create-<package-spec>`)
 npm init <@scope> (same as `npx <@scope>/create`)
 
 aliases: create, innit
@@ -90,6 +90,11 @@ Generate it without having it ask any questions:
 
 ```bash
 $ npm init -y
+```
+
+Set the private flag to `true` in package.json:
+```bash
+$ npm init --init-private -y
 ```
 
 ### Workspaces support
@@ -196,6 +201,16 @@ more information, or [npm init](/commands/npm-init).
 
 
 
+#### `init-type`
+
+* Default: "commonjs"
+* Type: String
+
+The value that `npm init` should use by default for the package.json type
+field.
+
+
+
 #### `init-version`
 
 * Default: "1.0.0"
@@ -203,6 +218,15 @@ more information, or [npm init](/commands/npm-init).
 
 The value that `npm init` should use by default for the package version
 number, if not already set in package.json.
+
+
+
+#### `init-private`
+
+* Default: false
+* Type: Boolean
+
+The value `npm init` should use by default for the package's private flag.
 
 
 

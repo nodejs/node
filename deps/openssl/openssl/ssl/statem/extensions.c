@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -59,11 +59,6 @@ static int final_early_data(SSL *s, unsigned int context, int sent);
 static int final_maxfragmentlen(SSL *s, unsigned int context, int sent);
 static int init_post_handshake_auth(SSL *s, unsigned int context);
 static int final_psk(SSL *s, unsigned int context, int sent);
-#ifndef OPENSSL_NO_QUIC
-static int init_quic_transport_params(SSL *s, unsigned int context);
-static int final_quic_transport_params_draft(SSL *s, unsigned int context, int sent);
-static int final_quic_transport_params(SSL *s, unsigned int context, int sent);
-#endif
 
 /* Structure to define a built-in extension */
 typedef struct extensions_definition_st {
@@ -375,29 +370,6 @@ static const EXTENSION_DEFINITION ext_defs[] = {
         tls_construct_certificate_authorities,
         tls_construct_certificate_authorities, NULL,
     },
-#ifndef OPENSSL_NO_QUIC
-    {
-        TLSEXT_TYPE_quic_transport_parameters_draft,
-        SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
-        | SSL_EXT_TLS_IMPLEMENTATION_ONLY | SSL_EXT_TLS1_3_ONLY,
-        init_quic_transport_params,
-        tls_parse_ctos_quic_transport_params_draft, tls_parse_stoc_quic_transport_params_draft,
-        tls_construct_stoc_quic_transport_params_draft, tls_construct_ctos_quic_transport_params_draft,
-        final_quic_transport_params_draft,
-    },
-    {
-        TLSEXT_TYPE_quic_transport_parameters,
-        SSL_EXT_CLIENT_HELLO | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
-        | SSL_EXT_TLS_IMPLEMENTATION_ONLY | SSL_EXT_TLS1_3_ONLY,
-        init_quic_transport_params,
-        tls_parse_ctos_quic_transport_params, tls_parse_stoc_quic_transport_params,
-        tls_construct_stoc_quic_transport_params, tls_construct_ctos_quic_transport_params,
-        final_quic_transport_params,
-    },
-#else
-    INVALID_EXTENSION,
-    INVALID_EXTENSION,
-#endif
     {
         /* Must be immediately before pre_shared_key */
         TLSEXT_TYPE_padding,
@@ -1712,15 +1684,9 @@ static int final_early_data(SSL *s, unsigned int context, int sent)
 
 static int final_maxfragmentlen(SSL *s, unsigned int context, int sent)
 {
-    /*
-     * Session resumption on server-side with MFL extension active
-     *  BUT MFL extension packet was not resent (i.e. sent == 0)
-     */
-    if (s->server && s->hit && USE_MAX_FRAGMENT_LENGTH_EXT(s->session)
-            && !sent ) {
-        SSLfatal(s, SSL_AD_MISSING_EXTENSION, SSL_R_BAD_EXTENSION);
-        return 0;
-    }
+    /* MaxFragmentLength defaults to disabled */
+    if (s->session->ext.max_fragment_len_mode == TLSEXT_max_fragment_length_UNSPECIFIED)
+        s->session->ext.max_fragment_len_mode = TLSEXT_max_fragment_length_DISABLED;
 
     /* Current SSL buffer is lower than requested MFL */
     if (s->session && USE_MAX_FRAGMENT_LENGTH_EXT(s->session)
@@ -1756,44 +1722,3 @@ static int final_psk(SSL *s, unsigned int context, int sent)
 
     return 1;
 }
-
-#ifndef OPENSSL_NO_QUIC
-static int init_quic_transport_params(SSL *s, unsigned int context)
-{
-    return 1;
-}
-
-static int final_quic_transport_params_draft(SSL *s, unsigned int context,
-                                             int sent)
-{
-    return 1;
-}
-
-static int final_quic_transport_params(SSL *s, unsigned int context, int sent)
-{
-    /* called after final_quic_transport_params_draft */
-    if (SSL_IS_QUIC(s)) {
-        if (s->ext.peer_quic_transport_params_len == 0
-                && s->ext.peer_quic_transport_params_draft_len == 0) {
-            SSLfatal(s, SSL_AD_MISSING_EXTENSION,
-                     SSL_R_MISSING_QUIC_TRANSPORT_PARAMETERS_EXTENSION);
-            return 0;
-        }
-        /* if we got both, discard the one we can't use */
-        if (s->ext.peer_quic_transport_params_len != 0
-                && s->ext.peer_quic_transport_params_draft_len != 0) {
-            if (s->quic_transport_version == TLSEXT_TYPE_quic_transport_parameters_draft) {
-                OPENSSL_free(s->ext.peer_quic_transport_params);
-                s->ext.peer_quic_transport_params = NULL;
-                s->ext.peer_quic_transport_params_len = 0;
-            } else {
-                OPENSSL_free(s->ext.peer_quic_transport_params_draft);
-                s->ext.peer_quic_transport_params_draft = NULL;
-                s->ext.peer_quic_transport_params_draft_len = 0;
-            }
-        }
-    }
-
-    return 1;
-}
-#endif

@@ -4,13 +4,15 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/js-shadow-realm.h"
 #include "src/objects/module.h"
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 class ShadowRealmBuiltinsAssembler : public CodeStubAssembler {
  public:
@@ -46,8 +48,8 @@ class ShadowRealmBuiltinsAssembler : public CodeStubAssembler {
 TNode<JSObject> ShadowRealmBuiltinsAssembler::AllocateJSWrappedFunction(
     TNode<Context> context, TNode<Object> target) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Map> map = CAST(
-      LoadContextElement(native_context, Context::WRAPPED_FUNCTION_MAP_INDEX));
+  TNode<Map> map = CAST(LoadContextElementNoCell(
+      native_context, Context::WRAPPED_FUNCTION_MAP_INDEX));
   TNode<JSObject> wrapped = AllocateJSObjectFromMap(map);
   StoreObjectFieldNoWriteBarrier(
       wrapped, JSWrappedFunction::kWrappedTargetFunctionOffset, target);
@@ -81,13 +83,9 @@ ShadowRealmBuiltinsAssembler::AllocateImportValueFulfilledFunction(
   const TNode<Context> function_context =
       CreateImportValueFulfilledFunctionContext(caller_context, eval_context,
                                                 specifier, export_name);
-  const TNode<Map> function_map = CAST(LoadContextElement(
-      caller_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-  const TNode<SharedFunctionInfo> info =
-      ShadowRealmImportValueFulfilledSFIConstant();
-
-  return AllocateFunctionWithMapAndContext(function_map, info,
-                                           function_context);
+  return AllocateRootFunctionWithContext(
+      RootIndex::kShadowRealmImportValueFulfilledSharedFun, function_context,
+      {});
 }
 
 void ShadowRealmBuiltinsAssembler::CheckAccessor(TNode<DescriptorArray> array,
@@ -166,7 +164,11 @@ TF_BUILTIN(ShadowRealmGetWrappedValue, ShadowRealmBuiltinsAssembler) {
   // We don't need to check the exact accessor here because the only case
   // custom accessor arise is with function templates via API, and in that
   // case the object is in dictionary mode
+#if V8_ENABLE_WEBASSEMBLY
+  TNode<DescriptorArray> descriptors = CAST(LoadMapInstanceDescriptors(map));
+#else
   TNode<DescriptorArray> descriptors = LoadMapInstanceDescriptors(map);
+#endif  // V8_ENABLE_WEBASSEMBLY
   CheckAccessor(
       descriptors,
       IntPtrConstant(
@@ -181,8 +183,8 @@ TF_BUILTIN(ShadowRealmGetWrappedValue, ShadowRealmBuiltinsAssembler) {
   // Verify that prototype matches the function prototype of the target
   // context.
   TNode<Object> prototype = LoadMapPrototype(map);
-  TNode<Object> function_map =
-      LoadContextElement(target_context, Context::WRAPPED_FUNCTION_MAP_INDEX);
+  TNode<Object> function_map = LoadContextElementNoCell(
+      target_context, Context::WRAPPED_FUNCTION_MAP_INDEX);
   TNode<Object> function_prototype = LoadMapPrototype(CAST(function_map));
   GotoIf(TaggedNotEqual(prototype, function_prototype), &slow_wrap);
 
@@ -278,19 +280,18 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
     compiler::ScopedExceptionHandler handler(this, &call_exception,
                                              &var_exception);
     TNode<Int32T> args_count = Int32Constant(0);  // args already on the stack
-    Callable callable = CodeFactory::CallVarargs(isolate());
 
     // 9. Let result be the Completion Record of Call(target,
     // wrappedThisArgument, wrappedArgs).
-    result = CallStub(callable, target_context, target, args_count, argc,
-                      wrapped_args);
+    result = CallBuiltin(Builtin::kCallVarargs, target_context, target,
+                         args_count, argc, wrapped_args);
   }
 
   // 10. If result.[[Type]] is normal or result.[[Type]] is return, then
   // 10a. Return ? GetWrappedValue(callerRealm, result.[[Value]]).
-  TNode<Object> wrapped_result =
-      CallBuiltin(Builtin::kShadowRealmGetWrappedValue, caller_context,
-                  caller_context, target_context, result);
+  TNode<JSAny> wrapped_result =
+      CallBuiltin<JSAny>(Builtin::kShadowRealmGetWrappedValue, caller_context,
+                         caller_context, target_context, result);
   args.PopAndReturn(wrapped_result);
 
   // 11. Else,
@@ -358,7 +359,7 @@ TNode<Object> ShadowRealmBuiltinsAssembler::ImportValue(
   TNode<JSFunction> on_fulfilled = AllocateImportValueFulfilledFunction(
       caller_context, eval_context, specifier, export_name);
 
-  TNode<JSFunction> on_rejected = CAST(LoadContextElement(
+  TNode<JSFunction> on_rejected = CAST(LoadContextElementNoCell(
       caller_context, Context::SHADOW_REALM_IMPORT_VALUE_REJECTED_INDEX));
   // 12. Let promiseCapability be ! NewPromiseCapability(%Promise%).
   TNode<JSPromise> promise = NewJSPromise(caller_context);
@@ -376,7 +377,7 @@ TF_BUILTIN(ShadowRealmImportValueFulfilled, ShadowRealmBuiltinsAssembler) {
   // with argument exports, it performs the following steps:
   // 8. Let realm be f.[[Realm]].
   TNode<Context> context = Parameter<Context>(Descriptor::kContext);
-  TNode<Context> eval_context = CAST(LoadContextElement(
+  TNode<Context> eval_context = CAST(LoadContextElementNoCell(
       context, ImportValueFulfilledFunctionContextSlot::kEvalContextSlot));
 
   Label get_export_exception(this, Label::kDeferred);
@@ -384,7 +385,7 @@ TF_BUILTIN(ShadowRealmImportValueFulfilled, ShadowRealmBuiltinsAssembler) {
   // 2. Let f be the active function object.
   // 3. Let string be f.[[ExportNameString]].
   // 4. Assert: Type(string) is String.
-  TNode<String> export_name_string = CAST(LoadContextElement(
+  TNode<String> export_name_string = CAST(LoadContextElementNoCell(
       context, ImportValueFulfilledFunctionContextSlot::kExportNameSlot));
 
   // 1. Assert: exports is a module namespace exotic object.
@@ -415,7 +416,7 @@ TF_BUILTIN(ShadowRealmImportValueFulfilled, ShadowRealmBuiltinsAssembler) {
 
   BIND(&get_export_exception);
   {
-    TNode<String> specifier_string = CAST(LoadContextElement(
+    TNode<String> specifier_string = CAST(LoadContextElementNoCell(
         context, ImportValueFulfilledFunctionContextSlot::kSpecifierSlot));
     ThrowTypeError(context, MessageTemplate::kUnresolvableExport,
                    specifier_string, export_name_string);
@@ -428,6 +429,8 @@ TF_BUILTIN(ShadowRealmImportValueRejected, ShadowRealmBuiltinsAssembler) {
   ShadowRealmThrow(context, MessageTemplate::kImportShadowRealmRejected,
                    exception);
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

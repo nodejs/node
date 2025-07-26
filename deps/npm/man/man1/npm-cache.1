@@ -1,4 +1,4 @@
-.TH "NPM-CACHE" "1" "February 2024" "" ""
+.TH "NPM-CACHE" "1" "July 2025" "NPM@11.5.1" ""
 .SH "NAME"
 \fBnpm-cache\fR - Manipulates packages cache
 .SS "Synopsis"
@@ -9,20 +9,36 @@ npm cache add <package-spec>
 npm cache clean \[lB]<key>\[rB]
 npm cache ls \[lB]<name>@<version>\[rB]
 npm cache verify
+npm cache npx ls
+npm cache npx rm \[lB]<key>...\[rB]
+npm cache npx info <key>...
 .fi
 .RE
 .P
 Note: This command is unaware of workspaces.
 .SS "Description"
 .P
-Used to add, list, or clean the npm cache folder.
+Used to add, list, or clean the \fBnpm cache\fR folder. Also used to view info about entries in the \fBnpm exec\fR (aka \fBnpx\fR) cache folder.
+.SS "\fBnpm cache\fR"
 .RS 0
 .IP \(bu 4
 add: Add the specified packages to the local cache. This command is primarily intended to be used internally by npm, but it can provide a way to add data to the local installation cache explicitly.
 .IP \(bu 4
-clean: Delete all data out of the cache folder. Note that this is typically unnecessary, as npm's cache is self-healing and resistant to data corruption issues.
+clean: Delete a single entry or all entries out of the cache folder. Note that this is typically unnecessary, as npm's cache is self-healing and resistant to data corruption issues.
+.IP \(bu 4
+ls: List given entries or all entries in the local cache.
 .IP \(bu 4
 verify: Verify the contents of the cache folder, garbage collecting any unneeded data, and verifying the integrity of the cache index and all cached data.
+.RE 0
+
+.SS "\fBnpm cache npx\fR"
+.RS 0
+.IP \(bu 4
+ls: List all entries in the npx cache.
+.IP \(bu 4
+rm: Remove given entries or all entries from the npx cache.
+.IP \(bu 4
+info: Get detailed information about given entries in the npx cache.
 .RE 0
 
 .SS "Details"
@@ -67,6 +83,8 @@ npm help install
 npm help publish
 .IP \(bu 4
 npm help pack
+.IP \(bu 4
+npm help exec
 .IP \(bu 4
 https://npm.im/cacache
 .IP \(bu 4

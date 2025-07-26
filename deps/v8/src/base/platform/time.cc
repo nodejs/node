@@ -22,6 +22,10 @@
 #include <zircon/threads.h>
 #endif
 
+#if V8_OS_STARBOARD
+#include <sys/time.h>
+#endif  // V8_OS_STARBOARD
+
 #include <cstring>
 #include <ostream>
 
@@ -34,14 +38,14 @@
 #include <atomic>
 
 #include "src/base/lazy-instance.h"
-#include "src/base/win32-headers.h"
 #endif
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 
 #if V8_OS_STARBOARD
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 #endif
 
 namespace {
@@ -91,7 +95,7 @@ V8_INLINE int64_t GetFuchsiaThreadTicks() {
 // _POSIX_MONOTONIC_CLOCK to -1.
 V8_INLINE int64_t ClockNow(clockid_t clk_id) {
 #if (defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
-  defined(V8_OS_BSD) || defined(V8_OS_ANDROID)
+    defined(V8_OS_BSD) || defined(V8_OS_ANDROID) || defined(V8_OS_ZOS)
 #if defined(V8_OS_AIX)
   // On AIX clock_gettime for CLOCK_THREAD_CPUTIME_ID outputs time with
   // resolution of 10ms. thread_cputime API provides the time in ns.
@@ -402,7 +406,7 @@ FILETIME Time::ToFiletime() const {
   return ft;
 }
 
-#elif V8_OS_POSIX
+#elif V8_OS_POSIX || V8_OS_STARBOARD
 
 Time Time::Now() {
   struct timeval tv;
@@ -482,13 +486,7 @@ struct timeval Time::ToTimeval() const {
   return tv;
 }
 
-#elif V8_OS_STARBOARD
-
-Time Time::Now() { return Time(SbTimeToPosix(SbTimeGetNow())); }
-
-Time Time::NowFromSystemTime() { return Now(); }
-
-#endif  // V8_OS_STARBOARD
+#endif  // V8_OS_POSIX || V8_OS_STARBOARD
 
 Time Time::FromJsTime(double ms_since_epoch) {
   // The epoch is a valid time, so this constructor doesn't interpret
@@ -753,7 +751,7 @@ TimeTicks TimeTicks::Now() {
 #elif V8_OS_POSIX
   ticks = ClockNow(CLOCK_MONOTONIC);
 #elif V8_OS_STARBOARD
-  ticks = SbTimeGetMonotonicNow();
+  ticks = starboard::CurrentMonotonicTime();
 #else
 #error platform does not implement TimeTicks::Now.
 #endif  // V8_OS_DARWIN
@@ -780,18 +778,13 @@ bool TimeTicks::IsHighResolution() {
 
 bool ThreadTicks::IsSupported() {
 #if V8_OS_STARBOARD
-#if SB_API_VERSION >= 12
-  return SbTimeIsTimeThreadNowSupported();
-#elif SB_HAS(TIME_THREAD_NOW)
-  return true;
-#else
-  return false;
-#endif
+  return starboard::CurrentMonotonicThreadTime() != 0;
 #elif defined(__PASE__)
   // Thread CPU time accounting is unavailable in PASE
   return false;
-#elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
-    defined(V8_OS_DARWIN) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
+#elif (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
+    defined(V8_OS_DARWIN) || defined(V8_OS_ANDROID) ||                    \
+    defined(V8_OS_SOLARIS) || defined(V8_OS_ZOS)
   return true;
 #elif defined(V8_OS_WIN)
   return IsSupportedWin();
@@ -803,21 +796,16 @@ bool ThreadTicks::IsSupported() {
 
 ThreadTicks ThreadTicks::Now() {
 #if V8_OS_STARBOARD
-#if SB_API_VERSION >= 12
-  if (SbTimeIsTimeThreadNowSupported())
-    return ThreadTicks(SbTimeGetMonotonicThreadNow());
+  const int64_t now = starboard::CurrentMonotonicThreadTime();
+  if (now != 0)
+    return ThreadTicks(now);
   UNREACHABLE();
-#elif SB_HAS(TIME_THREAD_NOW)
-  return ThreadTicks(SbTimeGetMonotonicThreadNow());
-#else
-  UNREACHABLE();
-#endif
 #elif V8_OS_DARWIN
   return ThreadTicks(ComputeThreadTicks());
 #elif V8_OS_FUCHSIA
   return ThreadTicks(GetFuchsiaThreadTicks());
-#elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
-  defined(V8_OS_ANDROID)
+#elif (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
+    defined(V8_OS_ANDROID) || defined(V8_OS_ZOS)
   return ThreadTicks(ClockNow(CLOCK_THREAD_CPUTIME_ID));
 #elif V8_OS_SOLARIS
   return ThreadTicks(gethrvtime() / Time::kNanosecondsPerMicrosecond);
@@ -900,8 +888,8 @@ double ThreadTicks::TSCTicksPerSecond() {
   static const uint64_t tsc_initial = __rdtsc();
   static const uint64_t perf_counter_initial = QPCNowRaw();
 
-  // Make a another reading of the TSC and the performance counter every time
-  // that this function is called.
+  // Make another reading of the TSC and the performance counter every time
+  // this function is called.
   uint64_t tsc_now = __rdtsc();
   uint64_t perf_counter_now = QPCNowRaw();
 

@@ -1,11 +1,12 @@
 Name: ZIP file API for reading file entries in a ZIP archive
 Short Name: minizip
 URL: https://github.com/madler/zlib/tree/master/contrib/minizip
-Version: 1.2.12
+Version: 1.3.1.1
+Revision: ef24c4c7502169f016dcd2a26923dbaf3216748c
 License: Zlib
 License File: //third_party/zlib/LICENSE
-Security Critical: yes
 Shipped: yes
+Security Critical: yes
 CPEPrefix: cpe:/a:minizip_project:minizip
 
 Description:
@@ -13,9 +14,28 @@ Minizip provides API on top of zlib that can enumerate and extract ZIP archive
 files. See minizip.md for chromium build instructions.
 
 Local Modifications:
+- OS macro tweaks for Android and Fuchsia
+  0000-build.patch (the contrib/minizip/ parts)
+  0008-minizip-zip-unzip-tools.patch (crrev.com/886990)
+
+- Fix build on UWP. (crrev.com/750639)
+  0004-fix-uwp.patch
+
+- Fixed uncompressing files with wrong uncompressed size set
+  crrev.com/268940
+  0014-minizip-unzip-with-incorrect-size.patch
+
+- Enable traditional PKWARE decryption in zlib/contrib/minizip
+	Correct the value of rest_read_compressed when decompressing an encrypted
+  zip. (crrev.com/580862)
+  0015-minizip-unzip-enable-decryption.patch
+
 - Add parsing of the 'Info-ZIP Unicode Path Extra Field' as described in
   https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT section 4.6.9.
   (see crrev.com/1002476)
+  0016-minizip-parse-unicode-path-extra-field.patch
 
-- Check for overly long filename, comment, or extra field in
-  zipOpenNewFileInZip4_64 (crbug.com/1470539).
+- Added support for zip64 archives that have extra bytes on front (for example,
+  large CRX files).
+  0018-support-prefixed-zip64.patch
+

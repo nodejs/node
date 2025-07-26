@@ -105,6 +105,10 @@ class V8_BASE_EXPORT RegionAllocator final {
   // frees the region.
   size_t TrimRegion(Address address, size_t new_size);
 
+  // Tries to grow the region at |address| to the size |new_size|. Returns true
+  // on success.
+  bool TryGrowRegion(Address address, size_t new_size);
+
   // If there is a used region starting at given address returns its size
   // otherwise 0.
   size_t CheckRegion(Address address);
@@ -124,7 +128,7 @@ class V8_BASE_EXPORT RegionAllocator final {
     return whole_region_.contains(address, size);
   }
 
-  // Total size of not yet aquired regions.
+  // Total size of not yet acquired regions.
   size_t free_size() const { return free_size_; }
 
   // The alignment of the allocated region's addresses and granularity of

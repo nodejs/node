@@ -5,76 +5,96 @@
 #include "src/builtins/builtins-wasm-gen.h"
 
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
-TNode<WasmInstanceObject> WasmBuiltinsAssembler::LoadInstanceFromFrame() {
-  return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
+TNode<WasmTrustedInstanceData>
+WasmBuiltinsAssembler::LoadInstanceDataFromFrame() {
+  return CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
+}
+
+TNode<WasmTrustedInstanceData>
+WasmBuiltinsAssembler::LoadTrustedDataFromInstance(
+    TNode<WasmInstanceObject> instance_object) {
+  return CAST(LoadTrustedPointerFromObject(
+      instance_object, WasmInstanceObject::kTrustedDataOffset,
+      kWasmTrustedInstanceDataIndirectPointerTag));
 }
 
 TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   static_assert(BuiltinFrameConstants::kFunctionOffset ==
-                WasmFrameConstants::kWasmInstanceOffset);
+                WasmFrameConstants::kWasmInstanceDataOffset);
   TVARIABLE(NativeContext, context_result);
   TNode<HeapObject> function_or_instance =
-      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
-  Label js(this);
-  Label apifunc(this);
+      CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceDataOffset));
+  Label is_js_function(this);
+  Label is_import_data(this);
   Label done(this);
   TNode<Uint16T> instance_type =
       LoadMapInstanceType(LoadMap(function_or_instance));
-  GotoIf(IsJSFunctionInstanceType(instance_type), &js);
-  GotoIf(Word32Equal(instance_type, Int32Constant(WASM_API_FUNCTION_REF_TYPE)),
-         &apifunc);
-  context_result = LoadContextFromInstance(CAST(function_or_instance));
+  GotoIf(IsJSFunctionInstanceType(instance_type), &is_js_function);
+  GotoIf(Word32Equal(instance_type, Int32Constant(WASM_IMPORT_DATA_TYPE)),
+         &is_import_data);
+  context_result = LoadContextFromInstanceData(CAST(function_or_instance));
   Goto(&done);
 
-  BIND(&js);
+  BIND(&is_js_function);
   TNode<JSFunction> function = CAST(function_or_instance);
   TNode<Context> context =
       LoadObjectField<Context>(function, JSFunction::kContextOffset);
   context_result = LoadNativeContext(context);
   Goto(&done);
 
-  BIND(&apifunc);
-  TNode<WasmApiFunctionRef> apiref = CAST(function_or_instance);
+  BIND(&is_import_data);
+  TNode<WasmImportData> import_data = CAST(function_or_instance);
   context_result = LoadObjectField<NativeContext>(
-      apiref, WasmApiFunctionRef::kNativeContextOffset);
+      import_data, WasmImportData::kNativeContextOffset);
   Goto(&done);
 
   BIND(&done);
   return context_result.value();
 }
 
-TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromInstance(
-    TNode<WasmInstanceObject> instance) {
-  return CAST(Load(MachineType::AnyTagged(), instance,
-                   IntPtrConstant(WasmInstanceObject::kNativeContextOffset -
-                                  kHeapObjectTag)));
+TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
+  return CAST(
+      Load(MachineType::AnyTagged(), trusted_data,
+           IntPtrConstant(WasmTrustedInstanceData::kNativeContextOffset -
+                          kHeapObjectTag)));
 }
 
-TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstance(
-    TNode<WasmInstanceObject> instance) {
-  return LoadObjectField<FixedArray>(instance,
-                                     WasmInstanceObject::kTablesOffset);
+TNode<WasmTrustedInstanceData>
+WasmBuiltinsAssembler::LoadSharedPartFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
+  return CAST(LoadProtectedPointerFromObject(
+      trusted_data,
+      IntPtrConstant(WasmTrustedInstanceData::kProtectedSharedPartOffset -
+                     kHeapObjectTag)));
 }
 
-TNode<FixedArray> WasmBuiltinsAssembler::LoadInternalFunctionsFromInstance(
-    TNode<WasmInstanceObject> instance) {
+TNode<FixedArray> WasmBuiltinsAssembler::LoadTablesFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
+  return LoadObjectField<FixedArray>(trusted_data,
+                                     WasmTrustedInstanceData::kTablesOffset);
+}
+
+TNode<FixedArray> WasmBuiltinsAssembler::LoadFuncRefsFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
+  return LoadObjectField<FixedArray>(trusted_data,
+                                     WasmTrustedInstanceData::kFuncRefsOffset);
+}
+
+TNode<FixedArray> WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstanceData(
+    TNode<WasmTrustedInstanceData> trusted_data) {
   return LoadObjectField<FixedArray>(
-      instance, WasmInstanceObject::kWasmInternalFunctionsOffset);
-}
-
-TNode<FixedArray> WasmBuiltinsAssembler::LoadManagedObjectMapsFromInstance(
-    TNode<WasmInstanceObject> instance) {
-  return LoadObjectField<FixedArray>(
-      instance, WasmInstanceObject::kManagedObjectMapsOffset);
+      trusted_data, WasmTrustedInstanceData::kManagedObjectMapsOffset);
 }
 
 TNode<Float64T> WasmBuiltinsAssembler::StringToFloat64(TNode<String> input) {
@@ -126,11 +146,24 @@ TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
   auto value = Parameter<Object>(Descriptor::kArgument);
   Return(value);
 }
+
 TF_BUILTIN(WasmToJsWrapperCSA, WasmBuiltinsAssembler) {
   TorqueStructWasmToJSResult result = WasmToJSWrapper(
-      UncheckedParameter<WasmApiFunctionRef>(Descriptor::kWasmApiFunctionRef));
+      UncheckedParameter<WasmImportData>(Descriptor::kWasmImportData));
   PopAndReturn(result.popCount, result.result0, result.result1, result.result2,
                result.result3);
 }
-}  // namespace internal
-}  // namespace v8
+
+TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
+  TNode<WasmImportData> data =
+      UncheckedParameter<WasmImportData>(Descriptor::kWasmImportData);
+  TNode<Context> context =
+      LoadObjectField<Context>(data, WasmImportData::kNativeContextOffset);
+
+  CallRuntime(Runtime::kWasmThrowJSTypeError, context);
+  Unreachable();
+}
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
+
+}  // namespace v8::internal

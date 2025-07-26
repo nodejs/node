@@ -31,7 +31,7 @@
 from __future__ import print_function
 from typing import Dict
 import logging
-import optparse
+import argparse
 import os
 import re
 import signal
@@ -45,7 +45,6 @@ import multiprocessing
 import errno
 import copy
 import io
-
 
 if sys.version_info >= (3, 5):
   from importlib import machinery, util
@@ -84,7 +83,7 @@ except ImportError:
 
 
 logger = logging.getLogger('testrunner')
-skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
+skip_regex = re.compile(r'(?:\d+\.\.\d+|ok|not ok).*# SKIP\S*\s+(.*)', re.IGNORECASE)
 
 VERBOSE = False
 
@@ -317,9 +316,7 @@ class DotsProgressIndicator(SimpleProgressIndicator):
 
 class ActionsAnnotationProgressIndicator(DotsProgressIndicator):
   def AboutToRun(self, case):
-    case.additional_flags = case.additional_flags.copy() if hasattr(case, 'additional_flags') else []
-    case.additional_flags.append('--test-reporter=./tools/github_reporter/index.js')
-    case.additional_flags.append('--test-reporter-destination=stdout')
+    pass
 
   def GetAnnotationInfo(self, test, output):
     traceback = output.stdout + output.stderr
@@ -572,6 +569,7 @@ class TestCase(object):
     self.mode = mode
     self.parallel = False
     self.disable_core_files = False
+    self.max_virtual_memory = None
     self.serial_id = 0
     self.thread_id = 0
 
@@ -595,7 +593,8 @@ class TestCase(object):
                      self.context,
                      self.context.GetTimeout(self.mode, self.config.section),
                      env,
-                     disable_core_files = self.disable_core_files)
+                     disable_core_files = self.disable_core_files,
+                     max_virtual_memory = self.max_virtual_memory)
     return TestOutput(self,
                       full_command,
                       output,
@@ -603,12 +602,21 @@ class TestCase(object):
 
   def Run(self):
     try:
-      result = self.RunCommand(self.GetCommand(), {
+      run_configuration = self.GetRunConfiguration()
+      command = run_configuration['command']
+      envs = {}
+      if 'envs' in run_configuration:
+        envs.update(run_configuration['envs'])
+      envs.update({
         "TEST_SERIAL_ID": "%d" % self.serial_id,
         "TEST_THREAD_ID": "%d" % self.thread_id,
         "TEST_PARALLEL" : "%d" % self.parallel,
         "GITHUB_STEP_SUMMARY": "",
       })
+      result = self.RunCommand(
+        command,
+        envs
+      )
     finally:
       # Tests can leave the tty in non-blocking mode. If the test runner
       # tries to print to stdout/stderr after that and the tty buffer is
@@ -759,7 +767,8 @@ def CheckedUnlink(name):
       PrintError("os.unlink() " + str(e))
     break
 
-def Execute(args, context, timeout=None, env=None, disable_core_files=False, stdin=None):
+def Execute(args, context, timeout=None, env=None, disable_core_files=False,
+            stdin=None, max_virtual_memory=None):
   (fd_out, outname) = tempfile.mkstemp()
   (fd_err, errname) = tempfile.mkstemp()
 
@@ -781,11 +790,27 @@ def Execute(args, context, timeout=None, env=None, disable_core_files=False, std
 
   preexec_fn = None
 
+  def disableCoreFiles():
+    import resource
+    resource.setrlimit(resource.RLIMIT_CORE, (0,0))
+
   if disable_core_files and not utils.IsWindows():
-    def disableCoreFiles():
+    preexec_fn = disableCoreFiles
+
+  if max_virtual_memory is not None and utils.GuessOS() == 'linux':
+    def setMaxVirtualMemory():
       import resource
       resource.setrlimit(resource.RLIMIT_CORE, (0,0))
-    preexec_fn = disableCoreFiles
+      resource.setrlimit(resource.RLIMIT_AS, (max_virtual_memory,max_virtual_memory + 1))
+
+    if preexec_fn is not None:
+      prev_preexec_fn = preexec_fn
+      def setResourceLimits():
+        setMaxVirtualMemory()
+        prev_preexec_fn()
+      preexec_fn = setResourceLimits
+    else:
+      preexec_fn = setMaxVirtualMemory
 
   (process, exit_code, timed_out) = RunProcess(
     context,
@@ -1041,6 +1066,9 @@ class Operation(Expression):
       return self.left.Evaluate(env, defs) or self.right.Evaluate(env, defs)
     elif self.op == 'if':
       return False
+    elif self.op == '!=':
+      inter = self.left.GetOutcomes(env, defs) != self.right.GetOutcomes(env, defs)
+      return bool(inter)
     elif self.op == '==':
       inter = self.left.GetOutcomes(env, defs) & self.right.GetOutcomes(env, defs)
       return bool(inter)
@@ -1128,6 +1156,9 @@ class Tokenizer(object):
       elif self.Current(2) == '==':
         self.AddToken('==')
         self.Advance(2)
+      elif self.Current(2) == '!=':
+        self.AddToken('!=')
+        self.Advance(2)
       else:
         return None
     return self.tokens
@@ -1180,7 +1211,7 @@ def ParseAtomicExpression(scan):
     return None
 
 
-BINARIES = ['==']
+BINARIES = ['==', '!=']
 def ParseOperatorExpression(scan):
   left = ParseAtomicExpression(scan)
   if not left: return None
@@ -1347,83 +1378,86 @@ ARCH_GUESS = utils.GuessArchitecture()
 
 
 def BuildOptions():
-  result = optparse.OptionParser()
-  result.add_option("-m", "--mode", help="The test modes in which to run (comma-separated)",
+  result = argparse.ArgumentParser()
+  result.add_argument("-m", "--mode", help="The test modes in which to run (comma-separated)",
       default='release')
-  result.add_option("-v", "--verbose", help="Verbose output",
+  result.add_argument("-v", "--verbose", help="Verbose output",
       default=False, action="store_true")
-  result.add_option('--logfile', dest='logfile',
+  result.add_argument('--logfile', dest='logfile',
       help='write test output to file. NOTE: this only applies the tap progress indicator')
-  result.add_option("-p", "--progress",
+  result.add_argument("-p", "--progress",
       help="The style of progress indicator (%s)" % ", ".join(PROGRESS_INDICATORS.keys()),
       choices=list(PROGRESS_INDICATORS.keys()), default="mono")
-  result.add_option("--report", help="Print a summary of the tests to be run",
+  result.add_argument("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
-  result.add_option("-s", "--suite", help="A test suite",
+  result.add_argument("-s", "--suite", help="A test suite",
       default=[], action="append")
-  result.add_option("-t", "--timeout", help="Timeout in seconds",
-      default=120, type="int")
-  result.add_option("--arch", help='The architecture to run tests for',
+  result.add_argument("-t", "--timeout", help="Timeout in seconds",
+      default=120, type=int)
+  result.add_argument("--arch", help='The architecture to run tests for',
       default='none')
-  result.add_option("--snapshot", help="Run the tests with snapshot turned on",
+  result.add_argument("--snapshot", help="Run the tests with snapshot turned on",
       default=False, action="store_true")
-  result.add_option("--special-command", default=None)
-  result.add_option("--node-args", dest="node_args", help="Args to pass through to Node",
+  result.add_argument("--special-command", default=None)
+  result.add_argument("--node-args", dest="node_args", help="Args to pass through to Node",
       default=[], action="append")
-  result.add_option("--expect-fail", dest="expect_fail",
+  result.add_argument("--expect-fail", dest="expect_fail",
       help="Expect test cases to fail", default=False, action="store_true")
-  result.add_option("--valgrind", help="Run tests through valgrind",
+  result.add_argument("--valgrind", help="Run tests through valgrind",
       default=False, action="store_true")
-  result.add_option("--worker", help="Run parallel tests inside a worker context",
+  result.add_argument("--worker", help="Run parallel tests inside a worker context",
       default=False, action="store_true")
-  result.add_option("--check-deopts", help="Check tests for permanent deoptimizations",
+  result.add_argument("--check-deopts", help="Check tests for permanent deoptimizations",
       default=False, action="store_true")
-  result.add_option("--cat", help="Print the source of the tests",
+  result.add_argument("--cat", help="Print the source of the tests",
       default=False, action="store_true")
-  result.add_option("--flaky-tests",
+  result.add_argument("--flaky-tests",
       help="Regard tests marked as flaky (run|skip|dontcare|keep_retrying)",
       default="run")
-  result.add_option("--measure-flakiness",
+  result.add_argument("--measure-flakiness",
       help="When a test fails, re-run it x number of times",
-      default=0, type="int")
-  result.add_option("--skip-tests",
+      default=0, type=int)
+  result.add_argument("--skip-tests",
       help="Tests that should not be executed (comma-separated)",
       default="")
-  result.add_option("--warn-unused", help="Report unused rules",
+  result.add_argument("--warn-unused", help="Report unused rules",
       default=False, action="store_true")
-  result.add_option("-j", help="The number of parallel tasks to run, 0=use number of cores",
-      default=0, type="int")
-  result.add_option("-J", help="For legacy compatibility, has no effect",
+  result.add_argument("-j", help="The number of parallel tasks to run, 0=use number of cores",
+      default=0, type=int)
+  result.add_argument("-J", help="For legacy compatibility, has no effect",
       default=False, action="store_true")
-  result.add_option("--time", help="Print timing information after running",
+  result.add_argument("--time", help="Print timing information after running",
       default=False, action="store_true")
-  result.add_option("--suppress-dialogs", help="Suppress Windows dialogs for crashing tests",
+  result.add_argument("--suppress-dialogs", help="Suppress Windows dialogs for crashing tests",
         dest="suppress_dialogs", default=True, action="store_true")
-  result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
+  result.add_argument("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
         dest="suppress_dialogs", action="store_false")
-  result.add_option("--shell", help="Path to node executable", default=None)
-  result.add_option("--store-unexpected-output",
+  result.add_argument("--shell", help="Path to node executable", default=None)
+  result.add_argument("--store-unexpected-output",
       help="Store the temporary JS files from tests that fails",
       dest="store_unexpected_output", default=True, action="store_true")
-  result.add_option("--no-store-unexpected-output",
+  result.add_argument("--no-store-unexpected-output",
       help="Deletes the temporary JS files from tests that fails",
       dest="store_unexpected_output", action="store_false")
-  result.add_option("-r", "--run",
+  result.add_argument("-r", "--run",
       help="Divide the tests in m groups (interleaved) and run tests from group n (--run=n,m with n < m)",
       default="")
-  result.add_option('--temp-dir',
+  result.add_argument('--temp-dir',
       help='Optional path to change directory used for tests', default=False)
-  result.add_option('--test-root',
+  result.add_argument('--test-root',
       help='Optional path to change test directory', dest='test_root', default=None)
-  result.add_option('--repeat',
+  result.add_argument('--repeat',
       help='Number of times to repeat given tests',
-      default=1, type="int")
-  result.add_option('--abort-on-timeout',
+      default=1, type=int)
+  result.add_argument('--abort-on-timeout',
       help='Send SIGABRT instead of SIGTERM to kill processes that time out',
       default=False, action="store_true", dest="abort_on_timeout")
-  result.add_option("--type",
+  result.add_argument("--type",
       help="Type of build (simple, fips, coverage)",
       default=None)
+  result.add_argument("--error-reporter",
+      help="use error reporter",
+      default=True, action="store_true")
   return result
 
 
@@ -1560,6 +1594,8 @@ IGNORED_SUITES = [
   'js-native-api',
   'node-api',
   'pummel',
+  'sqlite',
+  'system-ca',
   'tick-processor',
   'v8-updates'
 ]
@@ -1588,13 +1624,17 @@ def get_env_type(vm, options_type, context):
   return env_type
 
 
-def get_asan_state():
-  return "on" if os.environ.get('ASAN') is not None else "off"
+def get_asan_state(vm, context):
+  asan = Execute([vm, '-p', 'process.config.variables.asan'], context).stdout.strip()
+  return "on" if asan == "1" else "off"
 
+def get_pointer_compression_state(vm, context):
+  pointer_compression = Execute([vm, '-p', 'process.config.variables.v8_enable_pointer_compression'], context).stdout.strip()
+  return "on" if pointer_compression == "1" else "off"
 
 def Main():
   parser = BuildOptions()
-  (options, args) = parser.parse_args()
+  (options, args) = parser.parse_known_args()
   if not ProcessOptions(options):
     parser.print_help()
     return 1
@@ -1636,6 +1676,10 @@ def Main():
     # the optimizer to kick in, so this flag will force it to run.
     options.node_args.append("--always-turbofan")
     options.progress = "deopts"
+
+  if options.error_reporter:
+    options.node_args.append('--test-reporter=./test/common/test-error-reporter.js')
+    options.node_args.append('--test-reporter-destination=stdout')
 
   if options.worker:
     run_worker = join(workspace, "tools", "run-worker.js")
@@ -1684,7 +1728,8 @@ def Main():
           'system': utils.GuessOS(),
           'arch': vmArch,
           'type': get_env_type(vm, options.type, context),
-          'asan': get_asan_state(),
+          'asan': get_asan_state(vm, context),
+          'pointer_compression': get_pointer_compression_state(vm, context),
         }
         test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list

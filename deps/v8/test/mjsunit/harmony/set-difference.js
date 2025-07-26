@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-set-methods
 
 (function TestDifferenceSetFirstShorter() {
   const firstSet = new Set();
@@ -236,4 +235,171 @@
 
   assertEquals([42, 44], Array.from(firstSet.difference(setLike)));
   assertEquals(0, firstSet.size);
+})();
+
+(function TestDifferenceAfterRewritingKeys() {
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  const otherSet = new Set();
+  otherSet.add(42);
+  otherSet.add(46);
+  otherSet.add(47);
+
+  otherSet.keys =
+      () => {
+        firstSet.clear();
+        return otherSet[Symbol.iterator]();
+      }
+
+  const resultArray = [43];
+
+  const differenceArray = Array.from(firstSet.difference(otherSet));
+
+  assertEquals(resultArray, differenceArray);
+})();
+
+(function TestDifferenceSetLikeAfterRewritingKeys() {
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  const setLike = {
+    arr: [42, 46, 47],
+    size: 3,
+    keys() {
+      return this.arr[Symbol.iterator]();
+    },
+    has(key) {
+      return this.arr.indexOf(key) != -1;
+    }
+  };
+
+  setLike.keys =
+      () => {
+        firstSet.clear();
+        return setLike.arr[Symbol.iterator]();
+      }
+
+  const resultArray = [43];
+
+  const differenceArray = Array.from(firstSet.difference(setLike));
+
+  assertEquals(resultArray, differenceArray);
+})();
+
+(function TestThrowRangeErrorIfSizeIsLowerThanZero() {
+  const setLike = {
+    arr: [42, 46, 47],
+    size: -1,
+    keys() {
+      return this.arr[Symbol.iterator]();
+    },
+    has(key) {
+      return this.arr.indexOf(key) != -1;
+    }
+  };
+
+  assertThrows(() => {
+    new Set().difference(setLike);
+  }, RangeError, "'-1' is an invalid size");
+})();
+
+(function TestDifferenceSetLikeWithInfiniteSize() {
+  let setLike = {
+    size: Infinity,
+    has(v) {
+      return true;
+    },
+    keys() {
+      throw new Error('Unexpected call to |keys| method');
+    },
+  };
+
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  const resultSet = new Set();
+
+  const resultArray = Array.from(resultSet);
+  const differenceArray = Array.from(firstSet.difference(setLike));
+
+  assertEquals(resultArray, differenceArray);
+})();
+
+(function TestDifferenceSetLikeWithNegativeInfiniteSize() {
+  let setLike = {
+    size: -Infinity,
+    has(v) {
+      return true;
+    },
+    keys() {
+      throw new Error('Unexpected call to |keys| method');
+    },
+  };
+
+  assertThrows(() => {
+    new Set().difference(setLike);
+  }, RangeError, '\'-Infinity\' is an invalid size');
+})();
+
+(function TestDifferenceSetLikeWithLargeSize() {
+  let setLike = {
+    size: 2 ** 31,
+    has(v) {
+      return true;
+    },
+    keys() {
+      throw new Error('Unexpected call to |keys| method');
+    },
+  };
+
+  const firstSet = new Set();
+  firstSet.add(42);
+  firstSet.add(43);
+
+  const resultSet = new Set();
+
+  const resultArray = Array.from(resultSet);
+  const differenceArray = Array.from(firstSet.difference(setLike));
+
+  assertEquals(resultArray, differenceArray);
+})();
+
+(function TestDifferenceSetLikeWithModificationsOnSet() {
+  var first = true;
+  var log = [];
+
+  var setLike = {
+    size: 100,
+    has(v) {
+      log.push(`has(${v})`);
+      if (first) {
+        first = false;
+
+        // Remove all existing items.
+        set.clear();
+
+        // Add new keys 11 and 22.
+        set.add(11);
+        set.add(22);
+      }
+      return true;
+    },
+    keys() {
+      throw new Error('Unexpected call to |keys| method');
+    },
+  };
+
+  var set = new Set([1, 2, 3, 4]);
+
+  const resultSet = new Set();
+  const resultArray = Array.from(resultSet);
+
+  var differenceArray = Array.from(set.difference(setLike));
+
+  assertEquals(resultArray, differenceArray);
+  assertEquals(log, [`has(1)`,`has(2)`,`has(3)`,`has(4)`]);
 })();

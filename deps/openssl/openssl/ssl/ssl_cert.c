@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -812,16 +812,17 @@ static int add_uris_recursive(STACK_OF(X509_NAME) *stack,
     OSSL_STORE_CTX *ctx = NULL;
     X509 *x = NULL;
     X509_NAME *xn = NULL;
+    OSSL_STORE_INFO *info = NULL;
 
     if ((ctx = OSSL_STORE_open(uri, NULL, NULL, NULL, NULL)) == NULL)
         goto err;
 
     while (!OSSL_STORE_eof(ctx) && !OSSL_STORE_error(ctx)) {
-        OSSL_STORE_INFO *info = OSSL_STORE_load(ctx);
-        int infotype = info == 0 ? 0 : OSSL_STORE_INFO_get_type(info);
+        int infotype;
 
-        if (info == NULL)
+        if ((info = OSSL_STORE_load(ctx)) == NULL)
             continue;
+        infotype = OSSL_STORE_INFO_get_type(info);
 
         if (infotype == OSSL_STORE_INFO_NAME) {
             /*
@@ -846,6 +847,7 @@ static int add_uris_recursive(STACK_OF(X509_NAME) *stack,
         }
 
         OSSL_STORE_INFO_free(info);
+        info = NULL;
     }
 
     ERR_clear_error();
@@ -853,6 +855,7 @@ static int add_uris_recursive(STACK_OF(X509_NAME) *stack,
 
  err:
     ok = 0;
+    OSSL_STORE_INFO_free(info);
  done:
     OSSL_STORE_close(ctx);
 

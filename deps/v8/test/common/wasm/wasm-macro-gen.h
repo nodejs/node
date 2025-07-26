@@ -7,6 +7,22 @@
 
 #include "src/wasm/wasm-opcodes.h"
 
+namespace v8::internal::wasm {
+
+static constexpr uint8_t ToByte(int x) {
+  DCHECK_EQ(static_cast<uint8_t>(x), x);
+  return static_cast<uint8_t>(x);
+}
+static constexpr uint8_t ToByte(ValueTypeCode type_code) {
+  return static_cast<uint8_t>(type_code);
+}
+static constexpr uint8_t ToByte(ModuleTypeIndex type_index) {
+  DCHECK_EQ(static_cast<uint8_t>(type_index.index), type_index.index);
+  return static_cast<uint8_t>(type_index.index);
+}
+
+}  // namespace v8::internal::wasm
+
 #define U32_LE(v)                                          \
   static_cast<uint8_t>(v), static_cast<uint8_t>((v) >> 8), \
       static_cast<uint8_t>((v) >> 16), static_cast<uint8_t>((v) >> 24)
@@ -128,8 +144,8 @@
 #define WASM_BLOCK_R(type, ...) \
   kExprBlock, WASM_REF_TYPE(type), __VA_ARGS__, kExprEnd
 
-#define WASM_BLOCK_X(index, ...) \
-  kExprBlock, static_cast<uint8_t>(index), __VA_ARGS__, kExprEnd
+#define WASM_BLOCK_X(typeidx, ...) \
+  kExprBlock, ToByte(typeidx), __VA_ARGS__, kExprEnd
 
 #define WASM_INFINITE_LOOP kExprLoop, kVoidCode, kExprBr, DEPTH_0, kExprEnd
 
@@ -144,8 +160,8 @@
 
 #define WASM_LOOP_R(t, ...) kExprLoop, TYPE_IMM(t), __VA_ARGS__, kExprEnd
 
-#define WASM_LOOP_X(index, ...) \
-  kExprLoop, static_cast<uint8_t>(index), __VA_ARGS__, kExprEnd
+#define WASM_LOOP_X(typeidx, ...) \
+  kExprLoop, ToByte(typeidx), __VA_ARGS__, kExprEnd
 
 #define WASM_IF(cond, ...) cond, kExprIf, kVoidCode, __VA_ARGS__, kExprEnd
 
@@ -156,8 +172,8 @@
 #define WASM_IF_R(t, cond, ...) \
   cond, kExprIf, TYPE_IMM(t), __VA_ARGS__, kExprEnd
 
-#define WASM_IF_X(index, cond, ...) \
-  cond, kExprIf, static_cast<uint8_t>(index), __VA_ARGS__, kExprEnd
+#define WASM_IF_X(typeidx, cond, ...) \
+  cond, kExprIf, ToByte(typeidx), __VA_ARGS__, kExprEnd
 
 #define WASM_IF_ELSE(cond, tstmt, fstmt) \
   cond, kExprIf, kVoidCode, tstmt, kExprElse, fstmt, kExprEnd
@@ -178,8 +194,8 @@
 #define WASM_IF_ELSE_R(t, cond, tstmt, fstmt) \
   cond, kExprIf, WASM_REF_TYPE(t), tstmt, kExprElse, fstmt, kExprEnd
 
-#define WASM_IF_ELSE_X(index, cond, tstmt, fstmt) \
-  cond, kExprIf, static_cast<uint8_t>(index), tstmt, kExprElse, fstmt, kExprEnd
+#define WASM_IF_ELSE_X(typeidx, cond, tstmt, fstmt) \
+  cond, kExprIf, ToByte(typeidx), tstmt, kExprElse, fstmt, kExprEnd
 
 #define WASM_TRY_T(t, trystmt) \
   kExprTry, static_cast<uint8_t>((t).value_type_code()), trystmt, kExprEnd
@@ -319,18 +335,23 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 //------------------------------------------------------------------------------
 // Int32 Const operations
 //------------------------------------------------------------------------------
-#define WASM_I32V(val) kExprI32Const, U32V_5(val)
+#define WASM_I32V(val) WASM_I32V_5(val)
 
-#define WASM_I32V_1(val) \
-  static_cast<uint8_t>(CheckI32v((val), 1), kExprI32Const), U32V_1(val)
-#define WASM_I32V_2(val) \
-  static_cast<uint8_t>(CheckI32v((val), 2), kExprI32Const), U32V_2(val)
-#define WASM_I32V_3(val) \
-  static_cast<uint8_t>(CheckI32v((val), 3), kExprI32Const), U32V_3(val)
-#define WASM_I32V_4(val) \
-  static_cast<uint8_t>(CheckI32v((val), 4), kExprI32Const), U32V_4(val)
-#define WASM_I32V_5(val) \
-  static_cast<uint8_t>(CheckI32v((val), 5), kExprI32Const), U32V_5(val)
+#define WASM_I32V_1(val)                                    \
+  static_cast<uint8_t>(CheckI32v((val), 1), kExprI32Const), \
+      U32V_1(static_cast<int32_t>(val))
+#define WASM_I32V_2(val)                                    \
+  static_cast<uint8_t>(CheckI32v((val), 2), kExprI32Const), \
+      U32V_2(static_cast<int32_t>(val))
+#define WASM_I32V_3(val)                                    \
+  static_cast<uint8_t>(CheckI32v((val), 3), kExprI32Const), \
+      U32V_3(static_cast<int32_t>(val))
+#define WASM_I32V_4(val)                                    \
+  static_cast<uint8_t>(CheckI32v((val), 4), kExprI32Const), \
+      U32V_4(static_cast<int32_t>(val))
+#define WASM_I32V_5(val)                                    \
+  static_cast<uint8_t>(CheckI32v((val), 5), kExprI32Const), \
+      U32V_5(static_cast<int32_t>(val))
 
 //------------------------------------------------------------------------------
 // Int64 Const operations
@@ -546,6 +567,10 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   index, val,                                                                  \
       static_cast<uint8_t>(v8::internal::wasm::LoadStoreOpcodeOf(type, true)), \
       alignment, ZERO_OFFSET
+#define WASM_F16_LOAD_MEM(index) \
+  index, WASM_NUMERIC_OP(kExprF32LoadMemF16), ZERO_ALIGNMENT, ZERO_OFFSET
+#define WASM_F16_STORE_MEM(index, val) \
+  index, val, WASM_NUMERIC_OP(kExprF32StoreMemF16), ZERO_ALIGNMENT, ZERO_OFFSET
 #define WASM_RETHROW(index) kExprRethrow, static_cast<uint8_t>(index)
 
 #define WASM_CALL_FUNCTION0(index) \
@@ -564,81 +589,77 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 // Heap-allocated object operations.
 //------------------------------------------------------------------------------
 #define WASM_GC_OP(op) kGCPrefix, static_cast<uint8_t>(op)
-#define WASM_STRUCT_NEW(index, ...) \
-  __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<uint8_t>(index)
-#define WASM_STRUCT_NEW_DEFAULT(index) \
-  WASM_GC_OP(kExprStructNewDefault), static_cast<uint8_t>(index)
-#define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                   \
-  struct_obj, WASM_GC_OP(kExprStructGet), static_cast<uint8_t>(typeidx), \
+#define WASM_STRUCT_NEW(typeidx, ...) \
+  __VA_ARGS__, WASM_GC_OP(kExprStructNew), ToByte(typeidx)
+#define WASM_STRUCT_NEW_DEFAULT(typeidx) \
+  WASM_GC_OP(kExprStructNewDefault), ToByte(typeidx)
+#define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)     \
+  struct_obj, WASM_GC_OP(kExprStructGet), ToByte(typeidx), \
       static_cast<uint8_t>(fieldidx)
-#define WASM_STRUCT_GET_S(typeidx, fieldidx, struct_obj)                  \
-  struct_obj, WASM_GC_OP(kExprStructGetS), static_cast<uint8_t>(typeidx), \
+#define WASM_STRUCT_GET_S(typeidx, fieldidx, struct_obj)    \
+  struct_obj, WASM_GC_OP(kExprStructGetS), ToByte(typeidx), \
       static_cast<uint8_t>(fieldidx)
-#define WASM_STRUCT_GET_U(typeidx, fieldidx, struct_obj)                  \
-  struct_obj, WASM_GC_OP(kExprStructGetU), static_cast<uint8_t>(typeidx), \
+#define WASM_STRUCT_GET_U(typeidx, fieldidx, struct_obj)    \
+  struct_obj, WASM_GC_OP(kExprStructGetU), ToByte(typeidx), \
       static_cast<uint8_t>(fieldidx)
-#define WASM_STRUCT_SET(typeidx, fieldidx, struct_obj, value) \
-  struct_obj, value, WASM_GC_OP(kExprStructSet),              \
-      static_cast<uint8_t>(typeidx), static_cast<uint8_t>(fieldidx)
-#define WASM_REF_NULL(type_encoding) kExprRefNull, type_encoding
+#define WASM_STRUCT_SET(typeidx, fieldidx, struct_obj, value)     \
+  struct_obj, value, WASM_GC_OP(kExprStructSet), ToByte(typeidx), \
+      static_cast<uint8_t>(fieldidx)
+#define WASM_REF_NULL(type_encoding) kExprRefNull, ToByte(type_encoding)
 #define WASM_REF_FUNC(index) kExprRefFunc, index
 #define WASM_REF_IS_NULL(val) val, kExprRefIsNull
 #define WASM_REF_AS_NON_NULL(val) val, kExprRefAsNonNull
 #define WASM_REF_EQ(lhs, rhs) lhs, rhs, kExprRefEq
 #define WASM_REF_TEST(ref, typeidx) \
-  ref, WASM_GC_OP(kExprRefTest), static_cast<uint8_t>(typeidx)
+  ref, WASM_GC_OP(kExprRefTest), ToByte(typeidx)
 #define WASM_REF_TEST_NULL(ref, typeidx) \
-  ref, WASM_GC_OP(kExprRefTestNull), static_cast<uint8_t>(typeidx)
+  ref, WASM_GC_OP(kExprRefTestNull), ToByte(typeidx)
 #define WASM_REF_CAST(ref, typeidx) \
-  ref, WASM_GC_OP(kExprRefCast), static_cast<uint8_t>(typeidx)
+  ref, WASM_GC_OP(kExprRefCast), ToByte(typeidx)
 #define WASM_REF_CAST_NULL(ref, typeidx) \
-  ref, WASM_GC_OP(kExprRefCastNull), static_cast<uint8_t>(typeidx)
+  ref, WASM_GC_OP(kExprRefCastNull), ToByte(typeidx)
 // Takes a reference value from the value stack to allow sequences of
 // conditional branches.
-#define WASM_BR_ON_CAST(depth, sourcetype, targettype)               \
-  WASM_GC_OP(kExprBrOnCastGeneric),                                  \
-      static_cast<uint8_t>(0b01), /*source is nullable*/             \
-      static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
-      static_cast<uint8_t>(targettype)
-#define WASM_BR_ON_CAST_NULL(depth, sourcetype, targettype)          \
-  WASM_GC_OP(kExprBrOnCastGeneric),                                  \
-      static_cast<uint8_t>(0b11) /*source & target nullable*/,       \
-      static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
-      static_cast<uint8_t>(targettype)
-#define WASM_BR_ON_CAST_FAIL(depth, sourcetype, targettype)          \
-  WASM_GC_OP(kExprBrOnCastFailGeneric),                              \
-      static_cast<uint8_t>(0b01), /*source is nullable*/             \
-      static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
-      static_cast<uint8_t>(targettype)
-#define WASM_BR_ON_CAST_FAIL_NULL(depth, sourcetype, targettype)     \
-  WASM_GC_OP(kExprBrOnCastFailGeneric),                              \
-      static_cast<uint8_t>(0b11), /*source, target nullable*/        \
-      static_cast<uint8_t>(depth), static_cast<uint8_t>(sourcetype), \
-      static_cast<uint8_t>(targettype)
+#define WASM_BR_ON_CAST(depth, sourcetype, targettype)   \
+  WASM_GC_OP(kExprBrOnCast),                             \
+      static_cast<uint8_t>(0b01), /*source is nullable*/ \
+      static_cast<uint8_t>(depth), ToByte(sourcetype), ToByte(targettype)
+#define WASM_BR_ON_CAST_NULL(depth, sourcetype, targettype)    \
+  WASM_GC_OP(kExprBrOnCast),                                   \
+      static_cast<uint8_t>(0b11) /*source & target nullable*/, \
+      static_cast<uint8_t>(depth), ToByte(sourcetype), ToByte(targettype)
+#define WASM_BR_ON_CAST_FAIL(depth, sourcetype, targettype) \
+  WASM_GC_OP(kExprBrOnCastFail),                            \
+      static_cast<uint8_t>(0b01), /*source is nullable*/    \
+      static_cast<uint8_t>(depth), ToByte(sourcetype), ToByte(targettype)
+#define WASM_BR_ON_CAST_FAIL_NULL(depth, sourcetype, targettype) \
+  WASM_GC_OP(kExprBrOnCastFail),                                 \
+      static_cast<uint8_t>(0b11), /*source, target nullable*/    \
+      static_cast<uint8_t>(depth), ToByte(sourcetype), ToByte(targettype)
 
-#define WASM_GC_INTERNALIZE(extern) extern, WASM_GC_OP(kExprExternInternalize)
-#define WASM_GC_EXTERNALIZE(ref) ref, WASM_GC_OP(kExprExternExternalize)
+#define WASM_GC_ANY_CONVERT_EXTERN(extern) \
+  extern, WASM_GC_OP(kExprAnyConvertExtern)
+#define WASM_GC_EXTERN_CONVERT_ANY(ref) ref, WASM_GC_OP(kExprExternConvertAny)
 
-#define WASM_ARRAY_NEW(index, default_value, length) \
-  default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<uint8_t>(index)
-#define WASM_ARRAY_NEW_DEFAULT(index, length) \
-  length, WASM_GC_OP(kExprArrayNewDefault), static_cast<uint8_t>(index)
+#define WASM_ARRAY_NEW(typeidx, default_value, length) \
+  default_value, length, WASM_GC_OP(kExprArrayNew), ToByte(typeidx)
+#define WASM_ARRAY_NEW_DEFAULT(typeidx, length) \
+  length, WASM_GC_OP(kExprArrayNewDefault), ToByte(typeidx)
 #define WASM_ARRAY_GET(typeidx, array, index) \
-  array, index, WASM_GC_OP(kExprArrayGet), static_cast<uint8_t>(typeidx)
+  array, index, WASM_GC_OP(kExprArrayGet), ToByte(typeidx)
 #define WASM_ARRAY_GET_U(typeidx, array, index) \
-  array, index, WASM_GC_OP(kExprArrayGetU), static_cast<uint8_t>(typeidx)
+  array, index, WASM_GC_OP(kExprArrayGetU), ToByte(typeidx)
 #define WASM_ARRAY_GET_S(typeidx, array, index) \
-  array, index, WASM_GC_OP(kExprArrayGetS), static_cast<uint8_t>(typeidx)
+  array, index, WASM_GC_OP(kExprArrayGetS), ToByte(typeidx)
 #define WASM_ARRAY_SET(typeidx, array, index, value) \
-  array, index, value, WASM_GC_OP(kExprArraySet), static_cast<uint8_t>(typeidx)
+  array, index, value, WASM_GC_OP(kExprArraySet), ToByte(typeidx)
 #define WASM_ARRAY_LEN(array) array, WASM_GC_OP(kExprArrayLen)
-#define WASM_ARRAY_COPY(dst_idx, src_idx, dst_array, dst_index, src_array, \
-                        src_index, length)                                 \
-  dst_array, dst_index, src_array, src_index, length,                      \
-      WASM_GC_OP(kExprArrayCopy), static_cast<uint8_t>(dst_idx),           \
-      static_cast<uint8_t>(src_idx)
-#define WASM_ARRAY_NEW_FIXED(index, length, ...)                            \
-  __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixed), static_cast<uint8_t>(index), \
+#define WASM_ARRAY_COPY(dst_typeidx, src_typeidx, dst_array, dst_index, \
+                        src_array, src_index, length)                   \
+  dst_array, dst_index, src_array, src_index, length,                   \
+      WASM_GC_OP(kExprArrayCopy), ToByte(dst_typeidx), ToByte(src_typeidx)
+#define WASM_ARRAY_NEW_FIXED(typeidx, length, ...)              \
+  __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixed), ToByte(typeidx), \
       static_cast<uint8_t>(length)
 
 #define WASM_REF_I31(val) val, WASM_GC_OP(kExprRefI31)
@@ -653,22 +674,40 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 
 // Pass: sig_index, ...args, func_index
 #define WASM_CALL_INDIRECT(sig_index, ...) \
-  __VA_ARGS__, kExprCallIndirect, static_cast<uint8_t>(sig_index), TABLE_ZERO
-#define WASM_CALL_INDIRECT_TABLE(table, sig_index, ...)            \
-  __VA_ARGS__, kExprCallIndirect, static_cast<uint8_t>(sig_index), \
-      static_cast<uint8_t>(table)
-#define WASM_RETURN_CALL_INDIRECT(sig_index, ...)                        \
-  __VA_ARGS__, kExprReturnCallIndirect, static_cast<uint8_t>(sig_index), \
-      TABLE_ZERO
+  __VA_ARGS__, kExprCallIndirect, ToByte(sig_index), TABLE_ZERO
+#define WASM_CALL_INDIRECT_TABLE(table, sig_index, ...) \
+  __VA_ARGS__, kExprCallIndirect, ToByte(sig_index), static_cast<uint8_t>(table)
+#define WASM_RETURN_CALL_INDIRECT(sig_index, ...) \
+  __VA_ARGS__, kExprReturnCallIndirect, ToByte(sig_index), TABLE_ZERO
 
 #define WASM_CALL_REF(func_ref, sig_index, ...) \
-  __VA_ARGS__, func_ref, kExprCallRef, sig_index
+  __VA_ARGS__, func_ref, kExprCallRef, ToByte(sig_index)
 
 #define WASM_RETURN_CALL_REF(func_ref, sig_index, ...) \
-  __VA_ARGS__, func_ref, kExprReturnCallRef, sig_index
+  __VA_ARGS__, func_ref, kExprReturnCallRef, ToByte(sig_index)
 
 #define WASM_NOT(x) x, kExprI32Eqz
 #define WASM_SEQ(...) __VA_ARGS__
+
+//------------------------------------------------------------------------------
+// Stack switching opcodes.
+//------------------------------------------------------------------------------
+
+#define WASM_CONT_NEW(index) kExprContNew, static_cast<uint8_t>(index)
+#define WASM_CONT_BIND(src, tgt) \
+  kExprContBind, static_cast<uint8_t>(src), static_cast<uint8_t>(tgt)
+
+#define WASM_RESUME(index, count, ...) \
+  kExprResume, static_cast<uint8_t>(index), U32V_1(count), ##__VA_ARGS__
+#define WASM_RESUME_THROW(cont, exc, count, ...)                           \
+  kExprResumeThrow, static_cast<uint8_t>(cont), static_cast<uint8_t>(exc), \
+      U32V_1(count), ##__VA_ARGS__
+#define WASM_SUSPEND(index) kExprSuspend, static_cast<uint8_t>(index)
+#define WASM_SWITCH(cont, tag) \
+  kExprSwitch, static_cast<uint8_t>(cont), ToByte(tag)
+
+#define WASM_ON_TAG(tag, label) kOnSuspend, ToByte(tag), label
+#define WASM_SWITCH_TAG(tag) kSwitch, ToByte(tag)
 
 //------------------------------------------------------------------------------
 // Constructs that are composed of multiple bytecodes.
@@ -726,10 +765,20 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 //------------------------------------------------------------------------------
 // Asmjs Int32 operations
 //------------------------------------------------------------------------------
-#define WASM_I32_ASMJS_DIVS(x, y) x, y, kExprI32AsmjsDivS
-#define WASM_I32_ASMJS_REMS(x, y) x, y, kExprI32AsmjsRemS
-#define WASM_I32_ASMJS_DIVU(x, y) x, y, kExprI32AsmjsDivU
-#define WASM_I32_ASMJS_REMU(x, y) x, y, kExprI32AsmjsRemU
+#define WASM_ASMJS_OP(op) kAsmJsPrefix, static_cast<uint8_t>(op)
+
+#define WASM_I32_ASMJS_DIVS(x, y) x, y, WASM_ASMJS_OP(kExprI32AsmjsDivS)
+#define WASM_I32_ASMJS_REMS(x, y) x, y, WASM_ASMJS_OP(kExprI32AsmjsRemS)
+#define WASM_I32_ASMJS_DIVU(x, y) x, y, WASM_ASMJS_OP(kExprI32AsmjsDivU)
+#define WASM_I32_ASMJS_REMU(x, y) x, y, WASM_ASMJS_OP(kExprI32AsmjsRemU)
+#define WASM_I32_ASMJS_SCONVERTF32(x) x, WASM_ASMJS_OP(kExprI32AsmjsSConvertF32)
+#define WASM_I32_ASMJS_SCONVERTF64(x) x, WASM_ASMJS_OP(kExprI32AsmjsSConvertF64)
+#define WASM_I32_ASMJS_UCONVERTF32(x) x, WASM_ASMJS_OP(kExprI32AsmjsUConvertF32)
+#define WASM_I32_ASMJS_UCONVERTF64(x) x, WASM_ASMJS_OP(kExprI32AsmjsUConvertF64)
+#define WASM_I32_ASMJS_LOADMEM(x) x, WASM_ASMJS_OP(kExprI32AsmjsLoadMem)
+#define WASM_F32_ASMJS_LOADMEM(x) x, WASM_ASMJS_OP(kExprF32AsmjsLoadMem)
+#define WASM_F64_ASMJS_LOADMEM(x) x, WASM_ASMJS_OP(kExprF64AsmjsLoadMem)
+#define WASM_I32_ASMJS_STOREMEM(x, y) x, y, WASM_ASMJS_OP(kExprI32AsmjsStoreMem)
 
 //------------------------------------------------------------------------------
 // Int64 operations
@@ -859,8 +908,10 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_MEMORY_INIT(seg, dst, src, size) \
   dst, src, size, WASM_NUMERIC_OP(kExprMemoryInit), U32V_1(seg), MEMORY_ZERO
 #define WASM_DATA_DROP(seg) WASM_NUMERIC_OP(kExprDataDrop), U32V_1(seg)
-#define WASM_MEMORY_COPY(dst, src, size) \
+#define WASM_MEMORY0_COPY(dst, src, size) \
   dst, src, size, WASM_NUMERIC_OP(kExprMemoryCopy), MEMORY_ZERO, MEMORY_ZERO
+#define WASM_MEMORY_COPY(dst_index, src_index, dst, src, size) \
+  dst, src, size, WASM_NUMERIC_OP(kExprMemoryCopy), dst_index, src_index
 #define WASM_MEMORY_FILL(dst, val, size) \
   dst, val, size, WASM_NUMERIC_OP(kExprMemoryFill), MEMORY_ZERO
 #define WASM_TABLE_INIT(table, seg, dst, src, size)             \
@@ -906,6 +957,9 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define SIZEOF_SIG_ENTRY_xx_xx 7
 #define SIZEOF_SIG_ENTRY_x_xxx 7
 
+#define CONT_ENTRY(f) kWasmContTypeCode, f
+#define SIZEOF_CONT_ENTRY 2
+
 #define WASM_BRV(depth, ...) __VA_ARGS__, kExprBr, static_cast<uint8_t>(depth)
 #define WASM_BRV_IF(depth, val, cond) \
   val, cond, kExprBrIf, static_cast<uint8_t>(depth)
@@ -928,8 +982,8 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_ATOMICS_STORE_OP(op, x, y, representation) \
   x, y, WASM_ATOMICS_OP(op),                            \
       static_cast<uint8_t>(ElementSizeLog2Of(representation)), ZERO_OFFSET
-#define WASM_ATOMICS_WAIT(op, index, value, timeout, offset) \
-  index, value, timeout, WASM_ATOMICS_OP(op), ZERO_ALIGNMENT, offset
+#define WASM_ATOMICS_WAIT(op, index, value, timeout, alignment, offset) \
+  index, value, timeout, WASM_ATOMICS_OP(op), alignment, offset
 #define WASM_ATOMICS_FENCE WASM_ATOMICS_OP(kExprAtomicFence), ZERO_OFFSET
 
 //------------------------------------------------------------------------------
@@ -974,6 +1028,12 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   x, WASM_SIMD_OP(kExprF32x4ExtractLane), TO_BYTE(lane)
 #define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y) \
   x, y, WASM_SIMD_OP(kExprF32x4ReplaceLane), TO_BYTE(lane)
+
+#define WASM_SIMD_F16x8_SPLAT(x) WASM_SIMD_SPLAT(F16x8, x)
+#define WASM_SIMD_F16x8_EXTRACT_LANE(lane, x) \
+  x, WASM_SIMD_OP(kExprF16x8ExtractLane), TO_BYTE(lane)
+#define WASM_SIMD_F16x8_REPLACE_LANE(lane, x, y) \
+  x, y, WASM_SIMD_OP(kExprF16x8ReplaceLane), TO_BYTE(lane)
 
 #define WASM_SIMD_I64x2_SPLAT(x) WASM_SIMD_SPLAT(I64x2, x)
 #define WASM_SIMD_I64x2_EXTRACT_LANE(lane, x) \
@@ -1023,6 +1083,8 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_SIMD_F64x2_QFMS(a, b, c) a, b, c, WASM_SIMD_OP(kExprF64x2Qfms)
 #define WASM_SIMD_F32x4_QFMA(a, b, c) a, b, c, WASM_SIMD_OP(kExprF32x4Qfma)
 #define WASM_SIMD_F32x4_QFMS(a, b, c) a, b, c, WASM_SIMD_OP(kExprF32x4Qfms)
+#define WASM_SIMD_F16x8_QFMA(a, b, c) a, b, c, WASM_SIMD_OP(kExprF16x8Qfma)
+#define WASM_SIMD_F16x8_QFMS(a, b, c) a, b, c, WASM_SIMD_OP(kExprF16x8Qfms)
 
 // Like WASM_SIMD_LOAD_MEM but needs the load opcode.
 #define WASM_SIMD_LOAD_OP(opcode, index) \

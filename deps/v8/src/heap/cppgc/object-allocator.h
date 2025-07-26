@@ -5,7 +5,8 @@
 #ifndef V8_HEAP_CPPGC_OBJECT_ALLOCATOR_H_
 #define V8_HEAP_CPPGC_OBJECT_ALLOCATOR_H_
 
-#include "include/cppgc/allocation.h"
+#include <optional>
+
 #include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/macros.h"
 #include "src/base/logging.h"
@@ -38,6 +39,7 @@ class GarbageCollector;
 
 class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
  public:
+  using AlignVal = std::align_val_t;
   static constexpr size_t kSmallestSpaceSize = 32;
 
   ObjectAllocator(RawHeap&, PageBackend&, StatsCollector&, PreFinalizerHandler&,
@@ -53,6 +55,13 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
 
   void ResetLinearAllocationBuffers();
   void MarkAllPagesAsYoung();
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  void UpdateAllocationTimeout();
+  int get_allocation_timeout_for_testing() const {
+    return *allocation_timeout_;
+  }
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
  private:
   bool in_disallow_gc_scope() const;
@@ -83,16 +92,28 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   bool TryRefillLinearAllocationBufferFromFreeList(NormalPageSpace&, size_t);
   bool TryExpandAndRefillLinearAllocationBuffer(NormalPageSpace&);
 
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  void TriggerGCOnAllocationTimeoutIfNeeded();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
   RawHeap& raw_heap_;
   PageBackend& page_backend_;
   StatsCollector& stats_collector_;
   PreFinalizerHandler& prefinalizer_handler_;
   FatalOutOfMemoryHandler& oom_handler_;
   GarbageCollector& garbage_collector_;
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  // Specifies how many allocations should be performed until triggering a
+  // garbage collection.
+  std::optional<int> allocation_timeout_;
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 };
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
   DCHECK(!in_disallow_gc_scope());
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  TriggerGCOnAllocationTimeoutIfNeeded();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   const RawHeap::RegularSpaceType type =
@@ -104,6 +125,9 @@ void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
 void* ObjectAllocator::AllocateObject(size_t size, AlignVal alignment,
                                       GCInfoIndex gcinfo) {
   DCHECK(!in_disallow_gc_scope());
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  TriggerGCOnAllocationTimeoutIfNeeded();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   const RawHeap::RegularSpaceType type =
@@ -115,6 +139,9 @@ void* ObjectAllocator::AllocateObject(size_t size, AlignVal alignment,
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo,
                                       CustomSpaceIndex space_index) {
   DCHECK(!in_disallow_gc_scope());
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  TriggerGCOnAllocationTimeoutIfNeeded();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   return AllocateObjectOnSpace(
@@ -126,6 +153,9 @@ void* ObjectAllocator::AllocateObject(size_t size, AlignVal alignment,
                                       GCInfoIndex gcinfo,
                                       CustomSpaceIndex space_index) {
   DCHECK(!in_disallow_gc_scope());
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  TriggerGCOnAllocationTimeoutIfNeeded();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
   const size_t allocation_size =
       RoundUp<kAllocationGranularity>(size + sizeof(HeapObjectHeader));
   return AllocateObjectOnSpace(

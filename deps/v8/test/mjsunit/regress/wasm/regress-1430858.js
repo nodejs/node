@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --wasm-lazy-compilation --wasm-test-streaming
+// Flags: --wasm-lazy-compilation --wasm-test-streaming
 
 (function test() {
   let bytes = new Uint8Array([

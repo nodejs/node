@@ -10,7 +10,7 @@
 #endif
 
 #include "src/codegen/code-desc.h"
-#include "src/objects/heap-object.h"
+#include "src/objects/trusted-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -27,7 +27,11 @@ class WritableJitAllocation;
 // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
 // allocated in a separate pointer compression cage instead of the cage where
 // all the other objects are allocated.
-class InstructionStream : public HeapObject {
+//
+// An InstructionStream is a trusted object as it lives outside of the sandbox
+// and contains trusted content (machine code). However, it is special in that
+// it doesn't live in the trusted space but instead in the code space.
+class InstructionStream : public TrustedObject {
  public:
   NEVER_READ_ONLY_SPACE
 
@@ -71,17 +75,18 @@ class InstructionStream : public HeapObject {
   // Set to Smi::zero() during initialization. Heap iterators may see
   // InstructionStream objects in this state.
   inline Tagged<Code> code(AcquireLoadTag tag) const;
-  inline void set_code(Tagged<Code> value, ReleaseStoreTag tag);
   inline Tagged<Object> raw_code(AcquireLoadTag tag) const;
   // Use when the InstructionStream may be uninitialized:
   inline bool TryGetCode(Tagged<Code>* code_out, AcquireLoadTag tag) const;
   inline bool TryGetCodeUnchecked(Tagged<Code>* code_out,
                                   AcquireLoadTag tag) const;
 
+  inline Address constant_pool() const;
+
   // [relocation_info]: InstructionStream relocation information.
-  inline Tagged<ByteArray> relocation_info() const;
+  inline Tagged<TrustedByteArray> relocation_info() const;
   // Unchecked accessor to be used during GC.
-  inline Tagged<ByteArray> unchecked_relocation_info() const;
+  inline Tagged<TrustedByteArray> unchecked_relocation_info() const;
 
   inline uint8_t* relocation_start() const;
   inline uint8_t* relocation_end() const;
@@ -89,7 +94,7 @@ class InstructionStream : public HeapObject {
 
   // The size of the entire body section, containing instructions and inlined
   // metadata.
-  DECL_PRIMITIVE_ACCESSORS(body_size, uint32_t)
+  DECL_PRIMITIVE_GETTER(body_size, uint32_t)
   inline Address body_end() const;
 
   static constexpr int TrailingPaddingSizeFor(uint32_t body_size) {
@@ -110,26 +115,26 @@ class InstructionStream : public HeapObject {
 
   static V8_INLINE Tagged<InstructionStream> Initialize(
       Tagged<HeapObject> self, Tagged<Map> map, uint32_t body_size,
-      Tagged<ByteArray> reloc_info);
-  V8_INLINE void Finalize(Tagged<Code> code, Tagged<ByteArray> reloc_info,
-                          CodeDesc desc, Heap* heap);
+      int constant_pool_offset, Tagged<TrustedByteArray> reloc_info);
+  V8_INLINE void Finalize(Tagged<Code> code,
+                          Tagged<TrustedByteArray> reloc_info, CodeDesc desc,
+                          Heap* heap);
+  V8_INLINE bool IsFullyInitialized();
 
-  DECL_CAST(InstructionStream)
   DECL_PRINTER(InstructionStream)
   DECL_VERIFIER(InstructionStream)
 
   // Layout description.
-#define ISTREAM_FIELDS(V)                                             \
-  V(kStartOfStrongFieldsOffset, 0)                                    \
-  V(kCodeOffset, kTaggedSize)                                         \
-  V(kRelocationInfoOffset, kTaggedSize)                               \
-  V(kEndOfStrongFieldsOffset, 0)                                      \
-  /* Data or code not directly visited by GC directly starts here. */ \
-  V(kDataStart, 0)                                                    \
-  V(kBodySizeOffset, kUInt32Size)                                     \
-  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))           \
+#define ISTREAM_FIELDS(V)                                                     \
+  V(kCodeOffset, kProtectedPointerSize)                                       \
+  V(kRelocationInfoOffset, kProtectedPointerSize)                             \
+  /* Data or code not directly visited by GC directly starts here. */         \
+  V(kDataStart, 0)                                                            \
+  V(kBodySizeOffset, kUInt32Size)                                             \
+  V(kConstantPoolOffsetOffset, V8_EMBEDDED_CONSTANT_POOL_BOOL ? kIntSize : 0) \
+  V(kUnalignedSize, OBJECT_POINTER_PADDING(kUnalignedSize))                   \
   V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ISTREAM_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, ISTREAM_FIELDS)
 #undef ISTREAM_FIELDS
 
   static_assert(kCodeAlignment >= kHeaderSize);
@@ -186,7 +191,7 @@ class InstructionStream : public HeapObject {
   // Must be used when loading any of InstructionStream's tagged fields.
   static inline PtrComprCageBase main_cage_base();
 
-  OBJECT_CONSTRUCTORS(InstructionStream, HeapObject);
+  OBJECT_CONSTRUCTORS(InstructionStream, TrustedObject);
 };
 
 }  // namespace internal

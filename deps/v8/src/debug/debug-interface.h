@@ -94,8 +94,8 @@ enum class PrivateMemberFilter {
  */
 V8_EXPORT_PRIVATE bool GetPrivateMembers(Local<Context> context,
                                          Local<Object> value, int filter,
-                                         std::vector<Local<Value>>* names_out,
-                                         std::vector<Local<Value>>* values_out);
+                                         LocalVector<Value>* names_out,
+                                         LocalVector<Value>* values_out);
 
 /**
  * Forwards to v8::Object::CreationContext, but with special handling for
@@ -218,6 +218,7 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> Name() const;
   MaybeLocal<String> SourceURL() const;
   MaybeLocal<String> SourceMappingURL() const;
+  MaybeLocal<String> DebugId() const;
   MaybeLocal<String> GetSha256Hash() const;
   Maybe<int> ContextId() const;
   Local<ScriptSource> Source() const;
@@ -256,9 +257,13 @@ class WasmScript : public Script {
  public:
   static WasmScript* Cast(Script* script);
 
-  enum class DebugSymbolsType { None, SourceMap, EmbeddedDWARF, ExternalDWARF };
-  DebugSymbolsType GetDebugSymbolType() const;
-  MemorySpan<const char> ExternalSymbolsURL() const;
+  struct DebugSymbols {
+    enum class Type { SourceMap, EmbeddedDWARF, ExternalDWARF };
+    Type type;
+    v8::MemorySpan<const char> external_url;
+  };
+  std::vector<DebugSymbols> GetDebugSymbols() const;
+
   int NumFunctions() const;
   int NumImportedFunctions() const;
 
@@ -269,6 +274,8 @@ class WasmScript : public Script {
                    std::vector<int>* function_body_offsets);
 
   uint32_t GetFunctionHash(int function_index);
+
+  Maybe<v8::MemorySpan<const uint8_t>> GetModuleBuildId() const;
 
   int CodeOffset() const;
   int CodeLength() const;
@@ -546,7 +553,7 @@ int64_t GetNextRandomInt64(v8::Isolate* isolate);
 
 MaybeLocal<Value> CallFunctionOn(Local<Context> context,
                                  Local<Function> function, Local<Value> recv,
-                                 int argc, Local<Value> argv[],
+                                 base::Vector<Local<Value>> args,
                                  bool throw_on_side_effect);
 
 enum class EvaluateGlobalMode {
@@ -558,10 +565,6 @@ enum class EvaluateGlobalMode {
 V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobal(
     v8::Isolate* isolate, v8::Local<v8::String> source, EvaluateGlobalMode mode,
     bool repl_mode = false);
-
-V8_EXPORT_PRIVATE v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
-    v8::Isolate* isolate, v8::Local<v8::Script> function,
-    v8::debug::EvaluateGlobalMode mode, bool repl);
 
 int GetDebuggingId(v8::Local<v8::Function> function);
 
@@ -694,6 +697,9 @@ MaybeLocal<Message> GetMessageFromPromise(Local<Promise> promise);
 void RecordAsyncStackTaggingCreateTaskCall(v8::Isolate* isolate);
 
 void NotifyDebuggerPausedEventSent(v8::Isolate* isolate);
+
+uint64_t GetIsolateId(v8::Isolate* isolate);
+void SetIsolateId(v8::Isolate* isolate, uint64_t id);
 
 }  // namespace debug
 }  // namespace v8

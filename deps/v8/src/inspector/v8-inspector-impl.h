@@ -38,7 +38,6 @@
 
 #include "include/v8-inspector.h"
 #include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/protocol/Protocol.h"
 
@@ -70,7 +69,6 @@ class V8InspectorImpl : public V8Inspector {
   }
   int contextGroupId(v8::Local<v8::Context>) const;
   int contextGroupId(int contextId) const;
-  uint64_t isolateId() const { return m_isolateId; }
   int resolveUniqueContextId(internal::V8DebuggerId uniqueId) const;
 
   v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
@@ -87,10 +85,16 @@ class V8InspectorImpl : public V8Inspector {
                                               StringView state,
                                               ClientTrustLevel,
                                               SessionPauseState) override;
+  std::shared_ptr<V8InspectorSession> connectShared(int contextGroupId,
+                                                    V8Inspector::Channel*,
+                                                    StringView state,
+                                                    ClientTrustLevel,
+                                                    SessionPauseState) override;
   void contextCreated(const V8ContextInfo&) override;
   void contextDestroyed(v8::Local<v8::Context>) override;
   v8::MaybeLocal<v8::Context> contextById(int contextId) override;
   V8DebuggerId uniqueDebuggerId(int contextId) override;
+  uint64_t isolateId() override;
   void contextCollected(int contextGroupId, int contextId);
   void resetContextGroup(int contextGroupId) override;
   void idleStarted() override;
@@ -157,10 +161,13 @@ class V8InspectorImpl : public V8Inspector {
     const InjectedScript::Scope& m_scope;
     v8::Isolate* m_isolate;
     std::shared_ptr<CancelToken> m_cancelToken;
-    v8::Isolate::SafeForTerminationScope m_safeForTerminationScope;
   };
 
  private:
+  V8InspectorSessionImpl* connectImpl(int contextGroupId, V8Inspector::Channel*,
+                                      StringView state, ClientTrustLevel,
+                                      SessionPauseState);
+
   v8::Isolate* m_isolate;
   V8InspectorClient* m_client;
   std::unique_ptr<V8Debugger> m_debugger;
@@ -170,7 +177,6 @@ class V8InspectorImpl : public V8Inspector {
   unsigned m_lastExceptionId;
   int m_lastContextId;
   int m_lastSessionId = 0;
-  uint64_t m_isolateId;
 
   using MuteExceptionsMap = std::unordered_map<int, int>;
   MuteExceptionsMap m_muteExceptionsMap;

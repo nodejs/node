@@ -26,6 +26,7 @@
 #include "uhash.h"
 #include "uvector.h"
 #include "umutex.h"
+#include "charstr.h"
 
 // Some zone display names involving supplementary characters can be over 50 chars, 100 UTF-16 code units, 200 UTF-8 bytes
 #define ZONE_NAME_U16_MAX 128
@@ -98,21 +99,21 @@ struct CharacterNode {
 };
 
 inline UBool CharacterNode::hasValues() const {
-    return (UBool)(fValues != nullptr);
+    return fValues != nullptr;
 }
 
 inline int32_t CharacterNode::countValues() const {
     return
         fValues == nullptr ? 0 :
         !fHasValuesVector ? 1 :
-        ((const UVector *)fValues)->size();
+        static_cast<const UVector*>(fValues)->size();
 }
 
 inline const void *CharacterNode::getValue(int32_t index) const {
     if (!fHasValuesVector) {
         return fValues;  // Assume index == 0.
     } else {
-        return ((const UVector *)fValues)->elementAt(index);
+        return static_cast<const UVector*>(fValues)->elementAt(index);
     }
 }
 
@@ -255,7 +256,7 @@ public:
 
 private:
     Locale fLocale;
-    char fRegion[ULOC_COUNTRY_CAPACITY];
+    CharString fRegion;
 };
 
 U_NAMESPACE_END

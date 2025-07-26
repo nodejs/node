@@ -32,8 +32,9 @@ std::shared_ptr<AsyncHooksWrap> UnwrapHook(
     return nullptr;
   }
 
-  i::Handle<i::Object> handle = Utils::OpenHandle(*hook->GetInternalField(0));
-  return i::Handle<i::Managed<AsyncHooksWrap>>::cast(handle)->get();
+  i::DirectHandle<i::Object> handle =
+      Utils::OpenDirectHandle(*hook->GetInternalField(0));
+  return Cast<i::Managed<AsyncHooksWrap>>(handle)->get();
 }
 
 void EnableHook(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -144,12 +145,15 @@ Local<Object> AsyncHooks::CreateHook(
 
   Local<Object> fn_obj = info[0].As<Object>();
 
+  v8::TryCatch try_catch(v8_isolate);
 #define SET_HOOK_FN(name)                                                     \
   MaybeLocal<Value> name##_maybe_func = fn_obj->Get(                          \
       currentContext, String::NewFromUtf8Literal(v8_isolate, #name));         \
   Local<Value> name##_func;                                                   \
   if (name##_maybe_func.ToLocal(&name##_func) && name##_func->IsFunction()) { \
     wrap->set_##name##_function(name##_func.As<Function>());                  \
+  } else {                                                                    \
+    try_catch.ReThrow();                                                      \
   }
 
   SET_HOOK_FN(init);
@@ -161,7 +165,7 @@ Local<Object> AsyncHooks::CreateHook(
   Local<Object> obj = async_hooks_templ.Get(v8_isolate)
                           ->NewInstance(currentContext)
                           .ToLocalChecked();
-  i::Handle<i::Object> managed = i::Managed<AsyncHooksWrap>::FromSharedPtr(
+  i::DirectHandle<i::Object> managed = i::Managed<AsyncHooksWrap>::From(
       reinterpret_cast<i::Isolate*>(v8_isolate), sizeof(AsyncHooksWrap), wrap);
   obj->SetInternalField(0, Utils::ToLocal(managed));
 
@@ -181,12 +185,10 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
 
   HandleScope handle_scope(v8_isolate);
-  // Temporarily clear any scheduled_exception to allow evaluating JS that can
-  // throw.
-  i::Handle<i::Object> scheduled_exception;
-  if (i_isolate->has_scheduled_exception()) {
-    scheduled_exception = handle(i_isolate->scheduled_exception(), i_isolate);
-    i_isolate->clear_scheduled_exception();
+  i::DirectHandle<i::Object> exception;
+  // Keep track of any previously thrown exception.
+  if (i_isolate->has_exception()) {
+    exception = direct_handle(i_isolate->exception(), i_isolate);
   }
   {
     TryCatch try_catch(v8_isolate);
@@ -248,11 +250,11 @@ void AsyncHooks::ShellPromiseHook(PromiseHookType type, Local<Promise> promise,
         PromiseHookDispatch(type, promise, parent, *wrap, hooks);
         if (try_catch.HasCaught()) break;
       }
-      if (try_catch.HasCaught()) Shell::ReportException(v8_isolate, &try_catch);
+      if (try_catch.HasCaught()) Shell::ReportException(v8_isolate, try_catch);
     }
   }
-  if (!scheduled_exception.is_null()) {
-    i_isolate->set_scheduled_exception(*scheduled_exception);
+  if (!exception.is_null()) {
+    i_isolate->set_exception(*exception);
   }
 }
 

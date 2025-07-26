@@ -1,13 +1,16 @@
 #include "node_url.h"
 #include "ada.h"
 #include "base_object-inl.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "node_metadata.h"
 #include "node_process-inl.h"
+#include "path.h"
 #include "util-inl.h"
 #include "v8-fast-api-calls.h"
+#include "v8-local-handle.h"
 #include "v8.h"
 
 #include <cstdint>
@@ -19,14 +22,14 @@ namespace url {
 
 using v8::CFunction;
 using v8::Context;
-using v8::FastOneByteString;
+using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::SnapshotCreator;
 using v8::String;
 using v8::Value;
 
@@ -34,7 +37,7 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("url_components_buffer", url_components_buffer_);
 }
 
-BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
+BindingData::BindingData(Realm* realm, Local<Object> object)
     : SnapshotableObject(realm, object, type_int),
       url_components_buffer_(realm->isolate(), kURLComponentsLength) {
   object
@@ -45,8 +48,8 @@ BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
   url_components_buffer_.MakeWeak();
 }
 
-bool BindingData::PrepareForSerialization(v8::Local<v8::Context> context,
-                                          v8::SnapshotCreator* creator) {
+bool BindingData::PrepareForSerialization(Local<Context> context,
+                                          SnapshotCreator* creator) {
   // We'll just re-initialize the buffers in the constructor since their
   // contents can be thrown away once consumed in the previous call.
   url_components_buffer_.Release();
@@ -62,25 +65,130 @@ InternalFieldInfoBase* BindingData::Serialize(int index) {
   return info;
 }
 
-void BindingData::Deserialize(v8::Local<v8::Context> context,
-                              v8::Local<v8::Object> holder,
+void BindingData::Deserialize(Local<Context> context,
+                              Local<Object> holder,
                               int index,
                               InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  v8::HandleScope scope(context->GetIsolate());
+  HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   BindingData* binding = realm->AddBindingData<BindingData>(holder);
   CHECK_NOT_NULL(binding);
 }
 
+#ifndef LARGEST_ASCII_CHAR_CODE_TO_ENCODE
+#define LARGEST_ASCII_CHAR_CODE_TO_ENCODE '~'
+#endif
+
+// RFC1738 defines the following chars as "unsafe" for URLs
+// @see https://www.ietf.org/rfc/rfc1738.txt 2.2. URL Character Encoding Issues
+constexpr auto lookup_table = []() consteval {
+  // Each entry is an array that can hold up to 3 chars + null terminator
+  std::array<std::array<char, 4>, LARGEST_ASCII_CHAR_CODE_TO_ENCODE + 1>
+      result{};
+
+  for (uint8_t i = 0; i <= LARGEST_ASCII_CHAR_CODE_TO_ENCODE; i++) {
+    switch (i) {
+#define ENCODE_CHAR(CHAR, HEX_DIGIT_2, HEX_DIGIT_1)                            \
+  case CHAR:                                                                   \
+    result[i] = {{'%', HEX_DIGIT_2, HEX_DIGIT_1, 0}};                          \
+    break;
+
+      ENCODE_CHAR('\0', '0', '0')  // '\0' == 0x00
+      ENCODE_CHAR('\t', '0', '9')  // '\t' == 0x09
+      ENCODE_CHAR('\n', '0', 'A')  // '\n' == 0x0A
+      ENCODE_CHAR('\r', '0', 'D')  // '\r' == 0x0D
+      ENCODE_CHAR(' ', '2', '0')   // ' ' == 0x20
+      ENCODE_CHAR('"', '2', '2')   // '"' == 0x22
+      ENCODE_CHAR('#', '2', '3')   // '#' == 0x23
+      ENCODE_CHAR('%', '2', '5')   // '%' == 0x25
+      ENCODE_CHAR('?', '3', 'F')   // '?' == 0x3F
+      ENCODE_CHAR('[', '5', 'B')   // '[' == 0x5B
+      ENCODE_CHAR('\\', '5', 'C')  // '\\' == 0x5C
+      ENCODE_CHAR(']', '5', 'D')   // ']' == 0x5D
+      ENCODE_CHAR('^', '5', 'E')   // '^' == 0x5E
+      ENCODE_CHAR('|', '7', 'C')   // '|' == 0x7C
+      ENCODE_CHAR('~', '7', 'E')   // '~' == 0x7E
+#undef ENCODE_CHAR
+
+      default:
+        result[i] = {{static_cast<char>(i), '\0', '\0', '\0'}};
+        break;
+    }
+  }
+
+  return result;
+}
+();
+
+enum class OS { WINDOWS, POSIX };
+
+std::string EncodePathChars(std::string_view input_str, OS operating_system) {
+  std::string encoded = "file://";
+  encoded.reserve(input_str.size() +
+                  7);  // Reserve space for "file://" and input_str
+  for (size_t i : input_str) {
+    if (i > LARGEST_ASCII_CHAR_CODE_TO_ENCODE) [[unlikely]] {
+      encoded.push_back(i);
+      continue;
+    }
+    if (operating_system == OS::WINDOWS) {
+      if (i == '\\') {
+        encoded.push_back('/');
+        continue;
+      }
+    }
+    encoded.append(lookup_table[i].data());
+  }
+
+  return encoded;
+}
+
+void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 2);  // input
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsBoolean());
+
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
+  Isolate* isolate = realm->isolate();
+  OS os = args[1]->IsTrue() ? OS::WINDOWS : OS::POSIX;
+
+  Utf8Value input(isolate, args[0]);
+  auto input_str = input.ToStringView();
+  CHECK(!input_str.empty());
+
+  auto out =
+      ada::parse<ada::url_aggregator>(EncodePathChars(input_str, os), nullptr);
+
+  if (!out) {
+    return ThrowInvalidURL(realm->env(), input.ToStringView(), std::nullopt);
+  }
+
+  if (os == OS::WINDOWS && args.Length() > 2 && !args[2]->IsUndefined())
+      [[unlikely]] {
+    CHECK(args[2]->IsString());
+    Utf8Value hostname(isolate, args[2]);
+    CHECK(out->set_hostname(hostname.ToStringView()));
+  }
+
+  binding_data->UpdateComponents(out->get_components(), out->type);
+
+  Local<Value> ret;
+  if (ToV8Value(realm->context(), out->get_href(), isolate).ToLocal(&ret))
+      [[likely]] {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
 void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 1);
+  CHECK_GE(args.Length(), 1);  // input
   CHECK(args[0]->IsString());
 
-  std::string input = Utf8Value(env->isolate(), args[0]).ToString();
-  if (input.empty()) {
-    return args.GetReturnValue().Set(String::Empty(env->isolate()));
+  Utf8Value input(env->isolate(), args[0]);
+  if (input.ToStringView().empty()) {
+    return args.GetReturnValue().SetEmptyString();
   }
 
   // It is important to have an initial value that contains a special scheme.
@@ -88,22 +196,26 @@ void BindingData::DomainToASCII(const FunctionCallbackInfo<Value>& args) {
   // spec.
   auto out = ada::parse<ada::url>("ws://x");
   DCHECK(out);
-  if (!out->set_hostname(input)) {
+  if (!out->set_hostname(input.ToStringView())) {
     return args.GetReturnValue().Set(String::Empty(env->isolate()));
   }
   std::string host = out->get_hostname();
-  args.GetReturnValue().Set(
-      String::NewFromUtf8(env->isolate(), host.c_str()).ToLocalChecked());
+
+  Local<Value> ret;
+  if (ToV8Value(env->context(), host, env->isolate()).ToLocal(&ret))
+      [[likely]] {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  CHECK_GE(args.Length(), 1);
+  CHECK_GE(args.Length(), 1);  // input
   CHECK(args[0]->IsString());
 
-  std::string input = Utf8Value(env->isolate(), args[0]).ToString();
-  if (input.empty()) {
-    return args.GetReturnValue().Set(String::Empty(env->isolate()));
+  Utf8Value input(env->isolate(), args[0]);
+  if (input.ToStringView().empty()) {
+    return args.GetReturnValue().SetEmptyString();
   }
 
   // It is important to have an initial value that contains a special scheme.
@@ -111,19 +223,19 @@ void BindingData::DomainToUnicode(const FunctionCallbackInfo<Value>& args) {
   // spec.
   auto out = ada::parse<ada::url>("ws://x");
   DCHECK(out);
-  if (!out->set_hostname(input)) {
+  if (!out->set_hostname(input.ToStringView())) {
     return args.GetReturnValue().Set(String::Empty(env->isolate()));
   }
-  std::string result = ada::unicode::to_unicode(out->get_hostname());
+  std::string result = ada::idna::to_unicode(out->get_hostname());
 
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                result.c_str(),
-                                                NewStringType::kNormal,
-                                                result.length())
-                                .ToLocalChecked());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), result, env->isolate()).ToLocal(&ret))
+      [[likely]] {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
-void BindingData::GetOrigin(const v8::FunctionCallbackInfo<Value>& args) {
+void BindingData::GetOrigin(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());  // input
 
@@ -140,11 +252,12 @@ void BindingData::GetOrigin(const v8::FunctionCallbackInfo<Value>& args) {
   }
 
   std::string origin = out->get_origin();
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                origin.data(),
-                                                NewStringType::kNormal,
-                                                origin.length())
-                                .ToLocalChecked());
+
+  Local<Value> ret;
+  if (ToV8Value(env->context(), origin, env->isolate()).ToLocal(&ret))
+      [[likely]] {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
@@ -170,16 +283,45 @@ void BindingData::CanParse(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(can_parse);
 }
 
-bool BindingData::FastCanParse(Local<Value> receiver,
-                               const FastOneByteString& input) {
-  return ada::can_parse(std::string_view(input.data, input.length));
+bool BindingData::FastCanParse(
+    Local<Value> receiver,
+    Local<Value> input,
+    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+    FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("url.canParse");
+  auto isolate = options.isolate;
+  HandleScope handleScope(isolate);
+  Local<String> str;
+  if (!input->ToString(isolate->GetCurrentContext()).ToLocal(&str)) {
+    return false;
+  }
+  Utf8Value utf8(isolate, str);
+  return ada::can_parse(utf8.ToStringView());
 }
 
-bool BindingData::FastCanParseWithBase(Local<Value> receiver,
-                                       const FastOneByteString& input,
-                                       const FastOneByteString& base) {
-  auto base_view = std::string_view(base.data, base.length);
-  return ada::can_parse(std::string_view(input.data, input.length), &base_view);
+bool BindingData::FastCanParseWithBase(
+    Local<Value> receiver,
+    Local<Value> input,
+    Local<Value> base,
+    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+    FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("url.canParse.withBase");
+  auto isolate = options.isolate;
+  HandleScope handleScope(isolate);
+  auto context = isolate->GetCurrentContext();
+  Local<String> input_str;
+  if (!input->ToString(context).ToLocal(&input_str)) {
+    return false;
+  }
+  Local<String> base_str;
+  if (!base->ToString(context).ToLocal(&base_str)) {
+    return false;
+  }
+  Utf8Value input_utf8(isolate, input_str);
+  Utf8Value base_utf8(isolate, base_str);
+
+  auto base_view = base_utf8.ToStringView();
+  return ada::can_parse(input_utf8.ToStringView(), &base_view);
 }
 
 CFunction BindingData::fast_can_parse_methods_[] = {
@@ -222,17 +364,21 @@ void BindingData::Format(const FunctionCallbackInfo<Value>& args) {
   }
 
   std::string result = out->get_href();
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                result.data(),
-                                                NewStringType::kNormal,
-                                                result.length())
-                                .ToLocalChecked());
+
+  Local<Value> ret;
+  if (ToV8Value(env->context(), result, env->isolate()).ToLocal(&ret))
+      [[likely]] {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());  // input
   // args[1] // base url
+  // args[2] // raise Exception
+
+  const bool raise_exception = args.Length() > 2 && args[2]->IsTrue();
 
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
@@ -245,22 +391,29 @@ void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
   if (args[1]->IsString()) {
     base_ = Utf8Value(isolate, args[1]).ToString();
     base = ada::parse<ada::url_aggregator>(*base_);
-    if (!base) {
+    if (!base && raise_exception) {
       return ThrowInvalidURL(realm->env(), input.ToStringView(), base_);
+    } else if (!base) {
+      return;
     }
     base_pointer = &base.value();
   }
   auto out =
       ada::parse<ada::url_aggregator>(input.ToStringView(), base_pointer);
 
-  if (!out) {
+  if (!out && raise_exception) {
     return ThrowInvalidURL(realm->env(), input.ToStringView(), base_);
+  } else if (!out) {
+    return;
   }
 
   binding_data->UpdateComponents(out->get_components(), out->type);
 
-  args.GetReturnValue().Set(
-      ToV8Value(realm->context(), out->get_href(), isolate).ToLocalChecked());
+  Local<Value> ret;
+  if (ToV8Value(realm->context(), out->get_href(), isolate).ToLocal(&ret))
+      [[likely]] {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
@@ -272,8 +425,11 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
   BindingData* binding_data = realm->GetBindingData<BindingData>();
   Isolate* isolate = realm->isolate();
 
-  enum url_update_action action = static_cast<enum url_update_action>(
-      args[1]->Uint32Value(realm->context()).FromJust());
+  uint32_t val;
+  if (!args[1]->Uint32Value(realm->context()).To(&val)) {
+    return;
+  }
+  enum url_update_action action = static_cast<enum url_update_action>(val);
   Utf8Value input(isolate, args[0].As<String>());
   Utf8Value new_value(isolate, args[2].As<String>());
 
@@ -333,8 +489,12 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
   }
 
   binding_data->UpdateComponents(out->get_components(), out->type);
-  args.GetReturnValue().Set(
-      ToV8Value(realm->context(), out->get_href(), isolate).ToLocalChecked());
+
+  Local<Value> ret;
+  if (ToV8Value(realm->context(), out->get_href(), isolate).ToLocal(&ret))
+      [[likely]] {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 void BindingData::UpdateComponents(const ada::url_components& components,
@@ -360,6 +520,7 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethodNoSideEffect(isolate, target, "format", Format);
   SetMethodNoSideEffect(isolate, target, "getOrigin", GetOrigin);
   SetMethod(isolate, target, "parse", Parse);
+  SetMethod(isolate, target, "pathToFileURL", PathToFileURL);
   SetMethod(isolate, target, "update", Update);
   SetFastMethodNoSideEffect(
       isolate, target, "canParse", CanParse, {fast_can_parse_methods_, 2});
@@ -380,13 +541,11 @@ void BindingData::RegisterExternalReferences(
   registry->Register(Format);
   registry->Register(GetOrigin);
   registry->Register(Parse);
+  registry->Register(PathToFileURL);
   registry->Register(Update);
   registry->Register(CanParse);
-  registry->Register(FastCanParse);
-  registry->Register(FastCanParseWithBase);
-
   for (const CFunction& method : fast_can_parse_methods_) {
-    registry->Register(method.GetTypeInfo());
+    registry->Register(method);
   }
 }
 
@@ -398,22 +557,21 @@ void ThrowInvalidURL(node::Environment* env,
 
   auto err_object = err.As<Object>();
 
-  USE(err_object->Set(env->context(),
-                      env->input_string(),
-                      v8::String::NewFromUtf8(env->isolate(),
-                                              input.data(),
-                                              v8::NewStringType::kNormal,
-                                              input.size())
-                          .ToLocalChecked()));
+  Local<Value> tmp;
+  if (!ToV8Value(env->context(), input, env->isolate()).ToLocal(&tmp) ||
+      err_object->Set(env->context(), env->input_string(), tmp).IsNothing())
+      [[unlikely]] {
+    // A superseding error has been thrown.
+    return;
+  }
 
   if (base.has_value()) {
-    USE(err_object->Set(env->context(),
-                        env->base_string(),
-                        v8::String::NewFromUtf8(env->isolate(),
-                                                base.value().c_str(),
-                                                v8::NewStringType::kNormal,
-                                                base.value().size())
-                            .ToLocalChecked()));
+    if (!ToV8Value(env->context(), base.value(), env->isolate())
+             .ToLocal(&tmp) ||
+        err_object->Set(env->context(), env->base_string(), tmp).IsNothing())
+        [[unlikely]] {
+      return;
+    }
   }
 
   env->isolate()->ThrowException(err);
@@ -491,7 +649,7 @@ std::optional<std::string> FileURLToPath(Environment* env,
     // about percent encoding because the URL parser will have
     // already taken care of that for us. Note that this only
     // causes IDNs with an appropriate `xn--` prefix to be decoded.
-    return "\\\\" + ada::unicode::to_unicode(hostname) + decoded_pathname;
+    return "\\\\" + ada::idna::to_unicode(hostname) + decoded_pathname;
   }
 
   char letter = decoded_pathname[1] | 0x20;
@@ -534,19 +692,6 @@ std::optional<std::string> FileURLToPath(Environment* env,
 
   return ada::unicode::percent_decode(pathname, first_percent);
 #endif  // _WIN32
-}
-
-// Reverse the logic applied by path.toNamespacedPath() to create a
-// namespace-prefixed path.
-void FromNamespacedPath(std::string* path) {
-#ifdef _WIN32
-  if (path->compare(0, 8, "\\\\?\\UNC\\", 8) == 0) {
-    *path = path->substr(8);
-    path->insert(0, "\\\\");
-  } else if (path->compare(0, 4, "\\\\?\\", 4) == 0) {
-    *path = path->substr(4);
-  }
-#endif
 }
 
 }  // namespace url

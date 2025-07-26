@@ -4,6 +4,8 @@
 
 #include "src/base/virtual-address-space.h"
 
+#include <optional>
+
 #include "include/v8-platform.h"
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
@@ -150,7 +152,7 @@ std::unique_ptr<v8::VirtualAddressSpace> VirtualAddressSpace::AllocateSubspace(
   DCHECK(IsAligned(hint, alignment));
   DCHECK(IsAligned(size, allocation_granularity()));
 
-  base::Optional<AddressSpaceReservation> reservation =
+  std::optional<AddressSpaceReservation> reservation =
       OS::CreateAddressSpaceReservation(
           reinterpret_cast<void*>(hint), size, alignment,
           static_cast<OS::MemoryPermission>(max_page_permissions));
@@ -265,7 +267,11 @@ void VirtualAddressSubspace::FreePages(Address address, size_t size) {
   // The order here is important: on Windows, the allocation first has to be
   // freed to a placeholder before the placeholder can be merged (during the
   // merge_callback) with any surrounding placeholder mappings.
-  CHECK(reservation_.Free(reinterpret_cast<void*>(address), size));
+  if (!reservation_.Free(reinterpret_cast<void*>(address), size)) {
+    // This can happen due to an out-of-memory condition, such as running out
+    // of available VMAs for the process.
+    FatalOOM(OOMType::kProcess, "VirtualAddressSubspace::FreePages");
+  }
   CHECK_EQ(size, region_allocator_.FreeRegion(address));
 }
 
@@ -350,7 +356,7 @@ VirtualAddressSubspace::AllocateSubspace(Address hint, size_t size,
     return std::unique_ptr<v8::VirtualAddressSpace>();
   }
 
-  base::Optional<AddressSpaceReservation> reservation =
+  std::optional<AddressSpaceReservation> reservation =
       reservation_.CreateSubReservation(
           reinterpret_cast<void*>(address), size,
           static_cast<OS::MemoryPermission>(max_page_permissions));

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function addConstFunc(builder, val) {
@@ -89,7 +87,7 @@ let kTableSize = 50;
 })();
 
 function addConstFuncUsingGlobal(builder, val) {
-  let g = builder.addGlobal(kWasmI32, false, wasmI32Const(val));
+  let g = builder.addGlobal(kWasmI32, false, false, wasmI32Const(val));
   return builder.addFunction("global" + val, kSig_i_v)
     .addBody([kExprGlobalGet, g.index]).index;
 }
@@ -164,7 +162,7 @@ function addConstFuncUsingMemory(builder, val) {
   var addr = builder.address;
   builder.address += 8;
   var bytes = [val & 0xff, (val>>8) & 0xff, (val>>16) & 0xff, (val>>24) & 0xff];
-  builder.addDataSegment(addr, bytes);
+  builder.addActiveDataSegment(0, [kExprI32Const, addr], bytes);
   return builder.addFunction("mem" + val, kSig_i_v)
     .addBody([
       ...wasmI32Const(addr),

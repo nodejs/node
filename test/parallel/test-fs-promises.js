@@ -58,7 +58,7 @@ assert.strictEqual(
       code: 'ENOENT',
       name: 'Error',
       message: /^ENOENT: no such file or directory, access/,
-      stack: /at async Function\.rejects/
+      stack: /at async ok\.rejects/
     }
   ).then(common.mustCall());
 
@@ -314,7 +314,7 @@ async function executeOnHandle(dest, func) {
                            (await readlink(newLink)).toLowerCase());
 
         const newMode = 0o666;
-        if (common.isOSX) {
+        if (common.isMacOS) {
           // `lchmod` is only available on macOS.
           await lchmod(newLink, newMode);
           stats = await lstat(newLink);

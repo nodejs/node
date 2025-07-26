@@ -4,7 +4,7 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/objects/code-inl.h"
 #include "test/common/code-assembler-tester.h"
@@ -44,7 +44,7 @@ Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
   std::vector<Node*> params;
   // The first parameter is always the callee.
   Handle<Code> code = BuildCallee(isolate, callee_descriptor);
-  params.push_back(__ HeapConstant(code));
+  params.push_back(__ HeapConstantNoHole(code));
   int param_slots = static_cast<int>(callee_descriptor->ParameterSlotCount());
   for (int i = 0; i < param_slots; ++i) {
     params.push_back(__ IntPtrConstant(i));
@@ -56,16 +56,16 @@ Handle<Code> BuildCaller(Isolate* isolate, CallDescriptor* call_descriptor,
 }
 
 // Setup function, which calls "caller".
-Handle<Code> BuildSetupFunction(Isolate* isolate,
-                                CallDescriptor* caller_descriptor,
-                                CallDescriptor* callee_descriptor) {
+DirectHandle<Code> BuildSetupFunction(Isolate* isolate,
+                                      CallDescriptor* caller_descriptor,
+                                      CallDescriptor* callee_descriptor) {
   CodeAssemblerTester tester(isolate, JSParameterCount(0));
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
   Handle<Code> code =
       BuildCaller(isolate, caller_descriptor, callee_descriptor);
-  params.push_back(__ HeapConstant(code));
+  params.push_back(__ HeapConstantNoHole(code));
   // Set up arguments for "Caller".
   int param_slots = static_cast<int>(caller_descriptor->ParameterSlotCount());
   for (int i = 0; i < param_slots; ++i) {
@@ -95,10 +95,11 @@ CallDescriptor* CreateDescriptorForStackArguments(Zone* zone, int param_slots) {
 
   return zone->New<CallDescriptor>(
       CallDescriptor::kCallCodeObject,  // kind
+      kDefaultCodeEntrypointTag,        // tag
       MachineType::AnyTagged(),         // target MachineType
       LinkageLocation::ForAnyRegister(
           MachineType::AnyTagged()),  // target location
-      locations.Build(),              // location_sig
+      locations.Get(),                // location_sig
       param_slots,                    // stack parameter slots
       Operator::kNoProperties,        // properties
       kNoCalleeSaved,                 // callee-saved registers
@@ -118,13 +119,13 @@ class RunTailCallsTest : public TestWithContextAndZone {
         CreateDescriptorForStackArguments(zone(), n);
     CallDescriptor* callee_descriptor =
         CreateDescriptorForStackArguments(zone(), m);
-    Handle<Code> setup =
+    DirectHandle<Code> setup =
         BuildSetupFunction(isolate, caller_descriptor, callee_descriptor);
     FunctionTester ft(isolate, setup, 0);
-    Handle<Object> result = ft.Call().ToHandleChecked();
+    DirectHandle<Object> result = ft.Call().ToHandleChecked();
     int expected = 0;
     for (int i = 0; i < m; ++i) expected += (i + 1) * i;
-    CHECK_EQ(expected, Smi::cast(*result).value());
+    CHECK_EQ(expected, Cast<Smi>(*result).value());
   }
 };
 

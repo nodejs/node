@@ -3,15 +3,11 @@
 #include <cppgc/heap.h>
 #include <node.h>
 #include <v8-cppgc.h>
+#include <v8-sandbox.h>
 #include <v8.h>
 #include "node_test_fixture.h"
 
 // This tests that Node.js can work with an existing CppHeap.
-
-// Mimic the Blink layout.
-static int kWrappableTypeIndex = 0;
-static int kWrappableInstanceIndex = 1;
-static uint16_t kEmbedderID = 0x1;
 
 // Mimic a class that does not know about Node.js.
 class CppGCed : public cppgc::GarbageCollected<CppGCed> {
@@ -23,12 +19,11 @@ class CppGCed : public cppgc::GarbageCollected<CppGCed> {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::Isolate* isolate = args.GetIsolate();
     v8::Local<v8::Object> js_object = args.This();
-    CppGCed* gc_object = cppgc::MakeGarbageCollected<CppGCed>(
-        isolate->GetCppHeap()->GetAllocationHandle());
-    js_object->SetAlignedPointerInInternalField(kWrappableTypeIndex,
-                                                &kEmbedderID);
-    js_object->SetAlignedPointerInInternalField(kWrappableInstanceIndex,
-                                                gc_object);
+    auto* heap = isolate->GetCppHeap();
+    CHECK_NOT_NULL(heap);
+    CppGCed* gc_object =
+        cppgc::MakeGarbageCollected<CppGCed>(heap->GetAllocationHandle());
+    node::SetCppgcReference(isolate, js_object, gc_object);
     kConstructCount++;
     args.GetReturnValue().Set(js_object);
   }
@@ -36,8 +31,6 @@ class CppGCed : public cppgc::GarbageCollected<CppGCed> {
   static v8::Local<v8::Function> GetConstructor(
       v8::Local<v8::Context> context) {
     auto ft = v8::FunctionTemplate::New(context->GetIsolate(), New);
-    auto ot = ft->InstanceTemplate();
-    ot->SetInternalFieldCount(2);
     return ft->GetFunction(context).ToLocalChecked();
   }
 
@@ -53,18 +46,12 @@ int CppGCed::kDestructCount = 0;
 int CppGCed::kTraceCount = 0;
 
 TEST_F(NodeZeroIsolateTestFixture, ExistingCppHeapTest) {
-  v8::Isolate* isolate =
-      node::NewIsolate(allocator.get(), &current_loop, platform.get());
-
-  // Create and attach the CppHeap before we set up the IsolateData so that
-  // it recognizes the existing heap.
-  std::unique_ptr<v8::CppHeap> cpp_heap = v8::CppHeap::Create(
-      platform.get(),
-      v8::CppHeapCreateParams(
-          {},
-          v8::WrapperDescriptor(
-              kWrappableTypeIndex, kWrappableInstanceIndex, kEmbedderID)));
-  isolate->AttachCppHeap(cpp_heap.get());
+  node::IsolateSettings settings;
+  settings.cpp_heap =
+      v8::CppHeap::Create(platform.get(), v8::CppHeapCreateParams{{}})
+          .release();
+  v8::Isolate* isolate = node::NewIsolate(
+      allocator.get(), &current_loop, platform.get(), nullptr, settings);
 
   // Try creating Context + IsolateData + Environment.
   {
@@ -107,15 +94,9 @@ TEST_F(NodeZeroIsolateTestFixture, ExistingCppHeapTest) {
     }
 
     platform->DrainTasks(isolate);
-
-    // Cleanup.
-    isolate->DetachCppHeap();
-    cpp_heap->Terminate();
-    platform->DrainTasks(isolate);
   }
 
-  platform->UnregisterIsolate(isolate);
-  isolate->Dispose();
+  platform->DisposeIsolate(isolate);
 
   // Check that all the objects are created and destroyed properly.
   EXPECT_EQ(CppGCed::kConstructCount, 100);

@@ -151,6 +151,25 @@ is done executing. `Local` handles can only be allocated on the C++ stack.
 Most of the V8 API uses `Local` handles to work with JavaScript values or return
 them from functions.
 
+Additionally, according to [V8 public API documentation][`v8::Local<T>`], local handles
+(`v8::Local<T>`) should **never** be allocated on the heap.
+
+This disallows heap-allocated data structures containing instances of `v8::Local`
+
+For example:
+
+```cpp
+// Don't do this
+std::vector<v8::Local<v8::Value>> v1;
+```
+
+Instead, it is recommended to use `v8::LocalVector<T>` provided by V8
+for such scenarios:
+
+```cpp
+v8::LocalVector<v8::Value> v1(isolate);
+```
+
 Whenever a `Local` handle is created, a `v8::HandleScope` or
 `v8::EscapableHandleScope` object must exist on the stack. The `Local` is then
 added to that scope and deleted along with it.
@@ -418,8 +437,6 @@ Node.js source code.)
 
 `args[n]` is a `Local<Value>` that represents the n-th argument passed to the
 function. `args.This()` is the `this` value inside this function call.
-`args.Holder()` is equivalent to `args.This()` in all use cases inside of
-Node.js.
 
 `args.GetReturnValue()` is a placeholder for the return value of the function,
 and provides a `.Set()` method that can be called with a boolean, integer,
@@ -457,7 +474,7 @@ void Initialize(Local<Object> target,
   SetProtoMethod(isolate, channel_wrap, "queryA", Query<QueryAWrap>);
   // ...
   SetProtoMethod(isolate, channel_wrap, "querySoa", Query<QuerySoaWrap>);
-  SetProtoMethod(isolate, channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "getHostByAddr", Query<QueryReverseWrap>);
 
   SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
 
@@ -469,10 +486,16 @@ void Initialize(Local<Object> target,
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
 ```
 
-If the C++ binding is loaded during bootstrap, it needs to be registered
-with the utilities in `node_external_reference.h`, like this:
+#### Registering binding functions used in bootstrap
+
+If the C++ binding is loaded during bootstrap, in addition to registering it
+using `NODE_BINDING_CONTEXT_AWARE_INTERNAL` for `internalBinding()` lookup,
+it also needs to be registered with `NODE_BINDING_EXTERNAL_REFERENCE` so that
+the external references can be resolved from the built-in snapshot, like this:
 
 ```cpp
+#include "node_external_reference.h"
+
 namespace node {
 namespace util {
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -500,7 +523,8 @@ Unknown external reference 0x107769200.
 /bin/sh: line 1:  6963 Illegal instruction: 4  out/Release/node_mksnapshot out/Release/gen/node_snapshot.cc
 ```
 
-You can try using a debugger to symbolicate the external reference. For example,
+You can try using a debugger to symbolicate the external reference in order to find
+out the binding functions that you forget to register. For example,
 with lldb's `image lookup --address` command (with gdb it's `info symbol`):
 
 ```console
@@ -516,7 +540,9 @@ Process 7012 stopped
 ```
 
 Which explains that the unregistered external reference is
-`node::util::GetHiddenValue` defined in `node_util.cc`.
+`node::util::GetHiddenValue` defined in `node_util.cc`, and should be registered
+using `registry->Register()` in a registration function marked by
+`NODE_BINDING_EXTERNAL_REFERENCE`.
 
 <a id="per-binding-state"></a>
 
@@ -579,6 +605,68 @@ void InitializeHttpParser(Local<Object> target,
 
   Local<FunctionTemplate> t = NewFunctionTemplate(realm->isolate(), Parser::New);
   ...
+}
+```
+
+### Argument validation in public APIs vs. internal code
+
+#### Public API argument sanitization
+
+When arguments come directly from user code, Node.js will typically validate them at the
+JavaScript layer and throws user-friendly
+[errors](https://github.com/nodejs/node/blob/main/doc/contributing/using-internal-errors.md)
+(e.g., `ERR_INVALID_*`), if they are invalid. This helps end users
+quickly understand and fix mistakes in their own code.
+
+This approach ensures that the error message pinpoints which argument is wrong
+and how it should be fixed. Additionally, problems in user code do not cause
+mysterious crashes or hard-to-diagnose failures deeper in the engine.
+
+Example from `zlib.js`:
+
+```js
+function crc32(data, value = 0) {
+  if (typeof data !== 'string' && !isArrayBufferView(data)) {
+    throw new ERR_INVALID_ARG_TYPE('data', ['Buffer', 'TypedArray', 'DataView','string'], data);
+  }
+  validateUint32(value, 'value');
+  return crc32Native(data, value);
+}
+```
+
+The corresponding C++ assertion code for the above example from it's binding `node_zlib.cc`:
+
+```cpp
+CHECK(args[0]->IsArrayBufferView() || args[0]->IsString());
+CHECK(args[1]->IsUint32());
+```
+
+#### Internal code and C++ binding checks
+
+Inside Node.js’s internal layers, especially the C++ [binding function][]s
+typically assume their arguments have already been checked and sanitized
+by the upper-level (JavaScript) callers. As a result, internal C++ code
+often just uses `CHECK()` or similar assertions to confirm that the
+types/values passed in are correct. If that assertion fails, Node.js will
+crash or abort with an internal diagnostic message. This is to avoid
+re-validating every internal function argument repeatedly which can slow
+down the system.
+
+However, in a less common case where the API is implemented completely in
+C++, the arguments would be validated directly in C++, with the errors
+thrown using `THROW_ERR_INVALID_*` macros from `src/node_errors.h`.
+
+For example in `worker_threads.moveMessagePortToContext`:
+
+```cpp
+void MessagePort::MoveToContext(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsObject() ||
+      !env->message_port_constructor_template()->HasInstance(args[0])) {
+    return THROW_ERR_INVALID_ARG_TYPE(env,
+        "The \"port\" argument must be a MessagePort instance");
+  }
+  // ...
 }
 ```
 
@@ -762,10 +850,19 @@ a `void* hint` argument.
 Inside these cleanup hooks, new asynchronous operations _may_ be started on the
 event loop, although ideally that is avoided as much as possible.
 
-Every [`BaseObject`][] has its own cleanup hook that deletes it. For
-[`ReqWrap`][] and [`HandleWrap`][] instances, cleanup of the associated libuv
-objects is performed automatically, i.e. handles are closed and requests
-are cancelled if possible.
+For every [`ReqWrap`][] and [`HandleWrap`][] instance, the cleanup of the
+associated libuv objects is performed automatically, i.e. handles are closed
+and requests are cancelled if possible.
+
+#### Cleanup realms and BaseObjects
+
+Realm cleanup depends on the realm types. All realms are destroyed when the
+[`Environment`][] is destroyed with the cleanup hook. A [`ShadowRealm`][] can
+also be destroyed by the garbage collection when there is no strong reference
+to it.
+
+Every [`BaseObject`][] is tracked with its creation realm and will be destroyed
+when the realm is tearing down.
 
 #### Closing libuv handles
 
@@ -829,7 +926,7 @@ The JavaScript object can be accessed as a `v8::Local<v8::Object>` by using
 `self->object()`, given a `BaseObject` named `self`.
 
 Accessing a `BaseObject` from a `v8::Local<v8::Object>` (frequently that is
-`args.This()` or `args.Holder()` in a [binding function][]) can be done using
+`args.This()` in a [binding function][]) can be done using
 the `Unwrap<T>(obj)` function, where `T` is a subclass of `BaseObject`.
 A helper for this is the `ASSIGN_OR_RETURN_UNWRAP` macro that returns from the
 current function if unwrapping fails (typically that means that the `BaseObject`
@@ -838,7 +935,7 @@ has been deleted earlier).
 ```cpp
 void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   Environment* env = session->env();
   Local<Context> context = env->context();
   Isolate* isolate = env->isolate();
@@ -977,6 +1074,299 @@ overview over libuv handles managed by Node.js.
 
 <a id="callback-scopes"></a>
 
+### `CppgcMixin`
+
+V8 comes with a trace-based C++ garbage collection library called
+[Oilpan][], whose API is in headers under`deps/v8/include/cppgc`.
+In this document we refer to it as `cppgc` since that's the namespace
+of the library.
+
+C++ objects managed using `cppgc` are allocated in the V8 heap
+and traced by V8's garbage collector. The `cppgc` library provides
+APIs for embedders to create references between cppgc-managed objects
+and other objects in the V8 heap (such as JavaScript objects or other
+objects in the V8 C++ API that can be passed around with V8 handles)
+in a way that's understood by V8's garbage collector.
+This helps avoiding accidental memory leaks and use-after-frees coming
+from incorrect cross-heap reference tracking, especially when there are
+cyclic references. This is what powers the
+[unified heap design in Chromium][] to avoid cross-heap memory issues,
+and it's being rolled out in Node.js to reap similar benefits.
+
+For general guidance on how to use `cppgc`, see the
+[Oilpan documentation in Chromium][]. In Node.js there is a helper
+mixin `node::CppgcMixin` from `cppgc_helpers.h` to help implementing
+`cppgc`-managed wrapper objects with a [`BaseObject`][]-like interface.
+`cppgc`-manged objects in Node.js internals should extend this mixin,
+while non-`cppgc`-managed objects typically extend `BaseObject` - the
+latter are being migrated to be `cppgc`-managed wherever it's beneficial
+and practical. Typically `cppgc`-managed objects are more efficient to
+keep track of (which lowers initialization cost) and work better
+with V8's GC scheduling.
+
+A `cppgc`-managed native wrapper should look something like this:
+
+```cpp
+#include "cppgc_helpers.h"
+
+// CPPGC_MIXIN is a helper macro for inheriting from cppgc::GarbageCollected,
+// cppgc::NameProvider and public CppgcMixin. Per cppgc rules, it must be
+// placed at the left-most position in the class hierarchy.
+class MyWrap final : CPPGC_MIXIN(MyWrap) {
+ public:
+  SET_CPPGC_NAME(MyWrap)  // Sets the heap snapshot name to "Node / MyWrap"
+
+  // The constructor can only be called by `cppgc::MakeGarbageCollected()`.
+  MyWrap(Environment* env, v8::Local<v8::Object> object);
+
+  // Helper for constructing MyWrap via `cppgc::MakeGarbageCollected()`.
+  // Can be invoked by other C++ code outside of this class if necessary.
+  // In that case the raw pointer returned may need to be managed by
+  // cppgc::Persistent<> or cppgc::Member<> with corresponding tracing code.
+  static MyWrap* New(Environment* env, v8::Local<v8::Object> object);
+  // Binding method to help constructing MyWrap in JavaScript.
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  void Trace(cppgc::Visitor* visitor) const final;
+}
+```
+
+If the wrapper needs to perform cleanups when it's destroyed and that
+cleanup relies on a living Node.js `Realm`, it should implement a
+pattern like this:
+
+```cpp
+  ~MyWrap() { this->Finalize(); }
+  void Clean(Realm* env) override {
+     // Do cleanup that relies on a living Realm.
+  }
+```
+
+`cppgc::GarbageCollected` types are expected to implement a
+`void Trace(cppgc::Visitor* visitor) const` method. When they are the
+final class in the hierarchy, this method must be marked `final`. For
+classes extending `node::CppgcMixn`, this should typically dispatch a
+call to `CppgcMixin::Trace()` first, then trace any additional owned data
+it has. See `deps/v8/include/cppgc/garbage-collected.h` see what types of
+data can be traced.
+
+```cpp
+void MyWrap::Trace(cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  visitor->Trace(...);  // Trace any additional data MyWrap has
+}
+```
+
+#### Constructing and wrapping `cppgc`-managed objects
+
+C++ objects subclassing `node::CppgcMixin` have a counterpart JavaScript object.
+The two references each other internally - this cycle is well-understood by V8's
+garbage collector and can be managed properly.
+
+Similar to `BaseObject`s, `cppgc`-managed wrappers objects must be created from
+object templates with at least `node::CppgcMixin::kInternalFieldCount` internal
+fields. To unify handling of the wrappers, the internal fields of
+`node::CppgcMixin` wrappers would have the same layout as `BaseObject`.
+
+```cpp
+// To create the v8::FunctionTemplate that can be used to instantiate a
+// v8::Function for that serves as the JavaScript constructor of MyWrap:
+Local<FunctionTemplate> ctor_template = NewFunctionTemplate(isolate, MyWrap::New);
+ctor_template->InstanceTemplate()->SetInternalFieldCount(
+    ContextifyScript::kInternalFieldCount);
+```
+
+`cppgc::GarbageCollected` objects should not be allocated with usual C++
+primitives (e.g. using `new` or `std::make_unique` is forbidden). Instead
+they must be allocated using `cppgc::MakeGarbageCollected` - this would
+allocate them in the V8 heap and allow V8's garbage collector to trace them.
+It's recommended to use a `New` method to wrap the `cppgc::MakeGarbageCollected`
+call so that external C++ code does not need to know about its memory management
+scheme to construct it.
+
+```cpp
+MyWrap* MyWrap::New(Environment* env, v8::Local<v8::Object> object) {
+  // Per cppgc rules, the constructor of MyWrap cannot be invoked directly.
+  // It's recommended to implement a New() static method that prepares
+  // and forwards the necessary arguments to cppgc::MakeGarbageCollected()
+  // and just return the raw pointer around - do not use any C++ smart
+  // pointer with this, as this is not managed by the native memory
+  // allocator but by V8.
+  return cppgc::MakeGarbageCollected<MyWrap>(
+      env->cppgc_allocation_handle(), env, object);
+}
+
+// Binding method to be invoked by JavaScript.
+void MyWrap::New(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  CHECK(args.IsConstructCall());
+
+  // Get more arguments from JavaScript land if necessary.
+  New(env, args.This());
+}
+```
+
+In the constructor of `node::CppgcMixin` types, use
+`node::CppgcMixin::Wrap()` to finish the wrapping so that
+V8 can trace the C++ object from the JavaScript object.
+
+```cpp
+MyWrap::MyWrap(Environment* env, v8::Local<v8::Object> object) {
+  // This cannot invoke the mixin constructor and has to invoke via a static
+  // method from it, per cppgc rules.
+  CppgcMixin::Wrap(this, env, object);
+}
+```
+
+#### Unwrapping `cppgc`-managed wrapper objects
+
+When given a `v8::Local<v8::Object>` that is known to be the JavaScript
+wrapper object for `MyWrap`, uses the `node::CppgcMixin::Unwrap()` to
+get the C++ object from it:
+
+```cpp
+v8::Local<v8::Object> object = ...;  // Obtain the JavaScript from somewhere.
+MyWrap* wrap = CppgcMixin::Unwrap<MyWrap>(object);
+```
+
+Similar to `ASSIGN_OR_RETURN_UNWRAP`, there is a `ASSIGN_OR_RETURN_UNWRAP_CPPGC`
+that can be used in binding methods to return early if the JavaScript object does
+not wrap the desired type.  And similar to `BaseObject`, `node::CppgcMixin`
+provides `env()` and `object()` methods to quickly access the associated
+`node::Environment` and its JavaScript wrapper object.
+
+```cpp
+ASSIGN_OR_RETURN_UNWRAP_CPPGC(&wrap, object);
+CHECK_EQ(wrap->object(), object);
+```
+
+#### Creating C++ to JavaScript references in cppgc-managed objects
+
+Unlike `BaseObject` which typically uses a `v8::Global` (either weak or strong)
+to reference an object from the V8 heap, cppgc-managed objects are expected to
+use `v8::TracedReference` (which supports any `v8::Data`). For example if the
+`MyWrap` object owns a `v8::UnboundScript`, in the class body the reference
+should be declared as
+
+```cpp
+class MyWrap : ... {
+ v8::TracedReference<v8::UnboundScript> script;
+}
+```
+
+V8's garbage collector traces the references from `MyWrap` through the
+`MyWrap::Trace()` method, which should call `cppgc::Visitor::Trace` on the
+`v8::TracedReference`.
+
+```cpp
+void MyWrap::Trace(cppgc::Visitor* visitor) const {
+  CppgcMixin::Trace(visitor);
+  visitor->Trace(script);  // v8::TracedReference is supported by cppgc::Visitor
+}
+```
+
+As long as a `MyWrap` object is alive, the `v8::UnboundScript` in its
+`v8::TracedReference` will be kept alive. When the `MyWrap` object is no longer
+reachable from the V8 heap, and there are no other references to the
+`v8::UnboundScript` it owns, the `v8::UnboundScript` will be garbage collected
+along with its owning `MyWrap`. The reference will also be automatically
+captured in the heap snapshots.
+
+#### Creating JavaScript to C++ references for cppgc-managed objects
+
+To create a reference from another JavaScript object to a C++ wrapper
+extending `node::CppgcMixin`, just create a JavaScript to JavaScript
+reference using the JavaScript side of the wrapper, which can be accessed
+using `node::CppgcMixin::object()`.
+
+```cpp
+MyWrap* wrap = ....;  // Obtain a reference to the cppgc-managed object.
+Local<Object> referrer = ...;  // This is the referrer object.
+// To reference the C++ wrap from the JavaScript referrer, simply creates
+// a usual JavaScript property reference - the key can be a symbol or a
+// number too if necessary, or it can be a private symbol property added
+// using SetPrivate(). wrap->object() can also be passed to the JavaScript
+// land, which can be referenced by any JavaScript objects in an invisible
+// manner using a WeakMap or being inside a closure.
+referrer->Set(
+  context, FIXED_ONE_BYTE_STRING(isolate, "ref"), wrap->object()
+).ToLocalChecked();
+```
+
+#### Creating references between cppgc-managed objects and `BaseObject`s
+
+This is currently unsupported with the existing helpers. If this has
+to be done, new helpers must be implemented first. Consult the cppgc
+headers when trying to implement it.
+
+Another way to work around it is to always do the migration bottom-to-top.
+If a cppgc-managed object needs to reference a `BaseObject`, convert
+that `BaseObject` to be cppgc-managed first, and then use `cppgc::Member`
+to create the references.
+
+#### Lifetime and cleanups of cppgc-managed objects
+
+Typically, a newly created cppgc-managed wrapper object should be held alive
+by the JavaScript land (for example, by being returned by a method and
+staying alive in a closure). Long-lived cppgc objects can also
+be held alive from C++ using persistent handles (see
+`deps/v8/include/cppgc/persistent.h`) or as members of other living
+cppgc-managed objects (see `deps/v8/include/cppgc/member.h`) if necessary.
+
+When a cppgc-managed object is no longer reachable in the heap, its destructor
+will be invoked by the garbage collection, which can happen after the `Realm`
+is already gone, or after any object it references is gone. It is therefore
+unsafe to invoke V8 APIs directly in the destructors. To ensure safety,
+the cleanups of a cppgc-managed object should adhere to different patterns,
+depending on what it needs to do:
+
+1. If it does not need to do any non-trivial cleanup, nor does its members, just use
+   the default destructor. Cleanup of `v8::TracedReference` and
+   `cppgc::Member` are already handled automatically by V8 so if they are all the
+   non-trivial members the class has, this case applies.
+2. If the cleanup relies on a living `Realm`, but does not need to access V8
+   APIs, the class should use this pattern in its class body:
+
+   ```cpp
+   ~MyWrap() { this->Finalize(); }
+   void Clean(Realm* env) override {
+     // Do cleanup that relies on a living Realm. This would be
+     // called by CppgcMixin::Finalize() first during Realm shutdown,
+     // while the Realm is still alive. If the destructor calls
+     // Finalize() again later during garbage collection that happens after
+     // Realm shutdown, Clean() would be skipped, preventing
+     // invalid access to the Realm.
+   }
+   ```
+
+   If implementers want to call `Finalize()` from `Clean()` again, they
+   need to make sure that calling `Clean()` recursively is safe.
+3. If the cleanup relies on access to the V8 heap, including using any V8
+   handles, in addition to 2, it should use the `CPPGC_USING_PRE_FINALIZER`
+   macro (from the [`cppgc/prefinalizer.h` header][]) in the private
+   section of its class body:
+
+   ```cpp
+    private:
+     CPPGC_USING_PRE_FINALIZER(MyWrap, Finalize);
+   ```
+
+Both the destructor and the pre-finalizer are always called on the thread
+in which the object is created.
+
+It's worth noting that the use of pre-finalizers would have a negative impact
+on the garbage collection performance as V8 needs to scan all of them during
+each sweeping. If the object is expected to be created frequently in large
+amounts in the application, it's better to avoid access to the V8 heap in its
+cleanup to avoid having to use a pre-finalizer.
+
+For more information about the cleanup of cppgc-managed objects and
+what can be done in a pre-finalizer, see the [cppgc documentation][] and
+the [`cppgc/prefinalizer.h` header][].
+
 ### Callback scopes
 
 The public `CallbackScope` and the internally used `InternalCallbackScope`
@@ -1084,6 +1474,8 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [ECMAScript realm]: https://tc39.es/ecma262/#sec-code-realms
 [JavaScript value handles]: #js-handles
 [N-API]: https://nodejs.org/api/n-api.html
+[Oilpan]: https://v8.dev/blog/oilpan-library
+[Oilpan documentation in Chromium]: https://chromium.googlesource.com/v8/v8/+/main/include/cppgc/README.md
 [`BaseObject`]: #baseobject
 [`Context`]: #context
 [`Environment`]: #environment
@@ -1100,6 +1492,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`async_hooks` module]: https://nodejs.org/api/async_hooks.html
 [`async_wrap.h`]: async_wrap.h
 [`base_object.h`]: base_object.h
+[`cppgc/prefinalizer.h` header]: ../deps/v8/include/cppgc/prefinalizer.h
 [`handle_wrap.h`]: handle_wrap.h
 [`memory_tracker.h`]: memory_tracker.h
 [`req_wrap.h`]: req_wrap.h
@@ -1107,9 +1500,11 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`v8.h` in Code Search]: https://cs.chromium.org/chromium/src/v8/include/v8.h
 [`v8.h` in Node.js]: https://github.com/nodejs/node/blob/HEAD/deps/v8/include/v8.h
 [`v8.h` in V8]: https://github.com/v8/v8/blob/HEAD/include/v8.h
+[`v8::Local<T>`]: https://v8.github.io/api/head/classv8_1_1Local.html
 [`vm` module]: https://nodejs.org/api/vm.html
 [binding function]: #binding-functions
 [cleanup hooks]: #cleanup-hooks
+[cppgc documentation]: ../deps/v8/include/cppgc/README.md
 [event loop]: #event-loop
 [exception handling]: #exception-handling
 [fast API calls]: ../doc/contributing/adding-v8-fast-api.md
@@ -1119,3 +1514,4 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [libuv handles]: #libuv-handles-and-requests
 [libuv requests]: #libuv-handles-and-requests
 [reference documentation for the libuv API]: http://docs.libuv.org/en/v1.x/
+[unified heap design in Chromium]: https://docs.google.com/document/d/1Hs60Zx1WPJ_LUjGvgzt1OQ5Cthu-fG-zif-vquUH_8c/edit

@@ -132,6 +132,8 @@
 #define U_PF_BROWSER_NATIVE_CLIENT 4020
 /** Android is based on Linux. @internal */
 #define U_PF_ANDROID 4050
+/** Haiku is a POSIX-ish platform. @internal */
+#define U_PF_HAIKU 4080
 /** Fuchsia is a POSIX-ish platform. @internal */
 #define U_PF_FUCHSIA 4100
 /* Maximum value for Linux-based platform is 4499 */
@@ -154,6 +156,8 @@
 #   define U_PLATFORM U_PF_MINGW
 #elif defined(__CYGWIN__)
 #   define U_PLATFORM U_PF_CYGWIN
+    /* Cygwin uchar.h doesn't exist until Cygwin 3.5. */
+#   include <cygwin/version.h>
 #elif defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)
 #   define U_PLATFORM U_PF_WINDOWS
 #elif defined(__ANDROID__)
@@ -200,10 +204,23 @@
 #   define U_PLATFORM U_PF_OS390
 #elif defined(__OS400__) || defined(__TOS_OS400__)
 #   define U_PLATFORM U_PF_OS400
+#elif defined(__HAIKU__)
+#   define U_PLATFORM U_PF_HAIKU
 #elif defined(__EMSCRIPTEN__)
 #   define U_PLATFORM U_PF_EMSCRIPTEN
 #else
 #   define U_PLATFORM U_PF_UNKNOWN
+#endif
+
+/**
+ * \def U_REAL_MSVC
+ * Defined if the compiler is the real MSVC compiler (and not something like
+ * Clang setting _MSC_VER in order to compile Windows code that requires it).
+ * Otherwise undefined.
+ * @internal
+ */
+#if (defined(_MSC_VER) && !(defined(__clang__) && __clang__)) || defined(U_IN_DOXYGEN)
+#   define U_REAL_MSVC
 #endif
 
 /**
@@ -224,7 +241,7 @@
 /**
  * \def U_PLATFORM_USES_ONLY_WIN32_API
  * Defines whether the platform uses only the Win32 API.
- * Set to 1 for Windows/MSVC and MinGW but not Cygwin.
+ * Set to 1 for Windows/MSVC, ClangCL and MinGW but not Cygwin.
  * @internal
  */
 #ifdef U_PLATFORM_USES_ONLY_WIN32_API
@@ -239,7 +256,7 @@
 /**
  * \def U_PLATFORM_HAS_WIN32_API
  * Defines whether the Win32 API is available on the platform.
- * Set to 1 for Windows/MSVC, MinGW and Cygwin.
+ * Set to 1 for Windows/MSVC, ClangCL, MinGW and Cygwin.
  * @internal
  */
 #ifdef U_PLATFORM_HAS_WIN32_API
@@ -300,51 +317,6 @@
 #   define U_PLATFORM_IS_DARWIN_BASED 1
 #else
 #   define U_PLATFORM_IS_DARWIN_BASED 0
-#endif
-
-/**
- * \def U_HAVE_STDINT_H
- * Defines whether stdint.h is available. It is a C99 standard header.
- * We used to include inttypes.h which includes stdint.h but we usually do not need
- * the additional definitions from inttypes.h.
- * @internal
- */
-#ifdef U_HAVE_STDINT_H
-    /* Use the predefined value. */
-#elif U_PLATFORM_USES_ONLY_WIN32_API
-#   if defined(__BORLANDC__) || U_PLATFORM == U_PF_MINGW || (defined(_MSC_VER) && _MSC_VER>=1600)
-        /* Windows Visual Studio 9 and below do not have stdint.h & inttypes.h, but VS 2010 adds them. */
-#       define U_HAVE_STDINT_H 1
-#   else
-#       define U_HAVE_STDINT_H 0
-#   endif
-#elif U_PLATFORM == U_PF_SOLARIS
-    /* Solaris has inttypes.h but not stdint.h. */
-#   define U_HAVE_STDINT_H 0
-#elif U_PLATFORM == U_PF_AIX && !defined(_AIX51) && defined(_POWER)
-    /* PPC AIX <= 4.3 has inttypes.h but not stdint.h. */
-#   define U_HAVE_STDINT_H 0
-#else
-#   define U_HAVE_STDINT_H 1
-#endif
-
-/**
- * \def U_HAVE_INTTYPES_H
- * Defines whether inttypes.h is available. It is a C99 standard header.
- * We include inttypes.h where it is available but stdint.h is not.
- * @internal
- */
-#ifdef U_HAVE_INTTYPES_H
-    /* Use the predefined value. */
-#elif U_PLATFORM == U_PF_SOLARIS
-    /* Solaris has inttypes.h but not stdint.h. */
-#   define U_HAVE_INTTYPES_H 1
-#elif U_PLATFORM == U_PF_AIX && !defined(_AIX51) && defined(_POWER)
-    /* PPC AIX <= 4.3 has inttypes.h but not stdint.h. */
-#   define U_HAVE_INTTYPES_H 1
-#else
-    /* Most platforms have both inttypes.h and stdint.h, or neither. */
-#   define U_HAVE_INTTYPES_H U_HAVE_STDINT_H
 #endif
 
 /*===========================================================================*/
@@ -507,6 +479,8 @@
     /* Otherwise use the predefined value. */
 #elif !defined(__cplusplus)
 #   define U_CPLUSPLUS_VERSION 0
+#elif __cplusplus >= 201703L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201703L)
+#   define U_CPLUSPLUS_VERSION 17
 #elif __cplusplus >= 201402L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
 #   define U_CPLUSPLUS_VERSION 14
 #elif __cplusplus >= 201103L || (defined(_MSVC_LANG) && _MSVC_LANG >= 201103L)
@@ -754,12 +728,16 @@
     /*
      * Notes:
      * C++11 and C11 require support for UTF-16 literals
-     * TODO: Fix for plain C. Doesn't work on Mac.
+     * Doesn't work on Mac C11 (see workaround in ptypes.h)
+     * or Cygwin less than 3.5.
      */
-#   if U_CPLUSPLUS_VERSION >= 11 || (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L)
+#   if defined(__cplusplus)
 #       define U_HAVE_CHAR16_T 1
-#   else
+#   elif U_PLATFORM_IS_DARWIN_BASED || (U_PLATFORM == U_PF_CYGWIN && CYGWIN_VERSION_DLL_MAJOR < 3005)
 #       define U_HAVE_CHAR16_T 0
+#   else
+        // conformant C11
+#       define U_HAVE_CHAR16_T 1
 #   endif
 #endif
 
@@ -767,7 +745,9 @@
  * @{
  * \def U_DECLARE_UTF16
  * Do not use this macro because it is not defined on all platforms.
- * Use the UNICODE_STRING or U_STRING_DECL macros instead.
+ * In C++, use std::u16string_view literals, see the UNICODE_STRING docs.
+ * In C, use u"UTF-16 literals".
+ * See also the public U_STRING_DECL macro.
  * @internal
  */
 #ifdef U_DECLARE_UTF16
@@ -798,7 +778,7 @@
 #elif defined(_MSC_VER) || (UPRV_HAS_DECLSPEC_ATTRIBUTE(__dllexport__) && \
                             UPRV_HAS_DECLSPEC_ATTRIBUTE(__dllimport__))
 #   define U_EXPORT __declspec(dllexport)
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined(__open_xl__)
 #   define U_EXPORT __attribute__((visibility("default")))
 #elif (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x550) \
    || (defined(__SUNPRO_C) && __SUNPRO_C >= 0x550) 
@@ -837,7 +817,7 @@
  */
 #ifdef U_HIDDEN
     /* Use the predefined value. */
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined(__open_xl__)
 #   define U_HIDDEN __attribute__((visibility("hidden")))
 #else
 #   define U_HIDDEN 

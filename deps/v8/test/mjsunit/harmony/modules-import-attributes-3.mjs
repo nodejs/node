@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-import-attributes
 
-import {life} from 'modules-skip-imports-json-1.mjs';
+import {life} from 'modules-skip-imports-attributes-json-1.mjs';
 
 assertEquals(42, life());

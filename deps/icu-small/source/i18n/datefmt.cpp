@@ -28,6 +28,7 @@
 #include "unicode/smpdtfmt.h"
 #include "unicode/dtptngen.h"
 #include "unicode/udisplaycontext.h"
+#include "unicode/gregocal.h"
 #include "reldtfmt.h"
 #include "sharedobject.h"
 #include "unifiedcache.h"
@@ -39,6 +40,7 @@
 #if defined( U_DEBUG_CALSVC ) || defined (U_DEBUG_CAL)
 #include <stdio.h>
 #endif
+#include <typeinfo>
 
 // *****************************************************************************
 // class DateFormat
@@ -88,7 +90,7 @@ public:
             fSkeleton(other.fSkeleton) { }
     virtual ~DateFmtBestPatternKey();
     virtual int32_t hashCode() const override {
-        return (int32_t)(37u * (uint32_t)LocaleCacheKey<DateFmtBestPattern>::hashCode() + (uint32_t)fSkeleton.hashCode());
+        return static_cast<int32_t>(37u * static_cast<uint32_t>(LocaleCacheKey<DateFmtBestPattern>::hashCode()) + static_cast<uint32_t>(fSkeleton.hashCode()));
     }
     inline bool operator==(const DateFmtBestPatternKey &other) const {
         return fSkeleton == other.fSkeleton;
@@ -121,8 +123,8 @@ DateFmtBestPatternKey::~DateFmtBestPatternKey() { }
 
 
 DateFormat::DateFormat()
-:   fCalendar(0),
-    fNumberFormat(0),
+:   fCalendar(nullptr),
+    fNumberFormat(nullptr),
     fCapitalizationContext(UDISPCTX_CAPITALIZATION_NONE)
 {
 }
@@ -131,8 +133,8 @@ DateFormat::DateFormat()
 
 DateFormat::DateFormat(const DateFormat& other)
 :   Format(other),
-    fCalendar(0),
-    fNumberFormat(0),
+    fCalendar(nullptr),
+    fNumberFormat(nullptr),
     fCapitalizationContext(UDISPCTX_CAPITALIZATION_NONE)
 {
     *this = other;
@@ -206,10 +208,10 @@ DateFormat::format(const Formattable& obj,
         date = obj.getDate();
         break;
     case Formattable::kDouble:
-        date = (UDate)obj.getDouble();
+        date = static_cast<UDate>(obj.getDouble());
         break;
     case Formattable::kLong:
-        date = (UDate)obj.getLong();
+        date = static_cast<UDate>(obj.getLong());
         break;
     default:
         status = U_ILLEGAL_ARGUMENT_ERROR;
@@ -241,10 +243,10 @@ DateFormat::format(const Formattable& obj,
         date = obj.getDate();
         break;
     case Formattable::kDouble:
-        date = (UDate)obj.getDouble();
+        date = static_cast<UDate>(obj.getDouble());
         break;
     case Formattable::kLong:
-        date = (UDate)obj.getLong();
+        date = static_cast<UDate>(obj.getLong());
         break;
     default:
         status = U_ILLEGAL_ARGUMENT_ERROR;
@@ -277,15 +279,24 @@ DateFormat::format(Calendar& /* unused cal */,
 UnicodeString&
 DateFormat::format(UDate date, UnicodeString& appendTo, FieldPosition& fieldPosition) const {
     if (fCalendar != nullptr) {
-        // Use a clone of our calendar instance
-        Calendar* calClone = fCalendar->clone();
-        if (calClone != nullptr) {
-            UErrorCode ec = U_ZERO_ERROR;
-            calClone->setTime(date, ec);
+        UErrorCode ec = U_ZERO_ERROR;
+        // Avoid a heap allocation and corresponding free for the common case
+        if (typeid(*fCalendar) == typeid(GregorianCalendar)) {
+            GregorianCalendar cal(*static_cast<GregorianCalendar*>(fCalendar));
+            cal.setTime(date, ec);
             if (U_SUCCESS(ec)) {
-                format(*calClone, appendTo, fieldPosition);
+                format(cal, appendTo, fieldPosition);
             }
-            delete calClone;
+        } else {
+            // Use a clone of our calendar instance
+            Calendar *calClone = fCalendar->clone();
+            if (calClone != nullptr) {
+                calClone->setTime(date, ec);
+                if (U_SUCCESS(ec)) {
+                    format(*calClone, appendTo, fieldPosition);
+                }
+                delete calClone;
+            }
         }
     }
     return appendTo;
@@ -297,13 +308,23 @@ UnicodeString&
 DateFormat::format(UDate date, UnicodeString& appendTo, FieldPositionIterator* posIter,
                    UErrorCode& status) const {
     if (fCalendar != nullptr) {
-        Calendar* calClone = fCalendar->clone();
-        if (calClone != nullptr) {
-            calClone->setTime(date, status);
-            if (U_SUCCESS(status)) {
-               format(*calClone, appendTo, posIter, status);
+        UErrorCode ec = U_ZERO_ERROR;
+        // Avoid a heap allocation and corresponding free for the common case
+        if (typeid(*fCalendar) == typeid(GregorianCalendar)) {
+            GregorianCalendar cal(*static_cast<GregorianCalendar*>(fCalendar));
+            cal.setTime(date, ec);
+            if (U_SUCCESS(ec)) {
+                format(cal, appendTo, posIter, status);
             }
-            delete calClone;
+        } else {
+            Calendar* calClone = fCalendar->clone();
+            if (calClone != nullptr) {
+                calClone->setTime(date, status);
+                if (U_SUCCESS(status)) {
+                    format(*calClone, appendTo, posIter, status);
+                }
+                delete calClone;
+            }
         }
     }
     return appendTo;
@@ -408,7 +429,7 @@ DateFormat::createDateTimeInstance(EStyle dateStyle,
 {
    if(dateStyle != kNone)
    {
-       dateStyle = (EStyle) (dateStyle + kDateOffset);
+       dateStyle = static_cast<EStyle>(dateStyle + kDateOffset);
    }
    return create(timeStyle, dateStyle, aLocale);
 }
@@ -430,13 +451,13 @@ DateFormat::getBestPattern(
         UErrorCode &status) {
     UnifiedCache *cache = UnifiedCache::getInstance(status);
     if (U_FAILURE(status)) {
-        return UnicodeString();
+        return {};
     }
     DateFmtBestPatternKey key(locale, skeleton, status);
     const DateFmtBestPattern *patternPtr = nullptr;
     cache->get(key, patternPtr, status);
     if (U_FAILURE(status)) {
-        return UnicodeString();
+        return {};
     }
     UnicodeString result(patternPtr->fPattern);
     patternPtr->removeRef();
@@ -518,7 +539,7 @@ DateFormat::create(EStyle timeStyle, EStyle dateStyle, const Locale& locale)
 
     // is it relative?
     if(/*((timeStyle!=UDAT_NONE)&&(timeStyle & UDAT_RELATIVE)) || */((dateStyle!=kNone)&&((dateStyle-kDateOffset) & UDAT_RELATIVE))) {
-        RelativeDateFormat *r = new RelativeDateFormat((UDateFormatStyle)timeStyle, (UDateFormatStyle)(dateStyle-kDateOffset), locale, status);
+        RelativeDateFormat* r = new RelativeDateFormat(static_cast<UDateFormatStyle>(timeStyle), static_cast<UDateFormatStyle>(dateStyle - kDateOffset), locale, status);
         if(U_SUCCESS(status)) return r;
         delete r;
         status = U_ZERO_ERROR;
@@ -539,7 +560,7 @@ DateFormat::create(EStyle timeStyle, EStyle dateStyle, const Locale& locale)
     // This should never really happen, because the preceding constructor
     // should always succeed.  If the resource data is unavailable, a last
     // resort object should be returned.
-    return 0;
+    return nullptr;
 }
 
 //----------------------------------------------------------------------
@@ -697,7 +718,7 @@ void DateFormat::setContext(UDisplayContext value, UErrorCode& status)
 {
     if (U_FAILURE(status))
         return;
-    if ( (UDisplayContextType)((uint32_t)value >> 8) == UDISPCTX_TYPE_CAPITALIZATION ) {
+    if (static_cast<UDisplayContextType>(static_cast<uint32_t>(value) >> 8) == UDISPCTX_TYPE_CAPITALIZATION) {
         fCapitalizationContext = value;
     } else {
         status = U_ILLEGAL_ARGUMENT_ERROR;
@@ -711,10 +732,10 @@ void DateFormat::setContext(UDisplayContext value, UErrorCode& status)
 UDisplayContext DateFormat::getContext(UDisplayContextType type, UErrorCode& status) const
 {
     if (U_FAILURE(status))
-        return (UDisplayContext)0;
+        return static_cast<UDisplayContext>(0);
     if (type != UDISPCTX_TYPE_CAPITALIZATION) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
-        return (UDisplayContext)0;
+        return static_cast<UDisplayContext>(0);
     }
     return fCapitalizationContext;
 }
@@ -741,7 +762,7 @@ DateFormat::setBooleanAttribute(UDateFormatBooleanAttribute attr,
 UBool 
 DateFormat::getBooleanAttribute(UDateFormatBooleanAttribute attr, UErrorCode &/*status*/) const {
 
-    return static_cast<UBool>(fBoolFlags.get(attr));
+    return fBoolFlags.get(attr);
 }
 
 U_NAMESPACE_END

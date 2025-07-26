@@ -28,16 +28,18 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   return os;
 }
 
-bool IsJSCompatibleSignature(const FunctionSig* sig) {
+bool IsJSCompatibleSignature(const CanonicalSig* sig) {
   for (auto type : sig->all()) {
-    // Rtts are internal-only. They should never be part of a signature.
-    DCHECK(!type.is_rtt());
     if (type == kWasmS128) return false;
-    if (type.is_object_reference()) {
-      switch (type.heap_type().representation()) {
-        case HeapType::kStringViewWtf8:
-        case HeapType::kStringViewWtf16:
-        case HeapType::kStringViewIter:
+    if (type.is_ref() && !type.has_index()) {
+      switch (type.generic_kind()) {
+        case GenericKind::kStringViewWtf8:
+        case GenericKind::kStringViewWtf16:
+        case GenericKind::kStringViewIter:
+        case GenericKind::kExn:
+        case GenericKind::kNoExn:
+        case GenericKind::kCont:
+        case GenericKind::kNoCont:
           return false;
         default:
           break;

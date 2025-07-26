@@ -12,7 +12,6 @@
 #include "include/cppgc/platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/lazy-instance.h"
-#include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/virtual-memory.h"
 
@@ -43,6 +42,8 @@ class V8_EXPORT_PRIVATE CagedHeap final {
 
   static void InitializeIfNeeded(PageAllocator& platform_allocator,
                                  size_t desired_heap_size);
+
+  static void CommitAgeTable(PageAllocator& platform_allocator);
 
   static CagedHeap& Instance();
 

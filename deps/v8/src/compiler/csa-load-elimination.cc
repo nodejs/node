@@ -613,7 +613,7 @@ MachineOperatorBuilder* CsaLoadElimination::machine() const {
   return jsgraph()->machine();
 }
 
-Graph* CsaLoadElimination::graph() const { return jsgraph()->graph(); }
+TFGraph* CsaLoadElimination::graph() const { return jsgraph()->graph(); }
 
 Isolate* CsaLoadElimination::isolate() const { return jsgraph()->isolate(); }
 

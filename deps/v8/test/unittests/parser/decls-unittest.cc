@@ -69,7 +69,7 @@ class DeclarationContext {
 
  protected:
   virtual v8::Local<Value> Get(Local<Name> key);
-  virtual v8::Local<Value> Set(Local<Name> key, Local<Value> value);
+  virtual Maybe<bool> Set(Local<Name> key, Local<Value> value);
   virtual v8::Local<Integer> Query(Local<Name> key);
 
   void InitializeIfNeeded();
@@ -86,12 +86,12 @@ class DeclarationContext {
 
   // The handlers are called as static functions that forward
   // to the instance specific virtual methods.
-  static void HandleGet(Local<Name> key,
-                        const v8::PropertyCallbackInfo<v8::Value>& info);
-  static void HandleSet(Local<Name> key, Local<Value> value,
-                        const v8::PropertyCallbackInfo<v8::Value>& info);
-  static void HandleQuery(Local<Name> key,
-                          const v8::PropertyCallbackInfo<v8::Integer>& info);
+  static v8::Intercepted HandleGet(
+      Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info);
+  static v8::Intercepted HandleSet(Local<Name> key, Local<Value> value,
+                                   const v8::PropertyCallbackInfo<void>& info);
+  static v8::Intercepted HandleQuery(
+      Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info);
 
   v8::Isolate* isolate() const { return isolate_; }
 
@@ -177,26 +177,44 @@ void DeclarationContext::Check(const char* source, int get, int set, int query,
   InvokeMemoryReducingMajorGCs(i_isolate());
 }
 
-void DeclarationContext::HandleGet(
+v8::Intercepted DeclarationContext::HandleGet(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Value>& info) {
   DeclarationContext* context = GetInstance(info.Data());
   context->get_count_++;
-  info.GetReturnValue().Set(context->Get(key));
+  auto result = context->Get(key);
+  if (!result.IsEmpty()) {
+    info.GetReturnValue().SetNonEmpty(result);
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
 }
 
-void DeclarationContext::HandleSet(
+v8::Intercepted DeclarationContext::HandleSet(
     Local<Name> key, Local<Value> value,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    const v8::PropertyCallbackInfo<void>& info) {
   DeclarationContext* context = GetInstance(info.Data());
   context->set_count_++;
-  info.GetReturnValue().Set(context->Set(key, value));
+  Maybe<bool> maybe_result = context->Set(key, value);
+  bool result;
+  if (maybe_result.To(&result)) {
+    if (!result) {
+      info.GetReturnValue().SetFalse();
+    }
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
 }
 
-void DeclarationContext::HandleQuery(
+v8::Intercepted DeclarationContext::HandleQuery(
     Local<Name> key, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   DeclarationContext* context = GetInstance(info.Data());
   context->query_count_++;
-  info.GetReturnValue().Set(context->Query(key));
+  auto result = context->Query(key);
+  if (!result.IsEmpty()) {
+    info.GetReturnValue().SetNonEmpty(result);
+    return v8::Intercepted::kYes;
+  }
+  return v8::Intercepted::kNo;
 }
 
 DeclarationContext* DeclarationContext::GetInstance(Local<Value> data) {
@@ -208,8 +226,8 @@ v8::Local<Value> DeclarationContext::Get(Local<Name> key) {
   return v8::Local<Value>();
 }
 
-v8::Local<Value> DeclarationContext::Set(Local<Name> key, Local<Value> value) {
-  return v8::Local<Value>();
+Maybe<bool> DeclarationContext::Set(Local<Name> key, Local<Value> value) {
+  return Nothing<bool>();
 }
 
 v8::Local<Integer> DeclarationContext::Query(Local<Name> key) {
@@ -1043,6 +1061,118 @@ TEST_F(DeclsTest, Regress3941_Reads) {
                   Undefined(isolate()));
 
     context.Check("'use strict'; f(); let x = 2; x", EXPECT_EXCEPTION);
+  }
+}
+
+TEST_F(DeclsTest, TestUsing) {
+  i::v8_flags.js_explicit_resource_management = true;
+  HandleScope scope(isolate());
+
+  {
+    SimpleContext context;
+    context.Check("using x = 42;", EXPECT_ERROR);
+    context.Check("{using await x = 1;}", EXPECT_ERROR);
+    context.Check("{using \n x = 1;}", EXPECT_EXCEPTION);
+    context.Check("{using {x} = {x:5};}", EXPECT_ERROR);
+    context.Check("{for(using x in [1, 2, 3]){\n console.log(x);}}",
+                  EXPECT_ERROR);
+    context.Check("{for(using {x} = {x:5}; x < 10 ; i++) {\n console.log(x);}}",
+                  EXPECT_ERROR);
+    context.Check("{for(using\n x = 0; x < 10 ; x++) {\n console.log(x);}) {}}",
+                  EXPECT_ERROR);
+    context.Check("{var using; \n using = 42;}", EXPECT_RESULT,
+                  Number::New(isolate(), 42));
+    context.Check(
+        "let label = \"1\"; \n switch (label) { \n case 1: \n let y = 2; \n"
+        "using x = { \n "
+        "     value: 1, \n "
+        "      [Symbol.dispose]() { \n "
+        "       return 42; \n "
+        "     } \n "
+        "   };  }",
+        EXPECT_ERROR);
+    context.Check(
+        "let label = \"1\"; \n switch (label) { \n case 1: {\n let y = 2; \n"
+        "using x = { \n "
+        "     value: 1, \n "
+        "      [Symbol.dispose]() { \n "
+        "       return 42; \n "
+        "     } \n "
+        "   };  } }",
+        EXPECT_RESULT, Undefined(isolate()));
+  }
+}
+
+TEST_F(DeclsTest, TestAwaitUsing) {
+  i::v8_flags.js_explicit_resource_management = true;
+  HandleScope scope(isolate());
+
+  {
+    SimpleContext context;
+    context.Check("await using x = 42;", EXPECT_ERROR);
+    context.Check("async function f() {await using = 1;} \n f();",
+                  EXPECT_ERROR);
+    context.Check("async function f() {await using await x = 1;} \n f();",
+                  EXPECT_ERROR);
+    context.Check("async function f() {await using {x} = {x:5};} \n f();",
+                  EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await using x in [1, 2, 3]){\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await using {x} = {x:5}; x < 10 ; i++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await \n using x = 0; x < 10 ; x++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await using \n x = 0; x < 10 ; x++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await \n using \n x = 0; x < 10 ; x++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "class staticBlockClass { \n "
+        " static { \n "
+        "   await using x = { \n "
+        "     value: 1, \n "
+        "      [Symbol.asyncDispose]() { \n "
+        "       classStaticBlockBodyValues.push(42); \n "
+        "     } \n "
+        "   }; \n "
+        " } \n "
+        "} ",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() { \n "
+        " class staticBlockClass { \n "
+        " static { \n "
+        "   await using x = { \n "
+        "     value: 1, \n "
+        "      [Symbol.asyncDispose]() { \n "
+        "       classStaticBlockBodyValues.push(42); \n "
+        "     } \n "
+        "   }; \n "
+        " } \n "
+        " } } \n "
+        " f(); ",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {let label = \"1\"; \n switch (label){ \n case 1: "
+        "\n let y = 2;"
+        "\n await using x = { \n "
+        "     value: 1, \n "
+        "      [Symbol.asyncDispose]() { \n "
+        "       classStaticBlockBodyValues.push(42); \n "
+        "     } \n "
+        "   }; \n }"
+        "} \n f();",
+        EXPECT_ERROR);
   }
 }
 

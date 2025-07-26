@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-graph.h"
@@ -29,7 +30,8 @@ class ContextSpecializationTester : public HandleAndZoneScope,
   explicit ContextSpecializationTester(Maybe<OuterContext> context)
       : HandleAndZoneScope(kCompressGraphZone),
         JSHeapBrokerTestBase(main_isolate(), main_zone()),
-        graph_(main_zone()->New<Graph>(main_zone())),
+        dependencies_(broker(), main_zone()),
+        graph_(main_zone()->New<TFGraph>(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
         machine_(main_zone()),
@@ -43,7 +45,8 @@ class ContextSpecializationTester : public HandleAndZoneScope,
                               CanonicalHandles&& handles)
       : HandleAndZoneScope(kCompressGraphZone),
         JSHeapBrokerTestBase(main_isolate(), main_zone(), std::move(handles)),
-        graph_(main_zone()->New<Graph>(main_zone())),
+        dependencies_(broker(), main_zone()),
+        graph_(main_zone()->New<TFGraph>(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
         machine_(main_zone()),
@@ -61,18 +64,19 @@ class ContextSpecializationTester : public HandleAndZoneScope,
   JSOperatorBuilder* javascript() { return &javascript_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   JSGraph* jsgraph() { return &jsgraph_; }
-  Graph* graph() { return graph_; }
+  TFGraph* graph() { return graph_; }
 
-  void CheckChangesToValue(Node* node, Handle<HeapObject> expected_value);
+  void CheckChangesToValue(Node* node, DirectHandle<HeapObject> expected_value);
   void CheckContextInputAndDepthChanges(
-      Node* node, Handle<Context> expected_new_context_object,
+      Node* node, DirectHandle<Context> expected_new_context_object,
       size_t expected_new_depth);
   void CheckContextInputAndDepthChanges(Node* node, Node* expected_new_context,
                                         size_t expected_new_depth);
 
  private:
+  CompilationDependencies dependencies_;
   TickCounter tick_counter_;
-  Graph* graph_;
+  TFGraph* graph_;
   CommonOperatorBuilder common_;
   JSOperatorBuilder javascript_;
   MachineOperatorBuilder machine_;
@@ -83,7 +87,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
 };
 
 void ContextSpecializationTester::CheckChangesToValue(
-    Node* node, Handle<HeapObject> expected_value) {
+    Node* node, DirectHandle<HeapObject> expected_value) {
   Reduction r = spec()->Reduce(node);
   CHECK(r.Changed());
   HeapObjectMatcher match(r.replacement());
@@ -92,7 +96,7 @@ void ContextSpecializationTester::CheckChangesToValue(
 }
 
 void ContextSpecializationTester::CheckContextInputAndDepthChanges(
-    Node* node, Handle<Context> expected_new_context_object,
+    Node* node, DirectHandle<Context> expected_new_context_object,
     size_t expected_new_depth) {
   ContextAccess access = ContextAccessOf(node->op());
   Reduction r = spec()->Reduce(node);
@@ -101,7 +105,7 @@ void ContextSpecializationTester::CheckContextInputAndDepthChanges(
   Node* new_context = NodeProperties::GetContextInput(r.replacement());
   CHECK_EQ(IrOpcode::kHeapConstant, new_context->opcode());
   HeapObjectMatcher match(new_context);
-  CHECK_EQ(Context::cast(*match.ResolvedValue()), *expected_new_context_object);
+  CHECK_EQ(Cast<Context>(*match.ResolvedValue()), *expected_new_context_object);
 
   ContextAccess new_access = ContextAccessOf(r.replacement()->op());
   CHECK_EQ(new_access.depth(), expected_new_depth);
@@ -127,17 +131,19 @@ void ContextSpecializationTester::CheckContextInputAndDepthChanges(
 namespace {
 
 Handle<Context> NewContextForTesting(Isolate* isolate,
-                                     Handle<Context> previous) {
-  Handle<ScopeInfo> scope_info = ScopeInfo::CreateForWithScope(isolate, {});
-  Handle<JSObject> extension = isolate->factory()->NewJSObjectWithNullProto();
+                                     DirectHandle<Context> previous) {
+  DirectHandle<ScopeInfo> scope_info =
+      ScopeInfo::CreateForWithScope(isolate, {});
+  DirectHandle<JSObject> extension =
+      isolate->factory()->NewJSObjectWithNullProto();
   return isolate->factory()->NewWithContext(previous, scope_info, extension);
 }
 
 Handle<Context> NewCanonicalContextForTesting(ContextSpecializationTester& t,
-                                              Handle<Context> previous) {
-  Handle<ScopeInfo> scope_info =
+                                              DirectHandle<Context> previous) {
+  DirectHandle<ScopeInfo> scope_info =
       t.CanonicalHandle(*ScopeInfo::CreateForWithScope(t.isolate(), {}));
-  Handle<JSObject> extension =
+  DirectHandle<JSObject> extension =
       t.CanonicalHandle(*t.isolate()->factory()->NewJSObjectWithNullProto());
   return t.CanonicalHandle(
       *t.isolate()->factory()->NewWithContext(previous, scope_info, extension));
@@ -147,7 +153,7 @@ Handle<Context> NewCanonicalContextForTesting(ContextSpecializationTester& t,
 
 static const int slot_index = 5;
 
-TEST(ReduceJSLoadContext0) {
+TEST(ReduceJSLoadContextNoCell0) {
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -155,46 +161,47 @@ TEST(ReduceJSLoadContext0) {
 
   // Make a context and initialize it a bit for this test.
   Handle<Context> native = t.CanonicalHandle(*t.factory()->NewNativeContext());
-  Handle<Context> subcontext1 = NewCanonicalContextForTesting(t, native);
+  DirectHandle<Context> subcontext1 = NewCanonicalContextForTesting(t, native);
   Handle<Context> subcontext2 = NewCanonicalContextForTesting(t, subcontext1);
-  Handle<Object> expected =
+  DirectHandle<Object> expected =
       t.CanonicalHandle(*t.factory()->InternalizeUtf8String("gboy!"));
   const int slot = 5;
-  native->set(slot, *expected);
+  native->SetNoCell(slot, *expected);
 
   Node* const_context =
-      t.jsgraph()->Constant(MakeRef(t.broker(), native), t.broker());
+      t.jsgraph()->ConstantNoHole(MakeRef(t.broker(), native), t.broker());
   Node* deep_const_context =
-      t.jsgraph()->Constant(MakeRef(t.broker(), subcontext2), t.broker());
+      t.jsgraph()->ConstantNoHole(MakeRef(t.broker(), subcontext2), t.broker());
   Node* param_context = t.graph()->NewNode(t.common()->Parameter(0), start);
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, 0, false),
-                                    const_context, start);
+    Node* load = t.graph()->NewNode(
+        t.javascript()->LoadContextNoCell(0, 0, false), const_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
   {
     // Mutable slot, non-constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, 0, false),
-                                    param_context, start);
+    Node* load = t.graph()->NewNode(
+        t.javascript()->LoadContextNoCell(0, 0, false), param_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
   }
 
   {
     // Mutable slot, constant context, depth > 0 => fold-in parent context.
-    Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(2, Context::GLOBAL_EVAL_FUN_INDEX, false),
-        deep_const_context, start);
+    Node* load =
+        t.graph()->NewNode(t.javascript()->LoadContextNoCell(
+                               2, Context::GLOBAL_EVAL_FUN_INDEX, false),
+                           deep_const_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
     Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
-    CHECK_EQ(*native, Context::cast(*match.ResolvedValue()));
+    CHECK_EQ(*native, Cast<Context>(*match.ResolvedValue()));
     ContextAccess access = ContextAccessOf(r.replacement()->op());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));
@@ -203,8 +210,8 @@ TEST(ReduceJSLoadContext0) {
 
   {
     // Immutable slot, constant context, depth = 0 => specialize.
-    Node* load = t.graph()->NewNode(t.javascript()->LoadContext(0, slot, true),
-                                    const_context, start);
+    Node* load = t.graph()->NewNode(
+        t.javascript()->LoadContextNoCell(0, slot, true), const_context, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
     CHECK(r.replacement() != load);
@@ -215,10 +222,10 @@ TEST(ReduceJSLoadContext0) {
   }
 
   // Clean up so that verifiers don't complain.
-  native->set(slot, Smi::zero());
+  native->SetNoCell(slot, Smi::zero());
 }
 
-TEST(ReduceJSLoadContext1) {
+TEST(ReduceJSLoadContextNoCell1) {
   // The graph's context chain ends in the incoming context parameter:
   //
   //   context2 <-- context1 <-- context0 (= Parameter(0))
@@ -239,58 +246,67 @@ TEST(ReduceJSLoadContext1) {
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(0, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(0, slot_index, false), context2,
+        start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(0, slot_index, true), context2, start);
+        t.javascript()->LoadContextNoCell(0, slot_index, true), context2,
+        start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(1, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(1, slot_index, false), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(1, slot_index, true), context2, start);
+        t.javascript()->LoadContextNoCell(1, slot_index, true), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(2, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(2, slot_index, false), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context0, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(2, slot_index, true), context2, start);
+        t.javascript()->LoadContextNoCell(2, slot_index, true), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context0, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(3, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(3, slot_index, false), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context0, 1);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(3, slot_index, true), context2, start);
+        t.javascript()->LoadContextNoCell(3, slot_index, true), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context0, 1);
   }
 }
 
-TEST(ReduceJSLoadContext2) {
+TEST(ReduceJSLoadContextNoCell2) {
   // The graph's context chain ends in a constant context (context_object1),
   // which has another outer context (context_object0).
   //
-  //   context2 <-- context1 <-- context0 (= HeapConstant(context_object1))
+  //   context2 <-- context1 <-- context0 (=
+  //   HeapConstantNoHole(context_object1))
   //   context_object1 <~~ context_object0
 
   ContextSpecializationTester t(Nothing<OuterContext>());
@@ -301,20 +317,20 @@ TEST(ReduceJSLoadContext2) {
   const i::compiler::Operator* create_function_context =
       t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
-  Handle<HeapObject> slot_value0 =
+  DirectHandle<HeapObject> slot_value0 =
       t.CanonicalHandle(*t.factory()->InternalizeUtf8String("0"));
-  Handle<HeapObject> slot_value1 =
+  DirectHandle<HeapObject> slot_value1 =
       t.CanonicalHandle(*t.factory()->InternalizeUtf8String("1"));
 
-  Handle<Context> context_object0 =
+  DirectHandle<Context> context_object0 =
       t.CanonicalHandle(*t.factory()->NewNativeContext());
   Handle<Context> context_object1 =
       NewCanonicalContextForTesting(t, context_object0);
   context_object0->set_extension(*slot_value0);
   context_object1->set_extension(*slot_value1);
 
-  Node* context0 =
-      t.jsgraph()->Constant(MakeRef(t.broker(), context_object1), t.broker());
+  Node* context0 = t.jsgraph()->ConstantNoHole(
+      MakeRef(t.broker(), context_object1), t.broker());
   Node* context1 =
       t.graph()->NewNode(create_function_context, context0, start, start);
   Node* context2 =
@@ -322,72 +338,78 @@ TEST(ReduceJSLoadContext2) {
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(0, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(0, slot_index, false), context2,
+        start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(0, slot_index, true), context2, start);
+        t.javascript()->LoadContextNoCell(0, slot_index, true), context2,
+        start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(1, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(1, slot_index, false), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(1, slot_index, true), context2, start);
+        t.javascript()->LoadContextNoCell(1, slot_index, true), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(2, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(2, slot_index, false), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context0, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(2, Context::EXTENSION_INDEX, true),
+        t.javascript()->LoadContextNoCell(2, Context::EXTENSION_INDEX, true),
         context2, start);
     t.CheckChangesToValue(load, slot_value1);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(3, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(3, slot_index, false), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context_object0, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(3, Context::EXTENSION_INDEX, true),
+        t.javascript()->LoadContextNoCell(3, Context::EXTENSION_INDEX, true),
         context2, start);
     t.CheckChangesToValue(load, slot_value0);
   }
 }
 
-TEST(ReduceJSLoadContext3) {
-  // Like in ReduceJSLoadContext1, the graph's context chain ends in the
+TEST(ReduceJSLoadContextNoCell3) {
+  // Like in ReduceJSLoadContextNoCell1, the graph's context chain ends in the
   // incoming context parameter.  However, this time we provide a concrete
   // context for this parameter as the "specialization context".  We choose
-  // context_object2 from ReduceJSLoadContext2 for this, so almost all test
-  // expectations are the same as in ReduceJSLoadContext2.
+  // context_object2 from ReduceJSLoadContextNoCell2 for this, so almost all
+  // test expectations are the same as in ReduceJSLoadContextNoCell2.
 
   HandleAndZoneScope handle_zone_scope;
   auto isolate = handle_zone_scope.main_isolate();
   auto factory = isolate->factory();
 
-  Handle<HeapObject> slot_value0 = factory->InternalizeUtf8String("0");
-  Handle<HeapObject> slot_value1 = factory->InternalizeUtf8String("1");
+  DirectHandle<HeapObject> slot_value0 = factory->InternalizeUtf8String("0");
+  DirectHandle<HeapObject> slot_value1 = factory->InternalizeUtf8String("1");
 
   CanonicalHandles canonical_handles(isolate, handle_zone_scope.main_zone());
 
-  Handle<Context> context_object0 =
+  DirectHandle<Context> context_object0 =
       canonical_handles.Create(factory->NewNativeContext());
   Handle<Context> context_object1 =
       canonical_handles.Create(NewContextForTesting(isolate, context_object0));
@@ -411,56 +433,62 @@ TEST(ReduceJSLoadContext3) {
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(0, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(0, slot_index, false), context2,
+        start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(0, slot_index, true), context2, start);
+        t.javascript()->LoadContextNoCell(0, slot_index, true), context2,
+        start);
     CHECK(!t.spec()->Reduce(load).Changed());
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(1, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(1, slot_index, false), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(1, slot_index, true), context2, start);
+        t.javascript()->LoadContextNoCell(1, slot_index, true), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(2, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(2, slot_index, false), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context_object1, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(2, Context::EXTENSION_INDEX, true),
+        t.javascript()->LoadContextNoCell(2, Context::EXTENSION_INDEX, true),
         context2, start);
     t.CheckChangesToValue(load, slot_value1);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(3, slot_index, false), context2, start);
+        t.javascript()->LoadContextNoCell(3, slot_index, false), context2,
+        start);
     t.CheckContextInputAndDepthChanges(load, context_object0, 0);
   }
 
   {
     Node* load = t.graph()->NewNode(
-        t.javascript()->LoadContext(3, Context::EXTENSION_INDEX, true),
+        t.javascript()->LoadContextNoCell(3, Context::EXTENSION_INDEX, true),
         context2, start);
     t.CheckChangesToValue(load, slot_value0);
   }
 }
 
-TEST(ReduceJSStoreContext0) {
+TEST(ReduceJSStoreContextNoCell0) {
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -468,22 +496,22 @@ TEST(ReduceJSStoreContext0) {
 
   // Make a context and initialize it a bit for this test.
   Handle<Context> native = t.CanonicalHandle(*t.factory()->NewNativeContext());
-  Handle<Context> subcontext1 = NewCanonicalContextForTesting(t, native);
+  DirectHandle<Context> subcontext1 = NewCanonicalContextForTesting(t, native);
   Handle<Context> subcontext2 = NewCanonicalContextForTesting(t, subcontext1);
-  Handle<Object> expected =
+  DirectHandle<Object> expected =
       t.CanonicalHandle(*t.factory()->InternalizeUtf8String("gboy!"));
   const int slot = 5;
-  native->set(slot, *expected);
+  native->SetNoCell(slot, *expected);
 
   Node* const_context =
-      t.jsgraph()->Constant(MakeRef(t.broker(), native), t.broker());
+      t.jsgraph()->ConstantNoHole(MakeRef(t.broker(), native), t.broker());
   Node* deep_const_context =
-      t.jsgraph()->Constant(MakeRef(t.broker(), subcontext2), t.broker());
+      t.jsgraph()->ConstantNoHole(MakeRef(t.broker(), subcontext2), t.broker());
   Node* param_context = t.graph()->NewNode(t.common()->Parameter(0), start);
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, 0),
+    Node* load = t.graph()->NewNode(t.javascript()->StoreContextNoCell(0, 0),
                                     const_context, const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
@@ -491,7 +519,7 @@ TEST(ReduceJSStoreContext0) {
 
   {
     // Mutable slot, non-constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, 0),
+    Node* load = t.graph()->NewNode(t.javascript()->StoreContextNoCell(0, 0),
                                     param_context, param_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
@@ -499,7 +527,7 @@ TEST(ReduceJSStoreContext0) {
 
   {
     // Immutable slot, constant context, depth = 0 => do nothing.
-    Node* load = t.graph()->NewNode(t.javascript()->StoreContext(0, slot),
+    Node* load = t.graph()->NewNode(t.javascript()->StoreContextNoCell(0, slot),
                                     const_context, const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(!r.Changed());
@@ -508,14 +536,14 @@ TEST(ReduceJSStoreContext0) {
   {
     // Mutable slot, constant context, depth > 0 => fold-in parent context.
     Node* load = t.graph()->NewNode(
-        t.javascript()->StoreContext(2, Context::GLOBAL_EVAL_FUN_INDEX),
+        t.javascript()->StoreContextNoCell(2, Context::GLOBAL_EVAL_FUN_INDEX),
         deep_const_context, deep_const_context, start, start);
     Reduction r = t.spec()->Reduce(load);
     CHECK(r.Changed());
     Node* new_context_input = NodeProperties::GetContextInput(r.replacement());
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     HeapObjectMatcher match(new_context_input);
-    CHECK_EQ(*native, Context::cast(*match.ResolvedValue()));
+    CHECK_EQ(*native, Cast<Context>(*match.ResolvedValue()));
     ContextAccess access = ContextAccessOf(r.replacement()->op());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, static_cast<int>(access.index()));
     CHECK_EQ(0, static_cast<int>(access.depth()));
@@ -523,10 +551,10 @@ TEST(ReduceJSStoreContext0) {
   }
 
   // Clean up so that verifiers don't complain.
-  native->set(slot, Smi::zero());
+  native->SetNoCell(slot, Smi::zero());
 }
 
-TEST(ReduceJSStoreContext1) {
+TEST(ReduceJSStoreContextNoCell1) {
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -543,34 +571,34 @@ TEST(ReduceJSStoreContext1) {
 
   {
     Node* store =
-        t.graph()->NewNode(t.javascript()->StoreContext(0, slot_index),
+        t.graph()->NewNode(t.javascript()->StoreContextNoCell(0, slot_index),
                            context2, context2, start, start);
     CHECK(!t.spec()->Reduce(store).Changed());
   }
 
   {
     Node* store =
-        t.graph()->NewNode(t.javascript()->StoreContext(1, slot_index),
+        t.graph()->NewNode(t.javascript()->StoreContextNoCell(1, slot_index),
                            context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context1, 0);
   }
 
   {
     Node* store =
-        t.graph()->NewNode(t.javascript()->StoreContext(2, slot_index),
+        t.graph()->NewNode(t.javascript()->StoreContextNoCell(2, slot_index),
                            context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context0, 0);
   }
 
   {
     Node* store =
-        t.graph()->NewNode(t.javascript()->StoreContext(3, slot_index),
+        t.graph()->NewNode(t.javascript()->StoreContextNoCell(3, slot_index),
                            context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context0, 1);
   }
 }
 
-TEST(ReduceJSStoreContext2) {
+TEST(ReduceJSStoreContextNoCell2) {
   ContextSpecializationTester t(Nothing<OuterContext>());
 
   Node* start = t.graph()->NewNode(t.common()->Start(0));
@@ -579,20 +607,20 @@ TEST(ReduceJSStoreContext2) {
   const i::compiler::Operator* create_function_context =
       t.javascript()->CreateFunctionContext(empty, 42, FUNCTION_SCOPE);
 
-  Handle<HeapObject> slot_value0 =
+  DirectHandle<HeapObject> slot_value0 =
       t.CanonicalHandle(*t.factory()->InternalizeUtf8String("0"));
-  Handle<HeapObject> slot_value1 =
+  DirectHandle<HeapObject> slot_value1 =
       t.CanonicalHandle(*t.factory()->InternalizeUtf8String("1"));
 
-  Handle<Context> context_object0 =
+  DirectHandle<Context> context_object0 =
       t.CanonicalHandle(*t.factory()->NewNativeContext());
   Handle<Context> context_object1 =
       NewCanonicalContextForTesting(t, context_object0);
   context_object0->set_extension(*slot_value0);
   context_object1->set_extension(*slot_value1);
 
-  Node* context0 =
-      t.jsgraph()->Constant(MakeRef(t.broker(), context_object1), t.broker());
+  Node* context0 = t.jsgraph()->ConstantNoHole(
+      MakeRef(t.broker(), context_object1), t.broker());
   Node* context1 =
       t.graph()->NewNode(create_function_context, context0, start, start);
   Node* context2 =
@@ -600,46 +628,46 @@ TEST(ReduceJSStoreContext2) {
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContext(0, Context::EXTENSION_INDEX), context2,
-        context2, start, start);
+        t.javascript()->StoreContextNoCell(0, Context::EXTENSION_INDEX),
+        context2, context2, start, start);
     CHECK(!t.spec()->Reduce(store).Changed());
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContext(1, Context::EXTENSION_INDEX), context2,
-        context2, start, start);
+        t.javascript()->StoreContextNoCell(1, Context::EXTENSION_INDEX),
+        context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context1, 0);
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContext(2, Context::EXTENSION_INDEX), context2,
-        context2, start, start);
+        t.javascript()->StoreContextNoCell(2, Context::EXTENSION_INDEX),
+        context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context0, 0);
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContext(3, Context::EXTENSION_INDEX), context2,
-        context2, start, start);
+        t.javascript()->StoreContextNoCell(3, Context::EXTENSION_INDEX),
+        context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context_object0, 0);
   }
 }
 
-TEST(ReduceJSStoreContext3) {
+TEST(ReduceJSStoreContextNoCell3) {
   HandleAndZoneScope handle_zone_scope;
   auto isolate = handle_zone_scope.main_isolate();
   auto factory = isolate->factory();
 
   CanonicalHandles canonical_handles(isolate, handle_zone_scope.main_zone());
 
-  Handle<HeapObject> slot_value0 =
+  DirectHandle<HeapObject> slot_value0 =
       canonical_handles.Create(factory->InternalizeUtf8String("0"));
-  Handle<HeapObject> slot_value1 =
+  DirectHandle<HeapObject> slot_value1 =
       canonical_handles.Create(factory->InternalizeUtf8String("1"));
 
-  Handle<Context> context_object0 =
+  DirectHandle<Context> context_object0 =
       canonical_handles.Create(factory->NewNativeContext());
   Handle<Context> context_object1 =
       canonical_handles.Create(NewContextForTesting(isolate, context_object0));
@@ -663,29 +691,29 @@ TEST(ReduceJSStoreContext3) {
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContext(0, Context::EXTENSION_INDEX), context2,
-        context2, start, start);
+        t.javascript()->StoreContextNoCell(0, Context::EXTENSION_INDEX),
+        context2, context2, start, start);
     CHECK(!t.spec()->Reduce(store).Changed());
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContext(1, Context::EXTENSION_INDEX), context2,
-        context2, start, start);
+        t.javascript()->StoreContextNoCell(1, Context::EXTENSION_INDEX),
+        context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context1, 0);
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContext(2, Context::EXTENSION_INDEX), context2,
-        context2, start, start);
+        t.javascript()->StoreContextNoCell(2, Context::EXTENSION_INDEX),
+        context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context_object1, 0);
   }
 
   {
     Node* store = t.graph()->NewNode(
-        t.javascript()->StoreContext(3, Context::EXTENSION_INDEX), context2,
-        context2, start, start);
+        t.javascript()->StoreContextNoCell(3, Context::EXTENSION_INDEX),
+        context2, context2, start, start);
     t.CheckContextInputAndDepthChanges(store, context_object0, 0);
   }
 }

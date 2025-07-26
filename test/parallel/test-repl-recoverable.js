@@ -18,7 +18,7 @@ function customEval(code, context, file, cb) {
 const putIn = new ArrayStream();
 
 putIn.write = function(msg) {
-  if (msg === '... ') {
+  if (msg === '| ') {
     recovered = true;
   }
 

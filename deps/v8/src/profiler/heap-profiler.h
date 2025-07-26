@@ -52,6 +52,8 @@ class HeapProfilerNativeMoveListener {
 };
 
 class HeapProfiler : public HeapObjectAllocationTracker {
+  using HeapSnapshotMode = v8::HeapProfiler::HeapSnapshotMode;
+
  public:
   explicit HeapProfiler(Heap* heap);
   ~HeapProfiler() override;
@@ -62,7 +64,11 @@ class HeapProfiler : public HeapObjectAllocationTracker {
       const v8::HeapProfiler::HeapSnapshotOptions options);
 
   // Implementation of --heap-snapshot-on-oom.
-  void WriteSnapshotToDiskAfterGC();
+  void WriteSnapshotToDiskAfterGC(
+      HeapSnapshotMode snapshot_mode = HeapSnapshotMode::kRegular);
+  // Just takes a snapshot performing GC as part of the snapshot.
+  void TakeSnapshotToFile(const v8::HeapProfiler::HeapSnapshotOptions options,
+                          std::string filename);
 
   bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth,
                                  v8::HeapProfiler::SamplingFlags);
@@ -83,10 +89,12 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   int GetSnapshotsCount() const;
   bool IsTakingSnapshot() const;
   HeapSnapshot* GetSnapshot(int index);
-  SnapshotObjectId GetSnapshotObjectId(Handle<Object> obj);
+  SnapshotObjectId GetSnapshotObjectId(DirectHandle<Object> obj);
   SnapshotObjectId GetSnapshotObjectId(NativeObject obj);
   void DeleteAllSnapshots();
   void RemoveSnapshot(HeapSnapshot* snapshot);
+
+  std::vector<v8::Local<v8::Value>> GetDetachedJSWrapperObjects();
 
   void ObjectMoveEvent(Address from, Address to, int size,
                        bool is_native_object);
@@ -112,14 +120,17 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   v8::EmbedderGraph::Node::Detachedness GetDetachedness(
       const v8::Local<v8::Value> v8_value, uint16_t class_id);
 
+  const char* CopyNameForHeapSnapshot(const char* name);
+
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
 
-  Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
+  DirectHandle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
   void ClearHeapObjectMap();
 
   Isolate* isolate() const;
 
-  void QueryObjects(Handle<Context> context, QueryObjectPredicate* predicate,
+  void QueryObjects(DirectHandle<Context> context,
+                    QueryObjectPredicate* predicate,
                     std::vector<v8::Global<v8::Object>>* objects);
   void set_native_move_listener(
       std::unique_ptr<HeapProfilerNativeMoveListener> listener) {

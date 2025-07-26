@@ -4,10 +4,40 @@
 
 #include "src/builtins/growable-fixed-array-gen.h"
 
+#include <optional>
+
 #include "src/compiler/code-assembler.h"
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
+
+void GrowableFixedArray::Reserve(TNode<IntPtrT> required_capacity) {
+  Label out(this);
+
+  GotoIf(IntPtrGreaterThanOrEqual(var_capacity_.value(), required_capacity),
+         &out);
+
+  // Gotta grow.
+  TVARIABLE(IntPtrT, var_new_capacity, var_capacity_.value());
+  Label loop(this, &var_new_capacity);
+  Goto(&loop);
+
+  // First find the new capacity.
+  BIND(&loop);
+  {
+    var_new_capacity = NewCapacity(var_new_capacity.value());
+    GotoIf(IntPtrLessThan(var_new_capacity.value(), required_capacity), &loop);
+  }
+
+  // Now grow.
+  var_capacity_ = var_new_capacity.value();
+  var_array_ = ResizeFixedArray(var_length_.value(), var_capacity_.value());
+  Goto(&out);
+
+  BIND(&out);
+}
 
 void GrowableFixedArray::Push(const TNode<Object> value) {
   const TNode<IntPtrT> length = var_length_.value();
@@ -90,13 +120,15 @@ TNode<FixedArray> GrowableFixedArray::ResizeFixedArray(
 
   CodeStubAssembler::ExtractFixedArrayFlags flags;
   flags |= CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays;
-  TNode<FixedArray> to_array = CAST(ExtractFixedArray(
-      from_array, base::Optional<TNode<IntPtrT>>(base::nullopt),
-      base::Optional<TNode<IntPtrT>>(element_count),
-      base::Optional<TNode<IntPtrT>>(new_capacity), flags));
+  TNode<FixedArray> to_array = CAST(
+      ExtractFixedArray(from_array, std::optional<TNode<IntPtrT>>(std::nullopt),
+                        std::optional<TNode<IntPtrT>>(element_count),
+                        std::optional<TNode<IntPtrT>>(new_capacity), flags));
 
   return to_array;
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

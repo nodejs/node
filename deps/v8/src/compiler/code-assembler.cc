@@ -4,19 +4,25 @@
 
 #include "src/compiler/code-assembler.h"
 
+#include <optional>
 #include <ostream>
+#include <thread>  // NOLINT(build/c++11) (for this_thread::yield())
 
-#include "src/codegen/code-factory.h"
+#include "src/builtins/builtins-inl.h"
+#include "src/builtins/constants-table-builder.h"
+#include "src/codegen/compiler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
+#include "src/codegen/tnode.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler/backend/instruction-selector.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/numbers/conversions-inl.h"
@@ -33,13 +39,13 @@ constexpr MachineType MachineTypeOf<MaybeObject>::value;
 
 namespace compiler {
 
-static_assert(std::is_convertible<TNode<Number>, TNode<Object>>::value,
+static_assert(std::is_convertible_v<TNode<Number>, TNode<Object>>,
               "test subtyping");
 static_assert(
-    std::is_convertible<TNode<Number>, TNode<UnionT<Smi, HeapObject>>>::value,
+    std::is_convertible_v<TNode<Number>, TNode<UnionOf<Smi, HeapObject>>>,
     "test subtyping");
 static_assert(
-    !std::is_convertible<TNode<UnionT<Smi, HeapObject>>, TNode<Number>>::value,
+    !std::is_convertible_v<TNode<UnionOf<Smi, HeapObject>>, TNode<Number>>,
     "test subtyping");
 
 CodeAssemblerState::CodeAssemblerState(
@@ -55,20 +61,11 @@ CodeAssemblerState::CodeAssemblerState(
           kind, name, builtin) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
-                                       int parameter_count, CodeKind kind,
-                                       const char* name, Builtin builtin)
-    : CodeAssemblerState(
-          isolate, zone,
-          Linkage::GetJSCallDescriptor(zone, false, parameter_count,
-                                       CallDescriptor::kCanUseRoots),
-          kind, name, builtin) {}
-
-CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        CallDescriptor* call_descriptor,
                                        CodeKind kind, const char* name,
                                        Builtin builtin)
     : raw_assembler_(new RawMachineAssembler(
-          isolate, zone->New<Graph>(zone), call_descriptor,
+          isolate, zone->New<TFGraph>(zone), call_descriptor,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements())),
@@ -85,7 +82,7 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
 CodeAssemblerState::~CodeAssemblerState() = default;
 
 int CodeAssemblerState::parameter_count() const {
-  return static_cast<int>(raw_assembler_->call_descriptor()->ParameterCount());
+  return static_cast<int>(raw_assembler_->parameter_count());
 }
 
 CodeAssembler::~CodeAssembler() = default;
@@ -123,7 +120,7 @@ class BreakOnNodeDecorator final : public GraphDecorator {
 };
 
 void CodeAssembler::BreakOnNode(int node_id) {
-  Graph* graph = raw_assembler()->graph();
+  TFGraph* graph = raw_assembler()->graph();
   Zone* zone = graph->zone();
   GraphDecorator* decorator =
       zone->New<BreakOnNodeDecorator>(static_cast<NodeId>(node_id));
@@ -161,25 +158,81 @@ bool CodeAssembler::Word32ShiftIsSafe() const {
   return raw_assembler()->machine()->Word32ShiftIsSafe();
 }
 
-// static
-Handle<Code> CodeAssembler::GenerateCode(
-    CodeAssemblerState* state, const AssemblerOptions& options,
-    const ProfileDataFromFile* profile_data) {
-  DCHECK(!state->code_generated_);
+CodeAssembler::BuiltinCompilationScheduler::~BuiltinCompilationScheduler() {
+  // Did you forget to call AwaitAndFinalizeCurrentBatch()?
+  CHECK_EQ(0, current_batch_zone_size_);
+  CHECK(main_thread_output_queue_.empty());
+}
 
-  RawMachineAssembler* rasm = state->raw_assembler_.get();
+void CodeAssembler::BuiltinCompilationScheduler::CompileCode(
+    Isolate* isolate, std::unique_ptr<TurbofanCompilationJob> job) {
+#ifdef V8_USE_ADDRESS_SANITIZER
+  constexpr size_t kInputZoneBatchSize = 128UL * MB;
+#else   // !V8_USE_ADDRESS_SANITIZER
+  constexpr size_t kInputZoneBatchSize = 1536UL * MB;
+#endif  // V8_USE_ADDRESS_SANITIZER
 
-  Handle<Code> code;
-  Graph* graph = rasm->ExportForOptimization();
+  // This must be called from the main thread.
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 
-  code = Pipeline::GenerateCodeForCodeStub(
-             rasm->isolate(), rasm->call_descriptor(), graph, state->jsgraph_,
-             rasm->source_positions(), state->kind_, state->name_,
-             state->builtin_, options, profile_data)
-             .ToHandleChecked();
+  DCHECK(job->compilation_info()->code_kind() == CodeKind::BUILTIN ||
+         job->compilation_info()->code_kind() == CodeKind::BYTECODE_HANDLER);
 
-  state->code_generated_ = true;
-  return code;
+  CHECK_EQ(CompilationJob::SUCCEEDED, job->PrepareJob(isolate));
+
+  if (current_batch_zone_size_ >= kInputZoneBatchSize) {
+    AwaitAndFinalizeCurrentBatch(isolate);
+  }
+
+  QueueJob(isolate, std::move(job));
+}
+
+void CodeAssembler::BuiltinCompilationScheduler::QueueJob(
+    Isolate* isolate, std::unique_ptr<TurbofanCompilationJob> job) {
+  current_batch_zone_size_ +=
+      job->compilation_info()->zone()->allocation_size();
+  if (v8_flags.concurrent_builtin_generation) {
+    auto* dispatcher = isolate->optimizing_compile_dispatcher();
+    // Spin until we can queue the job.
+    while (!dispatcher->TryQueueForOptimization(job)) {
+      std::this_thread::yield();
+    }
+  } else {
+    CHECK_EQ(CompilationJob::SUCCEEDED,
+             job->ExecuteJob(isolate->counters()->runtime_call_stats(),
+                             isolate->main_thread_local_isolate()));
+    if (!v8_flags.turbo_profiling) {
+      main_thread_output_queue_.push_back(std::move(job));
+    } else {
+      // When profiling builtins for PGO, each builtin must be completely
+      // generated one at a time (i.e. PrepareJob, ExecuteJob, and FinalizeJob)
+      // instead of batched.
+      FinalizeJobOnMainThread(isolate, job.get());
+    }
+  }
+}
+
+void CodeAssembler::BuiltinCompilationScheduler::FinalizeJobOnMainThread(
+    Isolate* isolate, TurbofanCompilationJob* job) {
+  CHECK_EQ(CompilationJob::SUCCEEDED, job->FinalizeJob(isolate));
+  builtins_installed_count_++;
+}
+
+void CodeAssembler::BuiltinCompilationScheduler::AwaitAndFinalizeCurrentBatch(
+    Isolate* isolate) {
+  if (v8_flags.concurrent_builtin_generation) {
+    auto* dispatcher = isolate->optimizing_compile_dispatcher();
+    dispatcher->WaitUntilCompilationJobsDone();
+    builtins_installed_count_ =
+        dispatcher->InstallGeneratedBuiltins(builtins_installed_count_);
+  } else {
+    DCHECK_IMPLIES(v8_flags.turbo_profiling, main_thread_output_queue_.empty());
+    while (!main_thread_output_queue_.empty()) {
+      FinalizeJobOnMainThread(isolate, main_thread_output_queue_.front().get());
+      main_thread_output_queue_.pop_front();
+    }
+  }
+  current_batch_zone_size_ = 0;
 }
 
 bool CodeAssembler::Is64() const { return raw_assembler()->machine()->Is64(); }
@@ -199,6 +252,13 @@ bool CodeAssembler::IsFloat64RoundTiesEvenSupported() const {
 
 bool CodeAssembler::IsFloat64RoundTruncateSupported() const {
   return raw_assembler()->machine()->Float64RoundTruncate().IsSupported();
+}
+
+bool CodeAssembler::IsTruncateFloat64ToFloat16RawBitsSupported() const {
+  return raw_assembler()
+      ->machine()
+      ->TruncateFloat64ToFloat16RawBits()
+      .IsSupported();
 }
 
 bool CodeAssembler::IsInt32AbsWithOverflowSupported() const {
@@ -256,7 +316,7 @@ TNode<IntPtrT> CodeAssembler::IntPtrConstant(intptr_t value) {
 
 TNode<TaggedIndex> CodeAssembler::TaggedIndexConstant(intptr_t value) {
   DCHECK(TaggedIndex::IsValid(value));
-  return UncheckedCast<TaggedIndex>(raw_assembler()->IntPtrConstant(value));
+  return UncheckedCast<TaggedIndex>(jsgraph()->TaggedIndexConstant(value));
 }
 
 TNode<Number> CodeAssembler::NumberConstant(double value) {
@@ -268,7 +328,7 @@ TNode<Number> CodeAssembler::NumberConstant(double value) {
     // deferring allocation to code generation
     // (see AllocateAndInstallRequestedHeapNumbers) since that makes it easier
     // to generate constant lookups for embedded builtins.
-    return UncheckedCast<Number>(HeapConstant(
+    return UncheckedCast<Number>(HeapConstantNoHole(
         isolate()->factory()->NewHeapNumberForCodeAssembler(value)));
   }
 }
@@ -282,27 +342,66 @@ TNode<Smi> CodeAssembler::SmiConstant(int value) {
   return SmiConstant(Smi::FromInt(value));
 }
 
-TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
+void CodeAssembler::CanonicalizeEmbeddedBuiltinsConstantIfNeeded(
     Handle<HeapObject> object) {
-  return UncheckedCast<HeapObject>(jsgraph()->HeapConstant(object));
+  // This must be called on the main thread so that the builtins constant
+  // indices are reproducible from run to run of mksnapshot.
+  DCHECK_EQ(ThreadId::Current(), isolate()->thread_id());
+  RootIndex dummy_root;
+  Builtin dummy_builtin;
+  if (isolate()->IsGeneratingEmbeddedBuiltins() &&
+      !isolate()->roots_table().IsRootHandle(object, &dummy_root) &&
+      !isolate()->builtins()->IsBuiltinHandle(object, &dummy_builtin) &&
+      !IsInstructionStream(*object)) {
+    isolate()->builtins_constants_table_builder()->AddObject(object);
+  }
+}
+
+// This emits an untyped heap constant that is never a hole.
+TNode<HeapObject> CodeAssembler::UntypedHeapConstantNoHole(
+    Handle<HeapObject> object) {
+  // jsgraph()->HeapConstantNoHole does a CHECK that it is in fact a hole
+  // value.
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(object);
+  return UncheckedCast<HeapObject>(jsgraph()->HeapConstantNoHole(object));
+}
+
+// This is used to emit untyped heap constants that can be a hole value.
+// Only use this if you really need to and cannot use *NoHole or *Hole.
+TNode<HeapObject> CodeAssembler::UntypedHeapConstantMaybeHole(
+    Handle<HeapObject> object) {
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(object);
+  return UncheckedCast<HeapObject>(jsgraph()->HeapConstantMaybeHole(object));
+}
+
+// This is used to emit an untyped heap constant that can only be Hole values.
+TNode<HeapObject> CodeAssembler::UntypedHeapConstantHole(
+    Handle<HeapObject> object) {
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(object);
+  return UncheckedCast<HeapObject>(jsgraph()->HeapConstantHole(object));
 }
 
 TNode<String> CodeAssembler::StringConstant(const char* str) {
   Handle<String> internalized_string =
       factory()->InternalizeString(base::OneByteVector(str));
-  return UncheckedCast<String>(HeapConstant(internalized_string));
+  CanonicalizeEmbeddedBuiltinsConstantIfNeeded(internalized_string);
+  return UncheckedCast<String>(HeapConstantNoHole(internalized_string));
 }
 
 TNode<Boolean> CodeAssembler::BooleanConstant(bool value) {
   Handle<Boolean> object = isolate()->factory()->ToBoolean(value);
   return UncheckedCast<Boolean>(
-      jsgraph()->HeapConstant(Handle<HeapObject>::cast(object)));
+      jsgraph()->HeapConstantNoHole(i::Cast<HeapObject>(object)));
 }
 
 TNode<ExternalReference> CodeAssembler::ExternalConstant(
     ExternalReference address) {
   return UncheckedCast<ExternalReference>(
       raw_assembler()->ExternalConstant(address));
+}
+
+TNode<ExternalReference> CodeAssembler::IsolateField(IsolateFieldId id) {
+  return ExternalConstant(ExternalReference::Create(id));
 }
 
 TNode<Float32T> CodeAssembler::Float32Constant(double value) {
@@ -411,6 +510,29 @@ TNode<Context> CodeAssembler::GetJSContextParameter() {
       static_cast<int>(call_descriptor->JSParameterCount())));
 }
 
+bool CodeAssembler::HasDynamicJSParameterCount() {
+  return raw_assembler()->dynamic_js_parameter_count() != nullptr;
+}
+
+TNode<Uint16T> CodeAssembler::DynamicJSParameterCount() {
+  DCHECK(HasDynamicJSParameterCount());
+  return UncheckedCast<Uint16T>(raw_assembler()->dynamic_js_parameter_count());
+}
+
+void CodeAssembler::SetDynamicJSParameterCount(TNode<Uint16T> parameter_count) {
+  DCHECK(!HasDynamicJSParameterCount());
+  // For code to support a dynamic parameter count, it's static parameter count
+  // must currently be zero, i.e. varargs. Otherwise we'd also need to ensure
+  // that the dynamic parameter count is not smaller than the static one.
+  //
+  // TODO(saelo): it would probably be a bit nicer if we could assert here that
+  // IsJSFunctionCall() is true and then use the JSParameterCount() of the
+  // descriptor instead, but that doesn't work because not all users of this
+  // feature are TFJ builtins (some are TFC builtins).
+  DCHECK_EQ(raw_assembler()->call_descriptor()->ParameterSlotCount(), 0);
+  raw_assembler()->set_dynamic_js_parameter_count(parameter_count);
+}
+
 void CodeAssembler::Return(TNode<Object> value) {
   DCHECK_EQ(1, raw_assembler()->call_descriptor()->ReturnCount());
   DCHECK(raw_assembler()->call_descriptor()->GetReturnType(0).IsTagged());
@@ -480,10 +602,30 @@ void CodeAssembler::Return(TNode<WordT> value1, TNode<WordT> value2) {
   return raw_assembler()->Return(value1, value2);
 }
 
+void CodeAssembler::Return(TNode<Word32T> value1, TNode<Word32T> value2) {
+  DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(
+      MachineRepresentation::kWord32,
+      raw_assembler()->call_descriptor()->GetReturnType(0).representation());
+  DCHECK_EQ(
+      MachineRepresentation::kWord32,
+      raw_assembler()->call_descriptor()->GetReturnType(1).representation());
+  return raw_assembler()->Return(value1, value2);
+}
+
 void CodeAssembler::Return(TNode<WordT> value1, TNode<Object> value2) {
   DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
   DCHECK_EQ(
       MachineType::PointerRepresentation(),
+      raw_assembler()->call_descriptor()->GetReturnType(0).representation());
+  DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
+  return raw_assembler()->Return(value1, value2);
+}
+
+void CodeAssembler::Return(TNode<Word32T> value1, TNode<Object> value2) {
+  DCHECK_EQ(2, raw_assembler()->call_descriptor()->ReturnCount());
+  DCHECK_EQ(
+      MachineRepresentation::kWord32,
       raw_assembler()->call_descriptor()->GetReturnType(0).representation());
   DCHECK(raw_assembler()->call_descriptor()->GetReturnType(1).IsTagged());
   return raw_assembler()->Return(value1, value2);
@@ -519,7 +661,7 @@ void CodeAssembler::Unreachable() {
   raw_assembler()->Unreachable();
 }
 
-void CodeAssembler::Comment(std::string str) {
+void CodeAssembler::EmitComment(std::string str) {
   if (!v8_flags.code_comments) return;
   raw_assembler()->Comment(str);
 }
@@ -562,10 +704,29 @@ TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+TNode<RawPtrT> CodeAssembler::LoadStackPointer() {
+  return UncheckedCast<RawPtrT>(raw_assembler()->LoadStackPointer());
+}
+
+void CodeAssembler::SetStackPointer(TNode<RawPtrT> ptr) {
+  raw_assembler()->SetStackPointer(ptr);
+}
+#endif
+
+TNode<Object> CodeAssembler::LoadTaggedFromRootRegister(TNode<IntPtrT> offset) {
+  return BitcastWordToTagged(LoadPointerFromRootRegister(offset));
+}
+
 TNode<RawPtrT> CodeAssembler::LoadPointerFromRootRegister(
     TNode<IntPtrT> offset) {
   return UncheckedCast<RawPtrT>(
       Load(MachineType::IntPtr(), raw_assembler()->LoadRootRegister(), offset));
+}
+
+TNode<Uint8T> CodeAssembler::LoadUint8FromRootRegister(TNode<IntPtrT> offset) {
+  return UncheckedCast<Uint8T>(
+      Load(MachineType::Uint8(), raw_assembler()->LoadRootRegister(), offset));
 }
 
 TNode<RawPtrT> CodeAssembler::StackSlotPtr(int size, int alignment) {
@@ -578,6 +739,20 @@ TNode<RawPtrT> CodeAssembler::StackSlotPtr(int size, int alignment) {
   }
 CODE_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_ASSEMBLER_BINARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_BINARY_OP
+
+TNode<PairT<Word32T, Word32T>> CodeAssembler::Int32PairAdd(
+    TNode<Word32T> lhs_lo_word, TNode<Word32T> lhs_hi_word,
+    TNode<Word32T> rhs_lo_word, TNode<Word32T> rhs_hi_word) {
+  return UncheckedCast<PairT<Word32T, Word32T>>(raw_assembler()->Int32PairAdd(
+      lhs_lo_word, lhs_hi_word, rhs_lo_word, rhs_hi_word));
+}
+
+TNode<PairT<Word32T, Word32T>> CodeAssembler::Int32PairSub(
+    TNode<Word32T> lhs_lo_word, TNode<Word32T> lhs_hi_word,
+    TNode<Word32T> rhs_lo_word, TNode<Word32T> rhs_hi_word) {
+  return UncheckedCast<PairT<Word32T, Word32T>>(raw_assembler()->Int32PairSub(
+      lhs_lo_word, lhs_hi_word, rhs_lo_word, rhs_hi_word));
+}
 
 TNode<WordT> CodeAssembler::WordShl(TNode<WordT> value, int shift) {
   return (shift != 0) ? WordShl(value, IntPtrConstant(shift)) : value;
@@ -668,6 +843,10 @@ TNode<Int32T> CodeAssembler::TruncateFloat32ToInt32(TNode<Float32T> value) {
   return UncheckedCast<Int32T>(raw_assembler()->TruncateFloat32ToInt32(
       value, TruncateKind::kSetOverflowToMin));
 }
+TNode<Int64T> CodeAssembler::TruncateFloat64ToInt64(TNode<Float64T> value) {
+  return UncheckedCast<Int64T>(raw_assembler()->TruncateFloat64ToInt64(
+      value, TruncateKind::kSetOverflowToMin));
+}
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \
   TNode<ResType> CodeAssembler::name(TNode<ArgType> a) {       \
     return UncheckedCast<ResType>(raw_assembler()->name(a));   \
@@ -719,6 +898,11 @@ Node* CodeAssembler::LoadFromObject(MachineType type, TNode<Object> object,
   return raw_assembler()->LoadFromObject(type, object, offset);
 }
 
+Node* CodeAssembler::LoadProtectedPointerFromObject(TNode<Object> object,
+                                                    TNode<IntPtrT> offset) {
+  return raw_assembler()->LoadProtectedPointerFromObject(object, offset);
+}
+
 #ifdef V8_MAP_PACKING
 Node* CodeAssembler::PackMapWord(Node* value) {
   TNode<IntPtrT> map_word =
@@ -732,7 +916,7 @@ Node* CodeAssembler::PackMapWord(Node* value) {
 TNode<AnyTaggedT> CodeAssembler::LoadRootMapWord(RootIndex root_index) {
 #ifdef V8_MAP_PACKING
   Handle<Object> root = isolate()->root_handle(root_index);
-  Node* map = HeapConstant(Handle<Map>::cast(root));
+  Node* map = HeapConstantNoHole(Cast<Map>(root));
   map = PackMapWord(map);
   return ReinterpretCast<AnyTaggedT>(map);
 #else
@@ -744,9 +928,9 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   if (RootsTable::IsImmortalImmovable(root_index)) {
     Handle<Object> root = isolate()->root_handle(root_index);
     if (IsSmi(*root)) {
-      return SmiConstant(Smi::cast(*root));
+      return SmiConstant(i::Cast<Smi>(*root));
     } else {
-      return HeapConstant(Handle<HeapObject>::cast(root));
+      return HeapConstantMaybeHole(i::Cast<HeapObject>(root));
     }
   }
 
@@ -993,7 +1177,7 @@ TNode<HeapObject> CodeAssembler::OptimizedAllocate(TNode<IntPtrT> size,
 }
 
 void CodeAssembler::HandleException(Node* node) {
-  if (state_->exception_handler_labels_.size() == 0) return;
+  if (state_->exception_handler_labels_.empty()) return;
   CodeAssemblerExceptionHandlerLabel* label =
       state_->exception_handler_labels_.back();
 
@@ -1010,7 +1194,7 @@ void CodeAssembler::HandleException(Node* node) {
   Bind(&exception);
   const Operator* op = raw_assembler()->common()->IfException();
   Node* exception_value = raw_assembler()->AddNode(op, node, node);
-  label->AddInputs({UncheckedCast<Object>(exception_value)});
+  label->AddInputs({CAST(exception_value)});
   Goto(label->plain_label());
 
   Bind(&success);
@@ -1034,17 +1218,40 @@ class NodeArray {
   Node** ptr_ = arr_;
 };
 
+#ifdef DEBUG
+bool IsValidArgumentCountFor(const CallInterfaceDescriptor& descriptor,
+                             size_t argument_count) {
+  size_t parameter_count = descriptor.GetParameterCount();
+  if (descriptor.AllowVarArgs()) {
+    return argument_count >= parameter_count;
+  } else {
+    return argument_count == parameter_count;
+  }
+}
+#endif  // DEBUG
 }  // namespace
 
 Node* CodeAssembler::CallRuntimeImpl(
     Runtime::FunctionId function, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
+#if V8_ENABLE_WEBASSEMBLY
   bool switch_to_the_central_stack =
-      Runtime::SwitchToTheCentralStackForTarget(function);
-  TNode<Code> centry = HeapConstant(CodeFactory::RuntimeCEntry(
-      isolate(), result_size, switch_to_the_central_stack));
-  constexpr size_t kMaxNumArgs = 6;
+      state_->kind_ == CodeKind::WASM_FUNCTION ||
+      state_->kind_ == CodeKind::WASM_TO_JS_FUNCTION ||
+      state_->kind_ == CodeKind::JS_TO_WASM_FUNCTION ||
+      state_->builtin_ == Builtin::kJSToWasmWrapper ||
+      state_->builtin_ == Builtin::kJSToWasmHandleReturns ||
+      state_->builtin_ == Builtin::kWasmToJsWrapperCSA ||
+      wasm::BuiltinLookup::IsWasmBuiltinId(state_->builtin_);
+#else
+  bool switch_to_the_central_stack = false;
+#endif
+  Builtin centry =
+      Builtins::RuntimeCEntry(result_size, switch_to_the_central_stack);
+  TNode<Code> centry_code =
+      HeapConstantNoHole(isolate()->builtins()->code_handle(centry));
+  constexpr size_t kMaxNumArgs = 7;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());
   auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
@@ -1057,8 +1264,8 @@ Node* CodeAssembler::CallRuntimeImpl(
   TNode<Int32T> arity = Int32Constant(argc);
 
   NodeArray<kMaxNumArgs + 4> inputs;
-  inputs.Add(centry);
-  for (auto arg : args) inputs.Add(arg);
+  inputs.Add(centry_code);
+  for (const auto& arg : args) inputs.Add(arg);
   inputs.Add(ref);
   inputs.Add(arity);
   inputs.Add(context);
@@ -1071,14 +1278,72 @@ Node* CodeAssembler::CallRuntimeImpl(
   return return_value;
 }
 
+Builtin CodeAssembler::builtin() { return state()->builtin_; }
+
+#if V8_ENABLE_WEBASSEMBLY
+TNode<RawPtrT> CodeAssembler::SwitchToTheCentralStack() {
+  TNode<ExternalReference> do_switch = ExternalConstant(
+      ExternalReference::wasm_switch_to_the_central_stack_for_js());
+  TNode<RawPtrT> central_stack_sp = TNode<RawPtrT>::UncheckedCast(CallCFunction(
+      do_switch, MachineType::Pointer(),
+      std::make_pair(MachineType::Pointer(),
+                     ExternalConstant(ExternalReference::isolate_address())),
+      std::make_pair(MachineType::Pointer(), LoadFramePointer())));
+
+  TNode<RawPtrT> old_sp = LoadStackPointer();
+  SetStackPointer(central_stack_sp);
+  return old_sp;
+}
+
+void CodeAssembler::SwitchFromTheCentralStack(TNode<RawPtrT> old_sp) {
+  TNode<ExternalReference> do_switch = ExternalConstant(
+      ExternalReference::wasm_switch_from_the_central_stack_for_js());
+  CodeAssemblerLabel skip(this);
+  GotoIf(IntPtrEqual(old_sp, UintPtrConstant(0)), &skip);
+  CallCFunction(
+      do_switch, MachineType::Pointer(),
+      std::make_pair(MachineType::Pointer(),
+                     ExternalConstant(ExternalReference::isolate_address())));
+  SetStackPointer(old_sp);
+  Goto(&skip);
+  Bind(&skip);
+}
+
+TNode<RawPtrT> CodeAssembler::SwitchToTheCentralStackIfNeeded() {
+  TVariable<RawPtrT> old_sp(PointerConstant(nullptr), this);
+  Label no_switch(this);
+  Label end(this);  // -> return value of the call (kTaggedPointer)
+  TNode<Uint8T> is_on_central_stack_flag = LoadUint8FromRootRegister(
+      IntPtrConstant(IsolateData::is_on_central_stack_flag_offset()));
+  GotoIf(is_on_central_stack_flag, &no_switch);
+  old_sp = SwitchToTheCentralStack();
+  Goto(&no_switch);
+  Bind(&no_switch);
+  return old_sp.value();
+}
+#endif
+
 void CodeAssembler::TailCallRuntimeImpl(
     Runtime::FunctionId function, TNode<Int32T> arity, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
+#if V8_ENABLE_WEBASSEMBLY
   bool switch_to_the_central_stack =
-      Runtime::SwitchToTheCentralStackForTarget(function);
-  TNode<Code> centry = HeapConstant(CodeFactory::RuntimeCEntry(
-      isolate(), result_size, switch_to_the_central_stack));
+      state_->kind_ == CodeKind::WASM_FUNCTION ||
+      state_->kind_ == CodeKind::WASM_TO_JS_FUNCTION ||
+      state_->kind_ == CodeKind::JS_TO_WASM_FUNCTION ||
+      state_->builtin_ == Builtin::kJSToWasmWrapper ||
+      state_->builtin_ == Builtin::kJSToWasmHandleReturns ||
+      state_->builtin_ == Builtin::kWasmToJsWrapperCSA ||
+      wasm::BuiltinLookup::IsWasmBuiltinId(state_->builtin_);
+#else
+  bool switch_to_the_central_stack = false;
+#endif
+  Builtin centry =
+      Builtins::RuntimeCEntry(result_size, switch_to_the_central_stack);
+  TNode<Code> centry_code =
+      HeapConstantNoHole(isolate()->builtins()->code_handle(centry));
+
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());
@@ -1090,8 +1355,8 @@ void CodeAssembler::TailCallRuntimeImpl(
       ExternalConstant(ExternalReference::Create(function));
 
   NodeArray<kMaxNumArgs + 4> inputs;
-  inputs.Add(centry);
-  for (auto arg : args) inputs.Add(arg);
+  inputs.Add(centry_code);
+  for (const auto& arg : args) inputs.Add(arg);
   inputs.Add(ref);
   inputs.Add(arity);
   inputs.Add(context);
@@ -1109,13 +1374,7 @@ Node* CodeAssembler::CallStubN(StubCallMode call_mode,
   int implicit_nodes = descriptor.HasContextParameter() ? 2 : 1;
   DCHECK_LE(implicit_nodes, input_count);
   int argc = input_count - implicit_nodes;
-#ifdef DEBUG
-  if (descriptor.AllowVarArgs()) {
-    DCHECK_LE(descriptor.GetParameterCount(), argc);
-  } else {
-    DCHECK_EQ(descriptor.GetParameterCount(), argc);
-  }
-#endif
+  DCHECK(IsValidArgumentCountFor(descriptor, argc));
   // Extra arguments not mentioned in the descriptor are passed on the stack.
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
@@ -1137,7 +1396,7 @@ void CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
                                      std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 11;
   DCHECK_GE(kMaxNumArgs, args.size());
-  DCHECK_EQ(descriptor.GetParameterCount(), args.size());
+  DCHECK(IsValidArgumentCountFor(descriptor, args.size()));
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(),
       CallDescriptor::kNoFlags, Operator::kNoProperties);
@@ -1158,6 +1417,7 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
                                    std::initializer_list<Node*> args) {
   DCHECK(call_mode == StubCallMode::kCallCodeObject ||
          call_mode == StubCallMode::kCallBuiltinPointer);
+  DCHECK(IsValidArgumentCountFor(descriptor, args.size()));
 
   constexpr size_t kMaxNumArgs = 10;
   DCHECK_GE(kMaxNumArgs, args.size());
@@ -1172,25 +1432,34 @@ Node* CodeAssembler::CallStubRImpl(StubCallMode call_mode,
   return CallStubN(call_mode, descriptor, inputs.size(), inputs.data());
 }
 
-Node* CodeAssembler::CallJSStubImpl(const CallInterfaceDescriptor& descriptor,
-                                    TNode<Object> target, TNode<Object> context,
-                                    TNode<Object> function,
-                                    base::Optional<TNode<Object>> new_target,
-                                    TNode<Int32T> arity,
-                                    std::initializer_list<Node*> args) {
+Node* CodeAssembler::CallJSStubImpl(
+    const CallInterfaceDescriptor& descriptor, TNode<Object> target,
+    TNode<Object> context, TNode<Object> function,
+    std::optional<TNode<Object>> new_target, TNode<Int32T> arity,
+    std::optional<TNode<JSDispatchHandleT>> dispatch_handle,
+    std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 10;
   DCHECK_GE(kMaxNumArgs, args.size());
-  NodeArray<kMaxNumArgs + 5> inputs;
+  NodeArray<kMaxNumArgs + 6> inputs;
+
   inputs.Add(target);
   inputs.Add(function);
   if (new_target) {
     inputs.Add(*new_target);
   }
   inputs.Add(arity);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  if (dispatch_handle) {
+    inputs.Add(*dispatch_handle);
+  }
+#endif
   for (auto arg : args) inputs.Add(arg);
+  // Context argument is implicit so isn't counted.
+  DCHECK(IsValidArgumentCountFor(descriptor, inputs.size()));
   if (descriptor.HasContextParameter()) {
     inputs.Add(context);
   }
+
   return CallStubN(StubCallMode::kCallCodeObject, descriptor, inputs.size(),
                    inputs.data());
 }
@@ -1200,8 +1469,8 @@ void CodeAssembler::TailCallStubThenBytecodeDispatchImpl(
     std::initializer_list<Node*> args) {
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
+  DCHECK(IsValidArgumentCountFor(descriptor, args.size()));
 
-  DCHECK_LE(descriptor.GetParameterCount(), args.size());
   int argc = static_cast<int>(args.size());
   // Extra arguments not mentioned in the descriptor are passed on the stack.
   int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
@@ -1241,13 +1510,21 @@ template V8_EXPORT_PRIVATE void CodeAssembler::TailCallBytecodeDispatch(
 void CodeAssembler::TailCallJSCode(TNode<Code> code, TNode<Context> context,
                                    TNode<JSFunction> function,
                                    TNode<Object> new_target,
-                                   TNode<Int32T> arg_count) {
+                                   TNode<Int32T> arg_count,
+                                   TNode<JSDispatchHandleT> dispatch_handle) {
   JSTrampolineDescriptor descriptor;
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kFixedTargetRegister, Operator::kNoProperties);
+      CallDescriptor::kFixedTargetRegister, Operator::kNoProperties,
+      StubCallMode::kCallCodeObject);
 
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  Node* nodes[] = {code,      function,        new_target,
+                   arg_count, dispatch_handle, context};
+#else
   Node* nodes[] = {code, function, new_target, arg_count, context};
+#endif
+  // + 2 for code and context.
   CHECK_EQ(descriptor.GetParameterCount() + 2, arraysize(nodes));
   raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes);
 }
@@ -1259,7 +1536,7 @@ Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
 }
 
 Node* CodeAssembler::CallCFunction(
-    Node* function, base::Optional<MachineType> return_type,
+    Node* function, std::optional<MachineType> return_type,
     std::initializer_list<CodeAssembler::CFunctionArg> args) {
   return raw_assembler()->CallCFunction(function, return_type, args);
 }
@@ -1284,20 +1561,34 @@ void CodeAssembler::Goto(Label* label) {
   raw_assembler()->Goto(label->label_);
 }
 
-void CodeAssembler::GotoIf(TNode<IntegralT> condition, Label* true_label) {
+void CodeAssembler::GotoIf(TNode<IntegralT> condition, Label* true_label,
+                           GotoHint goto_hint) {
   Label false_label(this);
-  Branch(condition, true_label, &false_label);
+  BranchHint branch_hint = BranchHint::kNone;
+  if (goto_hint == GotoHint::kLabel) {
+    branch_hint = BranchHint::kTrue;
+  } else if (goto_hint == GotoHint::kFallthrough) {
+    branch_hint = BranchHint::kFalse;
+  }
+  Branch(condition, true_label, &false_label, branch_hint);
   Bind(&false_label);
 }
 
-void CodeAssembler::GotoIfNot(TNode<IntegralT> condition, Label* false_label) {
+void CodeAssembler::GotoIfNot(TNode<IntegralT> condition, Label* false_label,
+                              GotoHint goto_hint) {
   Label true_label(this);
-  Branch(condition, &true_label, false_label);
+  BranchHint branch_hint = BranchHint::kNone;
+  if (goto_hint == GotoHint::kLabel) {
+    branch_hint = BranchHint::kFalse;
+  } else if (goto_hint == GotoHint::kFallthrough) {
+    branch_hint = BranchHint::kTrue;
+  }
+  Branch(condition, &true_label, false_label, branch_hint);
   Bind(&true_label);
 }
 
 void CodeAssembler::Branch(TNode<IntegralT> condition, Label* true_label,
-                           Label* false_label) {
+                           Label* false_label, BranchHint branch_hint) {
   int32_t constant;
   if (TryToInt32Constant(condition, &constant)) {
     if ((true_label->is_used() || true_label->is_bound()) &&
@@ -1308,7 +1599,7 @@ void CodeAssembler::Branch(TNode<IntegralT> condition, Label* true_label,
   true_label->MergeVariables();
   false_label->MergeVariables();
   return raw_assembler()->Branch(condition, true_label->label_,
-                                 false_label->label_);
+                                 false_label->label_, branch_hint);
 }
 
 void CodeAssembler::Branch(TNode<BoolT> condition,
@@ -1385,7 +1676,7 @@ Factory* CodeAssembler::factory() const { return isolate()->factory(); }
 Zone* CodeAssembler::zone() const { return raw_assembler()->zone(); }
 
 bool CodeAssembler::IsExceptionHandlerActive() const {
-  return state_->exception_handler_labels_.size() != 0;
+  return !state_->exception_handler_labels_.empty();
 }
 
 RawMachineAssembler* CodeAssembler::raw_assembler() const {
@@ -1762,7 +2053,7 @@ ScopedExceptionHandler::~ScopedExceptionHandler() {
     if (inside_block) {
       assembler_->Goto(&skip);
     }
-    TNode<Object> e;
+    TNode<JSAny> e;
     assembler_->Bind(label_.get(), &e);
     if (exception_ != nullptr) *exception_ = e;
     assembler_->Goto(compatibility_label_);

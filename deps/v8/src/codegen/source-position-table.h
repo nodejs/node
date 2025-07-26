@@ -16,20 +16,26 @@
 namespace v8 {
 namespace internal {
 
-class ByteArray;
+class TrustedByteArray;
 class Zone;
 
 struct PositionTableEntry {
   PositionTableEntry()
       : source_position(0),
         code_offset(kFunctionEntryBytecodeOffset),
-        is_statement(false) {}
-  PositionTableEntry(int offset, int64_t source, bool statement)
-      : source_position(source), code_offset(offset), is_statement(statement) {}
+        is_statement(false),
+        is_breakable(true) {}
+  PositionTableEntry(int offset, int64_t source, bool statement,
+                     bool breakable = true)
+      : source_position(source),
+        code_offset(offset),
+        is_statement(statement),
+        is_breakable(breakable) {}
 
   int64_t source_position;
   int code_offset;
   bool is_statement;
+  bool is_breakable;
 };
 
 class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
@@ -49,11 +55,11 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
       Zone* zone, RecordingMode mode = RECORD_SOURCE_POSITIONS);
 
   void AddPosition(size_t code_offset, SourcePosition source_position,
-                   bool is_statement);
+                   bool is_statement, bool is_breakable = true);
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
+  Handle<TrustedByteArray> ToSourcePositionTable(IsolateT* isolate);
   base::OwnedVector<uint8_t> ToSourcePositionTableVector();
 
   inline bool Omit() const { return mode_ != RECORD_SOURCE_POSITIONS; }
@@ -97,7 +103,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   // Handlified iterator allows allocation, but it needs a handle (and thus
   // a handle scope). This is the preferred version.
   explicit SourcePositionTableIterator(
-      Handle<ByteArray> byte_array,
+      Handle<TrustedByteArray> byte_array,
       IterationFilter iteration_filter = kJavaScriptOnly,
       FunctionEntryFilter function_entry_filter = kSkipFunctionEntry);
 
@@ -105,7 +111,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   // allocation during its lifetime. This is useful if there is no handle
   // scope around.
   explicit SourcePositionTableIterator(
-      Tagged<ByteArray> byte_array,
+      Tagged<TrustedByteArray> byte_array,
       IterationFilter iteration_filter = kJavaScriptOnly,
       FunctionEntryFilter function_entry_filter = kSkipFunctionEntry);
 
@@ -130,6 +136,10 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
     DCHECK(!done());
     return current_.is_statement;
   }
+  bool is_breakable() const {
+    DCHECK(!done());
+    return current_.is_breakable;
+  }
   bool done() const { return index_ == kDone; }
 
   IndexAndPositionState GetState() const {
@@ -151,7 +161,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   static const int kDone = -1;
 
   base::Vector<const uint8_t> raw_table_;
-  Handle<ByteArray> table_;
+  Handle<TrustedByteArray> table_;
   int index_ = 0;
   PositionTableEntry current_;
   IterationFilter iteration_filter_;

@@ -31,13 +31,16 @@ bool Variable::IsGlobalObjectProperty() const {
 
 bool Variable::IsReplGlobal() const {
   return scope()->is_repl_mode_scope() &&
-         (mode() == VariableMode::kLet || mode() == VariableMode::kConst);
+         (mode() == VariableMode::kLet || mode() == VariableMode::kConst ||
+          mode() == VariableMode::kUsing ||
+          mode() == VariableMode::kAwaitUsing);
 }
 
 void Variable::RewriteLocationForRepl() {
   DCHECK(scope_->is_repl_mode_scope());
 
-  if (mode() == VariableMode::kLet || mode() == VariableMode::kConst) {
+  if (mode() == VariableMode::kLet || mode() == VariableMode::kConst ||
+      mode() == VariableMode::kUsing || mode() == VariableMode::kAwaitUsing) {
     DCHECK_EQ(location(), VariableLocation::CONTEXT);
     bit_field_ =
         LocationField::update(bit_field_, VariableLocation::REPL_GLOBAL);

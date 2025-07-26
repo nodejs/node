@@ -2,8 +2,10 @@
   0x01, 0x00, 0x00, 0x00,  // wasm version
 
   0x01,                    // section kind: Type
-  0x3c,                    // section length 60
-  0x0b,                    // types count 11
+  0x4b,                    // section length 75
+  0x10,                    // types count 16
+  0x4e, 0x00,              // empty rec.group
+  0x4e, 0x00,              // empty rec.group
   0x50, 0x00, 0x5f, 0x00,  // type #0 $type0 subtype, supertype count 0, kind: struct, field count 0
   0x5f, 0x01, 0x7f, 0x00,  // type #1 $type1 kind: struct, field count 1:  i32 immutable
   0x5f, 0x02,              // type #2 $type2 kind: struct, field count 2
@@ -26,6 +28,10 @@
   0x02,                    // param count 2
   0x64, 0x01, 0x6d,        // (ref $type1) eqref
   0x00,                    // return count 0
+  0x4f, 0x01, 0x00,        // type #12 $type12 final subtype, supertype count 1: supertype 0
+  0x5f, 0x01, 0x7f, 0x01,  //  kind: struct, field count 1:  i32 mutable
+  0x4e, 0x00,              // empty rec.group
+  0x4e, 0x00,              // empty rec.group
 
   0x02,                    // section kind: Import
   0x30,                    // section length 48

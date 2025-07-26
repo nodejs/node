@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -399,7 +399,7 @@ static void *mac_gen_init(void *provctx, int selection,
     struct mac_gen_ctx *gctx = mac_gen_init_common(provctx, selection);
 
     if (gctx != NULL && !mac_gen_set_params(gctx, params)) {
-        OPENSSL_free(gctx);
+        mac_gen_cleanup(gctx);
         gctx = NULL;
     }
     return gctx;
@@ -411,7 +411,7 @@ static void *cmac_gen_init(void *provctx, int selection,
     struct mac_gen_ctx *gctx = mac_gen_init_common(provctx, selection);
 
     if (gctx != NULL && !cmac_gen_set_params(gctx, params)) {
-        OPENSSL_free(gctx);
+        mac_gen_cleanup(gctx);
         gctx = NULL;
     }
     return gctx;
@@ -526,6 +526,9 @@ static void *mac_gen(void *genctx, OSSL_CALLBACK *cb, void *cbarg)
 static void mac_gen_cleanup(void *genctx)
 {
     struct mac_gen_ctx *gctx = genctx;
+
+    if (gctx == NULL)
+        return;
 
     OPENSSL_secure_clear_free(gctx->priv_key, gctx->priv_key_len);
     ossl_prov_cipher_reset(&gctx->cipher);

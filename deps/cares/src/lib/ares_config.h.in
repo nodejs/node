@@ -75,6 +75,9 @@
 /* Define to 1 if you have `connect` */
 #undef HAVE_CONNECT
 
+/* Define to 1 if you have `connectx` */
+#undef HAVE_CONNECTX
+
 /* Define to 1 if you have `ConvertInterfaceIndexToLuid` */
 #undef HAVE_CONVERTINTERFACEINDEXTOLUID
 
@@ -101,6 +104,9 @@
 
 /* fcntl() with O_NONBLOCK support */
 #undef HAVE_FCNTL_O_NONBLOCK
+
+/* Define to 1 if you have `GetBestRoute2` */
+#undef HAVE_GETBESTROUTE2
 
 /* Define to 1 if you have `getenv` */
 #undef HAVE_GETENV
@@ -174,6 +180,9 @@
 /* Define to 1 if you have the <malloc.h> header file. */
 #undef HAVE_MALLOC_H
 
+/* Define to 1 if you have `memmem` */
+#undef HAVE_MEMMEM
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
@@ -186,6 +195,9 @@
 /* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
 
+/* Define to 1 if you have the <netinet6/in6.h> header file. */
+#undef HAVE_NETINET6_IN6_H
+
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
 
@@ -197,6 +209,9 @@
 
 /* Define to 1 if you have the <net/if.h> header file. */
 #undef HAVE_NET_IF_H
+
+/* Define to 1 if you have `NotifyIpInterfaceChange` */
+#undef HAVE_NOTIFYIPINTERFACECHANGE
 
 /* Define to 1 if you have the <ntdef.h> header file. */
 #undef HAVE_NTDEF_H
@@ -234,8 +249,14 @@
 /* Define to 1 if you have `recvfrom` */
 #undef HAVE_RECVFROM
 
+/* Define to 1 if you have `RegisterWaitForSingleObject` */
+#undef HAVE_REGISTERWAITFORSINGLEOBJECT
+
 /* Define to 1 if you have `send` */
 #undef HAVE_SEND
+
+/* Define to 1 if you have `sendto` */
+#undef HAVE_SENDTO
 
 /* Define to 1 if you have `setsockopt` */
 #undef HAVE_SETSOCKOPT
@@ -291,6 +312,9 @@
 /* Define to 1 if you have `strnicmp` */
 #undef HAVE_STRNICMP
 
+/* Define to 1 if you have `strnlen` */
+#undef HAVE_STRNLEN
+
 /* Define to 1 if the system has the type `struct addrinfo'. */
 #undef HAVE_STRUCT_ADDRINFO
 
@@ -338,6 +362,9 @@
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/system_properties.h> header file. */
+#undef HAVE_SYS_SYSTEM_PROPERTIES_H
 
 /* Define to 1 if you have the <sys/time.h> header file. */
 #undef HAVE_SYS_TIME_H
@@ -447,9 +474,6 @@
 
 /* recv() return value */
 #undef RECV_TYPE_RETV
-
-/* send() arg2 qualifier */
-#undef SEND_QUAL_ARG2
 
 /* send() arg1 type */
 #undef SEND_TYPE_ARG1

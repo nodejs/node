@@ -12,34 +12,32 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
-#include "src/heap/memory-chunk.h"
+#include "src/heap/main-allocator.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/heap/spaces-inl.h"
+#include "src/heap/trusted-range.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 
-static Tagged<HeapObject> AllocateUnaligned(NewSpace* space, int size) {
-  AllocationResult allocation = space->AllocateRaw(size, kTaggedAligned);
-  CHECK(!allocation.IsFailure());
-  Tagged<HeapObject> filler;
-  CHECK(allocation.To(&filler));
-  space->heap()->CreateFillerObjectAt(filler.address(), size);
-  return filler;
-}
-
-static Tagged<HeapObject> AllocateUnaligned(PagedSpace* space, int size) {
-  AllocationResult allocation = space->AllocateRaw(size, kTaggedAligned);
-  CHECK(!allocation.IsFailure());
-  Tagged<HeapObject> filler;
-  CHECK(allocation.To(&filler));
-  space->heap()->CreateFillerObjectAt(filler.address(), size);
-  return filler;
-}
-
-static Tagged<HeapObject> AllocateUnaligned(OldLargeObjectSpace* space,
+static Tagged<HeapObject> AllocateUnaligned(MainAllocator* allocator,
+                                            SpaceWithLinearArea* space,
                                             int size) {
-  AllocationResult allocation = space->AllocateRaw(size);
+  AllocationResult allocation =
+      allocator->AllocateRaw(size, kTaggedAligned, AllocationOrigin::kRuntime);
+  CHECK(!allocation.IsFailure());
+  Tagged<HeapObject> filler;
+  CHECK(allocation.To(&filler));
+  space->heap()->CreateFillerObjectAt(filler.address(), size);
+  return filler;
+}
+
+static Tagged<HeapObject> AllocateUnaligned(OldLargeObjectSpace* allocator,
+                                            OldLargeObjectSpace* space,
+                                            int size) {
+  AllocationResult allocation =
+      allocator->AllocateRaw(space->heap()->main_thread_local_heap(), size);
   CHECK(!allocation.IsFailure());
   Tagged<HeapObject> filler;
   CHECK(allocation.To(&filler));
@@ -54,15 +52,19 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   OldSpace* old_space = heap->old_space();
   EXPECT_TRUE(old_space != nullptr);
 
+  heap->SetGCState(Heap::MARK_COMPACT);
+
   CompactionSpace* compaction_space =
       new CompactionSpace(heap, OLD_SPACE, NOT_EXECUTABLE,
-                          CompactionSpaceKind::kCompactionSpaceForMarkCompact);
+                          CompactionSpaceKind::kCompactionSpaceForMarkCompact,
+                          CompactionSpace::DestinationHeap::kSameHeap);
+  MainAllocator allocator(heap, compaction_space, MainAllocator::kInGC);
   EXPECT_TRUE(compaction_space != nullptr);
 
-  for (Page* p : *old_space) {
+  for (PageMetadata* p : *old_space) {
     // Unlink free lists from the main space to avoid reusing the memory for
     // compaction spaces.
-    old_space->UnlinkFreeListCategories(p);
+    old_space->free_list()->EvictFreeListItems(p);
   }
 
   // Cannot loop until "Available()" since we initially have 0 bytes available
@@ -74,91 +76,67 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
       (kNumObjects + kNumObjectsPerPage - 1) / kNumObjectsPerPage;
   for (int i = 0; i < kNumObjects; i++) {
     Tagged<HeapObject> object =
-        compaction_space->AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned)
+        allocator
+            .AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned,
+                         AllocationOrigin::kGC)
             .ToObjectChecked();
     heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize);
   }
   int pages_in_old_space = old_space->CountTotalPages();
   int pages_in_compaction_space = compaction_space->CountTotalPages();
   EXPECT_EQ(kExpectedPages, pages_in_compaction_space);
+  allocator.FreeLinearAllocationArea();
   old_space->MergeCompactionSpace(compaction_space);
   EXPECT_EQ(pages_in_old_space + pages_in_compaction_space,
             old_space->CountTotalPages());
 
   delete compaction_space;
-}
 
-TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
-  constexpr Address address1 = Page::kPageSize;
-  Tagged<HeapObject> object1 =
-      HeapObject::unchecked_cast(Tagged<Object>(address1));
-  BasicMemoryChunk* chunk1 = BasicMemoryChunk::FromHeapObject(object1);
-  heap_internals::MemoryChunk* slim_chunk1 =
-      heap_internals::MemoryChunk::FromHeapObject(object1);
-  EXPECT_EQ(static_cast<void*>(chunk1), static_cast<void*>(slim_chunk1));
-  constexpr Address address2 = 2 * Page::kPageSize - 1;
-  Tagged<HeapObject> object2 =
-      HeapObject::unchecked_cast(Tagged<Object>(address2));
-  BasicMemoryChunk* chunk2 = BasicMemoryChunk::FromHeapObject(object2);
-  heap_internals::MemoryChunk* slim_chunk2 =
-      heap_internals::MemoryChunk::FromHeapObject(object2);
-  EXPECT_EQ(static_cast<void*>(chunk2), static_cast<void*>(slim_chunk2));
+  heap->SetGCState(Heap::NOT_IN_GC);
 }
 
 TEST_F(SpacesTest, WriteBarrierIsMarking) {
-  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  heap_internals::MemoryChunk* slim_chunk =
-      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
   EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
-  EXPECT_FALSE(slim_chunk->IsMarking());
-  chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
+  EXPECT_FALSE(chunk->IsMarking());
+  chunk->SetFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
   EXPECT_TRUE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
-  EXPECT_TRUE(slim_chunk->IsMarking());
-  chunk->ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
+  EXPECT_TRUE(chunk->IsMarking());
+  chunk->ClearFlagNonExecutable(MemoryChunk::INCREMENTAL_MARKING);
   EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
-  EXPECT_FALSE(slim_chunk->IsMarking());
+  EXPECT_FALSE(chunk->IsMarking());
 }
 
 TEST_F(SpacesTest, WriteBarrierInYoungGenerationToSpace) {
-  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  heap_internals::MemoryChunk* slim_chunk =
-      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
   EXPECT_FALSE(chunk->InYoungGeneration());
-  EXPECT_FALSE(slim_chunk->InYoungGeneration());
-  chunk->SetFlag(MemoryChunk::TO_PAGE);
+  chunk->SetFlagNonExecutable(MemoryChunk::TO_PAGE);
   EXPECT_TRUE(chunk->InYoungGeneration());
-  EXPECT_TRUE(slim_chunk->InYoungGeneration());
-  chunk->ClearFlag(MemoryChunk::TO_PAGE);
+  chunk->ClearFlagNonExecutable(MemoryChunk::TO_PAGE);
   EXPECT_FALSE(chunk->InYoungGeneration());
-  EXPECT_FALSE(slim_chunk->InYoungGeneration());
 }
 
 TEST_F(SpacesTest, WriteBarrierInYoungGenerationFromSpace) {
-  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  const size_t kSizeOfMemoryChunk = sizeof(MutablePageMetadata);
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  heap_internals::MemoryChunk* slim_chunk =
-      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
   EXPECT_FALSE(chunk->InYoungGeneration());
-  EXPECT_FALSE(slim_chunk->InYoungGeneration());
-  chunk->SetFlag(MemoryChunk::FROM_PAGE);
+  chunk->SetFlagNonExecutable(MemoryChunk::FROM_PAGE);
   EXPECT_TRUE(chunk->InYoungGeneration());
-  EXPECT_TRUE(slim_chunk->InYoungGeneration());
-  chunk->ClearFlag(MemoryChunk::FROM_PAGE);
+  chunk->ClearFlagNonExecutable(MemoryChunk::FROM_PAGE);
   EXPECT_FALSE(chunk->InYoungGeneration());
-  EXPECT_FALSE(slim_chunk->InYoungGeneration());
 }
 
 TEST_F(SpacesTest, CodeRangeAddressReuse) {
   CodeRangeAddressHint hint;
-  const size_t base_alignment = MemoryChunk::kPageSize;
+  const size_t base_alignment = MutablePageMetadata::kPageSize;
   // Create code ranges.
   Address code_range1 = hint.GetAddressHint(100, base_alignment);
   CHECK(IsAligned(code_range1, base_alignment));
@@ -237,48 +215,6 @@ TEST_F(SpacesTest, FreeListManySelectFreeListCategoryType) {
   }
 }
 
-// Tests that FreeListMany::GuaranteedAllocatable returns what it should.
-TEST_F(SpacesTest, FreeListManyGuaranteedAllocatable) {
-  FreeListMany free_list;
-
-  for (int cat = kFirstCategory; cat < free_list.last_category_; cat++) {
-    std::vector<size_t> sizes;
-    // Adding size less than this category's minimum
-    sizes.push_back(free_list.categories_min[cat] - 8);
-    // Adding size equal to this category's minimum
-    sizes.push_back(free_list.categories_min[cat]);
-    // Adding size greater than this category's minimum
-    sizes.push_back(free_list.categories_min[cat] + 8);
-    if (cat != free_list.last_category_) {
-      // Adding size between this category's minimum and the next category
-      sizes.push_back(
-          (free_list.categories_min[cat] + free_list.categories_min[cat + 1]) /
-          2);
-    }
-
-    for (size_t size : sizes) {
-      FreeListCategoryType cat_free =
-          free_list.SelectFreeListCategoryType(size);
-      size_t guaranteed_allocatable = free_list.GuaranteedAllocatable(size);
-      if (cat_free == free_list.last_category_) {
-        // If |cat_free| == last_category, then guaranteed_allocatable must
-        // return the last category, because when allocating, the last category
-        // is searched entirely.
-        EXPECT_EQ(free_list.SelectFreeListCategoryType(guaranteed_allocatable),
-                  free_list.last_category_);
-      } else if (size < free_list.categories_min[0]) {
-        // If size < free_list.categories_min[0], then the bytes are wasted, and
-        // guaranteed_allocatable should return 0.
-        EXPECT_EQ(guaranteed_allocatable, 0ul);
-      } else {
-        // Otherwise, |guaranteed_allocatable| is equal to the minimum of
-        // |size|'s category (|cat_free|);
-        EXPECT_EQ(free_list.categories_min[cat_free], guaranteed_allocatable);
-      }
-    }
-  }
-}
-
 // Tests that
 // FreeListManyCachedFastPath::SelectFastAllocationFreeListCategoryType returns
 // what it should.
@@ -344,68 +280,72 @@ class Observer : public AllocationObserver {
 template <typename T, typename A>
 void testAllocationObserver(Isolate* i_isolate, T* space, A* allocator) {
   Observer observer1(128);
+  i_isolate->heap()->FreeMainThreadLinearAllocationAreas();
   allocator->AddAllocationObserver(&observer1);
 
   // The observer should not get notified if we have only allocated less than
   // 128 bytes.
-  AllocateUnaligned(space, 64);
+  AllocateUnaligned(allocator, space, 64);
   CHECK_EQ(observer1.count(), 0);
 
   // The observer should get called when we have allocated exactly 128 bytes.
-  AllocateUnaligned(space, 64);
+  AllocateUnaligned(allocator, space, 64);
   CHECK_EQ(observer1.count(), 1);
 
   // Another >128 bytes should get another notification.
-  AllocateUnaligned(space, 136);
+  AllocateUnaligned(allocator, space, 136);
   CHECK_EQ(observer1.count(), 2);
 
   // Allocating a large object should get only one notification.
-  AllocateUnaligned(space, 1024);
+  AllocateUnaligned(allocator, space, 1024);
   CHECK_EQ(observer1.count(), 3);
 
   // Allocating another 2048 bytes in small objects should get 16
   // notifications.
   for (int i = 0; i < 64; ++i) {
-    AllocateUnaligned(space, 32);
+    AllocateUnaligned(allocator, space, 32);
   }
   CHECK_EQ(observer1.count(), 19);
 
   // Multiple observers should work.
   Observer observer2(96);
+  i_isolate->heap()->FreeMainThreadLinearAllocationAreas();
   allocator->AddAllocationObserver(&observer2);
 
-  AllocateUnaligned(space, 2048);
+  AllocateUnaligned(allocator, space, 2048);
   CHECK_EQ(observer1.count(), 20);
   CHECK_EQ(observer2.count(), 1);
 
-  AllocateUnaligned(space, 104);
+  AllocateUnaligned(allocator, space, 104);
   CHECK_EQ(observer1.count(), 20);
   CHECK_EQ(observer2.count(), 2);
 
   // Callback should stop getting called after an observer is removed.
   allocator->RemoveAllocationObserver(&observer1);
 
-  AllocateUnaligned(space, 384);
+  AllocateUnaligned(allocator, space, 384);
   CHECK_EQ(observer1.count(), 20);  // no more notifications.
   CHECK_EQ(observer2.count(), 3);   // this one is still active.
 
   // Ensure that PauseInlineAllocationObserversScope work correctly.
-  AllocateUnaligned(space, 48);
+  AllocateUnaligned(allocator, space, 48);
   CHECK_EQ(observer2.count(), 3);
   {
+    i_isolate->heap()->FreeMainThreadLinearAllocationAreas();
     PauseAllocationObserversScope pause_observers(i_isolate->heap());
     CHECK_EQ(observer2.count(), 3);
-    AllocateUnaligned(space, 384);
+    AllocateUnaligned(allocator, space, 384);
     CHECK_EQ(observer2.count(), 3);
+    i_isolate->heap()->FreeMainThreadLinearAllocationAreas();
   }
   CHECK_EQ(observer2.count(), 3);
   // Coupled with the 48 bytes allocated before the pause, another 48 bytes
   // allocated here should trigger a notification.
-  AllocateUnaligned(space, 48);
+  AllocateUnaligned(allocator, space, 48);
   CHECK_EQ(observer2.count(), 4);
 
   allocator->RemoveAllocationObserver(&observer2);
-  AllocateUnaligned(space, 384);
+  AllocateUnaligned(allocator, space, 384);
   CHECK_EQ(observer1.count(), 20);
   CHECK_EQ(observer2.count(), 4);
 }
@@ -448,7 +388,8 @@ TEST_F(SpacesTest, InlineAllocationObserverCadence) {
   new_space_allocator->AddAllocationObserver(&observer2);
 
   for (int i = 0; i < 512; ++i) {
-    AllocateUnaligned(i_isolate()->heap()->new_space(), 32);
+    AllocateUnaligned(new_space_allocator, i_isolate()->heap()->new_space(),
+                      32);
   }
 
   new_space_allocator->RemoveAllocationObserver(&observer1);
@@ -457,6 +398,43 @@ TEST_F(SpacesTest, InlineAllocationObserverCadence) {
   CHECK_EQ(observer1.count(), 32);
   CHECK_EQ(observer2.count(), 28);
 }
+
+#if V8_ENABLE_SANDBOX
+TEST_F(SpacesTest, TrustedSpaceNullPage) {
+  // Trusted space should have a reserved, inaccessible area at the start to
+  // mitigate (compressed) nullptr dereference bugs.
+
+  v8::Isolate::Scope isolate_scope(v8_isolate());
+  v8::HandleScope handle_scope(v8_isolate());
+  v8::Context::New(v8_isolate())->Enter();
+
+  Address trusted_space_base =
+      TrustedRange::GetProcessWideTrustedRange()->base();
+  const size_t size_of_reserved_area = 1 * MB;
+
+  // Test that no objects are allocated in the reserved area.
+  MainAllocator* trusted_space_allocator =
+      i_isolate()->heap()->allocator()->trusted_space_allocator();
+  for (int i = 0; i < 64; ++i) {
+    Tagged<HeapObject> allocation = AllocateUnaligned(
+        trusted_space_allocator, i_isolate()->heap()->trusted_space(), 32);
+    CHECK_GE(allocation.address(), trusted_space_base);
+    size_t offset = allocation.address() - trusted_space_base;
+    CHECK_GT(offset, size_of_reserved_area);
+  }
+
+  // Test that the reserved area is inaccessible.
+  auto ReadByteAt = [](Address address) {
+    return *reinterpret_cast<volatile uint8_t*>(address);
+  };
+  uint8_t buf = 0;
+  EXPECT_DEATH_IF_SUPPORTED(buf += ReadByteAt(trusted_space_base), "");
+  EXPECT_DEATH_IF_SUPPORTED(
+      buf += ReadByteAt(trusted_space_base + size_of_reserved_area - 1), "");
+  // Mostly just to prevent the compiler from optimizing away the memory loads.
+  CHECK_EQ(buf, 0);
+}
+#endif  // V8_ENABLE_SANDBOX
 
 }  // namespace internal
 }  // namespace v8

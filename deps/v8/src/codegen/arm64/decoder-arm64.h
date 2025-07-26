@@ -61,7 +61,9 @@ namespace internal {
   V(FPFixedPointConvert)                \
   V(NEON2RegMisc)                       \
   V(NEON3Different)                     \
+  V(NEON3Extension)                     \
   V(NEON3Same)                          \
+  V(NEON3SameHP)                        \
   V(NEONAcrossLanes)                    \
   V(NEONByIndexedElement)               \
   V(NEONCopy)                           \
@@ -81,6 +83,7 @@ namespace internal {
   V(NEONShiftImmediate)                 \
   V(NEONTable)                          \
   V(NEONPerm)                           \
+  V(NEONSHA3)                           \
   V(Unallocated)                        \
   V(Unimplemented)
 

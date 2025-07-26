@@ -1,6 +1,8 @@
 // Copyright 2021 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#include "src/codegen/riscv/base-constants-riscv.h"
+
 #include "src/codegen/riscv/constants-riscv.h"
 #include "src/execution/simulator.h"
 
@@ -226,6 +228,53 @@ uint32_t InstructionGetters<T>::Rvvuimm() const {
   uint32_t Bits = this->InstructionBits();
   uint32_t uimm = Bits & kRvvUimmMask;
   return uimm >> kRvvUimmShift;
+}
+
+template <class T>
+bool InstructionGetters<T>::IsLoad() {
+  switch (OperandFunct3()) {
+    case RO_LB:
+    case RO_LBU:
+    case RO_LH:
+    case RO_LHU:
+    case RO_LW:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case RO_LD:
+    case RO_LWU:
+#endif
+      return true;
+    case RO_C_LW:
+    case RO_C_LWSP:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case RO_C_LD:
+    case RO_C_LDSP:
+#endif
+      return v8_flags.riscv_c_extension && this->IsShortInstruction();
+    default:
+      return BaseOpcode() == LOAD_FP;
+  }
+}
+
+template <class T>
+bool InstructionGetters<T>::IsStore() {
+  switch (OperandFunct3()) {
+    case RO_SB:
+    case RO_SH:
+    case RO_SW:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case RO_SD:
+#endif
+      return true;
+    case RO_C_SW:
+    case RO_C_SWSP:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case RO_C_SD:
+    case RO_C_SDSP:
+#endif
+      return v8_flags.riscv_c_extension && this->IsShortInstruction();
+    default:
+      return BaseOpcode() == STORE_FP;
+  }
 }
 
 template class InstructionGetters<InstructionBase>;

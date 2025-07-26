@@ -27,9 +27,9 @@ Node* TryGetConstant(JSGraph* jsgraph, Node* node, JSHeapBroker* broker) {
   } else if (type.Is(Type::NaN())) {
     result = jsgraph->NaNConstant();
   } else if (type.IsHeapConstant()) {
-    result = jsgraph->Constant(type.AsHeapConstant()->Ref(), broker);
+    result = jsgraph->ConstantNoHole(type.AsHeapConstant()->Ref(), broker);
   } else if (type.Is(Type::PlainNumber()) && type.Min() == type.Max()) {
-    result = jsgraph->Constant(type.Min());
+    result = jsgraph->ConstantNoHole(type.Min());
   } else {
     result = nullptr;
   }

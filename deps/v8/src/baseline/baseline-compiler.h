@@ -5,11 +5,6 @@
 #ifndef V8_BASELINE_BASELINE_COMPILER_H_
 #define V8_BASELINE_BASELINE_COMPILER_H_
 
-// TODO(v8:11421): Remove #if once baseline compiler is ported to other
-// architectures.
-#include "src/flags/flags.h"
-#if ENABLE_SPARKPLUG
-
 #include "src/base/logging.h"
 #include "src/base/pointer-with-payload.h"
 #include "src/base/threaded-list.h"
@@ -23,6 +18,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/map.h"
 #include "src/objects/tagged-index.h"
+#include "src/utils/bit-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -42,7 +38,7 @@ class BytecodeOffsetTableBuilder {
   }
 
   template <typename IsolateT>
-  Handle<ByteArray> ToBytecodeOffsetTable(IsolateT* isolate);
+  Handle<TrustedByteArray> ToBytecodeOffsetTable(IsolateT* isolate);
 
   void Reserve(size_t size) { bytes_.reserve(size); }
 
@@ -58,7 +54,7 @@ class BaselineCompiler {
                             Handle<BytecodeArray> bytecode);
 
   void GenerateCode();
-  MaybeHandle<Code> Build(LocalIsolate* local_isolate);
+  MaybeHandle<Code> Build();
   static int EstimateInstructionSize(Tagged<BytecodeArray> bytecode);
 
  private:
@@ -96,6 +92,7 @@ class BaselineCompiler {
   Tagged<TaggedIndex> UintAsTagged(int operand_index);
   Tagged<Smi> IndexAsSmi(int operand_index);
   Tagged<Smi> IntAsSmi(int operand_index);
+  Tagged<Smi> UintAsSmi(int operand_index);
   Tagged<Smi> Flag8AsSmi(int operand_index);
   Tagged<Smi> Flag16AsSmi(int operand_index);
 
@@ -121,10 +118,6 @@ class BaselineCompiler {
   void AddPosition();
 
   // Misc. helpers.
-
-  void UpdateMaxCallArgs(int max_call_args) {
-    max_call_args_ = std::max(max_call_args_, max_call_args);
-  }
 
   // Select the root boolean constant based on the jump in the given
   // `jump_func` -- the function should jump to the given label if we want to
@@ -154,7 +147,7 @@ class BaselineCompiler {
 
   // Single bytecode visitors.
 #define DECLARE_VISITOR(name, ...) void Visit##name();
-  BYTECODE_LIST(DECLARE_VISITOR)
+  BYTECODE_LIST(DECLARE_VISITOR, DECLARE_VISITOR)
 #undef DECLARE_VISITOR
 
   // Intrinsic call visitors.
@@ -170,35 +163,38 @@ class BaselineCompiler {
   Handle<SharedFunctionInfo> shared_function_info_;
   Handle<HeapObject> interpreter_data_;
   Handle<BytecodeArray> bytecode_;
+  Zone zone_;
   MacroAssembler masm_;
   BaselineAssembler basm_;
   interpreter::BytecodeArrayIterator iterator_;
   BytecodeOffsetTableBuilder bytecode_offset_table_builder_;
-  Zone zone_;
-
-  int max_call_args_ = 0;
 
   // Mark location as a jump target reachable via indirect branches, required
   // for CFI.
   enum class MarkAsIndirectJumpTarget { kNo, kYes };
 
-  struct BaselineLabelPointer : base::PointerWithPayload<Label, bool, 1> {
-    void MarkAsIndirectJumpTarget() { SetPayload(true); }
-    bool IsIndirectJumpTarget() const { return GetPayload(); }
-  };
-
-  Label* EnsureLabel(
-      int i, MarkAsIndirectJumpTarget mark = MarkAsIndirectJumpTarget::kNo) {
-    if (labels_[i].GetPointer() == nullptr) {
-      labels_[i].SetPointer(zone_.New<Label>());
+  Label* EnsureLabel(int offset, MarkAsIndirectJumpTarget mark =
+                                     MarkAsIndirectJumpTarget::kNo) {
+    Label* label = &labels_[offset];
+    if (!label_tags_.Contains(offset * 2)) {
+      label_tags_.Add(offset * 2);
+      new (label) Label();
     }
     if (mark == MarkAsIndirectJumpTarget::kYes) {
-      labels_[i].MarkAsIndirectJumpTarget();
+      MarkIndirectJumpTarget(offset);
     }
-    return labels_[i].GetPointer();
+    return label;
   }
+  bool IsJumpTarget(int offset) const {
+    return label_tags_.Contains(offset * 2);
+  }
+  bool IsIndirectJumpTarget(int offset) const {
+    return label_tags_.Contains(offset * 2 + 1);
+  }
+  void MarkIndirectJumpTarget(int offset) { label_tags_.Add(offset * 2 + 1); }
 
-  BaselineLabelPointer* labels_;
+  Label* labels_;
+  BitVector label_tags_;
 
 #ifdef DEBUG
   friend class SaveAccumulatorScope;
@@ -209,6 +205,8 @@ class BaselineCompiler {
     bool safe_to_skip = false;
 
     void MayDeopt() {
+      // If this check fails, you might need to update `BuiltinMayDeopt` if
+      // applicable.
       DCHECK(!accumulator_on_stack);
       may_have_deopted = true;
     }
@@ -240,7 +238,5 @@ class SaveAccumulatorScope final {
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8
-
-#endif  // ENABLE_SPARKPLUG
 
 #endif  // V8_BASELINE_BASELINE_COMPILER_H_

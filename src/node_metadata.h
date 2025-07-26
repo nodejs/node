@@ -27,6 +27,12 @@ namespace node {
 #define NODE_HAS_RELEASE_URLS
 #endif
 
+#if HAVE_AMARO && !defined(NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH)
+#define NODE_VERSIONS_KEY_AMARO(V) V(amaro)
+#else
+#define NODE_VERSIONS_KEY_AMARO(V)
+#endif
+
 #ifndef NODE_SHARED_BUILTIN_UNDICI_UNDICI_PATH
 #define NODE_VERSIONS_KEY_UNDICI(V) V(undici)
 #else
@@ -39,6 +45,7 @@ namespace node {
   V(uv)                                                                        \
   V(zlib)                                                                      \
   V(brotli)                                                                    \
+  V(zstd)                                                                      \
   V(ares)                                                                      \
   V(modules)                                                                   \
   V(nghttp2)                                                                   \
@@ -49,12 +56,13 @@ namespace node {
   V(simdjson)                                                                  \
   V(simdutf)                                                                   \
   V(ada)                                                                       \
+  V(nbytes)                                                                    \
+  NODE_VERSIONS_KEY_AMARO(V)                                                   \
   NODE_VERSIONS_KEY_UNDICI(V)                                                  \
-  V(cjs_module_lexer)                                                          \
-  V(base64)
+  V(cjs_module_lexer)
 
 #if HAVE_OPENSSL
-#define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl)
+#define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl) V(ncrypto)
 #else
 #define NODE_VERSIONS_KEY_CRYPTO(V)
 #endif
@@ -77,11 +85,18 @@ namespace node {
 #define NODE_VERSIONS_KEY_QUIC(V)
 #endif
 
+#if HAVE_SQLITE
+#define NODE_VERSIONS_KEY_SQLITE(V) V(sqlite)
+#else
+#define NODE_VERSIONS_KEY_SQLITE(V)
+#endif
+
 #define NODE_VERSIONS_KEYS(V)                                                  \
   NODE_VERSIONS_KEYS_BASE(V)                                                   \
   NODE_VERSIONS_KEY_CRYPTO(V)                                                  \
   NODE_VERSIONS_KEY_INTL(V)                                                    \
-  NODE_VERSIONS_KEY_QUIC(V)
+  NODE_VERSIONS_KEY_QUIC(V)                                                    \
+  NODE_VERSIONS_KEY_SQLITE(V)
 
 class Metadata {
  public:

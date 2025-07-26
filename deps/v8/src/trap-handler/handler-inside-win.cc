@@ -99,7 +99,6 @@ bool TryHandleWasmTrap(EXCEPTION_POINTERS* exception) {
   const EXCEPTION_RECORD* record = exception->ExceptionRecord;
 
   uintptr_t fault_addr = reinterpret_cast<uintptr_t>(record->ExceptionAddress);
-  uintptr_t landing_pad = 0;
 
 #ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
   // Only handle signals triggered by the load in {ProbeMemory}.
@@ -107,19 +106,29 @@ bool TryHandleWasmTrap(EXCEPTION_POINTERS* exception) {
 
   // The simulated ip will be in the second parameter register (%rdx).
   uintptr_t simulated_ip = exception->ContextRecord->Rdx;
-  if (!TryFindLandingPad(simulated_ip, &landing_pad)) return false;
-  TH_DCHECK(landing_pad != 0);
+  if (!IsFaultAddressCovered(simulated_ip)) return false;
 
-  exception->ContextRecord->Rax = landing_pad;
+  exception->ContextRecord->Rax = gLandingPad;
+  // The fault_address that is set in non-simulator builds here is set in the
+  // simulator directly.
   // Continue at the memory probing continuation.
   exception->ContextRecord->Rip =
       reinterpret_cast<uintptr_t>(&probe_memory_continuation);
 #else
-  if (!TryFindLandingPad(fault_addr, &landing_pad)) return false;
+  if (!IsFaultAddressCovered(fault_addr)) return false;
 
+  TH_DCHECK(gLandingPad != 0);
   // Tell the caller to return to the landing pad.
-  exception->ContextRecord->Rip = landing_pad;
-#endif
+#if V8_HOST_ARCH_X64
+  exception->ContextRecord->Rip = gLandingPad;
+  exception->ContextRecord->R10 = fault_addr;
+#elif V8_HOST_ARCH_ARM64
+  exception->ContextRecord->Pc = gLandingPad;
+  exception->ContextRecord->X16 = fault_addr;
+#else
+#error Unsupported architecture
+#endif  // V8_HOST_ARCH_X64
+#endif  // V8_TRAP_HANDLER_VIA_SIMULATOR
   // We will return to wasm code, so restore the g_thread_in_wasm_code flag.
   g_thread_in_wasm_code = true;
   return true;

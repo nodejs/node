@@ -12,8 +12,11 @@ javascript builtin FunctionPrototypeHasInstance(
   return OrdinaryHasInstance(context, receiver, value);
 }
 
-extern transitioning builtin FunctionPrototypeBind(
-    implicit context: Context)(JSFunction, JSAny, int32): JSAny;
+// These are technically all js-implicit parameters, but we don't currently
+// support supplying these in tail calls (where we have to supply them).
+extern transitioning javascript builtin FunctionPrototypeBind(
+    js-implicit context: Context)(JSFunction, JSAny, int32,
+    DispatchHandle): JSAny;
 
 const kLengthDescriptorIndex: constexpr int32
     generates 'JSFunctionOrBoundFunctionOrWrappedFunction::kLengthDescriptorIndex'
@@ -23,6 +26,8 @@ const kNameDescriptorIndex: constexpr int32
     ;
 const kMinDescriptorsForFastBindAndWrap: constexpr int31
     generates 'JSFunction::kMinDescriptorsForFastBindAndWrap';
+const kCodeMaxArguments:
+    constexpr intptr generates 'Code::kMaxArguments';
 
 macro CheckAccessor(
     implicit context: Context)(array: DescriptorArray, index: constexpr int32,
@@ -43,6 +48,8 @@ transitioning javascript builtin FastFunctionPrototypeBind(
   try {
     typeswitch (receiver) {
       case (fn: JSFunction|JSBoundFunction|JSWrappedFunction): {
+        if (argc >= kCodeMaxArguments) goto Slow;
+
         // Disallow binding of slow-mode functions. We need to figure out
         // whether the length and name property are in the original state.
         Comment('Disallow binding of slow-mode functions');
@@ -57,7 +64,8 @@ transitioning javascript builtin FastFunctionPrototypeBind(
           goto Slow;
         }
 
-        const descriptors: DescriptorArray = fn.map.instance_descriptors;
+        const descriptors: DescriptorArray =
+            UnsafeCast<DescriptorArray>(fn.map.instance_descriptors);
         CheckAccessor(
             descriptors, kLengthDescriptorIndex, LengthStringConstant())
             otherwise Slow;
@@ -69,10 +77,9 @@ transitioning javascript builtin FastFunctionPrototypeBind(
 
         const boundFunctionMap: Map =
             IsConstructor(fn) ?
+            *NativeContextSlot(ContextSlot::BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX) :
             *NativeContextSlot(
-                ContextSlot::BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX) :
-            *NativeContextSlot(ContextSlot::
-                                    BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX);
+                ContextSlot::BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX);
 
         // Verify that prototype matches that of the target bound function.
 
@@ -104,7 +111,8 @@ transitioning javascript builtin FastFunctionPrototypeBind(
     }
   } label Slow {
     tail FunctionPrototypeBind(
-        LoadTargetFromFrame(), newTarget, Convert<int32>(argc));
+        LoadTargetFromFrame(), newTarget, Convert<int32>(argc),
+        kInvalidDispatchHandle);
   }
 }
 }  // namespace function

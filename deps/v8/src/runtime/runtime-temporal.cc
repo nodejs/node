@@ -11,8 +11,8 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_IsInvalidTemporalCalendarField) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<String> s = args.at<String>(0);
-  Handle<FixedArray> f = args.at<FixedArray>(1);
+  DirectHandle<String> s = args.at<String>(0);
+  DirectHandle<FixedArray> f = args.at<FixedArray>(1);
   RETURN_RESULT_OR_FAILURE(
       isolate, temporal::IsInvalidTemporalCalendarField(isolate, s, f));
 }

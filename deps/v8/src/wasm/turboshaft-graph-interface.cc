@@ -4,18 +4,27 @@
 
 #include "src/wasm/turboshaft-graph-interface.h"
 
+#include <optional>
+
+#include "absl/container/btree_map.h"
+#include "include/v8-fast-api-calls.h"
+#include "src/base/logging.h"
+#include "src/builtins/builtins.h"
+#include "src/builtins/data-view-ops.h"
 #include "src/common/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/builtin-call-descriptors.h"
 #include "src/compiler/turboshaft/graph.h"
-#include "src/compiler/turboshaft/machine-lowering-reducer.h"
-#include "src/compiler/turboshaft/required-optimization-reducer.h"
-#include "src/compiler/turboshaft/select-lowering-reducer.h"
-#include "src/compiler/turboshaft/variable-reducer.h"
+#include "src/compiler/turboshaft/wasm-assembler-helpers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
+#include "src/objects/object-list-macros.h"
+#include "src/objects/torque-defined-classes.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
+#include "src/wasm/inlining-tree.h"
+#include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
@@ -27,83 +36,425 @@ namespace v8::internal::wasm {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
-using Assembler =
-    compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<
-        compiler::turboshaft::SelectLoweringReducer,
-        compiler::turboshaft::MachineLoweringReducer,
-        compiler::turboshaft::VariableReducer,
-        compiler::turboshaft::RequiredOptimizationReducer>>;
 using compiler::AccessBuilder;
 using compiler::CallDescriptor;
 using compiler::MemoryAccessKind;
 using compiler::Operator;
 using compiler::TrapId;
+using TSBlock = compiler::turboshaft::Block;
+using compiler::turboshaft::BuiltinCallDescriptor;
 using compiler::turboshaft::CallOp;
 using compiler::turboshaft::ConditionWithHint;
 using compiler::turboshaft::ConstantOp;
+using compiler::turboshaft::ConstOrV;
+using compiler::turboshaft::DidntThrowOp;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
-using compiler::turboshaft::FloatRepresentation;
+using compiler::turboshaft::FrameState;
 using compiler::turboshaft::Graph;
 using compiler::turboshaft::Label;
 using compiler::turboshaft::LoadOp;
 using compiler::turboshaft::LoopLabel;
 using compiler::turboshaft::MemoryRepresentation;
+using compiler::turboshaft::OpEffects;
 using compiler::turboshaft::Operation;
 using compiler::turboshaft::OperationMatcher;
 using compiler::turboshaft::OpIndex;
+using compiler::turboshaft::OptionalOpIndex;
+using compiler::turboshaft::OptionalV;
 using compiler::turboshaft::PendingLoopPhiOp;
 using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::Simd128ConstantOp;
-using compiler::turboshaft::StackCheckOp;
 using compiler::turboshaft::StoreOp;
+using compiler::turboshaft::StringOrNull;
 using compiler::turboshaft::SupportedOperations;
-using compiler::turboshaft::Tagged;
-using compiler::turboshaft::Variable;
-using compiler::turboshaft::WordRepresentation;
-using TSBlock = compiler::turboshaft::Block;
-using compiler::turboshaft::TSCallDescriptor;
-using compiler::turboshaft::Uninitialized;
+using compiler::turboshaft::Tuple;
 using compiler::turboshaft::V;
+using compiler::turboshaft::Variable;
+using compiler::turboshaft::WasmArrayNullable;
+using compiler::turboshaft::WasmStackCheckOp;
+using compiler::turboshaft::WasmStringRefNullable;
+using compiler::turboshaft::WasmStructNullable;
+using compiler::turboshaft::WasmTypeAnnotationOp;
+using compiler::turboshaft::WasmTypeCastOp;
 using compiler::turboshaft::Word32;
-using compiler::turboshaft::Word64;
 using compiler::turboshaft::WordPtr;
+using compiler::turboshaft::WordRepresentation;
 
-struct RootTypes {
-#define DEFINE_TYPE(type, name, CamelName) using k##CamelName##Type = type;
-  ROOT_LIST(DEFINE_TYPE)
-#undef DEFINE_TYPE
+namespace {
+
+ExternalArrayType GetExternalArrayType(DataViewOp op_type) {
+  switch (op_type) {
+#define V(Name)                \
+  case DataViewOp::kGet##Name: \
+  case DataViewOp::kSet##Name: \
+    return kExternal##Name##Array;
+    DATAVIEW_OP_LIST(V)
+#undef V
+    case DataViewOp::kByteLength:
+      UNREACHABLE();
+  }
+}
+
+size_t GetTypeSize(DataViewOp op_type) {
+  ExternalArrayType array_type = GetExternalArrayType(op_type);
+  switch (array_type) {
+#define ELEMENTS_KIND_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                                 \
+    return sizeof(ctype);
+
+    TYPED_ARRAYS(ELEMENTS_KIND_TO_ELEMENT_SIZE)
+#undef ELEMENTS_KIND_TO_ELEMENT_SIZE
+  }
+}
+
+bool ReverseBytesSupported(size_t size_in_bytes) {
+  switch (size_in_bytes) {
+    case 4:
+    case 16:
+      return true;
+    case 8:
+      return Is64();
+    default:
+      return false;
+  }
+}
+
+enum class BranchHintingMode {
+  kNone,
+  kModuleProvided,
+  kStress,
 };
 
-#define LOAD_INSTANCE_FIELD(name, representation)                     \
-  __ Load(instance_node_, LoadOp::Kind::TaggedBase(), representation, \
-          WasmInstanceObject::k##name##Offset)
-
-#define LOAD_IMMUTABLE_INSTANCE_FIELD(name, representation)       \
-  __ Load(instance_node_, LoadOp::Kind::TaggedBase().Immutable(), \
-          representation, WasmInstanceObject::k##name##Offset)
-
-#define LOAD_ROOT(name)                                          \
-  V<RootTypes::k##name##Type>::Cast(                             \
-      __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(), \
-              MemoryRepresentation::PointerSized(),              \
-              IsolateData::root_slot_offset(RootIndex::k##name)))
-
-#define LOAD_IMMUTABLE_ROOT(name)                                            \
-  V<RootTypes::k##name##Type>::Cast(                                         \
-      __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(), \
-              MemoryRepresentation::PointerSized(),                          \
-              IsolateData::root_slot_offset(RootIndex::k##name)))
-
-class TurboshaftGraphBuildingInterface {
+class BranchHintingStresser {
  public:
-  using ValidationTag = Decoder::FullValidationTag;
+  BranchHint GetNextHint() {
+    // To strike a balance between randomness and simplicity, we simply
+    // iterate over the bits of the random seed.
+    int bit = v8_flags.random_seed & (1 << cursor_);
+    static_assert(sizeof(v8_flags.random_seed) * kBitsPerByte == 32);
+    cursor_ = (cursor_ + 1) & 31;
+    return bit == 0 ? BranchHint::kFalse : BranchHint::kTrue;
+  }
+
+ private:
+  int cursor_{0};
+};
+
+}  // namespace
+
+// TODO(14108): Annotate runtime functions as not having side effects
+// where appropriate.
+OpIndex WasmGraphBuilderBase::CallRuntime(
+    Zone* zone, Runtime::FunctionId f,
+    std::initializer_list<const OpIndex> args, V<Context> context) {
+  const Runtime::Function* fun = Runtime::FunctionForId(f);
+  OpIndex isolate_root = __ LoadRootRegister();
+  DCHECK_EQ(1, fun->result_size);
+  int builtin_slot_offset =
+      IsolateData::BuiltinSlotOffset(Builtin::kWasmCEntry);
+  OpIndex centry_stub =
+      __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+              MemoryRepresentation::UintPtr(), builtin_slot_offset);
+  // CallRuntime is always called with 0 or 1 argument, so a vector of size 4
+  // always suffices.
+  SmallZoneVector<OpIndex, 4> centry_args(zone);
+  for (OpIndex arg : args) centry_args.emplace_back(arg);
+  centry_args.emplace_back(__ ExternalConstant(ExternalReference::Create(f)));
+  centry_args.emplace_back(__ Word32Constant(fun->nargs));
+  centry_args.emplace_back(context);
+  const CallDescriptor* call_descriptor =
+      compiler::Linkage::GetRuntimeCallDescriptor(
+          __ graph_zone(), f, fun->nargs, Operator::kNoProperties,
+          CallDescriptor::kNoFlags);
+  const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+      call_descriptor, compiler::CanThrow::kYes,
+      compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+  return __ Call(centry_stub, OpIndex::Invalid(), base::VectorOf(centry_args),
+                 ts_call_descriptor);
+}
+
+OpIndex WasmGraphBuilderBase::GetBuiltinPointerTarget(Builtin builtin) {
+  static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+  return __ SmiConstant(Smi::FromInt(static_cast<int>(builtin)));
+}
+
+V<WordPtr> WasmGraphBuilderBase::GetTargetForBuiltinCall(
+    Builtin builtin, StubCallMode stub_mode) {
+  return stub_mode == StubCallMode::kCallWasmRuntimeStub
+             ? __ RelocatableWasmBuiltinCallTarget(builtin)
+             : GetBuiltinPointerTarget(builtin);
+}
+
+V<BigInt> WasmGraphBuilderBase::BuildChangeInt64ToBigInt(
+    V<Word64> input, StubCallMode stub_mode) {
+  Builtin builtin = Is64() ? Builtin::kI64ToBigInt : Builtin::kI32PairToBigInt;
+  V<WordPtr> target = GetTargetForBuiltinCall(builtin, stub_mode);
+  CallInterfaceDescriptor interface_descriptor =
+      Builtins::CallInterfaceDescriptorFor(builtin);
+  const CallDescriptor* call_descriptor =
+      compiler::Linkage::GetStubCallDescriptor(
+          __ graph_zone(),  // zone
+          interface_descriptor,
+          0,                         // stack parameter count
+          CallDescriptor::kNoFlags,  // flags
+          Operator::kNoProperties,   // properties
+          stub_mode);
+  const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+      call_descriptor, compiler::CanThrow::kNo, compiler::LazyDeoptOnThrow::kNo,
+      __ graph_zone());
+  if constexpr (Is64()) {
+    return V<BigInt>::Cast(__ Call(target, {input}, ts_call_descriptor));
+  }
+  V<Word32> low_word = __ TruncateWord64ToWord32(input);
+  V<Word32> high_word = __ TruncateWord64ToWord32(__ ShiftRightLogical(
+      input, __ Word32Constant(32), WordRepresentation::Word64()));
+  return V<BigInt>::Cast(
+      __ Call(target, {low_word, high_word}, ts_call_descriptor));
+}
+
+std::pair<V<Word32>, V<HeapObject>>
+WasmGraphBuilderBase::BuildImportedFunctionTargetAndImplicitArg(
+    ConstOrV<Word32> func_index,
+    V<WasmTrustedInstanceData> trusted_instance_data) {
+  V<WasmDispatchTable> dispatch_table = LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+      trusted_instance_data, DispatchTableForImports, WasmDispatchTable);
+  // Handle constant indexes specially to reduce graph size, even though later
+  // optimization would optimize this to the same result.
+  if (func_index.is_constant()) {
+    int offset = WasmDispatchTable::OffsetOf(func_index.constant_value());
+    V<Word32> target = __ Load(dispatch_table, LoadOp::Kind::TaggedBase(),
+                               MemoryRepresentation::Uint32(),
+                               offset + WasmDispatchTable::kTargetBias);
+    V<ExposedTrustedObject> implicit_arg =
+        V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
+            dispatch_table, LoadOp::Kind::TaggedBase(),
+            offset + WasmDispatchTable::kImplicitArgBias));
+    return {target, implicit_arg};
+  }
+
+  V<WordPtr> dispatch_table_entry_offset =
+      __ WordPtrMul(__ ChangeUint32ToUintPtr(func_index.value()),
+                    WasmDispatchTable::kEntrySize);
+  V<Word32> target = __ Load(
+      dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
+      MemoryRepresentation::Uint32(),
+      WasmDispatchTable::kEntriesOffset + WasmDispatchTable::kTargetBias);
+  V<ExposedTrustedObject> implicit_arg = V<ExposedTrustedObject>::Cast(
+      __ LoadProtectedPointerField(dispatch_table, dispatch_table_entry_offset,
+                                   LoadOp::Kind::TaggedBase(),
+                                   WasmDispatchTable::kEntriesOffset +
+                                       WasmDispatchTable::kImplicitArgBias,
+                                   0));
+  return {target, implicit_arg};
+}
+
+std::pair<V<Word32>, V<ExposedTrustedObject>>
+WasmGraphBuilderBase::BuildFunctionTargetAndImplicitArg(
+    V<WasmInternalFunction> internal_function) {
+  V<ExposedTrustedObject> implicit_arg =
+      V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
+          internal_function, LoadOp::Kind::TaggedBase().Immutable(),
+          WasmInternalFunction::kProtectedImplicitArgOffset));
+
+  V<Word32> target = __ Load(internal_function, LoadOp::Kind::TaggedBase(),
+                             MemoryRepresentation::Uint32(),
+                             WasmInternalFunction::kRawCallTargetOffset);
+
+  return {target, implicit_arg};
+}
+
+RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(
+    ValueTypeBase type) {
+  switch (type.kind()) {
+    case kI8:
+    case kI16:
+    case kI32:
+      return RegisterRepresentation::Word32();
+    case kI64:
+      return RegisterRepresentation::Word64();
+    case kF16:
+    case kF32:
+      return RegisterRepresentation::Float32();
+    case kF64:
+      return RegisterRepresentation::Float64();
+    case kRefNull:
+    case kRef:
+      return RegisterRepresentation::Tagged();
+    case kS128:
+      return RegisterRepresentation::Simd128();
+    case kVoid:
+    case kTop:
+    case kBottom:
+      UNREACHABLE();
+  }
+}
+
+void WasmGraphBuilderBase::BuildModifyThreadInWasmFlagHelper(
+    Zone* zone, OpIndex thread_in_wasm_flag_address, bool new_value) {
+  if (v8_flags.debug_code) {
+    V<Word32> flag_value =
+        __ Load(thread_in_wasm_flag_address, LoadOp::Kind::RawAligned(),
+                MemoryRepresentation::Int32(), 0);
+
+    IF (UNLIKELY(__ Word32Equal(flag_value, new_value))) {
+      OpIndex message_id = __ TaggedIndexConstant(static_cast<int32_t>(
+          new_value ? AbortReason::kUnexpectedThreadInWasmSet
+                    : AbortReason::kUnexpectedThreadInWasmUnset));
+      CallRuntime(zone, Runtime::kAbort, {message_id}, __ NoContextConstant());
+      __ Unreachable();
+    }
+  }
+
+  __ Store(thread_in_wasm_flag_address, __ Word32Constant(new_value),
+           LoadOp::Kind::RawAligned(), MemoryRepresentation::Int32(),
+           compiler::kNoWriteBarrier);
+}
+
+void WasmGraphBuilderBase::BuildModifyThreadInWasmFlag(Zone* zone,
+                                                       bool new_value) {
+  if (!trap_handler::IsTrapHandlerEnabled()) return;
+
+  OpIndex isolate_root = __ LoadRootRegister();
+  OpIndex thread_in_wasm_flag_address =
+      __ Load(isolate_root, LoadOp::Kind::RawAligned().Immutable(),
+              MemoryRepresentation::UintPtr(),
+              Isolate::thread_in_wasm_flag_address_offset());
+  BuildModifyThreadInWasmFlagHelper(zone, thread_in_wasm_flag_address,
+                                    new_value);
+}
+
+// TODO(14108): Annotate C functions as not having side effects where
+// appropriate.
+OpIndex WasmGraphBuilderBase::CallC(const MachineSignature* sig,
+                                    ExternalReference ref,
+                                    std::initializer_list<OpIndex> args) {
+  return WasmGraphBuilderBase::CallC(sig, __ ExternalConstant(ref), args);
+}
+
+OpIndex WasmGraphBuilderBase::CallC(const MachineSignature* sig,
+                                    OpIndex function,
+                                    std::initializer_list<OpIndex> args) {
+  DCHECK_LE(sig->return_count(), 1);
+  DCHECK_EQ(sig->parameter_count(), args.size());
+  const CallDescriptor* call_descriptor =
+      compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), sig);
+  const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+      call_descriptor, compiler::CanThrow::kNo, compiler::LazyDeoptOnThrow::kNo,
+      __ graph_zone());
+  return __ Call(function, OpIndex::Invalid(), base::VectorOf(args),
+                 ts_call_descriptor);
+}
+
+void WasmGraphBuilderBase::BuildSetNewStackLimit(V<WordPtr> old_limit,
+                                                 V<WordPtr> new_limit) {
+  // Set the new interrupt limit and real limit. Use a compare-and-swap for
+  // the interrupt limit to avoid overwriting a pending interrupt.
+  __ AtomicCompareExchange(
+      __ IsolateField(IsolateFieldId::kJsLimitAddress), __ UintPtrConstant(0),
+      old_limit, new_limit, RegisterRepresentation::WordPtr(),
+      MemoryRepresentation::UintPtr(), compiler::MemoryAccessKind::kNormal);
+  __ Store(__ LoadRootRegister(), new_limit, StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+           IsolateData::real_jslimit_offset());
+}
+
+V<WordPtr> WasmGraphBuilderBase::BuildSwitchToTheCentralStack(
+    V<WordPtr> old_limit) {
+  // Set the is_on_central_stack flag.
+  OpIndex isolate_root = __ LoadRootRegister();
+  __ Store(isolate_root, __ Word32Constant(1), LoadOp::Kind::RawAligned(),
+           MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
+           IsolateData::is_on_central_stack_flag_offset());
+
+  // Save the old fp and the target sp in the StackMemory's stack switch info.
+  // We are not on the main stack, so the active stack must be set.
+  V<WordPtr> active_stack = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                    MemoryRepresentation::UintPtr(),
+                                    IsolateData::active_stack_offset());
+  __ Store(active_stack, __ FramePointer(), StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+           StackMemory::stack_switch_source_fp_offset());
+  V<WordPtr> central_stack_sp = __ Load(
+      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+      Isolate::central_stack_sp_offset());
+  __ Store(active_stack, central_stack_sp, StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+           StackMemory::stack_switch_target_sp_offset());
+
+  // Switch the stack limit and the stack pointer.
+  V<WordPtr> central_stack_limit = __ Load(
+      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+      Isolate::central_stack_limit_offset());
+  BuildSetNewStackLimit(old_limit, central_stack_limit);
+  OpIndex old_sp = __ LoadStackPointer();
+  __ SetStackPointer(central_stack_sp);
+  return old_sp;
+}
+
+// Returns the old (secondary stack's) sp and stack limit.
+std::pair<V<WordPtr>, V<WordPtr>>
+WasmGraphBuilderBase::BuildSwitchToTheCentralStackIfNeeded() {
+  V<WordPtr> isolate_root = __ LoadRootRegister();
+  V<Word32> is_on_central_stack_flag = __ Load(
+      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+      IsolateData::is_on_central_stack_flag_offset());
+  ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
+  ScopedVar<WordPtr> old_limit_var(this, __ IntPtrConstant(0));
+  IF_NOT (LIKELY(is_on_central_stack_flag)) {
+    V<WordPtr> old_limit = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                   MemoryRepresentation::UintPtr(),
+                                   IsolateData::real_jslimit_offset());
+    V<WordPtr> old_sp = BuildSwitchToTheCentralStack(old_limit);
+    old_sp_var = old_sp;
+    old_limit_var = old_limit;
+  }
+  return {old_sp_var, old_limit_var};
+}
+
+void WasmGraphBuilderBase::BuildSwitchBackFromCentralStack(
+    V<WordPtr> old_sp, V<WordPtr> old_limit) {
+  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
+    // Reset is_on_central_stack flag.
+    V<WordPtr> isolate_root = __ LoadRootRegister();
+    __ Store(isolate_root, __ Word32Constant(0), StoreOp::Kind::RawAligned(),
+             MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
+             IsolateData::is_on_central_stack_flag_offset());
+
+    // Clear stack switch info.
+    // We are not on the main stack, so the active stack must be set.
+    V<WordPtr> active_stack = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                      MemoryRepresentation::UintPtr(),
+                                      IsolateData::active_stack_offset());
+    __ Store(active_stack, __ UintPtrConstant(0), StoreOp::Kind::RawAligned(),
+             MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+             StackMemory::stack_switch_source_fp_offset());
+
+    // Restore the old stack limit and stack pointer.
+    V<WordPtr> real_jslimit = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                      MemoryRepresentation::UintPtr(),
+                                      IsolateData::real_jslimit_offset());
+    BuildSetNewStackLimit(real_jslimit, old_limit);
+    __ SetStackPointer(old_sp);
+  }
+}
+
+class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
+ private:
+  class BlockPhis;
+  class InstanceCache;
+
+ public:
+  enum Mode {
+    kRegular,
+    kInlinedUnhandled,
+    kInlinedWithCatch,
+    kInlinedTailCall
+  };
+  using ValidationTag = Decoder::NoValidationTag;
   using FullDecoder =
       WasmFullDecoder<ValidationTag, TurboshaftGraphBuildingInterface>;
   static constexpr bool kUsesPoppedArgs = true;
-  static constexpr MemoryRepresentation kMaybeSandboxedPointer =
-      V8_ENABLE_SANDBOX_BOOL ? MemoryRepresentation::SandboxedPointer()
-                             : MemoryRepresentation::PointerSized();
 
   struct Value : public ValueBase<ValidationTag> {
     OpIndex op = OpIndex::Invalid();
@@ -114,45 +465,107 @@ class TurboshaftGraphBuildingInterface {
 
   struct Control : public ControlBase<Value, ValidationTag> {
     TSBlock* merge_block = nullptr;
-    // for 'if', loops, and 'try' respectively.
+    // for 'if', loops, and 'try'/'try-table' respectively.
     TSBlock* false_or_loop_or_catch_block = nullptr;
-    V<Tagged> exception = OpIndex::Invalid();  // Only for 'try-catch'.
+    BitVector* assigned = nullptr;             // Only for loops.
+    V<Object> exception = OpIndex::Invalid();  // Only for 'try-catch'.
 
     template <typename... Args>
     explicit Control(Args&&... args) V8_NOEXCEPT
         : ControlBase(std::forward<Args>(args)...) {}
   };
 
-  TurboshaftGraphBuildingInterface(Graph& graph, Zone* zone,
-                                   compiler::NodeOriginTable* node_origins,
-                                   AssumptionsJournal* assumptions,
-                                   int func_index)
-      : asm_(graph, graph, zone, node_origins),
+ public:
+  // For non-inlined functions.
+  TurboshaftGraphBuildingInterface(
+      Zone* zone, CompilationEnv* env, Assembler& assembler,
+      std::unique_ptr<AssumptionsJournal>* assumptions,
+      ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
+      bool shared, const WireBytesStorage* wire_bytes)
+      : WasmGraphBuilderBase(zone, assembler),
+        mode_(kRegular),
+        block_phis_(zone),
+        env_(env),
+        owned_instance_cache_(std::make_unique<InstanceCache>(assembler)),
+        instance_cache_(*owned_instance_cache_.get()),
         assumptions_(assumptions),
-        func_index_(func_index) {}
+        inlining_positions_(inlining_positions),
+        ssa_env_(zone),
+        func_index_(func_index),
+        shared_(shared),
+        wire_bytes_(wire_bytes),
+        return_phis_(nullptr),
+        is_inlined_tail_call_(false) {
+    DCHECK_NOT_NULL(env_);
+    DCHECK_NOT_NULL(env_->module);
+  }
+
+  // For inlined functions.
+  TurboshaftGraphBuildingInterface(
+      Zone* zone, CompilationEnv* env, Assembler& assembler, Mode mode,
+      InstanceCache& instance_cache,
+      std::unique_ptr<AssumptionsJournal>* assumptions,
+      ZoneVector<WasmInliningPosition>* inlining_positions, int func_index,
+      bool shared, const WireBytesStorage* wire_bytes,
+      base::Vector<OpIndex> real_parameters, TSBlock* return_block,
+      BlockPhis* return_phis, TSBlock* catch_block, bool is_inlined_tail_call,
+      OptionalV<FrameState> parent_frame_state)
+      : WasmGraphBuilderBase(zone, assembler),
+        mode_(mode),
+        block_phis_(zone),
+        env_(env),
+        instance_cache_(instance_cache),
+        assumptions_(assumptions),
+        inlining_positions_(inlining_positions),
+        ssa_env_(zone),
+        func_index_(func_index),
+        shared_(shared),
+        wire_bytes_(wire_bytes),
+        real_parameters_(real_parameters),
+        return_block_(return_block),
+        return_phis_(return_phis),
+        return_catch_block_(catch_block),
+        is_inlined_tail_call_(is_inlined_tail_call),
+        parent_frame_state_(parent_frame_state) {
+    DCHECK_NE(mode_, kRegular);
+    DCHECK_EQ(return_block == nullptr, mode == kInlinedTailCall);
+    DCHECK_EQ(catch_block != nullptr, mode == kInlinedWithCatch);
+  }
 
   void StartFunction(FullDecoder* decoder) {
-    TSBlock* block = __ NewBlock();
-    __ Bind(block);
+    if (mode_ == kRegular) __ Bind(__ NewBlock());
     // Set 0 as the current source position (before locals declarations).
-    __ SetCurrentOrigin(WasmPositionToOpIndex(0));
-    static_assert(kWasmInstanceParameterIndex == 0);
-    instance_node_ = __ WasmInstanceParameter();
+    __ SetCurrentOrigin(WasmPositionToOpIndex(0, inlining_id_));
     ssa_env_.resize(decoder->num_locals());
     uint32_t index = 0;
-    for (; index < decoder->sig_->parameter_count(); index++) {
-      // Parameter indices are shifted by 1 because parameter 0 is the instance.
-      ssa_env_[index] = __ Parameter(
-          index + 1, RepresentationFor(decoder->sig_->GetParam(index)));
+    V<WasmTrustedInstanceData> trusted_instance_data;
+    if (mode_ == kRegular) {
+      static_assert(kWasmInstanceDataParameterIndex == 0);
+      trusted_instance_data = __ WasmInstanceDataParameter();
+      for (; index < decoder->sig_->parameter_count(); index++) {
+        // Parameter indices are shifted by 1 because parameter 0 is the
+        // instance.
+        ssa_env_[index] = __ Parameter(
+            index + 1, RepresentationFor(decoder->sig_->GetParam(index)));
+      }
+      instance_cache_.Initialize(trusted_instance_data, decoder->module_);
+    } else {
+      trusted_instance_data = real_parameters_[0];
+      for (; index < decoder->sig_->parameter_count(); index++) {
+        // Parameter indices are shifted by 1 because parameter 0 is the
+        // instance.
+        ssa_env_[index] = real_parameters_[index + 1];
+      }
+      if (!is_inlined_tail_call_) {
+        return_phis_->InitReturnPhis(decoder->sig_->returns());
+      }
     }
     while (index < decoder->num_locals()) {
       ValueType type = decoder->local_type(index);
       OpIndex op;
       if (!type.is_defaultable()) {
         DCHECK(type.is_reference());
-        // TODO(jkummerow): Consider using "the hole" instead, to make any
-        // illegal uses more obvious.
-        op = __ Null(type.AsNullable());
+        op = __ RootConstant(RootIndex::kOptimizedOut);
       } else {
         op = DefaultValue(type);
       }
@@ -162,33 +575,112 @@ class TurboshaftGraphBuildingInterface {
       }
     }
 
-    StackCheck(StackCheckOp::CheckKind::kFunctionHeaderCheck);
+    if (v8_flags.wasm_inlining) {
+      if (mode_ == kRegular) {
+        if (v8_flags.liftoff) {
+          inlining_decisions_ = InliningTree::CreateRoot(
+              decoder->zone_, decoder->module_, func_index_);
+        } else {
+          set_no_liftoff_inlining_budget(
+              InliningTree::NoLiftoffBudget(decoder->module_, func_index_));
+        }
+      } else {
+#if DEBUG
+        // We don't have support for inlining asm.js functions, those should
+        // never be selected in `InliningTree`.
+        DCHECK(!wasm::is_asmjs_module(decoder->module_));
+
+        if (v8_flags.liftoff && inlining_decisions_) {
+          // DCHECK that `inlining_decisions_` is consistent.
+          DCHECK(inlining_decisions_->is_inlined());
+          DCHECK_EQ(inlining_decisions_->function_index(), func_index_);
+          base::MutexGuard mutex_guard(&decoder->module_->type_feedback.mutex);
+          if (inlining_decisions_->feedback_found()) {
+            DCHECK_NE(
+                decoder->module_->type_feedback.feedback_for_function.find(
+                    func_index_),
+                decoder->module_->type_feedback.feedback_for_function.end());
+            DCHECK_EQ(inlining_decisions_->function_calls().size(),
+                      decoder->module_->type_feedback.feedback_for_function
+                          .find(func_index_)
+                          ->second.feedback_vector.size());
+            DCHECK_EQ(inlining_decisions_->function_calls().size(),
+                      decoder->module_->type_feedback.feedback_for_function
+                          .find(func_index_)
+                          ->second.call_targets.size());
+          }
+        }
+#endif
+      }
+    }
+
+    if (v8_flags.debug_code) {
+      IF_NOT (LIKELY(__ HasInstanceType(trusted_instance_data,
+                                        WASM_TRUSTED_INSTANCE_DATA_TYPE))) {
+        OpIndex message_id = __ TaggedIndexConstant(
+            static_cast<int32_t>(AbortReason::kUnexpectedInstanceType));
+        CallRuntime(decoder->zone(), Runtime::kAbort, {message_id},
+                    __ NoContextConstant());
+        __ Unreachable();
+      }
+    }
+
+    if (mode_ == kRegular) {
+      StackCheck(WasmStackCheckOp::Kind::kFunctionEntry, decoder);
+    }
 
     if (v8_flags.trace_wasm) {
-      __ SetCurrentOrigin(WasmPositionToOpIndex(decoder->position()));
-      CallRuntime(Runtime::kWasmTraceEnter, {});
+      __ SetCurrentOrigin(
+          WasmPositionToOpIndex(decoder->position(), inlining_id_));
+      CallRuntime(decoder->zone(), Runtime::kWasmTraceEnter, {},
+                  __ NoContextConstant());
     }
 
     auto branch_hints_it = decoder->module_->branch_hints.find(func_index_);
-    if (branch_hints_it != decoder->module_->branch_hints.end()) {
+    if (v8_flags.stress_branch_hinting) {
+      // Stress mode takes precedence over a branch hints section.
+      branch_hinting_mode_ = BranchHintingMode::kStress;
+    } else if (branch_hints_it != decoder->module_->branch_hints.end()) {
       branch_hints_ = &branch_hints_it->second;
+      branch_hinting_mode_ = BranchHintingMode::kModuleProvided;
+    } else {
+      branch_hinting_mode_ = BranchHintingMode::kNone;
     }
   }
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
   void FinishFunction(FullDecoder* decoder) {
-    for (OpIndex index : __ output_graph().AllOperationIndices()) {
-      WasmCodePosition position =
-          OpIndexToWasmPosition(__ output_graph().operation_origins()[index]);
-      __ output_graph().source_positions()[index] = SourcePosition(position);
+    if (v8_flags.liftoff && inlining_decisions_ &&
+        inlining_decisions_->feedback_found()) {
+      DCHECK_EQ(
+          feedback_slot_,
+          static_cast<int>(inlining_decisions_->function_calls().size()) - 1);
+    }
+    if (mode_ == kRegular) {
+      // Just accessing `source_positions` at the maximum `OpIndex` already
+      // pre-allocates the underlying storage such that we avoid repeatedly
+      // resizing/copying in the following loop.
+      __ output_graph().source_positions()[__ output_graph().EndIndex()];
+
+      for (OpIndex index : __ output_graph().AllOperationIndices()) {
+        SourcePosition position = OpIndexToSourcePosition(
+            __ output_graph().operation_origins()[index]);
+        __ output_graph().source_positions()[index] = position;
+      }
+      if (v8_flags.trace_wasm_inlining) {
+        uint32_t node_count =
+            __ output_graph().NumberOfOperationsForDebugging();
+        PrintF("[function %d: emitted %d nodes]\n", func_index_, node_count);
+      }
     }
   }
 
   void OnFirstError(FullDecoder*) {}
 
   void NextInstruction(FullDecoder* decoder, WasmOpcode) {
-    __ SetCurrentOrigin(WasmPositionToOpIndex(decoder->position()));
+    __ SetCurrentOrigin(
+        WasmPositionToOpIndex(decoder->position(), inlining_id_));
   }
 
   // ******** Control Flow ********
@@ -196,10 +688,10 @@ class TurboshaftGraphBuildingInterface {
   // from blocks to phi inputs corresponding to the SSA values plus the stack
   // merge values at the beginning of the block.
   // - When we create a new block (to be bound in the future), we register it to
-  //   {block_phis_} with {NewBlock}.
+  //   {block_phis_} with {NewBlockWithPhis}.
   // - When we encounter an jump to a block, we invoke {SetupControlFlowEdge}.
   // - Finally, when we bind a block, we setup its phis, the SSA environment,
-  //   and its merge values, with {EnterBlock}.
+  //   and its merge values, with {BindBlockAndGeneratePhis}.
   // - When we create a loop, we generate PendingLoopPhis for the SSA state and
   //   the incoming stack values. We also create a block which will act as a
   //   merge block for all loop backedges (since a loop in Turboshaft can only
@@ -215,7 +707,15 @@ class TurboshaftGraphBuildingInterface {
     TSBlock* loop = __ NewLoopHeader();
     __ Goto(loop);
     __ Bind(loop);
+
+    bool can_be_innermost = false;  // unused
+    BitVector* assigned = WasmDecoder<ValidationTag>::AnalyzeLoopAssignment(
+        decoder, decoder->pc(), decoder->num_locals(), decoder->zone(),
+        &can_be_innermost);
+    block->assigned = assigned;
+
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
+      if (!assigned->Contains(i)) continue;
       OpIndex phi = __ PendingLoopPhi(
           ssa_env_[i], RepresentationFor(decoder->local_type(i)));
       ssa_env_[i] = phi;
@@ -228,7 +728,7 @@ class TurboshaftGraphBuildingInterface {
       block->start_merge[i].op = phi;
     }
 
-    StackCheck(StackCheckOp::CheckKind::kLoopCheck);
+    StackCheck(WasmStackCheckOp::Kind::kLoop, decoder);
 
     TSBlock* loop_merge = NewBlockWithPhis(decoder, &block->start_merge);
     block->merge_block = loop_merge;
@@ -255,7 +755,7 @@ class TurboshaftGraphBuildingInterface {
                              nullptr);
   }
 
-  void BrOrRet(FullDecoder* decoder, uint32_t depth, uint32_t drop_values) {
+  void BrOrRet(FullDecoder* decoder, uint32_t depth, uint32_t drop_values = 0) {
     if (depth == decoder->control_depth() - 1) {
       DoReturn(decoder, drop_values);
     } else {
@@ -266,13 +766,11 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
-    // TODO(14108): Branch hints.
     BranchHint hint = GetBranchHint(decoder);
     if (depth == decoder->control_depth() - 1) {
       IF ({cond.op, hint}) {
         DoReturn(decoder, 0);
       }
-      END_IF
     } else {
       Control* target = decoder->control_at(depth);
       SetupControlFlowEdge(decoder, target->merge_block);
@@ -282,15 +780,146 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
+  // An analysis to determine whether a br_table should be lowered to a switch
+  // or a series of compare and branch. This can be for small tables or larger
+  // 'sparse' ones, which include many cases but few targets. A sparse table may
+  // look like this: br_table [ 1, 0, 0, 0, 0, 0, 2, 0 ] which can be lowered to
+  // two conditional branches followed by an unconditional one. The advantages
+  // of this are reducing the space required for the table and reducing the
+  // latency.
+  template <typename ValidationTag>
+  class BrTableAnalysis {
+   public:
+    static constexpr int32_t kMaxComparesPerTarget = 2;
+    static constexpr uint32_t kMaxTargets = 3;
+    static constexpr int32_t kMaxTableCount = 20;
+    using CaseVector = base::SmallVector<uint8_t, 8>;
+    using TargetMap = absl::btree_map<uint32_t, CaseVector>;
+
+    bool LowerToBranches(Decoder* decoder, const BranchTableImmediate& imm) {
+      BranchTableIterator<ValidationTag> iterator(decoder, imm);
+      while (iterator.has_next()) {
+        uint32_t i = iterator.cur_index();
+        uint32_t target = iterator.next();
+
+        if (i == imm.table_count) {
+          AddDefault(target);
+        } else if (!TryAddTarget(target, i)) {
+          return false;
+        }
+      }
+      primary_indices_ = other_targets_[primary_target()];
+      other_targets_.erase(primary_target());
+      size_t total_targets = other_targets_.size() + 1;
+      if (default_target() != primary_target() &&
+          !other_targets_.count(default_target())) {
+        total_targets++;
+      }
+      return total_targets <= kMaxTargets;
+    }
+    // The most often occurring target, or the default if there is no other
+    // target with multiple cases.
+    uint32_t primary_target() const { return primary_target_.value(); }
+    // The default target, for when the br_table index is out-of-range.
+    uint32_t default_target() const { return default_target_.value(); }
+    // other_targets doesn't include the primary target, nor the default if it
+    // isn't an in-range target.
+    const TargetMap& other_targets() const { return other_targets_; }
+    // All the indices which target the primary target.
+    const CaseVector& primary_indices() const { return primary_indices_; }
+
+   private:
+    bool TryAddTarget(uint32_t target, uint32_t index) {
+      DCHECK_LT(index, kMaxTableCount);
+      CaseVector& cases = other_targets_[target];
+      if (other_targets_.size() > kMaxTargets) {
+        return false;
+      }
+      if (cases.size() == kMaxComparesPerTarget) {
+        if (primary_target_.has_value() && target != primary_target()) {
+          return false;
+        }
+        primary_target_ = target;
+      }
+      cases.push_back(index);
+      return true;
+    }
+    void AddDefault(uint32_t target) {
+      default_target_ = target;
+      if (!primary_target_.has_value()) {
+        primary_target_ = default_target();
+      }
+    }
+
+    std::optional<uint32_t> default_target_;
+    std::optional<uint32_t> primary_target_;
+    CaseVector primary_indices_;
+    TargetMap other_targets_;
+  };
+
   void BrTable(FullDecoder* decoder, const BranchTableImmediate& imm,
                const Value& key) {
+    if (imm.table_count < BrTableAnalysis<ValidationTag>::kMaxTableCount) {
+      BrTableAnalysis<ValidationTag> table_analysis;
+      if (table_analysis.LowerToBranches(decoder, imm)) {
+        auto generate_cond =
+            [this](const Value& key,
+                   const BrTableAnalysis<ValidationTag>::CaseVector& cases)
+            -> OpIndex {
+          switch (cases.size()) {
+            default:
+              static_assert(
+                  BrTableAnalysis<ValidationTag>::kMaxComparesPerTarget <= 2);
+              UNREACHABLE();
+            case 1:
+              return __ Word32Equal(key.op, __ Word32Constant(cases[0]));
+            case 2: {
+              return __ Word32BitwiseOr(__ Word32Equal(key.op, cases[0]),
+                                        __ Word32Equal(key.op, cases[1]));
+            }
+          }
+        };
+        auto insert_cond_branch = [this, &decoder](OpIndex cond,
+                                                   uint32_t depth) {
+          BranchHint hint = GetBranchHint(decoder);
+          if (depth == decoder->control_depth() - 1) {
+            IF ({cond, hint}) {
+              DoReturn(decoder, 0);
+            }
+          } else {
+            Control* target = decoder->control_at(depth);
+            SetupControlFlowEdge(decoder, target->merge_block);
+            TSBlock* non_branching = __ NewBlock();
+            __ Branch({cond, hint}, target->merge_block, non_branching);
+            __ Bind(non_branching);
+          }
+        };
+        // Insert conditional branches to the other targets.
+        for (auto const& [target, cases] : table_analysis.other_targets()) {
+          DCHECK_LE(cases.size(),
+                    BrTableAnalysis<ValidationTag>::kMaxComparesPerTarget);
+          insert_cond_branch(generate_cond(key, cases), target);
+        }
+        // If needed, insert the range check for the primary target.
+        if (table_analysis.primary_target() !=
+            table_analysis.default_target()) {
+          OpIndex lower = __ Word32Equal(__ Int32LessThan(key.op, 0), 0);
+          OpIndex upper =
+              __ Int32LessThan(key.op, __ Word32Constant(imm.table_count));
+          OpIndex cond = __ Word32BitwiseAnd(lower, upper);
+          insert_cond_branch(cond, table_analysis.primary_target());
+        }
+        // Always fallthrough and branch to the default case.
+        BrOrRet(decoder, table_analysis.default_target());
+        return;
+      }
+    }
     compiler::turboshaft::SwitchOp::Case* cases =
-        __ output_graph()
-            .graph_zone()
-            ->AllocateArray<compiler::turboshaft::SwitchOp::Case>(
-                imm.table_count);
+        __ output_graph().graph_zone()
+            -> AllocateArray<compiler::turboshaft::SwitchOp::Case>(
+                             imm.table_count);
     BranchTableIterator<ValidationTag> new_block_iterator(decoder, imm);
-    std::vector<TSBlock*> intermediate_blocks;
+    SmallZoneVector<TSBlock*, 16> intermediate_blocks(decoder->zone_);
     TSBlock* default_case = nullptr;
     while (new_block_iterator.has_next()) {
       TSBlock* intermediate = __ NewBlock();
@@ -312,7 +941,7 @@ class TurboshaftGraphBuildingInterface {
       TSBlock* intermediate = intermediate_blocks[i];
       i++;
       __ Bind(intermediate);
-      BrOrRet(decoder, branch_iterator.next(), 0);
+      BrOrRet(decoder, branch_iterator.next());
     }
   }
 
@@ -358,6 +987,11 @@ class TurboshaftGraphBuildingInterface {
         BindBlockAndGeneratePhis(decoder, block->merge_block,
                                  block->br_merge());
         break;
+      case kControlTryTable:
+        DCHECK_EQ(__ current_block(), nullptr);
+        BindBlockAndGeneratePhis(decoder, block->merge_block,
+                                 block->br_merge());
+        break;
       case kControlLoop: {
         TSBlock* post_loop = NewBlockWithPhis(decoder, nullptr);
         if (block->reachable()) {
@@ -373,17 +1007,14 @@ class TurboshaftGraphBuildingInterface {
           // phis.
           block->false_or_loop_or_catch_block->SetKind(
               compiler::turboshaft::Block::Kind::kMerge);
-          auto to = __ output_graph()
-                        .operations(*block->false_or_loop_or_catch_block)
-                        .begin();
-          for (uint32_t i = 0; i < ssa_env_.size() + block->br_merge()->arity;
-               ++i, ++to) {
-            // TODO(manoskouk): Add `->` operator to the iterator.
-            PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
-            OpIndex replaced = __ output_graph().Index(*to);
+          for (auto& op : __ output_graph().operations(
+                   *block->false_or_loop_or_catch_block)) {
+            PendingLoopPhiOp* pending_phi = op.TryCast<PendingLoopPhiOp>();
+            if (!pending_phi) break;
+            OpIndex replaced = __ output_graph().Index(op);
             __ output_graph().Replace<compiler::turboshaft::PhiOp>(
-                replaced, base::VectorOf({pending_phi.first()}),
-                pending_phi.rep);
+                replaced, base::VectorOf({pending_phi -> first()}),
+                pending_phi->rep);
           }
         } else {
           // We abuse the start merge of the loop, which is not used otherwise
@@ -392,18 +1023,27 @@ class TurboshaftGraphBuildingInterface {
           BindBlockAndGeneratePhis(decoder, block->merge_block,
                                    block->br_merge());
           __ Goto(block->false_or_loop_or_catch_block);
-          auto to = __ output_graph()
-                        .operations(*block->false_or_loop_or_catch_block)
-                        .begin();
-          for (uint32_t i = 0; i < ssa_env_.size(); ++i, ++to) {
-            PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
+          auto operations = __ output_graph().operations(
+              *block -> false_or_loop_or_catch_block);
+          auto to = operations.begin();
+          // The VariableReducer can introduce loop phis as well which are at
+          // the beginning of the block. We need to skip them.
+          while (to != operations.end() &&
+                 to->Is<compiler::turboshaft::PhiOp>()) {
+            ++to;
+          }
+          for (auto it = block->assigned->begin(); it != block->assigned->end();
+               ++it, ++to) {
+            // The last bit represents the instance cache.
+            if (*it == static_cast<int>(ssa_env_.size())) break;
+            PendingLoopPhiOp& pending_phi = to->Cast<PendingLoopPhiOp>();
             OpIndex replaced = __ output_graph().Index(*to);
             __ output_graph().Replace<compiler::turboshaft::PhiOp>(
-                replaced, base::VectorOf({pending_phi.first(), ssa_env_[i]}),
+                replaced, base::VectorOf({pending_phi.first(), ssa_env_[*it]}),
                 pending_phi.rep);
           }
           for (uint32_t i = 0; i < block->br_merge()->arity; ++i, ++to) {
-            PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
+            PendingLoopPhiOp& pending_phi = to->Cast<PendingLoopPhiOp>();
             OpIndex replaced = __ output_graph().Index(*to);
             __ output_graph().Replace<compiler::turboshaft::PhiOp>(
                 replaced,
@@ -420,7 +1060,7 @@ class TurboshaftGraphBuildingInterface {
 
   void DoReturn(FullDecoder* decoder, uint32_t drop_values) {
     size_t return_count = decoder->sig_->return_count();
-    base::SmallVector<OpIndex, 8> return_values(return_count);
+    SmallZoneVector<OpIndex, 16> return_values(return_count, decoder->zone_);
     Value* stack_base = return_count == 0
                             ? nullptr
                             : decoder->stack_value(static_cast<uint32_t>(
@@ -441,9 +1081,20 @@ class TurboshaftGraphBuildingInterface {
             MemoryRepresentation::FromMachineType(return_type.machine_type()),
             compiler::kNoWriteBarrier);
       }
-      CallRuntime(Runtime::kWasmTraceExit, {info});
+      CallRuntime(decoder->zone(), Runtime::kWasmTraceExit, {info},
+                  __ NoContextConstant());
     }
-    __ Return(__ Word32Constant(0), base::VectorOf(return_values));
+    if (mode_ == kRegular || mode_ == kInlinedTailCall) {
+      __ Return(__ Word32Constant(0), base::VectorOf(return_values),
+                v8_flags.experimental_wasm_growable_stacks);
+    } else {
+      // Do not add return values if we are in unreachable code.
+      if (__ generating_unreachable_operations()) return;
+      for (size_t i = 0; i < return_count; i++) {
+        return_phis_->AddInputForPhi(i, return_values[i]);
+      }
+      __ Goto(return_block_);
+    }
   }
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
@@ -486,24 +1137,10 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    V<FixedArray> functions = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        WasmInternalFunctions, MemoryRepresentation::TaggedPointer());
-    V<Tagged> maybe_function = LoadFixedArrayElement(functions, function_index);
-
-    Label<WasmInternalFunction> done(&asm_);
-    IF (UNLIKELY(__ IsSmi(maybe_function))) {
-      V<Word32> function_index_constant = __ Word32Constant(function_index);
-      V<WasmInternalFunction> from_builtin = CallBuiltinThroughJumptable(
-          decoder, Builtin::kWasmRefFunc, {function_index_constant});
-      GOTO(done, from_builtin);
-    }
-    ELSE {
-      GOTO(done, V<WasmInternalFunction>::Cast(maybe_function));
-    }
-    END_IF
-    BIND(done, result_value);
-
-    result->op = result_value;
+    ModuleTypeIndex sig_index =
+        decoder->module_->functions[function_index].sig_index;
+    bool shared = decoder->module_->type(sig_index).is_shared;
+    result->op = __ WasmRefFunc(trusted_instance_data(shared), function_index);
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
@@ -530,24 +1167,24 @@ class TurboshaftGraphBuildingInterface {
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate& imm) {
-    result->op = __ GlobalGet(instance_node_, imm.global);
+    bool shared = decoder->module_->globals[imm.index].shared;
+    result->op = __ GlobalGet(trusted_instance_data(shared), imm.global);
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate& imm) {
-    __ GlobalSet(instance_node_, value.op, imm.global);
+    bool shared = decoder->module_->globals[imm.index].shared;
+    __ GlobalSet(trusted_instance_data(shared), value.op, imm.global);
   }
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
-    __ TrapIfNot(__ Word32Constant(0), OpIndex::Invalid(),
-                 GetTrapIdForTrap(reason));
+    __ TrapIfNot(__ Word32Constant(0), GetTrapIdForTrap(reason));
     __ Unreachable();
   }
 
   void AssertNullTypecheck(FullDecoder* decoder, const Value& obj,
                            Value* result) {
-    __ TrapIfNot(__ IsNull(obj.op, obj.type), OpIndex::Invalid(),
-                 TrapId::kTrapIllegalCast);
+    __ TrapIfNot(__ IsNull(obj.op, obj.type), TrapId::kTrapIllegalCast);
     Forward(decoder, obj, result);
   }
 
@@ -558,7 +1195,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {
-    Bailout(decoder);
+    // This is just for testing bailouts in Liftoff, here it's just a nop.
   }
 
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
@@ -584,8 +1221,9 @@ class TurboshaftGraphBuildingInterface {
         break;
       case kI8:
       case kI16:
-      case kRtt:
+      case kF16:
       case kVoid:
+      case kTop:
       case kBottom:
         UNREACHABLE();
     }
@@ -595,53 +1233,301 @@ class TurboshaftGraphBuildingInterface {
         use_select ? Implementation::kCMove : Implementation::kBranch);
   }
 
-  // TODO(14108): Cache memories' starts and sizes. Consider VariableReducer,
-  // LoadElimination, or manual handling like ssa_env_.
+  OpIndex BuildChangeEndiannessStore(OpIndex node,
+                                     MachineRepresentation mem_rep,
+                                     wasm::ValueType wasmtype) {
+    OpIndex result;
+    OpIndex value = node;
+    int value_size_in_bytes = wasmtype.value_kind_size();
+    int value_size_in_bits = 8 * value_size_in_bytes;
+    bool is_float = false;
+
+    switch (wasmtype.kind()) {
+      case wasm::kF64:
+        value = __ BitcastFloat64ToWord64(node);
+        is_float = true;
+        [[fallthrough]];
+      case wasm::kI64:
+        result = __ Word64Constant(static_cast<uint64_t>(0));
+        break;
+      case wasm::kF32:
+        value = __ BitcastFloat32ToWord32(node);
+        is_float = true;
+        [[fallthrough]];
+      case wasm::kI32:
+        result = __ Word32Constant(0);
+        break;
+      case wasm::kS128:
+        DCHECK(ReverseBytesSupported(value_size_in_bytes));
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    if (mem_rep == MachineRepresentation::kWord8) {
+      // No need to change endianness for byte size, return original node
+      return node;
+    }
+    if (wasmtype == wasm::kWasmI64 &&
+        mem_rep < MachineRepresentation::kWord64) {
+      // In case we store lower part of WasmI64 expression, we can truncate
+      // upper 32bits.
+      value_size_in_bytes = wasm::kWasmI32.value_kind_size();
+      value_size_in_bits = 8 * value_size_in_bytes;
+      if (mem_rep == MachineRepresentation::kWord16) {
+        value = __ Word32ShiftLeft(value, 16);
+      }
+    } else if (wasmtype == wasm::kWasmI32 &&
+               mem_rep == MachineRepresentation::kWord16) {
+      value = __ Word32ShiftLeft(value, 16);
+    }
+
+    int i;
+    uint32_t shift_count;
+
+    if (ReverseBytesSupported(value_size_in_bytes)) {
+      switch (value_size_in_bytes) {
+        case 4:
+          result = __ Word32ReverseBytes(V<Word32>::Cast(value));
+          break;
+        case 8:
+          result = __ Word64ReverseBytes(V<Word64>::Cast(value));
+          break;
+        case 16:
+          result = __ Simd128ReverseBytes(
+              V<compiler::turboshaft::Simd128>::Cast(value));
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      for (i = 0, shift_count = value_size_in_bits - 8;
+           i < value_size_in_bits / 2; i += 8, shift_count -= 16) {
+        OpIndex shift_lower;
+        OpIndex shift_higher;
+        OpIndex lower_byte;
+        OpIndex higher_byte;
+
+        DCHECK_LT(0, shift_count);
+        DCHECK_EQ(0, (shift_count + 8) % 16);
+
+        if (value_size_in_bits > 32) {
+          shift_lower = __ Word64ShiftLeft(value, shift_count);
+          shift_higher = __ Word64ShiftRightLogical(value, shift_count);
+          lower_byte = __ Word64BitwiseAnd(shift_lower,
+                                           static_cast<uint64_t>(0xFF)
+                                               << (value_size_in_bits - 8 - i));
+          higher_byte = __ Word64BitwiseAnd(shift_higher,
+                                            static_cast<uint64_t>(0xFF) << i);
+          result = __ Word64BitwiseOr(result, lower_byte);
+          result = __ Word64BitwiseOr(result, higher_byte);
+        } else {
+          shift_lower = __ Word32ShiftLeft(value, shift_count);
+          shift_higher = __ Word32ShiftRightLogical(value, shift_count);
+          lower_byte = __ Word32BitwiseAnd(shift_lower,
+                                           static_cast<uint32_t>(0xFF)
+                                               << (value_size_in_bits - 8 - i));
+          higher_byte = __ Word32BitwiseAnd(shift_higher,
+                                            static_cast<uint32_t>(0xFF) << i);
+          result = __ Word32BitwiseOr(result, lower_byte);
+          result = __ Word32BitwiseOr(result, higher_byte);
+        }
+      }
+    }
+
+    if (is_float) {
+      switch (wasmtype.kind()) {
+        case wasm::kF64:
+          result = __ BitcastWord64ToFloat64(result);
+          break;
+        case wasm::kF32:
+          result = __ BitcastWord32ToFloat32(result);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+
+    return result;
+  }
+
+  OpIndex BuildChangeEndiannessLoad(OpIndex node, MachineType memtype,
+                                    wasm::ValueType wasmtype) {
+    OpIndex result;
+    OpIndex value = node;
+    int value_size_in_bytes = ElementSizeInBytes(memtype.representation());
+    int value_size_in_bits = 8 * value_size_in_bytes;
+    bool is_float = false;
+
+    switch (memtype.representation()) {
+      case MachineRepresentation::kFloat64:
+        value = __ BitcastFloat64ToWord64(node);
+        is_float = true;
+        [[fallthrough]];
+      case MachineRepresentation::kWord64:
+        result = __ Word64Constant(static_cast<uint64_t>(0));
+        break;
+      case MachineRepresentation::kFloat32:
+        value = __ BitcastFloat32ToWord32(node);
+        is_float = true;
+        [[fallthrough]];
+      case MachineRepresentation::kWord32:
+      case MachineRepresentation::kWord16:
+        result = __ Word32Constant(0);
+        break;
+      case MachineRepresentation::kWord8:
+        // No need to change endianness for byte size, return original node.
+        return node;
+      case MachineRepresentation::kSimd128:
+        DCHECK(ReverseBytesSupported(value_size_in_bytes));
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    int i;
+    uint32_t shift_count;
+
+    if (ReverseBytesSupported(value_size_in_bytes < 4 ? 4
+                                                      : value_size_in_bytes)) {
+      switch (value_size_in_bytes) {
+        case 2:
+          result = __ Word32ReverseBytes(__ Word32ShiftLeft(value, 16));
+          break;
+        case 4:
+          result = __ Word32ReverseBytes(value);
+          break;
+        case 8:
+          result = __ Word64ReverseBytes(value);
+          break;
+        case 16:
+          result = __ Simd128ReverseBytes(value);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      for (i = 0, shift_count = value_size_in_bits - 8;
+           i < value_size_in_bits / 2; i += 8, shift_count -= 16) {
+        OpIndex shift_lower;
+        OpIndex shift_higher;
+        OpIndex lower_byte;
+        OpIndex higher_byte;
+
+        DCHECK_LT(0, shift_count);
+        DCHECK_EQ(0, (shift_count + 8) % 16);
+
+        if (value_size_in_bits > 32) {
+          shift_lower = __ Word64ShiftLeft(value, shift_count);
+          shift_higher = __ Word64ShiftRightLogical(value, shift_count);
+          lower_byte = __ Word64BitwiseAnd(shift_lower,
+                                           static_cast<uint64_t>(0xFF)
+                                               << (value_size_in_bits - 8 - i));
+          higher_byte = __ Word64BitwiseAnd(shift_higher,
+                                            static_cast<uint64_t>(0xFF) << i);
+          result = __ Word64BitwiseOr(result, lower_byte);
+          result = __ Word64BitwiseOr(result, higher_byte);
+        } else {
+          shift_lower = __ Word32ShiftLeft(value, shift_count);
+          shift_higher = __ Word32ShiftRightLogical(value, shift_count);
+          lower_byte = __ Word32BitwiseAnd(shift_lower,
+                                           static_cast<uint32_t>(0xFF)
+                                               << (value_size_in_bits - 8 - i));
+          higher_byte = __ Word32BitwiseAnd(shift_higher,
+                                            static_cast<uint32_t>(0xFF) << i);
+          result = __ Word32BitwiseOr(result, lower_byte);
+          result = __ Word32BitwiseOr(result, higher_byte);
+        }
+      }
+    }
+
+    if (is_float) {
+      switch (memtype.representation()) {
+        case MachineRepresentation::kFloat64:
+          result = __ BitcastWord64ToFloat64(result);
+          break;
+        case MachineRepresentation::kFloat32:
+          result = __ BitcastWord32ToFloat32(result);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+
+    // We need to sign or zero extend the value.
+    // Values with size >= 32-bits may need to be sign/zero extended after
+    // calling this function.
+    if (value_size_in_bits < 32) {
+      DCHECK(!is_float);
+      int shift_bit_count = 32 - value_size_in_bits;
+      result = __ Word32ShiftLeft(result, shift_bit_count);
+      if (memtype.IsSigned()) {
+        result =
+            __ Word32ShiftRightArithmeticShiftOutZeros(result, shift_bit_count);
+      } else {
+        result = __ Word32ShiftRightLogical(result, shift_bit_count);
+      }
+    }
+
+    return result;
+  }
+
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate& imm, const Value& index,
                Value* result) {
-#if defined(V8_TARGET_BIG_ENDIAN)
-    // TODO(14108): Implement for big endian.
-    Bailout(decoder);
-#endif
-
+    bool needs_f16_to_f32_conv = false;
+    if (type.value() == LoadType::kF32LoadF16 &&
+        !SupportedOperations::float16()) {
+      needs_f16_to_f32_conv = true;
+      type = LoadType::kI32Load16U;
+    }
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineType(type.mem_type());
 
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
+                       compiler::AlignmentCheck::kNo);
 
     V<WordPtr> mem_start = MemStart(imm.memory->index);
 
     LoadOp::Kind load_kind = GetMemoryAccessKind(repr, strategy);
 
-    // TODO(14108): If offset is in int range, use it as static offset.
-    OpIndex load = __ Load(__ WordPtrAdd(mem_start, imm.offset), final_index,
-                           load_kind, repr);
-    OpIndex extended_load =
-        (type.value_type() == kWasmI64 && repr.SizeInBytes() < 8)
-            ? (repr.IsSigned() ? __ ChangeInt32ToInt64(load)
-                               : __ ChangeUint32ToUint64(load))
-            : load;
+    const bool offset_in_int_range =
+        imm.offset <= std::numeric_limits<int32_t>::max();
+    OpIndex base =
+        offset_in_int_range ? mem_start : __ WordPtrAdd(mem_start, imm.offset);
+    int32_t offset = offset_in_int_range ? static_cast<int32_t>(imm.offset) : 0;
+    OpIndex load = __ Load(base, final_index, load_kind, repr, offset);
+
+#if V8_TARGET_BIG_ENDIAN
+    load = BuildChangeEndiannessLoad(load, type.mem_type(), type.value_type());
+#endif
+
+    if (type.value_type() == kWasmI64 && repr.SizeInBytes() < 8) {
+      load = repr.IsSigned() ? __ ChangeInt32ToInt64(load)
+                             : __ ChangeUint32ToUint64(load);
+    }
+
+    if (needs_f16_to_f32_conv) {
+      load = CallCStackSlotToStackSlot(
+          load, ExternalReference::wasm_float16_to_float32(),
+          MemoryRepresentation::Uint16(), MemoryRepresentation::Float32());
+    }
 
     if (v8_flags.trace_wasm_memory) {
       // TODO(14259): Implement memory tracing for multiple memories.
       CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(false, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, false, repr, final_index, imm.offset);
     }
 
-    result->op = extended_load;
+    result->op = load;
   }
 
   void LoadTransform(FullDecoder* decoder, LoadType type,
                      LoadTransformationKind transform,
                      const MemoryAccessImmediate& imm, const Value& index,
                      Value* result) {
-#if defined(V8_TARGET_BIG_ENDIAN)
-    // TODO(14108): Implement for big endian.
-    Bailout(decoder);
-#endif
     MemoryRepresentation repr =
         transform == LoadTransformationKind::kExtend
             ? MemoryRepresentation::Int64()
@@ -649,7 +1535,8 @@ class TurboshaftGraphBuildingInterface {
 
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
+                       compiler::AlignmentCheck::kNo);
 
     compiler::turboshaft::Simd128LoadTransformOp::LoadKind load_kind =
         GetMemoryAccessKind(repr, strategy);
@@ -697,12 +1584,12 @@ class TurboshaftGraphBuildingInterface {
       }
     }
 
-    OpIndex load = __ Simd128LoadTransform(
+    V<compiler::turboshaft::Simd128> load = __ Simd128LoadTransform(
         __ WordPtrAdd(MemStart(imm.mem_index), imm.offset), final_index,
         load_kind, transform_kind, 0);
 
     if (v8_flags.trace_wasm_memory) {
-      TraceMemoryOperation(false, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, false, repr, final_index, imm.offset);
     }
 
     result->op = load;
@@ -712,17 +1599,14 @@ class TurboshaftGraphBuildingInterface {
                 const Value& index, const MemoryAccessImmediate& imm,
                 const uint8_t laneidx, Value* result) {
     using compiler::turboshaft::Simd128LaneMemoryOp;
-#if defined(V8_TARGET_BIG_ENDIAN)
-    // TODO(14108): Implement for big endian.
-    Bailout(decoder);
-#endif
 
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineType(type.mem_type());
 
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
+                       compiler::AlignmentCheck::kNo);
     Simd128LaneMemoryOp::Kind kind = GetMemoryAccessKind(repr, strategy);
 
     Simd128LaneMemoryOp::LaneKind lane_kind;
@@ -752,7 +1636,7 @@ class TurboshaftGraphBuildingInterface {
         0);
 
     if (v8_flags.trace_wasm_memory) {
-      TraceMemoryOperation(false, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, false, repr, final_index, imm.offset);
     }
 
     result->op = load;
@@ -761,19 +1645,23 @@ class TurboshaftGraphBuildingInterface {
   void StoreMem(FullDecoder* decoder, StoreType type,
                 const MemoryAccessImmediate& imm, const Value& index,
                 const Value& value) {
-#if defined(V8_TARGET_BIG_ENDIAN)
-    // TODO(14108): Implement for big endian.
-    Bailout(decoder);
-#endif
-
+    bool needs_f32_to_f16_conv = false;
+    if (type.value() == StoreType::kF32StoreF16 &&
+        !SupportedOperations::float16()) {
+      needs_f32_to_f16_conv = true;
+      type = StoreType::kI32Store16;
+    }
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
 
+    compiler::EnforceBoundsCheck enforce_bounds_check =
+        (wasm::kPartialOOBWritesAreNoops || type.size() == 1)
+            ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
+            : compiler::EnforceBoundsCheck::kNeedsBoundsCheck;
+
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       wasm::kPartialOOBWritesAreNoops
-                           ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
-                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+                       enforce_bounds_check, compiler::AlignmentCheck::kNo);
 
     V<WordPtr> mem_start = MemStart(imm.memory->index);
 
@@ -783,14 +1671,28 @@ class TurboshaftGraphBuildingInterface {
     if (value.type == kWasmI64 && repr.SizeInBytes() <= 4) {
       store_value = __ TruncateWord64ToWord32(store_value);
     }
-    // TODO(14108): If offset is in int range, use it as static offset.
-    __ Store(mem_start, __ WordPtrAdd(imm.offset, final_index), store_value,
-             store_kind, repr, compiler::kNoWriteBarrier, 0);
+    if (needs_f32_to_f16_conv) {
+      store_value = CallCStackSlotToStackSlot(
+          store_value, ExternalReference::wasm_float32_to_float16(),
+          MemoryRepresentation::Float32(), MemoryRepresentation::Int16());
+    }
+
+#if defined(V8_TARGET_BIG_ENDIAN)
+    store_value = BuildChangeEndiannessStore(store_value, type.mem_rep(),
+                                             type.value_type());
+#endif
+    const bool offset_in_int_range =
+        imm.offset <= std::numeric_limits<int32_t>::max();
+    OpIndex base =
+        offset_in_int_range ? mem_start : __ WordPtrAdd(mem_start, imm.offset);
+    int32_t offset = offset_in_int_range ? static_cast<int32_t>(imm.offset) : 0;
+    __ Store(base, final_index, store_value, store_kind, repr,
+             compiler::kNoWriteBarrier, offset);
 
     if (v8_flags.trace_wasm_memory) {
       // TODO(14259): Implement memory tracing for multiple memories.
       CHECK_EQ(0, imm.memory->index);
-      TraceMemoryOperation(true, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, true, repr, final_index, imm.offset);
     }
   }
 
@@ -798,19 +1700,18 @@ class TurboshaftGraphBuildingInterface {
                  const MemoryAccessImmediate& imm, const Value& index,
                  const Value& value, const uint8_t laneidx) {
     using compiler::turboshaft::Simd128LaneMemoryOp;
-#if defined(V8_TARGET_BIG_ENDIAN)
-    // TODO(14108): Implement for big endian.
-    Bailout(decoder);
-#endif
 
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
 
+    compiler::EnforceBoundsCheck enforce_bounds_check =
+        (wasm::kPartialOOBWritesAreNoops || type.size() == 1)
+            ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
+            : compiler::EnforceBoundsCheck::kNeedsBoundsCheck;
+
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       kPartialOOBWritesAreNoops
-                           ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
-                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+                       enforce_bounds_check, compiler::AlignmentCheck::kNo);
     Simd128LaneMemoryOp::Kind kind = GetMemoryAccessKind(repr, strategy);
 
     Simd128LaneMemoryOp::LaneKind lane_kind;
@@ -842,7 +1743,7 @@ class TurboshaftGraphBuildingInterface {
                          laneidx, 0);
 
     if (v8_flags.trace_wasm_memory) {
-      TraceMemoryOperation(true, repr, final_index, imm.offset);
+      TraceMemoryOperation(decoder, true, repr, final_index, imm.offset);
     }
   }
 
@@ -851,7 +1752,7 @@ class TurboshaftGraphBuildingInterface {
     V<WordPtr> result_wordptr =
         __ WordPtrShiftRightArithmetic(MemSize(imm.index), kWasmPageSizeLog2);
     // In the 32-bit case, truncation happens implicitly.
-    if (imm.memory->is_memory64) {
+    if (imm.memory->is_memory64()) {
       result->op = __ ChangeIntPtrToInt64(result_wordptr);
     } else {
       result->op = __ TruncateWordPtrToWord32(result_wordptr);
@@ -860,43 +1761,563 @@ class TurboshaftGraphBuildingInterface {
 
   void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& value, Value* result) {
-    if (!imm.memory->is_memory64) {
+    if (!imm.memory->is_memory64()) {
       result->op =
-          CallBuiltinThroughJumptable(decoder, Builtin::kWasmMemoryGrow,
-                                      {__ Word32Constant(imm.index), value.op});
+          CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmMemoryGrow>(
+              decoder, {__ Word32Constant(imm.index), value.op});
     } else {
       Label<Word64> done(&asm_);
 
       IF (LIKELY(__ Uint64LessThanOrEqual(
               value.op, __ Word64Constant(static_cast<int64_t>(kMaxInt))))) {
-        GOTO(done, __ ChangeInt32ToInt64(CallBuiltinThroughJumptable(
-                       decoder, Builtin::kWasmMemoryGrow,
-                       {__ Word32Constant(imm.index),
-                        __ TruncateWord64ToWord32(value.op)})));
-      }
-      ELSE {
+        GOTO(done, __ ChangeInt32ToInt64(CallBuiltinThroughJumptable<
+                                         BuiltinCallDescriptor::WasmMemoryGrow>(
+                       decoder, {__ Word32Constant(imm.index),
+                                 __ TruncateWord64ToWord32(value.op)})));
+      } ELSE {
         GOTO(done, __ Word64Constant(int64_t{-1}));
       }
-      END_IF
 
       BIND(done, result_64);
 
       result->op = result_64;
     }
+    instance_cache_.ReloadCachedMemory();
   }
 
-  V<Tagged> ExternRefToString(const Value value, bool null_succeeds = false) {
+  V<Word32> IsExternRefString(const Value value) {
+    compiler::WasmTypeCheckConfig config{value.type, kWasmRefExternString};
+    V<Map> rtt = OpIndex::Invalid();
+    return __ WasmTypeCheck(value.op, rtt, config);
+  }
+
+  V<String> ExternRefToString(const Value value, bool null_succeeds = false) {
     wasm::ValueType target_type =
-        null_succeeds ? kWasmStringRef : kWasmRefString;
+        null_succeeds ? kWasmRefNullExternString : kWasmRefExternString;
     compiler::WasmTypeCheckConfig config{value.type, target_type};
     V<Map> rtt = OpIndex::Invalid();
-    return __ WasmTypeCast(value.op, rtt, config);
+    return V<String>::Cast(__ WasmTypeCast(value.op, rtt, config));
   }
 
-  bool HandleWellKnownImport(FullDecoder* decoder, uint32_t index,
+  bool IsExplicitStringCast(const Value value) {
+    if (__ generating_unreachable_operations()) return false;
+    const WasmTypeCastOp* cast =
+        __ output_graph().Get(value.op).TryCast<WasmTypeCastOp>();
+    return cast && cast->config.to == kWasmRefExternString;
+  }
+
+  V<Word32> GetStringIndexOf(FullDecoder* decoder, V<String> string,
+                             V<String> search, V<Word32> start) {
+    // Clamp the start index.
+    Label<Word32> clamped_start_label(&asm_);
+    GOTO_IF(__ Int32LessThan(start, 0), clamped_start_label,
+            __ Word32Constant(0));
+    V<Word32> length = __ template LoadField<Word32>(
+        string, compiler::AccessBuilder::ForStringLength());
+    GOTO_IF(__ Int32LessThan(start, length), clamped_start_label, start);
+    GOTO(clamped_start_label, length);
+    BIND(clamped_start_label, clamped_start);
+    start = clamped_start;
+
+    // This can't overflow because we've clamped `start` above.
+    V<Smi> start_smi = __ TagSmi(start);
+    BuildModifyThreadInWasmFlag(decoder->zone(), false);
+
+    V<Smi> result_value =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringIndexOf>(
+            decoder, {string, search, start_smi});
+    BuildModifyThreadInWasmFlag(decoder->zone(), true);
+
+    return __ UntagSmi(result_value);
+  }
+
+#if V8_INTL_SUPPORT
+  V<String> CallStringToLowercase(FullDecoder* decoder, V<String> string) {
+    BuildModifyThreadInWasmFlag(decoder->zone(), false);
+    OpIndex result = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringToLowerCaseIntl>(
+        decoder, __ NoContextConstant(), {string});
+    BuildModifyThreadInWasmFlag(decoder->zone(), true);
+    return result;
+  }
+#endif
+
+  void SetDataViewOpForErrorMessage(DataViewOp op_type) {
+    OpIndex isolate_root = __ LoadRootRegister();
+    __ Store(isolate_root, __ Word32Constant(op_type),
+             StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+             compiler::kNoWriteBarrier, Isolate::error_message_param_offset());
+  }
+
+  void ThrowDataViewTypeError(FullDecoder* decoder, V<Object> dataview,
+                              DataViewOp op_type) {
+    SetDataViewOpForErrorMessage(op_type);
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::ThrowDataViewTypeError>(
+        decoder, {V<JSDataView>::Cast(dataview)});
+    __ Unreachable();
+  }
+
+  void ThrowDataViewOutOfBoundsError(FullDecoder* decoder, DataViewOp op_type) {
+    SetDataViewOpForErrorMessage(op_type);
+    CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::ThrowDataViewOutOfBounds>(decoder, {});
+    __ Unreachable();
+  }
+
+  void ThrowDataViewDetachedError(FullDecoder* decoder, DataViewOp op_type) {
+    SetDataViewOpForErrorMessage(op_type);
+    CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::ThrowDataViewDetachedError>(decoder, {});
+    __ Unreachable();
+  }
+
+  void DataViewRangeCheck(FullDecoder* decoder, V<WordPtr> left,
+                          V<WordPtr> right, DataViewOp op_type) {
+    IF (UNLIKELY(__ IntPtrLessThan(left, right))) {
+      ThrowDataViewOutOfBoundsError(decoder, op_type);
+    }
+  }
+
+  void DataViewBoundsCheck(FullDecoder* decoder, V<WordPtr> left,
+                           V<WordPtr> right, DataViewOp op_type) {
+    IF (UNLIKELY(__ IntPtrLessThan(left, right))) {
+      ThrowDataViewDetachedError(decoder, op_type);
+    }
+  }
+
+  void DataViewDetachedBufferCheck(FullDecoder* decoder, V<Object> dataview,
+                                   DataViewOp op_type) {
+    IF (UNLIKELY(
+            __ ArrayBufferIsDetached(V<JSArrayBufferView>::Cast(dataview)))) {
+      ThrowDataViewDetachedError(decoder, op_type);
+    }
+  }
+
+  V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Object> dataview,
+                                   DataViewOp op_type) {
+    DCHECK_EQ(op_type, DataViewOp::kByteLength);
+    return GetDataViewByteLength(decoder, dataview, __ IntPtrConstant(0),
+                                 op_type);
+  }
+
+  // Converts a Smi or HeapNumber to an intptr. The input is not validated.
+  V<WordPtr> ChangeTaggedNumberToIntPtr(V<Object> tagged) {
+    Label<> smi_label(&asm_);
+    Label<> heapnumber_label(&asm_);
+    Label<WordPtr> done_label(&asm_);
+
+    GOTO_IF(LIKELY(__ IsSmi(tagged)), smi_label);
+    GOTO(heapnumber_label);
+
+    BIND(smi_label);
+    V<WordPtr> smi_length =
+        __ ChangeInt32ToIntPtr(__ UntagSmi(V<Smi>::Cast(tagged)));
+    GOTO(done_label, smi_length);
+
+    BIND(heapnumber_label);
+    V<Float64> float_value = __ template LoadField<Float64>(
+        tagged, AccessBuilder::ForHeapNumberValue());
+    if constexpr (Is64()) {
+      DCHECK_EQ(WordPtr::bits, Word64::bits);
+      GOTO(done_label,
+           V<WordPtr>::Cast(
+               __ TruncateFloat64ToInt64OverflowUndefined(float_value)));
+    } else {
+      GOTO(done_label,
+           __ ChangeInt32ToIntPtr(
+               __ TruncateFloat64ToInt32OverflowUndefined(float_value)));
+    }
+
+    BIND(done_label, length);
+    return length;
+  }
+
+  // An `ArrayBuffer` can be resizable, i.e. it can shrink or grow.
+  // A `SharedArrayBuffer` can be growable, i.e. it can only grow. A `DataView`
+  // can be length-tracking or non-legth-tracking . A length-tracking `DataView`
+  // is tracking the length of the underlying buffer, i.e. it doesn't have a
+  // `byteLength` specified, which means that the length of the `DataView` is
+  // the length (or remaining length if `byteOffset != 0`) of the underlying
+  // array buffer. On the other hand, a non-length-tracking `DataView` has a
+  // `byteLength`.
+  // Depending on whether the buffer is resizable or growable and the `DataView`
+  // is length-tracking or non-length-tracking, getting the byte length has to
+  // be handled differently.
+  V<WordPtr> GetDataViewByteLength(FullDecoder* decoder, V<Object> dataview,
+                                   V<WordPtr> offset, DataViewOp op_type) {
+    Label<WordPtr> done_label(&asm_);
+    Label<> type_error_label(&asm_);
+
+    GOTO_IF(UNLIKELY(__ IsSmi(dataview)), type_error_label);
+
+    // Case 1):
+    //  - non-resizable ArrayBuffers, length-tracking and non-length-tracking
+    //  - non-growable SharedArrayBuffers, length-tracking and non-length-tr.
+    //  - growable SharedArrayBuffers, non-length-tracking
+    IF (LIKELY(__ HasInstanceType(dataview, InstanceType::JS_DATA_VIEW_TYPE))) {
+      if (op_type != DataViewOp::kByteLength) {
+        DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type);
+      }
+      DataViewDetachedBufferCheck(decoder, dataview, op_type);
+      V<WordPtr> view_byte_length = __ LoadField<WordPtr>(
+          dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
+      GOTO(done_label, view_byte_length);
+    }
+
+    // Case 2):
+    // - resizable ArrayBuffers, length-tracking and non-length-tracking
+    // - growable SharedArrayBuffers, length-tracking
+    GOTO_IF_NOT(LIKELY(__ HasInstanceType(
+                    dataview, InstanceType::JS_RAB_GSAB_DATA_VIEW_TYPE)),
+                type_error_label);
+    if (op_type != DataViewOp::kByteLength) {
+      DataViewRangeCheck(decoder, offset, __ IntPtrConstant(0), op_type);
+    }
+    DataViewDetachedBufferCheck(decoder, dataview, op_type);
+
+    V<Word32> bit_field = __ LoadField<Word32>(
+        dataview, AccessBuilder::ForJSArrayBufferViewBitField());
+    V<Word32> length_tracking = __ Word32BitwiseAnd(
+        bit_field, JSArrayBufferView::IsLengthTrackingBit::kMask);
+    V<Word32> backed_by_rab_bit = __ Word32BitwiseAnd(
+        bit_field, JSArrayBufferView::IsBackedByRabBit::kMask);
+
+    V<Object> buffer = __ LoadField<Object>(
+        dataview, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());
+    V<WordPtr> buffer_byte_length = __ LoadField<WordPtr>(
+        buffer, AccessBuilder::ForJSArrayBufferByteLength());
+    V<WordPtr> view_byte_offset = __ LoadField<WordPtr>(
+        dataview, AccessBuilder::ForJSArrayBufferViewByteOffset());
+
+    // The final length for each case in Case 2) is calculated differently.
+    // Case: resizable ArrayBuffers, LT and non-LT.
+    IF (backed_by_rab_bit) {
+      // DataViews with resizable ArrayBuffers can go out of bounds.
+      IF (length_tracking) {
+        ScopedVar<WordPtr> final_length(this, 0);
+        IF (LIKELY(__ UintPtrLessThanOrEqual(view_byte_offset,
+                                             buffer_byte_length))) {
+          final_length = __ WordPtrSub(buffer_byte_length, view_byte_offset);
+        }
+        DataViewBoundsCheck(decoder, buffer_byte_length, view_byte_offset,
+                            op_type);
+        GOTO(done_label, final_length);
+      } ELSE {
+        V<WordPtr> view_byte_length = __ LoadField<WordPtr>(
+            dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
+        DataViewBoundsCheck(decoder, buffer_byte_length,
+                            __ WordPtrAdd(view_byte_offset, view_byte_length),
+                            op_type);
+
+        GOTO(done_label, view_byte_length);
+      }
+    }
+    // Case: growable SharedArrayBuffers, LT.
+    ELSE {
+      V<Object> gsab_length_tagged = CallRuntime(
+          decoder->zone(), Runtime::kGrowableSharedArrayBufferByteLength,
+          {buffer}, __ NoContextConstant());
+      V<WordPtr> gsab_length = ChangeTaggedNumberToIntPtr(gsab_length_tagged);
+      ScopedVar<WordPtr> gsab_buffer_byte_length(this, 0);
+      IF (LIKELY(__ UintPtrLessThanOrEqual(view_byte_offset, gsab_length))) {
+        gsab_buffer_byte_length = __ WordPtrSub(gsab_length, view_byte_offset);
+      }
+      GOTO(done_label, gsab_buffer_byte_length);
+    }
+    __ Unreachable();
+
+    BIND(type_error_label);
+    ThrowDataViewTypeError(decoder, dataview, op_type);
+
+    BIND(done_label, final_view_byte_length);
+    return final_view_byte_length;
+  }
+
+  V<WordPtr> GetDataViewDataPtr(FullDecoder* decoder, V<Object> dataview,
+                                V<WordPtr> offset, DataViewOp op_type) {
+    V<WordPtr> view_byte_length =
+        GetDataViewByteLength(decoder, dataview, offset, op_type);
+    V<WordPtr> view_byte_length_minus_size =
+        __ WordPtrSub(view_byte_length, GetTypeSize(op_type));
+    DataViewRangeCheck(decoder, view_byte_length_minus_size, offset, op_type);
+    return __ LoadField<WordPtr>(
+        dataview, compiler::AccessBuilder::ForJSDataViewDataPointer());
+  }
+
+  OpIndex DataViewGetter(FullDecoder* decoder, const Value args[],
+                         DataViewOp op_type) {
+    V<Object> dataview = args[0].op;
+    V<WordPtr> offset = __ ChangeInt32ToIntPtr(args[1].op);
+    V<Word32> is_little_endian =
+        (op_type == DataViewOp::kGetInt8 || op_type == DataViewOp::kGetUint8)
+            ? __ Word32Constant(1)
+            : args[2].op;
+
+    V<WordPtr> data_ptr =
+        GetDataViewDataPtr(decoder, dataview, offset, op_type);
+    return __ LoadDataViewElement(dataview, data_ptr, offset, is_little_endian,
+                                  GetExternalArrayType(op_type));
+  }
+
+  void DataViewSetter(FullDecoder* decoder, const Value args[],
+                      DataViewOp op_type) {
+    V<Object> dataview = args[0].op;
+    V<WordPtr> offset = __ ChangeInt32ToIntPtr(args[1].op);
+    V<Word32> value = args[2].op;
+    V<Word32> is_little_endian =
+        (op_type == DataViewOp::kSetInt8 || op_type == DataViewOp::kSetUint8)
+            ? __ Word32Constant(1)
+            : args[3].op;
+
+    V<WordPtr> data_ptr =
+        GetDataViewDataPtr(decoder, dataview, offset, op_type);
+    __ StoreDataViewElement(dataview, data_ptr, offset, value, is_little_endian,
+                            GetExternalArrayType(op_type));
+  }
+
+  // Adds a wasm type annotation to the graph and replaces any extern type with
+  // the extern string type.
+  template <typename T>
+  V<T> AnnotateAsString(V<T> value, wasm::ValueType type) {
+    DCHECK(type.is_reference_to(HeapType::kString) ||
+           type.is_reference_to(HeapType::kExternString) ||
+           type.is_reference_to(HeapType::kExtern));
+    if (type.is_reference_to(HeapType::kExtern)) {
+      type = ValueType::RefMaybeNull(kWasmRefExternString, type.nullability());
+    }
+    return __ AnnotateWasmType(value, type);
+  }
+
+  void WellKnown_FastApi(FullDecoder* decoder, const CallFunctionImmediate& imm,
+                         const Value args[], Value returns[]) {
+    uint32_t func_index = imm.index;
+    V<Object> receiver = args[0].op;
+    // TODO(14616): Fix this.
+    V<FixedArray> imports_array = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        trusted_instance_data(false), WellKnownImports,
+        MemoryRepresentation::TaggedPointer());
+    V<Object> data = __ LoadFixedArrayElement(imports_array, func_index);
+    V<Object> cached_map = __ Load(data, LoadOp::Kind::TaggedBase(),
+                                   MemoryRepresentation::TaggedPointer(),
+                                   WasmFastApiCallData::kCachedMapOffset);
+
+    Label<> if_equal_maps(&asm_);
+    Label<> if_unknown_receiver(&asm_);
+    GOTO_IF(__ IsSmi(receiver), if_unknown_receiver);
+
+    V<Map> map = __ LoadMapField(V<Object>::Cast(receiver));
+
+    // Clear the weak bit.
+    cached_map = __ BitcastWordPtrToTagged(__ WordPtrBitwiseAnd(
+        __ BitcastTaggedToWordPtr(cached_map), ~kWeakHeapObjectMask));
+    GOTO_IF(__ TaggedEqual(map, cached_map), if_equal_maps);
+    GOTO(if_unknown_receiver);
+
+    BIND(if_unknown_receiver);
+    V<NativeContext> context = instance_cache_.native_context();
+    CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmFastApiCallTypeCheckAndUpdateIC>(
+        decoder, context, {data, receiver});
+    GOTO(if_equal_maps);
+
+    BIND(if_equal_maps);
+    OpIndex receiver_handle = __ AdaptLocalArgument(receiver);
+
+    const wasm::FunctionSig* sig = decoder->module_->functions[func_index].sig;
+    size_t param_count = sig->parameter_count();
+    DCHECK_LE(sig->return_count(), 1);
+
+    const MachineSignature* callback_sig =
+        env_->fast_api_signatures[func_index];
+    // All normal parameters + the options as additional parameter at the end.
+    MachineSignature::Builder builder(decoder->zone(), sig->return_count(),
+                                      param_count + 1);
+    if (sig->return_count()) {
+      builder.AddReturn(callback_sig->GetReturn());
+    }
+    // The first parameter is the receiver. Because of the fake handle on the
+    // stack the type is `Pointer`.
+    builder.AddParam(MachineType::Pointer());
+
+    for (size_t i = 0; i < callback_sig->parameter_count(); ++i) {
+      builder.AddParam(callback_sig->GetParam(i));
+    }
+    // Options object.
+    builder.AddParam(MachineType::Pointer());
+
+    base::SmallVector<OpIndex, 16> inputs(param_count + 1);
+
+    inputs[0] = receiver_handle;
+
+    Label<> value_out_of_range(&asm_);
+    for (size_t i = 1; i < param_count; ++i) {
+      if (sig->GetParam(i).is_reference()) {
+        inputs[i] = __ AdaptLocalArgument(args[i].op);
+      } else if (callback_sig->GetParam(i - 1).representation() ==
+                 MachineRepresentation::kWord64) {
+        if (sig->GetParam(i) == kWasmI64) {
+          // If we already have an I64, then no conversion is needed neither for
+          // int64 nor uint64.
+          inputs[i] = args[i].op;
+        } else if (callback_sig->GetParam(i - 1) == MachineType::Int64()) {
+          if (sig->GetParam(i) == kWasmF64) {
+            V<Tuple<Word64, Word32>> truncate =
+                __ TryTruncateFloat64ToInt64(args[i].op);
+            inputs[i] = __ template Projection<0>(truncate);
+            GOTO_IF(UNLIKELY(
+                        __ Word32Equal(__ template Projection<1>(truncate), 0)),
+                    value_out_of_range);
+          } else if (sig->GetParam(i) == kWasmI32) {
+            inputs[i] = __ ChangeInt32ToInt64(args[i].op);
+          } else {
+            // TODO(ahaas): Handle values that are out of range of int64.
+            CHECK_EQ(sig->GetParam(i), kWasmF32);
+            V<Tuple<Word64, Word32>> truncate =
+                __ TryTruncateFloat32ToInt64(args[i].op);
+            inputs[i] = __ template Projection<0>(truncate);
+            GOTO_IF(UNLIKELY(
+                        __ Word32Equal(__ template Projection<1>(truncate), 0)),
+                    value_out_of_range);
+          }
+        } else if (callback_sig->GetParam(i - 1) == MachineType::Uint64()) {
+          if (sig->GetParam(i) == kWasmF64) {
+            V<Tuple<Word64, Word32>> truncate =
+                __ TryTruncateFloat64ToUint64(args[i].op);
+            inputs[i] = __ template Projection<0>(truncate);
+            GOTO_IF(UNLIKELY(
+                        __ Word32Equal(__ template Projection<1>(truncate), 0)),
+                    value_out_of_range);
+          } else if (sig->GetParam(i) == kWasmI32) {
+            inputs[i] = __ ChangeUint32ToUint64(args[i].op);
+          } else {
+            // TODO(ahaas): Handle values that are out of range of int64.
+            CHECK_EQ(sig->GetParam(i), kWasmF32);
+            V<Tuple<Word64, Word32>> truncate =
+                __ TryTruncateFloat32ToUint64(args[i].op);
+            inputs[i] = __ template Projection<0>(truncate);
+            GOTO_IF(UNLIKELY(
+                        __ Word32Equal(__ template Projection<1>(truncate), 0)),
+                    value_out_of_range);
+          }
+        }
+      } else {
+        inputs[i] = args[i].op;
+      }
+    }
+
+    OpIndex options_object;
+    {
+      const int kAlign = alignof(v8::FastApiCallbackOptions);
+      const int kSize = sizeof(v8::FastApiCallbackOptions);
+
+      options_object = __ StackSlot(kSize, kAlign);
+
+      static_assert(
+          sizeof(v8::FastApiCallbackOptions::isolate) == sizeof(intptr_t),
+          "We expected 'isolate' to be pointer sized, but it is not.");
+      __ StoreOffHeap(options_object,
+                      __ IsolateField(IsolateFieldId::kIsolateAddress),
+                      MemoryRepresentation::UintPtr(),
+                      offsetof(v8::FastApiCallbackOptions, isolate));
+
+      V<Object> callback_data =
+          __ Load(data, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedPointer(),
+                  WasmFastApiCallData::kCallbackDataOffset);
+      V<WordPtr> data_argument_to_pass = __ AdaptLocalArgument(callback_data);
+
+      __ StoreOffHeap(options_object, data_argument_to_pass,
+                      MemoryRepresentation::UintPtr(),
+                      offsetof(v8::FastApiCallbackOptions, data));
+    }
+
+    inputs[param_count] = options_object;
+
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(),
+                                                    builder.Get());
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, compiler::CanThrow::kNo,
+        compiler::LazyDeoptOnThrow::kNo, __ graph_zone());
+    OpIndex target_address = __ ExternalConstant(ExternalReference::Create(
+        env_->fast_api_targets[func_index].load(std::memory_order_relaxed),
+        ExternalReference::FAST_C_CALL));
+
+    V<Context> native_context = instance_cache_.native_context();
+
+    __ Store(__ LoadRootRegister(),
+             __ BitcastHeapObjectToWordPtr(native_context),
+             StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+             compiler::kNoWriteBarrier, Isolate::context_offset());
+    BuildModifyThreadInWasmFlag(__ graph_zone(), false);
+    auto [old_sp, old_limit] = BuildSwitchToTheCentralStackIfNeeded();
+    OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
+                              base::VectorOf(inputs), ts_call_descriptor);
+    BuildSwitchBackFromCentralStack(old_sp, old_limit);
+
+#if DEBUG
+    // Reset the context again after the call, to make sure nobody is using the
+    // leftover context in the isolate.
+    __ Store(__ LoadRootRegister(),
+             __ WordPtrConstant(Context::kInvalidContext),
+             StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+             compiler::kNoWriteBarrier, Isolate::context_offset());
+#endif
+
+    V<Object> exception = __ Load(
+        __ LoadRootRegister(), LoadOp::Kind::RawAligned(),
+        MemoryRepresentation::UintPtr(), IsolateData::exception_offset());
+
+    IF_NOT (LIKELY(
+                __ TaggedEqual(exception, LOAD_ROOT(TheHoleValue)))) {
+      CallBuiltinThroughJumptable<
+          BuiltinCallDescriptor::WasmPropagateException>(
+          decoder, {}, CheckForException::kCatchInThisFrame);
+    }
+    BuildModifyThreadInWasmFlag(__ graph_zone(), true);
+
+    if (callback_sig->return_count() > 0) {
+      if (callback_sig->GetReturn() == MachineType::Bool()) {
+        ret_val = __ WordBitwiseAnd(ret_val, __ Word32Constant(0xff),
+                                    WordRepresentation::Word32());
+      } else if (callback_sig->GetReturn() == MachineType::Int64()) {
+        if (sig->GetReturn() == kWasmF64) {
+          ret_val = __ ChangeInt64ToFloat64(ret_val);
+        } else if (sig->GetReturn() == kWasmI32) {
+          ret_val = __ TruncateWord64ToWord32(ret_val);
+        } else if (sig->GetReturn() == kWasmF32) {
+          ret_val = __ ChangeInt64ToFloat32(ret_val);
+        }
+      } else if (callback_sig->GetReturn() == MachineType::Uint64()) {
+        if (sig->GetReturn() == kWasmF64) {
+          ret_val = __ ChangeUint64ToFloat64(ret_val);
+        } else if (sig->GetReturn() == kWasmI32) {
+          ret_val = __ TruncateWord64ToWord32(ret_val);
+        } else if (sig->GetReturn() == kWasmF32) {
+          ret_val = __ ChangeUint64ToFloat32(ret_val);
+        }
+      }
+    }
+    Label<> done(&asm_);
+    GOTO(done);
+    BIND(value_out_of_range);
+    auto [target, implicit_arg] =
+        BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
+    BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns,
+                  compiler::kWasmIndirectFunction);
+    __ Unreachable();
+    BIND(done);
+    if (sig->return_count()) {
+      returns[0].op = ret_val;
+    }
+  }
+
+  bool HandleWellKnownImport(FullDecoder* decoder,
+                             const CallFunctionImmediate& imm,
                              const Value args[], Value returns[]) {
+    uint32_t index = imm.index;
     if (!decoder->module_) return false;  // Only needed for tests.
-    WellKnownImportsList& well_known_imports =
+    const WellKnownImportsList& well_known_imports =
         decoder->module_->type_feedback.well_known_imports;
     using WKI = WellKnownImport;
     WKI imported_op = well_known_imports.get(index);
@@ -904,280 +2325,987 @@ class TurboshaftGraphBuildingInterface {
     switch (imported_op) {
       case WKI::kUninstantiated:
       case WKI::kGeneric:
+      case WKI::kLinkError:
         return false;
 
-      // WebAssembly.String.* imports.
+      // JS String Builtins proposal.
+      case WKI::kStringCast: {
+        result = ExternRefToString(args[0]);
+        decoder->detected_->add_imported_strings();
+        break;
+      }
+      case WKI::kStringTest: {
+        result = IsExternRefString(args[0]);
+        decoder->detected_->add_imported_strings();
+        break;
+      }
       case WKI::kStringCharCodeAt: {
-        V<Tagged> string = ExternRefToString(args[0]);
-        V<Tagged> view = __ StringAsWtf16(string);
+        V<String> string = ExternRefToString(args[0]);
+        V<String> view = __ StringAsWtf16(string);
         // TODO(14108): Annotate `view`'s type.
         result = GetCodeUnitImpl(decoder, view, args[1].op);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringCodePointAt: {
-        V<Tagged> string = ExternRefToString(args[0]);
-        V<Tagged> view = __ StringAsWtf16(string);
+        V<String> string = ExternRefToString(args[0]);
+        V<String> view = __ StringAsWtf16(string);
         // TODO(14108): Annotate `view`'s type.
         result = StringCodePointAt(decoder, view, args[1].op);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringCompare: {
-        V<Tagged> a_string = ExternRefToString(args[0]);
-        V<Tagged> b_string = ExternRefToString(args[1]);
-        result = __ UntagSmi(CallBuiltinThroughJumptable(
-            decoder, Builtin::kStringCompare, {a_string, b_string},
-            Operator::kEliminatable));
-        decoder->detected_->Add(kFeature_imported_strings);
+        V<String> a_string = ExternRefToString(args[0]);
+        V<String> b_string = ExternRefToString(args[1]);
+        result = __ UntagSmi(CallBuiltinThroughJumptable<
+                             BuiltinCallDescriptor::WasmStringCompare>(
+            decoder, {a_string, b_string}));
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringConcat: {
-        V<Tagged> head_string = ExternRefToString(args[0]);
-        V<Tagged> tail_string = ExternRefToString(args[1]);
-        V<HeapObject> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
-            NativeContext, MemoryRepresentation::TaggedPointer());
-        result = CallBuiltinThroughJumptable(
-            decoder, Builtin::kStringAdd_CheckNone,
-            {head_string, tail_string, native_context},
-            Operator::kNoDeopt | Operator::kNoThrow);
-        // TODO(14108): Annotate `result`'s type.
-        decoder->detected_->Add(kFeature_imported_strings);
+        V<String> head_string = ExternRefToString(args[0]);
+        V<String> tail_string = ExternRefToString(args[1]);
+        V<HeapObject> native_context = instance_cache_.native_context();
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
+            decoder, V<Context>::Cast(native_context),
+            {head_string, tail_string});
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringEquals: {
         // Using nullable type guards here because this instruction needs to
         // handle {null} without trapping.
         static constexpr bool kNullSucceeds = true;
-        V<Tagged> a_string = ExternRefToString(args[0], kNullSucceeds);
-        V<Tagged> b_string = ExternRefToString(args[1], kNullSucceeds);
+        V<String> a_string = ExternRefToString(args[0], kNullSucceeds);
+        V<String> b_string = ExternRefToString(args[1], kNullSucceeds);
         result = StringEqImpl(decoder, a_string, b_string, kWasmExternRef,
                               kWasmExternRef);
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringFromCharCode: {
         V<Word32> capped = __ Word32BitwiseAnd(args[0].op, 0xFFFF);
-        result = CallBuiltinThroughJumptable(decoder,
-                                             Builtin::kWasmStringFromCodePoint,
-                                             {capped}, Operator::kEliminatable);
-        // TODO(14108): Annotate `result`'s type.
-        decoder->detected_->Add(kFeature_imported_strings);
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder, {capped});
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
+        decoder->detected_->add_imported_strings();
         break;
       }
-      case WKI::kStringFromCodePoint:
-        // TODO(14179): Fix trapping when the result is unused.
-        result = CallBuiltinThroughJumptable(
-            decoder, Builtin::kWasmStringFromCodePoint, {args[0].op},
-            Operator::kEliminatable);
-        // TODO(14108): Annotate `result`'s type.
-        decoder->detected_->Add(kFeature_imported_strings);
+      case WKI::kStringFromCodePoint: {
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder,
+                                                            {args[0].op});
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
+        decoder->detected_->add_imported_strings();
         break;
-      case WKI::kStringFromWtf16Array:
-        result = CallBuiltinThroughJumptable(
-            decoder, Builtin::kWasmStringNewWtf16Array,
-            {NullCheck(args[0]), args[1].op, args[2].op},
-            Operator::kNoDeopt | Operator::kNoThrow);
-        // TODO(14108): Annotate `result`'s type.
-        decoder->detected_->Add(kFeature_imported_strings);
+      }
+      case WKI::kStringFromWtf16Array: {
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringNewWtf16Array>(
+            decoder,
+            {V<WasmArray>::Cast(NullCheck(args[0])), args[1].op, args[2].op});
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
+        decoder->detected_->add_imported_strings();
         break;
-      case WKI::kStringFromWtf8Array:
-        result = StringNewWtf8ArrayImpl(decoder, unibrow::Utf8Variant::kWtf8,
-                                        args[0], args[1], args[2]);
-        // TODO(14108): Annotate `result`'s type.
-        decoder->detected_->Add(kFeature_imported_strings);
+      }
+      case WKI::kStringFromUtf8Array:
+        result = StringNewWtf8ArrayImpl(
+            decoder, unibrow::Utf8Variant::kLossyUtf8, args[0], args[1],
+            args[2], kWasmRefExternString);
+        decoder->detected_->add_imported_strings();
         break;
+      case WKI::kStringIntoUtf8Array: {
+        V<String> string = ExternRefToString(args[0]);
+        result = StringEncodeWtf8ArrayImpl(
+            decoder, unibrow::Utf8Variant::kLossyUtf8, string,
+            V<WasmArray>::Cast(NullCheck(args[1])), args[2].op);
+        decoder->detected_->add_imported_strings();
+        break;
+      }
+      case WKI::kStringToUtf8Array: {
+        V<String> string = ExternRefToString(args[0]);
+        V<WasmArray> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringToUtf8Array>(decoder, {string});
+        result = __ AnnotateWasmType(result_value, returns[0].type);
+        decoder->detected_->add_imported_strings();
+        break;
+      }
       case WKI::kStringLength: {
-        V<Tagged> string = ExternRefToString(args[0]);
+        V<Object> string = ExternRefToString(args[0]);
         result = __ template LoadField<Word32>(
             string, compiler::AccessBuilder::ForStringLength());
-        decoder->detected_->Add(kFeature_imported_strings);
+        decoder->detected_->add_imported_strings();
+        break;
+      }
+      case WKI::kStringMeasureUtf8: {
+        V<String> string = ExternRefToString(args[0]);
+        result = StringMeasureWtf8Impl(
+            decoder, unibrow::Utf8Variant::kLossyUtf8, string);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringSubstring: {
-        V<Tagged> string = ExternRefToString(args[0]);
-        V<Tagged> view = __ StringAsWtf16(string);
-        // TODO(14108): Annotate `view`'s type.
-        result = CallBuiltinThroughJumptable(
-            decoder, Builtin::kWasmStringViewWtf16Slice,
-            {view, args[1].op, args[2].op}, Operator::kEliminatable);
-        // TODO(14108): Annotate `result`'s type.
-        decoder->detected_->Add(kFeature_imported_strings);
+        V<String> string = ExternRefToString(args[0]);
+        V<String> view = __ StringAsWtf16(string);
+        // TODO(12868): Consider annotating {view}'s type when the typing story
+        //              for string views has been settled.
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringViewWtf16Slice>(
+            decoder, {view, args[1].op, args[2].op});
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
+        decoder->detected_->add_imported_strings();
         break;
       }
       case WKI::kStringToWtf16Array: {
-        V<Tagged> string = ExternRefToString(args[0]);
-        result = CallBuiltinThroughJumptable(
-            decoder, Builtin::kWasmStringEncodeWtf16Array,
-            {string, NullCheck(args[1]), args[2].op},
-            Operator::kNoDeopt | Operator::kNoThrow);
-        decoder->detected_->Add(kFeature_imported_strings);
+        V<String> string = ExternRefToString(args[0]);
+        result = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringEncodeWtf16Array>(
+            decoder,
+            {string, V<WasmArray>::Cast(NullCheck(args[1])), args[2].op});
+        decoder->detected_->add_imported_strings();
         break;
       }
 
       // Other string-related imports.
-      // TODO(14108): Implement the other string-related imports.
-      case WKI::kDoubleToString:
-      case WKI::kIntToString:
-      case WKI::kParseFloat:
-      case WKI::kStringIndexOf:
-      case WKI::kStringToLocaleLowerCaseStringref:
-      case WKI::kStringToLowerCaseStringref:
-        return false;
-      case WKI::kDataViewGetInt32: {
-        V<Tagged> dataview = args[0].op;
-        V<WordPtr> offset = __ ChangeInt32ToIntPtr(args[1].op);
-        V<Word32> is_little_endian = args[2].op;
-
-        // Typecheck of `dataview`.
-        Label<> type_error_label(&asm_);
-        Label<> no_type_error_label(&asm_);
-        GOTO_IF_NOT(
-            __ HasInstanceType(dataview, InstanceType::JS_DATA_VIEW_TYPE),
-            type_error_label);
-        GOTO(no_type_error_label);
-
-        BIND(type_error_label);
-        CallBuiltinThroughJumptable(
-            decoder, Builtin::kThrowDataViewGetInt32TypeError, {dataview});
-        __ Unreachable();
-
-        BIND(no_type_error_label);
-
-        // Offset bounds check.
-        Label<> out_of_bounds_label(&asm_);
-        GOTO_IF(__ IntPtrLessThan(offset, 0), out_of_bounds_label);
-
-        // Detached buffer check.
-        // TODO(evih): Make the buffer load immutable.
-        V<Object> buffer = __ LoadField<Object>(
-            dataview, compiler::AccessBuilder::ForJSArrayBufferViewBuffer());
-        V<Word32> bit_field = __ LoadField<Word32>(
-            buffer, compiler::AccessBuilder::ForJSArrayBufferBitField());
-        V<Word32> is_detached = __ Word32BitwiseAnd(
-            bit_field, JSArrayBuffer::WasDetachedBit::kMask);
-        Label<> detached_error_label(&asm_);
-        Label<> no_detached_error_label(&asm_);
-        GOTO_IF(is_detached, detached_error_label);
-        GOTO(no_detached_error_label);
-
-        BIND(detached_error_label);
-        CallBuiltinThroughJumptable(
-            decoder, Builtin::kThrowDataViewGetInt32DetachedError, {});
-        __ Unreachable();
-
-        BIND(no_detached_error_label);
-
-        // Access to dataview bounds check.
-        V<WordPtr> byte_length = __ LoadField<WordPtr>(
-            dataview, AccessBuilder::ForJSArrayBufferViewByteLength());
-        V<WordPtr> bytelength_minus_size =
-            __ WordPtrSub(byte_length, kInt32Size);
-        Label<> viewsize_boundscheck_done_label(&asm_);
-        GOTO_IF(__ IntPtrLessThan(bytelength_minus_size, offset),
-                out_of_bounds_label);
-        GOTO(viewsize_boundscheck_done_label);
-
-        BIND(out_of_bounds_label);
-        CallBuiltinThroughJumptable(
-            decoder, Builtin::kThrowDataViewGetInt32OutOfBounds, {});
-        __ Unreachable();
-
-        BIND(viewsize_boundscheck_done_label);
-
-        V<WordPtr> data_ptr = __ LoadField<WordPtr>(
-            dataview, compiler::AccessBuilder::ForJSDataViewDataPointer());
-        result = __ LoadDataViewElement(dataview, data_ptr, offset,
-                                        is_little_endian, kExternalInt32Array);
+      case WKI::kDoubleToString: {
+        BuildModifyThreadInWasmFlag(decoder->zone(), false);
+        V<String> result_value = CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmFloat64ToString>(decoder, {args[0].op});
+        result = AnnotateAsString(result_value, returns[0].type);
+        BuildModifyThreadInWasmFlag(decoder->zone(), true);
+        decoder->detected_->Add(
+            returns[0].type.is_reference_to(wasm::HeapType::kString)
+                ? WasmDetectedFeature::stringref
+                : WasmDetectedFeature::imported_strings);
         break;
       }
-      case WKI::kDataViewSetInt32:
+      case WKI::kIntToString: {
+        BuildModifyThreadInWasmFlag(decoder->zone(), false);
+        V<String> result_value =
+            CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmIntToString>(
+                decoder, {args[0].op, args[1].op});
+        result = AnnotateAsString(result_value, returns[0].type);
+        BuildModifyThreadInWasmFlag(decoder->zone(), true);
+        decoder->detected_->Add(
+            returns[0].type.is_reference_to(wasm::HeapType::kString)
+                ? WasmDetectedFeature::stringref
+                : WasmDetectedFeature::imported_strings);
+        break;
+      }
+      case WKI::kParseFloat: {
+        if (args[0].type.is_nullable()) {
+          Label<Float64> done(&asm_);
+          GOTO_IF(__ IsNull(args[0].op, args[0].type), done,
+                  __ Float64Constant(std::numeric_limits<double>::quiet_NaN()));
+
+          BuildModifyThreadInWasmFlag(decoder->zone(), false);
+          V<Float64> not_null_res = CallBuiltinThroughJumptable<
+              BuiltinCallDescriptor::WasmStringToDouble>(decoder, {args[0].op});
+          BuildModifyThreadInWasmFlag(decoder->zone(), true);
+          GOTO(done, not_null_res);
+
+          BIND(done, result_f64);
+          result = result_f64;
+        } else {
+          BuildModifyThreadInWasmFlag(decoder->zone(), false);
+          result = CallBuiltinThroughJumptable<
+              BuiltinCallDescriptor::WasmStringToDouble>(decoder, {args[0].op});
+          BuildModifyThreadInWasmFlag(decoder->zone(), true);
+        }
+        decoder->detected_->add_stringref();
+        break;
+      }
+      case WKI::kStringIndexOf: {
+        V<String> string = args[0].op;
+        V<String> search = args[1].op;
+        V<Word32> start = args[2].op;
+
+        // If string is null, throw.
+        if (args[0].type.is_nullable()) {
+          IF (__ IsNull(string, args[0].type)) {
+            CallBuiltinThroughJumptable<
+                BuiltinCallDescriptor::ThrowIndexOfCalledOnNull>(decoder, {});
+            __ Unreachable();
+          }
+        }
+
+        // If search is null, replace it with "null".
+        if (args[1].type.is_nullable()) {
+          Label<String> search_done_label(&asm_);
+          GOTO_IF_NOT(__ IsNull(search, args[1].type), search_done_label,
+                      search);
+          GOTO(search_done_label, LOAD_ROOT(null_string));
+          BIND(search_done_label, search_value);
+          search = search_value;
+        }
+
+        result = GetStringIndexOf(decoder, string, search, start);
+        decoder->detected_->add_stringref();
+        break;
+      }
+      case WKI::kStringIndexOfImported: {
+        // As the `string` and `search` parameters are externrefs, we have to
+        // make sure they are strings. To enforce this, we inline only if a
+        // (successful) `"js-string":"cast"` was performed before.
+        if (!(IsExplicitStringCast(args[0]) && IsExplicitStringCast(args[1]))) {
+          return false;
+        }
+        V<String> string = args[0].op;
+        V<String> search = args[1].op;
+        V<Word32> start = args[2].op;
+
+        result = GetStringIndexOf(decoder, string, search, start);
+        decoder->detected_->add_imported_strings();
+        break;
+      }
+      case WKI::kStringToLocaleLowerCaseStringref:
+        // TODO(14108): Implement.
         return false;
+      case WKI::kStringToLowerCaseStringref: {
+#if V8_INTL_SUPPORT
+        V<String> string = args[0].op;
+        if (args[0].type.is_nullable()) {
+          IF (__ IsNull(string, args[0].type)) {
+            CallBuiltinThroughJumptable<
+                BuiltinCallDescriptor::ThrowToLowerCaseCalledOnNull>(decoder,
+                                                                     {});
+            __ Unreachable();
+          }
+        }
+        V<String> result_value = CallStringToLowercase(decoder, string);
+        result = __ AnnotateWasmType(result_value, kWasmRefString);
+        decoder->detected_->add_stringref();
+        break;
+#else
+        return false;
+#endif
+      }
+      case WKI::kStringToLowerCaseImported: {
+        // We have to make sure that the externref `string` parameter is a
+        // string. To enforce this, we inline only if a (successful)
+        // `"js-string":"cast"` was performed before.
+#if V8_INTL_SUPPORT
+        if (!IsExplicitStringCast(args[0])) {
+          return false;
+        }
+        V<String> string = args[0].op;
+        V<String> result_value = CallStringToLowercase(decoder, string);
+        result = __ AnnotateWasmType(result_value, kWasmRefExternString);
+        decoder->detected_->add_imported_strings();
+        break;
+#else
+        return false;
+#endif
+      }
+
+      // DataView related imports.
+      // Note that we don't support DataView imports for resizable ArrayBuffers.
+      case WKI::kDataViewGetBigInt64: {
+        result = DataViewGetter(decoder, args, DataViewOp::kGetBigInt64);
+        break;
+      }
+      case WKI::kDataViewGetBigUint64:
+        result = DataViewGetter(decoder, args, DataViewOp::kGetBigUint64);
+        break;
+      case WKI::kDataViewGetFloat32:
+        result = DataViewGetter(decoder, args, DataViewOp::kGetFloat32);
+        break;
+      case WKI::kDataViewGetFloat64:
+        result = DataViewGetter(decoder, args, DataViewOp::kGetFloat64);
+        break;
+      case WKI::kDataViewGetInt8:
+        result = DataViewGetter(decoder, args, DataViewOp::kGetInt8);
+        break;
+      case WKI::kDataViewGetInt16:
+        result = DataViewGetter(decoder, args, DataViewOp::kGetInt16);
+        break;
+      case WKI::kDataViewGetInt32:
+        result = DataViewGetter(decoder, args, DataViewOp::kGetInt32);
+        break;
+      case WKI::kDataViewGetUint8:
+        result = DataViewGetter(decoder, args, DataViewOp::kGetUint8);
+        break;
+      case WKI::kDataViewGetUint16:
+        result = DataViewGetter(decoder, args, DataViewOp::kGetUint16);
+        break;
+      case WKI::kDataViewGetUint32:
+        result = DataViewGetter(decoder, args, DataViewOp::kGetUint32);
+        break;
+      case WKI::kDataViewSetBigInt64:
+        DataViewSetter(decoder, args, DataViewOp::kSetBigInt64);
+        break;
+      case WKI::kDataViewSetBigUint64:
+        DataViewSetter(decoder, args, DataViewOp::kSetBigUint64);
+        break;
+      case WKI::kDataViewSetFloat32:
+        DataViewSetter(decoder, args, DataViewOp::kSetFloat32);
+        break;
+      case WKI::kDataViewSetFloat64:
+        DataViewSetter(decoder, args, DataViewOp::kSetFloat64);
+        break;
+      case WKI::kDataViewSetInt8:
+        DataViewSetter(decoder, args, DataViewOp::kSetInt8);
+        break;
+      case WKI::kDataViewSetInt16:
+        DataViewSetter(decoder, args, DataViewOp::kSetInt16);
+        break;
+      case WKI::kDataViewSetInt32:
+        DataViewSetter(decoder, args, DataViewOp::kSetInt32);
+        break;
+      case WKI::kDataViewSetUint8:
+        DataViewSetter(decoder, args, DataViewOp::kSetUint8);
+        break;
+      case WKI::kDataViewSetUint16:
+        DataViewSetter(decoder, args, DataViewOp::kSetUint16);
+        break;
+      case WKI::kDataViewSetUint32:
+        DataViewSetter(decoder, args, DataViewOp::kSetUint32);
+        break;
+      case WKI::kDataViewByteLength: {
+        V<Object> dataview = args[0].op;
+        V<WordPtr> view_byte_length =
+            GetDataViewByteLength(decoder, dataview, DataViewOp::kByteLength);
+        if constexpr (Is64()) {
+          result =
+              __ ChangeInt64ToFloat64(__ ChangeIntPtrToInt64(view_byte_length));
+        } else {
+          result = __ ChangeInt32ToFloat64(
+              __ TruncateWordPtrToWord32(view_byte_length));
+        }
+        break;
+      }
+
+        // Math functions.
+      case WKI::kMathF64Acos:
+        result = __ Float64Acos(args[0].op);
+        break;
+      case WKI::kMathF64Asin:
+        result = __ Float64Asin(args[0].op);
+        break;
+      case WKI::kMathF64Atan:
+        result = __ Float64Atan(args[0].op);
+        break;
+      case WKI::kMathF64Atan2:
+        result = __ Float64Atan2(args[0].op, args[1].op);
+        break;
+      case WKI::kMathF64Cos:
+        result = __ Float64Cos(args[0].op);
+        break;
+      case WKI::kMathF64Sin:
+        result = __ Float64Sin(args[0].op);
+        break;
+      case WKI::kMathF64Tan:
+        result = __ Float64Tan(args[0].op);
+        break;
+      case WKI::kMathF64Exp:
+        result = __ Float64Exp(args[0].op);
+        break;
+      case WKI::kMathF64Log:
+        result = __ Float64Log(args[0].op);
+        break;
+      case WKI::kMathF64Pow:
+        result = __ Float64Power(args[0].op, args[1].op);
+        break;
+      case WKI::kMathF64Sqrt:
+        result = __ Float64Sqrt(args[0].op);
+        break;
+
+        // Fast API calls.
+      case WKI::kFastAPICall: {
+        WellKnown_FastApi(decoder, imm, args, returns);
+        result = returns[0].op;
+        break;
+      }
     }
     if (v8_flags.trace_wasm_inlining) {
       PrintF("[function %d: call to %d is well-known %s]\n", func_index_, index,
              WellKnownImportName(imported_op));
     }
-    assumptions_->RecordAssumption(index, imported_op);
+    if (!*assumptions_) *assumptions_ = std::make_unique<AssumptionsJournal>();
+    (*assumptions_)->RecordAssumption(index, imported_op);
     returns[0].op = result;
     return true;
   }
 
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[]) {
+    feedback_slot_++;
     if (imm.index < decoder->module_->num_imported_functions) {
-      if (HandleWellKnownImport(decoder, imm.index, args, returns)) {
+      if (HandleWellKnownImport(decoder, imm, args, returns)) {
         return;
       }
-      auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
-      BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
+      auto [target, implicit_arg] =
+          BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
+      BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns,
+                    compiler::kWasmIndirectFunction);
     } else {
       // Locally defined function.
-      V<WordPtr> callee =
-          __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
-      BuildWasmCall(decoder, imm.sig, callee, instance_node_, args, returns);
+      if (should_inline(decoder, feedback_slot_,
+                        decoder->module_->functions[imm.index].code.length())) {
+        if (v8_flags.trace_wasm_inlining) {
+          PrintF("[function %d%s: inlining direct call #%d to function %d]\n",
+                 func_index_, mode_ == kRegular ? "" : " (inlined)",
+                 feedback_slot_, imm.index);
+        }
+        InlineWasmCall(decoder, imm.index, imm.sig, 0, false, args, returns);
+      } else {
+        V<WordPtr> callee =
+            __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
+        BuildWasmCall(decoder, imm.sig, callee,
+                      trusted_instance_data(
+                          decoder->module_->function_is_shared(imm.index)),
+                      args, returns);
+      }
     }
   }
 
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
+    feedback_slot_++;
     if (imm.index < decoder->module_->num_imported_functions) {
-      auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
-      BuildWasmReturnCall(imm.sig, target, ref, args);
+      auto [target, implicit_arg] =
+          BuildImportedFunctionTargetAndImplicitArg(decoder, imm.index);
+      BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args,
+                               compiler::kWasmIndirectFunction);
     } else {
       // Locally defined function.
-      V<WordPtr> callee =
-          __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
-      BuildWasmReturnCall(imm.sig, callee, instance_node_, args);
+      if (should_inline(decoder, feedback_slot_,
+                        decoder->module_->functions[imm.index].code.length())) {
+        if (v8_flags.trace_wasm_inlining) {
+          PrintF(
+              "[function %d%s: inlining direct tail call #%d to function %d]\n",
+              func_index_, mode_ == kRegular ? "" : " (inlined)",
+              feedback_slot_, imm.index);
+        }
+        InlineWasmCall(decoder, imm.index, imm.sig, 0, true, args, nullptr);
+      } else {
+        BuildWasmMaybeReturnCall(
+            decoder, imm.sig,
+            __ RelocatableConstant(imm.index, RelocInfo::WASM_CALL),
+            trusted_instance_data(
+                decoder->module_->function_is_shared(imm.index)),
+            args);
+      }
     }
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate& imm, const Value args[],
                     Value returns[]) {
-    auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
-    BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
+    if (v8_flags.wasm_inlining_call_indirect) {
+      CHECK(v8_flags.wasm_inlining);
+      feedback_slot_++;
+      // In case of being unreachable, skip it because it tries to access nodes
+      // which might be non-existent (OpIndex::Invalid()) in unreachable code.
+      if (__ generating_unreachable_operations()) return;
+
+      if (should_inline(decoder, feedback_slot_,
+                        std::numeric_limits<int>::max())) {
+        V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
+            imm.table_imm.table->address_type, index.op);
+
+        DCHECK(!shared_);
+        // Load the instance here even though it's only used below, in the hope
+        // that load elimination can use it when fetching the target next.
+        V<WasmTrustedInstanceData> instance = trusted_instance_data(kNotShared);
+
+        // We are only interested in the target here for comparison against
+        // the inlined call target below.
+        // In particular, we don't need a dynamic type or null check: If the
+        // actual call target (at runtime) is equal to the inlined call target,
+        // we know already from the static check on the inlinee (see below) that
+        // the inlined code has the right signature.
+        constexpr bool kNeedsTypeOrNullCheck = false;
+        auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
+            decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
+
+        size_t return_count = imm.sig->return_count();
+        base::Vector<InliningTree*> feedback_cases =
+            inlining_decisions_->function_calls()[feedback_slot_];
+        std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
+        // The slow path is the non-inlined generic `call_indirect`,
+        // or a deopt node if that is enabled.
+        constexpr int kSlowpathCase = 1;
+        base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
+            case_blocks;
+        for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
+          case_blocks.push_back(__ NewBlock());
+        }
+        // Block for the slowpath, i.e., the not-inlined call or deopt.
+        TSBlock* no_inline_block = case_blocks.back();
+        // Block for merging results after the inlined code.
+        TSBlock* merge = __ NewBlock();
+
+        // Always create a frame state, but rely on DCE to remove it in case we
+        // end up not using deopts. This allows us to share the frame state
+        // between a deopt due to wrong instance and deopt due to wrong target.
+        V<FrameState> frame_state =
+            CreateFrameState(decoder, imm.sig, &index, args);
+        bool use_deopt_slowpath = deopts_enabled();
+        DCHECK_IMPLIES(use_deopt_slowpath, frame_state.valid());
+        if (use_deopt_slowpath &&
+            inlining_decisions_->has_non_inlineable_targets()[feedback_slot_]) {
+          if (v8_flags.trace_wasm_inlining) {
+            PrintF(
+                "[function %d%s: Not emitting deopt slow-path for "
+                "call_indirect #%d as feedback contains non-inlineable "
+                "targets]\n",
+                func_index_, mode_ == kRegular ? "" : " (inlined)",
+                feedback_slot_);
+          }
+          use_deopt_slowpath = false;
+        }
+
+        // Wasm functions are semantically closures over the instance, but
+        // when we inline a target in the following, we implicitly assume the
+        // inlinee instance is the same as the caller's instance.
+        // Directly jump to the non-inlined slowpath if that's violated.
+        // Note that for `call_ref` this isn't necessary, because the funcref
+        // equality check already captures both code and instance equality.
+        constexpr BranchHint kUnlikelyCrossInstanceCall = BranchHint::kTrue;
+        // Note that the `implicit_arg` can never be a `WasmImportData`,
+        // since we don't inline imported functions right now.
+        __ Branch({__ TaggedEqual(implicit_arg, instance),
+                   kUnlikelyCrossInstanceCall},
+                  case_blocks[0], no_inline_block);
+
+        for (size_t i = 0; i < feedback_cases.size(); i++) {
+          __ Bind(case_blocks[i]);
+          InliningTree* tree = feedback_cases[i];
+          if (!tree || !tree->is_inlined()) {
+            // Fall through to the next case.
+            __ Goto(case_blocks[i + 1]);
+            // Do not use the deopt slowpath if we decided to not inline (at
+            // least) one call target.
+            // Otherwise, this could lead to a deopt loop.
+            use_deopt_slowpath = false;
+            continue;
+          }
+          uint32_t inlined_index = tree->function_index();
+          // Ensure that we only inline if the inlinee's signature is compatible
+          // with the call_indirect. In other words, perform the type check that
+          // would normally be done dynamically (see above
+          // `BuildIndirectCallTargetAndImplicitArg`) statically on the inlined
+          // target. This can fail, e.g., because the mapping of feedback back
+          // to function indices may produce spurious targets, or because the
+          // feedback in the JS heap has been corrupted by a vulnerability.
+          if (!InlineTargetIsTypeCompatible(
+                  decoder->module_, imm.sig,
+                  decoder->module_->functions[inlined_index].sig)) {
+            __ Goto(case_blocks[i + 1]);
+            continue;
+          }
+
+          V<Word32> inlined_target =
+              __ RelocatableWasmIndirectCallTarget(inlined_index);
+
+          bool is_last_feedback_case = (i == feedback_cases.size() - 1);
+          if (use_deopt_slowpath && is_last_feedback_case) {
+            DeoptIfNot(decoder, __ Word32Equal(target, inlined_target),
+                       frame_state);
+            } else {
+            TSBlock* inline_block = __ NewBlock();
+            BranchHint hint =
+                is_last_feedback_case ? BranchHint::kTrue : BranchHint::kNone;
+            __ Branch({__ Word32Equal(target, inlined_target), hint},
+                      inline_block, case_blocks[i + 1]);
+            __ Bind(inline_block);
+          }
+
+          SmallZoneVector<Value, 4> direct_returns(return_count,
+                                                   decoder->zone_);
+          if (v8_flags.trace_wasm_inlining) {
+            PrintF(
+                "[function %d%s: Speculatively inlining call_indirect #%d, "
+                "case #%zu, to function %d]\n",
+                func_index_, mode_ == kRegular ? "" : " (inlined)",
+                feedback_slot_, i, inlined_index);
+          }
+          InlineWasmCall(decoder, inlined_index, imm.sig,
+                         static_cast<uint32_t>(i), false, args,
+                         direct_returns.data());
+
+          if (__ current_block() != nullptr) {
+            // Only add phi inputs and a Goto to {merge} if the current_block is
+            // not nullptr. If the current_block is nullptr, it means that the
+            // inlined body unconditionally exits early (likely an unconditional
+            // trap or throw).
+            for (size_t ret = 0; ret < direct_returns.size(); ret++) {
+              case_returns[ret].push_back(direct_returns[ret].op);
+            }
+            __ Goto(merge);
+          }
+        }
+
+        __ Bind(no_inline_block);
+        if (use_deopt_slowpath) {
+          // We need this unconditional deopt only for the "instance check",
+          // as the last "target check" already uses a `DeoptIfNot` node.
+          Deopt(decoder, frame_state);
+        } else {
+          auto [call_target, call_implicit_arg] =
+              BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr,
+                                                    imm);
+          SmallZoneVector<Value, 4> indirect_returns(return_count,
+                                                     decoder->zone_);
+          BuildWasmCall(decoder, imm.sig, call_target, call_implicit_arg, args,
+                        indirect_returns.data(),
+                        compiler::kWasmIndirectFunction);
+          for (size_t ret = 0; ret < indirect_returns.size(); ret++) {
+            case_returns[ret].push_back(indirect_returns[ret].op);
+          }
+          __ Goto(merge);
+        }
+
+        __ Bind(merge);
+        for (size_t i = 0; i < case_returns.size(); i++) {
+          returns[i].op = __ Phi(base::VectorOf(case_returns[i]),
+                                 RepresentationFor(imm.sig->GetReturn(i)));
+        }
+
+        return;
+      }  // should_inline
+    }    // v8_flags.wasm_inlining_call_indirect
+
+    // Didn't inline.
+    V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
+        imm.table_imm.table->address_type, index.op);
+    auto [target, implicit_arg] =
+        BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr, imm);
+    BuildWasmCall(decoder, imm.sig, target, implicit_arg, args, returns,
+                  compiler::kWasmIndirectFunction);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
-    auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
-    BuildWasmReturnCall(imm.sig, target, ref, args);
+    if (v8_flags.wasm_inlining_call_indirect) {
+      CHECK(v8_flags.wasm_inlining);
+      feedback_slot_++;
+
+      if (should_inline(decoder, feedback_slot_,
+                        std::numeric_limits<int>::max())) {
+        V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
+            imm.table_imm.table->address_type, index.op);
+
+        DCHECK(!shared_);
+        // Load the instance here even though it's only used below, in the hope
+        // that load elimination can use it when fetching the target next.
+        V<WasmTrustedInstanceData> instance = trusted_instance_data(kNotShared);
+
+        // We are only interested in the target here for comparison against
+        // the inlined call target below.
+        // In particular, we don't need a dynamic type or null check: If the
+        // actual call target (at runtime) is equal to the inlined call target,
+        // we know already from the static check on the inlinee (see below) that
+        // the inlined code has the right signature.
+        constexpr bool kNeedsTypeOrNullCheck = false;
+        auto [target, implicit_arg] = BuildIndirectCallTargetAndImplicitArg(
+            decoder, index_wordptr, imm, kNeedsTypeOrNullCheck);
+
+        base::Vector<InliningTree*> feedback_cases =
+            inlining_decisions_->function_calls()[feedback_slot_];
+        constexpr int kSlowpathCase = 1;
+        base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
+            case_blocks;
+        for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
+          case_blocks.push_back(__ NewBlock());
+        }
+        // Block for the slowpath, i.e., the not-inlined call.
+        TSBlock* no_inline_block = case_blocks.back();
+
+        // Wasm functions are semantically closures over the instance, but
+        // when we inline a target in the following, we implicitly assume the
+        // inlinee instance is the same as the caller's instance.
+        // Directly jump to the non-inlined slowpath if that's violated.
+        // Note that for `call_ref` this isn't necessary, because the funcref
+        // equality check already captures both code and instance equality.
+        constexpr BranchHint kUnlikelyCrossInstanceCall = BranchHint::kTrue;
+        // Note that the `implicit_arg` can never be a `WasmImportData`,
+        // since we don't inline imported functions right now.
+        __ Branch({__ TaggedEqual(implicit_arg, instance),
+                   kUnlikelyCrossInstanceCall},
+                  case_blocks[0], no_inline_block);
+
+        for (size_t i = 0; i < feedback_cases.size(); i++) {
+          __ Bind(case_blocks[i]);
+          InliningTree* tree = feedback_cases[i];
+          if (!tree || !tree->is_inlined()) {
+            // Fall through to the next case.
+            __ Goto(case_blocks[i + 1]);
+            continue;
+          }
+          uint32_t inlined_index = tree->function_index();
+          // Ensure that we only inline if the inlinee's signature is compatible
+          // with the call_indirect. In other words, perform the type check that
+          // would normally be done dynamically (see above
+          // `BuildIndirectCallTargetAndImplicitArg`) statically on the inlined
+          // target. This can fail, e.g., because the mapping of feedback back
+          // to function indices may produce spurious targets, or because the
+          // feedback in the JS heap has been corrupted by a vulnerability.
+          if (!InlineTargetIsTypeCompatible(
+                  decoder->module_, imm.sig,
+                  decoder->module_->functions[inlined_index].sig)) {
+            __ Goto(case_blocks[i + 1]);
+            continue;
+          }
+
+          V<Word32> inlined_target =
+              __ RelocatableWasmIndirectCallTarget(inlined_index);
+
+          TSBlock* inline_block = __ NewBlock();
+          bool is_last_case = (i == feedback_cases.size() - 1);
+          BranchHint hint =
+              is_last_case ? BranchHint::kTrue : BranchHint::kNone;
+          __ Branch({__ Word32Equal(target, inlined_target), hint},
+                    inline_block, case_blocks[i + 1]);
+          __ Bind(inline_block);
+          if (v8_flags.trace_wasm_inlining) {
+            PrintF(
+                "[function %d%s: Speculatively inlining return_call_indirect "
+                "#%d, case #%zu, to function %d]\n",
+                func_index_, mode_ == kRegular ? "" : " (inlined)",
+                feedback_slot_, i, inlined_index);
+          }
+          InlineWasmCall(decoder, inlined_index, imm.sig,
+                         static_cast<uint32_t>(i), true, args, nullptr);
+
+          // An inlined tail call should still terminate execution.
+          DCHECK_NULL(__ current_block());
+        }
+
+        __ Bind(no_inline_block);
+      }  // should_inline
+    }    // v8_flags.wasm_inlining_call_indirect
+
+    // Didn't inline.
+    V<WordPtr> index_wordptr = TableAddressToUintPtrOrOOBTrap(
+        imm.table_imm.table->address_type, index.op);
+    auto [target, implicit_arg] =
+        BuildIndirectCallTargetAndImplicitArg(decoder, index_wordptr, imm);
+    BuildWasmMaybeReturnCall(decoder, imm.sig, target, implicit_arg, args,
+                             compiler::kWasmIndirectFunction);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
-               const FunctionSig* sig, uint32_t sig_index, const Value args[],
-               Value returns[]) {
-    auto [target, ref] =
-        BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
-    BuildWasmCall(decoder, sig, target, ref, args, returns);
+               const FunctionSig* sig, const Value args[], Value returns[]) {
+    // TODO(14108): As the slot needs to be aligned with Liftoff, ideally the
+    // stack slot index would be provided by the decoder and passed to both
+    // Liftoff and Turbofan.
+    feedback_slot_++;
+    // In case of being unreachable, skip it because it tries to access nodes
+    // which might be non-existent (OpIndex::Invalid()) in unreachable code.
+    if (__ generating_unreachable_operations()) return;
+
+    if (should_inline(decoder, feedback_slot_,
+                      std::numeric_limits<int>::max())) {
+      DCHECK(!shared_);
+      V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          trusted_instance_data(kNotShared), FuncRefs,
+          MemoryRepresentation::TaggedPointer());
+
+      size_t return_count = sig->return_count();
+      base::Vector<InliningTree*> feedback_cases =
+          inlining_decisions_->function_calls()[feedback_slot_];
+      std::vector<base::SmallVector<OpIndex, 2>> case_returns(return_count);
+      // The slow path is the non-inlined generic `call_ref`,
+      // or a deopt node if that is enabled.
+      constexpr int kSlowpathCase = 1;
+      base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
+          case_blocks;
+      for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
+        case_blocks.push_back(__ NewBlock());
+      }
+      TSBlock* merge = __ NewBlock();
+      __ Goto(case_blocks[0]);
+
+      bool use_deopt_slowpath = deopts_enabled();
+      for (size_t i = 0; i < feedback_cases.size(); i++) {
+        __ Bind(case_blocks[i]);
+        InliningTree* tree = feedback_cases[i];
+        if (!tree || !tree->is_inlined()) {
+          // Fall through to the next case.
+          __ Goto(case_blocks[i + 1]);
+          // Do not use the deopt slowpath if we decided to not inline (at
+          // least) one call target. Otherwise, this could lead to a deopt loop.
+          use_deopt_slowpath = false;
+          continue;
+        }
+        uint32_t inlined_index = tree->function_index();
+        DCHECK(!decoder->module_->function_is_shared(inlined_index));
+        V<Object> inlined_func_ref =
+            __ LoadFixedArrayElement(func_refs, inlined_index);
+
+        bool is_last_feedback_case = (i == feedback_cases.size() - 1);
+        if (use_deopt_slowpath && is_last_feedback_case) {
+          if (inlining_decisions_
+                  ->has_non_inlineable_targets()[feedback_slot_]) {
+            if (v8_flags.trace_wasm_inlining) {
+              PrintF(
+                  "[function %d%s: Not emitting deopt slow-path for "
+                  "call_ref #%d as feedback contains non-inlineable "
+                  "targets]\n",
+                  func_index_, mode_ == kRegular ? "" : " (inlined)",
+                  feedback_slot_);
+            }
+            use_deopt_slowpath = false;
+          }
+        }
+        bool emit_deopt = use_deopt_slowpath && is_last_feedback_case;
+        if (emit_deopt) {
+          V<FrameState> frame_state =
+              CreateFrameState(decoder, sig, &func_ref, args);
+          if (frame_state.valid()) {
+            DeoptIfNot(decoder, __ TaggedEqual(func_ref.op, inlined_func_ref),
+                       frame_state);
+          } else {
+            emit_deopt = false;
+            use_deopt_slowpath = false;
+          }
+        }
+        if (!emit_deopt) {
+          TSBlock* inline_block = __ NewBlock();
+          BranchHint hint =
+              is_last_feedback_case ? BranchHint::kTrue : BranchHint::kNone;
+          __ Branch({__ TaggedEqual(func_ref.op, inlined_func_ref), hint},
+                    inline_block, case_blocks[i + 1]);
+          __ Bind(inline_block);
+        }
+
+        SmallZoneVector<Value, 4> direct_returns(return_count, decoder->zone_);
+        if (v8_flags.trace_wasm_inlining) {
+          PrintF(
+              "[function %d%s: Speculatively inlining call_ref #%d, case #%zu, "
+              "to function %d]\n",
+              func_index_, mode_ == kRegular ? "" : " (inlined)",
+              feedback_slot_, i, inlined_index);
+        }
+        InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
+                       false, args, direct_returns.data());
+
+        if (__ current_block() != nullptr) {
+          // Only add phi inputs and a Goto to {merge} if the current_block is
+          // not nullptr. If the current_block is nullptr, it means that the
+          // inlined body unconditionally exits early (likely an unconditional
+          // trap or throw).
+          for (size_t ret = 0; ret < direct_returns.size(); ret++) {
+            case_returns[ret].push_back(direct_returns[ret].op);
+          }
+          __ Goto(merge);
+        }
+      }
+
+      if (!use_deopt_slowpath) {
+        TSBlock* no_inline_block = case_blocks.back();
+        __ Bind(no_inline_block);
+        auto [target, implicit_arg] =
+            BuildFunctionReferenceTargetAndImplicitArg(func_ref.op,
+                                                       func_ref.type);
+        SmallZoneVector<Value, 4> ref_returns(return_count, decoder->zone_);
+        BuildWasmCall(decoder, sig, target, implicit_arg, args,
+                      ref_returns.data(), compiler::kWasmIndirectFunction);
+        for (size_t ret = 0; ret < ref_returns.size(); ret++) {
+          case_returns[ret].push_back(ref_returns[ret].op);
+        }
+        __ Goto(merge);
+      }
+
+      __ Bind(merge);
+      for (size_t i = 0; i < case_returns.size(); i++) {
+        returns[i].op = __ Phi(base::VectorOf(case_returns[i]),
+                               RepresentationFor(sig->GetReturn(i)));
+      }
+    } else {
+      auto [target, implicit_arg] = BuildFunctionReferenceTargetAndImplicitArg(
+          func_ref.op, func_ref.type);
+      BuildWasmCall(decoder, sig, target, implicit_arg, args, returns,
+                    compiler::kWasmIndirectFunction);
+    }
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
-                     const FunctionSig* sig, uint32_t sig_index,
-                     const Value args[]) {
-    auto [target, ref] =
-        BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
-    BuildWasmReturnCall(sig, target, ref, args);
+                     const FunctionSig* sig, const Value args[]) {
+    feedback_slot_++;
+
+    if (should_inline(decoder, feedback_slot_,
+                      std::numeric_limits<int>::max())) {
+      DCHECK(!shared_);
+      V<FixedArray> func_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
+          trusted_instance_data(kNotShared), FuncRefs,
+          MemoryRepresentation::TaggedPointer());
+
+      base::Vector<InliningTree*> feedback_cases =
+          inlining_decisions_->function_calls()[feedback_slot_];
+      constexpr int kSlowpathCase = 1;
+      base::SmallVector<TSBlock*, wasm::kMaxPolymorphism + kSlowpathCase>
+          case_blocks;
+
+      for (size_t i = 0; i < feedback_cases.size() + kSlowpathCase; i++) {
+        case_blocks.push_back(__ NewBlock());
+      }
+      __ Goto(case_blocks[0]);
+
+      for (size_t i = 0; i < feedback_cases.size(); i++) {
+        __ Bind(case_blocks[i]);
+        InliningTree* tree = feedback_cases[i];
+        if (!tree || !tree->is_inlined()) {
+          // Fall through to the next case.
+          __ Goto(case_blocks[i + 1]);
+          continue;
+        }
+        uint32_t inlined_index = tree->function_index();
+        DCHECK(!decoder->module_->function_is_shared(inlined_index));
+        V<Object> inlined_func_ref =
+            __ LoadFixedArrayElement(func_refs, inlined_index);
+
+        TSBlock* inline_block = __ NewBlock();
+        bool is_last_case = (i == feedback_cases.size() - 1);
+        BranchHint hint = is_last_case ? BranchHint::kTrue : BranchHint::kNone;
+        __ Branch({__ TaggedEqual(func_ref.op, inlined_func_ref), hint},
+                  inline_block, case_blocks[i + 1]);
+        __ Bind(inline_block);
+        if (v8_flags.trace_wasm_inlining) {
+          PrintF(
+              "[function %d%s: Speculatively inlining return_call_ref #%d, "
+              "case #%zu, to function %d]\n",
+              func_index_, mode_ == kRegular ? "" : " (inlined)",
+              feedback_slot_, i, inlined_index);
+        }
+        InlineWasmCall(decoder, inlined_index, sig, static_cast<uint32_t>(i),
+                       true, args, nullptr);
+
+        // An inlined tail call should still terminate execution.
+        DCHECK_NULL(__ current_block());
+      }
+
+      TSBlock* no_inline_block = case_blocks.back();
+      __ Bind(no_inline_block);
+    }
+    auto [target, implicit_arg] =
+        BuildFunctionReferenceTargetAndImplicitArg(func_ref.op, func_ref.type);
+    BuildWasmMaybeReturnCall(decoder, sig, target, implicit_arg, args,
+                             compiler::kWasmIndirectFunction);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
                 bool pass_null_along_branch, Value* result_on_fallthrough) {
     result_on_fallthrough->op = ref_object.op;
     IF (UNLIKELY(__ IsNull(ref_object.op, ref_object.type))) {
-      BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
+      int drop_values = pass_null_along_branch ? 0 : 1;
+      BrOrRet(decoder, depth, drop_values);
     }
-    END_IF
   }
 
   void BrOnNonNull(FullDecoder* decoder, const Value& ref_object, Value* result,
                    uint32_t depth, bool /* drop_null_on_fallthrough */) {
     result->op = ref_object.op;
     IF_NOT (UNLIKELY(__ IsNull(ref_object.op, ref_object.type))) {
-      BrOrRet(decoder, depth, 0);
+      BrOrRet(decoder, depth);
     }
-    END_IF
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* args,
@@ -1186,16 +3314,63 @@ class TurboshaftGraphBuildingInterface {
 #define HANDLE_BINARY_OPCODE(kind)                                            \
   case kExpr##kind:                                                           \
     result->op =                                                              \
-        __ Simd128Binop(args[0].op, args[1].op,                               \
+        __ Simd128Binop(V<compiler::turboshaft::Simd128>::Cast(args[0].op),   \
+                        V<compiler::turboshaft::Simd128>::Cast(args[1].op),   \
                         compiler::turboshaft::Simd128BinopOp::Kind::k##kind); \
     break;
-      FOREACH_SIMD_128_BINARY_OPCODE(HANDLE_BINARY_OPCODE)
+      FOREACH_SIMD_128_BINARY_MANDATORY_OPCODE(HANDLE_BINARY_OPCODE)
 #undef HANDLE_BINARY_OPCODE
+#define HANDLE_F16X8_BIN_OPTIONAL_OPCODE(kind, extern_ref)                     \
+  case kExprF16x8##kind:                                                       \
+    if (SupportedOperations::float16()) {                                      \
+      result->op = __ Simd128Binop(                                            \
+          V<compiler::turboshaft::Simd128>::Cast(args[0].op),                  \
+          V<compiler::turboshaft::Simd128>::Cast(args[1].op),                  \
+          compiler::turboshaft::Simd128BinopOp::Kind::kF16x8##kind);           \
+    } else {                                                                   \
+      result->op = CallCStackSlotToStackSlot(args[0].op, args[1].op,           \
+                                             ExternalReference::extern_ref(),  \
+                                             MemoryRepresentation::Simd128()); \
+    }                                                                          \
+    break;
+
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Add, wasm_f16x8_add)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Sub, wasm_f16x8_sub)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Mul, wasm_f16x8_mul)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Div, wasm_f16x8_div)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Min, wasm_f16x8_min)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Max, wasm_f16x8_max)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Pmin, wasm_f16x8_pmin)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Pmax, wasm_f16x8_pmax)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Eq, wasm_f16x8_eq)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Ne, wasm_f16x8_ne)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Lt, wasm_f16x8_lt)
+      HANDLE_F16X8_BIN_OPTIONAL_OPCODE(Le, wasm_f16x8_le)
+#undef HANDLE_F16X8_BIN_OPCODE
+
+#define HANDLE_F16X8_INVERSE_COMPARISON(kind, ts_kind, extern_ref)             \
+  case kExprF16x8##kind:                                                       \
+    if (SupportedOperations::float16()) {                                      \
+      result->op = __ Simd128Binop(                                            \
+          V<compiler::turboshaft::Simd128>::Cast(args[1].op),                  \
+          V<compiler::turboshaft::Simd128>::Cast(args[0].op),                  \
+          compiler::turboshaft::Simd128BinopOp::Kind::kF16x8##ts_kind);        \
+    } else {                                                                   \
+      result->op = CallCStackSlotToStackSlot(args[1].op, args[0].op,           \
+                                             ExternalReference::extern_ref(),  \
+                                             MemoryRepresentation::Simd128()); \
+    }                                                                          \
+    break;
+
+      HANDLE_F16X8_INVERSE_COMPARISON(Gt, Lt, wasm_f16x8_lt)
+      HANDLE_F16X8_INVERSE_COMPARISON(Ge, Le, wasm_f16x8_le)
+#undef HANDLE_F16X8_INVERSE_COMPARISON
 
 #define HANDLE_INVERSE_COMPARISON(wasm_kind, ts_kind)            \
   case kExpr##wasm_kind:                                         \
     result->op = __ Simd128Binop(                                \
-        args[1].op, args[0].op,                                  \
+        V<compiler::turboshaft::Simd128>::Cast(args[1].op),      \
+        V<compiler::turboshaft::Simd128>::Cast(args[0].op),      \
         compiler::turboshaft::Simd128BinopOp::Kind::k##ts_kind); \
     break;
 
@@ -1224,26 +3399,51 @@ class TurboshaftGraphBuildingInterface {
 
 #undef HANDLE_INVERSE_COMPARISON
 
-#define HANDLE_UNARY_NON_OPTIONAL_OPCODE(kind)                            \
-  case kExpr##kind:                                                       \
-    result->op = __ Simd128Unary(                                         \
-        args[0].op, compiler::turboshaft::Simd128UnaryOp::Kind::k##kind); \
+#define HANDLE_UNARY_NON_OPTIONAL_OPCODE(kind)                                \
+  case kExpr##kind:                                                           \
+    result->op =                                                              \
+        __ Simd128Unary(V<compiler::turboshaft::Simd128>::Cast(args[0].op),   \
+                        compiler::turboshaft::Simd128UnaryOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_UNARY_NON_OPTIONAL_OPCODE(
           HANDLE_UNARY_NON_OPTIONAL_OPCODE)
 #undef HANDLE_UNARY_NON_OPTIONAL_OPCODE
 
-#define HANDLE_UNARY_OPTIONAL_OPCODE(kind, feature, external_ref)           \
-  case kExpr##kind:                                                         \
-    if (SupportedOperations::feature()) {                                   \
-      result->op = __ Simd128Unary(                                         \
-          args[0].op, compiler::turboshaft::Simd128UnaryOp::Kind::k##kind); \
-    } else {                                                                \
-      result->op = CallCStackSlotToStackSlot(                               \
-          args[0].op, ExternalReference::external_ref(),                    \
-          MemoryRepresentation::Simd128());                                 \
-    }                                                                       \
+#define HANDLE_UNARY_OPTIONAL_OPCODE(kind, feature, external_ref) \
+  case kExpr##kind:                                               \
+    if (SupportedOperations::feature()) {                         \
+      result->op = __ Simd128Unary(                               \
+          V<compiler::turboshaft::Simd128>::Cast(args[0].op),     \
+          compiler::turboshaft::Simd128UnaryOp::Kind::k##kind);   \
+    } else {                                                      \
+      result->op = CallCStackSlotToStackSlot(                     \
+          args[0].op, ExternalReference::external_ref(),          \
+          MemoryRepresentation::Simd128());                       \
+    }                                                             \
     break;
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Abs, float16, wasm_f16x8_abs)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Neg, float16, wasm_f16x8_neg)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Sqrt, float16, wasm_f16x8_sqrt)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Ceil, float16, wasm_f16x8_ceil)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Floor, float16, wasm_f16x8_floor)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8Trunc, float16, wasm_f16x8_trunc)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8NearestInt, float16,
+                                   wasm_f16x8_nearest_int)
+      HANDLE_UNARY_OPTIONAL_OPCODE(I16x8SConvertF16x8, float16,
+                                   wasm_i16x8_sconvert_f16x8)
+      HANDLE_UNARY_OPTIONAL_OPCODE(I16x8UConvertF16x8, float16,
+                                   wasm_i16x8_uconvert_f16x8)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8SConvertI16x8, float16,
+                                   wasm_f16x8_sconvert_i16x8)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8UConvertI16x8, float16,
+                                   wasm_f16x8_uconvert_i16x8)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8DemoteF32x4Zero, float16,
+                                   wasm_f16x8_demote_f32x4_zero)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F16x8DemoteF64x2Zero,
+                                   float64_to_float16_raw_bits,
+                                   wasm_f16x8_demote_f64x2_zero)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F32x4PromoteLowF16x8, float16,
+                                   wasm_f32x4_promote_low_f16x8)
       HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Ceil, float32_round_up, wasm_f32x4_ceil)
       HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Floor, float32_round_down,
                                    wasm_f32x4_floor)
@@ -1263,33 +3463,52 @@ class TurboshaftGraphBuildingInterface {
 #define HANDLE_SHIFT_OPCODE(kind)                                             \
   case kExpr##kind:                                                           \
     result->op =                                                              \
-        __ Simd128Shift(args[0].op, args[1].op,                               \
+        __ Simd128Shift(V<compiler::turboshaft::Simd128>::Cast(args[0].op),   \
+                        V<Word32>::Cast(args[1].op),                          \
                         compiler::turboshaft::Simd128ShiftOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_SHIFT_OPCODE(HANDLE_SHIFT_OPCODE)
 #undef HANDLE_SHIFT_OPCODE
 
-#define HANDLE_TEST_OPCODE(kind)                                         \
-  case kExpr##kind:                                                      \
-    result->op = __ Simd128Test(                                         \
-        args[0].op, compiler::turboshaft::Simd128TestOp::Kind::k##kind); \
+#define HANDLE_TEST_OPCODE(kind)                                            \
+  case kExpr##kind:                                                         \
+    result->op =                                                            \
+        __ Simd128Test(V<compiler::turboshaft::Simd128>::Cast(args[0].op),  \
+                       compiler::turboshaft::Simd128TestOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_TEST_OPCODE(HANDLE_TEST_OPCODE)
 #undef HANDLE_TEST_OPCODE
 
-#define HANDLE_SPLAT_OPCODE(kind)                                         \
-  case kExpr##kind##Splat:                                                \
-    result->op = __ Simd128Splat(                                         \
-        args[0].op, compiler::turboshaft::Simd128SplatOp::Kind::k##kind); \
+#define HANDLE_SPLAT_OPCODE(kind)                                             \
+  case kExpr##kind##Splat:                                                    \
+    result->op =                                                              \
+        __ Simd128Splat(V<Any>::Cast(args[0].op),                             \
+                        compiler::turboshaft::Simd128SplatOp::Kind::k##kind); \
     break;
-      FOREACH_SIMD_128_SPLAT_OPCODE(HANDLE_SPLAT_OPCODE)
+      FOREACH_SIMD_128_SPLAT_MANDATORY_OPCODE(HANDLE_SPLAT_OPCODE)
 #undef HANDLE_SPLAT_OPCODE
+      case kExprF16x8Splat:
+        if (SupportedOperations::float16()) {
+          result->op = __ Simd128Splat(
+              V<Any>::Cast(args[0].op),
+              compiler::turboshaft::Simd128SplatOp::Kind::kF16x8);
+        } else {
+          auto f16 = CallCStackSlotToStackSlot(
+              args[0].op, ExternalReference::wasm_float32_to_float16(),
+              MemoryRepresentation::Float32(), MemoryRepresentation::Int16());
+          result->op = __ Simd128Splat(
+              V<Any>::Cast(f16),
+              compiler::turboshaft::Simd128SplatOp::Kind::kI16x8);
+        }
+        break;
 
 // Ternary mask operators put the mask as first input.
 #define HANDLE_TERNARY_MASK_OPCODE(kind)                        \
   case kExpr##kind:                                             \
     result->op = __ Simd128Ternary(                             \
-        args[2].op, args[0].op, args[1].op,                     \
+        V<compiler::turboshaft::Simd128>::Cast(args[2].op),     \
+        V<compiler::turboshaft::Simd128>::Cast(args[0].op),     \
+        V<compiler::turboshaft::Simd128>::Cast(args[1].op),     \
         compiler::turboshaft::Simd128TernaryOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_TERNARY_MASK_OPCODE(HANDLE_TERNARY_MASK_OPCODE)
@@ -1298,12 +3517,33 @@ class TurboshaftGraphBuildingInterface {
 #define HANDLE_TERNARY_OTHER_OPCODE(kind)                       \
   case kExpr##kind:                                             \
     result->op = __ Simd128Ternary(                             \
-        args[0].op, args[1].op, args[2].op,                     \
+        V<compiler::turboshaft::Simd128>::Cast(args[0].op),     \
+        V<compiler::turboshaft::Simd128>::Cast(args[1].op),     \
+        V<compiler::turboshaft::Simd128>::Cast(args[2].op),     \
         compiler::turboshaft::Simd128TernaryOp::Kind::k##kind); \
     break;
       FOREACH_SIMD_128_TERNARY_OTHER_OPCODE(HANDLE_TERNARY_OTHER_OPCODE)
 #undef HANDLE_TERNARY_OTHER_OPCODE
 
+#define HANDLE_F16X8_TERN_OPCODE(kind, extern_ref)                          \
+  case kExpr##kind:                                                         \
+    if (SupportedOperations::float16()) {                                   \
+      result->op = __ Simd128Ternary(                                       \
+          V<compiler::turboshaft::Simd128>::Cast(args[0].op),               \
+          V<compiler::turboshaft::Simd128>::Cast(args[1].op),               \
+          V<compiler::turboshaft::Simd128>::Cast(args[2].op),               \
+          compiler::turboshaft::Simd128TernaryOp::Kind::k##kind);           \
+    } else {                                                                \
+      result->op = CallCStackSlotToStackSlot(                               \
+          ExternalReference::extern_ref(), MemoryRepresentation::Simd128(), \
+          {{args[0].op, MemoryRepresentation::Simd128()},                   \
+           {args[1].op, MemoryRepresentation::Simd128()},                   \
+           {args[2].op, MemoryRepresentation::Simd128()}});                 \
+    }                                                                       \
+    break;
+        HANDLE_F16X8_TERN_OPCODE(F16x8Qfma, wasm_f16x8_qfma)
+        HANDLE_F16X8_TERN_OPCODE(F16x8Qfms, wasm_f16x8_qfms)
+#undef HANDLE_F16X8_TERN_OPCODE
       default:
         UNREACHABLE();
     }
@@ -1314,67 +3554,95 @@ class TurboshaftGraphBuildingInterface {
                   base::Vector<const Value> inputs, Value* result) {
     using compiler::turboshaft::Simd128ExtractLaneOp;
     using compiler::turboshaft::Simd128ReplaceLaneOp;
+    using Simd128 = compiler::turboshaft::Simd128;
+    V<Simd128> input_val = V<Simd128>::Cast(inputs[0].op);
     switch (opcode) {
       case kExprI8x16ExtractLaneS:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI8x16S, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI8x16S, imm.lane);
         break;
       case kExprI8x16ExtractLaneU:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI8x16U, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI8x16U, imm.lane);
         break;
       case kExprI16x8ExtractLaneS:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI16x8S, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI16x8S, imm.lane);
         break;
       case kExprI16x8ExtractLaneU:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI16x8U, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI16x8U, imm.lane);
         break;
       case kExprI32x4ExtractLane:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI32x4, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI32x4, imm.lane);
         break;
       case kExprI64x2ExtractLane:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kI64x2, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kI64x2, imm.lane);
+        break;
+      case kExprF16x8ExtractLane:
+        if (SupportedOperations::float16()) {
+          result->op = __ Simd128ExtractLane(
+              input_val, Simd128ExtractLaneOp::Kind::kF16x8, imm.lane);
+        } else {
+          auto f16 = __ Simd128ExtractLane(
+              input_val, Simd128ExtractLaneOp::Kind::kI16x8S, imm.lane);
+          result->op = CallCStackSlotToStackSlot(
+              f16, ExternalReference::wasm_float16_to_float32(),
+              MemoryRepresentation::Int16(), MemoryRepresentation::Float32());
+        }
         break;
       case kExprF32x4ExtractLane:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kF32x4, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kF32x4, imm.lane);
         break;
       case kExprF64x2ExtractLane:
         result->op = __ Simd128ExtractLane(
-            inputs[0].op, Simd128ExtractLaneOp::Kind::kF64x2, imm.lane);
+            input_val, Simd128ExtractLaneOp::Kind::kF64x2, imm.lane);
         break;
       case kExprI8x16ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kI8x16, imm.lane);
         break;
       case kExprI16x8ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Simd128>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kI16x8, imm.lane);
         break;
       case kExprI32x4ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kI32x4, imm.lane);
         break;
       case kExprI64x2ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kI64x2, imm.lane);
+        break;
+      case kExprF16x8ReplaceLane:
+        if (SupportedOperations::float16()) {
+          result->op = __ Simd128ReplaceLane(
+              input_val, V<Any>::Cast(inputs[1].op),
+              Simd128ReplaceLaneOp::Kind::kF16x8, imm.lane);
+        } else {
+          auto f16 = CallCStackSlotToStackSlot(
+              inputs[1].op, ExternalReference::wasm_float32_to_float16(),
+              MemoryRepresentation::Float32(), MemoryRepresentation::Int16());
+          result->op = __ Simd128ReplaceLane(input_val, V<Any>::Cast(f16),
+                                             Simd128ReplaceLaneOp::Kind::kI16x8,
+                                             imm.lane);
+        }
         break;
       case kExprF32x4ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kF32x4, imm.lane);
         break;
       case kExprF64x2ReplaceLane:
         result->op =
-            __ Simd128ReplaceLane(inputs[0].op, inputs[1].op,
+            __ Simd128ReplaceLane(input_val, V<Any>::Cast(inputs[1].op),
                                   Simd128ReplaceLaneOp::Kind::kF64x2, imm.lane);
         break;
       default:
@@ -1385,7 +3653,10 @@ class TurboshaftGraphBuildingInterface {
   void Simd8x16ShuffleOp(FullDecoder* decoder, const Simd128Immediate& imm,
                          const Value& input0, const Value& input1,
                          Value* result) {
-    result->op = __ Simd128Shuffle(input0.op, input1.op, imm.value);
+    result->op = __ Simd128Shuffle(
+        V<compiler::turboshaft::Simd128>::Cast(input0.op),
+        V<compiler::turboshaft::Simd128>::Cast(input1.op),
+        compiler::turboshaft::Simd128ShuffleOp::Kind::kI8x16, imm.value);
   }
 
   void Try(FullDecoder* decoder, Control* block) {
@@ -1396,17 +3667,16 @@ class TurboshaftGraphBuildingInterface {
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
              const Value arg_values[]) {
     size_t count = imm.tag->sig->parameter_count();
-    base::SmallVector<OpIndex, 8> values(count);
+    SmallZoneVector<OpIndex, 16> values(count, decoder->zone_);
     for (size_t index = 0; index < count; index++) {
       values[index] = arg_values[index].op;
     }
 
     uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(imm.tag);
 
-    V<FixedArray> values_array =
-        CallBuiltinThroughJumptable(decoder, Builtin::kWasmAllocateFixedArray,
-                                    {__ IntPtrConstant(encoded_size)});
-
+    V<FixedArray> values_array = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmAllocateFixedArray>(
+        decoder, {__ IntPtrConstant(encoded_size)});
     uint32_t index = 0;
     const wasm::WasmTagSig* sig = imm.tag->sig;
 
@@ -1416,7 +3686,7 @@ class TurboshaftGraphBuildingInterface {
       switch (sig->GetParam(i).kind()) {
         case kF32:
           value = __ BitcastFloat32ToWord32(value);
-          V8_FALLTHROUGH;
+          [[fallthrough]];
         case kI32:
           BuildEncodeException32BitValue(values_array, index, value);
           // We need 2 Smis to encode a 32-bit value.
@@ -1424,7 +3694,7 @@ class TurboshaftGraphBuildingInterface {
           break;
         case kF64:
           value = __ BitcastFloat64ToWord64(value);
-          V8_FALLTHROUGH;
+          [[fallthrough]];
         case kI64: {
           OpIndex upper_half =
               __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(value, 32));
@@ -1437,78 +3707,91 @@ class TurboshaftGraphBuildingInterface {
         }
         case wasm::kRef:
         case wasm::kRefNull:
-        case wasm::kRtt:
-          StoreFixedArrayElement(values_array, index, value,
-                                 compiler::kFullWriteBarrier);
+          __ StoreFixedArrayElement(values_array, index, value,
+                                    compiler::kFullWriteBarrier);
           index++;
           break;
         case kS128: {
+          using Simd128 = compiler::turboshaft::Simd128;
+          V<Simd128> value_s128 = V<Simd128>::Cast(value);
           using Kind = compiler::turboshaft::Simd128ExtractLaneOp::Kind;
-          BuildEncodeException32BitValue(
-              values_array, index,
-              __ Simd128ExtractLane(value, Kind::kI32x4, 0));
+          BuildEncodeException32BitValue(values_array, index,
+                                         V<Word32>::Cast(__ Simd128ExtractLane(
+                                             value_s128, Kind::kI32x4, 0)));
           index += 2;
-          BuildEncodeException32BitValue(
-              values_array, index,
-              __ Simd128ExtractLane(value, Kind::kI32x4, 1));
+          BuildEncodeException32BitValue(values_array, index,
+                                         V<Word32>::Cast(__ Simd128ExtractLane(
+                                             value_s128, Kind::kI32x4, 1)));
           index += 2;
-          BuildEncodeException32BitValue(
-              values_array, index,
-              __ Simd128ExtractLane(value, Kind::kI32x4, 2));
+          BuildEncodeException32BitValue(values_array, index,
+                                         V<Word32>::Cast(__ Simd128ExtractLane(
+                                             value_s128, Kind::kI32x4, 2)));
           index += 2;
-          BuildEncodeException32BitValue(
-              values_array, index,
-              __ Simd128ExtractLane(value, Kind::kI32x4, 3));
+          BuildEncodeException32BitValue(values_array, index,
+                                         V<Word32>::Cast(__ Simd128ExtractLane(
+                                             value_s128, Kind::kI32x4, 3)));
           index += 2;
           break;
         }
         case kI8:
         case kI16:
+        case kF16:
         case kVoid:
+        case kTop:
         case kBottom:
           UNREACHABLE();
       }
     }
 
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        TagsTable, MemoryRepresentation::TaggedPointer());
-    auto tag =
-        V<WasmTagObject>::Cast(LoadFixedArrayElement(instance_tags, imm.index));
+    // TODO(14616): Support shared tags.
+    V<FixedArray> instance_tags =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
+                                      MemoryRepresentation::TaggedPointer());
+    auto tag = V<WasmTagObject>::Cast(
+        __ LoadFixedArrayElement(instance_tags, imm.index));
 
-    CallBuiltinThroughJumptable(decoder, Builtin::kWasmThrow,
-                                {tag, values_array}, Operator::kNoProperties,
-                                CheckForException::kYes);
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmThrow>(
+        decoder, {tag, values_array}, CheckForException::kCatchInThisFrame);
     __ Unreachable();
   }
 
   void Rethrow(FullDecoder* decoder, Control* block) {
-    CallBuiltinThroughJumptable(decoder, Builtin::kWasmRethrow,
-                                {block->exception}, Operator::kNoProperties,
-                                CheckForException::kYes);
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmRethrow>(
+        decoder, {block->exception}, CheckForException::kCatchInThisFrame);
     __ Unreachable();
   }
 
-  // TODO(14108): Optimize in case of unreachable catch block?
   void CatchException(FullDecoder* decoder, const TagIndexImmediate& imm,
                       Control* block, base::Vector<Value> values) {
+    if (deopts_enabled()) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF(
+            "[function %d%s: Disabling deoptimizations for speculative "
+            "inlining due to legacy exception handling usage]\n",
+            func_index_, mode_ == kRegular ? "" : " (inlined)");
+      }
+      disable_deopts();
+    }
+
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
-    V<NativeContext> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        NativeContext, MemoryRepresentation::TaggedPointer());
-    V<WasmTagObject> caught_tag = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmGetOwnProperty,
-        {block->exception, LOAD_IMMUTABLE_ROOT(wasm_exception_tag_symbol),
-         native_context});
-    V<FixedArray> instance_tags = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        TagsTable, MemoryRepresentation::TaggedPointer());
-    auto expected_tag =
-        V<WasmTagObject>::Cast(LoadFixedArrayElement(instance_tags, imm.index));
-    TSBlock* if_catch = __ NewBlock();
+    V<NativeContext> native_context = instance_cache_.native_context();
+    V<WasmTagObject> caught_tag = V<WasmTagObject>::Cast(
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
+            decoder, native_context,
+            {block->exception, LOAD_ROOT(wasm_exception_tag_symbol)}));
+    // TODO(14616): Support shared tags.
+    V<FixedArray> instance_tags =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
+                                      MemoryRepresentation::TaggedPointer());
+    auto expected_tag = V<WasmTagObject>::Cast(
+        __ LoadFixedArrayElement(instance_tags, imm.index));
     TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
     SetupControlFlowEdge(decoder, if_no_catch);
 
     // If the tags don't match we continue with the next tag by setting the
-    // no-catch environment as the new {block->catch_block} here.
+    // no-catch environment as the new {block->false_or_loop_or_catch_block}
+    // here.
     block->false_or_loop_or_catch_block = if_no_catch;
 
     if (imm.tag->sig->parameter_count() == 1 &&
@@ -1520,31 +3803,28 @@ class TurboshaftGraphBuildingInterface {
       // the JSTag signature, i.e. a single externref or (ref extern), otherwise
       // we know statically that it cannot be the JSTag.
       V<Word32> caught_tag_undefined =
-          __ TaggedEqual(caught_tag, LOAD_IMMUTABLE_ROOT(UndefinedValue));
-      Label<Tagged> if_catch(&asm_);
+          __ TaggedEqual(caught_tag, LOAD_ROOT(UndefinedValue));
+      Label<Object> if_catch(&asm_);
       Label<> no_catch_merge(&asm_);
 
       IF (UNLIKELY(caught_tag_undefined)) {
-        V<Tagged> tag_object = __ Load(
+        V<Object> tag_object = __ Load(
             native_context, LoadOp::Kind::TaggedBase(),
             MemoryRepresentation::TaggedPointer(),
             NativeContext::OffsetOfElementAt(Context::WASM_JS_TAG_INDEX));
-        V<Tagged> js_tag = __ Load(tag_object, LoadOp::Kind::TaggedBase(),
+        V<Object> js_tag = __ Load(tag_object, LoadOp::Kind::TaggedBase(),
                                    MemoryRepresentation::TaggedPointer(),
                                    WasmTagObject::kTagOffset);
         GOTO_IF(__ TaggedEqual(expected_tag, js_tag), if_catch,
                 block->exception);
         GOTO(no_catch_merge);
-      }
-      ELSE {
+      } ELSE {
         IF (__ TaggedEqual(caught_tag, expected_tag)) {
           UnpackWasmException(decoder, block->exception, values);
           GOTO(if_catch, values[0].op);
         }
-        END_IF
         GOTO(no_catch_merge);
       }
-      END_IF
 
       BIND(no_catch_merge);
       __ Goto(if_no_catch);
@@ -1554,6 +3834,7 @@ class TurboshaftGraphBuildingInterface {
       // exception.
       values[0].op = caught_exception;
     } else {
+      TSBlock* if_catch = __ NewBlock();
       __ Branch(ConditionWithHint(__ TaggedEqual(caught_tag, expected_tag)),
                 if_catch, if_no_catch);
       __ Bind(if_catch);
@@ -1561,16 +3842,22 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  // TODO(14108): Optimize in case of unreachable catch block?
   void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
     if (depth == decoder->control_depth() - 1) {
-      // We just throw to the caller, no need to handle the exception in this
-      // frame.
-      CallBuiltinThroughJumptable(decoder, Builtin::kWasmRethrow,
-                                  {block->exception});
-      __ Unreachable();
+      if (mode_ == kInlinedWithCatch) {
+        if (block->exception.valid()) {
+          return_phis_->AddIncomingException(block->exception);
+        }
+        __ Goto(return_catch_block_);
+      } else {
+        // We just throw to the caller, no need to handle the exception in this
+        // frame.
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmRethrow>(
+            decoder, {block->exception});
+        __ Unreachable();
+      }
     } else {
       DCHECK(decoder->control_at(depth)->is_try());
       TSBlock* target_catch =
@@ -1583,78 +3870,220 @@ class TurboshaftGraphBuildingInterface {
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     DCHECK_EQ(decoder->control_at(0), block);
+
+    if (deopts_enabled()) {
+      if (v8_flags.trace_wasm_inlining) {
+        // TODO(42204618): Would it be worthwhile to add support for this?
+        // The difficulty is the handling of the exception which is handled as a
+        // value on the value stack in Liftoff but handled very differently in
+        // Turboshaft (and it would need to be passed on in the FrameState).
+        PrintF(
+            "[function %d%s: Disabling deoptimizations for speculative "
+            "inlining due to legacy exception handling usage]\n",
+            func_index_, mode_ == kRegular ? "" : " (inlined)");
+      }
+      disable_deopts();
+    }
+
     BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
                              nullptr, &block->exception);
   }
 
-  V<BigInt> BuildChangeInt64ToBigInt(V<Word64> input) {
-    Builtin builtin =
-        Is64() ? Builtin::kI64ToBigInt : Builtin::kI32PairToBigInt;
-    V<WordPtr> target = __ RelocatableWasmBuiltinCallTarget(builtin);
-    CallInterfaceDescriptor interface_descriptor =
-        Builtins::CallInterfaceDescriptorFor(builtin);
-    const CallDescriptor* call_descriptor =
-        compiler::Linkage::GetStubCallDescriptor(
-            __ graph_zone(),  // zone
-            interface_descriptor,
-            0,                         // stack parameter count
-            CallDescriptor::kNoFlags,  // flags
-            Operator::kNoProperties,   // properties
-            StubCallMode::kCallWasmRuntimeStub);
-    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
-    if constexpr (Is64()) {
-      return __ Call(target, {input}, ts_call_descriptor);
+  void TryTable(FullDecoder* decoder, Control* block) { Try(decoder, block); }
+
+  void CatchCase(FullDecoder* decoder, Control* block,
+                 const CatchCase& catch_case, base::Vector<Value> values) {
+    // If this is the first catch case, {block->false_or_loop_or_catch_block} is
+    // the block that was created on block entry, and is where all throwing
+    // instructions in the try-table jump to if they throw.
+    // Otherwise, {block->false_or_loop_or_catch_block} has been overwritten by
+    // the previous handler, and is where we jump to if we did not catch the
+    // exception yet.
+    BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
+                             nullptr, &block->exception);
+    if (catch_case.kind == kCatchAll || catch_case.kind == kCatchAllRef) {
+      if (catch_case.kind == kCatchAllRef) {
+        DCHECK_EQ(values.size(), 1);
+        values.last().op = block->exception;
+      }
+      BrOrRet(decoder, catch_case.br_imm.depth);
+      return;
     }
-    V<Word32> low_word = __ TruncateWord64ToWord32(input);
-    V<Word32> high_word = __ TruncateWord64ToWord32(__ ShiftRightLogical(
-        input, __ Word32Constant(32), WordRepresentation::Word64()));
-    return __ Call(target, {low_word, high_word}, ts_call_descriptor);
+    V<NativeContext> native_context = instance_cache_.native_context();
+    V<WasmTagObject> caught_tag = V<WasmTagObject>::Cast(
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
+            decoder, native_context,
+            {block->exception, LOAD_ROOT(wasm_exception_tag_symbol)}));
+    // TODO(14616): Support shared tags.
+    V<FixedArray> instance_tags =
+        LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(false), TagsTable,
+                                      MemoryRepresentation::TaggedPointer());
+    auto expected_tag = V<WasmTagObject>::Cast(__ LoadFixedArrayElement(
+        instance_tags, catch_case.maybe_tag.tag_imm.index));
+    TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
+    SetupControlFlowEdge(decoder, if_no_catch);
+
+    // If the tags don't match we continue with the next tag by setting the
+    // no-catch environment as the new {block->false_or_loop_or_catch_block}
+    // here.
+    block->false_or_loop_or_catch_block = if_no_catch;
+
+    if (catch_case.maybe_tag.tag_imm.tag->sig->parameter_count() == 1 &&
+        catch_case.maybe_tag.tag_imm.tag->sig->GetParam(0) == kWasmExternRef) {
+      // Check for the special case where the tag is WebAssembly.JSTag and the
+      // exception is not a WebAssembly.Exception. In this case the exception is
+      // caught and pushed on the operand stack.
+      // Only perform this check if the tag signature is the same as
+      // the JSTag signature, i.e. a single externref, otherwise
+      // we know statically that it cannot be the JSTag.
+      V<Word32> caught_tag_undefined =
+          __ TaggedEqual(caught_tag, LOAD_ROOT(UndefinedValue));
+      Label<Object> if_catch(&asm_);
+      Label<> no_catch_merge(&asm_);
+
+      IF (UNLIKELY(caught_tag_undefined)) {
+        V<Object> tag_object = __ Load(
+            native_context, LoadOp::Kind::TaggedBase(),
+            MemoryRepresentation::TaggedPointer(),
+            NativeContext::OffsetOfElementAt(Context::WASM_JS_TAG_INDEX));
+        V<Object> js_tag = __ Load(tag_object, LoadOp::Kind::TaggedBase(),
+                                   MemoryRepresentation::TaggedPointer(),
+                                   WasmTagObject::kTagOffset);
+        GOTO_IF(__ TaggedEqual(expected_tag, js_tag), if_catch,
+                block->exception);
+        GOTO(no_catch_merge);
+      } ELSE {
+        IF (__ TaggedEqual(caught_tag, expected_tag)) {
+          if (catch_case.kind == kCatchRef) {
+            UnpackWasmException(decoder, block->exception,
+                                values.SubVector(0, values.size() - 1));
+            values.last().op = block->exception;
+          } else {
+            UnpackWasmException(decoder, block->exception, values);
+          }
+          GOTO(if_catch, values[0].op);
+        }
+        GOTO(no_catch_merge);
+      }
+
+      BIND(no_catch_merge);
+      __ Goto(if_no_catch);
+
+      BIND(if_catch, caught_exception);
+      // The first unpacked value is the exception itself in the case of a JS
+      // exception.
+      values[0].op = caught_exception;
+    } else {
+      TSBlock* if_catch = __ NewBlock();
+      __ Branch(ConditionWithHint(__ TaggedEqual(caught_tag, expected_tag)),
+                if_catch, if_no_catch);
+      __ Bind(if_catch);
+      if (catch_case.kind == kCatchRef) {
+        UnpackWasmException(decoder, block->exception,
+                            values.SubVector(0, values.size() - 1));
+        values.last().op = block->exception;
+      } else {
+        UnpackWasmException(decoder, block->exception, values);
+      }
+    }
+
+    BrOrRet(decoder, catch_case.br_imm.depth);
+
+    bool is_last = &catch_case == &block->catch_cases.last();
+    if (is_last && !decoder->HasCatchAll(block)) {
+      BindBlockAndGeneratePhis(decoder, block->false_or_loop_or_catch_block,
+                               nullptr, &block->exception);
+      ThrowRef(decoder, block->exception);
+    }
+  }
+
+  void ThrowRef(FullDecoder* decoder, Value* value) {
+    ThrowRef(decoder, value->op);
+  }
+
+  void ContNew(FullDecoder* decoder, const ContIndexImmediate& imm,
+               const Value& func_ref, Value* result) {
+    UNIMPLEMENTED();
+  }
+
+  void ContBind(FullDecoder* decoder, const ContIndexImmediate& orig_imm,
+                Value input_cont, const Value args[],
+                const ContIndexImmediate& new_imm, Value* result) {
+    UNIMPLEMENTED();
+  }
+
+  void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
+              base::Vector<HandlerCase> handlers, const Value args[],
+              const Value returns[]) {
+    UNIMPLEMENTED();
+  }
+
+  void ResumeThrow(FullDecoder* decoder,
+                   const wasm::ContIndexImmediate& cont_imm,
+                   const TagIndexImmediate& exc_imm,
+                   base::Vector<wasm::HandlerCase> handlers, const Value args[],
+                   const Value returns[]) {
+    UNIMPLEMENTED();
+  }
+
+  void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
+              const ContIndexImmediate& con_imm, const Value& cont_ref,
+              const Value args[], Value returns[]) {
+    UNIMPLEMENTED();
+  }
+
+  void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
+               const Value args[], const Value returns[]) {
+    UNIMPLEMENTED();
   }
 
   void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,
-                    OpIndex index, OpIndex value, Value* result) {
+                    OpIndex index, OpIndex num_waiters_to_wake, Value* result) {
     V<WordPtr> converted_index;
     compiler::BoundsCheckResult bounds_check_result;
-    std::tie(converted_index, bounds_check_result) = CheckBoundsAndAlignment(
+    std::tie(converted_index, bounds_check_result) = BoundsCheckMem(
         imm.memory, MemoryRepresentation::Int32(), index, imm.offset,
-        decoder->position(), compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+        compiler::EnforceBoundsCheck::kNeedsBoundsCheck,
+        compiler::AlignmentCheck::kYes);
 
     OpIndex effective_offset = __ WordPtrAdd(converted_index, imm.offset);
+    OpIndex addr = __ WordPtrAdd(MemStart(imm.mem_index), effective_offset);
 
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmAtomicNotify,
-        {__ Word32Constant(imm.memory->index), effective_offset, value});
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                   .Params(MachineType::Pointer(), MachineType::Uint32());
+    result->op = CallC(&sig, ExternalReference::wasm_atomic_notify(),
+                       {addr, num_waiters_to_wake});
   }
 
   void AtomicWait(FullDecoder* decoder, WasmOpcode opcode,
                   const MemoryAccessImmediate& imm, OpIndex index,
                   OpIndex expected, V<Word64> timeout, Value* result) {
+    constexpr StubCallMode kStubMode = StubCallMode::kCallWasmRuntimeStub;
     V<WordPtr> converted_index;
     compiler::BoundsCheckResult bounds_check_result;
-    std::tie(converted_index, bounds_check_result) = CheckBoundsAndAlignment(
+    std::tie(converted_index, bounds_check_result) = BoundsCheckMem(
         imm.memory,
         opcode == kExprI32AtomicWait ? MemoryRepresentation::Int32()
                                      : MemoryRepresentation::Int64(),
-        index, imm.offset, decoder->position(),
-        compiler::EnforceBoundsCheck::kNeedsBoundsCheck);
+        index, imm.offset, compiler::EnforceBoundsCheck::kNeedsBoundsCheck,
+        compiler::AlignmentCheck::kYes);
 
     OpIndex effective_offset = __ WordPtrAdd(converted_index, imm.offset);
-    V<BigInt> bigint_timeout = BuildChangeInt64ToBigInt(timeout);
+    V<BigInt> bigint_timeout = BuildChangeInt64ToBigInt(timeout, kStubMode);
 
     if (opcode == kExprI32AtomicWait) {
-      result->op = CallBuiltinThroughJumptable(
-          decoder, Builtin::kWasmI32AtomicWait,
-          {__ Word32Constant(imm.memory->index), effective_offset, expected,
-           bigint_timeout});
+      result->op =
+          CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmI32AtomicWait>(
+              decoder, {__ Word32Constant(imm.memory->index), effective_offset,
+                        expected, bigint_timeout});
       return;
     }
     DCHECK_EQ(opcode, kExprI64AtomicWait);
-    V<BigInt> bigint_expected = BuildChangeInt64ToBigInt(expected);
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmI64AtomicWait,
-        {__ Word32Constant(imm.memory->index), effective_offset,
-         bigint_expected, bigint_timeout});
+    V<BigInt> bigint_expected = BuildChangeInt64ToBigInt(expected, kStubMode);
+    result->op =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmI64AtomicWait>(
+            decoder, {__ Word32Constant(imm.memory->index), effective_offset,
+                      bigint_expected, bigint_timeout});
   }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
@@ -1674,19 +4103,19 @@ class TurboshaftGraphBuildingInterface {
       OpType op_type;
       // Initialize with a default value, to allow constexpr constructors.
       Binop bin_op = Binop::kAdd;
-      RegisterRepresentation result_rep;
-      MemoryRepresentation input_rep;
+      RegisterRepresentation in_out_rep;
+      MemoryRepresentation memory_rep;
 
-      constexpr AtomicOpInfo(Binop bin_op, RegisterRepresentation result_rep,
-                             MemoryRepresentation input_rep)
+      constexpr AtomicOpInfo(Binop bin_op, RegisterRepresentation in_out_rep,
+                             MemoryRepresentation memory_rep)
           : op_type(kBinop),
             bin_op(bin_op),
-            result_rep(result_rep),
-            input_rep(input_rep) {}
+            in_out_rep(in_out_rep),
+            memory_rep(memory_rep) {}
 
-      constexpr AtomicOpInfo(OpType op_type, RegisterRepresentation result_rep,
-                             MemoryRepresentation input_rep)
-          : op_type(op_type), result_rep(result_rep), input_rep(input_rep) {}
+      constexpr AtomicOpInfo(OpType op_type, RegisterRepresentation in_out_rep,
+                             MemoryRepresentation memory_rep)
+          : op_type(op_type), in_out_rep(in_out_rep), memory_rep(memory_rep) {}
 
       static constexpr AtomicOpInfo Get(wasm::WasmOpcode opcode) {
         switch (opcode) {
@@ -1785,50 +4214,89 @@ class TurboshaftGraphBuildingInterface {
     };
 
     AtomicOpInfo info = AtomicOpInfo::Get(opcode);
-
     V<WordPtr> index;
     compiler::BoundsCheckResult bounds_check_result;
-    std::tie(index, bounds_check_result) = CheckBoundsAndAlignment(
-        imm.memory, info.input_rep, args[0].op, imm.offset, decoder->position(),
-        compiler::EnforceBoundsCheck::kCanOmitBoundsCheck);
+    std::tie(index, bounds_check_result) =
+        BoundsCheckMem(imm.memory, info.memory_rep, args[0].op, imm.offset,
+                       compiler::EnforceBoundsCheck::kCanOmitBoundsCheck,
+                       compiler::AlignmentCheck::kYes);
     // MemoryAccessKind::kUnaligned is impossible due to explicit aligment
     // check.
     MemoryAccessKind access_kind =
         bounds_check_result == compiler::BoundsCheckResult::kTrapHandler
-            ? MemoryAccessKind::kProtected
+            ? MemoryAccessKind::kProtectedByTrapHandler
             : MemoryAccessKind::kNormal;
 
     if (info.op_type == kBinop) {
       if (info.bin_op == Binop::kCompareExchange) {
         result->op = __ AtomicCompareExchange(
             MemBuffer(imm.memory->index, imm.offset), index, args[1].op,
-            args[2].op, info.result_rep, info.input_rep, access_kind);
+            args[2].op, info.in_out_rep, info.memory_rep, access_kind);
         return;
       }
       result->op = __ AtomicRMW(MemBuffer(imm.memory->index, imm.offset), index,
-                                args[1].op, info.bin_op, info.result_rep,
-                                info.input_rep, access_kind);
+                                args[1].op, info.bin_op, info.in_out_rep,
+                                info.memory_rep, access_kind);
       return;
     }
     if (info.op_type == kStore) {
       OpIndex value = args[1].op;
-      if (info.result_rep == RegisterRepresentation::Word64() &&
-          info.input_rep != MemoryRepresentation::Uint64()) {
+      if (info.in_out_rep == RegisterRepresentation::Word64() &&
+          info.memory_rep != MemoryRepresentation::Uint64()) {
         value = __ TruncateWord64ToWord32(value);
       }
+#ifdef V8_TARGET_BIG_ENDIAN
+      // Reverse the value bytes before storing.
+      DCHECK(info.in_out_rep == RegisterRepresentation::Word32() ||
+             info.in_out_rep == RegisterRepresentation::Word64());
+      wasm::ValueType wasm_type =
+          info.in_out_rep == RegisterRepresentation::Word32() ? wasm::kWasmI32
+                                                              : wasm::kWasmI64;
+      value = BuildChangeEndiannessStore(
+          value, info.memory_rep.ToMachineType().representation(), wasm_type);
+#endif
       __ Store(MemBuffer(imm.memory->index, imm.offset), index, value,
-               access_kind == MemoryAccessKind::kProtected
+               access_kind == MemoryAccessKind::kProtectedByTrapHandler
                    ? LoadOp::Kind::Protected().Atomic()
                    : LoadOp::Kind::RawAligned().Atomic(),
-               info.input_rep, compiler::kNoWriteBarrier);
+               info.memory_rep, compiler::kNoWriteBarrier);
       return;
     }
     DCHECK_EQ(info.op_type, kLoad);
-    result->op = __ Load(MemBuffer(imm.memory->index, imm.offset), index,
-                         access_kind == MemoryAccessKind::kProtected
-                             ? LoadOp::Kind::Protected().Atomic()
-                             : LoadOp::Kind::RawAligned().Atomic(),
-                         info.input_rep, info.result_rep);
+    RegisterRepresentation loaded_value_rep = info.in_out_rep;
+#if V8_TARGET_BIG_ENDIAN
+    // Do not sign-extend / zero-extend the value to 64 bits as the bytes need
+    // to be reversed first to keep little-endian load / store semantics. Still
+    // extend for 1 byte loads as it doesn't require reversing any bytes.
+    bool needs_zero_extension_64 = false;
+    if (info.in_out_rep == RegisterRepresentation::Word64() &&
+        info.memory_rep.SizeInBytes() < 8 &&
+        info.memory_rep.SizeInBytes() != 1) {
+      needs_zero_extension_64 = true;
+      loaded_value_rep = RegisterRepresentation::Word32();
+    }
+#endif
+    result->op =
+        __ Load(MemBuffer(imm.memory->index, imm.offset), index,
+                access_kind == MemoryAccessKind::kProtectedByTrapHandler
+                    ? LoadOp::Kind::Protected().Atomic()
+                    : LoadOp::Kind::RawAligned().Atomic(),
+                info.memory_rep, loaded_value_rep);
+
+#ifdef V8_TARGET_BIG_ENDIAN
+    // Reverse the value bytes after load.
+    DCHECK(info.in_out_rep == RegisterRepresentation::Word32() ||
+           info.in_out_rep == RegisterRepresentation::Word64());
+    wasm::ValueType wasm_type =
+        info.in_out_rep == RegisterRepresentation::Word32() ? wasm::kWasmI32
+                                                            : wasm::kWasmI64;
+    result->op = BuildChangeEndiannessLoad(
+        result->op, info.memory_rep.ToMachineType(), wasm_type);
+
+    if (needs_zero_extension_64) {
+      result->op = __ ChangeUint32ToUint64(result->op);
+    }
+#endif
   }
 
   void AtomicFence(FullDecoder* decoder) {
@@ -1837,183 +4305,313 @@ class TurboshaftGraphBuildingInterface {
 
   void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
-    V<WordPtr> dst_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(imm.memory.memory->is_memory64, dst.op);
+    V<WordPtr> dst_uintptr = MemoryAddressToUintPtrOrOOBTrap(
+        imm.memory.memory->address_type, dst.op);
     DCHECK_EQ(size.type, kWasmI32);
-    V<Word32> result = CallCStackSlotToInt32(
-        ExternalReference::wasm_memory_init(),
-        {{__ BitcastTaggedToWord(instance_node_),
-          MemoryRepresentation::PointerSized()},
-         {__ Word32Constant(imm.memory.index), MemoryRepresentation::Int32()},
-         {dst_uintptr, MemoryRepresentation::PointerSized()},
-         {src.op, MemoryRepresentation::Int32()},
-         {__ Word32Constant(imm.data_segment.index),
-          MemoryRepresentation::Int32()},
-         {size.op, MemoryRepresentation::Int32()}});
-    __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                   .Params(MachineType::Pointer(), MachineType::Uint32(),
+                           MachineType::UintPtr(), MachineType::Uint32(),
+                           MachineType::Uint32(), MachineType::Uint32());
+    // TODO(14616): Fix sharedness.
+    V<Word32> result =
+        CallC(&sig, ExternalReference::wasm_memory_init(),
+              {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
+               __ Word32Constant(imm.memory.index), dst_uintptr, src.op,
+               __ Word32Constant(imm.data_segment.index), size.op});
+    __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
-    bool is_memory_64 = imm.memory_src.memory->is_memory64;
-    DCHECK_EQ(is_memory_64, imm.memory_dst.memory->is_memory64);
+    const WasmMemory* dst_memory = imm.memory_dst.memory;
+    const WasmMemory* src_memory = imm.memory_src.memory;
     V<WordPtr> dst_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(is_memory_64, dst.op);
+        MemoryAddressToUintPtrOrOOBTrap(dst_memory->address_type, dst.op);
     V<WordPtr> src_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(is_memory_64, src.op);
+        MemoryAddressToUintPtrOrOOBTrap(src_memory->address_type, src.op);
+    AddressType min_address_type =
+        dst_memory->is_memory64() && src_memory->is_memory64()
+            ? AddressType::kI64
+            : AddressType::kI32;
     V<WordPtr> size_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(is_memory_64, size.op);
-    V<Word32> result = CallCStackSlotToInt32(
-        ExternalReference::wasm_memory_copy(),
-        {{__ BitcastTaggedToWord(instance_node_),
-          MemoryRepresentation::PointerSized()},
-         {__ Word32Constant(imm.memory_dst.index),
-          MemoryRepresentation::Int32()},
-         {__ Word32Constant(imm.memory_src.index),
-          MemoryRepresentation::Int32()},
-         {dst_uintptr, MemoryRepresentation::PointerSized()},
-         {src_uintptr, MemoryRepresentation::PointerSized()},
-         {size_uintptr, MemoryRepresentation::PointerSized()}});
-    __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+        MemoryAddressToUintPtrOrOOBTrap(min_address_type, size.op);
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                   .Params(MachineType::Pointer(), MachineType::Uint32(),
+                           MachineType::Uint32(), MachineType::UintPtr(),
+                           MachineType::UintPtr(), MachineType::UintPtr());
+    // TODO(14616): Fix sharedness.
+    V<Word32> result =
+        CallC(&sig, ExternalReference::wasm_memory_copy(),
+              {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
+               __ Word32Constant(imm.memory_dst.index),
+               __ Word32Constant(imm.memory_src.index), dst_uintptr,
+               src_uintptr, size_uintptr});
+    __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
   void MemoryFill(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& dst, const Value& value, const Value& size) {
-    bool is_memory_64 = imm.memory->is_memory64;
+    AddressType address_type = imm.memory->address_type;
     V<WordPtr> dst_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(is_memory_64, dst.op);
+        MemoryAddressToUintPtrOrOOBTrap(address_type, dst.op);
     V<WordPtr> size_uintptr =
-        MemoryIndexToUintPtrOrOOBTrap(is_memory_64, size.op);
-    V<Word32> result = CallCStackSlotToInt32(
-        ExternalReference::wasm_memory_fill(),
-        {{__ BitcastTaggedToWord(instance_node_),
-          MemoryRepresentation::PointerSized()},
-         {__ Word32Constant(imm.index), MemoryRepresentation::Int32()},
-         {dst_uintptr, MemoryRepresentation::PointerSized()},
-         {value.op, MemoryRepresentation::Int32()},
-         {size_uintptr, MemoryRepresentation::PointerSized()}});
+        MemoryAddressToUintPtrOrOOBTrap(address_type, size.op);
+    auto sig = FixedSizeSignature<MachineType>::Returns(MachineType::Int32())
+                   .Params(MachineType::Pointer(), MachineType::Uint32(),
+                           MachineType::UintPtr(), MachineType::Uint8(),
+                           MachineType::UintPtr());
+    // TODO(14616): Fix sharedness.
+    V<Word32> result = CallC(
+        &sig, ExternalReference::wasm_memory_fill(),
+        {__ BitcastHeapObjectToWordPtr(trusted_instance_data(false)),
+         __ Word32Constant(imm.index), dst_uintptr, value.op, size_uintptr});
 
-    __ TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+    __ TrapIfNot(result, TrapId::kTrapMemOutOfBounds);
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
+    // TODO(14616): Data segments aren't available during streaming compilation.
+    // Discussion: github.com/WebAssembly/shared-everything-threads/issues/83
+    bool shared = decoder->enabled_.has_shared() &&
+                  decoder->module_->data_segments[imm.index].shared;
     V<FixedUInt32Array> data_segment_sizes = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        DataSegmentSizes, MemoryRepresentation::TaggedPointer());
+        trusted_instance_data(shared), DataSegmentSizes,
+        MemoryRepresentation::TaggedPointer());
     __ Store(data_segment_sizes, __ Word32Constant(0),
              StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
              compiler::kNoWriteBarrier,
-             FixedUInt32Array::kHeaderSize + imm.index * kUInt32Size);
+             FixedUInt32Array::OffsetOfElementAt(imm.index));
   }
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,
-                const IndexImmediate& imm) {
-    ValueType table_type = decoder->module_->tables[imm.index].type;
-    auto stub = IsSubtypeOf(table_type, kWasmFuncRef, decoder->module_)
-                    ? Builtin::kWasmTableGetFuncRef
-                    : Builtin::kWasmTableGet;
-    result->op = CallBuiltinThroughJumptable(
-        decoder, stub, {__ IntPtrConstant(imm.index), index.op});
-  }
-
-  void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
-                const IndexImmediate& imm) {
-    ValueType table_type = decoder->module_->tables[imm.index].type;
-    auto stub = IsSubtypeOf(table_type, kWasmFuncRef, decoder->module_)
-                    ? Builtin::kWasmTableSetFuncRef
-                    : Builtin::kWasmTableSet;
-    CallBuiltinThroughJumptable(
-        decoder, stub, {__ IntPtrConstant(imm.index), index.op, value.op});
-  }
-
-  void TableInit(FullDecoder* decoder, const TableInitImmediate& imm,
-                 const Value* args) {
-    V<Word32> dst = args[0].op;
-    V<Word32> src = args[1].op;
-    V<Word32> size = args[2].op;
-    CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmTableInit,
-        {dst, src, size, __ NumberConstant(imm.table.index),
-         __ NumberConstant(imm.element_segment.index)});
-  }
-
-  void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
-                 const Value args[]) {
-    V<Word32> dst = args[0].op;
-    V<Word32> src = args[1].op;
-    V<Word32> size = args[2].op;
-    CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmTableCopy,
-        {dst, src, size, __ NumberConstant(imm.table_dst.index),
-         __ NumberConstant(imm.table_src.index)});
-  }
-
-  void TableGrow(FullDecoder* decoder, const IndexImmediate& imm,
-                 const Value& value, const Value& delta, Value* result) {
-    V<Smi> result_smi = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmTableGrow,
-        {__ NumberConstant(imm.index), delta.op, value.op});
-    result->op = __ UntagSmi(result_smi);
-  }
-
-  void TableFill(FullDecoder* decoder, const IndexImmediate& imm,
-                 const Value& start, const Value& value, const Value& count) {
-    CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmTableFill,
-        {__ NumberConstant(imm.index), start.op, count.op, value.op});
-  }
-
-  void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
-                 Value* result) {
-    V<FixedArray> tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        Tables, MemoryRepresentation::TaggedPointer());
-    auto table =
-        V<WasmTableObject>::Cast(LoadFixedArrayElement(tables, imm.index));
+                const TableIndexImmediate& imm) {
+    V<WasmTableObject> table = LoadTable(decoder, imm);
     V<Smi> size_smi = __ Load(table, LoadOp::Kind::TaggedBase(),
                               MemoryRepresentation::TaggedSigned(),
                               WasmTableObject::kCurrentLengthOffset);
-    result->op = __ UntagSmi(size_smi);
+    V<WordPtr> index_wordptr =
+        TableAddressToUintPtrOrOOBTrap(imm.table->address_type, index.op);
+    DCHECK_GE(kSmiMaxValue, wasm::max_table_size());
+    V<Word32> in_bounds = __ UintPtrLessThan(
+        index_wordptr, __ ChangeUint32ToUintPtr(__ UntagSmi(size_smi)));
+    __ TrapIfNot(in_bounds, TrapId::kTrapTableOutOfBounds);
+    V<FixedArray> entries = __ Load(table, LoadOp::Kind::TaggedBase(),
+                                    MemoryRepresentation::TaggedPointer(),
+                                    WasmTableObject::kEntriesOffset);
+    OpIndex entry = __ LoadFixedArrayElement(entries, index_wordptr);
+
+    if (imm.table->type.ref_type_kind() == RefTypeKind::kFunction) {
+      // If the entry has map type Tuple2, call WasmFunctionTableGet which will
+      // initialize the function table entry.
+      Label<Object> resolved(&asm_);
+      Label<> call_runtime(&asm_);
+      // The entry is a WasmFuncRef, WasmNull, or Tuple2. Hence
+      // it is safe to cast it to HeapObject.
+      V<Map> entry_map = __ LoadMapField(V<HeapObject>::Cast(entry));
+      V<Word32> instance_type = __ LoadInstanceTypeField(entry_map);
+      GOTO_IF(
+          UNLIKELY(__ Word32Equal(instance_type, InstanceType::TUPLE2_TYPE)),
+          call_runtime);
+      // Otherwise the entry is WasmFuncRef or WasmNull; we are done.
+      GOTO(resolved, entry);
+
+      BIND(call_runtime);
+      bool extract_shared_data = !shared_ && imm.table->shared;
+      GOTO(resolved,
+           CallBuiltinThroughJumptable<
+               BuiltinCallDescriptor::WasmFunctionTableGet>(
+               decoder, {__ IntPtrConstant(imm.index), index_wordptr,
+                         __ Word32Constant(extract_shared_data ? 1 : 0)}));
+
+      BIND(resolved, resolved_entry);
+      result->op = resolved_entry;
+    } else {
+      result->op = entry;
+    }
+    result->op = AnnotateResultIfReference(result->op, imm.table->type);
+  }
+
+  void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
+                const TableIndexImmediate& imm) {
+    bool extract_shared_data = !shared_ && imm.table->shared;
+
+    V<WordPtr> index_wordptr =
+        TableAddressToUintPtrOrOOBTrap(imm.table->address_type, index.op);
+
+    if (imm.table->type.ref_type_kind() == RefTypeKind::kFunction) {
+      CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSetFuncRef>(
+          decoder, {__ IntPtrConstant(imm.index),
+                    __ Word32Constant(extract_shared_data ? 1 : 0),
+                    index_wordptr, value.op});
+    } else {
+      CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableSet>(
+          decoder, {__ IntPtrConstant(imm.index),
+                    __ Word32Constant(extract_shared_data ? 1 : 0),
+                    index_wordptr, value.op});
+    }
+  }
+
+  void TableInit(FullDecoder* decoder, const TableInitImmediate& imm,
+                 const Value& dst_val, const Value& src_val,
+                 const Value& size_val) {
+    const WasmTable* table = imm.table.table;
+    V<WordPtr> dst_wordptr =
+        TableAddressToUintPtrOrOOBTrap(table->address_type, dst_val.op);
+    V<Word32> src = src_val.op;
+    V<Word32> size = size_val.op;
+    DCHECK_EQ(table->shared, table->shared);
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableInit>(
+        decoder, {
+                     dst_wordptr,
+                     src,
+                     size,
+                     __ NumberConstant(imm.table.index),
+                     __ NumberConstant(imm.element_segment.index),
+                     __ NumberConstant((!shared_ && table->shared) ? 1 : 0),
+                 });
+  }
+
+  void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
+                 const Value& dst_val, const Value& src_val,
+                 const Value& size_val) {
+    const WasmTable* dst_table = imm.table_dst.table;
+    const WasmTable* src_table = imm.table_src.table;
+    V<WordPtr> dst_wordptr =
+        TableAddressToUintPtrOrOOBTrap(dst_table->address_type, dst_val.op);
+    V<WordPtr> src_wordptr =
+        TableAddressToUintPtrOrOOBTrap(src_table->address_type, src_val.op);
+    AddressType min_address_type =
+        dst_table->is_table64() && src_table->is_table64() ? AddressType::kI64
+                                                           : AddressType::kI32;
+    V<WordPtr> size_wordptr =
+        TableAddressToUintPtrOrOOBTrap(min_address_type, size_val.op);
+    bool table_is_shared = imm.table_dst.table->shared;
+    // TODO(14616): Is this too restrictive?
+    DCHECK_EQ(table_is_shared, imm.table_src.table->shared);
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableCopy>(
+        decoder, {dst_wordptr, src_wordptr, size_wordptr,
+                  __ NumberConstant(imm.table_dst.index),
+                  __ NumberConstant(imm.table_src.index),
+                  __ NumberConstant((!shared_ && table_is_shared) ? 1 : 0)});
+  }
+
+  void TableGrow(FullDecoder* decoder, const TableIndexImmediate& imm,
+                 const Value& value, const Value& delta, Value* result) {
+    Label<Word32> end(&asm_);
+    V<WordPtr> delta_wordptr;
+
+    // If `delta` is OOB, return -1.
+    if (!imm.table->is_table64()) {
+      delta_wordptr = __ ChangeUint32ToUintPtr(delta.op);
+    } else if constexpr (Is64()) {
+      delta_wordptr = delta.op;
+    } else {
+      GOTO_IF(UNLIKELY(__ TruncateWord64ToWord32(
+                  __ Word64ShiftRightLogical(delta.op, 32))),
+              end, __ Word32Constant(-1));
+      delta_wordptr = V<WordPtr>::Cast(__ TruncateWord64ToWord32(delta.op));
+    }
+
+    bool extract_shared_data = !shared_ && imm.table->shared;
+    DCHECK_GE(kSmiMaxValue, wasm::max_table_size());
+    V<Word32> call_result = __ UntagSmi(
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableGrow>(
+            decoder, {__ NumberConstant(imm.index), delta_wordptr,
+                      __ Word32Constant(extract_shared_data), value.op}));
+    GOTO(end, call_result);
+
+    BIND(end, result_i32);
+    if (imm.table->is_table64()) {
+      result->op = __ ChangeInt32ToInt64(result_i32);
+    } else {
+      result->op = result_i32;
+    }
+  }
+
+  void TableFill(FullDecoder* decoder, const TableIndexImmediate& imm,
+                 const Value& start, const Value& value, const Value& count) {
+    V<WordPtr> start_wordptr =
+        TableAddressToUintPtrOrOOBTrap(imm.table->address_type, start.op);
+    V<WordPtr> count_wordptr =
+        TableAddressToUintPtrOrOOBTrap(imm.table->address_type, count.op);
+    bool extract_shared_data = !shared_ && imm.table->shared;
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmTableFill>(
+        decoder,
+        {start_wordptr, count_wordptr, __ Word32Constant(extract_shared_data),
+         __ NumberConstant(imm.index), value.op});
+  }
+
+  V<WasmTableObject> LoadTable(FullDecoder* decoder,
+                               const TableIndexImmediate& imm) {
+    V<FixedArray> tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
+        trusted_instance_data(imm.table->shared), Tables,
+        MemoryRepresentation::TaggedPointer());
+    return V<WasmTableObject>::Cast(
+        __ LoadFixedArrayElement(tables, imm.index));
+  }
+
+  void TableSize(FullDecoder* decoder, const TableIndexImmediate& imm,
+                 Value* result) {
+    V<WasmTableObject> table = LoadTable(decoder, imm);
+    V<Word32> size_word32 = __ UntagSmi(__ Load(
+        table, LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedSigned(),
+        WasmTableObject::kCurrentLengthOffset));
+    if (imm.table->is_table64()) {
+      result->op = __ ChangeUint32ToUint64(size_word32);
+    } else {
+      result->op = size_word32;
+    }
   }
 
   void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
+    // Note: Contrary to data segments, elem segments occur before the code
+    // section, so we can be sure that they're available even during streaming
+    // compilation.
+    bool shared = decoder->module_->elem_segments[imm.index].shared;
     V<FixedArray> elem_segments = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        ElementSegments, MemoryRepresentation::TaggedPointer());
-    StoreFixedArrayElement(elem_segments, imm.index, LOAD_ROOT(EmptyFixedArray),
-                           compiler::kFullWriteBarrier);
+        trusted_instance_data(shared), ElementSegments,
+        MemoryRepresentation::TaggedPointer());
+    __ StoreFixedArrayElement(elem_segments, imm.index,
+                              LOAD_ROOT(EmptyFixedArray),
+                              compiler::kFullWriteBarrier);
   }
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value args[], Value* result) {
+                 const Value& descriptor, const Value args[], Value* result) {
     uint32_t field_count = imm.struct_type->field_count();
-    base::SmallVector<OpIndex, 8> args_vector(field_count);
+    SmallZoneVector<OpIndex, 16> args_vector(field_count, decoder->zone_);
     for (uint32_t i = 0; i < field_count; ++i) {
       args_vector[i] = args[i].op;
     }
-    result->op = StructNewImpl(imm, args_vector.data());
+    result->op =
+        StructNewImpl(decoder, imm, descriptor, args_vector.data(), true);
   }
 
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
-                        Value* result) {
+                        const Value& descriptor, Value* result) {
     uint32_t field_count = imm.struct_type->field_count();
-    base::SmallVector<OpIndex, 8> args(field_count);
+    SmallZoneVector<OpIndex, 16> args(field_count, decoder->zone_);
     for (uint32_t i = 0; i < field_count; i++) {
       ValueType field_type = imm.struct_type->field(i);
       args[i] = DefaultValue(field_type);
     }
-    result->op = StructNewImpl(imm, args.data());
+    result->op = StructNewImpl(decoder, imm, descriptor, args.data(), false);
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
                  const FieldImmediate& field, bool is_signed, Value* result) {
-    result->op = __ StructGet(struct_object.op, field.struct_imm.struct_type,
-                              field.field_imm.index, is_signed,
-                              struct_object.type.is_nullable()
-                                  ? compiler::kWithNullCheck
-                                  : compiler::kWithoutNullCheck);
+    result->op = __ StructGet(
+        V<WasmStructNullable>::Cast(struct_object.op),
+        field.struct_imm.struct_type, field.struct_imm.index,
+        field.field_imm.index, is_signed,
+        struct_object.type.is_nullable() ? compiler::kWithNullCheck
+                                         : compiler::kWithoutNullCheck);
   }
 
   void StructSet(FullDecoder* decoder, const Value& struct_object,
                  const FieldImmediate& field, const Value& field_value) {
-    __ StructSet(struct_object.op, field_value.op, field.struct_imm.struct_type,
+    __ StructSet(V<WasmStructNullable>::Cast(struct_object.op), field_value.op,
+                 field.struct_imm.struct_type, field.struct_imm.index,
                  field.field_imm.index,
                  struct_object.type.is_nullable()
                      ? compiler::kWithNullCheck
@@ -2023,145 +4621,135 @@ class TurboshaftGraphBuildingInterface {
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length, const Value& initial_value,
                 Value* result) {
-    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type, length.op,
-                              initial_value.op);
+    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type,
+                              V<Word32>::Cast(length.op),
+                              V<Any>::Cast(initial_value.op));
   }
 
   void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                        const Value& length, Value* result) {
-    OpIndex initial_value = DefaultValue(imm.array_type->element_type());
-    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type, length.op,
-                              initial_value);
+    V<Any> initial_value = DefaultValue(imm.array_type->element_type());
+    result->op = ArrayNewImpl(decoder, imm.index, imm.array_type,
+                              V<Word32>::Cast(length.op), initial_value);
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate& imm, const Value& index,
                 bool is_signed, Value* result) {
-    BoundsCheckArray(array_obj.op, index.op, array_obj.type);
-    result->op = __ ArrayGet(array_obj.op, index.op,
-                             imm.array_type->element_type(), is_signed);
+    auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
+    BoundsCheckArray(array_value, index.op, array_obj.type);
+    result->op = __ ArrayGet(array_value, V<Word32>::Cast(index.op),
+                             imm.array_type, is_signed);
   }
 
   void ArraySet(FullDecoder* decoder, const Value& array_obj,
                 const ArrayIndexImmediate& imm, const Value& index,
                 const Value& value) {
-    BoundsCheckArray(array_obj.op, index.op, array_obj.type);
-    __ ArraySet(array_obj.op, index.op, value.op,
+    auto array_value = V<WasmArrayNullable>::Cast(array_obj.op);
+    BoundsCheckArray(array_value, index.op, array_obj.type);
+    __ ArraySet(array_value, V<Word32>::Cast(index.op), V<Any>::Cast(value.op),
                 imm.array_type->element_type());
   }
 
   void ArrayLen(FullDecoder* decoder, const Value& array_obj, Value* result) {
-    result->op =
-        __ ArrayLength(array_obj.op, array_obj.type.is_nullable()
-                                         ? compiler::kWithNullCheck
-                                         : compiler::kWithoutNullCheck);
+    result->op = __ ArrayLength(V<WasmArrayNullable>::Cast(array_obj.op),
+                                array_obj.type.is_nullable()
+                                    ? compiler::kWithNullCheck
+                                    : compiler::kWithoutNullCheck);
   }
 
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
                  const Value& src, const Value& src_index,
                  const ArrayIndexImmediate& src_imm, const Value& length) {
-    BoundsCheckArrayWithLength(dst.op, dst_index.op, length.op,
+    V<WasmArrayNullable> src_array = V<WasmArrayNullable>::Cast(src.op);
+    V<WasmArrayNullable> dst_array = V<WasmArrayNullable>::Cast(dst.op);
+    BoundsCheckArrayWithLength(dst_array, dst_index.op, length.op,
                                dst.type.is_nullable()
                                    ? compiler::kWithNullCheck
                                    : compiler::kWithoutNullCheck);
-    BoundsCheckArrayWithLength(src.op, src_index.op, length.op,
+    BoundsCheckArrayWithLength(src_array, src_index.op, length.op,
                                src.type.is_nullable()
                                    ? compiler::kWithNullCheck
                                    : compiler::kWithoutNullCheck);
 
     ValueType element_type = src_imm.array_type->element_type();
 
-    Label<> end(&asm_);
-    Label<> builtin(&asm_);
-    Label<> reverse(&asm_);
+    IF_NOT (__ Word32Equal(length.op, 0)) {
+      // Values determined by test/mjsunit/wasm/array-copy-benchmark.js on x64.
+      int array_copy_max_loop_length;
+      switch (element_type.kind()) {
+        case wasm::kI32:
+        case wasm::kI64:
+        case wasm::kI8:
+        case wasm::kI16:
+          array_copy_max_loop_length = 20;
+          break;
+        case wasm::kF16:  // TODO(irezvov): verify the threshold for F16.
+        case wasm::kF32:
+        case wasm::kF64:
+          array_copy_max_loop_length = 35;
+          break;
+        case wasm::kS128:
+          array_copy_max_loop_length = 100;
+          break;
+        case wasm::kRef:
+        case wasm::kRefNull:
+          array_copy_max_loop_length = 15;
+          break;
+        case wasm::kVoid:
+        case kTop:
+        case wasm::kBottom:
+          UNREACHABLE();
+      }
 
-    GOTO_IF(__ Word32Equal(length.op, 0), end);
+      IF (__ Uint32LessThan(array_copy_max_loop_length, length.op)) {
+        // Builtin
+        MachineType arg_types[]{MachineType::TaggedPointer(),
+                                MachineType::Uint32(),
+                                MachineType::TaggedPointer(),
+                                MachineType::Uint32(), MachineType::Uint32()};
+        MachineSignature sig(0, 5, arg_types);
 
-    // Values determined by test/mjsunit/wasm/array-copy-benchmark.js on x64.
-    int array_copy_max_loop_length;
-    switch (element_type.kind()) {
-      case wasm::kI32:
-      case wasm::kI64:
-      case wasm::kI8:
-      case wasm::kI16:
-        array_copy_max_loop_length = 20;
-        break;
-      case wasm::kF32:
-      case wasm::kF64:
-        array_copy_max_loop_length = 35;
-        break;
-      case wasm::kS128:
-        array_copy_max_loop_length = 100;
-        break;
-      case wasm::kRtt:
-      case wasm::kRef:
-      case wasm::kRefNull:
-        array_copy_max_loop_length = 15;
-        break;
-      case wasm::kVoid:
-      case wasm::kBottom:
-        UNREACHABLE();
-    }
+        CallC(&sig, ExternalReference::wasm_array_copy(),
+              {dst_array, dst_index.op, src_array, src_index.op, length.op});
+      } ELSE {
+        V<Word32> src_end_index =
+            __ Word32Sub(__ Word32Add(src_index.op, length.op), 1);
 
-    GOTO_IF(__ Uint32LessThan(array_copy_max_loop_length, length.op), builtin);
-    V<Word32> src_end_index =
-        __ Word32Sub(__ Word32Add(src_index.op, length.op), 1);
-    GOTO_IF(__ Uint32LessThan(src_index.op, dst_index.op), reverse);
+        IF (__ Uint32LessThan(src_index.op, dst_index.op)) {
+          // Reverse
+          V<Word32> dst_end_index =
+              __ Word32Sub(__ Word32Add(dst_index.op, length.op), 1);
+          ScopedVar<Word32> src_index_loop(this, src_end_index);
+          ScopedVar<Word32> dst_index_loop(this, dst_end_index);
 
-    {
-      LoopLabel<Word32, Word32> loop_label(&asm_);
-      GOTO(loop_label, src_index.op, dst_index.op);
-      LOOP(loop_label, src_index_loop, dst_index_loop) {
-        OpIndex value = __ ArrayGet(src.op, src_index_loop, element_type, true);
-        __ ArraySet(dst.op, dst_index_loop, value, element_type);
+          WHILE(__ Word32Constant(1)) {
+            V<Any> value = __ ArrayGet(src_array, src_index_loop,
+                                       src_imm.array_type, true);
+            __ ArraySet(dst_array, dst_index_loop, value, element_type);
 
-        V<Word32> condition = __ Uint32LessThan(src_index_loop, src_end_index);
-        IF (condition) {
-          GOTO(loop_label, __ Word32Add(src_index_loop, 1),
-               __ Word32Add(dst_index_loop, 1));
+            IF_NOT (__ Uint32LessThan(src_index.op, src_index_loop)) BREAK;
+
+            src_index_loop = __ Word32Sub(src_index_loop, 1);
+            dst_index_loop = __ Word32Sub(dst_index_loop, 1);
+          }
+        } ELSE {
+          ScopedVar<Word32> src_index_loop(this, src_index.op);
+          ScopedVar<Word32> dst_index_loop(this, dst_index.op);
+
+          WHILE(__ Word32Constant(1)) {
+            V<Any> value = __ ArrayGet(src_array, src_index_loop,
+                                       src_imm.array_type, true);
+            __ ArraySet(dst_array, dst_index_loop, value, element_type);
+
+            IF_NOT (__ Uint32LessThan(src_index_loop, src_end_index)) BREAK;
+
+            src_index_loop = __ Word32Add(src_index_loop, 1);
+            dst_index_loop = __ Word32Add(dst_index_loop, 1);
+          }
         }
-        END_IF
-
-        GOTO(end);
       }
     }
-
-    {
-      BIND(reverse);
-      V<Word32> dst_end_index =
-          __ Word32Sub(__ Word32Add(dst_index.op, length.op), 1);
-      LoopLabel<Word32, Word32> loop_label(&asm_);
-      GOTO(loop_label, src_end_index, dst_end_index);
-      LOOP(loop_label, src_index_loop, dst_index_loop) {
-        OpIndex value = __ ArrayGet(src.op, src_index_loop, element_type, true);
-        __ ArraySet(dst.op, dst_index_loop, value, element_type);
-
-        V<Word32> condition = __ Uint32LessThan(src_index.op, src_index_loop);
-        IF (condition) {
-          GOTO(loop_label, __ Word32Sub(src_index_loop, 1),
-               __ Word32Sub(dst_index_loop, 1));
-        }
-        END_IF
-
-        GOTO(end);
-      }
-    }
-
-    {
-      BIND(builtin);
-      MachineType arg_types[]{
-          MachineType::TaggedPointer(), MachineType::TaggedPointer(),
-          MachineType::Uint32(),        MachineType::TaggedPointer(),
-          MachineType::Uint32(),        MachineType::Uint32()};
-      MachineSignature sig(0, 6, arg_types);
-
-      CallC(&sig, ExternalReference::wasm_array_copy(),
-            {instance_node_, dst.op, dst_index.op, src.op, src_index.op,
-             length.op});
-      GOTO(end);
-    }
-
-    BIND(end);
   }
 
   void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
@@ -2169,12 +4757,14 @@ class TurboshaftGraphBuildingInterface {
                  const Value& length) {
     const bool emit_write_barrier =
         imm.array_type->element_type().is_reference();
-    BoundsCheckArrayWithLength(array.op, index.op, length.op,
-                               array.type.is_nullable()
-                                   ? compiler::kWithNullCheck
-                                   : compiler::kWithoutNullCheck);
-    ArrayFillImpl(array.op, index.op, value.op, length.op, imm.array_type,
-                  emit_write_barrier);
+    auto array_value = V<WasmArrayNullable>::Cast(array.op);
+    V<WasmArray> array_not_null = BoundsCheckArrayWithLength(
+        array_value, index.op, length.op,
+        array.type.is_nullable() ? compiler::kWithNullCheck
+                                 : compiler::kWithoutNullCheck);
+    ArrayFillImpl(array_not_null, V<Word32>::Cast(index.op),
+                  V<Any>::Cast(value.op), V<Word32>::Cast(length.op),
+                  imm.array_type, emit_write_barrier);
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
@@ -2183,26 +4773,11 @@ class TurboshaftGraphBuildingInterface {
     const wasm::ArrayType* type = array_imm.array_type;
     wasm::ValueType element_type = type->element_type();
     int element_count = length_imm.index;
-    Uninitialized<HeapObject> a =
-        __ Allocate(RoundUp(element_type.value_kind_size() * element_count,
-                            kObjectAlignment) +
-                        WasmArray::kHeaderSize,
-                    AllocationType::kYoung);
-
     // Initialize the array header.
-    V<Map> rtt = __ RttCanon(instance_node_, array_imm.index);
-    // TODO(14108): The map and empty fixed array initialization should be an
-    // immutable store.
-    __ InitializeField(a, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
-                       rtt);
-    __ InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                       LOAD_ROOT(EmptyFixedArray));
-    __ InitializeField(a, AccessBuilder::ForWasmArrayLength(),
-                       __ Word32Constant(element_count));
-
-    // TODO(14108): Array initialization isn't finished here but we need the
-    // OpIndex and not some Uninitialized<HeapObject>.
-    V<HeapObject> array = __ FinishInitialization(std::move(a));
+    bool shared = decoder->module_->type(array_imm.index).is_shared;
+    V<Map> rtt = __ RttCanon(managed_object_maps(shared), array_imm.index);
+    V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type, shared);
+    // Initialize all elements.
     for (int i = 0; i < element_count; i++) {
       __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type);
     }
@@ -2214,11 +4789,23 @@ class TurboshaftGraphBuildingInterface {
                        const IndexImmediate& segment_imm, const Value& offset,
                        const Value& length, Value* result) {
     bool is_element = array_imm.array_type->element_type().is_reference();
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmArrayNewSegment,
-        {__ Word32Constant(segment_imm.index), offset.op, length.op,
-         __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)),
-         __ RttCanon(instance_node_, array_imm.index)});
+    // TODO(14616): Data segments aren't available during streaming compilation.
+    // Discussion: github.com/WebAssembly/shared-everything-threads/issues/83
+    bool segment_is_shared =
+        decoder->enabled_.has_shared() &&
+        (is_element
+             ? decoder->module_->elem_segments[segment_imm.index].shared
+             : decoder->module_->data_segments[segment_imm.index].shared);
+    // TODO(14616): Add DCHECK that array sharedness is equal to `shared`?
+    V<WasmArray> result_value =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmArrayNewSegment>(
+            decoder,
+            {__ Word32Constant(segment_imm.index), offset.op, length.op,
+             __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)),
+             __ SmiConstant(Smi::FromInt(!shared_ && segment_is_shared)),
+             __ RttCanon(managed_object_maps(segment_is_shared),
+                         array_imm.index)});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void ArrayInitSegment(FullDecoder* decoder,
@@ -2227,11 +4814,22 @@ class TurboshaftGraphBuildingInterface {
                         const Value& array_index, const Value& segment_offset,
                         const Value& length) {
     bool is_element = array_imm.array_type->element_type().is_reference();
-    CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmArrayInitSegment,
+    // TODO(14616): Segments aren't available during streaming compilation.
+    bool segment_is_shared =
+        decoder->enabled_.has_shared() &&
+        (is_element
+             ? decoder->module_->elem_segments[segment_imm.index].shared
+             : decoder->module_->data_segments[segment_imm.index].shared);
+    // TODO(14616): Is this too restrictive?
+    DCHECK_EQ(segment_is_shared,
+              decoder->module_->type(array_imm.index).is_shared);
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmArrayInitSegment>(
+        decoder,
         {array_index.op, segment_offset.op, length.op,
          __ SmiConstant(Smi::FromInt(segment_imm.index)),
-         __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)), array.op});
+         __ SmiConstant(Smi::FromInt(is_element ? 1 : 0)),
+         __ SmiConstant(Smi::FromInt((!shared_ && segment_is_shared) ? 1 : 0)),
+         array.op});
   }
 
   void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
@@ -2253,43 +4851,67 @@ class TurboshaftGraphBuildingInterface {
           __ WordPtrShiftLeft(input_wordptr, kSmiShiftSize + kSmiTagSize + 1),
           1);
     }
+    result->op =
+        __ AnnotateWasmType(__ BitcastWordPtrToSmi(result->op), kWasmRefI31);
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    V<Tagged> input_non_null = NullCheck(input);
+    V<Object> input_non_null = NullCheck(input);
     if constexpr (SmiValuesAre31Bits()) {
       result->op = __ Word32ShiftRightArithmeticShiftOutZeros(
-          __ TruncateWordPtrToWord32(__ BitcastTaggedToWord(input_non_null)),
+          __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(input_non_null)),
           kSmiTagSize + kSmiShiftSize);
     } else {
       // Topmost bit is already sign-extended.
       result->op = __ TruncateWordPtrToWord32(
           __ WordPtrShiftRightArithmeticShiftOutZeros(
-              __ BitcastTaggedToWord(input_non_null),
+              __ BitcastTaggedToWordPtr(input_non_null),
               kSmiTagSize + kSmiShiftSize));
     }
   }
 
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    V<Tagged> input_non_null = NullCheck(input);
+    V<Object> input_non_null = NullCheck(input);
     if constexpr (SmiValuesAre31Bits()) {
       result->op = __ Word32ShiftRightLogical(
-          __ TruncateWordPtrToWord32(__ BitcastTaggedToWord(input_non_null)),
+          __ TruncateWordPtrToWord32(__ BitcastTaggedToWordPtr(input_non_null)),
           kSmiTagSize + kSmiShiftSize);
     } else {
       // Topmost bit is sign-extended, remove it.
       result->op = __ TruncateWordPtrToWord32(__ WordPtrShiftRightLogical(
-          __ WordPtrShiftLeft(__ BitcastTaggedToWord(input_non_null), 1),
+          __ WordPtrShiftLeft(__ BitcastTaggedToWordPtr(input_non_null), 1),
           kSmiTagSize + kSmiShiftSize + 1));
     }
   }
 
-  void RefTest(FullDecoder* decoder, uint32_t ref_index, const Value& object,
+  void RefGetDesc(FullDecoder* decoder, const Value& ref_val, Value* result) {
+    // Implicit null checks don't cover the map load.
+    V<Object> ref = NullCheck(ref_val);
+    V<Map> map = __ LoadMapField(ref);
+    result->op = __ Load(map, LoadOp::Kind::TaggedBase().Immutable(),
+                         MemoryRepresentation::TaggedPointer(),
+                         Map::kInstanceDescriptorsOffset);
+  }
+
+  compiler::ExactOrSubtype GetExactness(FullDecoder* decoder, HeapType target) {
+    // For exact target types, an exact match is needed for correctness;
+    // for final target types, it's a performance optimization.
+    if (target.is_exact() ||
+        decoder->module_->type(target.ref_index()).is_final) {
+      return compiler::kExactMatchOnly;
+    }
+    return compiler::kMayBeSubtype;
+  }
+
+  void RefTest(FullDecoder* decoder, HeapType target, const Value& object,
                Value* result, bool null_succeeds) {
-    V<Map> rtt = __ RttCanon(instance_node_, ref_index);
+    V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
+                             target.ref_index());
     compiler::WasmTypeCheckConfig config{
-        object.type, ValueType::RefMaybeNull(
-                         ref_index, null_succeeds ? kNullable : kNonNullable)};
+        object.type,
+        ValueType::RefMaybeNull(target,
+                                null_succeeds ? kNullable : kNonNullable),
+        GetExactness(decoder, target)};
     result->op = __ WasmTypeCheck(object.op, rtt, config);
   }
 
@@ -2302,16 +4924,30 @@ class TurboshaftGraphBuildingInterface {
     result->op = __ WasmTypeCheck(object.op, rtt, config);
   }
 
-  void RefCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-               Value* result, bool null_succeeds) {
+  void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
     if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
       // TODO(14108): Implement type guards.
       Forward(decoder, object, result);
       return;
     }
-    V<Map> rtt = __ RttCanon(instance_node_, ref_index);
-    DCHECK_EQ(result->type.is_nullable(), null_succeeds);
-    compiler::WasmTypeCheckConfig config{object.type, result->type};
+    ValueType target = result->type;
+    V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
+                             target.ref_index());
+    compiler::WasmTypeCheckConfig config{
+        object.type, target, GetExactness(decoder, target.heap_type())};
+    result->op = __ WasmTypeCast(object.op, rtt, config);
+  }
+
+  void RefCastDesc(FullDecoder* decoder, const Value& object, const Value& desc,
+                   Value* result) {
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      // TODO(14108): Implement type guards.
+      Forward(decoder, object, result);
+      return;
+    }
+    V<Map> rtt = GetRttFromDescriptor(desc);
+    compiler::WasmTypeCheckConfig config{object.type, result->type,
+                                         compiler::kExactMatchOnly};
     result->op = __ WasmTypeCast(object.op, rtt, config);
   }
 
@@ -2332,12 +4968,31 @@ class TurboshaftGraphBuildingInterface {
     result->op = __ WasmTypeCast(object.op, rtt, config);
   }
 
-  void BrOnCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
+  // TODO(jkummerow): Pass {target} to the interface.
+  void BrOnCast(FullDecoder* decoder, HeapType target_type, const Value& object,
                 Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
-    V<Map> rtt = __ RttCanon(instance_node_, ref_index);
-    compiler::WasmTypeCheckConfig config{
-        object.type, ValueType::RefMaybeNull(
-                         ref_index, null_succeeds ? kNullable : kNonNullable)};
+    // Note: we cannot just take {ref_index} and {null_succeeds} from
+    // {value_on_branch->type} because of
+    // https://github.com/WebAssembly/gc/issues/516.
+    ValueType target = ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
+                             target_type.ref_index());
+    compiler::WasmTypeCheckConfig config{object.type, target,
+                                         GetExactness(decoder, target_type)};
+    return BrOnCastImpl(decoder, rtt, config, object, value_on_branch, br_depth,
+                        null_succeeds);
+  }
+
+  void BrOnCastDesc(FullDecoder* decoder, HeapType target_type,
+                    const Value& object, const Value& descriptor,
+                    Value* value_on_branch, uint32_t br_depth,
+                    bool null_succeeds) {
+    ValueType target = ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt = GetRttFromDescriptor(descriptor);
+    compiler::WasmTypeCheckConfig config{object.type, target,
+                                         compiler::kExactMatchOnly};
     return BrOnCastImpl(decoder, rtt, config, object, value_on_branch, br_depth,
                         null_succeeds);
   }
@@ -2353,13 +5008,28 @@ class TurboshaftGraphBuildingInterface {
                         null_succeeds);
   }
 
-  void BrOnCastFail(FullDecoder* decoder, uint32_t ref_index,
+  void BrOnCastFail(FullDecoder* decoder, HeapType target_type,
                     const Value& object, Value* value_on_fallthrough,
                     uint32_t br_depth, bool null_succeeds) {
-    V<Map> rtt = __ RttCanon(instance_node_, ref_index);
-    compiler::WasmTypeCheckConfig config{
-        object.type, ValueType::RefMaybeNull(
-                         ref_index, null_succeeds ? kNullable : kNonNullable)};
+    ValueType target = ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt = __ RttCanon(managed_object_maps(target.is_shared()),
+                             target_type.ref_index());
+    compiler::WasmTypeCheckConfig config{object.type, target,
+                                         GetExactness(decoder, target_type)};
+    return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
+                            br_depth, null_succeeds);
+  }
+
+  void BrOnCastDescFail(FullDecoder* decoder, HeapType target_type,
+                        const Value& object, const Value& descriptor,
+                        Value* value_on_fallthrough, uint32_t br_depth,
+                        bool null_succeeds) {
+    ValueType target = ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt = GetRttFromDescriptor(descriptor);
+    compiler::WasmTypeCheckConfig config{object.type, target,
+                                         compiler::kExactMatchOnly};
     return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
                             br_depth, null_succeeds);
   }
@@ -2375,176 +5045,224 @@ class TurboshaftGraphBuildingInterface {
                             br_depth, null_succeeds);
   }
 
-  void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& memory,
+  void StringNewWtf8(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                      const unibrow::Utf8Variant variant, const Value& offset,
                      const Value& size, Value* result) {
-    V<Object> memory_smi = __ SmiConstant(Smi::FromInt(memory.index));
-    V<Object> variant_smi =
+    V<Word32> memory = __ Word32Constant(imm.index);
+    V<Smi> variant_smi =
         __ SmiConstant(Smi::FromInt(static_cast<int>(variant)));
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringNewWtf8,
-        {offset.op, size.op, memory_smi, variant_smi},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    V<WordPtr> index =
+        MemoryAddressToUintPtrOrOOBTrap(imm.memory->address_type, offset.op);
+    V<WasmStringRefNullable> result_value =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringNewWtf8>(
+            decoder, {index, size.op, memory, variant_smi});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   // TODO(jkummerow): This check would be more elegant if we made
   // {ArrayNewSegment} a high-level node that's lowered later.
-  bool IsArrayNewSegment(V<Object> array) {
+  // Returns the call on success, nullptr otherwise (like `TryCast`).
+  const CallOp* IsArrayNewSegment(V<Object> array) {
+    DCHECK_IMPLIES(!array.valid(), __ generating_unreachable_operations());
+    if (__ generating_unreachable_operations()) return nullptr;
+    if (const WasmTypeAnnotationOp* annotation =
+            __ output_graph().Get(array).TryCast<WasmTypeAnnotationOp>()) {
+      array = annotation->value();
+    }
+    if (const DidntThrowOp* didnt_throw =
+            __ output_graph().Get(array).TryCast<DidntThrowOp>()) {
+      array = didnt_throw->throwing_operation();
+    }
     const CallOp* call = __ output_graph().Get(array).TryCast<CallOp>();
-    if (call == nullptr) return false;
-    int64_t stub_id{};
+    if (call == nullptr) return nullptr;
+    uint64_t stub_id{};
     if (!OperationMatcher(__ output_graph())
              .MatchWasmStubCallConstant(call->callee(), &stub_id)) {
-      return false;
+      return nullptr;
     }
-    DCHECK_LT(stub_id, static_cast<int64_t>(Builtin::kFirstBytecodeHandler));
-    return stub_id == static_cast<int64_t>(Builtin::kWasmArrayNewSegment);
+    DCHECK_LT(stub_id, static_cast<uint64_t>(Builtin::kFirstBytecodeHandler));
+    if (stub_id == static_cast<uint64_t>(Builtin::kWasmArrayNewSegment)) {
+      return call;
+    }
+    return nullptr;
   }
 
-  V<Tagged> StringNewWtf8ArrayImpl(FullDecoder* decoder,
-                                   const unibrow::Utf8Variant variant,
-                                   const Value& array, const Value& start,
-                                   const Value& end) {
+  V<HeapObject> StringNewWtf8ArrayImpl(FullDecoder* decoder,
+                                       const unibrow::Utf8Variant variant,
+                                       const Value& array, const Value& start,
+                                       const Value& end,
+                                       ValueType result_type) {
     // Special case: shortcut a sequence "array from data segment" + "string
     // from wtf8 array" to directly create a string from the segment.
-    if (IsArrayNewSegment(array.op)) {
+    V<internal::UnionOf<String, WasmNull, Null>> call;
+    if (const CallOp* array_new = IsArrayNewSegment(array.op)) {
       // We can only pass 3 untagged parameters to the builtin (on 32-bit
       // platforms). The segment index is easy to tag: if it validated, it must
       // be in Smi range.
-      const Operation& array_new = __ output_graph().Get(array.op);
-      OpIndex segment_index = array_new.input(1);
+      OpIndex segment_index = array_new->input(1);
       int32_t index_val;
       OperationMatcher(__ output_graph())
-          .MatchWord32Constant(segment_index, &index_val);
-      V<Object> index_smi = __ SmiConstant(Smi::FromInt(index_val));
+          .MatchIntegralWord32Constant(segment_index, &index_val);
+      V<Smi> index_smi = __ SmiConstant(Smi::FromInt(index_val));
       // Arbitrary choice for the second tagged parameter: the segment offset.
-      OpIndex segment_offset = array_new.input(2);
+      OpIndex segment_offset = array_new->input(2);
       __ TrapIfNot(
           __ Uint32LessThan(segment_offset, __ Word32Constant(Smi::kMaxValue)),
           OpIndex::Invalid(), TrapId::kTrapDataSegmentOutOfBounds);
-      V<Object> offset_smi = __ TagSmi(segment_offset);
-      OpIndex segment_length = array_new.input(3);
-      return CallBuiltinThroughJumptable(
-          decoder, Builtin::kWasmStringFromDataSegment,
-          {segment_length, start.op, end.op, index_smi, offset_smi},
-          Operator::kNoDeopt | Operator::kNoThrow);
+      V<Smi> offset_smi = __ TagSmi(segment_offset);
+      OpIndex segment_length = array_new->input(3);
+      V<Smi> variant_smi =
+          __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)));
+      call = CallBuiltinThroughJumptable<
+          BuiltinCallDescriptor::WasmStringFromDataSegment>(
+          decoder, {segment_length, start.op, end.op, index_smi, offset_smi,
+                    variant_smi});
+    } else {
+      // Regular path if the shortcut wasn't taken.
+      call = CallBuiltinThroughJumptable<
+          BuiltinCallDescriptor::WasmStringNewWtf8Array>(
+          decoder,
+          {start.op, end.op, V<WasmArray>::Cast(NullCheck(array)),
+           __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))});
     }
-
-    // Regular path if the shortcut wasn't taken.
-    return CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringNewWtf8Array,
-        {start.op, end.op, NullCheck(array),
-         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    DCHECK_IMPLIES(variant == unibrow::Utf8Variant::kUtf8NoTrap,
+                   result_type.is_nullable());
+    // The builtin returns a WasmNull for kUtf8NoTrap, so nullable values in
+    // combination with extern strings are not supported.
+    DCHECK_NE(result_type, wasm::kWasmExternRef);
+    return AnnotateAsString(call, result_type);
   }
 
   void StringNewWtf8Array(FullDecoder* decoder,
                           const unibrow::Utf8Variant variant,
                           const Value& array, const Value& start,
                           const Value& end, Value* result) {
-    result->op = StringNewWtf8ArrayImpl(decoder, variant, array, start, end);
+    result->op = StringNewWtf8ArrayImpl(decoder, variant, array, start, end,
+                                        result->type);
   }
 
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringNewWtf16,
-        {__ Word32Constant(imm.index), offset.op, size.op},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    V<WordPtr> index =
+        MemoryAddressToUintPtrOrOOBTrap(imm.memory->address_type, offset.op);
+    V<String> result_value =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringNewWtf16>(
+            decoder, {__ Word32Constant(imm.index), index, size.op});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
                            const Value& start, const Value& end,
                            Value* result) {
-    result->op =
-        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringNewWtf16Array,
-                                    {NullCheck(array), start.op, end.op},
-                                    Operator::kNoDeopt | Operator::kNoThrow);
+    V<String> result_value = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringNewWtf16Array>(
+        decoder, {V<WasmArray>::Cast(NullCheck(array)), start.op, end.op});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
                    Value* result) {
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringConst, {__ Word32Constant(imm.index)},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    V<String> result_value =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringConst>(
+            decoder, {__ Word32Constant(imm.index)});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringMeasureWtf8(FullDecoder* decoder,
                          const unibrow::Utf8Variant variant, const Value& str,
                          Value* result) {
-    Builtin builtin;
+    result->op = StringMeasureWtf8Impl(decoder, variant,
+                                       V<String>::Cast(NullCheck(str)));
+  }
+
+  OpIndex StringMeasureWtf8Impl(FullDecoder* decoder,
+                                const unibrow::Utf8Variant variant,
+                                V<String> string) {
     switch (variant) {
       case unibrow::Utf8Variant::kUtf8:
-        builtin = Builtin::kWasmStringMeasureUtf8;
-        break;
+        return CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringMeasureUtf8>(decoder, {string});
       case unibrow::Utf8Variant::kLossyUtf8:
       case unibrow::Utf8Variant::kWtf8:
-        builtin = Builtin::kWasmStringMeasureWtf8;
-        break;
+        return CallBuiltinThroughJumptable<
+            BuiltinCallDescriptor::WasmStringMeasureWtf8>(decoder, {string});
       case unibrow::Utf8Variant::kUtf8NoTrap:
         UNREACHABLE();
     }
-    result->op = CallBuiltinThroughJumptable(decoder, builtin, {NullCheck(str)},
-                                             Operator::kEliminatable);
+  }
+
+  V<Word32> LoadStringLength(V<Object> string) {
+    return __ template LoadField<Word32>(
+        string, compiler::AccessBuilder::ForStringLength());
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
                           Value* result) {
-    result->op = __ Load(NullCheck(str), LoadOp::Kind::TaggedBase(),
-                         MemoryRepresentation::Uint32(), String::kLengthOffset);
+    result->op = LoadStringLength(NullCheck(str));
   }
 
   void StringEncodeWtf8(FullDecoder* decoder,
                         const MemoryIndexImmediate& memory,
                         const unibrow::Utf8Variant variant, const Value& str,
                         const Value& offset, Value* result) {
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringEncodeWtf8,
-        {NullCheck(str), offset.op, __ SmiConstant(Smi::FromInt(memory.index)),
-         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    V<WordPtr> address =
+        MemoryAddressToUintPtrOrOOBTrap(memory.memory->address_type, offset.op);
+    V<Word32> mem_index = __ Word32Constant(memory.index);
+    V<Word32> utf8 = __ Word32Constant(static_cast<int32_t>(variant));
+    result->op = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringEncodeWtf8>(
+        decoder, {address, mem_index, utf8, V<String>::Cast(NullCheck(str))});
   }
 
   void StringEncodeWtf8Array(FullDecoder* decoder,
                              const unibrow::Utf8Variant variant,
                              const Value& str, const Value& array,
                              const Value& start, Value* result) {
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringEncodeWtf8Array,
-        {NullCheck(str), NullCheck(array), start.op,
-         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    result->op = StringEncodeWtf8ArrayImpl(
+        decoder, variant, V<String>::Cast(NullCheck(str)),
+        V<WasmArray>::Cast(NullCheck(array)), start.op);
+  }
+
+  OpIndex StringEncodeWtf8ArrayImpl(FullDecoder* decoder,
+                                    const unibrow::Utf8Variant variant,
+                                    V<String> str, V<WasmArray> array,
+                                    V<Word32> start) {
+    V<Smi> utf8 = __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)));
+    return CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringEncodeWtf8Array>(
+        decoder, {str, array, start, utf8});
   }
 
   void StringEncodeWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                          const Value& str, const Value& offset, Value* result) {
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringEncodeWtf16,
-        {NullCheck(str), offset.op,
-         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(imm.index)))},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    V<WordPtr> address =
+        MemoryAddressToUintPtrOrOOBTrap(imm.memory->address_type, offset.op);
+    V<Word32> mem_index = __ Word32Constant(static_cast<int32_t>(imm.index));
+    result->op = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringEncodeWtf16>(
+        decoder, {V<String>::Cast(NullCheck(str)), address, mem_index});
   }
 
   void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
                               const Value& array, const Value& start,
                               Value* result) {
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringEncodeWtf16Array,
-        {NullCheck(str), NullCheck(array), start.op},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    result->op = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringEncodeWtf16Array>(
+        decoder, {V<String>::Cast(NullCheck(str)),
+                  V<WasmArray>::Cast(NullCheck(array)), start.op});
   }
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
-    V<HeapObject> native_context = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        NativeContext, MemoryRepresentation::TaggedPointer());
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kStringAdd_CheckNone,
-        {NullCheck(head), NullCheck(tail), native_context},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    V<NativeContext> native_context = instance_cache_.native_context();
+    V<String> result_value = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
+        decoder, native_context,
+        {V<String>::Cast(NullCheck(head)), V<String>::Cast(NullCheck(tail))});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
-  V<Word32> StringEqImpl(FullDecoder* decoder, V<Tagged> a, V<Tagged> b,
+  V<Word32> StringEqImpl(FullDecoder* decoder, V<String> a, V<String> b,
                          ValueType a_type, ValueType b_type) {
     Label<Word32> done(&asm_);
     // Covers "identical string pointer" and "both are null" cases.
@@ -2555,9 +5273,25 @@ class TurboshaftGraphBuildingInterface {
     if (b_type.is_nullable()) {
       GOTO_IF(__ IsNull(b, b_type), done, __ Word32Constant(0));
     }
-    // TODO(jkummerow): Call Builtin::kStringEqual directly.
-    GOTO(done, CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringEqual,
-                                           {a, b}, Operator::kEliminatable));
+
+    // Strings with unequal lengths can't be equal.
+    V<Word32> a_length =
+        __ LoadField<Word32>(a, AccessBuilder::ForStringLength());
+    V<Word32> b_length =
+        __ LoadField<Word32>(b, AccessBuilder::ForStringLength());
+    GOTO_IF_NOT(__ Word32Equal(a_length, b_length), done, __ Word32Constant(0));
+
+    // Comparing the strings' hashes before calling the builtin has been tried,
+    // but isn't likely to be useful unless Wasm gains an ability to trigger
+    // string hash computation (or internalization, for that matter).
+
+    V<WordPtr> length = __ ChangeInt32ToIntPtr(a_length);
+    V<Boolean> result =
+        CallBuiltinByPointer<BuiltinCallDescriptor::WasmJSStringEqual>(
+            decoder, {a, b, length});
+
+    GOTO(done, __ IsRootConstant(result, RootIndex::kTrueValue));
+
     BIND(done, eq_result);
     return eq_result;
   }
@@ -2569,23 +5303,24 @@ class TurboshaftGraphBuildingInterface {
 
   void StringIsUSVSequence(FullDecoder* decoder, const Value& str,
                            Value* result) {
-    result->op =
-        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringIsUSVSequence,
-                                    {NullCheck(str)}, Operator::kEliminatable);
+    result->op = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringIsUSVSequence>(
+        decoder, {V<String>::Cast(NullCheck(str))});
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
-    result->op =
-        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringAsWtf8,
-                                    {NullCheck(str)}, Operator::kEliminatable);
+    V<ByteArray> result_value =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringAsWtf8>(
+            decoder, {V<String>::Cast(NullCheck(str))});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
                              const Value& pos, const Value& bytes,
                              Value* result) {
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringViewWtf8Advance,
-        {NullCheck(view), pos.op, bytes.op}, Operator::kEliminatable);
+    result->op = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringViewWtf8Advance>(
+        decoder, {V<ByteArray>::Cast(NullCheck(view)), pos.op, bytes.op});
   }
 
   void StringViewWtf8Encode(FullDecoder* decoder,
@@ -2594,12 +5329,14 @@ class TurboshaftGraphBuildingInterface {
                             const Value& view, const Value& addr,
                             const Value& pos, const Value& bytes,
                             Value* next_pos, Value* bytes_written) {
-    OpIndex result = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringViewWtf8Encode,
-        {addr.op, pos.op, bytes.op, NullCheck(view),
-         __ SmiConstant(Smi::FromInt(memory.index)),
-         __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)))},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    V<WordPtr> address =
+        MemoryAddressToUintPtrOrOOBTrap(memory.memory->address_type, addr.op);
+    V<Smi> mem_index = __ SmiConstant(Smi::FromInt(memory.index));
+    V<Smi> utf8 = __ SmiConstant(Smi::FromInt(static_cast<int32_t>(variant)));
+    OpIndex result = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringViewWtf8Encode>(
+        decoder, {address, pos.op, bytes.op,
+                  V<ByteArray>::Cast(NullCheck(view)), mem_index, utf8});
     next_pos->op = __ Projection(result, 0, RepresentationFor(next_pos->type));
     bytes_written->op =
         __ Projection(result, 1, RepresentationFor(bytes_written->type));
@@ -2608,38 +5345,34 @@ class TurboshaftGraphBuildingInterface {
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,
                            const Value& start, const Value& end,
                            Value* result) {
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringViewWtf8Slice,
-        {NullCheck(view), start.op, end.op}, Operator::kEliminatable);
+    V<String> result_value = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringViewWtf8Slice>(
+        decoder, {V<ByteArray>::Cast(NullCheck(view)), start.op, end.op});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringAsWtf16(FullDecoder* decoder, const Value& str, Value* result) {
-    result->op = __ StringAsWtf16(NullCheck(str));
+    result->op = __ StringAsWtf16(V<String>::Cast(NullCheck(str)));
   }
 
-  V<Word32> GetCodeUnitImpl(FullDecoder* decoder, V<Tagged> string,
+  V<Word32> GetCodeUnitImpl(FullDecoder* decoder, V<String> string,
                             V<Word32> offset) {
-    OpIndex prepare = __ StringPrepareForGetCodeUnit(string);
-    V<Tagged> base =
-        __ Projection(prepare, 0, RegisterRepresentation::Tagged());
-    V<WordPtr> base_offset =
-        __ Projection(prepare, 1, RegisterRepresentation::PointerSized());
-    V<Word32> charwidth_shift =
-        __ Projection(prepare, 2, RegisterRepresentation::Word32());
+    auto prepare = __ StringPrepareForGetCodeUnit(string);
+    V<Object> base = __ template Projection<0>(prepare);
+    V<WordPtr> base_offset = __ template Projection<1>(prepare);
+    V<Word32> charwidth_shift = __ template Projection<2>(prepare);
 
     // Bounds check.
-    V<Word32> length = __ template LoadField<Word32>(
-        string, compiler::AccessBuilder::ForStringLength());
-    __ TrapIfNot(__ Uint32LessThan(offset, length), OpIndex::Invalid(),
+    V<Word32> length = LoadStringLength(string);
+    __ TrapIfNot(__ Uint32LessThan(offset, length),
                  TrapId::kTrapStringOffsetOutOfBounds);
 
     Label<> onebyte(&asm_);
-    // TODO(14108): The bailout label should be deferred.
     Label<> bailout(&asm_);
     Label<Word32> done(&asm_);
-    GOTO_IF(
-        __ Word32Equal(charwidth_shift, compiler::kCharWidthBailoutSentinel),
-        bailout);
+    GOTO_IF(UNLIKELY(__ Word32Equal(charwidth_shift,
+                                    compiler::kCharWidthBailoutSentinel)),
+            bailout);
     GOTO_IF(__ Word32Equal(charwidth_shift, 0), onebyte);
 
     // Two-byte.
@@ -2648,7 +5381,7 @@ class TurboshaftGraphBuildingInterface {
     // Bitcast the tagged to a wordptr as the offset already contains the
     // kHeapObjectTag handling. Furthermore, in case of external strings the
     // tagged value is a smi 0, which doesn't really encode a tagged load.
-    V<WordPtr> base_ptr = __ BitcastTaggedToWord(base);
+    V<WordPtr> base_ptr = __ BitcastTaggedToWordPtr(base);
     V<Word32> result_value =
         __ Load(base_ptr, object_offset, LoadOp::Kind::RawAligned().Immutable(),
                 MemoryRepresentation::Uint16());
@@ -2660,16 +5393,16 @@ class TurboshaftGraphBuildingInterface {
     // Bitcast the tagged to a wordptr as the offset already contains the
     // kHeapObjectTag handling. Furthermore, in case of external strings the
     // tagged value is a smi 0, which doesn't really encode a tagged load.
-    base_ptr = __ BitcastTaggedToWord(base);
+    base_ptr = __ BitcastTaggedToWordPtr(base);
     result_value =
         __ Load(base_ptr, object_offset, LoadOp::Kind::RawAligned().Immutable(),
                 MemoryRepresentation::Uint8());
     GOTO(done, result_value);
 
     BIND(bailout);
-    GOTO(done, CallBuiltinThroughJumptable(
-                   decoder, Builtin::kWasmStringViewWtf16GetCodeUnit,
-                   {string, offset}, Operator::kPure));
+    GOTO(done, CallBuiltinThroughJumptable<
+                   BuiltinCallDescriptor::WasmStringViewWtf16GetCodeUnit>(
+                   decoder, {string, offset}));
 
     BIND(done, final_result);
     // Make sure the original string is kept alive as long as we're operating
@@ -2681,23 +5414,20 @@ class TurboshaftGraphBuildingInterface {
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
                                   const Value& pos, Value* result) {
-    result->op = GetCodeUnitImpl(decoder, NullCheck(view), pos.op);
+    result->op =
+        GetCodeUnitImpl(decoder, V<String>::Cast(NullCheck(view)), pos.op);
   }
 
-  V<Word32> StringCodePointAt(FullDecoder* decoder, V<Tagged> string,
+  V<Word32> StringCodePointAt(FullDecoder* decoder, V<String> string,
                               V<Word32> offset) {
-    OpIndex prepare = __ StringPrepareForGetCodeUnit(string);
-    V<Tagged> base =
-        __ Projection(prepare, 0, RegisterRepresentation::Tagged());
-    V<WordPtr> base_offset =
-        __ Projection(prepare, 1, RegisterRepresentation::PointerSized());
-    V<Word32> charwidth_shift =
-        __ Projection(prepare, 2, RegisterRepresentation::Word32());
+    auto prepare = __ StringPrepareForGetCodeUnit(string);
+    V<Object> base = __ template Projection<0>(prepare);
+    V<WordPtr> base_offset = __ template Projection<1>(prepare);
+    V<Word32> charwidth_shift = __ template Projection<2>(prepare);
 
     // Bounds check.
-    V<Word32> length = __ template LoadField<Word32>(
-        string, compiler::AccessBuilder::ForStringLength());
-    __ TrapIfNot(__ Uint32LessThan(offset, length), OpIndex::Invalid(),
+    V<Word32> length = LoadStringLength(string);
+    __ TrapIfNot(__ Uint32LessThan(offset, length),
                  TrapId::kTrapStringOffsetOutOfBounds);
 
     Label<> onebyte(&asm_);
@@ -2714,7 +5444,7 @@ class TurboshaftGraphBuildingInterface {
     // Bitcast the tagged to a wordptr as the offset already contains the
     // kHeapObjectTag handling. Furthermore, in case of external strings the
     // tagged value is a smi 0, which doesn't really encode a tagged load.
-    V<WordPtr> base_ptr = __ BitcastTaggedToWord(base);
+    V<WordPtr> base_ptr = __ BitcastTaggedToWordPtr(base);
     V<Word32> lead =
         __ Load(base_ptr, object_offset, LoadOp::Kind::RawAligned().Immutable(),
                 MemoryRepresentation::Uint16());
@@ -2741,16 +5471,16 @@ class TurboshaftGraphBuildingInterface {
     // Bitcast the tagged to a wordptr as the offset already contains the
     // kHeapObjectTag handling. Furthermore, in case of external strings the
     // tagged value is a smi 0, which doesn't really encode a tagged load.
-    base_ptr = __ BitcastTaggedToWord(base);
+    base_ptr = __ BitcastTaggedToWordPtr(base);
     result =
         __ Load(base_ptr, object_offset, LoadOp::Kind::RawAligned().Immutable(),
                 MemoryRepresentation::Uint8());
     GOTO(done, result);
 
     BIND(bailout);
-    GOTO(done,
-         CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringCodePointAt,
-                                     {string, offset}, Operator::kPure));
+    GOTO(done, CallBuiltinThroughJumptable<
+                   BuiltinCallDescriptor::WasmStringCodePointAt>(
+                   decoder, {string, offset}));
 
     BIND(done, final_result);
     // Make sure the original string is kept alive as long as we're operating
@@ -2764,86 +5494,90 @@ class TurboshaftGraphBuildingInterface {
                              const MemoryIndexImmediate& imm, const Value& view,
                              const Value& offset, const Value& pos,
                              const Value& codeunits, Value* result) {
-    V<Tagged> string = NullCheck(view);
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringViewWtf16Encode,
-        {offset.op, pos.op, codeunits.op, string,
-         __ SmiConstant(Smi::FromInt(imm.index))},
-        Operator::kNoDeopt | Operator::kNoThrow);
+    V<String> string = V<String>::Cast(NullCheck(view));
+    V<WordPtr> address =
+        MemoryAddressToUintPtrOrOOBTrap(imm.memory->address_type, offset.op);
+    V<Smi> mem_index = __ SmiConstant(Smi::FromInt(imm.index));
+    result->op = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringViewWtf16Encode>(
+        decoder, {address, pos.op, codeunits.op, string, mem_index});
   }
 
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,
                             const Value& start, const Value& end,
                             Value* result) {
-    V<Tagged> string = NullCheck(view);
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringViewWtf16Slice, {string, start.op, end.op},
-        Operator::kEliminatable);
+    V<String> string = V<String>::Cast(NullCheck(view));
+    V<String> result_value = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringViewWtf16Slice>(
+        decoder, {string, start.op, end.op});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringAsIter(FullDecoder* decoder, const Value& str, Value* result) {
-    V<Tagged> string = NullCheck(str);
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringAsIter, {string}, Operator::kEliminatable);
+    V<String> string = V<String>::Cast(NullCheck(str));
+    V<WasmStringViewIter> result_value =
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringAsIter>(
+            decoder, {string});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringViewIterNext(FullDecoder* decoder, const Value& view,
                           Value* result) {
-    V<Tagged> string = NullCheck(view);
-    result->op =
-        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringViewIterNext,
-                                    {string}, Operator::kEliminatable);
+    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
+    result->op = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringViewIterNext>(decoder, {iter});
   }
 
   void StringViewIterAdvance(FullDecoder* decoder, const Value& view,
                              const Value& codepoints, Value* result) {
-    V<Tagged> string = NullCheck(view);
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringViewIterAdvance, {string, codepoints.op},
-        Operator::kEliminatable);
+    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
+    result->op = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringViewIterAdvance>(
+        decoder, {iter, codepoints.op});
   }
 
   void StringViewIterRewind(FullDecoder* decoder, const Value& view,
                             const Value& codepoints, Value* result) {
-    V<Tagged> string = NullCheck(view);
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringViewIterRewind, {string, codepoints.op},
-        Operator::kEliminatable);
+    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
+    result->op = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringViewIterRewind>(decoder,
+                                                         {iter, codepoints.op});
   }
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
                            const Value& codepoints, Value* result) {
-    V<Tagged> string = NullCheck(view);
-    result->op = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmStringViewIterSlice, {string, codepoints.op},
-        Operator::kEliminatable);
+    V<WasmStringViewIter> iter = V<WasmStringViewIter>::Cast(NullCheck(view));
+    V<String> result_value = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringViewIterSlice>(decoder,
+                                                        {iter, codepoints.op});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringCompare(FullDecoder* decoder, const Value& lhs, const Value& rhs,
                      Value* result) {
-    V<Tagged> lhs_val = NullCheck(lhs);
-    V<Tagged> rhs_val = NullCheck(rhs);
-    result->op = __ UntagSmi(CallBuiltinThroughJumptable(
-        decoder, Builtin::kStringCompare, {lhs_val, rhs_val},
-        Operator::kEliminatable));
+    V<String> lhs_val = V<String>::Cast(NullCheck(lhs));
+    V<String> rhs_val = V<String>::Cast(NullCheck(rhs));
+    result->op = __ UntagSmi(
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringCompare>(
+            decoder, {lhs_val, rhs_val}));
   }
 
   void StringFromCodePoint(FullDecoder* decoder, const Value& code_point,
                            Value* result) {
-    result->op =
-        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringFromCodePoint,
-                                    {code_point.op}, Operator::kEliminatable);
+    V<String> result_value = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringFromCodePoint>(decoder,
+                                                        {code_point.op});
+    result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
   void StringHash(FullDecoder* decoder, const Value& string, Value* result) {
-    V<Tagged> string_val = NullCheck(string);
+    V<String> string_val = V<String>::Cast(NullCheck(string));
 
     Label<> runtime_label(&Asm());
     Label<Word32> end_label(&Asm());
 
-    V<Word32> raw_hash =
-        __ Load(string_val, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::Int32(), Name::kRawHashFieldOffset);
+    V<Word32> raw_hash = __ template LoadField<Word32>(
+        string_val, compiler::AccessBuilder::ForNameRawHashField());
     V<Word32> hash_not_computed_mask =
         __ Word32Constant(static_cast<int32_t>(Name::kHashNotComputedMask));
     static_assert(Name::HashFieldTypeBits::kShift == 0);
@@ -2859,8 +5593,8 @@ class TurboshaftGraphBuildingInterface {
 
     BIND(runtime_label);
     V<Word32> hash_runtime =
-        CallBuiltinThroughJumptable(decoder, Builtin::kWasmStringHash,
-                                    {string_val}, Operator::kEliminatable);
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringHash>(
+            decoder, {string_val});
     GOTO(end_label, hash_runtime);
 
     BIND(end_label, hash_val);
@@ -2871,33 +5605,334 @@ class TurboshaftGraphBuildingInterface {
     to->op = from.op;
   }
 
-  bool did_bailout() { return did_bailout_; }
-
  private:
-  // Holds phi inputs for a specific block. These include SSA values as well as
-  // stack merge values.
-  struct BlockPhis {
-    // The first vector corresponds to all inputs of the first phi etc.
-    std::vector<std::vector<OpIndex>> phi_inputs;
-    std::vector<ValueType> phi_types;
-    std::vector<OpIndex> incoming_exception;
+  // The InstanceCache caches commonly used fields of the
+  // WasmTrustedInstanceData.
+  // We can extend the set of cached fields as needed.
+  // This caching serves two purposes:
+  // (1) It makes sure that the respective fields are loaded early on, as
+  //     opposed to within conditional branches, so the values are easily
+  //     reusable.
+  // (2) It makes sure that the loaded values are actually reused.
+  // It achieves these effects more reliably and more cheaply than general-
+  // purpose optimizations could (loop peeling isn't always used; load
+  // elimination struggles with arbitrary side effects of indexed stores;
+  // we don't currently have a generic mechanism for hoisting loads out of
+  // conditional branches).
+  class InstanceCache {
+   public:
+    explicit InstanceCache(Assembler& assembler)
+        : mem_start_(assembler), mem_size_(assembler), asm_(assembler) {}
 
-    explicit BlockPhis(int total_arity)
-        : phi_inputs(total_arity), phi_types(total_arity) {}
+    void Initialize(V<WasmTrustedInstanceData> trusted_instance_data,
+                    const WasmModule* mod) {
+      DCHECK(!trusted_data_.valid());  // Only call {Initialize()} once.
+      trusted_data_ = trusted_instance_data;
+      managed_object_maps_ =
+          __ Load(trusted_instance_data, LoadOp::Kind::TaggedBase().Immutable(),
+                  MemoryRepresentation::TaggedPointer(),
+                  WasmTrustedInstanceData::kManagedObjectMapsOffset);
+      native_context_ =
+          __ Load(trusted_instance_data, LoadOp::Kind::TaggedBase().Immutable(),
+                  MemoryRepresentation::TaggedPointer(),
+                  WasmTrustedInstanceData::kNativeContextOffset);
+
+      if (!mod->memories.empty()) {
+#if DEBUG
+        has_memory_ = true;
+#endif
+        const WasmMemory& mem = mod->memories[0];
+        memory_can_grow_ = mem.initial_pages != mem.maximum_pages;
+        // For now, we don't cache the size of shared growable memories.
+        // If we wanted to support this case, we would have to reload the
+        // memory size when loop stack checks detect an interrupt request.
+        // Since memory size caching is particularly important for asm.js,
+        // which never uses growable or shared memories, this limitation is
+        // considered acceptable for now.
+        memory_size_cached_ = !mem.is_shared || !memory_can_grow_;
+        // Trap handler enabled memories never move.
+        // Memories that can't grow have no reason to move.
+        // Shared memories can only be grown in-place.
+        memory_can_move_ = mem.bounds_checks != kTrapHandler &&
+                           memory_can_grow_ && !mem.is_shared;
+        memory_is_shared_ = mem.is_shared;
+        if (memory_size_cached_) {
+          mem_size_ = LoadMemSize();
+        }
+        mem_start_ = LoadMemStart();
+      }
+    }
+
+    // TODO(14108): Port the dynamic "cached_memory_index" infrastructure
+    // from Turbofan.
+    void ReloadCachedMemory() {
+      if (memory_can_move()) mem_start_ = LoadMemStart();
+      if (memory_can_grow_ && memory_size_cached_) mem_size_ = LoadMemSize();
+    }
+
+    V<WasmTrustedInstanceData> trusted_instance_data() { return trusted_data_; }
+    V<FixedArray> managed_object_maps() { return managed_object_maps_; }
+    V<NativeContext> native_context() { return native_context_; }
+    V<WordPtr> memory0_start() {
+      DCHECK(has_memory_);
+      return mem_start_;
+    }
+    V<WordPtr> memory0_size() {
+      DCHECK(has_memory_);
+      if (!memory_size_cached_) return LoadMemSize();
+      return mem_size_;
+    }
+
+   private:
+    static constexpr uint8_t kUnused = ~uint8_t{0};
+
+    V<WordPtr> LoadMemStart() {
+      DCHECK(has_memory_);
+      // In contrast to memory size loads, we can mark memory start loads as
+      // eliminable: shared memories never move, and non-shared memories can't
+      // have their start modified by other threads.
+      LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
+      if (!memory_can_move()) kind = kind.Immutable();
+      return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
+                     WasmTrustedInstanceData::kMemory0StartOffset);
+    }
+
+    V<WordPtr> LoadMemSize() {
+      DCHECK(has_memory_);
+      LoadOp::Kind kind = LoadOp::Kind::TaggedBase();
+      if (memory_is_shared_ && memory_can_grow_) {
+        // Memory size loads should not be load-eliminated as the memory size
+        // can be modified by another thread.
+        kind = kind.NotLoadEliminable();
+      }
+      if (!memory_can_grow_) kind = kind.Immutable();
+      return __ Load(trusted_data_, kind, MemoryRepresentation::UintPtr(),
+                     WasmTrustedInstanceData::kMemory0SizeOffset);
+    }
+
+    bool memory_can_move() { return memory_can_move_; }
+
+    // For compatibility with `__` macro.
+    Assembler& Asm() { return asm_; }
+
+    // Cached immutable fields (need no Phi nodes):
+    V<WasmTrustedInstanceData> trusted_data_;
+    V<FixedArray> managed_object_maps_;
+    V<NativeContext> native_context_;
+
+    // Cached mutable fields:
+    ScopedVar<WordPtr> mem_start_;
+    ScopedVar<WordPtr> mem_size_;
+
+    // Other fields for internal usage.
+    Assembler& asm_;
+    bool memory_is_shared_{false};
+    bool memory_can_grow_{false};
+    bool memory_can_move_{false};
+    bool memory_size_cached_{false};
+#if DEBUG
+    bool has_memory_{false};
+#endif
   };
 
-  enum class CheckForException { kNo, kYes };
+  enum class CheckForException { kNo, kCatchInThisFrame, kCatchInParentFrame };
 
-  void Bailout(FullDecoder* decoder) {
-    decoder->errorf("Unsupported Turboshaft operation: %s",
-                    decoder->SafeOpcodeNameAt(decoder->pc()));
-    did_bailout_ = true;
-  }
+ private:
+  // Holds phi inputs for a specific block. These include SSA values, stack
+  // merge values, and cached fields from the instance..
+  // Conceptually, this is a two-dimensional, rectangular array of size
+  // `phi_count * inputs_per_phi`, since each phi has the same number of inputs,
+  // namely the number of incoming edges for this block.
+  class BlockPhis {
+   public:
+    // Ctor for regular blocks.
+    V8_INLINE BlockPhis(FullDecoder* decoder, Merge<Value>* merge)
+        : incoming_exceptions_(decoder -> zone()) {
+      // Allocate space and initialize the types of all phis.
+      uint32_t num_locals = decoder->num_locals();
+      uint32_t merge_arity = merge != nullptr ? merge->arity : 0;
+
+      phi_count_ = num_locals + merge_arity;
+      phi_types_ = decoder->zone()->AllocateArray<ValueType>(phi_count_);
+
+      base::Vector<ValueType> locals = decoder->local_types();
+      std::uninitialized_copy(locals.begin(), locals.end(), phi_types_);
+      for (uint32_t i = 0; i < merge_arity; i++) {
+        new (&phi_types_[num_locals + i]) ValueType((*merge)[i].type);
+      }
+      AllocatePhiInputs(decoder->zone());
+    }
+
+    // Consider this "private"; it's next to the constructors (where it's
+    // called) for context.
+    void AllocatePhiInputs(Zone* zone) {
+      // Only reserve some space for the inputs to be added later.
+      phi_inputs_capacity_total_ = phi_count_ * input_capacity_per_phi_;
+      phi_inputs_ = zone->AllocateArray<OpIndex>(phi_inputs_capacity_total_);
+
+#ifdef DEBUG
+      constexpr uint32_t kNoInputs = 0;
+      input_count_per_phi_ = std::vector(phi_count_, kNoInputs);
+#endif
+    }
+
+    // Default ctor and later initialization for function returns.
+    explicit BlockPhis(Zone* zone) : incoming_exceptions_(zone) {}
+    void InitReturnPhis(base::Vector<const ValueType> return_types) {
+      // For `return_phis_`, nobody should have inserted into `this` before
+      // calling `InitReturnPhis`.
+      DCHECK_EQ(phi_count_, 0);
+      DCHECK_EQ(inputs_per_phi_, 0);
+
+      uint32_t return_count = static_cast<uint32_t>(return_types.size());
+      phi_count_ = return_count;
+      phi_types_ = zone()->AllocateArray<ValueType>(phi_count_);
+
+      std::uninitialized_copy(return_types.begin(), return_types.end(),
+                              phi_types_);
+      AllocatePhiInputs(zone());
+    }
+
+    void AddInputForPhi(size_t phi_i, OpIndex input) {
+      if (V8_UNLIKELY(phi_inputs_total_ >= phi_inputs_capacity_total_)) {
+        GrowInputsVector();
+      }
+
+#ifdef DEBUG
+      // We rely on adding inputs in the order of phis, i.e.,
+      // `AddInputForPhi(0, ...); AddInputForPhi(1, ...); ...`.
+      size_t phi_inputs_start = phi_i * input_capacity_per_phi_;
+      size_t phi_input_offset_from_start = inputs_per_phi_;
+      CHECK_EQ(input_count_per_phi_[phi_i]++, phi_input_offset_from_start);
+      size_t phi_input_offset = phi_inputs_start + phi_input_offset_from_start;
+      CHECK_EQ(next_phi_input_add_offset_, phi_input_offset);
+#endif
+      new (&phi_inputs_[next_phi_input_add_offset_]) OpIndex(input);
+
+      phi_inputs_total_++;
+      next_phi_input_add_offset_ += input_capacity_per_phi_;
+      if (next_phi_input_add_offset_ >= phi_inputs_capacity_total_) {
+        // We have finished adding the last input for all phis.
+        inputs_per_phi_++;
+        next_phi_input_add_offset_ = inputs_per_phi_;
+#ifdef DEBUG
+        EnsureAllPhisHaveSameInputCount();
+#endif
+      }
+    }
+
+    uint32_t phi_count() const { return phi_count_; }
+
+    ValueType phi_type(size_t phi_i) const { return phi_types_[phi_i]; }
+
+    base::Vector<const OpIndex> phi_inputs(size_t phi_i) const {
+      size_t phi_inputs_start = phi_i * input_capacity_per_phi_;
+      return base::VectorOf(&phi_inputs_[phi_inputs_start], inputs_per_phi_);
+    }
+
+    void AddIncomingException(OpIndex exception) {
+      incoming_exceptions_.push_back(exception);
+    }
+
+    base::Vector<const OpIndex> incoming_exceptions() const {
+      return base::VectorOf(incoming_exceptions_);
+    }
+
+#if DEBUG
+    void DcheckConsistency() { EnsureAllPhisHaveSameInputCount(); }
+#endif
+
+   private:
+    // Invariants:
+    // The number of phis for a given block (e.g., locals, merged stack values,
+    // and cached instance fields) is known when constructing the `BlockPhis`
+    // and doesn't grow afterwards.
+    // The number of _inputs_ for each phi is however _not_ yet known when
+    // constructing this, but grows over time as new incoming edges for a given
+    // block are created.
+    // After such an edge is created, each phi has the same number of inputs.
+    // When eventually creating a phi, we also need all inputs layed out
+    // contiguously.
+    // Due to those requirements, we write our own little container, see below.
+
+    // First the backing storage:
+    // Of size `phi_count_`, one type per phi.
+    ValueType* phi_types_ = nullptr;
+    // Of size `phi_inputs_capacity_total_ == phi_count_ *
+    // input_capacity_per_phi_`, of which `phi_inputs_total_ == phi_count_ *
+    // inputs_per_phi_` are set/initialized. All inputs for a given phi are
+    // stored contiguously, but between them are uninitialized elements for
+    // adding new inputs without reallocating.
+    OpIndex* phi_inputs_ = nullptr;
+
+    // Stored explicitly to save multiplications in the hot `AddInputForPhi()`.
+    // Also pulled up to be in the same cache-line as `phi_inputs_`.
+    uint32_t phi_inputs_capacity_total_ = 0;  // Updated with `phi_inputs_`.
+    uint32_t phi_inputs_total_ = 0;
+    uint32_t next_phi_input_add_offset_ = 0;
+
+    // The dimensions.
+    uint32_t phi_count_ = 0;
+    uint32_t inputs_per_phi_ = 0;
+    static constexpr uint32_t kInitialInputCapacityPerPhi = 2;
+    uint32_t input_capacity_per_phi_ = kInitialInputCapacityPerPhi;
+
+#ifdef DEBUG
+    std::vector<uint32_t> input_count_per_phi_;
+    void EnsureAllPhisHaveSameInputCount() const {
+      CHECK_EQ(phi_inputs_total_, phi_count() * inputs_per_phi_);
+      CHECK_EQ(phi_count(), input_count_per_phi_.size());
+      CHECK(std::all_of(input_count_per_phi_.begin(),
+                        input_count_per_phi_.end(),
+                        [=, this](uint32_t input_count) {
+                          return input_count == inputs_per_phi_;
+                        }));
+    }
+#endif
+
+    // The number of `incoming_exceptions` is also not known when constructing
+    // the block, but at least it is only one-dimensional, so we can use a
+    // simple `ZoneVector`.
+    ZoneVector<OpIndex> incoming_exceptions_;
+
+    Zone* zone() { return incoming_exceptions_.zone(); }
+
+    V8_NOINLINE V8_PRESERVE_MOST void GrowInputsVector() {
+      // We should have always initialized some storage, see
+      // `kInitialInputCapacityPerPhi`.
+      DCHECK_NOT_NULL(phi_inputs_);
+      DCHECK_NE(phi_inputs_capacity_total_, 0);
+
+      OpIndex* old_phi_inputs = phi_inputs_;
+      uint32_t old_input_capacity_per_phi = input_capacity_per_phi_;
+      uint32_t old_phi_inputs_capacity_total = phi_inputs_capacity_total_;
+
+      input_capacity_per_phi_ *= 2;
+      phi_inputs_capacity_total_ *= 2;
+      phi_inputs_ = zone()->AllocateArray<OpIndex>(phi_inputs_capacity_total_);
+
+      // This is essentially a strided copy, where we expand the storage by
+      // "inserting" unitialized elements in between contiguous stretches of
+      // inputs belonging to the same phi.
+#ifdef DEBUG
+      EnsureAllPhisHaveSameInputCount();
+#endif
+      for (size_t phi_i = 0; phi_i < phi_count(); ++phi_i) {
+        const OpIndex* old_begin =
+            &old_phi_inputs[phi_i * old_input_capacity_per_phi];
+        const OpIndex* old_end = old_begin + inputs_per_phi_;
+        OpIndex* begin = &phi_inputs_[phi_i * input_capacity_per_phi_];
+        std::uninitialized_copy(old_begin, old_end, begin);
+      }
+
+      zone()->DeleteArray(old_phi_inputs, old_phi_inputs_capacity_total);
+    }
+  };
 
   // Perform a null check if the input type is nullable.
-  V<Tagged> NullCheck(const Value& value,
+  V<Object> NullCheck(const Value& value,
                       TrapId trap_id = TrapId::kTrapNullDereference) {
-    OpIndex not_null_value = value.op;
+    V<Object> not_null_value = V<Object>::Cast(value.op);
     if (value.type.is_nullable()) {
       not_null_value = __ AssertNotNull(value.op, value.type, trap_id);
     }
@@ -2909,17 +5944,7 @@ class TurboshaftGraphBuildingInterface {
   // for that merge.
   TSBlock* NewBlockWithPhis(FullDecoder* decoder, Merge<Value>* merge) {
     TSBlock* block = __ NewBlock();
-    BlockPhis block_phis(decoder->num_locals() +
-                         (merge != nullptr ? merge->arity : 0));
-    for (uint32_t i = 0; i < decoder->num_locals(); i++) {
-      block_phis.phi_types[i] = decoder->local_type(i);
-    }
-    if (merge != nullptr) {
-      for (uint32_t i = 0; i < merge->arity; i++) {
-        block_phis.phi_types[decoder->num_locals() + i] = (*merge)[i].type;
-      }
-    }
-    block_phis_.emplace(block, std::move(block_phis));
+    block_phis_.emplace(block, BlockPhis(decoder, merge));
     return block;
   }
 
@@ -2928,16 +5953,17 @@ class TurboshaftGraphBuildingInterface {
   // decoder stack.
   void SetupControlFlowEdge(FullDecoder* decoder, TSBlock* block,
                             uint32_t drop_values = 0,
-                            V<Tagged> exception = OpIndex::Invalid(),
+                            V<Object> exception = OpIndex::Invalid(),
                             Merge<Value>* stack_values = nullptr) {
     if (__ current_block() == nullptr) return;
     // It is guaranteed that this element exists.
+    DCHECK_NE(block_phis_.find(block), block_phis_.end());
     BlockPhis& phis_for_block = block_phis_.find(block)->second;
-    uint32_t merge_arity =
-        static_cast<uint32_t>(phis_for_block.phi_inputs.size()) -
-        decoder->num_locals();
+    uint32_t merge_arity = static_cast<uint32_t>(phis_for_block.phi_count()) -
+                           decoder->num_locals();
+
     for (size_t i = 0; i < ssa_env_.size(); i++) {
-      phis_for_block.phi_inputs[i].emplace_back(ssa_env_[i]);
+      phis_for_block.AddInputForPhi(i, ssa_env_[i]);
     }
     // We never drop values from an explicit merge.
     DCHECK_IMPLIES(stack_values != nullptr, drop_values == 0);
@@ -2947,19 +5973,19 @@ class TurboshaftGraphBuildingInterface {
                             : decoder->stack_value(merge_arity + drop_values);
     for (size_t i = 0; i < merge_arity; i++) {
       DCHECK(stack_base[i].op.valid());
-      phis_for_block.phi_inputs[decoder->num_locals() + i].emplace_back(
-          stack_base[i].op);
+      phis_for_block.AddInputForPhi(decoder->num_locals() + i,
+                                    stack_base[i].op);
     }
     if (exception.valid()) {
-      phis_for_block.incoming_exception.push_back(exception);
+      phis_for_block.AddIncomingException(exception);
     }
   }
 
-  OpIndex MaybePhi(std::vector<OpIndex>& elements, ValueType type) {
+  OpIndex MaybePhi(base::Vector<const OpIndex> elements, ValueType type) {
     if (elements.empty()) return OpIndex::Invalid();
     for (size_t i = 1; i < elements.size(); i++) {
       if (elements[i] != elements[0]) {
-        return __ Phi(base::VectorOf(elements), RepresentationFor(type));
+        return __ Phi(elements, RepresentationFor(type));
       }
     }
     return elements[0];
@@ -2972,27 +5998,36 @@ class TurboshaftGraphBuildingInterface {
                                 Merge<Value>* merge,
                                 OpIndex* exception = nullptr) {
     __ Bind(tsblock);
-    BlockPhis& block_phis = block_phis_.at(tsblock);
+    auto block_phis_it = block_phis_.find(tsblock);
+    DCHECK_NE(block_phis_it, block_phis_.end());
+    BlockPhis& block_phis = block_phis_it->second;
+
+    uint32_t merge_arity = merge != nullptr ? merge->arity : 0;
+    DCHECK_EQ(decoder->num_locals() + merge_arity, block_phis.phi_count());
+
+#ifdef DEBUG
+    // Check consistency of Phi storage. We do this here rather than inside
+    // {block_phis.phi_inputs()} to avoid overall O(n²) complexity.
+    block_phis.DcheckConsistency();
+#endif
+
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
-      ssa_env_[i] = MaybePhi(block_phis.phi_inputs[i], block_phis.phi_types[i]);
+      ssa_env_[i] = MaybePhi(block_phis.phi_inputs(i), block_phis.phi_type(i));
     }
-    DCHECK_EQ(decoder->num_locals() + (merge != nullptr ? merge->arity : 0),
-              block_phis.phi_inputs.size());
-    if (merge != nullptr) {
-      for (uint32_t i = 0; i < merge->arity; i++) {
-        (*merge)[i].op =
-            MaybePhi(block_phis.phi_inputs[decoder->num_locals() + i],
-                     block_phis.phi_types[decoder->num_locals() + i]);
-      }
+    for (uint32_t i = 0; i < merge_arity; i++) {
+      uint32_t phi_index = decoder->num_locals() + i;
+      (*merge)[i].op = MaybePhi(block_phis.phi_inputs(phi_index),
+                                block_phis.phi_type(phi_index));
     }
-    DCHECK_IMPLIES(exception == nullptr, block_phis.incoming_exception.empty());
+    DCHECK_IMPLIES(exception == nullptr,
+                   block_phis.incoming_exceptions().empty());
     if (exception != nullptr && !exception->valid()) {
-      *exception = MaybePhi(block_phis.incoming_exception, kWasmExternRef);
+      *exception = MaybePhi(block_phis.incoming_exceptions(), kWasmExternRef);
     }
-    block_phis_.erase(tsblock);
+    block_phis_.erase(block_phis_it);
   }
 
-  OpIndex DefaultValue(ValueType type) {
+  V<Any> DefaultValue(ValueType type) {
     switch (type.kind()) {
       case kI8:
       case kI16:
@@ -3000,6 +6035,7 @@ class TurboshaftGraphBuildingInterface {
         return __ Word32Constant(int32_t{0});
       case kI64:
         return __ Word64Constant(int64_t{0});
+      case kF16:
       case kF32:
         return __ Float32Constant(0.0f);
       case kF64:
@@ -3011,44 +6047,155 @@ class TurboshaftGraphBuildingInterface {
         return __ Simd128Constant(value);
       }
       case kVoid:
-      case kRtt:
       case kRef:
+      case kTop:
       case kBottom:
         UNREACHABLE();
     }
   }
 
-  RegisterRepresentation RepresentationFor(ValueType type) {
-    switch (type.kind()) {
-      case kI8:
-      case kI16:
-      case kI32:
-        return RegisterRepresentation::Word32();
-      case kI64:
-        return RegisterRepresentation::Word64();
-      case kF32:
-        return RegisterRepresentation::Float32();
-      case kF64:
-        return RegisterRepresentation::Float64();
-      case kRefNull:
-      case kRef:
-        return RegisterRepresentation::Tagged();
-      case kS128:
-        return RegisterRepresentation::Simd128();
-      case kVoid:
-      case kRtt:
-      case kBottom:
-        UNREACHABLE();
+ private:
+  V<FrameState> CreateFrameState(FullDecoder* decoder,
+                                 const FunctionSig* callee_sig,
+                                 const Value* func_ref_or_index,
+                                 const Value args[]) {
+    compiler::turboshaft::FrameStateData::Builder builder;
+    if (parent_frame_state_.valid()) {
+      builder.AddParentFrameState(parent_frame_state_.value());
     }
+    // The first input is the closure for JS. (The instruction selector will
+    // just skip this input as the liftoff frame doesn't have a closure.)
+    V<Object> dummy_tagged = __ SmiZeroConstant();
+    builder.AddInput(MachineType::AnyTagged(), dummy_tagged);
+    // Add the parameters.
+    size_t param_count = decoder->sig_->parameter_count();
+    for (size_t i = 0; i < param_count; ++i) {
+      builder.AddInput(decoder->sig_->GetParam(i).machine_type(), ssa_env_[i]);
+    }
+    // Add the context. Wasm doesn't have a JS context, so this is another
+    // value skipped by the instruction selector.
+    builder.AddInput(MachineType::AnyTagged(), dummy_tagged);
+
+    // Add the wasm locals.
+    for (size_t i = param_count; i < ssa_env_.size(); ++i) {
+      builder.AddInput(
+          decoder->local_type(static_cast<uint32_t>(i)).machine_type(),
+          ssa_env_[i]);
+    }
+    // Add the wasm stack values.
+    // Note that the decoder stack is already in the state after the call, i.e.
+    // the callee and the arguments were already popped from the stack and the
+    // returns are pushed. Therefore skip the results and manually add the
+    // call_ref stack values.
+    for (int32_t i = decoder->stack_size();
+         i > static_cast<int32_t>(callee_sig->return_count()); --i) {
+      Value* val = decoder->stack_value(i);
+      builder.AddInput(val->type.machine_type(), val->op);
+    }
+    // Add the call_ref or call_indirect stack values.
+    if (args != nullptr) {
+      for (const Value& arg :
+           base::VectorOf(args, callee_sig->parameter_count())) {
+        builder.AddInput(arg.type.machine_type(), arg.op);
+      }
+    }
+    if (func_ref_or_index) {
+      builder.AddInput(func_ref_or_index->type.machine_type(),
+                       func_ref_or_index->op);
+    }
+    // The call_ref (callee) or the table index.
+    const size_t kExtraLocals = func_ref_or_index != nullptr ? 1 : 0;
+    size_t wasm_local_count = ssa_env_.size() - param_count;
+    size_t local_count = kExtraLocals + decoder->stack_size() +
+                         wasm_local_count - callee_sig->return_count();
+    local_count += args != nullptr ? callee_sig->parameter_count() : 0;
+    Zone* zone = Asm().data()->compilation_zone();
+    auto* function_info = zone->New<compiler::FrameStateFunctionInfo>(
+        compiler::FrameStateType::kLiftoffFunction,
+        static_cast<uint16_t>(param_count), 0, static_cast<int>(local_count),
+        IndirectHandle<SharedFunctionInfo>(), kNullMaybeHandle,
+        GetLiftoffFrameSize(decoder), func_index_);
+    auto* frame_state_info = zone->New<compiler::FrameStateInfo>(
+        BytecodeOffset(decoder->pc_offset()),
+        compiler::OutputFrameStateCombine::Ignore(), function_info);
+
+    // Limit the maximum amount of inputs to a deopt node to a reasonably low
+    // value. For each of these values extra metadata needs to be stored for the
+    // deoptimizer while the performance upside of a deoptimization node doesn't
+    // scale with the amount of inputs, so there are diminishing returns.
+    constexpr size_t max_deopt_input_count = 500;
+    // We don't want to include the instruction selector just for this limit.
+    constexpr size_t max_isel_input_count =
+        std::numeric_limits<uint16_t>::max();
+    // Note that the instruction selector has limits on the maximum amount of
+    // inputs for an instruction while nested FrameStates are unfolded, so the
+    // total number of inputs after unfolding needs to be lower than
+    // uint16_t::max (adding a random 42 here for additional "lower-level"
+    // inputs that might not be accounted for in the FrameState inputs.)
+    // The number of inputs might be doubled by the Int64Lowering on 32 bit
+    // platforms.
+    static_assert((max_deopt_input_count * 2 + 42) *
+                      InliningTree::kMaxInliningNestingDepth <
+                  max_isel_input_count);
+    if (builder.Inputs().size() >= max_deopt_input_count) {
+      if (v8_flags.trace_wasm_inlining) {
+        PrintF(
+            "[function %d%s: Disabling deoptimizations for speculative "
+            "inlining as the deoptimization FrameState takes too many inputs "
+            "(%zu vs. %zu)]\n",
+            func_index_, mode_ == kRegular ? "" : " (inlined)",
+            builder.Inputs().size(), max_deopt_input_count);
+      }
+      // If there are too many inputs, disable deopts completely for the rest of
+      // the function as the FrameState could be needed by other deoptimization
+      // points in case of nested inlining.
+      disable_deopts();
+      return OpIndex::Invalid();
+    }
+
+    return __ FrameState(
+        builder.Inputs(), builder.inlined(),
+        builder.AllocateFrameStateData(*frame_state_info, zone));
   }
 
-  V<Word64> ExtractTruncationProjections(OpIndex truncated) {
-    V<Word64> result =
-        __ Projection(truncated, 0, RegisterRepresentation::Word64());
-    V<Word32> check =
-        __ Projection(truncated, 1, RegisterRepresentation::Word32());
-    __ TrapIf(__ Word32Equal(check, 0), OpIndex::Invalid(),
-              TrapId::kTrapFloatUnrepresentable);
+  void DeoptIfNot(FullDecoder* decoder, OpIndex deopt_condition,
+                  V<FrameState> frame_state) {
+    CHECK(deopts_enabled());
+    DCHECK(frame_state.valid());
+    __ DeoptimizeIfNot(deopt_condition, frame_state,
+                       DeoptimizeReason::kWrongCallTarget,
+                       compiler::FeedbackSource());
+  }
+
+  void Deopt(FullDecoder* decoder, V<FrameState> frame_state) {
+    CHECK(deopts_enabled());
+    DCHECK(frame_state.valid());
+    __ Deoptimize(frame_state, DeoptimizeReason::kWrongCallTarget,
+                  compiler::FeedbackSource());
+  }
+
+  uint32_t GetLiftoffFrameSize(const FullDecoder* decoder) {
+    if (liftoff_frame_size_ !=
+        FunctionTypeFeedback::kUninitializedLiftoffFrameSize) {
+      return liftoff_frame_size_;
+    }
+    const TypeFeedbackStorage& feedback = decoder->module_->type_feedback;
+    base::MutexGuard mutex_guard(&feedback.mutex);
+    auto function_feedback = feedback.feedback_for_function.find(func_index_);
+    CHECK_NE(function_feedback, feedback.feedback_for_function.end());
+    liftoff_frame_size_ = function_feedback->second.liftoff_frame_size;
+    // The liftoff frame size is strictly required. If it is not properly set,
+    // calling the function embedding the deopt node will always fail on the
+    // stack check.
+    CHECK_NE(liftoff_frame_size_,
+             FunctionTypeFeedback::kUninitializedLiftoffFrameSize);
+    return liftoff_frame_size_;
+  }
+
+  V<Word64> ExtractTruncationProjections(V<Tuple<Word64, Word32>> truncated) {
+    V<Word64> result = __ template Projection<0>(truncated);
+    V<Word32> check = __ template Projection<1>(truncated);
+    __ TrapIf(__ Word32Equal(check, 0), TrapId::kTrapFloatUnrepresentable);
     return result;
   }
 
@@ -3069,7 +6216,7 @@ class TurboshaftGraphBuildingInterface {
                                  ExternalReference ccall_ref) {
     auto [stack_slot, overflow] =
         BuildCCallForFloatConversion(arg, float_type, ccall_ref);
-    __ TrapIf(__ Word32Equal(overflow, 0), OpIndex::Invalid(),
+    __ TrapIf(__ Word32Equal(overflow, 0),
               compiler::TrapId::kTrapFloatUnrepresentable);
     MemoryRepresentation int64 = MemoryRepresentation::Int64();
     return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64);
@@ -3120,9 +6267,8 @@ class TurboshaftGraphBuildingInterface {
     MachineType sig_types[] = {MachineType::Int32(), MachineType::Pointer()};
     MachineSignature sig(1, 1, sig_types);
     OpIndex rc = CallC(&sig, ccall_ref, stack_slot);
-    __ TrapIf(__ Word32Equal(rc, 0), OpIndex::Invalid(), trap_zero);
-    __ TrapIf(__ Word32Equal(rc, -1), OpIndex::Invalid(),
-              TrapId::kTrapDivUnrepresentable);
+    __ TrapIf(__ Word32Equal(rc, 0), trap_zero);
+    __ TrapIf(__ Word32Equal(rc, -1), TrapId::kTrapDivUnrepresentable);
     return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64_rep);
   }
 
@@ -3148,7 +6294,7 @@ class TurboshaftGraphBuildingInterface {
         V<Word32> result = __ TruncateFloat32ToInt32OverflowToMin(truncated);
         V<Float32> converted_back = __ ChangeInt32ToFloat32(result);
         __ TrapIf(__ Word32Equal(__ Float32Equal(converted_back, truncated), 0),
-                  OpIndex::Invalid(), TrapId::kTrapFloatUnrepresentable);
+                  TrapId::kTrapFloatUnrepresentable);
         return result;
       }
       case kExprI32UConvertF32: {
@@ -3156,7 +6302,7 @@ class TurboshaftGraphBuildingInterface {
         V<Word32> result = __ TruncateFloat32ToUint32OverflowToMin(truncated);
         V<Float32> converted_back = __ ChangeUint32ToFloat32(result);
         __ TrapIf(__ Word32Equal(__ Float32Equal(converted_back, truncated), 0),
-                  OpIndex::Invalid(), TrapId::kTrapFloatUnrepresentable);
+                  TrapId::kTrapFloatUnrepresentable);
         return result;
       }
       case kExprI32SConvertF64: {
@@ -3165,7 +6311,7 @@ class TurboshaftGraphBuildingInterface {
             __ TruncateFloat64ToInt32OverflowUndefined(truncated);
         V<Float64> converted_back = __ ChangeInt32ToFloat64(result);
         __ TrapIf(__ Word32Equal(__ Float64Equal(converted_back, truncated), 0),
-                  OpIndex::Invalid(), TrapId::kTrapFloatUnrepresentable);
+                  TrapId::kTrapFloatUnrepresentable);
         return result;
       }
       case kExprI32UConvertF64: {
@@ -3173,7 +6319,7 @@ class TurboshaftGraphBuildingInterface {
         V<Word32> result = __ TruncateFloat64ToUint32OverflowToMin(truncated);
         V<Float64> converted_back = __ ChangeUint32ToFloat64(result);
         __ TrapIf(__ Word32Equal(__ Float64Equal(converted_back, truncated), 0),
-                  OpIndex::Invalid(), TrapId::kTrapFloatUnrepresentable);
+                  TrapId::kTrapFloatUnrepresentable);
         return result;
       }
       case kExprI64SConvertF32:
@@ -3218,8 +6364,7 @@ class TurboshaftGraphBuildingInterface {
 
         IF (LIKELY(__ Float32Equal(truncated, converted_back))) {
           GOTO(done, converted);
-        }
-        ELSE {
+        } ELSE {
           // Overflow.
           IF (__ Float32Equal(arg, arg)) {
             // Not NaN.
@@ -3227,21 +6372,16 @@ class TurboshaftGraphBuildingInterface {
               // Negative arg.
               GOTO(done,
                    __ Word32Constant(std::numeric_limits<int32_t>::min()));
-            }
-            ELSE {
+            } ELSE {
               // Positive arg.
               GOTO(done,
                    __ Word32Constant(std::numeric_limits<int32_t>::max()));
             }
-            END_IF
-          }
-          ELSE {
+          } ELSE {
             // NaN.
             GOTO(done, __ Word32Constant(0));
           }
-          END_IF
         }
-        END_IF
         BIND(done, result);
 
         return result;
@@ -3256,29 +6396,23 @@ class TurboshaftGraphBuildingInterface {
 
         IF (LIKELY(__ Float32Equal(truncated, converted_back))) {
           GOTO(done, converted);
-        }
-        ELSE {
+        } ELSE {
           // Overflow.
           IF (__ Float32Equal(arg, arg)) {
             // Not NaN.
             IF (__ Float32LessThan(arg, 0)) {
               // Negative arg.
               GOTO(done, __ Word32Constant(0));
-            }
-            ELSE {
+            } ELSE {
               // Positive arg.
               GOTO(done,
                    __ Word32Constant(std::numeric_limits<uint32_t>::max()));
             }
-            END_IF
-          }
-          ELSE {
+          } ELSE {
             // NaN.
             GOTO(done, __ Word32Constant(0));
           }
-          END_IF
         }
-        END_IF
         BIND(done, result);
 
         return result;
@@ -3293,8 +6427,7 @@ class TurboshaftGraphBuildingInterface {
 
         IF (LIKELY(__ Float64Equal(truncated, converted_back))) {
           GOTO(done, converted);
-        }
-        ELSE {
+        } ELSE {
           // Overflow.
           IF (__ Float64Equal(arg, arg)) {
             // Not NaN.
@@ -3302,21 +6435,16 @@ class TurboshaftGraphBuildingInterface {
               // Negative arg.
               GOTO(done,
                    __ Word32Constant(std::numeric_limits<int32_t>::min()));
-            }
-            ELSE {
+            } ELSE {
               // Positive arg.
               GOTO(done,
                    __ Word32Constant(std::numeric_limits<int32_t>::max()));
             }
-            END_IF
-          }
-          ELSE {
+          } ELSE {
             // NaN.
             GOTO(done, __ Word32Constant(0));
           }
-          END_IF
         }
-        END_IF
         BIND(done, result);
 
         return result;
@@ -3331,29 +6459,23 @@ class TurboshaftGraphBuildingInterface {
 
         IF (LIKELY(__ Float64Equal(truncated, converted_back))) {
           GOTO(done, converted);
-        }
-        ELSE {
+        } ELSE {
           // Overflow.
           IF (__ Float64Equal(arg, arg)) {
             // Not NaN.
             IF (__ Float64LessThan(arg, 0)) {
               // Negative arg.
               GOTO(done, __ Word32Constant(0));
-            }
-            ELSE {
+            } ELSE {
               // Positive arg.
               GOTO(done,
                    __ Word32Constant(std::numeric_limits<uint32_t>::max()));
             }
-            END_IF
-          }
-          ELSE {
+          } ELSE {
             // NaN.
             GOTO(done, __ Word32Constant(0));
           }
-          END_IF
         }
-        END_IF
         BIND(done, result);
 
         return result;
@@ -3365,18 +6487,15 @@ class TurboshaftGraphBuildingInterface {
               arg, MemoryRepresentation::Float32(),
               ExternalReference::wasm_float32_to_int64_sat(), is_signed);
         }
-        V<Word64> converted = __ TryTruncateFloat32ToInt64(arg);
+        V<Tuple<Word64, Word32>> converted = __ TryTruncateFloat32ToInt64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
         if (SupportedOperations::sat_conversion_is_safe()) {
-          return __ Projection(converted, 0, RegisterRepresentation::Word64());
+          return __ Projection<0>(converted);
         }
-        IF (LIKELY(__ Projection(converted, 1,
-                                 RegisterRepresentation::Word32()))) {
-          GOTO(done,
-               __ Projection(converted, 0, RegisterRepresentation::Word64()));
-        }
-        ELSE {
+        IF (LIKELY(__ Projection<1>(converted))) {
+          GOTO(done, __ Projection<0>(converted));
+        } ELSE {
           // Overflow.
           IF (__ Float32Equal(arg, arg)) {
             // Not NaN.
@@ -3384,21 +6503,16 @@ class TurboshaftGraphBuildingInterface {
               // Negative arg.
               GOTO(done,
                    __ Word64Constant(std::numeric_limits<int64_t>::min()));
-            }
-            ELSE {
+            } ELSE {
               // Positive arg.
               GOTO(done,
                    __ Word64Constant(std::numeric_limits<int64_t>::max()));
             }
-            END_IF
-          }
-          ELSE {
+          } ELSE {
             // NaN.
             GOTO(done, __ Word64Constant(int64_t{0}));
           }
-          END_IF
         }
-        END_IF
         BIND(done, result);
 
         return result;
@@ -3410,40 +6524,32 @@ class TurboshaftGraphBuildingInterface {
               arg, MemoryRepresentation::Float32(),
               ExternalReference::wasm_float32_to_uint64_sat(), is_signed);
         }
-        V<Word64> converted = __ TryTruncateFloat32ToUint64(arg);
+        V<Tuple<Word64, Word32>> converted = __ TryTruncateFloat32ToUint64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
         if (SupportedOperations::sat_conversion_is_safe()) {
-          return __ Projection(converted, 0, RegisterRepresentation::Word64());
+          return __ template Projection<0>(converted);
         }
 
-        IF (LIKELY(__ Projection(converted, 1,
-                                 RegisterRepresentation::Word32()))) {
-          GOTO(done,
-               __ Projection(converted, 0, RegisterRepresentation::Word64()));
-        }
-        ELSE {
+        IF (LIKELY(__ template Projection<1>(converted))) {
+          GOTO(done, __ template Projection<0>(converted));
+        } ELSE {
           // Overflow.
           IF (__ Float32Equal(arg, arg)) {
             // Not NaN.
             IF (__ Float32LessThan(arg, 0)) {
               // Negative arg.
               GOTO(done, __ Word64Constant(int64_t{0}));
-            }
-            ELSE {
+            } ELSE {
               // Positive arg.
               GOTO(done,
                    __ Word64Constant(std::numeric_limits<uint64_t>::max()));
             }
-            END_IF
-          }
-          ELSE {
+          } ELSE {
             // NaN.
             GOTO(done, __ Word64Constant(int64_t{0}));
           }
-          END_IF
         }
-        END_IF
         BIND(done, result);
 
         return result;
@@ -3455,19 +6561,16 @@ class TurboshaftGraphBuildingInterface {
               arg, MemoryRepresentation::Float64(),
               ExternalReference::wasm_float64_to_int64_sat(), is_signed);
         }
-        V<Word64> converted = __ TryTruncateFloat64ToInt64(arg);
+        V<Tuple<Word64, Word32>> converted = __ TryTruncateFloat64ToInt64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
         if (SupportedOperations::sat_conversion_is_safe()) {
-          return __ Projection(converted, 0, RegisterRepresentation::Word64());
+          return __ template Projection<0>(converted);
         }
 
-        IF (LIKELY(__ Projection(converted, 1,
-                                 RegisterRepresentation::Word32()))) {
-          GOTO(done,
-               __ Projection(converted, 0, RegisterRepresentation::Word64()));
-        }
-        ELSE {
+        IF (LIKELY(__ template Projection<1>(converted))) {
+          GOTO(done, __ template Projection<0>(converted));
+        } ELSE {
           // Overflow.
           IF (__ Float64Equal(arg, arg)) {
             // Not NaN.
@@ -3475,21 +6578,16 @@ class TurboshaftGraphBuildingInterface {
               // Negative arg.
               GOTO(done,
                    __ Word64Constant(std::numeric_limits<int64_t>::min()));
-            }
-            ELSE {
+            } ELSE {
               // Positive arg.
               GOTO(done,
                    __ Word64Constant(std::numeric_limits<int64_t>::max()));
             }
-            END_IF
-          }
-          ELSE {
+          } ELSE {
             // NaN.
             GOTO(done, __ Word64Constant(int64_t{0}));
           }
-          END_IF
         }
-        END_IF
         BIND(done, result);
 
         return result;
@@ -3501,46 +6599,38 @@ class TurboshaftGraphBuildingInterface {
               arg, MemoryRepresentation::Float64(),
               ExternalReference::wasm_float64_to_uint64_sat(), is_signed);
         }
-        V<Word64> converted = __ TryTruncateFloat64ToUint64(arg);
+        V<Tuple<Word64, Word32>> converted = __ TryTruncateFloat64ToUint64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
         if (SupportedOperations::sat_conversion_is_safe()) {
-          return __ Projection(converted, 0, RegisterRepresentation::Word64());
+          return __ template Projection<0>(converted);
         }
 
-        IF (LIKELY(__ Projection(converted, 1,
-                                 RegisterRepresentation::Word32()))) {
-          GOTO(done,
-               __ Projection(converted, 0, RegisterRepresentation::Word64()));
-        }
-        ELSE {
+        IF (LIKELY(__ template Projection<1>(converted))) {
+          GOTO(done, __ template Projection<0>(converted));
+        } ELSE {
           // Overflow.
           IF (__ Float64Equal(arg, arg)) {
             // Not NaN.
             IF (__ Float64LessThan(arg, 0)) {
               // Negative arg.
               GOTO(done, __ Word64Constant(int64_t{0}));
-            }
-            ELSE {
+            } ELSE {
               // Positive arg.
               GOTO(done,
                    __ Word64Constant(std::numeric_limits<uint64_t>::max()));
             }
-            END_IF
-          }
-          ELSE {
+          } ELSE {
             // NaN.
             GOTO(done, __ Word64Constant(int64_t{0}));
           }
-          END_IF
         }
-        END_IF
         BIND(done, result);
 
         return result;
       }
       case kExprF32ConvertF64:
-        return __ ChangeFloat64ToFloat32(arg);
+        return __ TruncateFloat64ToFloat32(arg);
       case kExprF64ConvertF32:
         return __ ChangeFloat32ToFloat64(arg);
       case kExprF32ReinterpretI32:
@@ -3554,17 +6644,19 @@ class TurboshaftGraphBuildingInterface {
           return __ Word32CountTrailingZeros(arg);
         } else {
           // TODO(14108): Use reverse_bits if supported.
-          return CallCStackSlotToInt32(arg,
-                                       ExternalReference::wasm_word32_ctz(),
-                                       MemoryRepresentation::Int32());
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint32());
+          return CallC(&sig, ExternalReference::wasm_word32_ctz(), arg);
         }
       case kExprI32Popcnt:
         if (SupportedOperations::word32_popcnt()) {
           return __ Word32PopCount(arg);
         } else {
-          return CallCStackSlotToInt32(arg,
-                                       ExternalReference::wasm_word32_popcnt(),
-                                       MemoryRepresentation::Int32());
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint32());
+          return CallC(&sig, ExternalReference::wasm_word32_popcnt(), arg);
         }
       case kExprF32Floor:
         if (SupportedOperations::float32_round_down()) {
@@ -3666,20 +6758,57 @@ class TurboshaftGraphBuildingInterface {
         if (SupportedOperations::word64_ctz() ||
             (!Is64() && SupportedOperations::word32_ctz())) {
           return __ Word64CountTrailingZeros(arg);
-        } else {
+        } else if (Is64()) {
           // TODO(14108): Use reverse_bits if supported.
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint64());
           return __ ChangeUint32ToUint64(
-              CallCStackSlotToInt32(arg, ExternalReference::wasm_word64_ctz(),
-                                    MemoryRepresentation::Int64()));
+              CallC(&sig, ExternalReference::wasm_word64_ctz(), arg));
+        } else {
+          // lower_word == 0 ? 32 + CTZ32(upper_word) : CTZ32(lower_word);
+          OpIndex upper_word =
+              __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(arg, 32));
+          OpIndex lower_word = __ TruncateWord64ToWord32(arg);
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint32());
+          Label<Word32> done(&asm_);
+          IF (__ Word32Equal(lower_word, 0)) {
+            GOTO(done,
+                 __ Word32Add(CallC(&sig, ExternalReference::wasm_word32_ctz(),
+                                    upper_word),
+                              32));
+          } ELSE {
+            GOTO(done,
+                 CallC(&sig, ExternalReference::wasm_word32_ctz(), lower_word));
+          }
+          BIND(done, result);
+          return __ ChangeUint32ToUint64(result);
         }
       case kExprI64Popcnt:
         if (SupportedOperations::word64_popcnt() ||
             (!Is64() && SupportedOperations::word32_popcnt())) {
           return __ Word64PopCount(arg);
+        } else if (Is64()) {
+          // Call wasm_word64_popcnt.
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint64());
+          return __ ChangeUint32ToUint64(
+              CallC(&sig, ExternalReference::wasm_word64_popcnt(), arg));
         } else {
-          return __ ChangeUint32ToUint64(CallCStackSlotToInt32(
-              arg, ExternalReference::wasm_word64_popcnt(),
-              MemoryRepresentation::Int64()));
+          // Emit two calls to wasm_word32_popcnt.
+          OpIndex upper_word =
+              __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(arg, 32));
+          OpIndex lower_word = __ TruncateWord64ToWord32(arg);
+          auto sig =
+              FixedSizeSignature<MachineType>::Returns(MachineType::Uint32())
+                  .Params(MachineType::Uint32());
+          return __ ChangeUint32ToUint64(__ Word32Add(
+              CallC(&sig, ExternalReference::wasm_word32_popcnt(), lower_word),
+              CallC(&sig, ExternalReference::wasm_word32_popcnt(),
+                    upper_word)));
         }
       case kExprI64Eqz:
         return __ Word64Equal(arg, 0);
@@ -3720,7 +6849,6 @@ class TurboshaftGraphBuildingInterface {
       case kExprI64SExtendI16:
         return __ Word64SignExtend16(arg);
       case kExprI64SExtendI32:
-        // TODO(14108): Is this correct?
         return __ ChangeInt32ToInt64(__ TruncateWord64ToWord32(arg));
       case kExprRefIsNull:
         return __ IsNull(arg, input_type);
@@ -3748,16 +6876,15 @@ class TurboshaftGraphBuildingInterface {
         // We abuse ref.as_non_null, which isn't otherwise used in this switch,
         // as a sentinel for the negation of ref.is_null.
         return __ Word32Equal(__ IsNull(arg, input_type), 0);
-      case kExprExternInternalize:
-        return __ ExternInternalize(arg);
-      case kExprExternExternalize:
-        return __ ExternExternalize(arg);
+      case kExprAnyConvertExtern:
+        return __ AnyConvertExtern(arg);
+      case kExprExternConvertAny:
+        return __ ExternConvertAny(arg);
       default:
         UNREACHABLE();
     }
   }
 
-  // TODO(14108): Implement 64-bit divisions on 32-bit platforms.
   OpIndex BinOpImpl(WasmOpcode opcode, OpIndex lhs, OpIndex rhs) {
     switch (opcode) {
       case kExprI32Add:
@@ -3767,36 +6894,29 @@ class TurboshaftGraphBuildingInterface {
       case kExprI32Mul:
         return __ Word32Mul(lhs, rhs);
       case kExprI32DivS: {
-        __ TrapIf(__ Word32Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapDivByZero);
+        __ TrapIf(__ Word32Equal(rhs, 0), TrapId::kTrapDivByZero);
         V<Word32> unrepresentable_condition = __ Word32BitwiseAnd(
             __ Word32Equal(rhs, -1), __ Word32Equal(lhs, kMinInt));
-        __ TrapIf(unrepresentable_condition, OpIndex::Invalid(),
-                  TrapId::kTrapDivUnrepresentable);
+        __ TrapIf(unrepresentable_condition, TrapId::kTrapDivUnrepresentable);
         return __ Int32Div(lhs, rhs);
       }
       case kExprI32DivU:
-        __ TrapIf(__ Word32Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapDivByZero);
+        __ TrapIf(__ Word32Equal(rhs, 0), TrapId::kTrapDivByZero);
         return __ Uint32Div(lhs, rhs);
       case kExprI32RemS: {
-        __ TrapIf(__ Word32Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapRemByZero);
+        __ TrapIf(__ Word32Equal(rhs, 0), TrapId::kTrapRemByZero);
         Label<Word32> done(&asm_);
         IF (UNLIKELY(__ Word32Equal(rhs, -1))) {
           GOTO(done, __ Word32Constant(0));
-        }
-        ELSE {
+        } ELSE {
           GOTO(done, __ Int32Mod(lhs, rhs));
-        }
-        END_IF;
+        };
 
         BIND(done, result);
         return result;
       }
       case kExprI32RemU:
-        __ TrapIf(__ Word32Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapRemByZero);
+        __ TrapIf(__ Word32Equal(rhs, 0), TrapId::kTrapRemByZero);
         return __ Uint32Mod(lhs, rhs);
       case kExprI32And:
         return __ Word32BitwiseAnd(lhs, rhs);
@@ -3852,13 +6972,11 @@ class TurboshaftGraphBuildingInterface {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_div(),
                                 wasm::TrapId::kTrapDivByZero);
         }
-        __ TrapIf(__ Word64Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapDivByZero);
+        __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapDivByZero);
         V<Word32> unrepresentable_condition = __ Word32BitwiseAnd(
             __ Word64Equal(rhs, -1),
             __ Word64Equal(lhs, std::numeric_limits<int64_t>::min()));
-        __ TrapIf(unrepresentable_condition, OpIndex::Invalid(),
-                  TrapId::kTrapDivUnrepresentable);
+        __ TrapIf(unrepresentable_condition, TrapId::kTrapDivUnrepresentable);
         return __ Int64Div(lhs, rhs);
       }
       case kExprI64DivU:
@@ -3866,24 +6984,20 @@ class TurboshaftGraphBuildingInterface {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_div(),
                                 wasm::TrapId::kTrapDivByZero);
         }
-        __ TrapIf(__ Word64Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapDivByZero);
+        __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapDivByZero);
         return __ Uint64Div(lhs, rhs);
       case kExprI64RemS: {
         if constexpr (!Is64()) {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_int64_mod(),
                                 wasm::TrapId::kTrapRemByZero);
         }
-        __ TrapIf(__ Word64Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapRemByZero);
+        __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapRemByZero);
         Label<Word64> done(&asm_);
         IF (UNLIKELY(__ Word64Equal(rhs, -1))) {
           GOTO(done, __ Word64Constant(int64_t{0}));
-        }
-        ELSE {
+        } ELSE {
           GOTO(done, __ Int64Mod(lhs, rhs));
-        }
-        END_IF;
+        };
 
         BIND(done, result);
         return result;
@@ -3893,8 +7007,7 @@ class TurboshaftGraphBuildingInterface {
           return BuildDiv64Call(lhs, rhs, ExternalReference::wasm_uint64_mod(),
                                 wasm::TrapId::kTrapRemByZero);
         }
-        __ TrapIf(__ Word64Equal(rhs, 0), OpIndex::Invalid(),
-                  TrapId::kTrapRemByZero);
+        __ TrapIf(__ Word64Equal(rhs, 0), TrapId::kTrapRemByZero);
         return __ Uint64Mod(lhs, rhs);
       case kExprI64And:
         return __ Word64BitwiseAnd(lhs, rhs);
@@ -4026,17 +7139,13 @@ class TurboshaftGraphBuildingInterface {
         Label<Word32> done(&asm_);
         IF (UNLIKELY(__ Word32Equal(rhs, 0))) {
           GOTO(done, __ Word32Constant(0));
-        }
-        ELSE {
+        } ELSE {
           IF (UNLIKELY(__ Word32Equal(rhs, -1))) {
             GOTO(done, __ Word32Sub(0, lhs));
-          }
-          ELSE {
+          } ELSE {
             GOTO(done, __ Int32Div(lhs, rhs));
           }
-          END_IF
         }
-        END_IF
         BIND(done, result);
         return result;
       }
@@ -4048,29 +7157,51 @@ class TurboshaftGraphBuildingInterface {
         Label<Word32> done(&asm_);
         IF (UNLIKELY(__ Word32Equal(rhs, 0))) {
           GOTO(done, __ Word32Constant(0));
-        }
-        ELSE {
+        } ELSE {
           GOTO(done, __ Uint32Div(lhs, rhs));
         }
-        END_IF
         BIND(done, result);
         return result;
       }
       case kExprI32AsmjsRemS: {
+        // General case for signed integer modulus, with optimization for
+        // (unknown) power of 2 right hand side.
+        //
+        //   if 0 < rhs then
+        //     mask = rhs - 1
+        //     if rhs & mask != 0 then
+        //       lhs % rhs
+        //     else
+        //       if lhs < 0 then
+        //         -(-lhs & mask)
+        //       else
+        //         lhs & mask
+        //   else
+        //     if rhs < -1 then
+        //       lhs % rhs
+        //     else
+        //       zero
         Label<Word32> done(&asm_);
-        IF (UNLIKELY(__ Word32Equal(rhs, 0))) {
-          GOTO(done, __ Word32Constant(0));
-        }
-        ELSE {
-          IF (UNLIKELY(__ Word32Equal(rhs, -1))) {
-            GOTO(done, __ Word32Constant(0));
-          }
-          ELSE {
+        IF (__ Int32LessThan(0, rhs)) {
+          V<Word32> mask = __ Word32Sub(rhs, 1);
+          IF (__ Word32Equal(__ Word32BitwiseAnd(rhs, mask), 0)) {
+            IF (UNLIKELY(__ Int32LessThan(lhs, 0))) {
+              V<Word32> neg_lhs = __ Word32Sub(0, lhs);
+              V<Word32> combined = __ Word32BitwiseAnd(neg_lhs, mask);
+              GOTO(done, __ Word32Sub(0, combined));
+            } ELSE {
+              GOTO(done, __ Word32BitwiseAnd(lhs, mask));
+            }
+          } ELSE {
             GOTO(done, __ Int32Mod(lhs, rhs));
           }
-          END_IF
+        } ELSE {
+          IF (__ Int32LessThan(rhs, -1)) {
+            GOTO(done, __ Int32Mod(lhs, rhs));
+          } ELSE {
+            GOTO(done, __ Word32Constant(0));
+          }
         }
-        END_IF
         BIND(done, result);
         return result;
       }
@@ -4079,11 +7210,9 @@ class TurboshaftGraphBuildingInterface {
         Label<Word32> done(&asm_);
         IF (UNLIKELY(__ Word32Equal(rhs, 0))) {
           GOTO(done, __ Word32Constant(0));
-        }
-        ELSE {
+        } ELSE {
           GOTO(done, __ Uint32Mod(lhs, rhs));
         }
-        END_IF
         BIND(done, result);
         return result;
       }
@@ -4107,73 +7236,99 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  std::pair<V<WordPtr>, compiler::BoundsCheckResult> CheckBoundsAndAlignment(
-      const wasm::WasmMemory* memory, MemoryRepresentation repr, OpIndex index,
-      uintptr_t offset, wasm::WasmCodePosition position,
-      compiler::EnforceBoundsCheck enforce_check) {
-    // Atomic operations need bounds checks until the backend can emit protected
-    // loads.
-    compiler::BoundsCheckResult bounds_check_result;
-    V<WordPtr> converted_index;
-    std::tie(converted_index, bounds_check_result) =
-        BoundsCheckMem(memory, repr, index, offset, enforce_check);
-
-    const uintptr_t align_mask = repr.SizeInBytes() - 1;
-
-    // TODO(14108): Optimize constant index as per wasm-compiler.cc.
-
-    // Unlike regular memory accesses, atomic memory accesses should trap if
-    // the effective offset is misaligned.
-    // TODO(wasm): this addition is redundant with one inserted by {MemBuffer}.
-    OpIndex effective_offset =
-        __ WordPtrAdd(MemBuffer(memory->index, offset), converted_index);
-
-    V<Word32> cond = __ TruncateWordPtrToWord32(
-        __ WordPtrBitwiseAnd(effective_offset, __ IntPtrConstant(align_mask)));
-    __ TrapIfNot(__ Word32Equal(cond, __ Word32Constant(0)), OpIndex::Invalid(),
-                 TrapId::kTrapUnalignedAccess);
-    return {converted_index, bounds_check_result};
-  }
-
   std::pair<V<WordPtr>, compiler::BoundsCheckResult> BoundsCheckMem(
       const wasm::WasmMemory* memory, MemoryRepresentation repr, OpIndex index,
-      uintptr_t offset, compiler::EnforceBoundsCheck enforce_bounds_check) {
+      uintptr_t offset, compiler::EnforceBoundsCheck enforce_bounds_check,
+      compiler::AlignmentCheck alignment_check) {
     // The function body decoder already validated that the access is not
     // statically OOB.
     DCHECK(base::IsInBounds(offset, static_cast<uintptr_t>(repr.SizeInBytes()),
                             memory->max_memory_size));
 
+    wasm::BoundsCheckStrategy bounds_checks = memory->bounds_checks;
     // Convert the index to uintptr.
-    if (!memory->is_memory64) {
-      index = __ ChangeUint32ToUintPtr(index);
+    // TODO(jkummerow): This should reuse MemoryAddressToUintPtrOrOOBTrap.
+    V<WordPtr> converted_index = index;
+    if (!memory->is_memory64()) {
+      // Note: this doesn't just satisfy the compiler's internal consistency
+      // checks, it's also load-bearing to prevent escaping from a compromised
+      // sandbox (where in-sandbox corruption can cause the high word of
+      // what's supposed to be an i32 to be non-zero).
+      converted_index = __ ChangeUint32ToUintPtr(index);
     } else if (kSystemPointerSize == kInt32Size) {
+      // Truncate index to 32-bit.
+      converted_index = V<WordPtr>::Cast(__ TruncateWord64ToWord32(index));
+    }
+
+    const uintptr_t align_mask = repr.SizeInBytes() - 1;
+    // Do alignment checks only for > 1 byte accesses (otherwise they trivially
+    // pass).
+    if (static_cast<bool>(alignment_check) && align_mask != 0) {
+      // TODO(14108): Optimize constant index as per wasm-compiler.cc.
+
+      // Unlike regular memory accesses, atomic memory accesses should trap if
+      // the effective offset is misaligned.
+      // TODO(wasm): this addition is redundant with one inserted by
+      // {MemBuffer}.
+      OpIndex effective_offset =
+          __ WordPtrAdd(MemBuffer(memory->index, offset), converted_index);
+
+      V<Word32> cond = __ TruncateWordPtrToWord32(__ WordPtrBitwiseAnd(
+          effective_offset, __ IntPtrConstant(align_mask)));
+      __ TrapIfNot(__ Word32Equal(cond, __ Word32Constant(0)),
+                   TrapId::kTrapUnalignedAccess);
+    }
+
+    // If no bounds checks should be performed (for testing), just return the
+    // converted index and assume it to be in-bounds.
+    if (bounds_checks == wasm::kNoBoundsChecks) {
+      return {converted_index, compiler::BoundsCheckResult::kInBounds};
+    }
+
+    if (memory->is_memory64() && kSystemPointerSize == kInt32Size) {
       // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero
       // to succeed the bounds check.
-      DCHECK_NE(kTrapHandler, memory->bounds_checks);
-      if (memory->bounds_checks == wasm::kExplicitBoundsChecks) {
-        V<Word32> high_word =
-            __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(index, 32));
-        __ TrapIf(high_word, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
-      }
-      // Truncate index to 32-bit.
-      index = __ TruncateWord64ToWord32(index);
-    }
-
-    //  If no bounds checks should be performed (for testing), just return the
-    // converted index and assume it to be in-bounds.
-    if (memory->bounds_checks == wasm::kNoBoundsChecks) {
-      return {index, compiler::BoundsCheckResult::kInBounds};
-    }
-
-    // TODO(14108): Optimize constant index as per wasm-compiler.cc.
-
-    if (memory->bounds_checks == kTrapHandler &&
-        enforce_bounds_check ==
-            compiler::EnforceBoundsCheck::kCanOmitBoundsCheck) {
-      return {index, compiler::BoundsCheckResult::kTrapHandler};
+      DCHECK_EQ(kExplicitBoundsChecks, bounds_checks);
+      V<Word32> high_word =
+          __ TruncateWord64ToWord32(__ Word64ShiftRightLogical(index, 32));
+      __ TrapIf(high_word, TrapId::kTrapMemOutOfBounds);
     }
 
     uintptr_t end_offset = offset + repr.SizeInBytes() - 1u;
+    DCHECK_LT(end_offset, memory->max_memory_size);
+
+    // The index can be invalid if we are generating unreachable operations.
+    if (end_offset <= memory->min_memory_size && index.valid() &&
+        __ output_graph().Get(index).Is<ConstantOp>()) {
+      ConstantOp& constant_index_op =
+          __ output_graph().Get(index).Cast<ConstantOp>();
+      uintptr_t constant_index = memory->is_memory64()
+                                     ? constant_index_op.word64()
+                                     : constant_index_op.word32();
+      if (constant_index < memory->min_memory_size - end_offset) {
+        return {converted_index, compiler::BoundsCheckResult::kInBounds};
+      }
+    }
+
+#if V8_TRAP_HANDLER_SUPPORTED
+    if (bounds_checks == kTrapHandler &&
+        enforce_bounds_check ==
+            compiler::EnforceBoundsCheck::kCanOmitBoundsCheck) {
+      if (memory->is_memory64()) {
+        // Bounds check `index` against `kMaxMemory64Size - end_offset`, such
+        // that at runtime `index + end_offset` will be within
+        // `kMaxMemory64Size`, where the trap handler can handle out-of-bound
+        // accesses.
+        V<Word32> cond = __ Uint64LessThan(
+            V<Word64>::Cast(converted_index),
+            __ Word64Constant(uint64_t{wasm::kMaxMemory64Size - end_offset}));
+        __ TrapIfNot(cond, TrapId::kTrapMemOutOfBounds);
+      }
+      return {converted_index, compiler::BoundsCheckResult::kTrapHandler};
+    }
+#else
+    CHECK_NE(bounds_checks, kTrapHandler);
+#endif  // V8_TRAP_HANDLER_SUPPORTED
 
     V<WordPtr> memory_size = MemSize(memory->index);
     if (end_offset > memory->min_memory_size) {
@@ -4181,27 +7336,30 @@ class TurboshaftGraphBuildingInterface {
       // Dynamically check the end offset against the dynamic memory size.
       __ TrapIfNot(
           __ UintPtrLessThan(__ UintPtrConstant(end_offset), memory_size),
-          OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+          TrapId::kTrapMemOutOfBounds);
     }
 
     // This produces a positive number since {end_offset <= min_size <=
     // mem_size}.
     V<WordPtr> effective_size = __ WordPtrSub(memory_size, end_offset);
-    __ TrapIfNot(__ UintPtrLessThan(index, effective_size), OpIndex::Invalid(),
+    __ TrapIfNot(__ UintPtrLessThan(converted_index, effective_size),
                  TrapId::kTrapMemOutOfBounds);
-    return {index, compiler::BoundsCheckResult::kDynamicallyChecked};
+    return {converted_index, compiler::BoundsCheckResult::kDynamicallyChecked};
   }
 
   V<WordPtr> MemStart(uint32_t index) {
     if (index == 0) {
-      return LOAD_INSTANCE_FIELD(Memory0Start, kMaybeSandboxedPointer);
+      // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
+      return instance_cache_.memory0_start();
     } else {
-      V<ByteArray> instance_memories = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          MemoryBasesAndSizes, MemoryRepresentation::TaggedPointer());
+      // TODO(14616): Fix sharedness.
+      V<TrustedFixedAddressArray> instance_memories =
+          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(trusted_instance_data(false),
+                                                  MemoryBasesAndSizes,
+                                                  TrustedFixedAddressArray);
       return __ Load(instance_memories, LoadOp::Kind::TaggedBase(),
-                     kMaybeSandboxedPointer,
-                     ByteArray::kHeaderSize +
-                         2 * index * kMaybeSandboxedPointer.SizeInBytes());
+                     MemoryRepresentation::UintPtr(),
+                     TrustedFixedAddressArray::OffsetOfElementAt(2 * index));
     }
   }
 
@@ -4213,15 +7371,18 @@ class TurboshaftGraphBuildingInterface {
 
   V<WordPtr> MemSize(uint32_t index) {
     if (index == 0) {
-      return LOAD_INSTANCE_FIELD(Memory0Size,
-                                 MemoryRepresentation::PointerSized());
+      // TODO(14108): Port TF's dynamic "cached_memory_index" infrastructure.
+      return instance_cache_.memory0_size();
     } else {
-      V<ByteArray> instance_memories = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          MemoryBasesAndSizes, MemoryRepresentation::TaggedPointer());
+      // TODO(14616): Fix sharedness.
+      V<TrustedByteArray> instance_memories =
+          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(trusted_instance_data(false),
+                                                  MemoryBasesAndSizes,
+                                                  TrustedByteArray);
       return __ Load(
-          instance_memories, LoadOp::Kind::TaggedBase(),
-          MemoryRepresentation::PointerSized(),
-          ByteArray::kHeaderSize + (2 * index + 1) * kSystemPointerSize);
+          instance_memories, LoadOp::Kind::TaggedBase().NotLoadEliminable(),
+          MemoryRepresentation::UintPtr(),
+          TrustedFixedAddressArray::OffsetOfElementAt(2 * index + 1));
     }
   }
 
@@ -4241,16 +7402,17 @@ class TurboshaftGraphBuildingInterface {
     } else {
       result = LoadOp::Kind::RawAligned();
     }
-    return result.NotAlwaysCanonicallyAccessed();
+    return result.NotLoadEliminable();
   }
 
-  void TraceMemoryOperation(bool is_store, MemoryRepresentation repr,
-                            V<WordPtr> index, uintptr_t offset) {
+  void TraceMemoryOperation(FullDecoder* decoder, bool is_store,
+                            MemoryRepresentation repr, V<WordPtr> index,
+                            uintptr_t offset) {
     int kAlign = 4;  // Ensure that the LSB is 0, like a Smi.
     V<WordPtr> info = __ StackSlot(sizeof(MemoryTracingInfo), kAlign);
     V<WordPtr> effective_offset = __ WordPtrAdd(index, offset);
     __ Store(info, effective_offset, StoreOp::Kind::RawAligned(),
-             MemoryRepresentation::PointerSized(), compiler::kNoWriteBarrier,
+             MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
              offsetof(MemoryTracingInfo, offset));
     __ Store(info, __ Word32Constant(is_store ? 1 : 0),
              StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
@@ -4260,100 +7422,91 @@ class TurboshaftGraphBuildingInterface {
     __ Store(info, rep_as_int, StoreOp::Kind::RawAligned(),
              MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
              offsetof(MemoryTracingInfo, mem_rep));
-    CallRuntime(Runtime::kWasmTraceMemory, {info});
+    CallRuntime(decoder->zone(), Runtime::kWasmTraceMemory, {info},
+                __ NoContextConstant());
   }
 
-  void StackCheck(StackCheckOp::CheckKind kind) {
+  void StackCheck(WasmStackCheckOp::Kind kind, FullDecoder* decoder) {
     if (V8_UNLIKELY(!v8_flags.wasm_stack_checks)) return;
-    __ StackCheck(StackCheckOp::CheckOrigin::kFromWasm, kind);
+    __ WasmStackCheck(kind);
   }
 
-  std::pair<V<WordPtr>, V<HeapObject>> BuildImportedFunctionTargetAndRef(
-      uint32_t function_index) {
-    // Imported function.
-    V<WordPtr> func_index = __ IntPtrConstant(function_index);
-    V<FixedArray> imported_function_refs = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        ImportedFunctionRefs, MemoryRepresentation::TaggedPointer());
-    auto ref = V<HeapObject>::Cast(
-        LoadFixedArrayElement(imported_function_refs, func_index));
-    V<FixedAddressArray> imported_targets = LOAD_IMMUTABLE_INSTANCE_FIELD(
-        ImportedFunctionTargets, MemoryRepresentation::TaggedPointer());
-    V<WordPtr> target =
-        __ Load(imported_targets, func_index, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::PointerSized(),
-                FixedAddressArray::kHeaderSize, kSystemPointerSizeLog2);
-    return {target, ref};
+ private:
+  std::pair<V<Word32>, V<HeapObject>> BuildImportedFunctionTargetAndImplicitArg(
+      FullDecoder* decoder, uint32_t function_index) {
+    ModuleTypeIndex sig_index =
+        decoder->module_->functions[function_index].sig_index;
+    bool shared = decoder->module_->type(sig_index).is_shared;
+    return WasmGraphBuilderBase::BuildImportedFunctionTargetAndImplicitArg(
+        function_index, trusted_instance_data(shared));
   }
 
-  std::pair<V<WordPtr>, V<HeapObject>> BuildIndirectCallTargetAndRef(
-      FullDecoder* decoder, OpIndex index, CallIndirectImmediate imm) {
-    uint32_t table_index = imm.table_imm.index;
-    const WasmTable& table = decoder->module_->tables[table_index];
-    V<WordPtr> index_intptr = __ ChangeInt32ToIntPtr(index);
-    uint32_t sig_index = imm.sig_imm.index;
+  // Returns the call target and the implicit argument (WasmTrustedInstanceData
+  // or WasmImportData) for an indirect call.
+  std::pair<V<Word32>, V<ExposedTrustedObject>>
+  BuildIndirectCallTargetAndImplicitArg(FullDecoder* decoder,
+                                        V<WordPtr> index_wordptr,
+                                        CallIndirectImmediate imm,
+                                        bool needs_type_or_null_check = true) {
+    static_assert(kV8MaxWasmTableSize < size_t{kMaxInt});
+    const WasmTable* table = imm.table_imm.table;
 
     /* Step 1: Load the indirect function tables for this table. */
-    bool needs_dynamic_size =
-        !(table.has_maximum_size && table.maximum_size == table.initial_size);
-    V<Word32> ift_size;
-    V<ByteArray> ift_sig_ids;
-    V<ExternalPointerArray> ift_targets;
-    V<FixedArray> ift_refs;
-    if (table_index == 0) {
-      ift_size = needs_dynamic_size
-                     ? LOAD_INSTANCE_FIELD(IndirectFunctionTableSize,
-                                           MemoryRepresentation::Uint32())
-                     : __ Word32Constant(table.initial_size);
-      ift_sig_ids = LOAD_INSTANCE_FIELD(IndirectFunctionTableSigIds,
-                                        MemoryRepresentation::TaggedPointer());
-      ift_targets = LOAD_INSTANCE_FIELD(IndirectFunctionTableTargets,
-                                        MemoryRepresentation::TaggedPointer());
-      ift_refs = LOAD_INSTANCE_FIELD(IndirectFunctionTableRefs,
-                                     MemoryRepresentation::TaggedPointer());
+    V<WasmDispatchTable> dispatch_table;
+    if (imm.table_imm.index == 0) {
+      dispatch_table =
+          LOAD_PROTECTED_INSTANCE_FIELD(trusted_instance_data(table->shared),
+                                        DispatchTable0, WasmDispatchTable);
     } else {
-      V<FixedArray> ift_tables = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          IndirectFunctionTables, MemoryRepresentation::TaggedPointer());
-      OpIndex ift_table = LoadFixedArrayElement(ift_tables, table_index);
-      ift_size = needs_dynamic_size
-                     ? __ Load(ift_table, LoadOp::Kind::TaggedBase(),
-                               MemoryRepresentation::Uint32(),
-                               WasmIndirectFunctionTable::kSizeOffset)
-                     : __ Word32Constant(table.initial_size);
-      ift_sig_ids = __ Load(ift_table, LoadOp::Kind::TaggedBase(),
-                            MemoryRepresentation::TaggedPointer(),
-                            WasmIndirectFunctionTable::kSigIdsOffset);
-      ift_targets = __ Load(ift_table, LoadOp::Kind::TaggedBase(),
-                            MemoryRepresentation::TaggedPointer(),
-                            WasmIndirectFunctionTable::kTargetsOffset);
-      ift_refs = __ Load(ift_table, LoadOp::Kind::TaggedBase(),
-                         MemoryRepresentation::TaggedPointer(),
-                         WasmIndirectFunctionTable::kRefsOffset);
+      V<ProtectedFixedArray> dispatch_tables =
+          LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+              trusted_instance_data(table->shared), DispatchTables,
+              ProtectedFixedArray);
+      dispatch_table =
+          V<WasmDispatchTable>::Cast(__ LoadProtectedFixedArrayElement(
+              dispatch_tables, imm.table_imm.index));
     }
 
     /* Step 2: Bounds check against the table size. */
-    __ TrapIfNot(__ Uint32LessThan(index, ift_size), OpIndex::Invalid(),
-                 TrapId::kTrapTableOutOfBounds);
+    V<Word32> table_length;
+    bool needs_dynamic_size =
+        !table->has_maximum_size || table->maximum_size != table->initial_size;
+    if (needs_dynamic_size) {
+      table_length = __ LoadField<Word32>(
+          dispatch_table, AccessBuilder::ForWasmDispatchTableLength());
+    } else {
+      table_length = __ Word32Constant(table->initial_size);
+    }
+    V<Word32> in_bounds = __ UintPtrLessThan(
+        index_wordptr, __ ChangeUint32ToUintPtr(table_length));
+    __ TrapIfNot(in_bounds, TrapId::kTrapTableOutOfBounds);
 
     /* Step 3: Check the canonical real signature against the canonical declared
      * signature. */
+    ModuleTypeIndex sig_index = imm.sig_imm.index;
     bool needs_type_check =
-        !EquivalentTypes(table.type.AsNonNull(), ValueType::Ref(sig_index),
+        needs_type_or_null_check &&
+        !EquivalentTypes(table->type.AsNonNull(),
+                         ValueType::Ref(imm.sig_imm.heap_type()),
                          decoder->module_, decoder->module_);
-    bool needs_null_check = table.type.is_nullable();
+    bool needs_null_check =
+        needs_type_or_null_check && table->type.is_nullable();
+
+    V<WordPtr> dispatch_table_entry_offset = __ WordPtrAdd(
+        __ WordPtrMul(index_wordptr, WasmDispatchTable::kEntrySize),
+        WasmDispatchTable::kEntriesOffset);
 
     if (needs_type_check) {
-      V<WordPtr> isorecursive_canonical_types = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          IsorecursiveCanonicalTypes, MemoryRepresentation::PointerSized());
-      V<Word32> expected_sig_id =
-          __ Load(isorecursive_canonical_types, LoadOp::Kind::RawAligned(),
-                  MemoryRepresentation::Uint32(), sig_index * kUInt32Size);
+      CanonicalTypeIndex sig_id = env_->module->canonical_sig_id(sig_index);
+      V<Word32> expected_canonical_sig =
+          __ RelocatableWasmCanonicalSignatureId(sig_id.index);
+
       V<Word32> loaded_sig =
-          __ Load(ift_sig_ids, index_intptr, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::Uint32(), ByteArray::kHeaderSize,
-                  2 /* kInt32SizeLog2 */);
-      V<Word32> sigs_match = __ Word32Equal(expected_sig_id, loaded_sig);
-      if (decoder->enabled_.has_gc() &&
-          !decoder->module_->types[sig_index].is_final) {
+          __ Load(dispatch_table, dispatch_table_entry_offset,
+                  LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
+                  WasmDispatchTable::kSigBias);
+      V<Word32> sigs_match = __ Word32Equal(expected_canonical_sig, loaded_sig);
+      if (!decoder->module_->type(sig_index).is_final) {
         // In this case, a full type check is needed.
         Label<> end(&asm_);
 
@@ -4362,11 +7515,11 @@ class TurboshaftGraphBuildingInterface {
 
         if (needs_null_check) {
           // Trap on null element.
-          __ TrapIf(__ Word32Equal(loaded_sig, -1), OpIndex::Invalid(),
+          __ TrapIf(__ Word32Equal(loaded_sig, -1),
                     TrapId::kTrapFuncSigMismatch);
         }
-
-        V<Map> formal_rtt = __ RttCanon(instance_node_, sig_index);
+        bool shared = decoder->module_->type(sig_index).is_shared;
+        V<Map> formal_rtt = __ RttCanon(managed_object_maps(shared), sig_index);
         int rtt_depth = GetSubtypingDepth(decoder->module_, sig_index);
         DCHECK_GE(rtt_depth, 0);
 
@@ -4376,13 +7529,15 @@ class TurboshaftGraphBuildingInterface {
         // Note: The reference cannot have been cleared: Since the loaded_sig
         // corresponds to a function of the same canonical type, that function
         // will have kept the type alive.
-        V<WeakArrayList> rtts = LOAD_ROOT(WasmCanonicalRtts);
-        V<Tagged> weak_rtt = __ Load(
+        V<WeakFixedArray> rtts = LOAD_ROOT(WasmCanonicalRtts);
+        V<Object> weak_rtt = __ Load(
             rtts, __ ChangeInt32ToIntPtr(loaded_sig),
             LoadOp::Kind::TaggedBase(), MemoryRepresentation::TaggedPointer(),
-            WeakArrayList::kHeaderSize, kTaggedSizeLog2);
-        V<Map> real_rtt = V<Map>::Cast(__ WordPtrBitwiseAnd(
-            __ BitcastTaggedToWord(weak_rtt), ~kWeakHeapObjectMask));
+            OFFSET_OF_DATA_START(WeakFixedArray), kTaggedSizeLog2);
+        V<Map> real_rtt =
+            V<Map>::Cast(__ BitcastWordPtrToTagged(__ WordPtrBitwiseAnd(
+                __ BitcastHeapObjectToWordPtr(V<HeapObject>::Cast(weak_rtt)),
+                ~kWeakHeapObjectMask)));
         V<WasmTypeInfo> type_info =
             __ Load(real_rtt, LoadOp::Kind::TaggedBase(),
                     MemoryRepresentation::TaggedPointer(),
@@ -4409,242 +7564,281 @@ class TurboshaftGraphBuildingInterface {
         BIND(end);
       } else {
         // In this case, signatures must match exactly.
-        __ TrapIfNot(sigs_match, OpIndex::Invalid(),
-                     TrapId::kTrapFuncSigMismatch);
+        __ TrapIfNot(sigs_match, TrapId::kTrapFuncSigMismatch);
       }
     } else if (needs_null_check) {
       V<Word32> loaded_sig =
-          __ Load(ift_sig_ids, index_intptr, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::Uint32(), ByteArray::kHeaderSize,
-                  2 /* kInt32SizeLog2 */);
-      __ TrapIf(__ Word32Equal(-1, loaded_sig), OpIndex::Invalid(),
-                TrapId::kTrapFuncSigMismatch);
+          __ Load(dispatch_table, dispatch_table_entry_offset,
+                  LoadOp::Kind::TaggedBase(), MemoryRepresentation::Uint32(),
+                  WasmDispatchTable::kSigBias);
+      __ TrapIf(__ Word32Equal(-1, loaded_sig), TrapId::kTrapFuncSigMismatch);
     }
 
     /* Step 4: Extract ref and target. */
-#ifdef V8_ENABLE_SANDBOX
-    V<Word32> external_pointer_handle = __ Load(
-        ift_targets, index_intptr, LoadOp::Kind::TaggedBase(),
-        MemoryRepresentation::Uint32(), ExternalPointerArray::kHeaderSize, 2);
-    V<WordPtr> target = BuildDecodeExternalPointer(
-        external_pointer_handle, kWasmIndirectFunctionTargetTag);
-#else
-    V<WordPtr> target =
-        __ Load(ift_targets, index_intptr, LoadOp::Kind::TaggedBase(),
-                MemoryRepresentation::PointerSized(),
-                ExternalPointerArray::kHeaderSize, kSystemPointerSizeLog2);
-#endif
-    auto ref =
-        V<HeapObject>::Cast(LoadFixedArrayElement(ift_refs, index_intptr));
-    return {target, ref};
+    V<Word32> target = __ Load(
+        dispatch_table, dispatch_table_entry_offset, LoadOp::Kind::TaggedBase(),
+        MemoryRepresentation::Uint32(), WasmDispatchTable::kTargetBias);
+    V<ExposedTrustedObject> implicit_arg =
+        V<ExposedTrustedObject>::Cast(__ LoadProtectedPointerField(
+            dispatch_table, dispatch_table_entry_offset,
+            LoadOp::Kind::TaggedBase(), WasmDispatchTable::kImplicitArgBias,
+            0));
+
+    return {target, implicit_arg};
   }
 
-  std::pair<V<WordPtr>, V<HeapObject>> BuildFunctionReferenceTargetAndRef(
-      V<HeapObject> func_ref, ValueType type) {
+  // Load the call target and implicit arg (WasmTrustedInstanceData or
+  // WasmImportData) from a function reference.
+  std::pair<V<Word32>, V<ExposedTrustedObject>>
+  BuildFunctionReferenceTargetAndImplicitArg(V<WasmFuncRef> func_ref,
+                                             ValueType type) {
     if (type.is_nullable() &&
         null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
-      func_ref = V<HeapObject>::Cast(
+      func_ref = V<WasmFuncRef>::Cast(
           __ AssertNotNull(func_ref, type, TrapId::kTrapNullDereference));
     }
 
-    V<HeapObject> ref =
+    LoadOp::Kind load_kind =
         type.is_nullable() && null_check_strategy_ ==
                                   compiler::NullCheckStrategy::kTrapHandler
-            ? __ Load(func_ref, LoadOp::Kind::TrapOnNull(),
-                      MemoryRepresentation::TaggedPointer(),
-                      WasmInternalFunction::kRefOffset)
-            : __ Load(func_ref, LoadOp::Kind::TaggedBase(),
-                      MemoryRepresentation::TaggedPointer(),
-                      WasmInternalFunction::kRefOffset);
+            ? LoadOp::Kind::TrapOnNull().Immutable()
+            : LoadOp::Kind::TaggedBase().Immutable();
 
-#ifdef V8_ENABLE_SANDBOX
-    V<Word32> target_handle = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
-                                      MemoryRepresentation::Uint32(),
-                                      WasmInternalFunction::kCallTargetOffset);
-    V<WordPtr> target = BuildDecodeExternalPointer(
-        target_handle, kWasmInternalFunctionCallTargetTag);
-#else
-    V<WordPtr> target = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
-                                MemoryRepresentation::PointerSized(),
-                                WasmInternalFunction::kCallTargetOffset);
-#endif
-    Label<WordPtr> done(&asm_);
-    // For wasm functions, we have a cached handle to a pointer to off-heap
-    // code. For WasmJSFunctions we used not to be able to cache this handle
-    // because the code was on-heap, so we needed to fetch it every time from
-    // the on-heap Code object. However now, when code pointer sandboxing is on,
-    // the on-heap Code object also has a handle to off-heap code, so we could
-    // probably also cache that somehow.
-    // TODO(manoskouk): Figure out how to improve the situation.
-    IF (UNLIKELY(__ WordPtrEqual(target, 0))) {
-      V<Code> wrapper_code = __ Load(func_ref, LoadOp::Kind::TaggedBase(),
-                                     MemoryRepresentation::TaggedPointer(),
-                                     WasmInternalFunction::kCodeOffset);
-#ifdef V8_ENABLE_SANDBOX
-      V<Word32> call_target_handle = __ Load(
-          wrapper_code, LoadOp::Kind::TaggedBase(),
-          MemoryRepresentation::Uint32(), Code::kSelfIndirectPointerOffset);
-      V<WordPtr> call_target =
-          BuildDecodeExternalCodePointer(call_target_handle);
-#else
-      V<WordPtr> call_target = __ Load(wrapper_code, LoadOp::Kind::TaggedBase(),
-                                       MemoryRepresentation::PointerSized(),
-                                       Code::kInstructionStartOffset);
-#endif
-      GOTO(done, call_target);
-    }
-    ELSE {
-      GOTO(done, target);
-    }
-    END_IF
+    V<WasmInternalFunction> internal_function =
+        V<WasmInternalFunction>::Cast(__ LoadTrustedPointerField(
+            func_ref, load_kind, kWasmInternalFunctionIndirectPointerTag,
+            WasmFuncRef::kTrustedInternalOffset));
 
-    BIND(done, final_target);
-
-    return {final_target, ref};
+    return BuildFunctionTargetAndImplicitArg(internal_function);
   }
 
-  void BuildWasmCall(FullDecoder* decoder, const FunctionSig* sig,
-                     V<WordPtr> callee, V<HeapObject> ref, const Value args[],
-                     Value returns[]) {
-    const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
-        compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
-        compiler::CanThrow::kYes, __ graph_zone());
+  OpIndex AnnotateResultIfReference(OpIndex result, wasm::ValueType type) {
+    return type.is_object_reference()
+               ? __ AnnotateWasmType(V<Object>::Cast(result), type)
+               : result;
+  }
 
-    std::vector<OpIndex> arg_indices(sig->parameter_count() + 1);
+  void BuildWasmCall(
+      FullDecoder* decoder, const FunctionSig* sig, V<CallTarget> callee,
+      V<HeapObject> ref, const Value args[], Value returns[],
+      compiler::WasmCallKind call_kind = compiler::WasmCallKind::kWasmFunction,
+      CheckForException check_for_exception =
+          CheckForException::kCatchInThisFrame) {
+    const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
+        compiler::GetWasmCallDescriptor(__ graph_zone(), sig, call_kind),
+        compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
+        __ graph_zone());
+
+    SmallZoneVector<OpIndex, 16> arg_indices(sig->parameter_count() + 1,
+                                             decoder->zone());
     arg_indices[0] = ref;
     for (uint32_t i = 0; i < sig->parameter_count(); i++) {
       arg_indices[i + 1] = args[i].op;
     }
 
     OpIndex call = CallAndMaybeCatchException(
-        decoder, callee, base::VectorOf(arg_indices), descriptor);
+        decoder, callee, base::VectorOf(arg_indices), descriptor,
+        check_for_exception, OpEffects().CanCallAnything());
 
     if (sig->return_count() == 1) {
-      returns[0].op = call;
+      returns[0].op = AnnotateResultIfReference(call, sig->GetReturn(0));
     } else if (sig->return_count() > 1) {
       for (uint32_t i = 0; i < sig->return_count(); i++) {
-        returns[i].op =
-            __ Projection(call, i, RepresentationFor(sig->GetReturn(i)));
+        wasm::ValueType type = sig->GetReturn(i);
+        returns[i].op = AnnotateResultIfReference(
+            __ Projection(call, i, RepresentationFor(type)), type);
       }
     }
+    // Calls might mutate cached instance fields.
+    instance_cache_.ReloadCachedMemory();
   }
 
-  void BuildWasmReturnCall(const FunctionSig* sig, V<WordPtr> callee,
-                           V<HeapObject> ref, const Value args[]) {
-    const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
-        compiler::GetWasmCallDescriptor(__ graph_zone(), sig),
-        compiler::CanThrow::kYes, __ graph_zone());
+ private:
+  void BuildWasmMaybeReturnCall(
+      FullDecoder* decoder, const FunctionSig* sig, V<CallTarget> callee,
+      V<HeapObject> ref, const Value args[],
+      compiler::WasmCallKind call_kind = compiler::kWasmFunction) {
+    if (mode_ == kRegular || mode_ == kInlinedTailCall) {
+      const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
+          compiler::GetWasmCallDescriptor(__ graph_zone(), sig, call_kind),
+          compiler::CanThrow::kYes, compiler::LazyDeoptOnThrow::kNo,
+          __ graph_zone());
 
-    base::SmallVector<OpIndex, 8> arg_indices(sig->parameter_count() + 1);
-    arg_indices[0] = ref;
-    for (uint32_t i = 0; i < sig->parameter_count(); i++) {
-      arg_indices[i + 1] = args[i].op;
+      SmallZoneVector<OpIndex, 16> arg_indices(sig->parameter_count() + 1,
+                                               decoder->zone_);
+      arg_indices[0] = ref;
+      for (uint32_t i = 0; i < sig->parameter_count(); i++) {
+        arg_indices[i + 1] = args[i].op;
+      }
+      __ TailCall(callee, base::VectorOf(arg_indices), descriptor);
+    } else {
+      if (__ generating_unreachable_operations()) return;
+      // This is a tail call in the inlinee, which in turn was a regular call.
+      // Transform the tail call into a regular call, and return the return
+      // values to the caller.
+      size_t return_count = sig->return_count();
+      SmallZoneVector<Value, 16> returns(return_count, decoder->zone_);
+      // Since an exception in a tail call cannot be caught in this frame, we
+      // should only catch exceptions in the generated call if this is a
+      // recursively inlined function, and the parent frame provides a handler.
+      BuildWasmCall(decoder, sig, callee, ref, args, returns.data(), call_kind,
+                    CheckForException::kCatchInParentFrame);
+      for (size_t i = 0; i < return_count; i++) {
+        return_phis_->AddInputForPhi(i, returns[i].op);
+      }
+      __ Goto(return_block_);
     }
-
-    __ TailCall(callee, base::VectorOf(arg_indices), descriptor);
   }
 
-  OpIndex CallBuiltinThroughJumptable(
-      FullDecoder* decoder, Builtin builtin, base::Vector<const OpIndex> args,
-      Operator::Properties properties = Operator::kNoProperties,
-      CheckForException check_for_exception = CheckForException::kNo) {
-    CallInterfaceDescriptor interface_descriptor =
-        Builtins::CallInterfaceDescriptorFor(builtin);
-    // TODO(14108): We should set properties like `Operator::kEliminatable`
-    // where applicable.
-    const CallDescriptor* call_descriptor =
-        compiler::Linkage::GetStubCallDescriptor(
-            __ graph_zone(), interface_descriptor,
-            interface_descriptor.GetStackParameterCount(),
-            CallDescriptor::kNoFlags, properties,
-            StubCallMode::kCallWasmRuntimeStub);
-    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kYes, __ graph_zone());
-    V<WordPtr> call_target = __ RelocatableWasmBuiltinCallTarget(builtin);
-    return check_for_exception == CheckForException::kYes
-               ? CallAndMaybeCatchException(decoder, call_target, args,
-                                            ts_call_descriptor)
-               : __ Call(call_target, OpIndex::Invalid(), args,
-                         ts_call_descriptor);
+  template <typename Descriptor>
+  compiler::turboshaft::detail::index_type_for_t<typename Descriptor::results_t>
+  CallBuiltinThroughJumptable(
+      FullDecoder* decoder, const typename Descriptor::arguments_t& args,
+      CheckForException check_for_exception = CheckForException::kNo)
+    requires(!Descriptor::kNeedsContext)
+  {
+    DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
+
+    V<WordPtr> callee =
+        __ RelocatableWasmBuiltinCallTarget(Descriptor::kFunction);
+    auto arguments = std::apply(
+        [](auto&&... as) {
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t> + 1>{
+              std::forward<decltype(as)>(as)...};
+        },
+        args);
+
+    return CallAndMaybeCatchException(
+        decoder, callee, base::VectorOf(arguments),
+        Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
+                           __ output_graph().graph_zone()),
+        check_for_exception, Descriptor::kEffects);
   }
 
-  OpIndex CallBuiltinThroughJumptable(
-      FullDecoder* decoder, Builtin builtin,
-      std::initializer_list<OpIndex> args,
-      Operator::Properties properties = Operator::kNoProperties,
-      CheckForException check_for_exception = CheckForException::kNo) {
-    return CallBuiltinThroughJumptable(decoder, builtin, base::VectorOf(args),
-                                       properties, check_for_exception);
+  template <typename Descriptor>
+  compiler::turboshaft::detail::index_type_for_t<typename Descriptor::results_t>
+  CallBuiltinThroughJumptable(
+      FullDecoder* decoder, V<Context> context,
+      const typename Descriptor::arguments_t& args,
+      CheckForException check_for_exception = CheckForException::kNo)
+    requires Descriptor::kNeedsContext
+  {
+    DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
+
+    V<WordPtr> callee =
+        __ RelocatableWasmBuiltinCallTarget(Descriptor::kFunction);
+    auto arguments = std::apply(
+        [context](auto&&... as) {
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t> + 1>{
+              std::forward<decltype(as)>(as)..., context};
+        },
+        args);
+
+    return CallAndMaybeCatchException(
+        decoder, callee, base::VectorOf(arguments),
+        Descriptor::Create(StubCallMode::kCallWasmRuntimeStub,
+                           __ output_graph().graph_zone()),
+        check_for_exception, Descriptor::kEffects);
   }
 
-  OpIndex CallAndMaybeCatchException(FullDecoder* decoder, V<WordPtr> callee,
+  template <typename Descriptor>
+  compiler::turboshaft::detail::index_type_for_t<typename Descriptor::results_t>
+  CallBuiltinByPointer(
+      FullDecoder* decoder, const typename Descriptor::arguments_t& args,
+      CheckForException check_for_exception = CheckForException::kNo)
+    requires(!Descriptor::kNeedsContext)
+  {
+    DCHECK_NE(check_for_exception, CheckForException::kCatchInParentFrame);
+
+    V<WordPtr> callee = GetBuiltinPointerTarget(Descriptor::kFunction);
+    auto arguments = std::apply(
+        [](auto&&... as) {
+          return base::SmallVector<
+              OpIndex, std::tuple_size_v<typename Descriptor::arguments_t> + 1>{
+              std::forward<decltype(as)>(as)...};
+        },
+        args);
+
+    return CallAndMaybeCatchException(
+        decoder, callee, base::VectorOf(arguments),
+        Descriptor::Create(StubCallMode::kCallBuiltinPointer,
+                           __ output_graph().graph_zone()),
+        check_for_exception, Descriptor::kEffects);
+  }
+
+ private:
+  void MaybeSetPositionToParent(OpIndex call,
+                                CheckForException check_for_exception) {
+    // For tail calls that we transform to regular calls, we need to set the
+    // call's position to that of the inlined call node to get correct stack
+    // traces.
+    if (check_for_exception == CheckForException::kCatchInParentFrame) {
+      __ output_graph().operation_origins()[call] = WasmPositionToOpIndex(
+          parent_position_.ScriptOffset(), parent_position_.InliningId() == -1
+                                               ? kNoInliningId
+                                               : parent_position_.InliningId());
+    }
+  }
+
+  OpIndex CallAndMaybeCatchException(FullDecoder* decoder, V<CallTarget> callee,
                                      base::Vector<const OpIndex> args,
-                                     const TSCallDescriptor* descriptor) {
-    if (decoder->current_catch() == -1) {
-      return __ Call(callee, OpIndex::Invalid(), args, descriptor);
+                                     const TSCallDescriptor* descriptor,
+                                     CheckForException check_for_exception,
+                                     OpEffects effects) {
+    if (check_for_exception == CheckForException::kNo) {
+      return __ Call(callee, OpIndex::Invalid(), args, descriptor, effects);
+    }
+    bool handled_in_this_frame =
+        decoder && decoder->current_catch() != -1 &&
+        check_for_exception == CheckForException::kCatchInThisFrame;
+    if (!handled_in_this_frame && mode_ != kInlinedWithCatch) {
+      OpIndex call =
+          __ Call(callee, OpIndex::Invalid(), args, descriptor, effects);
+      MaybeSetPositionToParent(call, check_for_exception);
+      return call;
     }
 
-    Control* current_catch =
-        decoder->control_at(decoder->control_depth_of_current_catch());
-    TSBlock* catch_block = current_catch->false_or_loop_or_catch_block;
+    TSBlock* catch_block;
+    if (handled_in_this_frame) {
+      Control* current_catch =
+          decoder->control_at(decoder->control_depth_of_current_catch());
+      catch_block = current_catch->false_or_loop_or_catch_block;
+    } else {
+      DCHECK_EQ(mode_, kInlinedWithCatch);
+      catch_block = return_catch_block_;
+    }
     TSBlock* success_block = __ NewBlock();
     TSBlock* exception_block = __ NewBlock();
     OpIndex call;
     {
       Assembler::CatchScope scope(asm_, exception_block);
 
-      call = __ Call(callee, OpIndex::Invalid(), args, descriptor);
+      call = __ Call(callee, OpIndex::Invalid(), args, descriptor, effects);
       __ Goto(success_block);
     }
 
     __ Bind(exception_block);
     OpIndex exception = __ CatchBlockBegin();
-    SetupControlFlowEdge(decoder, catch_block, 0, exception);
+    if (handled_in_this_frame) {
+      // The exceptional operation could have modified memory size; we need
+      // to reload the memory context into the exceptional control path.
+      instance_cache_.ReloadCachedMemory();
+      SetupControlFlowEdge(decoder, catch_block, 0, exception);
+    } else {
+      DCHECK_EQ(mode_, kInlinedWithCatch);
+      if (exception.valid()) return_phis_->AddIncomingException(exception);
+      // Reloading the InstanceCache will happen when {return_exception_phis_}
+      // are retrieved.
+    }
     __ Goto(catch_block);
 
     __ Bind(success_block);
+
+    MaybeSetPositionToParent(call, check_for_exception);
+
     return call;
-  }
-
-  OpIndex CallRuntime(Runtime::FunctionId f,
-                      std::initializer_list<const OpIndex> args) {
-    const Runtime::Function* fun = Runtime::FunctionForId(f);
-    OpIndex isolate_root = __ LoadRootRegister();
-    DCHECK_EQ(1, fun->result_size);
-    int builtin_slot_offset = IsolateData::BuiltinSlotOffset(
-        Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit);
-    OpIndex centry_stub =
-        __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::PointerSized(), builtin_slot_offset);
-    base::SmallVector<OpIndex, 8> centry_args;
-    for (OpIndex arg : args) centry_args.emplace_back(arg);
-    centry_args.emplace_back(__ ExternalConstant(ExternalReference::Create(f)));
-    centry_args.emplace_back(__ Word32Constant(fun->nargs));
-    centry_args.emplace_back(__ NoContextConstant());  // js_context
-    const CallDescriptor* call_descriptor =
-        compiler::Linkage::GetRuntimeCallDescriptor(
-            __ graph_zone(), f, fun->nargs, Operator::kNoProperties,
-            CallDescriptor::kNoFlags);
-    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kYes, __ graph_zone());
-    return __ Call(centry_stub, OpIndex::Invalid(), base::VectorOf(centry_args),
-                   ts_call_descriptor);
-  }
-
-  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
-                std::initializer_list<OpIndex> args) {
-    DCHECK_LE(sig->return_count(), 1);
-    const CallDescriptor* call_descriptor =
-        compiler::Linkage::GetSimplifiedCDescriptor(__ graph_zone(), sig);
-    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
-        call_descriptor, compiler::CanThrow::kNo, __ graph_zone());
-    return __ Call(__ ExternalConstant(ref), OpIndex::Invalid(),
-                   base::VectorOf(args), ts_call_descriptor);
-  }
-
-  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
-                OpIndex arg) {
-    return CallC(sig, ref, {arg});
   }
 
   OpIndex CallCStackSlotToInt32(OpIndex arg, ExternalReference ref,
@@ -4668,8 +7862,9 @@ class TurboshaftGraphBuildingInterface {
     V<WordPtr> stack_slot_param = __ StackSlot(slot_size, 0);
     int offset = 0;
     for (auto arg : args) {
-      __ Store(stack_slot_param, arg.first, StoreOp::Kind::RawUnaligned(),
-               arg.second, compiler::WriteBarrierKind::kNoWriteBarrier, offset);
+      __ Store(stack_slot_param, arg.first,
+               StoreOp::Kind::MaybeUnaligned(arg.second), arg.second,
+               compiler::WriteBarrierKind::kNoWriteBarrier, offset);
       offset += arg.second.SizeInBytes();
     }
     MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
@@ -4677,40 +7872,75 @@ class TurboshaftGraphBuildingInterface {
     return CallC(&sig, ref, stack_slot_param);
   }
 
-  OpIndex CallCStackSlotToStackSlot(OpIndex arg, ExternalReference ref,
-                                    MemoryRepresentation arg_type) {
-    V<WordPtr> stack_slot =
-        __ StackSlot(arg_type.SizeInBytes(), arg_type.SizeInBytes());
-    __ Store(stack_slot, arg, StoreOp::Kind::RawAligned(), arg_type,
-             compiler::WriteBarrierKind::kNoWriteBarrier);
+  OpIndex CallCStackSlotToStackSlot(
+      ExternalReference ref, MemoryRepresentation res_type,
+      std::initializer_list<std::pair<OpIndex, MemoryRepresentation>> args) {
+    int slot_size = 0;
+    for (auto arg : args) slot_size += arg.second.SizeInBytes();
+    // Since we are storing the arguments unaligned anyway, we do not need
+    // alignment > 0.
+    slot_size = std::max<int>(slot_size, res_type.SizeInBytes());
+    V<WordPtr> stack_slot_param = __ StackSlot(slot_size, 0);
+    int offset = 0;
+    for (auto arg : args) {
+      __ Store(stack_slot_param, arg.first,
+               StoreOp::Kind::MaybeUnaligned(arg.second), arg.second,
+               compiler::WriteBarrierKind::kNoWriteBarrier, offset);
+      offset += arg.second.SizeInBytes();
+    }
     MachineType reps[]{MachineType::Pointer()};
     MachineSignature sig(0, 1, reps);
-    CallC(&sig, ref, stack_slot);
-    return __ Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
+    CallC(&sig, ref, stack_slot_param);
+    return __ Load(stack_slot_param, LoadOp::Kind::RawAligned(), res_type);
+  }
+
+  OpIndex CallCStackSlotToStackSlot(OpIndex arg, ExternalReference ref,
+                                    MemoryRepresentation arg_type) {
+    return CallCStackSlotToStackSlot(arg, ref, arg_type, arg_type);
+  }
+
+  OpIndex CallCStackSlotToStackSlot(OpIndex arg, ExternalReference ref,
+                                    MemoryRepresentation arg_type,
+                                    MemoryRepresentation res_type) {
+    return CallCStackSlotToStackSlot(ref, res_type, {{arg, arg_type}});
   }
 
   OpIndex CallCStackSlotToStackSlot(OpIndex arg0, OpIndex arg1,
                                     ExternalReference ref,
                                     MemoryRepresentation arg_type) {
-    V<WordPtr> stack_slot =
-        __ StackSlot(2 * arg_type.SizeInBytes(), arg_type.SizeInBytes());
-    __ Store(stack_slot, arg0, StoreOp::Kind::RawAligned(), arg_type,
-             compiler::WriteBarrierKind::kNoWriteBarrier);
-    __ Store(stack_slot, arg1, StoreOp::Kind::RawAligned(), arg_type,
-             compiler::WriteBarrierKind::kNoWriteBarrier,
-             arg_type.SizeInBytes());
-    MachineType reps[]{MachineType::Pointer()};
-    MachineSignature sig(0, 1, reps);
-    CallC(&sig, ref, stack_slot);
-    return __ Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
+    return CallCStackSlotToStackSlot(ref, arg_type,
+                                     {{arg0, arg_type}, {arg1, arg_type}});
   }
 
-  V<WordPtr> MemoryIndexToUintPtrOrOOBTrap(bool memory_is_64, OpIndex index) {
-    if (!memory_is_64) return __ ChangeUint32ToUintPtr(index);
-    if (kSystemPointerSize == kInt64Size) return index;
-    __ TrapIf(__ TruncateWord64ToWord32(__ Word64ShiftRightLogical(index, 32)),
-              OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
-    return OpIndex(__ TruncateWord64ToWord32(index));
+  V<WordPtr> MemOrTableAddressToUintPtrOrOOBTrap(AddressType address_type,
+                                                 V<Word> index,
+                                                 TrapId trap_reason) {
+    // Note: this {ChangeUint32ToUintPtr} doesn't just satisfy the compiler's
+    // consistency checks, it's also load-bearing to prevent escaping from a
+    // compromised sandbox (where in-sandbox corruption can cause the high
+    // word of what's supposed to be an i32 to be non-zero).
+    if (address_type == AddressType::kI32) {
+      return __ ChangeUint32ToUintPtr(V<Word32>::Cast(index));
+    }
+    if constexpr (Is64()) {
+      return V<WordPtr>::Cast(index);
+    }
+    __ TrapIf(__ TruncateWord64ToWord32(
+                  __ Word64ShiftRightLogical(V<Word64>::Cast(index), 32)),
+              OpIndex::Invalid(), trap_reason);
+    return V<WordPtr>::Cast(__ TruncateWord64ToWord32(V<Word64>::Cast(index)));
+  }
+
+  V<WordPtr> MemoryAddressToUintPtrOrOOBTrap(AddressType address_type,
+                                             V<Word> index) {
+    return MemOrTableAddressToUintPtrOrOOBTrap(address_type, index,
+                                               TrapId::kTrapMemOutOfBounds);
+  }
+
+  V<WordPtr> TableAddressToUintPtrOrOOBTrap(AddressType address_type,
+                                            V<Word> index) {
+    return MemOrTableAddressToUintPtrOrOOBTrap(address_type, index,
+                                               TrapId::kTrapTableOutOfBounds);
   }
 
   V<Smi> ChangeUint31ToSmi(V<Word32> value) {
@@ -4733,64 +7963,25 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  // TODO(mliedtke): Emit __DecodeExternalPointer instead if sandbox enabled.
-  V<WordPtr> BuildDecodeExternalPointer(V<Word32> handle,
-                                        ExternalPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
-    // Decode loaded external pointer.
-    V<WordPtr> isolate_root = __ LoadRootRegister();
-    DCHECK(!IsSharedExternalPointerType(tag));
-    V<WordPtr> table =
-        __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                MemoryRepresentation::PointerSized(),
-                IsolateData::external_pointer_table_offset() +
-                    Internals::kExternalPointerTableBasePointerOffset);
-    V<Word32> index =
-        __ Word32ShiftRightLogical(handle, kExternalPointerIndexShift);
-    V<WordPtr> pointer =
-        __ LoadOffHeap(table, __ ChangeUint32ToUint64(index), 0,
-                       MemoryRepresentation::PointerSized());
-    pointer = __ Word64BitwiseAnd(pointer, __ Word64Constant(~tag));
-    return pointer;
-#else   // V8_ENABLE_SANDBOX
-    UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-  }
-
-  V<WordPtr> BuildDecodeExternalCodePointer(V<Word32> handle) {
-#ifdef V8_ENABLE_SANDBOX
-    V<Word32> index =
-        __ Word32ShiftRightLogical(handle, kCodePointerHandleShift);
-    V<WordPtr> offset = __ ChangeUint32ToUintPtr(
-        __ Word32ShiftLeft(index, kCodePointerTableEntrySizeLog2));
-    V<WordPtr> table =
-        __ ExternalConstant(ExternalReference::code_pointer_table_address());
-    return __ Load(table, offset, LoadOp::Kind::RawAligned(),
-                   MemoryRepresentation::PointerSized());
-#else
-    UNREACHABLE();
-#endif
-  }
-
   void BuildEncodeException32BitValue(V<FixedArray> values_array,
                                       uint32_t index, V<Word32> value) {
     V<Smi> upper_half =
         ChangeUint31ToSmi(__ Word32ShiftRightLogical(value, 16));
-    StoreFixedArrayElement(values_array, index, upper_half,
-                           compiler::kNoWriteBarrier);
+    __ StoreFixedArrayElement(values_array, index, upper_half,
+                              compiler::kNoWriteBarrier);
     V<Smi> lower_half = ChangeUint31ToSmi(__ Word32BitwiseAnd(value, 0xffffu));
-    StoreFixedArrayElement(values_array, index + 1, lower_half,
-                           compiler::kNoWriteBarrier);
+    __ StoreFixedArrayElement(values_array, index + 1, lower_half,
+                              compiler::kNoWriteBarrier);
   }
 
   V<Word32> BuildDecodeException32BitValue(V<FixedArray> exception_values_array,
                                            int index) {
     V<Word32> upper_half = __ Word32ShiftLeft(
-        ChangeSmiToUint32(
-            V<Smi>::Cast(LoadFixedArrayElement(exception_values_array, index))),
+        ChangeSmiToUint32(V<Smi>::Cast(
+            __ LoadFixedArrayElement(exception_values_array, index))),
         16);
-    V<Word32> lower_half = ChangeSmiToUint32(
-        V<Smi>::Cast(LoadFixedArrayElement(exception_values_array, index + 1)));
+    V<Word32> lower_half = ChangeSmiToUint32(V<Smi>::Cast(
+        __ LoadFixedArrayElement(exception_values_array, index + 1)));
     return __ Word32BitwiseOr(upper_half, lower_half);
   }
 
@@ -4805,13 +7996,12 @@ class TurboshaftGraphBuildingInterface {
     return __ Word64BitwiseOr(upper_half, lower_half);
   }
 
-  void UnpackWasmException(FullDecoder* decoder, V<Tagged> exception,
+  void UnpackWasmException(FullDecoder* decoder, V<Object> exception,
                            base::Vector<Value> values) {
-    V<FixedArray> exception_values_array = CallBuiltinThroughJumptable(
-        decoder, Builtin::kWasmGetOwnProperty,
-        {exception, LOAD_IMMUTABLE_ROOT(wasm_exception_values_symbol),
-         LOAD_IMMUTABLE_INSTANCE_FIELD(NativeContext,
-                                       MemoryRepresentation::TaggedPointer())});
+    V<FixedArray> exception_values_array = V<FixedArray>::Cast(
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
+            decoder, instance_cache_.native_context(),
+            {exception, LOAD_ROOT(wasm_exception_values_symbol)}));
 
     int index = 0;
     for (Value& value : values) {
@@ -4837,53 +8027,64 @@ class TurboshaftGraphBuildingInterface {
           index += 4;
           break;
         case kS128: {
-          value.op = __ Simd128Splat(
+          V<compiler::turboshaft::Simd128> value_s128;
+          value_s128 = __ Simd128Splat(
               BuildDecodeException32BitValue(exception_values_array, index),
               compiler::turboshaft::Simd128SplatOp::Kind::kI32x4);
           index += 2;
           using Kind = compiler::turboshaft::Simd128ReplaceLaneOp::Kind;
-          value.op = __ Simd128ReplaceLane(
-              value.op,
+          value_s128 = __ Simd128ReplaceLane(
+              value_s128,
               BuildDecodeException32BitValue(exception_values_array, index),
               Kind::kI32x4, 1);
           index += 2;
-          value.op = __ Simd128ReplaceLane(
-              value.op,
+          value_s128 = __ Simd128ReplaceLane(
+              value_s128,
               BuildDecodeException32BitValue(exception_values_array, index),
               Kind::kI32x4, 2);
           index += 2;
           value.op = __ Simd128ReplaceLane(
-              value.op,
+              value_s128,
               BuildDecodeException32BitValue(exception_values_array, index),
               Kind::kI32x4, 3);
           index += 2;
           break;
         }
-        case kRtt:
         case kRef:
         case kRefNull:
-          value.op = LoadFixedArrayElement(exception_values_array, index);
+          value.op = __ LoadFixedArrayElement(exception_values_array, index);
           index++;
           break;
         case kI8:
         case kI16:
+        case kF16:
         case kVoid:
+        case kTop:
         case kBottom:
           UNREACHABLE();
       }
     }
   }
 
+  void ThrowRef(FullDecoder* decoder, OpIndex exn) {
+    CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmThrowRef>(
+        decoder, {exn}, CheckForException::kCatchInThisFrame);
+    __ Unreachable();
+  }
+
   void AsmjsStoreMem(V<Word32> index, OpIndex value,
                      MemoryRepresentation repr) {
     // Since asmjs does not support unaligned accesses, we can bounds-check
     // ignoring the access size.
-    IF (LIKELY(
-            __ Uint32LessThan(index, __ TruncateWordPtrToWord32(MemSize(0))))) {
-      __ Store(MemStart(0), __ ChangeUint32ToUintPtr(index), value,
-               StoreOp::Kind::RawAligned(), repr, compiler::kNoWriteBarrier, 0);
+    // Technically, we should do a signed 32-to-ptr extension here. However,
+    // that is an explicit instruction, whereas unsigned extension is implicit.
+    // Since the difference is only observable for memories larger than 2 GiB,
+    // and since we disallow such memories, we can use unsigned extension.
+    V<WordPtr> index_ptr = __ ChangeUint32ToUintPtr(index);
+    IF (LIKELY(__ UintPtrLessThan(index_ptr, MemSize(0)))) {
+      __ Store(MemStart(0), index_ptr, value, StoreOp::Kind::RawAligned(), repr,
+               compiler::kNoWriteBarrier, 0);
     }
-    END_IF
   }
 
   OpIndex AsmjsLoadMem(V<Word32> index, MemoryRepresentation repr) {
@@ -4891,12 +8092,15 @@ class TurboshaftGraphBuildingInterface {
     // ignoring the access size.
     Variable result = __ NewVariable(repr.ToRegisterRepresentation());
 
-    IF (LIKELY(
-            __ Uint32LessThan(index, __ TruncateWordPtrToWord32(MemSize(0))))) {
-      __ SetVariable(result, __ Load(MemStart(0), __ ChangeInt32ToIntPtr(index),
+    // Technically, we should do a signed 32-to-ptr extension here. However,
+    // that is an explicit instruction, whereas unsigned extension is implicit.
+    // Since the difference is only observable for memories larger than 2 GiB,
+    // and since we disallow such memories, we can use unsigned extension.
+    V<WordPtr> index_ptr = __ ChangeUint32ToUintPtr(index);
+    IF (LIKELY(__ UintPtrLessThan(index_ptr, MemSize(0)))) {
+      __ SetVariable(result, __ Load(MemStart(0), index_ptr,
                                      LoadOp::Kind::RawAligned(), repr));
-    }
-    ELSE {
+    } ELSE {
       switch (repr) {
         case MemoryRepresentation::Int8():
         case MemoryRepresentation::Int16():
@@ -4918,14 +8122,13 @@ class TurboshaftGraphBuildingInterface {
           UNREACHABLE();
       }
     }
-    END_IF
 
     OpIndex result_op = __ GetVariable(result);
     __ SetVariable(result, OpIndex::Invalid());
     return result_op;
   }
 
-  void BoundsCheckArray(V<HeapObject> array, V<Word32> index,
+  void BoundsCheckArray(V<WasmArrayNullable> array, V<Word32> index,
                         ValueType array_type) {
     if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
       if (array_type.is_nullable()) {
@@ -4935,15 +8138,17 @@ class TurboshaftGraphBuildingInterface {
       OpIndex length = __ ArrayLength(array, array_type.is_nullable()
                                                  ? compiler::kWithNullCheck
                                                  : compiler::kWithoutNullCheck);
-      __ TrapIfNot(__ Uint32LessThan(index, length), OpIndex::Invalid(),
+      __ TrapIfNot(__ Uint32LessThan(index, length),
                    TrapId::kTrapArrayOutOfBounds);
     }
   }
 
-  void BoundsCheckArrayWithLength(V<HeapObject> array, V<Word32> index,
-                                  V<Word32> length,
-                                  compiler::CheckForNull null_check) {
-    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
+  V<WasmArray> BoundsCheckArrayWithLength(V<WasmArrayNullable> array,
+                                          V<Word32> index, V<Word32> length,
+                                          compiler::CheckForNull null_check) {
+    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) {
+      return V<WasmArray>::Cast(array);
+    }
     V<Word32> array_length = __ ArrayLength(array, null_check);
     V<Word32> range_end = __ Word32Add(index, length);
     V<Word32> range_valid = __ Word32BitwiseAnd(
@@ -4951,35 +8156,9 @@ class TurboshaftGraphBuildingInterface {
         __ Uint32LessThanOrEqual(range_end, array_length),
         // OOB if (index + length) overflows.
         __ Uint32LessThanOrEqual(index, range_end));
-    __ TrapIfNot(range_valid, OpIndex::Invalid(),
-                 TrapId::kTrapArrayOutOfBounds);
-  }
-
-  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, int index) {
-    return __ Load(array, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::AnyTagged(),
-                   FixedArray::kHeaderSize + index * kTaggedSize);
-  }
-
-  V<Tagged> LoadFixedArrayElement(V<FixedArray> array, V<WordPtr> index) {
-    return __ Load(array, index, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::AnyTagged(), FixedArray::kHeaderSize,
-                   kTaggedSizeLog2);
-  }
-
-  void StoreFixedArrayElement(V<FixedArray> array, int index, V<Tagged> value,
-                              compiler::WriteBarrierKind write_barrier) {
-    __ Store(array, value, LoadOp::Kind::TaggedBase(),
-             MemoryRepresentation::AnyTagged(), write_barrier,
-             FixedArray::kHeaderSize + index * kTaggedSize);
-  }
-
-  void StoreFixedArrayElement(V<FixedArray> array, V<WordPtr> index,
-                              V<Tagged> value,
-                              compiler::WriteBarrierKind write_barrier) {
-    __ Store(array, index, value, LoadOp::Kind::TaggedBase(),
-             MemoryRepresentation::AnyTagged(), write_barrier,
-             FixedArray::kHeaderSize, kTaggedSizeLog2);
+    __ TrapIfNot(range_valid, TrapId::kTrapArrayOutOfBounds);
+    // The array is now guaranteed to be non-null.
+    return V<WasmArray>::Cast(array);
   }
 
   void BrOnCastImpl(FullDecoder* decoder, V<Map> rtt,
@@ -4990,9 +8169,8 @@ class TurboshaftGraphBuildingInterface {
     IF (cast_succeeds) {
       // Narrow type for the successful cast target branch.
       Forward(decoder, object, value_on_branch);
-      BrOrRet(decoder, br_depth, 0);
+      BrOrRet(decoder, br_depth);
     }
-    END_IF
     // Note: Differently to below for br_on_cast_fail, we do not Forward
     // the value here to perform a TypeGuard. It can't be done here due to
     // asymmetric decoder code. A Forward here would be popped from the stack
@@ -5010,66 +8188,81 @@ class TurboshaftGraphBuildingInterface {
       // This will add a TypeGuard to the non-null type (as in this case the
       // object is non-nullable).
       Forward(decoder, object, decoder->stack_value(1));
-      BrOrRet(decoder, br_depth, 0);
+      BrOrRet(decoder, br_depth);
     }
-    END_IF
     // Narrow type for the successful cast fallthrough branch.
-    Forward(decoder, object, value_on_fallthrough);
+    value_on_fallthrough->op =
+        __ AnnotateWasmType(V<Object>::Cast(object.op), config.to);
   }
 
-  V<HeapObject> ArrayNewImpl(FullDecoder* decoder, uint32_t index,
-                             const ArrayType* array_type, OpIndex length,
-                             OpIndex initial_value) {
-    __ TrapIfNot(
-        __ Uint32LessThanOrEqual(
-            length, __ Word32Constant(WasmArray::MaxLength(array_type))),
-        OpIndex::Invalid(), wasm::TrapId::kTrapArrayTooLarge);
-    wasm::ValueType element_type = array_type->element_type();
-
-    // RoundUp(length * value_size, kObjectAlignment) =
-    //   RoundDown(length * value_size + kObjectAlignment - 1,
-    //             kObjectAlignment);
-    V<Word32> padded_length = __ Word32BitwiseAnd(
-        __ Word32Add(__ Word32Mul(length, __ Word32Constant(
-                                              element_type.value_kind_size())),
-                     __ Word32Constant(int32_t{kObjectAlignment - 1})),
-        __ Word32Constant(int32_t{-kObjectAlignment}));
-    Uninitialized<HeapObject> a = __ Allocate(
-        __ ChangeUint32ToUintPtr(__ Word32Add(
-            padded_length, __ Word32Constant(WasmArray::kHeaderSize))),
-        AllocationType::kYoung);
-
+  V<HeapObject> ArrayNewImpl(FullDecoder* decoder, ModuleTypeIndex index,
+                             const ArrayType* array_type, V<Word32> length,
+                             V<Any> initial_value) {
     // Initialize the array header.
-    V<Map> rtt = __ RttCanon(instance_node_, index);
-    // TODO(14108): The map and empty fixed array initialization should be an
-    // immutable store.
-    __ InitializeField(a, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
-                       rtt);
-    __ InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                       LOAD_ROOT(EmptyFixedArray));
-    __ InitializeField(a, AccessBuilder::ForWasmArrayLength(), length);
-
-    // TODO(14108): Array initialization isn't finished here but we need the
-    // OpIndex and not some Uninitialized<HeapObject>.
-    V<HeapObject> array = __ FinishInitialization(std::move(a));
+    bool shared = decoder->module_->type(index).is_shared;
+    V<Map> rtt = __ RttCanon(managed_object_maps(shared), index);
+    V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type, shared);
+    // Initialize the elements.
     ArrayFillImpl(array, __ Word32Constant(0), initial_value, length,
                   array_type, false);
     return array;
   }
 
-  V<HeapObject> StructNewImpl(const StructIndexImmediate& imm, OpIndex args[]) {
-    int size = WasmStruct::Size(imm.struct_type);
-    Uninitialized<HeapObject> s = __ Allocate(size, AllocationType::kYoung);
-    V<Map> rtt = __ RttCanon(instance_node_, imm.index);
-    __ InitializeField(s, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
-                       rtt);
-    __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
-                       LOAD_ROOT(EmptyFixedArray));
-    // TODO(14108): Struct initialization isn't finished here but we need the
-    // OpIndex and not some Uninitialized<HeapObject>.
-    V<HeapObject> struct_value = __ FinishInitialization(std::move(s));
+  V<Map> GetRttFromDescriptor(const Value& descriptor) {
+    V<WasmStructNullable> descriptor_struct =
+        V<WasmStructNullable>::Cast(descriptor.op);
+    // TODO(jkummerow): Refactor this to share the logic with
+    // wasm-lowering-reducer.h.
+    bool force_explicit_null_check =
+        !trap_handler::IsTrapHandlerEnabled() || !V8_STATIC_ROOTS_BOOL;
+    bool explicit_null_check =
+        descriptor.type.is_nullable() && force_explicit_null_check;
+    bool implicit_null_check =
+        descriptor.type.is_nullable() && !force_explicit_null_check;
+
+    if (explicit_null_check) {
+      __ TrapIf(__ IsNull(descriptor_struct, wasm::kWasmAnyRef),
+                TrapId::kTrapNullDereference);
+    }
+    LoadOp::Kind load_kind = implicit_null_check ? LoadOp::Kind::TrapOnNull()
+                                                 : LoadOp::Kind::TaggedBase();
+    load_kind = load_kind.Immutable();
+    return __ Load(descriptor_struct, load_kind,
+                   MemoryRepresentation::TaggedPointer(),
+                   WasmStruct::kHeaderSize);
+  }
+
+  V<WasmStruct> StructNewImpl(FullDecoder* decoder,
+                              const StructIndexImmediate& imm,
+                              const Value& descriptor, OpIndex args[],
+                              bool has_nondefault_args) {
+    const TypeDefinition& type = decoder->module_->type(imm.index);
+    DCHECK_EQ(type.has_descriptor(), descriptor.op.valid());
+    V<Map> rtt;
+    if (type.has_descriptor()) {
+      rtt = GetRttFromDescriptor(descriptor);
+    } else {
+      rtt = __ RttCanon(managed_object_maps(type.is_shared), imm.index);
+    }
+
+    V<WasmStruct> struct_value;
+    if (type.is_descriptor()) {
+      bool pass_potential_prototype =
+          has_nondefault_args &&
+          imm.struct_type->first_field_can_be_prototype();
+      V<Object> first_field =
+          pass_potential_prototype ? args[0] : __ SmiZeroConstant();
+
+      struct_value = CallBuiltinThroughJumptable<
+          BuiltinCallDescriptor::WasmAllocateDescriptorStruct>(
+          decoder, {rtt, __ Word32Constant(imm.index.index), first_field});
+    } else {
+      const bool shared = type.is_shared;
+      struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, shared);
+    }
+
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {
-      __ StructSet(struct_value, args[i], imm.struct_type, i,
+      __ StructSet(struct_value, args[i], imm.struct_type, imm.index, i,
                    compiler::kWithoutNullCheck);
     }
     // If this assert fails then initialization of padding field might be
@@ -5088,7 +8281,7 @@ class TurboshaftGraphBuildingInterface {
     return s128_op && s128_op->IsZero();
   }
 
-  void ArrayFillImpl(V<HeapObject> array, OpIndex index, OpIndex value,
+  void ArrayFillImpl(V<WasmArray> array, V<Word32> index, V<Any> value,
                      OpIndex length, const wasm::ArrayType* type,
                      bool emit_write_barrier) {
     wasm::ValueType element_type = type->element_type();
@@ -5097,77 +8290,272 @@ class TurboshaftGraphBuildingInterface {
     // null/number initializer. Use a loop for small arrays and reference arrays
     // with a non-null initial value.
     Label<> done(&asm_);
-    LoopLabel<Word32> loop(&asm_);
 
     // The builtin cannot handle s128 values other than 0.
     if (!(element_type == wasm::kWasmS128 && !IsSimd128ZeroConstant(value))) {
       constexpr uint32_t kArrayNewMinimumSizeForMemSet = 16;
-      GOTO_IF(__ Uint32LessThan(
-                  length, __ Word32Constant(kArrayNewMinimumSizeForMemSet)),
-              loop, index);
-      OpIndex stack_slot = StoreInInt64StackSlot(value, element_type);
-      MachineType arg_types[]{
-          MachineType::TaggedPointer(), MachineType::Uint32(),
-          MachineType::Uint32(),        MachineType::Uint32(),
-          MachineType::Uint32(),        MachineType::Pointer()};
-      MachineSignature sig(0, 6, arg_types);
-      CallC(
-          &sig, ExternalReference::wasm_array_fill(),
-          {array, index, length, __ Word32Constant(emit_write_barrier ? 1 : 0),
-           __ Word32Constant(element_type.raw_bit_field()), stack_slot});
-      GOTO(done);
-    } else {
-      GOTO(loop, index);
+      IF_NOT (__ Uint32LessThan(
+                  length, __ Word32Constant(kArrayNewMinimumSizeForMemSet))) {
+        OpIndex stack_slot = StoreInStackSlot(value, element_type);
+        MachineType arg_types[]{
+            MachineType::TaggedPointer(), MachineType::Uint32(),
+            MachineType::Uint32(),        MachineType::Uint32(),
+            MachineType::Uint32(),        MachineType::Pointer()};
+        MachineSignature sig(0, 6, arg_types);
+        CallC(&sig, ExternalReference::wasm_array_fill(),
+              {array, index, length,
+               __ Word32Constant(emit_write_barrier ? 1 : 0),
+               __ Word32Constant(element_type.raw_bit_field()), stack_slot});
+        GOTO(done);
+      }
     }
-    LOOP(loop, current_index) {
-      V<Word32> check =
-          __ Uint32LessThan(current_index, __ Word32Add(index, length));
-      GOTO_IF_NOT(check, done);
+
+    ScopedVar<Word32> current_index(this, index);
+
+    WHILE(__ Uint32LessThan(current_index, __ Word32Add(index, length))) {
       __ ArraySet(array, current_index, value, type->element_type());
       current_index = __ Word32Add(current_index, 1);
-      GOTO(loop, current_index);
     }
+
+    GOTO(done);
+
     BIND(done);
   }
 
-  V<WordPtr> StoreInInt64StackSlot(OpIndex value, wasm::ValueType type) {
-    OpIndex value_int64;
+  V<WordPtr> StoreInStackSlot(OpIndex value, wasm::ValueType type) {
+    // The input is unpacked.
+    ValueType input_type = type.Unpacked();
+
     switch (type.kind()) {
       case wasm::kI32:
       case wasm::kI8:
       case wasm::kI16:
-        value_int64 = __ ChangeInt32ToInt64(value);
-        break;
       case wasm::kI64:
-        value_int64 = value;
+      case wasm::kF32:
+      case wasm::kF64:
+      case wasm::kRefNull:
+      case wasm::kRef:
         break;
       case wasm::kS128:
         // We can only get here if {value} is the constant 0.
         DCHECK(__ output_graph().Get(value).Cast<Simd128ConstantOp>().IsZero());
-        value_int64 = __ Word64Constant(uint64_t{0});
+        value = __ Word64Constant(uint64_t{0});
+        input_type = kWasmI64;
         break;
-      case wasm::kF32:
-        value_int64 = __ ChangeUint32ToUint64(__ BitcastFloat32ToWord32(value));
-        break;
-      case wasm::kF64:
-        value_int64 = __ BitcastFloat64ToWord64(value);
-        break;
-      case wasm::kRefNull:
-      case wasm::kRef:
-        value_int64 = kTaggedSize == 4 ? __ ChangeInt32ToInt64(value) : value;
-        break;
-      case wasm::kRtt:
+      case wasm::kF16:
+        UNIMPLEMENTED();
       case wasm::kVoid:
+      case kTop:
       case wasm::kBottom:
         UNREACHABLE();
     }
 
-    MemoryRepresentation int64_rep = MemoryRepresentation::Int64();
+    // Differently to values on the heap, stack slots are always uncompressed.
+    MemoryRepresentation memory_rep =
+        type.is_reference() ? MemoryRepresentation::UncompressedTaggedPointer()
+                            : MemoryRepresentation::FromMachineRepresentation(
+                                  input_type.machine_representation());
     V<WordPtr> stack_slot =
-        __ StackSlot(int64_rep.SizeInBytes(), int64_rep.SizeInBytes());
-    __ Store(stack_slot, value_int64, StoreOp::Kind::RawAligned(), int64_rep,
+        __ StackSlot(memory_rep.SizeInBytes(), memory_rep.SizeInBytes(),
+                     type.is_reference());
+    __ Store(stack_slot, value, StoreOp::Kind::RawAligned(), memory_rep,
              compiler::WriteBarrierKind::kNoWriteBarrier);
     return stack_slot;
+  }
+
+  bool InlineTargetIsTypeCompatible(const WasmModule* module,
+                                    const FunctionSig* sig,
+                                    const FunctionSig* inlinee) {
+    if (sig->parameter_count() != inlinee->parameter_count()) return false;
+    if (sig->return_count() != inlinee->return_count()) return false;
+    for (size_t i = 0; i < sig->return_count(); ++i) {
+      if (!IsSubtypeOf(inlinee->GetReturn(i), sig->GetReturn(i), module))
+        return false;
+    }
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      if (!IsSubtypeOf(sig->GetParam(i), inlinee->GetParam(i), module))
+        return false;
+    }
+    return true;
+  }
+
+  void InlineWasmCall(FullDecoder* decoder, uint32_t func_index,
+                      const FunctionSig* sig, uint32_t feedback_case,
+                      bool is_tail_call, const Value args[], Value returns[]) {
+    DCHECK_IMPLIES(is_tail_call, returns == nullptr);
+    const WasmFunction& inlinee = decoder->module_->functions[func_index];
+    // In a corrupted sandbox, we can't trust the collected feedback.
+    SBXCHECK(InlineTargetIsTypeCompatible(decoder->module_, sig, inlinee.sig));
+
+    SmallZoneVector<OpIndex, 16> inlinee_args(
+        inlinee.sig->parameter_count() + 1, decoder->zone_);
+    bool inlinee_is_shared = decoder->module_->function_is_shared(func_index);
+    inlinee_args[0] = trusted_instance_data(inlinee_is_shared);
+    for (size_t i = 0; i < inlinee.sig->parameter_count(); i++) {
+      inlinee_args[i + 1] = args[i].op;
+    }
+
+    base::Vector<const uint8_t> function_bytes =
+        wire_bytes_->GetCode(inlinee.code);
+
+    const wasm::FunctionBody inlinee_body{
+        inlinee.sig, inlinee.code.offset(), function_bytes.begin(),
+        function_bytes.end(), inlinee_is_shared};
+
+    // If the inlinee was not validated before, do that now.
+    if (V8_UNLIKELY(!decoder->module_->function_was_validated(func_index))) {
+      if (ValidateFunctionBody(decoder->zone_, decoder->enabled_,
+                               decoder->module_, decoder->detected_,
+                               inlinee_body)
+              .failed()) {
+        // At this point we cannot easily raise a compilation error any more.
+        // Since this situation is highly unlikely though, we just ignore this
+        // inlinee, emit a regular call, and move on. The same validation error
+        // will be triggered again when actually compiling the invalid function.
+        V<WordPtr> callee =
+            __ RelocatableConstant(func_index, RelocInfo::WASM_CALL);
+        if (is_tail_call) {
+          BuildWasmMaybeReturnCall(
+              decoder, sig, callee,
+              trusted_instance_data(
+                  decoder->module_->function_is_shared(func_index)),
+              args);
+        } else {
+          BuildWasmCall(decoder, sig, callee,
+                        trusted_instance_data(
+                            decoder->module_->function_is_shared(func_index)),
+                        args, returns);
+        }
+        return;
+      }
+      decoder->module_->set_function_validated(func_index);
+    }
+
+    BlockPhis fresh_return_phis(decoder->zone_);
+
+    Mode inlinee_mode;
+    TSBlock* callee_catch_block = nullptr;
+    TSBlock* callee_return_block;
+    BlockPhis* inlinee_return_phis;
+
+    if (is_tail_call) {
+      if (mode_ == kInlinedTailCall || mode_ == kRegular) {
+        inlinee_mode = kInlinedTailCall;
+        callee_return_block = nullptr;
+        inlinee_return_phis = nullptr;
+      } else {
+        // A tail call inlined inside a regular call inherits its settings,
+        // as any `return` statement returns to the nearest non-tail caller.
+        inlinee_mode = mode_;
+        callee_return_block = return_block_;
+        inlinee_return_phis = return_phis_;
+        if (mode_ == kInlinedWithCatch) {
+          callee_catch_block = return_catch_block_;
+        }
+      }
+    } else {
+      // Regular call (i.e. not a tail call).
+      if (mode_ == kInlinedWithCatch || decoder->current_catch() != -1) {
+        inlinee_mode = kInlinedWithCatch;
+        // TODO(14108): If this is a nested inlining, can we forward the
+        // caller's catch block instead?
+        callee_catch_block = __ NewBlock();
+      } else {
+        inlinee_mode = kInlinedUnhandled;
+      }
+      callee_return_block = __ NewBlock();
+      inlinee_return_phis = &fresh_return_phis;
+    }
+
+    OptionalV<FrameState> frame_state;
+    if (deopts_enabled()) {
+      frame_state = is_tail_call
+                        ? parent_frame_state_
+                        : CreateFrameState(decoder, sig, /*funcref*/ nullptr,
+                                           /*args*/ nullptr);
+    }
+
+    WasmFullDecoder<TurboshaftGraphBuildingInterface::ValidationTag,
+                    TurboshaftGraphBuildingInterface>
+        inlinee_decoder(decoder->zone_, decoder->module_, decoder->enabled_,
+                        decoder->detected_, inlinee_body, decoder->zone_, env_,
+                        asm_, inlinee_mode, instance_cache_, assumptions_,
+                        inlining_positions_, func_index, inlinee_is_shared,
+                        wire_bytes_, base::VectorOf(inlinee_args),
+                        callee_return_block, inlinee_return_phis,
+                        callee_catch_block, is_tail_call, frame_state);
+    SourcePosition call_position =
+        SourcePosition(decoder->position(), inlining_id_ == kNoInliningId
+                                                ? SourcePosition::kNotInlined
+                                                : inlining_id_);
+    inlining_positions_->push_back(
+        {static_cast<int>(func_index), is_tail_call, call_position});
+    inlinee_decoder.interface().set_inlining_id(
+        static_cast<uint8_t>(inlining_positions_->size() - 1));
+    inlinee_decoder.interface().set_parent_position(call_position);
+    // Explicitly disable deopts if it has already been disabled for this
+    // function.
+    if (!deopts_enabled()) {
+      inlinee_decoder.interface().disable_deopts();
+    }
+    if (v8_flags.liftoff) {
+      if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
+        inlinee_decoder.interface().set_inlining_decisions(
+            inlining_decisions_
+                ->function_calls()[feedback_slot_][feedback_case]);
+      }
+    } else {
+      no_liftoff_inlining_budget_ -= inlinee.code.length();
+      inlinee_decoder.interface().set_no_liftoff_inlining_budget(
+          no_liftoff_inlining_budget_);
+    }
+    inlinee_decoder.Decode();
+    // The function was already validated above.
+    DCHECK(inlinee_decoder.ok());
+
+    DCHECK_IMPLIES(!is_tail_call && inlinee_mode == kInlinedWithCatch,
+                   inlinee_return_phis != nullptr);
+
+    if (!is_tail_call && inlinee_mode == kInlinedWithCatch &&
+        !inlinee_return_phis->incoming_exceptions().empty()) {
+      // We need to handle exceptions in the inlined call.
+      __ Bind(callee_catch_block);
+      OpIndex exception =
+          MaybePhi(inlinee_return_phis->incoming_exceptions(), kWasmExternRef);
+      bool handled_in_this_frame = decoder->current_catch() != -1;
+      TSBlock* catch_block;
+      if (handled_in_this_frame) {
+        Control* current_catch =
+            decoder->control_at(decoder->control_depth_of_current_catch());
+        catch_block = current_catch->false_or_loop_or_catch_block;
+        // The exceptional operation could have modified memory size; we need
+        // to reload the memory context into the exceptional control path.
+        instance_cache_.ReloadCachedMemory();
+        SetupControlFlowEdge(decoder, catch_block, 0, exception);
+      } else {
+        DCHECK_EQ(mode_, kInlinedWithCatch);
+        catch_block = return_catch_block_;
+        if (exception.valid()) return_phis_->AddIncomingException(exception);
+        // Reloading the InstanceCache will happen when {return_exception_phis_}
+        // are retrieved.
+      }
+      __ Goto(catch_block);
+    }
+
+    if (!is_tail_call) {
+      __ Bind(callee_return_block);
+      BlockPhis* return_phis = inlinee_decoder.interface().return_phis();
+      size_t return_count = inlinee.sig->return_count();
+      for (size_t i = 0; i < return_count; i++) {
+        returns[i].op =
+            MaybePhi(return_phis->phi_inputs(i), return_phis->phi_type(i));
+      }
+    }
+
+    if (!v8_flags.liftoff) {
+      set_no_liftoff_inlining_budget(
+          inlinee_decoder.interface().no_liftoff_inlining_budget());
+    }
   }
 
   TrapId GetTrapIdForTrap(wasm::TrapReason reason) {
@@ -5185,69 +8573,227 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  OpIndex WasmPositionToOpIndex(WasmCodePosition position) {
-    return OpIndex(sizeof(compiler::turboshaft::OperationStorageSlot) *
-                   static_cast<int>(position));
+  // We need this shift so that resulting OpIndex offsets are multiples of
+  // `sizeof(OperationStorageSlot)`.
+  static constexpr int kPositionFieldShift = 3;
+  static_assert(sizeof(compiler::turboshaft::OperationStorageSlot) ==
+                1 << kPositionFieldShift);
+  static constexpr int kPositionFieldSize = 23;
+  static_assert(kV8MaxWasmFunctionSize < (1 << kPositionFieldSize));
+  static constexpr int kInliningIdFieldSize = 6;
+  static constexpr uint8_t kNoInliningId = 63;
+  static_assert((1 << kInliningIdFieldSize) - 1 == kNoInliningId);
+  // We need to assign inlining_ids to inlined nodes.
+  static_assert(kNoInliningId > InliningTree::kMaxInlinedCount);
+
+  // We encode the wasm code position and the inlining index in an OpIndex
+  // stored in the output graph's node origins.
+  using PositionField =
+      base::BitField<WasmCodePosition, kPositionFieldShift, kPositionFieldSize>;
+  using InliningIdField = PositionField::Next<uint8_t, kInliningIdFieldSize>;
+
+  OpIndex WasmPositionToOpIndex(WasmCodePosition position, int inlining_id) {
+    return OpIndex::FromOffset(PositionField::encode(position) |
+                               InliningIdField::encode(inlining_id));
   }
 
-  WasmCodePosition OpIndexToWasmPosition(OpIndex index) {
-    return index.valid()
-               ? static_cast<WasmCodePosition>(
-                     index.offset() /
-                     sizeof(compiler::turboshaft::OperationStorageSlot))
-               : kNoCodePosition;
+  SourcePosition OpIndexToSourcePosition(OpIndex index) {
+    DCHECK(index.valid());
+    uint8_t inlining_id = InliningIdField::decode(index.offset());
+    return SourcePosition(PositionField::decode(index.offset()),
+                          inlining_id == kNoInliningId
+                              ? SourcePosition::kNotInlined
+                              : inlining_id);
   }
 
   BranchHint GetBranchHint(FullDecoder* decoder) {
-    WasmBranchHint hint =
-        branch_hints_ ? branch_hints_->GetHintFor(decoder->pc_relative_offset())
-                      : WasmBranchHint::kNoHint;
-    switch (hint) {
-      case WasmBranchHint::kNoHint:
-        return BranchHint::kNone;
-      case WasmBranchHint::kUnlikely:
-        return BranchHint::kFalse;
-      case WasmBranchHint::kLikely:
-        return BranchHint::kTrue;
+    // Minimize overhead when branch hints aren't being used.
+    if (branch_hinting_mode_ == BranchHintingMode::kNone) {
+      return BranchHint::kNone;
+    }
+    if (branch_hinting_mode_ == BranchHintingMode::kModuleProvided) {
+      return branch_hints_->GetHintFor(decoder->pc_relative_offset());
+    }
+    if (branch_hinting_mode_ == BranchHintingMode::kStress) {
+      return branch_hinting_stresser_.GetNextHint();
+    }
+    UNREACHABLE();
+  }
+
+ private:
+  bool should_inline(FullDecoder* decoder, int feedback_slot, int size) {
+    if (!v8_flags.wasm_inlining) return false;
+    // TODO(42204563,41480394,335082212): Do not inline if the current function
+    // is shared (which also implies the target cannot be shared either).
+    if (shared_) return false;
+
+    // Configuration without Liftoff and feedback, e.g., for testing.
+    if (!v8_flags.liftoff) {
+      return size < no_liftoff_inlining_budget_ &&
+             // In a production configuration, `InliningTree` decides what to
+             // (not) inline, e.g., asm.js functions or to not exceed
+             // `kMaxInlinedCount`. But without Liftoff, we need to "manually"
+             // comply with these constraints here.
+             !is_asmjs_module(decoder->module_) &&
+             inlining_positions_->size() < InliningTree::kMaxInlinedCount;
+    }
+
+    // Default, production configuration: Liftoff collects feedback, which
+    // decides whether we inline:
+    if (inlining_decisions_ && inlining_decisions_->feedback_found()) {
+      DCHECK_GT(inlining_decisions_->function_calls().size(), feedback_slot);
+      // We should inline if at least one case for this feedback slot needs
+      // to be inlined.
+      for (InliningTree* tree :
+           inlining_decisions_->function_calls()[feedback_slot]) {
+        if (tree && tree->is_inlined()) {
+          DCHECK(!decoder->module_->function_is_shared(tree->function_index()));
+          return true;
+        }
+      }
+      return false;
+    }
+    return false;
+  }
+
+  void set_inlining_decisions(InliningTree* inlining_decisions) {
+    inlining_decisions_ = inlining_decisions;
+  }
+
+  BlockPhis* return_phis() { return return_phis_; }
+  void set_inlining_id(uint8_t inlining_id) {
+    DCHECK_NE(inlining_id, kNoInliningId);
+    inlining_id_ = inlining_id;
+  }
+  void set_parent_position(SourcePosition position) {
+    parent_position_ = position;
+  }
+  int no_liftoff_inlining_budget() { return no_liftoff_inlining_budget_; }
+  void set_no_liftoff_inlining_budget(int no_liftoff_inlining_budget) {
+    no_liftoff_inlining_budget_ = no_liftoff_inlining_budget;
+  }
+
+  void disable_deopts() { deopts_enabled_ = false; }
+  bool deopts_enabled() {
+    if (!deopts_enabled_.has_value()) {
+      deopts_enabled_ = v8_flags.wasm_deopt;
+      if (v8_flags.wasm_deopt) {
+        const wasm::TypeFeedbackStorage& feedback = env_->module->type_feedback;
+        base::MutexGuard mutex_guard(&feedback.mutex);
+        auto iter = feedback.deopt_count_for_function.find(func_index_);
+        if (iter != feedback.deopt_count_for_function.end() &&
+            iter->second >= v8_flags.wasm_deopts_per_function_limit) {
+          deopts_enabled_ = false;
+          if (v8_flags.trace_wasm_inlining) {
+            PrintF(
+                "[function %d%s: Disabling deoptimizations for speculative "
+                "inlining as the deoptimization limit (%u) for this function "
+                "is reached or exceeded (%zu)]\n",
+                func_index_, mode_ == kRegular ? "" : " (inlined)",
+                iter->second, v8_flags.wasm_deopts_per_function_limit.value());
+          }
+        }
+      }
+    }
+    return deopts_enabled_.value();
+  }
+
+  V<WasmTrustedInstanceData> trusted_instance_data(bool element_is_shared) {
+    DCHECK_IMPLIES(shared_, element_is_shared);
+    return (element_is_shared && !shared_)
+               ? LOAD_IMMUTABLE_PROTECTED_INSTANCE_FIELD(
+                     instance_cache_.trusted_instance_data(), SharedPart,
+                     WasmTrustedInstanceData)
+               : instance_cache_.trusted_instance_data();
+  }
+
+  V<FixedArray> managed_object_maps(bool type_is_shared) {
+    DCHECK_IMPLIES(shared_, type_is_shared);
+    if (type_is_shared && !shared_) {
+      V<WasmTrustedInstanceData> shared_instance = trusted_instance_data(true);
+      return LOAD_IMMUTABLE_INSTANCE_FIELD(
+          shared_instance, ManagedObjectMaps,
+          MemoryRepresentation::TaggedPointer());
+    } else {
+      return instance_cache_.managed_object_maps();
     }
   }
 
-  Assembler& Asm() { return asm_; }
+ private:
+  Mode mode_;
+  ZoneAbslFlatHashMap<TSBlock*, BlockPhis> block_phis_;
+  CompilationEnv* env_;
+  // Only used for "top-level" instantiations, not for inlining.
+  std::unique_ptr<InstanceCache> owned_instance_cache_;
 
-  V<WasmInstanceObject> instance_node_;
-  std::unordered_map<TSBlock*, BlockPhis> block_phis_;
-  Assembler asm_;
-  AssumptionsJournal* assumptions_;
-  std::vector<OpIndex> ssa_env_;
-  bool did_bailout_ = false;
+  // The instance cache to use (may be owned or passed in).
+  InstanceCache& instance_cache_;
+
+  // Yes, a *pointer* to a `unique_ptr`. The `unique_ptr` is allocated lazily
+  // when adding the first assumption.
+  std::unique_ptr<AssumptionsJournal>* assumptions_;
+  ZoneVector<WasmInliningPosition>* inlining_positions_;
+  uint8_t inlining_id_ = kNoInliningId;
+  ZoneVector<OpIndex> ssa_env_;
   compiler::NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
           ? compiler::NullCheckStrategy::kTrapHandler
           : compiler::NullCheckStrategy::kExplicit;
   int func_index_;
+  bool shared_;
+  const WireBytesStorage* wire_bytes_;
+  BranchHintingMode branch_hinting_mode_;
   const BranchHintMap* branch_hints_ = nullptr;
+  BranchHintingStresser branch_hinting_stresser_;
+  InliningTree* inlining_decisions_ = nullptr;
+  int feedback_slot_ = -1;
+  // Inlining budget in case of --no-liftoff.
+  int no_liftoff_inlining_budget_ = 0;
+  uint32_t liftoff_frame_size_ =
+      FunctionTypeFeedback::kUninitializedLiftoffFrameSize;
+
+  /* Used for inlining modes */
+  // Contains real parameters for this inlined function, including the instance.
+  // Used only in StartFunction();
+  base::Vector<OpIndex> real_parameters_;
+  // The block where this function returns its values (passed by the caller).
+  TSBlock* return_block_ = nullptr;
+  // The return values and exception values for this function.
+  // The caller will reconstruct each one with a Phi.
+  BlockPhis* return_phis_ = nullptr;
+  // The block where exceptions from this function are caught (passed by the
+  // caller).
+  TSBlock* return_catch_block_ = nullptr;
+  // The position of the call that is being inlined.
+  SourcePosition parent_position_;
+  bool is_inlined_tail_call_ = false;
+
+  std::optional<bool> deopts_enabled_;
+  OptionalV<FrameState> parent_frame_state_;
 };
 
-V8_EXPORT_PRIVATE bool BuildTSGraph(
-    AccountingAllocator* allocator, WasmFeatures enabled,
-    const WasmModule* module, WasmFeatures* detected, const FunctionBody& body,
-    Graph& graph, compiler::NodeOriginTable* node_origins,
-    AssumptionsJournal* assumptions, int func_index) {
+V8_EXPORT_PRIVATE void BuildTSGraph(
+    compiler::turboshaft::PipelineData* data, AccountingAllocator* allocator,
+    CompilationEnv* env, WasmDetectedFeatures* detected, Graph& graph,
+    const FunctionBody& func_body, const WireBytesStorage* wire_bytes,
+    std::unique_ptr<AssumptionsJournal>* assumptions,
+    ZoneVector<WasmInliningPosition>* inlining_positions, int func_index) {
+  DCHECK(env->module->function_was_validated(func_index));
   Zone zone(allocator, ZONE_NAME);
-  WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
-      decoder(&zone, module, enabled, detected, body, graph, &zone,
-              node_origins, assumptions, func_index);
+  WasmGraphBuilderBase::Assembler assembler(data, graph, graph, &zone);
+  WasmFullDecoder<TurboshaftGraphBuildingInterface::ValidationTag,
+                  TurboshaftGraphBuildingInterface>
+      decoder(&zone, env->module, env->enabled_features, detected, func_body,
+              &zone, env, assembler, assumptions, inlining_positions,
+              func_index, func_body.is_shared, wire_bytes);
   decoder.Decode();
-  // Turboshaft runs with validation, but the function should already be
-  // validated, so graph building must always succeed, unless we bailed out.
-  DCHECK_IMPLIES(!decoder.ok(), decoder.interface().did_bailout());
-  return decoder.ok();
+  // The function was already validated, so graph building must always succeed.
+  DCHECK(decoder.ok());
 }
 
 #undef LOAD_IMMUTABLE_INSTANCE_FIELD
 #undef LOAD_INSTANCE_FIELD
 #undef LOAD_ROOT
-#undef LOAD_IMMUTABLE_ROOT
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::wasm

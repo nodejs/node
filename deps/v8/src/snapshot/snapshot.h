@@ -11,6 +11,7 @@
 #include "include/v8-snapshot.h"  // For StartupData.
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/snapshot/serializer-deserializer.h"
 
 namespace v8 {
 namespace internal {
@@ -68,7 +69,7 @@ class Snapshot : public AllStatic {
   // be passed at index 0.
   static v8::StartupData Create(
       Isolate* isolate, std::vector<Tagged<Context>>* contexts,
-      const std::vector<SerializeInternalFieldsCallback>&
+      const std::vector<SerializeEmbedderFieldsCallback>&
           embedder_fields_serializers,
       const SafepointScope& safepoint_scope,
       const DisallowGarbageCollection& no_gc,
@@ -81,10 +82,10 @@ class Snapshot : public AllStatic {
   static bool Initialize(Isolate* isolate);
 
   // Create a new context using the internal context snapshot.
-  static MaybeHandle<Context> NewContextFromSnapshot(
-      Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+  static MaybeDirectHandle<Context> NewContextFromSnapshot(
+      Isolate* isolate, DirectHandle<JSGlobalProxy> global_proxy,
       size_t context_index,
-      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
+      DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   // ---------------- Testing -------------------------------------------------
 
@@ -93,7 +94,7 @@ class Snapshot : public AllStatic {
   // a new isolate and context, and finally runs VerifyHeap on the fresh
   // isolate.
   V8_EXPORT_PRIVATE static void SerializeDeserializeAndVerifyForTesting(
-      Isolate* isolate, Handle<Context> default_context);
+      Isolate* isolate, DirectHandle<Context> default_context);
 
   // ---------------- Helper methods ------------------------------------------
 
@@ -118,11 +119,17 @@ class Snapshot : public AllStatic {
 #endif  // DEBUG
 };
 
-// Convenience wrapper around snapshot data blob creation used e.g. by tests and
+// Convenience wrapper around snapshot data blob creation used e.g. by tests.
+V8_EXPORT_PRIVATE v8::StartupData CreateSnapshotDataBlobInternal(
+    v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
+    const char* embedded_source = nullptr,
+    Snapshot::SerializerFlags serializer_flags =
+        Snapshot::kDefaultSerializerFlags);
+// Convenience wrapper around snapshot data blob creation used e.g. by
 // mksnapshot.
 V8_EXPORT_PRIVATE v8::StartupData CreateSnapshotDataBlobInternal(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source = nullptr, Isolate* isolate = nullptr,
+    const char* embedded_source, v8::SnapshotCreator& snapshot_creator,
     Snapshot::SerializerFlags serializer_flags =
         Snapshot::kDefaultSerializerFlags);
 // .. and for inspector-test.cc which needs an extern declaration due to
@@ -144,24 +151,38 @@ void SetSnapshotFromFile(StartupData* snapshot_blob);
 // The implementation of the API-exposed class SnapshotCreator.
 class SnapshotCreatorImpl final {
  public:
+  // This ctor is used for internal usages:
+  // 1. %ProfileCreateSnapshotDataBlob(): Needs to hook into an existing
+  //    Isolate.
+  //
+  // TODO(v8:14490): Refactor 1. to go through the public API and simplify this
+  // part of the internal snapshot creator.
   SnapshotCreatorImpl(Isolate* isolate, const intptr_t* api_external_references,
                       const StartupData* existing_blob, bool owns_isolate);
+  explicit SnapshotCreatorImpl(const v8::Isolate::CreateParams& params);
+
+  SnapshotCreatorImpl(Isolate* isolate,
+                      const v8::Isolate::CreateParams& params);
+
   ~SnapshotCreatorImpl();
 
   Isolate* isolate() const { return isolate_; }
 
-  void SetDefaultContext(Handle<NativeContext> context,
-                         SerializeInternalFieldsCallback callback);
-  size_t AddContext(Handle<NativeContext> context,
-                    SerializeInternalFieldsCallback callback);
+  void SetDefaultContext(DirectHandle<NativeContext> context,
+                         SerializeEmbedderFieldsCallback callback);
+  size_t AddContext(DirectHandle<NativeContext> context,
+                    SerializeEmbedderFieldsCallback callback);
 
-  size_t AddData(Handle<NativeContext> context, Address object);
+  size_t AddData(DirectHandle<NativeContext> context, Address object);
   size_t AddData(Address object);
 
   StartupData CreateBlob(
       SnapshotCreator::FunctionCodeHandling function_code_handling,
       Snapshot::SerializerFlags serializer_flags =
           Snapshot::kDefaultSerializerFlags);
+
+  static SnapshotCreatorImpl* FromSnapshotCreator(
+      v8::SnapshotCreator* snapshot_creator);
 
   static constexpr size_t kDefaultContextIndex = 0;
   static constexpr size_t kFirstAddtlContextIndex = kDefaultContextIndex + 1;
@@ -170,18 +191,20 @@ class SnapshotCreatorImpl final {
   struct SerializableContext {
     SerializableContext() : handle_location(nullptr), callback(nullptr) {}
     SerializableContext(Address* handle_location,
-                        SerializeInternalFieldsCallback callback)
+                        SerializeEmbedderFieldsCallback callback)
         : handle_location(handle_location), callback(callback) {}
     Address* handle_location = nullptr;  // A GlobalHandle.
-    SerializeInternalFieldsCallback callback;
+    SerializeEmbedderFieldsCallback callback;
   };
 
-  Handle<NativeContext> context_at(size_t i) const;
+  void InitInternal(const StartupData*);
+
+  DirectHandle<NativeContext> context_at(size_t i) const;
   bool created() const { return contexts_.size() == 0; }
 
   const bool owns_isolate_;
   Isolate* const isolate_;
-  v8::ArrayBuffer::Allocator* const array_buffer_allocator_;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
   std::vector<SerializableContext> contexts_;
 };
 

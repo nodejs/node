@@ -27,7 +27,7 @@ struct TemplateHashMapEntry {
 
   Key key;
   Value value;
-  uint32_t hash;  // The full hash value for key
+  uint32_t hash : 31;  // The full hash value for key
 
   TemplateHashMapEntry(Key key, Value value, uint32_t hash)
       : key(key), value(value), hash(hash), exists_(true) {}
@@ -37,24 +37,7 @@ struct TemplateHashMapEntry {
   void clear() { exists_ = false; }
 
  private:
-  bool exists_;
-};
-
-// Specialization for pointer-valued keys
-template <typename Key, typename Value>
-struct TemplateHashMapEntry<Key*, Value> {
-  static_assert((!std::is_same<Value, NoHashMapValue>::value));
-
-  Key* key;
-  Value value;
-  uint32_t hash;  // The full hash value for key
-
-  TemplateHashMapEntry(Key* key, Value value, uint32_t hash)
-      : key(key), value(value), hash(hash) {}
-
-  bool exists() const { return key != nullptr; }
-
-  void clear() { key = nullptr; }
+  bool exists_ : 1;
 };
 
 // Specialization for no value.
@@ -64,7 +47,7 @@ struct TemplateHashMapEntry<Key, NoHashMapValue> {
     Key key;
     NoHashMapValue value;  // Value in union with key to not take up space.
   };
-  uint32_t hash;  // The full hash value for key
+  uint32_t hash : 31;  // The full hash value for key
 
   TemplateHashMapEntry(Key key, NoHashMapValue value, uint32_t hash)
       : key(key), hash(hash), exists_(true) {}
@@ -74,24 +57,7 @@ struct TemplateHashMapEntry<Key, NoHashMapValue> {
   void clear() { exists_ = false; }
 
  private:
-  bool exists_;
-};
-
-// Specialization for pointer-valued keys and no value.
-template <typename Key>
-struct TemplateHashMapEntry<Key*, NoHashMapValue> {
-  union {
-    Key* key;
-    NoHashMapValue value;  // Value in union with key to not take up space.
-  };
-  uint32_t hash;  // The full hash value for key
-
-  TemplateHashMapEntry(Key* key, NoHashMapValue value, uint32_t hash)
-      : key(key), hash(hash) {}
-
-  bool exists() const { return key != nullptr; }
-
-  void clear() { key = nullptr; }
+  bool exists_ : 1;
 };
 
 }  // namespace base

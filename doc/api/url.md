@@ -207,7 +207,7 @@ myURL = new URL('foo:Example.com/', 'https://example.org/');
 
 #### `url.hash`
 
-* {string}
+* Type: {string}
 
 Gets and sets the fragment portion of the URL.
 
@@ -228,7 +228,7 @@ percent-encode may vary somewhat from what the [`url.parse()`][] and
 
 #### `url.host`
 
-* {string}
+* Type: {string}
 
 Gets and sets the host portion of the URL.
 
@@ -246,7 +246,7 @@ Invalid host values assigned to the `host` property are ignored.
 
 #### `url.hostname`
 
-* {string}
+* Type: {string}
 
 Gets and sets the host name portion of the URL. The key difference between
 `url.host` and `url.hostname` is that `url.hostname` does _not_ include the
@@ -272,7 +272,7 @@ Invalid host name values assigned to the `hostname` property are ignored.
 
 #### `url.href`
 
-* {string}
+* Type: {string}
 
 Gets and sets the serialized URL.
 
@@ -306,7 +306,7 @@ changes:
                  returns `'null'` for it.
 -->
 
-* {string}
+* Type: {string}
 
 Gets the read-only serialization of the URL's origin.
 
@@ -327,7 +327,7 @@ console.log(idnURL.hostname);
 
 #### `url.password`
 
-* {string}
+* Type: {string}
 
 Gets and sets the password portion of the URL.
 
@@ -348,7 +348,7 @@ percent-encode may vary somewhat from what the [`url.parse()`][] and
 
 #### `url.pathname`
 
-* {string}
+* Type: {string}
 
 Gets and sets the path portion of the URL.
 
@@ -376,7 +376,7 @@ changes:
     description: The scheme "gopher" is no longer special.
 -->
 
-* {string}
+* Type: {string}
 
 Gets and sets the port portion of the URL.
 
@@ -459,7 +459,7 @@ console.log(myURL.port);
 
 #### `url.protocol`
 
-* {string}
+* Type: {string}
 
 Gets and sets the protocol portion of the URL.
 
@@ -524,7 +524,7 @@ According to the WHATWG URL Standard, special protocol schemes are `ftp`,
 
 #### `url.search`
 
-* {string}
+* Type: {string}
 
 Gets and sets the serialized query portion of the URL.
 
@@ -545,7 +545,7 @@ and [`url.format()`][] methods would produce.
 
 #### `url.searchParams`
 
-* {URLSearchParams}
+* Type: {URLSearchParams}
 
 Gets the [`URLSearchParams`][] object representing the query parameters of the
 URL. This property is read-only but the `URLSearchParams` object it provides
@@ -572,7 +572,7 @@ console.log(myURL.search);  // prints ?foo=%7Ebar
 
 #### `url.username`
 
-* {string}
+* Type: {string}
 
 Gets and sets the username portion of the URL.
 
@@ -600,6 +600,12 @@ value returned is equivalent to that of [`url.href`][] and [`url.toJSON()`][].
 
 #### `url.toJSON()`
 
+<!-- YAML
+added:
+  - v7.7.0
+  - v6.13.0
+-->
+
 * Returns: {string}
 
 The `toJSON()` method on the `URL` object returns the serialized URL. The
@@ -622,9 +628,13 @@ console.log(JSON.stringify(myURLs));
 
 <!-- YAML
 added: v16.7.0
+changes:
+ - version:
+    - v24.0.0
+    - v22.17.0
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `blob` {Blob}
 * Returns: {string}
@@ -658,9 +668,13 @@ to other workers or the main thread.
 
 <!-- YAML
 added: v16.7.0
+changes:
+ - version:
+    - v24.0.0
+    - v22.17.0
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `id` {string} A `'blob:nodedata:...` URL string returned by a prior call to
   `URL.createObjectURL()`.
@@ -689,6 +703,146 @@ Checks if an `input` relative to the `base` can be parsed to a `URL`.
 const isValid = URL.canParse('/foo', 'https://example.org/'); // true
 
 const isNotValid = URL.canParse('/foo'); // false
+```
+
+#### `URL.parse(input[, base])`
+
+<!-- YAML
+added: v22.1.0
+-->
+
+* `input` {string} The absolute or relative input URL to parse. If `input`
+  is relative, then `base` is required. If `input` is absolute, the `base`
+  is ignored. If `input` is not a string, it is [converted to a string][] first.
+* `base` {string} The base URL to resolve against if the `input` is not
+  absolute. If `base` is not a string, it is [converted to a string][] first.
+* Returns: {URL|null}
+
+Parses a string as a URL. If `base` is provided, it will be used as the base
+URL for the purpose of resolving non-absolute `input` URLs. Returns `null`
+if the parameters can't be resolved to a valid URL.
+
+### Class: `URLPattern`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+> Stability: 1 - Experimental
+
+The `URLPattern` API provides an interface to match URLs or parts of URLs
+against a pattern.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.exec('https://nodejs.org/docs/latest/api/dns.html'));
+// Prints:
+// {
+//  "hash": { "groups": {  "0": "" },  "input": "" },
+//  "hostname": { "groups": {}, "input": "nodejs.org" },
+//  "inputs": [
+//    "https://nodejs.org/docs/latest/api/dns.html"
+//  ],
+//  "password": { "groups": { "0": "" }, "input": "" },
+//  "pathname": { "groups": { "0": "dns" }, "input": "/docs/latest/api/dns.html" },
+//  "port": { "groups": {}, "input": "" },
+//  "protocol": { "groups": {}, "input": "https" },
+//  "search": { "groups": { "0": "" }, "input": "" },
+//  "username": { "groups": { "0": "" }, "input": "" }
+// }
+
+console.log(myPattern.test('https://nodejs.org/docs/latest/api/dns.html'));
+// Prints: true
+```
+
+#### `new URLPattern()`
+
+Instantiate a new empty `URLPattern` object.
+
+#### `new URLPattern(string[, baseURL][, options])`
+
+* `string` {string} A URL string
+* `baseURL` {string | undefined} A base URL string
+* `options` {Object} Options
+
+Parse the `string` as a URL, and use it to instantiate a new
+`URLPattern` object.
+
+If `baseURL` is not specified, it defaults to `undefined`.
+
+An option can have `ignoreCase` boolean attribute which enables
+case-insensitive matching if set to true.
+
+The constructor can throw a `TypeError` to indicate parsing failure.
+
+#### `new URLPattern(obj[, baseURL][, options])`
+
+* `obj` {Object} An input pattern
+* `baseURL` {string | undefined} A base URL string
+* `options` {Object} Options
+
+Parse the `Object` as an input pattern, and use it to instantiate a new
+`URLPattern` object. The object members can be any of `protocol`, `username`,
+`password`, `hostname`, `port`, `pathname`, `search`, `hash` or `baseURL`.
+
+If `baseURL` is not specified, it defaults to `undefined`.
+
+An option can have `ignoreCase` boolean attribute which enables
+case-insensitive matching if set to true.
+
+The constructor can throw a `TypeError` to indicate parsing failure.
+
+#### `urlPattern.exec(input[, baseURL])`
+
+* `input` {string | Object} A URL or URL parts
+* `baseURL` {string | undefined} A base URL string
+
+Input can be a string or an object providing the individual URL parts. The
+object members can be any of `protocol`, `username`, `password`, `hostname`,
+`port`, `pathname`, `search`, `hash` or `baseURL`.
+
+If `baseURL` is not specified, it will default to `undefined`.
+
+Returns an object with an `inputs` key containing the array of arguments
+passed into the function and keys of the URL components which contains the
+matched input and matched groups.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.exec('https://nodejs.org/docs/latest/api/dns.html'));
+// Prints:
+// {
+//  "hash": { "groups": {  "0": "" },  "input": "" },
+//  "hostname": { "groups": {}, "input": "nodejs.org" },
+//  "inputs": [
+//    "https://nodejs.org/docs/latest/api/dns.html"
+//  ],
+//  "password": { "groups": { "0": "" }, "input": "" },
+//  "pathname": { "groups": { "0": "dns" }, "input": "/docs/latest/api/dns.html" },
+//  "port": { "groups": {}, "input": "" },
+//  "protocol": { "groups": {}, "input": "https" },
+//  "search": { "groups": { "0": "" }, "input": "" },
+//  "username": { "groups": { "0": "" }, "input": "" }
+// }
+```
+
+#### `urlPattern.test(input[, baseURL])`
+
+* `input` {string | Object} A URL or URL parts
+* `baseURL` {string | undefined} A base URL string
+
+Input can be a string or an object providing the individual URL parts. The
+object members can be any of `protocol`, `username`, `password`, `hostname`,
+`port`, `pathname`, `search`, `hash` or `baseURL`.
+
+If `baseURL` is not specified, it will default to `undefined`.
+
+Returns a boolean indicating if the input matches the current pattern.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.test('https://nodejs.org/docs/latest/api/dns.html'));
+// Prints: true
 ```
 
 ### Class: `URLSearchParams`
@@ -810,7 +964,7 @@ added:
 * `iterable` {Iterable} An iterable object whose elements are key-value pairs
 
 Instantiate a new `URLSearchParams` object with an iterable map in a way that
-is similar to [`Map`][]'s constructor. `iterable` can be an `Array` or any
+is similar to {Map}'s constructor. `iterable` can be an `Array` or any
 iterable object. That means `iterable` can be another `URLSearchParams`, in
 which case the constructor will simply create a clone of the provided
 `URLSearchParams`. Elements of `iterable` are key-value pairs, and can
@@ -890,7 +1044,7 @@ Returns an ES6 `Iterator` over each of the name-value pairs in the query.
 Each item of the iterator is a JavaScript `Array`. The first item of the `Array`
 is the `name`, the second item of the `Array` is the `value`.
 
-Alias for [`urlSearchParams[@@iterator]()`][`urlSearchParams@@iterator()`].
+Alias for [`urlSearchParams[Symbol.iterator]()`][`urlSearchParamsSymbol.iterator()`].
 
 #### `urlSearchParams.forEach(fn[, thisArg])`
 
@@ -1151,13 +1305,25 @@ console.log(url.domainToUnicode('xn--iñvalid.com'));
 // Prints an empty string
 ```
 
-### `url.fileURLToPath(url)`
+### `url.fileURLToPath(url[, options])`
 
 <!-- YAML
 added: v10.12.0
+changes:
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52509
+    description: The `options` argument can now be used to
+                 determine how to parse the `path` argument.
 -->
 
 * `url` {URL | string} The file URL string or URL object to convert to a path.
+* `options` {Object}
+  * `windows` {boolean|undefined} `true` if the `path` should be
+    return as a windows filepath, `false` for posix, and
+    `undefined` for the system default.
+    **Default:** `undefined`.
 * Returns: {string} The fully-resolved platform-specific Node.js file path.
 
 This function ensures the correct decodings of percent-encoded characters as
@@ -1195,6 +1361,26 @@ fileURLToPath('file:///你好.txt');         // Correct:   /你好.txt (POSIX)
 new URL('file:///hello world').pathname;   // Incorrect: /hello%20world
 fileURLToPath('file:///hello world');      // Correct:   /hello world (POSIX)
 ```
+
+### `url.fileURLToPathBuffer(url[, options])`
+
+<!--
+added: v24.3.0
+-->
+
+* `url` {URL | string} The file URL string or URL object to convert to a path.
+* `options` {Object}
+  * `windows` {boolean|undefined} `true` if the `path` should be
+    return as a windows filepath, `false` for posix, and
+    `undefined` for the system default.
+    **Default:** `undefined`.
+* Returns: {Buffer} The fully-resolved platform-specific Node.js file path
+  as a {Buffer}.
+
+Like `url.fileURLToPath(...)` except that instead of returning a string
+representation of the path, a `Buffer` is returned. This conversion is
+helpful when the input URL contains percent-encoded segments that are
+not valid UTF-8 / Unicode sequences.
 
 ### `url.format(URL[, options])`
 
@@ -1251,13 +1437,25 @@ console.log(url.format(myURL, { fragment: false, unicode: true, auth: false }));
 // Prints 'https://測試/?abc'
 ```
 
-### `url.pathToFileURL(path)`
+### `url.pathToFileURL(path[, options])`
 
 <!-- YAML
 added: v10.12.0
+changes:
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52509
+    description: The `options` argument can now be used to
+                 determine how to return the `path` value.
 -->
 
 * `path` {string} The path to convert to a File URL.
+* `options` {Object}
+  * `windows` {boolean|undefined} `true` if the `path` should be
+    treated as a windows filepath, `false` for posix, and
+    `undefined` for the system default.
+    **Default:** `undefined`.
 * Returns: {URL} The file URL object.
 
 This function ensures that `path` is resolved absolutely, and that the URL
@@ -1390,8 +1588,6 @@ changes:
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
 -->
 
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
-
 The legacy `urlObject` (`require('node:url').Url` or
 `import { Url } from 'node:url'`) is
 created and returned by the `url.parse()` function.
@@ -1518,8 +1714,6 @@ changes:
                  `slashes` option with no protocol is now also respected at all
                  times.
 -->
-
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 * `urlObject` {Object|string} A URL object (as returned by `url.parse()` or
   constructed otherwise). If a string, it is converted to an object by passing
@@ -1681,8 +1875,6 @@ changes:
                  contains a hostname.
 -->
 
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
-
 * `from` {string} The base URL to use if `to` is a relative URL.
 * `to` {string} The target URL to resolve.
 
@@ -1781,7 +1973,6 @@ console.log(myURL.origin);
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
 [`Error`]: errors.md#class-error
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`TypeError`]: errors.md#class-typeerror
 [`URLSearchParams`]: #class-urlsearchparams
 [`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
@@ -1798,7 +1989,7 @@ console.log(myURL.origin);
 [`url.toJSON()`]: #urltojson
 [`url.toString()`]: #urltostring
 [`urlSearchParams.entries()`]: #urlsearchparamsentries
-[`urlSearchParams@@iterator()`]: #urlsearchparamssymboliterator
+[`urlSearchParamsSymbol.iterator()`]: #urlsearchparamssymboliterator
 [converted to a string]: https://tc39.es/ecma262/#sec-tostring
 [examples of parsed URLs]: https://url.spec.whatwg.org/#example-url-parsing
 [host name spoofing]: https://hackerone.com/reports/678487

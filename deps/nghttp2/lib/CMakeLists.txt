@@ -34,6 +34,10 @@ set(NGHTTP2_RES "")
 set(STATIC_LIB "nghttp2_static")
 set(SHARED_LIB "nghttp2")
 
+if(BUILD_SHARED_LIBS AND BUILD_STATIC_LIBS AND MSVC AND NOT STATIC_LIB_SUFFIX)
+  set(STATIC_LIB_SUFFIX "_static")
+endif()
+
 if(WIN32)
   configure_file(
     version.rc.in
@@ -66,23 +70,23 @@ if(BUILD_SHARED_LIBS)
 endif()
 
 # Static library (for unittests because of symbol visibility)
-add_library(${STATIC_LIB} STATIC ${NGHTTP2_SOURCES})
-
-set_target_properties(${STATIC_LIB} PROPERTIES
-  COMPILE_FLAGS "${WARNCFLAGS}"
-  VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
-  ARCHIVE_OUTPUT_NAME nghttp2${STATIC_LIB_SUFFIX}
-)
-
-target_include_directories(${STATIC_LIB} INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/includes>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/includes>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-
-target_compile_definitions(${STATIC_LIB} PUBLIC "-DNGHTTP2_STATICLIB")
-
 if(BUILD_STATIC_LIBS)
+  add_library(${STATIC_LIB} STATIC ${NGHTTP2_SOURCES})
+
+  set_target_properties(${STATIC_LIB} PROPERTIES
+    COMPILE_FLAGS "${WARNCFLAGS}"
+    VERSION ${LT_VERSION} SOVERSION ${LT_SOVERSION}
+    ARCHIVE_OUTPUT_NAME nghttp2${STATIC_LIB_SUFFIX}
+  )
+
+  target_include_directories(${STATIC_LIB} INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/includes>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/includes>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  )
+
+  target_compile_definitions(${STATIC_LIB} PUBLIC "-DNGHTTP2_STATICLIB")
+
   install(TARGETS ${STATIC_LIB} EXPORT ${EXPORT_SET})
   list(APPEND nghttp2_exports ${STATIC_LIB})
 endif()

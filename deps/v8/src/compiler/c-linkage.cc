@@ -87,7 +87,7 @@ namespace {
 
 #elif V8_TARGET_ARCH_PPC64
 // ===========================================================================
-// == ppc & ppc64 ============================================================
+// == ppc64 ==================================================================
 // ===========================================================================
 #ifdef V8_TARGET_LITTLE_ENDIAN  // ppc64le linux
 #define STACK_SHADOW_WORDS 12
@@ -266,15 +266,16 @@ void BuildParameterLocations(const MachineSignature* msig,
         // defined(V8_TARGET_ARCH_MIPS64)
 
 // General code uses the above configuration data.
-CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
-                                                  const MachineSignature* msig,
-                                                  CallDescriptor::Flags flags) {
+CallDescriptor* Linkage::GetSimplifiedCDescriptor(
+    Zone* zone, const MachineSignature* msig, CallDescriptor::Flags flags,
+    Operator::Properties properties) {
 #ifdef UNSUPPORTED_C_LINKAGE
   // This method should not be called on unknown architectures.
   FATAL("requested C call descriptor on unsupported architecture");
   return nullptr;
 #endif
 
+  DCHECK(properties == Operator::kNoThrow || properties == Operator::kPure);
   DCHECK_LE(msig->parameter_count(), static_cast<size_t>(kMaxCParameters));
 
   LocationSignature::Builder locations(zone, msig->return_count(),
@@ -345,13 +346,15 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
   flags |= CallDescriptor::kNoAllocate;
 
+  // TODO(saelo): here we probably want to use a c-call specific tag.
   return zone->New<CallDescriptor>(  // --
       CallDescriptor::kCallAddress,  // kind
+      kDefaultCodeEntrypointTag,     // tag
       target_type,                   // target MachineType
       target_loc,                    // target location
-      locations.Build(),             // location_sig
+      locations.Get(),               // location_sig
       0,                             // stack_parameter_count
-      Operator::kNoThrow,            // properties
+      properties,                    // properties
       kCalleeSaveRegisters,          // callee-saved registers
       kCalleeSaveFPRegisters,        // callee-saved fp regs
       flags, "c-call");

@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_JS_COLLECTION_INL_H_
 #define V8_OBJECTS_JS_COLLECTION_INL_H_
 
+#include "src/objects/js-collection.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-collection-iterator-inl.h"
-#include "src/objects/js-collection.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table-inl.h"
 #include "src/roots/roots-inl.h"
@@ -43,11 +45,8 @@ JSSetIterator::JSSetIterator(Address ptr)
   SLOW_DCHECK(IsJSSetIterator(*this));
 }
 
-CAST_ACCESSOR(JSSetIterator)
-CAST_ACCESSOR(JSMapIterator)
-
 Tagged<Object> JSMapIterator::CurrentValue() {
-  Tagged<OrderedHashMap> table = OrderedHashMap::cast(this->table());
+  Tagged<OrderedHashMap> table = Cast<OrderedHashMap>(this->table());
   int index = Smi::ToInt(this->index());
   DCHECK_GE(index, 0);
   InternalIndex entry(index);

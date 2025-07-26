@@ -54,7 +54,8 @@ struct ExceptionInfo {
 };
 
 template <int N>
-void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
+void CheckExceptionInfos(v8::internal::Isolate* i_isolate,
+                         DirectHandle<Object> exc,
                          const ExceptionInfo (&excInfos)[N]) {
   // Check that it's indeed an Error object.
   CHECK(IsJSError(*exc));
@@ -87,13 +88,15 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
                        stack->GetFrame(v8_isolate, 0));
 }
 
-void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
+void CheckComputeLocation(v8::internal::Isolate* i_isolate,
+                          DirectHandle<Object> exc,
                           const ExceptionInfo& topLocation,
                           const v8::Local<v8::StackFrame> stackFrame) {
   MessageLocation loc;
   CHECK(i_isolate->ComputeLocationFromSimpleStackTrace(&loc, exc));
   printf("loc start: %d, end: %d\n", loc.start_pos(), loc.end_pos());
-  Handle<JSMessageObject> message = i_isolate->CreateMessage(exc, nullptr);
+  DirectHandle<JSMessageObject> message =
+      i_isolate->CreateMessage(exc, nullptr);
   JSMessageObject::EnsureSourcePositionsAvailable(i_isolate, message);
   printf("msg start: %d, end: %d, line: %d, col: %d\n",
          message->GetStartPosition(), message->GetEndPosition(),
@@ -126,8 +129,8 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   HandleScope scope(CcTest::InitIsolateOnce());
   const char* source =
       "(function js() {\n function a() {\n throw new Error(); };\n a(); })";
-  Handle<JSFunction> js_function =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> js_function =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
   ManuallyImportedJSFunction import = {sigs.v_v(), js_function};
   uint32_t js_throwing_index = 0;
@@ -141,20 +144,20 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   f2.Build({WASM_CALL_FUNCTION0(wasm_index_1)});
   uint32_t wasm_index_2 = f2.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
+  DirectHandle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
 
-  Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+  DirectHandle<JSFunction> js_trampoline = Cast<JSFunction>(
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           CompileRun("(function callFn(fn) { fn(); })"))));
 
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
                                                      v8::StackTrace::kOverview);
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> maybe_exc;
-  Handle<Object> args[] = {js_wasm_wrapper};
-  MaybeHandle<Object> returnObjMaybe =
-      Execution::TryCall(isolate, js_trampoline, global, 1, args,
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> maybe_exc;
+  DirectHandle<Object> args[] = {js_wasm_wrapper};
+  MaybeDirectHandle<Object> returnObjMaybe =
+      Execution::TryCall(isolate, js_trampoline, global, base::VectorOf(args),
                          Execution::MessageHandling::kReport, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
@@ -181,10 +184,10 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   f.Build({WASM_CALL_FUNCTION0(0)});
   uint32_t wasm_index = f.function_index();
 
-  Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
+  DirectHandle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index);
 
-  Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+  DirectHandle<JSFunction> js_trampoline = Cast<JSFunction>(
+      v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
           CompileRun("(function callFn(fn) { fn(); })"))));
 
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
@@ -193,33 +196,34 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
 
   // Set the wasm script source url.
   const char* url = "http://example.com/example.wasm";
-  const Handle<String> source_url =
+  const DirectHandle<String> source_url =
       isolate->factory()->InternalizeUtf8String(url);
   r.builder().instance_object()->module_object()->script()->set_source_url(
       *source_url);
 
   // Run the js wrapper.
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> maybe_exc;
-  Handle<Object> args[] = {js_wasm_wrapper};
-  MaybeHandle<Object> maybe_return_obj =
-      Execution::TryCall(isolate, js_trampoline, global, 1, args,
+  DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeDirectHandle<Object> maybe_exc;
+  DirectHandle<Object> args[] = {js_wasm_wrapper};
+  MaybeDirectHandle<Object> maybe_return_obj =
+      Execution::TryCall(isolate, js_trampoline, global, base::VectorOf(args),
                          Execution::MessageHandling::kReport, &maybe_exc);
 
   CHECK(maybe_return_obj.is_null());
-  Handle<Object> exception = maybe_exc.ToHandleChecked();
+  DirectHandle<Object> exception = maybe_exc.ToHandleChecked();
 
   // Extract stack trace from the exception.
-  Handle<FixedArray> stack_trace_object =
-      isolate->GetSimpleStackTrace(Handle<JSReceiver>::cast(exception));
+  DirectHandle<FixedArray> stack_trace_object =
+      isolate->GetSimpleStackTrace(Cast<JSReceiver>(exception));
   CHECK_NE(0, stack_trace_object->length());
-  Handle<CallSiteInfo> stack_frame(
-      CallSiteInfo::cast(stack_trace_object->get(0)), isolate);
+  DirectHandle<CallSiteInfo> stack_frame(
+      Cast<CallSiteInfo>(stack_trace_object->get(0)), isolate);
 
-  MaybeHandle<String> maybe_stack_trace_str =
+  MaybeDirectHandle<String> maybe_stack_trace_str =
       SerializeCallSiteInfo(isolate, stack_frame);
   CHECK(!maybe_stack_trace_str.is_null());
-  Handle<String> stack_trace_str = maybe_stack_trace_str.ToHandleChecked();
+  DirectHandle<String> stack_trace_str =
+      maybe_stack_trace_str.ToHandleChecked();
 
   // Check if the source_url is part of the stack trace.
   CHECK_NE(std::string(stack_trace_str->ToCString().get()).find(url),
@@ -231,7 +235,6 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
   for (int pos_shift = 0; pos_shift < 3; ++pos_shift) {
     // Test a position with 1, 2 or 3 bytes needed to represent it.
     int unreachable_pos = 1 << (8 * pos_shift);
-    TestSignatures sigs;
     // Create a WasmRunner with stack checks and traps enabled.
     WasmRunner<int> r(execution_tier, kWasmOrigin, nullptr, "main");
 
@@ -245,23 +248,24 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     f2.Build({WASM_CALL_FUNCTION0(0)});
     uint32_t wasm_index_2 = f2.function_index();
 
-    Handle<JSFunction> js_wasm_wrapper = r.builder().WrapCode(wasm_index_2);
+    DirectHandle<JSFunction> js_wasm_wrapper =
+        r.builder().WrapCode(wasm_index_2);
 
-    Handle<JSFunction> js_trampoline = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+    DirectHandle<JSFunction> js_trampoline = Cast<JSFunction>(
+        v8::Utils::OpenDirectHandle(*v8::Local<v8::Function>::Cast(
             CompileRun("(function callFn(fn) { fn(); })"))));
 
     Isolate* isolate = js_wasm_wrapper->GetIsolate();
     isolate->SetCaptureStackTraceForUncaughtExceptions(
         true, 10, v8::StackTrace::kOverview);
-    Handle<Object> global(isolate->context()->global_object(), isolate);
-    MaybeHandle<Object> maybe_exc;
-    Handle<Object> args[] = {js_wasm_wrapper};
-    MaybeHandle<Object> maybe_return_obj =
-        Execution::TryCall(isolate, js_trampoline, global, 1, args,
+    DirectHandle<Object> global(isolate->context()->global_object(), isolate);
+    MaybeDirectHandle<Object> maybe_exc;
+    DirectHandle<Object> args[] = {js_wasm_wrapper};
+    MaybeDirectHandle<Object> maybe_return_obj =
+        Execution::TryCall(isolate, js_trampoline, global, base::VectorOf(args),
                            Execution::MessageHandling::kReport, &maybe_exc);
     CHECK(maybe_return_obj.is_null());
-    Handle<Object> exception = maybe_exc.ToHandleChecked();
+    DirectHandle<Object> exception = maybe_exc.ToHandleChecked();
 
     static constexpr int kMainLocalsLength = 1;
     const int main_offset =

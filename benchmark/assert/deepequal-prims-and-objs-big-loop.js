@@ -10,11 +10,11 @@ const notCircular = {};
 notCircular.circular = {};
 
 const primValues = {
+  'null_prototype': { __proto__: null },
   'string': 'abcdef',
   'number': 1_000,
   'boolean': true,
   'object': { property: 'abcdef' },
-  'object_other_property': { property: 'abcdef' },
   'array': [1, 2, 3],
   'set_object': new Set([[1]]),
   'set_simple': new Set([1, 2, 3]),
@@ -22,9 +22,11 @@ const primValues = {
   'empty_object': {},
   'regexp': /abc/i,
   'date': new Date(),
+  'invalidDate': new Date('foo'),
 };
 
 const primValues2 = {
+  'null_prototype': { __proto__: null },
   'object': { property: 'abcdef' },
   'array': [1, 2, 3],
   'set_object': new Set([[1]]),
@@ -33,9 +35,11 @@ const primValues2 = {
   'empty_object': {},
   'regexp': /abc/i,
   'date': new Date(primValues.date),
+  'invalidDate': new Date('foo'),
 };
 
 const primValuesUnequal = {
+  'null_prototype': { __proto__: { __proto__: null } },
   'string': 'abcdez',
   'number': 1_001,
   'boolean': false,
@@ -47,6 +51,7 @@ const primValuesUnequal = {
   'empty_object': [],
   'regexp': /abc/g,
   'date': new Date(primValues.date.getTime() + 1),
+  'invalidDate': new Date(),
 };
 
 const bench = common.createBenchmark(main, {

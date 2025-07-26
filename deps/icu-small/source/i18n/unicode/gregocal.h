@@ -324,7 +324,7 @@ public:
      * @return   The Gregorian cutover time for this calendar.
      * @stable ICU 2.0
      */
-    UDate getGregorianChange(void) const;
+    UDate getGregorianChange() const;
 
     /**
      * Return true if the given year is a leap year. Determination of whether a year is
@@ -435,7 +435,7 @@ public:
      *           same class ID. Objects of other classes have different class IDs.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID(void) const override;
+    virtual UClassID getDynamicClassID() const override;
 
     /**
      * Return the class ID for this class. This is useful only for comparing to a return
@@ -448,7 +448,7 @@ public:
      * @return   The class ID for all objects of this class.
      * @stable ICU 2.0
      */
-    static UClassID U_EXPORT2 getStaticClassID(void);
+    static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * Returns the calendar type name string for this Calendar object.
@@ -483,22 +483,24 @@ public:
      * @param useMonth if false, compute the day before the first day of
      * the given year, otherwise, compute the day before the first day of
      * the given month
+     * @param status Fill-in parameter which receives the status of this operation.
      * @return the Julian day number of the day before the first
      * day of the given month and year
      * @internal
      */
-    virtual int32_t handleComputeMonthStart(int32_t eyear, int32_t month,
-                                                   UBool useMonth) const override;
+    virtual int64_t handleComputeMonthStart(int32_t eyear, int32_t month,
+                                            UBool useMonth, UErrorCode& status) const override;
 
     /**
      * Subclasses may override this.  This method calls
      * handleGetMonthLength() to obtain the calendar-specific month
      * length.
      * @param bestField which field to use to calculate the date 
+     * @param status Fill-in parameter which receives the status of this operation.
      * @return julian day specified by calendar fields.
      * @internal
      */
-    virtual int32_t handleComputeJulianDay(UCalendarDateFields bestField) override;
+    virtual int32_t handleComputeJulianDay(UCalendarDateFields bestField, UErrorCode& status) override;
 
     /**
      * Return the number of days in the given month of the given extended
@@ -507,7 +509,7 @@ public:
      * implementation than the default implementation in Calendar.
      * @internal
      */
-    virtual int32_t handleGetMonthLength(int32_t extendedYear, int32_t month) const override;
+    virtual int32_t handleGetMonthLength(int32_t extendedYear, int32_t month, UErrorCode& status) const override;
 
     /**
      * Return the number of days in the given extended year of this
@@ -516,15 +518,16 @@ public:
      * default implementation in Calendar.
      * @stable ICU 2.0
      */
-    virtual int32_t handleGetYearLength(int32_t eyear) const override;
+    virtual int32_t handleGetYearLength(int32_t eyear, UErrorCode& status) const override;
 
     /**
      * return the length of the given month.
      * @param month    the given month.
+     * @param status Fill-in parameter which receives the status of this operation.
      * @return    the length of the given month.
      * @internal
      */
-    virtual int32_t monthLength(int32_t month) const;
+    virtual int32_t monthLength(int32_t month, UErrorCode& status) const;
 
     /**
      * return the length of the month according to the given year.
@@ -541,7 +544,7 @@ public:
      * @return    the length of the year field
      * @internal
      */
-    int32_t yearLength(void) const;
+  int32_t yearLength() const;
 
 #endif  /* U_HIDE_INTERNAL_API */
 
@@ -582,10 +585,11 @@ public:
      * use the UCAL_EXTENDED_YEAR field or the UCAL_YEAR and supra-year fields (such
      * as UCAL_ERA) specific to the calendar system, depending on which set of
      * fields is newer.
+     * @param status
      * @return the extended year
      * @internal
      */
-    virtual int32_t handleGetExtendedYear() override;
+    virtual int32_t handleGetExtendedYear(UErrorCode& status) override;
 
     /** 
      * Subclasses may override this to convert from week fields 
@@ -595,7 +599,7 @@ public:
      * @return the extended year, UCAL_EXTENDED_YEAR
      * @internal
      */
-    virtual int32_t handleGetExtendedYearFromWeekFields(int32_t yearWoy, int32_t woy) override;
+    virtual int32_t handleGetExtendedYearFromWeekFields(int32_t yearWoy, int32_t woy, UErrorCode& status) override;
 
 
     /**
@@ -615,6 +619,15 @@ public:
      */
     virtual void handleComputeFields(int32_t julianDay, UErrorCode &status) override;
 
+#ifndef U_HIDE_INTERNAL_API
+    /**
+     * The year in this calendar is counting from 1 backward if the era is 0.
+     * @return The year in era 0 of this calendar is counting backward from 1.
+     * @internal
+     */
+    virtual bool isEra0CountingBackward() const override { return true; }
+#endif  // U_HIDE_INTERNAL_API
+
  private:
     /**
      * Compute the julian day number of the given year.
@@ -630,7 +643,7 @@ public:
      * Validates the values of the set time fields.  True if they're all valid.
      * @return    True if the set time fields are all valid.
      */
-    UBool validateFields(void) const;
+    UBool validateFields() const;
 
     /**
      * Validates the value of the given time field.  True if it's valid.
@@ -709,23 +722,8 @@ public:
 
  public: // internal implementation
 
-    /**
-     * @return true if this calendar has the notion of a default century
-     * @internal 
-     */
-    virtual UBool haveDefaultCentury() const override;
+    DECLARE_OVERRIDE_SYSTEM_DEFAULT_CENTURY
 
-    /**
-     * @return the start of the default century
-     * @internal
-     */
-    virtual UDate defaultCenturyStart() const override;
-
-    /**
-     * @return the beginning year of the default century
-     * @internal 
-     */
-    virtual int32_t defaultCenturyStartYear() const override;
 };
 
 U_NAMESPACE_END

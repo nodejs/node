@@ -4,8 +4,11 @@
 
 #include "src/heap/local-heap.h"
 
+#include <optional>
+
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/heap/gc-callbacks-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
@@ -131,12 +134,12 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
 
   void Run() override {
     LocalHeap lh(heap_, ThreadKind::kBackground);
-    base::Optional<UnparkedScope> unparked_scope;
+    std::optional<UnparkedScope> unparked_scope;
     if (!parked_) {
       unparked_scope.emplace(&lh);
     }
     {
-      base::Optional<UnparkedScope> nested_unparked_scope;
+      std::optional<UnparkedScope> nested_unparked_scope;
       if (parked_) nested_unparked_scope.emplace(&lh);
       lh.AddGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
     }
@@ -145,7 +148,7 @@ class BackgroundThreadForGCEpilogue final : public v8::base::Thread {
       lh.Safepoint();
     }
     {
-      base::Optional<UnparkedScope> nested_unparked_scope;
+      std::optional<UnparkedScope> nested_unparked_scope;
       if (parked_) nested_unparked_scope.emplace(&lh);
       lh.RemoveGCEpilogueCallback(&GCEpilogue::Callback, epilogue_);
     }
@@ -180,6 +183,53 @@ TEST_F(LocalHeapTest, GCEpilogue) {
   for (auto& e : epilogue) {
     CHECK(e.WasInvoked());
   }
+}
+
+class DirectPointerUser final : public GCRootsProvider {
+ public:
+  DirectPointerUser() = default;
+
+  Tagged<FixedArray> array() const { return array_; }
+  void set_array(Handle<FixedArray> array) { array_ = *array; }
+
+  void Iterate(RootVisitor* v) final {
+    v->VisitRootPointer(Root::kStrongRoots, nullptr, FullObjectSlot(&array_));
+  }
+
+ private:
+  Tagged<FixedArray> array_;
+};
+
+TEST_F(LocalHeapTest, RootsProvider) {
+  Factory* factory = i_isolate()->factory();
+  v8::Isolate::Scope isolate_scope(v8_isolate());
+  HandleScope global_handle_scope(i_isolate());
+  ManualGCScope manual_gc_scope(i_isolate());
+
+  LocalHeap* lh = i_isolate()->heap()->main_thread_local_heap();
+  auto data = std::make_unique<DirectPointerUser>();
+  GCRootsProviderScope roots_provider_scope(lh, data.get());
+
+  {
+    HandleScope handle_scope(i_isolate());
+    DirectHandle<HeapNumber> value = factory->NewHeapNumber(101);
+    Handle<FixedArray> array =
+        Cast<FixedArray>(factory->NewFixedArray(3, AllocationType::kYoung));
+    array->set(2, *value);
+    data->set_array(array);
+  }
+
+  InvokeMinorGC(i_isolate());
+
+  Tagged<Object> value = data->array()->get(2, kRelaxedLoad);
+  Tagged<HeapNumber> number = Tagged<HeapNumber>::cast(value);
+  CHECK_EQ(number->value(), 101);
+
+  InvokeMajorGC(i_isolate());
+
+  value = data->array()->get(2, kRelaxedLoad);
+  number = Tagged<HeapNumber>::cast(value);
+  CHECK_EQ(number->value(), 101);
 }
 
 }  // namespace internal

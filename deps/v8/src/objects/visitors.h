@@ -6,9 +6,9 @@
 #define V8_OBJECTS_VISITORS_H_
 
 #include "src/common/globals.h"
+#include "src/objects/casting.h"
 #include "src/objects/code.h"
 #include "src/objects/compressed-slots.h"
-#include "src/objects/foreign.h"
 #include "src/objects/instruction-stream.h"
 #include "src/objects/slots.h"
 
@@ -17,31 +17,33 @@ namespace internal {
 
 class Code;
 
-#define ROOT_ID_LIST(V)                                 \
-  V(kBootstrapper, "(Bootstrapper)")                    \
-  V(kBuiltins, "(Builtins)")                            \
-  V(kClientHeap, "(Client heap)")                       \
-  V(kCodeFlusher, "(Code flusher)")                     \
-  V(kCompilationCache, "(Compilation cache)")           \
-  V(kDebug, "(Debugger)")                               \
-  V(kExtensions, "(Extensions)")                        \
-  V(kEternalHandles, "(Eternal handles)")               \
-  V(kExternalStringsTable, "(External strings)")        \
-  V(kGlobalHandles, "(Global handles)")                 \
-  V(kHandleScope, "(Handle scope)")                     \
-  V(kMicroTasks, "(Micro tasks)")                       \
-  V(kReadOnlyRootList, "(Read-only roots)")             \
-  V(kRelocatable, "(Relocatable)")                      \
-  V(kRetainMaps, "(Retain maps)")                       \
-  V(kSharedHeapObjectCache, "(Shareable object cache)") \
-  V(kSmiRootList, "(Smi roots)")                        \
-  V(kStackRoots, "(Stack roots)")                       \
-  V(kStartupObjectCache, "(Startup object cache)")      \
-  V(kStringTable, "(Internalized strings)")             \
-  V(kStrongRootList, "(Strong root list)")              \
-  V(kStrongRoots, "(Strong roots)")                     \
-  V(kThreadManager, "(Thread manager)")                 \
-  V(kTracedHandles, "(Traced handles)")                 \
+#define ROOT_ID_LIST(V)                                        \
+  V(kBootstrapper, "(Bootstrapper)")                           \
+  V(kBuiltins, "(Builtins)")                                   \
+  V(kClientHeap, "(Client heap)")                              \
+  V(kCodeFlusher, "(Code flusher)")                            \
+  V(kCompilationCache, "(Compilation cache)")                  \
+  V(kDebug, "(Debugger)")                                      \
+  V(kExtensions, "(Extensions)")                               \
+  V(kEternalHandles, "(Eternal handles)")                      \
+  V(kExternalStringsTable, "(External strings)")               \
+  V(kGlobalHandles, "(Global handles)")                        \
+  V(kHandleScope, "(Handle scope)")                            \
+  V(kMicroTasks, "(Micro tasks)")                              \
+  V(kReadOnlyRootList, "(Read-only roots)")                    \
+  V(kRelocatable, "(Relocatable)")                             \
+  V(kRetainMaps, "(Retain maps)")                              \
+  V(kSharedHeapObjectCache, "(Shareable object cache)")        \
+  V(kSharedStructTypeRegistry, "(SharedStruct type registry)") \
+  V(kSmiRootList, "(Smi roots)")                               \
+  V(kStackRoots, "(Stack roots)")                              \
+  V(kStartupObjectCache, "(Startup object cache)")             \
+  V(kStringTable, "(Internalized strings)")                    \
+  V(kStrongRootList, "(Strong root list)")                     \
+  V(kStrongRoots, "(Strong roots)")                            \
+  V(kThreadManager, "(Thread manager)")                        \
+  V(kTracedHandles, "(Traced handles)")                        \
+  V(kWeakRoots, "(Weak roots)")                                \
   V(kWriteBarrier, "(Write barrier)")
 
 class VisitorSynchronization : public AllStatic {
@@ -77,15 +79,20 @@ class RootVisitor {
 
   // Visits a contiguous arrays of off-heap pointers in the half-open range
   // [start, end). Any or all of the values may be modified on return.
+  //
+  // This should be implemented for any visitor that visits off-heap data
+  // structures, of which there are currently only two: the string table and the
+  // shared struct type registry. Visitors for those structures are limited in
+  // scope.
+  //
+  // If we ever add new off-heap data structures that we want to walk as roots
+  // using this function, we should make it generic, by
+  //
+  //   1) Making this function pure virtual, and
+  //   2) Implementing it for all visitors.
   virtual void VisitRootPointers(Root root, const char* description,
                                  OffHeapObjectSlot start,
                                  OffHeapObjectSlot end) {
-    // This should be implemented for any visitor that visits the string table.
-    // If we ever add new off-heap data-structures that we want to walk as roots
-    // using this function, we should make it generic, by
-    //
-    //   1) Making this function pure virtual, and
-    //   2) Implementing it for all visitors.
     UNREACHABLE();
   }
 
@@ -130,7 +137,7 @@ class ObjectVisitor {
                              ObjectSlot end) = 0;
   virtual void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                              MaybeObjectSlot end) = 0;
-  // When V8_EXTERNAL_CODE_SPACE is enabled, visits a InstructionStream pointer
+  // When V8_EXTERNAL_CODE_SPACE is enabled, visits an InstructionStream pointer
   // slot. The values may be modified on return. Not used when
   // V8_EXTERNAL_CODE_SPACE is not enabled (the InstructionStream pointer slots
   // are visited as a part of on-heap slot visitation - via VisitPointers()).
@@ -181,12 +188,25 @@ class ObjectVisitor {
   virtual void VisitExternalPointer(Tagged<HeapObject> host,
                                     ExternalPointerSlot slot) {}
 
+  // Same as `VisitExternalPointer` with the difference that the slot's contents
+  // are known to be managed by `CppHeap`.
+  virtual void VisitCppHeapPointer(Tagged<HeapObject> host,
+                                   CppHeapPointerSlot slot) {}
+
   virtual void VisitIndirectPointer(Tagged<HeapObject> host,
                                     IndirectPointerSlot slot,
                                     IndirectPointerMode mode) {}
 
-  virtual void VisitIndirectPointerTableEntry(Tagged<HeapObject> host,
-                                              IndirectPointerSlot slot) {}
+  virtual void VisitProtectedPointer(Tagged<TrustedObject> host,
+                                     ProtectedPointerSlot slot) {}
+  virtual void VisitProtectedPointer(Tagged<TrustedObject> host,
+                                     ProtectedMaybeObjectSlot slot) {}
+
+  virtual void VisitTrustedPointerTableEntry(Tagged<HeapObject> host,
+                                             IndirectPointerSlot slot) {}
+
+  virtual void VisitJSDispatchTableEntry(Tagged<HeapObject> host,
+                                         JSDispatchHandle handle) {}
 
   virtual void VisitMapPointer(Tagged<HeapObject> host) { UNREACHABLE(); }
 };
@@ -203,7 +223,7 @@ class ObjectVisitorWithCageBases : public ObjectVisitor {
   // The pointer compression cage base value used for decompression of all
   // tagged values except references to InstructionStream objects.
   PtrComprCageBase cage_base() const {
-#if V8_COMPRESS_POINTERS
+#ifdef V8_COMPRESS_POINTERS
     return cage_base_;
 #else
     return PtrComprCageBase{};
@@ -221,7 +241,7 @@ class ObjectVisitorWithCageBases : public ObjectVisitor {
   }
 
  private:
-#if V8_COMPRESS_POINTERS
+#ifdef V8_COMPRESS_POINTERS
   const PtrComprCageBase cage_base_;
 #ifdef V8_EXTERNAL_CODE_SPACE
   const PtrComprCageBase code_cage_base_;
@@ -243,7 +263,11 @@ class ClientRootVisitor final : public RootVisitor {
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) final {
     for (FullObjectSlot p = start; p < end; ++p) {
-      if (!IsSharedHeapObject(*p)) continue;
+      Tagged<Object> object = *p;
+#ifdef V8_ENABLE_DIRECT_HANDLE
+      if (object.ptr() == ValueHelper::kTaggedNullAddress) continue;
+#endif
+      if (!IsSharedHeapObject(object)) continue;
       actual_visitor_->VisitRootPointer(root, description, p);
     }
   }
@@ -261,10 +285,7 @@ class ClientRootVisitor final : public RootVisitor {
   }
 
  private:
-  V8_INLINE static bool IsSharedHeapObject(Tagged<Object> object) {
-    return IsHeapObject(object) &&
-           HeapObject::cast(object).InWritableSharedSpace();
-  }
+  V8_INLINE static bool IsSharedHeapObject(Tagged<Object> object);
 
   Visitor* const actual_visitor_;
 };
@@ -299,16 +320,8 @@ class ClientObjectVisitor final : public ObjectVisitorWithCageBases {
     }
   }
 
-  void VisitInstructionStreamPointer(Tagged<Code> host,
-                                     InstructionStreamSlot slot) final {
-#if DEBUG
-    Tagged<Object> istream_object = slot.load(code_cage_base());
-    Tagged<InstructionStream> istream;
-    if (istream_object.GetHeapObject(&istream)) {
-      DCHECK(!istream.InWritableSharedSpace());
-    }
-#endif
-  }
+  inline void VisitInstructionStreamPointer(Tagged<Code> host,
+                                            InstructionStreamSlot slot) final;
 
   void VisitPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                      MaybeObjectSlot end) final {
@@ -323,10 +336,7 @@ class ClientObjectVisitor final : public ObjectVisitorWithCageBases {
                                    RelocInfo* rinfo) final;
 
  private:
-  V8_INLINE static bool IsSharedHeapObject(Tagged<Object> object) {
-    return IsHeapObject(object) &&
-           HeapObject::cast(object).InWritableSharedSpace();
-  }
+  V8_INLINE static bool IsSharedHeapObject(Tagged<Object> object);
 
   Visitor* const actual_visitor_;
 };

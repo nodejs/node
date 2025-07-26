@@ -1,7 +1,7 @@
 'use strict'
 
 const { kClients } = require('../core/symbols')
-const Agent = require('../agent')
+const Agent = require('../dispatcher/agent')
 const {
   kAgent,
   kMockAgentSet,
@@ -11,32 +11,46 @@ const {
   kNetConnect,
   kGetNetConnect,
   kOptions,
-  kFactory
+  kFactory,
+  kMockAgentRegisterCallHistory,
+  kMockAgentIsCallHistoryEnabled,
+  kMockAgentAddCallHistoryLog,
+  kMockAgentMockCallHistoryInstance,
+  kMockAgentAcceptsNonStandardSearchParameters,
+  kMockCallHistoryAddLog
 } = require('./mock-symbols')
 const MockClient = require('./mock-client')
 const MockPool = require('./mock-pool')
-const { matchValue, buildMockOptions } = require('./mock-utils')
+const { matchValue, normalizeSearchParams, buildAndValidateMockOptions } = require('./mock-utils')
 const { InvalidArgumentError, UndiciError } = require('../core/errors')
-const Dispatcher = require('../dispatcher')
-const Pluralizer = require('./pluralizer')
+const Dispatcher = require('../dispatcher/dispatcher')
 const PendingInterceptorsFormatter = require('./pending-interceptors-formatter')
+const { MockCallHistory } = require('./mock-call-history')
 
 class MockAgent extends Dispatcher {
   constructor (opts) {
     super(opts)
 
+    const mockOptions = buildAndValidateMockOptions(opts)
+
     this[kNetConnect] = true
     this[kIsMockActive] = true
+    this[kMockAgentIsCallHistoryEnabled] = mockOptions?.enableCallHistory ?? false
+    this[kMockAgentAcceptsNonStandardSearchParameters] = mockOptions?.acceptNonStandardSearchParameters ?? false
 
     // Instantiate Agent and encapsulate
-    if ((opts?.agent && typeof opts.agent.dispatch !== 'function')) {
+    if (opts?.agent && typeof opts.agent.dispatch !== 'function') {
       throw new InvalidArgumentError('Argument opts.agent must implement Agent')
     }
     const agent = opts?.agent ? opts.agent : new Agent(opts)
     this[kAgent] = agent
 
     this[kClients] = agent[kClients]
-    this[kOptions] = buildMockOptions(opts)
+    this[kOptions] = mockOptions
+
+    if (this[kMockAgentIsCallHistoryEnabled]) {
+      this[kMockAgentRegisterCallHistory]()
+    }
   }
 
   get (origin) {
@@ -52,10 +66,24 @@ class MockAgent extends Dispatcher {
   dispatch (opts, handler) {
     // Call MockAgent.get to perform additional setup before dispatching as normal
     this.get(opts.origin)
-    return this[kAgent].dispatch(opts, handler)
+
+    this[kMockAgentAddCallHistoryLog](opts)
+
+    const acceptNonStandardSearchParameters = this[kMockAgentAcceptsNonStandardSearchParameters]
+
+    const dispatchOpts = { ...opts }
+
+    if (acceptNonStandardSearchParameters && dispatchOpts.path) {
+      const [path, searchParams] = dispatchOpts.path.split('?')
+      const normalizedSearchParams = normalizeSearchParams(searchParams, acceptNonStandardSearchParameters)
+      dispatchOpts.path = `${path}?${normalizedSearchParams}`
+    }
+
+    return this[kAgent].dispatch(dispatchOpts, handler)
   }
 
   async close () {
+    this.clearCallHistory()
     await this[kAgent].close()
     this[kClients].clear()
   }
@@ -86,14 +114,52 @@ class MockAgent extends Dispatcher {
     this[kNetConnect] = false
   }
 
+  enableCallHistory () {
+    this[kMockAgentIsCallHistoryEnabled] = true
+
+    return this
+  }
+
+  disableCallHistory () {
+    this[kMockAgentIsCallHistoryEnabled] = false
+
+    return this
+  }
+
+  getCallHistory () {
+    return this[kMockAgentMockCallHistoryInstance]
+  }
+
+  clearCallHistory () {
+    if (this[kMockAgentMockCallHistoryInstance] !== undefined) {
+      this[kMockAgentMockCallHistoryInstance].clear()
+    }
+  }
+
   // This is required to bypass issues caused by using global symbols - see:
   // https://github.com/nodejs/undici/issues/1447
   get isMockActive () {
     return this[kIsMockActive]
   }
 
+  [kMockAgentRegisterCallHistory] () {
+    if (this[kMockAgentMockCallHistoryInstance] === undefined) {
+      this[kMockAgentMockCallHistoryInstance] = new MockCallHistory()
+    }
+  }
+
+  [kMockAgentAddCallHistoryLog] (opts) {
+    if (this[kMockAgentIsCallHistoryEnabled]) {
+      // additional setup when enableCallHistory class method is used after mockAgent instantiation
+      this[kMockAgentRegisterCallHistory]()
+
+      // add call history log on every call (intercepted or not)
+      this[kMockAgentMockCallHistoryInstance][kMockCallHistoryAddLog](opts)
+    }
+  }
+
   [kMockAgentSet] (origin, dispatcher) {
-    this[kClients].set(origin, dispatcher)
+    this[kClients].set(origin, { count: 0, dispatcher })
   }
 
   [kFactory] (origin) {
@@ -105,9 +171,9 @@ class MockAgent extends Dispatcher {
 
   [kMockAgentGet] (origin) {
     // First check if we can immediately find it
-    const client = this[kClients].get(origin)
-    if (client) {
-      return client
+    const result = this[kClients].get(origin)
+    if (result?.dispatcher) {
+      return result.dispatcher
     }
 
     // If the origin is not a string create a dummy parent pool and return to user
@@ -118,11 +184,11 @@ class MockAgent extends Dispatcher {
     }
 
     // If we match, create a pool and assign the same dispatches
-    for (const [keyMatcher, nonExplicitDispatcher] of Array.from(this[kClients])) {
-      if (nonExplicitDispatcher && typeof keyMatcher !== 'string' && matchValue(keyMatcher, origin)) {
+    for (const [keyMatcher, result] of Array.from(this[kClients])) {
+      if (result && typeof keyMatcher !== 'string' && matchValue(keyMatcher, origin)) {
         const dispatcher = this[kFactory](origin)
         this[kMockAgentSet](origin, dispatcher)
-        dispatcher[kDispatches] = nonExplicitDispatcher[kDispatches]
+        dispatcher[kDispatches] = result.dispatcher[kDispatches]
         return dispatcher
       }
     }
@@ -136,7 +202,7 @@ class MockAgent extends Dispatcher {
     const mockAgentClients = this[kClients]
 
     return Array.from(mockAgentClients.entries())
-      .flatMap(([origin, scope]) => scope[kDispatches].map(dispatch => ({ ...dispatch, origin })))
+      .flatMap(([origin, result]) => result.dispatcher[kDispatches].map(dispatch => ({ ...dispatch, origin })))
       .filter(({ pending }) => pending)
   }
 
@@ -147,13 +213,11 @@ class MockAgent extends Dispatcher {
       return
     }
 
-    const pluralizer = new Pluralizer('interceptor', 'interceptors').pluralize(pending.length)
-
-    throw new UndiciError(`
-${pluralizer.count} ${pluralizer.noun} ${pluralizer.is} pending:
-
-${pendingInterceptorsFormatter.format(pending)}
-`.trim())
+    throw new UndiciError(
+      pending.length === 1
+        ? `1 interceptor is pending:\n\n${pendingInterceptorsFormatter.format(pending)}`.trim()
+        : `${pending.length} interceptors are pending:\n\n${pendingInterceptorsFormatter.format(pending)}`.trim()
+    )
   }
 }
 

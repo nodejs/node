@@ -1,5 +1,5 @@
 /**
- * @fileoverview Prohibit the use of assert operators ( ===, !==, ==, != )
+ * @file Prohibit the use of assert operators ( ===, !==, ==, != )
  */
 
 'use strict';
@@ -31,7 +31,7 @@ module.exports = {
             node,
             message: parseError(assertMethod, arg.operator),
             fix: (fixer) => {
-              const sourceCode = context.getSourceCode();
+              const sourceCode = context.sourceCode;
               const left = sourceCode.getText(arg.left);
               const right = sourceCode.getText(arg.right);
               return fixer.replaceText(

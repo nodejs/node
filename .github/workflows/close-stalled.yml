@@ -20,7 +20,7 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e  # v9.0.0
+      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639  # v9.1.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-close: 30
@@ -32,7 +32,5 @@ jobs:
           only-labels: stalled
           # max requests it will send per run to the GitHub API before it deliberately exits to avoid hitting API rate limits
           operations-per-run: 500
-          # deactivates automatic removal of stalled label if issue gets any activity
-          remove-stale-when-updated: false
           # deactivates automatic stale labelling as we prefer to do that manually
           days-before-stale: -1

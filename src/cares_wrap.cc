@@ -22,10 +22,10 @@
 #include "cares_wrap.h"
 #include "ada.h"
 #include "async_wrap-inl.h"
-#include "base64-inl.h"
 #include "base_object-inl.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
+#include "nbytes.h"
 #include "node.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -39,6 +39,10 @@
 #include <memory>
 #include <vector>
 #include <unordered_set>
+
+#ifndef T_TLSA
+#define T_TLSA 52 /* TLSA certificate association */
+#endif
 
 #ifndef T_CAA
 # define T_CAA    257 /* Certification Authority Authorization */
@@ -57,8 +61,10 @@ namespace node {
 namespace cares_wrap {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -66,12 +72,16 @@ using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Null;
 using v8::Object;
 using v8::String;
+using v8::Uint32;
 using v8::Value;
 
 namespace {
@@ -143,14 +153,10 @@ void ares_sockstate_cb(void* data, ares_socket_t sock, int read, int write) {
                   ares_poll_cb);
 
   } else {
-    /* read == 0 and write == 0 this is c-ares's way of notifying us that */
-    /* the socket is now closed. We must free the data associated with */
-    /* socket. */
-    CHECK(task &&
-          "When an ares socket is closed we should have a handle for it");
-
-    channel->task_list()->erase(it);
-    channel->env()->CloseHandle(&task->poll_watcher, ares_poll_close_cb);
+    if (task != nullptr) {
+      channel->task_list()->erase(it);
+      channel->env()->CloseHandle(&task->poll_watcher, ares_poll_close_cb);
+    }
 
     if (channel->task_list()->empty()) {
       channel->CloseTimer();
@@ -158,29 +164,31 @@ void ares_sockstate_cb(void* data, ares_socket_t sock, int read, int write) {
   }
 }
 
-Local<Array> HostentToNames(Environment* env, struct hostent* host) {
+MaybeLocal<Array> HostentToNames(Environment* env, struct hostent* host) {
   EscapableHandleScope scope(env->isolate());
 
-  std::vector<Local<Value>> names;
+  LocalVector<Value> names(env->isolate());
 
-  for (uint32_t i = 0; host->h_aliases[i] != nullptr; ++i)
+  for (uint32_t i = 0; host->h_aliases[i] != nullptr; ++i) {
     names.emplace_back(OneByteString(env->isolate(), host->h_aliases[i]));
+  }
 
-  Local<Array> ret = Array::New(env->isolate(), names.data(), names.size());
-
-  return scope.Escape(ret);
+  return scope.Escape(Array::New(env->isolate(), names.data(), names.size()));
 }
 
-Local<Array> HostentToNames(Environment* env,
-                            struct hostent* host,
-                            Local<Array> names) {
+MaybeLocal<Array> HostentToNames(Environment* env,
+                                 struct hostent* host,
+                                 Local<Array> names) {
   size_t offset = names->Length();
 
   for (uint32_t i = 0; host->h_aliases[i] != nullptr; ++i) {
-    names->Set(
-        env->context(),
-        i + offset,
-        OneByteString(env->isolate(), host->h_aliases[i])).Check();
+    if (names
+            ->Set(env->context(),
+                  i + offset,
+                  OneByteString(env->isolate(), host->h_aliases[i]))
+            .IsNothing()) {
+      return {};
+    }
   }
 
   return names;
@@ -192,20 +200,20 @@ Local<Array> AddrTTLToArray(
     const T* addrttls,
     size_t naddrttls) {
   MaybeStackBuffer<Local<Value>, 8> ttls(naddrttls);
-  for (size_t i = 0; i < naddrttls; i++)
+  for (size_t i = 0; i < naddrttls; i++) {
     ttls[i] = Integer::NewFromUnsigned(env->isolate(), addrttls[i].ttl);
+  }
 
   return Array::New(env->isolate(), ttls.out(), naddrttls);
 }
 
-int ParseGeneralReply(
-    Environment* env,
-    const unsigned char* buf,
-    int len,
-    int* type,
-    Local<Array> ret,
-    void* addrttls = nullptr,
-    int* naddrttls = nullptr) {
+Maybe<int> ParseGeneralReply(Environment* env,
+                             const unsigned char* buf,
+                             int len,
+                             int* type,
+                             Local<Array> ret,
+                             void* addrttls = nullptr,
+                             int* naddrttls = nullptr) {
   HandleScope handle_scope(env->isolate());
   hostent* host;
 
@@ -237,8 +245,7 @@ int ParseGeneralReply(
       UNREACHABLE("Bad NS type");
   }
 
-  if (status != ARES_SUCCESS)
-    return status;
+  if (status != ARES_SUCCESS) return Just<int>(status);
 
   CHECK_NOT_NULL(host);
   HostEntPointer ptr(host);
@@ -251,22 +258,29 @@ int ParseGeneralReply(
     // A cname lookup always returns a single record but we follow the
     // common API here.
     *type = ns_t_cname;
-    ret->Set(env->context(),
-             ret->Length(),
-             OneByteString(env->isolate(), ptr->h_name)).Check();
-    return ARES_SUCCESS;
+    if (ret->Set(env->context(),
+                 ret->Length(),
+                 OneByteString(env->isolate(), ptr->h_name))
+            .IsNothing()) {
+      return Nothing<int>();
+    }
+    return Just<int>(ARES_SUCCESS);
   }
 
   if (*type == ns_t_cname_or_a)
     *type = ns_t_a;
 
   if (*type == ns_t_ns) {
-    HostentToNames(env, ptr.get(), ret);
+    if (HostentToNames(env, ptr.get(), ret).IsEmpty()) {
+      return Nothing<int>();
+    }
   } else if (*type == ns_t_ptr) {
     uint32_t offset = ret->Length();
     for (uint32_t i = 0; ptr->h_aliases[i] != nullptr; i++) {
       auto alias = OneByteString(env->isolate(), ptr->h_aliases[i]);
-      ret->Set(env->context(), i + offset, alias).Check();
+      if (ret->Set(env->context(), i + offset, alias).IsNothing()) {
+        return Nothing<int>();
+      }
     }
   } else {
     uint32_t offset = ret->Length();
@@ -274,97 +288,180 @@ int ParseGeneralReply(
     for (uint32_t i = 0; ptr->h_addr_list[i] != nullptr; ++i) {
       uv_inet_ntop(ptr->h_addrtype, ptr->h_addr_list[i], ip, sizeof(ip));
       auto address = OneByteString(env->isolate(), ip);
-      ret->Set(env->context(), i + offset, address).Check();
+      if (ret->Set(env->context(), i + offset, address).IsNothing()) {
+        return Nothing<int>();
+      }
     }
   }
 
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
-
-int ParseMxReply(
-    Environment* env,
-    const unsigned char* buf,
-    int len,
-    Local<Array> ret,
-    bool need_type = false) {
+Maybe<int> ParseMxReply(Environment* env,
+                        const unsigned char* buf,
+                        int len,
+                        Local<Array> ret,
+                        bool need_type = false) {
   HandleScope handle_scope(env->isolate());
 
   struct ares_mx_reply* mx_start;
   int status = ares_parse_mx_reply(buf, len, &mx_start);
-  if (status != ARES_SUCCESS)
-    return status;
+  if (status != ARES_SUCCESS) return Just<int>(status);
 
   uint32_t offset = ret->Length();
   ares_mx_reply* current = mx_start;
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
     Local<Object> mx_record = Object::New(env->isolate());
-    mx_record->Set(env->context(),
-                   env->exchange_string(),
-                   OneByteString(env->isolate(), current->host)).Check();
-    mx_record->Set(env->context(),
-                   env->priority_string(),
-                   Integer::New(env->isolate(), current->priority)).Check();
-    if (need_type)
-      mx_record->Set(env->context(),
-                     env->type_string(),
-                     env->dns_mx_string()).Check();
+    if (mx_record
+            ->Set(env->context(),
+                  env->exchange_string(),
+                  OneByteString(env->isolate(), current->host))
+            .IsNothing() ||
+        mx_record
+            ->Set(env->context(),
+                  env->priority_string(),
+                  Integer::New(env->isolate(), current->priority))
+            .IsNothing()) {
+      ares_free_data(mx_start);
+      return Nothing<int>();
+    }
+    if (need_type &&
+        mx_record->Set(env->context(), env->type_string(), env->dns_mx_string())
+            .IsNothing()) {
+      ares_free_data(mx_start);
+      return Nothing<int>();
+    }
 
-    ret->Set(env->context(), i + offset, mx_record).Check();
+    if (ret->Set(env->context(), i + offset, mx_record).IsNothing()) {
+      ares_free_data(mx_start);
+      return Nothing<int>();
+    }
   }
 
   ares_free_data(mx_start);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int ParseCaaReply(
-    Environment* env,
-    const unsigned char* buf,
-    int len,
-    Local<Array> ret,
-    bool need_type = false) {
+Maybe<int> ParseCaaReply(Environment* env,
+                         const unsigned char* buf,
+                         int len,
+                         Local<Array> ret,
+                         bool need_type = false) {
   HandleScope handle_scope(env->isolate());
 
   struct ares_caa_reply* caa_start;
   int status = ares_parse_caa_reply(buf, len, &caa_start);
-  if (status != ARES_SUCCESS)
-    return status;
+  if (status != ARES_SUCCESS) return Just<int>(status);
 
   uint32_t offset = ret->Length();
   ares_caa_reply* current = caa_start;
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
     Local<Object> caa_record = Object::New(env->isolate());
 
-    caa_record->Set(env->context(),
-                    env->dns_critical_string(),
-                    Integer::New(env->isolate(), current->critical)).Check();
-    caa_record->Set(env->context(),
-                    OneByteString(env->isolate(), current->property),
-                    OneByteString(env->isolate(), current->value)).Check();
-    if (need_type)
-      caa_record->Set(env->context(),
-                      env->type_string(),
-                      env->dns_caa_string()).Check();
+    if (caa_record
+            ->Set(env->context(),
+                  env->dns_critical_string(),
+                  Integer::New(env->isolate(), current->critical))
+            .IsNothing() ||
+        caa_record
+            ->Set(env->context(),
+                  OneByteString(env->isolate(), current->property),
+                  OneByteString(env->isolate(), current->value))
+            .IsNothing()) {
+      ares_free_data(caa_start);
+      return Nothing<int>();
+    }
+    if (need_type &&
+        caa_record
+            ->Set(env->context(), env->type_string(), env->dns_caa_string())
+            .IsNothing()) {
+      ares_free_data(caa_start);
+      return Nothing<int>();
+    }
 
-    ret->Set(env->context(), i + offset, caa_record).Check();
+    if (ret->Set(env->context(), i + offset, caa_record).IsNothing()) {
+      ares_free_data(caa_start);
+      return Nothing<int>();
+    }
   }
 
   ares_free_data(caa_start);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int ParseTxtReply(
-    Environment* env,
-    const unsigned char* buf,
-    int len,
-    Local<Array> ret,
-    bool need_type = false) {
+Maybe<int> ParseTlsaReply(Environment* env,
+                          unsigned char* buf,
+                          int len,
+                          Local<Array> ret) {
+  EscapableHandleScope handle_scope(env->isolate());
+
+  ares_dns_record_t* dnsrec = nullptr;
+
+  int status = ares_dns_parse(buf, len, 0, &dnsrec);
+  if (status != ARES_SUCCESS) {
+    ares_dns_record_destroy(dnsrec);
+    return Just<int>(status);
+  }
+
+  uint32_t offset = ret->Length();
+  size_t rr_count = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
+
+  for (size_t i = 0; i < rr_count; i++) {
+    const ares_dns_rr_t* rr =
+        ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
+
+    if (ares_dns_rr_get_type(rr) != ARES_REC_TYPE_TLSA) continue;
+
+    unsigned char certusage = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_CERT_USAGE);
+    unsigned char selector = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_SELECTOR);
+    unsigned char match = ares_dns_rr_get_u8(rr, ARES_RR_TLSA_MATCH);
+    size_t data_len;
+    const unsigned char* data =
+        ares_dns_rr_get_bin(rr, ARES_RR_TLSA_DATA, &data_len);
+    if (!data || data_len == 0) continue;
+
+    Local<ArrayBuffer> data_ab = ArrayBuffer::New(env->isolate(), data_len);
+    memcpy(data_ab->Data(), data, data_len);
+
+    Local<Object> tlsa_rec = Object::New(env->isolate());
+
+    if (tlsa_rec
+            ->Set(env->context(),
+                  env->cert_usage_string(),
+                  Integer::NewFromUnsigned(env->isolate(), certusage))
+            .IsNothing() ||
+        tlsa_rec
+            ->Set(env->context(),
+                  env->selector_string(),
+                  Integer::NewFromUnsigned(env->isolate(), selector))
+            .IsNothing() ||
+        tlsa_rec
+            ->Set(env->context(),
+                  env->match_string(),
+                  Integer::NewFromUnsigned(env->isolate(), match))
+            .IsNothing() ||
+        tlsa_rec->Set(env->context(), env->data_string(), data_ab)
+            .IsNothing() ||
+        ret->Set(env->context(), offset + i, tlsa_rec).IsNothing()) {
+      ares_dns_record_destroy(dnsrec);
+      return Nothing<int>();
+    }
+  }
+
+  ares_dns_record_destroy(dnsrec);
+  return Just<int>(ARES_SUCCESS);
+}
+
+Maybe<int> ParseTxtReply(Environment* env,
+                         const unsigned char* buf,
+                         int len,
+                         Local<Array> ret,
+                         bool need_type = false) {
   HandleScope handle_scope(env->isolate());
 
   struct ares_txt_ext* txt_out;
 
   int status = ares_parse_txt_reply_ext(buf, len, &txt_out);
-  if (status != ARES_SUCCESS)
-    return status;
+  if (status != ARES_SUCCESS) return Just<int>(status);
 
   Local<Array> txt_chunk;
 
@@ -380,13 +477,19 @@ int ParseTxtReply(
       if (!txt_chunk.IsEmpty()) {
         if (need_type) {
           Local<Object> elem = Object::New(env->isolate());
-          elem->Set(env->context(), env->entries_string(), txt_chunk).Check();
-          elem->Set(env->context(),
-                    env->type_string(),
-                    env->dns_txt_string()).Check();
-          ret->Set(env->context(), offset + i++, elem).Check();
-        } else {
-          ret->Set(env->context(), offset + i++, txt_chunk).Check();
+          if (elem->Set(env->context(), env->entries_string(), txt_chunk)
+                  .IsNothing() ||
+              elem->Set(
+                      env->context(), env->type_string(), env->dns_txt_string())
+                  .IsNothing() ||
+              ret->Set(env->context(), offset + i++, elem).IsNothing()) {
+            ares_free_data(txt_out);
+            return Nothing<int>();
+          }
+        } else if (ret->Set(env->context(), offset + i++, txt_chunk)
+                       .IsNothing()) {
+          ares_free_data(txt_out);
+          return Nothing<int>();
         }
       }
 
@@ -394,128 +497,163 @@ int ParseTxtReply(
       j = 0;
     }
 
-    txt_chunk->Set(env->context(), j++, txt).Check();
+    if (txt_chunk->Set(env->context(), j++, txt).IsNothing()) {
+      ares_free_data(txt_out);
+      return Nothing<int>();
+    }
   }
 
   // Push last chunk if it isn't empty
   if (!txt_chunk.IsEmpty()) {
     if (need_type) {
       Local<Object> elem = Object::New(env->isolate());
-      elem->Set(env->context(), env->entries_string(), txt_chunk).Check();
-      elem->Set(env->context(),
-                env->type_string(),
-                env->dns_txt_string()).Check();
-      ret->Set(env->context(), offset + i, elem).Check();
-    } else {
-      ret->Set(env->context(), offset + i, txt_chunk).Check();
+      if (elem->Set(env->context(), env->entries_string(), txt_chunk)
+              .IsNothing() ||
+          elem->Set(env->context(), env->type_string(), env->dns_txt_string())
+              .IsNothing() ||
+          ret->Set(env->context(), offset + i, elem).IsNothing()) {
+        ares_free_data(txt_out);
+        return Nothing<int>();
+      }
+    } else if (ret->Set(env->context(), offset + i, txt_chunk).IsNothing()) {
+      ares_free_data(txt_out);
+      return Nothing<int>();
     }
   }
 
   ares_free_data(txt_out);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-
-int ParseSrvReply(
-    Environment* env,
-    const unsigned char* buf,
-    int len,
-    Local<Array> ret,
-    bool need_type = false) {
+Maybe<int> ParseSrvReply(Environment* env,
+                         const unsigned char* buf,
+                         int len,
+                         Local<Array> ret,
+                         bool need_type = false) {
   HandleScope handle_scope(env->isolate());
 
   struct ares_srv_reply* srv_start;
   int status = ares_parse_srv_reply(buf, len, &srv_start);
-  if (status != ARES_SUCCESS)
-    return status;
+  if (status != ARES_SUCCESS) return Just<int>(status);
 
   ares_srv_reply* current = srv_start;
   int offset = ret->Length();
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
     Local<Object> srv_record = Object::New(env->isolate());
-    srv_record->Set(env->context(),
-                    env->name_string(),
-                    OneByteString(env->isolate(), current->host)).Check();
-    srv_record->Set(env->context(),
-                    env->port_string(),
-                    Integer::New(env->isolate(), current->port)).Check();
-    srv_record->Set(env->context(),
-                    env->priority_string(),
-                    Integer::New(env->isolate(), current->priority)).Check();
-    srv_record->Set(env->context(),
-                    env->weight_string(),
-                    Integer::New(env->isolate(), current->weight)).Check();
-    if (need_type)
-      srv_record->Set(env->context(),
-                      env->type_string(),
-                      env->dns_srv_string()).Check();
 
-    ret->Set(env->context(), i + offset, srv_record).Check();
+    if (srv_record
+            ->Set(env->context(),
+                  env->name_string(),
+                  OneByteString(env->isolate(), current->host))
+            .IsNothing() ||
+        srv_record
+            ->Set(env->context(),
+                  env->port_string(),
+                  Integer::New(env->isolate(), current->port))
+            .IsNothing() ||
+        srv_record
+            ->Set(env->context(),
+                  env->priority_string(),
+                  Integer::New(env->isolate(), current->priority))
+            .IsNothing() ||
+        srv_record
+            ->Set(env->context(),
+                  env->weight_string(),
+                  Integer::New(env->isolate(), current->weight))
+            .IsNothing()) {
+      ares_free_data(srv_start);
+      return Nothing<int>();
+    }
+    if (need_type &&
+        srv_record
+            ->Set(env->context(), env->type_string(), env->dns_srv_string())
+            .IsNothing()) {
+      ares_free_data(srv_start);
+      return Nothing<int>();
+    }
+
+    if (ret->Set(env->context(), i + offset, srv_record).IsNothing()) {
+      ares_free_data(srv_start);
+      return Nothing<int>();
+    }
   }
 
   ares_free_data(srv_start);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-
-int ParseNaptrReply(
-    Environment* env,
-    const unsigned char* buf,
-    int len,
-    Local<Array> ret,
-    bool need_type = false) {
+Maybe<int> ParseNaptrReply(Environment* env,
+                           const unsigned char* buf,
+                           int len,
+                           Local<Array> ret,
+                           bool need_type = false) {
   HandleScope handle_scope(env->isolate());
 
   ares_naptr_reply* naptr_start;
   int status = ares_parse_naptr_reply(buf, len, &naptr_start);
 
-  if (status != ARES_SUCCESS)
-    return status;
+  if (status != ARES_SUCCESS) return Just<int>(status);
 
   ares_naptr_reply* current = naptr_start;
   int offset = ret->Length();
   for (uint32_t i = 0; current != nullptr; ++i, current = current->next) {
     Local<Object> naptr_record = Object::New(env->isolate());
-    naptr_record->Set(env->context(),
-                      env->flags_string(),
-                      OneByteString(env->isolate(), current->flags)).Check();
-    naptr_record->Set(env->context(),
-                      env->service_string(),
-                      OneByteString(env->isolate(),
-                                    current->service)).Check();
-    naptr_record->Set(env->context(),
-                      env->regexp_string(),
-                      OneByteString(env->isolate(),
-                                    current->regexp)).Check();
-    naptr_record->Set(env->context(),
-                      env->replacement_string(),
-                      OneByteString(env->isolate(),
-                                    current->replacement)).Check();
-    naptr_record->Set(env->context(),
-                      env->order_string(),
-                      Integer::New(env->isolate(), current->order)).Check();
-    naptr_record->Set(env->context(),
-                      env->preference_string(),
-                      Integer::New(env->isolate(),
-                                   current->preference)).Check();
-    if (need_type)
-      naptr_record->Set(env->context(),
-                        env->type_string(),
-                        env->dns_naptr_string()).Check();
 
-    ret->Set(env->context(), i + offset, naptr_record).Check();
+    if (naptr_record
+            ->Set(env->context(),
+                  env->flags_string(),
+                  OneByteString(env->isolate(), current->flags))
+            .IsNothing() ||
+        naptr_record
+            ->Set(env->context(),
+                  env->service_string(),
+                  OneByteString(env->isolate(), current->service))
+            .IsNothing() ||
+        naptr_record
+            ->Set(env->context(),
+                  env->regexp_string(),
+                  OneByteString(env->isolate(), current->regexp))
+            .IsNothing() ||
+        naptr_record
+            ->Set(env->context(),
+                  env->replacement_string(),
+                  OneByteString(env->isolate(), current->replacement))
+            .IsNothing() ||
+        naptr_record
+            ->Set(env->context(),
+                  env->order_string(),
+                  Integer::New(env->isolate(), current->order))
+            .IsNothing() ||
+        naptr_record
+            ->Set(env->context(),
+                  env->preference_string(),
+                  Integer::New(env->isolate(), current->preference))
+            .IsNothing()) {
+      ares_free_data(naptr_start);
+      return Nothing<int>();
+    }
+    if (need_type &&
+        naptr_record
+            ->Set(env->context(), env->type_string(), env->dns_naptr_string())
+            .IsNothing()) {
+      ares_free_data(naptr_start);
+      return Nothing<int>();
+    }
+
+    if (ret->Set(env->context(), i + offset, naptr_record).IsNothing()) {
+      ares_free_data(naptr_start);
+      return Nothing<int>();
+    }
   }
 
   ares_free_data(naptr_start);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-
-int ParseSoaReply(
-    Environment* env,
-    unsigned char* buf,
-    int len,
-    Local<Object>* ret) {
+Maybe<int> ParseSoaReply(Environment* env,
+                         unsigned char* buf,
+                         int len,
+                         Local<Object>* ret) {
   EscapableHandleScope handle_scope(env->isolate());
 
   // Manage memory using standardard smart pointer std::unique_tr
@@ -532,13 +670,13 @@ int ParseSoaReply(
   int status = ares_expand_name(ptr, buf, len, &name_temp, &temp_len);
   if (status != ARES_SUCCESS) {
     // returns EBADRESP in case of invalid input
-    return status == ARES_EBADNAME ? ARES_EBADRESP : status;
+    return Just<int>(status == ARES_EBADNAME ? ARES_EBADRESP : status);
   }
 
   const ares_unique_ptr name(name_temp);
 
   if (ptr + temp_len + NS_QFIXEDSZ > buf + len) {
-    return ARES_EBADRESP;
+    return Just<int>(ARES_EBADRESP);
   }
   ptr += temp_len + NS_QFIXEDSZ;
 
@@ -548,13 +686,13 @@ int ParseSoaReply(
     int status2 = ares_expand_name(ptr, buf, len, &rr_name_temp, &rr_temp_len);
 
     if (status2 != ARES_SUCCESS)
-      return status2 == ARES_EBADNAME ? ARES_EBADRESP : status2;
+      return Just<int>(status2 == ARES_EBADNAME ? ARES_EBADRESP : status2);
 
     const ares_unique_ptr rr_name(rr_name_temp);
 
     ptr += rr_temp_len;
     if (ptr + NS_RRFIXEDSZ > buf + len) {
-      return ARES_EBADRESP;
+      return Just<int>(ARES_EBADRESP);
     }
 
     const int rr_type = cares_get_16bit(ptr);
@@ -570,7 +708,7 @@ int ParseSoaReply(
                                      &nsname_temp,
                                      &nsname_temp_len);
       if (status3 != ARES_SUCCESS) {
-        return status3 == ARES_EBADNAME ? ARES_EBADRESP : status3;
+        return Just<int>(status3 == ARES_EBADNAME ? ARES_EBADRESP : status3);
       }
       const ares_unique_ptr nsname(nsname_temp);
       ptr += nsname_temp_len;
@@ -581,48 +719,62 @@ int ParseSoaReply(
                                      &hostmaster_temp,
                                      &hostmaster_temp_len);
       if (status4 != ARES_SUCCESS) {
-        return status4 == ARES_EBADNAME ? ARES_EBADRESP : status4;
+        return Just<int>(status4 == ARES_EBADNAME ? ARES_EBADRESP : status4);
       }
       const ares_unique_ptr hostmaster(hostmaster_temp);
       ptr += hostmaster_temp_len;
 
       if (ptr + 5 * 4 > buf + len) {
-        return ARES_EBADRESP;
+        return Just<int>(ARES_EBADRESP);
       }
 
-      const unsigned int serial = ReadUint32BE(ptr + 0 * 4);
-      const unsigned int refresh = ReadUint32BE(ptr + 1 * 4);
-      const unsigned int retry = ReadUint32BE(ptr + 2 * 4);
-      const unsigned int expire = ReadUint32BE(ptr + 3 * 4);
-      const unsigned int minttl = ReadUint32BE(ptr + 4 * 4);
+      const unsigned int serial = nbytes::ReadUint32BE(ptr + 0 * 4);
+      const unsigned int refresh = nbytes::ReadUint32BE(ptr + 1 * 4);
+      const unsigned int retry = nbytes::ReadUint32BE(ptr + 2 * 4);
+      const unsigned int expire = nbytes::ReadUint32BE(ptr + 3 * 4);
+      const unsigned int minttl = nbytes::ReadUint32BE(ptr + 4 * 4);
 
       Local<Object> soa_record = Object::New(env->isolate());
-      soa_record->Set(env->context(),
-                      env->nsname_string(),
-                      OneByteString(env->isolate(), nsname.get())).Check();
-      soa_record->Set(env->context(),
-                      env->hostmaster_string(),
-                      OneByteString(env->isolate(),
-                                    hostmaster.get())).Check();
-      soa_record->Set(env->context(),
-                      env->serial_string(),
-                      Integer::NewFromUnsigned(env->isolate(), serial)).Check();
-      soa_record->Set(env->context(),
-                      env->refresh_string(),
-                      Integer::New(env->isolate(), refresh)).Check();
-      soa_record->Set(env->context(),
-                      env->retry_string(),
-                      Integer::New(env->isolate(), retry)).Check();
-      soa_record->Set(env->context(),
-                      env->expire_string(),
-                      Integer::New(env->isolate(), expire)).Check();
-      soa_record->Set(env->context(),
-                      env->minttl_string(),
-                      Integer::NewFromUnsigned(env->isolate(), minttl)).Check();
-      soa_record->Set(env->context(),
-                      env->type_string(),
-                      env->dns_soa_string()).Check();
-
+      if (soa_record
+              ->Set(env->context(),
+                    env->nsname_string(),
+                    OneByteString(env->isolate(), nsname.get()))
+              .IsNothing() ||
+          soa_record
+              ->Set(env->context(),
+                    env->hostmaster_string(),
+                    OneByteString(env->isolate(), hostmaster.get()))
+              .IsNothing() ||
+          soa_record
+              ->Set(env->context(),
+                    env->serial_string(),
+                    Integer::NewFromUnsigned(env->isolate(), serial))
+              .IsNothing() ||
+          soa_record
+              ->Set(env->context(),
+                    env->refresh_string(),
+                    Integer::New(env->isolate(), refresh))
+              .IsNothing() ||
+          soa_record
+              ->Set(env->context(),
+                    env->retry_string(),
+                    Integer::New(env->isolate(), retry))
+              .IsNothing() ||
+          soa_record
+              ->Set(env->context(),
+                    env->expire_string(),
+                    Integer::New(env->isolate(), expire))
+              .IsNothing() ||
+          soa_record
+              ->Set(env->context(),
+                    env->minttl_string(),
+                    Integer::NewFromUnsigned(env->isolate(), minttl))
+              .IsNothing() ||
+          soa_record
+              ->Set(env->context(), env->type_string(), env->dns_soa_string())
+              .IsNothing()) {
+        return Nothing<int>();
+      }
 
       *ret = handle_scope.Escape(soa_record);
       break;
@@ -631,18 +783,19 @@ int ParseSoaReply(
     ptr += rr_len;
   }
 
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 }  // anonymous namespace
 
-ChannelWrap::ChannelWrap(
-      Environment* env,
-      Local<Object> object,
-      int timeout,
-      int tries)
+ChannelWrap::ChannelWrap(Environment* env,
+                         Local<Object> object,
+                         int timeout,
+                         int tries,
+                         int max_timeout)
     : AsyncWrap(env, object, PROVIDER_DNSCHANNEL),
       timeout_(timeout),
-      tries_(tries) {
+      tries_(tries),
+      max_timeout_(max_timeout) {
   MakeWeak();
 
   Setup();
@@ -656,21 +809,22 @@ void ChannelWrap::MemoryInfo(MemoryTracker* tracker) const {
 
 void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK_EQ(args.Length(), 2);
+  CHECK_EQ(args.Length(), 3);
   CHECK(args[0]->IsInt32());
   CHECK(args[1]->IsInt32());
+  CHECK(args[2]->IsInt32());
   const int timeout = args[0].As<Int32>()->Value();
   const int tries = args[1].As<Int32>()->Value();
+  const int max_timeout = args[2].As<Int32>()->Value();
   Environment* env = Environment::GetCurrent(args);
-  new ChannelWrap(env, args.This(), timeout, tries);
+  new ChannelWrap(env, args.This(), timeout, tries, max_timeout);
 }
 
-GetAddrInfoReqWrap::GetAddrInfoReqWrap(
-    Environment* env,
-    Local<Object> req_wrap_obj,
-    bool verbatim)
+GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
+                                       Local<Object> req_wrap_obj,
+                                       uint8_t order)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP),
-      verbatim_(verbatim) {}
+      order_(order) {}
 
 GetNameInfoReqWrap::GetNameInfoReqWrap(
     Environment* env,
@@ -682,7 +836,6 @@ GetNameInfoReqWrap::GetNameInfoReqWrap(
 void ChannelWrap::AresTimeout(uv_timer_t* handle) {
   ChannelWrap* channel = static_cast<ChannelWrap*>(handle->data);
   CHECK_EQ(channel->timer_handle(), handle);
-  CHECK_EQ(false, channel->task_list()->empty());
   ares_process_fd(channel->cares_channel(), ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
 
@@ -716,6 +869,7 @@ void ChannelWrap::Setup() {
   options.sock_state_cb_data = this;
   options.timeout = timeout_;
   options.tries = tries_;
+  options.qcache_max_ttl = 0;
 
   int r;
   if (!library_inited_) {
@@ -728,9 +882,14 @@ void ChannelWrap::Setup() {
   }
 
   /* We do the call to ares_init_option for caller. */
-  const int optmask =
-      ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS |
-      ARES_OPT_SOCK_STATE_CB | ARES_OPT_TRIES;
+  int optmask = ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS | ARES_OPT_SOCK_STATE_CB |
+                ARES_OPT_TRIES | ARES_OPT_QUERY_CACHE;
+
+  if (max_timeout_ > 0) {
+    options.maxtimeout = max_timeout_;
+    optmask |= ARES_OPT_MAXTIMEOUTMS;
+  }
+
   r = ares_init_options(&channel_, &options, optmask);
 
   if (r != ARES_SUCCESS) {
@@ -751,8 +910,7 @@ void ChannelWrap::StartTimer() {
     return;
   }
   int timeout = timeout_;
-  if (timeout == 0) timeout = 1;
-  if (timeout < 0 || timeout > 1000) timeout = 1000;
+  if (timeout <= 0 || timeout > 1000) timeout = 1000;
   uv_timer_start(timer_handle_, AresTimeout, timeout, timeout);
 }
 
@@ -829,70 +987,75 @@ void ChannelWrap::EnsureServers() {
 }
 
 int AnyTraits::Send(QueryWrap<AnyTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_any);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_ANY);
   return ARES_SUCCESS;
 }
 
 int ATraits::Send(QueryWrap<ATraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_a);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_A);
   return ARES_SUCCESS;
 }
 
 int AaaaTraits::Send(QueryWrap<AaaaTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_aaaa);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_AAAA);
   return ARES_SUCCESS;
 }
 
 int CaaTraits::Send(QueryWrap<CaaTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, T_CAA);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_CAA);
   return ARES_SUCCESS;
 }
 
 int CnameTraits::Send(QueryWrap<CnameTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_cname);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_CNAME);
   return ARES_SUCCESS;
 }
 
 int MxTraits::Send(QueryWrap<MxTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_mx);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_MX);
   return ARES_SUCCESS;
 }
 
 int NsTraits::Send(QueryWrap<NsTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_ns);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_NS);
+  return ARES_SUCCESS;
+}
+
+int TlsaTraits::Send(QueryWrap<TlsaTraits>* wrap, const char* name) {
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_TLSA);
   return ARES_SUCCESS;
 }
 
 int TxtTraits::Send(QueryWrap<TxtTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_txt);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_TXT);
   return ARES_SUCCESS;
 }
 
 int SrvTraits::Send(QueryWrap<SrvTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_srv);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_SRV);
   return ARES_SUCCESS;
 }
 
 int PtrTraits::Send(QueryWrap<PtrTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_ptr);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_PTR);
   return ARES_SUCCESS;
 }
 
 int NaptrTraits::Send(QueryWrap<NaptrTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_naptr);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_NAPTR);
   return ARES_SUCCESS;
 }
 
 int SoaTraits::Send(QueryWrap<SoaTraits>* wrap, const char* name) {
-  wrap->AresQuery(name, ns_c_in, ns_t_soa);
+  wrap->AresQuery(name, ARES_CLASS_IN, ARES_REC_TYPE_SOA);
   return ARES_SUCCESS;
 }
 
-int AnyTraits::Parse(
-    QueryAnyWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
+Maybe<int> AnyTraits::Parse(QueryAnyWrap* wrap,
+                            const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -909,43 +1072,44 @@ int AnyTraits::Parse(
   int naddrttls = arraysize(addrttls);
 
   type = ns_t_cname_or_a;
-  status = ParseGeneralReply(env,
-                             buf,
-                             len,
-                             &type,
-                             ret,
-                             addrttls,
-                             &naddrttls);
+  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls, &naddrttls)
+           .To(&status)) {
+    return Nothing<int>();
+  }
   uint32_t a_count = ret->Length();
-  if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    return status;
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
 
   if (type == ns_t_a) {
     CHECK_EQ(static_cast<uint32_t>(naddrttls), a_count);
     for (uint32_t i = 0; i < a_count; i++) {
       Local<Object> obj = Object::New(env->isolate());
-      obj->Set(env->context(),
-                env->address_string(),
-                ret->Get(env->context(), i).ToLocalChecked()).Check();
-      obj->Set(env->context(),
-                env->ttl_string(),
-                Integer::NewFromUnsigned(
-                  env->isolate(), addrttls[i].ttl)).Check();
-      obj->Set(env->context(),
-                env->type_string(),
-                env->dns_a_string()).Check();
-      ret->Set(env->context(), i, obj).Check();
+      Local<Value> address;
+      if (!ret->Get(env->context(), i).ToLocal(&address) ||
+          obj->Set(env->context(), env->address_string(), address)
+              .IsNothing() ||
+          obj->Set(env->context(),
+                   env->ttl_string(),
+                   Integer::NewFromUnsigned(env->isolate(), addrttls[i].ttl))
+              .IsNothing() ||
+          obj->Set(env->context(), env->type_string(), env->dns_a_string())
+              .IsNothing() ||
+          ret->Set(env->context(), i, obj).IsNothing()) {
+        return Nothing<int>();
+      }
     }
   } else {
     for (uint32_t i = 0; i < a_count; i++) {
       Local<Object> obj = Object::New(env->isolate());
-      obj->Set(env->context(),
-                env->value_string(),
-                ret->Get(env->context(), i).ToLocalChecked()).Check();
-      obj->Set(env->context(),
-                env->type_string(),
-                env->dns_cname_string()).Check();
-      ret->Set(env->context(), i, obj).Check();
+      Local<Value> value;
+      if (!ret->Get(env->context(), i).ToLocal(&value) ||
+          obj->Set(env->context(), env->value_string(), value).IsNothing() ||
+          obj->Set(env->context(), env->type_string(), env->dns_cname_string())
+              .IsNothing() ||
+          ret->Set(env->context(), i, obj).IsNothing()) {
+        return Nothing<int>();
+      }
     }
   }
 
@@ -954,112 +1118,150 @@ int AnyTraits::Parse(
   int naddr6ttls = arraysize(addr6ttls);
 
   type = ns_t_aaaa;
-  status = ParseGeneralReply(env,
-                             buf,
-                             len,
-                             &type,
-                             ret,
-                             addr6ttls,
-                             &naddr6ttls);
+  if (!ParseGeneralReply(env, buf, len, &type, ret, addr6ttls, &naddr6ttls)
+           .To(&status)) {
+    return Nothing<int>();
+  }
   uint32_t aaaa_count = ret->Length() - a_count;
   if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    return status;
+    return Just<int>(status);
 
   CHECK_EQ(aaaa_count, static_cast<uint32_t>(naddr6ttls));
   CHECK_EQ(ret->Length(), a_count + aaaa_count);
   for (uint32_t i = a_count; i < ret->Length(); i++) {
     Local<Object> obj = Object::New(env->isolate());
-    obj->Set(env->context(),
-              env->address_string(),
-              ret->Get(env->context(), i).ToLocalChecked()).Check();
-    obj->Set(env->context(),
-              env->ttl_string(),
-              Integer::NewFromUnsigned(
-                env->isolate(), addr6ttls[i - a_count].ttl)).Check();
-    obj->Set(env->context(),
-              env->type_string(),
-              env->dns_aaaa_string()).Check();
-    ret->Set(env->context(), i, obj).Check();
+    Local<Value> address;
+
+    if (!ret->Get(env->context(), i).ToLocal(&address) ||
+        obj->Set(env->context(), env->address_string(), address).IsNothing() ||
+        obj->Set(env->context(),
+                 env->ttl_string(),
+                 Integer::NewFromUnsigned(env->isolate(),
+                                          addr6ttls[i - a_count].ttl))
+            .IsNothing() ||
+        obj->Set(env->context(), env->type_string(), env->dns_aaaa_string())
+            .IsNothing() ||
+        ret->Set(env->context(), i, obj).IsNothing()) {
+      return Nothing<int>();
+    }
   }
 
   /* Parse MX records */
-  status = ParseMxReply(env, buf, len, ret, true);
-  if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    return status;
+  if (!ParseMxReply(env, buf, len, ret, true).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
 
   /* Parse NS records */
   type = ns_t_ns;
   old_count = ret->Length();
-  status = ParseGeneralReply(env, buf, len, &type, ret);
-  if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    return status;
+  if (!ParseGeneralReply(env, buf, len, &type, ret).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
 
   for (uint32_t i = old_count; i < ret->Length(); i++) {
     Local<Object> obj = Object::New(env->isolate());
-    obj->Set(env->context(),
-             env->value_string(),
-             ret->Get(env->context(), i).ToLocalChecked()).Check();
-    obj->Set(env->context(),
-              env->type_string(),
-              env->dns_ns_string()).Check();
-    ret->Set(env->context(), i, obj).Check();
+    Local<Value> value;
+
+    if (!ret->Get(env->context(), i).ToLocal(&value) ||
+        obj->Set(env->context(), env->value_string(), value).IsNothing() ||
+        obj->Set(env->context(), env->type_string(), env->dns_ns_string())
+            .IsNothing() ||
+        ret->Set(env->context(), i, obj).IsNothing()) {
+      return Nothing<int>();
+    }
   }
 
   /* Parse TXT records */
-  status = ParseTxtReply(env, buf, len, ret, true);
-  if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    return status;
+  if (!ParseTxtReply(env, buf, len, ret, true).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
 
   /* Parse SRV records */
-  status = ParseSrvReply(env, buf, len, ret, true);
-  if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    return status;
+  if (!ParseSrvReply(env, buf, len, ret, true).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
 
   /* Parse PTR records */
   type = ns_t_ptr;
   old_count = ret->Length();
-  status = ParseGeneralReply(env, buf, len, &type, ret);
+  if (!ParseGeneralReply(env, buf, len, &type, ret).To(&status)) {
+    return Nothing<int>();
+  }
   if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    return status;
+    return Just<int>(status);
   for (uint32_t i = old_count; i < ret->Length(); i++) {
     Local<Object> obj = Object::New(env->isolate());
-    obj->Set(env->context(),
-              env->value_string(),
-              ret->Get(env->context(), i).ToLocalChecked()).Check();
-    obj->Set(env->context(),
-              env->type_string(),
-              env->dns_ptr_string()).Check();
-    ret->Set(env->context(), i, obj).Check();
+    Local<Value> value;
+
+    if (!ret->Get(env->context(), i).ToLocal(&value) ||
+        obj->Set(env->context(), env->value_string(), value).IsNothing() ||
+        obj->Set(env->context(), env->type_string(), env->dns_ptr_string())
+            .IsNothing() ||
+        ret->Set(env->context(), i, obj).IsNothing()) {
+      return Nothing<int>();
+    }
   }
 
   /* Parse NAPTR records */
-  status = ParseNaptrReply(env, buf, len, ret, true);
-  if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    return status;
+  if (!ParseNaptrReply(env, buf, len, ret, true).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
 
   /* Parse SOA records */
   Local<Object> soa_record = Local<Object>();
-  status = ParseSoaReply(env, buf, len, &soa_record);
-  if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    return status;
+  if (!ParseSoaReply(env, buf, len, &soa_record).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
 
-  if (!soa_record.IsEmpty())
-    ret->Set(env->context(), ret->Length(), soa_record).Check();
+  if (!soa_record.IsEmpty()) {
+    if (ret->Set(env->context(), ret->Length(), soa_record).IsNothing()) {
+      return Just<int>(ARES_ENOMEM);
+    }
+  }
+
+  /* Parse TLSA records */
+  if (!ParseTlsaReply(env, buf, len, ret).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
 
   /* Parse CAA records */
-  status = ParseCaaReply(env, buf, len, ret, true);
-  if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    return status;
+  if (!ParseCaaReply(env, buf, len, ret, true).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    return Just<int>(status);
+  }
 
   wrap->CallOnComplete(ret);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int ATraits::Parse(
-    QueryAWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
+Maybe<int> ATraits::Parse(QueryAWrap* wrap,
+                          const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1073,27 +1275,25 @@ int ATraits::Parse(
   Local<Array> ret = Array::New(env->isolate());
 
   int type = ns_t_a;
-  status = ParseGeneralReply(env,
-                             buf,
-                             len,
-                             &type,
-                             ret,
-                             addrttls,
-                             &naddrttls);
-  if (status != ARES_SUCCESS)
-    return status;
+  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls, &naddrttls)
+           .To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
 
   Local<Array> ttls = AddrTTLToArray<ares_addrttl>(env, addrttls, naddrttls);
 
   wrap->CallOnComplete(ret, ttls);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int AaaaTraits::Parse(
-    QueryAaaaWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
+Maybe<int> AaaaTraits::Parse(QueryAaaaWrap* wrap,
+                             const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1107,27 +1307,25 @@ int AaaaTraits::Parse(
   Local<Array> ret = Array::New(env->isolate());
 
   int type = ns_t_aaaa;
-  status = ParseGeneralReply(env,
-                             buf,
-                             len,
-                             &type,
-                             ret,
-                             addrttls,
-                             &naddrttls);
-  if (status != ARES_SUCCESS)
-    return status;
+  if (!ParseGeneralReply(env, buf, len, &type, ret, addrttls, &naddrttls)
+           .To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
 
   Local<Array> ttls = AddrTTLToArray<ares_addr6ttl>(env, addrttls, naddrttls);
 
   wrap->CallOnComplete(ret, ttls);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int CaaTraits::Parse(
-    QueryCaaWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
+Maybe<int> CaaTraits::Parse(QueryCaaWrap* wrap,
+                            const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1137,19 +1335,23 @@ int CaaTraits::Parse(
   Context::Scope context_scope(env->context());
 
   Local<Array> ret = Array::New(env->isolate());
-  int status = ParseCaaReply(env, buf, len, ret);
-  if (status != ARES_SUCCESS)
-    return status;
+  int status;
+  if (!ParseCaaReply(env, buf, len, ret).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
 
   wrap->CallOnComplete(ret);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int CnameTraits::Parse(
-    QueryCnameWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
+Maybe<int> CnameTraits::Parse(QueryCnameWrap* wrap,
+                              const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1160,19 +1362,23 @@ int CnameTraits::Parse(
 
   Local<Array> ret = Array::New(env->isolate());
   int type = ns_t_cname;
-  int status = ParseGeneralReply(env, buf, len, &type, ret);
-  if (status != ARES_SUCCESS)
-    return status;
+  int status;
+  if (!ParseGeneralReply(env, buf, len, &type, ret).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
 
   wrap->CallOnComplete(ret);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int MxTraits::Parse(
-    QueryMxWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
+Maybe<int> MxTraits::Parse(QueryMxWrap* wrap,
+                           const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1182,20 +1388,24 @@ int MxTraits::Parse(
   Context::Scope context_scope(env->context());
 
   Local<Array> mx_records = Array::New(env->isolate());
-  int status = ParseMxReply(env, buf, len, mx_records);
+  int status;
+  if (!ParseMxReply(env, buf, len, mx_records).To(&status)) {
+    return Nothing<int>();
+  }
 
-  if (status != ARES_SUCCESS)
-    return status;
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
 
   wrap->CallOnComplete(mx_records);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int NsTraits::Parse(
-    QueryNsWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
+Maybe<int> NsTraits::Parse(QueryNsWrap* wrap,
+                           const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1206,19 +1416,49 @@ int NsTraits::Parse(
 
   int type = ns_t_ns;
   Local<Array> names = Array::New(env->isolate());
-  int status = ParseGeneralReply(env, buf, len, &type, names);
-  if (status != ARES_SUCCESS)
-    return status;
+  int status;
+  if (!ParseGeneralReply(env, buf, len, &type, names).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
 
   wrap->CallOnComplete(names);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int TxtTraits::Parse(
-    QueryTxtWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
+Maybe<int> TlsaTraits::Parse(QueryTlsaWrap* wrap,
+                             const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
+
+  unsigned char* buf = response->buf.data;
+  int len = response->buf.size;
+
+  Environment* env = wrap->env();
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+
+  Local<Array> tlsa_records = Array::New(env->isolate());
+  int status;
+  if (!ParseTlsaReply(env, buf, len, tlsa_records).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
+
+  wrap->CallOnComplete(tlsa_records);
+  return Just<int>(ARES_SUCCESS);
+}
+
+Maybe<int> TxtTraits::Parse(QueryTxtWrap* wrap,
+                            const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1228,19 +1468,23 @@ int TxtTraits::Parse(
   Context::Scope context_scope(env->context());
 
   Local<Array> txt_records = Array::New(env->isolate());
-  int status = ParseTxtReply(env, buf, len, txt_records);
-  if (status != ARES_SUCCESS)
-    return status;
+  int status;
+  if (!ParseTxtReply(env, buf, len, txt_records).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
 
   wrap->CallOnComplete(txt_records);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int SrvTraits::Parse(
-    QuerySrvWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
+Maybe<int> SrvTraits::Parse(QuerySrvWrap* wrap,
+                            const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
 
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
@@ -1250,20 +1494,21 @@ int SrvTraits::Parse(
   Context::Scope context_scope(env->context());
 
   Local<Array> srv_records = Array::New(env->isolate());
-  int status = ParseSrvReply(env, buf, len, srv_records);
-  if (status != ARES_SUCCESS)
-    return status;
+  int status;
+  if (!ParseSrvReply(env, buf, len, srv_records).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) return Just<int>(status);
 
   wrap->CallOnComplete(srv_records);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int PtrTraits::Parse(
-    QueryPtrWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
-
+Maybe<int> PtrTraits::Parse(QueryPtrWrap* wrap,
+                            const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
 
@@ -1274,20 +1519,23 @@ int PtrTraits::Parse(
   int type = ns_t_ptr;
   Local<Array> aliases = Array::New(env->isolate());
 
-  int status = ParseGeneralReply(env, buf, len, &type, aliases);
-  if (status != ARES_SUCCESS)
-    return status;
+  int status;
+  if (!ParseGeneralReply(env, buf, len, &type, aliases).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
 
   wrap->CallOnComplete(aliases);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int NaptrTraits::Parse(
-    QueryNaptrWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
-
+Maybe<int> NaptrTraits::Parse(QueryNaptrWrap* wrap,
+                              const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
 
@@ -1296,20 +1544,23 @@ int NaptrTraits::Parse(
   Context::Scope context_scope(env->context());
 
   Local<Array> naptr_records = Array::New(env->isolate());
-  int status = ParseNaptrReply(env, buf, len, naptr_records);
-  if (status != ARES_SUCCESS)
-    return status;
+  int status;
+  if (!ParseNaptrReply(env, buf, len, naptr_records).To(&status)) {
+    return Nothing<int>();
+  }
+  if (status != ARES_SUCCESS) {
+    return Just<int>(status);
+  }
 
   wrap->CallOnComplete(naptr_records);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int SoaTraits::Parse(
-    QuerySoaWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(response->is_host))
-    return ARES_EBADRESP;
-
+Maybe<int> SoaTraits::Parse(QuerySoaWrap* wrap,
+                            const std::unique_ptr<ResponseData>& response) {
+  if (response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
   unsigned char* buf = response->buf.data;
   int len = response->buf.size;
 
@@ -1320,42 +1571,65 @@ int SoaTraits::Parse(
   ares_soa_reply* soa_out;
   int status = ares_parse_soa_reply(buf, len, &soa_out);
 
-  if (status != ARES_SUCCESS)
-    return status;
+  if (status != ARES_SUCCESS) return Just<int>(status);
+
+  auto cleanup = OnScopeLeave([&]() { ares_free_data(soa_out); });
 
   Local<Object> soa_record = Object::New(env->isolate());
 
-  soa_record->Set(env->context(),
-                  env->nsname_string(),
-                  OneByteString(env->isolate(), soa_out->nsname)).Check();
-  soa_record->Set(env->context(),
-                  env->hostmaster_string(),
-                  OneByteString(env->isolate(), soa_out->hostmaster)).Check();
-  soa_record->Set(env->context(),
-                  env->serial_string(),
-                  Integer::NewFromUnsigned(
-                      env->isolate(), soa_out->serial)).Check();
-  soa_record->Set(env->context(),
-                  env->refresh_string(),
-                  Integer::New(env->isolate(), soa_out->refresh)).Check();
-  soa_record->Set(env->context(),
-                  env->retry_string(),
-                  Integer::New(env->isolate(), soa_out->retry)).Check();
-  soa_record->Set(env->context(),
-                  env->expire_string(),
-                  Integer::New(env->isolate(), soa_out->expire)).Check();
-  soa_record->Set(env->context(),
-                  env->minttl_string(),
-                  Integer::NewFromUnsigned(
-                      env->isolate(), soa_out->minttl)).Check();
-
-  ares_free_data(soa_out);
+  if (soa_record
+          ->Set(env->context(),
+                env->nsname_string(),
+                OneByteString(env->isolate(), soa_out->nsname))
+          .IsNothing() ||
+      soa_record
+          ->Set(env->context(),
+                env->hostmaster_string(),
+                OneByteString(env->isolate(), soa_out->hostmaster))
+          .IsNothing() ||
+      soa_record
+          ->Set(env->context(),
+                env->serial_string(),
+                Integer::NewFromUnsigned(env->isolate(), soa_out->serial))
+          .IsNothing() ||
+      soa_record
+          ->Set(env->context(),
+                env->refresh_string(),
+                Integer::New(env->isolate(), soa_out->refresh))
+          .IsNothing() ||
+      soa_record
+          ->Set(env->context(),
+                env->retry_string(),
+                Integer::New(env->isolate(), soa_out->retry))
+          .IsNothing() ||
+      soa_record
+          ->Set(env->context(),
+                env->expire_string(),
+                Integer::New(env->isolate(), soa_out->expire))
+          .IsNothing() ||
+      soa_record
+          ->Set(env->context(),
+                env->minttl_string(),
+                Integer::NewFromUnsigned(env->isolate(), soa_out->minttl))
+          .IsNothing()) {
+    return Nothing<int>();
+  }
 
   wrap->CallOnComplete(soa_record);
-  return ARES_SUCCESS;
+  return Just<int>(ARES_SUCCESS);
 }
 
-int ReverseTraits::Send(GetHostByAddrWrap* wrap, const char* name) {
+int ReverseTraits::Send(QueryReverseWrap* wrap, const char* name) {
+  permission::PermissionScope scope = permission::PermissionScope::kNet;
+  Environment* env_holder = wrap->env();
+
+  if (!env_holder->permission()->is_granted(env_holder, scope, name))
+      [[unlikely]] {
+    wrap->QueuePermissionModelResponseCallback(name);
+    // Error will be returned in the callback
+    return ARES_SUCCESS;
+  }
+
   int length, family;
   char address_buffer[sizeof(struct in6_addr)];
 
@@ -1374,29 +1648,31 @@ int ReverseTraits::Send(GetHostByAddrWrap* wrap, const char* name) {
       "name", TRACE_STR_COPY(name),
       "family", family == AF_INET ? "ipv4" : "ipv6");
 
-  ares_gethostbyaddr(
-      wrap->channel()->cares_channel(),
-      address_buffer,
-      length,
-      family,
-      GetHostByAddrWrap::Callback,
-      wrap->MakeCallbackPointer());
+  ares_gethostbyaddr(wrap->channel()->cares_channel(),
+                     address_buffer,
+                     length,
+                     family,
+                     QueryReverseWrap::Callback,
+                     wrap->MakeCallbackPointer());
   return ARES_SUCCESS;
 }
 
-int ReverseTraits::Parse(
-    GetHostByAddrWrap* wrap,
-    const std::unique_ptr<ResponseData>& response) {
-  if (UNLIKELY(!response->is_host))
-    return ARES_EBADRESP;
-
+Maybe<int> ReverseTraits::Parse(QueryReverseWrap* wrap,
+                                const std::unique_ptr<ResponseData>& response) {
+  if (!response->is_host) [[unlikely]] {
+    return Just<int>(ARES_EBADRESP);
+  }
   struct hostent* host = response->host.get();
 
   Environment* env = wrap->env();
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
-  wrap->CallOnComplete(HostentToNames(env, host));
-  return ARES_SUCCESS;
+  Local<Array> names;
+  if (!HostentToNames(env, host).ToLocal(&names)) {
+    return Nothing<int>();
+  }
+  wrap->CallOnComplete(names);
+  return Just<int>(ARES_SUCCESS);
 }
 
 namespace {
@@ -1404,7 +1680,7 @@ template <class Wrap>
 static void Query(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
   CHECK_EQ(false, args.IsConstructCall());
   CHECK(args[0]->IsObject());
@@ -1445,12 +1721,12 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   };
 
   uint32_t n = 0;
-  const bool verbatim = req_wrap->verbatim();
+  const uint8_t order = req_wrap->order();
 
   if (status == 0) {
     Local<Array> results = Array::New(env->isolate());
 
-    auto add = [&] (bool want_ipv4, bool want_ipv6) -> Maybe<bool> {
+    auto add = [&](bool want_ipv4, bool want_ipv6) -> Maybe<void> {
       for (auto p = res; p != nullptr; p = p->ai_next) {
         CHECK_EQ(p->ai_socktype, SOCK_STREAM);
 
@@ -1471,17 +1747,27 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
         Local<String> s = OneByteString(env->isolate(), ip);
         if (results->Set(env->context(), n, s).IsNothing())
-          return Nothing<bool>();
+          return Nothing<void>();
         n++;
       }
-      return Just(true);
+      return JustVoid();
     };
 
-    if (add(true, verbatim).IsNothing())
-      return;
-    if (verbatim == false) {
-      if (add(false, true).IsNothing())
-        return;
+    switch (order) {
+      case DNS_ORDER_IPV4_FIRST:
+        if (add(true, false).IsNothing() || add(false, true).IsNothing())
+          return;
+
+        break;
+      case DNS_ORDER_IPV6_FIRST:
+        if (add(false, true).IsNothing() || add(true, false).IsNothing())
+          return;
+
+        break;
+      default:
+        if (add(true, true).IsNothing()) return;
+
+        break;
     }
 
     // No responses were found to return
@@ -1492,9 +1778,13 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     argv[1] = results;
   }
 
-  TRACE_EVENT_NESTABLE_ASYNC_END2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
-      "count", n, "verbatim", verbatim);
+  TRACE_EVENT_NESTABLE_ASYNC_END2(TRACING_CATEGORY_NODE2(dns, native),
+                                  "lookup",
+                                  req_wrap.get(),
+                                  "count",
+                                  n,
+                                  "order",
+                                  order);
 
   // Make the callback into JavaScript
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
@@ -1545,11 +1835,28 @@ void CanonicalizeIP(const FunctionCallbackInfo<Value>& args) {
       uv_inet_pton(af = AF_INET6, *ip, result) != 0)
     return;
 
-  char canonical_ip[INET6_ADDRSTRLEN];
+  char canonical_ip[INET6_ADDRSTRLEN]{};
   CHECK_EQ(0, uv_inet_ntop(af, result, canonical_ip, sizeof(canonical_ip)));
-  Local<String> val = String::NewFromUtf8(isolate, canonical_ip)
-      .ToLocalChecked();
-  args.GetReturnValue().Set(val);
+  args.GetReturnValue().Set(OneByteString(isolate, canonical_ip));
+}
+
+void ConvertIpv6StringToBuffer(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  node::Utf8Value ip(isolate, args[0]);
+  unsigned char dst[16];  // IPv6 addresses are 128 bits (16 bytes)
+
+  if (uv_inet_pton(AF_INET6, *ip, dst) != 0) {
+    isolate->ThrowException(Exception::Error(
+        FIXED_ONE_BYTE_STRING(isolate, "Invalid IPv6 address")));
+    return;
+  }
+
+  Local<Object> buffer;
+  if (node::Buffer::Copy(
+          isolate, reinterpret_cast<const char*>(dst), sizeof(dst))
+          .ToLocal(&buffer)) {
+    args.GetReturnValue().Set(buffer);
+  }
 }
 
 void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
@@ -1558,9 +1865,13 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsString());
   CHECK(args[2]->IsInt32());
-  CHECK(args[4]->IsBoolean());
+  CHECK(args[4]->IsUint32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(env->isolate(), args[1]);
+
+  ERR_ACCESS_DENIED_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, hostname.ToStringView(), args);
+
   std::string ascii_hostname = ada::idna::to_ascii(hostname.ToStringView());
 
   int32_t flags = 0;
@@ -1584,9 +1895,10 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
       UNREACHABLE("bad address family");
   }
 
-  auto req_wrap = std::make_unique<GetAddrInfoReqWrap>(env,
-                                                       req_wrap_obj,
-                                                       args[4]->IsTrue());
+  Local<Uint32> order = args[4].As<Uint32>();
+
+  auto req_wrap =
+      std::make_unique<GetAddrInfoReqWrap>(env, req_wrap_obj, order->Value());
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
@@ -1634,10 +1946,18 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
       TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
       "ip", TRACE_STR_COPY(*ip), "port", port);
 
-  int err = req_wrap->Dispatch(uv_getnameinfo,
-                               AfterGetNameInfo,
-                               reinterpret_cast<struct sockaddr*>(&addr),
-                               NI_NAMEREQD);
+  int err = 0;
+  if (!env->permission()->is_granted(
+          env, permission::PermissionScope::kNet, ip.ToStringView()))
+      [[unlikely]] {
+    req_wrap->InsufficientPermissionError(*ip);
+  } else {
+    err = req_wrap->Dispatch(uv_getnameinfo,
+                             AfterGetNameInfo,
+                             reinterpret_cast<struct sockaddr*>(&addr),
+                             NI_NAMEREQD);
+  }
+
   if (err == 0)
     // Release ownership of the pointer allowing the ownership to be transferred
     USE(req_wrap.release());
@@ -1649,7 +1969,7 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
 void GetServers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
   Local<Array> server_array = Array::New(env->isolate());
 
@@ -1687,7 +2007,7 @@ void GetServers(const FunctionCallbackInfo<Value>& args) {
 void SetServers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
   if (channel->active_query_count()) {
     return args.GetReturnValue().Set(DNS_ESETSRVPENDING);
@@ -1710,22 +2030,27 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   int err;
 
   for (uint32_t i = 0; i < len; i++) {
-    CHECK(arr->Get(env->context(), i).ToLocalChecked()->IsArray());
+    Local<Value> val;
+    if (!arr->Get(env->context(), i).ToLocal(&val)) return;
+    CHECK(val->IsArray());
 
-    Local<Array> elm = arr->Get(env->context(), i).ToLocalChecked().As<Array>();
+    Local<Array> elm = val.As<Array>();
 
-    CHECK(elm->Get(env->context(),
-                   0).ToLocalChecked()->Int32Value(env->context()).FromJust());
-    CHECK(elm->Get(env->context(), 1).ToLocalChecked()->IsString());
-    CHECK(elm->Get(env->context(),
-                   2).ToLocalChecked()->Int32Value(env->context()).FromJust());
+    Local<Value> familyValue;
+    Local<Value> ipValue;
+    Local<Value> portValue;
 
-    int fam = elm->Get(env->context(), 0)
-        .ToLocalChecked()->Int32Value(env->context()).FromJust();
-    node::Utf8Value ip(env->isolate(),
-                       elm->Get(env->context(), 1).ToLocalChecked());
-    int port = elm->Get(env->context(), 2)
-        .ToLocalChecked()->Int32Value(env->context()).FromJust();
+    if (!elm->Get(env->context(), 0).ToLocal(&familyValue)) return;
+    if (!elm->Get(env->context(), 1).ToLocal(&ipValue)) return;
+    if (!elm->Get(env->context(), 2).ToLocal(&portValue)) return;
+
+    CHECK(familyValue->Int32Value(env->context()).FromJust());
+    CHECK(ipValue->IsString());
+    CHECK(portValue->Int32Value(env->context()).FromJust());
+
+    int fam = familyValue->Int32Value(env->context()).FromJust();
+    node::Utf8Value ip(env->isolate(), ipValue);
+    int port = portValue->Int32Value(env->context()).FromJust();
 
     ares_addr_port_node* cur = &servers[i];
 
@@ -1768,7 +2093,7 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
 void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
   CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsString());
@@ -1786,7 +2111,7 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
   // to 0 (any).
 
   if (uv_inet_pton(AF_INET, *ip0, &addr0) == 0) {
-    ares_set_local_ip4(channel->cares_channel(), ReadUint32BE(addr0));
+    ares_set_local_ip4(channel->cares_channel(), nbytes::ReadUint32BE(addr0));
     type0 = 4;
   } else if (uv_inet_pton(AF_INET6, *ip0, &addr0) == 0) {
     ares_set_local_ip6(channel->cares_channel(), addr0);
@@ -1805,7 +2130,8 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
         THROW_ERR_INVALID_ARG_VALUE(env, "Cannot specify two IPv4 addresses.");
         return;
       } else {
-        ares_set_local_ip4(channel->cares_channel(), ReadUint32BE(addr1));
+        ares_set_local_ip4(channel->cares_channel(),
+                           nbytes::ReadUint32BE(addr1));
       }
     } else if (uv_inet_pton(AF_INET6, *ip1, &addr1) == 0) {
       if (type0 == 6) {
@@ -1831,7 +2157,7 @@ void SetLocalAddress(const FunctionCallbackInfo<Value>& args) {
 
 void Cancel(const FunctionCallbackInfo<Value>& args) {
   ChannelWrap* channel;
-  ASSIGN_OR_RETURN_UNWRAP(&channel, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&channel, args.This());
 
   TRACE_EVENT_INSTANT0(TRACING_CATEGORY_NODE2(dns, native),
       "cancel", TRACE_EVENT_SCOPE_THREAD);
@@ -1886,25 +2212,20 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "getaddrinfo", GetAddrInfo);
   SetMethod(context, target, "getnameinfo", GetNameInfo);
   SetMethodNoSideEffect(context, target, "canonicalizeIP", CanonicalizeIP);
+  SetMethodNoSideEffect(
+      context, target, "convertIpv6StringToBuffer", ConvertIpv6StringToBuffer);
 
   SetMethod(context, target, "strerror", StrError);
 
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
-              Integer::New(env->isolate(), AF_INET)).Check();
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET6"),
-              Integer::New(env->isolate(), AF_INET6)).Check();
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                    "AF_UNSPEC"),
-              Integer::New(env->isolate(), AF_UNSPEC)).Check();
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                    "AI_ADDRCONFIG"),
-              Integer::New(env->isolate(), AI_ADDRCONFIG)).Check();
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                    "AI_ALL"),
-              Integer::New(env->isolate(), AI_ALL)).Check();
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                    "AI_V4MAPPED"),
-              Integer::New(env->isolate(), AI_V4MAPPED)).Check();
+  NODE_DEFINE_CONSTANT(target, AF_INET);
+  NODE_DEFINE_CONSTANT(target, AF_INET6);
+  NODE_DEFINE_CONSTANT(target, AF_UNSPEC);
+  NODE_DEFINE_CONSTANT(target, AI_ADDRCONFIG);
+  NODE_DEFINE_CONSTANT(target, AI_ALL);
+  NODE_DEFINE_CONSTANT(target, AI_V4MAPPED);
+  NODE_DEFINE_CONSTANT(target, DNS_ORDER_VERBATIM);
+  NODE_DEFINE_CONSTANT(target, DNS_ORDER_IPV4_FIRST);
+  NODE_DEFINE_CONSTANT(target, DNS_ORDER_IPV6_FIRST);
 
   Local<FunctionTemplate> aiw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
@@ -1927,20 +2248,10 @@ void Initialize(Local<Object> target,
       ChannelWrap::kInternalFieldCount);
   channel_wrap->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-  SetProtoMethod(isolate, channel_wrap, "queryAny", Query<QueryAnyWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryA", Query<QueryAWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryAaaa", Query<QueryAaaaWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryCaa", Query<QueryCaaWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryCname", Query<QueryCnameWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryMx", Query<QueryMxWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryNs", Query<QueryNsWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryTxt", Query<QueryTxtWrap>);
-  SetProtoMethod(isolate, channel_wrap, "querySrv", Query<QuerySrvWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryPtr", Query<QueryPtrWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryNaptr", Query<QueryNaptrWrap>);
-  SetProtoMethod(isolate, channel_wrap, "querySoa", Query<QuerySoaWrap>);
-  SetProtoMethod(
-      isolate, channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
+#define V(Name, _, JS)                                                         \
+  SetProtoMethod(isolate, channel_wrap, #JS, Query<Query##Name##Wrap>);
+  QUERY_TYPES(V)
+#undef V
 
   SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
   SetProtoMethod(isolate, channel_wrap, "setServers", SetServers);
@@ -1954,22 +2265,13 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetAddrInfo);
   registry->Register(GetNameInfo);
   registry->Register(CanonicalizeIP);
+  registry->Register(ConvertIpv6StringToBuffer);
   registry->Register(StrError);
   registry->Register(ChannelWrap::New);
 
-  registry->Register(Query<QueryAnyWrap>);
-  registry->Register(Query<QueryAWrap>);
-  registry->Register(Query<QueryAaaaWrap>);
-  registry->Register(Query<QueryCaaWrap>);
-  registry->Register(Query<QueryCnameWrap>);
-  registry->Register(Query<QueryMxWrap>);
-  registry->Register(Query<QueryNsWrap>);
-  registry->Register(Query<QueryTxtWrap>);
-  registry->Register(Query<QuerySrvWrap>);
-  registry->Register(Query<QueryPtrWrap>);
-  registry->Register(Query<QueryNaptrWrap>);
-  registry->Register(Query<QuerySoaWrap>);
-  registry->Register(Query<GetHostByAddrWrap>);
+#define V(Name, _, __) registry->Register(Query<Query##Name##Wrap>);
+  QUERY_TYPES(V)
+#undef V
 
   registry->Register(GetServers);
   registry->Register(SetServers);

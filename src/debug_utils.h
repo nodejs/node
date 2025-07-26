@@ -42,17 +42,22 @@ void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
 // from a provider type to a debug category.
 #define DEBUG_CATEGORY_NAMES(V)                                                \
   NODE_ASYNC_PROVIDER_TYPES(V)                                                 \
+  V(COMPILE_CACHE)                                                             \
   V(DIAGNOSTICS)                                                               \
   V(HUGEPAGES)                                                                 \
   V(INSPECTOR_SERVER)                                                          \
+  V(INSPECTOR_CLIENT)                                                          \
   V(INSPECTOR_PROFILER)                                                        \
   V(CODE_CACHE)                                                                \
   V(NGTCP2_DEBUG)                                                              \
   V(SEA)                                                                       \
   V(WASI)                                                                      \
+  V(MODULE)                                                                    \
   V(MKSNAPSHOT)                                                                \
   V(SNAPSHOT_SERDES)                                                           \
   V(PERMISSION_MODEL)                                                          \
+  V(PLATFORM_MINIMAL)                                                          \
+  V(PLATFORM_VERBOSE)                                                          \
   V(QUIC)
 
 enum class DebugCategory : unsigned int {
@@ -72,10 +77,10 @@ class NODE_EXTERN_PRIVATE EnabledDebugList {
     return enabled_[static_cast<unsigned int>(category)];
   }
 
-  // Uses NODE_DEBUG_NATIVE to initialize the categories. The env_vars variable
+  // Uses NODE_DEBUG_NATIVE to initialize the categories. env->env_vars()
   // is parsed if it is not a nullptr, otherwise the system environment
   // variables are parsed.
-  void Parse(std::shared_ptr<KVStore> env_vars);
+  void Parse(Environment* env);
 
  private:
   // Enable all categories matching cats.

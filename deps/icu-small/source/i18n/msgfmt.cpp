@@ -355,8 +355,8 @@ UBool MessageFormat::allocateArgTypes(int32_t capacity, UErrorCode& status) {
     } else if (capacity < 2*argTypeCapacity) {
         capacity = 2*argTypeCapacity;
     }
-    Formattable::Type* a = (Formattable::Type*)
-            uprv_realloc(argTypes, sizeof(*argTypes) * capacity);
+    Formattable::Type* a = static_cast<Formattable::Type*>(
+            uprv_realloc(argTypes, sizeof(*argTypes) * capacity));
     if (a == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         return false;
@@ -424,8 +424,8 @@ MessageFormat::operator==(const Format& rhs) const
         if (cur->key.integer != rhs_cur->key.integer) {
             return false;
         }
-        const Format* format = (const Format*)uhash_iget(cachedFormatters, cur->key.integer);
-        const Format* rhs_format = (const Format*)uhash_iget(that.cachedFormatters, rhs_cur->key.integer);
+        const Format* format = static_cast<const Format*>(uhash_iget(cachedFormatters, cur->key.integer));
+        const Format* rhs_format = static_cast<const Format*>(uhash_iget(that.cachedFormatters, rhs_cur->key.integer));
         if (*format != *rhs_format) {
             return false;
         }
@@ -596,8 +596,8 @@ Format* MessageFormat::getCachedFormatter(int32_t argumentNumber) const {
         return nullptr;
     }
     void* ptr = uhash_iget(cachedFormatters, argumentNumber);
-    if (ptr != nullptr && dynamic_cast<DummyFormat*>((Format*)ptr) == nullptr) {
-        return (Format*) ptr;
+    if (ptr != nullptr && dynamic_cast<DummyFormat*>(static_cast<Format*>(ptr)) == nullptr) {
+        return static_cast<Format*>(ptr);
     } else {
         // Not cached, or a DummyFormat representing setFormat(nullptr).
         return nullptr;
@@ -820,16 +820,16 @@ MessageFormat::getFormats(int32_t& cnt) const
     cnt = 0;
     if (formatAliases == nullptr) {
         t->formatAliasesCapacity = totalCapacity;
-        Format** a = (Format**)
-            uprv_malloc(sizeof(Format*) * formatAliasesCapacity);
+        Format** a = static_cast<Format**>(
+            uprv_malloc(sizeof(Format*) * formatAliasesCapacity));
         if (a == nullptr) {
             t->formatAliasesCapacity = 0;
             return nullptr;
         }
         t->formatAliases = a;
     } else if (totalCapacity > formatAliasesCapacity) {
-        Format** a = (Format**)
-            uprv_realloc(formatAliases, sizeof(Format*) * totalCapacity);
+        Format** a = static_cast<Format**>(
+            uprv_realloc(formatAliases, sizeof(Format*) * totalCapacity));
         if (a == nullptr) {
             t->formatAliasesCapacity = 0;
             return nullptr;
@@ -1086,7 +1086,7 @@ void MessageFormat::format(int32_t msgStart, const void *plNumber,
                 // that formats the number without subtracting the offset.
                 appendTo.formatAndAppend(pluralNumber.formatter, *arg, success);
             }
-        } else if ((formatter = getCachedFormatter(i -2)) != 0) {
+        } else if ((formatter = getCachedFormatter(i - 2)) != nullptr) {
             // Handles all ArgType.SIMPLE, and formatters from setFormat() and its siblings.
             if (dynamic_cast<const ChoiceFormat*>(formatter) ||
                 dynamic_cast<const PluralFormat*>(formatter) ||
@@ -1346,7 +1346,7 @@ void MessageFormat::copyObjects(const MessageFormat& that, UErrorCode& ec) {
         int32_t pos, idx;
         for (idx = 0, pos = UHASH_FIRST; idx < count && U_SUCCESS(ec); ++idx) {
             const UHashElement* cur = uhash_nextElement(that.cachedFormatters, &pos);
-            Format* newFormat = ((Format*)(cur->value.pointer))->clone();
+            Format* newFormat = static_cast<Format*>(cur->value.pointer)->clone();
             if (newFormat) {
                 uhash_iput(cachedFormatters, cur->key.integer, newFormat, &ec);
             } else {
@@ -1827,7 +1827,7 @@ MessageFormat::createIntegerFormat(const Locale& locale, UErrorCode& status) con
  */
 const NumberFormat* MessageFormat::getDefaultNumberFormat(UErrorCode& ec) const {
     if (defaultNumberFormat == nullptr) {
-        MessageFormat* t = (MessageFormat*) this;
+        MessageFormat* t = const_cast<MessageFormat*>(this);
         t->defaultNumberFormat = NumberFormat::createInstance(fLocale, ec);
         if (U_FAILURE(ec)) {
             delete t->defaultNumberFormat;
@@ -1848,7 +1848,7 @@ const NumberFormat* MessageFormat::getDefaultNumberFormat(UErrorCode& ec) const 
  */
 const DateFormat* MessageFormat::getDefaultDateFormat(UErrorCode& ec) const {
     if (defaultDateFormat == nullptr) {
-        MessageFormat* t = (MessageFormat*) this;
+        MessageFormat* t = const_cast<MessageFormat*>(this);
         t->defaultDateFormat = DateFormat::createDateTimeInstance(DateFormat::kShort, DateFormat::kShort, fLocale);
         if (t->defaultDateFormat == nullptr) {
             ec = U_MEMORY_ALLOCATION_ERROR;
@@ -1868,7 +1868,7 @@ MessageFormat::getArgTypeCount() const {
 }
 
 UBool MessageFormat::equalFormats(const void* left, const void* right) {
-    return *(const Format*)left==*(const Format*)right;
+    return *static_cast<const Format*>(left) == *static_cast<const Format*>(right);
 }
 
 
@@ -1923,7 +1923,7 @@ FormatNameEnumeration::FormatNameEnumeration(LocalPointer<UVector> nameList, UEr
 const UnicodeString*
 FormatNameEnumeration::snext(UErrorCode& status) {
     if (U_SUCCESS(status) && pos < fFormatNames->size()) {
-        return (const UnicodeString*)fFormatNames->elementAt(pos++);
+        return static_cast<const UnicodeString*>(fFormatNames->elementAt(pos++));
     }
     return nullptr;
 }
@@ -1972,7 +1972,7 @@ UnicodeString MessageFormat::PluralSelectorProvider::select(void *ctx, double nu
     context.numberArgIndex = msgFormat.findFirstPluralNumberArg(otherIndex, context.argName);
     if(context.numberArgIndex > 0 && msgFormat.cachedFormatters != nullptr) {
         context.formatter =
-            (const Format*)uhash_iget(msgFormat.cachedFormatters, context.numberArgIndex);
+            static_cast<const Format*>(uhash_iget(msgFormat.cachedFormatters, context.numberArgIndex));
     }
     if(context.formatter == nullptr) {
         context.formatter = msgFormat.getDefaultNumberFormat(ec);
@@ -1983,7 +1983,7 @@ UnicodeString MessageFormat::PluralSelectorProvider::select(void *ctx, double nu
         return UnicodeString(false, OTHER_STRING, 5);
     }
     context.formatter->format(context.number, context.numberString, ec);
-    auto* decFmt = dynamic_cast<const DecimalFormat *>(context.formatter);
+    const auto* decFmt = dynamic_cast<const DecimalFormat*>(context.formatter);
     if(decFmt != nullptr) {
         number::impl::DecimalQuantity dq;
         decFmt->formatToDecimalQuantity(context.number, dq, ec);

@@ -43,10 +43,10 @@ Handle<WasmInstanceObject> WasmModuleDebug::GetFirstWasmInstance() {
   Handle<WeakArrayList> weak_instance_list(script->wasm_weak_instance_list(),
                                            GetIsolate());
   if (weak_instance_list->length() > 0) {
-    MaybeObject maybe_instance = weak_instance_list->Get(0);
-    if (maybe_instance->IsWeak()) {
+    Tagged<MaybeObject> maybe_instance = weak_instance_list->Get(0);
+    if (maybe_instance.IsWeak()) {
       Handle<WasmInstanceObject> instance(
-          WasmInstanceObject::cast(maybe_instance.GetHeapObjectAssumeWeak()),
+          Cast<WasmInstanceObject>(maybe_instance.GetHeapObjectAssumeWeak()),
           GetIsolate());
       return instance;
     }
@@ -91,27 +91,26 @@ std::vector<wasm_addr_t> WasmModuleDebug::GetCallStack(
        frame_it.Advance()) {
     StackFrame* const frame = frame_it.frame();
     switch (frame->type()) {
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::INTERPRETED:
       case StackFrame::BASELINE:
       case StackFrame::MAGLEV:
-      case StackFrame::TURBOFAN:
+      case StackFrame::TURBOFAN_JS:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
-        std::vector<FrameSummary> frames;
-        CommonFrame::cast(frame)->Summarize(&frames);
-        for (size_t i = frames.size(); i-- != 0;) {
+        FrameSummaries summaries = CommonFrame::cast(frame)->Summarize();
+        for (size_t i = summaries.size(); i-- != 0;) {
           int offset = 0;
           Handle<Script> script;
 
-          auto& summary = frames[i];
+          auto& summary = summaries.frames[i];
           if (summary.IsJavaScript()) {
-            FrameSummary::JavaScriptFrameSummary const& java_script =
+            FrameSummary::JavaScriptFrameSummary const& javascript =
                 summary.AsJavaScript();
-            offset = java_script.code_offset();
-            script = Handle<Script>::cast(java_script.script());
+            offset = javascript.code_offset();
+            script = Cast<Script>(javascript.script());
           } else if (summary.IsWasm()) {
             FrameSummary::WasmFrameSummary const& wasm = summary.AsWasm();
             offset = GetWasmFunctionOffset(wasm.wasm_instance()->module(),
@@ -151,23 +150,26 @@ std::vector<FrameSummary> WasmModuleDebug::FindWasmFrame(
   while (!frame_it->done()) {
     StackFrame* const frame = frame_it->frame();
     switch (frame->type()) {
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
-      case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION:
+      case StackFrame::JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH:
       case StackFrame::INTERPRETED:
       case StackFrame::BASELINE:
       case StackFrame::MAGLEV:
-      case StackFrame::TURBOFAN:
+      case StackFrame::TURBOFAN_JS:
       case StackFrame::BUILTIN:
       case StackFrame::WASM: {
         // A standard frame may include many summarized frames, due to inlining.
-        std::vector<FrameSummary> frames;
-        CommonFrame::cast(frame)->Summarize(&frames);
-        const size_t frame_count = frames.size();
+        FrameSummaries summaries = CommonFrame::cast(frame)->Summarize();
+        const size_t frame_count = summaries.size();
         DCHECK_GT(frame_count, 0);
 
         if (frame_count > *frame_index) {
+#if V8_ENABLE_DRUMBRAKE
+          if (frame_it->is_wasm() && !frame_it->is_wasm_interpreter_entry())
+#else   // V8_ENABLE_DRUMBRAKE
           if (frame_it->is_wasm())
-            return frames;
+#endif  // V8_ENABLE_DRUMBRAKE
+            return summaries.frames;
           else
             return {};
         } else {
@@ -402,7 +404,6 @@ bool WasmModuleDebug::GetWasmValue(const wasm::WasmValue& wasm_value,
       return StoreValue(wasm_value.to_s128(), buffer, buffer_size, size);
     case wasm::kRef:
     case wasm::kRefNull:
-    case wasm::kRtt:
     case wasm::kVoid:
     case wasm::kBottom:
       // Not supported

@@ -13,8 +13,9 @@
 namespace v8 {
 namespace internal {
 
-class JSProxy;
+class AccessCheckInfo;
 class FastKeyAccumulator;
+class JSProxy;
 
 enum AddKeyConversion { DO_NOT_CONVERT, CONVERT_TO_ARRAY_INDEX };
 
@@ -56,27 +57,27 @@ class KeyAccumulator final {
   KeyAccumulator& operator=(const KeyAccumulator&) = delete;
 
   static MaybeHandle<FixedArray> GetKeys(
-      Isolate* isolate, Handle<JSReceiver> object, KeyCollectionMode mode,
+      Isolate* isolate, DirectHandle<JSReceiver> object, KeyCollectionMode mode,
       PropertyFilter filter,
       GetKeysConversion keys_conversion = GetKeysConversion::kKeepNumbers,
       bool is_for_in = false, bool skip_indices = false);
 
   Handle<FixedArray> GetKeys(
       GetKeysConversion convert = GetKeysConversion::kKeepNumbers);
-  Maybe<bool> CollectKeys(Handle<JSReceiver> receiver,
-                          Handle<JSReceiver> object);
+  Maybe<bool> CollectKeys(DirectHandle<JSReceiver> receiver,
+                          DirectHandle<JSReceiver> object);
 
   // Might return directly the object's enum_cache, copy the result before using
   // as an elements backing store for a JSObject.
   // Does not throw for uninitialized exports in module namespace objects, so
   // this has to be checked separately.
-  static Handle<FixedArray> GetOwnEnumPropertyKeys(Isolate* isolate,
-                                                   Handle<JSObject> object);
+  static Handle<FixedArray> GetOwnEnumPropertyKeys(
+      Isolate* isolate, DirectHandle<JSObject> object);
 
   V8_WARN_UNUSED_RESULT ExceptionStatus
   AddKey(Tagged<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
   V8_WARN_UNUSED_RESULT ExceptionStatus
-  AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
+  AddKey(DirectHandle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
 
   // Jump to the next level, pushing the current |levelLength_| to
   // |levelLengths_| and adding a new list to |elements_|.
@@ -90,48 +91,48 @@ class KeyAccumulator final {
   // Shadowing keys are used to filter keys. This happens when non-enumerable
   // keys appear again on the prototype chain.
   void AddShadowingKey(Tagged<Object> key, AllowGarbageCollection* allow_gc);
-  void AddShadowingKey(Handle<Object> key);
+  void AddShadowingKey(DirectHandle<Object> key);
 
  private:
   enum IndexedOrNamed { kIndexed, kNamed };
 
-  V8_WARN_UNUSED_RESULT ExceptionStatus
-  CollectPrivateNames(Handle<JSReceiver> receiver, Handle<JSObject> object);
+  V8_WARN_UNUSED_RESULT ExceptionStatus CollectPrivateNames(
+      DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object);
   Maybe<bool> CollectAccessCheckInterceptorKeys(
-      Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
-      Handle<JSObject> object);
+      DirectHandle<AccessCheckInfo> access_check_info,
+      DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object);
 
   Maybe<bool> CollectInterceptorKeysInternal(
-      Handle<JSReceiver> receiver, Handle<JSObject> object,
-      Handle<InterceptorInfo> interceptor, IndexedOrNamed type);
-  Maybe<bool> CollectInterceptorKeys(Handle<JSReceiver> receiver,
-                                     Handle<JSObject> object,
+      DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object,
+      DirectHandle<InterceptorInfo> interceptor, IndexedOrNamed type);
+  Maybe<bool> CollectInterceptorKeys(DirectHandle<JSReceiver> receiver,
+                                     DirectHandle<JSObject> object,
                                      IndexedOrNamed type);
 
-  Maybe<bool> CollectOwnElementIndices(Handle<JSReceiver> receiver,
-                                       Handle<JSObject> object);
-  Maybe<bool> CollectOwnPropertyNames(Handle<JSReceiver> receiver,
-                                      Handle<JSObject> object);
-  Maybe<bool> CollectOwnKeys(Handle<JSReceiver> receiver,
-                             Handle<JSObject> object);
-  Maybe<bool> CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
-                                    Handle<JSProxy> proxy);
-  Maybe<bool> CollectOwnJSProxyTargetKeys(Handle<JSProxy> proxy,
-                                          Handle<JSReceiver> target);
+  Maybe<bool> CollectOwnElementIndices(DirectHandle<JSReceiver> receiver,
+                                       DirectHandle<JSObject> object);
+  Maybe<bool> CollectOwnPropertyNames(DirectHandle<JSReceiver> receiver,
+                                      DirectHandle<JSObject> object);
+  Maybe<bool> CollectOwnKeys(DirectHandle<JSReceiver> receiver,
+                             DirectHandle<JSObject> object);
+  Maybe<bool> CollectOwnJSProxyKeys(DirectHandle<JSReceiver> receiver,
+                                    DirectHandle<JSProxy> proxy);
+  Maybe<bool> CollectOwnJSProxyTargetKeys(DirectHandle<JSProxy> proxy,
+                                          DirectHandle<JSReceiver> target);
 
   V8_WARN_UNUSED_RESULT ExceptionStatus FilterForEnumerableProperties(
-      Handle<JSReceiver> receiver, Handle<JSObject> object,
-      Handle<InterceptorInfo> interceptor, Handle<JSObject> result,
+      DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object,
+      DirectHandle<InterceptorInfo> interceptor, DirectHandle<JSObject> result,
       IndexedOrNamed type);
 
-  Maybe<bool> AddKeysFromJSProxy(Handle<JSProxy> proxy,
-                                 Handle<FixedArray> keys);
-  V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(Handle<FixedArray> array,
+  Maybe<bool> AddKeysFromJSProxy(DirectHandle<JSProxy> proxy,
+                                 DirectHandle<FixedArray> keys);
+  V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(DirectHandle<FixedArray> array,
                                                 AddKeyConversion convert);
-  V8_WARN_UNUSED_RESULT ExceptionStatus AddKeys(Handle<JSObject> array_like,
-                                                AddKeyConversion convert);
+  V8_WARN_UNUSED_RESULT ExceptionStatus
+  AddKeys(DirectHandle<JSObject> array_like, AddKeyConversion convert);
 
-  bool IsShadowed(Handle<Object> key);
+  bool IsShadowed(DirectHandle<Object> key);
   bool HasShadowingKeys();
   Handle<OrderedHashSet> keys();
 
@@ -139,26 +140,26 @@ class KeyAccumulator final {
   // deduplicate them. Additionally we convert JSProxy keys back to array
   // indices.
   void set_is_for_in(bool value) { is_for_in_ = value; }
-  void set_first_prototype_map(Handle<Map> value) {
+  void set_first_prototype_map(DirectHandle<Map> value) {
     first_prototype_map_ = value;
   }
   void set_try_prototype_info_cache(bool value) {
     try_prototype_info_cache_ = value;
   }
-  void set_receiver(Handle<JSReceiver> object) { receiver_ = object; }
+  void set_receiver(DirectHandle<JSReceiver> object) { receiver_ = object; }
   // The last_non_empty_prototype is used to limit the prototypes for which
   // we have to keep track of non-enumerable keys that can shadow keys
   // repeated on the prototype chain.
-  void set_last_non_empty_prototype(Handle<JSReceiver> object) {
+  void set_last_non_empty_prototype(DirectHandle<JSReceiver> object) {
     last_non_empty_prototype_ = object;
   }
   void set_may_have_elements(bool value) { may_have_elements_ = value; }
 
   Isolate* isolate_;
   Handle<OrderedHashSet> keys_;
-  Handle<Map> first_prototype_map_;
-  Handle<JSReceiver> receiver_;
-  Handle<JSReceiver> last_non_empty_prototype_;
+  DirectHandle<Map> first_prototype_map_;
+  DirectHandle<JSReceiver> receiver_;
+  DirectHandle<JSReceiver> last_non_empty_prototype_;
   Handle<ObjectHashSet> shadowing_keys_;
   KeyCollectionMode mode_;
   PropertyFilter filter_;
@@ -179,7 +180,7 @@ class KeyAccumulator final {
 // case where we do not have to walk the prototype chain.
 class FastKeyAccumulator {
  public:
-  FastKeyAccumulator(Isolate* isolate, Handle<JSReceiver> receiver,
+  FastKeyAccumulator(Isolate* isolate, DirectHandle<JSReceiver> receiver,
                      KeyCollectionMode mode, PropertyFilter filter,
                      bool is_for_in = false, bool skip_indices = false)
       : isolate_(isolate),
@@ -210,7 +211,7 @@ class FastKeyAccumulator {
   //
   // Returns the keys.
   static Handle<FixedArray> InitializeFastPropertyEnumCache(
-      Isolate* isolate, Handle<Map> map, int enum_length,
+      Isolate* isolate, DirectHandle<Map> map, int enum_length,
       AllocationType allocation = AllocationType::kOld);
 
  private:
@@ -223,13 +224,13 @@ class FastKeyAccumulator {
   MaybeHandle<FixedArray> GetOwnKeysWithUninitializedEnumLength();
 
   bool MayHaveElements(Tagged<JSReceiver> receiver);
-  bool TryPrototypeInfoCache(Handle<JSReceiver> receiver);
+  bool TryPrototypeInfoCache(DirectHandle<JSReceiver> receiver);
 
   Isolate* isolate_;
-  Handle<JSReceiver> receiver_;
-  Handle<Map> first_prototype_map_;
-  Handle<JSReceiver> first_prototype_;
-  Handle<JSReceiver> last_non_empty_prototype_;
+  DirectHandle<JSReceiver> receiver_;
+  DirectHandle<Map> first_prototype_map_;
+  DirectHandle<JSReceiver> first_prototype_;
+  DirectHandle<JSReceiver> last_non_empty_prototype_;
   KeyCollectionMode mode_;
   PropertyFilter filter_;
   bool is_for_in_ = false;

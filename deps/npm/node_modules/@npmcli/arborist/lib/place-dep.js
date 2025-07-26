@@ -8,8 +8,8 @@
 // a result.
 
 const localeCompare = require('@isaacs/string-locale-compare')('en')
-const log = require('proc-log')
-const { cleanUrl } = require('npm-registry-fetch')
+const { log } = require('proc-log')
+const { redact } = require('@npmcli/redact')
 const deepestNestingTarget = require('./deepest-nesting-target.js')
 const CanPlaceDep = require('./can-place-dep.js')
 const {
@@ -188,7 +188,7 @@ class PlaceDep {
       `${this.dep.name}@${this.dep.version}`,
       this.canPlace.description,
       `for: ${this.edge.from.package._id || this.edge.from.location}`,
-      `want: ${cleanUrl(this.edge.spec || '*')}`
+      `want: ${redact(this.edge.spec || '*')}`
     )
 
     const placementType = this.canPlace.canPlace === CONFLICT
@@ -423,7 +423,7 @@ class PlaceDep {
   // is another satisfying node further up the tree, and if so, dedupes.
   // Even in installStategy is nested, we do this amount of deduplication.
   pruneDedupable (node, descend = true) {
-    if (node.canDedupe(this.preferDedupe)) {
+    if (node.canDedupe(this.preferDedupe, this.explicitRequest)) {
       // gather up all deps that have no valid edges in from outside
       // the dep set, except for this node we're deduping, so that we
       // also prune deps that would be made extraneous.

@@ -25,8 +25,7 @@ import tempfile
 
 def main(args):
     executor = MacTool()
-    exit_code = executor.Dispatch(args)
-    if exit_code is not None:
+    if (exit_code := executor.Dispatch(args)) is not None:
         sys.exit(exit_code)
 
 
@@ -59,9 +58,7 @@ class MacTool:
             if os.path.exists(dest):
                 shutil.rmtree(dest)
             shutil.copytree(source, dest)
-        elif extension == ".xib":
-            return self._CopyXIBFile(source, dest)
-        elif extension == ".storyboard":
+        elif extension in {".xib", ".storyboard"}:
             return self._CopyXIBFile(source, dest)
         elif extension == ".strings" and not convert_to_binary:
             self._CopyStringsFile(source, dest)
@@ -70,7 +67,7 @@ class MacTool:
                 os.unlink(dest)
             shutil.copy(source, dest)
 
-        if convert_to_binary and extension in (".plist", ".strings"):
+        if convert_to_binary and extension in {".plist", ".strings"}:
             self._ConvertToBinary(dest)
 
     def _CopyXIBFile(self, source, dest):
@@ -144,7 +141,7 @@ class MacTool:
         #     CFPropertyListCreateFromXMLData(): Old-style plist parser: missing
         #     semicolon in dictionary.
         # on invalid files. Do the same kind of validation.
-        import CoreFoundation
+        import CoreFoundation  # noqa: PLC0415
 
         with open(source, "rb") as in_file:
             s = in_file.read()
@@ -164,9 +161,7 @@ class MacTool:
                 header = fp.read(3)
             except Exception:
                 return None
-        if header.startswith(b"\xFE\xFF"):
-            return "UTF-16"
-        elif header.startswith(b"\xFF\xFE"):
+        if header.startswith((b"\xFE\xFF", b"\xFF\xFE")):
             return "UTF-16"
         elif header.startswith(b"\xEF\xBB\xBF"):
             return "UTF-8"
@@ -261,7 +256,7 @@ class MacTool:
         """Calls libtool and filters out '/path/to/libtool: file: foo.o has no
     symbols'."""
         libtool_re = re.compile(
-            r"^.*libtool: (?:for architecture: \S* )?" r"file: .* has no symbols$"
+            r"^.*libtool: (?:for architecture: \S* )?file: .* has no symbols$"
         )
         libtool_re5 = re.compile(
             r"^.*libtool: warning for library: "

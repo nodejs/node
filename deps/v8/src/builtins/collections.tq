@@ -35,7 +35,7 @@ extern macro CodeStubAssembler::CloneFixedArray(
     FixedArrayBase, constexpr ExtractFixedArrayFlag): FixedArrayBase;
 
 extern macro CollectionsBuiltinsAssembler::AddToSetTable(
-    implicit context: Context)(OrderedHashSet, Object, String): OrderedHashSet;
+    implicit context: Context)(OrderedHashSet, JSAny, String): OrderedHashSet;
 
 extern macro CollectionsBuiltinsAssembler::TableHasKey(
     implicit context: Context)(OrderedHashSet, Object): bool;
@@ -45,8 +45,8 @@ extern macro CollectionsBuiltinsAssembler::TableHasKey(
 extern macro CollectionsBuiltinsAssembler::DeleteFromSetTable(
     implicit context: Context)(OrderedHashSet, Object): Smi labels NotFound;
 
-extern runtime OrderedHashSetShrink(implicit context: Context)(OrderedHashSet):
-    OrderedHashSet;
+extern runtime OrderedHashSetShrink(implicit context: Context)(
+                                    OrderedHashSet): OrderedHashSet;
 
 // Direct iteration helpers.
 @export
@@ -126,8 +126,7 @@ macro NewUnmodifiedOrderedHashSetIterator(table: OrderedHashSet):
     numBuckets: numBuckets,
     usedCapacity: usedCapacity,
     current: KeyIndexPair {
-      key:
-        Undefined, index: 0
+      key: Undefined, index: 0
     }
   };
 }
@@ -137,8 +136,7 @@ macro NewOrderedHashSetIterator(table: OrderedHashSet):
   return OrderedHashSetIterator{
     table: table,
     current: KeyIndexPair {
-      key:
-        Undefined, index: 0
+      key: Undefined, index: 0
     }
   };
 }
@@ -211,8 +209,7 @@ macro NewUnmodifiedOrderedHashMapIterator(table: OrderedHashMap):
     numBuckets: numBuckets,
     usedCapacity: usedCapacity,
     current: KeyValueIndexTuple {
-      key:
-        Undefined, value: Undefined, index: 0
+      key: Undefined, value: Undefined, index: 0
     }
   };
 }
@@ -252,8 +249,8 @@ macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: JSAny):
 }
 
 @export
-transitioning macro LoadKeyValuePair(implicit context: Context)(o: JSAny):
-    KeyValuePair {
+transitioning macro LoadKeyValuePair(implicit context: Context)(
+                                     o: JSAny): KeyValuePair {
   try {
     return LoadKeyValuePairNoSideEffects(o) otherwise Generic;
   } label Generic {
@@ -288,21 +285,26 @@ transitioning macro GetSetRecord(
   // 6. Let intSize be ! ToIntegerOrInfinity(numSize).
   const intSize = ToInteger_Inline(numSize);
 
-  // 7. Let has be ? Get(obj, "has").
+  // 7. If intSize < 0, throw a RangeError exception.
+  if (intSize < 0) {
+    ThrowRangeError(MessageTemplate::kInvalidSizeValue, intSize);
+  }
+
+  // 8. Let has be ? Get(obj, "has").
   let has = GetProperty(obj, kHasString);
 
-  // 8. If IsCallable(has) is false, throw a TypeError exception.
+  // 9. If IsCallable(has) is false, throw a TypeError exception.
   has = Cast<Callable>(has)
       otherwise ThrowCalledNonCallable(kHasString);
 
-  // 9. Let keys be ? Get(obj, "keys").
+  // 10. Let keys be ? Get(obj, "keys").
   let keys = GetProperty(obj, kKeysString);
 
-  // 10. If IsCallable(keys) is false, throw a TypeError exception.
+  // 11. If IsCallable(keys) is false, throw a TypeError exception.
   keys = Cast<Callable>(keys)
       otherwise ThrowCalledNonCallable(kKeysString);
 
-  // 11. Return a new Set Record { [[Set]]: obj, [[Size]]: intSize, [[Has]]:
+  // 12. Return a new Set Record { [[Set]]: obj, [[Size]]: intSize, [[Has]]:
   // has, [[Keys]]: keys }.
   return SetRecord{object: obj, size: intSize, has: has, keys: keys};
 }
@@ -336,10 +338,10 @@ macro CheckSetRecordHasJSSetMethods(setRecord: SetRecord):
       Cast<JSFunction>(setRecord.keys) otherwise HasUserProvidedMethods;
   const has = Cast<JSFunction>(setRecord.has) otherwise HasUserProvidedMethods;
   if (!(TaggedEqual(
-            keys.shared_function_info.function_data,
+            keys.shared_function_info.untrusted_function_data,
             SmiConstant(kSetPrototypeValues)) &&
         TaggedEqual(
-            has.shared_function_info.function_data,
+            has.shared_function_info.untrusted_function_data,
             SmiConstant(kSetPrototypeHas))))
     goto HasUserProvidedMethods;
 }
@@ -350,10 +352,10 @@ macro CheckSetRecordHasJSMapMethods(setRecord: SetRecord):
       Cast<JSFunction>(setRecord.keys) otherwise HasUserProvidedMethods;
   const has = Cast<JSFunction>(setRecord.has) otherwise HasUserProvidedMethods;
   if (!(TaggedEqual(
-            keys.shared_function_info.function_data,
+            keys.shared_function_info.untrusted_function_data,
             SmiConstant(kMapPrototypeKeys)) &&
         TaggedEqual(
-            has.shared_function_info.function_data,
+            has.shared_function_info.untrusted_function_data,
             SmiConstant(kMapPrototypeHas))))
     goto HasUserProvidedMethods;
 }
@@ -375,4 +377,62 @@ macro ShrinkOrderedHashSetIfNeeded(
   }
   return result;
 }
+
+struct StableJSSetBackingTableWitness {
+  macro GetTable(): StableOrderedHashSet {
+    return this.unstable;
+  }
+
+  macro ReloadTable(): void {
+    this.unstable =
+        Cast<StableOrderedHashSet>(this.collection.table) otherwise unreachable;
+  }
+
+  macro LoadSize(): int32 {
+    return LoadOrderedHashTableMetadata(
+        this.unstable, kOrderedHashSetNumberOfElementsIndex);
+  }
+
+  macro HasKey(implicit context: Context)(key: Object): bool {
+    return TableHasKey(this.unstable, key);
+  }
+
+  const collection: JSSet;
+  unstable: StableOrderedHashSet;
 }
+
+struct StableJSMapBackingTableWitness {
+  macro GetTable(): StableOrderedHashMap {
+    return this.unstable;
+  }
+
+  macro LoadSize(): int32 {
+    return LoadOrderedHashTableMetadata(
+        this.unstable, kOrderedHashMapNumberOfElementsIndex);
+  }
+
+  macro HasKey(implicit context: Context)(key: Object): bool {
+    return TableHasKey(this.unstable, key);
+  }
+
+  const collection: JSMap;
+  unstable: StableOrderedHashMap;
+}
+
+macro NewStableBackingTableWitness(o: JSSet):
+    StableJSSetBackingTableWitness {
+  return StableJSSetBackingTableWitness{
+    collection: o,
+    unstable: Cast<StableOrderedHashSet>(o.table) otherwise unreachable
+  };
+}
+
+macro NewStableBackingTableWitness(o: JSMap):
+    StableJSMapBackingTableWitness {
+  return StableJSMapBackingTableWitness{
+    collection: o,
+    unstable: Cast<StableOrderedHashMap>(o.table) otherwise unreachable
+  };
+}
+
+}  // namespace collections

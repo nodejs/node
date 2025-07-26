@@ -6,6 +6,7 @@
 #define V8_TEST_CCTEST_TEST_SWISS_NAME_DICTIONARY_INFRA_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "src/objects/objects-inl.h"
@@ -17,13 +18,13 @@ namespace internal {
 namespace test_swiss_hash_table {
 
 using Value = std::string;
-using ValueOpt = base::Optional<Value>;
-using PropertyDetailsOpt = base::Optional<PropertyDetails>;
-using IndexOpt = base::Optional<InternalIndex>;
+using ValueOpt = std::optional<Value>;
+using PropertyDetailsOpt = std::optional<PropertyDetails>;
+using IndexOpt = std::optional<InternalIndex>;
 
 static const ValueOpt kNoValue;
 static const PropertyDetailsOpt kNoDetails;
-static const base::Optional<int> kNoInt;
+static const std::optional<int> kNoInt;
 static const IndexOpt kIndexUnknown;
 
 static const std::vector<int> interesting_initial_capacities = {
@@ -76,8 +77,8 @@ struct FakeH2 {
   bool operator==(const FakeH2& other) const { return value == other.value; }
 };
 
-using FakeH1Opt = base::Optional<FakeH1>;
-using FakeH2Opt = base::Optional<FakeH2>;
+using FakeH1Opt = std::optional<FakeH1>;
+using FakeH2Opt = std::optional<FakeH2>;
 
 // Representation of keys used when writing test cases.
 struct Key {
@@ -103,8 +104,8 @@ struct CachedKey {
 
 using KeyCache = std::unordered_map<std::string, CachedKey>;
 
-Handle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
-                               const Key& key);
+DirectHandle<Name> CreateKeyWithHash(Isolate* isolate, KeyCache& keys,
+                                     const Key& key);
 
 class RuntimeTestRunner;
 class CSATestRunner;
@@ -124,7 +125,8 @@ class TestSequence {
   // debugging easier.
   static constexpr bool kVerifyAfterEachStep = false;
 
-  void Add(Handle<Name> key, Handle<Object> value, PropertyDetails details) {
+  void Add(DirectHandle<Name> key, DirectHandle<Object> value,
+           PropertyDetails details) {
     runner_.Add(key, value, details);
 
     if (kVerifyAfterEachStep) {
@@ -142,14 +144,15 @@ class TestSequence {
       details = PropertyDetails::Empty();
     }
 
-    Handle<Name> key_handle = CreateKeyWithHash(isolate, keys_, key);
-    Handle<Object> value_handle = isolate->factory()->NewStringFromAsciiChecked(
-        value.value().c_str(), AllocationType::kYoung);
+    DirectHandle<Name> key_handle = CreateKeyWithHash(isolate, keys_, key);
+    DirectHandle<Object> value_handle =
+        isolate->factory()->NewStringFromAsciiChecked(value.value().c_str(),
+                                                      AllocationType::kYoung);
 
     Add(key_handle, value_handle, details.value());
   }
 
-  void UpdateByKey(Handle<Name> key, Handle<Object> new_value,
+  void UpdateByKey(DirectHandle<Name> key, DirectHandle<Object> new_value,
                    PropertyDetails new_details) {
     InternalIndex entry = runner_.FindEntry(key);
     CHECK(entry.is_found());
@@ -162,14 +165,16 @@ class TestSequence {
 
   void UpdateByKey(const Key& existing_key, Value new_value,
                    PropertyDetails new_details) {
-    Handle<Name> key_handle = CreateKeyWithHash(isolate, keys_, existing_key);
-    Handle<Object> value_handle = isolate->factory()->NewStringFromAsciiChecked(
-        new_value.c_str(), AllocationType::kYoung);
+    DirectHandle<Name> key_handle =
+        CreateKeyWithHash(isolate, keys_, existing_key);
+    DirectHandle<Object> value_handle =
+        isolate->factory()->NewStringFromAsciiChecked(new_value.c_str(),
+                                                      AllocationType::kYoung);
 
     UpdateByKey(key_handle, value_handle, new_details);
   }
 
-  void DeleteByKey(Handle<Name> key) {
+  void DeleteByKey(DirectHandle<Name> key) {
     InternalIndex entry = runner_.FindEntry(key);
     CHECK(entry.is_found());
     runner_.Delete(entry);
@@ -180,13 +185,14 @@ class TestSequence {
   }
 
   void DeleteByKey(const Key& existing_key) {
-    Handle<Name> key_handle = CreateKeyWithHash(isolate, keys_, existing_key);
+    DirectHandle<Name> key_handle =
+        CreateKeyWithHash(isolate, keys_, existing_key);
 
     DeleteByKey(key_handle);
   }
 
-  void CheckDataAtKey(Handle<Name> key, IndexOpt expected_index_opt,
-                      base::Optional<Handle<Object>> expected_value_opt,
+  void CheckDataAtKey(DirectHandle<Name> key, IndexOpt expected_index_opt,
+                      std::optional<Handle<Object>> expected_value_opt,
                       PropertyDetailsOpt expected_details_opt) {
     InternalIndex actual_index = runner_.FindEntry(key);
 
@@ -195,7 +201,7 @@ class TestSequence {
     }
 
     if (actual_index.is_found()) {
-      Handle<FixedArray> data = runner_.GetData(actual_index);
+      DirectHandle<FixedArray> data = runner_.GetData(actual_index);
       CHECK_EQ(*key, data->get(0));
 
       if (expected_value_opt) {
@@ -211,8 +217,9 @@ class TestSequence {
   void CheckDataAtKey(const Key& expected_key, IndexOpt expected_index,
                       ValueOpt expected_value = kNoValue,
                       PropertyDetailsOpt expected_details = kNoDetails) {
-    Handle<Name> key_handle = CreateKeyWithHash(isolate, keys_, expected_key);
-    base::Optional<Handle<Object>> value_handle_opt;
+    DirectHandle<Name> key_handle =
+        CreateKeyWithHash(isolate, keys_, expected_key);
+    std::optional<Handle<Object>> value_handle_opt;
     if (expected_value) {
       value_handle_opt = isolate->factory()->NewStringFromAsciiChecked(
           expected_value.value().c_str(), AllocationType::kYoung);
@@ -222,24 +229,26 @@ class TestSequence {
                    expected_details);
   }
 
-  void CheckKeyAbsent(Handle<Name> key) {
+  void CheckKeyAbsent(DirectHandle<Name> key) {
     CHECK(runner_.FindEntry(key).is_not_found());
   }
 
   void CheckKeyAbsent(const Key& expected_key) {
-    Handle<Name> key_handle = CreateKeyWithHash(isolate, keys_, expected_key);
+    DirectHandle<Name> key_handle =
+        CreateKeyWithHash(isolate, keys_, expected_key);
     CheckKeyAbsent(key_handle);
   }
 
   void CheckHasKey(const Key& expected_key) {
-    Handle<Name> key_handle = CreateKeyWithHash(isolate, keys_, expected_key);
+    DirectHandle<Name> key_handle =
+        CreateKeyWithHash(isolate, keys_, expected_key);
 
     CHECK(runner_.FindEntry(key_handle).is_found());
   }
 
-  void CheckCounts(base::Optional<int> capacity,
-                   base::Optional<int> elements = base::Optional<int>(),
-                   base::Optional<int> deleted = base::Optional<int>()) {
+  void CheckCounts(std::optional<int> capacity,
+                   std::optional<int> elements = std::optional<int>(),
+                   std::optional<int> deleted = std::optional<int>()) {
     runner_.CheckCounts(capacity, elements, deleted);
   }
 

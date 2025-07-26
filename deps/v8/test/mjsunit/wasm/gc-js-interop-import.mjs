@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --allow-natives-syntax
-// Flags: --turbofan --no-always-turbofan
+// Flags: --turbofan --no-always-turbofan --allow-natives-syntax
 
 import {struct, array} from 'gc-js-interop-export.mjs';
 
@@ -14,7 +13,7 @@ builder.addFunction('readStruct', makeSig([kWasmExternRef], [kWasmI32]))
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,                           // --
-      kGCPrefix, kExprExternInternalize,          // --
+      kGCPrefix, kExprAnyConvertExtern,          // --
       kGCPrefix, kExprRefCast, struct_type,       // --
       kGCPrefix, kExprStructGet, struct_type, 0,  // --
     ]);
@@ -22,7 +21,7 @@ builder.addFunction('readArrayLength', makeSig([kWasmExternRef], [kWasmI32]))
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,                           // --
-      kGCPrefix, kExprExternInternalize,          // --
+      kGCPrefix, kExprAnyConvertExtern,          // --
       kGCPrefix, kExprRefCast, kArrayRefCode,     // --
       kGCPrefix, kExprArrayLen,
     ]);

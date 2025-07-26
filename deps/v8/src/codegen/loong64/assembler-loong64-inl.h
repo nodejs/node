@@ -5,10 +5,14 @@
 #ifndef V8_CODEGEN_LOONG64_ASSEMBLER_LOONG64_INL_H_
 #define V8_CODEGEN_LOONG64_ASSEMBLER_LOONG64_INL_H_
 
+#include "src/codegen/loong64/assembler-loong64.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/flush-instruction-cache.h"
-#include "src/codegen/loong64/assembler-loong64.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-layout.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -33,10 +37,12 @@ int64_t Operand::immediate() const {
 void WritableRelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
-    Assembler::RelocateInternalReference(rmode_, pc_, delta);
+    intptr_t internal_ref = ReadUnalignedValue<intptr_t>(pc_);
+    internal_ref += delta;  // Relocate entry.
+    jit_allocation_.WriteUnalignedValue<intptr_t>(pc_, internal_ref);
   } else {
     DCHECK(IsRelativeCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_));
-    Assembler::RelocateRelativeReference(rmode_, pc_, delta);
+    Assembler::RelocateRelativeReference(rmode_, pc_, delta, &jit_allocation_);
   }
 }
 
@@ -69,21 +75,15 @@ Address RelocInfo::constant_pool_entry_address() { UNREACHABLE(); }
 
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
-void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Tagged<Code> code, Address target) {
-  set_target_address_at(instruction_payload,
-                        !code.is_null() ? code->constant_pool() : kNullAddress,
-                        target);
-}
-
 int Assembler::deserialization_special_target_size(
     Address instruction_payload) {
   return kSpecialTargetSize;
 }
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
-  WriteUnalignedValue<Address>(pc, target);
+    Address pc, Address target, WritableJitAllocation& jit_allocation,
+    RelocInfo::Mode mode) {
+  jit_allocation.WriteUnalignedValue<Address>(pc, target);
 }
 
 Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(
@@ -110,22 +110,20 @@ Builtin Assembler::target_builtin_at(Address pc) {
 }
 
 Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
-  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_) ||
-         IsCompressedEmbeddedObject(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Tagged_t compressed =
         Assembler::target_compressed_address_at(pc_, constant_pool_);
     DCHECK(!HAS_SMI_TAG(compressed));
-    Tagged<Object> obj(
-        V8HeapCompressionScheme::DecompressTagged(cage_base, compressed));
-    return HeapObject::cast(obj);
+    Tagged<Object> obj(V8HeapCompressionScheme::DecompressTagged(compressed));
+    return Cast<HeapObject>(obj);
   } else {
-    return HeapObject::cast(
+    return Cast<HeapObject>(
         Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
   }
 }
 
-Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
+DirectHandle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   if (IsCodeTarget(rmode_)) {
     return origin->code_target_object_handle_at(pc_, constant_pool_);
   } else if (IsFullEmbeddedObject(rmode_)) {
@@ -142,13 +140,20 @@ void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
                                           ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
+    DCHECK(COMPRESS_POINTERS_BOOL);
+    // We must not compress pointers to objects outside of the main pointer
+    // compression cage as we wouldn't be able to decompress them with the
+    // correct cage base.
+    DCHECK_IMPLIES(V8_ENABLE_SANDBOX_BOOL, !HeapLayout::InTrustedSpace(target));
+    DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                   !HeapLayout::InCodeSpace(target));
     Assembler::set_target_compressed_address_at(
         pc_, constant_pool_,
-        V8HeapCompressionScheme::CompressObject(target.ptr()),
+        V8HeapCompressionScheme::CompressObject(target.ptr()), &jit_allocation_,
         icache_flush_mode);
   } else {
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
-                                     icache_flush_mode);
+                                     &jit_allocation_, icache_flush_mode);
   }
 }
 
@@ -161,7 +166,19 @@ void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
-                                   icache_flush_mode);
+                                   &jit_allocation_, icache_flush_mode);
+}
+
+WasmCodePointer RelocInfo::wasm_code_pointer_table_entry() const {
+  DCHECK(rmode_ == WASM_CODE_POINTER_TABLE_ENTRY);
+  return WasmCodePointer{Assembler::uint32_constant_at(pc_, constant_pool_)};
+}
+
+void WritableRelocInfo::set_wasm_code_pointer_table_entry(
+    WasmCodePointer target, ICacheFlushMode icache_flush_mode) {
+  DCHECK(rmode_ == WASM_CODE_POINTER_TABLE_ENTRY);
+  Assembler::set_uint32_constant_at(pc_, constant_pool_, target.value(),
+                                    &jit_allocation_, icache_flush_mode);
 }
 
 Address RelocInfo::target_internal_reference() {
@@ -175,6 +192,11 @@ Address RelocInfo::target_internal_reference() {
 Address RelocInfo::target_internal_reference_address() {
   DCHECK(rmode_ == INTERNAL_REFERENCE);
   return pc_;
+}
+
+JSDispatchHandle RelocInfo::js_dispatch_handle() {
+  DCHECK(rmode_ == JS_DISPATCH_HANDLE);
+  return JSDispatchHandle(Assembler::uint32_constant_at(pc_, constant_pool_));
 }
 
 Handle<Code> Assembler::relative_code_target_object_handle_at(
@@ -194,6 +216,22 @@ Builtin RelocInfo::target_builtin_at(Assembler* origin) {
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
+}
+
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  // target_compressed_address_at function could interpret lu12i.w and ori
+  // instructions generated by MacroAssembler::li for a 32-bit value.
+  return Assembler::target_compressed_address_at(pc);
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       WritableJitAllocation* jit_allocation,
+                                       ICacheFlushMode icache_flush_mode) {
+  // set_target_compressed_value_at function could update 32-bit value loaded
+  // by lu12i.w and ori instructions.
+  Assembler::set_target_compressed_value_at(pc, new_constant, jit_allocation,
+                                            icache_flush_mode);
 }
 
 // -----------------------------------------------------------------------------

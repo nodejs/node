@@ -9,9 +9,9 @@
 #include <uv.h>
 #include <v8.h>
 #include "data.h"
+#include "defs.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 // A TLS 1.3 Session resumption ticket. Encapsulates both the TLS
 // ticket and the encoded QUIC transport parameters. The encoded
@@ -58,9 +58,9 @@ class SessionTicket final : public MemoryRetainer {
 };
 
 // SessionTicket::AppData is a utility class that is used only during the
-// generation or access of TLS stateless sesson tickets. It exists solely to
+// generation or access of TLS stateless session tickets. It exists solely to
 // provide a easier way for Session::Application instances to set relevant
-// metadata in the session ticket when it is created, and the exract and
+// metadata in the session ticket when it is created, and the extract and
 // subsequently verify that data when a ticket is received and is being
 // validated. The app data is completely opaque to anything other than the
 // server-side of the Session::Application that sets it.
@@ -74,10 +74,7 @@ class SessionTicket::AppData final {
   };
 
   explicit AppData(SSL* session);
-  AppData(const AppData&) = delete;
-  AppData(AppData&&) = delete;
-  AppData& operator=(const AppData&) = delete;
-  AppData& operator=(AppData&&) = delete;
+  DISALLOW_COPY_AND_MOVE(AppData)
 
   bool Set(const uv_buf_t& data);
   std::optional<const uv_buf_t> Get() const;
@@ -105,8 +102,7 @@ class SessionTicket::AppData final {
   SSL* ssl_;
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 #endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

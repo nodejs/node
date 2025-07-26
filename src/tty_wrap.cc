@@ -91,9 +91,8 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   TTYWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
   CHECK(args[0]->IsArray());
 
   int width, height;
@@ -101,8 +100,12 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
 
   if (err == 0) {
     Local<Array> a = args[0].As<Array>();
-    a->Set(env->context(), 0, Integer::New(env->isolate(), width)).Check();
-    a->Set(env->context(), 1, Integer::New(env->isolate(), height)).Check();
+    if (a->Set(env->context(), 0, Integer::New(env->isolate(), width))
+            .IsNothing() ||
+        a->Set(env->context(), 1, Integer::New(env->isolate(), height))
+            .IsNothing()) {
+      return;
+    }
   }
 
   args.GetReturnValue().Set(err);
@@ -111,10 +114,19 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
 
 void TTYWrap::SetRawMode(const FunctionCallbackInfo<Value>& args) {
   TTYWrap* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
-  int err = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
+  // UV_TTY_MODE_RAW_VT is a variant of UV_TTY_MODE_RAW that
+  // enables control sequence processing on the TTY implementer side,
+  // rather than having libuv translate keypress events into
+  // control sequences, aligning behavior more closely with
+  // POSIX platforms. This is also required to support some control
+  // sequences at all on Windows, such as bracketed paste mode.
+  // The Node.js readline implementation handles differences between
+  // these modes.
+  int err = uv_tty_set_mode(
+      &wrap->handle_,
+      args[0]->IsTrue() ? UV_TTY_MODE_RAW_VT : UV_TTY_MODE_NORMAL);
   args.GetReturnValue().Set(err);
 }
 
@@ -134,8 +146,7 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
   int err = 0;
   new TTYWrap(env, args.This(), fd, &err);
   if (err != 0) {
-    env->CollectUVExceptionInfo(args[1], err, "uv_tty_init");
-    args.GetReturnValue().SetUndefined();
+    USE(env->CollectUVExceptionInfo(args[1], err, "uv_tty_init"));
   }
 }
 

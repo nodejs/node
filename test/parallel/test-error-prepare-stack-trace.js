@@ -26,6 +26,5 @@ if (process.argv[2] !== 'child') {
   // enabled.
   spawnSyncAndExitWithoutError(
     process.execPath,
-    ['--enable-source-maps', __filename, 'child'],
-    {});
+    ['--enable-source-maps', __filename, 'child']);
 }

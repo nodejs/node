@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -39,7 +39,7 @@
 
 /* NGTCP2_ACKTR_MAX_ENT is the maximum number of ngtcp2_acktr_entry
    which ngtcp2_acktr stores. */
-#define NGTCP2_ACKTR_MAX_ENT 1024
+#define NGTCP2_ACKTR_MAX_ENT (NGTCP2_MAX_ACK_RANGES + 1)
 
 typedef struct ngtcp2_log ngtcp2_log;
 
@@ -65,7 +65,7 @@ typedef struct ngtcp2_acktr_entry {
   };
 } ngtcp2_acktr_entry;
 
-ngtcp2_objalloc_decl(acktr_entry, ngtcp2_acktr_entry, oplent);
+ngtcp2_objalloc_decl(acktr_entry, ngtcp2_acktr_entry, oplent)
 
 /*
  * ngtcp2_acktr_entry_objalloc_new allocates memory for ent, and
@@ -108,17 +108,18 @@ typedef struct ngtcp2_acktr_ack_entry {
    expired and canceled. */
 #define NGTCP2_ACKTR_FLAG_CANCEL_TIMER 0x0100u
 
+ngtcp2_static_ringbuf_def(acks, 32, sizeof(ngtcp2_acktr_ack_entry))
+
 /*
  * ngtcp2_acktr tracks received packets which we have to send ack.
  */
 typedef struct ngtcp2_acktr {
   ngtcp2_objalloc objalloc;
-  ngtcp2_ringbuf acks;
+  ngtcp2_static_ringbuf_acks acks;
   /* ents includes ngtcp2_acktr_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;
   ngtcp2_log *log;
-  const ngtcp2_mem *mem;
   /* flags is bitwise OR of zero, or more of NGTCP2_ACKTR_FLAG_*. */
   uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
@@ -127,19 +128,33 @@ typedef struct ngtcp2_acktr {
   /* rx_npkt is the number of ACK eliciting packets received without
      sending ACK. */
   size_t rx_npkt;
+  /* max_pkt_num is the largest packet number received so far. */
+  int64_t max_pkt_num;
+  /* max_pkt_ts is the timestamp when max_pkt_num packet is
+     received. */
+  ngtcp2_tstamp max_pkt_ts;
+
+  struct {
+    /* ect0, ect1, and ce are the number of QUIC packets received
+       with those markings. */
+    size_t ect0;
+    size_t ect1;
+    size_t ce;
+    struct {
+      /* ect0, ect1, ce are the ECN counts received in the latest
+         ACK frame. */
+      uint64_t ect0;
+      uint64_t ect1;
+      uint64_t ce;
+    } ack;
+  } ecn;
 } ngtcp2_acktr;
 
 /*
  * ngtcp2_acktr_init initializes |acktr|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
  */
-int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
-                      const ngtcp2_mem *mem);
+void ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
+                       const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_free frees resources allocated for |acktr|.  It frees
@@ -170,17 +185,17 @@ int ngtcp2_acktr_add(ngtcp2_acktr *acktr, int64_t pkt_num, int active_ack,
 void ngtcp2_acktr_forget(ngtcp2_acktr *acktr, ngtcp2_acktr_entry *ent);
 
 /*
- * ngtcp2_acktr_get returns the pointer to pointer to the entry which
+ * ngtcp2_acktr_get returns the iterator to pointer to the entry which
  * has the largest packet number to be acked.  If there is no entry,
  * returned value satisfies ngtcp2_ksl_it_end(&it) != 0.
  */
-ngtcp2_ksl_it ngtcp2_acktr_get(ngtcp2_acktr *acktr);
+ngtcp2_ksl_it ngtcp2_acktr_get(const ngtcp2_acktr *acktr);
 
 /*
  * ngtcp2_acktr_empty returns nonzero if it has no packet to
  * acknowledge.
  */
-int ngtcp2_acktr_empty(ngtcp2_acktr *acktr);
+int ngtcp2_acktr_empty(const ngtcp2_acktr *acktr);
 
 /*
  * ngtcp2_acktr_add_ack records outgoing ACK frame whose largest
@@ -208,7 +223,7 @@ void ngtcp2_acktr_commit_ack(ngtcp2_acktr *acktr);
  * ngtcp2_acktr_require_active_ack returns nonzero if ACK frame should
  * be generated actively.
  */
-int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr,
+int ngtcp2_acktr_require_active_ack(const ngtcp2_acktr *acktr,
                                     ngtcp2_duration max_ack_delay,
                                     ngtcp2_tstamp ts);
 
@@ -218,4 +233,26 @@ int ngtcp2_acktr_require_active_ack(ngtcp2_acktr *acktr,
  */
 void ngtcp2_acktr_immediate_ack(ngtcp2_acktr *acktr);
 
-#endif /* NGTCP2_ACKTR_H */
+/*
+ * ngtcp2_acktr_create_ack_frame creates ACK frame in the object
+ * pointed by |fr|, and returns |fr| if there are any received packets
+ * to acknowledge.  If there are no packets to acknowledge, this
+ * function returns NULL.  fr->ack.ranges must be able to contain at
+ * least NGTCP2_MAX_ACK_RANGES elements.
+ *
+ * Call ngtcp2_acktr_commit_ack after a created ACK frame is
+ * successfully serialized into a packet.
+ */
+ngtcp2_frame *ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr,
+                                            ngtcp2_frame *fr, uint8_t type,
+                                            ngtcp2_tstamp ts,
+                                            ngtcp2_duration ack_delay,
+                                            uint64_t ack_delay_exponent);
+
+/*
+ * ngtcp2_acktr_increase_ecn_counts increases ECN counts from |pi|.
+ */
+void ngtcp2_acktr_increase_ecn_counts(ngtcp2_acktr *acktr,
+                                      const ngtcp2_pkt_info *pi);
+
+#endif /* !defined(NGTCP2_ACKTR_H) */

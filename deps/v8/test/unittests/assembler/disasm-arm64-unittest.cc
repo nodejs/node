@@ -59,15 +59,15 @@ using DisasmArm64Test = TestWithIsolate;
   DisassemblingDecoder* disasm = new DisassemblingDecoder();                  \
   decoder->AppendVisitor(disasm)
 
-#define SET_UP_ASM()                                                         \
-  HandleScope scope(isolate());                                              \
-  uint8_t* buf = static_cast<uint8_t*>(malloc(INSTR_SIZE));                  \
-  uint32_t encoding = 0;                                                     \
-  Assembler* assm = new Assembler(AssemblerOptions{},                        \
-                                  ExternalAssemblerBuffer(buf, INSTR_SIZE)); \
-  Decoder<DispatchingDecoderVisitor>* decoder =                              \
-      new Decoder<DispatchingDecoderVisitor>();                              \
-  DisassemblingDecoder* disasm = new DisassemblingDecoder();                 \
+#define SET_UP_ASM()                                                          \
+  HandleScope scope(isolate());                                               \
+  uint8_t* buf = static_cast<uint8_t*>(malloc(INSTR_SIZE));                   \
+  uint32_t encoding = 0;                                                      \
+  Assembler* assm = new Assembler(isolate()->allocator(), AssemblerOptions{}, \
+                                  ExternalAssemblerBuffer(buf, INSTR_SIZE));  \
+  Decoder<DispatchingDecoderVisitor>* decoder =                               \
+      new Decoder<DispatchingDecoderVisitor>();                               \
+  DisassemblingDecoder* disasm = new DisassemblingDecoder();                  \
   decoder->AppendVisitor(disasm)
 
 #define COMPARE(ASM, EXP)                                                \
@@ -789,6 +789,8 @@ TEST_F(DisasmArm64Test, branch) {
   COMPARE_PREFIX(b(INST_OFF(-0x8000000)), "b #-0x8000000");
   COMPARE_PREFIX(b(INST_OFF(0xffffc), eq), "b.eq #+0xffffc");
   COMPARE_PREFIX(b(INST_OFF(-0x100000), mi), "b.mi #-0x100000");
+  COMPARE_PREFIX(bc(INST_OFF(0xffffc), ge), "bc.ge #+0xffffc");
+  COMPARE_PREFIX(bc(INST_OFF(-0x100000), lt), "bc.lt #-0x100000");
   COMPARE_PREFIX(bl(INST_OFF(0x4)), "bl #+0x4");
   COMPARE_PREFIX(bl(INST_OFF(-0x4)), "bl #-0x4");
   COMPARE_PREFIX(bl(INST_OFF(0xffffc)), "bl #+0xffffc");
@@ -2014,14 +2016,14 @@ TEST_F(DisasmArm64Test, debug) {
     HandleScope scope(isolate());
     uint8_t* buf = static_cast<uint8_t*>(malloc(INSTR_SIZE));
     uint32_t encoding = 0;
-    AssemblerOptions options;
+    AssemblerOptions options{};
 #ifdef USE_SIMULATOR
     options.enable_simulator_code = (i == 1);
 #else
     CHECK(!options.enable_simulator_code);
 #endif
-    Assembler* assm =
-        new Assembler(options, ExternalAssemblerBuffer(buf, INSTR_SIZE));
+    Assembler* assm = new Assembler(i_isolate()->allocator(), options,
+                                    ExternalAssemblerBuffer(buf, INSTR_SIZE));
     Decoder<DispatchingDecoderVisitor>* decoder =
         new Decoder<DispatchingDecoderVisitor>();
     DisassemblingDecoder* disasm = new DisassemblingDecoder();
@@ -2241,6 +2243,8 @@ TEST_F(DisasmArm64Test, barriers) {
   V(V4S(), "4s")
 
 #define NEON_FORMAT_LIST_FP(V) \
+  V(V4H(), "4h")               \
+  V(V8H(), "8h")               \
   V(V2S(), "2s")               \
   V(V4S(), "4s")               \
   V(V2D(), "2d")
@@ -4039,6 +4043,25 @@ TEST_F(DisasmArm64Test, neon_3different) {
   COMPARE(Pmull2(v2.V8H(), v3.V16B(), v4.V16B()),
           "pmull2 v2.8h, v3.16b, v4.16b");
 
+  {
+    CpuFeatureScope feature_scope(assm, PMULL1Q,
+                                  CpuFeatureScope::kDontCheckSupported);
+
+    COMPARE(Pmull(v5.V1Q(), v6.V1D(), v7.V1D()), "pmull v5.1q, v6.1d, v7.1d");
+    COMPARE(Pmull2(v8.V1Q(), v9.V2D(), v10.V2D()),
+            "pmull2 v8.1q, v9.2d, v10.2d");
+  }
+
+  {
+    CpuFeatureScope feature_scope(assm, DOTPROD,
+                                  CpuFeatureScope::kDontCheckSupported);
+
+    COMPARE(Sdot(v11.V2S(), v20.V8B(), v25.V8B()),
+            "sdot v11.2s, v20.8b, v25.8b");
+    COMPARE(Sdot(v26.V4S(), v5.V16B(), v14.V16B()),
+            "sdot v26.4s, v5.16b, v14.16b");
+  }
+
   CLEANUP();
 }
 
@@ -4697,6 +4720,19 @@ TEST_F(DisasmArm64Test, neon_2regmisc) {
   CLEANUP();
 }
 
+TEST_F(DisasmArm64Test, neon_sha3) {
+  SET_UP_MASM();
+
+  CpuFeatureScope feature_scope(assm, SHA3,
+                                CpuFeatureScope::kDontCheckSupported);
+  COMPARE(Bcax(v0.V16B(), v1.V16B(), v2.V16B(), v3.V16B()),
+          "bcax v0.16b, v1.16b, v2.16b, v3.16b");
+  COMPARE(Eor3(v10.V16B(), v11.V16B(), v12.V16B(), v13.V16B()),
+          "eor3 v10.16b, v11.16b, v12.16b, v13.16b");
+
+  CLEANUP();
+}
+
 TEST_F(DisasmArm64Test, neon_acrosslanes) {
   SET_UP_MASM();
 
@@ -5100,6 +5136,23 @@ TEST_F(DisasmArm64Test, neon_shift_immediate) {
   COMPARE(Fcvtzu(v7.V2D(), v5.V2D(), 33), "fcvtzu v7.2d, v5.2d, #33");
   COMPARE(Fcvtzu(s8, s6, 13), "fcvtzu s8, s6, #13");
   COMPARE(Fcvtzu(d8, d6, 34), "fcvtzu d8, d6, #34");
+
+  CLEANUP();
+}
+
+TEST_F(DisasmArm64Test, cssc) {
+  SET_UP_MASM();
+
+  CpuFeatureScope feature_scope(assm, CSSC,
+                                CpuFeatureScope::kDontCheckSupported);
+
+  COMPARE(Abs(w0, w22), "abs w0, w22");
+  COMPARE(Abs(x0, x23), "abs x0, x23");
+  COMPARE(Cnt(w21, w30), "cnt w21, w30");
+  COMPARE(Cnt(x19, x9), "cnt x19, x9");
+  COMPARE(Ctz(w3, w5), "ctz w3, w5");
+  COMPARE(Ctz(x3, x28), "ctz x3, x28");
+  COMPARE(Ctz(w0, wzr), "ctz w0, wzr");
 
   CLEANUP();
 }

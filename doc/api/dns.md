@@ -15,13 +15,22 @@ facilities to perform name resolution. It may not need to perform any network
 communication. To perform name resolution the way other applications on the same
 system do, use [`dns.lookup()`][].
 
-```js
+```mjs
+import dns from 'node:dns';
+
+dns.lookup('example.org', (err, address, family) => {
+  console.log('address: %j family: IPv%s', address, family);
+});
+// address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c" family: IPv6
+```
+
+```cjs
 const dns = require('node:dns');
 
 dns.lookup('example.org', (err, address, family) => {
   console.log('address: %j family: IPv%s', address, family);
 });
-// address: "93.184.216.34" family: IPv4
+// address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c" family: IPv6
 ```
 
 All other functions in the `node:dns` module connect to an actual DNS server to
@@ -30,7 +39,26 @@ queries. These functions do not use the same set of configuration files used by
 [`dns.lookup()`][] (e.g. `/etc/hosts`). Use these functions to always perform
 DNS queries, bypassing other name-resolution facilities.
 
-```js
+```mjs
+import dns from 'node:dns';
+
+dns.resolve4('archive.org', (err, addresses) => {
+  if (err) throw err;
+
+  console.log(`addresses: ${JSON.stringify(addresses)}`);
+
+  addresses.forEach((a) => {
+    dns.reverse(a, (err, hostnames) => {
+      if (err) {
+        throw err;
+      }
+      console.log(`reverse for ${a}: ${JSON.stringify(hostnames)}`);
+    });
+  });
+});
+```
+
+```cjs
 const dns = require('node:dns');
 
 dns.resolve4('archive.org', (err, addresses) => {
@@ -64,7 +92,18 @@ the servers used for a resolver using
 [`resolver.setServers()`][`dns.setServers()`] does not affect
 other resolvers:
 
-```js
+```mjs
+import { Resolver } from 'node:dns';
+const resolver = new Resolver();
+resolver.setServers(['4.4.4.4']);
+
+// This request will use the server at 4.4.4.4, independent of global settings.
+resolver.resolve4('example.org', (err, addresses) => {
+  // ...
+});
+```
+
+```cjs
 const { Resolver } = require('node:dns');
 const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
@@ -90,6 +129,7 @@ The following methods from the `node:dns` module are available:
 * [`resolver.resolvePtr()`][`dns.resolvePtr()`]
 * [`resolver.resolveSoa()`][`dns.resolveSoa()`]
 * [`resolver.resolveSrv()`][`dns.resolveSrv()`]
+* [`resolver.resolveTlsa()`][`dns.resolveTlsa()`]
 * [`resolver.resolveTxt()`][`dns.resolveTxt()`]
 * [`resolver.reverse()`][`dns.reverse()`]
 * [`resolver.setServers()`][`dns.setServers()`]
@@ -117,6 +157,8 @@ Create a new resolver.
     default timeout.
   * `tries` {integer} The number of tries the resolver will try contacting
     each name server before giving up. **Default:** `4`
+  * `maxTimeout` {integer} The max retry timeout, in milliseconds.
+    **Default:** `0`, disabled.
 
 ### `resolver.cancel()`
 
@@ -163,7 +205,7 @@ Returns an array of IP address strings, formatted according to [RFC 5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
-<!-- eslint-disable semi-->
+<!-- eslint-disable @stylistic/js/semi-->
 
 ```js
 [
@@ -179,6 +221,11 @@ section if a custom port is used.
 <!-- YAML
 added: v0.1.90
 changes:
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52492
+    description: The `verbatim` option is now deprecated in favor of the new `order` option.
   - version: v18.4.0
     pr-url: https://github.com/nodejs/node/pull/43054
     description: For compatibility with `node:net`, when passing an option
@@ -205,15 +252,25 @@ changes:
   * `family` {integer|string} The record family. Must be `4`, `6`, or `0`. For
     backward compatibility reasons,`'IPv4'` and `'IPv6'` are interpreted as `4`
     and `6` respectively. The value `0` indicates that either an IPv4 or IPv6
-    address is returned. If the value `0` is used with `{ all: true } (see below)`,
-    both IPv4 and IPv6 addresses are returned. **Default:** `0`.
+    address is returned. If the value `0` is used with `{ all: true }` (see
+    below), either one of or both IPv4 and IPv6 addresses are returned,
+    depending on the system's DNS resolver. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the callback returns all resolved addresses in
     an array. Otherwise, returns a single address. **Default:** `false`.
+  * `order` {string} When `verbatim`, the resolved addresses are return
+    unsorted. When `ipv4first`, the resolved addresses are sorted by placing
+    IPv4 addresses before IPv6 addresses. When `ipv6first`, the resolved
+    addresses are sorted by placing IPv6 addresses before IPv4 addresses.
+    **Default:** `verbatim` (addresses are not reordered).
+    Default value is configurable using [`dns.setDefaultResultOrder()`][] or
+    [`--dns-result-order`][].
   * `verbatim` {boolean} When `true`, the callback receives IPv4 and IPv6
     addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
+    This option will be deprecated in favor of `order`. When both are specified,
+    `order` has higher precedence. New code should only use `order`.
     **Default:** `true` (addresses are not reordered). Default value is
     configurable using [`dns.setDefaultResultOrder()`][] or
     [`--dns-result-order`][].
@@ -226,8 +283,8 @@ changes:
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
-integer, then it must be `4` or `6` – if `options` is `0` or not provided, then
-IPv4 and IPv6 addresses are both returned if found.
+integer, then it must be `4` or `6` – if `options` is not provided, then
+either IPv4 or IPv6 addresses, or both, are returned if found.
 
 With the `all` option set to `true`, the arguments for `callback` change to
 `(err, addresses)`, with `addresses` being an array of objects with the
@@ -247,21 +304,38 @@ time to consult the [Implementation considerations section][] before using
 
 Example usage:
 
-```js
+```mjs
+import dns from 'node:dns';
+const options = {
+  family: 6,
+  hints: dns.ADDRCONFIG | dns.V4MAPPED,
+};
+dns.lookup('example.org', options, (err, address, family) =>
+  console.log('address: %j family: IPv%s', address, family));
+// address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c" family: IPv6
+
+// When options.all is true, the result will be an Array.
+options.all = true;
+dns.lookup('example.org', options, (err, addresses) =>
+  console.log('addresses: %j', addresses));
+// addresses: [{"address":"2606:2800:21f:cb07:6820:80da:af6b:8b2c","family":6}]
+```
+
+```cjs
 const dns = require('node:dns');
 const options = {
   family: 6,
   hints: dns.ADDRCONFIG | dns.V4MAPPED,
 };
-dns.lookup('example.com', options, (err, address, family) =>
+dns.lookup('example.org', options, (err, address, family) =>
   console.log('address: %j family: IPv%s', address, family));
-// address: "2606:2800:220:1:248:1893:25c8:1946" family: IPv6
+// address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c" family: IPv6
 
 // When options.all is true, the result will be an Array.
 options.all = true;
-dns.lookup('example.com', options, (err, addresses) =>
+dns.lookup('example.org', options, (err, addresses) =>
   console.log('addresses: %j', addresses));
-// addresses: [{"address":"2606:2800:220:1:248:1893:25c8:1946","family":6}]
+// addresses: [{"address":"2606:2800:21f:cb07:6820:80da:af6b:8b2c","family":6}]
 ```
 
 If this method is invoked as its [`util.promisify()`][]ed version, and `all`
@@ -318,7 +392,15 @@ will be thrown.
 
 On an error, `err` is an [`Error`][] object, where `err.code` is the error code.
 
-```js
+```mjs
+import dns from 'node:dns';
+dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
+  console.log(hostname, service);
+  // Prints: localhost ssh
+});
+```
+
+```cjs
 const dns = require('node:dns');
 dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
   console.log(hostname, service);
@@ -365,6 +447,7 @@ records. The type and structure of individual results varies based on `rrtype`:
 | `'PTR'`   | pointer records                | {string}    | [`dns.resolvePtr()`][]   |
 | `'SOA'`   | start of authority records     | {Object}    | [`dns.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dns.resolveSrv()`][]   |
+| `'TLSA'`  | certificate associations       | {Object}    | [`dns.resolveTlsa()`][]  |
 | `'TXT'`   | text records                   | {string\[]} | [`dns.resolveTxt()`][]   |
 
 On error, `err` is an [`Error`][] object, where `err.code` is one of the
@@ -464,11 +547,12 @@ will be present on the object:
 | `'PTR'`   | `value`                                                                                                                                          |
 | `'SOA'`   | Refer to [`dns.resolveSoa()`][]                                                                                                                  |
 | `'SRV'`   | Refer to [`dns.resolveSrv()`][]                                                                                                                  |
+| `'TLSA'`  | Refer to [`dns.resolveTlsa()`][]                                                                                                                 |
 | `'TXT'`   | This type of record contains an array property called `entries` which refers to [`dns.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
 
 Here is an example of the `ret` object passed to the callback:
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 [ { type: 'A', address: '127.0.0.1', ttl: 299 },
@@ -723,6 +807,43 @@ be an array of objects with the following properties:
 }
 ```
 
+## `dns.resolveTlsa(hostname, callback)`
+
+<!-- YAML
+added:
+  - v23.9.0
+  - v22.15.0
+-->
+
+<!--lint disable no-undefined-references list-item-bullet-indent-->
+
+* `hostname` {string}
+* `callback` {Function}
+  * `err` {Error}
+  * `records` {Object\[]}
+
+<!--lint enable no-undefined-references list-item-bullet-indent-->
+
+Uses the DNS protocol to resolve certificate associations (`TLSA` records) for
+the `hostname`. The `records` argument passed to the `callback` function is an
+array of objects with these properties:
+
+* `certUsage`
+* `selector`
+* `match`
+* `data`
+
+<!-- eslint-skip -->
+
+```js
+{
+  certUsage: 3,
+  selector: 1,
+  match: 1,
+  data: [ArrayBuffer]
+}
+```
+
 ## `dns.resolveTxt(hostname, callback)`
 
 <!-- YAML
@@ -775,18 +896,24 @@ added:
   - v16.4.0
   - v14.18.0
 changes:
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52492
+    description: The `ipv6first` value is supported now.
   - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/39987
     description: Changed default value to `verbatim`.
 -->
 
-* `order` {string} must be `'ipv4first'` or `'verbatim'`.
+* `order` {string} must be `'ipv4first'`, `'ipv6first'` or `'verbatim'`.
 
-Set the default value of `verbatim` in [`dns.lookup()`][] and
+Set the default value of `order` in [`dns.lookup()`][] and
 [`dnsPromises.lookup()`][]. The value could be:
 
-* `ipv4first`: sets default `verbatim` `false`.
-* `verbatim`: sets default `verbatim` `true`.
+* `ipv4first`: sets default `order` to `ipv4first`.
+* `ipv6first`: sets default `order` to `ipv6first`.
+* `verbatim`: sets default `order` to `verbatim`.
 
 The default is `verbatim` and [`dns.setDefaultResultOrder()`][] have higher
 priority than [`--dns-result-order`][]. When using [worker threads][],
@@ -799,13 +926,20 @@ dns orders in workers.
 added:
   - v20.1.0
   - v18.17.0
+changes:
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52492
+    description: The `ipv6first` value is supported now.
 -->
 
-Get the default value for `verbatim` in [`dns.lookup()`][] and
+Get the default value for `order` in [`dns.lookup()`][] and
 [`dnsPromises.lookup()`][]. The value could be:
 
-* `ipv4first`: for `verbatim` defaulting to `false`.
-* `verbatim`: for `verbatim` defaulting to `true`.
+* `ipv4first`: for `order` defaulting to `ipv4first`.
+* `ipv6first`: for `order` defaulting to `ipv6first`.
+* `verbatim`: for `order` defaulting to `verbatim`.
 
 ## `dns.setServers(servers)`
 
@@ -876,7 +1010,16 @@ the servers used for a resolver using
 [`resolver.setServers()`][`dnsPromises.setServers()`] does not affect
 other resolvers:
 
-```js
+```mjs
+import { Resolver } from 'node:dns/promises';
+const resolver = new Resolver();
+resolver.setServers(['4.4.4.4']);
+
+// This request will use the server at 4.4.4.4, independent of global settings.
+const addresses = await resolver.resolve4('example.org');
+```
+
+```cjs
 const { Resolver } = require('node:dns').promises;
 const resolver = new Resolver();
 resolver.setServers(['4.4.4.4']);
@@ -907,6 +1050,7 @@ The following methods from the `dnsPromises` API are available:
 * [`resolver.resolvePtr()`][`dnsPromises.resolvePtr()`]
 * [`resolver.resolveSoa()`][`dnsPromises.resolveSoa()`]
 * [`resolver.resolveSrv()`][`dnsPromises.resolveSrv()`]
+* [`resolver.resolveTlsa()`][`dnsPromises.resolveTlsa()`]
 * [`resolver.resolveTxt()`][`dnsPromises.resolveTxt()`]
 * [`resolver.reverse()`][`dnsPromises.reverse()`]
 * [`resolver.setServers()`][`dnsPromises.setServers()`]
@@ -934,7 +1078,7 @@ Returns an array of IP address strings, formatted according to [RFC 5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
-<!-- eslint-disable semi-->
+<!-- eslint-disable @stylistic/js/semi-->
 
 ```js
 [
@@ -949,30 +1093,46 @@ section if a custom port is used.
 
 <!-- YAML
 added: v10.6.0
+changes:
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52492
+    description: The `verbatim` option is now deprecated in favor of the new `order` option.
 -->
 
 * `hostname` {string}
 * `options` {integer | Object}
   * `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
     `0` indicates that either an IPv4 or IPv6 address is returned. If the
-    value `0` is used with `{ all: true }` (see below), both IPv4 and IPv6
-    addresses are returned. **Default:** `0`.
+    value `0` is used with `{ all: true }` (see below), either one of or both
+    IPv4 and IPv6 addresses are returned, depending on the system's DNS
+    resolver. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the `Promise` is resolved with all addresses in
     an array. Otherwise, returns a single address. **Default:** `false`.
+  * `order` {string} When `verbatim`, the `Promise` is resolved with IPv4 and
+    IPv6 addresses in the order the DNS resolver returned them. When `ipv4first`,
+    IPv4 addresses are placed before IPv6 addresses. When `ipv6first`,
+    IPv6 addresses are placed before IPv4 addresses.
+    **Default:** `verbatim` (addresses are not reordered).
+    Default value is configurable using [`dns.setDefaultResultOrder()`][] or
+    [`--dns-result-order`][]. New code should use `{ order: 'verbatim' }`.
   * `verbatim` {boolean} When `true`, the `Promise` is resolved with IPv4 and
     IPv6 addresses in the order the DNS resolver returned them. When `false`,
     IPv4 addresses are placed before IPv6 addresses.
+    This option will be deprecated in favor of `order`. When both are specified,
+    `order` has higher precedence. New code should only use `order`.
     **Default:** currently `false` (addresses are reordered) but this is
     expected to change in the not too distant future. Default value is
     configurable using [`dns.setDefaultResultOrder()`][] or
-    [`--dns-result-order`][]. New code should use `{ verbatim: true }`.
+    [`--dns-result-order`][].
 
 Resolves a host name (e.g. `'nodejs.org'`) into the first found A (IPv4) or
 AAAA (IPv6) record. All `option` properties are optional. If `options` is an
-integer, then it must be `4` or `6` – if `options` is not provided, then IPv4
-and IPv6 addresses are both returned if found.
+integer, then it must be `4` or `6` – if `options` is not provided, then
+either IPv4 or IPv6 addresses, or both, are returned if found.
 
 With the `all` option set to `true`, the `Promise` is resolved with `addresses`
 being an array of objects with the properties `address` and `family`.
@@ -992,7 +1152,28 @@ using `dnsPromises.lookup()`.
 
 Example usage:
 
-```js
+```mjs
+import dns from 'node:dns';
+const dnsPromises = dns.promises;
+const options = {
+  family: 6,
+  hints: dns.ADDRCONFIG | dns.V4MAPPED,
+};
+
+await dnsPromises.lookup('example.org', options).then((result) => {
+  console.log('address: %j family: IPv%s', result.address, result.family);
+  // address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c" family: IPv6
+});
+
+// When options.all is true, the result will be an Array.
+options.all = true;
+await dnsPromises.lookup('example.org', options).then((result) => {
+  console.log('addresses: %j', result);
+  // addresses: [{"address":"2606:2800:21f:cb07:6820:80da:af6b:8b2c","family":6}]
+});
+```
+
+```cjs
 const dns = require('node:dns');
 const dnsPromises = dns.promises;
 const options = {
@@ -1000,16 +1181,16 @@ const options = {
   hints: dns.ADDRCONFIG | dns.V4MAPPED,
 };
 
-dnsPromises.lookup('example.com', options).then((result) => {
+dnsPromises.lookup('example.org', options).then((result) => {
   console.log('address: %j family: IPv%s', result.address, result.family);
-  // address: "2606:2800:220:1:248:1893:25c8:1946" family: IPv6
+  // address: "2606:2800:21f:cb07:6820:80da:af6b:8b2c" family: IPv6
 });
 
 // When options.all is true, the result will be an Array.
 options.all = true;
-dnsPromises.lookup('example.com', options).then((result) => {
+dnsPromises.lookup('example.org', options).then((result) => {
   console.log('addresses: %j', result);
-  // addresses: [{"address":"2606:2800:220:1:248:1893:25c8:1946","family":6}]
+  // addresses: [{"address":"2606:2800:21f:cb07:6820:80da:af6b:8b2c","family":6}]
 });
 ```
 
@@ -1032,7 +1213,14 @@ will be thrown.
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
 is the error code.
 
-```js
+```mjs
+import dnsPromises from 'node:dns/promises';
+const result = await dnsPromises.lookupService('127.0.0.1', 22);
+
+console.log(result.hostname, result.service); // Prints: localhost ssh
+```
+
+```cjs
 const dnsPromises = require('node:dns').promises;
 dnsPromises.lookupService('127.0.0.1', 22).then((result) => {
   console.log(result.hostname, result.service);
@@ -1067,6 +1255,7 @@ based on `rrtype`:
 | `'PTR'`   | pointer records                | {string}    | [`dnsPromises.resolvePtr()`][]   |
 | `'SOA'`   | start of authority records     | {Object}    | [`dnsPromises.resolveSoa()`][]   |
 | `'SRV'`   | service records                | {Object}    | [`dnsPromises.resolveSrv()`][]   |
+| `'TLSA'`  | certificate associations       | {Object}    | [`dnsPromises.resolveTlsa()`][]  |
 | `'TXT'`   | text records                   | {string\[]} | [`dnsPromises.resolveTxt()`][]   |
 
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`
@@ -1131,11 +1320,12 @@ present on the object:
 | `'PTR'`   | `value`                                                                                                                                                  |
 | `'SOA'`   | Refer to [`dnsPromises.resolveSoa()`][]                                                                                                                  |
 | `'SRV'`   | Refer to [`dnsPromises.resolveSrv()`][]                                                                                                                  |
+| `'TLSA'`  | Refer to [`dnsPromises.resolveTlsa()`][]                                                                                                                 |
 | `'TXT'`   | This type of record contains an array property called `entries` which refers to [`dnsPromises.resolveTxt()`][], e.g. `{ entries: ['...'], type: 'TXT' }` |
 
 Here is an example of the result object:
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 [ { type: 'A', address: '127.0.0.1', ttl: 299 },
@@ -1313,6 +1503,36 @@ the following properties:
 }
 ```
 
+### `dnsPromises.resolveTlsa(hostname)`
+
+<!-- YAML
+added:
+  - v23.9.0
+  - v22.15.0
+-->
+
+* `hostname` {string}
+
+Uses the DNS protocol to resolve certificate associations (`TLSA` records) for
+the `hostname`. On success, the `Promise` is resolved with an array of objects
+with these properties:
+
+* `certUsage`
+* `selector`
+* `match`
+* `data`
+
+<!-- eslint-skip -->
+
+```js
+{
+  certUsage: 3,
+  selector: 1,
+  match: 1,
+  data: [ArrayBuffer]
+}
+```
+
 ### `dnsPromises.resolveTxt(hostname)`
 
 <!-- YAML
@@ -1349,18 +1569,24 @@ added:
   - v16.4.0
   - v14.18.0
 changes:
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52492
+    description: The `ipv6first` value is supported now.
   - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/39987
     description: Changed default value to `verbatim`.
 -->
 
-* `order` {string} must be `'ipv4first'` or `'verbatim'`.
+* `order` {string} must be `'ipv4first'`, `'ipv6first'` or `'verbatim'`.
 
-Set the default value of `verbatim` in [`dns.lookup()`][] and
+Set the default value of `order` in [`dns.lookup()`][] and
 [`dnsPromises.lookup()`][]. The value could be:
 
-* `ipv4first`: sets default `verbatim` `false`.
-* `verbatim`: sets default `verbatim` `true`.
+* `ipv4first`: sets default `order` to `ipv4first`.
+* `ipv6first`: sets default `order` to `ipv6first`.
+* `verbatim`: sets default `order` to `verbatim`.
 
 The default is `verbatim` and [`dnsPromises.setDefaultResultOrder()`][] have
 higher priority than [`--dns-result-order`][]. When using [worker threads][],
@@ -1507,6 +1733,7 @@ uses. For instance, they do not use the configuration from `/etc/hosts`.
 [`dns.resolvePtr()`]: #dnsresolveptrhostname-callback
 [`dns.resolveSoa()`]: #dnsresolvesoahostname-callback
 [`dns.resolveSrv()`]: #dnsresolvesrvhostname-callback
+[`dns.resolveTlsa()`]: #dnsresolvetlsahostname-callback
 [`dns.resolveTxt()`]: #dnsresolvetxthostname-callback
 [`dns.reverse()`]: #dnsreverseip-callback
 [`dns.setDefaultResultOrder()`]: #dnssetdefaultresultorderorder
@@ -1525,6 +1752,7 @@ uses. For instance, they do not use the configuration from `/etc/hosts`.
 [`dnsPromises.resolvePtr()`]: #dnspromisesresolveptrhostname
 [`dnsPromises.resolveSoa()`]: #dnspromisesresolvesoahostname
 [`dnsPromises.resolveSrv()`]: #dnspromisesresolvesrvhostname
+[`dnsPromises.resolveTlsa()`]: #dnspromisesresolvetlsahostname
 [`dnsPromises.resolveTxt()`]: #dnspromisesresolvetxthostname
 [`dnsPromises.reverse()`]: #dnspromisesreverseip
 [`dnsPromises.setDefaultResultOrder()`]: #dnspromisessetdefaultresultorderorder

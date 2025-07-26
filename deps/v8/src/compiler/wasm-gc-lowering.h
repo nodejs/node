@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_COMPILER_WASM_GC_LOWERING_H_
+#define V8_COMPILER_WASM_GC_LOWERING_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_COMPILER_WASM_GC_LOWERING_H_
-#define V8_COMPILER_WASM_GC_LOWERING_H_
 
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/wasm-compiler-definitions.h"
@@ -42,8 +42,8 @@ class WasmGCLowering final : public AdvancedReducer {
   Reduction ReduceIsNotNull(Node* node);
   Reduction ReduceRttCanon(Node* node);
   Reduction ReduceTypeGuard(Node* node);
-  Reduction ReduceWasmExternInternalize(Node* node);
-  Reduction ReduceWasmExternExternalize(Node* node);
+  Reduction ReduceWasmAnyConvertExtern(Node* node);
+  Reduction ReduceWasmExternConvertAny(Node* node);
   Reduction ReduceWasmStructGet(Node* node);
   Reduction ReduceWasmStructSet(Node* node);
   Reduction ReduceWasmArrayGet(Node* node);

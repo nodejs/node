@@ -4,17 +4,20 @@
 
 #include "src/heap/cppgc/sweeper.h"
 
+#include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "include/cppgc/platform.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/heap/cppgc/free-list.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-base.h"
+#include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-space.h"
@@ -22,6 +25,7 @@
 #include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/object-poisoner.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
+#include "src/heap/cppgc/page-memory.h"
 #include "src/heap/cppgc/raw-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/task-handle.h"
@@ -30,12 +34,18 @@ namespace cppgc::internal {
 
 namespace {
 
+constexpr TaskPriority kBackgroundBoostedPriority = TaskPriority::kUserBlocking;
+constexpr TaskPriority kBackgroundRegularPriority = TaskPriority::kUserVisible;
+constexpr TaskPriority kForegroundRegularPriority = TaskPriority::kUserBlocking;
+constexpr TaskPriority kForegroundLowPriority = TaskPriority::kUserVisible;
+
 class DeadlineChecker final {
  public:
   explicit DeadlineChecker(v8::base::TimeTicks end) : end_(end) {}
 
   bool Check() {
-    return (++count_ % kInterval == 0) && (end_ < v8::base::TimeTicks::Now());
+    return V8_UNLIKELY(++count_ % kInterval == 0) &&
+           (end_ < v8::base::TimeTicks::Now());
   }
 
  private:
@@ -44,8 +54,6 @@ class DeadlineChecker final {
   const v8::base::TimeTicks end_;
   size_t count_ = 0;
 };
-
-using v8::base::Optional;
 
 enum class MutatorThreadSweepingMode {
   kOnlyFinalizers,
@@ -61,12 +69,7 @@ constexpr const char* ToString(MutatorThreadSweepingMode sweeping_mode) {
   }
 }
 
-enum class StickyBits : uint8_t {
-  kDisabled,
-  kEnabled,
-};
-
-class ObjectStartBitmapVerifier
+class ObjectStartBitmapVerifier final
     : private HeapVisitor<ObjectStartBitmapVerifier> {
   friend class HeapVisitor<ObjectStartBitmapVerifier>;
 
@@ -178,16 +181,16 @@ class ThreadSafeStack {
   ThreadSafeStack() = default;
 
   void Push(T t) {
-    v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
+    v8::base::MutexGuard lock(&mutex_);
     vector_.push_back(std::move(t));
     is_empty_.store(false, std::memory_order_relaxed);
   }
 
-  Optional<T> Pop() {
-    v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
+  std::optional<T> Pop() {
+    v8::base::MutexGuard lock(&mutex_);
     if (vector_.empty()) {
       is_empty_.store(true, std::memory_order_relaxed);
-      return v8::base::nullopt;
+      return std::nullopt;
     }
     T top = std::move(vector_.back());
     vector_.pop_back();
@@ -197,7 +200,7 @@ class ThreadSafeStack {
 
   template <typename It>
   void Insert(It begin, It end) {
-    v8::base::LockGuard<v8::base::Mutex> lock(&mutex_);
+    v8::base::MutexGuard lock(&mutex_);
     vector_.insert(vector_.end(), begin, end);
     is_empty_.store(false, std::memory_order_relaxed);
   }
@@ -205,12 +208,12 @@ class ThreadSafeStack {
   bool IsEmpty() const { return is_empty_.load(std::memory_order_relaxed); }
 
  private:
-  std::vector<T> vector_;
   mutable v8::base::Mutex mutex_;
+  std::vector<T> vector_;
   std::atomic<bool> is_empty_{true};
 };
 
-struct SpaceState {
+struct SweepingState {
   struct SweptPageState {
     BasePage* page = nullptr;
 #if defined(CPPGC_CAGED_HEAP)
@@ -231,7 +234,7 @@ struct SpaceState {
   ThreadSafeStack<SweptPageState> swept_unfinalized_pages;
 };
 
-using SpaceStates = std::vector<SpaceState>;
+using SpaceStates = std::vector<SweepingState>;
 
 void StickyUnmark(HeapObjectHeader* header, StickyBits sticky_bits) {
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -284,7 +287,7 @@ class InlinedFinalizationBuilder final : public InlinedFinalizationBuilderBase,
 template <typename FreeHandler>
 class DeferredFinalizationBuilder final : public FreeHandler {
  public:
-  using ResultType = SpaceState::SweptPageState;
+  using ResultType = SweepingState::SweptPageState;
 
   DeferredFinalizationBuilder(BasePage& page, PageAllocator& page_allocator)
       : FreeHandler(page_allocator, result_.cached_free_list, page) {
@@ -392,17 +395,28 @@ typename FinalizationBuilder::ResultType SweepNormalPage(
     live_bytes += size;
   }
 
-  if (start_of_gap != page->PayloadStart() &&
-      start_of_gap != page->PayloadEnd()) {
+  const bool is_empty = live_bytes == 0;
+  CHECK_EQ(is_empty, page->marked_bytes() == 0);
+  CHECK_IMPLIES(is_empty, start_of_gap == page->PayloadStart());
+
+  // Empty pages are not added to the free list directly here. The free list is
+  // either added later on or the page is destroyed.
+  if (!is_empty && start_of_gap != page->PayloadEnd()) {
     builder.AddFreeListEntry(
         start_of_gap, static_cast<size_t>(page->PayloadEnd() - start_of_gap));
     DCHECK(bitmap.CheckBit<AccessMode::kAtomic>(start_of_gap));
   }
   page->SetAllocatedBytesAtLastGC(live_bytes);
-
-  const bool is_empty = (start_of_gap == page->PayloadStart());
+  page->ResetMarkedBytes(sticky_bits == StickyBits::kDisabled ? 0 : live_bytes);
   return builder.GetResult(is_empty);
 }
+
+constexpr BaseSpace* kSweepWithoutSpaceAssignment = nullptr;
+
+enum class EmptyPageHandling {
+  kDestroy,
+  kReturn,
+};
 
 // SweepFinalizer is responsible for heap/space/page finalization. Finalization
 // is defined as a step following concurrent sweeping which:
@@ -413,44 +427,74 @@ class SweepFinalizer final {
   using FreeMemoryHandling = SweepingConfig::FreeMemoryHandling;
 
  public:
-  enum class EmptyPageHandling {
-    kDestroy,
-    kReturn,
-  };
-
-  SweepFinalizer(cppgc::Platform* platform,
+  SweepFinalizer(cppgc::Platform* platform, StatsCollector* stats_collector,
+                 BaseSpace* space, size_t* unused_destroyed_normal_pages,
                  FreeMemoryHandling free_memory_handling,
                  EmptyPageHandling empty_page_handling_type)
       : platform_(platform),
+        stats_collector_(stats_collector),
+        space_(space),
+        unused_destroyed_normal_pages_(unused_destroyed_normal_pages),
         free_memory_handling_(free_memory_handling),
         empty_page_handling_(empty_page_handling_type) {}
 
-  void FinalizeHeap(SpaceStates* space_states) {
-    for (SpaceState& space_state : *space_states) {
-      FinalizeSpace(&space_state);
+  // Finalizes all space states, irrespective of deadlines and sizes.
+  void Finalize(SpaceStates& states) {
+    for (SweepingState& state : states) {
+      Finalize(state);
     }
   }
 
-  void FinalizeSpace(SpaceState* space_state) {
-    while (auto page_state = space_state->swept_unfinalized_pages.Pop()) {
+  void Finalize(SweepingState& state) {
+    while (auto page_state = state.swept_unfinalized_pages.Pop()) {
       FinalizePage(&*page_state);
     }
   }
 
-  bool FinalizeSpaceWithDeadline(SpaceState* space_state,
-                                 v8::base::TimeTicks deadline) {
-    DCHECK(platform_);
+  // Finalizes a given SweepingState with a deadline and size. Only returns
+  // true if a single memory block of at least `size` bytes was returned to the
+  // free list and false otherwise.
+  bool FinalizeWithDeadlineAndSize(StatsCollector::ScopeId scope_id,
+                                   SweepingState& state,
+                                   v8::base::TimeTicks deadline, size_t size) {
+    if (state.swept_unfinalized_pages.IsEmpty()) {
+      return false;
+    }
+    StatsCollector::DisabledScope finalize_scope(stats_collector_, scope_id);
     DeadlineChecker deadline_check(deadline);
-    while (auto page_state = space_state->swept_unfinalized_pages.Pop()) {
+    while (auto page_state = state.swept_unfinalized_pages.Pop()) {
       FinalizePage(&*page_state);
-
-      if (deadline_check.Check()) return false;
+      if (size <= largest_consecutive_block_) {
+        return true;
+      }
+      if (deadline_check.Check()) {
+        break;
+      }
     }
+    return false;
+  }
 
+  // Finalizes a given SweepingState with a deadline. Returns false if the
+  // deadline exceeded and true if all pages are finalized.
+  bool FinalizeWithDeadline(StatsCollector::ScopeId scope_id,
+                            SweepingState& state,
+                            v8::base::TimeTicks deadline) {
+    if (state.swept_unfinalized_pages.IsEmpty()) {
+      return true;
+    }
+    StatsCollector::DisabledScope finalize_scope(stats_collector_, scope_id);
+    DeadlineChecker deadline_check(deadline);
+    while (auto page_state = state.swept_unfinalized_pages.Pop()) {
+      FinalizePage(&*page_state);
+      if (deadline_check.Check()) {
+        return false;
+      }
+    }
     return true;
   }
 
-  void FinalizePage(SpaceState::SweptPageState* page_state) {
+ private:
+  void FinalizePage(SweepingState::SweptPageState* page_state) {
     DCHECK(page_state);
     DCHECK(page_state->page);
     BasePage* page = page_state->page;
@@ -462,7 +506,11 @@ class SweepFinalizer final {
       SetMemoryInaccessible(header, size);
     };
 #if defined(CPPGC_CAGED_HEAP)
+#if defined(CPPGC_POINTER_COMPRESSION)
+    const uint64_t cage_base = CageBaseGlobal::Get();
+#else
     const uint64_t cage_base = CagedHeapBase::GetBase();
+#endif
     HeapObjectHeader* next_unfinalized = nullptr;
 
     for (auto* unfinalized_header = page_state->unfinalized_objects_head;
@@ -479,8 +527,17 @@ class SweepFinalizer final {
 
     // Unmap page if empty.
     if (page_state->is_empty) {
-      if (empty_page_handling_ == EmptyPageHandling::kDestroy ||
-          page->is_large()) {
+      DCHECK_IMPLIES(page->is_large(),
+                     empty_page_handling_ == EmptyPageHandling::kDestroy);
+      if (empty_page_handling_ == EmptyPageHandling::kDestroy) {
+        if (!page->is_large()) {
+          (*unused_destroyed_normal_pages_)++;
+        } else {
+          // Normal pages are added to the page pool when destroyed and thus
+          // cannot be used for a large page allocation.
+          largest_consecutive_block_ = std::max(
+              LargePage::From(page)->PayloadSize(), largest_consecutive_block_);
+        }
         BasePage::Destroy(page);
         return;
       }
@@ -489,6 +546,13 @@ class SweepFinalizer final {
       // page and return it right away.
       auto* normal_page = NormalPage::From(page);
 
+      // If a space has been assigned to the finalizer, then repurpose empty
+      // pages for that space. Otherwise just retain the current space for an
+      // empty page.
+      if (space_) {
+        normal_page->ChangeOwner(*space_);
+      }
+
       page_state->cached_free_list.Clear();
       page_state->cached_free_list.Add(
           {normal_page->PayloadStart(), normal_page->PayloadSize()});
@@ -496,7 +560,9 @@ class SweepFinalizer final {
       page_state->unfinalized_free_list.clear();
       page_state->largest_new_free_list_entry = normal_page->PayloadSize();
     }
-
+    // We either swept a non-empty page for which the space should already match
+    // or we swept an empty page for which the owner was changed.
+    DCHECK_IMPLIES(space_, space_ == &page->space());
     DCHECK(!page->is_large());
 
     // Merge freelists without finalizers.
@@ -506,7 +572,7 @@ class SweepFinalizer final {
     // Merge freelist with finalizers.
     if (!page_state->unfinalized_free_list.empty()) {
       std::unique_ptr<FreeHandlerBase> handler =
-          (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible)
+          free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible
               ? std::unique_ptr<FreeHandlerBase>(new DiscardingFreeHandler(
                     *platform_->GetPageAllocator(), space_freelist, *page))
               : std::unique_ptr<FreeHandlerBase>(new RegularFreeHandler(
@@ -514,8 +580,8 @@ class SweepFinalizer final {
       handler->FreeFreeList(page_state->unfinalized_free_list);
     }
 
-    largest_new_free_list_entry_ = std::max(
-        page_state->largest_new_free_list_entry, largest_new_free_list_entry_);
+    largest_consecutive_block_ = std::max(
+        page_state->largest_new_free_list_entry, largest_consecutive_block_);
 
     // After the page was fully finalized and freelists have been merged, verify
     // that the bitmap is consistent.
@@ -525,13 +591,13 @@ class SweepFinalizer final {
     page->space().AddPage(page);
   }
 
-  size_t largest_new_free_list_entry() const {
-    return largest_new_free_list_entry_;
-  }
-
- private:
   cppgc::Platform* platform_;
-  size_t largest_new_free_list_entry_ = 0;
+  StatsCollector* stats_collector_;
+  BaseSpace* space_;
+  size_t* unused_destroyed_normal_pages_;
+  // Largest consecutive block of memory. This is the largest free list entry
+  // for normal pages and the largest page size for large objects.
+  size_t largest_consecutive_block_ = 0;
   const FreeMemoryHandling free_memory_handling_;
   const EmptyPageHandling empty_page_handling_;
 };
@@ -542,42 +608,58 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
   using FreeMemoryHandling = SweepingConfig::FreeMemoryHandling;
 
  public:
-  MutatorThreadSweeper(HeapBase* heap, SpaceStates* states,
-                       cppgc::Platform* platform,
-                       FreeMemoryHandling free_memory_handling)
-      : states_(states),
-        platform_(platform),
+  MutatorThreadSweeper(HeapBase* heap, cppgc::Platform* platform,
+                       StatsCollector* stats_collector, BaseSpace* space,
+                       size_t* unused_destroyed_normal_pages,
+                       FreeMemoryHandling free_memory_handling,
+                       EmptyPageHandling empty_page_handling)
+      : platform_(platform),
+        stats_collector_(stats_collector),
+        space_(space),
+        unused_destroyed_normal_pages_(unused_destroyed_normal_pages),
         free_memory_handling_(free_memory_handling),
-        sticky_bits_(heap->generational_gc_supported()
-                         ? StickyBits::kEnabled
-                         : StickyBits::kDisabled) {}
+        empty_page_handling_(empty_page_handling),
+        sticky_bits_(heap->sticky_bits()) {}
 
-  void Sweep() {
-    for (SpaceState& state : *states_) {
-      while (auto page = state.unswept_pages.Pop()) {
-        SweepPage(**page);
-      }
+  static void SweepLiveLargePage(LargePage& page, StickyBits sticky_bits) {
+    HeapObjectHeader* header = page.ObjectHeader();
+    CHECK(header->IsMarked());
+    StickyUnmark(header, sticky_bits);
+    if (sticky_bits == StickyBits::kDisabled) {
+      page.ResetMarkedBytes();
+    }
+    page.space().AddPage(&page);
+  }
+
+  void Sweep(SpaceStates& states) {
+    for (SweepingState& state : states) {
+      Sweep(state);
+    }
+  }
+
+  void Sweep(SweepingState& state) {
+    while (auto page = state.unswept_pages.Pop()) {
+      SweepPage(**page);
     }
   }
 
   void SweepPage(BasePage& page) { Traverse(page); }
 
-  bool SweepWithDeadline(v8::base::TimeDelta max_duration,
-                         MutatorThreadSweepingMode sweeping_mode) {
-    DCHECK(platform_);
-    for (SpaceState& state : *states_) {
-      const auto deadline = v8::base::TimeTicks::Now() + max_duration;
+  // Returns true if out of work. This implies that sweeping is done only if
+  // `sweeping_mode` is kAll.
+  bool FinalizeAndSweepWithDeadline(StatsCollector::ScopeId scope_id,
+                                    SweepingState& state,
+                                    v8::base::TimeTicks deadline,
+                                    MutatorThreadSweepingMode sweeping_mode) {
+    // First, prioritize finalization of pages that were swept concurrently.
+    SweepFinalizer finalizer(
+        platform_, stats_collector_, space_, unused_destroyed_normal_pages_,
+        free_memory_handling_, EmptyPageHandling::kDestroy);
+    if (!finalizer.FinalizeWithDeadline(scope_id, state, deadline)) {
+      return false;
+    }
 
-      // First, prioritize finalization of pages that were swept concurrently.
-      SweepFinalizer finalizer(platform_, free_memory_handling_,
-                               SweepFinalizer::EmptyPageHandling::kDestroy);
-      if (!finalizer.FinalizeSpaceWithDeadline(&state, deadline)) {
-        return false;
-      }
-
-      if (sweeping_mode == MutatorThreadSweepingMode::kOnlyFinalizers)
-        return false;
-
+    if (sweeping_mode != MutatorThreadSweepingMode::kOnlyFinalizers) {
       // Help out the concurrent sweeper.
       if (!SweepSpaceWithDeadline(&state, deadline)) {
         return false;
@@ -586,16 +668,35 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
     return true;
   }
 
-  size_t largest_new_free_list_entry() const {
-    return largest_new_free_list_entry_;
+  bool SweepWithDeadlineAndSize(StatsCollector::ScopeId scope_id,
+                                SweepingState& state,
+                                v8::base::TimeTicks deadline, size_t size) {
+    if (state.unswept_pages.IsEmpty()) {
+      return false;
+    }
+    StatsCollector::DisabledScope sweep_scope(stats_collector_, scope_id);
+    DeadlineChecker deadline_check(deadline);
+    while (auto page = state.unswept_pages.Pop()) {
+      SweepPage(**page);
+      if (size <= largest_consecutive_block_) {
+        return true;
+      }
+      if (deadline_check.Check()) {
+        break;
+      }
+    }
+    return false;
   }
 
  private:
-  bool SweepSpaceWithDeadline(SpaceState* state, v8::base::TimeTicks deadline) {
+  bool SweepSpaceWithDeadline(SweepingState* state,
+                              v8::base::TimeTicks deadline) {
     DeadlineChecker deadline_check(deadline);
     while (auto page = state->unswept_pages.Pop()) {
       Traverse(**page);
-      if (deadline_check.Check()) return false;
+      if (deadline_check.Check()) {
+        return false;
+      }
     }
 
     return true;
@@ -606,41 +707,57 @@ class MutatorThreadSweeper final : private HeapVisitor<MutatorThreadSweeper> {
       page.ResetDiscardedMemory();
     }
     const auto result =
-        (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible)
+        free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible
             ? SweepNormalPage<
                   InlinedFinalizationBuilder<DiscardingFreeHandler>>(
                   &page, *platform_->GetPageAllocator(), sticky_bits_)
             : SweepNormalPage<InlinedFinalizationBuilder<RegularFreeHandler>>(
                   &page, *platform_->GetPageAllocator(), sticky_bits_);
-    if (result.is_empty) {
+    if (result.is_empty &&
+        empty_page_handling_ == EmptyPageHandling::kDestroy) {
       NormalPage::Destroy(&page);
+      (*unused_destroyed_normal_pages_)++;
     } else {
+      if (space_) {
+        DCHECK_IMPLIES(!result.is_empty, space_ == &page.space());
+        page.ChangeOwner(*space_);
+      }
+      auto& target_space = NormalPageSpace::From(page.space());
+      target_space.AddPage(&page);
+      if (result.is_empty) {
+        target_space.free_list().Add({page.PayloadStart(), page.PayloadSize()});
+      }
       // The page was eagerly finalized and all the freelist have been merged.
       // Verify that the bitmap is consistent with headers.
       ObjectStartBitmapVerifier().Verify(page);
-      page.space().AddPage(&page);
-      largest_new_free_list_entry_ = std::max(
-          result.largest_new_free_list_entry, largest_new_free_list_entry_);
+      largest_consecutive_block_ =
+          std::max(result.is_empty ? page.PayloadSize()
+                                   : result.largest_new_free_list_entry,
+                   largest_consecutive_block_);
     }
     return true;
   }
 
   bool VisitLargePage(LargePage& page) {
     HeapObjectHeader* header = page.ObjectHeader();
-    if (header->IsMarked()) {
-      StickyUnmark(header, sticky_bits_);
-      page.space().AddPage(&page);
-    } else {
-      header->Finalize();
-      LargePage::Destroy(&page);
-    }
+    CHECK(!header->IsMarked());
+    DCHECK_EQ(page.marked_bytes(), 0u);
+    header->Finalize();
+    largest_consecutive_block_ =
+        std::max(page.PayloadSize(), largest_consecutive_block_);
+    LargePage::Destroy(&page);
     return true;
   }
 
-  SpaceStates* states_;
   cppgc::Platform* platform_;
-  size_t largest_new_free_list_entry_ = 0;
+  StatsCollector* stats_collector_;
+  // Largest consecutive block of memory. This is the largest free list entry
+  // for normal pages and the largest page size for large objects.
+  size_t largest_consecutive_block_ = 0;
+  BaseSpace* space_;
+  size_t* unused_destroyed_normal_pages_;
   const FreeMemoryHandling free_memory_handling_;
+  const EmptyPageHandling empty_page_handling_;
   const StickyBits sticky_bits_;
 };
 
@@ -651,26 +768,34 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
   using FreeMemoryHandling = SweepingConfig::FreeMemoryHandling;
 
  public:
-  ConcurrentSweepTask(HeapBase& heap, SpaceStates* states, Platform* platform,
+  ConcurrentSweepTask(Platform* platform, HeapBase& heap,
+                      SpaceStates* space_states,
+                      SweepingState* empty_normal_pages,
+                      SweepingState* empty_large_pages,
                       FreeMemoryHandling free_memory_handling)
       : heap_(heap),
-        states_(states),
-        platform_(platform),
+        page_allocator_(*platform->GetPageAllocator()),
+        space_states_(space_states),
+        empty_normal_pages_(empty_normal_pages),
+        empty_large_pages_(empty_large_pages),
         free_memory_handling_(free_memory_handling),
-        sticky_bits_(heap.generational_gc_supported() ? StickyBits::kEnabled
-                                                      : StickyBits::kDisabled) {
-  }
+        sticky_bits_(heap.sticky_bits()) {}
 
   void Run(cppgc::JobDelegate* delegate) final {
     StatsCollector::EnabledConcurrentScope stats_scope(
         heap_.stats_collector(), StatsCollector::kConcurrentSweep);
 
-    for (SpaceState& state : *states_) {
-      while (auto page = state.unswept_pages.Pop()) {
-        Traverse(**page);
-        if (delegate->ShouldYield()) return;
-      }
+    // Sweep empty normal pages first. These pages can be reused across all
+    // regular spaces.
+    if (!SweepStateOrYield(delegate, *empty_normal_pages_)) return;
+    for (SweepingState& state : *space_states_) {
+      if (!SweepStateOrYield(delegate, state)) return;
     }
+    // Sweep empty large pages last. They generally cannot be reused.
+    // TODO(mlippautz): We could split them into pages that can be split up for
+    // normal pages.
+    if (!SweepStateOrYield(delegate, *empty_large_pages_)) return;
+
     is_completed_.store(true, std::memory_order_relaxed);
   }
 
@@ -679,31 +804,39 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
   }
 
  private:
+  // Returns true if sweeping completed, or false if it yielded.
+  bool SweepStateOrYield(cppgc::JobDelegate* delegate, SweepingState& state) {
+    current_sweeping_state_ = &state;
+    while (auto page = state.unswept_pages.Pop()) {
+      Traverse(**page);
+      if (delegate->ShouldYield()) {
+        return false;
+      }
+    }
+    current_sweeping_state_ = nullptr;
+    return true;
+  }
+
   bool VisitNormalPage(NormalPage& page) {
     if (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible) {
       page.ResetDiscardedMemory();
     }
-    SpaceState::SweptPageState sweep_result =
+    SweepingState::SweptPageState sweep_result =
         (free_memory_handling_ == FreeMemoryHandling::kDiscardWherePossible)
             ? SweepNormalPage<
                   DeferredFinalizationBuilder<DiscardingFreeHandler>>(
-                  &page, *platform_->GetPageAllocator(), sticky_bits_)
+                  &page, page_allocator_, sticky_bits_)
             : SweepNormalPage<DeferredFinalizationBuilder<RegularFreeHandler>>(
-                  &page, *platform_->GetPageAllocator(), sticky_bits_);
-    const size_t space_index = page.space().index();
-    DCHECK_GT(states_->size(), space_index);
-    SpaceState& space_state = (*states_)[space_index];
-    space_state.swept_unfinalized_pages.Push(std::move(sweep_result));
+                  &page, page_allocator_, sticky_bits_);
+    current_sweeping_state_->swept_unfinalized_pages.Push(
+        std::move(sweep_result));
     return true;
   }
 
   bool VisitLargePage(LargePage& page) {
     HeapObjectHeader* header = page.ObjectHeader();
-    if (header->IsMarked()) {
-      StickyUnmark(header, sticky_bits_);
-      page.space().AddPage(&page);
-      return true;
-    }
+    CHECK(!header->IsMarked());
+    DCHECK_EQ(page.marked_bytes(), 0u);
 #if defined(CPPGC_CAGED_HEAP)
     HeapObjectHeader* const unfinalized_objects =
         header->IsFinalizable() ? page.ObjectHeader() : nullptr;
@@ -713,27 +846,34 @@ class ConcurrentSweepTask final : public cppgc::JobTask,
       unfinalized_objects.push_back(page.ObjectHeader());
     }
 #endif  // !defined(CPPGC_CAGED_HEAP)
-    const size_t space_index = page.space().index();
-    DCHECK_GT(states_->size(), space_index);
-    SpaceState& state = (*states_)[space_index];
     // Avoid directly destroying large pages here as counter updates and
     // backend access in BasePage::Destroy() are not concurrency safe.
-    state.swept_unfinalized_pages.Push(
+    current_sweeping_state_->swept_unfinalized_pages.Push(
         {&page, std::move(unfinalized_objects), {}, {}, true});
     return true;
   }
 
   HeapBase& heap_;
-  SpaceStates* states_;
-  Platform* platform_;
+  PageAllocator& page_allocator_;
+  SpaceStates* const space_states_;
+  SweepingState* const empty_normal_pages_;
+  SweepingState* const empty_large_pages_;
+  SweepingState* current_sweeping_state_ = nullptr;
   std::atomic_bool is_completed_{false};
   const FreeMemoryHandling free_memory_handling_;
   const StickyBits sticky_bits_;
 };
 
-// This visitor:
-// - clears free lists for all spaces;
-// - moves all Heap pages to local Sweeper's state (SpaceStates).
+// This visitor starts sweeping.
+//
+// Normal spaces:
+// - Clears free lists.
+// - Moves all pages to local state (SpaceStates).
+// - ASAN: Poisons all unmarked object payloads.
+//
+// Large spaces:
+// - Directly sweeps live objects and returns pages to the space.
+// - Moves dead objects to local state (SpaceStates).
 // - ASAN: Poisons all unmarked object payloads.
 class PrepareForSweepVisitor final
     : protected HeapVisitor<PrepareForSweepVisitor> {
@@ -741,30 +881,47 @@ class PrepareForSweepVisitor final
   using CompactableSpaceHandling = SweepingConfig::CompactableSpaceHandling;
 
  public:
-  PrepareForSweepVisitor(SpaceStates* states,
+  PrepareForSweepVisitor(HeapBase* heap, SpaceStates* space_states,
+                         SweepingState* empty_normal_pages,
+                         SweepingState* empty_large_pages,
                          CompactableSpaceHandling compactable_space_handling)
-      : states_(states),
-        compactable_space_handling_(compactable_space_handling) {
-    DCHECK_NOT_NULL(states);
-  }
+      : heap_(heap),
+        space_states_(space_states),
+        empty_normal_pages_(empty_normal_pages),
+        empty_large_pages_(empty_large_pages),
+        compactable_space_handling_(compactable_space_handling) {}
 
   void Run(RawHeap& raw_heap) {
-    DCHECK(states_->empty());
-    *states_ = SpaceStates(raw_heap.size());
+    *space_states_ = SpaceStates(raw_heap.size());
     Traverse(raw_heap);
   }
 
  protected:
   bool VisitNormalPageSpace(NormalPageSpace& space) {
     if ((compactable_space_handling_ == CompactableSpaceHandling::kIgnore) &&
-        space.is_compactable())
+        space.is_compactable()) {
       return true;
-    DCHECK(!space.linear_allocation_buffer().size());
+    }
+
+    CHECK(!space.linear_allocation_buffer().size());
     space.free_list().Clear();
 #ifdef V8_USE_ADDRESS_SANITIZER
     UnmarkedObjectsPoisoner().Traverse(space);
 #endif  // V8_USE_ADDRESS_SANITIZER
-    ExtractPages(space);
+
+    BaseSpace::Pages space_pages = space.RemoveAllPages();
+    std::sort(space_pages.begin(), space_pages.end(),
+              [](const BasePage* a, const BasePage* b) {
+                return a->marked_bytes() < b->marked_bytes();
+              });
+    auto first_non_empty_page = std::find_if(
+        space_pages.begin(), space_pages.end(),
+        [](const BasePage* page) { return page->marked_bytes() != 0; });
+    empty_normal_pages_->unswept_pages.Insert(space_pages.begin(),
+                                              first_non_empty_page);
+    (*space_states_)[space.index()].unswept_pages.Insert(first_non_empty_page,
+                                                         space_pages.end());
+
     return true;
   }
 
@@ -772,18 +929,30 @@ class PrepareForSweepVisitor final
 #ifdef V8_USE_ADDRESS_SANITIZER
     UnmarkedObjectsPoisoner().Traverse(space);
 #endif  // V8_USE_ADDRESS_SANITIZER
-    ExtractPages(space);
+
+    BaseSpace::Pages space_pages = space.RemoveAllPages();
+    for (BasePage* page : space_pages) {
+#ifdef DEBUG
+      const auto* header = LargePage::From(page)->ObjectHeader();
+      DCHECK_IMPLIES(page->marked_bytes() == 0, !header->IsMarked());
+      DCHECK_IMPLIES(page->marked_bytes() != 0, header->IsMarked());
+#endif  // DEBUG
+      if (page->marked_bytes() != 0) {
+        MutatorThreadSweeper::SweepLiveLargePage(*LargePage::From(page),
+                                                 heap_->sticky_bits());
+      } else {
+        empty_large_pages_->unswept_pages.Push(page);
+      }
+    }
+
     return true;
   }
 
  private:
-  void ExtractPages(BaseSpace& space) {
-    BaseSpace::Pages space_pages = space.RemoveAllPages();
-    (*states_)[space.index()].unswept_pages.Insert(space_pages.begin(),
-                                                   space_pages.end());
-  }
-
-  SpaceStates* states_;
+  HeapBase* const heap_;
+  SpaceStates* const space_states_;
+  SweepingState* const empty_normal_pages_;
+  SweepingState* const empty_large_pages_;
   CompactableSpaceHandling compactable_space_handling_;
 };
 
@@ -793,17 +962,44 @@ class Sweeper::SweeperImpl final {
   using FreeMemoryHandling = SweepingConfig::FreeMemoryHandling;
 
  public:
-  SweeperImpl(RawHeap& heap, StatsCollector* stats_collector)
-      : heap_(heap), stats_collector_(stats_collector) {}
+  explicit SweeperImpl(HeapBase& heap)
+      : heap_(heap.raw_heap()),
+        page_pool_(heap.page_backend()->page_pool()),
+        stats_collector_(heap.stats_collector()),
+        platform_(heap.platform()) {
+    CHECK_NOT_NULL(platform_);
+  }
 
-  ~SweeperImpl() { CancelSweepers(); }
+  ~SweeperImpl() { CancelAllSweepingTasks(); }
 
-  void Start(SweepingConfig config, cppgc::Platform* platform) {
+  void Start(SweepingConfig config) {
     StatsCollector::EnabledScope stats_scope(stats_collector_,
                                              StatsCollector::kAtomicSweep);
     is_in_progress_ = true;
-    platform_ = platform;
     config_ = config;
+
+    if (!foreground_task_runner_) {
+      // The sweeper is already initialized when the platform may not be able to
+      // return a foreground task runner. Lazily initialize the runners on first
+      // sweep.
+      foreground_task_runner_ =
+          platform_->GetForegroundTaskRunner(kForegroundRegularPriority);
+      low_priority_foreground_task_runner_ =
+          platform_->GetForegroundTaskRunner(kForegroundLowPriority);
+      // Having a low priority runner implies having a regular runner as well.
+      CHECK_IMPLIES(low_priority_foreground_task_runner_.get(),
+                    foreground_task_runner_.get());
+      const auto supports_non_nestable_tasks =
+          [](const std::shared_ptr<TaskRunner>& runner) {
+            return runner && runner->NonNestableTasksEnabled() &&
+                   runner->NonNestableDelayedTasksEnabled();
+          };
+      if (!supports_non_nestable_tasks(foreground_task_runner_) ||
+          !supports_non_nestable_tasks(low_priority_foreground_task_runner_)) {
+        foreground_task_runner_.reset();
+        low_priority_foreground_task_runner_.reset();
+      }
+    }
 
     // Verify bitmap for all spaces regardless of |compactable_space_handling|.
     ObjectStartBitmapVerifier().Verify(heap_);
@@ -813,97 +1009,226 @@ class Sweeper::SweeperImpl final {
     if (!CanDiscardMemory()) {
       config_.free_memory_handling = FreeMemoryHandling::kDoNotDiscard;
     }
-
     if (config_.free_memory_handling ==
         FreeMemoryHandling::kDiscardWherePossible) {
       // The discarded counter will be recomputed.
       heap_.heap()->stats_collector()->ResetDiscardedMemory();
     }
 
-    PrepareForSweepVisitor(&space_states_, config.compactable_space_handling)
+    PrepareForSweepVisitor(heap_.heap(), &space_states_, &empty_normal_pages_,
+                           &empty_large_pages_,
+                           config.compactable_space_handling)
         .Run(heap_);
 
-    if (config.sweeping_type == SweepingConfig::SweepingType::kAtomic) {
-      Finish();
-    } else {
-      ScheduleIncrementalSweeping();
+    if (config.sweeping_type >= SweepingConfig::SweepingType::kIncremental) {
+      ScheduleLowPriorityIncrementalSweeping();
+      ScheduleIncrementalSweeping(kDelayWhileLowPrioritySweepingMakesProgress);
+    }
+    if (config.sweeping_type >=
+        SweepingConfig::SweepingType::kIncrementalAndConcurrent) {
       ScheduleConcurrentSweeping();
     }
   }
 
-  bool SweepForAllocationIfRunning(NormalPageSpace* space, size_t size,
-                                   v8::base::TimeDelta max_duration) {
-    if (!is_in_progress_) return false;
+  void SweepForTask(v8::base::TimeDelta max_duration) {
+    // Before sweeping in a task, handle low priority sweeping cases. These are
+    // no-ops if low priority sweeping is not running.
+    if (low_priority_task_ran_) {
+      // Low priority task made progress. Reschedule with delay.
+      ScheduleIncrementalSweeping(kDelayWhileLowPrioritySweepingMakesProgress);
+      return;
+    }
 
-    // Bail out for recursive sweeping calls. This can happen when finalizers
-    // allocate new memory.
-    if (is_sweeping_on_mutator_thread_) return false;
+    // Low priority sweeping is not running or not being invoked on time.
+    switch (
+        SweepInForegroundTaskImpl(max_duration, StatsCollector::kSweepInTask)) {
+      case SweepResult::kFullyDone:
+        return;
+      case SweepResult::kInProgress:
+        ScheduleIncrementalSweeping(kDelayForRegularPrioritySweeping);
+        return;
+      case SweepResult::kMainThreadDoneConcurrentInProgress:
+        // Throttle incremental sweeping while the concurrent Job is still
+        // making progress.
+        ScheduleIncrementalSweeping(kDelayWhileConcurrentSweepingMakesProgress);
+        return;
+    }
+    UNREACHABLE();
+  }
 
-    SpaceState& space_state = space_states_[space->index()];
+  void SweepForLowPriorityTask(v8::base::TimeDelta max_duration) {
+    low_priority_task_ran_ = true;
+    switch (SweepInForegroundTaskImpl(
+        max_duration, StatsCollector::kSweepInLowPriorityTask)) {
+      case SweepResult::kFullyDone:
+        return;
+      case SweepResult::kInProgress:
+        // More work to do. Continue sweeping with low priority.
+        ScheduleLowPriorityIncrementalSweeping();
+        return;
+      case SweepResult::kMainThreadDoneConcurrentInProgress:
+        ScheduleLowPriorityIncrementalSweeping(
+            kDelayWhileLowPrioritySweepingMakesProgress);
+        return;
+    }
+    UNREACHABLE();
+  }
 
-    // Bail out if there's no pages to be processed for the space at this
-    // moment.
-    if (space_state.swept_unfinalized_pages.IsEmpty() &&
-        space_state.unswept_pages.IsEmpty()) {
+  bool SweepForLargeAllocation(BaseSpace* space, size_t size,
+                               v8::base::TimeDelta max_duration) {
+    DCHECK(space->is_large());
+#ifdef DEBUG
+    // SpaceState for large objects is emtpy as those objects are put directly
+    // on `empty_large_pages_`.
+    SweepingState& space_state = space_states_[space->index()];
+    DCHECK(space_state.unswept_pages.IsEmpty());
+    DCHECK(space_state.swept_unfinalized_pages.IsEmpty());
+#endif  // DEBUG
+    // Bail out if there's no empty large pages that could be freed and be
+    // reused for a large allocation.
+    if (empty_large_pages_.swept_unfinalized_pages.IsEmpty() &&
+        empty_large_pages_.unswept_pages.IsEmpty()) {
       return false;
     }
 
-    StatsCollector::EnabledScope stats_scope(stats_collector_,
-                                             StatsCollector::kIncrementalSweep);
-    StatsCollector::EnabledScope inner_scope(
+    StatsCollector::EnabledScope incremental_sweep_scope(
+        stats_collector_, StatsCollector::kIncrementalSweep);
+    StatsCollector::DisabledScope sweep_on_allocation_scope(
         stats_collector_, StatsCollector::kSweepOnAllocation);
     MutatorThreadSweepingScope sweeping_in_progress(*this);
-    DeadlineChecker deadline_check(v8::base::TimeTicks::Now() + max_duration);
-    {
-      // First, process unfinalized pages as finalizing a page is faster than
-      // sweeping.
-      SweepFinalizer finalizer(platform_, config_.free_memory_handling,
-                               SweepFinalizer::EmptyPageHandling::kReturn);
-      while (auto page = space_state.swept_unfinalized_pages.Pop()) {
-        finalizer.FinalizePage(&*page);
-        if (size <= finalizer.largest_new_free_list_entry()) {
-          return true;
-        }
-        if (deadline_check.Check()) {
-          return false;
-        }
-      }
+
+    const auto deadline = v8::base::TimeTicks::Now() + max_duration;
+
+    SweepFinalizer finalizer(
+        platform_, stats_collector_, space, &unused_destroyed_normal_pages_,
+        config_.free_memory_handling, EmptyPageHandling::kDestroy);
+    // Check empty pages first. Try to just finalize a page without sweeping.
+    // If there's a single page in there we will use it.
+    if (finalizer.FinalizeWithDeadlineAndSize(
+            StatsCollector::kSweepFinalizeEmptyPages, empty_large_pages_,
+            deadline, size)) {
+      return true;
     }
-    {
-      // Then, if no matching slot is found in the unfinalized pages, search the
-      // unswept page. This also helps out the concurrent sweeper.
-      MutatorThreadSweeper sweeper(heap_.heap(), &space_states_, platform_,
-                                   config_.free_memory_handling);
-      while (auto page = space_state.unswept_pages.Pop()) {
-        sweeper.SweepPage(**page);
-        if (size <= sweeper.largest_new_free_list_entry()) {
-          return true;
-        }
-        if (deadline_check.Check()) {
-          return false;
-        }
-      }
+    MutatorThreadSweeper sweeper(heap_.heap(), platform_, stats_collector_,
+                                 space, &unused_destroyed_normal_pages_,
+                                 config_.free_memory_handling,
+                                 EmptyPageHandling::kDestroy);
+    // Sweeping an empty page in case there's nothing with finalizers. If
+    // there's a single page in there we will use it.
+    if (sweeper.SweepWithDeadlineAndSize(StatsCollector::kSweepEmptyPages,
+                                         empty_large_pages_, deadline, size)) {
+      return true;
     }
 
     return false;
   }
 
-  bool FinishIfRunning() {
-    if (!is_in_progress_) return false;
+  bool SweepForNormalAllocation(BaseSpace* space, size_t size,
+                                v8::base::TimeDelta max_duration) {
+    DCHECK(!space->is_large());
+
+    if (unused_destroyed_normal_pages_ > 0 && page_pool_.pooled() > 0) {
+      unused_destroyed_normal_pages_--;
+      // Destroyed pages during sweeping in tasks are generally sitting in the
+      // page pool and can be reused without increasing memory footprint.
+      return false;
+    }
+
+    SweepingState& space_state = space_states_[space->index()];
+
+    // Bail out if there's no empty pages and no pages to be processed for the
+    // specific space at this moment.
+    if (empty_normal_pages_.swept_unfinalized_pages.IsEmpty() &&
+        empty_normal_pages_.unswept_pages.IsEmpty() &&
+        space_state.swept_unfinalized_pages.IsEmpty() &&
+        space_state.unswept_pages.IsEmpty()) {
+      return false;
+    }
+
+    StatsCollector::EnabledScope incremental_sweep_scope(
+        stats_collector_, StatsCollector::kIncrementalSweep);
+    StatsCollector::DisabledScope sweep_on_allocation_scope(
+        stats_collector_, StatsCollector::kSweepOnAllocation);
+    MutatorThreadSweepingScope sweeping_in_progress(*this);
+
+    const auto deadline = v8::base::TimeTicks::Now() + max_duration;
+
+    SweepFinalizer finalizer(
+        platform_, stats_collector_, space, &unused_destroyed_normal_pages_,
+        config_.free_memory_handling, EmptyPageHandling::kReturn);
+    // Check empty pages first. Try to just finalize a page without sweeping.
+    // If there's a single page in there we will use it.
+    if (finalizer.FinalizeWithDeadlineAndSize(
+            StatsCollector::kSweepFinalizeEmptyPages, empty_normal_pages_,
+            deadline, size)) {
+      return true;
+    }
+    MutatorThreadSweeper sweeper(heap_.heap(), platform_, stats_collector_,
+                                 space, &unused_destroyed_normal_pages_,
+                                 config_.free_memory_handling,
+                                 EmptyPageHandling::kReturn);
+    // Sweeping an empty page in case there's nothing with finalizers. If
+    // there's a single page in there we will use it.
+    if (sweeper.SweepWithDeadlineAndSize(StatsCollector::kSweepEmptyPages,
+                                         empty_normal_pages_, deadline, size)) {
+      return true;
+    }
+
+    // Process unfinalized non-empty pages as finalizing a page is generally
+    // faster than sweeping.
+    if (finalizer.FinalizeWithDeadlineAndSize(
+            StatsCollector::kSweepFinalizeSweptPages, space_state, deadline,
+            size)) {
+      return true;
+    }
+    // Then, if no matching slot is found in the unfinalized pages, search the
+    // unswept page. This also helps out the concurrent sweeper.
+    if (sweeper.SweepWithDeadlineAndSize(StatsCollector::kSweepPages,
+                                         space_state, deadline, size)) {
+      return true;
+    }
+    return false;
+  }
+
+  bool SweepForAllocationIfRunning(BaseSpace* space, size_t size,
+                                   v8::base::TimeDelta max_duration) {
+    if (!is_in_progress_) {
+      return false;
+    }
 
     // Bail out for recursive sweeping calls. This can happen when finalizers
     // allocate new memory.
-    if (is_sweeping_on_mutator_thread_) return false;
+    if (is_sweeping_on_mutator_thread_) {
+      return false;
+    }
+
+    return space->is_large()
+               ? SweepForLargeAllocation(space, size, max_duration)
+               : SweepForNormalAllocation(space, size, max_duration);
+  }
+
+  bool FinishIfRunning() {
+    if (!is_in_progress_) {
+      return false;
+    }
+
+    // Bail out for recursive sweeping calls. This can happen when finalizers
+    // allocate new memory.
+    if (is_sweeping_on_mutator_thread_) {
+      return false;
+    }
 
     {
-      StatsCollector::EnabledScope stats_scope(
-          stats_collector_, StatsCollector::kIncrementalSweep);
+      std::optional<StatsCollector::EnabledScope> stats_scope;
+      if (config_.sweeping_type != SweepingConfig::SweepingType::kAtomic) {
+        stats_scope.emplace(stats_collector_,
+                            StatsCollector::kIncrementalSweep);
+      }
       StatsCollector::EnabledScope inner_scope(stats_collector_,
-                                               StatsCollector::kSweepFinalize);
+                                               StatsCollector::kSweepFinish);
       if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
           concurrent_sweeper_handle_->UpdatePriorityEnabled()) {
-        concurrent_sweeper_handle_->UpdatePriority(
-            cppgc::TaskPriority::kUserBlocking);
+        concurrent_sweeper_handle_->UpdatePriority(kBackgroundBoostedPriority);
       }
       Finish();
     }
@@ -913,36 +1238,49 @@ class Sweeper::SweeperImpl final {
 
   bool IsConcurrentSweepingDone() const {
     return !concurrent_sweeper_handle_ ||
-           (concurrent_sweeper_handle_->IsValid() &&
-            !concurrent_sweeper_handle_->IsActive());
+           !concurrent_sweeper_handle_->IsValid() ||
+           !concurrent_sweeper_handle_->IsActive();
   }
 
   void FinishIfOutOfWork() {
-    if (is_in_progress_ && !is_sweeping_on_mutator_thread_ &&
-        concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid() &&
-        !concurrent_sweeper_handle_->IsActive()) {
+    if (!is_in_progress_ || is_sweeping_on_mutator_thread_) {
+      return;
+    }
+    // We only finish through this method if concurrent sweeping is enabled but
+    // not running anymore. All other paths finish sweeping through incremental
+    // steps.
+    if (!concurrent_sweeper_handle_ || !concurrent_sweeper_handle_->IsValid() ||
+        concurrent_sweeper_handle_->IsActive()) {
+      return;
+    }
+    // At this point we know that the concurrent sweeping task has run
+    // out-of-work: all pages are swept. The main thread still needs to finalize
+    // swept pages.
+    DCHECK(std::all_of(space_states_.begin(), space_states_.end(),
+                       [](const SweepingState& state) {
+                         return state.unswept_pages.IsEmpty();
+                       }));
+    DCHECK(empty_normal_pages_.unswept_pages.IsEmpty());
+    DCHECK(empty_large_pages_.unswept_pages.IsEmpty());
+    if (std::any_of(space_states_.begin(), space_states_.end(),
+                    [](const SweepingState& state) {
+                      return !state.swept_unfinalized_pages.IsEmpty();
+                    })) {
+      return;
+    }
+    if (!empty_normal_pages_.swept_unfinalized_pages.IsEmpty() ||
+        !empty_large_pages_.swept_unfinalized_pages.IsEmpty()) {
+      return;
+    }
+    // All pages have also been finalized. Finalizing pages likely occured on
+    // allocation, in which sweeping is not finalized even though all work is
+    // done.
+    {
       StatsCollector::EnabledScope stats_scope(
           stats_collector_, StatsCollector::kSweepFinishIfOutOfWork);
-      MutatorThreadSweepingScope sweeping_in_progress(*this);
-      // At this point we know that the concurrent sweeping task has run
-      // out-of-work: all pages are swept. The main thread still needs to finish
-      // sweeping though.
-      DCHECK(std::all_of(space_states_.begin(), space_states_.end(),
-                         [](const SpaceState& state) {
-                           return state.unswept_pages.IsEmpty();
-                         }));
-
-      // There may be unfinalized pages left. Since it's hard to estimate
-      // the actual amount of sweeping necessary, we sweep with a small
-      // deadline to see if sweeping can be fully finished.
-      MutatorThreadSweeper sweeper(heap_.heap(), &space_states_, platform_,
-                                   config_.free_memory_handling);
-      if (sweeper.SweepWithDeadline(v8::base::TimeDelta::FromMilliseconds(2),
-                                    MutatorThreadSweepingMode::kAll)) {
-        FinalizeSweep();
-      }
+      FinalizeSweep();
     }
-    NotifyDoneIfNeeded();
+    NotifyDone();
   }
 
   void Finish() {
@@ -950,29 +1288,42 @@ class Sweeper::SweeperImpl final {
 
     MutatorThreadSweepingScope sweeping_in_progress(*this);
 
-    // First, call finalizers on the mutator thread.
-    SweepFinalizer finalizer(platform_, config_.free_memory_handling,
-                             SweepFinalizer::EmptyPageHandling::kDestroy);
-    finalizer.FinalizeHeap(&space_states_);
+    // First, call finalizers on the mutator thread. This is just an
+    // optimization as we need to call finalizers after sweeping as well. It
+    // allows to spend the time in the concurrent sweeper for actual sweeping.
+    SweepFinalizer finalizer(
+        platform_, stats_collector_, kSweepWithoutSpaceAssignment,
+        &unused_destroyed_normal_pages_, config_.free_memory_handling,
+        EmptyPageHandling::kDestroy);
+    finalizer.Finalize(space_states_);
+    finalizer.Finalize(empty_normal_pages_);
+    finalizer.Finalize(empty_large_pages_);
 
     // Then, help out the concurrent thread.
-    MutatorThreadSweeper sweeper(heap_.heap(), &space_states_, platform_,
-                                 config_.free_memory_handling);
-    sweeper.Sweep();
+    MutatorThreadSweeper sweeper(
+        heap_.heap(), platform_, stats_collector_, kSweepWithoutSpaceAssignment,
+        &unused_destroyed_normal_pages_, config_.free_memory_handling,
+        EmptyPageHandling::kDestroy);
+    sweeper.Sweep(space_states_);
+    sweeper.Sweep(empty_normal_pages_);
+    sweeper.Sweep(empty_large_pages_);
 
+    // There's nothing left to sweep here for the main thread. The concurrent
+    // sweeper may still sweep pages and create pages to be finalized after
+    // joining the the job.
     FinalizeSweep();
   }
 
   void FinalizeSweep() {
     // Synchronize with the concurrent sweeper and call remaining finalizers.
-    SynchronizeAndFinalizeConcurrentSweeping();
+    SynchronizeAndFinalizeConcurrentAndIncrementalSweeping();
 
     // Clear space taken up by sweeper metadata.
     space_states_.clear();
 
-    platform_ = nullptr;
     is_in_progress_ = false;
     notify_done_pending_ = true;
+    unused_destroyed_normal_pages_ = 0;
   }
 
   void NotifyDone() {
@@ -980,11 +1331,10 @@ class Sweeper::SweeperImpl final {
     DCHECK(notify_done_pending_);
     notify_done_pending_ = false;
     stats_collector_->NotifySweepingCompleted(config_.sweeping_type);
-  }
-
-  void NotifyDoneIfNeeded() {
-    if (!notify_done_pending_) return;
-    NotifyDone();
+    if (config_.free_memory_handling ==
+        FreeMemoryHandling::kDiscardWherePossible) {
+      heap_.heap()->page_backend()->ReleasePooledPages();
+    }
   }
 
   void WaitForConcurrentSweepingForTesting() {
@@ -1004,26 +1354,45 @@ class Sweeper::SweeperImpl final {
 
     MutatorThreadSweepingScope sweeping_in_progress(*this);
 
-    bool sweep_complete;
     {
       StatsCollector::EnabledScope stats_scope(
           stats_collector_, StatsCollector::kIncrementalSweep);
 
-      MutatorThreadSweeper sweeper(heap_.heap(), &space_states_, platform_,
-                                   config_.free_memory_handling);
+      MutatorThreadSweeper sweeper(
+          heap_.heap(), platform_, stats_collector_,
+          kSweepWithoutSpaceAssignment, &unused_destroyed_normal_pages_,
+          config_.free_memory_handling, EmptyPageHandling::kDestroy);
       {
         StatsCollector::EnabledScope inner_stats_scope(
             stats_collector_, internal_scope_id, "max_duration_ms",
             max_duration.InMillisecondsF(), "sweeping_mode",
             ToString(sweeping_mode));
-        sweep_complete = sweeper.SweepWithDeadline(max_duration, sweeping_mode);
+        const auto deadline = v8::base::TimeTicks::Now() + max_duration;
+        if (!sweeper.FinalizeAndSweepWithDeadline(
+                StatsCollector::kSweepFinalizeEmptyPages, empty_normal_pages_,
+                deadline, sweeping_mode)) {
+          return false;
+        }
+        for (auto& state : space_states_) {
+          if (!sweeper.FinalizeAndSweepWithDeadline(
+                  StatsCollector::kSweepFinalizeSweptPages, state, deadline,
+                  sweeping_mode)) {
+            return false;
+          }
+        }
+        if (!sweeper.FinalizeAndSweepWithDeadline(
+                StatsCollector::kSweepFinalizeEmptyPages, empty_large_pages_,
+                deadline, sweeping_mode)) {
+          return false;
+        }
+        if (sweeping_mode != MutatorThreadSweepingMode::kAll) {
+          return false;
+        }
       }
-      if (sweep_complete) {
-        FinalizeSweep();
-      }
+      FinalizeSweep();
     }
-    if (sweep_complete) NotifyDone();
-    return sweep_complete;
+    NotifyDone();
+    return true;
   }
 
   void AddMutatorThreadSweepingObserver(
@@ -1073,83 +1442,209 @@ class Sweeper::SweeperImpl final {
    public:
     using Handle = SingleThreadedHandle;
 
-    explicit IncrementalSweepTask(SweeperImpl& sweeper)
-        : sweeper_(sweeper), handle_(Handle::NonEmptyTag{}) {}
+    static constexpr auto kMaxSweepDuration =
+        v8::base::TimeDelta::FromMilliseconds(5);
 
-    static Handle Post(SweeperImpl& sweeper, cppgc::TaskRunner* runner) {
-      auto task = std::make_unique<IncrementalSweepTask>(sweeper);
-      auto handle = task->GetHandle();
-      runner->PostTask(std::move(task));
+    IncrementalSweepTask(SweeperImpl& sweeper, cppgc::TaskPriority priority)
+        : sweeper_(sweeper),
+          handle_(Handle::NonEmptyTag{}),
+          priority_(priority) {}
+
+    static Handle Post(SweeperImpl& sweeper,
+                       const std::shared_ptr<cppgc::TaskRunner>& runner,
+                       cppgc::TaskPriority priority,
+                       std::optional<v8::base::TimeDelta> delay = {}) {
+      auto task = std::make_unique<IncrementalSweepTask>(sweeper, priority);
+      auto handle = task->handle_;
+      if (delay.has_value()) {
+        runner->PostNonNestableDelayedTask(std::move(task),
+                                           delay->InSecondsF());
+      } else {
+        runner->PostNonNestableTask(std::move(task));
+      }
       return handle;
     }
 
-   private:
     void Run() override {
-      if (handle_.IsCanceled()) return;
-
-      if (!sweeper_.PerformSweepOnMutatorThread(
-              v8::base::TimeDelta::FromMilliseconds(5),
-              StatsCollector::kSweepInTask,
-              sweeper_.IsConcurrentSweepingDone()
-                  ? MutatorThreadSweepingMode::kAll
-                  : MutatorThreadSweepingMode::kOnlyFinalizers)) {
-        sweeper_.ScheduleIncrementalSweeping();
+      if (handle_.IsCanceled()) {
+        return;
+      }
+      switch (priority_) {
+        case kForegroundRegularPriority:
+          sweeper_.SweepForTask(kMaxSweepDuration);
+          return;
+        case kForegroundLowPriority:
+          sweeper_.SweepForLowPriorityTask(kMaxSweepDuration);
+          return;
+        default:
+          UNREACHABLE();
       }
     }
 
-    Handle GetHandle() const { return handle_; }
-
+   private:
     SweeperImpl& sweeper_;
     // TODO(chromium:1056170): Change to CancelableTask.
     Handle handle_;
+    cppgc::TaskPriority priority_;
   };
 
-  void ScheduleIncrementalSweeping() {
-    DCHECK(platform_);
-    auto runner = platform_->GetForegroundTaskRunner();
-    if (!runner) return;
+  enum class SweepResult {
+    // Sweeping is fully done.
+    kFullyDone,
+    // Sweeping is still in progress.
+    kInProgress,
+    // Sweeping on the main thread is done but concurrent sweepers are still
+    // making progress. This may be temporary.
+    kMainThreadDoneConcurrentInProgress,
+  };
 
-    incremental_sweeper_handle_ =
-        IncrementalSweepTask::Post(*this, runner.get());
+  static constexpr double kMaxHeapPercentageForNoSweeping = 50;
+
+  static constexpr auto kDelayWhileLowPrioritySweepingMakesProgress =
+      v8::base::TimeDelta::FromMilliseconds(100);
+
+  static constexpr auto kDelayWhileConcurrentSweepingMakesProgress =
+      v8::base::TimeDelta::FromMilliseconds(5);
+
+  // We use a small delay here to allow lower priority tasks to interrupt
+  // sweeping and take over.
+  static constexpr auto kDelayForRegularPrioritySweeping =
+      v8::base::TimeDelta::FromMilliseconds(1);
+
+  SweepResult SweepInForegroundTaskImpl(v8::base::TimeDelta max_duration,
+                                        StatsCollector::ScopeId scope) {
+    // First round of sweeping.
+    bool concurrent_sweep_complete = IsConcurrentSweepingDone();
+    const auto start = v8::base::TimeTicks::Now();
+    bool main_thread_sweep_complete = PerformSweepOnMutatorThread(
+        max_duration, scope,
+        concurrent_sweep_complete ? MutatorThreadSweepingMode::kAll
+                                  : MutatorThreadSweepingMode::kOnlyFinalizers);
+    if (main_thread_sweep_complete && !concurrent_sweep_complete &&
+        IsConcurrentSweepingDone()) {
+      // Concurrent sweeping finished while processing the first round. Use the
+      // left over time for a second round to avoid scheduling another task.
+      max_duration -= (v8::base::TimeTicks::Now() - start);
+      if (max_duration > v8::base::TimeDelta::FromMilliseconds(0)) {
+        concurrent_sweep_complete = true;
+        main_thread_sweep_complete = PerformSweepOnMutatorThread(
+            max_duration, scope, MutatorThreadSweepingMode::kAll);
+      }
+    }
+    if (main_thread_sweep_complete) {
+      if (!concurrent_sweep_complete) {
+        return SweepResult::kMainThreadDoneConcurrentInProgress;
+      } else {
+        CHECK(!is_in_progress_);
+        return SweepResult::kFullyDone;
+      }
+    }
+    return SweepResult::kInProgress;
+  }
+
+  void ScheduleIncrementalSweeping(
+      std::optional<v8::base::TimeDelta> delay = {}) {
+    DCHECK_GE(config_.sweeping_type,
+              SweepingConfig::SweepingType::kIncremental);
+
+    if (!foreground_task_runner_) {
+      return;
+    }
+
+    low_priority_task_ran_ = false;
+    incremental_sweeper_handle_.CancelIfNonEmpty();
+    incremental_sweeper_handle_ = IncrementalSweepTask::Post(
+        *this, foreground_task_runner_, kForegroundRegularPriority, delay);
+  }
+
+  void ScheduleLowPriorityIncrementalSweeping(
+      std::optional<v8::base::TimeDelta> delay = {}) {
+    DCHECK_GE(config_.sweeping_type,
+              SweepingConfig::SweepingType::kIncremental);
+
+    if (!low_priority_foreground_task_runner_) {
+      return;
+    }
+
+    incremental_sweeper_low_priority_handle_.CancelIfNonEmpty();
+    incremental_sweeper_low_priority_handle_ =
+        IncrementalSweepTask::Post(*this, low_priority_foreground_task_runner_,
+                                   kForegroundLowPriority, delay);
   }
 
   void ScheduleConcurrentSweeping() {
-    DCHECK(platform_);
+    DCHECK_GE(config_.sweeping_type,
+              SweepingConfig::SweepingType::kIncrementalAndConcurrent);
 
-    if (config_.sweeping_type !=
-        SweepingConfig::SweepingType::kIncrementalAndConcurrent)
-      return;
-
-    concurrent_sweeper_handle_ =
-        platform_->PostJob(cppgc::TaskPriority::kUserVisible,
-                           std::make_unique<ConcurrentSweepTask>(
-                               *heap_.heap(), &space_states_, platform_,
-                               config_.free_memory_handling));
+    concurrent_sweeper_handle_ = platform_->PostJob(
+        kBackgroundRegularPriority,
+        std::make_unique<ConcurrentSweepTask>(
+            platform_, *heap_.heap(), &space_states_, &empty_normal_pages_,
+            &empty_large_pages_, config_.free_memory_handling));
   }
 
-  void CancelSweepers() {
-    if (incremental_sweeper_handle_) incremental_sweeper_handle_.Cancel();
-    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid())
+  void CancelAllSweepingTasks() {
+    if (incremental_sweeper_handle_) {
+      incremental_sweeper_handle_.Cancel();
+    }
+    if (incremental_sweeper_low_priority_handle_) {
+      incremental_sweeper_low_priority_handle_.Cancel();
+    }
+    if (concurrent_sweeper_handle_ && concurrent_sweeper_handle_->IsValid()) {
       concurrent_sweeper_handle_->Cancel();
+    }
   }
 
-  void SynchronizeAndFinalizeConcurrentSweeping() {
-    CancelSweepers();
+  void SynchronizeAndFinalizeConcurrentAndIncrementalSweeping() {
+    // The precondition for this call is that actual sweeping is done. So all
+    // that's left is potentially invoking finalizers.
 
-    SweepFinalizer finalizer(platform_, config_.free_memory_handling,
-                             SweepFinalizer::EmptyPageHandling::kDestroy);
-    finalizer.FinalizeHeap(&space_states_);
+    CancelAllSweepingTasks();
+
+    DCHECK(std::all_of(space_states_.begin(), space_states_.end(),
+                       [](const SweepingState& state) {
+                         return state.unswept_pages.IsEmpty();
+                       }));
+    DCHECK(empty_normal_pages_.unswept_pages.IsEmpty());
+    DCHECK(empty_large_pages_.unswept_pages.IsEmpty());
+
+    SweepFinalizer finalizer(
+        platform_, stats_collector_, kSweepWithoutSpaceAssignment,
+        &unused_destroyed_normal_pages_, config_.free_memory_handling,
+        EmptyPageHandling::kDestroy);
+    finalizer.Finalize(space_states_);
+    finalizer.Finalize(empty_normal_pages_);
+    finalizer.Finalize(empty_large_pages_);
   }
 
   RawHeap& heap_;
+  NormalPageMemoryPool& page_pool_;
   StatsCollector* const stats_collector_;
   SpaceStates space_states_;
+  // States for empty normal pages. These pages do have a space as owner which
+  // is updated as soon as the page is reused for a specific space.
+  SweepingState empty_normal_pages_;
+  // States for empty large pages.
+  // TODO(372512096): This can be further split into LO pages that are less than
+  // a regular page size and those that are multiple, where larger sizes can
+  // contribute to `unused_destroyed_normal_pages_`.
+  SweepingState empty_large_pages_;
+  // Number of pages that have been destroyed and have not been reused by the
+  // allocator yet. We assume that returning early on
+  // SweepForAllocationIfRunning() causes such pages to be picked up.
+  size_t unused_destroyed_normal_pages_ = 0;
   cppgc::Platform* platform_;
+  std::shared_ptr<cppgc::TaskRunner> foreground_task_runner_;
+  std::shared_ptr<cppgc::TaskRunner> low_priority_foreground_task_runner_;
   SweepingConfig config_;
   IncrementalSweepTask::Handle incremental_sweeper_handle_;
+  IncrementalSweepTask::Handle incremental_sweeper_low_priority_handle_;
   std::unique_ptr<cppgc::JobHandle> concurrent_sweeper_handle_;
   std::vector<Sweeper::SweepingOnMutatorThreadObserver*>
       mutator_thread_sweeping_observers_;
+  // Indicates whether a low priority task has been invoked since the last
+  // scheduling of an incremental task.
+  bool low_priority_task_ran_ = false;
   // Indicates whether the sweeping phase is in progress.
   bool is_in_progress_ = false;
   bool notify_done_pending_ = false;
@@ -1159,26 +1654,25 @@ class Sweeper::SweeperImpl final {
 };
 
 Sweeper::Sweeper(HeapBase& heap)
-    : heap_(heap),
-      impl_(std::make_unique<SweeperImpl>(heap.raw_heap(),
-                                          heap.stats_collector())) {}
+    : heap_(heap), impl_(std::make_unique<SweeperImpl>(heap)) {}
 
 Sweeper::~Sweeper() = default;
 
-void Sweeper::Start(SweepingConfig config) {
-  impl_->Start(config, heap_.platform());
-}
+void Sweeper::Start(SweepingConfig config) { impl_->Start(config); }
 
 bool Sweeper::FinishIfRunning() { return impl_->FinishIfRunning(); }
+
 void Sweeper::FinishIfOutOfWork() { impl_->FinishIfOutOfWork(); }
+
 void Sweeper::WaitForConcurrentSweepingForTesting() {
   impl_->WaitForConcurrentSweepingForTesting();
 }
-void Sweeper::NotifyDoneIfNeeded() { impl_->NotifyDoneIfNeeded(); }
-bool Sweeper::SweepForAllocationIfRunning(NormalPageSpace* space, size_t size,
+
+bool Sweeper::SweepForAllocationIfRunning(BaseSpace* space, size_t size,
                                           v8::base::TimeDelta max_duration) {
   return impl_->SweepForAllocationIfRunning(space, size, max_duration);
 }
+
 bool Sweeper::IsSweepingOnMutatorThread() const {
   return impl_->IsSweepingOnMutatorThread();
 }

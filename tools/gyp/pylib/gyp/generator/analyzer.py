@@ -63,10 +63,11 @@ then the "all" target includes "b1" and "b2".
 """
 
 
-import gyp.common
 import json
 import os
 import posixpath
+
+import gyp.common
 
 debug = False
 
@@ -157,7 +158,7 @@ def _AddSources(sources, base_path, base_path_components, result):
   and tracked in some other means."""
     # NOTE: gyp paths are always posix style.
     for source in sources:
-        if not len(source) or source.startswith("!!!") or source.startswith("$"):
+        if not len(source) or source.startswith(("!!!", "$")):
             continue
         # variable expansion may lead to //.
         org_source = source
@@ -699,7 +700,7 @@ class TargetCalculator:
         ) & set(self._root_targets)
         if matching_test_targets_contains_all:
             # Remove any of the targets for all that were not explicitly supplied,
-            # 'all' is subsequentely added to the matching names below.
+            # 'all' is subsequently added to the matching names below.
             matching_test_targets = list(
                 set(matching_test_targets) & set(test_targets_no_all)
             )
@@ -747,7 +748,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
         if not config.files:
             raise Exception(
-                "Must specify files to analyze via config_path generator " "flag"
+                "Must specify files to analyze via config_path generator flag"
             )
 
         toplevel_dir = _ToGypPath(os.path.abspath(params["options"].toplevel_dir))

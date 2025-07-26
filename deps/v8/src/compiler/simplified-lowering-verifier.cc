@@ -84,7 +84,8 @@ void SimplifiedLoweringVerifier::ReportInvalidTypeCombination(
 }
 
 bool IsModuloTruncation(const Truncation& truncation) {
-  return truncation.IsUsedAsWord32() || truncation.IsUsedAsWord64() ||
+  return truncation.IsUsedAsWord32() ||
+         (Is64() && truncation.IsUsedAsWord64()) ||
          Truncation::Any().IsLessGeneralThan(truncation);
 }
 
@@ -464,6 +465,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(DeoptimizeUnless)
       CASE(TrapIf)
       CASE(TrapUnless)
+      CASE(Assert)
       CASE(TailCall)
       CASE(Terminate)
       CASE(Throw)
@@ -475,6 +477,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(NumberConstant)
       CASE(PointerConstant)
       CASE(CompressedHeapConstant)
+      CASE(TrustedHeapConstant)
       CASE(RelocatableInt32Constant)
       CASE(RelocatableInt64Constant)
       // Inner operators
@@ -527,6 +530,8 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(CheckedUint32Div)
       CASE(CheckedUint32Mod)
       CASE(CheckedInt32Mul)
+      CASE(CheckedAdditiveSafeIntegerAdd)
+      CASE(CheckedAdditiveSafeIntegerSub)
       CASE(CheckedInt64Add)
       CASE(CheckedInt64Sub)
       CASE(CheckedInt64Mul)
@@ -542,12 +547,14 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(CheckedUint64ToInt32)
       CASE(CheckedUint64ToInt64)
       CASE(CheckedUint64ToTaggedSigned)
+      CASE(CheckedFloat64ToAdditiveSafeInteger)
       CASE(CheckedFloat64ToInt64)
       CASE(CheckedTaggedSignedToInt32)
       CASE(CheckedTaggedToInt32)
       CASE(CheckedTaggedToArrayIndex)
       CASE(CheckedTruncateTaggedToWord32)
       CASE(CheckedTaggedToFloat64)
+      CASE(CheckedTaggedToAdditiveSafeInteger)
       CASE(CheckedTaggedToInt64)
       SIMPLIFIED_COMPARE_BINOP_LIST(CASE)
       SIMPLIFIED_NUMBER_BINOP_LIST(CASE)
@@ -649,7 +656,9 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(BitcastWord32ToWord64)
       CASE(ChangeInt64ToFloat64)
       CASE(ChangeUint32ToFloat64)
+      CASE(ChangeFloat16RawBitsToFloat64)
       CASE(TruncateFloat64ToFloat32)
+      CASE(TruncateFloat64ToFloat16RawBits)
       CASE(TruncateInt64ToInt32)
       CASE(RoundFloat64ToInt32)
       CASE(RoundInt32ToFloat32)
@@ -672,8 +681,8 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(Float64Select)
       CASE(LoadStackCheckOffset)
       CASE(LoadFramePointer)
-      CASE(LoadStackPointer)
-      CASE(SetStackPointer)
+      IF_WASM(CASE, LoadStackPointer)
+      IF_WASM(CASE, SetStackPointer)
       CASE(LoadParentFramePointer)
       CASE(LoadRootRegister)
       CASE(UnalignedLoad)
@@ -716,7 +725,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(JSGetImportMeta)
       CASE(JSGeneratorStore)
       CASE(JSGeneratorRestoreContinuation)
-      CASE(JSGeneratorRestoreContext)
+      CASE(JSGeneratorRestoreContextNoCell)
       CASE(JSGeneratorRestoreRegister)
       CASE(JSGeneratorRestoreInputOrDebugPos)
       CASE(JSFulfillPromise)
@@ -731,7 +740,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
         break;
       }
       MACHINE_SIMD128_OP_LIST(CASE)
-      MACHINE_SIMD256_OP_LIST(CASE)
+      IF_WASM(MACHINE_SIMD256_OP_LIST, CASE)
       IF_WASM(SIMPLIFIED_WASM_OP_LIST, CASE) {
         // SIMD operators should not be in the graph, yet.
         UNREACHABLE();

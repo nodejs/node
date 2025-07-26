@@ -1,14 +1,15 @@
-#include "env-inl.h"
+#include "node_wasi.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
+#include "env-inl.h"
 #include "memory_tracker-inl.h"
-#include "node_mem-inl.h"
-#include "util-inl.h"
 #include "node.h"
 #include "node_errors.h"
+#include "node_mem-inl.h"
+#include "permission/permission.h"
+#include "util-inl.h"
 #include "uv.h"
 #include "uvwasi.h"
-#include "node_wasi.h"
 
 namespace node {
 namespace wasi {
@@ -34,6 +35,7 @@ using v8::Exception;
 using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -120,8 +122,9 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[1]->IsArray());
   CHECK(args[2]->IsArray());
   CHECK(args[3]->IsArray());
-
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kWASI, "");
   Local<Context> context = env->context();
   Local<Array> argv = args[0].As<Array>();
   const uint32_t argc = argv->Length();
@@ -131,12 +134,26 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
 
   Local<Array> stdio = args[3].As<Array>();
   CHECK_EQ(stdio->Length(), 3);
-  options.in = stdio->Get(context, 0).ToLocalChecked()->
-    Int32Value(context).FromJust();
-  options.out = stdio->Get(context, 1).ToLocalChecked()->
-    Int32Value(context).FromJust();
-  options.err = stdio->Get(context, 2).ToLocalChecked()->
-    Int32Value(context).FromJust();
+
+  Local<Value> val;
+  int32_t tmp;
+  if (!stdio->Get(context, 0).ToLocal(&val) ||
+      !val->Int32Value(context).To(&tmp)) {
+    return;
+  }
+  options.in = tmp;
+
+  if (!stdio->Get(context, 1).ToLocal(&val) ||
+      !val->Int32Value(context).To(&tmp)) {
+    return;
+  }
+  options.out = tmp;
+
+  if (!stdio->Get(context, 2).ToLocal(&val) ||
+      !val->Int32Value(context).To(&tmp)) {
+    return;
+  }
+  options.err = tmp;
 
   options.fd_table_size = 3;
   options.argc = argc;
@@ -144,7 +161,10 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
     const_cast<const char**>(argc == 0 ? nullptr : new char*[argc]);
 
   for (uint32_t i = 0; i < argc; i++) {
-    auto arg = argv->Get(context, i).ToLocalChecked();
+    Local<Value> arg;
+    if (!argv->Get(context, i).ToLocal(&arg)) {
+      return;
+    }
     CHECK(arg->IsString());
     node::Utf8Value str(env->isolate(), arg);
     options.argv[i] = strdup(*str);
@@ -155,7 +175,10 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
   const uint32_t envc = env_pairs->Length();
   options.envp = const_cast<const char**>(new char*[envc + 1]);
   for (uint32_t i = 0; i < envc; i++) {
-    auto pair = env_pairs->Get(context, i).ToLocalChecked();
+    Local<Value> pair;
+    if (!env_pairs->Get(context, i).ToLocal(&pair)) {
+      return;
+    }
     CHECK(pair->IsString());
     node::Utf8Value str(env->isolate(), pair);
     options.envp[i] = strdup(*str);
@@ -169,8 +192,12 @@ void WASI::New(const FunctionCallbackInfo<Value>& args) {
   options.preopens = Calloc<uvwasi_preopen_t>(options.preopenc);
   int index = 0;
   for (uint32_t i = 0; i < preopens->Length(); i += 2) {
-    auto mapped = preopens->Get(context, i).ToLocalChecked();
-    auto real = preopens->Get(context, i + 1).ToLocalChecked();
+    Local<Value> mapped;
+    Local<Value> real;
+    if (!preopens->Get(context, i).ToLocal(&mapped) ||
+        !preopens->Get(context, i + 1).ToLocal(&real)) {
+      return;
+    }
     CHECK(mapped->IsString());
     CHECK(real->IsString());
     node::Utf8Value mapped_path(env->isolate(), mapped);
@@ -239,24 +266,28 @@ inline void EinvalError() {}
 
 template <typename FT, FT F, typename R, typename... Args>
 R WASI::WasiFunction<FT, F, R, Args...>::FastCallback(
+    Local<Object> unused,
     Local<Object> receiver,
     Args... args,
     // NOLINTNEXTLINE(runtime/references) This is V8 api.
     FastApiCallbackOptions& options) {
   WASI* wasi = reinterpret_cast<WASI*>(BaseObject::FromJSObject(receiver));
-  if (UNLIKELY(wasi == nullptr)) return EinvalError<R>();
-
-  if (UNLIKELY(options.wasm_memory == nullptr || wasi->memory_.IsEmpty())) {
-    // fallback to slow path which to throw an error about missing memory.
-    options.fallback = true;
+  if (wasi == nullptr) [[unlikely]] {
     return EinvalError<R>();
   }
-  uint8_t* memory = nullptr;
-  CHECK(LIKELY(options.wasm_memory->getStorageIfAligned(&memory)));
 
-  return F(*wasi,
-           {reinterpret_cast<char*>(memory), options.wasm_memory->length()},
-           args...);
+  Isolate* isolate = receiver->GetIsolate();
+  HandleScope scope(isolate);
+  if (wasi->memory_.IsEmpty()) {
+    THROW_ERR_WASI_NOT_STARTED(isolate);
+    return EinvalError<R>();
+  }
+  Local<ArrayBuffer> ab = wasi->memory_.Get(isolate)->Buffer();
+  size_t mem_size = ab->ByteLength();
+  char* mem_data = static_cast<char*>(ab->Data());
+  CHECK_NOT_NULL(mem_data);
+
+  return F(*wasi, {mem_data, mem_size}, args...);
 }
 
 namespace {

@@ -5,9 +5,13 @@
 #ifndef V8_OBJECTS_FEEDBACK_CELL_INL_H_
 #define V8_OBJECTS_FEEDBACK_CELL_INL_H_
 
+#include "src/objects/feedback-cell.h"
+// Include the non-inl header before the rest of the headers.
+
+#include <optional>
+
 #include "src/execution/tiering-manager.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
@@ -15,8 +19,7 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/feedback-cell-tq-inl.inc"
 
@@ -32,15 +35,15 @@ void FeedbackCell::clear_padding() {
 }
 
 void FeedbackCell::reset_feedback_vector(
-    base::Optional<std::function<void(
-        Tagged<HeapObject> object, ObjectSlot slot, Tagged<HeapObject> target)>>
+    std::optional<std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
+                                     Tagged<HeapObject> target)>>
         gc_notify_updated_slot) {
   clear_interrupt_budget();
   if (IsUndefined(value()) || IsClosureFeedbackCellArray(value())) return;
 
   CHECK(IsFeedbackVector(value()));
   Tagged<ClosureFeedbackCellArray> closure_feedback_cell_array =
-      FeedbackVector::cast(value())->closure_feedback_cell_array();
+      Cast<FeedbackVector>(value())->closure_feedback_cell_array();
   set_value(closure_feedback_cell_array, kReleaseStore);
   if (gc_notify_updated_slot) {
     (*gc_notify_updated_slot)(*this, RawField(FeedbackCell::kValueOffset),
@@ -53,19 +56,41 @@ void FeedbackCell::clear_interrupt_budget() {
   set_interrupt_budget(0);
 }
 
-void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
+void FeedbackCell::clear_dispatch_handle() {
+  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
+                                                kNullJSDispatchHandle.value());
+}
+
+#ifdef V8_ENABLE_LEAPTIERING
+JSDispatchHandle FeedbackCell::dispatch_handle() const {
+  return JSDispatchHandle(
+      ReadField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset));
+}
+
+void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
+  DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
+  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
+                                                new_handle.value());
+  JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, new_handle);
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
+FeedbackCell::ClosureCountTransition FeedbackCell::IncrementClosureCount(
+    Isolate* isolate) {
   ReadOnlyRoots r(isolate);
   if (map() == r.no_closures_cell_map()) {
-    set_map(r.one_closure_cell_map());
+    set_map(isolate, r.one_closure_cell_map());
+    return kNoneToOne;
   } else if (map() == r.one_closure_cell_map()) {
-    set_map(r.many_closures_cell_map());
+    set_map(isolate, r.many_closures_cell_map());
+    return kOneToMany;
   } else {
     DCHECK(map() == r.many_closures_cell_map());
+    return kMany;
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

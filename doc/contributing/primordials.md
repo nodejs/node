@@ -4,8 +4,16 @@ The file `lib/internal/per_context/primordials.js` subclasses and stores the JS
 built-ins that come from the VM so that Node.js built-in modules do not need to
 later look these up from the global proxy, which can be mutated by users.
 
-Usage of primordials should be preferred for any new code, but replacing current
-code with primordials should be
+For some area of the codebase, performance and code readability are deemed more
+important than reliability against prototype pollution:
+
+* `node:http`
+* `node:http2`
+* `node:tls`
+* `node:zlib`
+
+Usage of primordials should be preferred for new code in other areas, but
+replacing current code with primordials should be
 [done with care](#primordials-with-known-performance-issues). It is highly
 recommended to ping the relevant team when reviewing a pull request that touches
 one of the subsystems they "own".
@@ -153,8 +161,9 @@ This code is internally expanded into something that looks like:
 
 ```js
 {
-  // 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
-  // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
+  // 1. Lookup %Symbol.iterator% property on `array` (user-mutable if
+  //    user-provided).
+  // 2. Lookup %Symbol.iterator% property on %Array.prototype% (user-mutable).
   // 3. Call that function.
   const iterator = array[Symbol.iterator]();
   // 1. Lookup `next` property on `iterator` (doesn't exist).
@@ -218,8 +227,9 @@ const [first, second] = array;
 This is roughly equivalent to:
 
 ```js
-// 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
-// 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
+// 1. Lookup %Symbol.iterator% property on `array` (user-mutable if
+//    user-provided).
+// 2. Lookup %Symbol.iterator% property on %Array.prototype% (user-mutable).
 // 3. Call that function.
 const iterator = array[Symbol.iterator]();
 // 1. Lookup `next` property on `iterator` (doesn't exist).
@@ -254,8 +264,9 @@ best choice.
 <summary>Avoid spread operator on arrays</summary>
 
 ```js
-// 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
-// 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
+// 1. Lookup %Symbol.iterator% property on `array` (user-mutable if
+//    user-provided).
+// 2. Lookup %Symbol.iterator% property on %Array.prototype% (user-mutable).
 // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
 const arrayCopy = [...array];
 func(...array);
@@ -273,17 +284,17 @@ ReflectApply(func, null, array);
 <details>
 
 <summary><code>%Array.prototype.concat%</code> looks up
-         <code>@@isConcatSpreadable</code> property of the passed
-         arguments and the <code>this</code> value.</summary>
+         <code>%Symbol.isConcatSpreadable%</code> property of the passed
+         arguments and the <code>this</code> value</summary>
 
 ```js
 {
   // Unsafe code example:
-  // 1. Lookup @@isConcatSpreadable property on `array` (user-mutable if
-  //    user-provided).
-  // 2. Lookup @@isConcatSpreadable property on `%Array.prototype%
+  // 1. Lookup %Symbol.isConcatSpreadable% property on `array`
+  //    (user-mutable if user-provided).
+  // 2. Lookup %Symbol.isConcatSpreadable% property on `%Array.prototype%
   //    (user-mutable).
-  // 2. Lookup @@isConcatSpreadable property on `%Object.prototype%
+  // 2. Lookup %Symbol.isConcatSpreadable% property on `%Object.prototype%
   //    (user-mutable).
   const array = [];
   ArrayPrototypeConcat(array);
@@ -332,8 +343,9 @@ Object.defineProperty(Object.prototype, Symbol.isConcatSpreadable, {
 ```js
 {
   // Unsafe code example:
-  // 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
-  // 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
+  // 1. Lookup %Symbol.iterator% property on `array` (user-mutable if
+  //    user-provided).
+  // 2. Lookup %Symbol.iterator% property on %Array.prototype% (user-mutable).
   // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
   const obj = ObjectFromEntries(array);
 }
@@ -363,8 +375,9 @@ Object.defineProperty(Object.prototype, Symbol.isConcatSpreadable, {
          <code>%Promise.race%</code> iterate over an array</summary>
 
 ```js
-// 1. Lookup @@iterator property on `array` (user-mutable if user-provided).
-// 2. Lookup @@iterator property on %Array.prototype% (user-mutable).
+// 1. Lookup %Symbol.iterator% property on `array` (user-mutable if
+//    user-provided).
+// 2. Lookup %Symbol.iterator% property on %Array.prototype% (user-mutable).
 // 3. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
 // 4. Lookup `then` property on %Array.Prototype% (user-mutable).
 // 5. Lookup `then` property on %Object.Prototype% (user-mutable).
@@ -429,7 +442,7 @@ Array.prototype[Symbol.iterator] = () => ({
 
 // Core
 
-// 1. Lookup @@iterator property on %Array.prototype% (user-mutable).
+// 1. Lookup %Symbol.iterator% property on %Array.prototype% (user-mutable).
 // 2. Lookup `next` property on %ArrayIteratorPrototype% (user-mutable).
 const set = new SafeSet([1, 2, 3]);
 
@@ -676,14 +689,14 @@ can be reset from user-land.
 <summary>List of <code>RegExp</code> methods that look up properties from
          mutable getters</summary>
 
-| `RegExp` method                | looks up the following flag-related properties                     |
-| ------------------------------ | ------------------------------------------------------------------ |
-| `get RegExp.prototype.flags`   | `global`, `ignoreCase`, `multiline`, `dotAll`, `unicode`, `sticky` |
-| `RegExp.prototype[@@match]`    | `global`, `unicode`                                                |
-| `RegExp.prototype[@@matchAll]` | `flags`                                                            |
-| `RegExp.prototype[@@replace]`  | `global`, `unicode`                                                |
-| `RegExp.prototype[@@split]`    | `flags`                                                            |
-| `RegExp.prototype.toString`    | `flags`                                                            |
+| `RegExp` method                     | looks up the following flag-related properties                     |
+| ----------------------------------- | ------------------------------------------------------------------ |
+| `get RegExp.prototype.flags`        | `global`, `ignoreCase`, `multiline`, `dotAll`, `unicode`, `sticky` |
+| `RegExp.prototype[Symbol.match]`    | `global`, `unicode`                                                |
+| `RegExp.prototype[Symbol.matchAll]` | `flags`                                                            |
+| `RegExp.prototype[Symbol.replace]`  | `global`, `unicode`                                                |
+| `RegExp.prototype[Symbol.split]`    | `flags`                                                            |
+| `RegExp.prototype.toString`         | `flags`                                                            |
 
 </details>
 
@@ -778,7 +791,7 @@ console.log(proxyWithNullPrototypeObject.someProperty); // genuine value
 
 ### Checking if an object is an instance of a class
 
-#### Using `instanceof` looks up the `@@hasInstance` property of the class
+#### Using `instanceof` looks up the `%Symbol.hasInstance%` property of the class
 
 ```js
 // User-land

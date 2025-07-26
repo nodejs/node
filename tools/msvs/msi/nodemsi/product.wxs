@@ -73,23 +73,16 @@
       <ComponentRef Id="SetInstallDirPermission" />
     </Feature>
 
-    <Feature Id="corepack"
-             Level="1"
-             Title="!(loc.corepack_Title)"
-             Description="!(loc.corepack_Description)">
-      <ComponentRef Id="CorepackCmdScript"/>
-      <ComponentRef Id="CorepackBashScript"/>
-      <ComponentGroupRef Id="CorepackSourceFiles"/>
-    </Feature>
-
     <Feature Id="npm"
              Level="1"
              Title="!(loc.npm_Title)"
              Description="!(loc.npm_Description)">
       <ComponentRef Id="NpmCmdScript"/>
       <ComponentRef Id="NpmBashScript"/>
+      <ComponentRef Id="NpmPowerShellScript"/>
       <ComponentRef Id="NpxCmdScript"/>
       <ComponentRef Id="NpxBashScript"/>
+      <ComponentRef Id="NpxPowerShellScript"/>
       <ComponentRef Id="NpmConfigurationFile"/>
       <ComponentRef Id="SetInstallDirPermission" />
       <ComponentGroupRef Id="NpmSourceFiles"/>
@@ -208,14 +201,6 @@
     </DirectoryRef>
 
     <DirectoryRef Id="INSTALLDIR">
-      <Component Id="CorepackCmdScript">
-        <File Id="corepack.cmd" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\corepack.cmd"/>
-      </Component>
-
-      <Component Id="CorepackBashScript">
-        <File Id="corepack.sh" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\corepack"/>
-      </Component>
-
       <Component Id="NpmCmdScript">
         <File Id="npm.cmd" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npm.cmd"/>
       </Component>
@@ -224,12 +209,20 @@
         <File Id="npm.sh" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npm"/>
       </Component>
 
+      <Component Id="NpmPowerShellScript">
+        <File Id="npm.ps1" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npm.ps1"/>
+      </Component>
+
       <Component Id="NpxCmdScript">
         <File Id="npx.cmd" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npx.cmd"/>
       </Component>
 
       <Component Id="NpxBashScript">
         <File Id="npx.sh" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npx"/>
+      </Component>
+
+      <Component Id="NpxPowerShellScript">
+        <File Id="npx.ps1" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npx.ps1"/>
       </Component>
 
       <Directory Id="NodeModulesFolder" Name="node_modules">

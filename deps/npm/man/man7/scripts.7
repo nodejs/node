@@ -1,9 +1,9 @@
-.TH "SCRIPTS" "7" "February 2024" "" ""
+.TH "SCRIPTS" "7" "July 2025" "NPM@11.5.1" ""
 .SH "NAME"
 \fBscripts\fR - How npm handles the "scripts" field
 .SS "Description"
 .P
-The \fB"scripts"\fR property of your \fBpackage.json\fR file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running \fBnpm run-script <stage>\fR or \fBnpm run <stage>\fR for short. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e.g. \fBpremyscript\fR, \fBmyscript\fR, \fBpostmyscript\fR). Scripts from dependencies can be run with \fBnpm explore <pkg> -- npm run <stage>\fR.
+The \fB"scripts"\fR property of your \fBpackage.json\fR file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running \fBnpm run <stage>\fR. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e.g. \fBpremyscript\fR, \fBmyscript\fR, \fBpostmyscript\fR). Scripts from dependencies can be run with \fBnpm explore <pkg> -- npm run <stage>\fR.
 .SS "Pre & Post Scripts"
 .P
 To create "pre" or "post" scripts for any scripts defined in the \fB"scripts"\fR section of the \fBpackage.json\fR, simply create another script \fIwith a matching name\fR and add "pre" or "post" to the beginning of them.
@@ -38,6 +38,8 @@ Runs BEFORE the package is packed, i.e. during \fBnpm publish\fR and \fBnpm pack
 Runs on local \fBnpm install\fR without any arguments
 .IP \(bu 4
 Runs AFTER \fBprepublish\fR, but BEFORE \fBprepublishOnly\fR
+.IP \(bu 4
+Runs for a package if it's being installed as a link through \fBnpm install <folder>\fR
 .IP \(bu 4
 NOTE: If a package being installed through git contains a \fBprepare\fR script, its \fBdependencies\fR and \fBdevDependencies\fR will be installed, and the prepare script will be run, before the package is packaged and installed.
 .IP \(bu 4
@@ -227,7 +229,7 @@ If there is a \fBrestart\fR script defined, these events are run, otherwise \fBs
 \fBpostrestart\fR
 .RE 0
 
-.SS "\fB\fBnpm run <user defined>\fR\fR \fI\(la/commands/npm-run-script\(ra\fR"
+.SS "\fB\fBnpm run <user defined>\fR\fR \fI\(la/commands/npm-run\(ra\fR"
 .RS 0
 .IP \(bu 4
 \fBpre<user-defined>\fR
@@ -299,6 +301,23 @@ etc.
 
 .P
 Due to the lack of necessary context, \fBuninstall\fR lifecycle scripts are not implemented and will not function.
+.SS "Working Directory for Scripts"
+.P
+Scripts are always run from the root of the package folder, regardless of what the current working directory is when \fBnpm\fR is invoked. This means your scripts can reliably assume they are running in the package root.
+.P
+If you want your script to behave differently based on the directory you were in when you ran \fBnpm\fR, you can use the \fBINIT_CWD\fR environment variable, which holds the full path you were in when you ran \fBnpm run\fR.
+.SS "Historical Behavior in Older npm Versions"
+.P
+For npm v6 and earlier, scripts were generally run from the root of the package, but there were rare cases and bugs in older versions where this was not guaranteed. If your package must support very old npm versions, you may wish to add a safeguard in your scripts (for example, by checking process.cwd()).
+.P
+For more details, see:
+.RS 0
+.IP \(bu 4
+\fBnpm v7 release notes\fR \fI\(lahttps://github.com/npm/cli/releases/tag/v7.0.0\(ra\fR
+.IP \(bu 4
+\fBDiscussion about script working directory reliability in npm v6 and earlier\fR \fI\(lahttps://github.com/npm/npm/issues/12356\(ra\fR
+.RE 0
+
 .SS "User"
 .P
 When npm is run as root, scripts are always run with the effective uid and gid of the working directory owner.
@@ -372,7 +391,7 @@ If you want to run a make command, you can do so. This works just fine:
 .RE
 .SS "Exiting"
 .P
-Scripts are run by passing the line as a script argument to \fBsh\fR.
+Scripts are run by passing the line as a script argument to \fB/bin/sh\fR on POSIX systems or \fBcmd.exe\fR on Windows. You can control which shell is used by setting the \fB\fBscript-shell\fR\fR \fI\(la/using-npm/config#script-shell\(ra\fR configuration option.
 .P
 If the script exits with a code other than 0, then this will abort the process.
 .P
@@ -389,14 +408,12 @@ Inspect the env to determine where to put things. For instance, if the \fBnpm_co
 Don't prefix your script commands with "sudo". If root permissions are required for some reason, then it'll fail with that error, and the user will sudo the npm command in question.
 .IP \(bu 4
 Don't use \fBinstall\fR. Use a \fB.gyp\fR file for compilation, and \fBprepare\fR for anything else. You should almost never have to explicitly set a preinstall or install script. If you are doing this, please consider if there is another option. The only valid use of \fBinstall\fR or \fBpreinstall\fR scripts is for compilation which must be done on the target architecture.
-.IP \(bu 4
-Scripts are run from the root of the package folder, regardless of what the current working directory is when \fBnpm\fR is invoked. If you want your script to use different behavior based on what subdirectory you're in, you can use the \fBINIT_CWD\fR environment variable, which holds the full path you were in when you ran \fBnpm run\fR.
 .RE 0
 
 .SS "See Also"
 .RS 0
 .IP \(bu 4
-npm help run-script
+npm help run
 .IP \(bu 4
 \fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
 .IP \(bu 4

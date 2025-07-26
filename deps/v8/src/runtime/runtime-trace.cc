@@ -9,7 +9,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
-#include "src/interpreter/bytecode-flags.h"
+#include "src/interpreter/bytecode-flags-and-tokens.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
@@ -38,7 +38,7 @@ void AdvanceToOffsetForTracing(
               interpreter::OperandScale::kSingle));
 }
 
-void PrintRegisterRange(UnoptimizedFrame* frame, std::ostream& os,
+void PrintRegisterRange(UnoptimizedJSFrame* frame, std::ostream& os,
                         interpreter::BytecodeArrayIterator& bytecode_iterator,
                         const int& reg_field_width, const char* arrow_direction,
                         interpreter::Register first_reg, int range) {
@@ -52,7 +52,7 @@ void PrintRegisterRange(UnoptimizedFrame* frame, std::ostream& os,
   }
 }
 
-void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
+void PrintRegisters(UnoptimizedJSFrame* frame, std::ostream& os, bool is_input,
                     interpreter::BytecodeArrayIterator& bytecode_iterator,
                     Handle<Object> accumulator) {
   static const char kAccumulator[] = "accumulator";
@@ -111,8 +111,8 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
   }
 
   JavaScriptStackFrameIterator frame_iterator(isolate);
-  UnoptimizedFrame* frame =
-      reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
+  UnoptimizedJSFrame* frame =
+      reinterpret_cast<UnoptimizedJSFrame*>(frame_iterator.frame());
 
   if (frame->is_interpreted() && !v8_flags.trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -161,8 +161,8 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
   }
 
   JavaScriptStackFrameIterator frame_iterator(isolate);
-  UnoptimizedFrame* frame =
-      reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
+  UnoptimizedJSFrame* frame =
+      reinterpret_cast<UnoptimizedJSFrame*>(frame_iterator.frame());
 
   if (frame->is_interpreted() && !v8_flags.trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -206,26 +206,12 @@ RUNTIME_FUNCTION(Runtime_TraceUpdateFeedback) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(0);
   int slot = args.smi_value_at(1);
-  auto reason = String::cast(args[2]);
+  auto reason = Cast<String>(args[2]);
 
-  int slot_count = function->feedback_vector()->metadata()->slot_count();
-
-  StdoutStream os;
-  os << "[Feedback slot " << slot << "/" << slot_count << " in ";
-  ShortPrint(function->shared(), os);
-  os << " updated to ";
-  function->feedback_vector()->FeedbackSlotPrint(os, FeedbackSlot(slot));
-  os << " - ";
-
-  StringCharacterStream stream(reason);
-  while (stream.HasMore()) {
-    uint16_t character = stream.GetNext();
-    PrintF("%c", character);
-  }
-
-  os << "]" << std::endl;
+  FeedbackVector::TraceFeedbackChange(isolate, *vector, FeedbackSlot(slot),
+                                      reason->ToCString().get());
 
   return ReadOnlyRoots(isolate).undefined_value();
 }

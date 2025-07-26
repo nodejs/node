@@ -8,8 +8,7 @@
 #include "src/builtins/builtins-regexp-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-factory.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/execution/protectors.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
@@ -20,6 +19,8 @@
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 TNode<RawPtrT> StringBuiltinsAssembler::DirectStringData(
     TNode<String> string, TNode<Word32T> string_instance_type) {
@@ -33,9 +34,11 @@ TNode<RawPtrT> StringBuiltinsAssembler::DirectStringData(
 
   BIND(&if_sequential);
   {
-    var_data = RawPtrAdd(
-        ReinterpretCast<RawPtrT>(BitcastTaggedToWord(string)),
-        IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+    static_assert(OFFSET_OF_DATA_START(SeqOneByteString) ==
+                  OFFSET_OF_DATA_START(SeqTwoByteString));
+    var_data = RawPtrAdd(ReinterpretCast<RawPtrT>(BitcastTaggedToWord(string)),
+                         IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
+                                        kHeapObjectTag));
     Goto(&if_join);
   }
 
@@ -57,7 +60,7 @@ TNode<IntPtrT> StringBuiltinsAssembler::CallSearchStringRaw(
   const TNode<ExternalReference> function_addr = ExternalConstant(
       ExternalReference::search_string_raw<SubjectChar, PatternChar>());
   const TNode<ExternalReference> isolate_ptr =
-      ExternalConstant(ExternalReference::isolate_address(isolate()));
+      ExternalConstant(ExternalReference::isolate_address());
 
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_intptr = MachineType::IntPtr();
@@ -118,8 +121,8 @@ TNode<IntPtrT> StringBuiltinsAssembler::SearchOneByteInOneByteString(
                     std::make_pair(MachineType::UintPtr(), search_length)));
   return Select<IntPtrT>(
       WordEqual(result_address, IntPtrConstant(0)),
-      [=] { return IntPtrConstant(-1); },
-      [=] {
+      [=, this] { return IntPtrConstant(-1); },
+      [=, this] {
         return IntPtrAdd(RawPtrSub(result_address, subject_start_ptr),
                          start_position);
       });
@@ -420,7 +423,7 @@ TNode<String> StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(
     TNode<String> value = AllocateSeqTwoByteString(2);
     StoreNoWriteBarrier(
         MachineRepresentation::kWord32, value,
-        IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+        IntPtrConstant(OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag),
         codepoint);
     var_result = value;
     Goto(&return_result);
@@ -441,7 +444,7 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
   static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
   GotoIfNot(IsSetWord32(left_instance_type, kThinStringTagBit), &handle_right);
   {
-    first = LoadObjectField<String>(left, ThinString::kActualOffset);
+    first = LoadObjectField<String>(left, offsetof(ThinString, actual_));
     Goto(&handle_right);
   }
 
@@ -451,7 +454,7 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
   Label allocate(this);
   GotoIfNot(IsSetWord32(right_instance_type, kThinStringTagBit), &allocate);
   {
-    second = LoadObjectField<String>(right, ThinString::kActualOffset);
+    second = LoadObjectField<String>(right, offsetof(ThinString, actual_));
     Goto(&allocate);
   }
 
@@ -464,16 +467,16 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
       Word32And(left_instance_type, right_instance_type);
   TNode<Map> result_map = CAST(Select<Object>(
       IsSetWord32(combined_instance_type, kStringEncodingMask),
-      [=] { return ConsOneByteStringMapConstant(); },
-      [=] { return ConsTwoByteStringMapConstant(); }));
-  TNode<HeapObject> result = AllocateInNewSpace(ConsString::kSize);
+      [=, this] { return ConsOneByteStringMapConstant(); },
+      [=, this] { return ConsTwoByteStringMapConstant(); }));
+  TNode<HeapObject> result = AllocateInNewSpace(sizeof(ConsString));
   StoreMapNoWriteBarrier(result, result_map);
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length);
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kRawHashFieldOffset,
+  StoreObjectFieldNoWriteBarrier(result, offsetof(ConsString, length_), length);
+  StoreObjectFieldNoWriteBarrier(result, offsetof(ConsString, raw_hash_field_),
                                  Int32Constant(String::kEmptyHashField));
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset,
+  StoreObjectFieldNoWriteBarrier(result, offsetof(ConsString, first_),
                                  first.value());
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset,
+  StoreObjectFieldNoWriteBarrier(result, offsetof(ConsString, second_),
                                  second.value());
   return CAST(result);
 }
@@ -544,7 +547,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
                        Int32Constant(kTwoByteStringTag)),
            &two_byte);
     // One-byte sequential string case
-    result = AllocateSeqOneByteString(new_length);
+    result = AllocateNonEmptySeqOneByteString(new_length);
     CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                          IntPtrConstant(0), word_left_length,
                          String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
@@ -556,7 +559,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
     BIND(&two_byte);
     {
       // Two-byte sequential string case
-      result = AllocateSeqTwoByteString(new_length);
+      result = AllocateNonEmptySeqTwoByteString(new_length);
       CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                            IntPtrConstant(0), word_left_length,
                            String::TWO_BYTE_ENCODING,
@@ -596,7 +599,7 @@ void StringBuiltinsAssembler::BranchIfCanDerefIndirectString(
          cannot_deref);
   // Cons string.
   TNode<String> rhs =
-      LoadObjectField<String>(string, ConsString::kSecondOffset);
+      LoadObjectField<String>(string, offsetof(ConsString, second_));
   GotoIf(IsEmptyString(rhs), can_deref);
   Goto(cannot_deref);
 }
@@ -613,10 +616,10 @@ void StringBuiltinsAssembler::DerefIndirectString(TVariable<String>* var_string,
   BIND(&can_deref);
 #endif  // DEBUG
 
-  static_assert(static_cast<int>(ThinString::kActualOffset) ==
-                static_cast<int>(ConsString::kFirstOffset));
-  *var_string =
-      LoadObjectField<String>(var_string->value(), ThinString::kActualOffset);
+  static_assert(static_cast<int>(offsetof(ThinString, actual_)) ==
+                static_cast<int>(offsetof(ConsString, first_)));
+  *var_string = LoadObjectField<String>(var_string->value(),
+                                        offsetof(ThinString, actual_));
 }
 
 void StringBuiltinsAssembler::MaybeDerefIndirectString(
@@ -663,9 +666,9 @@ TNode<String> StringBuiltinsAssembler::DerefIndirectString(
   Label deref(this);
   BranchIfCanDerefIndirectString(string, instance_type, &deref, cannot_deref);
   BIND(&deref);
-  static_assert(static_cast<int>(ThinString::kActualOffset) ==
-                static_cast<int>(ConsString::kFirstOffset));
-  return LoadObjectField<String>(string, ThinString::kActualOffset);
+  static_assert(static_cast<int>(offsetof(ThinString, actual_)) ==
+                static_cast<int>(offsetof(ConsString, first_)));
+  return LoadObjectField<String>(string, offsetof(ThinString, actual_));
 }
 
 TF_BUILTIN(StringAdd_CheckNone, StringBuiltinsAssembler) {
@@ -729,7 +732,8 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
     TNode<IntPtrT> length = IntPtrMin(lhs_length, rhs_length);
 
     // Loop over the {lhs} and {rhs} strings to see if they are equal.
-    constexpr int kBeginOffset = SeqOneByteString::kHeaderSize - kHeapObjectTag;
+    constexpr int kBeginOffset =
+        OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag;
     TNode<IntPtrT> begin = IntPtrConstant(kBeginOffset);
     TNode<IntPtrT> end = IntPtrAdd(begin, length);
     TVARIABLE(IntPtrT, var_offset, begin);
@@ -757,8 +761,8 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
       GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
     }
 
-    var_offset = IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag +
-                                kChunkSize);
+    var_offset = IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
+                                kHeapObjectTag + kChunkSize);
 
     Goto(&chunk_loop);
 
@@ -933,6 +937,42 @@ TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
                                      StringComparison::kGreaterThanOrEqual);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+// Duplicate of string builtins for wasm. The only difference is that these
+// builtins are listed in WASM_BUILTIN_LIST. Builtins in this list are
+// instrumented to check if they are running on a secondary stack and switch
+// back to the central stack before calling a runtime function or a JS builtin
+// if needed.
+TF_BUILTIN(WasmJSStringEqual, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  auto length = UncheckedParameter<IntPtrT>(Descriptor::kLength);
+  // Callers must handle the case where {lhs} and {rhs} refer to the same
+  // String object.
+  CSA_DCHECK(this, TaggedNotEqual(left, right));
+  GenerateStringEqual(left, right, length);
+}
+
+TF_BUILTIN(WasmStringAdd_CheckNone, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  TNode<ContextOrEmptyContext> context =
+      UncheckedParameter<ContextOrEmptyContext>(Descriptor::kContext);
+  CSA_DCHECK(this, IsZeroOrContext(context));
+  Return(StringAdd(context, left, right));
+}
+
+TF_BUILTIN(WasmStringCompare, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  GenerateStringRelationalComparison(left, right, StringComparison::kCompare);
+}
+#endif
+
+#ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+
+// NOTE: This needs to be kept in sync with the Turboshaft implementation in
+// `builtins-string-tsa.cc`.
 TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
   auto receiver = Parameter<String>(Descriptor::kReceiver);
   auto position = UncheckedParameter<IntPtrT>(Descriptor::kPosition);
@@ -951,6 +991,8 @@ TF_BUILTIN(StringFromCodePointAt, StringBuiltinsAssembler) {
 // ES6 section 21.1 String Objects
 
 // ES6 #sec-string.fromcharcode
+// NOTE: This needs to be kept in sync with the Turboshaft implementation in
+// `builtins-string-tsa.cc`.
 TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
@@ -1003,7 +1045,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
       // The {code16} fits into the SeqOneByteString {one_byte_result}.
       TNode<IntPtrT> offset = ElementOffsetFromIndex(
           var_max_index.value(), UINT8_ELEMENTS,
-          SeqOneByteString::kHeaderSize - kHeapObjectTag);
+          OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag);
       StoreNoWriteBarrier(MachineRepresentation::kWord8, one_byte_result,
                           offset, code16);
       var_max_index = IntPtrAdd(var_max_index.value(), IntPtrConstant(1));
@@ -1025,9 +1067,9 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
                          String::TWO_BYTE_ENCODING);
 
     // Write the character that caused the 8-bit to 16-bit fault.
-    TNode<IntPtrT> max_index_offset =
-        ElementOffsetFromIndex(var_max_index.value(), UINT16_ELEMENTS,
-                               SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+    TNode<IntPtrT> max_index_offset = ElementOffsetFromIndex(
+        var_max_index.value(), UINT16_ELEMENTS,
+        OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
     StoreNoWriteBarrier(MachineRepresentation::kWord16, two_byte_result,
                         max_index_offset, code16);
     var_max_index = IntPtrAdd(var_max_index.value(), IntPtrConstant(1));
@@ -1044,7 +1086,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
 
           TNode<IntPtrT> offset = ElementOffsetFromIndex(
               var_max_index.value(), UINT16_ELEMENTS,
-              SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+              OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
           StoreNoWriteBarrier(MachineRepresentation::kWord16, two_byte_result,
                               offset, code16);
           var_max_index = IntPtrAdd(var_max_index.value(), IntPtrConstant(1));
@@ -1055,8 +1097,10 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
   }
 }
 
+#endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
-    const TNode<Context> context, const TNode<Object> object,
+    const TNode<Context> context, const TNode<JSAny> object,
     const TNode<Object> maybe_string, Handle<Symbol> symbol,
     DescriptorIndexNameValue additional_property_to_check,
     const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
@@ -1132,10 +1176,10 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   BIND(&out);
 }
 
-const TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(
+TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(
     const TNode<Context> context, const TNode<String> string) {
-  const TNode<String> dollar_string = HeapConstant(
-      isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
+  const TNode<String> dollar_string =
+      HeapConstantNoHole(isolate()->factory()->dollar_string());
   const TNode<Smi> dollar_ix = CAST(CallBuiltin(
       Builtin::kStringIndexOf, context, string, dollar_string, SmiConstant(0)));
   return dollar_ix;
@@ -1159,7 +1203,7 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
   // TODO(jgruber): Possibly extend this in the future to handle more complex
   // cases without runtime calls.
 
-  const TNode<Smi> dollar_index = IndexOfDollarChar(context, replace_string);
+  TNode<Smi> dollar_index = IndexOfDollarChar(context, replace_string);
   Branch(SmiIsNegative(dollar_index), &out, &runtime);
 
   BIND(&runtime);
@@ -1185,9 +1229,9 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  const auto search = Parameter<Object>(Descriptor::kSearch);
-  const auto replace = Parameter<Object>(Descriptor::kReplace);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  const auto search = Parameter<JSAny>(Descriptor::kSearch);
+  const auto replace = Parameter<JSAny>(Descriptor::kReplace);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<Smi> smi_zero = SmiConstant(0);
@@ -1203,11 +1247,11 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
         DescriptorIndexNameValue{
             JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
             RootIndex::kreplace_symbol, Context::REGEXP_REPLACE_FUNCTION_INDEX},
-        [=]() {
+        [=, this]() {
           Return(CallBuiltin(Builtin::kRegExpReplace, context, search, receiver,
                              replace));
         },
-        [=](TNode<Object> fn) {
+        [=, this](TNode<Object> fn) {
           Return(Call(context, fn, search, receiver, replace));
         });
     Goto(&next);
@@ -1349,8 +1393,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   char const* method_name = "String.prototype.matchAll";
 
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_regexp = Parameter<Object>(Descriptor::kRegexp);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto maybe_regexp = Parameter<JSAny>(Descriptor::kRegexp);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // 1. Let O be ? RequireObjectCoercible(this value).
@@ -1370,14 +1414,14 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     //   iii. If ? ToString(flags) does not contain "g", throw a
     //        TypeError exception.
     GotoIf(TaggedIsSmi(maybe_regexp), &next);
-    TNode<HeapObject> heap_maybe_regexp = CAST(maybe_regexp);
+    TNode<JSAnyNotSmi> heap_maybe_regexp = CAST(maybe_regexp);
     regexp_asm.BranchIfFastRegExpForMatch(context, heap_maybe_regexp, &fast,
                                           &slow);
 
     BIND(&fast);
     {
-      TNode<BoolT> is_global = regexp_asm.FlagGetter(context, heap_maybe_regexp,
-                                                     JSRegExp::kGlobal, true);
+      TNode<BoolT> is_global =
+          regexp_asm.FastFlagGetter(CAST(heap_maybe_regexp), JSRegExp::kGlobal);
       Branch(is_global, &next, &throw_exception);
     }
 
@@ -1420,7 +1464,7 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     Return(
         RegExpPrototypeMatchAllImpl(context, native_context, maybe_regexp, s));
   };
-  auto if_generic_call = [=](TNode<Object> fn) {
+  auto if_generic_call = [=, this](TNode<Object> fn) {
     Return(Call(context, fn, maybe_regexp, receiver));
   };
   MaybeCallFunctionAtSymbol(
@@ -1434,8 +1478,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   TNode<String> s = ToString_Inline(context, receiver);
 
   // 4. Let rx be ? RegExpCreate(R, "g").
-  TNode<Object> rx = regexp_asm.RegExpCreate(context, native_context,
-                                             maybe_regexp, StringConstant("g"));
+  TNode<JSAny> rx = regexp_asm.RegExpCreate(context, native_context,
+                                            maybe_regexp, StringConstant("g"));
 
   // 5. Return ? Invoke(rx, @@matchAll, « S »).
   TNode<Object> match_all_func =
@@ -1457,10 +1501,10 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
   // Try to use cached one byte characters.
   {
-    TNode<Smi> length_smi =
-        Select<Smi>(TaggedIsSmi(limit_number),
-                    [=] { return SmiMin(CAST(limit_number), subject_length); },
-                    [=] { return subject_length; });
+    TNode<Smi> length_smi = Select<Smi>(
+        TaggedIsSmi(limit_number),
+        [=, this] { return SmiMin(CAST(limit_number), subject_length); },
+        [=] { return subject_length; });
     TNode<IntPtrT> length = SmiToIntPtr(length_smi);
 
     ToDirectStringAssembler to_direct(state(), subject_string);
@@ -1468,8 +1512,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
 
     // The extracted direct string may be two-byte even though the wrapping
     // string is one-byte.
-    GotoIfNot(IsOneByteStringInstanceType(to_direct.instance_type()),
-              &call_runtime);
+    GotoIfNot(to_direct.IsOneByte(), &call_runtime);
 
     TNode<FixedArray> elements =
         CAST(AllocateFixedArray(PACKED_ELEMENTS, length));
@@ -1477,7 +1520,6 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<RawPtrT> string_data =
         to_direct.PointerToData(&fill_thehole_and_call_runtime);
     TNode<IntPtrT> string_data_offset = to_direct.offset();
-    TNode<FixedArray> cache = SingleCharacterStringTableConstant();
 
     BuildFastLoop<IntPtrT>(
         IntPtrConstant(0), length,
@@ -1487,14 +1529,13 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
           // ToDirectStringAssembler.PointerToData().
           CSA_DCHECK(this, WordEqual(to_direct.PointerToData(&call_runtime),
                                      string_data));
-          TNode<Int32T> char_code =
-              UncheckedCast<Int32T>(Load(MachineType::Uint8(), string_data,
-                                         IntPtrAdd(index, string_data_offset)));
-          TNode<UintPtrT> code_index = ChangeUint32ToWord(char_code);
-          TNode<Object> entry = LoadFixedArrayElement(cache, code_index);
+          TNode<Uint8T> char_code =
+              Load<Uint8T>(string_data, IntPtrAdd(index, string_data_offset));
+          TNode<String> entry = StringFromSingleOneByteCharCode(char_code);
 
-          CSA_DCHECK(this, Word32BinaryNot(IsUndefined(entry)));
-
+          // TODO(ishell): make it possible to skip write barriers here.
+          // The single-character strings are in RO space so it should
+          // be safe to skip the write barriers.
           StoreFixedArrayElement(elements, index, entry);
         },
         1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
@@ -1531,9 +1572,9 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  TNode<Object> receiver = args.GetReceiver();
-  const TNode<Object> separator = args.GetOptionalArgumentValue(kSeparatorArg);
-  const TNode<Object> limit = args.GetOptionalArgumentValue(kLimitArg);
+  TNode<JSAny> receiver = args.GetReceiver();
+  const TNode<JSAny> separator = args.GetOptionalArgumentValue(kSeparatorArg);
+  const TNode<JSAny> limit = args.GetOptionalArgumentValue(kLimitArg);
   auto context = Parameter<NativeContext>(Descriptor::kContext);
 
   TNode<Smi> smi_zero = SmiConstant(0);
@@ -1548,8 +1589,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
                                RootIndex::ksplit_symbol,
                                Context::REGEXP_SPLIT_FUNCTION_INDEX},
       [&]() {
-        args.PopAndReturn(CallBuiltin(Builtin::kRegExpSplit, context, separator,
-                                      receiver, limit));
+        args.PopAndReturn(CallBuiltin<JSAny>(Builtin::kRegExpSplit, context,
+                                             separator, receiver, limit));
       },
       [&](TNode<Object> fn) {
         args.PopAndReturn(Call(context, fn, separator, receiver, limit));
@@ -1559,8 +1600,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
   TNode<String> subject_string = ToString_Inline(context, receiver);
   TNode<Number> limit_number = Select<Number>(
-      IsUndefined(limit), [=] { return NumberConstant(kMaxUInt32); },
-      [=] { return ToUint32(context, limit); });
+      IsUndefined(limit), [=, this] { return NumberConstant(kMaxUInt32); },
+      [=, this] { return ToUint32(context, limit); });
   const TNode<String> separator_string = ToString_Inline(context, separator);
 
   Label return_empty_array(this);
@@ -1605,9 +1646,9 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     BIND(&next);
   }
 
-  const TNode<Object> result =
-      CallRuntime(Runtime::kStringSplit, context, subject_string,
-                  separator_string, limit_number);
+  const TNode<JSAny> result =
+      CallRuntime<JSAny>(Runtime::kStringSplit, context, subject_string,
+                         separator_string, limit_number);
   args.PopAndReturn(result);
 
   BIND(&return_empty_array);
@@ -1799,8 +1840,9 @@ void StringBuiltinsAssembler::CopyStringCharacters(
 
   ElementsKind from_kind = from_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
   ElementsKind to_kind = to_one_byte ? UINT8_ELEMENTS : UINT16_ELEMENTS;
-  static_assert(SeqOneByteString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-  int header_size = SeqOneByteString::kHeaderSize - kHeapObjectTag;
+  static_assert(OFFSET_OF_DATA_START(SeqOneByteString) ==
+                OFFSET_OF_DATA_START(SeqTwoByteString));
+  int header_size = OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag;
   TNode<IntPtrT> from_offset =
       ElementOffsetFromIndex(from_index, from_kind, header_size);
   TNode<IntPtrT> to_offset =
@@ -1852,20 +1894,22 @@ void StringBuiltinsAssembler::CopyStringCharacters(
 // given character range using CopyStringCharacters.
 // |from_string| must be a sequential string.
 // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
+// |character_count| > 0.
 template <typename T>
 TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
-    TNode<T> from, TNode<Int32T> from_instance_type, TNode<IntPtrT> from_index,
+    TNode<T> from, TNode<BoolT> from_is_one_byte, TNode<IntPtrT> from_index,
     TNode<IntPtrT> character_count) {
+  CSA_DCHECK(this, IntPtrGreaterThan(character_count, IntPtrConstant(0)));
+
   Label end(this), one_byte_sequential(this), two_byte_sequential(this);
   TVARIABLE(String, var_result);
 
-  Branch(IsOneByteStringInstanceType(from_instance_type), &one_byte_sequential,
-         &two_byte_sequential);
+  Branch(from_is_one_byte, &one_byte_sequential, &two_byte_sequential);
 
   // The subject string is a sequential one-byte string.
   BIND(&one_byte_sequential);
   {
-    TNode<String> result = AllocateSeqOneByteString(
+    TNode<String> result = AllocateNonEmptySeqOneByteString(
         Unsigned(TruncateIntPtrToInt32(character_count)));
     CopyStringCharacters<T>(from, result, from_index, IntPtrConstant(0),
                             character_count, String::ONE_BYTE_ENCODING,
@@ -1883,9 +1927,9 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
     // the amount of branching.
     // For a more readable version of this logic, see {StringFromTwoByteSlice}
     // in wasm.tq.
-    TNode<IntPtrT> start_offset =
-        ElementOffsetFromIndex(from_index, UINT16_ELEMENTS,
-                               SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+    TNode<IntPtrT> start_offset = ElementOffsetFromIndex(
+        from_index, UINT16_ELEMENTS,
+        OFFSET_OF_DATA_START(SeqTwoByteString) - kHeapObjectTag);
     TNode<IntPtrT> end_offset = IntPtrAdd(
         start_offset, ElementOffsetFromIndex(character_count, UINT16_ELEMENTS));
     TNode<IntPtrT> eight_char_loop_end = IntPtrSub(
@@ -1939,7 +1983,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
     GotoIf(Uint32GreaterThan(var_bits.value(), Uint32Constant(0xFF)), &twobyte);
     // Fallthrough: only one-byte characters in the to-be-copied range.
     {
-      TNode<String> result = AllocateSeqOneByteString(
+      TNode<String> result = AllocateNonEmptySeqOneByteString(
           Unsigned(TruncateIntPtrToInt32(character_count)));
       CopyStringCharacters<T>(from, result, from_index, IntPtrConstant(0),
                               character_count, String::TWO_BYTE_ENCODING,
@@ -1950,7 +1994,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
 
     BIND(&twobyte);
     {
-      TNode<String> result = AllocateSeqTwoByteString(
+      TNode<String> result = AllocateNonEmptySeqTwoByteString(
           Unsigned(TruncateIntPtrToInt32(character_count)));
       CopyStringCharacters<T>(from, result, from_index, IntPtrConstant(0),
                               character_count, String::TWO_BYTE_ENCODING,
@@ -1993,7 +2037,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
 
   TNode<String> direct_string = to_direct.TryToDirect(&runtime);
   TNode<IntPtrT> offset = IntPtrAdd(from, to_direct.offset());
-  const TNode<Int32T> instance_type = to_direct.instance_type();
+  const TNode<BoolT> is_one_byte = to_direct.IsOneByte();
 
   // The subject string can only be external or sequential string of either
   // encoding at this point.
@@ -2009,8 +2053,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
 
       // Allocate new sliced string.
       Label one_byte_slice(this), two_byte_slice(this);
-      Branch(IsOneByteStringInstanceType(to_direct.instance_type()),
-             &one_byte_slice, &two_byte_slice);
+      Branch(is_one_byte, &one_byte_slice, &two_byte_slice);
 
       BIND(&one_byte_slice);
       {
@@ -2035,7 +2078,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
     // encoding at this point.
     GotoIf(to_direct.is_external(), &external_string);
 
-    var_result = AllocAndCopyStringCharacters(direct_string, instance_type,
+    var_result = AllocAndCopyStringCharacters(direct_string, is_one_byte,
                                               offset, substr_length);
     Goto(&end);
   }
@@ -2047,7 +2090,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
         to_direct.PointerToString(&runtime);
 
     var_result = AllocAndCopyStringCharacters(
-        fake_sequential_string, instance_type, offset, substr_length);
+        fake_sequential_string, is_one_byte, offset, substr_length);
 
     Goto(&end);
   }
@@ -2090,6 +2133,8 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
   BIND(&end);
   return var_result.value();
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

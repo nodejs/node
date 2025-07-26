@@ -4,6 +4,8 @@
 
 #include "src/objects/js-regexp.h"
 
+#include <optional>
+
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/objects/code.h"
@@ -11,14 +13,13 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
-Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
-    Isolate* isolate, Handle<RegExpMatchInfo> match_info,
-    Handle<Object> maybe_names) {
-  Handle<JSRegExpResultIndices> indices(Handle<JSRegExpResultIndices>::cast(
-      isolate->factory()->NewJSObjectFromMap(
+DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
+    Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
+    DirectHandle<Object> maybe_names) {
+  DirectHandle<JSRegExpResultIndices> indices(
+      Cast<JSRegExpResultIndices>(isolate->factory()->NewJSObjectFromMap(
           isolate->regexp_result_indices_map())));
 
   // Initialize indices length to avoid having a partially initialized object
@@ -26,27 +27,28 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   indices->set_length(Smi::zero());
 
   // Build indices array from RegExpMatchInfo.
-  int num_indices = match_info->NumberOfCaptureRegisters();
+  int num_indices = match_info->number_of_capture_registers();
   int num_results = num_indices >> 1;
-  Handle<FixedArray> indices_array =
+  DirectHandle<FixedArray> indices_array =
       isolate->factory()->NewFixedArray(num_results);
-  JSArray::SetContent(indices, indices_array);
+  JSArray::SetContent(isolate, indices, indices_array);
 
   for (int i = 0; i < num_results; i++) {
-    int base_offset = i * 2;
-    int start_offset = match_info->Capture(base_offset);
-    int end_offset = match_info->Capture(base_offset + 1);
+    const int start_offset =
+        match_info->capture(RegExpMatchInfo::capture_start_index(i));
+    const int end_offset =
+        match_info->capture(RegExpMatchInfo::capture_end_index(i));
 
     // Any unmatched captures are set to undefined, otherwise we set them to a
     // subarray of the indices.
     if (start_offset == -1) {
       indices_array->set(i, ReadOnlyRoots(isolate).undefined_value());
     } else {
-      Handle<FixedArray> indices_sub_array(
+      DirectHandle<FixedArray> indices_sub_array(
           isolate->factory()->NewFixedArray(2));
       indices_sub_array->set(0, Smi::FromInt(start_offset));
       indices_sub_array->set(1, Smi::FromInt(end_offset));
-      Handle<JSArray> indices_sub_jsarray =
+      DirectHandle<JSArray> indices_sub_jsarray =
           isolate->factory()->NewJSArrayWithElements(indices_sub_array,
                                                      PACKED_SMI_ELEMENTS, 2);
       indices_array->set(i, *indices_sub_jsarray);
@@ -64,56 +66,62 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
 
   // Create a groups property which returns a dictionary of named captures to
   // their corresponding capture indices.
-  Handle<FixedArray> names(Handle<FixedArray>::cast(maybe_names));
+  auto names = Cast<FixedArray>(maybe_names);
   int num_names = names->length() >> 1;
-  Handle<HeapObject> group_names;
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  DirectHandle<HeapObject> group_names;
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     group_names = isolate->factory()->NewSwissNameDictionary(num_names);
   } else {
     group_names = isolate->factory()->NewNameDictionary(num_names);
   }
+  DirectHandle<PropertyDictionary> group_names_dict =
+      Cast<PropertyDictionary>(group_names);
   for (int i = 0; i < num_names; i++) {
     int base_offset = i * 2;
     int name_offset = base_offset;
     int index_offset = base_offset + 1;
-    Handle<String> name(String::cast(names->get(name_offset)), isolate);
-    Tagged<Smi> smi_index = Smi::cast(names->get(index_offset));
-    Handle<Object> capture_indices(indices_array->get(smi_index.value()),
-                                   isolate);
+    DirectHandle<String> name(Cast<String>(names->get(name_offset)), isolate);
+    Tagged<Smi> smi_index = Cast<Smi>(names->get(index_offset));
+    DirectHandle<Object> capture_indices(indices_array->get(smi_index.value()),
+                                         isolate);
     if (!IsUndefined(*capture_indices, isolate)) {
-      capture_indices = Handle<JSArray>::cast(capture_indices);
+      capture_indices = Cast<JSArray>(capture_indices);
     }
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      group_names = SwissNameDictionary::Add(
-          isolate, Handle<SwissNameDictionary>::cast(group_names), name,
-          capture_indices, PropertyDetails::Empty());
+    InternalIndex group_entry = group_names_dict->FindEntry(isolate, name);
+    // Duplicate group entries are possible if the capture groups are in
+    // different alternatives, i.e. only one of them can actually match.
+    // Therefore when we find a duplicate entry, either the current entry is
+    // undefined (didn't match anything) or the indices for the current capture
+    // are undefined. In the latter case we don't do anything, in the former
+    // case we update the entry.
+    if (group_entry.is_found()) {
+      DCHECK(v8_flags.js_regexp_duplicate_named_groups);
+      if (!IsUndefined(*capture_indices, isolate)) {
+        DCHECK(IsUndefined(group_names_dict->ValueAt(group_entry), isolate));
+        group_names_dict->ValueAtPut(group_entry, *capture_indices);
+      }
     } else {
-      group_names = NameDictionary::Add(
-          isolate, Handle<NameDictionary>::cast(group_names), name,
-          capture_indices, PropertyDetails::Empty());
+      group_names_dict =
+          PropertyDictionary::Add(isolate, group_names_dict, name,
+                                  capture_indices, PropertyDetails::Empty());
     }
   }
 
   // Convert group_names to a JSObject and store at the groups property of the
   // result indices.
-  Handle<FixedArrayBase> elements = isolate->factory()->empty_fixed_array();
-  Handle<HeapObject> null =
-      Handle<HeapObject>::cast(isolate->factory()->null_value());
-  Handle<JSObject> js_group_names =
+  DirectHandle<FixedArrayBase> elements =
+      isolate->factory()->empty_fixed_array();
+  DirectHandle<Null> null = isolate->factory()->null_value();
+  DirectHandle<JSObject> js_group_names =
       isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
           null, group_names, elements);
   indices->FastPropertyAtPut(groups_index, *js_group_names);
   return indices;
 }
 
-uint32_t JSRegExp::backtrack_limit() const {
-  CHECK_EQ(type_tag(), IRREGEXP);
-  return static_cast<uint32_t>(Smi::ToInt(DataAt(kIrregexpBacktrackLimit)));
-}
-
 // static
-base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
-    Isolate* isolate, Handle<String> flags) {
+std::optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
+    Isolate* isolate, DirectHandle<String> flags) {
   const int length = flags->length();
 
   // A longer flags string cannot be valid.
@@ -123,7 +131,7 @@ base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
   FlatStringReader reader(isolate, String::Flatten(isolate, flags));
 
   for (int i = 0; i < length; i++) {
-    base::Optional<RegExpFlag> flag = JSRegExp::FlagFromChar(reader.Get(i));
+    std::optional<RegExpFlag> flag = JSRegExp::FlagFromChar(reader.Get(i));
     if (!flag.has_value()) return {};
     if (value & flag.value()) return {};  // Duplicate.
     value |= flag.value();
@@ -133,111 +141,40 @@ base::Optional<JSRegExp::Flags> JSRegExp::FlagsFromString(
 }
 
 // static
-Handle<String> JSRegExp::StringFromFlags(Isolate* isolate,
-                                         JSRegExp::Flags flags) {
+DirectHandle<String> JSRegExp::StringFromFlags(Isolate* isolate,
+                                               JSRegExp::Flags flags) {
   FlagsBuffer buffer;
   return isolate->factory()->NewStringFromAsciiChecked(
       FlagsToString(flags, &buffer));
 }
 
 // static
-MaybeHandle<JSRegExp> JSRegExp::New(Isolate* isolate, Handle<String> pattern,
-                                    Flags flags, uint32_t backtrack_limit) {
-  Handle<JSFunction> constructor = isolate->regexp_function();
-  Handle<JSRegExp> regexp =
-      Handle<JSRegExp>::cast(isolate->factory()->NewJSObject(constructor));
+MaybeDirectHandle<JSRegExp> JSRegExp::New(Isolate* isolate,
+                                          DirectHandle<String> pattern,
+                                          Flags flags,
+                                          uint32_t backtrack_limit) {
+  DirectHandle<JSFunction> constructor = isolate->regexp_function();
+  DirectHandle<JSRegExp> regexp =
+      Cast<JSRegExp>(isolate->factory()->NewJSObject(constructor));
+
+  // Clear the data field, as a GC can be triggered before the field is set
+  // during compilation.
+  regexp->clear_data();
 
   return JSRegExp::Initialize(regexp, pattern, flags, backtrack_limit);
 }
 
-Tagged<Object> JSRegExp::code(bool is_latin1) const {
-  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  Tagged<Object> value = DataAt(code_index(is_latin1));
-  DCHECK(IsSmi(value) || IsCode(value));
-  return value;
-}
-
-void JSRegExp::set_code(bool is_latin1, Handle<Code> code) {
-  SetDataAt(code_index(is_latin1), *code);
-}
-
-Tagged<Object> JSRegExp::bytecode(bool is_latin1) const {
-  DCHECK(type_tag() == JSRegExp::IRREGEXP ||
-         type_tag() == JSRegExp::EXPERIMENTAL);
-  return DataAt(bytecode_index(is_latin1));
-}
-
-void JSRegExp::set_bytecode_and_trampoline(Isolate* isolate,
-                                           Handle<ByteArray> bytecode) {
-  SetDataAt(kIrregexpLatin1BytecodeIndex, *bytecode);
-  SetDataAt(kIrregexpUC16BytecodeIndex, *bytecode);
-
-  Handle<Code> trampoline = BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
-  SetDataAt(JSRegExp::kIrregexpLatin1CodeIndex, *trampoline);
-  SetDataAt(JSRegExp::kIrregexpUC16CodeIndex, *trampoline);
-}
-
-bool JSRegExp::ShouldProduceBytecode() {
-  return v8_flags.regexp_interpret_all ||
-         (v8_flags.regexp_tier_up && !MarkedForTierUp());
-}
-
-// Only irregexps are subject to tier-up.
-bool JSRegExp::CanTierUp() {
-  return v8_flags.regexp_tier_up && type_tag() == JSRegExp::IRREGEXP;
-}
-
-// An irregexp is considered to be marked for tier up if the tier-up ticks
-// value reaches zero.
-bool JSRegExp::MarkedForTierUp() {
-  DCHECK(IsFixedArray(data()));
-
-  if (!CanTierUp()) {
-    return false;
-  }
-
-  return Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) == 0;
-}
-
-void JSRegExp::ResetLastTierUpTick() {
-  DCHECK(v8_flags.regexp_tier_up);
-  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) + 1;
-  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                                Smi::FromInt(tier_up_ticks));
-}
-
-void JSRegExp::TierUpTick() {
-  DCHECK(v8_flags.regexp_tier_up);
-  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex));
-  if (tier_up_ticks == 0) {
-    return;
-  }
-  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                                Smi::FromInt(tier_up_ticks - 1));
-}
-
-void JSRegExp::MarkTierUpForNextExec() {
-  DCHECK(v8_flags.regexp_tier_up);
-  DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                                Smi::zero());
-}
-
 // static
-MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
-                                           Handle<String> source,
-                                           Handle<String> flags_string) {
+MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(
+    DirectHandle<JSRegExp> regexp, DirectHandle<String> source,
+    DirectHandle<String> flags_string) {
   Isolate* isolate = regexp->GetIsolate();
-  base::Optional<Flags> flags =
-      JSRegExp::FlagsFromString(isolate, flags_string);
+  std::optional<Flags> flags = JSRegExp::FlagsFromString(isolate, flags_string);
   if (!flags.has_value() ||
       !RegExp::VerifyFlags(JSRegExp::AsRegExpFlags(flags.value()))) {
     THROW_NEW_ERROR(
         isolate,
-        NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string),
-        JSRegExp);
+        NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string));
   }
   return Initialize(regexp, source, flags.value());
 }
@@ -253,9 +190,14 @@ bool IsLineTerminator(int c) {
 // WriteEscapedRegExpSource into a single function to deduplicate dispatch logic
 // and move related code closer to each other.
 template <typename Char>
-int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
+uint32_t CountAdditionalEscapeChars(DirectHandle<String> source,
+                                    bool* needs_escapes_out) {
   DisallowGarbageCollection no_gc;
-  int escapes = 0;
+  uint32_t escapes = 0;
+  // The maximum growth-factor is 5 (for \u2028 and \u2029). Make sure that we
+  // won't overflow |escapes| given the current constraints on string length.
+  static_assert(uint64_t{String::kMaxLength} * 5 <
+                std::numeric_limits<decltype(escapes)>::max());
   bool needs_escapes = false;
   bool in_character_class = false;
   base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
@@ -294,31 +236,31 @@ int CountAdditionalEscapeChars(Handle<String> source, bool* needs_escapes_out) {
     }
   }
   DCHECK(!in_character_class);
-  DCHECK_GE(escapes, 0);
   DCHECK_IMPLIES(escapes != 0, needs_escapes);
   *needs_escapes_out = needs_escapes;
   return escapes;
 }
 
 template <typename Char>
-void WriteStringToCharVector(base::Vector<Char> v, int* d, const char* string) {
+void WriteStringToCharVector(base::Vector<Char> v, uint32_t* d,
+                             const char* string) {
   int s = 0;
   while (string[s] != '\0') v[(*d)++] = string[s++];
 }
 
 template <typename Char, typename StringType>
-Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
-                                            Handle<StringType> result) {
+DirectHandle<StringType> WriteEscapedRegExpSource(
+    DirectHandle<String> source, DirectHandle<StringType> result) {
   DisallowGarbageCollection no_gc;
   base::Vector<const Char> src = source->GetCharVector<Char>(no_gc);
   base::Vector<Char> dst(result->GetChars(no_gc), result->length());
-  int s = 0;
-  int d = 0;
+  uint32_t s = 0;
+  uint32_t d = 0;
   bool in_character_class = false;
-  while (s < src.length()) {
+  while (s < src.size()) {
     const Char c = src[s];
     if (c == '\\') {
-      if (s + 1 < src.length() && IsLineTerminator(src[s + 1])) {
+      if (s + 1 < src.size() && IsLineTerminator(src[s + 1])) {
         // This '\' is ignored since the next character itself will be escaped.
         s++;
         continue;
@@ -326,7 +268,7 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
         // Escape. Copy this and next character.
         dst[d++] = src[s++];
       }
-      if (s == src.length()) break;
+      if (s == src.size()) break;
     } else if (c == '/' && !in_character_class) {
       // Not escaped forward-slash needs escape.
       dst[d++] = '\\';
@@ -360,28 +302,28 @@ Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
   return result;
 }
 
-MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
-                                       Handle<String> source) {
+MaybeDirectHandle<String> EscapeRegExpSource(Isolate* isolate,
+                                             DirectHandle<String> source) {
   DCHECK(source->IsFlat());
   if (source->length() == 0) return isolate->factory()->query_colon_string();
   bool one_byte = String::IsOneByteRepresentationUnderneath(*source);
   bool needs_escapes = false;
-  int additional_escape_chars =
+  uint32_t additional_escape_chars =
       one_byte ? CountAdditionalEscapeChars<uint8_t>(source, &needs_escapes)
                : CountAdditionalEscapeChars<base::uc16>(source, &needs_escapes);
   if (!needs_escapes) return source;
-  int length = source->length() + additional_escape_chars;
+  DCHECK_LE(static_cast<uint64_t>(source->length()) + additional_escape_chars,
+            std::numeric_limits<uint32_t>::max());
+  uint32_t length = source->length() + additional_escape_chars;
   if (one_byte) {
-    Handle<SeqOneByteString> result;
+    DirectHandle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               isolate->factory()->NewRawOneByteString(length),
-                               String);
+                               isolate->factory()->NewRawOneByteString(length));
     return WriteEscapedRegExpSource<uint8_t>(source, result);
   } else {
-    Handle<SeqTwoByteString> result;
+    DirectHandle<SeqTwoByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
-                               isolate->factory()->NewRawTwoByteString(length),
-                               String);
+                               isolate->factory()->NewRawTwoByteString(length));
     return WriteEscapedRegExpSource<base::uc16>(source, result);
   }
 }
@@ -389,9 +331,10 @@ MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
 }  // namespace
 
 // static
-MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
-                                           Handle<String> source, Flags flags,
-                                           uint32_t backtrack_limit) {
+MaybeDirectHandle<JSRegExp> JSRegExp::Initialize(DirectHandle<JSRegExp> regexp,
+                                                 DirectHandle<String> source,
+                                                 Flags flags,
+                                                 uint32_t backtrack_limit) {
   Isolate* isolate = regexp->GetIsolate();
   Factory* factory = isolate->factory();
   // If source is the empty string we set it to "(?:)" instead as
@@ -400,15 +343,13 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
 
   source = String::Flatten(isolate, source);
 
-  RETURN_ON_EXCEPTION(
-      isolate,
-      RegExp::Compile(isolate, regexp, source, JSRegExp::AsRegExpFlags(flags),
-                      backtrack_limit),
-      JSRegExp);
+  RETURN_ON_EXCEPTION(isolate, RegExp::Compile(isolate, regexp, source,
+                                               JSRegExp::AsRegExpFlags(flags),
+                                               backtrack_limit));
 
-  Handle<String> escaped_source;
+  DirectHandle<String> escaped_source;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,
-                             EscapeRegExpSource(isolate, source), JSRegExp);
+                             EscapeRegExpSource(isolate, source));
 
   regexp->set_source(*escaped_source);
   regexp->set_flags(Smi::FromInt(flags));
@@ -416,7 +357,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   Tagged<Map> map = regexp->map();
   Tagged<Object> constructor = map->GetConstructor();
   if (IsJSFunction(constructor) &&
-      JSFunction::cast(constructor)->initial_map() == map) {
+      Cast<JSFunction>(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
     regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                   Smi::FromInt(kInitialLastIndexValue),
@@ -427,12 +368,75 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
         isolate,
         Object::SetProperty(
             isolate, regexp, factory->lastIndex_string(),
-            Handle<Smi>(Smi::FromInt(kInitialLastIndexValue), isolate)),
-        JSRegExp);
+            DirectHandle<Smi>(Smi::FromInt(kInitialLastIndexValue), isolate)));
   }
 
   return regexp;
 }
 
-}  // namespace internal
-}  // namespace v8
+bool RegExpData::HasCompiledCode() const {
+  if (type_tag() != Type::IRREGEXP) return false;
+  Tagged<IrRegExpData> re_data = Cast<IrRegExpData>(*this);
+  return re_data->has_latin1_code() || re_data->has_uc16_code();
+}
+
+// Only irregexps are subject to tier-up.
+bool IrRegExpData::CanTierUp() {
+  return v8_flags.regexp_tier_up && type_tag() == Type::IRREGEXP;
+}
+
+// An irregexp is considered to be marked for tier up if the tier-up ticks
+// value reaches zero.
+bool IrRegExpData::MarkedForTierUp() {
+  if (!CanTierUp()) {
+    return false;
+  }
+
+  return ticks_until_tier_up() == 0;
+}
+
+void IrRegExpData::ResetLastTierUpTick() {
+  DCHECK(v8_flags.regexp_tier_up);
+  int tier_up_ticks = ticks_until_tier_up();
+  set_ticks_until_tier_up(tier_up_ticks + 1);
+}
+
+void IrRegExpData::TierUpTick() {
+  int tier_up_ticks = ticks_until_tier_up();
+  if (tier_up_ticks == 0) {
+    return;
+  }
+
+  set_ticks_until_tier_up(tier_up_ticks - 1);
+}
+
+void IrRegExpData::MarkTierUpForNextExec() {
+  DCHECK(v8_flags.regexp_tier_up);
+  set_ticks_until_tier_up(0);
+}
+
+bool IrRegExpData::ShouldProduceBytecode() {
+  return v8_flags.regexp_interpret_all ||
+         (v8_flags.regexp_tier_up && !MarkedForTierUp());
+}
+
+void IrRegExpData::DiscardCompiledCodeForSerialization() {
+  DCHECK(HasCompiledCode());
+  clear_latin1_code();
+  clear_uc16_code();
+  clear_latin1_bytecode();
+  clear_uc16_bytecode();
+}
+
+void IrRegExpData::SetBytecodeForExperimental(
+    Isolate* isolate, Tagged<TrustedByteArray> bytecode) {
+  set_latin1_bytecode(bytecode);
+  set_uc16_bytecode(bytecode);
+
+  Tagged<Code> trampoline =
+      *BUILTIN_CODE(isolate, RegExpExperimentalTrampoline);
+  set_latin1_code(trampoline);
+  set_uc16_code(trampoline);
+}
+
+}  // namespace v8::internal

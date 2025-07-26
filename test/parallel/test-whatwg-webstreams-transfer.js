@@ -459,10 +459,7 @@ const theData = 'hello';
 
     const assert = require('assert');
 
-    const tracker = new assert.CallTracker();
-    process.on('exit', () => {
-      tracker.verify();
-    });
+    const { mock } = require('node:test');
 
     // We create an interval to keep the event loop alive while
     // we wait for the stream read to complete. The reason this is needed is because there's
@@ -474,16 +471,25 @@ const theData = 'hello';
     // from terminating at all unless the stream was consumed/closed.
     const i = setInterval(() => {}, 1000);
 
-    parentPort.onmessage = tracker.calls(({ data }) => {
+    const innercb = mock.fn((result) => {
+      assert(!result.done);
+      assert(result.value instanceof Uint8Array);
+      clearInterval(i);
+    });
+
+    const cb = mock.fn(({ data }) => {
       assert(isReadableStream(data));
       const reader = data.getReader();
-      reader.read().then(tracker.calls((result) => {
-        assert(!result.done);
-        assert(result.value instanceof Uint8Array);
-        clearInterval(i);
-      }));
+      reader.read().then(innercb);
       parentPort.close();
     });
+
+    process.on('exit', () => {
+      assert.strictEqual(innercb.mock.callCount(), 1);
+      assert.strictEqual(cb.mock.callCount(), 1);
+    });
+
+    parentPort.onmessage = cb;
     parentPort.onmessageerror = () => assert.fail('should not be called');
   `, { eval: true });
 

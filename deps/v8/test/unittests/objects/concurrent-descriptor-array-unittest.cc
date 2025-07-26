@@ -26,7 +26,8 @@ namespace {
 
 class ConcurrentSearchThread final : public v8::base::Thread {
  public:
-  ConcurrentSearchThread(Heap* heap, std::vector<Handle<JSObject>> handles,
+  ConcurrentSearchThread(Heap* heap,
+                         std::vector<IndirectHandle<JSObject>> handles,
                          std::unique_ptr<PersistentHandles> ph,
                          Handle<Name> name, base::Semaphore* sema_started)
       : v8::base::Thread(base::Thread::Options("ThreadWithLocalHeap")),
@@ -47,12 +48,12 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
     sema_started_->Signal();
 
-    for (Handle<JSObject> handle : handles_) {
+    for (DirectHandle<JSObject> handle : handles_) {
       // Lookup the named property on the {map}.
       EXPECT_TRUE(IsUniqueName(*name_));
-      Handle<Map> map(handle->map(), &local_heap);
+      DirectHandle<Map> map(handle->map(), &local_heap);
 
-      Handle<DescriptorArray> descriptors(
+      DirectHandle<DescriptorArray> descriptors(
           map->instance_descriptors(kAcquireLoad), &local_heap);
       bool is_background_thread = true;
       InternalIndex const number =
@@ -65,7 +66,7 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
  private:
   Heap* heap_;
-  std::vector<Handle<JSObject>> handles_;
+  std::vector<IndirectHandle<JSObject>> handles_;
   std::unique_ptr<PersistentHandles> ph_;
   Handle<Name> name_;
   base::Semaphore* sema_started_;
@@ -74,16 +75,16 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 // Uses linear search on a flat object, with up to 8 elements.
 TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject) {
   std::unique_ptr<PersistentHandles> ph = i_isolate()->NewPersistentHandles();
-  std::vector<Handle<JSObject>> handles;
+  std::vector<IndirectHandle<JSObject>> handles;
 
   auto factory = i_isolate()->factory();
   HandleScope handle_scope(i_isolate());
 
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
   Handle<String> name = MakeString("property");
-  Handle<Object> value = MakeString("dummy_value");
+  DirectHandle<Object> value = MakeString("dummy_value");
   // For the default constructor function no in-object properties are reserved
   // hence adding a single property will initialize the property-array.
   JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, name, value,
@@ -108,8 +109,8 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject) {
 
   // Exercise descriptor in main thread too.
   for (int i = 0; i < 7; ++i) {
-    Handle<String> filler_name = MakeName("filler_property_", i);
-    Handle<Object> filler_value = MakeString("dummy_value");
+    DirectHandle<String> filler_name = MakeName("filler_property_", i);
+    DirectHandle<Object> filler_value = MakeString("dummy_value");
     JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, filler_name,
                                                       filler_value, NONE)
         .Check();
@@ -127,11 +128,11 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject_ManyElements) {
   auto factory = i_isolate()->factory();
   HandleScope handle_scope(i_isolate());
 
-  Handle<JSFunction> function =
+  DirectHandle<JSFunction> function =
       factory->NewFunctionForTesting(factory->empty_string());
   Handle<JSObject> js_object = factory->NewJSObject(function);
   Handle<String> name = MakeString("property");
-  Handle<Object> value = MakeString("dummy_value");
+  DirectHandle<Object> value = MakeString("dummy_value");
   // For the default constructor function no in-object properties are reserved
   // hence adding a single property will initialize the property-array.
   JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, name, value,
@@ -142,8 +143,8 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject_ManyElements) {
   // since we are going search in a background thread, we force a linear search
   // that is safe to do in the background.
   for (int i = 0; i < 10; ++i) {
-    Handle<String> filler_name = MakeName("filler_property_", i);
-    Handle<Object> filler_value = MakeString("dummy_value");
+    DirectHandle<String> filler_name = MakeName("filler_property_", i);
+    DirectHandle<Object> filler_value = MakeString("dummy_value");
     JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, filler_name,
                                                       filler_value, NONE)
         .Check();
@@ -168,8 +169,8 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject_ManyElements) {
 
   // Exercise descriptor in main thread too.
   for (int i = 10; i < 20; ++i) {
-    Handle<String> filler_name = MakeName("filler_property_", i);
-    Handle<Object> filler_value = MakeString("dummy_value");
+    DirectHandle<String> filler_name = MakeName("filler_property_", i);
+    DirectHandle<Object> filler_value = MakeString("dummy_value");
     JSObject::DefinePropertyOrElementIgnoreAttributes(js_object, filler_name,
                                                       filler_value, NONE)
         .Check();

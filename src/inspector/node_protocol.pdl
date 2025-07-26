@@ -98,6 +98,194 @@ experimental domain NodeWorker
       SessionID sessionId
       string message
 
+# Partial support for Network domain of ChromeDevTools Protocol.
+# https://chromedevtools.github.io/devtools-protocol/tot/Network
+experimental domain Network
+  depends on Runtime
+
+  # Resource type as it was perceived by the rendering engine.
+  type ResourceType extends string
+    enum
+      Document
+      Stylesheet
+      Image
+      Media
+      Font
+      Script
+      TextTrack
+      XHR
+      Fetch
+      Prefetch
+      EventSource
+      WebSocket
+      Manifest
+      SignedExchange
+      Ping
+      CSPViolationReport
+      Preflight
+      Other
+
+  # Unique request identifier.
+  type RequestId extends string
+
+  # UTC time in seconds, counted from January 1, 1970.
+  type TimeSinceEpoch extends number
+
+  # Monotonically increasing time in seconds since an arbitrary point in the past.
+  type MonotonicTime extends number
+
+  # Information about the request initiator.
+  type Initiator extends object
+    properties
+      # Type of this initiator.
+      enum type
+        parser
+        script
+        preload
+        SignedExchange
+        preflight
+        other
+      # Initiator JavaScript stack trace, set for Script only.
+      # Requires the Debugger domain to be enabled.
+      optional Runtime.StackTrace stack
+      # Initiator URL, set for Parser type or for Script type (when script is importing module) or for SignedExchange type.
+      optional string url
+      # Initiator line number, set for Parser type or for Script type (when script is importing
+      # module) (0-based).
+      optional number lineNumber
+      # Initiator column number, set for Parser type or for Script type (when script is importing
+      # module) (0-based).
+      optional number columnNumber
+      # Set if another request triggered this request (e.g. preflight).
+      optional RequestId requestId
+
+  # HTTP request data.
+  type Request extends object
+    properties
+      string url
+      string method
+      Headers headers
+      boolean hasPostData
+
+  # HTTP response data.
+  type Response extends object
+    properties
+      string url
+      integer status
+      string statusText
+      Headers headers
+      string mimeType
+      string charset
+
+  # Request / response headers as keys / values of JSON object.
+  type Headers extends object
+
+  type LoadNetworkResourcePageResult extends object
+    properties
+      boolean success
+      optional IO.StreamHandle stream
+
+  # Disables network tracking, prevents network events from being sent to the client.
+  command disable
+
+  # Enables network tracking, network events will now be delivered to the client.
+  command enable
+
+  # Returns post data sent with the request. Returns an error when no data was sent with the request.
+  command getRequestPostData
+    parameters
+      # Identifier of the network request to get content for.
+      RequestId requestId
+    returns
+      # Request body string, omitting files from multipart requests
+      string postData
+
+  # Returns content served for the given request.
+  command getResponseBody
+    parameters
+      # Identifier of the network request to get content for.
+      RequestId requestId
+    returns
+      # Response body.
+      string body
+      # True, if content was sent as base64.
+      boolean base64Encoded
+
+  # Enables streaming of the response for the given requestId.
+  # If enabled, the dataReceived event contains the data that was received during streaming.
+  experimental command streamResourceContent
+    parameters
+      # Identifier of the request to stream.
+      RequestId requestId
+    returns
+      # Data that has been buffered until streaming is enabled.
+      binary bufferedData
+  # Fetches the resource and returns the content.
+  command loadNetworkResource
+    parameters
+      # URL of the resource to get content for.
+      string url
+    returns
+      LoadNetworkResourcePageResult resource
+
+  # Fired when page is about to send HTTP request.
+  event requestWillBeSent
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Request data.
+      Request request
+      # Request initiator.
+      Initiator initiator
+      # Timestamp.
+      MonotonicTime timestamp
+      # Timestamp.
+      TimeSinceEpoch wallTime
+
+  # Fired when HTTP response is available.
+  event responseReceived
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Resource type.
+      ResourceType type
+      # Response data.
+      Response response
+
+  event loadingFailed
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Resource type.
+      ResourceType type
+      # Error message.
+      string errorText
+
+  event loadingFinished
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+
+  # Fired when data chunk was received over the network.
+  event dataReceived
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Data chunk length.
+      integer dataLength
+      # Actual bytes received (might be less than dataLength for compressed encodings).
+      integer encodedDataLength
+      # Data that was received.
+      experimental optional binary data
+
 # Support for inspecting node process state.
 experimental domain NodeRuntime
   # Enable the NodeRuntime events except by `NodeRuntime.waitingForDisconnect`.
@@ -120,3 +308,49 @@ experimental domain NodeRuntime
   # This event is fired when the runtime is waiting for the debugger. For
   # example, when inspector.waitingForDebugger is called
   event waitingForDebugger
+
+# https://chromedevtools.github.io/devtools-protocol/1-3/Target/
+experimental domain Target
+  type SessionID extends string
+  type TargetID extends string
+  type TargetInfo extends object
+    properties
+      TargetID targetId
+      string type
+      string title
+      string url
+      boolean attached
+      boolean canAccessOpener
+  event targetCreated
+    parameters
+      TargetInfo targetInfo
+  event attachedToTarget
+    parameters
+      SessionID sessionId
+      TargetInfo targetInfo
+      boolean waitingForDebugger
+  command setAutoAttach
+    parameters
+      boolean autoAttach
+      boolean waitForDebuggerOnStart
+domain IO
+  type StreamHandle extends string
+  # Read a chunk of the stream
+  command read
+    parameters
+      # Handle of the stream to read.
+      StreamHandle handle
+      # Seek to the specified offset before reading (if not specified, proceed with offset
+      # following the last read). Some types of streams may only support sequential reads.
+      optional integer offset
+      # Maximum number of bytes to read (left upon the agent discretion if not specified).
+      optional integer size
+    returns
+      # Data that were read.
+      string data
+      # Set if the end-of-file condition occurred while reading.
+      boolean eof
+  command close
+    parameters
+      # Handle of the stream to close.
+      StreamHandle handle

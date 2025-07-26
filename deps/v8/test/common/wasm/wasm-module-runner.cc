@@ -17,34 +17,33 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-namespace testing {
+namespace v8::internal::wasm::testing {
 
-MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
-                                                ErrorThrower* thrower,
-                                                ModuleWireBytes bytes) {
-  auto enabled_features = WasmFeatures::FromIsolate(isolate);
-  MaybeHandle<WasmModuleObject> module =
-      GetWasmEngine()->SyncCompile(isolate, enabled_features, thrower, bytes);
+MaybeDirectHandle<WasmModuleObject> CompileForTesting(
+    Isolate* isolate, ErrorThrower* thrower,
+    base::Vector<const uint8_t> bytes) {
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
+  MaybeDirectHandle<WasmModuleObject> module = GetWasmEngine()->SyncCompile(
+      isolate, enabled_features, CompileTimeImports{}, thrower,
+      base::OwnedCopyOf(bytes));
   DCHECK_EQ(thrower->error(), module.is_null());
   return module;
 }
 
-MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
-    Isolate* isolate, ErrorThrower* thrower, ModuleWireBytes bytes) {
-  MaybeHandle<WasmModuleObject> module =
+MaybeDirectHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
+    Isolate* isolate, ErrorThrower* thrower,
+    base::Vector<const uint8_t> bytes) {
+  MaybeDirectHandle<WasmModuleObject> module =
       CompileForTesting(isolate, thrower, bytes);
   if (module.is_null()) return {};
   return GetWasmEngine()->SyncInstantiate(isolate, thrower,
                                           module.ToHandleChecked(), {}, {});
 }
 
-base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
-                                                       const FunctionSig* sig) {
+DirectHandleVector<Object> MakeDefaultArguments(Isolate* isolate,
+                                                const FunctionSig* sig) {
   size_t param_count = sig->parameter_count();
-  auto arguments = base::OwnedVector<Handle<Object>>::New(param_count);
+  DirectHandleVector<Object> arguments(isolate, param_count);
 
   for (size_t i = 0; i < param_count; ++i) {
     switch (sig->GetParam(i).kind()) {
@@ -54,7 +53,8 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
       case kS128:
         // Argument here for kS128 does not matter as we should error out before
         // hitting this case.
-        arguments[i] = handle(Smi::FromInt(static_cast<int>(i)), isolate);
+        arguments[i] =
+            direct_handle(Smi::FromInt(static_cast<int>(i)), isolate);
         break;
       case kI64:
         arguments[i] = BigInt::FromInt64(isolate, static_cast<int64_t>(i));
@@ -65,10 +65,11 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
       case kRef:
         arguments[i] = isolate->factory()->undefined_value();
         break;
-      case kRtt:
       case kI8:
       case kI16:
+      case kF16:
       case kVoid:
+      case kTop:
       case kBottom:
         UNREACHABLE();
     }
@@ -81,8 +82,10 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
                                 const uint8_t* module_end) {
   HandleScope scope(isolate);
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
-  MaybeHandle<WasmInstanceObject> instance = CompileAndInstantiateForTesting(
-      isolate, &thrower, ModuleWireBytes(module_start, module_end));
+  MaybeDirectHandle<WasmInstanceObject> instance =
+      CompileAndInstantiateForTesting(
+          isolate, &thrower,
+          base::VectorOf(module_start, module_end - module_start));
   if (instance.is_null()) {
     return -1;
   }
@@ -90,57 +93,59 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
                                     {});
 }
 
-MaybeHandle<WasmExportedFunction> GetExportedFunction(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name) {
-  Handle<JSObject> exports_object;
-  Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
-  exports_object = Handle<JSObject>::cast(
+MaybeDirectHandle<WasmExportedFunction> GetExportedFunction(
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
+    const char* name) {
+  DirectHandle<JSObject> exports_object;
+  DirectHandle<Name> exports =
+      isolate->factory()->InternalizeUtf8String("exports");
+  exports_object = Cast<JSObject>(
       JSObject::GetProperty(isolate, instance, exports).ToHandleChecked());
 
-  Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked(name);
+  DirectHandle<Name> main_name =
+      isolate->factory()->NewStringFromAsciiChecked(name);
   PropertyDescriptor desc;
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, exports_object, main_name, &desc);
   if (!property_found.FromMaybe(false)) return {};
   if (!IsJSFunction(*desc.value())) return {};
 
-  return Handle<WasmExportedFunction>::cast(desc.value());
+  return Cast<WasmExportedFunction>(desc.value());
 }
 
-int32_t CallWasmFunctionForTesting(Isolate* isolate,
-                                   Handle<WasmInstanceObject> instance,
-                                   const char* name,
-                                   base::Vector<Handle<Object>> args,
-                                   std::unique_ptr<const char[]>* exception) {
+int32_t CallWasmFunctionForTesting(
+    Isolate* isolate, DirectHandle<WasmInstanceObject> instance,
+    const char* name, base::Vector<const DirectHandle<Object>> args,
+    std::unique_ptr<const char[]>* exception) {
   DCHECK_IMPLIES(exception != nullptr, *exception == nullptr);
-  MaybeHandle<WasmExportedFunction> maybe_export =
+  MaybeDirectHandle<WasmExportedFunction> maybe_export =
       GetExportedFunction(isolate, instance, name);
-  Handle<WasmExportedFunction> main_export;
-  if (!maybe_export.ToHandle(&main_export)) {
+  DirectHandle<WasmExportedFunction> exported_function;
+  if (!maybe_export.ToHandle(&exported_function)) {
     return -1;
   }
 
   // Call the JS function.
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-  MaybeHandle<Object> retval = Execution::Call(isolate, main_export, undefined,
-                                               args.length(), args.begin());
+  DirectHandle<Object> undefined = isolate->factory()->undefined_value();
+  MaybeDirectHandle<Object> retval =
+      Execution::Call(isolate, exported_function, undefined, args);
 
   // The result should be a number.
   if (retval.is_null()) {
-    DCHECK(isolate->has_pending_exception());
-    if (exception) {
-      Handle<String> exception_string = Object::NoSideEffectsToString(
-          isolate, handle(isolate->pending_exception(), isolate));
+    DCHECK(isolate->has_exception());
+    if (exception && !isolate->is_execution_terminating()) {
+      DirectHandle<String> exception_string = Object::NoSideEffectsToString(
+          isolate, direct_handle(isolate->exception(), isolate));
       *exception = exception_string->ToCString();
     }
-    isolate->clear_pending_exception();
+    isolate->clear_internal_exception();
     return -1;
   }
-  Handle<Object> result = retval.ToHandleChecked();
+  DirectHandle<Object> result = retval.ToHandleChecked();
 
   // Multi-value returns, get the first return value (see InterpretWasmModule).
   if (IsJSArray(*result)) {
-    auto receiver = Handle<JSReceiver>::cast(result);
+    auto receiver = Cast<JSReceiver>(result);
     result = JSObject::GetElement(isolate, receiver, 0).ToHandleChecked();
   }
 
@@ -148,19 +153,14 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
     return Smi::ToInt(*result);
   }
   if (IsHeapNumber(*result)) {
-    return static_cast<int32_t>(HeapNumber::cast(*result)->value());
+    return static_cast<int32_t>(Cast<HeapNumber>(*result)->value());
   }
   if (IsBigInt(*result)) {
-    return static_cast<int32_t>(BigInt::cast(*result)->AsInt64());
+    return static_cast<int32_t>(Cast<BigInt>(*result)->AsInt64());
   }
   return -1;
 }
 
-void SetupIsolateForWasmModule(Isolate* isolate) {
-  WasmJs::Install(isolate, true);
-}
+void SetupIsolateForWasmModule(Isolate* isolate) { WasmJs::Install(isolate); }
 
-}  // namespace testing
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm::testing

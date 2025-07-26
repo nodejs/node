@@ -130,6 +130,13 @@ namespace testing {
 //   Expected: Foo() is even
 //     Actual: it's 5
 //
+
+// Returned AssertionResult objects may not be ignored.
+// Note: Disabled for SWIG as it doesn't parse attributes correctly.
+#if !defined(SWIG)
+class [[nodiscard]] AssertionResult;
+#endif  // !SWIG
+
 class GTEST_API_ AssertionResult {
  public:
   // Copy constructor.

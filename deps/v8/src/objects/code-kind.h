@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-// The order of INTERPRETED_FUNCTION to TURBOFAN is important. We use it to
+// The order of INTERPRETED_FUNCTION to TURBOFAN_JS is important. We use it to
 // check the relative ordering of the tiers when fetching / installing optimized
 // code.
 #define CODE_KIND_LIST(V)  \
@@ -24,12 +24,11 @@ namespace internal {
   V(WASM_TO_CAPI_FUNCTION) \
   V(WASM_TO_JS_FUNCTION)   \
   V(JS_TO_WASM_FUNCTION)   \
-  V(JS_TO_JS_FUNCTION)     \
   V(C_WASM_ENTRY)          \
   V(INTERPRETED_FUNCTION)  \
   V(BASELINE)              \
   V(MAGLEV)                \
-  V(TURBOFAN)
+  V(TURBOFAN_JS)
 
 enum class CodeKind : uint8_t {
 #define DEFINE_CODE_KIND_ENUM(name) name,
@@ -37,7 +36,7 @@ enum class CodeKind : uint8_t {
 #undef DEFINE_CODE_KIND_ENUM
 };
 static_assert(CodeKind::INTERPRETED_FUNCTION < CodeKind::BASELINE);
-static_assert(CodeKind::BASELINE < CodeKind::TURBOFAN);
+static_assert(CodeKind::BASELINE < CodeKind::TURBOFAN_JS);
 
 #define V(...) +1
 static constexpr int kCodeKindCount = CODE_KIND_LIST(V);
@@ -47,7 +46,7 @@ static_assert(kCodeKindCount <= std::numeric_limits<uint8_t>::max());
 
 const char* CodeKindToString(CodeKind kind);
 
-const char* CodeKindToMarker(CodeKind kind);
+const char* CodeKindToMarker(CodeKind kind, bool context_specialized);
 
 inline constexpr bool CodeKindIsInterpretedJSFunction(CodeKind kind) {
   return kind == CodeKind::INTERPRETED_FUNCTION;
@@ -66,15 +65,15 @@ inline constexpr bool CodeKindIsUnoptimizedJSFunction(CodeKind kind) {
 
 inline constexpr bool CodeKindIsOptimizedJSFunction(CodeKind kind) {
   static_assert(static_cast<int>(CodeKind::MAGLEV) + 1 ==
-                static_cast<int>(CodeKind::TURBOFAN));
-  return base::IsInRange(kind, CodeKind::MAGLEV, CodeKind::TURBOFAN);
+                static_cast<int>(CodeKind::TURBOFAN_JS));
+  return base::IsInRange(kind, CodeKind::MAGLEV, CodeKind::TURBOFAN_JS);
 }
 
 inline constexpr bool CodeKindIsJSFunction(CodeKind kind) {
   static_assert(static_cast<int>(CodeKind::BASELINE) + 1 ==
                 static_cast<int>(CodeKind::MAGLEV));
   return base::IsInRange(kind, CodeKind::INTERPRETED_FUNCTION,
-                         CodeKind::TURBOFAN);
+                         CodeKind::TURBOFAN_JS);
 }
 
 inline constexpr bool CodeKindIsBuiltinOrJSFunction(CodeKind kind) {
@@ -82,11 +81,15 @@ inline constexpr bool CodeKindIsBuiltinOrJSFunction(CodeKind kind) {
 }
 
 inline constexpr bool CodeKindCanDeoptimize(CodeKind kind) {
-  return CodeKindIsOptimizedJSFunction(kind);
+  return CodeKindIsOptimizedJSFunction(kind)
+#if V8_ENABLE_WEBASSEMBLY
+         || (kind == CodeKind::WASM_FUNCTION && v8_flags.wasm_deopt)
+#endif
+      ;
 }
 
 inline constexpr bool CodeKindCanOSR(CodeKind kind) {
-  return kind == CodeKind::TURBOFAN || kind == CodeKind::MAGLEV;
+  return kind == CodeKind::TURBOFAN_JS || kind == CodeKind::MAGLEV;
 }
 
 inline constexpr bool CodeKindCanTierUp(CodeKind kind) {
@@ -96,10 +99,29 @@ inline constexpr bool CodeKindCanTierUp(CodeKind kind) {
 // TODO(jgruber): Rename or remove this predicate. Currently it means 'is this
 // kind stored either in the FeedbackVector cache, or in the OSR cache?'.
 inline constexpr bool CodeKindIsStoredInOptimizedCodeCache(CodeKind kind) {
-  return kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN;
+  return kind == CodeKind::MAGLEV || kind == CodeKind::TURBOFAN_JS;
 }
 
-inline CodeKind CodeKindForTopTier() { return CodeKind::TURBOFAN; }
+inline constexpr bool CodeKindUsesBytecodeOrInterpreterData(CodeKind kind) {
+  return CodeKindIsBaselinedJSFunction(kind);
+}
+
+inline constexpr bool CodeKindUsesDeoptimizationData(CodeKind kind) {
+  return CodeKindCanDeoptimize(kind);
+}
+
+inline constexpr bool CodeKindUsesBytecodeOffsetTable(CodeKind kind) {
+  return kind == CodeKind::BASELINE;
+}
+
+inline constexpr bool CodeKindMayLackSourcePositionTable(CodeKind kind) {
+  // Either code that uses a bytecode offset table or code that may be embedded
+  // in the snapshot, in which case the source position table is cleared.
+  return CodeKindUsesBytecodeOffsetTable(kind) || kind == CodeKind::BUILTIN ||
+         kind == CodeKind::BYTECODE_HANDLER || kind == CodeKind::FOR_TESTING;
+}
+
+inline CodeKind CodeKindForTopTier() { return CodeKind::TURBOFAN_JS; }
 
 // The dedicated CodeKindFlag enum represents all code kinds in a format
 // suitable for bit sets.
@@ -122,9 +144,9 @@ DEFINE_OPERATORS_FOR_FLAGS(CodeKinds)
 
 static constexpr CodeKinds kJSFunctionCodeKindsMask{
     CodeKindFlag::INTERPRETED_FUNCTION | CodeKindFlag::BASELINE |
-    CodeKindFlag::MAGLEV | CodeKindFlag::TURBOFAN};
+    CodeKindFlag::MAGLEV | CodeKindFlag::TURBOFAN_JS};
 static constexpr CodeKinds kOptimizedJSFunctionCodeKindsMask{
-    CodeKindFlag::MAGLEV | CodeKindFlag::TURBOFAN};
+    CodeKindFlag::MAGLEV | CodeKindFlag::TURBOFAN_JS};
 
 }  // namespace internal
 }  // namespace v8

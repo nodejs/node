@@ -36,7 +36,7 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   print(arguments.callee.name);
   function workerCode(workerHelpers) {
     eval(workerHelpers);
-    onmessage = function(obj) {
+    onmessage = function({data:obj}) {
       assertIsWasmSharedMemory(obj.memory);
       assertTrue(1 === obj.memory.grow(1));
       assertTrue(obj.memory.buffer.byteLength === obj.expected_size);
@@ -63,7 +63,7 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   print(arguments.callee.name);
   function workerCode(workerHelpers) {
     eval(workerHelpers);
-    onmessage = function(obj) {
+    onmessage = function({data:obj}) {
        assertIsWasmSharedMemory(obj.memory);
        obj.memory.grow(1);
        assertIsWasmSharedMemory(obj.memory);
@@ -94,7 +94,7 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   print(arguments.callee.name);
   function workerCode(workerHelpers) {
     eval(workerHelpers);
-    onmessage = function(obj) {
+    onmessage = function({data:obj}) {
       let expected_size = 0;
       let kPageSize = 0x10000;
       for (let memory of obj.memories) {
@@ -127,7 +127,7 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   print(arguments.callee.name);
   function workerCode(workerHelpers) {
     eval(workerHelpers);
-    onmessage = function(obj) {
+    onmessage = function({data:obj}) {
       let kPageSize = 0x10000;
       assertIsWasmSharedMemory(obj.memory);
       let instance = new WebAssembly.Instance(
@@ -163,7 +163,7 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   print(arguments.callee.name);
   function workerCode(workerHelpers) {
     eval(workerHelpers);
-    onmessage = function(obj) {
+    onmessage = function({data:obj}) {
       let kPageSize = 0x10000;
       assertIsWasmSharedMemory(obj.memory);
       let instance = new WebAssembly.Instance(
@@ -198,7 +198,7 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   print(arguments.callee.name);
   function workerCode(workerHelpers) {
     eval(workerHelpers);
-    onmessage = function(obj) {
+    onmessage = function({data:obj}) {
       let kPageSize = 0x10000;
       assertIsWasmSharedMemory(obj.memory);
       let instance = new WebAssembly.Instance(
@@ -240,7 +240,7 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   print(arguments.callee.name);
   function workerCode(workerHelpers) {
     eval(workerHelpers);
-    onmessage = function(obj) {
+    onmessage = function({data:obj}) {
       let kPageSize = 0x10000;
       assertIsWasmSharedMemory(obj.memory);
       let instance = new WebAssembly.Instance(
@@ -293,7 +293,7 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
   print(arguments.callee.name);
   function workerCode(workerHelpers) {
     eval(workerHelpers);
-    onmessage = function(obj) {
+    onmessage = function({data:obj}) {
       let kPageSize = 0x10000;
       assertIsWasmSharedMemory(obj.memory);
       let instance = new WebAssembly.Instance(
@@ -412,7 +412,7 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
       kExprLoop, kWasmVoid,
         ...wasmI32Const(sync_index),
         ...wasmI32Const(sync_value),
-        kAtomicPrefix, kExprI32AtomicStore, 0, 0,
+        kAtomicPrefix, kExprI32AtomicStore, 2, 0,
         kExprMemorySize, 0, kExprLocalTee, 0,
         kExprI32Const, initial_size,
         kExprI32Eq,
@@ -423,17 +423,17 @@ let workerHelpers = assertTrue.toString() + assertIsWasmSharedMemory.toString();
 
   builder.addFunction("setter", kSig_v_ii)
       .addBody([kExprLocalGet, 0, kExprLocalGet, 1,
-                kAtomicPrefix, kExprI32AtomicStore, 0, 0])
+                kAtomicPrefix, kExprI32AtomicStore, 2, 0])
       .exportFunc();
 
   builder.addFunction("getter", kSig_i_i)
-      .addBody([kExprLocalGet, 0, kAtomicPrefix, kExprI32AtomicLoad, 0, 0])
+      .addBody([kExprLocalGet, 0, kAtomicPrefix, kExprI32AtomicLoad, 2, 0])
       .exportFunc();
 
   let module = new WebAssembly.Module(builder.toBuffer());
 
   function workerCode() {
-    onmessage = function(obj) {
+    onmessage = function({data:obj}) {
       let instance = new WebAssembly.Instance(
           obj.module, {mod: {mem: obj.memory}});
       let res = instance.exports.main();

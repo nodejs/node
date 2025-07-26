@@ -31,10 +31,12 @@ See http://dev.chromium.org/developers/how-tos/depottools/presubmit-scripts
 for more details about the presubmit API built into gcl.
 """
 
+import ast
 import json
 import os
 import re
 import sys
+import traceback
 
 # This line is 'magic' in that git-cl looks for it to decide whether to
 # use Python3 instead of Python2 when running the code in this file.
@@ -132,9 +134,32 @@ def _V8PresubmitChecks(input_api, output_api):
     results.append(output_api.PresubmitError("GCMole pattern check failed"))
   results.extend(input_api.canned_checks.CheckAuthorizedAuthor(
       input_api, output_api, bot_allowlist=[
-        'v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com'
+        'v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com',
+        'v8-ci-test262-import-export@chops-service-accounts.iam.gserviceaccount.com',
+        'chrome-cherry-picker@chops-service-accounts.iam.gserviceaccount.com',
       ]))
   return results
+
+
+def _CheckPythonLiterals(input_api, output_api):
+  """Checks that all .pyl files are valid python literals."""
+  affected_files = [
+      af for af in input_api.AffectedFiles()
+      if af.LocalPath().endswith('.pyl')
+  ]
+
+  results = []
+  for af in affected_files:
+    try:
+      ast.literal_eval('\n'.join(af.NewContents()))
+    except SyntaxError as e:
+      results.append(output_api.PresubmitError(
+          f'Failed to parse python literal {af.LocalPath()}:\n' +
+          traceback.format_exc(0)
+      ))
+
+  return results
+
 
 
 def _CheckUnwantedDependencies(input_api, output_api):
@@ -337,6 +362,51 @@ def _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api):
     return []
 
 
+def _CheckInlineHeadersIncludeNonInlineHeadersFirst(input_api, output_api):
+  """Checks that the first include in each inline header ("*-inl.h") is the
+  non-inl counterpart of that header, if that file exists."""
+  file_inclusion_pattern = r'.+-inl\.h'
+  include_error = (
+      'The first include of an -inl.h header should be the non-inl counterpart.'
+  )
+
+  def FilterFile(affected_file):
+    files_to_skip = _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP + (
+        # Exclude macro-assembler-<ARCH>-inl.h headers because they have special
+        # include rules (arch-specific macro assembler headers must be included
+        # via the general macro-assembler.h).
+        r'src[\\\/]codegen[\\\/].*[\\\/]macro-assembler-.*-inl\.h',)
+    return input_api.FilterSourceFile(
+        affected_file,
+        files_to_check=(file_inclusion_pattern,),
+        files_to_skip=files_to_skip)
+
+  to_non_inl = lambda filename: filename[:-len("-inl.h")] + ".h"
+  problems = []
+  for f in input_api.AffectedSourceFiles(FilterFile):
+    if not os.path.isfile(to_non_inl(f.AbsoluteLocalPath())):
+      continue
+    non_inl_header = to_non_inl(f.LocalPath()).replace(os.sep, '/')
+    first_include = None
+    for line in f.NewContents():
+      if line.startswith('#include '):
+        first_include = line
+        break
+    expected_include = f'#include "{non_inl_header}"'
+    if first_include is None:
+      problems.append(f'{f.LocalPath()}: should include {non_inl_header}\n'
+                      '    found no includes in the file.')
+    elif not first_include.startswith(expected_include):
+      problems.append(
+          f'{f.LocalPath()}: should include {non_inl_header} first\n'
+          f'    found: {first_include}')
+
+  if problems:
+    return [output_api.PresubmitError(include_error, problems)]
+  else:
+    return []
+
+
 def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
   """Attempts to prevent use of functions intended only for testing in
   non-testing code. For now this is just a best-effort implementation
@@ -402,19 +472,21 @@ def _CommonChecks(input_api, output_api):
   # with the canned PanProjectChecks. Need to make sure that the checks all
   # pass on all existing files.
   checks = [
-    input_api.canned_checks.CheckOwnersFormat,
-    input_api.canned_checks.CheckOwners,
-    _CheckCommitMessageBugEntry,
-    input_api.canned_checks.CheckPatchFormatted,
-    _CheckGenderNeutralInLicenses,
-    _V8PresubmitChecks,
-    _CheckUnwantedDependencies,
-    _CheckNoProductionCodeUsingTestOnlyFunctions,
-    _CheckHeadersHaveIncludeGuards,
-    _CheckNoInlineHeaderIncludesInNormalHeaders,
-    _CheckJSONFiles,
-    _CheckNoexceptAnnotations,
-    _RunTestsWithVPythonSpec,
+      input_api.canned_checks.CheckOwnersFormat,
+      input_api.canned_checks.CheckOwners,
+      _CheckCommitMessageBugEntry,
+      input_api.canned_checks.CheckPatchFormatted,
+      _CheckGenderNeutralInLicenses,
+      _V8PresubmitChecks,
+      _CheckUnwantedDependencies,
+      _CheckNoProductionCodeUsingTestOnlyFunctions,
+      _CheckHeadersHaveIncludeGuards,
+      _CheckNoInlineHeaderIncludesInNormalHeaders,
+      _CheckInlineHeadersIncludeNonInlineHeadersFirst,
+      _CheckJSONFiles,
+      _CheckNoexceptAnnotations,
+      _RunTestsWithVPythonSpec,
+      _CheckPythonLiterals,
   ]
 
   return sum([check(input_api, output_api) for check in checks], [])
@@ -442,10 +514,7 @@ def _CheckCommitMessageBugEntry(input_api, output_api):
       continue
     if ':' not in bug and not bug.startswith('b/'):
       try:
-        if int(bug) > 10000000:
-          results.append(
-            'Buganizer entry requires issue tracker prefix b/{}'.format(bug))
-        else:
+        if int(bug) < 10000000:
           if int(bug) > 200000:
             prefix_guess = 'chromium'
           else:

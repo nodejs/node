@@ -25,10 +25,8 @@
 U_NAMESPACE_BEGIN
 
 // Forward declaration:
-namespace number {
-namespace impl {
+namespace number::impl {
 class SimpleModifier;
-}
 }
 
 /**
@@ -65,7 +63,7 @@ public:
      * Default constructor.
      * @stable ICU 57
      */
-    SimpleFormatter() : compiledPattern((char16_t)0) {}
+    SimpleFormatter() : compiledPattern(static_cast<char16_t>(0)) {}
 
     /**
      * Constructs a formatter from the pattern string.

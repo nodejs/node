@@ -18,17 +18,18 @@
  *   g++|clang++ -O3 -Wall -std=c++11 zlib_bench.cc -lstdc++ -lz
  */
 
-#include <algorithm>
-#include <chrono>
-#include <fstream>
-#include <memory>
-#include <string>
-#include <vector>
-
 #include <memory.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <algorithm>
+#include <chrono>
+#include <fstream>
+#include <memory>
+#include <new>
+#include <string>
+#include <vector>
 
 #include "zlib.h"
 
@@ -69,10 +70,6 @@ Data read_file_data_or_exit(const char* name) {
 
   data.name = std::string(name);
   return data;
-}
-
-size_t zlib_estimate_compressed_size(size_t input_size) {
-  return compressBound(input_size);
 }
 
 enum zlib_wrapper {
@@ -128,10 +125,6 @@ void zlib_compress(
     std::string* output,
     bool resize_output = false)
 {
-  if (resize_output)
-    output->resize(zlib_estimate_compressed_size(input_size));
-  size_t output_size = output->size();
-
   z_stream stream;
   memset(&stream, 0, sizeof(stream));
 
@@ -139,6 +132,11 @@ void zlib_compress(
       zlib_stream_wrapper_type(type), MAX_MEM_LEVEL, zlib_strategy);
   if (result != Z_OK)
     error_exit("deflateInit2 failed", result);
+
+  if (resize_output) {
+    output->resize(deflateBound(&stream, input_size));
+  }
+  size_t output_size = output->size();
 
   stream.next_out = (Bytef*)string_data(output);
   stream.avail_out = (uInt)output_size;
@@ -299,18 +297,13 @@ void zlib_file(const char* name,
 
     // Pre-grow the output buffer so we don't measure string resize time.
     for (int b = 0; b < blocks; ++b)
-      compressed[b].resize(zlib_estimate_compressed_size(block_size));
+      zlib_compress(type, input[b], input_length[b], &compressed[b], true);
 
     auto start = now();
     for (int b = 0; b < blocks; ++b)
       for (int r = 0; r < repeats; ++r)
         zlib_compress(type, input[b], input_length[b], &compressed[b]);
     ctime[run] = std::chrono::duration<double>(now() - start).count();
-
-    // Compress again, resizing compressed, so we don't leave junk at the
-    // end of the compressed string that could confuse zlib_uncompress().
-    for (int b = 0; b < blocks; ++b)
-      zlib_compress(type, input[b], input_length[b], &compressed[b], true);
 
     for (int b = 0; b < blocks; ++b)
       output[b].resize(input_length[b]);

@@ -1,7 +1,5 @@
 'use strict';
 
-if (!process.features.inspector) return;
-
 const common = require('../common');
 const assert = require('assert');
 const { dirname } = require('path');
@@ -9,6 +7,8 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { pathToFileURL } = require('url');
+
+common.skipIfInspectorDisabled();
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -242,6 +242,7 @@ function nextdir() {
 
 // Persists line lengths for in-memory representation of source file.
 {
+  const checkoutEOL = fs.readFileSync(__filename).includes('\r\n') ? '\r\n' : '\n';
   const coverageDirectory = nextdir();
   spawnSync(process.execPath, [
     require.resolve('../fixtures/source-map/istanbul-throw.js'),
@@ -250,7 +251,7 @@ function nextdir() {
     'istanbul-throw.js',
     coverageDirectory
   );
-  if (common.checkoutEOL === '\r\n') {
+  if (checkoutEOL === '\r\n') {
     assert.deepStrictEqual(sourceMap.lineLengths, [1086, 31, 185, 649, 0]);
   } else {
     assert.deepStrictEqual(sourceMap.lineLengths, [1085, 30, 184, 648, 0]);
@@ -272,7 +273,7 @@ function nextdir() {
 // Does not attempt to apply path resolution logic to absolute URLs
 // with schemes.
 // Refs: https://github.com/webpack/webpack/issues/9601
-// Refs: https://sourcemaps.info/spec.html#h.75yo6yoyk7x5
+// Refs: https://tc39.es/ecma426/#sec-sources
 {
   const output = spawnSync(process.execPath, [
     '--enable-source-maps',

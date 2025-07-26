@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_STREAMING_DECODER_H_
+#define V8_WASM_STREAMING_DECODER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_STREAMING_DECODER_H_
-#define V8_WASM_STREAMING_DECODER_H_
 
 #include <memory>
 
@@ -18,9 +18,8 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-result.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
+
 class NativeModule;
 
 // This class is an interface for the StreamingDecoder to start the processing
@@ -113,7 +112,8 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
       std::unique_ptr<StreamingProcessor> processor);
 
   static std::unique_ptr<StreamingDecoder> CreateSyncStreamingDecoder(
-      Isolate* isolate, WasmFeatures enabled, Handle<Context> context,
+      Isolate* isolate, WasmEnabledFeatures enabled,
+      CompileTimeImports compile_imports, DirectHandle<Context> context,
       const char* api_method_name_for_errors,
       std::shared_ptr<CompilationResultResolver> resolver);
 
@@ -128,8 +128,6 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   base::Vector<const uint8_t> compiled_module_bytes_;
 };
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_STREAMING_DECODER_H_

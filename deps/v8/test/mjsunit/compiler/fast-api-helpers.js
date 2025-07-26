@@ -9,7 +9,8 @@ function optimize_and_check(func, fast_count, slow_count, expected) {
   %PrepareFunctionForOptimization(func);
   let result = func();
   assertEqualsDelta(expected, result, 0.001);
-
+  result = func();
+  assertEqualsDelta(expected, result, 0.001);
   fast_c_api.reset_counts();
   %OptimizeFunctionOnNextCall(func);
   result = func();
@@ -31,6 +32,5 @@ function assert_throws_and_optimized(func, arg) {
   fast_c_api.reset_counts();
   assertThrows(() => func(arg));
   assertOptimized(func);
-  assertEquals(0, fast_c_api.fast_call_count());
-  assertEquals(1, fast_c_api.slow_call_count());
+  assertEquals(1, fast_c_api.fast_call_count());
 }

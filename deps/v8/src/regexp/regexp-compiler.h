@@ -43,10 +43,10 @@ constexpr int kLineTerminatorRanges[] = {0x000A, 0x000B, 0x000D,         0x000E,
 constexpr int kLineTerminatorRangeCount = arraysize(kLineTerminatorRanges);
 
 // More makes code generation slower, less makes V8 benchmark score lower.
-constexpr int kMaxLookaheadForBoyerMoore = 8;
+constexpr uint32_t kMaxLookaheadForBoyerMoore = 8;
 // In a 3-character pattern you can maximally step forwards 3 characters
 // at a time, which is not always enough to pay for the extra logic.
-constexpr int kPatternTooShortForBoyerMoore = 2;
+constexpr uint32_t kPatternTooShortForBoyerMoore = 2;
 
 }  // namespace regexp_compiler_constants
 
@@ -208,8 +208,10 @@ class BoyerMooreLookahead : public ZoneObject {
   int max_char_;
   ZoneList<BoyerMoorePositionInfo*>* bitmaps_;
 
-  int GetSkipTable(int min_lookahead, int max_lookahead,
-                   Handle<ByteArray> boolean_skip_table);
+  int GetSkipTable(
+      int min_lookahead, int max_lookahead,
+      DirectHandle<ByteArray> boolean_skip_table,
+      DirectHandle<ByteArray> nibble_table = DirectHandle<ByteArray>{});
   bool FindWorthwhileInterval(int* from, int* to);
   int FindBestInterval(int max_number_of_chars, int old_biggest_points,
                        int* from, int* to);
@@ -480,7 +482,7 @@ class RegExpCompiler {
 
   struct CompilationResult final {
     explicit CompilationResult(RegExpError err) : error(err) {}
-    CompilationResult(Handle<Object> code, int registers)
+    CompilationResult(DirectHandle<Object> code, int registers)
         : code(code), num_registers(registers) {}
 
     static CompilationResult RegExpTooBig() {
@@ -490,13 +492,13 @@ class RegExpCompiler {
     bool Succeeded() const { return error == RegExpError::kNone; }
 
     const RegExpError error = RegExpError::kNone;
-    Handle<Object> code;
+    DirectHandle<Object> code;
     int num_registers = 0;
   };
 
   CompilationResult Assemble(Isolate* isolate, RegExpMacroAssembler* assembler,
                              RegExpNode* start, int capture_count,
-                             Handle<String> pattern);
+                             DirectHandle<String> pattern);
 
   // Preprocessing is the final step of node creation before analysis
   // and assembly. It includes:
@@ -504,8 +506,7 @@ class RegExpCompiler {
   // - Inserting the implicit .* before/after the regexp if necessary.
   // - If the input is a one-byte string, filtering out nodes that can't match.
   // - Fixing up regexp matches that start within a surrogate pair.
-  RegExpNode* PreprocessRegExp(RegExpCompileData* data, RegExpFlags flags,
-                               bool is_one_byte);
+  RegExpNode* PreprocessRegExp(RegExpCompileData* data, bool is_one_byte);
 
   // If the regexp matching starts within a surrogate pair, step back to the
   // lead surrogate and start matching from there.
@@ -530,7 +531,8 @@ class RegExpCompiler {
   inline void IncrementRecursionDepth() { recursion_depth_++; }
   inline void DecrementRecursionDepth() { recursion_depth_--; }
 
-  RegExpFlags flags() const { return flags_; }
+  inline RegExpFlags flags() const { return flags_; }
+  inline void set_flags(RegExpFlags flags) { flags_ = flags; }
 
   void SetRegExpTooBig() { reg_exp_too_big_ = true; }
 
@@ -574,7 +576,7 @@ class RegExpCompiler {
   int unicode_lookaround_position_register_;
   ZoneVector<RegExpNode*>* work_list_;
   int recursion_depth_;
-  const RegExpFlags flags_;
+  RegExpFlags flags_;
   RegExpMacroAssembler* macro_assembler_;
   bool one_byte_;
   bool reg_exp_too_big_;

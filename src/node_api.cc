@@ -1,3 +1,4 @@
+#include "async_context_frame.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
 #define NAPI_EXPERIMENTAL
@@ -18,6 +19,52 @@
 #include <atomic>
 #include <cstring>
 #include <memory>
+
+namespace v8impl {
+static void ThrowNodeApiVersionError(node::Environment* node_env,
+                                     const char* module_name,
+                                     int32_t module_api_version) {
+  std::string error_message;
+  error_message += module_name;
+  error_message += " requires Node-API version ";
+  error_message += std::to_string(module_api_version);
+  error_message += ", but this version of Node.js only supports version ";
+  error_message += NODE_STRINGIFY(NODE_API_SUPPORTED_VERSION_MAX) " add-ons.";
+  node_env->ThrowError(error_message.c_str());
+}
+}  // namespace v8impl
+
+/*static*/ napi_env node_napi_env__::New(v8::Local<v8::Context> context,
+                                         const std::string& module_filename,
+                                         int32_t module_api_version) {
+  node_napi_env result;
+
+  // Validate module_api_version.
+  if (module_api_version < NODE_API_DEFAULT_MODULE_API_VERSION) {
+    module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
+  } else if (module_api_version > NODE_API_SUPPORTED_VERSION_MAX &&
+             module_api_version != NAPI_VERSION_EXPERIMENTAL) {
+    node::Environment* node_env = node::Environment::GetCurrent(context);
+    CHECK_NOT_NULL(node_env);
+    v8impl::ThrowNodeApiVersionError(
+        node_env, module_filename.c_str(), module_api_version);
+    return nullptr;
+  }
+
+  result = new node_napi_env__(context, module_filename, module_api_version);
+  // TODO(addaleax): There was previously code that tried to delete the
+  // napi_env when its v8::Context was garbage collected;
+  // However, as long as N-API addons using this napi_env are in place,
+  // the Context needs to be accessible and alive.
+  // Ideally, we'd want an on-addon-unload hook that takes care of this
+  // once all N-API addons using this napi_env are unloaded.
+  // For now, a per-Environment cleanup hook is the best we can do.
+  result->node_env()->AddCleanupHook(
+      [](void* arg) { static_cast<napi_env>(arg)->Unref(); },
+      static_cast<void*>(result));
+
+  return result;
+}
 
 node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
                                  const std::string& module_filename,
@@ -92,11 +139,11 @@ void node_napi_env__::CallbackIntoModule(T&& call) {
       return;
     }
     node::Environment* node_env = env->node_env();
-    // If the module api version is less than NAPI_VERSION_EXPERIMENTAL,
-    // and the option --force-node-api-uncaught-exceptions-policy is not
-    // specified, emit a warning about the uncaught exception instead of
-    // triggering uncaught exception event.
-    if (env->module_api_version < NAPI_VERSION_EXPERIMENTAL &&
+    // If the module api version is less than 10, and the option
+    // --force-node-api-uncaught-exceptions-policy is not specified, emit a
+    // warning about the uncaught exception instead of triggering the uncaught
+    // exception event.
+    if (env->module_api_version < 10 &&
         !node_env->options()->force_node_api_uncaught_exceptions_policy &&
         !enforceUncaughtExceptionPolicy) {
       ProcessEmitDeprecationWarning(
@@ -121,9 +168,9 @@ namespace {
 class BufferFinalizer : private Finalizer {
  public:
   static BufferFinalizer* New(napi_env env,
-                              napi_finalize finalize_callback = nullptr,
-                              void* finalize_data = nullptr,
-                              void* finalize_hint = nullptr) {
+                              napi_finalize finalize_callback,
+                              void* finalize_data,
+                              void* finalize_hint) {
     return new BufferFinalizer(
         env, finalize_callback, finalize_data, finalize_hint);
   }
@@ -131,13 +178,8 @@ class BufferFinalizer : private Finalizer {
   static void FinalizeBufferCallback(char* data, void* hint) {
     std::unique_ptr<BufferFinalizer, Deleter> finalizer{
         static_cast<BufferFinalizer*>(hint)};
-    finalizer->finalize_data_ = data;
-
     // It is safe to call into JavaScript at this point.
-    if (finalizer->finalize_callback_ == nullptr) return;
-    finalizer->env_->CallFinalizer(finalizer->finalize_callback_,
-                                   finalizer->finalize_data_,
-                                   finalizer->finalize_hint_);
+    finalizer->CallFinalizer();
   }
 
   struct Deleter {
@@ -150,55 +192,11 @@ class BufferFinalizer : private Finalizer {
                   void* finalize_data,
                   void* finalize_hint)
       : Finalizer(env, finalize_callback, finalize_data, finalize_hint) {
-    env_->Ref();
+    env->Ref();
   }
 
-  ~BufferFinalizer() { env_->Unref(); }
+  ~BufferFinalizer() { env()->Unref(); }
 };
-
-void ThrowNodeApiVersionError(node::Environment* node_env,
-                              const char* module_name,
-                              int32_t module_api_version) {
-  std::string error_message;
-  error_message += module_name;
-  error_message += " requires Node-API version ";
-  error_message += std::to_string(module_api_version);
-  error_message += ", but this version of Node.js only supports version ";
-  error_message += NODE_STRINGIFY(NODE_API_SUPPORTED_VERSION_MAX) " add-ons.";
-  node_env->ThrowError(error_message.c_str());
-}
-
-inline napi_env NewEnv(v8::Local<v8::Context> context,
-                       const std::string& module_filename,
-                       int32_t module_api_version) {
-  node_napi_env result;
-
-  // Validate module_api_version.
-  if (module_api_version < NODE_API_DEFAULT_MODULE_API_VERSION) {
-    module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
-  } else if (module_api_version > NODE_API_SUPPORTED_VERSION_MAX &&
-             module_api_version != NAPI_VERSION_EXPERIMENTAL) {
-    node::Environment* node_env = node::Environment::GetCurrent(context);
-    CHECK_NOT_NULL(node_env);
-    ThrowNodeApiVersionError(
-        node_env, module_filename.c_str(), module_api_version);
-    return nullptr;
-  }
-
-  result = new node_napi_env__(context, module_filename, module_api_version);
-  // TODO(addaleax): There was previously code that tried to delete the
-  // napi_env when its v8::Context was garbage collected;
-  // However, as long as N-API addons using this napi_env are in place,
-  // the Context needs to be accessible and alive.
-  // Ideally, we'd want an on-addon-unload hook that takes care of this
-  // once all N-API addons using this napi_env are unloaded.
-  // For now, a per-Environment cleanup hook is the best we can do.
-  result->node_env()->AddCleanupHook(
-      [](void* arg) { static_cast<napi_env>(arg)->Unref(); },
-      static_cast<void*>(result));
-
-  return result;
-}
 
 class ThreadSafeFunction : public node::AsyncResource {
  public:
@@ -545,7 +543,9 @@ class AsyncContext {
       : env_(env) {
     async_id_ = node_env()->new_async_id();
     trigger_async_id_ = node_env()->get_default_trigger_async_id();
-    resource_.Reset(node_env()->isolate(), resource_object);
+    v8::Isolate* isolate = node_env()->isolate();
+    resource_.Reset(isolate, resource_object);
+    context_frame_.Reset(isolate, node::async_context_frame::current(isolate));
     lost_reference_ = false;
     if (externally_managed_resource) {
       resource_.SetWeak(
@@ -571,13 +571,15 @@ class AsyncContext {
       int argc,
       v8::Local<v8::Value> argv[]) {
     EnsureReference();
-    return node::InternalMakeCallback(node_env(),
-                                      resource(),
-                                      recv,
-                                      callback,
-                                      argc,
-                                      argv,
-                                      {async_id_, trigger_async_id_});
+    return node::InternalMakeCallback(
+        node_env(),
+        resource(),
+        recv,
+        callback,
+        argc,
+        argv,
+        {async_id_, trigger_async_id_},
+        context_frame_.Get(node_env()->isolate()));
   }
 
   inline napi_callback_scope OpenCallbackScope() {
@@ -633,6 +635,7 @@ class AsyncContext {
   double trigger_async_id_;
   v8::Global<v8::Object> resource_;
   bool lost_reference_;
+  v8::Global<v8::Value> context_frame_;
 };
 
 }  // end of anonymous namespace
@@ -677,11 +680,13 @@ node::addon_context_register_func get_node_api_context_register_func(
     const char* module_name,
     int32_t module_api_version) {
   static_assert(
-      NODE_API_SUPPORTED_VERSION_MAX == 9,
+      NODE_API_SUPPORTED_VERSION_MAX == 10,
       "New version of Node-API requires adding another else-if statement below "
       "for the new version and updating this assert condition.");
   if (module_api_version == 9) {
     return node_api_context_register_func<9>;
+  } else if (module_api_version == 10) {
+    return node_api_context_register_func<10>;
   } else if (module_api_version == NAPI_VERSION_EXPERIMENTAL) {
     return node_api_context_register_func<NAPI_VERSION_EXPERIMENTAL>;
   } else if (module_api_version >= NODE_API_SUPPORTED_VERSION_MIN &&
@@ -699,9 +704,9 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     napi_addon_register_func init,
                                     int32_t module_api_version) {
   node::Environment* node_env = node::Environment::GetCurrent(context);
+  CHECK_NOT_NULL(node_env);
   std::string module_filename = "";
   if (init == nullptr) {
-    CHECK_NOT_NULL(node_env);
     node_env->ThrowError("Module has no declared entry point.");
     return;
   }
@@ -725,7 +730,8 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   }
 
   // Create a new napi_env for this specific module.
-  napi_env env = v8impl::NewEnv(context, module_filename, module_api_version);
+  napi_env env =
+      node_napi_env__::New(context, module_filename, module_api_version);
 
   napi_value _exports = nullptr;
   env->CallIntoModule([&](napi_env env) {
@@ -765,7 +771,7 @@ void NAPI_CDECL napi_module_register(napi_module* mod) {
   node::node_module_register(nm);
 }
 
-napi_status NAPI_CDECL napi_add_env_cleanup_hook(node_api_nogc_env env,
+napi_status NAPI_CDECL napi_add_env_cleanup_hook(node_api_basic_env env,
                                                  napi_cleanup_hook fun,
                                                  void* arg) {
   CHECK_ENV(env);
@@ -776,7 +782,7 @@ napi_status NAPI_CDECL napi_add_env_cleanup_hook(node_api_nogc_env env,
   return napi_ok;
 }
 
-napi_status NAPI_CDECL napi_remove_env_cleanup_hook(node_api_nogc_env env,
+napi_status NAPI_CDECL napi_remove_env_cleanup_hook(node_api_basic_env env,
                                                     napi_cleanup_hook fun,
                                                     void* arg) {
   CHECK_ENV(env);
@@ -823,11 +829,11 @@ struct napi_async_cleanup_hook_handle__ {
 };
 
 napi_status NAPI_CDECL
-napi_add_async_cleanup_hook(node_api_nogc_env nogc_env,
+napi_add_async_cleanup_hook(node_api_basic_env basic_env,
                             napi_async_cleanup_hook hook,
                             void* arg,
                             napi_async_cleanup_hook_handle* remove_handle) {
-  napi_env env = const_cast<napi_env>(nogc_env);
+  napi_env env = const_cast<napi_env>(basic_env);
   CHECK_ENV(env);
   CHECK_ARG(env, hook);
 
@@ -1042,22 +1048,22 @@ napi_status NAPI_CDECL
 napi_create_external_buffer(napi_env env,
                             size_t length,
                             void* data,
-                            node_api_nogc_finalize nogc_finalize_cb,
+                            node_api_basic_finalize basic_finalize_cb,
                             void* finalize_hint,
                             napi_value* result) {
-  napi_finalize finalize_cb = reinterpret_cast<napi_finalize>(nogc_finalize_cb);
+  napi_finalize finalize_cb =
+      reinterpret_cast<napi_finalize>(basic_finalize_cb);
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, result);
 
-#if defined(V8_ENABLE_SANDBOX)
+#ifdef V8_ENABLE_SANDBOX
   return napi_set_last_error(env, napi_no_external_buffers_allowed);
-#endif
-
+#else
   v8::Isolate* isolate = env->isolate;
 
   // The finalizer object will delete itself after invoking the callback.
   v8impl::BufferFinalizer* finalizer =
-      v8impl::BufferFinalizer::New(env, finalize_cb, nullptr, finalize_hint);
+      v8impl::BufferFinalizer::New(env, finalize_cb, data, finalize_hint);
 
   v8::MaybeLocal<v8::Object> maybe =
       node::Buffer::New(isolate,
@@ -1074,6 +1080,7 @@ napi_create_external_buffer(napi_env env,
   // as it will be deleted when the buffer to which it is associated
   // is finalized.
   // coverity[leaked_storage]
+#endif  // V8_ENABLE_SANDBOX
 }
 
 napi_status NAPI_CDECL napi_create_buffer_copy(napi_env env,
@@ -1131,7 +1138,7 @@ napi_status NAPI_CDECL napi_get_buffer_info(napi_env env,
   return napi_clear_last_error(env);
 }
 
-napi_status NAPI_CDECL napi_get_node_version(node_api_nogc_env env,
+napi_status NAPI_CDECL napi_get_node_version(node_api_basic_env env,
                                              const napi_node_version** result) {
   CHECK_ENV(env);
   CHECK_ARG(env, result);
@@ -1275,16 +1282,16 @@ napi_status NAPI_CDECL napi_delete_async_work(napi_env env,
   return napi_clear_last_error(env);
 }
 
-napi_status NAPI_CDECL napi_get_uv_event_loop(node_api_nogc_env nogc_env,
+napi_status NAPI_CDECL napi_get_uv_event_loop(node_api_basic_env basic_env,
                                               uv_loop_t** loop) {
-  napi_env env = const_cast<napi_env>(nogc_env);
+  napi_env env = const_cast<napi_env>(basic_env);
   CHECK_ENV(env);
   CHECK_ARG(env, loop);
   *loop = reinterpret_cast<node_napi_env>(env)->node_env()->event_loop();
   return napi_clear_last_error(env);
 }
 
-napi_status NAPI_CDECL napi_queue_async_work(node_api_nogc_env env,
+napi_status NAPI_CDECL napi_queue_async_work(node_api_basic_env env,
                                              napi_async_work work) {
   CHECK_ENV(env);
   CHECK_ARG(env, work);
@@ -1299,7 +1306,7 @@ napi_status NAPI_CDECL napi_queue_async_work(node_api_nogc_env env,
   return napi_clear_last_error(env);
 }
 
-napi_status NAPI_CDECL napi_cancel_async_work(node_api_nogc_env env,
+napi_status NAPI_CDECL napi_cancel_async_work(node_api_basic_env env,
                                               napi_async_work work) {
   CHECK_ENV(env);
   CHECK_ARG(env, work);
@@ -1405,23 +1412,58 @@ napi_status NAPI_CDECL napi_release_threadsafe_function(
 }
 
 napi_status NAPI_CDECL napi_unref_threadsafe_function(
-    node_api_nogc_env env, napi_threadsafe_function func) {
+    node_api_basic_env env, napi_threadsafe_function func) {
   CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Unref();
 }
 
 napi_status NAPI_CDECL napi_ref_threadsafe_function(
-    node_api_nogc_env env, napi_threadsafe_function func) {
+    node_api_basic_env env, napi_threadsafe_function func) {
   CHECK_NOT_NULL(func);
   return reinterpret_cast<v8impl::ThreadSafeFunction*>(func)->Ref();
 }
 
-napi_status NAPI_CDECL node_api_get_module_file_name(node_api_nogc_env nogc_env,
-                                                     const char** result) {
-  napi_env env = const_cast<napi_env>(nogc_env);
+napi_status NAPI_CDECL node_api_get_module_file_name(
+    node_api_basic_env basic_env, const char** result) {
+  napi_env env = const_cast<napi_env>(basic_env);
   CHECK_ENV(env);
   CHECK_ARG(env, result);
 
   *result = static_cast<node_napi_env>(env)->GetFilename();
   return napi_clear_last_error(env);
 }
+
+#ifdef NAPI_EXPERIMENTAL
+
+napi_status NAPI_CDECL
+node_api_create_buffer_from_arraybuffer(napi_env env,
+                                        napi_value arraybuffer,
+                                        size_t byte_offset,
+                                        size_t byte_length,
+                                        napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, arraybuffer);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> arraybuffer_value =
+      v8impl::V8LocalValueFromJsValue(arraybuffer);
+  if (!arraybuffer_value->IsArrayBuffer()) {
+    return napi_invalid_arg;
+  }
+
+  v8::Local<v8::ArrayBuffer> arraybuffer_obj =
+      arraybuffer_value.As<v8::ArrayBuffer>();
+  if (byte_offset + byte_length > arraybuffer_obj->ByteLength()) {
+    return napi_throw_range_error(
+        env, "ERR_OUT_OF_RANGE", "The byte offset + length is out of range");
+  }
+
+  v8::Local<v8::Object> buffer =
+      node::Buffer::New(env->isolate, arraybuffer_obj, byte_offset, byte_length)
+          .ToLocalChecked();
+
+  *result = v8impl::JsValueFromV8LocalValue(buffer);
+  return napi_ok;
+}
+
+#endif

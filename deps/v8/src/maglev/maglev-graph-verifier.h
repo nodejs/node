@@ -16,8 +16,7 @@ namespace maglev {
 
 class Graph;
 
-// TODO(victorgomes): Currently it only verifies the inputs for all ValueNodes
-// are expected to be tagged/untagged. Add more verification later.
+// TODO(victorgomes): Add more verification.
 class MaglevGraphVerifier {
  public:
   explicit MaglevGraphVerifier(MaglevCompilationInfo* compilation_info) {
@@ -26,18 +25,36 @@ class MaglevGraphVerifier {
     }
   }
 
-  void PreProcessGraph(Graph* graph) {}
+  void PreProcessGraph(Graph* graph) { seen_.resize(graph->max_block_id()); }
   void PostProcessGraph(Graph* graph) {}
-  void PreProcessBasicBlock(BasicBlock* block) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    // Check Ids are unique.
+    CHECK(!seen_[block->id()]);
+    seen_[block->id()] = true;
+    return BlockProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
+
+  ProcessResult Process(Dead* node, const ProcessingState& state) {
+    node->VerifyInputs(graph_labeller_);
+    return ProcessResult::kContinue;
+  }
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    for (Input& input : *node) {
+      Opcode op = input.node()->opcode();
+      CHECK_GE(op, kFirstOpcode);
+      CHECK_LE(op, kLastOpcode);
+    }
     node->VerifyInputs(graph_labeller_);
     return ProcessResult::kContinue;
   }
 
  private:
   MaglevGraphLabeller* graph_labeller_ = nullptr;
+  std::vector<bool> seen_;
 };
 
 }  // namespace maglev

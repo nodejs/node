@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_ARGUMENTS_H_
+#define V8_WASM_WASM_ARGUMENTS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_WASM_ARGUMENTS_H_
-#define V8_WASM_WASM_ARGUMENTS_H_
 
 #include <stdint.h>
 #include <vector>
@@ -49,13 +49,13 @@ class CWasmArgumentsPacker {
     return base::ReadUnalignedValue<T>(address);
   }
 
-  static int TotalSize(const FunctionSig* sig) {
+  static int TotalSize(const CanonicalSig* sig) {
     int return_size = 0;
-    for (ValueType t : sig->returns()) {
+    for (CanonicalValueType t : sig->returns()) {
       return_size += t.value_kind_full_size();
     }
     int param_size = 0;
-    for (ValueType t : sig->parameters()) {
+    for (CanonicalValueType t : sig->parameters()) {
       param_size += t.value_kind_full_size();
     }
     return std::max(return_size, param_size);

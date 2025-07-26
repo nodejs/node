@@ -9,9 +9,13 @@
 
 #include "unicode/utypes.h"
 
-#if U_SHOW_CPLUSPLUS_API
+#if U_SHOW_CPLUSPLUS_API || U_SHOW_CPLUSPLUS_HEADER_API
 
 #include <cstddef>
+#include <string_view>
+#include <type_traits>
+
+#endif
 
 /**
  * \file
@@ -19,8 +23,6 @@
  *        implicit conversion from bit-compatible raw pointer types.
  *        Also conversion functions from char16_t * to UChar * and OldUChar *.
  */
-
-U_NAMESPACE_BEGIN
 
 /**
  * \def U_ALIASING_BARRIER
@@ -34,6 +36,11 @@ U_NAMESPACE_BEGIN
 #elif defined(U_IN_DOXYGEN)
 #   define U_ALIASING_BARRIER(ptr)
 #endif
+
+// ICU DLL-exported
+#if U_SHOW_CPLUSPLUS_API
+
+U_NAMESPACE_BEGIN
 
 /**
  * char16_t * wrapper with implicit conversion from distinct but bit-compatible pointer types.
@@ -250,6 +257,60 @@ const char16_t *ConstChar16Ptr::get() const { return u_.cp; }
 #endif
 /// \endcond
 
+U_NAMESPACE_END
+
+#endif  // U_SHOW_CPLUSPLUS_API
+
+// Usable in header-only definitions
+#if U_SHOW_CPLUSPLUS_API || U_SHOW_CPLUSPLUS_HEADER_API
+
+namespace U_ICU_NAMESPACE_OR_INTERNAL {
+
+#ifndef U_FORCE_HIDE_INTERNAL_API
+/** @internal */
+template<typename T, typename = std::enable_if_t<std::is_same_v<T, UChar>>>
+inline const char16_t *uprv_char16PtrFromUChar(const T *p) {
+    if constexpr (std::is_same_v<UChar, char16_t>) {
+        return p;
+    } else {
+#if U_SHOW_CPLUSPLUS_API
+        return ConstChar16Ptr(p).get();
+#else
+#ifdef U_ALIASING_BARRIER
+        U_ALIASING_BARRIER(p);
+#endif
+        return reinterpret_cast<const char16_t *>(p);
+#endif
+    }
+}
+#if !U_CHAR16_IS_TYPEDEF && (!defined(_LIBCPP_VERSION) || _LIBCPP_VERSION < 180000)
+/** @internal */
+inline const char16_t *uprv_char16PtrFromUint16(const uint16_t *p) {
+#if U_SHOW_CPLUSPLUS_API
+    return ConstChar16Ptr(p).get();
+#else
+#ifdef U_ALIASING_BARRIER
+    U_ALIASING_BARRIER(p);
+#endif
+    return reinterpret_cast<const char16_t *>(p);
+#endif
+}
+#endif
+#if U_SIZEOF_WCHAR_T==2
+/** @internal */
+inline const char16_t *uprv_char16PtrFromWchar(const wchar_t *p) {
+#if U_SHOW_CPLUSPLUS_API
+    return ConstChar16Ptr(p).get();
+#else
+#ifdef U_ALIASING_BARRIER
+    U_ALIASING_BARRIER(p);
+#endif
+    return reinterpret_cast<const char16_t *>(p);
+#endif
+}
+#endif
+#endif
+
 /**
  * Converts from const char16_t * to const UChar *.
  * Includes an aliasing barrier if available.
@@ -306,8 +367,87 @@ inline OldUChar *toOldUCharPtr(char16_t *p) {
     return reinterpret_cast<OldUChar *>(p);
 }
 
+}  // U_ICU_NAMESPACE_OR_INTERNAL
+
+#endif  // U_SHOW_CPLUSPLUS_API || U_SHOW_CPLUSPLUS_HEADER_API
+
+// ICU DLL-exported
+#if U_SHOW_CPLUSPLUS_API
+
+U_NAMESPACE_BEGIN
+
+#ifndef U_FORCE_HIDE_INTERNAL_API
+/**
+ * Is T convertible to a std::u16string_view or some other 16-bit string view?
+ * @internal
+ */
+template<typename T>
+constexpr bool ConvertibleToU16StringView =
+    std::is_convertible_v<T, std::u16string_view>
+#if !U_CHAR16_IS_TYPEDEF && (!defined(_LIBCPP_VERSION) || _LIBCPP_VERSION < 180000)
+    || std::is_convertible_v<T, std::basic_string_view<uint16_t>>
+#endif
+#if U_SIZEOF_WCHAR_T==2
+    || std::is_convertible_v<T, std::wstring_view>
+#endif
+    ;
+
+namespace internal {
+/**
+ * Pass-through overload.
+ * @internal
+ */
+inline std::u16string_view toU16StringView(std::u16string_view sv) { return sv; }
+
+#if !U_CHAR16_IS_TYPEDEF && (!defined(_LIBCPP_VERSION) || _LIBCPP_VERSION < 180000)
+/**
+ * Basically undefined behavior but sometimes necessary conversion
+ * from std::basic_string_view<uint16_t> to std::u16string_view.
+ * @internal
+ */
+inline std::u16string_view toU16StringView(std::basic_string_view<uint16_t> sv) {
+    return { ConstChar16Ptr(sv.data()), sv.length() };
+}
+#endif
+
+#if U_SIZEOF_WCHAR_T==2
+/**
+ * Basically undefined behavior but sometimes necessary conversion
+ * from std::wstring_view to std::u16string_view.
+ * @internal
+ */
+inline std::u16string_view toU16StringView(std::wstring_view sv) {
+    return { ConstChar16Ptr(sv.data()), sv.length() };
+}
+#endif
+
+/**
+ * Pass-through overload.
+ * @internal
+ */
+template <typename T,
+          typename = typename std::enable_if_t<!std::is_pointer_v<std::remove_reference_t<T>>>>
+inline std::u16string_view toU16StringViewNullable(const T& text) {
+    return toU16StringView(text);
+}
+
+/**
+ * In case of nullptr, return an empty view.
+ * @internal
+ */
+template <typename T,
+          typename = typename std::enable_if_t<std::is_pointer_v<std::remove_reference_t<T>>>,
+          typename = void>
+inline std::u16string_view toU16StringViewNullable(const T& text) {
+    if (text == nullptr) return {};  // For backward compatibility.
+    return toU16StringView(text);
+}
+
+}  // internal
+#endif  // U_FORCE_HIDE_INTERNAL_API
+
 U_NAMESPACE_END
 
-#endif /* U_SHOW_CPLUSPLUS_API */
+#endif  // U_SHOW_CPLUSPLUS_API
 
 #endif  // __CHAR16PTR_H__

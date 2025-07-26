@@ -14,6 +14,7 @@
 #include "src/api/api-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/wasm/wasm-features.h"
+#include "src/wasm/wasm-js.h"
 #include "test/common/flag-utils.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
@@ -62,7 +63,7 @@ void WasmStreamingCallbackTestCallbackIsCalled(
   i::Handle<i::Object> global_handle =
       reinterpret_cast<i::Isolate*>(info.GetIsolate())
           ->global_handles()
-          ->Create(*Utils::OpenHandle(*info.Data()));
+          ->Create(*Utils::OpenDirectHandle(*info.Data()));
   i::GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
                              WasmStreamingTestFinalizer,
                              WeakCallbackType::kParameter);
@@ -166,80 +167,141 @@ TEST_F(ApiWasmTest, WasmStreamingSetCallback) {
                     Promise::kPending);
 }
 
-TEST_F(ApiWasmTest, WasmEnableDisableGC) {
-  Local<Context> context_local = Context::New(isolate());
-  Context::Scope context_scope(context_local);
-  i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
-  const bool expect_gc = i::v8_flags.experimental_wasm_gc;
-  // Inlining is enabled in --future.
-  const bool expect_inlining =
-      i::v8_flags.future || i::v8_flags.experimental_wasm_inlining;
-  // When using the flags, stringref and GC are controlled independently.
-  {
-    i::FlagScope<bool> flag_gc(&i::v8_flags.experimental_wasm_gc, false);
-    i::FlagScope<bool> flag_stringref(&i::v8_flags.experimental_wasm_stringref,
-                                      true);
-    EXPECT_FALSE(i_isolate()->IsWasmGCEnabled(context));
-    EXPECT_TRUE(i_isolate()->IsWasmStringRefEnabled(context));
-  }
-  {
-    i::FlagScope<bool> flag_gc(&i::v8_flags.experimental_wasm_gc, true);
-    i::FlagScope<bool> flag_stringref(&i::v8_flags.experimental_wasm_stringref,
-                                      false);
-    EXPECT_TRUE(i_isolate()->IsWasmGCEnabled(context));
-    EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
-  }
-  // When providing a callback, the callback will control GC, stringref,
-  // and inlining.
-  isolate()->SetWasmGCEnabledCallback([](auto) { return true; });
-  EXPECT_TRUE(i_isolate()->IsWasmGCEnabled(context));
-  EXPECT_TRUE(i_isolate()->IsWasmStringRefEnabled(context));
-  EXPECT_TRUE(i_isolate()->IsWasmInliningEnabled(context));
-  {
-    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
-    EXPECT_TRUE(enabled_features.has_gc());
-    EXPECT_TRUE(enabled_features.has_stringref());
-    EXPECT_TRUE(enabled_features.has_typed_funcref());
-    EXPECT_TRUE(enabled_features.has_inlining());
-  }
-  isolate()->SetWasmGCEnabledCallback([](auto) { return false; });
-  EXPECT_EQ(expect_gc, i_isolate()->IsWasmGCEnabled(context));
-  EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
-  EXPECT_EQ(expect_inlining, i_isolate()->IsWasmInliningEnabled(context));
-  {
-    auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
-    EXPECT_EQ(expect_gc, enabled_features.has_gc());
-    EXPECT_FALSE(enabled_features.has_stringref());
-    EXPECT_EQ(expect_gc, enabled_features.has_typed_funcref());
-    EXPECT_EQ(expect_inlining, enabled_features.has_inlining());
-  }
-  isolate()->SetWasmGCEnabledCallback(nullptr);
+TEST_F(ApiWasmTest, WasmErrorIsSharedCrossOrigin) {
+  Isolate::Scope iscope(isolate());
+  HandleScope scope(isolate());
+  Local<Context> context = Context::New(isolate());
+  Context::Scope cscope(context);
+
+  TryCatch try_catch(isolate());
+  // A fairly minimal Wasm module that produces an error at runtime:
+  // it returns {null} from an imported function that's typed to return
+  // a non-null reference.
+  const char* expected_message =
+      "Uncaught TypeError: type incompatibility when transforming from/to JS";
+  const char* src =
+      "let raw = new Uint8Array(["
+      "  0x00, 0x61, 0x73, 0x6d,  // wasm magic                            \n"
+      "  0x01, 0x00, 0x00, 0x00,  // wasm version                          \n"
+
+      "  0x01, 0x06,              // Type section, length 6                \n"
+      "  0x01, 0x60,              // 1 type, kind: func                    \n"
+      "  0x00, 0x01, 0x64, 0x6f,  // 0 params, 1 result: (ref extern)      \n"
+
+      "  0x02, 0x07, 0x01,        // Import section, length 7, 1 import    \n"
+      "  0x01, 0x6d, 0x01, 0x6e,  // 'm' 'n'                               \n"
+      "  0x00, 0x00,              // kind: function $type0                 \n"
+
+      "  0x03, 0x02,              // Function section, length 2            \n"
+      "  0x01, 0x00,              // 1 function, $type0                    \n"
+
+      "  0x07, 0x05, 0x01,        // Export section, length 5, 1 export    \n"
+      "  0x01, 0x66, 0x00, 0x01,  // 'f': function #1                      \n"
+
+      "  0x0a, 0x06, 0x01,        // Code section, length 6, 1 function    \n"
+      "  0x04, 0x00,              // body size 4, 0 locals                 \n"
+      "  0x10, 0x00, 0x0b,        // call $m.n; end                        \n"
+      "]);                                                                 \n"
+
+      "let mod = new WebAssembly.Module(raw.buffer);                       \n"
+      "let instance = new WebAssembly.Instance(mod, {m: {n: () => null}}); \n"
+      "instance.exports.f();";
+
+  TryRunJS(src);
+  EXPECT_TRUE(try_catch.HasCaught());
+  Local<Message> message = try_catch.Message();
+  CHECK_EQ(0, strcmp(*String::Utf8Value(isolate(), message->Get()),
+                     expected_message));
+  EXPECT_TRUE(message->IsSharedCrossOrigin());
 }
 
 TEST_F(ApiWasmTest, WasmEnableDisableImportedStrings) {
   Local<Context> context_local = Context::New(isolate());
   Context::Scope context_scope(context_local);
-  i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
+  i::DirectHandle<i::NativeContext> context =
+      v8::Utils::OpenDirectHandle(*context_local);
   // Test enabling/disabling via flag.
   {
     i::FlagScope<bool> flag_strings(
         &i::v8_flags.experimental_wasm_imported_strings, true);
     EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+
+    // When flag is on, callback return value has no effect.
+    isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return true; });
+    EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+    EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                    .has_imported_strings());
+    isolate()->SetWasmImportedStringsEnabledCallback(
+        [](auto) { return false; });
+    EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+    EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                    .has_imported_strings());
   }
   {
     i::FlagScope<bool> flag_strings(
         &i::v8_flags.experimental_wasm_imported_strings, false);
     EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
+
+    // Test enabling/disabling via callback.
+    isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return true; });
+    EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+    EXPECT_TRUE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                    .has_imported_strings());
+    isolate()->SetWasmImportedStringsEnabledCallback(
+        [](auto) { return false; });
+    EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
+    EXPECT_FALSE(i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate())
+                     .has_imported_strings());
+  }
+}
+
+TEST_F(ApiWasmTest, WasmEnableDisableJSPI) {
+  FLAG_VALUE_SCOPE(experimental_wasm_jspi, false);
+  Local<Context> context_local = Context::New(isolate());
+  Context::Scope context_scope(context_local);
+  i::DirectHandle<i::NativeContext> context =
+      v8::Utils::OpenDirectHandle(*context_local);
+  // Test enabling/disabling via flag.
+  {
+    i::FlagScope<bool> flag_strings(&i::v8_flags.experimental_wasm_jspi, true);
+    EXPECT_TRUE(i_isolate()->IsWasmJSPIRequested(context));
+  }
+  {
+    i::FlagScope<bool> flag_strings(&i::v8_flags.experimental_wasm_jspi, false);
+    EXPECT_FALSE(i_isolate()->IsWasmJSPIRequested(context));
   }
   // Test enabling/disabling via callback.
-  isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return true; });
-  EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
-  EXPECT_TRUE(
-      i::wasm::WasmFeatures::FromIsolate(i_isolate()).has_imported_strings());
-  isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return false; });
-  EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
-  EXPECT_FALSE(
-      i::wasm::WasmFeatures::FromIsolate(i_isolate()).has_imported_strings());
+  isolate()->SetWasmJSPIEnabledCallback([](auto) { return true; });
+  EXPECT_TRUE(i_isolate()->IsWasmJSPIRequested(context));
+  isolate()->SetWasmJSPIEnabledCallback([](auto) { return false; });
+  EXPECT_FALSE(i_isolate()->IsWasmJSPIRequested(context));
+}
+
+TEST_F(ApiWasmTest, WasmInstallJSPI) {
+  FLAG_VALUE_SCOPE(experimental_wasm_jspi, false);
+  Local<Context> context_local = Context::New(isolate());
+  Context::Scope context_scope(context_local);
+  i::DirectHandle<i::NativeContext> context =
+      v8::Utils::OpenDirectHandle(*context_local);
+
+  EXPECT_FALSE(i_isolate()->IsWasmJSPIEnabled(context));
+  i::wasm::WasmEnabledFeatures features =
+      i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
+  EXPECT_FALSE(features.has_jspi());
+
+  // Test installing JSPI via flag.
+  isolate()->SetWasmJSPIEnabledCallback([](auto) { return true; });
+
+  EXPECT_TRUE(i_isolate()->IsWasmJSPIRequested(context));
+  EXPECT_FALSE(i_isolate()->IsWasmJSPIEnabled(context));
+  features = i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
+  EXPECT_FALSE(features.has_jspi());
+
+  i::WasmJs::InstallConditionalFeatures(i_isolate(), context);
+
+  EXPECT_TRUE(i_isolate()->IsWasmJSPIEnabled(context));
+  features = i::wasm::WasmEnabledFeatures::FromIsolate(i_isolate());
+  EXPECT_TRUE(features.has_jspi());
 }
 
 }  // namespace v8

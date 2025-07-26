@@ -1,17 +1,16 @@
-const fs = require('fs')
-const { relative, resolve } = require('path')
-const { mkdir } = require('fs/promises')
+const { statSync } = require('node:fs')
+const { relative, resolve } = require('node:path')
+const { mkdir } = require('node:fs/promises')
 const initJson = require('init-package-json')
 const npa = require('npm-package-arg')
 const libexec = require('libnpmexec')
 const mapWorkspaces = require('@npmcli/map-workspaces')
 const PackageJson = require('@npmcli/package-json')
-const log = require('../utils/log-shim.js')
-const updateWorkspaces = require('../workspaces/update-workspaces.js')
+const { log, output, input } = require('proc-log')
+const updateWorkspaces = require('../utils/update-workspaces.js')
+const BaseCommand = require('../base-cmd.js')
 
 const posixPath = p => p.split('\\').join('/')
-
-const BaseCommand = require('../base-command.js')
 
 class Init extends BaseCommand {
   static description = 'Create a package.json file'
@@ -20,7 +19,9 @@ class Init extends BaseCommand {
     'init-author-url',
     'init-license',
     'init-module',
+    'init-type',
     'init-version',
+    'init-private',
     'yes',
     'force',
     'scope',
@@ -32,7 +33,7 @@ class Init extends BaseCommand {
 
   static name = 'init'
   static usage = [
-    '<package-spec> (same as `npx <package-spec>`)',
+    '<package-spec> (same as `npx create-<package-spec>`)',
     '<@scope> (same as `npx <@scope>/create`)',
   ]
 
@@ -60,7 +61,7 @@ class Init extends BaseCommand {
     // to create a workspace package.json file or its folders
     const { content: pkg } = await PackageJson.normalize(this.npm.localPrefix).catch(err => {
       if (err.code === 'ENOENT') {
-        log.warn('Missing package.json. Try with `--include-workspace-root`.')
+        log.warn('init', 'Missing package.json. Try with `--include-workspace-root`.')
       }
       throw err
     })
@@ -96,7 +97,7 @@ class Init extends BaseCommand {
     await this.update(workspacesPaths)
   }
 
-  async execCreate (args, path = process.cwd()) {
+  async execCreate (args, runPath = process.cwd()) {
     const [initerName, ...otherArgs] = args
     let packageName = initerName
 
@@ -130,19 +131,23 @@ class Init extends BaseCommand {
       globalBin,
       chalk,
     } = this.npm
-    const output = this.npm.output.bind(this.npm)
-    const runPath = path
     const scriptShell = this.npm.config.get('script-shell') || undefined
     const yes = this.npm.config.get('yes')
 
+    // only send the init-private flag if it is set
+    const opts = { ...flatOptions }
+    if (this.npm.config.isDefault('init-private')) {
+      delete opts.initPrivate
+    }
+
     await libexec({
-      ...flatOptions,
+      ...opts,
       args: newArgs,
       localBin,
       globalBin,
       output,
       chalk,
-      path,
+      path: this.npm.localPrefix,
       runPath,
       scriptShell,
       yes,
@@ -150,12 +155,9 @@ class Init extends BaseCommand {
   }
 
   async template (path = process.cwd()) {
-    log.pause()
-    log.disableProgress()
-
     const initFile = this.npm.config.get('init-module')
     if (!this.npm.config.get('yes') && !this.npm.config.get('force')) {
-      this.npm.output([
+      output.standard([
         'This utility will walk you through creating a package.json file.',
         'It only covers the most common items, and tries to guess sensible defaults.',
         '',
@@ -170,18 +172,16 @@ class Init extends BaseCommand {
     }
 
     try {
-      const data = await initJson(path, initFile, this.npm.config)
+      const data = await input.read(() => initJson(path, initFile, this.npm.config))
       log.silly('package data', data)
       return data
     } catch (er) {
       if (er.message === 'canceled') {
+        output.flush()
         log.warn('init', 'canceled')
       } else {
         throw er
       }
-    } finally {
-      log.resume()
-      log.enableProgress()
     }
   }
 
@@ -200,8 +200,8 @@ class Init extends BaseCommand {
     // mapWorkspaces, so we're just going to avoid touching the
     // top-level package.json
     try {
-      fs.statSync(resolve(workspacePath, 'package.json'))
-    } catch (err) {
+      statSync(resolve(workspacePath, 'package.json'))
+    } catch {
       return
     }
 

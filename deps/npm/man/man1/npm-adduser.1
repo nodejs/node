@@ -1,4 +1,4 @@
-.TH "NPM-ADDUSER" "1" "February 2024" "" ""
+.TH "NPM-ADDUSER" "1" "July 2025" "NPM@11.5.1" ""
 .SH "NAME"
 \fBnpm-adduser\fR - Add a registry user account
 .SS "Synopsis"
@@ -15,6 +15,8 @@ Note: This command is unaware of workspaces.
 .SS "Description"
 .P
 Create a new user in the specified registry, and save the credentials to the \fB.npmrc\fR file. If no registry is specified, the default registry will be used (see npm help registry).
+.P
+When you run \fBnpm adduser\fR, the CLI automatically generates a legacy token of \fBpublish\fR type. For more information, see \fBAbout legacy tokens\fR \fI\(la/about-access-tokens#about-legacy-tokens\(ra\fR.
 .P
 When using \fBlegacy\fR for your \fBauth-type\fR, the username, password, and email are read in from prompts.
 .SS "Configuration"

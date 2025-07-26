@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -207,6 +207,7 @@ int UI_dup_input_string(UI *ui, const char *prompt, int flags,
                         char *result_buf, int minsize, int maxsize)
 {
     char *prompt_copy = NULL;
+    int ret;
 
     if (prompt != NULL) {
         prompt_copy = OPENSSL_strdup(prompt);
@@ -216,9 +217,13 @@ int UI_dup_input_string(UI *ui, const char *prompt, int flags,
         }
     }
 
-    return general_allocate_string(ui, prompt_copy, 1,
-                                   UIT_PROMPT, flags, result_buf, minsize,
-                                   maxsize, NULL);
+    ret = general_allocate_string(ui, prompt_copy, 1,
+                                  UIT_PROMPT, flags, result_buf, minsize,
+                                  maxsize, NULL);
+    if (ret <= 0)
+        OPENSSL_free(prompt_copy);
+
+    return ret;
 }
 
 int UI_add_verify_string(UI *ui, const char *prompt, int flags,
@@ -235,6 +240,7 @@ int UI_dup_verify_string(UI *ui, const char *prompt, int flags,
                          const char *test_buf)
 {
     char *prompt_copy = NULL;
+    int ret;
 
     if (prompt != NULL) {
         prompt_copy = OPENSSL_strdup(prompt);
@@ -244,9 +250,12 @@ int UI_dup_verify_string(UI *ui, const char *prompt, int flags,
         }
     }
 
-    return general_allocate_string(ui, prompt_copy, 1,
-                                   UIT_VERIFY, flags, result_buf, minsize,
-                                   maxsize, test_buf);
+    ret = general_allocate_string(ui, prompt_copy, 1,
+                                  UIT_VERIFY, flags, result_buf, minsize,
+                                  maxsize, test_buf);
+    if (ret <= 0)
+        OPENSSL_free(prompt_copy);
+    return ret;
 }
 
 int UI_add_input_boolean(UI *ui, const char *prompt, const char *action_desc,
@@ -266,6 +275,7 @@ int UI_dup_input_boolean(UI *ui, const char *prompt, const char *action_desc,
     char *action_desc_copy = NULL;
     char *ok_chars_copy = NULL;
     char *cancel_chars_copy = NULL;
+    int ret;
 
     if (prompt != NULL) {
         prompt_copy = OPENSSL_strdup(prompt);
@@ -299,9 +309,14 @@ int UI_dup_input_boolean(UI *ui, const char *prompt, const char *action_desc,
         }
     }
 
-    return general_allocate_boolean(ui, prompt_copy, action_desc_copy,
-                                    ok_chars_copy, cancel_chars_copy, 1,
-                                    UIT_BOOLEAN, flags, result_buf);
+    ret = general_allocate_boolean(ui, prompt_copy, action_desc_copy,
+                                   ok_chars_copy, cancel_chars_copy, 1,
+                                   UIT_BOOLEAN, flags, result_buf);
+    if (ret <= 0)
+        goto err;
+
+    return ret;
+
  err:
     OPENSSL_free(prompt_copy);
     OPENSSL_free(action_desc_copy);
@@ -319,6 +334,7 @@ int UI_add_info_string(UI *ui, const char *text)
 int UI_dup_info_string(UI *ui, const char *text)
 {
     char *text_copy = NULL;
+    int ret;
 
     if (text != NULL) {
         text_copy = OPENSSL_strdup(text);
@@ -328,8 +344,11 @@ int UI_dup_info_string(UI *ui, const char *text)
         }
     }
 
-    return general_allocate_string(ui, text_copy, 1, UIT_INFO, 0, NULL,
-                                   0, 0, NULL);
+    ret = general_allocate_string(ui, text_copy, 1, UIT_INFO, 0, NULL,
+                                  0, 0, NULL);
+    if (ret <= 0)
+        OPENSSL_free(text_copy);
+    return ret;
 }
 
 int UI_add_error_string(UI *ui, const char *text)
@@ -341,6 +360,7 @@ int UI_add_error_string(UI *ui, const char *text)
 int UI_dup_error_string(UI *ui, const char *text)
 {
     char *text_copy = NULL;
+    int ret;
 
     if (text != NULL) {
         text_copy = OPENSSL_strdup(text);
@@ -349,8 +369,12 @@ int UI_dup_error_string(UI *ui, const char *text)
             return -1;
         }
     }
-    return general_allocate_string(ui, text_copy, 1, UIT_ERROR, 0, NULL,
-                                   0, 0, NULL);
+
+    ret = general_allocate_string(ui, text_copy, 1, UIT_ERROR, 0, NULL,
+                                  0, 0, NULL);
+    if (ret <= 0)
+        OPENSSL_free(text_copy);
+    return ret;
 }
 
 char *UI_construct_prompt(UI *ui, const char *phrase_desc,

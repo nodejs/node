@@ -147,10 +147,10 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
   RunJS(foo_str.c_str());
   v8::Local<v8::Function> local_foo = v8::Local<v8::Function>::Cast(
       context()->Global()->Get(context(), NewString("foo1")).ToLocalChecked());
-  Handle<JSFunction> foo =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
+  DirectHandle<JSFunction> foo =
+      Cast<JSFunction>(v8::Utils::OpenDirectHandle(*local_foo));
 
-  Tagged<Code> code = foo->code();
+  Tagged<Code> code = foo->code(i_isolate());
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
   if (!code->is_optimized_code()) return;
@@ -190,8 +190,8 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
               ->Global()
               ->Get(context(), NewString(foo_name))
               .ToLocalChecked());
-      Handle<JSFunction> foo =
-          Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
+      DirectHandle<JSFunction> foo =
+          Cast<JSFunction>(v8::Utils::OpenDirectHandle(*local_foo));
 
       // If there is baseline code, check that it's only due to
       // --always-sparkplug (if this check fails, we'll have to re-think this
@@ -200,7 +200,7 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
         EXPECT_TRUE(v8_flags.always_sparkplug);
         return;
       }
-      Tagged<Code> code = foo->code();
+      Tagged<Code> code = foo->code(i_isolate());
       // We don't produce optimized code when run with --no-turbofan and
       // --no-maglev.
       if (!code->is_optimized_code()) return;
@@ -257,7 +257,12 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
     }
   }
 
-  InvokeMajorGC();
+  {
+    // The resource may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate()->heap());
+    InvokeMajorGC();
+  }
 
   std::vector<MemoryRange>* pages = i_isolate()->GetCodePages();
   auto it = std::find_if(
@@ -270,13 +275,11 @@ TEST_F(CodePagesTest, LargeCodeObject) {
   // We don't want incremental marking to start which could cause the code to
   // not be collected on the CollectGarbage() call.
   ManualGCScope manual_gc_scope(i_isolate());
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      i_isolate()->heap());
 
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = Page::kPageSize + 1;
+  const int instruction_size = PageMetadata::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
@@ -294,11 +297,10 @@ TEST_F(CodePagesTest, LargeCodeObject) {
 
   {
     HandleScope scope(i_isolate());
-    Handle<Code> foo_code =
-        Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-            .Build();
-    Handle<InstructionStream> foo_istream(foo_code->instruction_stream(),
-                                          i_isolate());
+    DirectHandle<Code> foo_code =
+        Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
+    DirectHandle<InstructionStream> foo_istream(foo_code->instruction_stream(),
+                                                i_isolate());
 
     EXPECT_TRUE(i_isolate()->heap()->InSpace(*foo_istream, CODE_LO_SPACE));
 
@@ -314,7 +316,12 @@ TEST_F(CodePagesTest, LargeCodeObject) {
   }
 
   // Delete the large code object.
-  InvokeMajorGC();
+  {
+    // The resource may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate()->heap());
+    InvokeMajorGC();
+  }
   EXPECT_TRUE(
       !i_isolate()->heap()->InSpaceSlow(stale_code_address, CODE_LO_SPACE));
 
@@ -389,13 +396,11 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   // We don't want incremental marking to start which could cause the code to
   // not be collected on the CollectGarbage() call.
   ManualGCScope manual_gc_scope(i_isolate());
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      i_isolate()->heap());
 
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = Page::kPageSize + 1;
+  const int instruction_size = PageMetadata::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
@@ -422,11 +427,10 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
 
   {
     HandleScope scope(i_isolate());
-    Handle<Code> foo_code =
-        Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-            .Build();
-    Handle<InstructionStream> foo_istream(foo_code->instruction_stream(),
-                                          i_isolate());
+    DirectHandle<Code> foo_code =
+        Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
+    DirectHandle<InstructionStream> foo_istream(foo_code->instruction_stream(),
+                                                i_isolate());
 
     EXPECT_TRUE(i_isolate()->heap()->InSpace(*foo_istream, CODE_LO_SPACE));
 
@@ -451,7 +455,12 @@ TEST_F(CodePagesTest, LargeCodeObjectWithSignalHandler) {
   sampling_thread.StartSynchronously();
 
   // Delete the large code object.
-  InvokeMajorGC();
+  {
+    // The resource may not be reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        i_isolate()->heap());
+    InvokeMajorGC();
+  }
   EXPECT_TRUE(
       !i_isolate()->heap()->InSpaceSlow(stale_code_address, CODE_LO_SPACE));
 
@@ -469,13 +478,11 @@ TEST_F(CodePagesTest, Sorted) {
   // We don't want incremental marking to start which could cause the code to
   // not be collected on the CollectGarbage() call.
   ManualGCScope manual_gc_scope(i_isolate());
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      i_isolate()->heap());
 
   if (!i_isolate()->RequiresCodeRange() && !kHaveCodePages) return;
 
   // Create a big function that ends up in CODE_LO_SPACE.
-  const int instruction_size = Page::kPageSize + 1;
+  const int instruction_size = PageMetadata::kPageSize + 1;
   EXPECT_GT(instruction_size, MemoryChunkLayout::MaxRegularCodeObjectSize());
   std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
@@ -499,11 +506,11 @@ TEST_F(CodePagesTest, Sorted) {
   };
   {
     HandleScope outer_scope(i_isolate());
-    Handle<InstructionStream> code1, code3;
+    IndirectHandle<InstructionStream> code1, code3;
     Address code2_address;
 
     code1 =
-        handle(Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
+        handle(Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING)
                    .Build()
                    ->instruction_stream(),
                i_isolate());
@@ -514,17 +521,17 @@ TEST_F(CodePagesTest, Sorted) {
 
       // Create three large code objects, we'll delete the middle one and check
       // everything is still sorted.
-      Handle<InstructionStream> code2 = handle(
-          Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
+      DirectHandle<InstructionStream> code2(
+          Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING)
               .Build()
               ->instruction_stream(),
           i_isolate());
       EXPECT_TRUE(i_isolate()->heap()->InSpace(*code2, CODE_LO_SPACE));
-      code3 = handle(
-          Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-              .Build()
-              ->instruction_stream(),
-          i_isolate());
+      code3 =
+          handle(Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING)
+                     .Build()
+                     ->instruction_stream(),
+                 i_isolate());
       EXPECT_TRUE(i_isolate()->heap()->InSpace(*code3, CODE_LO_SPACE));
 
       code2_address = code2->address();
@@ -554,7 +561,13 @@ TEST_F(CodePagesTest, Sorted) {
     EXPECT_TRUE(
         i_isolate()->heap()->InSpaceSlow(code3->address(), CODE_LO_SPACE));
     // Delete code2.
-    InvokeMajorGC();
+    {
+      // The resource may not be reclaimed because of conservative stack
+      // scanning.
+      DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+          i_isolate()->heap());
+      InvokeMajorGC();
+    }
     EXPECT_TRUE(
         i_isolate()->heap()->InSpaceSlow(code1->address(), CODE_LO_SPACE));
     EXPECT_TRUE(

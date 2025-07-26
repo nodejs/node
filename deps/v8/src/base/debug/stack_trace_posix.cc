@@ -124,6 +124,11 @@ class BacktraceOutputHandler {
  public:
   virtual void HandleOutput(const char* output) = 0;
 
+  // If this output handler writes directly to a file descriptor, this file
+  // descriptor can be exposed by overwriting this method. That is in turn
+  // useful for ProcessBacktrace which can then use backtrace_symbols_fd.
+  virtual int OutputFileDescriptor() const { return 0; }
+
  protected:
   virtual ~BacktraceOutputHandler() = default;
 };
@@ -154,7 +159,7 @@ void ProcessBacktrace(void* const* trace, size_t size,
   if (in_signal_handler == 0) {
     std::unique_ptr<char*, FreeDeleter> trace_symbols(
         backtrace_symbols(trace, static_cast<int>(size)));
-    if (trace_symbols.get()) {
+    if (trace_symbols) {
       for (size_t i = 0; i < size; ++i) {
         std::string trace_symbol = trace_symbols.get()[i];
         DemangleSymbols(&trace_symbol);
@@ -165,6 +170,14 @@ void ProcessBacktrace(void* const* trace, size_t size,
 
       printed = true;
     }
+  } else if (handler->OutputFileDescriptor() != 0) {
+    // In this case, we can use backtrace_symbols_fd to write directly to the
+    // output file descriptor. This isn't quite as nice as we don't control the
+    // formatting and because mangled function names will be used, but still
+    // better than just raw addresses (which are also included in this output).
+    backtrace_symbols_fd(trace, static_cast<int>(size),
+                         handler->OutputFileDescriptor());
+    printed = true;
   }
 
   if (!printed) {
@@ -276,6 +289,8 @@ class PrintBacktraceOutputHandler : public BacktraceOutputHandler {
     // stack dumping signal handler). NO malloc or stdio is allowed here.
     PrintToStderr(output);
   }
+
+  int OutputFileDescriptor() const override { return STDERR_FILENO; }
 };
 
 class StreamBacktraceOutputHandler : public BacktraceOutputHandler {

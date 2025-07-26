@@ -67,7 +67,11 @@ static unsigned CpuFeaturesImpliedByCompiler() {
   return answer;
 }
 
-bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(MIPS_SIMD); }
+bool CpuFeatures::SupportsWasmSimd128() {
+  // TODO(mips64): enable wasm simd after turboshaft isel supports simd
+  // instructions.
+  return false;
+}
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= CpuFeaturesImpliedByCompiler();
@@ -299,8 +303,12 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   // this point to make CodeDesc initialization less fiddly.
 
   static constexpr int kConstantPoolSize = 0;
+  static constexpr int kBuiltinJumpTableInfoSize = 0;
   const int instruction_size = pc_offset();
-  const int code_comments_offset = instruction_size - code_comments_size;
+  const int builtin_jump_table_info_offset =
+      instruction_size - kBuiltinJumpTableInfoSize;
+  const int code_comments_offset =
+      builtin_jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - kConstantPoolSize;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -313,7 +321,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, reloc_info_offset);
+                       code_comments_offset, builtin_jump_table_info_offset,
+                       reloc_info_offset);
 }
 
 void Assembler::Align(int m) {
@@ -534,7 +543,7 @@ bool Assembler::IsMov(Instr instr, Register rd, Register rs) {
   uint32_t rd_reg = static_cast<uint32_t>(rd.code());
   uint32_t rs_reg = static_cast<uint32_t>(rs.code());
   uint32_t function_field = GetFunctionField(instr);
-  // Checks if the instruction is a OR with zero_reg argument (aka MOV).
+  // Checks if the instruction is an OR with zero_reg argument (aka MOV).
   bool res = opcode == SPECIAL && function_field == OR && rd_field == rd_reg &&
              rs_field == rs_reg && rt_field == 0;
   return res;
@@ -709,6 +718,13 @@ int Assembler::target_at(int pos, bool is_internal) {
     return AddBranchOffset(pos, instr);
   } else if (IsMov(instr, t8, ra)) {
     int32_t imm32;
+    if (IsAddImmediate(instr_at(pos + kInstrSize))) {
+      Instr instr_daddiu = instr_at(pos + kInstrSize);
+      imm32 = instr_daddiu & static_cast<int32_t>(kImm16Mask);
+      imm32 = (imm32 << 16) >> 16;
+      return imm32;
+    }
+
     Instr instr_lui = instr_at(pos + 2 * kInstrSize);
     Instr instr_ori = instr_at(pos + 3 * kInstrSize);
     DCHECK(IsLui(instr_lui));
@@ -857,6 +873,16 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
       instr_at_put(pos + 3 * kInstrSize, instr_ori2 | (imm & kImm16Mask));
     }
   } else if (IsMov(instr, t8, ra)) {
+    if (IsAddImmediate(instr_at(pos + kInstrSize))) {
+      Instr instr_daddiu = instr_at(pos + kInstrSize);
+      int32_t imm_short = target_pos - pos;
+      DCHECK(is_int16(imm_short));
+
+      instr_daddiu &= ~kImm16Mask;
+      instr_at_put(pos + kInstrSize, instr_daddiu | (imm_short & kImm16Mask));
+      return;
+    }
+
     Instr instr_lui = instr_at(pos + 2 * kInstrSize);
     Instr instr_ori = instr_at(pos + 3 * kInstrSize);
     DCHECK(IsLui(instr_lui));
@@ -2031,9 +2057,6 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
     return;
   }
 
-  DCHECK(src->rm() !=
-         at);  // Must not overwrite the register 'base' while loading 'offset'.
-
 #ifdef DEBUG
   // Remember the "(mis)alignment" of 'offset', it will be checked at the end.
   uint32_t misalignment = src->offset() & (kDoubleSize - 1);
@@ -2051,6 +2074,9 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
 
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
+  // Must not overwrite the register 'base' while loading 'offset'.
+  DCHECK(src->rm() != scratch);
+
   if (0 <= src->offset() && src->offset() <= kMaxOffsetForSimpleAdjustment) {
     daddiu(scratch, src->rm(), kMinOffsetForSimpleAdjustment);
     src->offset_ -= kMinOffsetForSimpleAdjustment;
@@ -2060,15 +2086,15 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src,
     src->offset_ += kMinOffsetForSimpleAdjustment;
   } else if (kArchVariant == kMips64r6) {
     // On r6 take advantage of the daui instruction, e.g.:
-    //    daui   at, base, offset_high
-    //   [dahi   at, 1]                       // When `offset` is close to +2GB.
-    //    lw     reg_lo, offset_low(at)
-    //   [lw     reg_hi, (offset_low+4)(at)]  // If misaligned 64-bit load.
+    //    daui   scratch, base, offset_high
+    //   [dahi   scratch, 1]                  // When `offset` is close to +2GB.
+    //    lw     reg_lo, offset_low(scratch)
+    //   [lw     reg_hi, (offset_low+4)(scratch)]  // If misaligned 64-bit load.
     // or when offset_low+4 overflows int16_t:
-    //    daui   at, base, offset_high
-    //    daddiu at, at, 8
-    //    lw     reg_lo, (offset_low-8)(at)
-    //    lw     reg_hi, (offset_low-4)(at)
+    //    daui   scratch, base, offset_high
+    //    daddiu scratch, scratch, 8
+    //    lw     reg_lo, (offset_low-8)(scratch)
+    //    lw     reg_hi, (offset_low-4)(scratch)
     int16_t offset_low = static_cast<uint16_t>(src->offset());
     int32_t offset_low32 = offset_low;
     int16_t offset_high = static_cast<uint16_t>(src->offset() >> 16);
@@ -3658,14 +3684,20 @@ MSA_BIT_LIST(MSA_BIT)
 #undef MSA_BIT_FORMAT
 #undef MSA_BIT_LIST
 
-int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
-                                         intptr_t pc_delta) {
+int Assembler::RelocateInternalReference(
+    RelocInfo::Mode rmode, Address pc, intptr_t pc_delta,
+    WritableJitAllocation* jit_allocation) {
   if (RelocInfo::IsInternalReference(rmode)) {
-    int64_t* p = reinterpret_cast<int64_t*>(pc);
-    if (*p == kEndOfJumpChain) {
+    intptr_t internal_ref = ReadUnalignedValue<intptr_t>(pc);
+    if (internal_ref == kEndOfJumpChain) {
       return 0;  // Number of instructions patched.
     }
-    *p += pc_delta;
+    internal_ref += pc_delta;  // Relocate entry.
+    if (jit_allocation) {
+      jit_allocation->WriteUnalignedValue<intptr_t>(pc, internal_ref);
+    } else {
+      WriteUnalignedValue<intptr_t>(pc, internal_ref);
+    }
     return 2;  // Number of instructions patched.
   }
   Instr instr = instr_at(pc);
@@ -3693,9 +3725,12 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
     instr_ori &= ~kImm16Mask;
     instr_ori2 &= ~kImm16Mask;
 
-    instr_at_put(pc + 0 * kInstrSize, instr_lui | ((imm >> 32) & kImm16Mask));
-    instr_at_put(pc + 1 * kInstrSize, instr_ori | (imm >> 16 & kImm16Mask));
-    instr_at_put(pc + 3 * kInstrSize, instr_ori2 | (imm & kImm16Mask));
+    instr_at_put(pc + 0 * kInstrSize, instr_lui | ((imm >> 32) & kImm16Mask),
+                 jit_allocation);
+    instr_at_put(pc + 1 * kInstrSize, instr_ori | (imm >> 16 & kImm16Mask),
+                 jit_allocation);
+    instr_at_put(pc + 3 * kInstrSize, instr_ori2 | (imm & kImm16Mask),
+                 jit_allocation);
     return 4;  // Number of instructions patched.
   } else if (IsJ(instr) || IsJal(instr)) {
     // Regular j/jal relocation.
@@ -3705,7 +3740,7 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
     instr &= ~kImm26Mask;
     DCHECK_EQ(imm28 & 3, 0);
     uint32_t imm26 = static_cast<uint32_t>(imm28 >> 2);
-    instr_at_put(pc, instr | (imm26 & kImm26Mask));
+    instr_at_put(pc, instr | (imm26 & kImm26Mask), jit_allocation);
     return 1;  // Number of instructions patched.
   } else {
     DCHECK(((instr & kJumpRawMask) == kJRawMark) ||
@@ -3721,7 +3756,7 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
     uint32_t imm26 = static_cast<uint32_t>(target >> 2);
     // Check markings whether to emit j or jal.
     uint32_t unbox = (instr & kJRawMark) ? J : JAL;
-    instr_at_put(pc, unbox | (imm26 & kImm26Mask));
+    instr_at_put(pc, unbox | (imm26 & kImm26Mask), jit_allocation);
     return 1;  // Number of instructions patched.
   }
 }
@@ -3927,6 +3962,7 @@ Address Assembler::target_address_at(Address pc) {
 // fits in just 16 bits. This is unlikely to help, and should be benchmarked,
 // and possibly removed.
 void Assembler::set_target_value_at(Address pc, uint64_t target,
+                                    WritableJitAllocation* jit_allocation,
                                     ICacheFlushMode icache_flush_mode) {
   // There is an optimization where only 4 instructions are used to load address
   // in code on MIP64 because only 48-bits of address is effectively used.
@@ -3935,7 +3971,6 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
   // get canonical address.
   Instr instr1 = instr_at(pc + kInstrSize);
   uint32_t rt_code = GetRt(instr1);
-  uint32_t* p = reinterpret_cast<uint32_t*>(pc);
 
 #ifdef DEBUG
   // Check we have the result from a li macro-instruction.
@@ -3950,11 +3985,15 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
   // ori rt, rt, lower-16.
   // dsll rt, rt, 16.
   // ori rt rt, lower-16.
-  *p = LUI | (rt_code << kRtShift) | ((target >> 32) & kImm16Mask);
-  *(p + 1) = ORI | (rt_code << kRtShift) | (rt_code << kRsShift) |
-             ((target >> 16) & kImm16Mask);
-  *(p + 3) = ORI | (rt_code << kRsShift) | (rt_code << kRtShift) |
-             (target & kImm16Mask);
+  Instr new_instr0 =
+      LUI | (rt_code << kRtShift) | ((target >> 32) & kImm16Mask);
+  Instr new_instr1 = ORI | (rt_code << kRtShift) | (rt_code << kRsShift) |
+                     ((target >> 16) & kImm16Mask);
+  Instr new_instr3 = ORI | (rt_code << kRsShift) | (rt_code << kRtShift) |
+                     (target & kImm16Mask);
+  instr_at_put(pc, new_instr0, jit_allocation);
+  instr_at_put(pc + kInstrSize, new_instr1, jit_allocation);
+  instr_at_put(pc + kInstrSize * 3, new_instr3, jit_allocation);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 4 * kInstrSize);

@@ -5,17 +5,22 @@
 #ifndef V8_OBJECTS_DESCRIPTOR_ARRAY_INL_H_
 #define V8_OBJECTS_DESCRIPTOR_ARRAY_INL_H_
 
+#include "src/objects/descriptor-array.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
-#include "src/objects/descriptor-array.h"
+#include "src/objects/api-callbacks.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/lookup-cache-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/tagged-field-inl.h"
 #include "src/torque/runtime-macro-shims.h"
 #include "src/torque/runtime-support.h"
 
@@ -35,6 +40,7 @@ RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_descriptors,
                         kNumberOfDescriptorsOffset)
 RELAXED_UINT32_ACCESSORS(DescriptorArray, raw_gc_state, kRawGcStateOffset)
+RELAXED_UINT32_ACCESSORS(DescriptorArray, flags, kFlagsOffset)
 
 inline int16_t DescriptorArray::number_of_slack_descriptors() const {
   return number_of_all_descriptors() - number_of_descriptors();
@@ -44,6 +50,25 @@ inline int DescriptorArray::number_of_entries() const {
   return number_of_descriptors();
 }
 
+DescriptorArray::FastIterableState DescriptorArray::fast_iterable() const {
+  return FastIterableBits::decode(flags(kRelaxedLoad));
+}
+
+void DescriptorArray::set_fast_iterable(FastIterableState value) {
+  uint32_t f = flags(kRelaxedLoad);
+  f = FastIterableBits::update(f, value);
+  set_flags(f, kRelaxedStore);
+}
+
+void DescriptorArray::set_fast_iterable_if(FastIterableState new_value,
+                                           FastIterableState if_value) {
+  uint32_t f = flags(kRelaxedLoad);
+  if (FastIterableBits::decode(f) == if_value) {
+    f = FastIterableBits::update(f, new_value);
+    set_flags(f, kRelaxedStore);
+  }
+}
+
 void DescriptorArray::CopyEnumCacheFrom(Tagged<DescriptorArray> array) {
   set_enum_cache(array->enum_cache());
 }
@@ -51,8 +76,66 @@ void DescriptorArray::CopyEnumCacheFrom(Tagged<DescriptorArray> array) {
 InternalIndex DescriptorArray::Search(Tagged<Name> name, int valid_descriptors,
                                       bool concurrent_search) {
   DCHECK(IsUniqueName(name));
-  return InternalIndex(internal::Search<VALID_ENTRIES>(
-      this, name, valid_descriptors, nullptr, concurrent_search));
+  SLOW_DCHECK_IMPLIES(!concurrent_search, IsSortedNoDuplicates());
+
+  if (valid_descriptors == 0) {
+    return InternalIndex::NotFound();
+  }
+
+  // Do linear search for small arrays, and for searches in the background
+  // thread.
+  const int kMaxElementsForLinearSearch = 8;
+  if (valid_descriptors <= kMaxElementsForLinearSearch || concurrent_search) {
+    return LinearSearch(name, valid_descriptors);
+  }
+
+  return BinarySearch(name, valid_descriptors);
+}
+
+InternalIndex DescriptorArray::BinarySearch(Tagged<Name> name,
+                                            int valid_descriptors) {
+  // We have to binary search all descriptors, not just valid ones, since the
+  // binary search ordering is across all descriptors.
+  int end = number_of_descriptors();
+  uint32_t hash = name->hash();
+
+  // Find the first descriptor whose key's hash is greater-than-or-equal-to the
+  // search hash.
+  int number = *std::ranges::lower_bound(std::views::iota(0, end), hash,
+                                         std::less<>(), [&](int i) {
+                                           Tagged<Name> entry = GetSortedKey(i);
+                                           return entry->hash();
+                                         });
+
+  // There may have been hash collisions, so search for the name from the first
+  // index until the first non-matching hash.
+  for (; number < end; ++number) {
+    InternalIndex index(GetSortedKeyIndex(number));
+    Tagged<Name> entry = GetKey(index);
+    if (entry == name) {
+      // If we found the entry, but it's outside the owned descriptors of the
+      // caller, return not found.
+      if (index.as_int() >= valid_descriptors) {
+        return InternalIndex::NotFound();
+      }
+      return index;
+    }
+    if (entry->hash() != hash) {
+      return InternalIndex::NotFound();
+    }
+  }
+
+  return InternalIndex::NotFound();
+}
+
+InternalIndex DescriptorArray::LinearSearch(Tagged<Name> name,
+                                            int valid_descriptors) {
+  DCHECK_LE(valid_descriptors, number_of_descriptors());
+  for (int i = 0; i < valid_descriptors; ++i) {
+    InternalIndex index(i);
+    if (GetKey(index) == name) return index;
+  }
+  return InternalIndex::NotFound();
 }
 
 InternalIndex DescriptorArray::Search(Tagged<Name> name, Tagged<Map> map,
@@ -116,6 +199,19 @@ ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
   return RawField(OffsetOfDescriptorAt(descriptor));
 }
 
+bool DescriptorArray::IsInitializedDescriptor(
+    InternalIndex descriptor_number) const {
+  DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
+  int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  Tagged<Object> maybe_name =
+      EntryKeyField::Relaxed_Load(cage_base, *this, entry_offset);
+  bool is_initialized = !IsUndefined(maybe_name);
+  DCHECK_IMPLIES(is_initialized,
+                 IsSmi(EntryDetailsField::Relaxed_Load(*this, entry_offset)));
+  return is_initialized;
+}
+
 Tagged<Name> DescriptorArray::GetKey(InternalIndex descriptor_number) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return GetKey(cage_base, descriptor_number);
@@ -125,7 +221,7 @@ Tagged<Name> DescriptorArray::GetKey(PtrComprCageBase cage_base,
                                      InternalIndex descriptor_number) const {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  return Name::cast(
+  return Cast<Name>(
       EntryKeyField::Relaxed_Load(cage_base, *this, entry_offset));
 }
 
@@ -135,6 +231,8 @@ void DescriptorArray::SetKey(InternalIndex descriptor_number,
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
   EntryKeyField::Relaxed_Store(*this, entry_offset, key);
   WRITE_BARRIER(*this, entry_offset + kEntryKeyOffset, key);
+  // Conservatively assume that the new key might break fast iteration.
+  set_fast_iterable(FastIterableState::kUnknown);
 }
 
 int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
@@ -159,29 +257,29 @@ void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
 Tagged<Object> DescriptorArray::GetStrongValue(
     InternalIndex descriptor_number) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return GetStrongValue(cage_base, descriptor_number);
+  return Cast<Object>(GetStrongValue(cage_base, descriptor_number));
 }
 
 Tagged<Object> DescriptorArray::GetStrongValue(
     PtrComprCageBase cage_base, InternalIndex descriptor_number) {
-  return GetValue(cage_base, descriptor_number).cast<Object>();
+  return Cast<Object>(GetValue(cage_base, descriptor_number));
 }
 
 void DescriptorArray::SetValue(InternalIndex descriptor_number,
-                               MaybeObject value) {
+                               Tagged<MaybeObject> value) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
   EntryValueField::Relaxed_Store(*this, entry_offset, value);
-  WEAK_WRITE_BARRIER(*this, entry_offset + kEntryValueOffset, value);
+  WRITE_BARRIER(*this, entry_offset + kEntryValueOffset, value);
 }
 
-MaybeObject DescriptorArray::GetValue(InternalIndex descriptor_number) {
+Tagged<MaybeObject> DescriptorArray::GetValue(InternalIndex descriptor_number) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return GetValue(cage_base, descriptor_number);
 }
 
-MaybeObject DescriptorArray::GetValue(PtrComprCageBase cage_base,
-                                      InternalIndex descriptor_number) {
+Tagged<MaybeObject> DescriptorArray::GetValue(PtrComprCageBase cage_base,
+                                              InternalIndex descriptor_number) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
   return EntryValueField::Relaxed_Load(cage_base, *this, entry_offset);
@@ -199,6 +297,10 @@ void DescriptorArray::SetDetails(InternalIndex descriptor_number,
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
   EntryDetailsField::Relaxed_Store(*this, entry_offset, details.AsSmi());
+  // Note: fast_iteration depends on PropertyDetails::location().
+  // However we don't reset it here as all path either go through SetKey(),
+  // which invalidates fast_iteration, or don't change the location
+  // (GeneralizeAllFields()).
 }
 
 int DescriptorArray::GetFieldIndex(InternalIndex descriptor_number) {
@@ -215,21 +317,26 @@ Tagged<FieldType> DescriptorArray::GetFieldType(
 Tagged<FieldType> DescriptorArray::GetFieldType(
     PtrComprCageBase cage_base, InternalIndex descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), PropertyLocation::kField);
-  MaybeObject wrapped_type = GetValue(cage_base, descriptor_number);
+  Tagged<MaybeObject> wrapped_type = GetValue(cage_base, descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
 }
 
 void DescriptorArray::Set(InternalIndex descriptor_number, Tagged<Name> key,
-                          MaybeObject value, PropertyDetails details) {
+                          Tagged<MaybeObject> value, PropertyDetails details) {
+  CHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   SetKey(descriptor_number, key);
   SetDetails(descriptor_number, details);
   SetValue(descriptor_number, value);
+  // Resetting the fast iterable state is bottlenecked in SetKey().
+  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
 }
 
 void DescriptorArray::Set(InternalIndex descriptor_number, Descriptor* desc) {
   Tagged<Name> key = *desc->GetKey();
-  MaybeObject value = *desc->GetValue();
+  Tagged<MaybeObject> value = *desc->GetValue();
   Set(descriptor_number, key, value, desc->GetDetails());
+  // Resetting the fast iterable state is bottlenecked in SetKey().
+  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
 }
 
 void DescriptorArray::Append(Descriptor* desc) {
@@ -253,6 +360,9 @@ void DescriptorArray::Append(Descriptor* desc) {
   }
 
   SetSortedKey(insertion, descriptor_number);
+
+  // Resetting the fast iterable state is bottlenecked in SetKey().
+  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
 
   if (V8_LIKELY(collision_hash != desc_hash)) return;
 

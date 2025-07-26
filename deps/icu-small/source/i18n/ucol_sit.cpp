@@ -21,7 +21,6 @@
 #include "utracimp.h"
 #include "ucol_imp.h"
 #include "ulocimp.h"
-#include "bytesinkutil.h"
 #include "cmemory.h"
 #include "cstring.h"
 #include "uresimp.h"
@@ -239,7 +238,7 @@ readHexCodeUnit(const char **string, UErrorCode *status)
 #endif    
             return 0;
         }
-        result = (result << 4) | (char16_t)value;
+        result = (result << 4) | static_cast<char16_t>(value);
         noDigits++;
         (*string)++;
     }
@@ -320,7 +319,7 @@ const char* ucol_sit_readOption(const char *start, CollatorSpec *spec,
           fprintf(stderr, "***Set %d to %s...\n", i, start);
 #endif
           // assume 'start' does not go away through all this
-          spec->entries[i].copyFrom(CharString(start, (int32_t)(end - start), *status), *status);
+          spec->entries[i].copyFrom(CharString(start, static_cast<int32_t>(end - start), *status), *status);
           return end;
       }
   }
@@ -344,7 +343,7 @@ ucol_sit_readSpecs(CollatorSpec *s, const char *string,
         }
     }
     if(U_FAILURE(*status)) {
-        parseError->offset = (int32_t)(string - definition);
+        parseError->offset = static_cast<int32_t>(string - definition);
     }
     return string;
 }
@@ -451,22 +450,14 @@ ucol_prepareShortStringOpen( const char *definition,
     ucol_sit_readSpecs(&s, definition, parseError, status);
     ucol_sit_calculateWholeLocale(&s, *status);
 
-    CharString buffer;
-    {
-        CharStringByteSink sink(&buffer);
-        ulocimp_canonicalize(s.locale.data(), sink, status);
-    }
+    CharString buffer = ulocimp_canonicalize(s.locale.toStringPiece(), *status);
 
     UResourceBundle *b = ures_open(U_ICUDATA_COLL, buffer.data(), status);
     /* we try to find stuff from keyword */
     UResourceBundle *collations = ures_getByKey(b, "collations", nullptr, status);
     UResourceBundle *collElem = nullptr;
-    CharString keyBuffer;
-    {
-        // if there is a keyword, we pick it up and try to get elements
-        CharStringByteSink sink(&keyBuffer);
-        ulocimp_getKeywordValue(buffer.data(), "collation", sink, status);
-    }
+    // if there is a keyword, we pick it up and try to get elements
+    CharString keyBuffer = ulocimp_getKeywordValue(buffer.data(), "collation", *status);
     if(keyBuffer.isEmpty()) {
       // no keyword
       // we try to find the default setting, which will give us the keyword value
@@ -497,7 +488,7 @@ ucol_openFromShortString( const char *definition,
     UTRACE_ENTRY_OC(UTRACE_UCOL_OPEN_FROM_SHORT_STRING);
     UTRACE_DATA1(UTRACE_INFO, "short string = \"%s\"", definition);
 
-    if(U_FAILURE(*status)) return 0;
+    if (U_FAILURE(*status)) return nullptr;
 
     UParseError internalParseError;
 
@@ -523,11 +514,7 @@ ucol_openFromShortString( const char *definition,
 #ifdef UCOL_TRACE_SIT
     fprintf(stderr, "DEF %s, DATA %s, ERR %s\n", definition, s.locale.data(), u_errorName(*status));
 #endif
-    CharString buffer;
-    {
-        CharStringByteSink sink(&buffer);
-        ulocimp_canonicalize(s.locale.data(), sink, status);
-    }
+    CharString buffer = ulocimp_canonicalize(s.locale.toStringPiece(), *status);
 
     UCollator *result = ucol_open(buffer.data(), status);
     int32_t i = 0;

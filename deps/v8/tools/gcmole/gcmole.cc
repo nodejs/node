@@ -47,6 +47,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/LineIterator.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace {
@@ -298,6 +299,12 @@ static void LoadGCCauses() {
   if (gc_causes_loaded) return;
   std::ifstream fin("gccauses");
   std::string mangled, function;
+
+  if (!fin.is_open()) {
+    std::cerr << "failed to open gccauses" << std::endl;
+    std::abort();
+  }
+
   while (!fin.eof()) {
     std::getline(fin, mangled, ',');
     std::getline(fin, function);
@@ -327,6 +334,11 @@ static void LoadGCSuspects() {
   std::ifstream fin("gcsuspects");
   std::string mangled, function;
 
+  if (!fin.is_open()) {
+    std::cerr << "failed to open gcsuspects" << std::endl;
+    std::abort();
+  }
+
   while (!fin.eof()) {
     std::getline(fin, mangled, ',');
     gc_suspects.insert(mangled);
@@ -343,6 +355,11 @@ static void LoadSuspectsAllowList() {
   // TODO(cbruni): clean up once fully migrated
   std::ifstream fin("tools/gcmole/suspects.allowlist");
   std::string s;
+
+  if (!fin.is_open()) {
+    std::cerr << "failed to open suspects.allowlist" << std::endl;
+    std::abort();
+  }
 
   while (fin >> s) suspects_allowlist.insert(s);
 
@@ -645,7 +662,6 @@ class FunctionAnalyzer {
  public:
   FunctionAnalyzer(clang::MangleContext* ctx,
                    clang::CXXRecordDecl* heap_object_decl,
-                   clang::CXXRecordDecl* maybe_object_decl,
                    clang::CXXRecordDecl* smi_decl,
                    clang::CXXRecordDecl* tagged_index_decl,
                    clang::ClassTemplateDecl* tagged_decl,
@@ -653,7 +669,6 @@ class FunctionAnalyzer {
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
       : ctx_(ctx),
         heap_object_decl_(heap_object_decl),
-        maybe_object_decl_(maybe_object_decl),
         smi_decl_(smi_decl),
         tagged_index_decl_(tagged_index_decl),
         tagged_decl_(tagged_decl),
@@ -1216,7 +1231,8 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_STMT(IfStmt) {
-    Environment cond_out = VisitStmt(stmt->getCond(), env);
+    Environment init_out = VisitStmt(stmt->getInit(), env);
+    Environment cond_out = VisitStmt(stmt->getCond(), init_out);
     Environment then_out = VisitStmt(stmt->getThen(), cond_out);
     Environment else_out = VisitStmt(stmt->getElse(), cond_out);
     return Environment::Merge(then_out, else_out);
@@ -1304,9 +1320,6 @@ class FunctionAnalyzer {
     const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
     if (!definition) return false;
     if (IsDerivedFrom(record, heap_object_decl_)) {
-      return true;
-    }
-    if (IsDerivedFrom(record, maybe_object_decl_)) {
       return true;
     }
     return false;
@@ -1471,12 +1484,10 @@ class FunctionAnalyzer {
 
   clang::MangleContext* ctx_;
   clang::CXXRecordDecl* heap_object_decl_;
-  clang::CXXRecordDecl* maybe_object_decl_;
   clang::CXXRecordDecl* smi_decl_;
   clang::CXXRecordDecl* tagged_index_decl_;
   clang::ClassTemplateDecl* tagged_decl_;
   clang::CXXRecordDecl* no_gc_mole_decl_;
-  clang::CXXRecordDecl* no_heap_access_decl_;
 
   clang::DiagnosticsEngine& d_;
   clang::SourceManager& sm_;
@@ -1525,16 +1536,23 @@ class ProblemsFinder : public clang::ASTConsumer,
 
   bool TranslationUnitIgnored() {
     if (!ignored_files_loaded_) {
-      std::ifstream fin("tools/gcmole/ignored_files");
-      std::string s;
-      while (fin >> s) ignored_files_.insert(s);
+      auto fileOrError =
+          llvm::MemoryBuffer::getFile("tools/gcmole/ignored_files");
+      if (auto error = fileOrError.getError()) {
+        llvm::errs() << "Failed to open ignored_files file\n";
+        std::terminate();
+      }
+      for (llvm::line_iterator it(*fileOrError->get()); !it.is_at_end(); ++it) {
+        ignored_files_.insert(*it);
+      }
       ignored_files_loaded_ = true;
     }
 
     clang::FileID main_file_id = sm_.getMainFileID();
-    std::string filename = sm_.getFileEntryForID(main_file_id)->getName().str();
+    llvm::StringRef filename =
+        sm_.getFileEntryForID(main_file_id)->tryGetRealPathName();
 
-    bool result = ignored_files_.find(filename) != ignored_files_.end();
+    bool result = ignored_files_.contains(filename);
     if (result) {
       llvm::outs() << "Ignoring file " << filename << "\n";
     }
@@ -1556,9 +1574,6 @@ class ProblemsFinder : public clang::ASTConsumer,
     clang::CXXRecordDecl* heap_object_decl =
         v8_internal.Resolve<clang::CXXRecordDecl>("HeapObject");
 
-    clang::CXXRecordDecl* maybe_object_decl =
-        v8_internal.Resolve<clang::CXXRecordDecl>("MaybeObject");
-
     clang::CXXRecordDecl* smi_decl =
         v8_internal.Resolve<clang::CXXRecordDecl>("Smi");
 
@@ -1570,10 +1585,6 @@ class ProblemsFinder : public clang::ASTConsumer,
 
     if (heap_object_decl != nullptr) {
       heap_object_decl = heap_object_decl->getDefinition();
-    }
-
-    if (maybe_object_decl != nullptr) {
-      maybe_object_decl = maybe_object_decl->getDefinition();
     }
 
     if (smi_decl != nullptr) {
@@ -1589,19 +1600,14 @@ class ProblemsFinder : public clang::ASTConsumer,
     }
 
     if (heap_object_decl != nullptr && smi_decl != nullptr &&
-        tagged_index_decl != nullptr && maybe_object_decl != nullptr &&
-        tagged_decl != nullptr) {
+        tagged_index_decl != nullptr && tagged_decl != nullptr) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), heap_object_decl,
-          maybe_object_decl, smi_decl, tagged_index_decl, tagged_decl,
-          no_gc_mole_decl, d_, sm_);
+          smi_decl, tagged_index_decl, tagged_decl, no_gc_mole_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else if (g_verbose) {
       if (heap_object_decl == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::HeapObject\n";
-      }
-      if (maybe_object_decl == nullptr) {
-        llvm::errs() << "Failed to resolve v8::internal::MaybeObject\n";
       }
       if (smi_decl == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::Smi\n";
@@ -1635,7 +1641,7 @@ class ProblemsFinder : public clang::ASTConsumer,
   clang::SourceManager& sm_;
 
   bool ignored_files_loaded_ = false;
-  std::set<std::string> ignored_files_;
+  llvm::StringSet<> ignored_files_;
 
   FunctionAnalyzer* function_analyzer_;
 };

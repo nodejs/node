@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_BIGINT_H_
 #define V8_OBJECTS_BIGINT_H_
 
+#include <atomic>
+
 #include "src/common/globals.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
@@ -16,6 +18,7 @@
 namespace v8 {
 
 namespace bigint {
+class Digits;
 class FromStringAccumulator;
 }  // namespace bigint
 
@@ -74,88 +77,86 @@ class BigInt;
 class ValueDeserializer;
 class ValueSerializer;
 
-#include "torque-generated/src/objects/bigint-tq.inc"
+#if V8_HOST_ARCH_64_BIT && !V8_COMPRESS_POINTERS
+// On non-pointer-compressed 64-bit builts, we want the digits to be 8-byte
+// aligned, which requires padding.
+#define BIGINT_NEEDS_PADDING 1
+#endif
 
 // BigIntBase is just the raw data object underlying a BigInt. Use with care!
 // Most code should be using BigInts instead.
-class BigIntBase : public PrimitiveHeapObject {
+V8_OBJECT class BigIntBase : public PrimitiveHeapObject {
  public:
-  inline int length() const {
-    int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
-    return LengthBits::decode(static_cast<uint32_t>(bitfield));
+  inline uint32_t length() const {
+    return LengthBits::decode(bitfield_.load(std::memory_order_relaxed));
   }
 
   // For use by the GC.
-  inline int length(AcquireLoadTag) const {
-    int32_t bitfield = ACQUIRE_READ_INT32_FIELD(*this, kBitfieldOffset);
-    return LengthBits::decode(static_cast<uint32_t>(bitfield));
+  inline uint32_t length(AcquireLoadTag) const {
+    return LengthBits::decode(bitfield_.load(std::memory_order_acquire));
   }
+
+  bigint::Digits digits() const;
 
   // The maximum kMaxLengthBits that the current implementation supports
   // would be kMaxInt - kSystemPointerSize * kBitsPerByte - 1.
   // Since we want a platform independent limit, choose a nice round number
   // somewhere below that maximum.
-  static const int kMaxLengthBits = 1 << 30;  // ~1 billion.
-  static const int kMaxLength =
+  static const uint32_t kMaxLengthBits = 1 << 30;  // ~1 billion.
+  static const uint32_t kMaxLength =
       kMaxLengthBits / (kSystemPointerSize * kBitsPerByte);
 
   // Sign and length are stored in the same bitfield.  Since the GC needs to be
   // able to read the length concurrently, the getters and setters are atomic.
-  static const int kLengthFieldBits = 30;
+  static const uint32_t kLengthFieldBits = 30;
   static_assert(kMaxLength <= ((1 << kLengthFieldBits) - 1));
   using SignBits = base::BitField<bool, 0, 1>;
-  using LengthBits = SignBits::Next<int, kLengthFieldBits>;
+  using LengthBits = SignBits::Next<uint32_t, kLengthFieldBits>;
   static_assert(LengthBits::kLastUsedBit < 32);
 
-  // Layout description.
-#define BIGINT_FIELDS(V)                                                  \
-  V(kBitfieldOffset, kInt32Size)                                          \
-  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
-  /* Header size. */                                                      \
-  V(kHeaderSize, 0)                                                       \
-  V(kDigitsOffset, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(PrimitiveHeapObject::kHeaderSize, BIGINT_FIELDS)
-#undef BIGINT_FIELDS
-
-  static constexpr bool HasOptionalPadding() {
-    return FIELD_SIZE(kOptionalPaddingOffset) > 0;
-  }
-
-  DECL_CAST(BigIntBase)
   DECL_VERIFIER(BigIntBase)
   DECL_PRINTER(BigIntBase)
 
  private:
   friend class ::v8::internal::BigInt;  // MSVC wants full namespace.
   friend class MutableBigInt;
+  friend class FreshlyAllocatedBigInt;
+
+  friend struct OffsetsForDebug;
+  friend class CodeStubAssembler;
+  friend class maglev::MaglevAssembler;
+  friend class compiler::AccessBuilder;
 
   using digit_t = uintptr_t;
-  static const int kDigitSize = sizeof(digit_t);
+
+  static const uint32_t kDigitSize = sizeof(digit_t);
   // kMaxLength definition assumes this:
   static_assert(kDigitSize == kSystemPointerSize);
 
-  static const int kDigitBits = kDigitSize * kBitsPerByte;
-  static const int kHalfDigitBits = kDigitBits / 2;
+  static const uint32_t kDigitBits = kDigitSize * kBitsPerByte;
+  static const uint32_t kHalfDigitBits = kDigitBits / 2;
   static const digit_t kHalfDigitMask = (1ull << kHalfDigitBits) - 1;
 
   // sign() == true means negative.
   inline bool sign() const {
-    int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
-    return SignBits::decode(static_cast<uint32_t>(bitfield));
+    return SignBits::decode(bitfield_.load(std::memory_order_relaxed));
   }
 
-  inline digit_t digit(int n) const {
-    SLOW_DCHECK(0 <= n && n < length());
-    return ReadField<digit_t>(kDigitsOffset + n * kDigitSize);
+  inline digit_t digit(uint32_t n) const {
+    SLOW_DCHECK(n < length());
+    return raw_digits()[n].value();
   }
 
   bool is_zero() const { return length() == 0; }
 
-  OBJECT_CONSTRUCTORS(BigIntBase, PrimitiveHeapObject);
-};
+  std::atomic_uint32_t bitfield_;
+#ifdef BIGINT_NEEDS_PADDING
+  char padding_[4];
+#endif
+  FLEXIBLE_ARRAY_MEMBER(UnalignedValueMember<digit_t>, raw_digits);
+} V8_OBJECT_END;
 
-class FreshlyAllocatedBigInt : public BigIntBase {
+V8_OBJECT class FreshlyAllocatedBigInt : public BigIntBase {
   // This class is essentially the publicly accessible abstract version of
   // MutableBigInt (which is a hidden implementation detail). It serves as
   // the return type of Factory::NewBigInt, and makes it possible to enforce
@@ -168,135 +169,116 @@ class FreshlyAllocatedBigInt : public BigIntBase {
   //   (and no explicit operator is provided either).
 
  public:
-  inline static Tagged<FreshlyAllocatedBigInt> cast(Tagged<Object> object);
-  inline static Tagged<FreshlyAllocatedBigInt> unchecked_cast(
-      Tagged<Object> o) {
-    return base::bit_cast<FreshlyAllocatedBigInt>(o);
-  }
-
   // Clear uninitialized padding space.
   inline void clear_padding() {
-    if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
-      DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
-      memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
-             FIELD_SIZE(kOptionalPaddingOffset));
-    }
+#ifdef BIGINT_NEEDS_PADDING
+    memset(padding_, 0, arraysize(padding_));
+#endif
   }
-
- private:
-  // Only serves to make macros happy; other code should use IsBigInt.
-  static bool IsFreshlyAllocatedBigInt(Tagged<FreshlyAllocatedBigInt>) {
-    return true;
-  }
-
-  OBJECT_CONSTRUCTORS(FreshlyAllocatedBigInt, BigIntBase);
-};
+} V8_OBJECT_END;
 
 // Arbitrary precision integers in JavaScript.
-class BigInt : public BigIntBase {
+V8_OBJECT class BigInt : public BigIntBase {
  public:
   // Implementation of the Spec methods, see:
   // https://tc39.github.io/proposal-bigint/#sec-numeric-types
   // Sections 1.1.1 through 1.1.19.
-  static Handle<BigInt> UnaryMinus(Isolate* isolate, Handle<BigInt> x);
-  static MaybeHandle<BigInt> BitwiseNot(Isolate* isolate, Handle<BigInt> x);
-  static MaybeHandle<BigInt> Exponentiate(Isolate* isolate, Handle<BigInt> base,
-                                          Handle<BigInt> exponent);
-  static MaybeHandle<BigInt> Multiply(Isolate* isolate, Handle<BigInt> x,
-                                      Handle<BigInt> y);
-  static MaybeHandle<BigInt> Divide(Isolate* isolate, Handle<BigInt> x,
-                                    Handle<BigInt> y);
-  static MaybeHandle<BigInt> Remainder(Isolate* isolate, Handle<BigInt> x,
-                                       Handle<BigInt> y);
-  static MaybeHandle<BigInt> Add(Isolate* isolate, Handle<BigInt> x,
-                                 Handle<BigInt> y);
-  static MaybeHandle<BigInt> Subtract(Isolate* isolate, Handle<BigInt> x,
-                                      Handle<BigInt> y);
-  static MaybeHandle<BigInt> LeftShift(Isolate* isolate, Handle<BigInt> x,
-                                       Handle<BigInt> y);
-  static MaybeHandle<BigInt> SignedRightShift(Isolate* isolate,
-                                              Handle<BigInt> x,
-                                              Handle<BigInt> y);
-  static MaybeHandle<BigInt> UnsignedRightShift(Isolate* isolate,
-                                                Handle<BigInt> x,
-                                                Handle<BigInt> y);
+  static Handle<BigInt> UnaryMinus(Isolate* isolate, DirectHandle<BigInt> x);
+  static MaybeDirectHandle<BigInt> BitwiseNot(Isolate* isolate,
+                                              DirectHandle<BigInt> x);
+  static MaybeDirectHandle<BigInt> Exponentiate(Isolate* isolate,
+                                                DirectHandle<BigInt> base,
+                                                DirectHandle<BigInt> exponent);
+  static MaybeHandle<BigInt> Multiply(Isolate* isolate, DirectHandle<BigInt> x,
+                                      DirectHandle<BigInt> y);
+  static MaybeHandle<BigInt> Divide(Isolate* isolate, DirectHandle<BigInt> x,
+                                    DirectHandle<BigInt> y);
+  static MaybeHandle<BigInt> Remainder(Isolate* isolate, DirectHandle<BigInt> x,
+                                       DirectHandle<BigInt> y);
+  static MaybeHandle<BigInt> Add(Isolate* isolate, DirectHandle<BigInt> x,
+                                 DirectHandle<BigInt> y);
+  static MaybeHandle<BigInt> Subtract(Isolate* isolate, DirectHandle<BigInt> x,
+                                      DirectHandle<BigInt> y);
   // More convenient version of "bool LessThan(x, y)".
-  static ComparisonResult CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y);
+  static ComparisonResult CompareToBigInt(DirectHandle<BigInt> x,
+                                          DirectHandle<BigInt> y);
   static bool EqualToBigInt(Tagged<BigInt> x, Tagged<BigInt> y);
-  static MaybeHandle<BigInt> BitwiseAnd(Isolate* isolate, Handle<BigInt> x,
-                                        Handle<BigInt> y);
-  static MaybeHandle<BigInt> BitwiseXor(Isolate* isolate, Handle<BigInt> x,
-                                        Handle<BigInt> y);
-  static MaybeHandle<BigInt> BitwiseOr(Isolate* isolate, Handle<BigInt> x,
-                                       Handle<BigInt> y);
 
   // Other parts of the public interface.
-  static MaybeHandle<BigInt> Increment(Isolate* isolate, Handle<BigInt> x);
-  static MaybeHandle<BigInt> Decrement(Isolate* isolate, Handle<BigInt> x);
+  static MaybeHandle<BigInt> Increment(Isolate* isolate,
+                                       DirectHandle<BigInt> x);
+  static MaybeHandle<BigInt> Decrement(Isolate* isolate,
+                                       DirectHandle<BigInt> x);
 
   bool ToBoolean() { return !is_zero(); }
   uint32_t Hash() {
-    // TODO(jkummerow): Improve this. At least use length and sign.
-    return is_zero() ? 0 : ComputeLongHash(static_cast<uint64_t>(digit(0)));
+    return ComputeUnseededHash(length() | (sign() ? (1 << 30) : 0)) ^
+           ComputeLongHash(static_cast<uint64_t>(is_zero() ? 0 : digit(0)));
   }
 
   bool IsNegative() const { return sign(); }
 
-  static Maybe<bool> EqualToString(Isolate* isolate, Handle<BigInt> x,
-                                   Handle<String> y);
-  static bool EqualToNumber(Handle<BigInt> x, Handle<Object> y);
+  static Maybe<bool> EqualToString(Isolate* isolate, DirectHandle<BigInt> x,
+                                   DirectHandle<String> y);
+  static bool EqualToNumber(DirectHandle<BigInt> x, DirectHandle<Object> y);
   static Maybe<ComparisonResult> CompareToString(Isolate* isolate,
-                                                 Handle<BigInt> x,
-                                                 Handle<String> y);
-  static ComparisonResult CompareToNumber(Handle<BigInt> x, Handle<Object> y);
+                                                 DirectHandle<BigInt> x,
+                                                 DirectHandle<String> y);
+  static ComparisonResult CompareToNumber(DirectHandle<BigInt> x,
+                                          DirectHandle<Object> y);
   // Exposed for tests, do not call directly. Use CompareToNumber() instead.
-  V8_EXPORT_PRIVATE static ComparisonResult CompareToDouble(Handle<BigInt> x,
-                                                            double y);
+  V8_EXPORT_PRIVATE static ComparisonResult CompareToDouble(
+      DirectHandle<BigInt> x, double y);
 
-  static Handle<BigInt> AsIntN(Isolate* isolate, uint64_t n, Handle<BigInt> x);
-  static MaybeHandle<BigInt> AsUintN(Isolate* isolate, uint64_t n,
-                                     Handle<BigInt> x);
+  static DirectHandle<BigInt> AsIntN(Isolate* isolate, uint64_t n,
+                                     DirectHandle<BigInt> x);
+  static MaybeDirectHandle<BigInt> AsUintN(Isolate* isolate, uint64_t n,
+                                           DirectHandle<BigInt> x);
 
   V8_EXPORT_PRIVATE static Handle<BigInt> FromInt64(Isolate* isolate,
                                                     int64_t n);
   V8_EXPORT_PRIVATE static Handle<BigInt> FromUint64(Isolate* isolate,
                                                      uint64_t n);
-  static MaybeHandle<BigInt> FromWords64(Isolate* isolate, int sign_bit,
-                                         int words64_count,
-                                         const uint64_t* words);
+  static MaybeDirectHandle<BigInt> FromWords64(Isolate* isolate, int sign_bit,
+                                               uint32_t words64_count,
+                                               const uint64_t* words);
   V8_EXPORT_PRIVATE int64_t AsInt64(bool* lossless = nullptr);
   uint64_t AsUint64(bool* lossless = nullptr);
-  int Words64Count();
-  void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);
+  uint32_t Words64Count();
+  void ToWordsArray64(int* sign_bit, uint32_t* words64_count, uint64_t* words);
 
-  DECL_CAST(BigInt)
   void BigIntShortPrint(std::ostream& os);
 
-  inline static int SizeFor(int length) {
-    return kHeaderSize + length * kDigitSize;
+  inline static uint32_t SizeFor(uint32_t length) {
+    return sizeof(BigInt) + length * kDigitSize;
   }
 
-  static MaybeHandle<String> ToString(Isolate* isolate, Handle<BigInt> bigint,
+  static MaybeHandle<String> ToString(Isolate* isolate,
+                                      DirectHandle<BigInt> bigint,
                                       int radix = 10,
                                       ShouldThrow should_throw = kThrowOnError);
   // Like the above, but adapted for the needs of producing error messages:
   // doesn't care about termination requests, and returns a default string
   // for inputs beyond a relatively low upper bound.
-  static Handle<String> NoSideEffectsToString(Isolate* isolate,
-                                              Handle<BigInt> bigint);
+  static DirectHandle<String> NoSideEffectsToString(
+      Isolate* isolate, DirectHandle<BigInt> bigint);
 
   // "The Number value for x", see:
   // https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
   // Returns a Smi or HeapNumber.
-  static Handle<Object> ToNumber(Isolate* isolate, Handle<BigInt> x);
+  static DirectHandle<Number> ToNumber(Isolate* isolate,
+                                       DirectHandle<BigInt> x);
 
   // ECMAScript's NumberToBigInt
   V8_EXPORT_PRIVATE static MaybeHandle<BigInt> FromNumber(
-      Isolate* isolate, Handle<Object> number);
+      Isolate* isolate, DirectHandle<Object> number);
 
   // ECMAScript's ToBigInt (throws for Number input)
-  V8_EXPORT_PRIVATE static MaybeHandle<BigInt> FromObject(Isolate* isolate,
-                                                          Handle<Object> obj);
+  template <template <typename> typename HandleType>
+    requires(std::is_convertible_v<HandleType<Object>, DirectHandle<Object>>)
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) static
+      typename HandleType<BigInt>::MaybeType
+      FromObject(Isolate* isolate, HandleType<Object> obj);
 
   class BodyDescriptor;
 
@@ -317,16 +299,14 @@ class BigInt : public BigIntBase {
 
   // Special functions for ValueSerializer/ValueDeserializer:
   uint32_t GetBitfieldForSerialization() const;
-  static int DigitsByteLengthForBitfield(uint32_t bitfield);
-  // Expects {storage} to have a length of at least
+  static size_t DigitsByteLengthForBitfield(uint32_t bitfield);
+  // Serialize the raw digits. {storage_length} is expected to be
   // {DigitsByteLengthForBitfield(GetBitfieldForSerialization())}.
-  void SerializeDigits(uint8_t* storage);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
+  void SerializeDigits(uint8_t* storage, size_t storage_length);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<BigInt> FromSerializedDigits(
       Isolate* isolate, uint32_t bitfield,
       base::Vector<const uint8_t> digits_storage);
-
-  OBJECT_CONSTRUCTORS(BigInt, BigIntBase);
-};
+} V8_OBJECT_END;
 
 }  // namespace internal
 }  // namespace v8

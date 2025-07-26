@@ -6,6 +6,8 @@
 #define V8_OBJECTS_JS_ITERATOR_HELPERS_INL_H_
 
 #include "src/objects/js-iterator-helpers.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/oddball-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -22,12 +24,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorFilterHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorTakeHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorDropHelper)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSIteratorFlatMapHelper)
-
-CAST_ACCESSOR(JSIteratorMapHelper)
-CAST_ACCESSOR(JSIteratorFilterHelper)
-CAST_ACCESSOR(JSIteratorTakeHelper)
-CAST_ACCESSOR(JSIteratorDropHelper)
-CAST_ACCESSOR(JSIteratorFlatMapHelper)
 
 }  // namespace internal
 }  // namespace v8

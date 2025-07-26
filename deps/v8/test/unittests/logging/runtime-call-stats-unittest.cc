@@ -16,6 +16,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -648,6 +649,7 @@ TEST_F(RuntimeCallStatsTest, GarbageCollection) {
   v8_flags.single_threaded_gc = true;
 
   FlagList::EnforceFlagImplications();
+  ManualGCScope manual_gc_scope(i_isolate());
   v8::Isolate* isolate = v8_isolate();
   RunJS(
       "let root = [];"

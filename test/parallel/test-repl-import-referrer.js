@@ -15,13 +15,12 @@ child.stdout.on('data', (data) => {
 });
 
 child.on('exit', common.mustCall(() => {
-  const results = output.replace(/^> /mg, '').split('\n').slice(2);
-  assert.deepStrictEqual(
-    results,
-    ['[Module: null prototype] { message: \'A message\' }', '']
-  );
+  const result = output.replace(/^> /mg, '').split('\n').slice(2);
+  assert.deepStrictEqual(result, [
+    '[Module: null prototype] { message: \'A message\' }',
+    '',
+  ]);
 }));
 
 child.stdin.write('await import(\'./message.mjs\');\n');
-child.stdin.write('.exit');
-child.stdin.end();
+child.stdin.write('.exit\n');

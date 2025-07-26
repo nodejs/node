@@ -47,7 +47,7 @@ TEST_F(IteratorsTest, CombinedHeapObjectIteratorNullPastEnd) {
 namespace {
 // An arbitrary object guaranteed to live on the non-read-only heap.
 Tagged<Object> CreateWritableObject(v8::Isolate* isolate) {
-  return *v8::Utils::OpenHandle(*v8::Object::New(isolate));
+  return *v8::Utils::OpenDirectHandle(*v8::Object::New(isolate));
 }
 }  // namespace
 
@@ -71,8 +71,7 @@ TEST_F(IteratorsTest, HeapObjectIterator) {
   HeapObjectIterator iterator(heap);
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
-                  !ReadOnlyHeap::Contains(obj));
+    CHECK(!ReadOnlyHeap::Contains(obj));
     CHECK(heap->Contains(obj));
     if (sample_object.SafeEquals(obj)) seen_sample_object = true;
   }

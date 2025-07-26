@@ -16,7 +16,7 @@
  */
 namespace v8 {
 
-class Primiitive;
+class Primitive;
 class Numeric;
 class BigInt;
 class Int32;
@@ -63,7 +63,7 @@ class V8_EXPORT Value : public Data {
    * conversion to boolean, i.e. the result of `Boolean(value)` in JS, whereas
    * this checks `value === true`.
    */
-  bool IsTrue() const;
+  V8_INLINE bool IsTrue() const;
 
   /**
    * Returns true if this value is false.
@@ -72,7 +72,7 @@ class V8_EXPORT Value : public Data {
    * conversion to boolean, i.e. the result of `!Boolean(value)` in JS, whereas
    * this checks `value === false`.
    */
-  bool IsFalse() const;
+  V8_INLINE bool IsFalse() const;
 
   /**
    * Returns true if this value is a symbol or a string.
@@ -302,6 +302,11 @@ class V8_EXPORT Value : public Data {
   bool IsInt32Array() const;
 
   /**
+   * Returns true if this value is a Float16Array.
+   */
+  bool IsFloat16Array() const;
+
+  /**
    * Returns true if this value is a Float32Array.
    */
   bool IsFloat32Array() const;
@@ -342,6 +347,11 @@ class V8_EXPORT Value : public Data {
   bool IsWasmMemoryObject() const;
 
   /**
+   * Returns true if this value is a WasmMemoryMapDescriptor.
+   */
+  bool IsWasmMemoryMapDescriptor() const;
+
+  /**
    * Returns true if this value is a WasmModuleObject.
    */
   bool IsWasmModuleObject() const;
@@ -355,6 +365,11 @@ class V8_EXPORT Value : public Data {
    * Returns true if the value is a Module Namespace Object.
    */
   bool IsModuleNamespaceObject() const;
+
+  /**
+   * Returns true if the value is a primitive.
+   */
+  bool IsPrimitive() const;
 
   /**
    * Perform `ToPrimitive(value)` as specified in:
@@ -457,13 +472,27 @@ class V8_EXPORT Value : public Data {
 
   Maybe<bool> InstanceOf(Local<Context> context, Local<Object> object);
 
+  /**
+   * Get the hash of this value. The hash is not guaranteed to be
+   * unique. For |Object| and |Name| instances the result is equal to
+   * |GetIdentityHash|. Hashes are not guaranteed to be stable across
+   * different isolates or processes.
+   */
+  uint32_t GetHash();
+
  private:
   V8_INLINE bool QuickIsUndefined() const;
   V8_INLINE bool QuickIsNull() const;
   V8_INLINE bool QuickIsNullOrUndefined() const;
+#if V8_STATIC_ROOTS_BOOL
+  V8_INLINE bool QuickIsTrue() const;
+  V8_INLINE bool QuickIsFalse() const;
+#endif  // V8_STATIC_ROOTS_BOOL
   V8_INLINE bool QuickIsString() const;
   bool FullIsUndefined() const;
   bool FullIsNull() const;
+  bool FullIsTrue() const;
+  bool FullIsFalse() const;
   bool FullIsString() const;
 
   static void CheckCast(Data* that);
@@ -576,6 +605,40 @@ bool Value::QuickIsNullOrUndefined() const {
 #endif  // V8_STATIC_ROOTS_BOOL
 }
 
+bool Value::IsTrue() const {
+#if V8_STATIC_ROOTS_BOOL && !defined(V8_ENABLE_CHECKS)
+  return QuickIsTrue();
+#else
+  return FullIsTrue();
+#endif
+}
+
+#if V8_STATIC_ROOTS_BOOL
+bool Value::QuickIsTrue() const {
+  using A = internal::Address;
+  using I = internal::Internals;
+  A obj = internal::ValueHelper::ValueAsAddress(this);
+  return I::is_identical(obj, I::StaticReadOnlyRoot::kTrueValue);
+}
+#endif  // V8_STATIC_ROOTS_BOOL
+
+bool Value::IsFalse() const {
+#if V8_STATIC_ROOTS_BOOL && !defined(V8_ENABLE_CHECKS)
+  return QuickIsFalse();
+#else
+  return FullIsFalse();
+#endif
+}
+
+#if V8_STATIC_ROOTS_BOOL
+bool Value::QuickIsFalse() const {
+  using A = internal::Address;
+  using I = internal::Internals;
+  A obj = internal::ValueHelper::ValueAsAddress(this);
+  return I::is_identical(obj, I::StaticReadOnlyRoot::kFalseValue);
+}
+#endif  // V8_STATIC_ROOTS_BOOL
+
 bool Value::IsString() const {
 #ifdef V8_ENABLE_CHECKS
   return FullIsString();
@@ -590,8 +653,9 @@ bool Value::QuickIsString() const {
   A obj = internal::ValueHelper::ValueAsAddress(this);
   if (!I::HasHeapObjectTag(obj)) return false;
 #if V8_STATIC_ROOTS_BOOL && !V8_MAP_PACKING
-  return I::CheckInstanceMapRange(obj, I::StaticReadOnlyRoot::kFirstStringMap,
-                                  I::StaticReadOnlyRoot::kLastStringMap);
+  return I::CheckInstanceMapRange(obj,
+                                  I::StaticReadOnlyRoot::kStringMapLowerBound,
+                                  I::StaticReadOnlyRoot::kStringMapUpperBound);
 #else
   return (I::GetInstanceType(obj) < I::kFirstNonstringType);
 #endif  // V8_STATIC_ROOTS_BOOL

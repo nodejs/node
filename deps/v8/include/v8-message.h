@@ -9,6 +9,7 @@
 
 #include <iosfwd>
 
+#include "v8-callbacks.h"     // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-maybe.h"         // NOLINT(build/include_directory)
 #include "v8-primitive.h"     // NOLINT(build/include_directory)
@@ -61,7 +62,7 @@ class ScriptOriginOptions {
  */
 class V8_EXPORT ScriptOrigin {
  public:
-  V8_INLINE ScriptOrigin(Isolate* isolate, Local<Value> resource_name,
+  V8_INLINE ScriptOrigin(Local<Value> resource_name,
                          int resource_line_offset = 0,
                          int resource_column_offset = 0,
                          bool resource_is_shared_cross_origin = false,
@@ -70,8 +71,7 @@ class V8_EXPORT ScriptOrigin {
                          bool resource_is_opaque = false, bool is_wasm = false,
                          bool is_module = false,
                          Local<Data> host_defined_options = Local<Data>())
-      : v8_isolate_(isolate),
-        resource_name_(resource_name),
+      : resource_name_(resource_name),
         resource_line_offset_(resource_line_offset),
         resource_column_offset_(resource_column_offset),
         options_(resource_is_shared_cross_origin, resource_is_opaque, is_wasm,
@@ -92,7 +92,6 @@ class V8_EXPORT ScriptOrigin {
 
  private:
   void VerifyHostDefinedOptions() const;
-  Isolate* v8_isolate_;
   Local<Value> resource_name_;
   int resource_line_offset_;
   int resource_column_offset_;
@@ -187,7 +186,14 @@ class V8_EXPORT Message {
   bool IsSharedCrossOrigin() const;
   bool IsOpaque() const;
 
-  static void PrintCurrentStackTrace(Isolate* isolate, std::ostream& out);
+  /**
+   * If provided, the callback can be used to selectively include
+   * or redact frames based on their script names. (true to include a frame)
+   */
+  static void PrintCurrentStackTrace(
+      Isolate* isolate, std::ostream& out,
+      PrintCurrentStackTraceFilterCallback should_include_frame_callback =
+          nullptr);
 
   static const int kNoLineNumberInfo = 0;
   static const int kNoColumnInfo = 0;

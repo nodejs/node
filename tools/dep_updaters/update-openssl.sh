@@ -11,10 +11,10 @@ cleanup() {
 
 download() {
   LATEST_TAG_NAME="$("$NODE" --input-type=module <<'EOF'
-const res = await fetch('https://api.github.com/repos/quictls/openssl/git/matching-refs/tags/openssl-3.0');
+const res = await fetch('https://api.github.com/repos/openssl/openssl/git/matching-refs/tags/openssl-3.0');
 if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
 const releases = await res.json()
-const latest = releases.findLast(({ ref }) => ref.includes('quic'));
+const latest = releases.at(-1);
 if(!latest) throw new Error(`Could not find latest release`);
 console.log(latest.ref.replace('refs/tags/',''));
 EOF
@@ -39,14 +39,14 @@ EOF
 
   OPENSSL_TARBALL="openssl.tar.gz"
 
-  curl -sL -o "$OPENSSL_TARBALL" "https://api.github.com/repos/quictls/openssl/tarball/$LATEST_TAG_NAME"
+  curl -sL -o "$OPENSSL_TARBALL" "https://api.github.com/repos/openssl/openssl/tarball/$LATEST_TAG_NAME"
 
   log_and_verify_sha256sum "openssl" "$OPENSSL_TARBALL"
 
   gzip -dc "$OPENSSL_TARBALL" | tar xf -
 
   rm "$OPENSSL_TARBALL"
-  mv quictls-openssl-* openssl
+  mv openssl-openssl-* openssl
   echo "Replacing existing OpenSSL..."
   rm -rf "$DEPS_DIR/openssl/openssl"
   mv "$WORKSPACE/openssl" "$DEPS_DIR/openssl/"
@@ -56,7 +56,7 @@ EOF
   echo "Please git add openssl, and commit the new version:"
   echo ""
   echo "$ git add -A deps/openssl/openssl"
-  echo "$ git commit -m \"deps: upgrade openssl sources to quictls/openssl-$NEW_VERSION\""
+  echo "$ git commit -m \"deps: upgrade openssl sources to openssl/openssl-$NEW_VERSION\""
   echo ""
   # The last line of the script should always print the new version,
   # as we need to add it to $GITHUB_ENV variable.
@@ -120,6 +120,8 @@ main() {
     * )
       echo "unknown command: $1"
       help 1
+
+      # shellcheck disable=SC2317
       exit 1
     ;;
   esac

@@ -20,7 +20,11 @@
 //
 // NOTE: This test runs only on linux, as that is the only platform supported by perf, and
 // accordingly the only platform where `perf-basic-prof*` v8 flags are available.
-
+//
+// MAINTAINERS' NOTE: As of early 2024, the most common failure mode for this test suite
+// is for v8 options to change from version to version. If this suite fails, look there first.
+// We use options to forcibly require certain test cases to JIT code, and the nodeFlags to do
+// so can change.
 
 const common = require('../common');
 if (!common.isLinux) {
@@ -40,40 +44,54 @@ const testCases = [
     title: '--perf-basic-prof interpreted',
     nodeFlags: ['--perf-basic-prof', '--no-turbo-inlining', '--no-opt'],
     matches: [
-      '~functionOne .+/linux-perf-logger.js',
-      '~functionTwo .+/linux-perf-logger.js',
-      'test-regex',
+      'JS:~functionOne .+/linux-perf-logger.js',
+      'JS:~functionTwo .+/linux-perf-logger.js',
+      String.raw`RegExp\.> src: 'test-regex' flags: 'gi'`,
     ],
-    noMatches: ['\\*functionOne', '\\*functionTwo'],
+    noMatches: [
+      String.raw`JS:\*'functionOne`,
+      String.raw`JS:\*'functionTwo`,
+    ],
   },
   {
     title: '--perf-basic-prof compiled',
-    nodeFlags: ['--perf-basic-prof', '--no-turbo-inlining', '--always-turbofan'],
+    nodeFlags: ['--perf-basic-prof', '--no-turbo-inlining', '--always-turbofan',
+                '--minimum-invocations-before-optimization=0'],
     matches: [
-      'test-regex',
-      '~functionOne .+/linux-perf-logger.js',
-      '~functionTwo .+/linux-perf-logger.js',
-      '\\*functionOne .+/linux-perf-logger.js',
-      '\\*functionTwo .+/linux-perf-logger.js',
+      String.raw`RegExp\.> src: 'test-regex' flags: 'gi'`,
+      'JS:~functionOne .+/linux-perf-logger.js',
+      'JS:~functionTwo .+/linux-perf-logger.js',
+      String.raw`JS:\*'functionOne .+/linux-perf-logger.js`,
+      String.raw`JS:\*'functionTwo .+/linux-perf-logger.js`,
     ],
     noMatches: [],
   },
   {
     title: '--perf-basic-prof-only-functions interpreted',
     nodeFlags: ['--perf-basic-prof-only-functions', '--no-turbo-inlining', '--no-opt'],
-    matches: ['~functionOne .+/linux-perf-logger.js', '~functionTwo .+/linux-perf-logger.js'],
-    noMatches: ['\\*functionOne', '\\*functionTwo', 'test-regex'],
+    matches: [
+      'JS:~functionOne .+/linux-perf-logger.js',
+      'JS:~functionTwo .+/linux-perf-logger.js',
+    ],
+    noMatches: [
+      String.raw`JS:\*'functionOne`,
+      String.raw`JS:\*'functionTwo`,
+      'test-regex',
+    ],
   },
   {
     title: '--perf-basic-prof-only-functions compiled',
-    nodeFlags: ['--perf-basic-prof-only-functions', '--no-turbo-inlining', '--always-turbofan'],
+    nodeFlags: ['--perf-basic-prof-only-functions', '--no-turbo-inlining', '--always-turbofan',
+                '--minimum-invocations-before-optimization=0'],
     matches: [
-      '~functionOne .+/linux-perf-logger.js',
-      '~functionTwo .+/linux-perf-logger.js',
-      '\\*functionOne .+/linux-perf-logger.js',
-      '\\*functionTwo .+/linux-perf-logger.js',
+      'JS:~functionOne .+/linux-perf-logger.js',
+      'JS:~functionTwo .+/linux-perf-logger.js',
+      String.raw`JS:\*'functionOne .+/linux-perf-logger.js`,
+      String.raw`JS:\*'functionTwo .+/linux-perf-logger.js`,
     ],
-    noMatches: ['test-regex'],
+    noMatches: [
+      'test-regex',
+    ],
   },
 ];
 
@@ -104,7 +122,7 @@ function runTest(test) {
 
   const hexRegex = '[a-fA-F0-9]+';
   for (const testRegex of test.matches) {
-    const lineRegex = new RegExp(`${hexRegex} ${hexRegex}.*:${testRegex}`);
+    const lineRegex = new RegExp(`${hexRegex} ${hexRegex}.* ${testRegex}`);
     if (!lineRegex.test(report.perfMap)) {
       report.errors.push(`Expected to match ${lineRegex}`);
     }

@@ -98,11 +98,10 @@
 // do not support adding noexcept to default members.
 // Disabled on MSVC because constructors of standard containers are not noexcept
 // there.
-#if ((!defined(V8_CC_GNU) && !defined(V8_CC_MSVC) &&                        \
-      !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_PPC) &&    \
-      !defined(V8_TARGET_ARCH_PPC64) && !defined(V8_TARGET_ARCH_RISCV64) && \
-      !defined(V8_TARGET_ARCH_RISCV32)) ||                                  \
-     (defined(__clang__) && __cplusplus > 201300L))
+#if ((!defined(V8_CC_GNU) && !defined(V8_CC_MSVC) &&                           \
+      !defined(V8_TARGET_ARCH_MIPS64) && !defined(V8_TARGET_ARCH_PPC64) &&     \
+      !defined(V8_TARGET_ARCH_RISCV64) && !defined(V8_TARGET_ARCH_RISCV32)) || \
+     defined(__clang__))
 #define V8_NOEXCEPT noexcept
 #else
 #define V8_NOEXCEPT
@@ -135,15 +134,18 @@
 #define ALIGNAS(byte_alignment) __attribute__((aligned(byte_alignment)))
 #endif
 
-// Forces the linker to not GC the section corresponding to the symbol.
-#if defined(__has_attribute)
-#if __has_attribute(used) && __has_attribute(retain)
-#define V8_DONT_STRIP_SYMBOL __attribute__((used, retain))
-#endif  // __has_attribute(used) && __has_attribute(retain)
-#endif  // defined(__has_attribute)
+// Functions called from GDB.
+// Forces the linker to not optimize out the function.
+#if V8_HAS_ATTRIBUTE_USED && V8_HAS_ATTRIBUTE_RETAIN && \
+    V8_HAS_ATTRIBUTE_OPTNONE && V8_HAS_ATTRIBUTE_VISIBILITY
+#define V8_DEBUGGING_EXPORT \
+  __attribute__((used, retain, optnone, visibility("default")))
+#else
+#define V8_DEBUGGING_EXPORT
+#endif
 
-#if !defined(V8_DONT_STRIP_SYMBOL)
-#define V8_DONT_STRIP_SYMBOL
-#endif  // !defined(V8_DONT_STRIP_SYMBOL)
+#if __cplusplus >= 202002L
+#define HAS_CPP_CLASS_TYPES_AS_TEMPLATE_ARGS 1
+#endif
 
 #endif  // V8_BASE_COMPILER_SPECIFIC_H_

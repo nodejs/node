@@ -5,8 +5,11 @@
 #ifndef V8_OBJECTS_TYPE_HINTS_H_
 #define V8_OBJECTS_TYPE_HINTS_H_
 
+#include <stdint.h>
+
+#include <iosfwd>
+
 #include "src/base/flags.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -16,9 +19,11 @@ enum class BinaryOperationHint : uint8_t {
   kNone,
   kSignedSmall,
   kSignedSmallInputs,
+  kAdditiveSafeInteger,
   kNumber,
   kNumberOrOddball,
   kString,
+  kStringOrStringWrapper,
   kBigInt,
   kBigInt64,
   kAny
@@ -63,6 +68,7 @@ enum class ForInHint : uint8_t {
 
 std::ostream& operator<<(std::ostream&, ForInHint);
 
+// TODO(ishell): make it an enum class.
 enum StringAddFlags {
   // Omit both parameter checks.
   STRING_ADD_CHECK_NONE,

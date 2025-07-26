@@ -15,6 +15,7 @@
 #include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
+#include "double-conversion-string-to-double.h"
 #include "measunit_impl.h"
 #include "resource.h"
 #include "uarrsort.h"
@@ -30,12 +31,14 @@
 #include "unicode/ustringtrie.h"
 #include "uresimp.h"
 #include "util.h"
+#include <limits.h>
 #include <cstdlib>
-
 U_NAMESPACE_BEGIN
 
 
 namespace {
+
+using icu::double_conversion::StringToDoubleConverter;
 
 // TODO: Propose a new error code for this?
 constexpr UErrorCode kUnitIdentifierSyntaxError = U_ILLEGAL_ARGUMENT_ERROR;
@@ -102,6 +105,8 @@ const struct UnitPrefixStrings {
     UMeasurePrefix value;
 } gUnitPrefixStrings[] = {
     // SI prefixes
+    { "quetta", UMEASURE_PREFIX_QUETTA },
+    { "ronna", UMEASURE_PREFIX_RONNA },
     { "yotta", UMEASURE_PREFIX_YOTTA },
     { "zetta", UMEASURE_PREFIX_ZETTA },
     { "exa", UMEASURE_PREFIX_EXA },
@@ -122,6 +127,8 @@ const struct UnitPrefixStrings {
     { "atto", UMEASURE_PREFIX_ATTO },
     { "zepto", UMEASURE_PREFIX_ZEPTO },
     { "yocto", UMEASURE_PREFIX_YOCTO },
+    { "ronto", UMEASURE_PREFIX_RONTO },
+    { "quecto", UMEASURE_PREFIX_QUECTO },
     // Binary prefixes
     { "yobi", UMEASURE_PREFIX_YOBI },
     { "zebi", UMEASURE_PREFIX_ZEBI },
@@ -463,37 +470,55 @@ void U_CALLCONV initUnitExtras(UErrorCode& status) {
 
 class Token {
 public:
-    Token(int32_t match) : fMatch(match) {}
+  Token(int64_t match) : fMatch(match) {
+      if (fMatch < kCompoundPartOffset) {
+          this->fType = TYPE_PREFIX;
+      } else if (fMatch < kInitialCompoundPartOffset) {
+          this->fType = TYPE_COMPOUND_PART;
+      } else if (fMatch < kPowerPartOffset) {
+          this->fType = TYPE_INITIAL_COMPOUND_PART;
+      } else if (fMatch < kSimpleUnitOffset) {
+          this->fType = TYPE_POWER_PART;
+      } else {
+          this->fType = TYPE_SIMPLE_UNIT;
+      }
+  }
 
-    enum Type {
-        TYPE_UNDEFINED,
-        TYPE_PREFIX,
-        // Token type for "-per-", "-", and "-and-".
-        TYPE_COMPOUND_PART,
-        // Token type for "per-".
-        TYPE_INITIAL_COMPOUND_PART,
-        TYPE_POWER_PART,
-        TYPE_SIMPLE_UNIT,
-    };
+  static Token constantToken(StringPiece str, UErrorCode &status) {
+      Token result;
+      auto value = Token::parseStringToLong(str, status);
+      if (U_FAILURE(status)) {
+          return result;
+      }
+      result.fMatch = value;
+      result.fType = TYPE_CONSTANT_DENOMINATOR;
+      return result;
+  }
 
-    // Calling getType() is invalid, resulting in an assertion failure, if Token
-    // value isn't positive.
-    Type getType() const {
-        U_ASSERT(fMatch > 0);
-        if (fMatch < kCompoundPartOffset) {
-            return TYPE_PREFIX;
-        }
-        if (fMatch < kInitialCompoundPartOffset) {
-            return TYPE_COMPOUND_PART;
-        }
-        if (fMatch < kPowerPartOffset) {
-            return TYPE_INITIAL_COMPOUND_PART;
-        }
-        if (fMatch < kSimpleUnitOffset) {
-            return TYPE_POWER_PART;
-        }
-        return TYPE_SIMPLE_UNIT;
-    }
+  enum Type {
+      TYPE_UNDEFINED,
+      TYPE_PREFIX,
+      // Token type for "-per-", "-", and "-and-".
+      TYPE_COMPOUND_PART,
+      // Token type for "per-".
+      TYPE_INITIAL_COMPOUND_PART,
+      TYPE_POWER_PART,
+      TYPE_SIMPLE_UNIT,
+      TYPE_CONSTANT_DENOMINATOR,
+  };
+
+  // Calling getType() is invalid, resulting in an assertion failure, if Token
+  // value isn't positive.
+  Type getType() const {
+      U_ASSERT(fMatch >= 0);
+      return this->fType;
+  }
+
+  // Retrieve the value of the constant denominator if the token is of type TYPE_CONSTANT_DENOMINATOR.
+  uint64_t getConstantDenominator() const {
+      U_ASSERT(getType() == TYPE_CONSTANT_DENOMINATOR);
+      return static_cast<uint64_t>(fMatch);
+  }
 
     UMeasurePrefix getUnitPrefix() const {
         U_ASSERT(getType() == TYPE_PREFIX);
@@ -526,8 +551,41 @@ public:
         return fMatch - kSimpleUnitOffset;
     }
 
+    // TODO: Consider moving this to a separate utility class.
+    // Utility function to parse a string into an unsigned long value.
+    // The value must be a positive integer within the range [1, INT64_MAX].
+    // The input can be in integer or scientific notation.
+    static uint64_t parseStringToLong(const StringPiece strNum, UErrorCode &status) {
+        // We are processing well-formed input, so we don't need any special options to
+        // StringToDoubleConverter.
+        StringToDoubleConverter converter(0, 0, 0, "", "");
+        int32_t count;
+        double double_result = converter.StringToDouble(strNum.data(), strNum.length(), &count);
+        if (count != strNum.length()) {
+            status = kUnitIdentifierSyntaxError;
+            return 0;
+        }
+
+        if (U_FAILURE(status) || double_result < 1.0 || double_result > static_cast<double>(INT64_MAX)) {
+            status = kUnitIdentifierSyntaxError;
+            return 0;
+        }
+
+        // Check if the value is integer.
+        uint64_t int_result = static_cast<uint64_t>(double_result);
+        const double kTolerance = 1e-9;
+        if (abs(double_result - int_result) > kTolerance) {
+            status = kUnitIdentifierSyntaxError;
+            return 0;
+        }
+
+        return int_result;
+    }
+
 private:
-    int32_t fMatch;
+  Token() = default;
+  int64_t fMatch;
+  Type fType = TYPE_UNDEFINED;
 };
 
 class Parser {
@@ -542,14 +600,58 @@ public:
      */
     static Parser from(StringPiece source, UErrorCode& status) {
         if (U_FAILURE(status)) {
-            return Parser();
+            return {};
         }
         umtx_initOnce(gUnitExtrasInitOnce, &initUnitExtras, status);
         if (U_FAILURE(status)) {
-            return Parser();
+            return {};
         }
-        return Parser(source);
+        return {source};
     }
+
+    /**
+     * A single unit or a constant denominator.
+     */
+    struct SingleUnitOrConstant {
+        enum ValueType {
+            kSingleUnit,
+            kConstantDenominator,
+        };
+
+        ValueType type = kSingleUnit;
+        SingleUnitImpl singleUnit;
+        uint64_t constantDenominator;
+
+        static SingleUnitOrConstant singleUnitValue(SingleUnitImpl singleUnit) {
+            SingleUnitOrConstant result;
+            result.type = kSingleUnit;
+            result.singleUnit = singleUnit;
+            result.constantDenominator = 0;
+            return result;
+        }
+
+        static SingleUnitOrConstant constantDenominatorValue(uint64_t constant) {
+            SingleUnitOrConstant result;
+            result.type = kConstantDenominator;
+            result.singleUnit = {};
+            result.constantDenominator = constant;
+            return result;
+        }
+
+        uint64_t getConstantDenominator() const {
+            U_ASSERT(type == kConstantDenominator);
+            return constantDenominator;
+        }
+
+        SingleUnitImpl getSingleUnit() const {
+            U_ASSERT(type == kSingleUnit);
+            return singleUnit;
+        }
+
+        bool isSingleUnit() const { return type == kSingleUnit; }
+
+        bool isConstantDenominator() const { return type == kConstantDenominator; }
+    };
 
     MeasureUnitImpl parse(UErrorCode& status) {
         MeasureUnitImpl result;
@@ -565,12 +667,19 @@ public:
         while (hasNext()) {
             bool sawAnd = false;
 
-            SingleUnitImpl singleUnit = nextSingleUnit(sawAnd, status);
+            auto singleUnitOrConstant = nextSingleUnitOrConstant(sawAnd, status);
             if (U_FAILURE(status)) {
                 return result;
             }
 
-            bool added = result.appendSingleUnit(singleUnit, status);
+            if (singleUnitOrConstant.isConstantDenominator()) {
+                result.constantDenominator = singleUnitOrConstant.getConstantDenominator();
+                result.complexity = UMEASURE_UNIT_COMPOUND;
+                continue;
+            }
+
+            U_ASSERT(singleUnitOrConstant.isSingleUnit());
+            bool added = result.appendSingleUnit(singleUnitOrConstant.getSingleUnit(), status);
             if (U_FAILURE(status)) {
                 return result;
             }
@@ -600,6 +709,12 @@ public:
             }
         }
 
+        if (result.singleUnits.length() == 0) {
+            // The identifier was empty or only had a constant denominator.
+            status = kUnitIdentifierSyntaxError;
+            return result; // add it for code consistency.
+        }
+
         return result;
     }
 
@@ -617,6 +732,10 @@ private:
     // are in the denominator. Until we find an "-and-", at which point the
     // identifier is invalid pending TODO(CLDR-13701).
     bool fAfterPer = false;
+
+    // Set to true when we've just seen a "per-". This is used to determine if
+    // the next token can be a constant denominator token.
+    bool fJustSawPer = false;
 
     Parser() : fSource(""), fTrie(u"") {}
 
@@ -636,6 +755,10 @@ private:
         // Saves the position in the fSource string for the end of the most
         // recent matching token.
         int32_t previ = -1;
+
+        // Saves the position in the fSource string for later use in case of unit constant found.
+        int32_t currentFIndex = fIndex;
+
         // Find the longest token that matches a value in the trie:
         while (fIndex < fSource.length()) {
             auto result = fTrie.next(fSource.data()[fIndex++]);
@@ -654,12 +777,25 @@ private:
             // continue;
         }
 
-        if (match < 0) {
-            status = kUnitIdentifierSyntaxError;
-        } else {
+        if (match >= 0) {
             fIndex = previ;
+            return {match};
         }
-        return Token(match);
+
+        // If no match was found, we check if the token is a constant denominator.
+        // 1. We find the index of the start of the next token or the end of the string.
+        int32_t endOfConstantIndex = fSource.find("-", currentFIndex);
+        endOfConstantIndex = (endOfConstantIndex == -1) ? fSource.length() : endOfConstantIndex;
+        if (endOfConstantIndex <= currentFIndex) {
+            status = kUnitIdentifierSyntaxError;
+            return {match};
+        }
+
+        // 2. We extract the substring from the start of the constant to the end of the constant.
+        StringPiece constantDenominatorStr =
+            fSource.substr(currentFIndex, endOfConstantIndex - currentFIndex);
+        fIndex = endOfConstantIndex;
+        return Token::constantToken(constantDenominatorStr, status);
     }
 
     /**
@@ -676,10 +812,10 @@ private:
      * unit", sawAnd is set to true. If not, it is left as is.
      * @param status ICU error code.
      */
-    SingleUnitImpl nextSingleUnit(bool &sawAnd, UErrorCode &status) {
-        SingleUnitImpl result;
+    SingleUnitOrConstant nextSingleUnitOrConstant(bool &sawAnd, UErrorCode &status) {
+        SingleUnitImpl singleUnitResult;
         if (U_FAILURE(status)) {
-            return result;
+            return {};
         }
 
         // state:
@@ -691,19 +827,22 @@ private:
         bool atStart = fIndex == 0;
         Token token = nextToken(status);
         if (U_FAILURE(status)) {
-            return result;
+            return {};
         }
+
+        fJustSawPer = false;
 
         if (atStart) {
             // Identifiers optionally start with "per-".
             if (token.getType() == Token::TYPE_INITIAL_COMPOUND_PART) {
                 U_ASSERT(token.getInitialCompoundPart() == INITIAL_COMPOUND_PART_PER);
                 fAfterPer = true;
-                result.dimensionality = -1;
+                fJustSawPer = true;
+                singleUnitResult.dimensionality = -1;
 
                 token = nextToken(status);
                 if (U_FAILURE(status)) {
-                    return result;
+                    return {};
                 }
             }
         } else {
@@ -711,7 +850,7 @@ private:
             // via a compound part:
             if (token.getType() != Token::TYPE_COMPOUND_PART) {
                 status = kUnitIdentifierSyntaxError;
-                return result;
+                return {};
             }
 
             switch (token.getMatch()) {
@@ -720,15 +859,16 @@ private:
                     // Mixed compound units not yet supported,
                     // TODO(CLDR-13701).
                     status = kUnitIdentifierSyntaxError;
-                    return result;
+                    return {};
                 }
                 fAfterPer = true;
-                result.dimensionality = -1;
+                fJustSawPer = true;
+                singleUnitResult.dimensionality = -1;
                 break;
 
             case COMPOUND_PART_TIMES:
                 if (fAfterPer) {
-                    result.dimensionality = -1;
+                    singleUnitResult.dimensionality = -1;
                 }
                 break;
 
@@ -737,7 +877,7 @@ private:
                     // Can't start with "-and-", and mixed compound units
                     // not yet supported, TODO(CLDR-13701).
                     status = kUnitIdentifierSyntaxError;
-                    return result;
+                    return {};
                 }
                 sawAnd = true;
                 break;
@@ -745,60 +885,73 @@ private:
 
             token = nextToken(status);
             if (U_FAILURE(status)) {
-                return result;
+                return {};
             }
+        }
+
+        if (token.getType() == Token::TYPE_CONSTANT_DENOMINATOR) {
+            if (!fJustSawPer) {
+                status = kUnitIdentifierSyntaxError;
+                return {};
+            }
+
+            return SingleUnitOrConstant::constantDenominatorValue(token.getConstantDenominator());
         }
 
         // Read tokens until we have a complete SingleUnit or we reach the end.
         while (true) {
             switch (token.getType()) {
-                case Token::TYPE_POWER_PART:
-                    if (state > 0) {
-                        status = kUnitIdentifierSyntaxError;
-                        return result;
-                    }
-                    result.dimensionality *= token.getPower();
-                    state = 1;
-                    break;
-
-                case Token::TYPE_PREFIX:
-                    if (state > 1) {
-                        status = kUnitIdentifierSyntaxError;
-                        return result;
-                    }
-                    result.unitPrefix = token.getUnitPrefix();
-                    state = 2;
-                    break;
-
-                case Token::TYPE_SIMPLE_UNIT:
-                    result.index = token.getSimpleUnitIndex();
-                    return result;
-
-                default:
+            case Token::TYPE_POWER_PART:
+                if (state > 0) {
                     status = kUnitIdentifierSyntaxError;
-                    return result;
+                    return {};
+                }
+                singleUnitResult.dimensionality *= token.getPower();
+                state = 1;
+                break;
+
+            case Token::TYPE_PREFIX:
+                if (state > 1) {
+                    status = kUnitIdentifierSyntaxError;
+                    return {};
+                }
+                singleUnitResult.unitPrefix = token.getUnitPrefix();
+                state = 2;
+                break;
+
+            case Token::TYPE_SIMPLE_UNIT:
+                singleUnitResult.index = token.getSimpleUnitIndex();
+                break;
+
+            default:
+                status = kUnitIdentifierSyntaxError;
+                return {};
+            }
+
+            if (token.getType() == Token::TYPE_SIMPLE_UNIT) {
+                break;
             }
 
             if (!hasNext()) {
                 // We ran out of tokens before finding a complete single unit.
                 status = kUnitIdentifierSyntaxError;
-                return result;
+                return {};
             }
             token = nextToken(status);
             if (U_FAILURE(status)) {
-                return result;
+                return {};
             }
         }
 
-        return result;
+        return SingleUnitOrConstant::singleUnitValue(singleUnitResult);
     }
 };
 
 // Sorting function wrapping SingleUnitImpl::compareTo for use with uprv_sortArray.
 int32_t U_CALLCONV
 compareSingleUnits(const void* /*context*/, const void* left, const void* right) {
-    auto realLeft = static_cast<const SingleUnitImpl* const*>(left);
-    auto realRight = static_cast<const SingleUnitImpl* const*>(right);
+    const auto* realLeft = static_cast<const SingleUnitImpl* const*>(left);
+    const auto* realRight = static_cast<const SingleUnitImpl* const*>(right);
     return (*realLeft)->compareTo(**realRight);
 }
 
@@ -1116,6 +1269,51 @@ MeasureUnitImpl::extractIndividualUnitsWithIndices(UErrorCode &status) const {
     return result;
 }
 
+int32_t countCharacter(const CharString &str, char c) {
+    int32_t count = 0;
+    for (int32_t i = 0, n = str.length(); i < n; i++) {
+        if (str[i] == c) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/**
+ * Internal function that returns a string of the constants in the correct
+ * format.
+ *
+ * Example:
+ * 1000 --> "-per-1000"
+ * 1000000 --> "-per-1e6"
+ *
+ * NOTE: this function is only used when the constant denominator is greater
+ * than 0.
+ */
+CharString getConstantsString(uint64_t constantDenominator, UErrorCode &status) {
+    U_ASSERT(constantDenominator > 0 && constantDenominator <= LLONG_MAX);
+
+    CharString result;
+    result.appendNumber(constantDenominator, status);
+    if (U_FAILURE(status)) {
+        return result;
+    }
+
+    if (constantDenominator <= 1000) {
+        return result;
+    }
+
+    // Check if the constant is a power of 10.
+    int32_t zeros = countCharacter(result, '0');
+    if (zeros == result.length() - 1 && result[0] == '1') {
+        result.clear();
+        result.append(StringPiece("1e"), status);
+        result.appendNumber(zeros, status);
+    }
+
+    return result;
+}
+
 /**
  * Normalize a MeasureUnitImpl and generate the identifier string in place.
  */
@@ -1124,7 +1322,7 @@ void MeasureUnitImpl::serialize(UErrorCode &status) {
         return;
     }
 
-    if (this->singleUnits.length() == 0) {
+    if (this->singleUnits.length() == 0 && this->constantDenominator == 0) {
         // Dimensionless, constructed by the default constructor.
         return;
     }
@@ -1141,6 +1339,7 @@ void MeasureUnitImpl::serialize(UErrorCode &status) {
     CharString result;
     bool beforePer = true;
     bool firstTimeNegativeDimension = false;
+    bool constantDenominatorAppended = false;
     for (int32_t i = 0; i < this->singleUnits.length(); i++) {
         if (beforePer && (*this->singleUnits[i]).dimensionality < 0) {
             beforePer = false;
@@ -1164,41 +1363,101 @@ void MeasureUnitImpl::serialize(UErrorCode &status) {
                 } else {
                     result.append(StringPiece("-per-"), status);
                 }
-            } else {
-                if (result.length() != 0) {
+
+                if (this->constantDenominator > 0) {
+                    result.append(getConstantsString(this->constantDenominator, status), status);
                     result.append(StringPiece("-"), status);
+                    constantDenominatorAppended = true;
                 }
+
+            } else if (result.length() != 0) {
+                result.append(StringPiece("-"), status);
             }
         }
 
         this->singleUnits[i]->appendNeutralIdentifier(result, status);
     }
 
+    if (!constantDenominatorAppended && this->constantDenominator > 0) {
+        result.append(StringPiece("-per-"), status);
+        result.append(getConstantsString(this->constantDenominator, status), status);
+    }
+
+    if (U_FAILURE(status)) {
+        return;
+    }
     this->identifier = CharString(result, status);
 }
 
-MeasureUnit MeasureUnitImpl::build(UErrorCode& status) && {
+MeasureUnit MeasureUnitImpl::build(UErrorCode &status) && {
     this->serialize(status);
     return MeasureUnit(std::move(*this));
 }
 
-MeasureUnit MeasureUnit::forIdentifier(StringPiece identifier, UErrorCode& status) {
+MeasureUnit MeasureUnit::forIdentifier(StringPiece identifier, UErrorCode &status) {
     return Parser::from(identifier, status).parse(status).build(status);
 }
 
-UMeasureUnitComplexity MeasureUnit::getComplexity(UErrorCode& status) const {
+UMeasureUnitComplexity MeasureUnit::getComplexity(UErrorCode &status) const {
     MeasureUnitImpl temp;
     return MeasureUnitImpl::forMeasureUnit(*this, temp, status).complexity;
 }
 
-UMeasurePrefix MeasureUnit::getPrefix(UErrorCode& status) const {
+UMeasurePrefix MeasureUnit::getPrefix(UErrorCode &status) const {
     return SingleUnitImpl::forMeasureUnit(*this, status).unitPrefix;
 }
 
-MeasureUnit MeasureUnit::withPrefix(UMeasurePrefix prefix, UErrorCode& status) const UPRV_NO_SANITIZE_UNDEFINED {
+MeasureUnit MeasureUnit::withPrefix(UMeasurePrefix prefix,
+                                    UErrorCode &status) const UPRV_NO_SANITIZE_UNDEFINED {
     SingleUnitImpl singleUnit = SingleUnitImpl::forMeasureUnit(*this, status);
     singleUnit.unitPrefix = prefix;
     return singleUnit.build(status);
+}
+
+uint64_t MeasureUnit::getConstantDenominator(UErrorCode &status) const {
+    auto complexity = this->getComplexity(status);
+    if (U_FAILURE(status)) {
+        return 0;
+    }
+
+    if (complexity != UMEASURE_UNIT_SINGLE && complexity != UMEASURE_UNIT_COMPOUND) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return 0;
+    }
+
+    if (this->fImpl == nullptr) {
+        return 0;
+    }
+
+    return this->fImpl->constantDenominator;
+}
+
+MeasureUnit MeasureUnit::withConstantDenominator(uint64_t denominator, UErrorCode &status) const {
+    // To match the behavior of the Java API, we do not allow a constant denominator
+    // bigger than LONG_MAX.
+    if (denominator > LONG_MAX) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return {};
+    }
+
+    auto complexity = this->getComplexity(status);
+    if (U_FAILURE(status)) {
+        return {};
+    }
+    if (complexity != UMEASURE_UNIT_SINGLE && complexity != UMEASURE_UNIT_COMPOUND) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return {};
+    }
+
+    MeasureUnitImpl impl = MeasureUnitImpl::forMeasureUnitMaybeCopy(*this, status);
+    if (U_FAILURE(status)) {
+        return {};
+    }
+
+    impl.constantDenominator = denominator;
+    impl.complexity = (impl.singleUnits.length() < 2 && denominator == 0) ? UMEASURE_UNIT_SINGLE
+                                                                          : UMEASURE_UNIT_COMPOUND;
+    return std::move(impl).build(status);
 }
 
 int32_t MeasureUnit::getDimensionality(UErrorCode& status) const {
@@ -1218,6 +1477,11 @@ MeasureUnit MeasureUnit::withDimensionality(int32_t dimensionality, UErrorCode& 
 
 MeasureUnit MeasureUnit::reciprocal(UErrorCode& status) const {
     MeasureUnitImpl impl = MeasureUnitImpl::forMeasureUnitMaybeCopy(*this, status);
+    // The reciprocal of a unit that has a constant denominator is not allowed.
+    if (impl.constantDenominator != 0) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return {};
+    }
     impl.takeReciprocal(status);
     return std::move(impl).build(status);
 }
@@ -1233,9 +1497,25 @@ MeasureUnit MeasureUnit::product(const MeasureUnit& other, UErrorCode& status) c
     for (int32_t i = 0; i < otherImpl.singleUnits.length(); i++) {
         impl.appendSingleUnit(*otherImpl.singleUnits[i], status);
     }
-    if (impl.singleUnits.length() > 1) {
+
+    uint64_t currentConstatDenominator = this->getConstantDenominator(status);
+    uint64_t otherConstantDenominator = other.getConstantDenominator(status);
+
+    // TODO: we can also multiply the constant denominators instead of returning an error.
+    if (currentConstatDenominator != 0 && otherConstantDenominator != 0) {
+        // There is only `one` constant denominator in a compound unit.
+        // Therefore, we Cannot multiply units that both of them have a constant denominator
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return {};
+    }
+
+    // Because either one of the constant denominators is zero, we can use the maximum of them.
+    impl.constantDenominator = uprv_max(currentConstatDenominator, otherConstantDenominator);
+
+    if (impl.singleUnits.length() > 1 || impl.constantDenominator > 0) {
         impl.complexity = UMEASURE_UNIT_COMPOUND;
     }
+
     return std::move(impl).build(status);
 }
 

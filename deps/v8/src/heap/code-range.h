@@ -45,15 +45,18 @@ class CodeRangeAddressHint {
 // A code range is a virtual memory cage that may contain executable code. It
 // has the following layout.
 //
-// +---------+-----+-----------------  ~~~  -+
-// |   RW    | ... |     ...                 |
-// +---------+-----+------------------ ~~~  -+
-// ^               ^
-// base            allocatable base
+// +---------+---------+-----------------  ~~~  -+
+// |   RW    |   ...   |     ...                 |
+// +---------+---------+------------------ ~~~  -+
+// ^                   ^
+// base                allocatable base
 //
-// <-------->      <------------------------->
-//  reserved            allocatable region
-// <----------------------------------------->
+// <------------------><------------------------->
+//   non-allocatable       allocatable region
+//   region
+// <-------->
+//  reserved
+// <--------------------------------------------->
 //                 CodeRange
 //
 // The start of the reservation may include reserved page with read-write access
@@ -64,8 +67,11 @@ class CodeRangeAddressHint {
 //
 // The following conditions hold:
 // 1) |reservation()->region()| == [base(), base() + size()[,
-// 2) if optional RW pages are not necessary, then |base| == |allocatable base|,
-// 3) both |base| and |allocatable base| are MemoryChunk::kAlignment-aligned.
+// 2) |base| is OS page size aligned,
+// 3) |allocatable base| is MemoryChunk::kAlignment-aligned,
+// 4) non-allocatable region might be empty (if |base| == |allocatable base|),
+// 5) if optional RW pages are necessary and they don't fit into non-allocatable
+//    region, then the first page is excluded from allocatable area.
 class CodeRange final : public VirtualMemoryCage {
  public:
   V8_EXPORT_PRIVATE ~CodeRange() override;
@@ -97,14 +103,19 @@ class CodeRange final : public VirtualMemoryCage {
     return embedded_blob_code_copy_.load(std::memory_order_acquire);
   }
 
-  bool InitReservation(v8::PageAllocator* page_allocator, size_t requested);
+  // Initialize the address space reservation for the code range. The immutable
+  // flag specifies if the reservation will live until the end of the process
+  // and can be sealed.
+  bool InitReservation(v8::PageAllocator* page_allocator, size_t requested,
+                       bool immutable);
 
-  void Free();
+  V8_EXPORT_PRIVATE void Free();
 
   // Remap and copy the embedded builtins into this CodeRange. This method is
   // idempotent and only performs the copy once. This property is so that this
-  // method can be used uniformly regardless of having a per-Isolate or a shared
-  // pointer cage. Returns the address of the copy.
+  // method can be used uniformly regardless of whether there is a single global
+  // pointer address space or multiple pointer cages. Returns the address of
+  // the copy.
   //
   // The builtins code region will be freed with the code range at tear down.
   //
@@ -113,13 +124,6 @@ class CodeRange final : public VirtualMemoryCage {
   uint8_t* RemapEmbeddedBuiltins(Isolate* isolate,
                                  const uint8_t* embedded_blob_code,
                                  size_t embedded_blob_code_size);
-
-  static CodeRange* EnsureProcessWideCodeRange(
-      v8::PageAllocator* page_allocator, size_t requested_size);
-
-  // If InitializeProcessWideCodeRangeOnce has been called, returns the
-  // initialized CodeRange. Otherwise returns a null pointer.
-  V8_EXPORT_PRIVATE static CodeRange* GetProcessWideCodeRange();
 
  private:
   static base::AddressRegion GetPreferredRegion(size_t radius_in_megabytes,
@@ -132,6 +136,10 @@ class CodeRange final : public VirtualMemoryCage {
   // When sharing a CodeRange among Isolates, calls to RemapEmbeddedBuiltins may
   // race during Isolate::Init.
   base::Mutex remap_embedded_builtins_mutex_;
+
+#if !defined(V8_OS_WIN) && !defined(V8_OS_IOS) && defined(DEBUG)
+  bool immutable_ = false;
+#endif
 };
 
 }  // namespace internal

@@ -66,14 +66,24 @@ describe('no', function() {
   });
 });
 
+describe('no with todo', { todo: true }, () => {
+  it('no', () => {});
+  it('yes', () => {});
+
+  describe('maybe', function() {
+    it('no', () => {});
+    it('yes', () => {});
+  });
+});
+
 describe('DescribeForMatchWithAncestors', () => {
   it('NestedTest', () => common.mustNotCall());
 
   describe('NestedDescribeForMatchWithAncestors', () => {
     it('NestedTest', common.mustCall());
   });
-})
+});
 
 describe('DescribeForMatchWithAncestors', () => {
   it('NestedTest', () => common.mustNotCall());
-})
+});

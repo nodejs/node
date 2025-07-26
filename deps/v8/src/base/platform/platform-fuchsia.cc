@@ -9,6 +9,8 @@
 #include <lib/zx/vmar.h>
 #include <lib/zx/vmo.h>
 
+#include <optional>
+
 #include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform-posix-time.h"
@@ -102,12 +104,18 @@ void* MapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
 
   zx_vm_option_t options = GetProtectionFromMemoryPermission(access);
 
-  zx_vm_option_t alignment_option = GetAlignmentOptionFromAlignment(alignment);
-  CHECK_NE(0, alignment_option);  // Invalid alignment specified
-  options |= alignment_option;
-
   size_t vmar_offset = 0;
-  if (placement != PlacementMode::kAnywhere) {
+  if (placement == PlacementMode::kAnywhere) {
+    zx_vm_option_t alignment_option =
+        GetAlignmentOptionFromAlignment(alignment);
+    if (alignment_option == 0) {
+      // Invalid alignment specified, it is not possible to provide an
+      // allocation with correct alignment.
+      return nullptr;
+    }
+    options |= alignment_option;
+  } else {
+    CHECK_EQ(reinterpret_cast<intptr_t>(address) % alignment, 0);
     // Try placing the mapping at the specified address.
     uintptr_t target_addr = reinterpret_cast<uintptr_t>(address);
     uintptr_t base = reinterpret_cast<uintptr_t>(vmar_base);
@@ -119,19 +127,22 @@ void* MapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
   zx_vaddr_t result;
   zx_status_t status = vmar.map(options, vmar_offset, vmo, 0, size, &result);
 
-  if (status != ZX_OK && placement == PlacementMode::kUseHint) {
-    // If a placement hint was specified but couldn't be used (for example,
-    // because the offset overlapped another mapping), then retry again without
-    // a vmar_offset to let the kernel pick another location.
-    options &= ~(ZX_VM_SPECIFIC);
-    status = vmar.map(options, 0, vmo, 0, size, &result);
+  if (status == ZX_OK) {
+    DCHECK_EQ(result % alignment, 0);
+    return reinterpret_cast<void*>(result);
   }
 
-  if (status != ZX_OK) {
+  if (placement != PlacementMode::kUseHint) {
     return nullptr;
   }
-
-  return reinterpret_cast<void*>(result);
+  // The hint failed, so we try again without the hint but with alignment
+  // options.
+  // TODO(404563927): Support alignment > 4GB. CppGC's HeapCage allocates with a
+  // 32GB alignment, and the allocation fails on Fuchsia at the moment if the
+  // provided placement hint is not available. PartitionAlloc already solved
+  // this issue, so maybe that solution could be used here as well.
+  return MapVmo(vmar, vmar_base, page_size, nullptr, vmo, offset,
+                PlacementMode::kAnywhere, size, alignment, access);
 }
 
 void* CreateAndMapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
@@ -240,8 +251,8 @@ TimezoneCache* OS::CreateTimezoneCache() {
 }
 
 // static
-void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
-  PosixInitializeCommon(hard_abort, gc_fake_mmap);
+void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
+  PosixInitializeCommon(abort_mode, gc_fake_mmap);
 
   // Determine base address of root VMAR.
   zx_info_vmar_t info;
@@ -319,10 +330,13 @@ bool OS::DecommitPages(void* address, size_t size) {
 }
 
 // static
+bool OS::SealPages(void* address, size_t size) { return false; }
+
+// static
 bool OS::CanReserveAddressSpace() { return true; }
 
 // static
-Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
+std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
     void* hint, size_t size, size_t alignment,
     MemoryPermission max_permission) {
   DCHECK_EQ(0, reinterpret_cast<Address>(hint) % alignment);
@@ -394,13 +408,14 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
 
 void OS::AdjustSchedulingParams() {}
 
-std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
     OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
     size_t alignment) {
-  return {};
+  return std::nullopt;
 }
 
-Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(
+std::optional<AddressSpaceReservation>
+AddressSpaceReservation::CreateSubReservation(
     void* address, size_t size, OS::MemoryPermission max_permission) {
   DCHECK(Contains(address, size));
 

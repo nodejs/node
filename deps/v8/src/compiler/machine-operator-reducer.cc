@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <optional>
 
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
@@ -15,13 +16,14 @@
 #include "src/base/overflowing-math.h"
 #include "src/builtins/builtins.h"
 #include "src/compiler/diamond.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-graph.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/numbers/conversions-inl.h"
+#include "src/numbers/ieee754.h"
 
 namespace v8 {
 namespace internal {
@@ -825,8 +827,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64Pow: {
       Float64BinopMatcher m(node);
       if (m.IsFoldable()) {
-        return ReplaceFloat64(base::ieee754::pow(m.left().ResolvedValue(),
-                                                 m.right().ResolvedValue()));
+        return ReplaceFloat64(
+            math::pow(m.left().ResolvedValue(), m.right().ResolvedValue()));
       } else if (m.right().Is(0.0)) {  // x ** +-0.0 => 1.0
         return ReplaceFloat64(1.0);
       } else if (m.right().Is(2.0)) {  // x ** 2.0 => x * x
@@ -1623,7 +1625,7 @@ namespace {
 // overflow".
 template <typename T>
 bool CanRevertLeftShiftWithRightShift(T value, T shift) {
-  using unsigned_T = typename std::make_unsigned<T>::type;
+  using unsigned_T = std::make_unsigned_t<T>;
   if (shift < 0 || shift >= std::numeric_limits<T>::digits + 1) {
     // This shift would be UB in C++
     return false;
@@ -2286,7 +2288,7 @@ struct BitfieldCheck {
     CHECK_EQ(masked_value & ~mask, 0);
   }
 
-  static base::Optional<BitfieldCheck> Detect(Node* node) {
+  static std::optional<BitfieldCheck> Detect(Node* node) {
     // There are two patterns to check for here:
     // 1. Single-bit checks: `(val >> shift) & 1`, where:
     //    - the shift may be omitted, and/or
@@ -2322,17 +2324,19 @@ struct BitfieldCheck {
     return {};
   }
 
-  base::Optional<BitfieldCheck> TryCombine(const BitfieldCheck& other) {
+  std::optional<BitfieldCheck> TryCombine(const BitfieldCheck& other) {
     if (source != other.source ||
-        truncate_from_64_bit != other.truncate_from_64_bit)
+        truncate_from_64_bit != other.truncate_from_64_bit) {
       return {};
+    }
     uint32_t overlapping_bits = mask & other.mask;
     // It would be kind of strange to have any overlapping bits, but they can be
     // allowed as long as they don't require opposite values in the same
     // positions.
     if ((masked_value & overlapping_bits) !=
-        (other.masked_value & overlapping_bits))
+        (other.masked_value & overlapping_bits)) {
       return {};
+    }
     return BitfieldCheck{source, mask | other.mask,
                          masked_value | other.masked_value,
                          truncate_from_64_bit};
@@ -2340,7 +2344,7 @@ struct BitfieldCheck {
 
  private:
   template <typename WordNAdapter>
-  static base::Optional<BitfieldCheck> TryDetectShiftAndMaskOneBit(Node* node) {
+  static std::optional<BitfieldCheck> TryDetectShiftAndMaskOneBit(Node* node) {
     // Look for the pattern `(val >> shift) & 1`. The shift may be omitted.
     if (WordNAdapter::IsWordNAnd(NodeMatcher(node))) {
       typename WordNAdapter::IntNBinopMatcher mand(node);
@@ -2552,7 +2556,7 @@ Reduction MachineOperatorReducer::ReduceWord32Equal(Node* node) {
   // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
   if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
   if (m.right().HasResolvedValue()) {
-    base::Optional<std::pair<Node*, uint32_t>> replacements;
+    std::optional<std::pair<Node*, uint32_t>> replacements;
     if (m.left().IsTruncateInt64ToInt32()) {
       replacements = ReduceWordEqualForConstantRhs<Word64Adapter, uint32_t>(
           NodeProperties::GetValueInput(m.left().node(), 0),
@@ -2599,7 +2603,7 @@ Reduction MachineOperatorReducer::ReduceWord64Equal(Node* node) {
   // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
   if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
   if (m.right().HasResolvedValue()) {
-    base::Optional<std::pair<Node*, uint64_t>> replacements =
+    std::optional<std::pair<Node*, uint64_t>> replacements =
         ReduceWordEqualForConstantRhs<Word64Adapter, uint64_t>(
             m.left().node(), static_cast<uint64_t>(m.right().ResolvedValue()));
     if (replacements) {
@@ -2774,14 +2778,14 @@ bool IsZero(Node* node) {
 
 // If |node| is of the form "x == 0", then return "x" (in order to remove the
 // "== 0" part).
-base::Optional<Node*> TryGetInvertedCondition(Node* cond) {
+std::optional<Node*> TryGetInvertedCondition(Node* cond) {
   if (cond->opcode() == IrOpcode::kWord32Equal) {
     Int32BinopMatcher m(cond);
     if (IsZero(m.right().node())) {
       return m.left().node();
     }
   }
-  return base::nullopt;
+  return std::nullopt;
 }
 
 struct SimplifiedCondition {
@@ -2794,10 +2798,10 @@ struct SimplifiedCondition {
 // recorded by the variable |is_inverted| throughout this function, and returned
 // at the end. If |is_inverted| is true at the end, the caller should invert the
 // if/else branches following the comparison.
-base::Optional<SimplifiedCondition> TrySimplifyCompareZero(Node* cond) {
+std::optional<SimplifiedCondition> TrySimplifyCompareZero(Node* cond) {
   bool is_inverted = false;
   bool changed = false;
-  base::Optional<Node*> new_cond;
+  std::optional<Node*> new_cond;
   while ((new_cond = TryGetInvertedCondition(cond)).has_value()) {
     cond = *new_cond;
     is_inverted = !is_inverted;
@@ -2954,7 +2958,7 @@ Reduction MachineOperatorReducer::ReduceConditional(Node* node) {
 }
 
 template <typename WordNAdapter>
-base::Optional<Node*> MachineOperatorReducer::ReduceConditionalN(Node* node) {
+std::optional<Node*> MachineOperatorReducer::ReduceConditionalN(Node* node) {
   NodeMatcher condition(NodeProperties::GetValueInput(node, 0));
   // Branch conditions are 32-bit comparisons against zero, so they are the
   // opposite of a 32-bit `x == 0` node. To avoid repetition, we can reuse logic
@@ -2967,7 +2971,7 @@ base::Optional<Node*> MachineOperatorReducer::ReduceConditionalN(Node* node) {
 }
 
 template <typename WordNAdapter, typename uintN_t, typename intN_t>
-base::Optional<std::pair<Node*, uintN_t>>
+std::optional<std::pair<Node*, uintN_t>>
 MachineOperatorReducer::ReduceWordEqualForConstantRhs(Node* lhs, uintN_t rhs) {
   if (WordNAdapter::IsWordNAnd(NodeMatcher(lhs))) {
     typename WordNAdapter::UintNBinopMatcher mand(lhs);
@@ -3026,7 +3030,7 @@ MachineOperatorBuilder* MachineOperatorReducer::machine() const {
   return mcgraph()->machine();
 }
 
-Graph* MachineOperatorReducer::graph() const { return mcgraph()->graph(); }
+TFGraph* MachineOperatorReducer::graph() const { return mcgraph()->graph(); }
 
 }  // namespace compiler
 }  // namespace internal

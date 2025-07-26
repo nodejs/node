@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
 #include "src/objects/tagged-impl-inl.h"
@@ -20,22 +21,28 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_EXTERNAL_CODE_SPACE
+#if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 bool CheckObjectComparisonAllowed(Address a, Address b) {
+  // LINT.IfChange(CheckObjectComparisonAllowed)
   if (!HAS_STRONG_HEAP_OBJECT_TAG(a) || !HAS_STRONG_HEAP_OBJECT_TAG(b)) {
     return true;
   }
-  Tagged<HeapObject> obj_a = HeapObject::unchecked_cast(Tagged<Object>(a));
-  Tagged<HeapObject> obj_b = HeapObject::unchecked_cast(Tagged<Object>(b));
-  // This check might fail when we try to compare InstructionStream object with
-  // non-InstructionStream object. The main legitimate case when such "mixed"
-  // comparison could happen is comparing two AbstractCode objects. If that's
-  // the case one must use AbstractCode's == operator instead of Object's one or
-  // SafeEquals().
-  CHECK_EQ(IsCodeSpaceObject(obj_a), IsCodeSpaceObject(obj_b));
+  Tagged<HeapObject> obj_a = UncheckedCast<HeapObject>(Tagged<Object>(a));
+  Tagged<HeapObject> obj_b = UncheckedCast<HeapObject>(Tagged<Object>(b));
+  // This check might fail when we try to compare objects in different pointer
+  // compression cages (e.g. the one used by code space or trusted space) with
+  // each other. The main legitimate case when such "mixed" comparison could
+  // happen is comparing two AbstractCode objects. If that's the case one must
+  // use AbstractCode's == operator instead of Object's one or SafeEquals().
+  CHECK_EQ(HeapLayout::InCodeSpace(obj_a), HeapLayout::InCodeSpace(obj_b));
+#ifdef V8_ENABLE_SANDBOX
+  CHECK_EQ(HeapLayout::InTrustedSpace(obj_a),
+           HeapLayout::InTrustedSpace(obj_b));
+#endif
   return true;
+  // LINT.ThenChange(src/codegen/code-stub-assembler.cc:CheckObjectComparisonAllowed)
 }
-#endif  // V8_EXTERNAL_CODE_SPACE
+#endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 
 template <HeapObjectReferenceType kRefType, typename StorageType>
 void ShortPrint(TaggedImpl<kRefType, StorageType> ptr, FILE* out) {

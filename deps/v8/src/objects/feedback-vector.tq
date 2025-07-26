@@ -5,18 +5,22 @@
 type TieringState extends uint16 constexpr 'TieringState';
 
 bitfield struct FeedbackVectorFlags extends uint16 {
-  tiering_state: TieringState: 3 bit;
+  @if(V8_ENABLE_LEAPTIERING) tiering_in_progress: bool: 1 bit;
+  @ifnot(V8_ENABLE_LEAPTIERING) tiering_state: TieringState: 3 bit;
   // Set for non-executed functions with --log-function-events in order to
   // log first-executions of code objects with minimal overhead.
-  log_next_execution: bool: 1 bit;
+  @ifnot(V8_ENABLE_LEAPTIERING) log_next_execution: bool: 1 bit;
   // Whether the maybe_optimized_code field contains a code object. 'maybe',
   // because they flag may lag behind the actual state of the world (it will be
   // updated in time).
-  maybe_has_maglev_code: bool: 1 bit;
-  maybe_has_turbofan_code: bool: 1 bit;
-  // Just one bit, since only {kNone,kInProgress} are relevant for OSR.
-  osr_tiering_state: TieringState: 1 bit;
-  all_your_bits_are_belong_to_jgruber: uint32: 9 bit;
+  @ifnot(V8_ENABLE_LEAPTIERING) maybe_has_maglev_code: bool: 1 bit;
+  @ifnot(V8_ENABLE_LEAPTIERING) maybe_has_turbofan_code: bool: 1 bit;
+  osr_tiering_in_progress: bool: 1 bit;
+  interrupt_budget_reset_by_ic_change: bool: 1 bit;
+  @if(V8_ENABLE_LEAPTIERING) all_your_bits_are_belong_to_jgruber:
+      uint32: 13 bit;
+  @ifnot(V8_ENABLE_LEAPTIERING) all_your_bits_are_belong_to_jgruber:
+      uint32: 8 bit;
 }
 
 bitfield struct OsrState extends uint8 {
@@ -32,20 +36,25 @@ bitfield struct OsrState extends uint8 {
   dont_use_these_bits_unless_beneficial: uint32: 3 bit;
 }
 
+@cppObjectLayoutDefinition
+extern class ClosureFeedbackCellArray extends HeapObject {
+  const length: Smi;
+  objects[length]: FeedbackCell;
+}
+
 @generateBodyDescriptor
 extern class FeedbackVector extends HeapObject {
   const length: int32;
   invocation_count: int32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  // TODO(jgruber): These bits are available.
-  placeholder0: uint8;
+  invocation_count_before_stable: uint8;
   osr_state: OsrState;
   flags: FeedbackVectorFlags;
   shared_function_info: SharedFunctionInfo;
   closure_feedback_cell_array: ClosureFeedbackCellArray;
   parent_feedback_cell: FeedbackCell;
-  maybe_optimized_code: Weak<Code>;
-  @cppRelaxedLoad raw_feedback_slots[length]: MaybeObject;
+  @ifnot(V8_ENABLE_LEAPTIERING) maybe_optimized_code: Weak<CodeWrapper>;
+  @cppRelaxedLoad @cppRelaxedStore raw_feedback_slots[length]: MaybeObject;
 }
 
 extern class FeedbackMetadata extends HeapObject;

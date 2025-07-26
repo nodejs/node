@@ -24,6 +24,7 @@
 #include "node_internals.h"
 #include "util-inl.h"
 
+#include "v8-local-handle.h"
 #include "zlib.h"
 
 #if !defined(_MSC_VER)
@@ -1040,7 +1041,7 @@ void DefineCryptoConstants(Local<Object> target) {
 #endif
 }
 
-void DefineSystemConstants(Local<Object> target) {
+void DefineFsConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_DIR);
   NODE_DEFINE_CONSTANT(target, UV_FS_SYMLINK_JUNCTION);
   // file access modes
@@ -1057,10 +1058,6 @@ void DefineSystemConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, UV_DIRENT_SOCKET);
   NODE_DEFINE_CONSTANT(target, UV_DIRENT_CHAR);
   NODE_DEFINE_CONSTANT(target, UV_DIRENT_BLOCK);
-
-  // Define module specific constants
-  NODE_DEFINE_CONSTANT(target, EXTENSIONLESS_FORMAT_JAVASCRIPT);
-  NODE_DEFINE_CONSTANT(target, EXTENSIONLESS_FORMAT_WASM);
 
   NODE_DEFINE_CONSTANT(target, S_IFMT);
   NODE_DEFINE_CONSTANT(target, S_IFREG);
@@ -1249,6 +1246,12 @@ void DefineDLOpenConstants(Local<Object> target) {
 #endif
 }
 
+void DefineInternalConstants(Local<Object> target) {
+  // Define module specific constants
+  NODE_DEFINE_CONSTANT(target, EXTENSIONLESS_FORMAT_JAVASCRIPT);
+  NODE_DEFINE_CONSTANT(target, EXTENSIONLESS_FORMAT_WASM);
+}
+
 void DefineTraceConstants(Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_BEGIN);
   NODE_DEFINE_CONSTANT(target, TRACE_EVENT_PHASE_END);
@@ -1285,84 +1288,90 @@ void CreatePerContextProperties(Local<Object> target,
   Isolate* isolate = context->GetIsolate();
   Environment* env = Environment::GetCurrent(context);
 
-  CHECK(target->SetPrototype(env->context(), Null(env->isolate())).FromJust());
+  CHECK(
+      target->SetPrototypeV2(env->context(), Null(env->isolate())).FromJust());
 
-  Local<Object> os_constants = Object::New(isolate);
-  CHECK(os_constants->SetPrototype(env->context(),
-                                   Null(env->isolate())).FromJust());
-
-  Local<Object> err_constants = Object::New(isolate);
-  CHECK(err_constants->SetPrototype(env->context(),
-                                    Null(env->isolate())).FromJust());
-
-  Local<Object> sig_constants = Object::New(isolate);
-  CHECK(sig_constants->SetPrototype(env->context(),
-                                    Null(env->isolate())).FromJust());
-
-  Local<Object> priority_constants = Object::New(isolate);
-  CHECK(priority_constants->SetPrototype(env->context(),
-                                         Null(env->isolate())).FromJust());
-
-  Local<Object> fs_constants = Object::New(isolate);
-  CHECK(fs_constants->SetPrototype(env->context(),
-                                   Null(env->isolate())).FromJust());
-
-  Local<Object> crypto_constants = Object::New(isolate);
-  CHECK(crypto_constants->SetPrototype(env->context(),
-                                       Null(env->isolate())).FromJust());
-
-  Local<Object> zlib_constants = Object::New(isolate);
-  CHECK(zlib_constants->SetPrototype(env->context(),
-                                     Null(env->isolate())).FromJust());
-
-  Local<Object> dlopen_constants = Object::New(isolate);
-  CHECK(dlopen_constants->SetPrototype(env->context(),
-                                       Null(env->isolate())).FromJust());
-
-  Local<Object> trace_constants = Object::New(isolate);
-  CHECK(trace_constants->SetPrototype(env->context(),
-                                      Null(env->isolate())).FromJust());
+  Local<Object> os_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> err_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> sig_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> priority_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> fs_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> crypto_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> zlib_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> dlopen_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> trace_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> internal_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
 
   DefineErrnoConstants(err_constants);
   DefineWindowsErrorConstants(err_constants);
   DefineSignalConstants(sig_constants);
   DefinePriorityConstants(priority_constants);
-  DefineSystemConstants(fs_constants);
+  DefineFsConstants(fs_constants);
   DefineCryptoConstants(crypto_constants);
   DefineZlibConstants(zlib_constants);
   DefineDLOpenConstants(dlopen_constants);
   DefineTraceConstants(trace_constants);
+  DefineInternalConstants(internal_constants);
 
   // Define libuv constants.
   NODE_DEFINE_CONSTANT(os_constants, UV_UDP_REUSEADDR);
 
-  os_constants->Set(env->context(),
-                    OneByteString(isolate, "dlopen"),
-                    dlopen_constants).Check();
-  os_constants->Set(env->context(),
-                    OneByteString(isolate, "errno"),
-                    err_constants).Check();
-  os_constants->Set(env->context(),
-                    OneByteString(isolate, "signals"),
-                    sig_constants).Check();
-  os_constants->Set(env->context(),
-                    OneByteString(isolate, "priority"),
-                    priority_constants).Check();
-  target->Set(env->context(),
-              OneByteString(isolate, "os"),
-              os_constants).Check();
-  target->Set(env->context(),
-              OneByteString(isolate, "fs"),
-              fs_constants).Check();
-  target->Set(env->context(),
-              OneByteString(isolate, "crypto"),
-              crypto_constants).Check();
-  target->Set(env->context(),
-              OneByteString(isolate, "zlib"),
-              zlib_constants).Check();
-  target->Set(env->context(),
-              OneByteString(isolate, "trace"),
-              trace_constants).Check();
+  os_constants
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "dlopen"),
+            dlopen_constants)
+      .Check();
+  os_constants
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "errno"),
+            err_constants)
+      .Check();
+  os_constants
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "signals"),
+            sig_constants)
+      .Check();
+  os_constants
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "priority"),
+            priority_constants)
+      .Check();
+  target
+      ->Set(env->context(), FIXED_ONE_BYTE_STRING(isolate, "os"), os_constants)
+      .Check();
+  target
+      ->Set(env->context(), FIXED_ONE_BYTE_STRING(isolate, "fs"), fs_constants)
+      .Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "crypto"),
+            crypto_constants)
+      .Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "zlib"),
+            zlib_constants)
+      .Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "trace"),
+            trace_constants)
+      .Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "internal"),
+            internal_constants)
+      .Check();
 }
 
 }  // namespace constants

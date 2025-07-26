@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include "env_properties.h"
 #include "node.h"
 #include "node_builtins.h"
 #include "node_context_data.h"
@@ -19,18 +20,22 @@
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
+#include "v8-cppgc.h"
 
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -107,23 +112,17 @@ void* NodeArrayBufferAllocator::Allocate(size_t size) {
     ret = allocator_->Allocate(size);
   else
     ret = allocator_->AllocateUninitialized(size);
-  if (LIKELY(ret != nullptr))
+  if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
+  }
   return ret;
 }
 
 void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
   void* ret = allocator_->AllocateUninitialized(size);
-  if (LIKELY(ret != nullptr))
+  if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
-  return ret;
-}
-
-void* NodeArrayBufferAllocator::Reallocate(
-    void* data, size_t old_size, size_t size) {
-  void* ret = allocator_->Reallocate(data, old_size, size);
-  if (LIKELY(ret != nullptr) || UNLIKELY(size == 0))
-    total_mem_usage_.fetch_add(size - old_size, std::memory_order_relaxed);
+  }
   return ret;
 }
 
@@ -154,31 +153,6 @@ void DebuggingArrayBufferAllocator::Free(void* data, size_t size) {
   Mutex::ScopedLock lock(mutex_);
   UnregisterPointerInternal(data, size);
   NodeArrayBufferAllocator::Free(data, size);
-}
-
-void* DebuggingArrayBufferAllocator::Reallocate(void* data,
-                                                size_t old_size,
-                                                size_t size) {
-  Mutex::ScopedLock lock(mutex_);
-  void* ret = NodeArrayBufferAllocator::Reallocate(data, old_size, size);
-  if (ret == nullptr) {
-    if (size == 0) {  // i.e. equivalent to free().
-      // suppress coverity warning as data is used as key versus as pointer
-      // in UnregisterPointerInternal
-      // coverity[pass_freed_arg]
-      UnregisterPointerInternal(data, old_size);
-    }
-    return nullptr;
-  }
-
-  if (data != nullptr) {
-    auto it = allocations_.find(data);
-    CHECK_NE(it, allocations_.end());
-    allocations_.erase(it);
-  }
-
-  RegisterPointerInternal(ret, size);
-  return ret;
 }
 
 void DebuggingArrayBufferAllocator::RegisterPointer(void* data, size_t size) {
@@ -263,7 +237,10 @@ void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   auto* fatal_error_cb = s.fatal_error_callback ?
       s.fatal_error_callback : OnFatalError;
   isolate->SetFatalErrorHandler(fatal_error_cb);
-  isolate->SetOOMErrorHandler(OOMErrorHandler);
+
+  auto* oom_error_cb =
+      s.oom_error_callback ? s.oom_error_callback : OOMErrorHandler;
+  isolate->SetOOMErrorHandler(oom_error_cb);
 
   if ((s.flags & SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK) == 0) {
     auto* prepare_stack_trace_cb = s.prepare_stack_trace_callback ?
@@ -338,21 +315,27 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
     SnapshotBuilder::InitializeIsolateParams(snapshot_data, params);
   }
 
-#ifdef NODE_V8_SHARED_RO_HEAP
   {
-    // In shared-readonly-heap mode, V8 requires all snapshots used for
-    // creating Isolates to be identical. This isn't really memory-safe
+    // Because it uses a shared readonly-heap, V8 requires all snapshots used
+    // for creating Isolates to be identical. This isn't really memory-safe
     // but also otherwise just doesn't work, and the only real alternative
     // is disabling shared-readonly-heap mode altogether.
     static Isolate::CreateParams first_params = *params;
     params->snapshot_blob = first_params.snapshot_blob;
     params->external_references = first_params.external_references;
   }
-#endif
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate, event_loop);
+
+  // Ensure that there is always a CppHeap.
+  if (settings.cpp_heap == nullptr) {
+    params->cpp_heap =
+        CppHeap::Create(platform, CppHeapCreateParams{{}}).release();
+  } else {
+    params->cpp_heap = settings.cpp_heap;
+  }
 
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate, *params);
@@ -404,9 +387,8 @@ IsolateData* CreateIsolateData(
     MultiIsolatePlatform* platform,
     ArrayBufferAllocator* allocator,
     const EmbedderSnapshotData* embedder_snapshot_data) {
-  const SnapshotData* snapshot_data =
-      SnapshotData::FromEmbedderWrapper(embedder_snapshot_data);
-  return new IsolateData(isolate, loop, platform, allocator, snapshot_data);
+  return IsolateData::CreateIsolateData(
+      isolate, loop, platform, allocator, embedder_snapshot_data);
 }
 
 void FreeIsolateData(IsolateData* isolate_data) {
@@ -458,7 +440,13 @@ Environment* CreateEnvironment(
   if (use_snapshot) {
     context = Context::FromSnapshot(isolate,
                                     SnapshotData::kNodeMainContextIndex,
-                                    {DeserializeNodeInternalFields, env})
+                                    v8::DeserializeInternalFieldsCallback(
+                                        DeserializeNodeInternalFields, env),
+                                    nullptr,
+                                    MaybeLocal<Value>(),
+                                    nullptr,
+                                    v8::DeserializeContextDataCallback(
+                                        DeserializeNodeContextData, env))
                   .ToLocalChecked();
 
     CHECK(!context.IsEmpty());
@@ -546,6 +534,7 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
   if (preload) {
     env->set_embedder_preload(std::move(preload));
   }
+  env->InitializeCompileCache();
 
   return StartExecution(env, cb);
 }
@@ -559,8 +548,11 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
   return LoadEnvironment(
       env,
       [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
-        Local<Value> main_script =
-            ToV8Value(env->context(), main_script_source_utf8).ToLocalChecked();
+        Local<Value> main_script;
+        if (!ToV8Value(env->context(), main_script_source_utf8)
+                 .ToLocal(&main_script)) {
+          return {};
+        }
         return info.run_cjs->Call(
             env->context(), Null(env->isolate()), 1, &main_script);
       },
@@ -591,26 +583,6 @@ MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env) {
   return env->platform();
 }
 
-MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    node::tracing::TracingController* tracing_controller) {
-  return CreatePlatform(
-      thread_pool_size,
-      static_cast<v8::TracingController*>(tracing_controller));
-}
-
-MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    v8::TracingController* tracing_controller) {
-  return MultiIsolatePlatform::Create(thread_pool_size,
-                                      tracing_controller)
-      .release();
-}
-
-void FreePlatform(MultiIsolatePlatform* platform) {
-  delete platform;
-}
-
 std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
     int thread_pool_size,
     v8::TracingController* tracing_controller,
@@ -620,7 +592,8 @@ std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
                                         page_allocator);
 }
 
-MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
+MaybeLocal<Object> GetPerContextExports(Local<Context> context,
+                                        IsolateData* isolate_data) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope handle_scope(isolate);
 
@@ -634,10 +607,14 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
   if (existing_value->IsObject())
     return handle_scope.Escape(existing_value.As<Object>());
 
+  // To initialize the per-context binding exports, a non-nullptr isolate_data
+  // is needed
+  CHECK(isolate_data);
   Local<Object> exports = Object::New(isolate);
   if (context->Global()->SetPrivate(context, key, exports).IsNothing() ||
-      InitializePrimordials(context).IsNothing())
+      InitializePrimordials(context, isolate_data).IsNothing()) {
     return MaybeLocal<Object>();
+  }
   return handle_scope.Escape(exports);
 }
 
@@ -662,7 +639,7 @@ void ProtoThrower(const FunctionCallbackInfo<Value>& info) {
 
 // This runs at runtime, regardless of whether the context
 // is created from a snapshot.
-Maybe<bool> InitializeContextRuntime(Local<Context> context) {
+Maybe<void> InitializeContextRuntime(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
@@ -680,7 +657,7 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
       Boolean::New(isolate, is_code_generation_from_strings_allowed));
 
   if (per_process::cli_options->disable_proto == "") {
-    return Just(true);
+    return JustVoid();
   }
 
   // Remove __proto__
@@ -696,14 +673,14 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
     if (!context->Global()
         ->Get(context, object_string)
         .ToLocal(&object_v)) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     Local<Value> prototype_v;
     if (!object_v.As<Object>()
         ->Get(context, prototype_string)
         .ToLocal(&prototype_v)) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     prototype = prototype_v.As<Object>();
@@ -716,13 +693,13 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
     if (prototype
         ->Delete(context, proto_string)
         .IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   } else if (per_process::cli_options->disable_proto == "throw") {
     Local<Value> thrower;
     if (!Function::New(context, ProtoThrower)
         .ToLocal(&thrower)) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     PropertyDescriptor descriptor(thrower, thrower);
@@ -731,17 +708,17 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
     if (prototype
         ->DefineProperty(context, proto_string, descriptor)
         .IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   } else if (per_process::cli_options->disable_proto != "") {
     // Validated in ProcessGlobalArgs
     UNREACHABLE("invalid --disable-proto mode");
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
-Maybe<bool> InitializeBaseContextForSnapshot(Local<Context> context) {
+Maybe<void> InitializeBaseContextForSnapshot(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
@@ -755,18 +732,18 @@ Maybe<bool> InitializeBaseContextForSnapshot(Local<Context> context) {
 
     Local<Value> intl_v;
     if (!context->Global()->Get(context, intl_string).ToLocal(&intl_v)) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
 
     if (intl_v->IsObject() &&
         intl_v.As<Object>()->Delete(context, break_iter_string).IsNothing()) {
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
-  return Just(true);
+  return JustVoid();
 }
 
-Maybe<bool> InitializeMainContextForSnapshot(Local<Context> context) {
+Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
   Isolate* isolate = context->GetIsolate();
   HandleScope handle_scope(isolate);
 
@@ -777,26 +754,94 @@ Maybe<bool> InitializeMainContextForSnapshot(Local<Context> context) {
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings, True(isolate));
 
   if (InitializeBaseContextForSnapshot(context).IsNothing()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  return InitializePrimordials(context);
+  return JustVoid();
 }
 
-Maybe<bool> InitializePrimordials(Local<Context> context) {
+MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
+                                            IsolateData* isolate_data) {
+  CHECK(isolate_data);
+  Isolate* isolate = context->GetIsolate();
+  EscapableHandleScope scope(isolate);
+  Context::Scope context_scope(context);
+
+  Local<ObjectTemplate> private_symbols = ObjectTemplate::New(isolate);
+#define V(PropertyName, _)                                                     \
+  private_symbols->Set(isolate, #PropertyName, isolate_data->PropertyName());
+
+  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+  Local<Object> private_symbols_object;
+  if (!private_symbols->NewInstance(context).ToLocal(&private_symbols_object) ||
+      private_symbols_object->SetPrototypeV2(context, Null(isolate))
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  return scope.Escape(private_symbols_object);
+}
+
+MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
+                                               IsolateData* isolate_data) {
+  CHECK(isolate_data);
+  Isolate* isolate = context->GetIsolate();
+  EscapableHandleScope scope(isolate);
+  Context::Scope context_scope(context);
+
+  Local<ObjectTemplate> per_isolate_symbols = ObjectTemplate::New(isolate);
+#define V(PropertyName, _)                                                     \
+  per_isolate_symbols->Set(                                                    \
+      isolate, #PropertyName, isolate_data->PropertyName());
+
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+  Local<Object> per_isolate_symbols_object;
+  if (!per_isolate_symbols->NewInstance(context).ToLocal(
+          &per_isolate_symbols_object) ||
+      per_isolate_symbols_object->SetPrototypeV2(context, Null(isolate))
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  return scope.Escape(per_isolate_symbols_object);
+}
+
+Maybe<void> InitializePrimordials(Local<Context> context,
+                                  IsolateData* isolate_data) {
   // Run per-context JS files.
   Isolate* isolate = context->GetIsolate();
   Context::Scope context_scope(context);
   Local<Object> exports;
 
+  if (!GetPerContextExports(context).ToLocal(&exports)) {
+    return Nothing<void>();
+  }
   Local<String> primordials_string =
       FIXED_ONE_BYTE_STRING(isolate, "primordials");
+  // Ensure that `InitializePrimordials` is called exactly once on a given
+  // context.
+  CHECK(!exports->Has(context, primordials_string).FromJust());
 
-  // Create primordials first and make it available to per-context scripts.
-  Local<Object> primordials = Object::New(isolate);
-  if (primordials->SetPrototype(context, Null(isolate)).IsNothing() ||
-      !GetPerContextExports(context).ToLocal(&exports) ||
-      exports->Set(context, primordials_string, primordials).IsNothing()) {
-    return Nothing<bool>();
+  Local<Object> primordials =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  // Create primordials and make it available to per-context scripts.
+  if (exports->Set(context, primordials_string, primordials).IsNothing()) {
+    return Nothing<void>();
+  }
+
+  Local<Object> private_symbols;
+  if (!InitializePrivateSymbols(context, isolate_data)
+           .ToLocal(&private_symbols)) {
+    return Nothing<void>();
+  }
+
+  Local<Object> per_isolate_symbols;
+  if (!InitializePerIsolateSymbols(context, isolate_data)
+           .ToLocal(&per_isolate_symbols)) {
+    return Nothing<void>();
   }
 
   static const char* context_files[] = {"internal/per_context/primordials",
@@ -814,17 +859,19 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
   builtin_loader.SetEagerCompile();
 
   for (const char** module = context_files; *module != nullptr; module++) {
-    Local<Value> arguments[] = {exports, primordials};
+    Local<Value> arguments[] = {
+        exports, primordials, private_symbols, per_isolate_symbols};
+
     if (builtin_loader
             .CompileAndCall(
                 context, *module, arraysize(arguments), arguments, nullptr)
             .IsEmpty()) {
       // Execution failed during context creation.
-      return Nothing<bool>();
+      return Nothing<void>();
     }
   }
 
-  return Just(true);
+  return JustVoid();
 }
 
 // This initializes the main context (i.e. vm contexts are not included).
@@ -833,7 +880,10 @@ Maybe<bool> InitializeContext(Local<Context> context) {
     return Nothing<bool>();
   }
 
-  return InitializeContextRuntime(context);
+  if (InitializeContextRuntime(context).IsNothing()) {
+    return Nothing<bool>();
+  }
+  return Just(true);
 }
 
 uv_loop_t* GetCurrentEventLoop(Isolate* isolate) {

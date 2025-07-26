@@ -10,7 +10,11 @@ The `node:tls` module provides an implementation of the Transport Layer Security
 (TLS) and Secure Socket Layer (SSL) protocols that is built on top of OpenSSL.
 The module can be accessed using:
 
-```js
+```mjs
+import tls from 'node:tls';
+```
+
+```cjs
 const tls = require('node:tls');
 ```
 
@@ -173,6 +177,8 @@ specifying a cipher suite with the `ciphers` option. The list of available
 ciphers can be retrieved via `openssl ciphers -v 'PSK'`. All TLS 1.3
 ciphers are eligible for PSK and can be retrieved via
 `openssl ciphers -v -s -tls1_3 -psk`.
+On the client connection, a custom `checkServerIdentity` should be passed
+because the default one will fail in the absence of a certificate.
 
 According to the [RFC 4279][], PSK identities up to 128 bytes in length and
 PSKs up to 64 bytes in length must be supported. As of OpenSSL 1.1.0
@@ -180,6 +186,30 @@ maximum identity size is 128 bytes, and maximum PSK length is 256 bytes.
 
 The current implementation doesn't support asynchronous PSK callbacks due to the
 limitations of the underlying OpenSSL API.
+
+To use TLS-PSK, client and server must specify the `pskCallback` option,
+a function that returns the PSK to use (which must be compatible with
+the selected cipher's digest).
+
+It will be called first on the client:
+
+* hint: {string} optional message sent from the server to help the client
+  decide which identity to use during negotiation.
+  Always `null` if TLS 1.3 is used.
+* Returns: {Object} in the form
+  `{ psk: <Buffer|TypedArray|DataView>, identity: <string> }` or `null`.
+
+Then on the server:
+
+* socket: {tls.TLSSocket} the server socket instance, equivalent to `this`.
+* identity: {string} identity parameter sent from the client.
+* Returns: {Buffer|TypedArray|DataView} the PSK (or `null`).
+
+A return value of `null` stops the negotiation process and sends an
+`unknown_psk_identity` alert message to the other party.
+If the server wishes to hide the fact that the PSK identity was not known,
+the callback must provide some random data as `psk` to make the connection
+fail with `decrypt_error` before negotiation is finished.
 
 ### Client-initiated renegotiation attack mitigation
 
@@ -419,6 +449,61 @@ The first three are enabled by default. The two `CCM`-based suites are supported
 by TLSv1.3 because they may be more performant on constrained systems, but they
 are not enabled by default since they offer less security.
 
+## OpenSSL security level
+
+The OpenSSL library enforces security levels to control the minimum acceptable
+level of security for cryptographic operations. OpenSSL's security levels range
+from 0 to 5, with each level imposing stricter security requirements. The default
+security level is 1, which is generally suitable for most modern applications.
+However, some legacy features and protocols, such as TLSv1, require a lower
+security level (`SECLEVEL=0`) to function properly. For more detailed information,
+please refer to the [OpenSSL documentation on security levels][].
+
+### Setting security levels
+
+To adjust the security level in your Node.js application, you can include `@SECLEVEL=X`
+within a cipher string, where `X` is the desired security level. For example,
+to set the security level to 0 while using the default OpenSSL cipher list, you could use:
+
+```mjs
+import { createServer, connect } from 'node:tls';
+const port = 443;
+
+createServer({ ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1' }, function(socket) {
+  console.log('Client connected with protocol:', socket.getProtocol());
+  socket.end();
+  this.close();
+})
+.listen(port, () => {
+  connect(port, { ciphers: 'DEFAULT@SECLEVEL=0', maxVersion: 'TLSv1' });
+});
+```
+
+```cjs
+const { createServer, connect } = require('node:tls');
+const port = 443;
+
+createServer({ ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1' }, function(socket) {
+  console.log('Client connected with protocol:', socket.getProtocol());
+  socket.end();
+  this.close();
+})
+.listen(port, () => {
+  connect(port, { ciphers: 'DEFAULT@SECLEVEL=0', maxVersion: 'TLSv1' });
+});
+```
+
+This approach sets the security level to 0, allowing the use of legacy features while still
+leveraging the default OpenSSL ciphers.
+
+### Using [`--tls-cipher-list`][]
+
+You can also set the security level and ciphers from the command line using the
+`--tls-cipher-list=DEFAULT@SECLEVEL=X` as described in [Modifying the default TLS cipher suite][].
+However, it is generally discouraged to use the command line option for setting ciphers and it is
+preferable to configure the ciphers for individual contexts within your application code,
+as this approach provides finer control and reduces the risk of globally downgrading the security level.
+
 ## X509 certificate error codes
 
 Multiple functions can fail due to certificate errors that are reported by
@@ -462,54 +547,11 @@ description are taken from deps/openssl/openssl/crypto/x509/x509_txt.c
 * `'CERT_REJECTED'`: Certificate rejected.
 * `'HOSTNAME_MISMATCH'`: Hostname mismatch.
 
-## Class: `tls.CryptoStream`
-
-<!-- YAML
-added: v0.3.4
-deprecated: v0.11.3
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-The `tls.CryptoStream` class represents a stream of encrypted data. This class
-is deprecated and should no longer be used.
-
-### `cryptoStream.bytesWritten`
-
-<!-- YAML
-added: v0.3.4
-deprecated: v0.11.3
--->
-
-The `cryptoStream.bytesWritten` property returns the total number of bytes
-written to the underlying socket _including_ the bytes required for the
-implementation of the TLS protocol.
-
-## Class: `tls.SecurePair`
-
-<!-- YAML
-added: v0.3.2
-deprecated: v0.11.3
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-Returned by [`tls.createSecurePair()`][].
-
-### Event: `'secure'`
-
-<!-- YAML
-added: v0.3.2
-deprecated: v0.11.3
--->
-
-The `'secure'` event is emitted by the `SecurePair` object once a secure
-connection has been established.
-
-As with checking for the server
-[`'secureConnection'`][]
-event, `pair.cleartext.authorized` should be inspected to confirm whether the
-certificate used is properly authorized.
+When certificate errors like `UNABLE_TO_VERIFY_LEAF_SIGNATURE`,
+`DEPTH_ZERO_SELF_SIGNED_CERT`, or `UNABLE_TO_GET_ISSUER_CERT` occur, Node.js
+appends a hint suggesting that if the root CA is installed locally,
+try running with the `--use-system-ca` flag to direct developers towards a
+secure solution, to prevent unsafe workarounds.
 
 ## Class: `tls.Server`
 
@@ -1002,7 +1044,7 @@ property is set only when `tlsSocket.authorized === false`.
 added: v0.11.4
 -->
 
-* {boolean}
+* Type: {boolean}
 
 This property is `true` if the peer certificate was signed by one of the CAs
 specified when creating the `tls.TLSSocket` instance, otherwise `false`.
@@ -1353,7 +1395,7 @@ See the OpenSSL [`SSL_get_version`][] documentation for more information.
 added: v0.11.4
 -->
 
-* {Buffer}
+* Type: {Buffer}
 
 Returns the TLS session data or `undefined` if no session was
 negotiated. On the client, the data can be provided to the `session` option of
@@ -1384,7 +1426,7 @@ for more information.
 added: v0.11.4
 -->
 
-* {Buffer}
+* Type: {Buffer}
 
 For a client, returns the TLS session ticket if one is available, or
 `undefined`. For a server, always returns `undefined`.
@@ -1422,7 +1464,7 @@ See [Session Resumption][] for more information.
 added: v0.11.4
 -->
 
-* {string}
+* Type: {string}
 
 Returns the string representation of the local IP address.
 
@@ -1432,7 +1474,7 @@ Returns the string representation of the local IP address.
 added: v0.11.4
 -->
 
-* {integer}
+* Type: {integer}
 
 Returns the numeric representation of the local port.
 
@@ -1442,7 +1484,7 @@ Returns the numeric representation of the local port.
 added: v0.11.4
 -->
 
-* {string}
+* Type: {string}
 
 Returns the string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
@@ -1453,7 +1495,7 @@ Returns the string representation of the remote IP address. For example,
 added: v0.11.4
 -->
 
-* {string}
+* Type: {string}
 
 Returns the string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 
@@ -1463,7 +1505,7 @@ Returns the string representation of the remote IP family. `'IPv4'` or `'IPv6'`.
 added: v0.11.4
 -->
 
-* {integer}
+* Type: {integer}
 
 Returns the numeric representation of the remote port. For example, `443`.
 
@@ -1506,6 +1548,22 @@ When running as the server, the socket will be destroyed with an error after
 
 For TLSv1.3, renegotiation cannot be initiated, it is not supported by the
 protocol.
+
+### `tlsSocket.setKeyCert(context)`
+
+<!-- YAML
+added:
+  - v22.5.0
+  - v20.17.0
+-->
+
+* `context` {Object|tls.SecureContext} An object containing at least `key` and
+  `cert` properties from the [`tls.createSecureContext()`][] `options`, or a
+  TLS context object created with [`tls.createSecureContext()`][] itself.
+
+The `tlsSocket.setKeyCert()` method sets the private key and certificate to use
+for the socket. This is mainly useful if you wish to select a server certificate
+from a TLS server's `ALPNCallback`.
 
 ### `tlsSocket.setMaxSendFragment(size)`
 
@@ -1646,25 +1704,7 @@ changes:
     verified against the list of supplied CAs. An `'error'` event is emitted if
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
-  * `pskCallback` {Function}
-
-    * hint: {string} optional message sent from the server to help client
-      decide which identity to use during negotiation.
-      Always `null` if TLS 1.3 is used.
-    * Returns: {Object} An object in the form
-      `{ psk: <Buffer|TypedArray|DataView>, identity: <string> }`
-      or `null` to stop the negotiation process. `psk` must be
-      compatible with the selected cipher's digest.
-      `identity` must use UTF-8 encoding.
-
-    When negotiating TLS-PSK (pre-shared keys), this function is called
-    with optional identity `hint` provided by the server or `null`
-    in case of TLS 1.3 where `hint` was removed.
-    It will be necessary to provide a custom `tls.checkServerIdentity()`
-    for the connection as the default one will try to check host name/IP
-    of the server against the certificate but that's not applicable for PSK
-    because there won't be a certificate present.
-    More information can be found in the [RFC 4279][].
+  * `pskCallback` {Function} For TLS-PSK negotiation, see [Pre-shared keys][].
   * `ALPNProtocols`: {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
     TypedArray|DataView}
     An array of strings, `Buffer`s, `TypedArray`s, or `DataView`s, or a
@@ -1720,24 +1760,57 @@ to `host`.
 The following illustrates a client for the echo server example from
 [`tls.createServer()`][]:
 
-```js
+```mjs
 // Assumes an echo server that is listening on port 8000.
-const tls = require('node:tls');
-const fs = require('node:fs');
+import { connect } from 'node:tls';
+import { readFileSync } from 'node:fs';
+import { stdin } from 'node:process';
 
 const options = {
   // Necessary only if the server requires client certificate authentication.
-  key: fs.readFileSync('client-key.pem'),
-  cert: fs.readFileSync('client-cert.pem'),
+  key: readFileSync('client-key.pem'),
+  cert: readFileSync('client-cert.pem'),
 
   // Necessary only if the server uses a self-signed certificate.
-  ca: [ fs.readFileSync('server-cert.pem') ],
+  ca: [ readFileSync('server-cert.pem') ],
 
   // Necessary only if the server's cert isn't for "localhost".
   checkServerIdentity: () => { return null; },
 };
 
-const socket = tls.connect(8000, options, () => {
+const socket = connect(8000, options, () => {
+  console.log('client connected',
+              socket.authorized ? 'authorized' : 'unauthorized');
+  stdin.pipe(socket);
+  stdin.resume();
+});
+socket.setEncoding('utf8');
+socket.on('data', (data) => {
+  console.log(data);
+});
+socket.on('end', () => {
+  console.log('server ends connection');
+});
+```
+
+```cjs
+// Assumes an echo server that is listening on port 8000.
+const { connect } = require('node:tls');
+const { readFileSync } = require('node:fs');
+
+const options = {
+  // Necessary only if the server requires client certificate authentication.
+  key: readFileSync('client-key.pem'),
+  cert: readFileSync('client-cert.pem'),
+
+  // Necessary only if the server uses a self-signed certificate.
+  ca: [ readFileSync('server-cert.pem') ],
+
+  // Necessary only if the server's cert isn't for "localhost".
+  checkServerIdentity: () => { return null; },
+};
+
+const socket = connect(8000, options, () => {
   console.log('client connected',
               socket.authorized ? 'authorized' : 'unauthorized');
   process.stdin.pipe(socket);
@@ -1750,6 +1823,20 @@ socket.on('data', (data) => {
 socket.on('end', () => {
   console.log('server ends connection');
 });
+```
+
+To generate the certificate and key for this example, run:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
+  -keyout client-key.pem -out client-cert.pem
+```
+
+Then, to generate the `server-cert.pem` certificate for this example, run:
+
+```bash
+openssl pkcs12 -certpbe AES-256-CBC -export -out server-cert.pem \
+  -inkey client-key.pem -in client-cert.pem
 ```
 
 ## `tls.connect(path[, options][, callback])`
@@ -1791,6 +1878,18 @@ argument.
 <!-- YAML
 added: v0.11.13
 changes:
+  - version:
+    - v22.9.0
+    - v20.18.0
+    pr-url: https://github.com/nodejs/node/pull/54790
+    description: The `allowPartialTrustChain` option has been added.
+  - version:
+    - v22.4.0
+    - v20.16.0
+    pr-url: https://github.com/nodejs/node/pull/53329
+    description: The `clientCertEngine`, `privateKeyEngine` and
+                 `privateKeyIdentifier` options depend on custom engine
+                 support in OpenSSL which is deprecated in OpenSSL 3.
   - version:
     - v19.8.0
     - v18.16.0
@@ -1840,10 +1939,16 @@ changes:
 -->
 
 * `options` {Object}
+  * `allowPartialTrustChain` {boolean} Treat intermediate (non-self-signed)
+    certificates in the trust CA certificate list as trusted.
   * `ca` {string|string\[]|Buffer|Buffer\[]} Optionally override the trusted CA
-    certificates. Default is to trust the well-known CAs curated by Mozilla.
-    Mozilla's CAs are completely replaced when CAs are explicitly specified
-    using this option. The value can be a string or `Buffer`, or an `Array` of
+    certificates. If not specified, the CA certificates trusted by default are
+    the same as the ones returned by [`tls.getCACertificates()`][] using the
+    `default` type.  If specified, the default list would be completely replaced
+    (instead of being concatenated) by the certificates in the `ca` option.
+    Users need to concatenate manually if they wish to add additional certificates
+    instead of completely overriding the default.
+    The value can be a string or `Buffer`, or an `Array` of
     strings and/or `Buffer`s. Any string or `Buffer` can contain multiple PEM
     CAs concatenated together. The peer's certificate must be chainable to a CA
     trusted by the server for the connection to be authenticated. When using
@@ -1857,7 +1962,6 @@ changes:
     provided.
     For PEM encoded certificates, supported types are "TRUSTED CERTIFICATE",
     "X509 CERTIFICATE", and "CERTIFICATE".
-    See also [`tls.rootCertificates`][].
   * `cert` {string|string\[]|Buffer|Buffer\[]} Cert chains in PEM format. One
     cert chain should be provided per private key. Each cert chain should
     consist of the PEM formatted certificate for a provided private `key`,
@@ -1878,7 +1982,7 @@ changes:
     ciphers can be obtained via [`tls.getCiphers()`][]. Cipher names must be
     uppercased in order for OpenSSL to accept them.
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
-    client certificate.
+    client certificate. **Deprecated.**
   * `crl` {string|string\[]|Buffer|Buffer\[]} PEM formatted CRLs (Certificate
     Revocation Lists).
   * `dhparam` {string|Buffer} `'auto'` or custom Diffie-Hellman parameters,
@@ -1906,11 +2010,11 @@ changes:
     decrypted with `object.passphrase` if provided, or `options.passphrase` if
     it is not.
   * `privateKeyEngine` {string} Name of an OpenSSL engine to get private key
-    from. Should be used together with `privateKeyIdentifier`.
+    from. Should be used together with `privateKeyIdentifier`. **Deprecated.**
   * `privateKeyIdentifier` {string} Identifier of a private key managed by
     an OpenSSL engine. Should be used together with `privateKeyEngine`.
     Should not be set together with `key`, because both options define a
-    private key in different ways.
+    private key in different ways. **Deprecated.**
   * `maxVersion` {string} Optionally set the maximum TLS version to allow. One
     of `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
     along with the `secureProtocol` option; use one or the other.
@@ -1919,7 +2023,7 @@ changes:
     of `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`. Cannot be specified
     along with the `secureProtocol` option; use one or the other. Avoid
     setting to less than TLSv1.2, but it may be required for
-    interoperability.
+    interoperability. Versions before TLSv1.2 may require downgrading the [OpenSSL Security Level][].
     **Default:** [`tls.DEFAULT_MIN_VERSION`][].
   * `passphrase` {string} Shared passphrase used for a single private key and/or
     a PFX.
@@ -1978,75 +2082,17 @@ be used to create custom parameters. The key length must be greater than or
 equal to 1024 bits or else an error will be thrown. Although 1024 bits is
 permissible, use 2048 bits or larger for stronger security.
 
-## `tls.createSecurePair([context][, isServer][, requestCert][, rejectUnauthorized][, options])`
-
-<!-- YAML
-added: v0.3.2
-deprecated: v0.11.3
-changes:
-  - version: v5.0.0
-    pr-url: https://github.com/nodejs/node/pull/2564
-    description: ALPN options are supported now.
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-* `context` {Object} A secure context object as returned by
-  `tls.createSecureContext()`
-* `isServer` {boolean} `true` to specify that this TLS connection should be
-  opened as a server.
-* `requestCert` {boolean} `true` to specify whether a server should request a
-  certificate from a connecting client. Only applies when `isServer` is `true`.
-* `rejectUnauthorized` {boolean} If not `false` a server automatically reject
-  clients with invalid certificates. Only applies when `isServer` is `true`.
-* `options`
-  * `enableTrace`: See [`tls.createServer()`][]
-  * `secureContext`: A TLS context object from [`tls.createSecureContext()`][]
-  * `isServer`: If `true` the TLS socket will be instantiated in server-mode.
-    **Default:** `false`.
-  * `server` {net.Server} A [`net.Server`][] instance
-  * `requestCert`: See [`tls.createServer()`][]
-  * `rejectUnauthorized`: See [`tls.createServer()`][]
-  * `ALPNProtocols`: See [`tls.createServer()`][]
-  * `SNICallback`: See [`tls.createServer()`][]
-  * `session` {Buffer} A `Buffer` instance containing a TLS session.
-  * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
-    extension will be added to the client hello and an `'OCSPResponse'` event
-    will be emitted on the socket before establishing a secure communication.
-
-Creates a new secure pair object with two streams, one of which reads and writes
-the encrypted data and the other of which reads and writes the cleartext data.
-Generally, the encrypted stream is piped to/from an incoming encrypted data
-stream and the cleartext one is used as a replacement for the initial encrypted
-stream.
-
-`tls.createSecurePair()` returns a `tls.SecurePair` object with `cleartext` and
-`encrypted` stream properties.
-
-Using `cleartext` has the same API as [`tls.TLSSocket`][].
-
-The `tls.createSecurePair()` method is now deprecated in favor of
-`tls.TLSSocket()`. For example, the code:
-
-```js
-pair = tls.createSecurePair(/* ... */);
-pair.encrypted.pipe(socket);
-socket.pipe(pair.encrypted);
-```
-
-can be replaced by:
-
-```js
-secureSocket = tls.TLSSocket(socket, options);
-```
-
-where `secureSocket` has the same API as `pair.cleartext`.
-
 ## `tls.createServer([options][, secureConnectionListener])`
 
 <!-- YAML
 added: v0.3.2
 changes:
+  - version:
+    - v22.4.0
+    - v20.16.0
+    pr-url: https://github.com/nodejs/node/pull/53329
+    description: The `clientCertEngine` option depends on custom engine
+                 support in OpenSSL which is deprecated in OpenSSL 3.
   - version:
     - v20.4.0
     - v18.19.0
@@ -2094,7 +2140,7 @@ changes:
     protocols, an error will be thrown. This option cannot be used with the
     `ALPNProtocols` option, and setting both options will throw an error.
   * `clientCertEngine` {string} Name of an OpenSSL engine which can provide the
-    client certificate.
+    client certificate. **Deprecated.**
   * `enableTrace` {boolean} If `true`, [`tls.TLSSocket.enableTrace()`][] will be
     called on new connections. Tracing can be enabled after the secure
     connection is established, but this option must be used to trace the secure
@@ -2123,29 +2169,11 @@ changes:
     default callback with high-level API will be used (see below).
   * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudorandom
     data. See [Session Resumption][] for more information.
-  * `pskCallback` {Function}
-
-    * socket: {tls.TLSSocket} the server [`tls.TLSSocket`][] instance for
-      this connection.
-    * identity: {string} identity parameter sent from the client.
-    * Returns: {Buffer|TypedArray|DataView} pre-shared key that must either be
-      a buffer or `null` to stop the negotiation process. Returned PSK must be
-      compatible with the selected cipher's digest.
-
-    When negotiating TLS-PSK (pre-shared keys), this function is called
-    with the identity provided by the client.
-    If the return value is `null` the negotiation process will stop and an
-    "unknown\_psk\_identity" alert message will be sent to the other party.
-    If the server wishes to hide the fact that the PSK identity was not known,
-    the callback must provide some random data as `psk` to make the connection
-    fail with "decrypt\_error" before negotiation is finished.
-    PSK ciphers are disabled by default, and using TLS-PSK thus
-    requires explicitly specifying a cipher suite with the `ciphers` option.
-    More information can be found in the [RFC 4279][].
+  * `pskCallback` {Function} For TLS-PSK negotiation, see [Pre-shared keys][].
   * `pskIdentityHint` {string} optional hint to send to a client to help
     with selecting the identity during TLS-PSK negotiation. Will be ignored
     in TLS 1.3. Upon failing to set pskIdentityHint `'tlsClientError'` will be
-    emitted with `'ERR_TLS_PSK_SET_IDENTIY_HINT_FAILED'` code.
+    emitted with `'ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED'` code.
   * ...: Any [`tls.createSecureContext()`][] option can be provided. For
     servers, the identity options (`pfx`, `key`/`cert`, or `pskCallback`)
     are usually required.
@@ -2161,22 +2189,22 @@ workers.
 
 The following illustrates a simple echo server:
 
-```js
-const tls = require('node:tls');
-const fs = require('node:fs');
+```mjs
+import { createServer } from 'node:tls';
+import { readFileSync } from 'node:fs';
 
 const options = {
-  key: fs.readFileSync('server-key.pem'),
-  cert: fs.readFileSync('server-cert.pem'),
+  key: readFileSync('server-key.pem'),
+  cert: readFileSync('server-cert.pem'),
 
   // This is necessary only if using client certificate authentication.
   requestCert: true,
 
   // This is necessary only if the client uses a self-signed certificate.
-  ca: [ fs.readFileSync('client-cert.pem') ],
+  ca: [ readFileSync('client-cert.pem') ],
 };
 
-const server = tls.createServer(options, (socket) => {
+const server = createServer(options, (socket) => {
   console.log('server connected',
               socket.authorized ? 'authorized' : 'unauthorized');
   socket.write('welcome!\n');
@@ -2188,8 +2216,128 @@ server.listen(8000, () => {
 });
 ```
 
+```cjs
+const { createServer } = require('node:tls');
+const { readFileSync } = require('node:fs');
+
+const options = {
+  key: readFileSync('server-key.pem'),
+  cert: readFileSync('server-cert.pem'),
+
+  // This is necessary only if using client certificate authentication.
+  requestCert: true,
+
+  // This is necessary only if the client uses a self-signed certificate.
+  ca: [ readFileSync('client-cert.pem') ],
+};
+
+const server = createServer(options, (socket) => {
+  console.log('server connected',
+              socket.authorized ? 'authorized' : 'unauthorized');
+  socket.write('welcome!\n');
+  socket.setEncoding('utf8');
+  socket.pipe(socket);
+});
+server.listen(8000, () => {
+  console.log('server bound');
+});
+```
+
+To generate the certificate and key for this example, run:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
+  -keyout server-key.pem -out server-cert.pem
+```
+
+Then, to generate the `client-cert.pem` certificate for this example, run:
+
+```bash
+openssl pkcs12 -certpbe AES-256-CBC -export -out client-cert.pem \
+  -inkey server-key.pem -in server-cert.pem
+```
+
 The server can be tested by connecting to it using the example client from
 [`tls.connect()`][].
+
+## `tls.setDefaultCACertificates(certs)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `certs` {string\[]|ArrayBufferView\[]} An array of CA certificates in PEM format.
+
+Sets the default CA certificates used by Node.js TLS clients. If the provided
+certificates are parsed successfully, they will become the default CA
+certificate list returned by [`tls.getCACertificates()`][] and used
+by subsequent TLS connections that don't specify their own CA certificates.
+The certificates will be deduplicated before being set as the default.
+
+This function only affects the current Node.js thread. Previous
+sessions cached by the HTTPS agent won't be affected by this change, so
+this method should be called before any unwanted cachable TLS connections are
+made.
+
+To use system CA certificates as the default:
+
+```cjs
+const tls = require('node:tls');
+tls.setDefaultCACertificates(tls.getCACertificates('system'));
+```
+
+```mjs
+import tls from 'node:tls';
+tls.setDefaultCACertificates(tls.getCACertificates('system'));
+```
+
+This function completely replaces the default CA certificate list. To add additional
+certificates to the existing defaults, get the current certificates and append to them:
+
+```cjs
+const tls = require('node:tls');
+const currentCerts = tls.getCACertificates('default');
+const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];
+tls.setDefaultCACertificates([...currentCerts, ...additionalCerts]);
+```
+
+```mjs
+import tls from 'node:tls';
+const currentCerts = tls.getCACertificates('default');
+const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];
+tls.setDefaultCACertificates([...currentCerts, ...additionalCerts]);
+```
+
+## `tls.getCACertificates([type])`
+
+<!-- YAML
+added:
+  - v23.10.0
+  - v22.15.0
+-->
+
+* `type` {string|undefined} The type of CA certificates that will be returned. Valid values
+  are `"default"`, `"system"`, `"bundled"` and `"extra"`.
+  **Default:** `"default"`.
+* Returns: {string\[]} An array of PEM-encoded certificates. The array may contain duplicates
+  if the same certificate is repeatedly stored in multiple sources.
+
+Returns an array containing the CA certificates from various sources, depending on `type`:
+
+* `"default"`: return the CA certificates that will be used by the Node.js TLS clients by default.
+  * When [`--use-bundled-ca`][] is enabled (default), or [`--use-openssl-ca`][] is not enabled,
+    this would include CA certificates from the bundled Mozilla CA store.
+  * When [`--use-system-ca`][] is enabled, this would also include certificates from the system's
+    trusted store.
+  * When [`NODE_EXTRA_CA_CERTS`][] is used, this would also include certificates loaded from the specified
+    file.
+* `"system"`: return the CA certificates that are loaded from the system's trusted store, according
+  to rules set by [`--use-system-ca`][]. This can be used to get the certificates from the system
+  when [`--use-system-ca`][] is not enabled.
+* `"bundled"`: return the CA certificates from the bundled Mozilla CA store. This would be the same
+  as [`tls.rootCertificates`][].
+* `"extra"`: return the CA certificates loaded from [`NODE_EXTRA_CA_CERTS`][]. It's an empty array if
+  [`NODE_EXTRA_CA_CERTS`][] is not set.
 
 ## `tls.getCiphers()`
 
@@ -2219,13 +2367,18 @@ console.log(tls.getCiphers()); // ['aes128-gcm-sha256', 'aes128-sha', ...]
 added: v12.3.0
 -->
 
-* {string\[]}
+* Type: {string\[]}
 
 An immutable array of strings representing the root certificates (in PEM format)
 from the bundled Mozilla CA store as supplied by the current Node.js version.
 
 The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store
 that is fixed at release time. It is identical on all supported platforms.
+
+To get the actual CA certificates used by the current Node.js instance, which
+may include certificates loaded from the system store (if `--use-system-ca` is used)
+or loaded from a file indicated by `NODE_EXTRA_CA_CERTS`, use
+[`tls.getCACertificates()`][].
 
 ## `tls.DEFAULT_ECDH_CURVE`
 
@@ -2247,7 +2400,7 @@ information.
 added: v11.4.0
 -->
 
-* {string} The default value of the `maxVersion` option of
+* Type: {string} The default value of the `maxVersion` option of
   [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
   protocol versions, `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
   **Default:** `'TLSv1.3'`, unless changed using CLI options. Using
@@ -2261,9 +2414,10 @@ added: v11.4.0
 added: v11.4.0
 -->
 
-* {string} The default value of the `minVersion` option of
+* Type: {string} The default value of the `minVersion` option of
   [`tls.createSecureContext()`][]. It can be assigned any of the supported TLS
   protocol versions, `'TLSv1.3'`, `'TLSv1.2'`, `'TLSv1.1'`, or `'TLSv1'`.
+  Versions before TLSv1.2 may require downgrading the [OpenSSL Security Level][].
   **Default:** `'TLSv1.2'`, unless changed using CLI options. Using
   `--tls-min-v1.0` sets the default to `'TLSv1'`. Using `--tls-min-v1.1` sets
   the default to `'TLSv1.1'`. Using `--tls-min-v1.3` sets the default to
@@ -2278,7 +2432,7 @@ added:
  - v18.16.0
 -->
 
-* {string} The default value of the `ciphers` option of
+* Type: {string} The default value of the `ciphers` option of
   [`tls.createSecureContext()`][]. It can be assigned any of the supported
   OpenSSL ciphers.  Defaults to the content of
   `crypto.constants.defaultCoreCipherList`, unless changed using CLI options
@@ -2292,6 +2446,9 @@ added:
 [Mozilla's publicly trusted list of CAs]: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [OpenSSL Options]: crypto.md#openssl-options
+[OpenSSL Security Level]: #openssl-security-level
+[OpenSSL documentation on security levels]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_security_level.html#DEFAULT-CALLBACK-BEHAVIOUR
+[Pre-shared keys]: #pre-shared-keys
 [RFC 2246]: https://www.ietf.org/rfc/rfc2246.txt
 [RFC 4086]: https://tools.ietf.org/html/rfc4086
 [RFC 4279]: https://tools.ietf.org/html/rfc4279
@@ -2307,7 +2464,11 @@ added:
 [`'secureConnection'`]: #event-secureconnection
 [`'session'`]: #event-session
 [`--tls-cipher-list`]: cli.md#--tls-cipher-listlist
+[`--use-bundled-ca`]: cli.md#--use-bundled-ca---use-openssl-ca
+[`--use-openssl-ca`]: cli.md#--use-bundled-ca---use-openssl-ca
+[`--use-system-ca`]: cli.md#--use-system-ca
 [`Duplex`]: stream.md#class-streamduplex
+[`NODE_EXTRA_CA_CERTS`]: cli.md#node_extra_ca_certsfile
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions
 [`SSL_export_keying_material`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_export_keying_material.html
 [`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
@@ -2334,8 +2495,8 @@ added:
 [`tls.TLSSocket`]: #class-tlstlssocket
 [`tls.connect()`]: #tlsconnectoptions-callback
 [`tls.createSecureContext()`]: #tlscreatesecurecontextoptions
-[`tls.createSecurePair()`]: #tlscreatesecurepaircontext-isserver-requestcert-rejectunauthorized-options
 [`tls.createServer()`]: #tlscreateserveroptions-secureconnectionlistener
+[`tls.getCACertificates()`]: #tlsgetcacertificatestype
 [`tls.getCiphers()`]: #tlsgetciphers
 [`tls.rootCertificates`]: #tlsrootcertificates
 [`x509.checkHost()`]: crypto.md#x509checkhostname-options

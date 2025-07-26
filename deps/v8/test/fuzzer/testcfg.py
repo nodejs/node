@@ -4,6 +4,7 @@
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
+from testrunner.outproc import fuzzer
 
 SUB_TESTS = [
     'inspector',
@@ -12,12 +13,17 @@ SUB_TESTS = [
     'regexp',
     'regexp_builtins',
     'multi_return',
-    'wasm',
-    'wasm_async',
-    'wasm_code',
-    'wasm_compile',
-    'wasm_streaming',
+    'wasm/module',
+    'wasm/async',
+    'wasm/code',
+    'wasm/compile',
+    'wasm/compile_all',
+    'wasm/compile_simd',
+    'wasm/compile_wasmgc',
+    'wasm/init_expr',
+    'wasm/streaming',
 ]
+
 
 class VariantsGenerator(testsuite.VariantsGenerator):
   def _get_variants(self, test):
@@ -45,7 +51,6 @@ class TestSuite(testsuite.TestSuite):
   def _variants_gen_class(self):
     return VariantsGenerator
 
-
 class TestCase(testcase.TestCase):
   def _get_files_params(self):
     return [self.suite.root / self.path]
@@ -60,4 +65,9 @@ class TestCase(testcase.TestCase):
     return []
 
   def get_shell(self):
-    return f'v8_simple_{self.path.parts[0]}_fuzzer'
+    fuzzer_name = '_'.join(self.path.parts[:-1])
+    return f'v8_simple_{fuzzer_name}_fuzzer'
+
+  @property
+  def output_proc(self):
+    return fuzzer.OutProc(self.expected_outcomes)

@@ -1,15 +1,19 @@
 #include "crypto/crypto_timing.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
+#include "node.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "v8.h"
-#include "node.h"
 
 #include <openssl/crypto.h>
 
 namespace node {
 
+using v8::CFunction;
+using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
+using v8::HandleScope;
 using v8::Local;
 using v8::Object;
 using v8::Value;
@@ -46,12 +50,36 @@ void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
       CRYPTO_memcmp(buf1.data(), buf2.data(), buf1.size()) == 0);
 }
 
+bool FastTimingSafeEqual(Local<Value> receiver,
+                         Local<Value> a_obj,
+                         Local<Value> b_obj,
+                         // NOLINTNEXTLINE(runtime/references)
+                         FastApiCallbackOptions& options) {
+  HandleScope scope(options.isolate);
+  ArrayBufferViewContents<uint8_t> a(a_obj);
+  ArrayBufferViewContents<uint8_t> b(b_obj);
+  if (a.length() != b.length()) {
+    TRACK_V8_FAST_API_CALL("crypto.timingSafeEqual.error");
+    THROW_ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH(options.isolate);
+    return false;
+  }
+
+  TRACK_V8_FAST_API_CALL("crypto.timingSafeEqual.ok");
+  return CRYPTO_memcmp(a.data(), b.data(), a.length()) == 0;
+}
+
+static CFunction fast_timing_safe_equal(CFunction::Make(FastTimingSafeEqual));
+
 void Initialize(Environment* env, Local<Object> target) {
-  SetMethodNoSideEffect(
-      env->context(), target, "timingSafeEqual", TimingSafeEqual);
+  SetFastMethodNoSideEffect(env->context(),
+                            target,
+                            "timingSafeEqual",
+                            TimingSafeEqual,
+                            &fast_timing_safe_equal);
 }
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(TimingSafeEqual);
+  registry->Register(fast_timing_safe_equal);
 }
 }  // namespace Timing
 

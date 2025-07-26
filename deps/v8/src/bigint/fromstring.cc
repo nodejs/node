@@ -59,7 +59,7 @@ void ProcessorImpl::FromStringClassic(RWDigits Z,
 //   just copy the previous result. (In theory we could even de-dupe them, but
 //   as the parts/multipliers grow, we'll need most of the memory anyway.)
 //   Copied results are marked with a * below.
-// - We can re-use memory using a system of three buffers whose usage rotates:
+// - We can reuse memory using a system of three buffers whose usage rotates:
 //   - one is considered empty, and is overwritten with the new parts,
 //   - one holds the multipliers (and will be "empty" in the next round), and
 //   - one initially holds the parts and is overwritten with the new multipliers
@@ -242,9 +242,9 @@ void ProcessorImpl::FromStringBasePowerOfTwo(
   const int num_parts = accumulator->ResultLength();
   DCHECK(num_parts >= 1);
   DCHECK(Z.len() >= num_parts);
-  Digits parts(accumulator->heap_parts_.size() > 0
-                   ? accumulator->heap_parts_.data()
-                   : accumulator->stack_parts_,
+  Digits parts(accumulator->heap_parts_.empty()
+                   ? accumulator->stack_parts_
+                   : accumulator->heap_parts_.data(),
                num_parts);
   uint8_t radix = accumulator->radix_;
   DCHECK(radix == 2 || radix == 4 || radix == 8 || radix == 16 || radix == 32);

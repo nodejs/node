@@ -10,7 +10,7 @@
 #include "src/base/bit-field.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
-#include "src/third_party/utf8-decoder/utf8-decoder.h"
+#include "third_party/utf8-decoder/utf8-decoder.h"
 /**
  * \file
  * Definitions and convenience functions for working with unicode.
@@ -140,20 +140,6 @@ class Utf16 {
 class Latin1 {
  public:
   static const uint16_t kMaxChar = 0xff;
-  // Convert the character to Latin-1 case equivalent if possible.
-  static inline uint16_t TryConvertToLatin1(uint16_t c) {
-    switch (c) {
-      // This are equivalent characters in unicode.
-      case 0x39c:
-      case 0x3bc:
-        return 0xb5;
-      // This is an uppercase of a Latin-1 character
-      // outside of Latin-1.
-      case 0x178:
-        return 0xff;
-    }
-    return c;
-  }
 };
 
 enum class Utf8Variant : uint8_t {
@@ -176,7 +162,8 @@ class V8_EXPORT_PRIVATE Utf8 {
  public:
   using State = Utf8DfaDecoder::State;
 
-  static inline uchar Length(uchar chr, int previous);
+  static inline unsigned LengthOneByte(uint8_t chr);
+  static inline unsigned Length(uchar chr, int previous);
   static inline unsigned EncodeOneByte(char* out, uint8_t c);
   static inline unsigned Encode(char* out, uchar c, int previous,
                                 bool replace_invalid = false);
@@ -224,6 +211,16 @@ class V8_EXPORT_PRIVATE Utf8 {
   // - absence of surrogates,
   // - valid code point range.
   static bool ValidateEncoding(const uint8_t* str, size_t length);
+
+  // Encode the given characters as Utf8 into the provided output buffer.
+  struct EncodingResult {
+    size_t bytes_written;
+    size_t characters_processed;
+  };
+  template <typename Char>
+  static EncodingResult Encode(v8::base::Vector<const Char> string,
+                               char* buffer, size_t capacity, bool write_null,
+                               bool replace_invalid_utf8);
 };
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -275,7 +272,14 @@ V8_INLINE bool IsStringLiteralLineTerminator(uchar c) {
   return c == 0x000A || c == 0x000D;
 }
 
-#ifndef V8_INTL_SUPPORT
+#ifdef V8_INTL_SUPPORT
+struct V8_EXPORT_PRIVATE ToLowercase {
+  static const bool kIsToLower = true;
+};
+struct V8_EXPORT_PRIVATE ToUppercase {
+  static const bool kIsToLower = false;
+};
+#else
 struct V8_EXPORT_PRIVATE ToLowercase {
   static const int kMaxWidth = 3;
   static const bool kIsToLower = true;

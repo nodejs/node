@@ -316,9 +316,9 @@ export class Profile {
   urlToScript_ = new Map();
   warnings = new Set();
 
-  constructor(useBigInt=false) {
-    this.useBigInt = useBigInt;
-    this.codeMap_ = new CodeMap(useBigInt);
+  constructor(useBigIntAddresses=false) {
+    this.useBigIntAddresses = useBigIntAddresses;
+    this.codeMap_ = new CodeMap(useBigIntAddresses);
   }
 
   serializeVMSymbols() {
@@ -393,8 +393,10 @@ export class Profile {
       case '^':
         return this.CodeState.SPARKPLUG;
       case '+':
+      case '+\'':
         return this.CodeState.MAGLEV;
       case '*':
+      case '*\'':
         return this.CodeState.TURBOFAN;
     }
     throw new Error(`unknown code state: ${s}`);
@@ -523,7 +525,7 @@ export class Profile {
     // Overwrite any old (unused) code objects that overlap with the new SFI.
     const new_sfi_old_code = !(sfi instanceof SharedFunctionInfoEntry)
     if (sfi === null || new_sfi_old_code) {
-      sfi = new SharedFunctionInfoEntry(name, this.useBigInt);
+      sfi = new SharedFunctionInfoEntry(name, this.useBigIntAddresses);
       this.codeMap_.addCode(sfiAddr, sfi);
     } else if (sfi.name !== name) {
       // SFI object has been overwritten with a new one.
@@ -971,8 +973,8 @@ class SharedFunctionInfoEntry extends CodeEntry {
   /** @type {Set<DynamicCodeEntry>} */
   _codeEntries = new Set();
 
-  constructor(name, useBigInt=false) {
-    super(useBigInt ? 0n : 0, name);
+  constructor(name, useBigIntAddresses=false) {
+    super(useBigIntAddresses ? 0n : 0, name);
     const index = name.lastIndexOf(' ');
     this.functionName = 1 <= index ? name.substring(0, index) : '<anonymous>';
   }
@@ -1256,8 +1258,8 @@ class CallTreeNode {
   }
 }
 
-export function JsonProfile() {
-  this.codeMap_ = new CodeMap();
+export function JsonProfile(useBigIntAddresses=false) {
+  this.codeMap_ = new CodeMap(useBigIntAddresses);
   this.codeEntries_ = [];
   this.functionEntries_ = [];
   this.ticks_ = [];

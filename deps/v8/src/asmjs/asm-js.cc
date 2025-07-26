@@ -4,10 +4,11 @@
 
 #include "src/asmjs/asm-js.h"
 
+#include <optional>
+
 #include "src/asmjs/asm-names.h"
 #include "src/asmjs/asm-parser.h"
 #include "src/ast/ast.h"
-#include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/vector.h"
 #include "src/codegen/compiler.h"
@@ -38,42 +39,44 @@ const char* const AsmJs::kSingleFunctionName = "__single_function__";
 
 namespace {
 
-Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
-                                Handle<Name> name) {
-  Handle<Name> math_name(
+DirectHandle<Object> StdlibMathMember(Isolate* isolate,
+                                      DirectHandle<JSReceiver> stdlib,
+                                      DirectHandle<Name> name) {
+  DirectHandle<Name> math_name(
       isolate->factory()->InternalizeString(base::StaticCharVector("Math")));
-  Handle<Object> math = JSReceiver::GetDataProperty(isolate, stdlib, math_name);
+  DirectHandle<Object> math =
+      JSReceiver::GetDataProperty(isolate, stdlib, math_name);
   if (!IsJSReceiver(*math)) return isolate->factory()->undefined_value();
-  Handle<JSReceiver> math_receiver = Handle<JSReceiver>::cast(math);
-  Handle<Object> value =
-      JSReceiver::GetDataProperty(isolate, math_receiver, name);
-  return value;
+  DirectHandle<JSReceiver> math_receiver = Cast<JSReceiver>(math);
+  return JSReceiver::GetDataProperty(isolate, math_receiver, name);
 }
 
-bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
+bool AreStdlibMembersValid(Isolate* isolate, DirectHandle<JSReceiver> stdlib,
                            wasm::AsmJsParser::StdlibSet members,
                            bool* is_typed_array) {
   if (members.contains(wasm::AsmJsParser::StandardMember::kInfinity)) {
     members.Remove(wasm::AsmJsParser::StandardMember::kInfinity);
-    Handle<Name> name = isolate->factory()->Infinity_string();
-    Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name);
-    if (!IsNumber(*value) || !std::isinf(Object::Number(*value))) return false;
+    DirectHandle<Name> name = isolate->factory()->Infinity_string();
+    DirectHandle<Object> value =
+        JSReceiver::GetDataProperty(isolate, stdlib, name);
+    if (!IsNumber(*value) || !std::isinf(Object::NumberValue(*value)))
+      return false;
   }
   if (members.contains(wasm::AsmJsParser::StandardMember::kNaN)) {
     members.Remove(wasm::AsmJsParser::StandardMember::kNaN);
-    Handle<Name> name = isolate->factory()->NaN_string();
-    Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name);
+    DirectHandle<Name> name = isolate->factory()->NaN_string();
+    DirectHandle<Object> value =
+        JSReceiver::GetDataProperty(isolate, stdlib, name);
     if (!IsNaN(*value)) return false;
   }
 #define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)                   \
   if (members.contains(wasm::AsmJsParser::StandardMember::kMath##FName)) { \
     members.Remove(wasm::AsmJsParser::StandardMember::kMath##FName);       \
-    Handle<Name> name(isolate->factory()->InternalizeString(               \
+    DirectHandle<Name> name(isolate->factory()->InternalizeString(         \
         base::StaticCharVector(#fname)));                                  \
-    Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
+    DirectHandle<Object> value = StdlibMathMember(isolate, stdlib, name);  \
     if (!IsJSFunction(*value)) return false;                               \
-    Tagged<SharedFunctionInfo> shared =                                    \
-        Handle<JSFunction>::cast(value)->shared();                         \
+    Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(value)->shared(); \
     if (!shared->HasBuiltinId() ||                                         \
         shared->builtin_id() != Builtin::kMath##FName) {                   \
       return false;                                                        \
@@ -86,24 +89,25 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
 #define STDLIB_MATH_CONST(cname, const_value)                              \
   if (members.contains(wasm::AsmJsParser::StandardMember::kMath##cname)) { \
     members.Remove(wasm::AsmJsParser::StandardMember::kMath##cname);       \
-    Handle<Name> name(isolate->factory()->InternalizeString(               \
+    DirectHandle<Name> name(isolate->factory()->InternalizeString(         \
         base::StaticCharVector(#cname)));                                  \
-    Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
-    if (!IsNumber(*value) || Object::Number(*value) != const_value)        \
+    DirectHandle<Object> value = StdlibMathMember(isolate, stdlib, name);  \
+    if (!IsNumber(*value) || Object::NumberValue(*value) != const_value)   \
       return false;                                                        \
   }
   STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
 #undef STDLIB_MATH_CONST
-#define STDLIB_ARRAY_TYPE(fname, FName)                                        \
-  if (members.contains(wasm::AsmJsParser::StandardMember::k##FName)) {         \
-    members.Remove(wasm::AsmJsParser::StandardMember::k##FName);               \
-    *is_typed_array = true;                                                    \
-    Handle<Name> name(isolate->factory()->InternalizeString(                   \
-        base::StaticCharVector(#FName)));                                      \
-    Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name); \
-    if (!IsJSFunction(*value)) return false;                                   \
-    Handle<JSFunction> func = Handle<JSFunction>::cast(value);                 \
-    if (!func.is_identical_to(isolate->fname())) return false;                 \
+#define STDLIB_ARRAY_TYPE(fname, FName)                                \
+  if (members.contains(wasm::AsmJsParser::StandardMember::k##FName)) { \
+    members.Remove(wasm::AsmJsParser::StandardMember::k##FName);       \
+    *is_typed_array = true;                                            \
+    DirectHandle<Name> name(isolate->factory()->InternalizeString(     \
+        base::StaticCharVector(#FName)));                              \
+    DirectHandle<Object> value =                                       \
+        JSReceiver::GetDataProperty(isolate, stdlib, name);            \
+    if (!IsJSFunction(*value)) return false;                           \
+    DirectHandle<JSFunction> func = Cast<JSFunction>(value);           \
+    if (!func.is_identical_to(isolate->fname())) return false;         \
   }
   STDLIB_ARRAY_TYPE(int8_array_fun, Int8Array)
   STDLIB_ARRAY_TYPE(uint8_array_fun, Uint8Array)
@@ -124,10 +128,10 @@ void Report(Handle<Script> script, int position, base::Vector<const char> text,
             v8::Isolate::MessageErrorLevel level) {
   Isolate* isolate = script->GetIsolate();
   MessageLocation location(script, position, position);
-  Handle<String> text_object = isolate->factory()->InternalizeUtf8String(text);
-  Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
-      isolate, message_template, &location, text_object,
-      Handle<FixedArray>::null());
+  DirectHandle<String> text_object =
+      isolate->factory()->InternalizeUtf8String(text);
+  DirectHandle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+      isolate, message_template, &location, text_object);
   message->set_error_level(level);
   MessageHandler::ReportMessage(isolate, &location, message);
 }
@@ -203,9 +207,9 @@ class AsmJsCompilationJob final : public UnoptimizedCompilationJob {
 
  protected:
   Status ExecuteJobImpl() final;
-  Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+  Status FinalizeJobImpl(DirectHandle<SharedFunctionInfo> shared_info,
                          Isolate* isolate) final;
-  Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+  Status FinalizeJobImpl(DirectHandle<SharedFunctionInfo> shared_info,
                          LocalIsolate* isolate) final {
     return CompilationJob::RETRY_ON_MAIN_THREAD;
   }
@@ -232,7 +236,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   Zone translate_zone(allocator_, ZONE_NAME);
 
   Utf16CharacterStream* stream = parse_info()->character_stream();
-  base::Optional<AllowHandleDereference> allow_deref;
+  std::optional<AllowHandleDereference> allow_deref;
   if (stream->can_access_heap()) {
     allow_deref.emplace();
   }
@@ -247,6 +251,14 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   }
   module_ = compile_zone->New<wasm::ZoneBuffer>(compile_zone);
   parser.module_builder()->WriteTo(module_);
+  if (module_->size() > v8_flags.wasm_max_module_size) {
+    if (!v8_flags.suppress_asm_messages) {
+      ReportCompilationFailure(
+          parse_info(), parser.failure_location(),
+          "Module size exceeds engine's supported maximum");
+    }
+    return FAILED;
+  }
   asm_offsets_ = compile_zone->New<wasm::ZoneBuffer>(compile_zone);
   parser.module_builder()->WriteAsmJsOffsetTable(asm_offsets_);
   stdlib_uses_ = *parser.stdlib_uses();
@@ -257,21 +269,21 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
 }
 
 UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
+    DirectHandle<SharedFunctionInfo> shared_info, Isolate* isolate) {
   // Step 2: Compile and decode the WebAssembly module.
   base::ElapsedTimer compile_timer;
   compile_timer.Start();
 
-  Handle<HeapNumber> uses_bitset =
+  DirectHandle<HeapNumber> uses_bitset =
       isolate->factory()->NewHeapNumberFromBits(stdlib_uses_.ToIntegral());
 
   // The result is a compiled module and serialized standard library uses.
   wasm::ErrorThrower thrower(isolate, "AsmJs::Compile");
+  Handle<Script> script(Cast<Script>(shared_info->script()), isolate);
   Handle<AsmWasmData> result =
       wasm::GetWasmEngine()
           ->SyncCompileTranslatedAsmJs(
-              isolate, &thrower,
-              wasm::ModuleWireBytes(module_->begin(), module_->end()),
+              isolate, &thrower, base::OwnedCopyOf(*module_), script,
               base::VectorOf(*asm_offsets_), uses_bitset,
               shared_info->language_mode())
           .ToHandleChecked();
@@ -281,8 +293,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
   compilation_info()->SetAsmWasmData(result);
 
   RecordHistograms(isolate);
-  ReportCompilationSuccess(handle(Script::cast(shared_info->script()), isolate),
-                           shared_info->StartPosition(), compile_time_,
+  ReportCompilationSuccess(script, shared_info->StartPosition(), compile_time_,
                            module_->size());
   return SUCCEEDED;
 }
@@ -310,25 +321,29 @@ inline bool IsValidAsmjsMemorySize(size_t size) {
   }
   // Enforce multiple of 2^24 for sizes >= 2^24
   if ((size % (1u << 24u)) != 0) return false;
+  // Limitation of our implementation: for performance reasons, we use unsigned
+  // uint32-to-uintptr extensions for memory addresses, which would give
+  // incorrect behavior for memories larger than 2 GiB.
+  // Note that this does not affect Chrome, which does not allow allocating
+  // larger ArrayBuffers anyway.
+  if (size > 0x8000'0000u) return false;
   // All checks passed!
   return true;
 }
 }  // namespace
 
-MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
-                                              Handle<SharedFunctionInfo> shared,
-                                              Handle<AsmWasmData> wasm_data,
-                                              Handle<JSReceiver> stdlib,
-                                              Handle<JSReceiver> foreign,
-                                              Handle<JSArrayBuffer> memory) {
+MaybeDirectHandle<Object> AsmJs::InstantiateAsmWasm(
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared,
+    DirectHandle<AsmWasmData> wasm_data, DirectHandle<JSReceiver> stdlib,
+    DirectHandle<JSReceiver> foreign, DirectHandle<JSArrayBuffer> memory) {
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
-  Handle<HeapNumber> uses_bitset(wasm_data->uses_bitset(), isolate);
-  Handle<Script> script(Script::cast(shared->script()), isolate);
+  DirectHandle<HeapNumber> uses_bitset(wasm_data->uses_bitset(), isolate);
+  Handle<Script> script(Cast<Script>(shared->script()), isolate);
   auto* wasm_engine = wasm::GetWasmEngine();
 
   // Allocate the WasmModuleObject.
-  Handle<WasmModuleObject> module =
+  DirectHandle<WasmModuleObject> module =
       wasm_engine->FinalizeTranslatedAsmJs(isolate, wasm_data, script);
 
   // TODO(asmjs): The position currently points to the module definition
@@ -339,23 +354,22 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   if (IsResumableFunction(shared->scope_info()->function_kind())) {
     ReportInstantiationFailure(script, position,
                                "Cannot be instantiated as resumable function");
-    return MaybeHandle<Object>();
+    return {};
   }
 
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;
   wasm::AsmJsParser::StdlibSet stdlib_uses =
-      wasm::AsmJsParser::StdlibSet::FromIntegral(
-          uses_bitset->value_as_bits(kRelaxedLoad));
+      wasm::AsmJsParser::StdlibSet::FromIntegral(uses_bitset->value_as_bits());
   if (!stdlib_uses.empty()) {  // No checking needed if no uses.
     if (stdlib.is_null()) {
       ReportInstantiationFailure(script, position, "Requires standard library");
-      return MaybeHandle<Object>();
+      return {};
     }
     if (!AreStdlibMembersValid(isolate, stdlib, stdlib_uses,
                                &stdlib_use_of_typed_array_present)) {
       ReportInstantiationFailure(script, position, "Unexpected stdlib member");
-      return MaybeHandle<Object>();
+      return {};
     }
   }
 
@@ -363,20 +377,20 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   if (stdlib_use_of_typed_array_present) {
     if (memory.is_null()) {
       ReportInstantiationFailure(script, position, "Requires heap buffer");
-      return MaybeHandle<Object>();
+      return {};
     }
     // AsmJs memory must be an ArrayBuffer.
     if (memory->is_shared()) {
       ReportInstantiationFailure(script, position,
                                  "Invalid heap type: SharedArrayBuffer");
-      return MaybeHandle<Object>();
+      return {};
     }
     // We don't allow resizable ArrayBuffers because resizable ArrayBuffers may
     // shrink, and then asm.js does out of bounds memory accesses.
     if (memory->is_resizable_by_js()) {
       ReportInstantiationFailure(script, position,
                                  "Invalid heap type: resizable ArrayBuffer");
-      return MaybeHandle<Object>();
+      return {};
     }
     // We don't allow WebAssembly.Memory, because WebAssembly.Memory.grow()
     // detaches the ArrayBuffer, and that would invalidate the asm.js module.
@@ -384,13 +398,13 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
         memory->GetBackingStore()->is_wasm_memory()) {
       ReportInstantiationFailure(script, position,
                                  "Invalid heap type: WebAssembly.Memory");
-      return MaybeHandle<Object>();
+      return {};
     }
     size_t size = memory->byte_length();
     // Check the asm.js heap size against the valid limits.
     if (!IsValidAsmjsMemorySize(size)) {
       ReportInstantiationFailure(script, position, "Invalid heap size");
-      return MaybeHandle<Object>();
+      return {};
     }
     // Mark the buffer as undetachable. This implies that the buffer cannot be
     // postMessage()'d, as that detaches the buffer.
@@ -400,12 +414,14 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   }
 
   wasm::ErrorThrower thrower(isolate, "AsmJs::Instantiate");
-  MaybeHandle<WasmInstanceObject> maybe_instance =
+  MaybeDirectHandle<WasmInstanceObject> maybe_instance =
       wasm_engine->SyncInstantiate(isolate, &thrower, module, foreign, memory);
   if (maybe_instance.is_null()) {
-    // An exception caused by the module start function will be set as pending
-    // and bypass the {ErrorThrower}, this happens in case of a stack overflow.
-    if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+    // Clear a possible stack overflow from function entry that would have
+    // bypassed the {ErrorThrower}. Be careful not to clear a termination
+    // exception.
+    if (isolate->is_execution_terminating()) return {};
+    if (isolate->has_exception()) isolate->clear_exception();
     if (thrower.error()) {
       base::ScopedVector<char> error_reason(100);
       SNPrintF(error_reason, "Internal wasm failure: %s", thrower.error_msg());
@@ -414,17 +430,17 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       ReportInstantiationFailure(script, position, "Internal wasm failure");
     }
     thrower.Reset();  // Ensure exceptions do not propagate.
-    return MaybeHandle<Object>();
+    return {};
   }
   DCHECK(!thrower.error());
-  Handle<WasmInstanceObject> instance = maybe_instance.ToHandleChecked();
+  DirectHandle<WasmInstanceObject> instance = maybe_instance.ToHandleChecked();
 
   ReportInstantiationSuccess(script, position,
                              instantiate_timer.Elapsed().InMillisecondsF());
 
-  Handle<Name> single_function_name(
+  DirectHandle<Name> single_function_name(
       isolate->factory()->InternalizeUtf8String(AsmJs::kSingleFunctionName));
-  MaybeHandle<Object> single_function =
+  MaybeDirectHandle<Object> single_function =
       Object::GetProperty(isolate, instance, single_function_name);
   if (!single_function.is_null() &&
       !IsUndefined(*single_function.ToHandleChecked(), isolate)) {
@@ -436,7 +452,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   // then we'll have to call the "exports" getter, and be careful about
   // handling possible stack overflow exceptions.
   DCHECK(IsJSObject(instance->exports_object()));
-  return handle(instance->exports_object(), isolate);
+  return direct_handle(instance->exports_object(), isolate);
 }
 
 }  // namespace internal

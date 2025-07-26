@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_ACCESS_INFO_H_
 #define V8_COMPILER_ACCESS_INFO_H_
 
+#include <optional>
+
 #include "src/compiler/heap-refs.h"
-#include "src/compiler/types.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -65,7 +67,9 @@ class PropertyAccessInfo final {
     kFastAccessorConstant,
     kDictionaryProtoAccessorConstant,
     kModuleExport,
-    kStringLength
+    kStringLength,
+    kStringWrapperLength,
+    kTypedArrayLength
   };
 
   static PropertyAccessInfo NotFound(Zone* zone, MapRef receiver_map,
@@ -88,6 +92,9 @@ class PropertyAccessInfo final {
   static PropertyAccessInfo ModuleExport(Zone* zone, MapRef receiver_map,
                                          CellRef cell);
   static PropertyAccessInfo StringLength(Zone* zone, MapRef receiver_map);
+  static PropertyAccessInfo StringWrapperLength(Zone* zone,
+                                                MapRef receiver_map);
+  static PropertyAccessInfo TypedArrayLength(Zone* zone, MapRef receiver_map);
   static PropertyAccessInfo Invalid(Zone* zone);
   static PropertyAccessInfo DictionaryProtoDataConstant(
       Zone* zone, MapRef receiver_map, JSObjectRef holder,
@@ -110,6 +117,8 @@ class PropertyAccessInfo final {
   }
   bool IsModuleExport() const { return kind() == kModuleExport; }
   bool IsStringLength() const { return kind() == kStringLength; }
+  bool IsStringWrapperLength() const { return kind() == kStringWrapperLength; }
+  bool IsTypedArrayLength() const { return kind() == kTypedArrayLength; }
   bool IsDictionaryProtoDataConstant() const {
     return kind() == kDictionaryProtoDataConstant;
   }
@@ -133,12 +142,6 @@ class PropertyAccessInfo final {
     // Find a more suitable place for it.
     return holder_;
   }
-  // For accessor properties when the callback is an API function with a
-  // signature, this is the value that will be passed to the callback as
-  // FunctionCallbackInfo::Holder().
-  // Don't mix it up with holder in a "object where the property was found"
-  // sense.
-  OptionalJSObjectRef api_holder() const { return api_holder_; }
   OptionalMapRef transition_map() const {
     DCHECK(!HasDictionaryHolder());
     return transition_map_;
@@ -180,6 +183,11 @@ class PropertyAccessInfo final {
     return name_.value();
   }
 
+  void set_elements_kind(ElementsKind elements_kind) {
+    elements_kind_ = elements_kind;
+  }
+  ElementsKind elements_kind() const { return elements_kind_; }
+
  private:
   explicit PropertyAccessInfo(Zone* zone);
   PropertyAccessInfo(Zone* zone, Kind kind, OptionalJSObjectRef holder,
@@ -217,6 +225,9 @@ class PropertyAccessInfo final {
   // Members only used for dictionary mode holders:
   InternalIndex dictionary_index_;
   OptionalNameRef name_;
+
+  // Members only used for kTypedArrayLength:
+  ElementsKind elements_kind_;
 };
 
 // Factory class for {ElementAccessInfo}s and {PropertyAccessInfo}s.
@@ -224,7 +235,7 @@ class AccessInfoFactory final {
  public:
   AccessInfoFactory(JSHeapBroker* broker, Zone* zone);
 
-  base::Optional<ElementAccessInfo> ComputeElementAccessInfo(
+  std::optional<ElementAccessInfo> ComputeElementAccessInfo(
       MapRef map, AccessMode access_mode) const;
   bool ComputeElementAccessInfos(
       ElementAccessFeedback const& feedback,
@@ -253,7 +264,7 @@ class AccessInfoFactory final {
       ZoneVector<PropertyAccessInfo> infos, AccessMode access_mode) const;
 
  private:
-  base::Optional<ElementAccessInfo> ConsolidateElementLoad(
+  std::optional<ElementAccessInfo> ConsolidateElementLoad(
       ElementAccessFeedback const& feedback) const;
   PropertyAccessInfo LookupSpecialFieldAccessor(MapRef map, NameRef name) const;
   PropertyAccessInfo LookupTransition(MapRef map, NameRef name,

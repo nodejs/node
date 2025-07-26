@@ -11,9 +11,9 @@ namespace v8 {
 namespace internal {
 
 // ecma402/#sec-getoptionsobject
-MaybeHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
-                                         Handle<Object> options,
-                                         const char* method_name) {
+MaybeDirectHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
+                                               DirectHandle<Object> options,
+                                               const char* method_name) {
   // 1. If options is undefined, then
   if (IsUndefined(*options, isolate)) {
     // a. Return ! ObjectCreate(null).
@@ -22,17 +22,15 @@ MaybeHandle<JSReceiver> GetOptionsObject(Isolate* isolate,
   // 2. If Type(options) is Object, then
   if (IsJSReceiver(*options)) {
     // a. Return options.
-    return Handle<JSReceiver>::cast(options);
+    return Cast<JSReceiver>(options);
   }
   // 3. Throw a TypeError exception.
-  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument),
-                  JSReceiver);
+  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidArgument));
 }
 
 // ecma402/#sec-coerceoptionstoobject
-MaybeHandle<JSReceiver> CoerceOptionsToObject(Isolate* isolate,
-                                              Handle<Object> options,
-                                              const char* method_name) {
+MaybeDirectHandle<JSReceiver> CoerceOptionsToObject(
+    Isolate* isolate, DirectHandle<Object> options, const char* method_name) {
   // 1. If options is undefined, then
   if (IsUndefined(*options, isolate)) {
     // a. Return ! ObjectCreate(null).
@@ -40,21 +38,20 @@ MaybeHandle<JSReceiver> CoerceOptionsToObject(Isolate* isolate,
   }
   // 2. Return ? ToObject(options).
   ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                             Object::ToObject(isolate, options, method_name),
-                             JSReceiver);
-  return Handle<JSReceiver>::cast(options);
+                             Object::ToObject(isolate, options, method_name));
+  return Cast<JSReceiver>(options);
 }
 
-Maybe<bool> GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
+Maybe<bool> GetStringOption(Isolate* isolate, DirectHandle<JSReceiver> options,
                             const char* property,
                             const std::vector<const char*>& values,
                             const char* method_name,
                             std::unique_ptr<char[]>* result) {
-  Handle<String> property_str =
+  DirectHandle<String> property_str =
       isolate->factory()->NewStringFromAsciiChecked(property);
 
   // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
+  DirectHandle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value,
       Object::GetPropertyOrElement(isolate, options, property_str),
@@ -65,13 +62,13 @@ Maybe<bool> GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
   }
 
   // 2. c. Let value be ? ToString(value).
-  Handle<String> value_str;
+  DirectHandle<String> value_str;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value_str, Object::ToString(isolate, value), Nothing<bool>());
   std::unique_ptr<char[]> value_cstr = value_str->ToCString();
 
   // 2. d. if values is not undefined, then
-  if (values.size() > 0) {
+  if (!values.empty()) {
     // 2. d. i. If values does not contain an element equal to value,
     // throw a RangeError exception.
     for (size_t i = 0; i < values.size(); i++) {
@@ -82,7 +79,7 @@ Maybe<bool> GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
       }
     }
 
-    Handle<String> method_str =
+    DirectHandle<String> method_str =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
@@ -96,16 +93,14 @@ Maybe<bool> GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
   return Just(true);
 }
 
-V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(Isolate* isolate,
-                                                Handle<JSReceiver> options,
-                                                const char* property,
-                                                const char* method_name,
-                                                bool* result) {
-  Handle<String> property_str =
+V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(
+    Isolate* isolate, DirectHandle<JSReceiver> options, const char* property,
+    const char* method_name, bool* result) {
+  DirectHandle<String> property_str =
       isolate->factory()->NewStringFromAsciiChecked(property);
 
   // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
+  DirectHandle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value,
       Object::GetPropertyOrElement(isolate, options, property_str),
@@ -124,22 +119,23 @@ V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(Isolate* isolate,
 }
 
 // ecma402/#sec-defaultnumberoption
-Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
-                               int max, int fallback, Handle<String> property) {
+Maybe<int> DefaultNumberOption(Isolate* isolate, DirectHandle<Object> value,
+                               int min, int max, int fallback,
+                               DirectHandle<String> property) {
   // 2. Else, return fallback.
   if (IsUndefined(*value)) return Just(fallback);
 
   // 1. If value is not undefined, then
   // a. Let value be ? ToNumber(value).
-  Handle<Object> value_num;
+  DirectHandle<Number> value_num;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value_num, Object::ToNumber(isolate, value), Nothing<int>());
   DCHECK(IsNumber(*value_num));
 
   // b. If value is NaN or less than minimum or greater than maximum, throw a
   // RangeError exception.
-  if (IsNaN(*value_num) || Object::Number(*value_num) < min ||
-      Object::Number(*value_num) > max) {
+  if (IsNaN(*value_num) || Object::NumberValue(*value_num) < min ||
+      Object::NumberValue(*value_num) > max) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
@@ -151,15 +147,15 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
   // int conversion safe.
   //
   // c. Return floor(value).
-  return Just(FastD2I(floor(Object::Number(*value_num))));
+  return Just(FastD2I(floor(Object::NumberValue(*value_num))));
 }
 
 // ecma402/#sec-getnumberoption
-Maybe<int> GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
-                           Handle<String> property, int min, int max,
+Maybe<int> GetNumberOption(Isolate* isolate, DirectHandle<JSReceiver> options,
+                           DirectHandle<String> property, int min, int max,
                            int fallback) {
   // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
+  DirectHandle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, JSReceiver::GetProperty(isolate, options, property),
       Nothing<int>());
@@ -170,11 +166,11 @@ Maybe<int> GetNumberOption(Isolate* isolate, Handle<JSReceiver> options,
 
 // #sec-getoption while type is "number"
 Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
-                                      Handle<JSReceiver> options,
-                                      Handle<String> property,
+                                      DirectHandle<JSReceiver> options,
+                                      DirectHandle<String> property,
                                       double default_value) {
   // 1. Let value be ? Get(options, property).
-  Handle<Object> value;
+  DirectHandle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, JSReceiver::GetProperty(isolate, options, property),
       Nothing<double>());
@@ -185,10 +181,11 @@ Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
   }
   // 4. Else if type is "number", then
   // a. Set value to ? ToNumber(value).
+  DirectHandle<Number> value_num;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, Object::ToNumber(isolate, value), Nothing<double>());
+      isolate, value_num, Object::ToNumber(isolate, value), Nothing<double>());
   // b. If value is NaN, throw a RangeError exception.
-  if (IsNaN(*value)) {
+  if (IsNaN(*value_num)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
@@ -196,7 +193,7 @@ Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
   }
 
   // 7. Return value.
-  return Just(Object::Number(*value));
+  return Just(Object::NumberValue(*value_num));
 }
 
 }  // namespace internal

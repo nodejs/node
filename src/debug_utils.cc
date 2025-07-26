@@ -62,9 +62,9 @@ EnabledDebugList enabled_debug_list;
 using v8::Local;
 using v8::StackTrace;
 
-void EnabledDebugList::Parse(std::shared_ptr<KVStore> env_vars) {
+void EnabledDebugList::Parse(Environment* env) {
   std::string cats;
-  credentials::SafeGetenv("NODE_DEBUG_NATIVE", &cats, env_vars);
+  credentials::SafeGetenv("NODE_DEBUG_NATIVE", &cats, env);
   Parse(cats);
 }
 
@@ -182,10 +182,13 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
       return NameAndDisplacement(pSymbol->Name, dwDisplacement);
     } else {
       // SymFromAddr failed
-      const DWORD error = GetLastError();  // "eat" the error anyway
 #ifdef DEBUG
+      const DWORD error = GetLastError();
       fprintf(stderr, "SymFromAddr returned error : %lu\n", error);
-#endif
+#else
+      // Consume the error anyway
+      USE(GetLastError());
+#endif  // DEBUG
     }
     // End MSDN code
 
@@ -217,10 +220,13 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
       sym.line = line.LineNumber;
     } else {
       // SymGetLineFromAddr64 failed
-      const DWORD error = GetLastError();  // "eat" the error anyway
 #ifdef DEBUG
+      const DWORD error = GetLastError();
       fprintf(stderr, "SymGetLineFromAddr64 returned error : %lu\n", error);
-#endif
+#else
+      // Consume the error anyway
+      USE(GetLastError());
+#endif  // DEBUG
     }
     // End MSDN code
 
@@ -240,12 +246,15 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
       return szUndName;
     } else {
       // UnDecorateSymbolName failed
-      const DWORD error = GetLastError();  // "eat" the error anyway
 #ifdef DEBUG
+      const DWORD error = GetLastError();
       fprintf(stderr, "UnDecorateSymbolName returned error %lu\n", error);
-#endif
+#else
+      // Consume the error anyway
+      USE(GetLastError());
+#endif  // DEBUG
     }
-    return nullptr;
+    return {};
   }
 
   SymbolInfo LookupSymbol(void* address) override {
@@ -462,7 +471,7 @@ std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
   DWORD size_2 = 0;
   // First call to get the size of module array needed
   if (EnumProcessModules(process_handle, nullptr, 0, &size_1)) {
-    MallocedBuffer<HMODULE> modules(size_1);
+    MallocedBuffer<HMODULE> modules(size_1 / sizeof(HMODULE));
 
     // Second call to populate the module array
     if (EnumProcessModules(process_handle, modules.data, size_1, &size_2)) {
@@ -471,16 +480,15 @@ std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
            i++) {
         WCHAR module_name[MAX_PATH];
         // Obtain and report the full pathname for each module
-        if (GetModuleFileNameExW(process_handle,
-                                 modules.data[i],
-                                 module_name,
-                                 arraysize(module_name) / sizeof(WCHAR))) {
+        if (GetModuleFileNameW(
+                modules.data[i], module_name, arraysize(module_name))) {
           DWORD size = WideCharToMultiByte(
               CP_UTF8, 0, module_name, -1, nullptr, 0, nullptr, nullptr);
           char* str = new char[size];
           WideCharToMultiByte(
               CP_UTF8, 0, module_name, -1, str, size, nullptr, nullptr);
           list.emplace_back(str);
+          delete[] str;
         }
       }
     }

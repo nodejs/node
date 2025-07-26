@@ -7,10 +7,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/objects/shared-function-info-inl.h"
 
-// TODO(v8:11421): Remove #if once baseline compiler is ported to other
-// architectures.
-#include "src/flags/flags.h"
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
 
 #include "src/baseline/baseline-assembler-inl.h"
 #include "src/baseline/baseline-compiler.h"
@@ -56,14 +53,14 @@ bool CanCompileWithBaseline(Isolate* isolate,
   return true;
 }
 
-MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
-                                       Handle<SharedFunctionInfo> shared) {
+MaybeDirectHandle<Code> GenerateBaselineCode(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileBaseline);
   Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate), isolate);
   LocalIsolate* local_isolate = isolate->main_thread_local_isolate();
   baseline::BaselineCompiler compiler(local_isolate, shared, bytecode);
   compiler.GenerateCode();
-  MaybeHandle<Code> code = compiler.Build(local_isolate);
+  MaybeDirectHandle<Code> code = compiler.Build();
   if (v8_flags.print_code && !code.is_null()) {
     Print(*code.ToHandleChecked());
   }
@@ -82,12 +79,13 @@ void EmitReturnBaseline(MacroAssembler* masm) {
 namespace v8 {
 namespace internal {
 
-bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
+bool CanCompileWithBaseline(Isolate* isolate,
+                            Tagged<SharedFunctionInfo> shared) {
   return false;
 }
 
-MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
-                                       Handle<SharedFunctionInfo> shared) {
+MaybeDirectHandle<Code> GenerateBaselineCode(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
   UNREACHABLE();
 }
 

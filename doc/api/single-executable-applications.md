@@ -190,6 +190,13 @@ If the paths are not absolute, Node.js will use the path relative to the
 current working directory. The version of the Node.js binary used to produce
 the blob must be the same as the one to which the blob will be injected.
 
+Note: When generating cross-platform SEAs (e.g., generating a SEA
+for `linux-x64` on `darwin-arm64`), `useCodeCache` and `useSnapshot`
+must be set to false to avoid generating incompatible executables.
+Since code cache and snapshots can only be loaded on the same platform
+where they are compiled, the generated executable might crash on startup when
+trying to load code cache or snapshots built on a different platform.
+
 ### Assets
 
 Users can include assets by adding a key-path dictionary to the configuration
@@ -212,7 +219,7 @@ executable, users can retrieve the assets using the [`sea.getAsset()`][] and
 The single-executable application can access the assets as follows:
 
 ```cjs
-const { getAsset } = require('node:sea');
+const { getAsset, getAssetAsBlob, getRawAsset } = require('node:sea');
 // Returns a copy of the data in an ArrayBuffer.
 const image = getAsset('a.jpg');
 // Returns a string decoded from the asset as UTF8.
@@ -223,7 +230,7 @@ const blob = getAssetAsBlob('a.jpg');
 const raw = getRawAsset('a.jpg');
 ```
 
-See documentation of the [`sea.getAsset()`][] and [`sea.getAssetAsBlob()`][]
+See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][] and [`sea.getRawAsset()`][]
 APIs for more information.
 
 ### Startup snapshot support
@@ -279,7 +286,9 @@ from the JavaScript main script embedded into the executable.
 #### `sea.isSea()`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 * Returns: {boolean} Whether this script is running inside a single-executable
@@ -288,7 +297,9 @@ added: v21.7.0
 ### `sea.getAsset(key[, encoding])`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 This method can be used to retrieve the assets configured to be bundled into the
@@ -306,10 +317,12 @@ An error is thrown when no matching asset can be found.
 ### `sea.getAssetAsBlob(key[, options])`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
-Similar to [`sea.getAsset()`][], but returns the result in a [`Blob`][].
+Similar to [`sea.getAsset()`][], but returns the result in a {Blob}.
 An error is thrown when no matching asset can be found.
 
 * `key`  {string} the key for the asset in the dictionary specified by the
@@ -321,14 +334,16 @@ An error is thrown when no matching asset can be found.
 ### `sea.getRawAsset(key)`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 This method can be used to retrieve the assets configured to be bundled into the
 single-executable application at build time.
 An error is thrown when no matching asset can be found.
 
-Unlike `sea.getRawAsset()` or `sea.getAssetAsBlob()`, this method does not
+Unlike `sea.getAsset()` or `sea.getAssetAsBlob()`, this method does not
 return a copy. Instead, it returns the raw asset bundled inside the executable.
 
 For now, users should avoid writing to the returned array buffer. If the
@@ -337,7 +352,7 @@ writes to the returned array buffer is likely to result in a crash.
 
 * `key`  {string} the key for the asset in the dictionary specified by the
   `assets` field in the single-executable application configuration.
-* Returns: {string|ArrayBuffer}
+* Returns: {ArrayBuffer}
 
 ### `require(id)` in the injected main script is not file based
 
@@ -408,12 +423,12 @@ to help us document them.
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
-[`Blob`]: https://developer.mozilla.org/en-US/docs/Web/API/Blob
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
 [`sea.getAsset()`]: #seagetassetkey-encoding
 [`sea.getAssetAsBlob()`]: #seagetassetasblobkey-options
+[`sea.getRawAsset()`]: #seagetrawassetkey
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
 [documentation about startup snapshot support in Node.js]: cli.md#--build-snapshot

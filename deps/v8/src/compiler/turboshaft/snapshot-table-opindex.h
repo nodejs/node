@@ -5,12 +5,14 @@
 #ifndef V8_COMPILER_TURBOSHAFT_SNAPSHOT_TABLE_OPINDEX_H_
 #define V8_COMPILER_TURBOSHAFT_SNAPSHOT_TABLE_OPINDEX_H_
 
+#include <optional>
+
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 
 namespace v8::internal::compiler::turboshaft {
 // A Wrapper around a SnapshotTable, which takes care of mapping OpIndex to Key.
-// It uses a ZoneUnorderedMap to store this mapping, and is thus more
+// It uses a ZoneAbslFlatHashMap to store this mapping, and is thus more
 // appropriate for cases where not many OpIndex have a corresponding key.
 template <class Value, class KeyData = NoKeyData>
 class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
@@ -26,6 +28,12 @@ class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
     auto it = indices_to_keys_.find(idx);
     if (it == indices_to_keys_.end()) return Value{};
     return Base::Get(it->second);
+  }
+
+  Value GetPredecessorValue(OpIndex idx, int predecessor_index) {
+    auto it = indices_to_keys_.find(idx);
+    if (it == indices_to_keys_.end()) return Value{};
+    return Base::GetPredecessorValue(it->second, predecessor_index);
   }
 
   using Base::Set;
@@ -46,11 +54,14 @@ class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
     return indices_to_keys_.find(idx) != indices_to_keys_.end();
   }
 
-  base::Optional<Key> TryGetKeyFor(OpIndex idx) const {
+  std::optional<Key> TryGetKeyFor(OpIndex idx) const {
     auto it = indices_to_keys_.find(idx);
     if (it != indices_to_keys_.end()) return it->second;
-    return base::nullopt;
+    return std::nullopt;
   }
+
+  auto begin() { return indices_to_keys_.begin(); }
+  auto end() { return indices_to_keys_.end(); }
 
  private:
   Key GetOrCreateKey(OpIndex idx) {
@@ -60,7 +71,7 @@ class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
     indices_to_keys_.insert({idx, key});
     return key;
   }
-  ZoneUnorderedMap<OpIndex, Key> indices_to_keys_;
+  ZoneAbslFlatHashMap<OpIndex, Key> indices_to_keys_;
 };
 
 }  // namespace v8::internal::compiler::turboshaft

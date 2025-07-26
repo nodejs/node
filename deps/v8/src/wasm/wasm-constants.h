@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_CONSTANTS_H_
+#define V8_WASM_WASM_CONSTANTS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_WASM_CONSTANTS_H_
-#define V8_WASM_WASM_CONSTANTS_H_
 
 #include <cstddef>
 #include <cstdint>
@@ -33,6 +33,8 @@ enum ValueTypeCode : uint8_t {
   kS128Code = 0x7b,             // -0x05
   kI8Code = 0x78,               // -0x08, packed type
   kI16Code = 0x77,              // -0x09, packed type
+  kF16Code = 0x76,              // -0x0a, packed type
+  kNoExnCode = 0x74,            // -0x0c
   kNoFuncCode = 0x73,           // -0x0d
   kNoExternCode = 0x72,         // -0x0e
   kNoneCode = 0x71,             // -0x0f
@@ -46,19 +48,31 @@ enum ValueTypeCode : uint8_t {
   kRefCode = 0x64,              // -0x1c
   kRefNullCode = 0x63,          // -0x1d
                                 // Non-finalized proposals below.
+  kExactCode = 0x62,            // -0x1e
+  kExnRefCode = 0x69,           // -0x17
+  kContRefCode = 0x68,          // -0x18
+  kNoContCode = 0x75,           // -0x0b
   kStringRefCode = 0x67,        // -0x19
   kStringViewWtf8Code = 0x66,   // -0x1a
-  kStringViewWtf16Code = 0x62,  // -0x1e
+  kStringViewWtf16Code = 0x60,  // -0x20
   kStringViewIterCode = 0x61,   // -0x1f
+
+  // For decoding, we build an array for all heap types with these bounds:
+  kFirstHeapTypeCode = kStringViewWtf16Code,  // Lowest assigned code.
+  kLastHeapTypeCode = kNoContCode,            // Highest assigned code.
 };
 
 // Binary encoding of type definitions.
+constexpr uint8_t kSharedFlagCode = 0x65;
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
+constexpr uint8_t kWasmContTypeCode = 0x5d;
 constexpr uint8_t kWasmSubtypeCode = 0x50;
 constexpr uint8_t kWasmSubtypeFinalCode = 0x4f;
 constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4e;
+constexpr uint8_t kWasmDescriptorCode = 0x4d;
+constexpr uint8_t kWasmDescribesCode = 0x4c;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
@@ -69,15 +83,16 @@ enum ImportExportKindCode : uint8_t {
   kExternalTag = 4
 };
 
+// The limits structure: valid for both memory and table limits.
 enum LimitsFlags : uint8_t {
-  kNoMaximum = 0x00,                 // Also valid for table limits.
-  kWithMaximum = 0x01,               // Also valid for table limits.
-  kSharedNoMaximum = 0x02,           // Only valid for memory limits.
-  kSharedWithMaximum = 0x03,         // Only valid for memory limits.
-  kMemory64NoMaximum = 0x04,         // Only valid for memory limits.
-  kMemory64WithMaximum = 0x05,       // Only valid for memory limits.
-  kMemory64SharedNoMaximum = 0x06,   // Only valid for memory limits.
-  kMemory64SharedWithMaximum = 0x07  // Only valid for memory limits.
+  kNoMaximum = 0x00,
+  kWithMaximum = 0x01,
+  kSharedNoMaximum = 0x02,
+  kSharedWithMaximum = 0x03,
+  kMemory64NoMaximum = 0x04,
+  kMemory64WithMaximum = 0x05,
+  kMemory64SharedNoMaximum = 0x06,
+  kMemory64SharedWithMaximum = 0x07
 };
 
 // Flags for data and element segments.
@@ -112,6 +127,7 @@ enum SectionCode : int8_t {
   kSourceMappingURLSectionCode,   // Source Map URL section
   kDebugInfoSectionCode,          // DWARF section .debug_info
   kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
+  kBuildIdSectionCode,            // Unique build id to match the symbol file
   kInstTraceSectionCode,          // Instruction trace section
   kCompilationHintsSectionCode,   // Compilation hints section
   kBranchHintsSectionCode,        // Branch hints section
@@ -145,6 +161,20 @@ enum NameSectionKindCode : uint8_t {
   kTagCode = 11,
 };
 
+enum CatchKind : uint8_t {
+  kCatch = 0x0,
+  kCatchRef = 0x1,
+  kCatchAll = 0x2,
+  kCatchAllRef = 0x3,
+  kLastCatchKind = kCatchAllRef,
+};
+
+enum SwitchKind : uint8_t {
+  kOnSuspend = 0x0,
+  kSwitch = 0x1,
+  kLastSwitchKind = kSwitch,
+};
+
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
 static_assert(kWasmPageSize == size_t{1} << kWasmPageSizeLog2, "consistency");
@@ -156,6 +186,13 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 constexpr uint32_t kExceptionAttribute = 0;
 
 constexpr int kAnonymousFuncIndex = -1;
+
+// This needs to survive round-tripping through a Smi without changing
+// its value.
+constexpr uint32_t kInvalidCanonicalIndex = static_cast<uint32_t>(-1);
+static_assert(static_cast<uint32_t>(Internals::SmiValue(Internals::IntToSmi(
+                  static_cast<int>(kInvalidCanonicalIndex)))) ==
+              kInvalidCanonicalIndex);
 
 // The number of calls to an exported Wasm function that will be handled
 // by the generic wrapper. Once the budget is exhausted, a specific wrapper

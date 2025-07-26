@@ -16,7 +16,7 @@
 namespace cppgc {
 namespace internal {
 
-v8::base::LazyMutex g_process_mutex = LAZY_MUTEX_INITIALIZER;
+v8::base::LazyMutex ProcessGlobalLock::process_mutex_ = LAZY_MUTEX_INITIALIZER;
 
 namespace {
 

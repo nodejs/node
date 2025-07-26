@@ -40,9 +40,10 @@ const debug = require('./debug.js')
 const gatherDepSet = require('./gather-dep-set.js')
 const treeCheck = require('./tree-check.js')
 const { walkUp } = require('walk-up-path')
+const { log } = require('proc-log')
 
-const { resolve, relative, dirname, basename } = require('path')
-const util = require('util')
+const { resolve, relative, dirname, basename } = require('node:path')
+const util = require('node:util')
 const _package = Symbol('_package')
 const _parent = Symbol('_parent')
 const _target = Symbol.for('_target')
@@ -102,6 +103,7 @@ class Node {
       global = false,
       dummy = false,
       sourceReference = null,
+      ideallyInert = false,
     } = options
     // this object gives querySelectorAll somewhere to stash context about a node
     // while processing a query
@@ -119,6 +121,8 @@ class Node {
     // package's dependencies in a virtual root.
     this.sourceReference = sourceReference
 
+    // TODO if this came from pacote.manifest we don't have to do this,
+    // we can be told to skip this step
     const pkg = sourceReference ? sourceReference.package
       : normalize(options.pkg || {})
 
@@ -193,6 +197,8 @@ class Node {
       this.peer = false
       this.extraneous = false
     }
+
+    this.ideallyInert = ideallyInert
 
     this.edgesIn = new Set()
     this.edgesOut = new CaseInsensitiveMap()
@@ -342,7 +348,28 @@ class Node {
   }
 
   get overridden () {
-    return !!(this.overrides && this.overrides.value && this.overrides.name === this.name)
+    if (!this.overrides) {
+      return false
+    }
+    if (!this.overrides.value) {
+      return false
+    }
+    if (this.overrides.name !== this.name) {
+      return false
+    }
+
+    // The overrides rule is for a package with this name, but some override rules only apply to specific
+    // versions. To make sure this package was actually overridden, we check whether any edge going in
+    // had the rule applied to it, in which case its overrides set is different than its source node.
+    for (const edge of this.edgesIn) {
+      if (edge.overrides && edge.overrides.name === this.name && edge.overrides.value === this.version) {
+        if (!edge.overrides.isEqual(edge.from.overrides)) {
+          return true
+        }
+      }
+    }
+
+    return false
   }
 
   get package () {
@@ -460,6 +487,15 @@ class Node {
       }
     }
     return false
+  }
+
+  shouldOmit (omitSet) {
+    return (
+      this.peer && omitSet.has('peer') ||
+      this.dev && omitSet.has('dev') ||
+      this.optional && omitSet.has('optional') ||
+      this.devOptional && omitSet.has('optional') && omitSet.has('dev')
+    )
   }
 
   getBundler (path = []) {
@@ -820,9 +856,6 @@ class Node {
       target.root = root
     }
 
-    if (!this.overrides && this.parent && this.parent.overrides) {
-      this.overrides = this.parent.overrides.getNodeRule(this)
-    }
     // tree should always be valid upon root setter completion.
     treeCheck(this)
     if (this !== root) {
@@ -840,7 +873,7 @@ class Node {
     }
 
     for (const [name, path] of this.#workspaces.entries()) {
-      new Edge({ from: this, name, spec: `file:${path.replace(/#/g, '%23')}`, type: 'workspace' })
+      new Edge({ from: this, name, spec: `file:${path}`, type: 'workspace' })
     }
   }
 
@@ -1004,10 +1037,21 @@ class Node {
       return false
     }
 
-    // XXX need to check for two root nodes?
-    if (node.overrides !== this.overrides) {
-      return false
+    // If this node has no dependencies, then it's irrelevant to check the override
+    // rules of the replacement node.
+    if (this.edgesOut.size) {
+      // XXX need to check for two root nodes?
+      if (node.overrides) {
+        if (!node.overrides.isEqual(this.overrides)) {
+          return false
+        }
+      } else {
+        if (this.overrides) {
+          return false
+        }
+      }
     }
+
     ignorePeers = new Set(ignorePeers)
 
     // gather up all the deps of this node and that are only depended
@@ -1042,7 +1086,7 @@ class Node {
   // return true if it's safe to remove this node, because anything that
   // is depending on it would be fine with the thing that they would resolve
   // to if it was removed, or nothing is depending on it in the first place.
-  canDedupe (preferDedupe = false) {
+  canDedupe (preferDedupe = false, explicitRequest = false) {
     // not allowed to mess with shrinkwraps or bundles
     if (this.inDepBundle || this.inShrinkwrap) {
       return false
@@ -1075,8 +1119,18 @@ class Node {
       return false
     }
 
-    // if we prefer dedupe, or if the version is greater/equal, take the other
-    if (preferDedupe || semver.gte(other.version, this.version)) {
+    // if we prefer dedupe, or if the version is equal, take the other
+    if (preferDedupe || semver.eq(other.version, this.version)) {
+      return true
+    }
+
+    // if our current version isn't the result of an override, then prefer to take the greater version
+    if (!this.overridden && semver.gt(other.version, this.version)) {
+      return true
+    }
+
+    // if the other version was an explicit request, then prefer to take the other version
+    if (explicitRequest) {
       return true
     }
 
@@ -1247,10 +1301,6 @@ class Node {
       this[_changePath](newPath)
     }
 
-    if (parent.overrides) {
-      this.overrides = parent.overrides.getNodeRule(this)
-    }
-
     // clobbers anything at that path, resets all appropriate references
     this.root = parent.root
   }
@@ -1344,9 +1394,87 @@ class Node {
     this.edgesOut.set(edge.name, edge)
   }
 
-  addEdgeIn (edge) {
+  recalculateOutEdgesOverrides () {
+    // For each edge out propogate the new overrides through.
+    for (const edge of this.edgesOut.values()) {
+      edge.reload(true)
+      if (edge.to) {
+        edge.to.updateOverridesEdgeInAdded(edge.overrides)
+      }
+    }
+  }
+
+  updateOverridesEdgeInRemoved (otherOverrideSet) {
+    // If this edge's overrides isn't equal to this node's overrides, then removing it won't change newOverrideSet later.
+    if (!this.overrides || !this.overrides.isEqual(otherOverrideSet)) {
+      return false
+    }
+    let newOverrideSet
+    for (const edge of this.edgesIn) {
+      if (newOverrideSet && edge.overrides) {
+        newOverrideSet = OverrideSet.findSpecificOverrideSet(edge.overrides, newOverrideSet)
+      } else {
+        newOverrideSet = edge.overrides
+      }
+    }
+    if (this.overrides.isEqual(newOverrideSet)) {
+      return false
+    }
+    this.overrides = newOverrideSet
+    if (this.overrides) {
+      // Optimization: if there's any override set at all, then no non-extraneous node has an empty override set. So if we temporarily have no
+      // override set (for example, we removed all the edges in), there's no use updating all the edges out right now. Let's just wait until
+      // we have an actual override set later.
+      this.recalculateOutEdgesOverrides()
+    }
+    return true
+  }
+
+  // This logic isn't perfect either. When we have two edges in that have different override sets, then we have to decide which set is correct.
+  // This function assumes the more specific override set is applicable, so if we have dependencies A->B->C and A->C
+  // and an override set that specifies what happens for C under A->B, this will work even if the new A->C edge comes along and tries to change
+  // the override set.
+  // The strictly correct logic is not to allow two edges with different overrides to point to the same node, because even if this node can satisfy
+  // both, one of its dependencies might need to be different depending on the edge leading to it.
+  // However, this might cause a lot of duplication, because the conflict in the dependencies might never actually happen.
+  updateOverridesEdgeInAdded (otherOverrideSet) {
+    if (!otherOverrideSet) {
+      // Assuming there are any overrides at all, the overrides field is never undefined for any node at the end state of the tree.
+      // So if the new edge's overrides is undefined it will be updated later. So we can wait with updating the node's overrides field.
+      return false
+    }
+    if (!this.overrides) {
+      this.overrides = otherOverrideSet
+      this.recalculateOutEdgesOverrides()
+      return true
+    }
+    if (this.overrides.isEqual(otherOverrideSet)) {
+      return false
+    }
+    const newOverrideSet = OverrideSet.findSpecificOverrideSet(this.overrides, otherOverrideSet)
+    if (newOverrideSet) {
+      if (!this.overrides.isEqual(newOverrideSet)) {
+        this.overrides = newOverrideSet
+        this.recalculateOutEdgesOverrides()
+        return true
+      }
+      return false
+    }
+    // This is an error condition. We can only get here if the new override set is in conflict with the existing.
+    log.silly('Conflicting override sets', this.name)
+  }
+
+  deleteEdgeIn (edge) {
+    this.edgesIn.delete(edge)
     if (edge.overrides) {
-      this.overrides = edge.overrides
+      this.updateOverridesEdgeInRemoved(edge.overrides)
+    }
+  }
+
+  addEdgeIn (edge) {
+    // We need to handle the case where the new edge in has an overrides field which is different from the current value.
+    if (!this.overrides || !this.overrides.isEqual(edge.overrides)) {
+      this.updateOverridesEdgeInAdded(edge.overrides)
     }
 
     this.edgesIn.add(edge)

@@ -48,9 +48,10 @@ namespace internal {
   V(w24) V(w25) V(w26) V(w27) V(w28) V(w29) V(w30) V(w31)
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
-  V(f0)  V(f1)  V(f2)  V(f3)  V(f4)  V(f5) V(f6) V(f7) \
-  V(f8) V(f9) V(f10) V(f11) V(f12) V(f13) V(f14) V(f15) V(f16) \
-  V(f17) V(f18) V(f19) V(f20) V(f21) V(f22) V(f23)
+  V(f0)  V(f1)  V(f2)  V(f3)  V(f4)  V(f5)  V(f6)  V(f7)  \
+  V(f8)  V(f9)  V(f10) V(f11) V(f12) V(f13) V(f14) V(f15) \
+  V(f16) V(f17) V(f18) V(f19) V(f20) V(f21) V(f22) V(f23) \
+  V(f24) V(f25) V(f26) V(f27) V(f28)
 // clang-format on
 
 // Note that the bit values must match those used in actual instruction
@@ -168,7 +169,7 @@ constexpr Register cp = s7;
 constexpr Register kScratchReg = s3;
 constexpr Register kScratchReg2 = s4;
 constexpr DoubleRegister kScratchDoubleReg = f30;
-constexpr DoubleRegister kScratchDoubleReg1 = f31;
+constexpr DoubleRegister kScratchDoubleReg2 = f31;
 // FPU zero reg is often used to hold 0.0, but it's not hardwired to 0.0.
 constexpr DoubleRegister kDoubleRegZero = f29;
 
@@ -202,12 +203,10 @@ constexpr FPUControlRegister FCSR3 = {kFCSRRegister + 3};
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
 DEFINE_REGISTER_NAMES(FPURegister, DOUBLE_REGISTERS)
 
-// Give alias names to registers for calling conventions.
-
-constexpr Register arg_reg_1 = a0;
-constexpr Register arg_reg_2 = a1;
-constexpr Register arg_reg_3 = a2;
-constexpr Register arg_reg_4 = a3;
+// LoongArch64 calling convention.
+constexpr Register kCArgRegs[] = {a0, a1, a2, a3, a4, a5, a6, a7};
+constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
+constexpr int kFPRegisterPassedArguments = 8;
 
 constexpr Register kReturnRegister0 = a0;
 constexpr Register kReturnRegister1 = a1;
@@ -225,12 +224,14 @@ constexpr Register kJavaScriptCallCodeStartRegister = a2;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = a3;
 constexpr Register kJavaScriptCallExtraArg1Register = a2;
+constexpr Register kJavaScriptCallDispatchHandleRegister = a4;
 
 constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
 constexpr Register kRuntimeCallArgvRegister = a2;
-constexpr Register kWasmInstanceRegister = a0;
+constexpr Register kWasmImplicitArgRegister = a7;
 constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
+constexpr Register kWasmTrapHandlerFaultAddressRegister = t6;
 
 #ifdef V8_COMPRESS_POINTERS
 constexpr Register kPtrComprCageBaseRegister = s8;

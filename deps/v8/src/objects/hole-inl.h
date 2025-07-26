@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_HOLE_INL_H_
 #define V8_OBJECTS_HOLE_INL_H_
 
+#include "src/objects/hole.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/hole.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-field-inl.h"
@@ -19,20 +21,16 @@
 namespace v8 {
 namespace internal {
 
-TQ_CPP_OBJECT_DEFINITION_ASSERTS(Hole, HeapObject)
-
 OBJECT_CONSTRUCTORS_IMPL(Hole, HeapObject)
-
-CAST_ACCESSOR(Hole)
 
 void Hole::set_raw_numeric_value(uint64_t bits) {
   base::WriteUnalignedValue<uint64_t>(field_address(kRawNumericValueOffset),
                                       bits);
 }
 
-void Hole::Initialize(Isolate* isolate, Handle<Hole> hole,
-                      Handle<HeapNumber> numeric_value) {
-  hole->set_raw_numeric_value(numeric_value->value_as_bits(kRelaxedLoad));
+void Hole::Initialize(Isolate* isolate, DirectHandle<Hole> hole,
+                      DirectHandle<HeapNumber> numeric_value) {
+  hole->set_raw_numeric_value(numeric_value->value_as_bits());
 }
 
 }  // namespace internal

@@ -55,7 +55,8 @@ static bool IsAddressWithinFuncCode(v8::Local<v8::Context> context,
   v8::Local<v8::Value> func =
       context->Global()->Get(context, v8_str(func_name)).ToLocalChecked();
   CHECK(func->IsFunction());
-  Tagged<JSFunction> js_func = JSFunction::cast(*v8::Utils::OpenHandle(*func));
+  Tagged<JSFunction> js_func =
+      Cast<JSFunction>(*v8::Utils::OpenDirectHandle(*func));
   return IsAddressWithinFuncCode(js_func, isolate, addr);
 }
 
@@ -78,7 +79,7 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& info) {
     frame_iterator.Advance();
   }
   i::StackFrame* calling_frame = frame_iterator.frame();
-  CHECK(calling_frame->is_java_script());
+  CHECK(calling_frame->is_javascript());
 
   v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
 #if defined(V8_HOST_ARCH_32_BIT)

@@ -6,6 +6,7 @@
 
 #include "include/v8-exception.h"
 #include "include/v8-local-handle.h"
+#include "include/v8-memory-span.h"
 #include "include/v8-primitive.h"
 #include "include/v8-value.h"
 #include "src/wasm/wasm-module-builder.h"
@@ -90,13 +91,6 @@ DECLARE_EXPORTED_FUNCTION(i64_square, sigs.l_l(),
                                      kExprI64Mul}))
 
 DECLARE_EXPORTED_FUNCTION(externref_null_id, sigs.a_a(),
-                          WASM_CODE({WASM_LOCAL_GET(0)}))
-
-static constexpr ValueType extern_extern_types[] = {kWasmExternRef.AsNonNull(),
-                                                    kWasmExternRef.AsNonNull()};
-static constexpr FunctionSig sig_extern_extern(1, 1, extern_extern_types);
-
-DECLARE_EXPORTED_FUNCTION(externref_id, &sig_extern_extern,
                           WASM_CODE({WASM_LOCAL_GET(0)}))
 
 DECLARE_EXPORTED_FUNCTION(f32_square, sigs.f_f(),
@@ -286,13 +280,15 @@ class FastJSWasmCallTester {
         zone_(&allocator_, ZONE_NAME),
         builder_(zone_.New<WasmModuleBuilder>(&zone_)),
         old_budget_(i::v8_flags.invocation_count_for_turbofan) {
-    i::v8_flags.experimental_wasm_typed_funcref = true;
-    i::v8_flags.experimental_wasm_typed_funcref = true;
+    builder_->AddMemory(16);
     i::v8_flags.allow_natives_syntax = true;
     i::v8_flags.turbo_inline_js_wasm_calls = true;
     i::v8_flags.stress_background_compile = false;
     i::v8_flags.concurrent_osr = false;  // Seems to mess with %ObserveNode.
     i::v8_flags.invocation_count_for_turbofan = 20;
+#ifdef V8_ENABLE_MAGLEV
+    i::v8_flags.maglev = false;
+#endif  // V8_ENABLE_MAGLEV
   }
 
   ~FastJSWasmCallTester() {
@@ -326,13 +322,14 @@ class FastJSWasmCallTester {
   // Executes a test function that returns a value of type T.
   template <typename T>
   void CallAndCheckWasmFunction(const std::string& exported_function_name,
-                                const std::vector<v8::Local<v8::Value>>& args,
+                                v8::MemorySpan<v8::Local<v8::Value>> args,
                                 const T& expected_result,
-                                bool test_lazy_deopt = false) {
+                                bool test_lazy_deopt = false,
+                                bool test_ref_deopt = false) {
     LocalContext env;
 
     v8::Local<v8::Value> result_value = DoCallAndCheckWasmFunction(
-        env, exported_function_name, args, test_lazy_deopt);
+        env, exported_function_name, args, test_lazy_deopt, test_ref_deopt);
 
     CHECK(CheckType<T>(result_value));
     if constexpr (std::is_convertible_v<T, decltype(result_value)>) {
@@ -343,11 +340,20 @@ class FastJSWasmCallTester {
     }
   }
 
+  // Executes a test function that returns an externref.
+  void CallAndCheckWasmGCFunction(const std::string& exported_function_name,
+                                  v8::MemorySpan<v8::Local<v8::Value>> args,
+                                  bool test_lazy_deopt = false) {
+    LocalContext env;
+    v8::Local<v8::Value> result_value = DoCallAndCheckWasmFunction(
+        env, exported_function_name, args, test_lazy_deopt, true);
+    CHECK(result_value->IsObject());
+  }
+
   // Executes a test function that returns NaN.
-  void CallAndCheckWasmFunctionNaN(
-      const std::string& exported_function_name,
-      const std::vector<v8::Local<v8::Value>>& args,
-      bool test_lazy_deopt = false) {
+  void CallAndCheckWasmFunctionNaN(const std::string& exported_function_name,
+                                   v8::MemorySpan<v8::Local<v8::Value>> args,
+                                   bool test_lazy_deopt = false) {
     LocalContext env;
     v8::Local<v8::Value> result_value = DoCallAndCheckWasmFunction(
         env, exported_function_name, args, test_lazy_deopt);
@@ -361,7 +367,7 @@ class FastJSWasmCallTester {
   // Executes a test function that returns a BigInt.
   void CallAndCheckWasmFunctionBigInt(
       const std::string& exported_function_name,
-      const std::vector<v8::Local<v8::Value>>& args,
+      v8::MemorySpan<v8::Local<v8::Value>> args,
       const v8::Local<v8::BigInt> expected_result,
       bool test_lazy_deopt = false) {
     LocalContext env;
@@ -376,7 +382,7 @@ class FastJSWasmCallTester {
 
   // Executes a test function that returns void.
   void CallAndCheckWasmFunction(const std::string& exported_function_name,
-                                const std::vector<v8::Local<v8::Value>>& args,
+                                v8::MemorySpan<v8::Local<v8::Value>> args,
                                 bool test_lazy_deopt = false) {
     LocalContext env;
     v8::Local<v8::Value> result_value = DoCallAndCheckWasmFunction(
@@ -525,7 +531,7 @@ class FastJSWasmCallTester {
   // void.
   void CallAndCheckWithTryCatch_void(
       const std::string& exported_function_name,
-      const std::vector<v8::Local<v8::Value>>& args) {
+      v8::MemorySpan<v8::Local<v8::Value>> args) {
     LocalContext env;
     for (size_t i = 0; i < args.size(); i++) {
       CHECK((*env)
@@ -580,6 +586,13 @@ class FastJSWasmCallTester {
     CHECK_EQ(result_interpreted, result_compiled);
   }
 
+  ModuleTypeIndex DefineArray(ValueType element_type, bool mutability,
+                              ModuleTypeIndex supertype = kNoSuperType,
+                              bool is_final = false) {
+    return builder_->AddArrayType(
+        zone_.New<ArrayType>(element_type, mutability), is_final, supertype);
+  }
+
  private:
   // Convert the code of a Wasm module into a string that represents the content
   // of a JavaScript Uint8Array, that can be loaded with
@@ -605,8 +618,8 @@ class FastJSWasmCallTester {
 
   v8::Local<v8::Value> DoCallAndCheckWasmFunction(
       LocalContext& env, const std::string& exported_function_name,
-      const std::vector<v8::Local<v8::Value>>& args,
-      bool test_lazy_deopt = false) {
+      v8::MemorySpan<v8::Local<v8::Value>> args, bool test_lazy_deopt = false,
+      bool test_ref_deopt = false) {
     for (size_t i = 0; i < args.size(); i++) {
       CHECK((*env)
                 ->Global()
@@ -618,7 +631,8 @@ class FastJSWasmCallTester {
     std::string js_code =
         test_lazy_deopt
             ? GetJSTestCodeWithLazyDeopt(env, WasmModuleAsJSArray(),
-                                         exported_function_name, args.size())
+                                         exported_function_name, args.size(),
+                                         test_ref_deopt)
             : GetJSTestCode(WasmModuleAsJSArray(), exported_function_name,
                             args.size());
     return CompileRunWithJSWasmCallNodeObserver(js_code);
@@ -715,7 +729,8 @@ class FastJSWasmCallTester {
   // function.
   std::string GetJSTestCodeWithLazyDeopt(
       LocalContext& env, const std::string& wasm_module,
-      const std::string& wasm_exported_function_name, size_t arity) {
+      const std::string& wasm_exported_function_name, size_t arity,
+      bool test_ref_deopt) {
     DCHECK_LE(arity, 1);
     bool bigint_arg = false;
     if (arity == 1) {
@@ -753,6 +768,9 @@ class FastJSWasmCallTester {
     code += bigint_arg
                 ? "    result = %ObserveNode(" + wasm_exported_function_name +
                       "(" + js_args + " + BigInt(b))) + BigInt(n);"
+            : test_ref_deopt
+                ? "    result = %ObserveNode(" + wasm_exported_function_name +
+                      "(" + js_args + " + b));"
                 : "    result = %ObserveNode(" + wasm_exported_function_name +
                       "(" + js_args + " + b)) + n;";
     code +=
@@ -800,38 +818,41 @@ TEST(TestFastJSWasmCall_I32Arg) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_i32_square);
-  tester.CallAndCheckWasmFunction<int32_t>("i32_square", {v8_num(42)}, 42 * 42);
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_num(42)});
+  tester.CallAndCheckWasmFunction<int32_t>("i32_square", args, 42 * 42);
 }
 
 TEST(TestFastJSWasmCall_I32ArgNotSmi) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_add);
-  tester.CallAndCheckWasmFunction<int32_t>(
-      "add", {v8_num(0x7fffffff), v8_int(1)}, 0x80000000);
+  auto args =
+      v8::to_array<v8::Local<v8::Value>>({v8_num(0x7fffffff), v8_int(1)});
+  tester.CallAndCheckWasmFunction<int32_t>("add", args, 0x80000000);
 }
 
 TEST(TestFastJSWasmCall_F32Arg) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_f32_square);
-  tester.CallAndCheckWasmFunction<float>("f32_square", {v8_num(42.0)},
-                                         42.0 * 42.0);
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_num(42.0)});
+  tester.CallAndCheckWasmFunction<float>("f32_square", args, 42.0 * 42.0);
 }
 
 TEST(TestFastJSWasmCall_F64Arg) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_f64_square);
-  tester.CallAndCheckWasmFunction<double>("f64_square", {v8_num(42.0)},
-                                          42.0 * 42.0);
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_num(42.0)});
+  tester.CallAndCheckWasmFunction<double>("f64_square", args, 42.0 * 42.0);
 }
 
 TEST(TestFastJSWasmCall_I64Arg) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_i64_square);
-  tester.CallAndCheckWasmFunctionBigInt("i64_square", {v8_bigint(1234567890ll)},
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_bigint(1234567890ll)});
+  tester.CallAndCheckWasmFunctionBigInt("i64_square", args,
                                         v8_bigint(1234567890ll * 1234567890ll));
 }
 
@@ -839,8 +860,9 @@ TEST(TestFastJSWasmCall_I64NegativeResult) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_i64_add);
-  tester.CallAndCheckWasmFunctionBigInt(
-      "i64_add", {v8_bigint(1ll), v8_bigint(-2ll)}, v8_bigint(-1ll));
+  auto args =
+      v8::to_array<v8::Local<v8::Value>>({v8_bigint(1ll), v8_bigint(-2ll)});
+  tester.CallAndCheckWasmFunctionBigInt("i64_add", args, v8_bigint(-1ll));
 }
 
 TEST(TestFastJSWasmCall_ExternrefNullArg) {
@@ -848,43 +870,36 @@ TEST(TestFastJSWasmCall_ExternrefNullArg) {
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_externref_null_id);
   Local<Primitive> v8_null = v8::Null(CcTest::isolate());
-  tester.CallAndCheckWasmFunction("externref_null_id", {v8_null}, nullptr);
-  tester.CallAndCheckWasmFunction("externref_null_id", {v8_num(42)}, 42);
-  tester.CallAndCheckWasmFunctionBigInt("externref_null_id", {v8_bigint(42)},
+  auto args1 = v8::to_array<v8::Local<v8::Value>>({v8_null});
+  tester.CallAndCheckWasmFunction("externref_null_id", args1, nullptr);
+  auto args2 = v8::to_array<v8::Local<v8::Value>>({v8_num(42)});
+  tester.CallAndCheckWasmFunction("externref_null_id", args2, 42);
+  auto args3 = v8::to_array<v8::Local<v8::Value>>({v8_bigint(42)});
+  tester.CallAndCheckWasmFunctionBigInt("externref_null_id", args3,
                                         v8_bigint(42));
   auto str = v8_str("test");
-  tester.CallAndCheckWasmFunction("externref_null_id", {str}, str);
-}
-
-TEST(TestFastJSWasmCall_ExternrefArg) {
-  v8::HandleScope scope(CcTest::isolate());
-  FastJSWasmCallTester tester;
-  tester.AddExportedFunction(k_externref_id);
-  tester.CallAndCheckWasmFunction("externref_id", {v8_num(42)}, 42);
-  tester.CallAndCheckWasmFunctionBigInt("externref_id", {v8_bigint(42)},
-                                        v8_bigint(42));
-  auto str = v8_str("test");
-  tester.CallAndCheckWasmFunction("externref_id", {str}, str);
+  auto args4 = v8::to_array<v8::Local<v8::Value>>({str});
+  tester.CallAndCheckWasmFunction("externref_null_id", args4, str);
 }
 
 TEST(TestFastJSWasmCall_MultipleArgs) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_sum10);
-  tester.CallAndCheckWasmFunction<int32_t>(
-      "sum10",
+  auto args = v8::to_array<v8::Local<v8::Value>>(
       {v8_num(1), v8_num(2), v8_num(3), v8_num(4), v8_num(5), v8_num(6),
-       v8_num(7), v8_num(8), v8_num(9), v8_num(10)},
-      55);
+       v8_num(7), v8_num(8), v8_num(9), v8_num(10)});
+  tester.CallAndCheckWasmFunction<int32_t>("sum10", args, 55);
 }
 
 TEST(TestFastJSWasmCall_MixedArgs) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_sum_mixed);
-  tester.CallAndCheckWasmFunction<double>(
-      "sum_mixed", {v8_num(1), v8_bigint(0x80000000), v8_num(42.0), v8_num(.5)},
-      1 + 0x80000000 + 42 + .5);
+  auto args = v8::to_array<v8::Local<v8::Value>>(
+      {v8_num(1), v8_bigint(0x80000000), v8_num(42.0), v8_num(.5)});
+  tester.CallAndCheckWasmFunction<double>("sum_mixed", args,
+                                          1 + 0x80000000 + 42 + .5);
 }
 
 TEST(TestFastJSWasmCall_MistypedArgs) {
@@ -892,7 +907,8 @@ TEST(TestFastJSWasmCall_MistypedArgs) {
   FastJSWasmCallTester tester;
 
   tester.AddExportedFunction(k_i32_square);
-  tester.CallAndCheckWasmFunction<int32_t>("i32_square", {v8_str("test")}, 0);
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_str("test")});
+  tester.CallAndCheckWasmFunction<int32_t>("i32_square", args, 0);
 }
 
 TEST(TestFastJSWasmCall_MixedMistypedArgs) {
@@ -900,9 +916,10 @@ TEST(TestFastJSWasmCall_MixedMistypedArgs) {
   FastJSWasmCallTester tester;
 
   tester.AddExportedFunction(k_sum_mixed);
-  tester.CallAndCheckWasmFunctionNaN(
-      "sum_mixed", {v8_str("alpha"), v8_bigint(0x80000000), v8_str("beta"),
-                    v8_str("gamma")});
+  auto args = v8::to_array<v8::Local<v8::Value>>(
+      {v8_str("alpha"), v8_bigint(0x80000000), v8_str("beta"),
+       v8_str("gamma")});
+  tester.CallAndCheckWasmFunctionNaN("sum_mixed", args);
 }
 
 TEST(TestFastJSWasmCall_NoArgs) {
@@ -918,7 +935,8 @@ TEST(TestFastJSWasmCall_NoReturnTypes) {
   FastJSWasmCallTester tester;
 
   tester.AddExportedFunction(k_void_square);
-  tester.CallAndCheckWasmFunction("void_square", {v8_num(42)});
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_num(42)});
+  tester.CallAndCheckWasmFunction("void_square", args);
 }
 
 TEST(TestFastJSWasmCall_MismatchedArity) {
@@ -926,21 +944,59 @@ TEST(TestFastJSWasmCall_MismatchedArity) {
   FastJSWasmCallTester tester;
 
   tester.AddExportedFunction(k_sum3);
-  tester.CallAndCheckWasmFunction<int32_t>("sum3", {v8_num(1), v8_num(2)}, 3);
-  tester.CallAndCheckWasmFunction<int32_t>(
-      "sum3",
-      {v8_num(1), v8_num(2), v8_num(3), v8_num(4), v8_num(5), v8_num(6)}, 6);
+  auto args1 = v8::to_array<v8::Local<v8::Value>>({v8_num(1), v8_num(2)});
+  tester.CallAndCheckWasmFunction<int32_t>("sum3", args1, 3);
+  auto args2 = v8::to_array<v8::Local<v8::Value>>(
+      {v8_num(1), v8_num(2), v8_num(3), v8_num(4), v8_num(5), v8_num(6)});
+  tester.CallAndCheckWasmFunction<int32_t>("sum3", args2, 6);
   tester.CallAndCheckWasmFunction<int32_t>("sum3", {}, 0);
 }
 
 // Lazy deoptimization tests
+
+TEST(TestFastJSWasmCall_LazyDeopt_RefResult) {
+  v8::HandleScope scope(CcTest::isolate());
+  FastJSWasmCallTester tester;
+  const ModuleTypeIndex type_index = tester.DefineArray(kWasmI32, true);
+  ValueType kRefType = kWasmExternRef;
+  static const ValueType kTypes[2] = {kRefType, kWasmI32};
+  static FunctionSig sig_q_i(1, 1, kTypes);
+
+  // WasmRef ref_deopt(int32_t i32) {
+  //   static int count = 0;
+  //   if (++count == kDeoptLoopCount) {
+  //      callback(i32);
+  //   }
+  //   return (ExternRef)new WasmArrayNewDefault(type_index, 2);
+  // }
+  DECLARE_EXPORTED_FUNCTION_WITH_LOCALS(
+      ref_deopt, &sig_q_i, {kWasmI32},
+      WASM_CODE(
+          {WASM_STORE_MEM(
+               MachineType::Int32(), WASM_I32V(1032),
+               WASM_LOCAL_TEE(
+                   1, WASM_I32_ADD(
+                          WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V(1032)),
+                          WASM_ONE))),
+           WASM_BLOCK(WASM_BR_IF(0, WASM_I32_NE(WASM_LOCAL_GET(1),
+                                                WASM_I32V(kDeoptLoopCount))),
+                      WASM_CALL_FUNCTION(0, WASM_LOCAL_GET(0)), WASM_DROP),
+           WASM_GC_EXTERN_CONVERT_ANY(
+               WASM_ARRAY_NEW_DEFAULT(type_index, WASM_LOCAL_GET(0)))}))
+
+  tester.DeclareCallback("callback", &sig_q_i, "env");
+  tester.AddExportedFunction(k_ref_deopt);
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_num(42)});
+  { tester.CallAndCheckWasmGCFunction("ref_deopt", args, true); }
+}
 
 TEST(TestFastJSWasmCall_LazyDeopt_I32Result) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.DeclareCallback("callback", sigs.v_d(), "env");
   tester.AddExportedFunction(k_i32_square_deopt);
-  tester.CallAndCheckWasmFunction<int32_t>("i32_square_deopt", {v8_num(42)},
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_num(42)});
+  tester.CallAndCheckWasmFunction<int32_t>("i32_square_deopt", args,
                                            43 * 43 + 1, true);
 }
 
@@ -950,13 +1006,15 @@ TEST(TestFastJSWasmCall_LazyDeopt_I64Result) {
   tester.DeclareCallback("callback", sigs.v_d(), "env");
   tester.AddExportedFunction(k_i64_square_deopt);
 
-  tester.CallAndCheckWasmFunctionBigInt("i64_square_deopt", {v8_bigint(42)},
+  auto args1 = v8::to_array<v8::Local<v8::Value>>({v8_bigint(42)});
+  tester.CallAndCheckWasmFunctionBigInt("i64_square_deopt", args1,
                                         v8_bigint(43 * 43 + 1), true);
 
   // This test would fail if the result was converted into a HeapNumber through
   // a double, losing precision.
+  auto args2 = v8::to_array<v8::Local<v8::Value>>({v8_bigint(1234567890ll)});
   tester.CallAndCheckWasmFunctionBigInt(
-      "i64_square_deopt", {v8_bigint(1234567890ll)},
+      "i64_square_deopt", args2,
       v8_bigint(1524157877488187882ll),  // (1234567890 + 1)*(1234567890 + 1)+1
       true);
 }
@@ -966,8 +1024,9 @@ TEST(TestFastJSWasmCall_LazyDeopt_F32Result) {
   FastJSWasmCallTester tester;
   tester.DeclareCallback("callback", sigs.v_d(), "env");
   tester.AddExportedFunction(k_f32_square_deopt);
-  tester.CallAndCheckWasmFunction<float>("f32_square_deopt", {v8_num(42.0)},
-                                         43 * 43 + 1, true);
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_num(42.0)});
+  tester.CallAndCheckWasmFunction<float>("f32_square_deopt", args, 43 * 43 + 1,
+                                         true);
 }
 
 TEST(TestFastJSWasmCall_LazyDeopt_F64Result) {
@@ -975,8 +1034,9 @@ TEST(TestFastJSWasmCall_LazyDeopt_F64Result) {
   FastJSWasmCallTester tester;
   tester.DeclareCallback("callback", sigs.v_d(), "env");
   tester.AddExportedFunction(k_f64_square_deopt);
-  tester.CallAndCheckWasmFunction<float>("f64_square_deopt", {v8_num(42.0)},
-                                         43 * 43 + 1, true);
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_num(42.0)});
+  tester.CallAndCheckWasmFunction<float>("f64_square_deopt", args, 43 * 43 + 1,
+                                         true);
 }
 
 TEST(TestFastJSWasmCall_LazyDeopt_VoidResult) {
@@ -984,7 +1044,8 @@ TEST(TestFastJSWasmCall_LazyDeopt_VoidResult) {
   FastJSWasmCallTester tester;
   tester.DeclareCallback("callback", sigs.v_d(), "env");
   tester.AddExportedFunction(k_void_square_deopt);
-  tester.CallAndCheckWasmFunction("void_square_deopt", {v8_num(42.0)}, true);
+  auto args = v8::to_array<v8::Local<v8::Value>>({v8_num(42.0)});
+  tester.CallAndCheckWasmFunction("void_square_deopt", args, true);
 }
 
 // Eager deoptimization tests
@@ -1012,36 +1073,37 @@ TEST(TestFastJSWasmCall_Trap_i32) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_load_i32);
-  tester.CallAndCheckWithTryCatch("load_i32", {v8_int(0x7fffffff)});
+  tester.CallAndCheckWithTryCatch("load_i32", v8_int(0x7fffffff));
 }
 
 TEST(TestFastJSWasmCall_Trap_i64) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_load_i64);
-  tester.CallAndCheckWithTryCatch("load_i64", {v8_bigint(0x7fffffff)});
+  tester.CallAndCheckWithTryCatch("load_i64", v8_bigint(0x7fffffff));
 }
 
 TEST(TestFastJSWasmCall_Trap_f32) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_load_f32);
-  tester.CallAndCheckWithTryCatch("load_f32", {v8_num(0x7fffffff)});
+  tester.CallAndCheckWithTryCatch("load_f32", v8_num(0x7fffffff));
 }
 
 TEST(TestFastJSWasmCall_Trap_f64) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_load_f64);
-  tester.CallAndCheckWithTryCatch("load_f64", {v8_num(0x7fffffff)});
+  tester.CallAndCheckWithTryCatch("load_f64", v8_num(0x7fffffff));
 }
 
 TEST(TestFastJSWasmCall_Trap_void) {
   v8::HandleScope scope(CcTest::isolate());
   FastJSWasmCallTester tester;
   tester.AddExportedFunction(k_store_i32);
-  tester.CallAndCheckWithTryCatch_void("store_i32",
-                                       {v8_int(0x7fffffff), v8_int(42)});
+  auto args =
+      v8::to_array<v8::Local<v8::Value>>({v8_int(0x7fffffff), v8_int(42)});
+  tester.CallAndCheckWithTryCatch_void("store_i32", args);
 }
 
 // BigInt

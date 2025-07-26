@@ -5,45 +5,25 @@
 #ifndef V8_HEAP_OBJECT_LOCK_H_
 #define V8_HEAP_OBJECT_LOCK_H_
 
-#include "src/heap/memory-chunk.h"
+#include "src/heap/mutable-page-metadata.h"
 #include "src/objects/heap-object.h"
 
 namespace v8::internal {
 
-class ExclusiveObjectLock final {
+class ObjectLock final {
  public:
-  static void Lock(Tagged<HeapObject> heap_object) {
-    MemoryChunk::FromHeapObject(heap_object)->shared_mutex()->LockExclusive();
-  }
-  static void Unlock(Tagged<HeapObject> heap_object) {
-    MemoryChunk::FromHeapObject(heap_object)->shared_mutex()->UnlockExclusive();
-  }
+  V8_INLINE static void Lock(Tagged<HeapObject> heap_object);
+  V8_INLINE static void Unlock(Tagged<HeapObject> heap_object);
 };
 
-class SharedObjectLock final {
- public:
-  static void Lock(Tagged<HeapObject> heap_object) {
-    MemoryChunk::FromHeapObject(heap_object)->shared_mutex()->LockShared();
-  }
-  static void Unlock(Tagged<HeapObject> heap_object) {
-    MemoryChunk::FromHeapObject(heap_object)->shared_mutex()->UnlockShared();
-  }
-};
-
-template <typename LockType>
 class ObjectLockGuard final {
  public:
-  explicit ObjectLockGuard(Tagged<HeapObject> object) : raw_object_(object) {
-    LockType::Lock(object);
-  }
-  ~ObjectLockGuard() { LockType::Unlock(raw_object_); }
+  V8_INLINE explicit ObjectLockGuard(Tagged<HeapObject> object);
+  V8_INLINE ~ObjectLockGuard();
 
  private:
   Tagged<HeapObject> raw_object_;
 };
-
-using ExclusiveObjectLockGuard = ObjectLockGuard<ExclusiveObjectLock>;
-using SharedObjectLockGuard = ObjectLockGuard<SharedObjectLock>;
 
 }  // namespace v8::internal
 

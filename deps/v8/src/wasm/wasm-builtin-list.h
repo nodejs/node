@@ -14,120 +14,154 @@
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
 namespace v8::internal::wasm {
-// Convenience macro listing all builtins called from wasm. Note that the first
-// few elements of the list coincide with {compiler::TrapId}, order matters.
-#define WASM_BUILTIN_LIST(V, VTRAP)      \
-  FOREACH_WASM_TRAPREASON(VTRAP)         \
-  V(WasmCompileLazy)                     \
-  V(WasmTriggerTierUp)                   \
-  V(WasmLiftoffFrameSetup)               \
-  V(WasmDebugBreak)                      \
-  V(WasmInt32ToHeapNumber)               \
-  V(WasmTaggedNonSmiToInt32)             \
-  V(WasmFloat32ToNumber)                 \
-  V(WasmFloat64ToNumber)                 \
-  V(WasmTaggedToFloat64)                 \
-  V(WasmAllocateJSArray)                 \
-  V(WasmAtomicNotify)                    \
-  V(WasmI32AtomicWait)                   \
-  V(WasmI64AtomicWait)                   \
-  V(WasmGetOwnProperty)                  \
-  V(WasmRefFunc)                         \
-  V(WasmInternalFunctionCreateExternal)  \
-  V(WasmMemoryGrow)                      \
-  V(WasmTableInit)                       \
-  V(WasmTableCopy)                       \
-  V(WasmTableFill)                       \
-  V(WasmTableGrow)                       \
-  V(WasmTableGet)                        \
-  V(WasmTableSet)                        \
-  V(WasmTableGetFuncRef)                 \
-  V(WasmTableSetFuncRef)                 \
-  V(WasmStackGuard)                      \
-  V(WasmStackOverflow)                   \
-  V(WasmAllocateFixedArray)              \
-  V(WasmThrow)                           \
-  V(WasmRethrow)                         \
-  V(WasmRethrowExplicitContext)          \
-  V(WasmTraceEnter)                      \
-  V(WasmTraceExit)                       \
-  V(WasmTraceMemory)                     \
-  V(BigIntToI32Pair)                     \
-  V(BigIntToI64)                         \
-  V(CallRefIC)                           \
-  V(DoubleToI)                           \
-  V(I32PairToBigInt)                     \
-  V(I64ToBigInt)                         \
-  V(RecordWriteSaveFP)                   \
-  V(RecordWriteIgnoreFP)                 \
-  V(ToNumber)                            \
-  V(ThrowDataViewGetInt32DetachedError)  \
-  V(ThrowDataViewGetInt32OutOfBounds)    \
-  V(ThrowDataViewGetInt32TypeError)      \
-  IF_TSAN(V, TSANRelaxedStore8IgnoreFP)  \
-  IF_TSAN(V, TSANRelaxedStore8SaveFP)    \
-  IF_TSAN(V, TSANRelaxedStore16IgnoreFP) \
-  IF_TSAN(V, TSANRelaxedStore16SaveFP)   \
-  IF_TSAN(V, TSANRelaxedStore32IgnoreFP) \
-  IF_TSAN(V, TSANRelaxedStore32SaveFP)   \
-  IF_TSAN(V, TSANRelaxedStore64IgnoreFP) \
-  IF_TSAN(V, TSANRelaxedStore64SaveFP)   \
-  IF_TSAN(V, TSANSeqCstStore8IgnoreFP)   \
-  IF_TSAN(V, TSANSeqCstStore8SaveFP)     \
-  IF_TSAN(V, TSANSeqCstStore16IgnoreFP)  \
-  IF_TSAN(V, TSANSeqCstStore16SaveFP)    \
-  IF_TSAN(V, TSANSeqCstStore32IgnoreFP)  \
-  IF_TSAN(V, TSANSeqCstStore32SaveFP)    \
-  IF_TSAN(V, TSANSeqCstStore64IgnoreFP)  \
-  IF_TSAN(V, TSANSeqCstStore64SaveFP)    \
-  IF_TSAN(V, TSANRelaxedLoad32IgnoreFP)  \
-  IF_TSAN(V, TSANRelaxedLoad32SaveFP)    \
-  IF_TSAN(V, TSANRelaxedLoad64IgnoreFP)  \
-  IF_TSAN(V, TSANRelaxedLoad64SaveFP)    \
-  V(WasmAllocateArray_Uninitialized)     \
-  V(WasmArrayCopy)                       \
-  V(WasmArrayCopyWithChecks)             \
-  V(WasmArrayNewSegment)                 \
-  V(WasmArrayInitSegment)                \
-  V(WasmAllocateStructWithRtt)           \
-  V(WasmOnStackReplace)                  \
-  V(WasmSuspend)                         \
-  V(WasmStringNewWtf8)                   \
-  V(WasmStringNewWtf16)                  \
-  V(WasmStringConst)                     \
-  V(WasmStringMeasureUtf8)               \
-  V(WasmStringMeasureWtf8)               \
-  V(WasmStringEncodeWtf8)                \
-  V(WasmStringEncodeWtf16)               \
-  V(WasmStringConcat)                    \
-  V(WasmStringEqual)                     \
-  V(WasmStringIsUSVSequence)             \
-  V(WasmStringAsWtf16)                   \
-  V(WasmStringViewWtf16GetCodeUnit)      \
-  V(WasmStringCodePointAt)               \
-  V(WasmStringViewWtf16Encode)           \
-  V(WasmStringViewWtf16Slice)            \
-  V(WasmStringNewWtf8Array)              \
-  V(WasmStringNewWtf16Array)             \
-  V(WasmStringEncodeWtf8Array)           \
-  V(WasmStringEncodeWtf16Array)          \
-  V(WasmStringAsWtf8)                    \
-  V(WasmStringViewWtf8Advance)           \
-  V(WasmStringViewWtf8Encode)            \
-  V(WasmStringViewWtf8Slice)             \
-  V(WasmStringAsIter)                    \
-  V(WasmStringViewIterNext)              \
-  V(WasmStringViewIterAdvance)           \
-  V(WasmStringViewIterRewind)            \
-  V(WasmStringViewIterSlice)             \
-  V(StringCompare)                       \
-  V(WasmStringFromCodePoint)             \
-  V(WasmStringHash)                      \
-  V(WasmExternInternalize)               \
-  V(WasmStringFromDataSegment)           \
-  V(StringAdd_CheckNone)                 \
-  V(DebugPrintFloat64)                   \
-  V(DebugPrintWordPtr)
+// Convenience macro listing all builtins called directly from wasm via the far
+// jump table. Note that the first few elements of the list coincide with
+// {compiler::TrapId}, order matters.
+#define WASM_BUILTINS_WITH_JUMP_TABLE_SLOT(V, VTRAP) /*                     */ \
+  FOREACH_WASM_TRAPREASON(VTRAP)                                               \
+  V(WasmCompileLazy)                                                           \
+  V(WasmTriggerTierUp)                                                         \
+  V(WasmLiftoffFrameSetup)                                                     \
+  V(WasmDebugBreak)                                                            \
+  V(WasmInt32ToHeapNumber)                                                     \
+  V(WasmFloat64ToString)                                                       \
+  V(WasmStringToDouble)                                                        \
+  V(WasmIntToString)                                                           \
+  V(WasmTaggedNonSmiToInt32)                                                   \
+  V(WasmFloat32ToNumber)                                                       \
+  V(WasmFloat64ToNumber)                                                       \
+  V(WasmTaggedToFloat64)                                                       \
+  V(WasmAllocateJSArray)                                                       \
+  V(WasmI32AtomicWait)                                                         \
+  V(WasmI64AtomicWait)                                                         \
+  V(WasmGetOwnProperty)                                                        \
+  V(WasmRefFunc)                                                               \
+  V(WasmInternalFunctionCreateExternal)                                        \
+  V(WasmMemoryGrow)                                                            \
+  V(WasmTableInit)                                                             \
+  V(WasmTableCopy)                                                             \
+  V(WasmTableFill)                                                             \
+  V(WasmTableGrow)                                                             \
+  V(WasmTableGet)                                                              \
+  V(WasmTableSet)                                                              \
+  V(WasmTableGetFuncRef)                                                       \
+  V(WasmTableSetFuncRef)                                                       \
+  V(WasmFunctionTableGet)                                                      \
+  V(WasmStackGuard)                                                            \
+  V(WasmGrowableStackGuard)                                                    \
+  V(WasmStackOverflow)                                                         \
+  V(WasmAllocateFixedArray)                                                    \
+  V(WasmThrow)                                                                 \
+  V(WasmRethrow)                                                               \
+  V(WasmThrowRef)                                                              \
+  V(WasmRethrowExplicitContext)                                                \
+  V(WasmHandleStackOverflow)                                                   \
+  V(WasmTraceEnter)                                                            \
+  V(WasmTraceExit)                                                             \
+  V(WasmTraceMemory)                                                           \
+  V(BigIntToI32Pair)                                                           \
+  V(BigIntToI64)                                                               \
+  V(CallRefIC)                                                                 \
+  V(CallIndirectIC)                                                            \
+  V(DoubleToI)                                                                 \
+  V(I32PairToBigInt)                                                           \
+  V(I64ToBigInt)                                                               \
+  V(RecordWriteSaveFP)                                                         \
+  V(RecordWriteIgnoreFP)                                                       \
+  V(ThrowDataViewTypeError)                                                    \
+  V(ThrowDataViewDetachedError)                                                \
+  V(ThrowDataViewOutOfBounds)                                                  \
+  V(ThrowIndexOfCalledOnNull)                                                  \
+  V(ThrowToLowerCaseCalledOnNull)                                              \
+  IF_INTL(V, WasmStringToLowerCaseIntl)                                        \
+  IF_TSAN(V, TSANRelaxedStore8IgnoreFP)                                        \
+  IF_TSAN(V, TSANRelaxedStore8SaveFP)                                          \
+  IF_TSAN(V, TSANRelaxedStore16IgnoreFP)                                       \
+  IF_TSAN(V, TSANRelaxedStore16SaveFP)                                         \
+  IF_TSAN(V, TSANRelaxedStore32IgnoreFP)                                       \
+  IF_TSAN(V, TSANRelaxedStore32SaveFP)                                         \
+  IF_TSAN(V, TSANRelaxedStore64IgnoreFP)                                       \
+  IF_TSAN(V, TSANRelaxedStore64SaveFP)                                         \
+  IF_TSAN(V, TSANSeqCstStore8IgnoreFP)                                         \
+  IF_TSAN(V, TSANSeqCstStore8SaveFP)                                           \
+  IF_TSAN(V, TSANSeqCstStore16IgnoreFP)                                        \
+  IF_TSAN(V, TSANSeqCstStore16SaveFP)                                          \
+  IF_TSAN(V, TSANSeqCstStore32IgnoreFP)                                        \
+  IF_TSAN(V, TSANSeqCstStore32SaveFP)                                          \
+  IF_TSAN(V, TSANSeqCstStore64IgnoreFP)                                        \
+  IF_TSAN(V, TSANSeqCstStore64SaveFP)                                          \
+  IF_TSAN(V, TSANRelaxedLoad32IgnoreFP)                                        \
+  IF_TSAN(V, TSANRelaxedLoad32SaveFP)                                          \
+  IF_TSAN(V, TSANRelaxedLoad64IgnoreFP)                                        \
+  IF_TSAN(V, TSANRelaxedLoad64SaveFP)                                          \
+  V(WasmAllocateArray_Uninitialized)                                           \
+  V(WasmAllocateSharedArray_Uninitialized)                                     \
+  V(WasmArrayCopy)                                                             \
+  V(WasmArrayNewSegment)                                                       \
+  V(WasmArrayInitSegment)                                                      \
+  V(WasmAllocateStructWithRtt)                                                 \
+  V(WasmAllocateDescriptorStruct)                                              \
+  V(WasmAllocateSharedStructWithRtt)                                           \
+  V(WasmOnStackReplace)                                                        \
+  V(WasmReject)                                                                \
+  V(WasmStringNewWtf8)                                                         \
+  V(WasmStringNewWtf16)                                                        \
+  V(WasmStringConst)                                                           \
+  V(WasmStringMeasureUtf8)                                                     \
+  V(WasmStringMeasureWtf8)                                                     \
+  V(WasmStringEncodeWtf8)                                                      \
+  V(WasmStringEncodeWtf16)                                                     \
+  V(WasmStringConcat)                                                          \
+  V(WasmStringEqual)                                                           \
+  V(WasmStringIsUSVSequence)                                                   \
+  V(WasmStringAsWtf16)                                                         \
+  V(WasmStringViewWtf16GetCodeUnit)                                            \
+  V(WasmStringCodePointAt)                                                     \
+  V(WasmStringViewWtf16Encode)                                                 \
+  V(WasmStringViewWtf16Slice)                                                  \
+  V(WasmStringNewWtf8Array)                                                    \
+  V(WasmStringNewWtf16Array)                                                   \
+  V(WasmStringEncodeWtf8Array)                                                 \
+  V(WasmStringToUtf8Array)                                                     \
+  V(WasmStringEncodeWtf16Array)                                                \
+  V(WasmStringAsWtf8)                                                          \
+  V(WasmStringViewWtf8Advance)                                                 \
+  V(WasmStringViewWtf8Encode)                                                  \
+  V(WasmStringViewWtf8Slice)                                                   \
+  V(WasmStringAsIter)                                                          \
+  V(WasmStringViewIterNext)                                                    \
+  V(WasmStringViewIterAdvance)                                                 \
+  V(WasmStringViewIterRewind)                                                  \
+  V(WasmStringViewIterSlice)                                                   \
+  V(WasmStringCompare)                                                         \
+  V(WasmStringIndexOf)                                                         \
+  V(WasmStringFromCodePoint)                                                   \
+  V(WasmStringHash)                                                            \
+  V(WasmAnyConvertExtern)                                                      \
+  V(WasmStringFromDataSegment)                                                 \
+  V(WasmStringAdd_CheckNone)                                                   \
+  V(DebugPrintFloat64)                                                         \
+  V(DebugPrintWordPtr)                                                         \
+  V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
+  V(DeoptimizationEntry_Eager)                                                 \
+  V(WasmLiftoffDeoptFinish)                                                    \
+  V(WasmPropagateException)                                                    \
+  IF_SHADOW_STACK(V, AdaptShadowStackForDeopt)
+
+// Other wasm builtins that are not called via the far jump table, but need the
+// {is_wasm} assembler option for proper stack-switching support.
+#define WASM_BUILTINS_WITHOUT_JUMP_TABLE_SLOT(V) \
+  V(WasmAllocateInYoungGeneration)               \
+  V(WasmAllocateInOldGeneration)                 \
+  V(WasmAllocateInSharedHeap)                    \
+  V(WasmJSStringEqual)                           \
+  V(WasmToJsWrapperInvalidSig)                   \
+  V(WasmTrap)                                    \
+  V(WasmTrapHandlerThrowTrap)
+
+#define WASM_BUILTIN_LIST(V, VTRAP)            \
+  WASM_BUILTINS_WITH_JUMP_TABLE_SLOT(V, VTRAP) \
+  WASM_BUILTINS_WITHOUT_JUMP_TABLE_SLOT(V)
 
 namespace detail {
 constexpr std::array<uint8_t, static_cast<int>(Builtin::kFirstBytecodeHandler)>
@@ -138,7 +172,7 @@ InitBuiltinToFarJumpTableIndex() {
 #define DEF_INIT_LOOKUP(NAME) \
   result[static_cast<int>(Builtin::k##NAME)] = next_index++;
 #define DEF_INIT_LOOKUP_TRAP(NAME) DEF_INIT_LOOKUP(ThrowWasm##NAME)
-  WASM_BUILTIN_LIST(DEF_INIT_LOOKUP, DEF_INIT_LOOKUP_TRAP)
+  WASM_BUILTINS_WITH_JUMP_TABLE_SLOT(DEF_INIT_LOOKUP, DEF_INIT_LOOKUP_TRAP)
 #undef DEF_INIT_LOOKUP_TRAP
 #undef DEF_INIT_LOOKUP
   return result;
@@ -160,10 +194,24 @@ class BuiltinLookup {
 
   static constexpr int BuiltinCount() { return kBuiltinCount; }
 
+  static bool IsWasmBuiltinId(Builtin id) {
+    switch (id) {
+#define BUILTIN_ID(Name) \
+  case Builtin::k##Name: \
+    return true;
+#define BUILTIN_ID_TRAP(Name)     \
+  case Builtin::kThrowWasm##Name: \
+    return true;
+      WASM_BUILTIN_LIST(BUILTIN_ID, BUILTIN_ID_TRAP)
+      default:
+        return false;
+    }
+  }
+
  private:
 #define BUILTIN_COUNTER(NAME) +1
   static constexpr int kBuiltinCount =
-      0 WASM_BUILTIN_LIST(BUILTIN_COUNTER, BUILTIN_COUNTER);
+      0 WASM_BUILTINS_WITH_JUMP_TABLE_SLOT(BUILTIN_COUNTER, BUILTIN_COUNTER);
 #undef BUILTIN_COUNTER
 
   static constexpr auto kFarJumpTableIndexToBuiltin =
@@ -175,7 +223,8 @@ class BuiltinLookup {
   }                           \
   ++next_index;
 #define DEF_INIT_LOOKUP_TRAP(NAME) DEF_INIT_LOOKUP(ThrowWasm##NAME)
-        WASM_BUILTIN_LIST(DEF_INIT_LOOKUP, DEF_INIT_LOOKUP_TRAP)
+        WASM_BUILTINS_WITH_JUMP_TABLE_SLOT(DEF_INIT_LOOKUP,
+                                           DEF_INIT_LOOKUP_TRAP)
 #undef DEF_INIT_LOOKUP_TRAP
 #undef DEF_INIT_LOOKUP
         return Builtin::kNoBuiltinId;
@@ -188,5 +237,7 @@ class BuiltinLookup {
 }  // namespace v8::internal::wasm
 
 #undef WASM_BUILTIN_LIST
+#undef WASM_BUILTINS_WITHOUT_JUMP_TABLE_SLOT
+#undef WASM_BUILTINS_WITH_JUMP_TABLE_SLOT
 
 #endif  // V8_WASM_WASM_BUILTIN_LIST_H_
