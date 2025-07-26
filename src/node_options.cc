@@ -7,6 +7,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_sea.h"
+#include "uv.h"
 #if HAVE_OPENSSL
 #include "openssl/opensslv.h"
 #endif
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cstdint>
 #include <limits>
 #include <sstream>
 #include <string_view>
@@ -107,8 +109,49 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
   per_isolate->CheckOptions(errors, argv);
 }
 
+void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
+    std::vector<std::string>* errors,
+    std::string* max_old_space_size_percentage) {
+  std::string original_input_for_error = *max_old_space_size_percentage;
+  // Parse the percentage value
+  char* end_ptr;
+  double percentage =
+      std::strtod(max_old_space_size_percentage->c_str(), &end_ptr);
+
+  // Validate the percentage value
+  if (*end_ptr != '\0' || percentage <= 0.0 || percentage > 100.0) {
+    errors->push_back("--max-old-space-size-percentage must be greater "
+                      "than 0 and up to 100. Got: " +
+                      original_input_for_error);
+    return;
+  }
+
+  // Get available memory in bytes
+  uint64_t total_memory = uv_get_total_memory();
+  uint64_t constrained_memory = uv_get_constrained_memory();
+
+  // Use constrained memory if available, otherwise use total memory
+  // This logic correctly handles the documented guarantees.
+  // Use uint64_t for the result to prevent data loss on 32-bit systems.
+  uint64_t available_memory =
+      (constrained_memory > 0 && constrained_memory != UINT64_MAX)
+          ? constrained_memory
+          : total_memory;
+
+  // Convert to MB and calculate the percentage
+  uint64_t memory_mb = available_memory / (1024 * 1024);
+  uint64_t calculated_mb = static_cast<size_t>(memory_mb * percentage / 100.0);
+
+  // Convert back to string
+  max_old_space_size = std::to_string(calculated_mb);
+}
+
 void PerIsolateOptions::CheckOptions(std::vector<std::string>* errors,
                                      std::vector<std::string>* argv) {
+  if (!max_old_space_size_percentage.empty()) {
+    HandleMaxOldSpaceSizePercentage(errors, &max_old_space_size_percentage);
+  }
+
   per_env->CheckOptions(errors, argv);
 }
 
@@ -1086,6 +1129,11 @@ PerIsolateOptionsParser::PerIsolateOptionsParser(
             V8Option{},
             kAllowedInEnvvar);
   AddOption("--max-old-space-size", "", V8Option{}, kAllowedInEnvvar);
+  AddOption("--max-old-space-size-percentage",
+            "set V8's max old space size as a percentage of available memory "
+            "(e.g., '50%'). Takes precedence over --max-old-space-size.",
+            &PerIsolateOptions::max_old_space_size_percentage,
+            kAllowedInEnvvar);
   AddOption("--max-semi-space-size", "", V8Option{}, kAllowedInEnvvar);
   AddOption("--perf-basic-prof", "", V8Option{}, kAllowedInEnvvar);
   AddOption(

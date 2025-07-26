@@ -1719,6 +1719,22 @@ changes:
 
 Specify the maximum size, in bytes, of HTTP headers. Defaults to 16 KiB.
 
+### `--max-old-space-size-percentage=PERCENTAGE`
+
+Sets the max memory size of V8's old memory section as a percentage of available system memory.
+This flag takes precedence over `--max-old-space-size` when both are specified.
+
+The `PERCENTAGE` parameter must be a number greater than 0 and up to 100. representing the percentage
+of available system memory to allocate to the V8 heap.
+
+```bash
+# Using 50% of available system memory
+node --max-old-space-size-percentage=50 index.js
+
+# Using 75% of available system memory
+node --max-old-space-size-percentage=75 index.js
+```
+
 ### `--napi-modules`
 
 <!-- YAML
@@ -3435,6 +3451,7 @@ one is included in the list below.
 * `--inspect`
 * `--localstorage-file`
 * `--max-http-header-size`
+* `--max-old-space-size-percentage`
 * `--napi-modules`
 * `--network-family-autoselection-attempt-timeout`
 * `--no-addons`
