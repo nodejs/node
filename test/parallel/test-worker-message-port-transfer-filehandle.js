@@ -86,6 +86,7 @@ const { once } = require('events');
   });
 
   assert.deepStrictEqual(await readPromise, await fs.readFile(__filename));
+  await fh.close();
 })().then(common.mustCall());
 
 (async function() {
