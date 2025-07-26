@@ -80,6 +80,7 @@ class Worker : public AsyncWrap {
   static void LoopStartTime(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetHeapStatistics(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CpuUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   bool CreateEnvMessagePort(Environment* env);
