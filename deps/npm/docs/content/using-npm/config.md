@@ -218,9 +218,9 @@ config is given, this value will always be set to `legacy`.
 * Type: null or Date
 
 If passed to `npm install`, will rebuild the npm tree such that only
-versions that were available **on or before** the `--before` time get
-installed. If there's no versions available for the current set of direct
-dependencies, the command will error.
+versions that were available **on or before** the given date are installed.
+If there are no versions available for the current set of dependencies, the
+command will error.
 
 If the requested version is a `dist-tag` and the given tag does not pass the
 `--before` filter, the most recent version less than or equal to that tag
@@ -245,7 +245,7 @@ systems.
 
 #### `browser`
 
-* Default: OS X: `"open"`, Windows: `"start"`, Others: `"xdg-open"`
+* Default: macOS: `"open"`, Windows: `"start"`, Others: `"xdg-open"`
 * Type: null, Boolean, or String
 
 The browser that is called by npm commands to open websites.
@@ -1245,7 +1245,8 @@ a semver. Like the `rc` in `1.2.0-rc.8`.
 
 #### `progress`
 
-* Default: `true` unless running in a known CI system
+* Default: `true` when not in CI and both stderr and stdout are TTYs and not
+  in a dumb terminal
 * Type: Boolean
 
 When set to `true`, npm will display a progress bar during time intensive
