@@ -79,7 +79,7 @@ session.on('inspectorNotification', (message) => console.log(message.method));
 
 It is also possible to subscribe only to notifications with specific method:
 
-#### Event: `<inspector-protocol-method>`;
+#### Event: `<inspector-protocol-method>`
 
 <!-- YAML
 added: v8.0.0

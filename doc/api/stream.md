@@ -62,9 +62,9 @@ functions for streams that return `Promise` objects rather than using
 callbacks. The API is accessible via `require('node:stream/promises')`
 or `require('node:stream').promises`.
 
-### `stream.pipeline(source[, ...transforms], destination[, options])`
-
 ### `stream.pipeline(streams[, options])`
+
+### `stream.pipeline(source[, ...transforms], destination[, options])`
 
 <!-- YAML
 added: v15.0.0

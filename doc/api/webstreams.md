@@ -807,7 +807,7 @@ queue.
 added: v16.5.0
 -->
 
-* `chunk`: {Buffer|TypedArray|DataView}
+* `chunk` {Buffer|TypedArray|DataView}
 
 Appends a new chunk of data to the {ReadableStream}'s queue.
 
@@ -1077,7 +1077,7 @@ Releases this writer's lock on the underlying {ReadableStream}.
 added: v16.5.0
 -->
 
-* `chunk`: {any}
+* `chunk` {any}
 * Returns: A promise fulfilled with `undefined`.
 
 Appends a new chunk of data to the {WritableStream}'s queue.
