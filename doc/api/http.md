@@ -1937,7 +1937,7 @@ value only affects new connections to the server, not any existing connections.
 <!-- YAML
 added: v8.0.0
 changes:
-  - version: v24.0.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59203
     description: the default value for `http.Server.keepAliveTimeout` is changed from 5 to 65 seconds.
 -->
