@@ -2055,11 +2055,11 @@ changes:
 * Returns: {Object} The parsed command line arguments:
   * `values` {Object} A mapping of parsed option names with their {string}
     or {boolean} values.
+    * `help` {string | undefined} Formatted help text for all options provided. Only included if general `help` text
+      is available.
   * `positionals` {string\[]} Positional arguments.
   * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
     section. Only returned if `config` includes `tokens: true`.
-  * `printUsage` {string | undefined} Formatted help text for all options provided. Only included if general `help` text
-    is available.
 
 Provides a higher level API for command-line argument parsing than interacting
 with `process.argv` directly. Takes a specification for the expected arguments
@@ -2109,7 +2109,7 @@ console.log(values, positionals);
 
 `parseArgs` supports automatic formatted help text generation for command-line options. To use this feature, provide
 general help text using the `help` config property, and also
-add a `help` property to each option can be optionally included.
+a `help` property to each option can be optionally included.
 
 ```mjs
 import { parseArgs } from 'node:util';
