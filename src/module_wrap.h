@@ -59,6 +59,9 @@ struct ModuleCacheKey : public MemoryRetainer {
   SET_SELF_SIZE(ModuleCacheKey)
   void MemoryInfo(MemoryTracker* tracker) const override;
 
+  // Returns a string representation of the ModuleCacheKey.
+  std::string ToString() const;
+
   template <int elements_per_attribute = 3>
   static ModuleCacheKey From(v8::Local<v8::Context> context,
                              v8::Local<v8::String> specifier,
