@@ -1082,7 +1082,7 @@ test('help value for option must be a string', () => {
   );
 });
 
-test('when help arg with help value for lone short option is added, then add help text', () => {
+test('when option has short and long flags, then both appear in usage', () => {
   const args = ['-f', 'bar'];
   const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
   const help = 'Description for some awesome stuff:';
