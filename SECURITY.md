@@ -114,7 +114,8 @@ does not trust is considered a vulnerability:
   * The API doesn't have a warning against its usage in a production environment.
   * The API is public and documented.
   * The API is on stable (2.0) status.
-  * The memory leak is significant, causing a DoS fast or in a user-uncontrolled space (for instance, on HTTP parsing).
+  * The memory leak is significant enough to cause a denial of service quickly
+    or in a context not controlled by the user (for example, HTTP parsing).
   * The memory leak is directly exploitable by an untrusted source without requiring application mistakes.
   * The leak cannot be reasonably mitigated through standard operational practices (like process recycling).
   * The leak occurs deterministically under normal usage patterns rather than edge cases.
@@ -140,7 +141,7 @@ Vulnerabilities related to this case may be fixed by a documentation update.
 * The data received from the remote end of outbound network connections
   that are created through the use of Node.js APIs and
   which is transformed/validated by Node.js before being passed
-  to the application EXCEPT with respect to payload length. Node.js trusts
+  to the application **except** with respect to payload length. Node.js trusts
   that applications make connections/requests which will avoid payload
   sizes that will result in a Denial of Service.
   * HTTP APIs (all flavors) client APIs.
@@ -161,9 +162,9 @@ then untrusted input must not lead to arbitrary JavaScript code execution.
 
 **Node.js trusts everything else**. Examples include:
 
-* The developers and infrastructure that runs it.
+* The developers and infrastructure that run it.
 * The operating system that Node.js is running under and its configuration,
-  along with anything under control of the operating system.
+  along with anything under the control of the operating system.
 * The code it is asked to run, including JavaScript, WASM and native code, even
   if said code is dynamically loaded, e.g., all dependencies installed from the
   npm registry.
@@ -199,12 +200,12 @@ the community they pose.
 
 * Node.js provides APIs to validate handling of Subject Alternative Names (SANs)
   in certificates used to connect to a TLS/SSL endpoint. If certificates can be
-  crafted which result in incorrect validation by the Node.js APIs that is
+  crafted that result in incorrect validation by the Node.js APIs that is
   considered a vulnerability.
 
 #### Inconsistent Interpretation of HTTP Requests (CWE-444)
 
-* Node.js provides APIs to accept http connections. Those APIs parse the
+* Node.js provides APIs to accept HTTP connections. Those APIs parse the
   headers received for a connection and pass them on to the application.
   Bugs in parsing those headers which can result in request smuggling are
   considered vulnerabilities.
@@ -217,9 +218,9 @@ the community they pose.
 
 #### External Control of System or Configuration Setting (CWE-15)
 
-* If Node.js automatically loads a configuration file which is not documented
+* If Node.js automatically loads a configuration file that is not documented
   and modification of that configuration can affect the confidentiality of
-  data protected using the Node.js APIs this is considered a vulnerability.
+  data protected using the Node.js APIs, then this is considered a vulnerability.
 
 ### Examples of non-vulnerabilities
 
@@ -242,7 +243,7 @@ the community they pose.
 
 #### External Control of System or Configuration Setting (CWE-15)
 
-* If Node.js automatically loads a configuration file which is documented
+* If Node.js automatically loads a configuration file that is documented,
   no scenario that requires modification of that configuration file is
   considered a vulnerability.
 
@@ -262,9 +263,9 @@ the community they pose.
 
 ## Assessing experimental features reports
 
-Experimental features are eligible to reports as any other stable feature of
-Node.js. They will also be susceptible to receiving the same severity score
-as any other stable feature.
+Experimental features are eligible for security reports just like any other
+stable feature of Node.js. They may also receive the same severity score that a
+stable feature would.
 
 ## Receiving security updates
 
