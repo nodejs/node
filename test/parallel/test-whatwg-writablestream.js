@@ -50,7 +50,7 @@ class Sink {
 }
 
 {
-  const stream = new WritableStream();
+  const stream = new WritableStream({ write(chunk) { } });
 
   assert(stream[kState].controller instanceof WritableStreamDefaultController);
   assert(!stream.locked);
@@ -67,35 +67,38 @@ class Sink {
 });
 
 ['a', false, 1].forEach((strategy) => {
-  assert.throws(() => new WritableStream({}, strategy), {
+  assert.throws(() => new WritableStream({write(chunk) { }}, strategy), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
 });
 
 [1, false, ''].forEach((type) => {
-  assert.throws(() => new WritableStream({ type }), {
+  assert.throws(() => new WritableStream({write(chunk) { }, type }), {
     code: 'ERR_INVALID_ARG_VALUE',
   });
 });
 
 ['a', {}].forEach((highWaterMark) => {
-  assert.throws(() => new WritableStream({}, { highWaterMark }), {
+  assert.throws(() => new WritableStream({write(chunk) { }}, { highWaterMark }), {
     code: 'ERR_INVALID_ARG_VALUE',
   });
 });
 
 ['a', false, {}].forEach((size) => {
-  assert.throws(() => new WritableStream({}, { size }), {
+  assert.throws(() => new WritableStream({write(chunk) { }}, { size }), {
     code: 'ERR_INVALID_ARG_TYPE',
   });
 });
 
 {
-  new WritableStream({});
-  new WritableStream([]);
-  new WritableStream({}, null);
-  new WritableStream({}, {});
-  new WritableStream({}, []);
+  new WritableStream({write(chunk) { }});
+  new WritableStream({write(chunk) { }}, null);
+  new WritableStream({write(chunk) { }}, {});
+  new WritableStream({write(chunk) { }}, []);
+  assert.throws(() => new WritableStream([]), {
+    name: 'TypeError',
+    message: /WritableStream sink must implement a write\(\) method/
+  });
 }
 
 {
@@ -228,7 +231,8 @@ class Sink {
 {
   let controller;
   const writable = new WritableStream({
-    start(c) { controller = c; }
+    start(c) { controller = c; },
+    write() {}
   });
   assert.strictEqual(
     inspect(writable),

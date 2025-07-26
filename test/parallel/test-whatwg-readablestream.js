@@ -1507,7 +1507,7 @@ class Source {
   assert.rejects(
     readableStreamPipeTo(
       new ReadableStream(),
-      new WritableStream(),
+      new WritableStream({ write(chunk) { } }),
       false,
       false,
       false,

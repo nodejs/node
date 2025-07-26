@@ -589,7 +589,7 @@ const theData = 'hello';
     name: 'DataCloneError',
   });
 
-  const writable = new WritableStream();
+  const writable = new WritableStream({ write(chunk) { } });
   writable.getWriter();
   assert.throws(() => writable[kTransfer](), {
     code: 25,

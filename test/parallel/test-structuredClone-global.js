@@ -58,7 +58,7 @@ for (const Transferrable of [File, Blob]) {
 {
   const value = {
     a: new ReadableStream(),
-    b: new WritableStream(),
+    b: new WritableStream({ write(chunk) {} }),
   };
   const cloned = structuredClone(value, {
     transfer: {

@@ -8,7 +8,7 @@ const { ok } = require('node:assert');
 // exit immediately)
 
 const rs1 = new ReadableStream();
-const ws1 = new WritableStream();
+const ws1 = new WritableStream({ write(chunk) { } });
 
 const [rs2, ws2] = structuredClone([rs1, ws1], { transfer: [rs1, ws1] });
 

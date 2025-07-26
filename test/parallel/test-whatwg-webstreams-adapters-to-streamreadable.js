@@ -57,7 +57,7 @@ class MySource {
   assert.rejects(readableStream.cancel(), {
     code: 'ERR_INVALID_STATE',
   }).then(common.mustCall());
-  assert.rejects(readableStream.pipeTo(new WritableStream()), {
+  assert.rejects(readableStream.pipeTo(new WritableStream({ write(chunk) { } })), {
     code: 'ERR_INVALID_STATE',
   }).then(common.mustCall());
   assert.throws(() => readableStream.tee(), {
@@ -69,7 +69,7 @@ class MySource {
   assert.throws(() => {
     readableStream.pipeThrough({
       readable: new ReadableStream(),
-      writable: new WritableStream(),
+      writable: new WritableStream({ write(chunk) { } }),
     });
   }, {
     code: 'ERR_INVALID_STATE',

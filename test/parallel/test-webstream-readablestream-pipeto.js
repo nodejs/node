@@ -10,7 +10,7 @@ const { AbortError } = require('internal/errors');
 
 for (const message of [undefined, 'abc']) {
   const rs = new ReadableStream();
-  const ws = new WritableStream();
+  const ws = new WritableStream({ write(chunk) { } });
   const ac = new AbortController();
   const reason = new AbortError(message);
   ac.abort(reason);
