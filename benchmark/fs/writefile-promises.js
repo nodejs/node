@@ -39,8 +39,17 @@ function main({ encodingType, duration, concurrent, size }) {
   let writes = 0;
   let waitConcurrent = 0;
 
-  const startedAt = Date.now();
-  const endAt = startedAt + (duration * 1000);
+  let startedAt = Date.now();
+  let endAt = startedAt + duration * 1000;
+
+  // fs warmup
+  for (let i = 0; i < concurrent; i++) write();
+
+  writes = 0;
+  waitConcurrent = 0;
+
+  startedAt = Date.now();
+  endAt = startedAt + duration * 1000;
 
   bench.start();
 
@@ -59,7 +68,8 @@ function main({ encodingType, duration, concurrent, size }) {
   }
 
   function write() {
-    fs.promises.writeFile(`${filename}-${filesWritten++}`, chunk, encoding)
+    fs.promises
+      .writeFile(`${filename}-${filesWritten++}`, chunk, encoding)
       .then(() => afterWrite())
       .catch((err) => afterWrite(err));
   }
@@ -72,7 +82,7 @@ function main({ encodingType, duration, concurrent, size }) {
     writes++;
     const benchEnded = Date.now() >= endAt;
 
-    if (benchEnded && (++waitConcurrent) === concurrent) {
+    if (benchEnded && ++waitConcurrent === concurrent) {
       stop();
     } else if (!benchEnded) {
       write();
