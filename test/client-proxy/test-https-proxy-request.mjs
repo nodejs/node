@@ -92,8 +92,6 @@ if (!common.isWindows) {
     https_proxy: `http://localhost:${proxy.address().port}`,
     HTTPS_PROXY: `http://localhost:${proxy2.address().port}`,
     NODE_EXTRA_CA_CERTS: fixtures.path('keys', 'fake-startcom-root-cert.pem'),
-  }, {
-    stdout: 'Hello world',
   });
   assert.deepStrictEqual(logs, expectedLogs);
   assert.strictEqual(stderr.trim(), '');

@@ -2999,6 +2999,21 @@ environment variables.
 
 See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 
+### `--use-env-proxy`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
+environment variables during startup, and tunnels requests over the
+specified proxy.
+
+This is equivalent to setting the [`NODE_USE_ENV_PROXY=1`][] environment variable.
+When both are set, `--use-env-proxy` takes precedence.
+
 ### `--use-largepages=mode`
 
 <!-- YAML
@@ -3498,6 +3513,7 @@ one is included in the list below.
 * `--track-heap-objects`
 * `--unhandled-rejections`
 * `--use-bundled-ca`
+* `--use-env-proxy`
 * `--use-largepages`
 * `--use-openssl-ca`
 * `--use-system-ca`
@@ -3653,8 +3669,8 @@ When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
 environment variables during startup, and tunnels requests over the
 specified proxy.
 
-This currently only affects requests sent over `fetch()`. Support for other
-built-in `http` and `https` methods is under way.
+This can also be enabled using the [`--use-env-proxy`][] command-line flag.
+When both are set, `--use-env-proxy` takes precedence.
 
 ### `NODE_V8_COVERAGE=dir`
 
@@ -3984,12 +4000,14 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--print`]: #-p---print-script
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--require`]: #-r---require-module
+[`--use-env-proxy`]: #--use-env-proxy
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`NODE_OPTIONS`]: #node_optionsoptions
+[`NODE_USE_ENV_PROXY=1`]: #node_use_env_proxy1
 [`NO_COLOR`]: https://no-color.org
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328

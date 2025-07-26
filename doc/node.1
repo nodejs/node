@@ -603,6 +603,9 @@ See
 and
 .Ev SSL_CERT_FILE .
 .
+.It Fl -use-env-proxy
+Parse proxy settings from HTTP_PROXY/HTTPS_PROXY/NO_PROXY environment variables and apply the setting in global HTTP/HTTPS clients.
+.
 .It Fl -use-largepages Ns = Ns Ar mode
 Re-map the Node.js static code to large memory pages at startup. If supported on
 the target system, this will cause the Node.js static code to be moved onto 2
