@@ -1084,11 +1084,11 @@ test('help value for option must be a string', () => {
 
 test('when option has help text values but help arg value is not provided, then no help value appear', () => {
   const args = ['-f', 'bar'];
-  const options = { foo: { type: 'string', short: 'f', help: 'help text'} };
-  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: []};
+  const options = { foo: { type: 'string', short: 'f', help: 'help text' } };
+  const expected = { values: { __proto__: null, foo: 'bar' }, positionals: [] };
   const result = parseArgs({ args, options, allowPositionals: true });
   assert.deepStrictEqual(result, expected);
-})
+});
 
 test('when option has short and long flags, then both appear in usage', () => {
   const args = ['-f', 'bar'];
