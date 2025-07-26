@@ -48,7 +48,7 @@ const test_sharedarraybuffer = require(`./build/${common.buildType}/test_shareda
 // Test data pointer from existing SharedArrayBuffer
 {
   const sab = new SharedArrayBuffer(16);
-  const result = test_sharedarraybuffer.TestSharedArrayBufferFromExisting(sab);
+  const result = test_sharedarraybuffer.TestSharedArrayBufferData(sab);
   assert.strictEqual(result, true);
 }
 
