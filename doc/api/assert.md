@@ -149,6 +149,8 @@ added: v0.1.21
   * `operator` {string} The `operator` property on the error instance.
   * `stackStartFn` {Function} If provided, the generated stack trace omits
     frames before this function.
+  * `diff` {string} If set to `'full'`, shows the full diff in assertion errors. Defaults to `'simple'`.
+    Accepted values: `'simple'`, `'full'`.
 
 A subclass of {Error} that indicates the failure of an assertion.
 
@@ -214,6 +216,51 @@ try {
   assert.strictEqual(err.generatedMessage, true);
 }
 ```
+
+## Class: `assert.Assert`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `Assert` class allows creating independent assertion instances with custom options.
+
+### `new assert.Assert([options])`
+
+* `options` {Object}
+  * `diff` {string} If set to `'full'`, shows the full diff in assertion errors. Defaults to `'simple'`.
+    Accepted values: `'simple'`, `'full'`.
+  * `strict` {boolean} If set to `true`, non-strict methods behave like their
+    corresponding strict methods. Defaults to `true`.
+
+Creates a new assertion instance. The `diff` option controls the verbosity of diffs in assertion error messages.
+
+```js
+const { Assert } = require('node:assert');
+const assertInstance = new Assert({ diff: 'full' });
+assertInstance.deepStrictEqual({ a: 1 }, { a: 2 });
+// Shows a full diff in the error message.
+```
+
+**Important**: When destructuring assertion methods from an `Assert` instance,
+the methods lose their connection to the instance's configuration options (such as `diff` and `strict` settings).
+The destructured methods will fall back to default behavior instead.
+
+```js
+const myAssert = new Assert({ diff: 'full' });
+
+// This works as expected - uses 'full' diff
+myAssert.strictEqual({ a: 1 }, { b: { c: 1 } });
+
+// This loses the 'full' diff setting - falls back to default 'simple' diff
+const { strictEqual } = myAssert;
+strictEqual({ a: 1 }, { b: { c: 1 } });
+```
+
+When destructured, methods lose access to the instance's `this` context and revert to default assertion behavior
+(diff: 'simple', non-strict mode).
+To maintain custom options when using destructured methods, avoid
+destructuring and call methods directly on the instance.
 
 ## `assert(value[, message])`
 
