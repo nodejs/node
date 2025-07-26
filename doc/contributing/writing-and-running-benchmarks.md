@@ -523,6 +523,14 @@ The arguments of `createBenchmark` are:
   Each configuration is a property with an array of possible values.
   The configuration values can only be strings or numbers.
 * `options` {Object} The benchmark options. Supported options:
+  * `setup` {Function} A function to be run once by the main "controller"
+    process before any benchmark child processes are spawned. Ideal for
+    preparing the environment for the entire benchmark suite.
+
+  * `teardown` {Function} A function to be run once by the main "controller"
+    process after all benchmark child processes have completed. Ideal for
+    cleaning up the environment.
+
   * `flags` {Array} Contains node-specific command line flags to pass to
     the child process.
 
@@ -585,6 +593,13 @@ const configs = {
 const options = {
   // Add --expose-internals in order to require internal modules in main
   flags: ['--zero-fill-buffers'],
+  // Setup and teardown functions are run in the parent process, once.
+  setup() {
+    console.log('Running setup.');
+  },
+  teardown() {
+    console.log('Running teardown.');
+  },
 };
 
 // `main` and `configs` are required, `options` is optional.
