@@ -4059,6 +4059,10 @@ This property refers to the value of underlying file descriptor of
 `process.stderr`. The value is fixed at `2`. In [`Worker`][] threads,
 this field does not exist.
 
+## `process.startTraceSigInt`
+
+Prints a stack trace on `SIGINT`.
+
 ## `process.stdin`
 
 * Type: {Stream}
@@ -4167,6 +4171,10 @@ false
 ```
 
 See the [TTY][] documentation for more information.
+
+## `process.stopTraceSigInt`
+
+Stop Printing a stack trace on `SIGINT`.
 
 ## `process.throwDeprecation`
 
