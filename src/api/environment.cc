@@ -414,6 +414,25 @@ Environment* CreateEnvironment(
     EnvironmentFlags::Flags flags,
     ThreadId thread_id,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
+  return CreateEnvironment(isolate_data,
+                           context,
+                           args,
+                           exec_args,
+                           flags,
+                           thread_id,
+                           std::move(inspector_parent_handle),
+                           {});
+}
+
+Environment* CreateEnvironment(
+    IsolateData* isolate_data,
+    Local<Context> context,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    EnvironmentFlags::Flags flags,
+    ThreadId thread_id,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
+    std::string_view thread_name) {
   Isolate* isolate = isolate_data->isolate();
 
   Isolate::Scope isolate_scope(isolate);
@@ -434,7 +453,8 @@ Environment* CreateEnvironment(
                                      exec_args,
                                      env_snapshot_info,
                                      flags,
-                                     thread_id);
+                                     thread_id,
+                                     thread_name);
   CHECK_NOT_NULL(env);
 
   if (use_snapshot) {
