@@ -241,6 +241,7 @@ class EnvironmentOptions : public Options {
   bool force_repl = false;
 
   bool insecure_http_parser = false;
+  bool use_env_proxy = false;
 
   bool tls_min_v1_0 = false;
   bool tls_min_v1_1 = false;

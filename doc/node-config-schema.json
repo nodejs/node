@@ -538,6 +538,9 @@
         "use-bundled-ca": {
           "type": "boolean"
         },
+        "use-env-proxy": {
+          "type": "boolean"
+        },
         "use-largepages": {
           "type": "string"
         },

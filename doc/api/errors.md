@@ -2499,7 +2499,7 @@ Failed to proxy a request because the proxy configuration is invalid.
 
 ### `ERR_PROXY_TUNNEL`
 
-Failed to establish proxy tunnel when `NODE_USE_ENV_PROXY` is enabled.
+Failed to establish proxy tunnel when `NODE_USE_ENV_PROXY` or `--use-env-proxy` is enabled.
 
 <a id="ERR_QUIC_APPLICATION_ERROR"></a>
 
