@@ -448,10 +448,12 @@ function cleanup (data) {
   }
 
   const keys = Object.keys(data)
+
   if (keys.length <= 3 && data.name && (
     (keys.length === 1) ||
     (keys.length === 3 && data.email && data.url) ||
-    (keys.length === 2 && (data.email || data.url))
+    (keys.length === 2 && (data.email || data.url)) ||
+    data.trustedPublisher
   )) {
     data = unparsePerson(data)
   }

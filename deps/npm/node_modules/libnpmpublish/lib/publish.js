@@ -205,7 +205,7 @@ const ensureProvenanceGeneration = async (registry, spec, opts) => {
   if (opts.access !== 'public') {
     try {
       const res = await npmFetch
-        .json(`${registry}/-/package/${spec.escapedName}/visibility`, opts)
+        .json(`/-/package/${spec.escapedName}/visibility`, { ...opts, registry })
       visibility = res
     } catch (err) {
       if (err.code !== 'E404') {
