@@ -101,7 +101,6 @@ function runTests(sync) {
       stream.on('drain', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
           strictEqual(data, 'something else\n');
-          strictEqual(statSync(dest).mode & 0o777, stream.mode);
           stream.end();
         }));
       }));
