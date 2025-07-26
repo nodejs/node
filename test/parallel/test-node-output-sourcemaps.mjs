@@ -27,6 +27,7 @@ describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () =>
     { name: 'source-map/output/source_map_sourcemapping_url_string.js' },
     { name: 'source-map/output/source_map_throw_async_stack_trace.mjs' },
     { name: 'source-map/output/source_map_throw_catch.js' },
+    { name: 'source-map/output/source_map_throw_class_method.js' },
     { name: 'source-map/output/source_map_throw_construct.mjs' },
     { name: 'source-map/output/source_map_throw_first_tick.js' },
     { name: 'source-map/output/source_map_throw_icu.js' },

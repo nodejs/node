@@ -1,0 +1,6 @@
+Trace: This is a test
+    at Foo.bar (*/test/fixtures/source-map/throw-class-method.js:3:13)
+    at Object.<anonymous> (*/test/fixtures/source-map/throw-class-method.js:11:5)
+Trace: This is a test
+    at Bar.bar (*/test/fixtures/source-map/throw-class-method.js:3:13)
+    at Object.<anonymous> (*/test/fixtures/source-map/throw-class-method.js:13:5)
