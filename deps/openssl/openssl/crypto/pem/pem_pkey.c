@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -334,7 +334,7 @@ PEM_write_cb_fnsig(PrivateKey, EVP_PKEY, BIO, write_bio)
 
 /*
  * Note: there is no way to tell a provided pkey encoder to use "traditional"
- * encoding.  Therefore, if the pkey is provided, we try to take a copy 
+ * encoding.  Therefore, if the pkey is provided, we try to take a copy
  */
 int PEM_write_bio_PrivateKey_traditional(BIO *bp, const EVP_PKEY *x,
                                          const EVP_CIPHER *enc,

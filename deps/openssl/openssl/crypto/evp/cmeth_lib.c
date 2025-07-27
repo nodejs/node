@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -46,10 +46,10 @@ EVP_CIPHER *EVP_CIPHER_meth_dup(const EVP_CIPHER *cipher)
 
     if ((to = EVP_CIPHER_meth_new(cipher->nid, cipher->block_size,
                                   cipher->key_len)) != NULL) {
-        CRYPTO_RWLOCK *lock = to->lock;
+        CRYPTO_REF_COUNT refcnt = to->refcnt;
 
         memcpy(to, cipher, sizeof(*to));
-        to->lock = lock;
+        to->refcnt = refcnt;
         to->origin = EVP_ORIG_METH;
     }
     return to;

@@ -10,6 +10,7 @@
 #include <openssl/core_dispatch.h>
 #include "bio_local.h"
 #include "internal/cryptlib.h"
+#include "crypto/context.h"
 
 typedef struct {
     OSSL_FUNC_BIO_read_ex_fn *c_bio_read_ex;
@@ -21,26 +22,19 @@ typedef struct {
     OSSL_FUNC_BIO_free_fn *c_bio_free;
 } BIO_CORE_GLOBALS;
 
-static void bio_core_globals_free(void *vbcg)
+void ossl_bio_core_globals_free(void *vbcg)
 {
     OPENSSL_free(vbcg);
 }
 
-static void *bio_core_globals_new(OSSL_LIB_CTX *ctx)
+void *ossl_bio_core_globals_new(OSSL_LIB_CTX *ctx)
 {
     return OPENSSL_zalloc(sizeof(BIO_CORE_GLOBALS));
 }
 
-static const OSSL_LIB_CTX_METHOD bio_core_globals_method = {
-    OSSL_LIB_CTX_METHOD_DEFAULT_PRIORITY,
-    bio_core_globals_new,
-    bio_core_globals_free,
-};
-
 static ossl_inline BIO_CORE_GLOBALS *get_globals(OSSL_LIB_CTX *libctx)
 {
-    return ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_BIO_CORE_INDEX,
-                                 &bio_core_globals_method);
+    return ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_BIO_CORE_INDEX);
 }
 
 static int bio_core_read_ex(BIO *bio, char *data, size_t data_len,

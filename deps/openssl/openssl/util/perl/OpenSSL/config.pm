@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1998-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1998-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -92,7 +92,8 @@ my $guess_patterns = [
     [ 'IRIX64:.*',                  'mips4-sgi-irix64' ],
     [ 'Linux:[2-9]\..*',            '${MACHINE}-whatever-linux2' ],
     [ 'Linux:1\..*',                '${MACHINE}-whatever-linux1' ],
-    [ 'GNU.*',                      'hurd-x86' ],
+    [ 'GNU:.*86-AT386',             'hurd-x86' ],
+    [ 'GNU:.*86_64-AT386',          'hurd-x86_64' ],
     [ 'LynxOS:.*',                  '${MACHINE}-lynx-lynxos' ],
     # BSD/OS always says 386
     [ 'BSD\/OS:4\..*',              'i486-whatever-bsdi4' ],
@@ -513,7 +514,7 @@ EOF
             if ( $ISA64 == 1 && $KERNEL_BITS eq '' ) {
                 print <<EOF;
 WARNING! To build 64-bit package, do this:
-         KERNEL_BITS=64 $WHERE/Configure \[\[ options \]\]
+         KERNEL_BITS=64 $WHERE/Configure [options...]
 EOF
                 maybe_abort();
             }
@@ -537,7 +538,7 @@ EOF
 
             print <<EOF;
 WARNING! To build 32-bit package, do this:
-         KERNEL_BITS=32 $WHERE/Configure \[\[ options \]\]
+         KERNEL_BITS=32 $WHERE/Configure [options...]
 EOF
             maybe_abort();
             return { target => "darwin64-x86_64" };
@@ -683,6 +684,17 @@ EOF
                                     defines => [ 'B_ENDIAN' ] } ],
       [ 'sh.*-.*-linux2',         { target => "linux-generic32",
                                     defines => [ 'L_ENDIAN' ] } ],
+      [ 'loongarch64-.*-linux2',
+        sub {
+            my $disable = [ 'asm' ];
+            if ( okrun('echo xvadd.w \$xr0,\$xr0,\$xr0',
+                       "$CC -c -x assembler - -o /dev/null 2>/dev/null") ) {
+                $disable = [];
+            }
+            return { target => "linux64-loongarch64",
+                     disable => $disable, };
+        }
+      ],
       [ 'm68k.*-.*-linux2',       { target => "linux-generic32",
                                     defines => [ 'B_ENDIAN' ] } ],
       [ 's390-.*-linux2',         { target => "linux-generic32",
@@ -787,14 +799,19 @@ EOF
                                     disable => [ 'sse2' ] } ],
       [ 'alpha.*-.*-.*bsd.*',     { target => "BSD-generic64",
                                     defines => [ 'L_ENDIAN' ] } ],
-      [ 'powerpc64-.*-.*bsd.*',   { target => "BSD-generic64",
-                                    defines => [ 'B_ENDIAN' ] } ],
+      [ 'powerpc-.*-.*bsd.*',     { target => "BSD-ppc" } ],
+      [ 'powerpc64-.*-.*bsd.*',   { target => "BSD-ppc64" } ],
+      [ 'powerpc64le-.*-.*bsd.*', { target => "BSD-ppc64le" } ],
       [ 'riscv64-.*-.*bsd.*',     { target => "BSD-riscv64" } ],
       [ 'sparc64-.*-.*bsd.*',     { target => "BSD-sparc64" } ],
+      [ 'ia64-.*-openbsd.*',      { target => "BSD-nodef-ia64" } ],
       [ 'ia64-.*-.*bsd.*',        { target => "BSD-ia64" } ],
       [ 'x86_64-.*-dragonfly.*',  { target => "BSD-x86_64" } ],
+      [ 'amd64-.*-openbsd.*',     { target => "BSD-nodef-x86_64" } ],
       [ 'amd64-.*-.*bsd.*',       { target => "BSD-x86_64" } ],
       [ 'arm64-.*-.*bsd.*',       { target => "BSD-aarch64" } ],
+      [ 'armv6-.*-.*bsd.*',       { target => "BSD-armv4" } ],
+      [ 'armv7-.*-.*bsd.*',       { target => "BSD-armv4" } ],
       [ '.*86.*-.*-.*bsd.*',
         sub {
             # mimic ld behaviour when it's looking for libc...
@@ -812,6 +829,7 @@ EOF
                      disable => [ 'sse2' ] };
         }
       ],
+      [ '.*-.*-openbsd.*',        { target => "BSD-nodef-generic32" } ],
       [ '.*-.*-.*bsd.*',          { target => "BSD-generic32" } ],
       [ 'x86_64-.*-haiku',        { target => "haiku-x86_64" } ],
       [ '.*-.*-haiku',            { target => "haiku-x86" } ],
@@ -841,6 +859,7 @@ EOF
                                     cflags => [ '-march=armv7-a' ],
                                     cxxflags => [ '-march=armv7-a' ] } ],
       [ 'arm.*-.*-android',       { target => "android-armeabi" } ],
+      [ 'riscv64-.*-android',     { target => "android-riscv64" } ],
       [ '.*-hpux1.*',
         sub {
             my $KERNEL_BITS = $ENV{KERNEL_BITS};

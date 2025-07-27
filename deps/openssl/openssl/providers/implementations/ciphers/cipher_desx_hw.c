@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -67,8 +67,7 @@ static int cipher_hw_desx_cbc(PROV_CIPHER_CTX *ctx, unsigned char *out,
     return 1;
 }
 
-static const PROV_CIPHER_HW desx_cbc =
-{
+static const PROV_CIPHER_HW desx_cbc = {
     cipher_hw_desx_cbc_initkey,
     cipher_hw_desx_cbc,
     cipher_hw_desx_copyctx

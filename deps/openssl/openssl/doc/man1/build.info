@@ -44,6 +44,7 @@ DEPEND[openssl-rsa.pod]=../perlvars.pm
 DEPEND[openssl-rsautl.pod]=../perlvars.pm
 DEPEND[openssl-s_client.pod]=../perlvars.pm
 DEPEND[openssl-sess_id.pod]=../perlvars.pm
+DEPEND[openssl-skeyutl.pod]=../perlvars.pm
 DEPEND[openssl-smime.pod]=../perlvars.pm
 DEPEND[openssl-speed.pod]=../perlvars.pm
 DEPEND[openssl-spkac.pod]=../perlvars.pm

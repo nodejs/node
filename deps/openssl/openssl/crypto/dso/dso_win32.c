@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "dso_local.h"
 
 #if defined(DSO_WIN32)
@@ -110,10 +110,8 @@ static int win32_load(DSO *dso)
         goto err;
     }
     p = OPENSSL_malloc(sizeof(*p));
-    if (p == NULL) {
-        ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+    if (p == NULL)
         goto err;
-    }
     *p = h;
     if (!sk_void_push(dso->meth_data, p)) {
         ERR_raise(ERR_LIB_DSO, DSO_R_STACK_ERROR);
@@ -214,10 +212,8 @@ static struct file_st *win32_splitter(DSO *dso, const char *filename,
     }
 
     result = OPENSSL_zalloc(sizeof(*result));
-    if (result == NULL) {
-        ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+    if (result == NULL)
         return NULL;
-    }
 
     position = IN_DEVICE;
 
@@ -333,10 +329,8 @@ static char *win32_joiner(DSO *dso, const struct file_st *file_split)
     }
 
     result = OPENSSL_malloc(len + 1);
-    if (result == NULL) {
-        ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+    if (result == NULL)
         return NULL;
-    }
 
     if (file_split->node) {
         strcpy(&result[offset], "\\\\");
@@ -399,25 +393,21 @@ static char *win32_merger(DSO *dso, const char *filespec1,
     }
     if (!filespec2) {
         merged = OPENSSL_strdup(filespec1);
-        if (merged == NULL) {
-            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+        if (merged == NULL)
             return NULL;
-        }
     } else if (!filespec1) {
         merged = OPENSSL_strdup(filespec2);
-        if (merged == NULL) {
-            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+        if (merged == NULL)
             return NULL;
-        }
     } else {
         filespec1_split = win32_splitter(dso, filespec1, 0);
         if (!filespec1_split) {
-            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_DSO, ERR_R_DSO_LIB);
             return NULL;
         }
         filespec2_split = win32_splitter(dso, filespec2, 1);
         if (!filespec2_split) {
-            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_DSO, ERR_R_DSO_LIB);
             OPENSSL_free(filespec1_split);
             return NULL;
         }

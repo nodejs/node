@@ -212,6 +212,8 @@ const char *X509_verify_cert_error_string(long n)
         return "Using cert extension requires at least X509v3";
     case X509_V_ERR_EC_KEY_EXPLICIT_PARAMS:
         return "Certificate public key has explicit ECC parameters";
+    case X509_V_ERR_RPK_UNTRUSTED:
+        return "Raw public key untrusted, no trusted keys configured";
 
         /*
          * Entries must be kept consistent with include/openssl/x509_vfy.h.in

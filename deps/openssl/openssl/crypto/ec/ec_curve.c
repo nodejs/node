@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -383,7 +383,7 @@ static const struct {
 
 static const struct {
     EC_CURVE_DATA h;
-    unsigned char data[20 + 32 * 6];
+    unsigned char data[20 + 32 * 8];
 } _EC_X9_62_PRIME_256V1 = {
     {
         NID_X9_62_prime_field, 20, 32, 1
@@ -415,7 +415,15 @@ static const struct {
         /* order */
         0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
         0xFF, 0xFF, 0xFF, 0xFF, 0xBC, 0xE6, 0xFA, 0xAD, 0xA7, 0x17, 0x9E, 0x84,
-        0xF3, 0xB9, 0xCA, 0xC2, 0xFC, 0x63, 0x25, 0x51
+        0xF3, 0xB9, 0xCA, 0xC2, 0xFC, 0x63, 0x25, 0x51,
+        /* RR for prime */
+        0x00, 0x00, 0x00, 0x04, 0xff, 0xff, 0xff, 0xfd, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0xfb, 0xff, 0xff, 0xff, 0xff,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+        /* RR for order */
+        0x66, 0xe1, 0x2d, 0x94, 0xf3, 0xd9, 0x56, 0x20, 0x28, 0x45, 0xb2, 0x39,
+        0x2b, 0x6b, 0xec, 0x59, 0x46, 0x99, 0x79, 0x9c, 0x49, 0xbd, 0x6f, 0xa6,
+        0x83, 0x24, 0x4c, 0x95, 0xbe, 0x79, 0xee, 0xa2
     }
 };
 
@@ -2838,6 +2846,8 @@ static const ec_list_element curve_list[] = {
     {NID_secp384r1, &_EC_NIST_PRIME_384.h,
 # if defined(S390X_EC_ASM)
      EC_GFp_s390x_nistp384_method,
+# elif !defined(OPENSSL_NO_EC_NISTP_64_GCC_128)
+     ossl_ec_GFp_nistp384_method,
 # else
      0,
 # endif
@@ -2931,6 +2941,8 @@ static const ec_list_element curve_list[] = {
     {NID_secp384r1, &_EC_NIST_PRIME_384.h,
 # if defined(S390X_EC_ASM)
      EC_GFp_s390x_nistp384_method,
+# elif !defined(OPENSSL_NO_EC_NISTP_64_GCC_128)
+     ossl_ec_GFp_nistp384_method,
 # else
      0,
 # endif
@@ -3107,8 +3119,13 @@ static const ec_list_element curve_list[] = {
      "RFC 5639 curve over a 512 bit prime field"},
     {NID_brainpoolP512t1, &_EC_brainpoolP512t1.h, 0,
      "RFC 5639 curve over a 512 bit prime field"},
-# ifndef OPENSSL_NO_SM2
-    {NID_sm2, &_EC_sm2p256v1.h, 0,
+#ifndef OPENSSL_NO_SM2
+    {NID_sm2, &_EC_sm2p256v1.h,
+# ifdef ECP_SM2P256_ASM
+     EC_GFp_sm2p256_method,
+# else
+     0,
+# endif
      "SM2 curve over a 256 bit prime field"},
 # endif
 };
@@ -3151,7 +3168,7 @@ static EC_GROUP *ec_group_new_from_data(OSSL_LIB_CTX *libctx,
                                     curve.meth != NULL ? curve.meth() : NULL);
 
     if ((ctx = BN_CTX_new_ex(libctx)) == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
         goto err;
     }
 
@@ -3159,6 +3176,24 @@ static EC_GROUP *ec_group_new_from_data(OSSL_LIB_CTX *libctx,
     seed_len = data->seed_len;
     param_len = data->param_len;
     params = (const unsigned char *)(data + 1); /* skip header */
+
+    if (curve.meth != NULL) {
+        meth = curve.meth();
+        if ((group = ossl_ec_group_new_ex(libctx, propq, meth)) == NULL) {
+            ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
+            goto err;
+        }
+        if (group->meth->group_full_init != NULL) {
+            if (!group->meth->group_full_init(group, params)){
+                ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
+                goto err;
+            }
+            EC_GROUP_set_curve_name(group, curve.nid);
+            BN_CTX_free(ctx);
+            return group;
+        }
+    }
+
     params += seed_len;         /* skip seed */
 
     if ((p = BN_bin2bn(params + 0 * param_len, param_len, NULL)) == NULL
@@ -3168,10 +3203,8 @@ static EC_GROUP *ec_group_new_from_data(OSSL_LIB_CTX *libctx,
         goto err;
     }
 
-    if (curve.meth != 0) {
-        meth = curve.meth();
-        if (((group = ossl_ec_group_new_ex(libctx, propq, meth)) == NULL) ||
-            (!(group->meth->group_set_curve(group, p, a, b, ctx)))) {
+    if (group != NULL) {
+        if (group->meth->group_set_curve(group, p, a, b, ctx) == 0) {
             ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
             goto err;
         }
