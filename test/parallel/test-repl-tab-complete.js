@@ -44,7 +44,7 @@ function prepareREPL() {
   });
 
   // Some errors are passed to the domain, but do not callback
-  replServer._domain.on('error', assert.ifError);
+  replServer._completeDomain.on('error', assert.ifError);
 
   return { replServer, input };
 }
