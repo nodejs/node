@@ -392,7 +392,7 @@ RC4_options:
 .byte	111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	64
 .size	RC4_options,.-.L_RC4_options_begin
-.comm	OPENSSL_ia32cap_P,16,4
+.comm	OPENSSL_ia32cap_P,40,4
 
 	.section ".note.gnu.property", "a"
 	.p2align 2

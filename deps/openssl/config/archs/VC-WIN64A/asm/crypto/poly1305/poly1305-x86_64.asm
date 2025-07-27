@@ -76,6 +76,7 @@ $L$SEH_begin_poly1305_blocks:
 
 
 
+DB	243,15,30,250
 $L$blocks:
 	shr	rdx,4
 	jz	NEAR $L$no_data
@@ -196,6 +197,7 @@ $L$SEH_begin_poly1305_emit:
 
 
 
+DB	243,15,30,250
 $L$emit:
 	mov	r8,QWORD[rdi]
 	mov	r9,QWORD[8+rdi]
@@ -444,6 +446,7 @@ $L$SEH_begin_poly1305_blocks_avx:
 
 
 
+DB	243,15,30,250
 	mov	r8d,DWORD[20+rdi]
 	cmp	rdx,128
 	jae	NEAR $L$blocks_avx
@@ -1300,6 +1303,7 @@ $L$SEH_begin_poly1305_emit_avx:
 
 
 
+DB	243,15,30,250
 	cmp	DWORD[20+rdi],0
 	je	NEAR $L$emit
 
@@ -1368,6 +1372,7 @@ $L$SEH_begin_poly1305_blocks_avx2:
 
 
 
+DB	243,15,30,250
 	mov	r8d,DWORD[20+rdi]
 	cmp	rdx,128
 	jae	NEAR $L$blocks_avx2
@@ -2040,6 +2045,7 @@ $L$SEH_begin_poly1305_blocks_avx512:
 
 
 
+DB	243,15,30,250
 $L$blocks_avx512:
 	mov	eax,15
 	kmovw	k2,eax
@@ -2600,6 +2606,7 @@ $L$do_avx512_epilogue:
 	DB	0F3h,0C3h		;repret
 
 $L$SEH_end_poly1305_blocks_avx512:
+section	.rdata rdata align=64
 ALIGN	64
 $L$const:
 $L$mask24:
@@ -2631,6 +2638,7 @@ $L$x_mask44:
 $L$x_mask42:
 	DQ	0x3ffffffffff,0x3ffffffffff,0x3ffffffffff,0x3ffffffffff
 	DQ	0x3ffffffffff,0x3ffffffffff,0x3ffffffffff,0x3ffffffffff
+section .text
 DB	80,111,108,121,49,51,48,53,32,102,111,114,32,120,56,54
 DB	95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32
 DB	98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115
