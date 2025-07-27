@@ -1730,6 +1730,7 @@ _rsaz_avx2_eligible:
 	.byte	0xf3,0xc3
 
 
+.section	__DATA,__const
 .p2align	6
 L$and_mask:
 .quad	0x1fffffff,0x1fffffff,0x1fffffff,0x1fffffff
@@ -1741,4 +1742,5 @@ L$inc:
 .long	0,0,0,0, 1,1,1,1
 .long	2,2,2,2, 3,3,3,3
 .long	4,4,4,4, 4,4,4,4
+.text
 .p2align	6
