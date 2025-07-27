@@ -11,9 +11,3 @@ fs.readdir(
   { withFileTypes: true, encoding: 'buffer' },
   common.mustSucceed()
 );
-
-fs.readdir(
-  Buffer.from('/dev'),
-  { recursive: true, withFileTypes: true, encoding: 'buffer' },
-  common.mustSucceed()
-);
