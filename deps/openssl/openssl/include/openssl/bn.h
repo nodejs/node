@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -241,12 +241,18 @@ void BN_clear_free(BIGNUM *a);
 BIGNUM *BN_copy(BIGNUM *a, const BIGNUM *b);
 void BN_swap(BIGNUM *a, BIGNUM *b);
 BIGNUM *BN_bin2bn(const unsigned char *s, int len, BIGNUM *ret);
+BIGNUM *BN_signed_bin2bn(const unsigned char *s, int len, BIGNUM *ret);
 int BN_bn2bin(const BIGNUM *a, unsigned char *to);
 int BN_bn2binpad(const BIGNUM *a, unsigned char *to, int tolen);
+int BN_signed_bn2bin(const BIGNUM *a, unsigned char *to, int tolen);
 BIGNUM *BN_lebin2bn(const unsigned char *s, int len, BIGNUM *ret);
+BIGNUM *BN_signed_lebin2bn(const unsigned char *s, int len, BIGNUM *ret);
 int BN_bn2lebinpad(const BIGNUM *a, unsigned char *to, int tolen);
+int BN_signed_bn2lebin(const BIGNUM *a, unsigned char *to, int tolen);
 BIGNUM *BN_native2bn(const unsigned char *s, int len, BIGNUM *ret);
+BIGNUM *BN_signed_native2bn(const unsigned char *s, int len, BIGNUM *ret);
 int BN_bn2nativepad(const BIGNUM *a, unsigned char *to, int tolen);
+int BN_signed_bn2native(const BIGNUM *a, unsigned char *to, int tolen);
 BIGNUM *BN_mpi2bn(const unsigned char *s, int len, BIGNUM *ret);
 int BN_bn2mpi(const BIGNUM *a, unsigned char *to);
 int BN_sub(BIGNUM *r, const BIGNUM *a, const BIGNUM *b);
@@ -344,6 +350,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
 int BN_kronecker(const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx); /* returns
                                                                   * -2 for
                                                                   * error */
+int BN_are_coprime(BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
 BIGNUM *BN_mod_inverse(BIGNUM *ret,
                        const BIGNUM *a, const BIGNUM *n, BN_CTX *ctx);
 BIGNUM *BN_mod_sqrt(BIGNUM *ret,

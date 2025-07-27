@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -174,9 +174,9 @@ sub ::vprotd
 
 sub ::endbranch
 {
-    &::generic("%ifdef __CET__\n");
+    &::generic("#ifdef __CET__\n");
     &::data_byte(0xf3,0x0f,0x1e,0xfb);
-    &::generic("%endif\n");
+    &::generic("#endif\n");
 }
 
 # label management

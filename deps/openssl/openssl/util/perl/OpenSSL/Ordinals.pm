@@ -414,6 +414,8 @@ sub _parse_features {
         my $def = $';
 
         if ($def =~ m{^ZLIB$})                      { $features{$&} =  $op; }
+        if ($def =~ m{^BROTLI$})                    { $features{$&} =  $op; }
+        if ($def =~ m{^ZSTD$})                      { $features{$&} =  $op; }
         if ($def =~ m{^OPENSSL_USE_})               { $features{$'} =  $op; }
         if ($def =~ m{^OPENSSL_NO_})                { $features{$'} = !$op; }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -198,7 +198,7 @@ static int siphash_set_params(void *vmacctx, const OSSL_PARAM *params)
     const OSSL_PARAM *p = NULL;
     size_t size;
 
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_SIZE)) != NULL) {
@@ -233,5 +233,5 @@ const OSSL_DISPATCH ossl_siphash_functions[] = {
     { OSSL_FUNC_MAC_SETTABLE_CTX_PARAMS,
       (void (*)(void))siphash_settable_ctx_params },
     { OSSL_FUNC_MAC_SET_CTX_PARAMS, (void (*)(void))siphash_set_params },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -24,34 +24,41 @@ int X509_CRL_set_version(X509_CRL *x, long version)
         if ((x->crl.version = ASN1_INTEGER_new()) == NULL)
             return 0;
     }
-    return ASN1_INTEGER_set(x->crl.version, version);
+    if (!ASN1_INTEGER_set(x->crl.version, version))
+        return 0;
+    x->crl.enc.modified = 1;
+    return 1;
 }
 
 int X509_CRL_set_issuer_name(X509_CRL *x, const X509_NAME *name)
 {
     if (x == NULL)
         return 0;
-    return X509_NAME_set(&x->crl.issuer, name);
+    if (!X509_NAME_set(&x->crl.issuer, name))
+        return 0;
+    x->crl.enc.modified = 1;
+    return 1;
 }
 
 int X509_CRL_set1_lastUpdate(X509_CRL *x, const ASN1_TIME *tm)
 {
-    if (x == NULL)
+    if (x == NULL || tm == NULL)
         return 0;
-    return ossl_x509_set1_time(&x->crl.lastUpdate, tm);
+    return ossl_x509_set1_time(&x->crl.enc.modified, &x->crl.lastUpdate, tm);
 }
 
 int X509_CRL_set1_nextUpdate(X509_CRL *x, const ASN1_TIME *tm)
 {
     if (x == NULL)
         return 0;
-    return ossl_x509_set1_time(&x->crl.nextUpdate, tm);
+    return ossl_x509_set1_time(&x->crl.enc.modified, &x->crl.nextUpdate, tm);
 }
 
 int X509_CRL_sort(X509_CRL *c)
 {
     int i;
     X509_REVOKED *r;
+
     /*
      * sort the data so it will be written in serial number order
      */
@@ -68,12 +75,12 @@ int X509_CRL_up_ref(X509_CRL *crl)
 {
     int i;
 
-    if (CRYPTO_UP_REF(&crl->references, &i, crl->lock) <= 0)
+    if (CRYPTO_UP_REF(&crl->references, &i) <= 0)
         return 0;
 
-    REF_PRINT_COUNT("X509_CRL", crl);
+    REF_PRINT_COUNT("X509_CRL", i, crl);
     REF_ASSERT_ISNT(i < 2);
-    return ((i > 1) ? 1 : 0);
+    return i > 1;
 }
 
 long X509_CRL_get_version(const X509_CRL *crl)
@@ -139,19 +146,9 @@ const ASN1_TIME *X509_REVOKED_get0_revocationDate(const X509_REVOKED *x)
 
 int X509_REVOKED_set_revocationDate(X509_REVOKED *x, ASN1_TIME *tm)
 {
-    ASN1_TIME *in;
-
-    if (x == NULL)
+    if (x == NULL || tm == NULL)
         return 0;
-    in = x->revocationDate;
-    if (in != tm) {
-        in = ASN1_STRING_dup(tm);
-        if (in != NULL) {
-            ASN1_TIME_free(x->revocationDate);
-            x->revocationDate = in;
-        }
-    }
-    return (in != NULL);
+    return ossl_x509_set1_time(NULL, &x->revocationDate, tm);
 }
 
 const ASN1_INTEGER *X509_REVOKED_get0_serialNumber(const X509_REVOKED *x)
@@ -171,7 +168,8 @@ int X509_REVOKED_set_serialNumber(X509_REVOKED *x, ASN1_INTEGER *serial)
     return 1;
 }
 
-const STACK_OF(X509_EXTENSION) *X509_REVOKED_get0_extensions(const X509_REVOKED *r)
+const STACK_OF(X509_EXTENSION) *X509_REVOKED_get0_extensions(const
+                                                             X509_REVOKED *r)
 {
     return r->extensions;
 }

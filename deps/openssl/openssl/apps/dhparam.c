@@ -31,13 +31,14 @@
 #define DEFBITS 2048
 
 static EVP_PKEY *dsa_to_dh(EVP_PKEY *dh);
-static int gendh_cb(EVP_PKEY_CTX *ctx);
+
+static int verbose = 1;
 
 typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT,
     OPT_ENGINE, OPT_CHECK, OPT_TEXT, OPT_NOOUT,
-    OPT_DSAPARAM, OPT_2, OPT_3, OPT_5,
+    OPT_DSAPARAM, OPT_2, OPT_3, OPT_5, OPT_VERBOSE, OPT_QUIET,
     OPT_R_ENUM, OPT_PROV_ENUM
 } OPTION_CHOICE;
 
@@ -67,6 +68,8 @@ const OPTIONS dhparam_options[] = {
     {"2", OPT_2, '-', "Generate parameters using 2 as the generator value"},
     {"3", OPT_3, '-', "Generate parameters using 3 as the generator value"},
     {"5", OPT_5, '-', "Generate parameters using 5 as the generator value"},
+    {"verbose", OPT_VERBOSE, '-', "Verbose output"},
+    {"quiet", OPT_QUIET, '-', "Terse output"},
 
     OPT_R_OPTIONS,
     OPT_PROV_OPTIONS,
@@ -138,6 +141,12 @@ int dhparam_main(int argc, char **argv)
         case OPT_NOOUT:
             noout = 1;
             break;
+        case OPT_VERBOSE:
+            verbose = 1;
+            break;
+        case OPT_QUIET:
+            verbose = 0;
+            break;
         case OPT_R_CASES:
             if (!opt_rand(o))
                 goto end;
@@ -155,7 +164,7 @@ int dhparam_main(int argc, char **argv)
     if (argc == 1) {
         if (!opt_int(argv[0], &num) || num <= 0)
             goto opthelp;
-    } else if (argc != 0) {
+    } else if (!opt_check_rest_arg(NULL)) {
         goto opthelp;
     }
     if (!app_RAND_load())
@@ -169,10 +178,6 @@ int dhparam_main(int argc, char **argv)
                    "Error, generator may not be chosen for DSA parameters\n");
         goto end;
     }
-
-    out = bio_open_default(outfile, 'w', outformat);
-    if (out == NULL)
-        goto end;
 
     /* DH parameters */
     if (num && !g)
@@ -192,11 +197,13 @@ int dhparam_main(int argc, char **argv)
                         alg);
             goto end;
         }
-        EVP_PKEY_CTX_set_cb(ctx, gendh_cb);
         EVP_PKEY_CTX_set_app_data(ctx, bio_err);
-        BIO_printf(bio_err,
-                    "Generating %s parameters, %d bit long %sprime\n",
-                    alg, num, dsaparam ? "" : "safe ");
+        if (verbose) {
+            EVP_PKEY_CTX_set_cb(ctx, progress_cb);
+            BIO_printf(bio_err,
+                        "Generating %s parameters, %d bit long %sprime\n",
+                        alg, num, dsaparam ? "" : "safe ");
+        }
 
         if (EVP_PKEY_paramgen_init(ctx) <= 0) {
             BIO_printf(bio_err,
@@ -274,7 +281,7 @@ int dhparam_main(int argc, char **argv)
                 * because, unlike PEM, there is no header to declare what
                 * the contents of the DER file are. The decoders just try
                 * and guess. Unfortunately with DHX key types they may guess
-                * wrong and think we have a DSA keytype. Therefore we try
+                * wrong and think we have a DSA keytype. Therefore, we try
                 * both DH and DHX sequentially.
                 */
                 keytype = "DHX";
@@ -310,6 +317,10 @@ int dhparam_main(int argc, char **argv)
             tmppkey = NULL;
         }
     }
+
+    out = bio_open_default(outfile, 'w', outformat);
+    if (out == NULL)
+        goto end;
 
     if (text)
         EVP_PKEY_print_params(out, pkey, 4, NULL);
@@ -356,7 +367,7 @@ int dhparam_main(int argc, char **argv)
 }
 
 /*
- * Historically we had the low level call DSA_dup_DH() to do this.
+ * Historically we had the low-level call DSA_dup_DH() to do this.
  * That is now deprecated with no replacement. Since we still need to do this
  * for backwards compatibility reasons, we do it "manually".
  */
@@ -405,14 +416,3 @@ static EVP_PKEY *dsa_to_dh(EVP_PKEY *dh)
     return pkey;
 }
 
-static int gendh_cb(EVP_PKEY_CTX *ctx)
-{
-    int p = EVP_PKEY_CTX_get_keygen_info(ctx, 0);
-    BIO *b = EVP_PKEY_CTX_get_app_data(ctx);
-    static const char symbols[] = ".+*\n";
-    char c = (p >= 0 && (size_t)p < sizeof(symbols) - 1) ? symbols[p] : '?';
-
-    BIO_write(b, &c, 1);
-    (void)BIO_flush(b);
-    return 1;
-}

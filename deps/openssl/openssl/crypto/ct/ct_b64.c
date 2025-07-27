@@ -34,10 +34,8 @@ static int ct_base64_decode(const char *in, unsigned char **out)
 
     outlen = (inlen / 4) * 3;
     outbuf = OPENSSL_malloc(outlen);
-    if (outbuf == NULL) {
-        ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
+    if (outbuf == NULL)
         goto err;
-    }
 
     outlen = EVP_DecodeBlock(outbuf, (unsigned char *)in, inlen);
     if (outlen < 0) {
@@ -71,7 +69,7 @@ SCT *SCT_new_from_base64(unsigned char version, const char *logid_base64,
     int declen;
 
     if (sct == NULL) {
-        ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CT, ERR_R_CT_LIB);
         return NULL;
     }
 

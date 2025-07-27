@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,8 +16,6 @@ TS_VERIFY_CTX *TS_VERIFY_CTX_new(void)
 {
     TS_VERIFY_CTX *ctx = OPENSSL_zalloc(sizeof(*ctx));
 
-    if (ctx == NULL)
-        ERR_raise(ERR_LIB_TS, ERR_R_MALLOC_FAILURE);
     return ctx;
 }
 
@@ -48,25 +46,53 @@ int TS_VERIFY_CTX_set_flags(TS_VERIFY_CTX *ctx, int f)
     return ctx->flags;
 }
 
+#ifndef OPENSSL_NO_DEPRECATED_3_4
 BIO *TS_VERIFY_CTX_set_data(TS_VERIFY_CTX *ctx, BIO *b)
 {
     ctx->data = b;
     return ctx->data;
 }
+#endif
 
+int TS_VERIFY_CTX_set0_data(TS_VERIFY_CTX *ctx, BIO *b)
+{
+    BIO_free_all(ctx->data);
+    ctx->data = b;
+    return 1;
+}
+
+#ifndef OPENSSL_NO_DEPRECATED_3_4
 X509_STORE *TS_VERIFY_CTX_set_store(TS_VERIFY_CTX *ctx, X509_STORE *s)
 {
     ctx->store = s;
     return ctx->store;
 }
+#endif
 
+int TS_VERIFY_CTX_set0_store(TS_VERIFY_CTX *ctx, X509_STORE *s)
+{
+    X509_STORE_free(ctx->store);
+    ctx->store = s;
+    return 1;
+}
+
+#ifndef OPENSSL_NO_DEPRECATED_3_4
 STACK_OF(X509) *TS_VERIFY_CTX_set_certs(TS_VERIFY_CTX *ctx,
                                         STACK_OF(X509) *certs)
 {
     ctx->certs = certs;
     return ctx->certs;
 }
+#endif
 
+int TS_VERIFY_CTX_set0_certs(TS_VERIFY_CTX *ctx, STACK_OF(X509) *certs)
+{
+    OSSL_STACK_OF_X509_free(ctx->certs);
+    ctx->certs = certs;
+    return 1;
+}
+
+#ifndef OPENSSL_NO_DEPRECATED_3_4
 unsigned char *TS_VERIFY_CTX_set_imprint(TS_VERIFY_CTX *ctx,
                                          unsigned char *hexstr, long len)
 {
@@ -75,6 +101,16 @@ unsigned char *TS_VERIFY_CTX_set_imprint(TS_VERIFY_CTX *ctx,
     ctx->imprint_len = len;
     return ctx->imprint;
 }
+#endif
+
+int TS_VERIFY_CTX_set0_imprint(TS_VERIFY_CTX *ctx,
+                              unsigned char *hexstr, long len)
+{
+    OPENSSL_free(ctx->imprint);
+    ctx->imprint = hexstr;
+    ctx->imprint_len = len;
+    return 1;
+}
 
 void TS_VERIFY_CTX_cleanup(TS_VERIFY_CTX *ctx)
 {
@@ -82,7 +118,7 @@ void TS_VERIFY_CTX_cleanup(TS_VERIFY_CTX *ctx)
         return;
 
     X509_STORE_free(ctx->store);
-    sk_X509_pop_free(ctx->certs, X509_free);
+    OSSL_STACK_OF_X509_free(ctx->certs);
 
     ASN1_OBJECT_free(ctx->policy);
 

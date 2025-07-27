@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,13 +9,12 @@
 
 #define idea_mul(r,a,b,ul) \
 ul=(unsigned long)a*b; \
-if (ul != 0) \
-        { \
+if (ul != 0) { \
         r=(ul&0xffff)-(ul>>16); \
         r-=((r)>>16); \
-        } \
-else \
-        r=(-(int)a-b+1);        /* assuming a or b is 0 and in range */
+} else { \
+        r=(-(int)a-b+1);        /* assuming a or b is 0 and in range */ \
+}
 
 /* NOTE - c is not incremented as per n2l */
 #define n2ln(c,l1,l2,n) { \
@@ -23,19 +22,19 @@ else \
                         l1=l2=0; \
                         switch (n) { \
                         case 8: l2 =((unsigned long)(*(--(c))))    ; \
-                        /* fall thru */                              \
+                        /* fall through */                              \
                         case 7: l2|=((unsigned long)(*(--(c))))<< 8; \
-                        /* fall thru */                              \
+                        /* fall through */                              \
                         case 6: l2|=((unsigned long)(*(--(c))))<<16; \
-                        /* fall thru */                              \
+                        /* fall through */                              \
                         case 5: l2|=((unsigned long)(*(--(c))))<<24; \
-                        /* fall thru */                              \
+                        /* fall through */                              \
                         case 4: l1 =((unsigned long)(*(--(c))))    ; \
-                        /* fall thru */                              \
+                        /* fall through */                              \
                         case 3: l1|=((unsigned long)(*(--(c))))<< 8; \
-                        /* fall thru */                              \
+                        /* fall through */                              \
                         case 2: l1|=((unsigned long)(*(--(c))))<<16; \
-                        /* fall thru */                              \
+                        /* fall through */                              \
                         case 1: l1|=((unsigned long)(*(--(c))))<<24; \
                                 } \
                         }
@@ -45,19 +44,19 @@ else \
                         c+=n; \
                         switch (n) { \
                         case 8: *(--(c))=(unsigned char)(((l2)    )&0xff); \
-                        /* fall thru */                                    \
+                        /* fall through */                                    \
                         case 7: *(--(c))=(unsigned char)(((l2)>> 8)&0xff); \
-                        /* fall thru */                                    \
+                        /* fall through */                                    \
                         case 6: *(--(c))=(unsigned char)(((l2)>>16)&0xff); \
-                        /* fall thru */                                    \
+                        /* fall through */                                    \
                         case 5: *(--(c))=(unsigned char)(((l2)>>24)&0xff); \
-                        /* fall thru */                                    \
+                        /* fall through */                                    \
                         case 4: *(--(c))=(unsigned char)(((l1)    )&0xff); \
-                        /* fall thru */                                    \
+                        /* fall through */                                    \
                         case 3: *(--(c))=(unsigned char)(((l1)>> 8)&0xff); \
-                        /* fall thru */                                    \
+                        /* fall through */                                    \
                         case 2: *(--(c))=(unsigned char)(((l1)>>16)&0xff); \
-                        /* fall thru */                                    \
+                        /* fall through */                                    \
                         case 1: *(--(c))=(unsigned char)(((l1)>>24)&0xff); \
                                 } \
                         }

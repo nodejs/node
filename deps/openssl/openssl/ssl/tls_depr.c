@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,6 +12,7 @@
 
 #include <openssl/engine.h>
 #include "ssl_local.h"
+#include "internal/ssl_unwrap.h"
 
 /*
  * Engine APIs are only used to support applications that still use ENGINEs.
@@ -64,10 +65,14 @@ const EVP_MD *tls_get_digest_from_engine(int nid)
 }
 
 #ifndef OPENSSL_NO_ENGINE
-int tls_engine_load_ssl_client_cert(SSL *s, X509 **px509, EVP_PKEY **ppkey)
+int tls_engine_load_ssl_client_cert(SSL_CONNECTION *s, X509 **px509,
+                                    EVP_PKEY **ppkey)
 {
-    return ENGINE_load_ssl_client_cert(s->ctx->client_cert_engine, s,
-                                       SSL_get_client_CA_list(s),
+    SSL *ssl = SSL_CONNECTION_GET_SSL(s);
+
+    return ENGINE_load_ssl_client_cert(SSL_CONNECTION_GET_CTX(s)->client_cert_engine,
+                                       ssl,
+                                       SSL_get_client_CA_list(ssl),
                                        px509, ppkey, NULL, NULL, NULL);
 }
 #endif
@@ -166,9 +171,11 @@ EVP_PKEY *ssl_dh_to_pkey(DH *dh)
 
 /* Some deprecated public APIs pass EC_KEY objects */
 int ssl_set_tmp_ecdh_groups(uint16_t **pext, size_t *pextlen,
+                            uint16_t **ksext, size_t *ksextlen,
+                            size_t **tplext, size_t *tplextlen,
                             void *key)
 {
-#  ifndef OPENSSL_NO_EC
+# ifndef OPENSSL_NO_EC
     const EC_GROUP *group = EC_KEY_get0_group((const EC_KEY *)key);
     int nid;
 
@@ -179,10 +186,13 @@ int ssl_set_tmp_ecdh_groups(uint16_t **pext, size_t *pextlen,
     nid = EC_GROUP_get_curve_name(group);
     if (nid == NID_undef)
         return 0;
-    return tls1_set_groups(pext, pextlen, &nid, 1);
-#  else
+    return tls1_set_groups(pext, pextlen,
+                           ksext, ksextlen,
+                           tplext, tplextlen,
+                           &nid, 1);
+# else
     return 0;
-#  endif
+# endif
 }
 
 /*

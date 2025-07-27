@@ -102,7 +102,7 @@ static int i2r_NAMING_AUTHORITY(const struct v3_ext_method *method, void *in,
             || BIO_printf(bp, "\n") <= 0)
             goto err;
     }
-    if (namingAuthority->namingAuthorityUrl != NULL ) {
+    if (namingAuthority->namingAuthorityUrl != NULL) {
         if (BIO_printf(bp, "%*s  namingAuthorityUrl: ", ind, "") <= 0
             || ASN1_STRING_print(bp, namingAuthority->namingAuthorityUrl) <= 0
             || BIO_printf(bp, "\n") <= 0)
@@ -117,7 +117,7 @@ err:
 static int i2r_ADMISSION_SYNTAX(const struct v3_ext_method *method, void *in,
                                 BIO *bp, int ind)
 {
-    ADMISSION_SYNTAX * admission = (ADMISSION_SYNTAX *)in;
+    ADMISSION_SYNTAX *admission = (ADMISSION_SYNTAX *)in;
     int i, j, k;
 
     if (admission->admissionAuthority != NULL) {
