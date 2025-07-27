@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include <openssl/pkcs12.h>
+#include "p12_local.h"
+#include "crypto/pkcs7/pk7_local.h"
 
 /* Cheap and nasty Unicode stuff */
 
@@ -24,10 +26,8 @@ unsigned char *OPENSSL_asc2uni(const char *asc, int asclen,
     if (asclen < 0)
         return NULL;
     ulen = asclen * 2 + 2;
-    if ((unitmp = OPENSSL_malloc(ulen)) == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+    if ((unitmp = OPENSSL_malloc(ulen)) == NULL)
         return NULL;
-    }
     for (i = 0; i < ulen - 2; i += 2) {
         unitmp[i] = 0;
         unitmp[i + 1] = asc[i >> 1];
@@ -57,10 +57,8 @@ char *OPENSSL_uni2asc(const unsigned char *uni, int unilen)
     if (!unilen || uni[unilen - 1])
         asclen++;
     uni++;
-    if ((asctmp = OPENSSL_malloc(asclen)) == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+    if ((asctmp = OPENSSL_malloc(asclen)) == NULL)
         return NULL;
-    }
     for (i = 0; i < unilen; i += 2)
         asctmp[i >> 1] = uni[i];
     asctmp[asclen - 1] = 0;
@@ -119,10 +117,8 @@ unsigned char *OPENSSL_utf82uni(const char *asc, int asclen,
 
     ulen += 2;  /* for trailing UTF16 zero */
 
-    if ((ret = OPENSSL_malloc(ulen)) == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+    if ((ret = OPENSSL_malloc(ulen)) == NULL)
         return NULL;
-    }
     /* re-run the loop writing down UTF-16 characters in big-endian order */
     for (unitmp = ret, i = 0; i < asclen; i += j) {
         j = UTF8_getc((const unsigned char *)asc+i, asclen-i, &utf32chr);
@@ -204,10 +200,8 @@ char *OPENSSL_uni2utf8(const unsigned char *uni, int unilen)
     if (!unilen || (uni[unilen-2]||uni[unilen - 1]))
         asclen++;
 
-    if ((asctmp = OPENSSL_malloc(asclen)) == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
+    if ((asctmp = OPENSSL_malloc(asclen)) == NULL)
         return NULL;
-    }
 
     /* re-run the loop emitting UTF-8 string */
     for (asclen = 0, i = 0; i < unilen; ) {
@@ -238,12 +232,34 @@ int i2d_PKCS12_fp(FILE *fp, const PKCS12 *p12)
 
 PKCS12 *d2i_PKCS12_bio(BIO *bp, PKCS12 **p12)
 {
-    return ASN1_item_d2i_bio(ASN1_ITEM_rptr(PKCS12), bp, p12);
+    OSSL_LIB_CTX *libctx = NULL;
+    const char *propq = NULL;
+    const PKCS7_CTX *p7ctx = NULL;
+
+    if (p12 != NULL) {
+        p7ctx = ossl_pkcs12_get0_pkcs7ctx(*p12);
+        if (p7ctx != NULL) {
+            libctx = ossl_pkcs7_ctx_get0_libctx(p7ctx);
+            propq = ossl_pkcs7_ctx_get0_propq(p7ctx);
+        }
+    }
+    return ASN1_item_d2i_bio_ex(ASN1_ITEM_rptr(PKCS12), bp, p12, libctx, propq);
 }
 
 #ifndef OPENSSL_NO_STDIO
 PKCS12 *d2i_PKCS12_fp(FILE *fp, PKCS12 **p12)
 {
-    return ASN1_item_d2i_fp(ASN1_ITEM_rptr(PKCS12), fp, p12);
+    OSSL_LIB_CTX *libctx = NULL;
+    const char *propq = NULL;
+    const PKCS7_CTX *p7ctx = NULL;
+
+    if (p12 != NULL) {
+        p7ctx = ossl_pkcs12_get0_pkcs7ctx(*p12);
+        if (p7ctx != NULL) {
+            libctx = ossl_pkcs7_ctx_get0_libctx(p7ctx);
+            propq = ossl_pkcs7_ctx_get0_propq(p7ctx);
+        }
+    }
+    return ASN1_item_d2i_fp_ex(ASN1_ITEM_rptr(PKCS12), fp, p12, libctx, propq);
 }
 #endif

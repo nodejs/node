@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -134,7 +134,7 @@ for (my $i = 0; $i < $n; $i++) {
         my $r = &der_it($v);
         my $z = "";
         my $length = 0;
-        # Format using fixed-with because we use strcmp later.
+        # Format using fixed-width because we use strcmp later.
         foreach (unpack("C*",$r)) {
             $z .= sprintf("0x%02X,", $_);
             $length++;

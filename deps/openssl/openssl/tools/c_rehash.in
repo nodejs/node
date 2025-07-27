@@ -143,7 +143,7 @@ sub hash_dir {
             }
         }
     }
-    FILE: foreach $fname (grep {/\.(pem)|(crt)|(cer)|(crl)$/} @flist) {
+    FILE: foreach $fname (grep {/\.(pem|crt|cer|crl)$/} @flist) {
         # Check to see if certificates and/or CRLs present.
         my ($cert, $crl) = check_file($fname);
         if (!$cert && !$crl) {

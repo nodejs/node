@@ -4,7 +4,7 @@ Notes for Android platforms
  Requirement details
  -------------------
 
- Beside basic tools like perl and make you'll need to download the Android
+ Beside basic tools like perl and make, you'll need to download the Android
  NDK. It's available for Linux, macOS and Windows, but only Linux
  version was actually tested. There is no reason to believe that macOS
  wouldn't work. And as for Windows, it's unclear which "shell" would be
@@ -17,8 +17,8 @@ Notes for Android platforms
  Android is a cross-compiled target and you can't rely on `./Configure`
  to find out the configuration target for you.  You have to name your
  target explicitly; there are `android-arm`, `android-arm64`, `android-mips`,
- `android-mip64`, `android-x86` and `android-x86_64` (`*MIPS` targets are no
- longer supported with NDK R20+).
+ `android-mip64`, `android-x86`, `android-x86_64` and `android-riscv64`
+ (`*MIPS` targets are no longer supported with NDK R20+).
 
  Do not pass --cross-compile-prefix (as you might be tempted), as it
  will be "calculated" automatically based on chosen platform. However,
@@ -26,13 +26,13 @@ Notes for Android platforms
  invoke `$(CROSS_COMPILE)clang` [`*gcc` on NDK 19 and lower] and company.
  (`./Configure` will fail and give you a hint if you get it wrong.)
 
- Apart from `PATH` adjustment you need to set `ANDROID_NDK_ROOT` environment
+ Apart from `PATH` adjustment, you need to set `ANDROID_NDK_ROOT` environment
  to point at the `NDK` directory. If you're using a side-by-side NDK the path
  will look something like `/some/where/android-sdk/ndk/<ver>`, and for a
  standalone NDK the path will be something like `/some/where/android-ndk-<ver>`.
  Both variables are significant at both configuration and compilation times.
  The NDK customarily supports multiple Android API levels, e.g. `android-14`,
- `android-21`, etc. By default latest API level is chosen. If you need to target
+ `android-21`, etc. By default, latest API level is chosen. If you need to target
  an older platform pass the argument `-D__ANDROID_API__=N` to `Configure`,
  with `N` being the numerical value of the target platform version. For example,
  to compile for Android 10 arm64 with a side-by-side NDK r20.0.5594570
@@ -59,7 +59,7 @@ Notes for Android platforms
  conflict, and mixing the two is therefore not supported. Migration to
  `CROSS_SYSROOT`-less setup is recommended.
 
- One can engage clang by adjusting PATH to cover same NDK's clang. Just
+ One can engage clang by adjusting PATH to cover the same NDK's clang. Just
  keep in mind that if you miss it, Configure will try to use gcc...
  Also, PATH would need even further adjustment to cover unprefixed, yet
  target-specific, ar and ranlib. It's possible that you don't need to
@@ -67,7 +67,7 @@ Notes for Android platforms
 
  Another option is to create so called "standalone toolchain" tailored
  for single specific platform including Android API level, and assign its
- location to `ANDROID_NDK_ROOT`. In such case you have to pass matching
+ location to `ANDROID_NDK_ROOT`. In such case, you have to pass matching
  target name to Configure and shouldn't use `-D__ANDROID_API__=N`. `PATH`
  adjustment becomes simpler, `$ANDROID_NDK_ROOT/bin:$PATH` suffices.
 

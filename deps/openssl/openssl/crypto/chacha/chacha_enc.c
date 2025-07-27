@@ -24,6 +24,28 @@ typedef union {
 
 # define ROTATE(v, n) (((v) << (n)) | ((v) >> (32 - (n))))
 
+# ifndef PEDANTIC
+#  if defined(__GNUC__) && __GNUC__>=2 && \
+      !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
+#   if defined(__riscv_zbb) || defined(__riscv_zbkb)
+#    if __riscv_xlen == 64
+#    undef ROTATE
+#    define ROTATE(x, n) ({ u32 ret;                   \
+                        asm ("roriw %0, %1, %2"        \
+                        : "=r"(ret)                    \
+                        : "r"(x), "i"(32 - (n))); ret;})
+#    endif
+#    if __riscv_xlen == 32
+#    undef ROTATE
+#    define ROTATE(x, n) ({ u32 ret;                   \
+                        asm ("rori %0, %1, %2"         \
+                        : "=r"(ret)                    \
+                        : "r"(x), "i"(32 - (n))); ret;})
+#    endif
+#   endif
+#  endif
+# endif
+
 # define U32TO8_LITTLE(p, v) do { \
                                 (p)[0] = (u8)(v >>  0); \
                                 (p)[1] = (u8)(v >>  8); \
@@ -68,9 +90,13 @@ static void chacha20_core(chacha_buf *output, const u32 input[16])
     }
 }
 
-void ChaCha20_ctr32(unsigned char *out, const unsigned char *inp,
-                    size_t len, const unsigned int key[8],
-                    const unsigned int counter[4])
+#ifdef INCLUDE_C_CHACHA20
+void ChaCha20_ctr32_c(unsigned char *out, const unsigned char *inp, size_t len,
+                      const unsigned int key[8], const unsigned int counter[4])
+#else
+void ChaCha20_ctr32(unsigned char *out, const unsigned char *inp, size_t len,
+                    const unsigned int key[8], const unsigned int counter[4])
+#endif
 {
     u32 input[16];
     chacha_buf buf;

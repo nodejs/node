@@ -28,9 +28,9 @@ static int smime_cb(int ok, X509_STORE_CTX *ctx);
 #define SMIME_ENCRYPT   (1 | SMIME_OP)
 #define SMIME_DECRYPT   (2 | SMIME_IP)
 #define SMIME_SIGN      (3 | SMIME_OP | SMIME_SIGNERS)
+#define SMIME_RESIGN    (6 | SMIME_IP | SMIME_OP | SMIME_SIGNERS)
 #define SMIME_VERIFY    (4 | SMIME_IP)
 #define SMIME_PK7OUT    (5 | SMIME_IP | SMIME_OP)
-#define SMIME_RESIGN    (6 | SMIME_IP | SMIME_OP | SMIME_SIGNERS)
 
 typedef enum OPTION_choice {
     OPT_COMMON,
@@ -75,12 +75,12 @@ const OPTIONS smime_options[] = {
     {"sign", OPT_SIGN, '-', "Sign message"},
     {"resign", OPT_RESIGN, '-', "Resign a signed message"},
     {"verify", OPT_VERIFY, '-', "Verify signed message"},
+    {"pk7out", OPT_PK7OUT, '-', "Output PKCS#7 structure"},
 
     OPT_SECTION("Signing/Encryption"),
     {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
     {"md", OPT_MD, 's', "Digest algorithm to use when signing or resigning"},
     {"", OPT_CIPHER, '-', "Any supported cipher"},
-    {"pk7out", OPT_PK7OUT, '-', "Output PKCS#7 structure"},
     {"nointern", OPT_NOINTERN, '-',
      "Don't search certificates in message for signer"},
     {"nodetach", OPT_NODETACH, '-', "Use opaque signing"},
@@ -96,7 +96,10 @@ const OPTIONS smime_options[] = {
     {"nosigs", OPT_NOSIGS, '-', "Don't verify message signature"},
     {"noverify", OPT_NOVERIFY, '-', "Don't verify signers certificate"},
 
-    {"certfile", OPT_CERTFILE, '<', "Other certificates file"},
+    {"certfile", OPT_CERTFILE, '<',
+     "Extra signer and intermediate CA certificates to include when signing"},
+    {OPT_MORE_STR, 0, 0,
+     "or to use as preferred signer certs and for chain building when verifying"},
     {"recip", OPT_RECIP, '<', "Recipient certificate file for decryption"},
 
     OPT_SECTION("Email"),
@@ -129,6 +132,32 @@ const OPTIONS smime_options[] = {
     {NULL}
 };
 
+static const char *operation_name(int operation)
+{
+    switch (operation) {
+    case SMIME_ENCRYPT:
+        return "encrypt";
+    case SMIME_DECRYPT:
+        return "decrypt";
+    case SMIME_SIGN:
+        return "sign";
+    case SMIME_RESIGN:
+        return "resign";
+    case SMIME_VERIFY:
+        return "verify";
+    case SMIME_PK7OUT:
+        return "pk7out";
+    default:
+        return "(invalid operation)";
+    }
+}
+
+#define SET_OPERATION(op) \
+    ((operation != 0 && (operation != (op))) \
+     ? 0 * BIO_printf(bio_err, "%s: Cannot use -%s together with -%s\n", \
+                      prog, operation_name(op), operation_name(operation)) \
+     : (operation = (op)))
+
 int smime_main(int argc, char **argv)
 {
     CONF *conf = NULL;
@@ -160,6 +189,7 @@ int smime_main(int argc, char **argv)
     if ((vpm = X509_VERIFY_PARAM_new()) == NULL)
         return 1;
 
+    opt_set_unknown_name("cipher");
     prog = opt_init(argc, argv, smime_options);
     while ((o = opt_next()) != OPT_EOF) {
         switch (o) {
@@ -187,22 +217,28 @@ int smime_main(int argc, char **argv)
             outfile = opt_arg();
             break;
         case OPT_ENCRYPT:
-            operation = SMIME_ENCRYPT;
+            if (!SET_OPERATION(SMIME_ENCRYPT))
+                goto end;
             break;
         case OPT_DECRYPT:
-            operation = SMIME_DECRYPT;
+            if (!SET_OPERATION(SMIME_DECRYPT))
+                goto end;
             break;
         case OPT_SIGN:
-            operation = SMIME_SIGN;
+            if (!SET_OPERATION(SMIME_SIGN))
+                goto end;
             break;
         case OPT_RESIGN:
-            operation = SMIME_RESIGN;
+            if (!SET_OPERATION(SMIME_RESIGN))
+                goto end;
             break;
         case OPT_VERIFY:
-            operation = SMIME_VERIFY;
+            if (!SET_OPERATION(SMIME_VERIFY))
+                goto end;
             break;
         case OPT_PK7OUT:
-            operation = SMIME_PK7OUT;
+            if (!SET_OPERATION(SMIME_PK7OUT))
+                goto end;
             break;
         case OPT_TEXT:
             flags |= PKCS7_TEXT;
@@ -370,10 +406,8 @@ int smime_main(int argc, char **argv)
         if (!opt_md(digestname, &sign_md))
             goto opthelp;
     }
-    if (ciphername != NULL) {
-        if (!opt_cipher_any(ciphername, &cipher))
+    if (!opt_cipher_any(ciphername, &cipher))
             goto opthelp;
-    }
     if (!(operation & SMIME_SIGNERS) && (skkeys != NULL || sksigners != NULL)) {
         BIO_puts(bio_err, "Multiple signers or keys not allowed\n");
         goto opthelp;
@@ -443,14 +477,8 @@ int smime_main(int argc, char **argv)
     }
 
     if (operation == SMIME_ENCRYPT) {
-        if (cipher == NULL) {
-#ifndef OPENSSL_NO_DES
-            cipher = (EVP_CIPHER *)EVP_des_ede3_cbc();
-#else
-            BIO_printf(bio_err, "No cipher selected\n");
-            goto end;
-#endif
-        }
+        if (cipher == NULL)
+            cipher = (EVP_CIPHER *)EVP_aes_256_cbc();
         encerts = sk_X509_new_null();
         if (encerts == NULL)
             goto end;
@@ -660,8 +688,8 @@ int smime_main(int argc, char **argv)
  end:
     if (ret)
         ERR_print_errors(bio_err);
-    sk_X509_pop_free(encerts, X509_free);
-    sk_X509_pop_free(other, X509_free);
+    OSSL_STACK_OF_X509_free(encerts);
+    OSSL_STACK_OF_X509_free(other);
     X509_VERIFY_PARAM_free(vpm);
     sk_OPENSSL_STRING_free(sksigners);
     sk_OPENSSL_STRING_free(skkeys);

@@ -73,7 +73,7 @@ static int aria_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                                         EVP_CIPHER_CTX_get_key_length(ctx) * 8,
                                         EVP_CIPHER_CTX_get_cipher_data(ctx));
     if (ret < 0) {
-        ERR_raise(ERR_LIB_EVP,EVP_R_ARIA_KEY_SETUP_FAILED);
+        ERR_raise(ERR_LIB_EVP, EVP_R_ARIA_KEY_SETUP_FAILED);
         return 0;
     }
     return 1;
@@ -216,7 +216,7 @@ static int aria_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                                  const unsigned char *iv, int enc)
 {
     int ret;
-    EVP_ARIA_GCM_CTX *gctx = EVP_C_DATA(EVP_ARIA_GCM_CTX,ctx);
+    EVP_ARIA_GCM_CTX *gctx = EVP_C_DATA(EVP_ARIA_GCM_CTX, ctx);
 
     if (!iv && !key)
         return 1;
@@ -227,7 +227,7 @@ static int aria_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
         CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks,
                            (block128_f) ossl_aria_encrypt);
         if (ret < 0) {
-            ERR_raise(ERR_LIB_EVP,EVP_R_ARIA_KEY_SETUP_FAILED);
+            ERR_raise(ERR_LIB_EVP, EVP_R_ARIA_KEY_SETUP_FAILED);
             return 0;
         }
 
@@ -255,7 +255,7 @@ static int aria_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 
 static int aria_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 {
-    EVP_ARIA_GCM_CTX *gctx = EVP_C_DATA(EVP_ARIA_GCM_CTX,c);
+    EVP_ARIA_GCM_CTX *gctx = EVP_C_DATA(EVP_ARIA_GCM_CTX, c);
 
     switch (type) {
     case EVP_CTRL_INIT:
@@ -279,10 +279,8 @@ static int aria_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         if ((arg > EVP_MAX_IV_LENGTH) && (arg > gctx->ivlen)) {
             if (gctx->iv != c->iv)
                 OPENSSL_free(gctx->iv);
-            if ((gctx->iv = OPENSSL_malloc(arg)) == NULL) {
-                ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
+            if ((gctx->iv = OPENSSL_malloc(arg)) == NULL)
                 return 0;
-            }
         }
         gctx->ivlen = arg;
         return 1;
@@ -375,7 +373,7 @@ static int aria_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
     case EVP_CTRL_COPY:
         {
             EVP_CIPHER_CTX *out = ptr;
-            EVP_ARIA_GCM_CTX *gctx_out = EVP_C_DATA(EVP_ARIA_GCM_CTX,out);
+            EVP_ARIA_GCM_CTX *gctx_out = EVP_C_DATA(EVP_ARIA_GCM_CTX, out);
             if (gctx->gcm.key) {
                 if (gctx->gcm.key != &gctx->ks)
                     return 0;
@@ -384,10 +382,8 @@ static int aria_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
             if (gctx->iv == c->iv)
                 gctx_out->iv = out->iv;
             else {
-                if ((gctx_out->iv = OPENSSL_malloc(gctx->ivlen)) == NULL) {
-                    ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
+                if ((gctx_out->iv = OPENSSL_malloc(gctx->ivlen)) == NULL)
                     return 0;
-                }
                 memcpy(gctx_out->iv, gctx->iv, gctx->ivlen);
             }
             return 1;
@@ -402,7 +398,7 @@ static int aria_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 static int aria_gcm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                               const unsigned char *in, size_t len)
 {
-    EVP_ARIA_GCM_CTX *gctx = EVP_C_DATA(EVP_ARIA_GCM_CTX,ctx);
+    EVP_ARIA_GCM_CTX *gctx = EVP_C_DATA(EVP_ARIA_GCM_CTX, ctx);
     int rv = -1;
 
     /* Encrypt/decrypt must be performed in place */
@@ -458,7 +454,7 @@ static int aria_gcm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int aria_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                           const unsigned char *in, size_t len)
 {
-    EVP_ARIA_GCM_CTX *gctx = EVP_C_DATA(EVP_ARIA_GCM_CTX,ctx);
+    EVP_ARIA_GCM_CTX *gctx = EVP_C_DATA(EVP_ARIA_GCM_CTX, ctx);
 
     /* If not set up, return error */
     if (!gctx->key_set)
@@ -513,7 +509,7 @@ static int aria_ccm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                             const unsigned char *iv, int enc)
 {
     int ret;
-    EVP_ARIA_CCM_CTX *cctx = EVP_C_DATA(EVP_ARIA_CCM_CTX,ctx);
+    EVP_ARIA_CCM_CTX *cctx = EVP_C_DATA(EVP_ARIA_CCM_CTX, ctx);
 
     if (!iv && !key)
         return 1;
@@ -525,7 +521,7 @@ static int aria_ccm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
         CRYPTO_ccm128_init(&cctx->ccm, cctx->M, cctx->L,
                            &cctx->ks, (block128_f) ossl_aria_encrypt);
         if (ret < 0) {
-            ERR_raise(ERR_LIB_EVP,EVP_R_ARIA_KEY_SETUP_FAILED);
+            ERR_raise(ERR_LIB_EVP, EVP_R_ARIA_KEY_SETUP_FAILED);
             return 0;
         }
         cctx->str = NULL;
@@ -540,7 +536,7 @@ static int aria_ccm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 
 static int aria_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 {
-    EVP_ARIA_CCM_CTX *cctx = EVP_C_DATA(EVP_ARIA_CCM_CTX,c);
+    EVP_ARIA_CCM_CTX *cctx = EVP_C_DATA(EVP_ARIA_CCM_CTX, c);
 
     switch (type) {
     case EVP_CTRL_INIT:
@@ -593,7 +589,7 @@ static int aria_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 
     case EVP_CTRL_AEAD_SET_IVLEN:
         arg = 15 - arg;
-        /* fall thru */
+        /* fall through */
     case EVP_CTRL_CCM_SET_L:
         if (arg < 2 || arg > 8)
             return 0;
@@ -624,7 +620,7 @@ static int aria_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
     case EVP_CTRL_COPY:
         {
             EVP_CIPHER_CTX *out = ptr;
-            EVP_ARIA_CCM_CTX *cctx_out = EVP_C_DATA(EVP_ARIA_CCM_CTX,out);
+            EVP_ARIA_CCM_CTX *cctx_out = EVP_C_DATA(EVP_ARIA_CCM_CTX, out);
             if (cctx->ccm.key) {
                 if (cctx->ccm.key != &cctx->ks)
                     return 0;
@@ -641,7 +637,7 @@ static int aria_ccm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
 static int aria_ccm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                               const unsigned char *in, size_t len)
 {
-    EVP_ARIA_CCM_CTX *cctx = EVP_C_DATA(EVP_ARIA_CCM_CTX,ctx);
+    EVP_ARIA_CCM_CTX *cctx = EVP_C_DATA(EVP_ARIA_CCM_CTX, ctx);
     CCM128_CONTEXT *ccm = &cctx->ccm;
 
     /* Encrypt/decrypt must be performed in place */
@@ -689,7 +685,7 @@ static int aria_ccm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 static int aria_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                           const unsigned char *in, size_t len)
 {
-    EVP_ARIA_CCM_CTX *cctx = EVP_C_DATA(EVP_ARIA_CCM_CTX,ctx);
+    EVP_ARIA_CCM_CTX *cctx = EVP_C_DATA(EVP_ARIA_CCM_CTX, ctx);
     CCM128_CONTEXT *ccm = &cctx->ccm;
 
     /* If not set up, return error */
@@ -765,10 +761,10 @@ static int aria_ccm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                           | EVP_CIPH_CUSTOM_COPY | EVP_CIPH_FLAG_AEAD_CIPHER \
                           | EVP_CIPH_CUSTOM_IV_LENGTH)
 
-#define BLOCK_CIPHER_aead(nid,keylen,blocksize,ivlen,nmode,mode,MODE,flags) \
+#define BLOCK_CIPHER_aead(keylen,mode,MODE)        \
 static const EVP_CIPHER aria_##keylen##_##mode = { \
-        nid##_##keylen##_##nmode,                  \
-        blocksize, keylen/8, ivlen,                \
+        NID_aria_##keylen##_##mode,                \
+        1, keylen/8, 12,                           \
         ARIA_AUTH_FLAGS|EVP_CIPH_##MODE##_MODE,    \
         EVP_ORIG_GLOBAL,                           \
         aria_##mode##_init_key,                    \
@@ -779,12 +775,12 @@ static const EVP_CIPHER aria_##keylen##_##mode = { \
 const EVP_CIPHER *EVP_aria_##keylen##_##mode(void) \
 { return (EVP_CIPHER*)&aria_##keylen##_##mode; }
 
-BLOCK_CIPHER_aead(NID_aria, 128, 1, 12, gcm, gcm, GCM, 0)
-BLOCK_CIPHER_aead(NID_aria, 192, 1, 12, gcm, gcm, GCM, 0)
-BLOCK_CIPHER_aead(NID_aria, 256, 1, 12, gcm, gcm, GCM, 0)
+BLOCK_CIPHER_aead(128, gcm, GCM)
+BLOCK_CIPHER_aead(192, gcm, GCM)
+BLOCK_CIPHER_aead(256, gcm, GCM)
 
-BLOCK_CIPHER_aead(NID_aria, 128, 1, 12, ccm, ccm, CCM, 0)
-BLOCK_CIPHER_aead(NID_aria, 192, 1, 12, ccm, ccm, CCM, 0)
-BLOCK_CIPHER_aead(NID_aria, 256, 1, 12, ccm, ccm, CCM, 0)
+BLOCK_CIPHER_aead(128, ccm, CCM)
+BLOCK_CIPHER_aead(192, ccm, CCM)
+BLOCK_CIPHER_aead(256, ccm, CCM)
 
 #endif

@@ -95,11 +95,11 @@ int PKCS12_add1_attr_by_txt(PKCS12_SAFEBAG *bag, const char *attrname, int type,
 ASN1_TYPE *PKCS12_get_attr_gen(const STACK_OF(X509_ATTRIBUTE) *attrs,
                                int attr_nid)
 {
-    X509_ATTRIBUTE *attrib;
-    int i;
-    i = X509at_get_attr_by_NID(attrs, attr_nid, -1);
-    attrib = X509at_get_attr(attrs, i);
-    return X509_ATTRIBUTE_get0_type(attrib, 0);
+    int i = X509at_get_attr_by_NID(attrs, attr_nid, -1);
+
+    if (i < 0)
+        return NULL;
+    return X509_ATTRIBUTE_get0_type(X509at_get_attr(attrs, i), 0);
 }
 
 char *PKCS12_get_friendlyname(PKCS12_SAFEBAG *bag)
@@ -118,4 +118,12 @@ const STACK_OF(X509_ATTRIBUTE) *
 PKCS12_SAFEBAG_get0_attrs(const PKCS12_SAFEBAG *bag)
 {
     return bag->attrib;
+}
+
+void PKCS12_SAFEBAG_set0_attrs(PKCS12_SAFEBAG *bag, STACK_OF(X509_ATTRIBUTE) *attrs)
+{
+    if (bag->attrib != attrs)
+       sk_X509_ATTRIBUTE_free(bag->attrib);
+
+    bag->attrib = attrs;
 }

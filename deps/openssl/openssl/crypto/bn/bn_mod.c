@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,6 +8,7 @@
  */
 
 #include "internal/cryptlib.h"
+#include "internal/nelem.h"
 #include "bn_local.h"
 
 int BN_nnmod(BIGNUM *r, const BIGNUM *m, const BIGNUM *d, BN_CTX *ctx)
@@ -61,12 +62,10 @@ int bn_mod_add_fixed_top(BIGNUM *r, const BIGNUM *a, const BIGNUM *b,
     if (bn_wexpand(r, mtop) == NULL)
         return 0;
 
-    if (mtop > sizeof(storage) / sizeof(storage[0])) {
+    if (mtop > OSSL_NELEM(storage)) {
         tp = OPENSSL_malloc(mtop * sizeof(BN_ULONG));
-        if (tp == NULL) {
-            ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+        if (tp == NULL)
             return 0;
-        }
     }
 
     ap = a->d != NULL ? a->d : tp;

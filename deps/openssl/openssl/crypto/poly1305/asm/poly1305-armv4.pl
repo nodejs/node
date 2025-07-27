@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1239,7 +1239,8 @@ $code.=<<___;
 .asciz	"Poly1305 for ARMv4/NEON, CRYPTOGAMS by <appro\@openssl.org>"
 .align	2
 #if	__ARM_MAX_ARCH__>=7
-.comm   OPENSSL_armcap_P,4,4
+.extern   OPENSSL_armcap_P
+.hidden   OPENSSL_armcap_P
 #endif
 ___
 

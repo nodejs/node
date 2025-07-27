@@ -9,7 +9,8 @@ IF[{- !$disabled{asm} -}]
 
   $AESASM_x86_64=\
         aes-x86_64.s vpaes-x86_64.s bsaes-x86_64.s aesni-x86_64.s \
-        aesni-sha1-x86_64.s aesni-sha256-x86_64.s aesni-mb-x86_64.s
+        aesni-sha1-x86_64.s aesni-sha256-x86_64.s aesni-mb-x86_64.s \
+        aesni-xts-avx512.s
   $AESDEF_x86_64=AES_ASM VPAES_ASM BSAES_ASM
 
   $AESASM_ia64=aes_core.c aes_cbc.c aes-ia64.s
@@ -30,8 +31,8 @@ IF[{- !$disabled{asm} -}]
 
   $AESASM_armv4=aes_cbc.c aes-armv4.S bsaes-armv7.S aesv8-armx.S
   $AESDEF_armv4=AES_ASM BSAES_ASM
-  $AESASM_aarch64=aes_core.c aes_cbc.c aesv8-armx.S vpaes-armv8.S
-  $AESDEF_aarch64=VPAES_ASM
+  $AESASM_aarch64=aes_core.c aes_cbc.c aesv8-armx.S bsaes-armv8.S vpaes-armv8.S
+  $AESDEF_aarch64=BSAES_ASM VPAES_ASM
 
   $AESASM_parisc11=aes_core.c aes_cbc.c aes-parisc.s
   $AESDEF_parisc11=AES_ASM
@@ -39,7 +40,7 @@ IF[{- !$disabled{asm} -}]
   $AESDEF_parisc20_64=$AESDEF_parisc11
 
   IF[{- $target{sys_id} ne "MACOSX" -}]
-  $AESASM_ppc32=aes_core.c aes_cbc.c aes-ppc.s vpaes-ppc.s aesp8-ppc.s
+    $AESASM_ppc32=aes_core.c aes_cbc.c aes-ppc.s vpaes-ppc.s aesp8-ppc.s
   ELSE
     $AESASM_ppc32=aes_core.c aes_cbc.c aes-ppc.s vpaes-ppc.s
   ENDIF
@@ -50,6 +51,13 @@ IF[{- !$disabled{asm} -}]
   $AESASM_c64xplus=aes-c64xplus.s aes_cbc.c
   # aes-c64xplus.s implements AES_ctr32_encrypt
   $AESDEF_c64xplus=AES_ASM AES_CTR_ASM
+
+  $AESASM_riscv64=aes_cbc.c aes-riscv64.s aes-riscv64-zkn.s aes-riscv64-zvkb-zvkned.s aes-riscv64-zvkned.s aes-riscv64-zvbb-zvkg-zvkned.s
+  $AESDEF_riscv64=AES_ASM
+  $AESASM_riscv32=aes_core.c aes_cbc.c aes-riscv32-zkn.s
+
+  $AESASM_loongarch64=aes_core.c aes_cbc.c vpaes-loongarch64.S
+  $AESDEF_loongarch64=VPAES_ASM
 
   # Now that we have defined all the arch specific variables, use the
   # appropriate one, and define the appropriate macros
@@ -84,6 +92,7 @@ IF[{- !$disabled{module} && !$disabled{shared} -}]
 ENDIF
 
 GENERATE[aes-ia64.s]=asm/aes-ia64.S
+GENERATE[bsaes-armv8.S]=asm/bsaes-armv8.pl
 
 GENERATE[aes-586.S]=asm/aes-586.pl
 DEPEND[aes-586.S]=../perlasm/x86asm.pl
@@ -117,9 +126,17 @@ GENERATE[aes-parisc.s]=asm/aes-parisc.pl
 GENERATE[aes-mips.S]=asm/aes-mips.pl
 INCLUDE[aes-mips.o]=..
 
+GENERATE[aes-riscv64.s]=asm/aes-riscv64.pl
+GENERATE[aes-riscv64-zkn.s]=asm/aes-riscv64-zkn.pl
+GENERATE[aes-riscv32-zkn.s]=asm/aes-riscv32-zkn.pl
+GENERATE[aes-riscv64-zvkb-zvkned.s]=asm/aes-riscv64-zvkb-zvkned.pl
+GENERATE[aes-riscv64-zvkned.s]=asm/aes-riscv64-zvkned.pl
+GENERATE[aes-riscv64-zvbb-zvkg-zvkned.s]=asm/aes-riscv64-zvbb-zvkg-zvkned.pl
+
 GENERATE[aesv8-armx.S]=asm/aesv8-armx.pl
 INCLUDE[aesv8-armx.o]=..
 GENERATE[vpaes-armv8.S]=asm/vpaes-armv8.pl
+INCLUDE[vpaes-armv8.o]=..
 
 GENERATE[aes-armv4.S]=asm/aes-armv4.pl
 INCLUDE[aes-armv4.o]=..
@@ -129,4 +146,9 @@ INCLUDE[bsaes-armv7.o]=..
 GENERATE[aes-s390x.S]=asm/aes-s390x.pl
 INCLUDE[aes-s390x.o]=..
 
+GENERATE[aesni-xts-avx512.s]=asm/aesni-xts-avx512.pl
+
 GENERATE[aes-c64xplus.S]=asm/aes-c64xplus.pl
+
+GENERATE[vpaes-loongarch64.S]=asm/vpaes-loongarch64.pl
+INCLUDE[vpaes-loongarch64.o]=..

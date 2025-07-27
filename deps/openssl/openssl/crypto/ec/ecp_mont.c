@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -9,7 +9,7 @@
  */
 
 /*
- * ECDSA low level APIs are deprecated for public use, but still ok for
+ * ECDSA low-level APIs are deprecated for public use, but still ok for
  * internal use.
  */
 #include "internal/deprecated.h"
@@ -217,7 +217,7 @@ int ossl_ec_GFp_mont_field_sqr(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a
 
 /*-
  * Computes the multiplicative inverse of a in GF(p), storing the result in r.
- * If a is zero (or equivalent), you'll get a EC_R_CANNOT_INVERT error.
+ * If a is zero (or equivalent), you'll get an EC_R_CANNOT_INVERT error.
  * We have a Mont structure, so SCA hardening is FLT inversion.
  */
 int ossl_ec_GFp_mont_field_inv(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a,
@@ -258,7 +258,7 @@ int ossl_ec_GFp_mont_field_inv(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a
 
     ret = 1;
 
-  err:
+ err:
     BN_CTX_end(ctx);
     BN_CTX_free(new_ctx);
     return ret;

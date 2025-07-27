@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,7 +26,7 @@
 #ifndef AES_CBC_HMAC_SHA_CAPABLE
 # define IMPLEMENT_CIPHER(nm, sub, kbits, blkbits, ivbits, flags)              \
 const OSSL_DISPATCH ossl_##nm##kbits##sub##_functions[] = {                    \
-    { 0, NULL }                                                                \
+    OSSL_DISPATCH_END                                                              \
 };
 #else
 
@@ -94,7 +94,7 @@ static int aes_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     EVP_CTRL_TLS1_1_MULTIBLOCK_PARAM mb_param;
 # endif
 
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_AEAD_MAC_KEY);
@@ -338,6 +338,9 @@ static void *aes_cbc_hmac_sha1_dupctx(void *provctx)
 {
     PROV_AES_HMAC_SHA1_CTX *ctx = provctx;
 
+    if (!ossl_prov_is_running())
+        return NULL;
+
     if (ctx == NULL)
         return NULL;
 
@@ -374,6 +377,9 @@ static void *aes_cbc_hmac_sha256_newctx(void *provctx, size_t kbits,
 static void *aes_cbc_hmac_sha256_dupctx(void *provctx)
 {
     PROV_AES_HMAC_SHA256_CTX *ctx = provctx;
+
+    if (!ossl_prov_is_running())
+        return NULL;
 
     return OPENSSL_memdup(ctx, sizeof(*ctx));
 }
@@ -421,7 +427,7 @@ const OSSL_DISPATCH ossl_##nm##kbits##sub##_functions[] = {                    \
         (void (*)(void))nm##_set_ctx_params },                                 \
     { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                    \
         (void (*)(void))nm##_settable_ctx_params },                            \
-    { 0, NULL }                                                                \
+    OSSL_DISPATCH_END                                                          \
 };
 
 #endif /* AES_CBC_HMAC_SHA_CAPABLE */

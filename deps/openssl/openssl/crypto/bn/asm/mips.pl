@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2010-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2010-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -802,7 +802,7 @@ $code.=<<___;
 
 #if 0
 /*
- * The bn_div_3_words entry point is re-used for constant-time interface.
+ * The bn_div_3_words entry point is reused for constant-time interface.
  * Implementation is retained as historical reference.
  */
 .align 5
