@@ -95,36 +95,26 @@ _docs_ subdirectory. Version-specific documentation is also at
 
 ### Verifying binaries
 
-Download directories contain a `SHASUMS256.txt` file with SHA checksums for the
-files.
+Download directories contain a `SHASUMS256.txt.asc` file with SHA checksums for the
+files and the releaser PGP signature.
 
-To download `SHASUMS256.txt` using `curl`:
-
-```bash
-curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt
-```
-
-To check that downloaded files match the checksum, use `sha256sum`:
+You can get a trusted keyring from nodejs/release-keys, e.g. using `curl`:
 
 ```bash
-sha256sum -c SHASUMS256.txt --ignore-missing
+curl -fsLo "/path/to/nodejs-keyring.kbx" "https://github.com/nodejs/release-keys/raw/HEAD/gpg/pubring.kbx"
 ```
 
-For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
-`SHASUMS256.txt.sig`. You can use it with `gpg` to verify the integrity of
-`SHASUMS256.txt`. You will first need to import
-[the GPG keys of individuals authorized to create releases](#release-keys).
+Alternatively, you can import the releaser keys in your default keyring, see
+[Release keys](#release-keys) for commands to how to do that.
 
-See [Release keys](#release-keys) for commands to import active release keys.
-
-Next, download the `SHASUMS256.txt.sig` for the release:
+Then, you can verify the files you've downloaded locally
+(if you're using your default keyring, pass `--keyring="${GNUPGHOME:-~/.gnupg}/pubring.kbx"`):
 
 ```bash
-curl -O https://nodejs.org/dist/vx.y.z/SHASUMS256.txt.sig
+curl -fsO "https://nodejs.org/dist/${VERSION}/SHASUMS256.txt.asc" \
+&& gpgv --keyring="/path/to/nodejs-keyring.kbx" --output SHASUMS256.txt < SHASUMS256.txt.asc \
+&& shasum --check SHASUMS256.txt --ignore-missing
 ```
-
-Then use `gpg --verify SHASUMS256.txt.sig SHASUMS256.txt` to verify
-the file's signature.
 
 ## Building Node.js
 
@@ -808,8 +798,11 @@ Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 * **Ulises Gascón** <<ulisesgascongonzalez@gmail.com>>
   `A363A499291CBBC940DD62E41F10027AF002F8B0`
 
-To import the full set of trusted release keys (including subkeys possibly used
-to sign releases):
+You can use the keyring the project maintains at
+<https://github.com/nodejs/release-keys/raw/refs/heads/main/gpg-only-active-keys/pubring.kbx>.
+Alternatively, you can import them from a public key server. Have in mind that
+the project cannot guarantee the availability of the server nor the keys on
+that server.
 
 ```bash
 gpg --keyserver hkps://keys.openpgp.org --recv-keys 5BE8A3F6C8A5C01D106C0AD820B1A390B168D356 # Antoine du Hamel
@@ -868,6 +861,9 @@ verify a downloaded file.
   `B9E2F5981AA6E0CD28160D9FF13993A75599653C`
 * **Timothy J Fontaine** <<tjfontaine@gmail.com>>
   `7937DFD2AB06298B2293C3187D33FF9D0246406D`
+
+The project maintains a keyring able to verify all past releases of Node.js at
+<https://github.com/nodejs/release-keys/raw/refs/heads/main/gpg/pubring.kbx>.
 
 </details>
 
