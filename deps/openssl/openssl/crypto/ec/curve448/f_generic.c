@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -18,7 +18,7 @@ static const gf MODULUS = {
 };
 
 /* Serialize to wire format. */
-void gf_serialize(uint8_t *serial, const gf x, int with_hibit)
+void gf_serialize(uint8_t serial[SER_BYTES], const gf x, int with_hibit)
 {
     unsigned int j = 0, fill = 0;
     dword_t buffer = 0;
@@ -173,32 +173,32 @@ mask_t gf_isr(gf a, const gf x)
 {
     gf L0, L1, L2;
 
-    gf_sqr(L1, x);
-    gf_mul(L2, x, L1);
-    gf_sqr(L1, L2);
-    gf_mul(L2, x, L1);
+    ossl_gf_sqr(L1, x);
+    ossl_gf_mul(L2, x, L1);
+    ossl_gf_sqr(L1, L2);
+    ossl_gf_mul(L2, x, L1);
     gf_sqrn(L1, L2, 3);
-    gf_mul(L0, L2, L1);
+    ossl_gf_mul(L0, L2, L1);
     gf_sqrn(L1, L0, 3);
-    gf_mul(L0, L2, L1);
+    ossl_gf_mul(L0, L2, L1);
     gf_sqrn(L2, L0, 9);
-    gf_mul(L1, L0, L2);
-    gf_sqr(L0, L1);
-    gf_mul(L2, x, L0);
+    ossl_gf_mul(L1, L0, L2);
+    ossl_gf_sqr(L0, L1);
+    ossl_gf_mul(L2, x, L0);
     gf_sqrn(L0, L2, 18);
-    gf_mul(L2, L1, L0);
+    ossl_gf_mul(L2, L1, L0);
     gf_sqrn(L0, L2, 37);
-    gf_mul(L1, L2, L0);
+    ossl_gf_mul(L1, L2, L0);
     gf_sqrn(L0, L1, 37);
-    gf_mul(L1, L2, L0);
+    ossl_gf_mul(L1, L2, L0);
     gf_sqrn(L0, L1, 111);
-    gf_mul(L2, L1, L0);
-    gf_sqr(L0, L2);
-    gf_mul(L1, x, L0);
+    ossl_gf_mul(L2, L1, L0);
+    ossl_gf_sqr(L0, L2);
+    ossl_gf_mul(L1, x, L0);
     gf_sqrn(L0, L1, 223);
-    gf_mul(L1, L2, L0);
-    gf_sqr(L2, L1);
-    gf_mul(L0, L2, x);
+    ossl_gf_mul(L1, L2, L0);
+    ossl_gf_sqr(L2, L1);
+    ossl_gf_mul(L0, L2, x);
     gf_copy(a, L1);
     return gf_eq(L0, ONE);
 }

@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,6 +26,9 @@ use OpenSSL::stackhash qw(generate_stack_macros);
 # include <openssl/x509.h>
 # include <openssl/conf.h>
 # include <openssl/x509v3err.h>
+# ifndef OPENSSL_NO_STDIO
+#  include <stdio.h>
+# endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -123,6 +126,11 @@ typedef struct BASIC_CONSTRAINTS_st {
     ASN1_INTEGER *pathlen;
 } BASIC_CONSTRAINTS;
 
+typedef struct OSSL_BASIC_ATTR_CONSTRAINTS_st {
+    int authority;
+    ASN1_INTEGER *pathlen;
+} OSSL_BASIC_ATTR_CONSTRAINTS;
+
 typedef struct PKEY_USAGE_PERIOD_st {
     ASN1_GENERALIZEDTIME *notBefore;
     ASN1_GENERALIZEDTIME *notAfter;
@@ -175,6 +183,8 @@ typedef struct ACCESS_DESCRIPTION_st {
     GENERAL_NAME *location;
 } ACCESS_DESCRIPTION;
 
+int GENERAL_NAME_set1_X509_NAME(GENERAL_NAME **tgt, const X509_NAME *src);
+
 {-
     generate_stack_macros("ACCESS_DESCRIPTION")
     .generate_stack_macros("GENERAL_NAME");
@@ -198,6 +208,7 @@ typedef struct DIST_POINT_NAME_st {
 /* If relativename then this contains the full distribution point name */
     X509_NAME *dpname;
 } DIST_POINT_NAME;
+DECLARE_ASN1_DUP_FUNCTION(DIST_POINT_NAME)
 /* All existing reasons */
 # define CRLDP_ALL_REASONS       0x807f
 
@@ -419,15 +430,16 @@ struct ISSUING_DIST_POINT_st {
 # define EXFLAG_SAN_CRITICAL     0x80000
 # define EXFLAG_NO_FINGERPRINT   0x100000
 
-# define KU_DIGITAL_SIGNATURE    0x0080
-# define KU_NON_REPUDIATION      0x0040
-# define KU_KEY_ENCIPHERMENT     0x0020
-# define KU_DATA_ENCIPHERMENT    0x0010
-# define KU_KEY_AGREEMENT        0x0008
-# define KU_KEY_CERT_SIGN        0x0004
-# define KU_CRL_SIGN             0x0002
-# define KU_ENCIPHER_ONLY        0x0001
-# define KU_DECIPHER_ONLY        0x8000
+/* https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.3 */
+# define KU_DIGITAL_SIGNATURE    X509v3_KU_DIGITAL_SIGNATURE
+# define KU_NON_REPUDIATION      X509v3_KU_NON_REPUDIATION
+# define KU_KEY_ENCIPHERMENT     X509v3_KU_KEY_ENCIPHERMENT
+# define KU_DATA_ENCIPHERMENT    X509v3_KU_DATA_ENCIPHERMENT
+# define KU_KEY_AGREEMENT        X509v3_KU_KEY_AGREEMENT
+# define KU_KEY_CERT_SIGN        X509v3_KU_KEY_CERT_SIGN
+# define KU_CRL_SIGN             X509v3_KU_CRL_SIGN
+# define KU_ENCIPHER_ONLY        X509v3_KU_ENCIPHER_ONLY
+# define KU_DECIPHER_ONLY        X509v3_KU_DECIPHER_ONLY
 
 # define NS_SSL_CLIENT           0x80
 # define NS_SSL_SERVER           0x40
@@ -465,7 +477,7 @@ typedef struct x509_purpose_st {
     generate_stack_macros("X509_PURPOSE");
 -}
 
-
+# define X509_PURPOSE_DEFAULT_ANY        0
 # define X509_PURPOSE_SSL_CLIENT         1
 # define X509_PURPOSE_SSL_SERVER         2
 # define X509_PURPOSE_NS_SSL_SERVER      3
@@ -475,9 +487,10 @@ typedef struct x509_purpose_st {
 # define X509_PURPOSE_ANY                7
 # define X509_PURPOSE_OCSP_HELPER        8
 # define X509_PURPOSE_TIMESTAMP_SIGN     9
+# define X509_PURPOSE_CODE_SIGN         10
 
 # define X509_PURPOSE_MIN                1
-# define X509_PURPOSE_MAX                9
+# define X509_PURPOSE_MAX               10
 
 /* Flags for X509V3_EXT_print() */
 
@@ -503,6 +516,7 @@ typedef struct x509_purpose_st {
 # define X509V3_ADD_SILENT               0x10
 
 DECLARE_ASN1_FUNCTIONS(BASIC_CONSTRAINTS)
+DECLARE_ASN1_FUNCTIONS(OSSL_BASIC_ATTR_CONSTRAINTS)
 
 DECLARE_ASN1_FUNCTIONS(SXNET)
 DECLARE_ASN1_FUNCTIONS(SXNETID)
@@ -712,7 +726,6 @@ int X509V3_extensions_print(BIO *out, const char *title,
 int X509_check_ca(X509 *x);
 int X509_check_purpose(X509 *x, int id, int ca);
 int X509_supported_extension(X509_EXTENSION *ex);
-int X509_PURPOSE_set(int *p, int purpose);
 int X509_check_issued(X509 *issuer, X509 *subject);
 int X509_check_akid(const X509 *issuer, const AUTHORITY_KEYID *akid);
 void X509_set_proxy_flag(X509 *x);
@@ -728,22 +741,26 @@ const GENERAL_NAMES *X509_get0_authority_issuer(X509 *x);
 const ASN1_INTEGER *X509_get0_authority_serial(X509 *x);
 
 int X509_PURPOSE_get_count(void);
-X509_PURPOSE *X509_PURPOSE_get0(int idx);
+int X509_PURPOSE_get_unused_id(OSSL_LIB_CTX *libctx);
 int X509_PURPOSE_get_by_sname(const char *sname);
 int X509_PURPOSE_get_by_id(int id);
 int X509_PURPOSE_add(int id, int trust, int flags,
                      int (*ck) (const X509_PURPOSE *, const X509 *, int),
                      const char *name, const char *sname, void *arg);
+void X509_PURPOSE_cleanup(void);
+
+X509_PURPOSE *X509_PURPOSE_get0(int idx);
+int X509_PURPOSE_get_id(const X509_PURPOSE *);
 char *X509_PURPOSE_get0_name(const X509_PURPOSE *xp);
 char *X509_PURPOSE_get0_sname(const X509_PURPOSE *xp);
 int X509_PURPOSE_get_trust(const X509_PURPOSE *xp);
-void X509_PURPOSE_cleanup(void);
-int X509_PURPOSE_get_id(const X509_PURPOSE *);
+int X509_PURPOSE_set(int *p, int purpose);
 
 STACK_OF(OPENSSL_STRING) *X509_get1_email(X509 *x);
 STACK_OF(OPENSSL_STRING) *X509_REQ_get1_email(X509_REQ *x);
 void X509_email_free(STACK_OF(OPENSSL_STRING) *sk);
 STACK_OF(OPENSSL_STRING) *X509_get1_ocsp(X509 *x);
+
 /* Flags for X509_check_* functions */
 
 /*
@@ -1010,6 +1027,339 @@ const ASN1_PRINTABLESTRING *PROFESSION_INFO_get0_registrationNumber(
     const PROFESSION_INFO *pi);
 void PROFESSION_INFO_set0_registrationNumber(
     PROFESSION_INFO *pi, ASN1_PRINTABLESTRING *rn);
+
+int OSSL_GENERAL_NAMES_print(BIO *out, GENERAL_NAMES *gens, int indent);
+
+typedef STACK_OF(X509_ATTRIBUTE) OSSL_ATTRIBUTES_SYNTAX;
+DECLARE_ASN1_FUNCTIONS(OSSL_ATTRIBUTES_SYNTAX)
+
+typedef STACK_OF(USERNOTICE) OSSL_USER_NOTICE_SYNTAX;
+DECLARE_ASN1_FUNCTIONS(OSSL_USER_NOTICE_SYNTAX)
+
+{-
+    generate_stack_macros("USERNOTICE");
+-}
+
+typedef struct OSSL_ROLE_SPEC_CERT_ID_st {
+    GENERAL_NAME *roleName;
+    GENERAL_NAME *roleCertIssuer;
+    ASN1_INTEGER *roleCertSerialNumber;
+    GENERAL_NAMES *roleCertLocator;
+} OSSL_ROLE_SPEC_CERT_ID;
+
+DECLARE_ASN1_FUNCTIONS(OSSL_ROLE_SPEC_CERT_ID)
+
+{-
+    generate_stack_macros("OSSL_ROLE_SPEC_CERT_ID");
+-}
+
+typedef STACK_OF(OSSL_ROLE_SPEC_CERT_ID) OSSL_ROLE_SPEC_CERT_ID_SYNTAX;
+
+DECLARE_ASN1_FUNCTIONS(OSSL_ROLE_SPEC_CERT_ID_SYNTAX)
+typedef struct OSSL_HASH_st {
+    X509_ALGOR *algorithmIdentifier;
+    ASN1_BIT_STRING *hashValue;
+} OSSL_HASH;
+
+typedef struct OSSL_INFO_SYNTAX_POINTER_st {
+    GENERAL_NAMES *name;
+    OSSL_HASH *hash;
+} OSSL_INFO_SYNTAX_POINTER;
+
+# define OSSL_INFO_SYNTAX_TYPE_CONTENT 0
+# define OSSL_INFO_SYNTAX_TYPE_POINTER 1
+
+typedef struct OSSL_INFO_SYNTAX_st {
+    int type;
+    union {
+        ASN1_STRING *content;
+        OSSL_INFO_SYNTAX_POINTER *pointer;
+    } choice;
+} OSSL_INFO_SYNTAX;
+
+typedef struct OSSL_PRIVILEGE_POLICY_ID_st {
+    ASN1_OBJECT *privilegePolicy;
+    OSSL_INFO_SYNTAX *privPolSyntax;
+} OSSL_PRIVILEGE_POLICY_ID;
+
+typedef struct OSSL_ATTRIBUTE_DESCRIPTOR_st {
+    ASN1_OBJECT *identifier;
+    ASN1_STRING *attributeSyntax;
+    ASN1_UTF8STRING *name;
+    ASN1_UTF8STRING *description;
+    OSSL_PRIVILEGE_POLICY_ID *dominationRule;
+} OSSL_ATTRIBUTE_DESCRIPTOR;
+
+DECLARE_ASN1_FUNCTIONS(OSSL_HASH)
+DECLARE_ASN1_FUNCTIONS(OSSL_INFO_SYNTAX)
+DECLARE_ASN1_FUNCTIONS(OSSL_INFO_SYNTAX_POINTER)
+DECLARE_ASN1_FUNCTIONS(OSSL_PRIVILEGE_POLICY_ID)
+DECLARE_ASN1_FUNCTIONS(OSSL_ATTRIBUTE_DESCRIPTOR)
+
+typedef struct OSSL_TIME_SPEC_ABSOLUTE_st {
+    ASN1_GENERALIZEDTIME *startTime;
+    ASN1_GENERALIZEDTIME *endTime;
+} OSSL_TIME_SPEC_ABSOLUTE;
+
+typedef struct OSSL_DAY_TIME_st {
+    ASN1_INTEGER *hour;
+    ASN1_INTEGER *minute;
+    ASN1_INTEGER *second;
+} OSSL_DAY_TIME;
+
+typedef struct OSSL_DAY_TIME_BAND_st {
+    OSSL_DAY_TIME *startDayTime;
+    OSSL_DAY_TIME *endDayTime;
+} OSSL_DAY_TIME_BAND;
+
+# define OSSL_NAMED_DAY_TYPE_INT 0
+# define OSSL_NAMED_DAY_TYPE_BIT 1
+# define OSSL_NAMED_DAY_INT_SUN 1
+# define OSSL_NAMED_DAY_INT_MON 2
+# define OSSL_NAMED_DAY_INT_TUE 3
+# define OSSL_NAMED_DAY_INT_WED 4
+# define OSSL_NAMED_DAY_INT_THU 5
+# define OSSL_NAMED_DAY_INT_FRI 6
+# define OSSL_NAMED_DAY_INT_SAT 7
+# define OSSL_NAMED_DAY_BIT_SUN 0
+# define OSSL_NAMED_DAY_BIT_MON 1
+# define OSSL_NAMED_DAY_BIT_TUE 2
+# define OSSL_NAMED_DAY_BIT_WED 3
+# define OSSL_NAMED_DAY_BIT_THU 4
+# define OSSL_NAMED_DAY_BIT_FRI 5
+# define OSSL_NAMED_DAY_BIT_SAT 6
+
+typedef struct OSSL_NAMED_DAY_st {
+    int type;
+    union {
+        ASN1_INTEGER *intNamedDays;
+        ASN1_BIT_STRING *bitNamedDays;
+    } choice;
+} OSSL_NAMED_DAY;
+
+# define OSSL_TIME_SPEC_X_DAY_OF_FIRST 0
+# define OSSL_TIME_SPEC_X_DAY_OF_SECOND 1
+# define OSSL_TIME_SPEC_X_DAY_OF_THIRD 2
+# define OSSL_TIME_SPEC_X_DAY_OF_FOURTH 3
+# define OSSL_TIME_SPEC_X_DAY_OF_FIFTH 4
+
+typedef struct OSSL_TIME_SPEC_X_DAY_OF_st {
+    int type;
+    union {
+        OSSL_NAMED_DAY *first;
+        OSSL_NAMED_DAY *second;
+        OSSL_NAMED_DAY *third;
+        OSSL_NAMED_DAY *fourth;
+        OSSL_NAMED_DAY *fifth;
+    } choice;
+} OSSL_TIME_SPEC_X_DAY_OF;
+
+# define OSSL_TIME_SPEC_DAY_TYPE_INT 0
+# define OSSL_TIME_SPEC_DAY_TYPE_BIT 1
+# define OSSL_TIME_SPEC_DAY_TYPE_DAY_OF 2
+# define OSSL_TIME_SPEC_DAY_BIT_SUN 0
+# define OSSL_TIME_SPEC_DAY_BIT_MON 1
+# define OSSL_TIME_SPEC_DAY_BIT_TUE 2
+# define OSSL_TIME_SPEC_DAY_BIT_WED 3
+# define OSSL_TIME_SPEC_DAY_BIT_THU 4
+# define OSSL_TIME_SPEC_DAY_BIT_FRI 5
+# define OSSL_TIME_SPEC_DAY_BIT_SAT 6
+# define OSSL_TIME_SPEC_DAY_INT_SUN 1
+# define OSSL_TIME_SPEC_DAY_INT_MON 2
+# define OSSL_TIME_SPEC_DAY_INT_TUE 3
+# define OSSL_TIME_SPEC_DAY_INT_WED 4
+# define OSSL_TIME_SPEC_DAY_INT_THU 5
+# define OSSL_TIME_SPEC_DAY_INT_FRI 6
+# define OSSL_TIME_SPEC_DAY_INT_SAT 7
+
+typedef struct OSSL_TIME_SPEC_DAY_st {
+    int type;
+    union {
+        STACK_OF(ASN1_INTEGER) *intDay;
+        ASN1_BIT_STRING *bitDay;
+        OSSL_TIME_SPEC_X_DAY_OF *dayOf;
+    } choice;
+} OSSL_TIME_SPEC_DAY;
+
+# define OSSL_TIME_SPEC_WEEKS_TYPE_ALL 0
+# define OSSL_TIME_SPEC_WEEKS_TYPE_INT 1
+# define OSSL_TIME_SPEC_WEEKS_TYPE_BIT 2
+# define OSSL_TIME_SPEC_BIT_WEEKS_1 0
+# define OSSL_TIME_SPEC_BIT_WEEKS_2 1
+# define OSSL_TIME_SPEC_BIT_WEEKS_3 2
+# define OSSL_TIME_SPEC_BIT_WEEKS_4 3
+# define OSSL_TIME_SPEC_BIT_WEEKS_5 4
+
+typedef struct OSSL_TIME_SPEC_WEEKS_st {
+    int type;
+    union {
+        ASN1_NULL *allWeeks;
+        STACK_OF(ASN1_INTEGER) *intWeek;
+        ASN1_BIT_STRING *bitWeek;
+    } choice;
+} OSSL_TIME_SPEC_WEEKS;
+
+# define OSSL_TIME_SPEC_MONTH_TYPE_ALL 0
+# define OSSL_TIME_SPEC_MONTH_TYPE_INT 1
+# define OSSL_TIME_SPEC_MONTH_TYPE_BIT 2
+# define OSSL_TIME_SPEC_INT_MONTH_JAN 1
+# define OSSL_TIME_SPEC_INT_MONTH_FEB 2
+# define OSSL_TIME_SPEC_INT_MONTH_MAR 3
+# define OSSL_TIME_SPEC_INT_MONTH_APR 4
+# define OSSL_TIME_SPEC_INT_MONTH_MAY 5
+# define OSSL_TIME_SPEC_INT_MONTH_JUN 6
+# define OSSL_TIME_SPEC_INT_MONTH_JUL 7
+# define OSSL_TIME_SPEC_INT_MONTH_AUG 8
+# define OSSL_TIME_SPEC_INT_MONTH_SEP 9
+# define OSSL_TIME_SPEC_INT_MONTH_OCT 10
+# define OSSL_TIME_SPEC_INT_MONTH_NOV 11
+# define OSSL_TIME_SPEC_INT_MONTH_DEC 12
+# define OSSL_TIME_SPEC_BIT_MONTH_JAN 0
+# define OSSL_TIME_SPEC_BIT_MONTH_FEB 1
+# define OSSL_TIME_SPEC_BIT_MONTH_MAR 2
+# define OSSL_TIME_SPEC_BIT_MONTH_APR 3
+# define OSSL_TIME_SPEC_BIT_MONTH_MAY 4
+# define OSSL_TIME_SPEC_BIT_MONTH_JUN 5
+# define OSSL_TIME_SPEC_BIT_MONTH_JUL 6
+# define OSSL_TIME_SPEC_BIT_MONTH_AUG 7
+# define OSSL_TIME_SPEC_BIT_MONTH_SEP 8
+# define OSSL_TIME_SPEC_BIT_MONTH_OCT 9
+# define OSSL_TIME_SPEC_BIT_MONTH_NOV 10
+# define OSSL_TIME_SPEC_BIT_MONTH_DEC 11
+
+typedef struct OSSL_TIME_SPEC_MONTH_st {
+    int type;
+    union {
+        ASN1_NULL *allMonths;
+        STACK_OF(ASN1_INTEGER) *intMonth;
+        ASN1_BIT_STRING *bitMonth;
+    } choice;
+} OSSL_TIME_SPEC_MONTH;
+
+typedef struct OSSL_TIME_PERIOD_st {
+    STACK_OF(OSSL_DAY_TIME_BAND) *timesOfDay;
+    OSSL_TIME_SPEC_DAY *days;
+    OSSL_TIME_SPEC_WEEKS *weeks;
+    OSSL_TIME_SPEC_MONTH *months;
+    STACK_OF(ASN1_INTEGER) *years;
+} OSSL_TIME_PERIOD;
+
+# define OSSL_TIME_SPEC_TIME_TYPE_ABSOLUTE 0
+# define OSSL_TIME_SPEC_TIME_TYPE_PERIODIC 1
+
+typedef struct OSSL_TIME_SPEC_TIME_st {
+    int type;
+    union {
+        OSSL_TIME_SPEC_ABSOLUTE *absolute;
+        STACK_OF(OSSL_TIME_PERIOD) *periodic;
+    } choice;
+} OSSL_TIME_SPEC_TIME;
+
+typedef struct OSSL_TIME_SPEC_st {
+    OSSL_TIME_SPEC_TIME *time;
+    ASN1_BOOLEAN notThisTime;
+    ASN1_INTEGER *timeZone;
+} OSSL_TIME_SPEC;
+
+DECLARE_ASN1_FUNCTIONS(OSSL_DAY_TIME)
+DECLARE_ASN1_FUNCTIONS(OSSL_DAY_TIME_BAND)
+DECLARE_ASN1_FUNCTIONS(OSSL_TIME_SPEC_DAY)
+DECLARE_ASN1_FUNCTIONS(OSSL_TIME_SPEC_WEEKS)
+DECLARE_ASN1_FUNCTIONS(OSSL_TIME_SPEC_MONTH)
+DECLARE_ASN1_FUNCTIONS(OSSL_NAMED_DAY)
+DECLARE_ASN1_FUNCTIONS(OSSL_TIME_SPEC_X_DAY_OF)
+DECLARE_ASN1_FUNCTIONS(OSSL_TIME_SPEC_ABSOLUTE)
+DECLARE_ASN1_FUNCTIONS(OSSL_TIME_SPEC_TIME)
+DECLARE_ASN1_FUNCTIONS(OSSL_TIME_SPEC)
+DECLARE_ASN1_FUNCTIONS(OSSL_TIME_PERIOD)
+
+{-
+    generate_stack_macros("OSSL_TIME_PERIOD");
+-}
+
+{-
+    generate_stack_macros("OSSL_DAY_TIME_BAND");
+-}
+
+/* Attribute Type and Value */
+typedef struct atav_st {
+    ASN1_OBJECT *type;
+    ASN1_TYPE *value;
+} OSSL_ATAV;
+
+typedef struct ATTRIBUTE_TYPE_MAPPING_st {
+    ASN1_OBJECT *local;
+    ASN1_OBJECT *remote;
+} OSSL_ATTRIBUTE_TYPE_MAPPING;
+
+typedef struct ATTRIBUTE_VALUE_MAPPING_st {
+    OSSL_ATAV *local;
+    OSSL_ATAV *remote;
+} OSSL_ATTRIBUTE_VALUE_MAPPING;
+
+# define OSSL_ATTR_MAP_TYPE   0
+# define OSSL_ATTR_MAP_VALUE  1
+
+typedef struct ATTRIBUTE_MAPPING_st {
+    int type;
+    union {
+        OSSL_ATTRIBUTE_TYPE_MAPPING *typeMappings;
+        OSSL_ATTRIBUTE_VALUE_MAPPING *typeValueMappings;
+    } choice;
+} OSSL_ATTRIBUTE_MAPPING;
+
+typedef STACK_OF(OSSL_ATTRIBUTE_MAPPING) OSSL_ATTRIBUTE_MAPPINGS;
+DECLARE_ASN1_FUNCTIONS(OSSL_ATAV)
+DECLARE_ASN1_FUNCTIONS(OSSL_ATTRIBUTE_TYPE_MAPPING)
+DECLARE_ASN1_FUNCTIONS(OSSL_ATTRIBUTE_VALUE_MAPPING)
+DECLARE_ASN1_FUNCTIONS(OSSL_ATTRIBUTE_MAPPING)
+DECLARE_ASN1_FUNCTIONS(OSSL_ATTRIBUTE_MAPPINGS)
+
+{-
+    generate_stack_macros("OSSL_ATTRIBUTE_MAPPING");
+-}
+
+# define OSSL_AAA_ATTRIBUTE_TYPE     0
+# define OSSL_AAA_ATTRIBUTE_VALUES   1
+
+typedef struct ALLOWED_ATTRIBUTES_CHOICE_st {
+    int type;
+    union {
+        ASN1_OBJECT *attributeType;
+        X509_ATTRIBUTE *attributeTypeandValues;
+    } choice;
+} OSSL_ALLOWED_ATTRIBUTES_CHOICE;
+
+typedef struct ALLOWED_ATTRIBUTES_ITEM_st {
+    STACK_OF(OSSL_ALLOWED_ATTRIBUTES_CHOICE) *attributes;
+    GENERAL_NAME *holderDomain;
+} OSSL_ALLOWED_ATTRIBUTES_ITEM;
+
+typedef STACK_OF(OSSL_ALLOWED_ATTRIBUTES_ITEM) OSSL_ALLOWED_ATTRIBUTES_SYNTAX;
+
+DECLARE_ASN1_FUNCTIONS(OSSL_ALLOWED_ATTRIBUTES_CHOICE)
+DECLARE_ASN1_FUNCTIONS(OSSL_ALLOWED_ATTRIBUTES_ITEM)
+DECLARE_ASN1_FUNCTIONS(OSSL_ALLOWED_ATTRIBUTES_SYNTAX)
+
+{-
+    generate_stack_macros("OSSL_ALLOWED_ATTRIBUTES_CHOICE");
+-}
+
+{-
+    generate_stack_macros("OSSL_ALLOWED_ATTRIBUTES_ITEM");
+-}
+
+typedef struct AA_DIST_POINT_st {
+    DIST_POINT_NAME *distpoint;
+    ASN1_BIT_STRING *reasons;
+    int dp_reasons;
+    ASN1_BOOLEAN indirectCRL;
+    ASN1_BOOLEAN containsUserAttributeCerts;
+    ASN1_BOOLEAN containsAACerts;
+    ASN1_BOOLEAN containsSOAPublicKeyCerts;
+} OSSL_AA_DIST_POINT;
+
+DECLARE_ASN1_FUNCTIONS(OSSL_AA_DIST_POINT)
 
 # ifdef  __cplusplus
 }

@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -41,6 +41,9 @@ use OpenSSL::stackhash qw(generate_stack_macros);
 
 # include <openssl/sha.h>
 # include <openssl/x509err.h>
+# ifndef OPENSSL_NO_STDIO
+#  include <stdio.h>
+# endif
 
 #ifdef  __cplusplus
 extern "C" {
@@ -64,16 +67,24 @@ extern "C" {
 # define X509_FILETYPE_ASN1      2
 # define X509_FILETYPE_DEFAULT   3
 
-# define X509v3_KU_DIGITAL_SIGNATURE     0x0080
-# define X509v3_KU_NON_REPUDIATION       0x0040
-# define X509v3_KU_KEY_ENCIPHERMENT      0x0020
-# define X509v3_KU_DATA_ENCIPHERMENT     0x0010
-# define X509v3_KU_KEY_AGREEMENT         0x0008
-# define X509v3_KU_KEY_CERT_SIGN         0x0004
-# define X509v3_KU_CRL_SIGN              0x0002
-# define X509v3_KU_ENCIPHER_ONLY         0x0001
-# define X509v3_KU_DECIPHER_ONLY         0x8000
-# define X509v3_KU_UNDEF                 0xffff
+/*-
+ * <https://datatracker.ietf.org/doc/html/rfc5280#section-4.2.1.3>:
+ * The KeyUsage BITSTRING is treated as a little-endian integer, hence bit `0`
+ * is 0x80, while bit `7` is 0x01 (the LSB of the integer value), bit `8` is
+ * then the MSB of the second octet, or 0x8000.
+ */
+# define X509v3_KU_DIGITAL_SIGNATURE     0x0080     /* (0) */
+# define X509v3_KU_NON_REPUDIATION       0x0040     /* (1) */
+# define X509v3_KU_KEY_ENCIPHERMENT      0x0020     /* (2) */
+# define X509v3_KU_DATA_ENCIPHERMENT     0x0010     /* (3) */
+# define X509v3_KU_KEY_AGREEMENT         0x0008     /* (4) */
+# define X509v3_KU_KEY_CERT_SIGN         0x0004     /* (5) */
+# define X509v3_KU_CRL_SIGN              0x0002     /* (6) */
+# define X509v3_KU_ENCIPHER_ONLY         0x0001     /* (7) */
+# define X509v3_KU_DECIPHER_ONLY         0x8000     /* (8) */
+# ifndef OPENSSL_NO_DEPRECATED_3_4
+#  define X509v3_KU_UNDEF                0xffff     /* vestigial, not used */
+# endif
 
 struct X509_algor_st {
     ASN1_OBJECT *algorithm;
@@ -268,7 +279,12 @@ typedef struct PBKDF2PARAM_st {
     X509_ALGOR *prf;
 } PBKDF2PARAM;
 
-#ifndef OPENSSL_NO_SCRYPT
+typedef struct {
+    X509_ALGOR *keyDerivationFunc;
+    X509_ALGOR *messageAuthScheme;
+} PBMAC1PARAM;
+
+# ifndef OPENSSL_NO_SCRYPT
 typedef struct SCRYPT_PARAMS_st {
     ASN1_OCTET_STRING *salt;
     ASN1_INTEGER *costParameter;
@@ -276,7 +292,7 @@ typedef struct SCRYPT_PARAMS_st {
     ASN1_INTEGER *parallelizationParameter;
     ASN1_INTEGER *keyLength;
 } SCRYPT_PARAMS;
-#endif
+# endif
 
 #ifdef  __cplusplus
 }
@@ -409,6 +425,8 @@ EVP_PKEY *d2i_PrivateKey_ex_fp(FILE *fp, EVP_PKEY **a, OSSL_LIB_CTX *libctx,
                                const char *propq);
 EVP_PKEY *d2i_PrivateKey_fp(FILE *fp, EVP_PKEY **a);
 int i2d_PUBKEY_fp(FILE *fp, const EVP_PKEY *pkey);
+EVP_PKEY *d2i_PUBKEY_ex_fp(FILE *fp, EVP_PKEY **a, OSSL_LIB_CTX *libctx,
+                           const char *propq);
 EVP_PKEY *d2i_PUBKEY_fp(FILE *fp, EVP_PKEY **a);
 # endif
 
@@ -457,6 +475,8 @@ EVP_PKEY *d2i_PrivateKey_ex_bio(BIO *bp, EVP_PKEY **a, OSSL_LIB_CTX *libctx,
                                 const char *propq);
 EVP_PKEY *d2i_PrivateKey_bio(BIO *bp, EVP_PKEY **a);
 int i2d_PUBKEY_bio(BIO *bp, const EVP_PKEY *pkey);
+EVP_PKEY *d2i_PUBKEY_ex_bio(BIO *bp, EVP_PKEY **a, OSSL_LIB_CTX *libctx,
+                            const char *propq);
 EVP_PKEY *d2i_PUBKEY_bio(BIO *bp, EVP_PKEY **a);
 
 DECLARE_ASN1_DUP_FUNCTION(X509)
@@ -690,12 +710,12 @@ int X509_REQ_get_signature_nid(const X509_REQ *req);
 int i2d_re_X509_REQ_tbs(X509_REQ *req, unsigned char **pp);
 int X509_REQ_set_pubkey(X509_REQ *x, EVP_PKEY *pkey);
 EVP_PKEY *X509_REQ_get_pubkey(X509_REQ *req);
-EVP_PKEY *X509_REQ_get0_pubkey(X509_REQ *req);
+EVP_PKEY *X509_REQ_get0_pubkey(const X509_REQ *req);
 X509_PUBKEY *X509_REQ_get_X509_PUBKEY(X509_REQ *req);
 int X509_REQ_extension_nid(int nid);
 int *X509_REQ_get_extension_nids(void);
 void X509_REQ_set_extension_nids(int *nids);
-STACK_OF(X509_EXTENSION) *X509_REQ_get_extensions(X509_REQ *req);
+STACK_OF(X509_EXTENSION) *X509_REQ_get_extensions(OSSL_FUTURE_CONST X509_REQ *req);
 int X509_REQ_add_extensions_nid(X509_REQ *req,
                                 const STACK_OF(X509_EXTENSION) *exts, int nid);
 int X509_REQ_add_extensions(X509_REQ *req, const STACK_OF(X509_EXTENSION) *ext);
@@ -756,13 +776,14 @@ X509_REVOKED_get0_extensions(const X509_REVOKED *r);
 X509_CRL *X509_CRL_diff(X509_CRL *base, X509_CRL *newer,
                         EVP_PKEY *skey, const EVP_MD *md, unsigned int flags);
 
-int X509_REQ_check_private_key(X509_REQ *x509, EVP_PKEY *pkey);
+int X509_REQ_check_private_key(const X509_REQ *req, EVP_PKEY *pkey);
 
-int X509_check_private_key(const X509 *x509, const EVP_PKEY *pkey);
+int X509_check_private_key(const X509 *cert, const EVP_PKEY *pkey);
 int X509_chain_check_suiteb(int *perror_depth,
                             X509 *x, STACK_OF(X509) *chain,
                             unsigned long flags);
 int X509_CRL_check_suiteb(X509_CRL *crl, EVP_PKEY *pk, unsigned long flags);
+void OSSL_STACK_OF_X509_free(STACK_OF(X509) *certs);
 STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *chain);
 
 int X509_issuer_and_serial_cmp(const X509 *a, const X509 *b);
@@ -883,6 +904,8 @@ X509_EXTENSION *X509v3_get_ext(const STACK_OF(X509_EXTENSION) *x, int loc);
 X509_EXTENSION *X509v3_delete_ext(STACK_OF(X509_EXTENSION) *x, int loc);
 STACK_OF(X509_EXTENSION) *X509v3_add_ext(STACK_OF(X509_EXTENSION) **x,
                                          X509_EXTENSION *ex, int loc);
+STACK_OF(X509_EXTENSION) *X509v3_add_extensions(STACK_OF(X509_EXTENSION) **target,
+                                                const STACK_OF(X509_EXTENSION) *exts);
 
 int X509_get_ext_count(const X509 *x);
 int X509_get_ext_by_NID(const X509 *x, int nid, int lastpos);
@@ -1004,9 +1027,10 @@ X509 *X509_find_by_subject(STACK_OF(X509) *sk, const X509_NAME *name);
 DECLARE_ASN1_FUNCTIONS(PBEPARAM)
 DECLARE_ASN1_FUNCTIONS(PBE2PARAM)
 DECLARE_ASN1_FUNCTIONS(PBKDF2PARAM)
-#ifndef OPENSSL_NO_SCRYPT
+DECLARE_ASN1_FUNCTIONS(PBMAC1PARAM)
+# ifndef OPENSSL_NO_SCRYPT
 DECLARE_ASN1_FUNCTIONS(SCRYPT_PARAMS)
-#endif
+# endif
 
 int PKCS5_pbe_set0_algor(X509_ALGOR *algor, int alg, int iter,
                          const unsigned char *salt, int saltlen);
@@ -1043,6 +1067,7 @@ X509_ALGOR *PKCS5_pbkdf2_set_ex(int iter, unsigned char *salt, int saltlen,
                                 int prf_nid, int keylen,
                                 OSSL_LIB_CTX *libctx);
 
+PBKDF2PARAM *PBMAC1_get1_pbkdf2_param(const X509_ALGOR *macalg);
 /* PKCS#8 utilities */
 
 DECLARE_ASN1_FUNCTIONS(PKCS8_PRIV_KEY_INFO)
@@ -1068,6 +1093,8 @@ int PKCS8_pkey_add1_attr_by_OBJ(PKCS8_PRIV_KEY_INFO *p8, const ASN1_OBJECT *obj,
                                 int type, const unsigned char *bytes, int len);
 
 
+void X509_PUBKEY_set0_public_key(X509_PUBKEY *pub,
+                                 unsigned char *penc, int penclen);
 int X509_PUBKEY_set0_param(X509_PUBKEY *pub, ASN1_OBJECT *aobj,
                            int ptype, void *pval,
                            unsigned char *penc, int penclen);

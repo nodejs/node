@@ -409,6 +409,11 @@ int ossl_rsa_sp800_56b_check_keypair(const RSA *rsa, const BIGNUM *efixed,
         ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_KEYPAIR);
         return 0;
     }
+    /* (Step 3.c): check that the modulus length is a positive even integer */
+    if (nbits <= 0 || (nbits & 0x1)) {
+        ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_KEYPAIR);
+        return 0;
+    }
 
     ctx = BN_CTX_new_ex(rsa->libctx);
     if (ctx == NULL)

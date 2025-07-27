@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,6 +12,7 @@
 #include <openssl/asn1t.h>
 #include <openssl/pkcs12.h>
 #include "p12_local.h"
+#include "crypto/pkcs7.h"
 
 /* PKCS#12 ASN1 module */
 
@@ -21,7 +22,21 @@ ASN1_SEQUENCE(PKCS12) = {
         ASN1_OPT(PKCS12, mac, PKCS12_MAC_DATA)
 } ASN1_SEQUENCE_END(PKCS12)
 
-IMPLEMENT_ASN1_FUNCTIONS(PKCS12)
+IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(PKCS12, PKCS12, PKCS12)
+
+PKCS12 *PKCS12_new(void)
+{
+    return (PKCS12 *)ASN1_item_new(ASN1_ITEM_rptr(PKCS12));
+}
+
+void PKCS12_free(PKCS12 *p12)
+{
+    if (p12 != NULL && p12->authsafes != NULL) {
+        OPENSSL_free(p12->authsafes->ctx.propq);
+        p12->authsafes->ctx.propq = NULL;
+    }
+    ASN1_item_free((ASN1_VALUE *)p12, ASN1_ITEM_rptr(PKCS12));
+}
 
 ASN1_SEQUENCE(PKCS12_MAC_DATA) = {
         ASN1_SIMPLE(PKCS12_MAC_DATA, dinfo, X509_SIG),

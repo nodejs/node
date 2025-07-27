@@ -1,4 +1,4 @@
-# Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -15,15 +15,23 @@ push @ISA, 'TLSProxy::Message';
 sub new
 {
     my $class = shift;
-    my ($server,
+    my ($isdtls,
+        $server,
+        $msgseq,
+        $msgfrag,
+        $msgfragoffs,
         $data,
         $records,
         $startoffset,
         $message_frag_lens) = @_;
 
     my $self = $class->SUPER::new(
+        $isdtls,
         $server,
         TLSProxy::Message::MT_CERTIFICATE,
+        $msgseq,
+        $msgfrag,
+        $msgfragoffs,
         $data,
         $records,
         $startoffset,

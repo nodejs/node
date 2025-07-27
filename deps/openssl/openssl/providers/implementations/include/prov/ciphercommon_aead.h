@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,11 +7,15 @@
  * https://www.openssl.org/source/license.html
  */
 
-#define UNINITIALISED_SIZET ((size_t)-1)
+#ifndef OSSL_PROV_CIPHERCOMMON_AEAD_H
+# define OSSL_PROV_CIPHERCOMMON_AEAD_H
+# pragma once
 
-#define AEAD_FLAGS (PROV_CIPHER_FLAG_AEAD | PROV_CIPHER_FLAG_CUSTOM_IV)
+# define UNINITIALISED_SIZET ((size_t)-1)
 
-#define IMPLEMENT_aead_cipher(alg, lc, UCMODE, flags, kbits, blkbits, ivbits)  \
+# define AEAD_FLAGS (PROV_CIPHER_FLAG_AEAD | PROV_CIPHER_FLAG_CUSTOM_IV)
+
+# define IMPLEMENT_aead_cipher(alg, lc, UCMODE, flags, kbits, blkbits, ivbits)  \
 static OSSL_FUNC_cipher_get_params_fn alg##_##kbits##_##lc##_get_params;       \
 static int alg##_##kbits##_##lc##_get_params(OSSL_PARAM params[])              \
 {                                                                              \
@@ -48,5 +52,7 @@ const OSSL_DISPATCH ossl_##alg##kbits##lc##_functions[] = {                    \
       (void (*)(void))ossl_cipher_aead_gettable_ctx_params },                  \
     { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                    \
       (void (*)(void))ossl_cipher_aead_settable_ctx_params },                  \
-    { 0, NULL }                                                                \
+    OSSL_DISPATCH_END                                                          \
 }
+
+#endif

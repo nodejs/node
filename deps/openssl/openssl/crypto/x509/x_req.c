@@ -53,7 +53,7 @@ static int req_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
     switch (operation) {
     case ASN1_OP_D2I_PRE:
         ASN1_OCTET_STRING_free(ret->distinguishing_id);
-        /* fall thru */
+        /* fall through */
     case ASN1_OP_NEW_POST:
         ret->distinguishing_id = NULL;
         break;
@@ -74,7 +74,7 @@ static int req_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
                 if (pkey != NULL) {
                     pkey = EVP_PKEY_dup(pkey);
                     if (pkey == NULL) {
-                        ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
+                        ERR_raise(ERR_LIB_X509, ERR_R_EVP_LIB);
                         return 0;
                     }
                     if (!X509_PUBKEY_set(&ret->req_info.pubkey, pkey)) {

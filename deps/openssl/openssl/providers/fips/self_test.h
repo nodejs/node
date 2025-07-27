@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,11 +15,6 @@ typedef struct self_test_post_params_st {
     /* FIPS module integrity check parameters */
     const char *module_filename;            /* Module file to perform MAC on */
     const char *module_checksum_data;       /* Expected module MAC integrity */
-
-    /* Used for KAT install indicator integrity check */
-    const char *indicator_version;          /* version - for future proofing */
-    const char *indicator_data;             /* data to perform MAC on */
-    const char *indicator_checksum_data;    /* Expected MAC integrity value */
 
     /* Used for continuous tests */
     const char *conditional_error_check;

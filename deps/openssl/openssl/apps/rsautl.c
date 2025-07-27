@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,9 +47,9 @@ const OPTIONS rsautl_options[] = {
 
     OPT_SECTION("Input"),
     {"in", OPT_IN, '<', "Input file"},
-    {"inkey", OPT_INKEY, 's', "Input key"},
+    {"inkey", OPT_INKEY, 's', "Input key, by default an RSA private key"},
     {"keyform", OPT_KEYFORM, 'E', "Private key format (ENGINE, other values ignored)"},
-    {"pubin", OPT_PUBIN, '-', "Input is an RSA public"},
+    {"pubin", OPT_PUBIN, '-', "Input key is an RSA public pkey"},
     {"certin", OPT_CERTIN, '-', "Input is a cert carrying an RSA public key"},
     {"rev", OPT_REV, '-', "Reverse the order of the input buffer"},
     {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
@@ -169,8 +169,7 @@ int rsautl_main(int argc, char **argv)
     }
 
     /* No extra arguments. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
     if (!app_RAND_load())

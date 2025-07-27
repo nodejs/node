@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,7 @@
 typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_CONFIGDIR, OPT_ENGINESDIR, OPT_MODULESDIR, OPT_DSOEXT, OPT_DIRNAMESEP,
-    OPT_LISTSEP, OPT_SEEDS, OPT_CPUSETTINGS
+    OPT_LISTSEP, OPT_SEEDS, OPT_CPUSETTINGS, OPT_WINDOWSCONTEXT
 } OPTION_CHOICE;
 
 const OPTIONS info_options[] = {
@@ -32,6 +32,7 @@ const OPTIONS info_options[] = {
     {"listsep", OPT_LISTSEP, '-', "List separator character"},
     {"seeds", OPT_SEEDS, '-', "Seed sources"},
     {"cpusettings", OPT_CPUSETTINGS, '-', "CPU settings info"},
+    {"windowscontext", OPT_WINDOWSCONTEXT, '-', "Windows install context"},
     {NULL}
 };
 
@@ -40,6 +41,7 @@ int info_main(int argc, char **argv)
     int ret = 1, dirty = 0, type = 0;
     char *prog;
     OPTION_CHOICE o;
+    const char *typedata;
 
     prog = opt_init(argc, argv, info_options);
     while ((o = opt_next()) != OPT_EOF) {
@@ -84,9 +86,13 @@ opthelp:
             type = OPENSSL_INFO_CPU_SETTINGS;
             dirty++;
             break;
+        case OPT_WINDOWSCONTEXT:
+            type = OPENSSL_INFO_WINDOWS_CONTEXT;
+            dirty++;
+            break;
         }
     }
-    if (opt_num_rest() != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
     if (dirty > 1) {
         BIO_printf(bio_err, "%s: Only one item allowed\n", prog);
@@ -97,7 +103,8 @@ opthelp:
         goto opthelp;
     }
 
-    BIO_printf(bio_out, "%s\n", OPENSSL_info(type));
+    typedata = OPENSSL_info(type);
+    BIO_printf(bio_out, "%s\n", typedata == NULL ? "Undefined" : typedata);
     ret = 0;
  end:
     return ret;
