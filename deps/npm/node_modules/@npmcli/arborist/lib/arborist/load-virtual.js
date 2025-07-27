@@ -149,7 +149,7 @@ module.exports = cls => class VirtualLoader extends cls {
     })
 
     for (const [name, path] of workspaces.entries()) {
-      lockWS[name] = `file:${path.replace(/#/g, '%23')}`
+      lockWS[name] = `file:${path}`
     }
 
     // Should rootNames exclude optional?
