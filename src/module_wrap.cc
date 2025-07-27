@@ -1063,14 +1063,14 @@ Maybe<ModuleWrap*> ModuleWrap::ResolveModule(
     return Nothing<ModuleWrap*>();
   }
 
-  if (dependent->resolve_cache_.count(cache_key) != 1) {
+  auto it = dependent->resolve_cache_.find(cache_key);
+  if (it == dependent->resolve_cache_.end()) {
     THROW_ERR_VM_MODULE_LINK_FAILURE(
         env, "request for '%s' is not in cache", cache_key.specifier);
     return Nothing<ModuleWrap*>();
   }
 
-  ModuleWrap* module_wrap =
-      dependent->GetLinkedRequest(dependent->resolve_cache_[cache_key]);
+  ModuleWrap* module_wrap = dependent->GetLinkedRequest(it->second);
   CHECK_NOT_NULL(module_wrap);
   return Just(module_wrap);
 }
