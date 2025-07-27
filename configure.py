@@ -1205,6 +1205,65 @@ def get_gas_version(cc):
   warn(f'Could not recognize `gas`: {gas_ret}')
   return '0.0'
 
+def get_openssl_version():
+  """Parse OpenSSL version from opensslv.h header file.
+
+  Returns the version as a number matching OPENSSL_VERSION_NUMBER format:
+  0xMNN00PPSL where M=major, NN=minor, PP=patch, S=status(0xf=release,0x0=pre), L=0
+  """
+
+  try:
+    # Use the C compiler to extract preprocessor macros from opensslv.h
+    args = ['-E', '-dM', '-include', 'openssl/opensslv.h', '-']
+    if not options.shared_openssl:
+      args = ['-I', 'deps/openssl/openssl/include'] + args
+    elif options.shared_openssl_includes:
+      args = ['-I', options.shared_openssl_includes] + args
+
+    proc = subprocess.Popen(
+      shlex.split(CC) + args,
+      stdin=subprocess.PIPE,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE
+    )
+    with proc:
+      proc.stdin.write(b'\n')
+      out = to_utf8(proc.communicate()[0])
+
+    if proc.returncode != 0:
+      warn('Failed to extract OpenSSL version from opensslv.h header')
+      return 0
+
+    # Parse the macro definitions
+    macros = {}
+    for line in out.split('\n'):
+      if line.startswith('#define OPENSSL_VERSION_'):
+        parts = line.split()
+        if len(parts) >= 3:
+          macro_name = parts[1]
+          macro_value = parts[2]
+          macros[macro_name] = macro_value
+
+    # Extract version components
+    major = int(macros.get('OPENSSL_VERSION_MAJOR', '0'))
+    minor = int(macros.get('OPENSSL_VERSION_MINOR', '0'))
+    patch = int(macros.get('OPENSSL_VERSION_PATCH', '0'))
+
+    # Check if it's a pre-release (has non-empty PRE_RELEASE string)
+    pre_release = macros.get('OPENSSL_VERSION_PRE_RELEASE', '""').strip('"')
+    status = 0x0 if pre_release else 0xf
+    # Construct version number: 0xMNN00PPSL
+    version_number = ((major << 28) |
+                     (minor << 20) |
+                     (patch << 4) |
+                     status)
+
+    return version_number
+
+  except (OSError, ValueError, subprocess.SubprocessError) as e:
+    warn(f'Failed to determine OpenSSL version from header: {e}')
+    return 0
+
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
 # check involves checking the build number against an allowlist.  I'm not
@@ -1827,6 +1886,8 @@ def configure_openssl(o):
   variables['openssl_quic'] = b(options.quic)
   if options.quic:
     o['defines'] += ['NODE_OPENSSL_HAS_QUIC']
+
+  o['variables']['openssl_version'] = get_openssl_version()
 
   configure_library('openssl', o)
 
