@@ -908,6 +908,7 @@ class EVPKeyPointer final {
   size_t rawPrivateKeySize() const;
   DataPointer rawPublicKey() const;
   DataPointer rawPrivateKey() const;
+  DataPointer rawSeed() const;
   BIOPointer derPublicKey() const;
 
   Result<BIOPointer, bool> writePrivateKey(
