@@ -11,7 +11,7 @@
  */
 
 #define PLATFORM "platform: linux64-loongarch64"
-#define DATE "built on: Sun Jul 20 00:56:48 2025 UTC"
+#define DATE "built on: Sun Jul 27 01:00:51 2025 UTC"
 
 /*
  * Generate compiler_flags as an array of individual characters. This is a
@@ -23,7 +23,8 @@ static const char compiler_flags[] = {
     'P','I','C',' ','-','p','t','h','r','e','a','d',' ','-','W','a',
     'l','l',' ','-','O','3',' ','-','D','O','P','E','N','S','S','L',
     '_','U','S','E','_','N','O','D','E','L','E','T','E',' ','-','D',
-    'O','P','E','N','S','S','L','_','P','I','C',' ','-','D','O','P',
-    'E','N','S','S','L','_','B','U','I','L','D','I','N','G','_','O',
-    'P','E','N','S','S','L',' ','-','D','N','D','E','B','U','G','\0'
+    'L','_','E','N','D','I','A','N',' ','-','D','O','P','E','N','S',
+    'S','L','_','P','I','C',' ','-','D','O','P','E','N','S','S','L',
+    '_','B','U','I','L','D','I','N','G','_','O','P','E','N','S','S',
+    'L',' ','-','D','N','D','E','B','U','G','\0'
 };
