@@ -80,6 +80,9 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 /* NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING indicates that the entry
    includes a packet which elicits PTO probe packets. */
 #define NGTCP2_RTB_ENTRY_FLAG_PTO_ELICITING 0x100u
+/* NGTCP2_RTB_ENTRY_FLAG_SKIP indicates that the entry has the skipped
+   packet number. */
+#define NGTCP2_RTB_ENTRY_FLAG_SKIP 0x200u
 
 typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
@@ -187,10 +190,11 @@ typedef struct ngtcp2_rtb {
   /* num_lost_pkts is the number entries in ents which has
      NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED flag set. */
   size_t num_lost_pkts;
-  /* num_lost_pmtud_pkts is the number of entries in ents which have
-     both NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED and
-     NGTCP2_RTB_ENTRY_FLAG_PMTUD_PROBE flags set. */
-  size_t num_lost_pmtud_pkts;
+  /* num_lost_ignore_pkts is the number of entries in ents which have
+     NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED flag set, and should be
+     excluded from lost byte count.  If only those packets are lost,
+     congestion event is not triggered. */
+  size_t num_lost_ignore_pkts;
 } ngtcp2_rtb;
 
 /*
@@ -258,7 +262,8 @@ int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 /*
  * ngtcp2_rtb_remove_expired_lost_pkt removes expired lost packet.
  */
-void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
+void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb,
+                                        ngtcp2_duration timeout,
                                         ngtcp2_tstamp ts);
 
 /*
@@ -269,12 +274,12 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
 ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(const ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_remove_all removes all packets from |rtb|, and prepends
- * all frames to |*pfrc|.  Even when this function fails, some frames
- * might be prepended to |*pfrc|, and the caller should handle them.
+ * ngtcp2_rtb_reclaim_on_retry is called when Retry packet is
+ * received.  It removes all packets from |rtb|, and retransmittable
+ * frames are reclaimed for retransmission.
  */
-int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
-                          ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat);
+int ngtcp2_rtb_reclaim_on_retry(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
+                                ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat);
 
 /*
  * ngtcp2_rtb_remove_early_data removes all entries for 0RTT packets.

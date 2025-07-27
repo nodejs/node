@@ -9,12 +9,13 @@
       'ngtcp2/lib/ngtcp2_balloc.c',
       'ngtcp2/lib/ngtcp2_bbr.c',
       'ngtcp2/lib/ngtcp2_buf.c',
+      'ngtcp2/lib/ngtcp2_callbacks.c',
       'ngtcp2/lib/ngtcp2_cc.c',
       'ngtcp2/lib/ngtcp2_cid.c',
       'ngtcp2/lib/ngtcp2_conn.c',
       'ngtcp2/lib/ngtcp2_conv.c',
-      'ngtcp2/lib/ngtcp2_dcidtr.c',
       'ngtcp2/lib/ngtcp2_crypto.c',
+      'ngtcp2/lib/ngtcp2_dcidtr.c',
       'ngtcp2/lib/ngtcp2_err.c',
       'ngtcp2/lib/ngtcp2_frame_chain.c',
       'ngtcp2/lib/ngtcp2_gaptr.c',
@@ -47,8 +48,8 @@
       'ngtcp2/lib/ngtcp2_window_filter.c',
       'ngtcp2/crypto/shared.c'
     ],
-    'ngtcp2_sources_quictls': [
-      #'ngtcp2/crypto/quictls/quictls.c'
+    'ngtcp2_sources_ossl': [
+      'ngtcp2/crypto/ossl/ossl.c'
     ],
     'ngtcp2_sources_boringssl': [
       'ngtcp2/crypto/boringssl/boringssl.c'
@@ -142,7 +143,7 @@
       },
       'sources': [
         '<@(ngtcp2_sources)',
-        '<@(ngtcp2_sources_quictls)',
+        '<@(ngtcp2_sources_ossl)',
       ]
     },
     {
