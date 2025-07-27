@@ -57,6 +57,7 @@
     'nghttp3_sources': [
       'nghttp3/lib/nghttp3_balloc.c',
       'nghttp3/lib/nghttp3_buf.c',
+      'nghttp3/lib/nghttp3_callbacks.c',
       'nghttp3/lib/nghttp3_conn.c',
       'nghttp3/lib/nghttp3_conv.c',
       'nghttp3/lib/nghttp3_debug.c',
@@ -77,14 +78,13 @@
       'nghttp3/lib/nghttp3_range.c',
       'nghttp3/lib/nghttp3_rcbuf.c',
       'nghttp3/lib/nghttp3_ringbuf.c',
+      'nghttp3/lib/nghttp3_settings.c',
       'nghttp3/lib/nghttp3_str.c',
       'nghttp3/lib/nghttp3_stream.c',
       'nghttp3/lib/nghttp3_tnode.c',
       'nghttp3/lib/nghttp3_unreachable.c',
       'nghttp3/lib/nghttp3_vec.c',
       'nghttp3/lib/nghttp3_version.c',
-      # sfparse is also used by nghttp2 and is included by nghttp2.gyp
-      # 'nghttp3/lib/sfparse.c'
     ]
   },
   'targets': [
