@@ -111,12 +111,6 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt);
 size_t ngtcp2_ppe_left(const ngtcp2_ppe *ppe);
 
 /*
- * ngtcp2_ppe_pktlen returns the provisional packet length.  It
- * includes AEAD overhead.
- */
-size_t ngtcp2_ppe_pktlen(const ngtcp2_ppe *ppe);
-
-/*
  * ngtcp2_ppe_dgram_padding is equivalent to call
  * ngtcp2_ppe_dgram_padding_size(ppe, NGTCP2_MAX_UDP_PAYLOAD_SIZE).
  * This function should be called just before calling

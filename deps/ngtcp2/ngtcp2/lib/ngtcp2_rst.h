@@ -48,7 +48,6 @@ typedef struct ngtcp2_rs {
   ngtcp2_tstamp prior_ts;
   uint64_t tx_in_flight;
   uint64_t lost;
-  uint64_t prior_lost;
   ngtcp2_duration send_elapsed;
   ngtcp2_duration ack_elapsed;
   int64_t last_end_seq;
@@ -73,10 +72,6 @@ typedef struct ngtcp2_rst {
      across all packet number spaces, we can replace this with a
      packet number. */
   int64_t last_seq;
-  /* valid_after_seq is the sequence number, and ignore a packet if
-     the sequence number of the packet is less than or equal to this
-     number. */
-  int64_t valid_after_seq;
   int is_cwnd_limited;
 } ngtcp2_rst;
 

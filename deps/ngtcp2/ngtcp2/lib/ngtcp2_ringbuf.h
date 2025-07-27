@@ -110,7 +110,9 @@ void ngtcp2_ringbuf_resize(ngtcp2_ringbuf *rb, size_t len);
 void *ngtcp2_ringbuf_get(const ngtcp2_ringbuf *rb, size_t offset);
 
 /* ngtcp2_ringbuf_len returns the number of elements stored. */
-#define ngtcp2_ringbuf_len(RB) ((RB)->len)
+static inline size_t ngtcp2_ringbuf_len(const ngtcp2_ringbuf *rb) {
+  return rb->len;
+}
 
 /* ngtcp2_ringbuf_full returns nonzero if |rb| is full. */
 int ngtcp2_ringbuf_full(const ngtcp2_ringbuf *rb);
