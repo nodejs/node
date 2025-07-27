@@ -129,6 +129,36 @@
             'HAVE_NETINET_IN_H',
           ],
         }],
+        # TODO: Support OpenSSL 3.5 shared library builds.
+        # The complexity here is that we need to use the ngtcp2 ossl
+        # adapter, which does not include any conditional checks to
+        # see if the version of OpenSSL used has the necessary QUIC
+        # APIs, so we need to ensure that we conditionally enable use
+        # of the adapter only when we know that the OpenSSL version we
+        # are compiling against has the necessary APIs. We can do that
+        # by checkig the OpenSSL version number but, currently, the
+        # code that does so checks only the VERSION.dat file that is
+        # bundled with the openssl dependency. We'll need to update
+        # that to support the shared library case, where the version
+        # of the shared library needs to be determined.
+        #
+        # TODO: Support Boringssl here also. ngtcp2 provides an adapter
+        # for Boringssl. If we can detect that boringssl is being used
+        # here then we can use that adapter and also set the
+        # QUIC_NGTCP2_USE_BORINGSSL define (the guard in quic/guard.h
+        # would need to be updated to check for this define).
+        ['node_shared_openssl=="false" and openssl_version >= 0x3050001f', {
+          'sources': [
+            '<@(ngtcp2_sources_ossl)',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              # Tells us that we are using the OpenSSL 3.5 adapter
+              # that is provided by ngtcp2.
+              'QUIC_NGTCP2_USE_OPENSSL_3_5',
+            ],
+          },
+        }]
       ],
       'direct_dependent_settings': {
         'defines': [
@@ -143,7 +173,6 @@
       },
       'sources': [
         '<@(ngtcp2_sources)',
-        '<@(ngtcp2_sources_ossl)',
       ]
     },
     {
