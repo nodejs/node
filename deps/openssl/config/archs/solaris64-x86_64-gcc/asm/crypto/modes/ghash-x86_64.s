@@ -708,6 +708,7 @@ gcm_ghash_4bit:
 .align	16
 gcm_init_clmul:
 .cfi_startproc	
+.byte	243,15,30,250
 .L_init_clmul:
 	movdqu	(%rsi),%xmm2
 	pshufd	$78,%xmm2,%xmm2
@@ -1306,6 +1307,7 @@ gcm_ghash_clmul:
 .align	32
 gcm_init_avx:
 .cfi_startproc	
+.byte	243,15,30,250
 	vzeroupper
 
 	vmovdqu	(%rsi),%xmm2
@@ -1798,6 +1800,7 @@ gcm_ghash_avx:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	gcm_ghash_avx,.-gcm_ghash_avx
+.section	.rodata
 .align	64
 .Lbswap_mask:
 .byte	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
@@ -1851,6 +1854,7 @@ gcm_ghash_avx:
 
 .byte	71,72,65,83,72,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	64
+.previous	
 	.section ".note.gnu.property", "a"
 	.p2align 3
 	.long 1f - 0f

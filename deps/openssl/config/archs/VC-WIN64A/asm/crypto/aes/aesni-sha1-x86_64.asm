@@ -2781,6 +2781,7 @@ $L$epilogue_avx:
 	DB	0F3h,0C3h		;repret
 
 $L$SEH_end_aesni_cbc_sha1_enc_avx:
+section	.rdata rdata align=64
 ALIGN	64
 K_XX_XX:
 	DD	0x5a827999,0x5a827999,0x5a827999,0x5a827999
@@ -2796,6 +2797,7 @@ DB	44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32
 DB	60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111
 DB	114,103,62,0
 ALIGN	64
+section .text
 
 ALIGN	32
 aesni_cbc_sha1_enc_shaext:
