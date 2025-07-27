@@ -24,7 +24,7 @@ server.listen(0, () => {
     port: server.address().port,
     path: '/',
   }, (res) => {
-    res.resume(); 
+    res.resume();
     server.close();
   });
 });
