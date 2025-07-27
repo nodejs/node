@@ -1,12 +1,13 @@
 #include "crypto/crypto_keys.h"
-#include "crypto/crypto_common.h"
-#include "crypto/crypto_dsa.h"
-#include "crypto/crypto_ec.h"
-#include "crypto/crypto_dh.h"
-#include "crypto/crypto_rsa.h"
-#include "crypto/crypto_util.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
+#include "crypto/crypto_common.h"
+#include "crypto/crypto_dh.h"
+#include "crypto/crypto_dsa.h"
+#include "crypto/crypto_ec.h"
+#include "crypto/crypto_ml_dsa.h"
+#include "crypto/crypto_rsa.h"
+#include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
@@ -176,6 +177,14 @@ bool ExportJWKAsymmetricKey(Environment* env,
       // Fall through
     case EVP_PKEY_X448:
       return ExportJWKEdKey(env, key, target);
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+    case EVP_PKEY_ML_DSA_44:
+      // Fall through
+    case EVP_PKEY_ML_DSA_65:
+      // Fall through
+    case EVP_PKEY_ML_DSA_87:
+      return ExportJwkMlDsaKey(env, key, target);
+#endif
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
   return false;
@@ -903,6 +912,14 @@ Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
       return env()->crypto_x25519_string();
     case EVP_PKEY_X448:
       return env()->crypto_x448_string();
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+    case EVP_PKEY_ML_DSA_44:
+      return env()->crypto_ml_dsa_44_string();
+    case EVP_PKEY_ML_DSA_65:
+      return env()->crypto_ml_dsa_65_string();
+    case EVP_PKEY_ML_DSA_87:
+      return env()->crypto_ml_dsa_87_string();
+#endif
     default:
       return Undefined(env()->isolate());
   }
@@ -1178,6 +1195,11 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatJWK);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_44);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_65);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_87);
+#endif
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingPKCS1);
