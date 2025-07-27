@@ -120,7 +120,7 @@ uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm) {
 /* strm_rob_heavily_fragmented returns nonzero if the number of gaps
    in |rob| exceeds the limit. */
 static int strm_rob_heavily_fragmented(const ngtcp2_rob *rob) {
-  return ngtcp2_ksl_len(&rob->gapksl) >= 5000;
+  return ngtcp2_ksl_len(&rob->gapksl) >= 1000;
 }
 
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
@@ -138,11 +138,16 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
     }
   }
 
+  rv = ngtcp2_rob_push(strm->rx.rob, offset, data, datalen);
+  if (rv != 0) {
+    return rv;
+  }
+
   if (strm_rob_heavily_fragmented(strm->rx.rob)) {
     return NGTCP2_ERR_INTERNAL;
   }
 
-  return ngtcp2_rob_push(strm->rx.rob, offset, data, datalen);
+  return 0;
 }
 
 void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset) {
@@ -196,6 +201,8 @@ int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm, ngtcp2_frame_chain *frc) {
     if (rv != 0) {
       return rv;
     }
+  } else if (ngtcp2_ksl_len(strm->tx.streamfrq) >= 1000) {
+    return NGTCP2_ERR_INTERNAL;
   }
 
   return ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &frc->fr.stream.offset,
@@ -398,7 +405,11 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
   datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
 
   /* datalen could be zero if 0 length STREAM has been sent */
-  if (left == 0 && datalen) {
+  /* We might see more data in the queue, then left < datalen could be
+     true.  We only see the first one for now. */
+  if ((fr->type == NGTCP2_FRAME_STREAM &&
+       (left < datalen && left < NGTCP2_MIN_STREAM_DATALEN)) ||
+      (left == 0 && datalen)) {
     rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &fr->offset, frc);
     if (rv != 0) {
       assert(ngtcp2_err_is_fatal(rv));
@@ -737,7 +748,16 @@ int ngtcp2_strm_ack_data(ngtcp2_strm *strm, uint64_t offset, uint64_t len) {
     }
   }
 
-  return ngtcp2_gaptr_push(strm->tx.acked_offset, offset, len);
+  rv = ngtcp2_gaptr_push(strm->tx.acked_offset, offset, len);
+  if (rv != 0) {
+    return rv;
+  }
+
+  if (ngtcp2_ksl_len(&strm->tx.acked_offset->gap) >= 1000) {
+    return NGTCP2_ERR_INTERNAL;
+  }
+
+  return 0;
 }
 
 void ngtcp2_strm_set_app_error_code(ngtcp2_strm *strm,

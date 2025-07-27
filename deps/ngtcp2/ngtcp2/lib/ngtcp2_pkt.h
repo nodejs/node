@@ -137,6 +137,13 @@
    v2. */
 #define NGTCP2_PKT_TYPE_RETRY_V2 0x0
 
+/* NGTCP2_MIN_STREAM_DATALEN is the minimum length of STREAM frame to
+   avoid too small frame.  It is not always enforced for various
+   reasons.  For example, due to flow control, we might have fewer
+   bytes available to send.  Therefore, it is only applied when the
+   length of data to send is larger than this limit. */
+#define NGTCP2_MIN_STREAM_DATALEN 256
+
 typedef struct ngtcp2_pkt_retry {
   ngtcp2_cid odcid;
   uint8_t *token;

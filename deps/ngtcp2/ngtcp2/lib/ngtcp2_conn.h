@@ -110,6 +110,9 @@ typedef enum {
    NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING, but it requests to add
    padding to the full UDP datagram payload size. */
 #define NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING_FULL 0x04u
+/* NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY adds padding to the QUIC
+   packet as much as possible if the packet is not empty. */
+#define NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY 0x08u
 
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
@@ -203,6 +206,13 @@ typedef struct ngtcp2_pktns {
     /* last_pkt_num is the packet number which the local endpoint sent
        last time.*/
     int64_t last_pkt_num;
+    struct {
+      /* next_pkt_num is the next packet number to skip. */
+      int64_t next_pkt_num;
+      /* exponent makes gap of skipping packets spread
+         exponentially. */
+      int64_t exponent;
+    } skip_pkt;
     ngtcp2_frame_chain *frq;
     /* non_ack_pkt_start_ts is the timestamp since the local endpoint
        starts sending continuous non ACK-eliciting packets. */
@@ -307,6 +317,8 @@ typedef struct ngtcp2_early_transport_params {
 
 ngtcp2_static_ringbuf_def(path_challenge, 4,
                           sizeof(ngtcp2_path_challenge_entry))
+
+ngtcp2_static_ringbuf_def(path_history, 4, sizeof(ngtcp2_path_history_entry))
 
 ngtcp2_objalloc_decl(strm, ngtcp2_strm, oplent)
 
@@ -625,6 +637,10 @@ struct ngtcp2_conn {
     ngtcp2_cc_cubic cubic;
     ngtcp2_cc_bbr bbr;
   };
+  /* path_history remembers the paths that have been validated
+     successfully.  The path is added to this history when a local
+     endpoint migrates to the another path. */
+  ngtcp2_static_ringbuf_path_history path_history;
   const ngtcp2_mem *mem;
   /* idle_ts is the time instant when idle timer started. */
   ngtcp2_tstamp idle_ts;
@@ -801,7 +817,8 @@ ngtcp2_tstamp ngtcp2_conn_internal_expiry(ngtcp2_conn *conn);
 ngtcp2_ssize ngtcp2_conn_write_vmsg(ngtcp2_conn *conn, ngtcp2_path *path,
                                     int pkt_info_version, ngtcp2_pkt_info *pi,
                                     uint8_t *dest, size_t destlen,
-                                    ngtcp2_vmsg *vmsg, ngtcp2_tstamp ts);
+                                    uint8_t wflags, ngtcp2_vmsg *vmsg,
+                                    ngtcp2_tstamp ts);
 
 /*
  * ngtcp2_conn_write_single_frame_pkt writes a packet which contains
@@ -1093,5 +1110,12 @@ void ngtcp2_conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
  * packet number space.
  */
 void ngtcp2_conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
+
+void ngtcp2_conn_add_path_history(ngtcp2_conn *conn, const ngtcp2_dcid *dcid,
+                                  ngtcp2_tstamp ts);
+
+const ngtcp2_path_history_entry *
+ngtcp2_conn_find_path_history(ngtcp2_conn *conn, const ngtcp2_path *path,
+                              ngtcp2_tstamp ts);
 
 #endif /* !defined(NGTCP2_CONN_H) */
