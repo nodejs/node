@@ -69,6 +69,8 @@ typedef enum nghttp3_ctrl_stream_state {
   NGHTTP3_CTRL_STREAM_STATE_SETTINGS_VALUE,
   NGHTTP3_CTRL_STREAM_STATE_PRIORITY_UPDATE_PRI_ELEM_ID,
   NGHTTP3_CTRL_STREAM_STATE_PRIORITY_UPDATE,
+  NGHTTP3_CTRL_STREAM_STATE_ORIGIN_ORIGIN_LEN,
+  NGHTTP3_CTRL_STREAM_STATE_ORIGIN_ASCII_ORIGIN,
 } nghttp3_ctrl_stream_state;
 
 typedef enum nghttp3_req_stream_state {
@@ -129,10 +131,6 @@ typedef struct nghttp3_stream_read_state {
 /* NGHTTP3_STREAM_FLAG_PRIORITY_UPDATE_RECVED indicates that server
    received PRIORITY_UPDATE frame for this stream. */
 #define NGHTTP3_STREAM_FLAG_PRIORITY_UPDATE_RECVED 0x0800u
-/* NGHTTP3_STREAM_FLAG_HTTP_ERROR indicates that
-   NGHTTP3_ERR_MALFORMED_HTTP_HEADER error is encountered while
-   processing incoming HTTP fields. */
-#define NGHTTP3_STREAM_FLAG_HTTP_ERROR 0x1000u
 
 typedef enum nghttp3_stream_http_state {
   NGHTTP3_HTTP_STATE_NONE,
@@ -223,9 +221,6 @@ struct nghttp3_stream {
       uint64_t unsent_bytes;
       /* outq_idx is an index into outq where next write is made. */
       size_t outq_idx;
-      /* outq_offset is write offset relative to the element at outq_idx
-         in outq. */
-      uint64_t outq_offset;
       /* ack_base is the number of bytes acknowledged by a remote
          endpoint where the first element in outq is positioned at. */
       uint64_t ack_base;
@@ -255,7 +250,7 @@ struct nghttp3_stream {
   };
 };
 
-nghttp3_objalloc_decl(stream, nghttp3_stream, oplent);
+nghttp3_objalloc_decl(stream, nghttp3_stream, oplent)
 
 typedef struct nghttp3_frame_entry {
   nghttp3_frame fr;
@@ -321,6 +316,9 @@ int nghttp3_stream_write_goaway(nghttp3_stream *stream,
 
 int nghttp3_stream_write_priority_update(nghttp3_stream *stream,
                                          nghttp3_frame_entry *frent);
+
+int nghttp3_stream_write_origin(nghttp3_stream *stream,
+                                nghttp3_frame_entry *frent);
 
 int nghttp3_stream_ensure_chunk(nghttp3_stream *stream, size_t need);
 
