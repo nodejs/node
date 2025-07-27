@@ -2935,6 +2935,16 @@ added:
 
 The date/time until which this certificate is valid, encapsulated in a `Date` object.
 
+### `x509.signatureAlgorithm`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string}
+
+The algorithm used to sign the certificate.
+
 ### `x509.verify(publicKey)`
 
 <!-- YAML

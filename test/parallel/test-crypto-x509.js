@@ -114,6 +114,8 @@ const der = Buffer.from(
   assert.strictEqual(x509.keyUsage, undefined);
   assert.strictEqual(x509.serialNumber.toUpperCase(), '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
 
+  assert.strictEqual(x509.signatureAlgorithm, 'sha256WithRSAEncryption');
+
   assert.deepStrictEqual(x509.raw, der);
 
   if (!process.features.openssl_is_boringssl) {

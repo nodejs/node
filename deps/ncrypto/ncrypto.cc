@@ -9,6 +9,7 @@
 #include <openssl/x509v3.h>
 #include <algorithm>
 #include <cstring>
+#include <string_view>
 #if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/provider.h>
 #endif
@@ -1059,6 +1060,15 @@ BIOPointer X509View::getValidTo() const {
   if (!bio) return {};
   ASN1_TIME_print(bio.get(), X509_get_notAfter(cert_));
   return bio;
+}
+
+std::optional<std::string_view> X509View::getSignatureAlgorithm() const {
+  if (cert_ == nullptr) return std::nullopt;
+  int nid = X509_get_signature_nid(cert_);
+  if (nid == NID_undef) return std::nullopt;
+  const char* ln = OBJ_nid2ln(nid);
+  if (ln == nullptr) return std::nullopt;
+  return std::string_view(ln);
 }
 
 int64_t X509View::getValidToTime() const {
