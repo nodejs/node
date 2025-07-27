@@ -48,7 +48,7 @@
       'ngtcp2/crypto/shared.c'
     ],
     'ngtcp2_sources_quictls': [
-      'ngtcp2/crypto/quictls/quictls.c'
+      #'ngtcp2/crypto/quictls/quictls.c'
     ],
     'ngtcp2_sources_boringssl': [
       'ngtcp2/crypto/boringssl/boringssl.c'

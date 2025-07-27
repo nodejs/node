@@ -221,7 +221,6 @@ enum class DatagramStatus : uint8_t {
 CC_ALGOS(V)
 #undef V
 
-constexpr uint64_t NGTCP2_APP_NOERROR = 65280;
 constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
 constexpr size_t kMaxSizeT = std::numeric_limits<size_t>::max();
 constexpr uint64_t kMaxSafeJsInteger = 9007199254740991;
@@ -230,7 +229,7 @@ constexpr size_t kMaxVectorCount = 16;
 
 using error_code = uint64_t;
 
-class DebugIndentScope {
+class DebugIndentScope final {
  public:
   inline DebugIndentScope() { ++indent_; }
   DISALLOW_COPY_AND_MOVE(DebugIndentScope)

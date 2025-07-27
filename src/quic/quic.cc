@@ -20,8 +20,6 @@ using v8::Value;
 
 namespace quic {
 
-int DebugIndentScope::indent_ = 0;
-
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Endpoint::InitPerIsolate(isolate_data, target);
