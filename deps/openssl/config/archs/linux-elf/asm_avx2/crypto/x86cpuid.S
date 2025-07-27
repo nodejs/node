@@ -122,6 +122,24 @@ OPENSSL_ia32_cpuid:
 	xorl	%ecx,%ecx
 	.byte	0x0f,0xa2
 	movl	%ebx,8(%edi)
+	movl	%ecx,12(%edi)
+	movl	%edx,16(%edi)
+	cmpl	$1,%eax
+	jb	.L005no_extended_info
+	movl	$7,%eax
+	movl	$1,%ecx
+	.byte	0x0f,0xa2
+	movl	%eax,20(%edi)
+	movl	%edx,24(%edi)
+	movl	%ebx,28(%edi)
+	movl	%ecx,32(%edi)
+	andl	$524288,%edx
+	cmpl	$0,%edx
+	je	.L005no_extended_info
+	movl	$36,%eax
+	movl	$0,%ecx
+	.byte	0x0f,0xa2
+	movl	%ebx,36(%edi)
 .L005no_extended_info:
 	btl	$27,%ebp
 	jnc	.L006clear_avx
@@ -137,6 +155,7 @@ OPENSSL_ia32_cpuid:
 	andl	$4278190079,%esi
 .L006clear_avx:
 	andl	$4026525695,%ebp
+	andl	$4286578687,20(%edi)
 	andl	$4294967263,8(%edi)
 .L007done:
 	movl	%esi,%eax
@@ -592,7 +611,7 @@ OPENSSL_ia32_rdseed_bytes:
 .size	OPENSSL_ia32_rdseed_bytes,.-.L_OPENSSL_ia32_rdseed_bytes_begin
 .hidden	OPENSSL_cpuid_setup
 .hidden	OPENSSL_ia32cap_P
-.comm	OPENSSL_ia32cap_P,16,4
+.comm	OPENSSL_ia32cap_P,40,4
 .section	.init
 	call	OPENSSL_cpuid_setup
 

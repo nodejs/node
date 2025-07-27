@@ -2718,6 +2718,7 @@ aesni_cbc_sha1_enc_avx:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	aesni_cbc_sha1_enc_avx,.-aesni_cbc_sha1_enc_avx
+.section	.rodata
 .align	64
 K_XX_XX:
 .long	0x5a827999,0x5a827999,0x5a827999,0x5a827999
@@ -2729,6 +2730,7 @@ K_XX_XX:
 
 .byte	65,69,83,78,73,45,67,66,67,43,83,72,65,49,32,115,116,105,116,99,104,32,102,111,114,32,120,56,54,95,54,52,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	64
+.previous	
 .type	aesni_cbc_sha1_enc_shaext,@function
 .align	32
 aesni_cbc_sha1_enc_shaext:
