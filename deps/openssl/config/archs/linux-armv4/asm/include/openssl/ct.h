@@ -133,7 +133,7 @@ typedef enum {
  */
 CT_POLICY_EVAL_CTX *CT_POLICY_EVAL_CTX_new_ex(OSSL_LIB_CTX *libctx,
                                               const char *propq);
-                                                       
+
 /*
  * The same as CT_POLICY_EVAL_CTX_new_ex() but the default library
  * context and property query string is used.

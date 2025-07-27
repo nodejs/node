@@ -38,7 +38,7 @@ static int cache_objects(X509_LOOKUP *lctx, CACHED_STORE *store,
 
     /*
      * We try to set the criterion, but don't care if it was valid or not.
-     * For a OSSL_STORE, it merely serves as an optimization, the expectation
+     * For an OSSL_STORE, it merely serves as an optimization, the expectation
      * being that if the criterion couldn't be used, we will get *everything*
      * from the container that the URI represents rather than the subset that
      * the criterion indicates, so the biggest harm is that we cache more
@@ -131,21 +131,9 @@ static int by_store_ctrl_ex(X509_LOOKUP *ctx, int cmd, const char *argp,
                             long argl, char **retp, OSSL_LIB_CTX *libctx,
                             const char *propq)
 {
-    /*
-     * In some cases below, failing to use the defaults shouldn't result in
-     * an error.  |use_default| is used as the return code in those cases.
-     */
-    int use_default = argp == NULL;
-
     switch (cmd) {
     case X509_L_ADD_STORE:
-        /* If no URI is given, use the default cert dir as default URI */
-        if (argp == NULL)
-            argp = ossl_safe_getenv(X509_get_default_cert_dir_env());
-        if (argp == NULL)
-            argp = X509_get_default_cert_dir();
-
-        {
+        if (argp != NULL) {
             STACK_OF(CACHED_STORE) *stores = X509_LOOKUP_get_method_data(ctx);
             CACHED_STORE *store = OPENSSL_zalloc(sizeof(*store));
 
@@ -163,7 +151,7 @@ static int by_store_ctrl_ex(X509_LOOKUP *ctx, int cmd, const char *argp,
                 || (propq != NULL && store->propq == NULL)
                 || store->uri == NULL) {
                 free_store(store);
-                return use_default;
+                return 0;
             }
 
             if (stores == NULL) {
@@ -177,6 +165,8 @@ static int by_store_ctrl_ex(X509_LOOKUP *ctx, int cmd, const char *argp,
             }
             return 1;
         }
+        /* NOP if no URI is given. */
+        return 1;
     case X509_L_LOAD_STORE: {
         /* This is a shortcut for quick loading of specific containers */
         CACHED_STORE store;
@@ -191,8 +181,6 @@ static int by_store_ctrl_ex(X509_LOOKUP *ctx, int cmd, const char *argp,
         /* Unsupported command */
         return 0;
     }
-
-    return 0;
 }
 
 static int by_store_ctrl(X509_LOOKUP *ctx, int cmd,

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,6 +38,9 @@ static void *aes_gcm_dupctx(void *provctx)
 {
     PROV_AES_GCM_CTX *ctx = provctx;
     PROV_AES_GCM_CTX *dctx = NULL;
+
+    if (!ossl_prov_is_running())
+        return NULL;
 
     if (ctx == NULL)
         return NULL;

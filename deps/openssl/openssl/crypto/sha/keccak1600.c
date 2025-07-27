@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,9 +11,11 @@
 #include <string.h>
 #include <assert.h>
 
+#include "internal/nelem.h"
+
 size_t SHA3_absorb(uint64_t A[5][5], const unsigned char *inp, size_t len,
                    size_t r);
-void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r);
+void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r, int next);
 
 #if !defined(KECCAK1600_ASM) || !defined(SELFTEST)
 
@@ -231,7 +233,7 @@ static void Chi(uint64_t A[5][5])
 
 static void Iota(uint64_t A[5][5], size_t i)
 {
-    assert(i < (sizeof(iotas) / sizeof(iotas[0])));
+    assert(i < OSSL_NELEM(iotas));
     A[0][0] ^= iotas[i];
 }
 
@@ -264,7 +266,7 @@ static void Round(uint64_t A[5][5], size_t i)
     uint64_t C[5], E[2];        /* registers */
     uint64_t D[5], T[2][5];     /* memory    */
 
-    assert(i < (sizeof(iotas) / sizeof(iotas[0])));
+    assert(i < OSSL_NELEM(iotas));
 
     C[0] = A[0][0] ^ A[1][0] ^ A[2][0] ^ A[3][0] ^ A[4][0];
     C[1] = A[0][1] ^ A[1][1] ^ A[2][1] ^ A[3][1] ^ A[4][1];
@@ -391,7 +393,7 @@ static void Round(uint64_t A[5][5], size_t i)
 {
     uint64_t C[5], D[5];
 
-    assert(i < (sizeof(iotas) / sizeof(iotas[0])));
+    assert(i < OSSL_NELEM(iotas));
 
     C[0] = A[0][0] ^ A[1][0] ^ A[2][0] ^ A[3][0] ^ A[4][0];
     C[1] = A[0][1] ^ A[1][1] ^ A[2][1] ^ A[3][1] ^ A[4][1];
@@ -536,7 +538,7 @@ static void Round(uint64_t R[5][5], uint64_t A[5][5], size_t i)
 {
     uint64_t C[5], D[5];
 
-    assert(i < (sizeof(iotas) / sizeof(iotas[0])));
+    assert(i < OSSL_NELEM(iotas));
 
     C[0] = A[0][0] ^ A[1][0] ^ A[2][0] ^ A[3][0] ^ A[4][0];
     C[1] = A[0][1] ^ A[1][1] ^ A[2][1] ^ A[3][1] ^ A[4][1];
@@ -694,7 +696,7 @@ static void FourRounds(uint64_t A[5][5], size_t i)
 {
     uint64_t B[5], C[5], D[5];
 
-    assert(i <= (sizeof(iotas) / sizeof(iotas[0]) - 4));
+    assert(i <= OSSL_NELEM(iotas) - 4);
 
     /* Round 4*n */
     C[0] = A[0][0] ^ A[1][0] ^ A[2][0] ^ A[3][0] ^ A[4][0];
@@ -1090,10 +1092,16 @@ size_t SHA3_absorb(uint64_t A[5][5], const unsigned char *inp, size_t len,
 }
 
 /*
- * sha3_squeeze is called once at the end to generate |out| hash value
- * of |len| bytes.
+ * SHA3_squeeze may be called after SHA3_absorb to generate |out| hash value of
+ * |len| bytes.
+ * If multiple SHA3_squeeze calls are required the output length |len| must be a
+ * multiple of the blocksize, with |next| being 0 on the first call and 1 on
+ * subsequent calls. It is the callers responsibility to buffer the results.
+ * When only a single call to SHA3_squeeze is required, |len| can be any size
+ * and |next| must be 0.
  */
-void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r)
+void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r,
+                  int next)
 {
     uint64_t *A_flat = (uint64_t *)A;
     size_t i, w = r / 8;
@@ -1101,6 +1109,9 @@ void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r)
     assert(r < (25 * sizeof(A[0][0])) && (r % 8) == 0);
 
     while (len != 0) {
+        if (next)
+            KeccakF1600(A);
+        next = 1;
         for (i = 0; i < w && len != 0; i++) {
             uint64_t Ai = BitDeinterleave(A_flat[i]);
 
@@ -1123,8 +1134,6 @@ void SHA3_squeeze(uint64_t A[5][5], unsigned char *out, size_t len, size_t r)
             out += 8;
             len -= 8;
         }
-        if (len)
-            KeccakF1600(A);
     }
 }
 #endif
@@ -1153,7 +1162,7 @@ void SHA3_sponge(const unsigned char *inp, size_t len,
 
 # include <stdio.h>
 
-int main()
+int main(void)
 {
     /*
      * This is 5-bit SHAKE128 test from http://csrc.nist.gov/groups/ST/toolkit/examples.html#aHashing
@@ -1242,11 +1251,11 @@ int main()
         printf(++i % 16 && i != sizeof(out) ? " " : "\n");
     }
 
-    if (memcmp(out,result,sizeof(out))) {
-        fprintf(stderr,"failure\n");
+    if (memcmp(out, result, sizeof(out))) {
+        fprintf(stderr, "failure\n");
         return 1;
     } else {
-        fprintf(stderr,"success\n");
+        fprintf(stderr, "success\n");
         return 0;
     }
 }

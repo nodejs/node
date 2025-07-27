@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -45,7 +45,6 @@ struct ec_pre_comp_st {
                                  * objects followed by a NULL */
     size_t num;                 /* numblocks * 2^(w-1) */
     CRYPTO_REF_COUNT references;
-    CRYPTO_RWLOCK *lock;
 };
 
 static EC_PRE_COMP *ec_pre_comp_new(const EC_GROUP *group)
@@ -56,19 +55,14 @@ static EC_PRE_COMP *ec_pre_comp_new(const EC_GROUP *group)
         return NULL;
 
     ret = OPENSSL_zalloc(sizeof(*ret));
-    if (ret == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL)
         return ret;
-    }
 
     ret->group = group;
     ret->blocksize = 8;         /* default */
     ret->w = 4;                 /* default */
-    ret->references = 1;
 
-    ret->lock = CRYPTO_THREAD_lock_new();
-    if (ret->lock == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+    if (!CRYPTO_NEW_REF(&ret->references, 1)) {
         OPENSSL_free(ret);
         return NULL;
     }
@@ -79,7 +73,7 @@ EC_PRE_COMP *EC_ec_pre_comp_dup(EC_PRE_COMP *pre)
 {
     int i;
     if (pre != NULL)
-        CRYPTO_UP_REF(&pre->references, &i, pre->lock);
+        CRYPTO_UP_REF(&pre->references, &i);
     return pre;
 }
 
@@ -90,8 +84,8 @@ void EC_ec_pre_comp_free(EC_PRE_COMP *pre)
     if (pre == NULL)
         return;
 
-    CRYPTO_DOWN_REF(&pre->references, &i, pre->lock);
-    REF_PRINT_COUNT("EC_ec", pre);
+    CRYPTO_DOWN_REF(&pre->references, &i);
+    REF_PRINT_COUNT("EC_ec", i, pre);
     if (i > 0)
         return;
     REF_ASSERT_ISNT(i < 0);
@@ -103,7 +97,7 @@ void EC_ec_pre_comp_free(EC_PRE_COMP *pre)
             EC_POINT_free(*pts);
         OPENSSL_free(pre->points);
     }
-    CRYPTO_THREAD_lock_free(pre->lock);
+    CRYPTO_FREE_REF(&pre->references);
     OPENSSL_free(pre);
 }
 
@@ -171,7 +165,7 @@ int ossl_ec_scalar_mul_ladder(const EC_GROUP *group, EC_POINT *r,
 
     if (((p = EC_POINT_new(group)) == NULL)
         || ((s = EC_POINT_new(group)) == NULL)) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         goto err;
     }
 
@@ -195,7 +189,7 @@ int ossl_ec_scalar_mul_ladder(const EC_GROUP *group, EC_POINT *r,
     lambda = BN_CTX_get(ctx);
     k = BN_CTX_get(ctx);
     if (k == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
         goto err;
     }
 
@@ -520,10 +514,8 @@ int ossl_ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
     if (wNAF != NULL)
         wNAF[0] = NULL;         /* preliminary pivot */
 
-    if (wsize == NULL || wNAF_len == NULL || wNAF == NULL || val_sub == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+    if (wsize == NULL || wNAF_len == NULL || wNAF == NULL || val_sub == NULL)
         goto err;
-    }
 
     /*
      * num_val will be the total number of temporarily precomputed points
@@ -633,7 +625,6 @@ int ossl_ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
                     wNAF[i + 1] = NULL;
                     wNAF[i] = OPENSSL_malloc(wNAF_len[i]);
                     if (wNAF[i] == NULL) {
-                        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
                         OPENSSL_free(tmp_wNAF);
                         goto err;
                     }
@@ -661,10 +652,8 @@ int ossl_ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
      * subarray of 'pre_comp->points' if we already have precomputation.
      */
     val = OPENSSL_malloc((num_val + 1) * sizeof(val[0]));
-    if (val == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+    if (val == NULL)
         goto err;
-    }
     val[num_val] = NULL;        /* pivot element */
 
     /* allocate points for precomputation */
@@ -893,23 +882,21 @@ int ossl_ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
                                              * and store */
 
     points = OPENSSL_malloc(sizeof(*points) * (num + 1));
-    if (points == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+    if (points == NULL)
         goto err;
-    }
 
     var = points;
     var[num] = NULL;            /* pivot */
     for (i = 0; i < num; i++) {
         if ((var[i] = EC_POINT_new(group)) == NULL) {
-            ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
             goto err;
         }
     }
 
     if ((tmp_point = EC_POINT_new(group)) == NULL
         || (base = EC_POINT_new(group)) == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EC, ERR_R_EC_LIB);
         goto err;
     }
 

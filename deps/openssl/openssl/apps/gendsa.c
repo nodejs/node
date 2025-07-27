@@ -24,7 +24,7 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_OUT, OPT_PASSOUT, OPT_ENGINE, OPT_CIPHER, OPT_VERBOSE,
+    OPT_OUT, OPT_PASSOUT, OPT_ENGINE, OPT_CIPHER, OPT_VERBOSE, OPT_QUIET,
     OPT_R_ENUM, OPT_PROV_ENUM
 } OPTION_CHOICE;
 
@@ -44,6 +44,7 @@ const OPTIONS gendsa_options[] = {
     OPT_PROV_OPTIONS,
     {"", OPT_CIPHER, '-', "Encrypt the output with any supported cipher"},
     {"verbose", OPT_VERBOSE, '-', "Verbose output"},
+    {"quiet", OPT_QUIET, '-', "Terse output"},
 
     OPT_PARAMETERS(),
     {"dsaparam-file", 0, 0, "File containing DSA parameters"},
@@ -62,6 +63,7 @@ int gendsa_main(int argc, char **argv)
     OPTION_CHOICE o;
     int ret = 1, private = 0, verbose = 0, nbits;
 
+    opt_set_unknown_name("cipher");
     prog = opt_init(argc, argv, gendsa_options);
     while ((o = opt_next()) != OPT_EOF) {
         switch (o) {
@@ -97,23 +99,23 @@ int gendsa_main(int argc, char **argv)
         case OPT_VERBOSE:
             verbose = 1;
             break;
+        case OPT_QUIET:
+            verbose = 0;
+            break;
         }
     }
 
     /* One argument, the params file. */
-    argc = opt_num_rest();
-    argv = opt_rest();
-    if (argc != 1)
+    if (!opt_check_rest_arg("params file"))
         goto opthelp;
+    argv = opt_rest();
     dsaparams = argv[0];
 
     if (!app_RAND_load())
         goto end;
 
-    if (ciphername != NULL) {
-        if (!opt_cipher(ciphername, &enc))
-            goto end;
-    }
+    if (!opt_cipher(ciphername, &enc))
+        goto end;
     private = 1;
 
     if (!app_passwd(NULL, passoutarg, NULL, &passout)) {

@@ -33,10 +33,8 @@ int PEM_SignFinal(EVP_MD_CTX *ctx, unsigned char *sigret,
     unsigned int m_len;
 
     m = OPENSSL_malloc(EVP_PKEY_get_size(pkey));
-    if (m == NULL) {
-        ERR_raise(ERR_LIB_PEM, ERR_R_MALLOC_FAILURE);
+    if (m == NULL)
         goto err;
-    }
 
     if (EVP_SignFinal(ctx, m, &m_len, pkey) <= 0)
         goto err;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -62,9 +62,6 @@ static CTLOG_STORE_LOAD_CTX *ctlog_store_load_ctx_new(void)
 {
     CTLOG_STORE_LOAD_CTX *ctx = OPENSSL_zalloc(sizeof(*ctx));
 
-    if (ctx == NULL)
-        ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
-
     return ctx;
 }
 
@@ -104,23 +101,19 @@ CTLOG_STORE *CTLOG_STORE_new_ex(OSSL_LIB_CTX *libctx, const char *propq)
 {
     CTLOG_STORE *ret = OPENSSL_zalloc(sizeof(*ret));
 
-    if (ret == NULL) {
-        ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL)
         return NULL;
-    }
 
     ret->libctx = libctx;
     if (propq != NULL) {
         ret->propq = OPENSSL_strdup(propq);
-        if (ret->propq == NULL) {
-            ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
+        if (ret->propq == NULL)
             goto err;
-        }
     }
 
     ret->logs = sk_CTLOG_new_null();
     if (ret->logs == NULL) {
-        ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CT, ERR_R_CRYPTO_LIB);
         goto err;
     }
 
@@ -196,7 +189,7 @@ static int ctlog_store_load_log(const char *log_name, int log_name_len,
 
     tmp = OPENSSL_strndup(log_name, log_name_len);
     if (tmp == NULL)
-        goto mem_err;
+        return -1;
 
     ret = ctlog_new_from_conf(load_ctx->log_store, &ct_log, load_ctx->conf, tmp);
     OPENSSL_free(tmp);
@@ -212,14 +205,11 @@ static int ctlog_store_load_log(const char *log_name, int log_name_len,
     }
 
     if (!sk_CTLOG_push(load_ctx->log_store->logs, ct_log)) {
-        goto mem_err;
+        CTLOG_free(ct_log);
+        ERR_raise(ERR_LIB_CT, ERR_R_CRYPTO_LIB);
+        return -1;
     }
     return 1;
-
-mem_err:
-    CTLOG_free(ct_log);
-    ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
-    return -1;
 }
 
 int CTLOG_STORE_load_file(CTLOG_STORE *store, const char *file)
@@ -269,25 +259,19 @@ CTLOG *CTLOG_new_ex(EVP_PKEY *public_key, const char *name, OSSL_LIB_CTX *libctx
 {
     CTLOG *ret = OPENSSL_zalloc(sizeof(*ret));
 
-    if (ret == NULL) {
-        ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL)
         return NULL;
-    }
 
     ret->libctx = libctx;
     if (propq != NULL) {
         ret->propq = OPENSSL_strdup(propq);
-        if (ret->propq == NULL) {
-            ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
+        if (ret->propq == NULL)
             goto err;
-        }
     }
 
     ret->name = OPENSSL_strdup(name);
-    if (ret->name == NULL) {
-        ERR_raise(ERR_LIB_CT, ERR_R_MALLOC_FAILURE);
+    if (ret->name == NULL)
         goto err;
-    }
 
     if (ct_v1_log_id_from_pkey(ret, public_key) != 1)
         goto err;

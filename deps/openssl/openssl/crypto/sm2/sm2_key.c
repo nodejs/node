@@ -29,7 +29,7 @@ int ossl_sm2_key_private_check(const EC_KEY *eckey)
     if (eckey == NULL
             || (group = EC_KEY_get0_group(eckey)) == NULL
             || (priv_key = EC_KEY_get0_private_key(eckey)) == NULL
-            || (order = EC_GROUP_get0_order(group)) == NULL ) {
+            || (order = EC_GROUP_get0_order(group)) == NULL) {
         ERR_raise(ERR_LIB_SM2, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
     }

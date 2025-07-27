@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Siemens AG 2015-2022
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -10,7 +10,7 @@
 
 /*
  * A collection of test cases where check-format.pl should not report issues.
- * There are some known false positives, though, which are marked below.
+ * There are some known false positives, though, which are marked below using /*@
  */
 
 #include <errno.h> /* should not report whitespace nits within <...> */
@@ -161,6 +161,13 @@ int g(void)
         while (1);
     while (2);
 
+    if (pcrl != NULL) {
+        1;
+        2;
+    } else if (pcrls != NULL) {
+        1;
+    }
+
     if (1)
         f(a, b);
     do
@@ -236,6 +243,9 @@ int g(void)
                     return 0;
             }
             break;
+        case 1: {
+            ;
+        }
         default:
             /* This should be dead code */
             return 0;
@@ -254,7 +264,14 @@ int g(void)
             && expr_line3)
         hanging_stmt;
 }
-#define m \
+
+#define m1                           \
+    if (ctx == NULL)                 \
+        return 0;                    \
+    if (ossl_param_is_empty(params)) \
+        return 1;                    \
+
+#define m2                                                               \
     do { /* should not be confused with function header followed by '{' */ \
     } while (0)
 
@@ -279,6 +296,7 @@ const OPTIONS passwd_options[] = {
     {NULL}
 };
 
+typedef bool (*LOG_cb_t)(int lineno, severity level, const char *msg);
 typedef * d(int)
     x;
 typedef (int)
