@@ -8,7 +8,7 @@
  */
 
 /*
- * Crypto extention support for AES GCM.
+ * Crypto extension support for AES GCM.
  * This file is included by cipher_aes_gcm_hw.c
  */
 
@@ -20,13 +20,25 @@ size_t armv8_aes_gcm_encrypt(const unsigned char *in, unsigned char *out, size_t
 
     switch(aes_key->rounds) {
         case 10:
-            aes_gcm_enc_128_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            if (IS_CPU_SUPPORT_UNROLL8_EOR3()) {
+                unroll8_eor3_aes_gcm_enc_128_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            } else {
+                aes_gcm_enc_128_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            }
             break;
         case 12:
-            aes_gcm_enc_192_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            if (IS_CPU_SUPPORT_UNROLL8_EOR3()) {
+                unroll8_eor3_aes_gcm_enc_192_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            } else {
+                aes_gcm_enc_192_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            }
             break;
         case 14:
-            aes_gcm_enc_256_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            if (IS_CPU_SUPPORT_UNROLL8_EOR3()) {
+                unroll8_eor3_aes_gcm_enc_256_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            } else {
+                aes_gcm_enc_256_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            }
             break;
     }
     return align_bytes;
@@ -40,13 +52,25 @@ size_t armv8_aes_gcm_decrypt(const unsigned char *in, unsigned char *out, size_t
 
     switch(aes_key->rounds) {
         case 10:
-            aes_gcm_dec_128_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            if (IS_CPU_SUPPORT_UNROLL8_EOR3()) {
+                unroll8_eor3_aes_gcm_dec_128_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            } else {
+                aes_gcm_dec_128_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            }
             break;
         case 12:
-            aes_gcm_dec_192_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            if (IS_CPU_SUPPORT_UNROLL8_EOR3()) {
+                unroll8_eor3_aes_gcm_dec_192_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            } else {
+                aes_gcm_dec_192_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            }
             break;
         case 14:
-            aes_gcm_dec_256_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            if (IS_CPU_SUPPORT_UNROLL8_EOR3()) {
+                unroll8_eor3_aes_gcm_dec_256_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            } else {
+                aes_gcm_dec_256_kernel(in, align_bytes * 8, out, (uint64_t *)Xi, ivec, key);
+            }
             break;
     }
     return align_bytes;
@@ -58,8 +82,13 @@ static int armv8_aes_gcm_initkey(PROV_GCM_CTX *ctx, const unsigned char *key,
     PROV_AES_GCM_CTX *actx = (PROV_AES_GCM_CTX *)ctx;
     AES_KEY *ks = &actx->ks.ks;
 
-    GCM_HW_SET_KEY_CTR_FN(ks, aes_v8_set_encrypt_key, aes_v8_encrypt,
-                          aes_v8_ctr32_encrypt_blocks);
+    if (AES_UNROLL12_EOR3_CAPABLE) {
+        GCM_HW_SET_KEY_CTR_FN(ks, aes_v8_set_encrypt_key, aes_v8_encrypt,
+                              aes_v8_ctr32_encrypt_blocks_unroll12_eor3);
+    } else {
+        GCM_HW_SET_KEY_CTR_FN(ks, aes_v8_set_encrypt_key, aes_v8_encrypt,
+                              aes_v8_ctr32_encrypt_blocks);
+    }
     return 1;
 }
 

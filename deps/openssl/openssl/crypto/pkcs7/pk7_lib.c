@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -229,7 +229,7 @@ int PKCS7_add_signer(PKCS7 *p7, PKCS7_SIGNER_INFO *psi)
         if ((alg = X509_ALGOR_new()) == NULL
             || (alg->parameter = ASN1_TYPE_new()) == NULL) {
             X509_ALGOR_free(alg);
-            ERR_raise(ERR_LIB_PKCS7, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_PKCS7, ERR_R_ASN1_LIB);
             return 0;
         }
         /*
@@ -295,11 +295,12 @@ int PKCS7_add_crl(PKCS7 *p7, X509_CRL *crl)
     if (*sk == NULL)
         *sk = sk_X509_CRL_new_null();
     if (*sk == NULL) {
-        ERR_raise(ERR_LIB_PKCS7, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PKCS7, ERR_R_CRYPTO_LIB);
         return 0;
     }
 
-    X509_CRL_up_ref(crl);
+    if (!X509_CRL_up_ref(crl))
+        return 0;
     if (!sk_X509_CRL_push(*sk, crl)) {
         X509_CRL_free(crl);
         return 0;
@@ -310,7 +311,7 @@ int PKCS7_add_crl(PKCS7 *p7, X509_CRL *crl)
 static int pkcs7_ecdsa_or_dsa_sign_verify_setup(PKCS7_SIGNER_INFO *si,
                                                 int verify)
 {
-    if (verify == 0) {
+    if (!verify) {
         int snid, hnid;
         X509_ALGOR *alg1, *alg2;
         EVP_PKEY *pkey = si->pkey;
@@ -323,19 +324,20 @@ static int pkcs7_ecdsa_or_dsa_sign_verify_setup(PKCS7_SIGNER_INFO *si,
             return -1;
         if (!OBJ_find_sigid_by_algs(&snid, hnid, EVP_PKEY_get_id(pkey)))
             return -1;
-        X509_ALGOR_set0(alg2, OBJ_nid2obj(snid), V_ASN1_UNDEF, 0);
+        return X509_ALGOR_set0(alg2, OBJ_nid2obj(snid), V_ASN1_UNDEF, NULL);
     }
     return 1;
 }
 
 static int pkcs7_rsa_sign_verify_setup(PKCS7_SIGNER_INFO *si, int verify)
 {
-    if (verify == 0) {
+    if (!verify) {
         X509_ALGOR *alg = NULL;
 
         PKCS7_SIGNER_INFO_get0_algs(si, NULL, NULL, &alg);
         if (alg != NULL)
-            X509_ALGOR_set0(alg, OBJ_nid2obj(NID_rsaEncryption), V_ASN1_NULL, 0);
+            return X509_ALGOR_set0(alg, OBJ_nid2obj(NID_rsaEncryption),
+                                   V_ASN1_NULL, NULL);
     }
     return 1;
 }
@@ -347,10 +349,10 @@ int PKCS7_SIGNER_INFO_set(PKCS7_SIGNER_INFO *p7i, X509 *x509, EVP_PKEY *pkey,
 
     /* We now need to add another PKCS7_SIGNER_INFO entry */
     if (!ASN1_INTEGER_set(p7i->version, 1))
-        goto err;
+        return 0;
     if (!X509_NAME_set(&p7i->issuer_and_serial->issuer,
                        X509_get_issuer_name(x509)))
-        goto err;
+        return 0;
 
     /*
      * because ASN1_INTEGER_set is used to set a 'long' we will do things the
@@ -359,16 +361,19 @@ int PKCS7_SIGNER_INFO_set(PKCS7_SIGNER_INFO *p7i, X509 *x509, EVP_PKEY *pkey,
     ASN1_INTEGER_free(p7i->issuer_and_serial->serial);
     if (!(p7i->issuer_and_serial->serial =
           ASN1_INTEGER_dup(X509_get0_serialNumber(x509))))
-        goto err;
+        return 0;
 
     /* lets keep the pkey around for a while */
-    EVP_PKEY_up_ref(pkey);
+    if (!EVP_PKEY_up_ref(pkey))
+        return 0;
+
     p7i->pkey = pkey;
 
     /* Set the algorithms */
 
-    X509_ALGOR_set0(p7i->digest_alg, OBJ_nid2obj(EVP_MD_get_type(dgst)),
-                    V_ASN1_NULL, NULL);
+    if (!X509_ALGOR_set0(p7i->digest_alg, OBJ_nid2obj(EVP_MD_get_type(dgst)),
+                         V_ASN1_NULL, NULL))
+        return 0;
 
     if (EVP_PKEY_is_a(pkey, "EC") || EVP_PKEY_is_a(pkey, "DSA"))
         return pkcs7_ecdsa_or_dsa_sign_verify_setup(p7i, 0);
@@ -385,7 +390,6 @@ int PKCS7_SIGNER_INFO_set(PKCS7_SIGNER_INFO *p7i, X509 *x509, EVP_PKEY *pkey,
         }
     }
     ERR_raise(ERR_LIB_PKCS7, PKCS7_R_SIGNING_NOT_SUPPORTED_FOR_THIS_KEY_TYPE);
- err:
     return 0;
 }
 
@@ -417,7 +421,7 @@ PKCS7_SIGNER_INFO *PKCS7_add_signature(PKCS7 *p7, X509 *x509, EVP_PKEY *pkey,
     return NULL;
 }
 
-static STACK_OF(X509) *pkcs7_get_signer_certs(const PKCS7 *p7)
+STACK_OF(X509) *pkcs7_get0_certificates(const PKCS7 *p7)
 {
     if (p7->d.ptr == NULL)
         return NULL;
@@ -458,7 +462,7 @@ void ossl_pkcs7_resolve_libctx(PKCS7 *p7)
 
     rinfos = pkcs7_get_recipient_info(p7);
     sinfos = PKCS7_get_signer_info(p7);
-    certs = pkcs7_get_signer_certs(p7);
+    certs = pkcs7_get0_certificates(p7);
 
     for (i = 0; i < sk_X509_num(certs); i++)
         ossl_x509_set0_libctx(sk_X509_value(certs, i), libctx, propq);
@@ -495,10 +499,8 @@ int ossl_pkcs7_set1_propq(PKCS7 *p7, const char *propq)
     }
     if (propq != NULL) {
         p7->ctx.propq = OPENSSL_strdup(propq);
-        if (p7->ctx.propq == NULL) {
-            ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
+        if (p7->ctx.propq == NULL)
             return 0;
-        }
     }
     return 1;
 }
@@ -526,7 +528,7 @@ int PKCS7_set_digest(PKCS7 *p7, const EVP_MD *md)
 {
     if (PKCS7_type_is_digest(p7)) {
         if ((p7->d.digest->md->parameter = ASN1_TYPE_new()) == NULL) {
-            ERR_raise(ERR_LIB_PKCS7, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_PKCS7, ERR_R_ASN1_LIB);
             return 0;
         }
         p7->d.digest->md->parameter->type = V_ASN1_NULL;
@@ -611,10 +613,11 @@ static int pkcs7_rsa_encrypt_decrypt_setup(PKCS7_RECIP_INFO *ri, int decrypt)
 {
     X509_ALGOR *alg = NULL;
 
-    if (decrypt == 0) {
+    if (!decrypt) {
         PKCS7_RECIP_INFO_get0_alg(ri, &alg);
         if (alg != NULL)
-            X509_ALGOR_set0(alg, OBJ_nid2obj(NID_rsaEncryption), V_ASN1_NULL, 0);
+            return X509_ALGOR_set0(alg, OBJ_nid2obj(NID_rsaEncryption),
+                                   V_ASN1_NULL, NULL);
     }
     return 1;
 }
@@ -663,7 +666,9 @@ int PKCS7_RECIP_INFO_set(PKCS7_RECIP_INFO *p7i, X509 *x509)
         goto err;
     }
 finished:
-    X509_up_ref(x509);
+    if (!X509_up_ref(x509))
+        goto err;
+
     p7i->cert = x509;
 
     return 1;

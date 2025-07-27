@@ -14,6 +14,7 @@
  */
 #define OPENSSL_SUPPRESS_DEPRECATED
 
+#include "internal/e_os.h"
 #include "apps.h"
 
 #ifndef OPENSSL_NO_ENGINE
@@ -71,10 +72,8 @@ static OSSL_STORE_LOADER_CTX *engine_open(const OSSL_STORE_LOADER *loader,
     char *keyid = NULL;
     OSSL_STORE_LOADER_CTX *ctx = NULL;
 
-    if (OPENSSL_strncasecmp(p, ENGINE_SCHEME_COLON, sizeof(ENGINE_SCHEME_COLON) - 1)
-        != 0)
+    if (!CHECK_AND_SKIP_CASE_PREFIX(p, ENGINE_SCHEME_COLON))
         return NULL;
-    p += sizeof(ENGINE_SCHEME_COLON) - 1;
 
     /* Look for engine ID */
     q = strchr(p, ':');

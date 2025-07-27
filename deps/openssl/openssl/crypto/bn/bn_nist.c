@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -84,8 +84,8 @@ static const BN_ULONG _nist_p_384_sqr[] = {
     0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL
 };
 
-static const BN_ULONG _nist_p_521[] =
-    { 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL,
+static const BN_ULONG _nist_p_521[] = {
+    0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL,
     0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL,
     0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL,
     0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL,
@@ -251,7 +251,7 @@ const BIGNUM *BN_get0_nist_prime_521(void)
 
 /*
  * To avoid more recent compilers (specifically clang-14) from treating this
- * code as a violation of the strict aliasing conditions and omiting it, this
+ * code as a violation of the strict aliasing conditions and omitting it, this
  * cannot be declared as a function.  Moreover, the dst parameter cannot be
  * cached in a local since this no longer references the union and again falls
  * foul of the strict aliasing criteria.  Refer to #18225 for the initial

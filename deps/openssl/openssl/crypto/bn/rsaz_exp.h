@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2020, Intel Corporation. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -39,6 +39,8 @@ void RSAZ_512_mod_exp(BN_ULONG result[8],
 
 
 int ossl_rsaz_avx512ifma_eligible(void);
+
+int ossl_rsaz_avxifma_eligible(void);
 
 int ossl_rsaz_mod_exp_avx512_x2(BN_ULONG *res1,
                                 const BN_ULONG *base1,

@@ -14,7 +14,11 @@ SOURCE[../../libcrypto]=\
         v3_info.c v3_akeya.c v3_pmaps.c v3_pcons.c v3_ncons.c \
         v3_pcia.c v3_pci.c v3_ist.c \
         pcy_cache.c pcy_node.c pcy_data.c pcy_map.c pcy_tree.c pcy_lib.c \
-        v3_asid.c v3_addr.c v3_tlsf.c v3_admis.c
+        v3_asid.c v3_addr.c v3_tlsf.c v3_admis.c v3_no_rev_avail.c \
+        v3_soa_id.c v3_no_ass.c v3_group_ac.c v3_single_use.c v3_ind_iss.c \
+        x509_acert.c x509aset.c t_acert.c x_ietfatt.c v3_ac_tgt.c v3_sda.c \
+        v3_usernotice.c v3_battcons.c v3_audit_id.c v3_iobo.c v3_authattid.c \
+        v3_rolespec.c v3_attrdesc.c v3_timespec.c v3_attrmap.c v3_aaa.c
 
 IF[{- !$disabled{'deprecated-3.0'} -}]
   SOURCE[../../libcrypto]=x509type.c

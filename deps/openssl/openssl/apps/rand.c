@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,7 +25,7 @@ typedef enum OPTION_choice {
 } OPTION_CHOICE;
 
 const OPTIONS rand_options[] = {
-    {OPT_HELP_STR, 1, '-', "Usage: %s [options] num\n"},
+    {OPT_HELP_STR, 1, '-', "Usage: %s [options] num[K|M|G|T]\n"},
 
     OPT_SECTION("General"),
     {"help", OPT_HELP, '-', "Display this summary"},
@@ -52,7 +52,11 @@ int rand_main(int argc, char **argv)
     BIO *out = NULL;
     char *outfile = NULL, *prog;
     OPTION_CHOICE o;
-    int format = FORMAT_BINARY, i, num = -1, r, ret = 1;
+    int format = FORMAT_BINARY, r, i, ret = 1;
+    size_t buflen = (1 << 16); /* max rand chunk size is 2^16 bytes */
+    long num = -1;
+    uint64_t scaled_num = 0;
+    uint8_t *buf = NULL;
 
     prog = opt_init(argc, argv, rand_options);
     while ((o = opt_next()) != OPT_EOF) {
@@ -93,9 +97,86 @@ int rand_main(int argc, char **argv)
     argc = opt_num_rest();
     argv = opt_rest();
     if (argc == 1) {
-        if (!opt_int(argv[0], &num) || num <= 0)
+        int factoridx = 0;
+        int shift = 0;
+
+        /*
+         * special case for requesting the max allowed
+         * number of random bytes to be generated
+         */
+        if (!strcmp(argv[0], "max")) {
+            /*
+             * 2^61 bytes is the limit of random output
+             * per drbg instantiation
+             */
+            scaled_num = UINT64_MAX >> 3;
+        } else {
+            /*
+             * iterate over the value and check to see if there are
+             * any non-numerical chars
+             * A non digit suffix indicates we need to shift the
+             * number of requested bytes by a factor of:
+             * K = 1024^1 (1 << (10 * 1))
+             * M = 1024^2 (1 << (10 * 2))
+             * G = 1024^3 (1 << (10 * 3))
+             * T = 1024^4 (1 << (10 * 4))
+             * which can be achieved by bit-shifting the number
+             */
+            while (argv[0][factoridx]) {
+                if (!isdigit((int)(argv[0][factoridx]))) {
+                    switch(argv[0][factoridx]) {
+                    case 'K':
+                        shift = 10;
+                        break;
+                    case 'M':
+                        shift = 20;
+                        break;
+                    case 'G':
+                        shift = 30;
+                        break;
+                    case 'T':
+                        shift = 40;
+                        break;
+                    default:
+                        BIO_printf(bio_err, "Invalid size suffix %s\n",
+                                   &argv[0][factoridx]);
+                        goto opthelp;
+                    }
+                    break;
+                }
+                factoridx++;
+            }
+
+            if (shift != 0 && strlen(&argv[0][factoridx]) != 1) {
+                BIO_printf(bio_err, "Invalid size suffix %s\n",
+                           &argv[0][factoridx]);
+                goto opthelp;
+            }
+        }
+        /* Remove the suffix from the arg so that opt_long works */
+        if (shift != 0)
+            argv[0][factoridx] = '\0';
+
+        if ((scaled_num == 0) && (!opt_long(argv[0], &num) || num <= 0))
             goto opthelp;
-    } else if (argc != 0) {
+
+        if (shift != 0) {
+            /* check for overflow */
+            if ((UINT64_MAX >> shift) < (size_t)num) {
+                BIO_printf(bio_err, "%lu bytes with suffix overflows\n",
+                           num);
+                goto opthelp;
+            }
+            scaled_num = num << shift;
+            if (scaled_num > (UINT64_MAX >> 3)) {
+                BIO_printf(bio_err, "Request exceeds max allowed output\n");
+                goto opthelp;
+            }
+        } else {
+            if (scaled_num == 0)
+                scaled_num = num;
+        }
+    } else if (!opt_check_rest_arg(NULL)) {
         goto opthelp;
     }
 
@@ -113,13 +194,11 @@ int rand_main(int argc, char **argv)
         out = BIO_push(b64, out);
     }
 
-    while (num > 0) {
-        unsigned char buf[4096];
+    buf = app_malloc(buflen, "buffer for output file");
+    while (scaled_num > 0) {
         int chunk;
 
-        chunk = num;
-        if (chunk > (int)sizeof(buf))
-            chunk = sizeof(buf);
+        chunk = scaled_num > buflen ? (int)buflen : (int)scaled_num;
         r = RAND_bytes(buf, chunk);
         if (r <= 0)
             goto end;
@@ -131,7 +210,7 @@ int rand_main(int argc, char **argv)
                 if (BIO_printf(out, "%02x", buf[i]) != 2)
                     goto end;
         }
-        num -= chunk;
+        scaled_num -= chunk;
     }
     if (format == FORMAT_TEXT)
         BIO_puts(out, "\n");
@@ -143,6 +222,7 @@ int rand_main(int argc, char **argv)
  end:
     if (ret != 0)
         ERR_print_errors(bio_err);
+    OPENSSL_free(buf);
     release_engine(e);
     BIO_free_all(out);
     return ret;

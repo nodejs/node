@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -18,6 +18,23 @@ typedef enum OPTION_choice {
     OPT_HEX, OPT_GENERATE, OPT_BITS, OPT_SAFE, OPT_CHECKS,
     OPT_PROV_ENUM
 } OPTION_CHOICE;
+
+static int check_num(const char *s, const int is_hex)
+{
+    int i;
+    /*
+     * It would make sense to use ossl_isxdigit and ossl_isdigit here,
+     * but ossl_ctype_check is a local symbol in libcrypto.so.
+     */
+    if (is_hex) {
+        for (i = 0; ('0' <= s[i] && s[i] <= '9')
+                    || ('A' <= s[i] && s[i] <= 'F')
+                    || ('a' <= s[i] && s[i] <= 'f'); i++);
+    } else {
+        for (i = 0;  '0' <= s[i] && s[i] <= '9'; i++);
+    }
+    return s[i] == 0;
+}
 
 const OPTIONS prime_options[] = {
     {OPT_HELP_STR, 1, '-', "Usage: %s [options] [number...]\n"},
@@ -83,12 +100,12 @@ opthelp:
     }
 
     /* Optional arguments are numbers to check. */
+    if (generate && !opt_check_rest_arg(NULL))
+        goto opthelp;
     argc = opt_num_rest();
     argv = opt_rest();
-    if (generate) {
-        if (argc != 0)
-            goto opthelp;
-    } else if (argc == 0) {
+    if (!generate && argc == 0) {
+        BIO_printf(bio_err, "Missing number (s) to check\n");
         goto opthelp;
     }
 
@@ -117,12 +134,10 @@ opthelp:
         OPENSSL_free(s);
     } else {
         for ( ; *argv; argv++) {
-            int r;
+            int r = check_num(argv[0], hex);
 
-            if (hex)
-                r = BN_hex2bn(&bn, argv[0]);
-            else
-                r = BN_dec2bn(&bn, argv[0]);
+            if (r)
+                r = hex ? BN_hex2bn(&bn, argv[0]) : BN_dec2bn(&bn, argv[0]);
 
             if (!r) {
                 BIO_printf(bio_err, "Failed to process value (%s)\n", argv[0]);
@@ -130,10 +145,14 @@ opthelp:
             }
 
             BN_print(bio_out, bn);
+            r = BN_check_prime(bn, NULL, NULL);
+            if (r < 0) {
+                BIO_printf(bio_err, "Error checking prime\n");
+                goto end;
+            }
             BIO_printf(bio_out, " (%s) %s prime\n",
                        argv[0],
-                       BN_check_prime(bn, NULL, NULL)
-                           ? "is" : "is not");
+                       r == 1 ? "is" : "is not");
         }
     }
 

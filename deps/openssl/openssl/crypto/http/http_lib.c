@@ -9,14 +9,14 @@
 
 #include <stdio.h>       /* for sscanf() */
 #include <string.h>
-#ifndef OPENSSL_NO_SOCK
-# include "../bio/bio_local.h" /* for NI_MAXHOST */
-#endif
 #include <openssl/http.h>
 #include <openssl/httperr.h>
 #include <openssl/bio.h> /* for BIO_snprintf() */
 #include <openssl/err.h>
 #include "internal/cryptlib.h" /* for ossl_assert() */
+#ifndef OPENSSL_NO_SOCK
+# include "internal/bio_addr.h" /* for NI_MAXHOST */
+#endif
 #ifndef NI_MAXHOST
 # define NI_MAXHOST 255
 #endif
@@ -59,7 +59,7 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     const char *user, *user_end;
     const char *host, *host_end;
     const char *port, *port_end;
-    unsigned int portnum;
+    unsigned int portnum = 0;
     const char *path, *path_end;
     const char *query, *query_end;
     const char *frag, *frag_end;
@@ -98,22 +98,16 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     else
         host = p;
 
-    /* parse host name/address as far as needed here */
+    /* parse hostname/address as far as needed here */
     if (host[0] == '[') {
-        /* ipv6 literal, which may include ':' */
+        /* IPv6 literal, which may include ':' */
         host_end = strchr(host + 1, ']');
         if (host_end == NULL)
             goto parse_err;
         p = ++host_end;
     } else {
         /* look for start of optional port, path, query, or fragment */
-        host_end = strchr(host, ':');
-        if (host_end == NULL)
-            host_end = strchr(host, '/');
-        if (host_end == NULL)
-            host_end = strchr(host, '?');
-        if (host_end == NULL)
-            host_end = strchr(host, '#');
+        host_end = strpbrk(host, ":/?#");
         if (host_end == NULL) /* the remaining string is just the hostname */
             host_end = host + strlen(host);
         p = host_end;
@@ -195,6 +189,8 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     free_pstring(pfrag);
     return 0;
 }
+
+#ifndef OPENSSL_NO_HTTP
 
 int OSSL_HTTP_parse_url(const char *url, int *pssl, char **puser, char **phost,
                         char **pport, int *pport_num,
@@ -305,3 +301,5 @@ const char *OSSL_HTTP_adapt_proxy(const char *proxy, const char *no_proxy,
         return NULL;
     return proxy;
 }
+
+#endif /* !defined(OPENSSL_NO_HTTP) */

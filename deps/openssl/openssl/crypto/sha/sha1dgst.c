@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,7 +20,7 @@
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 
-/* The implementation is in ../md32_common.h */
+/* The implementation is in crypto/md32_common.h */
 
 #include "sha_local.h"
 #include "crypto/sha.h"
