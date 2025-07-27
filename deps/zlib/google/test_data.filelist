@@ -37,3 +37,5 @@ test/data/test_encrypted.zip
 test/data/test_mismatch_size.zip
 test/data/test_nocompress.zip
 test/data/test_posix_permissions.zip
+test/data/unicode_path_extra.zip
+test/data/unicode_path_extra_overflow.zip
