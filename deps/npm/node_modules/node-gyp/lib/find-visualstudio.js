@@ -145,6 +145,7 @@ class VisualStudioFinder {
       version: process.env.VSCMD_VER,
       packages: [
         'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+        'Microsoft.VisualStudio.Component.VC.Tools.ARM64',
         // Assume MSBuild exists. It will be checked in processing.
         'Microsoft.VisualStudio.VC.MSBuild.Base'
       ]
@@ -429,12 +430,21 @@ class VisualStudioFinder {
 
   // Helper - process toolset information
   getToolset (info, versionYear) {
-    const pkg = 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
+    const vcToolsArm64 = 'VC.Tools.ARM64'
+    const pkgArm64 = `Microsoft.VisualStudio.Component.${vcToolsArm64}`
+    const vcToolsX64 = 'VC.Tools.x86.x64'
+    const pkgX64 = `Microsoft.VisualStudio.Component.${vcToolsX64}`
     const express = 'Microsoft.VisualStudio.WDExpress'
 
-    if (info.packages.indexOf(pkg) !== -1) {
-      this.log.silly('- found VC.Tools.x86.x64')
-    } else if (info.packages.indexOf(express) !== -1) {
+    if (process.arch === 'arm64' && info.packages.includes(pkgArm64)) {
+      this.log.silly(`- found ${vcToolsArm64}`)
+    } else if (info.packages.includes(pkgX64)) {
+      if (process.arch === 'arm64') {
+        this.addLog(`- found ${vcToolsX64} on ARM64 platform. Expect less performance and/or link failure with ARM64 binary.`)
+      } else {
+        this.log.silly(`- found ${vcToolsX64}`)
+      }
+    } else if (info.packages.includes(express)) {
       this.log.silly('- found Visual Studio Express (looking for toolset)')
     } else {
       return null
