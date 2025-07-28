@@ -1099,7 +1099,7 @@ changes:
     description: No longer experimental.
 -->
 
-* `err` Error
+* `err` {Error}
 * `eventName` {string|symbol}
 * `...args` {any}
 
@@ -1600,7 +1600,7 @@ changes:
     description: No longer experimental.
 -->
 
-Value: {boolean}
+* Type: {boolean}
 
 Change the default `captureRejections` option on all new `EventEmitter` objects.
 
@@ -1618,7 +1618,7 @@ changes:
     description: No longer experimental.
 -->
 
-Value: `Symbol.for('nodejs.rejection')`
+* Type: {symbol} `Symbol.for('nodejs.rejection')`
 
 See how to write a custom [rejection handler][rejection].
 
@@ -1681,12 +1681,12 @@ changes:
 * `eventName` {string|symbol} The name of the event being listened for
 * `options` {Object}
   * `signal` {AbortSignal} Can be used to cancel awaiting events.
-  * `close` - {string\[]} Names of events that will end the iteration.
-  * `highWaterMark` - {integer} **Default:** `Number.MAX_SAFE_INTEGER`
+  * `close` {string\[]} Names of events that will end the iteration.
+  * `highWaterMark` {integer} **Default:** `Number.MAX_SAFE_INTEGER`
     The high watermark. The emitter is paused every time the size of events
     being buffered is higher than it. Supported only on emitters implementing
     `pause()` and `resume()` methods.
-  * `lowWaterMark` - {integer} **Default:** `1`
+  * `lowWaterMark` {integer} **Default:** `1`
     The low watermark. The emitter is resumed every time the size of events
     being buffered is lower than it. Supported only on emitters implementing
     `pause()` and `resume()` methods.
@@ -1988,7 +1988,7 @@ same options as `EventEmitter` and `AsyncResource` themselves.
 
 ### `eventemitterasyncresource.asyncResource`
 
-* The underlying {AsyncResource}.
+* Type: {AsyncResource} The underlying {AsyncResource}.
 
 The returned `AsyncResource` object has an additional `eventEmitter` property
 that provides a reference to this `EventEmitterAsyncResource`.
