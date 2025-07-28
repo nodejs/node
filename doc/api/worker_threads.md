@@ -1849,7 +1849,7 @@ active handle in the event system. If the worker is already `unref()`ed calling
 ### `worker[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v22.18.0
 -->
 
 Alias for [`worker.terminate()`][].

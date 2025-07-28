@@ -155,7 +155,7 @@ Error: Cannot load native addon because loading addons is disabled.
 <!-- YAML
 added: v20.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.18.0
     pr-url: https://github.com/nodejs/node/pull/58853
     description: When spawning process with the permission model enabled.
                  The flags are inherit to the child Node.js process through
@@ -1493,7 +1493,7 @@ forked processes, or clustered processes.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.18.0
     pr-url: https://github.com/nodejs/node/pull/56350
     description: Add support for `-typescript` values.
   - version:
@@ -1808,7 +1808,7 @@ Disable the experimental [`node:sqlite`][] module.
 <!-- YAML
 added: v22.6.0
 changes:
-  - version: REPLACEME
+  - version: v22.18.0
     pr-url: https://github.com/nodejs/node/pull/56350
     description: Type stripping is enabled by default.
 -->
@@ -3094,7 +3094,7 @@ node --watch index.js
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.18.0
 -->
 
 Customizes the signal sent to the process on watch mode restarts.

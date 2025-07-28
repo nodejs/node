@@ -3856,7 +3856,7 @@ a shell, use [`child_process.execFile`][] instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.18.0
     pr-url: https://github.com/nodejs/node/pull/58942
     description: Documentation-only deprecation with support for `--pending-deprecation`.
 -->

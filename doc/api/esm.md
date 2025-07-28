@@ -397,7 +397,7 @@ const buffer = readFileSync(new URL('./data.proto', import.meta.url));
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v22.18.0
 -->
 
 > Stability: 1.0 - Early development
