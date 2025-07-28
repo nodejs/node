@@ -28,6 +28,7 @@ changes:
 <!--introduced_in=v22.6.0-->
 
 > Stability: 2 - Stable
+<!-- llm_description=Provides lightweight TypeScript support in Node.js via type stripping. Enables execution of .ts files without type checking or full compiler features. -->
 
 ## Enabling
 
