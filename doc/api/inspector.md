@@ -2,6 +2,8 @@
 
 <!--introduced_in=v8.0.0-->
 
+<!-- llm_description=Enables programmatic interaction with the V8 Inspector for debugging and profiling -->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/inspector.js -->

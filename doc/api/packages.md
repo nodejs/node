@@ -63,15 +63,15 @@ Node.js will treat the following as [ES modules][] when passed to `node` as the
 initial input, or when referenced by `import` statements or `import()`
 expressions:
 
-- Files with an `.mjs` extension.
+* Files with an `.mjs` extension.
 
-- Files with a `.js` extension when the nearest parent `package.json` file
+* Files with a `.js` extension when the nearest parent `package.json` file
   contains a top-level [`"type"`][] field with a value of `"module"`.
 
-- Strings passed in as an argument to `--eval`, or piped to `node` via `STDIN`,
+* Strings passed in as an argument to `--eval`, or piped to `node` via `STDIN`,
   with the flag `--input-type=module`.
 
-- Code containing syntax only successfully parsed as [ES modules][], such as
+* Code containing syntax only successfully parsed as [ES modules][], such as
   `import` or `export` statements or `import.meta`, with no explicit marker of
   how it should be interpreted. Explicit markers are `.mjs` or `.cjs`
   extensions, `package.json` `"type"` fields with either `"module"` or
@@ -83,15 +83,15 @@ Node.js will treat the following as [CommonJS][] when passed to `node` as the
 initial input, or when referenced by `import` statements or `import()`
 expressions:
 
-- Files with a `.cjs` extension.
+* Files with a `.cjs` extension.
 
-- Files with a `.js` extension when the nearest parent `package.json` file
+* Files with a `.js` extension when the nearest parent `package.json` file
   contains a top-level field [`"type"`][] with a value of `"commonjs"`.
 
-- Strings passed in as an argument to `--eval` or `--print`, or piped to `node`
+* Strings passed in as an argument to `--eval` or `--print`, or piped to `node`
   via `STDIN`, with the flag `--input-type=commonjs`.
 
-- Files with a `.js` extension with no parent `package.json` file or where the
+* Files with a `.js` extension with no parent `package.json` file or where the
   nearest parent `package.json` file lacks a `type` field, and where the code
   can evaluate successfully as CommonJS. In other words, Node.js tries to run
   such "ambiguous" files as CommonJS first, and will retry evaluating them as ES
@@ -129,19 +129,19 @@ as an ES module.
 
 Ambiguous input is defined as:
 
-- Files with a `.js` extension or no extension; and either no controlling
+* Files with a `.js` extension or no extension; and either no controlling
   `package.json` file or one that lacks a `type` field.
-- String input (`--eval` or `STDIN`) when `--input-type`is not specified.
+* String input (`--eval` or `STDIN`) when `--input-type`is not specified.
 
 ES module syntax is defined as syntax that would throw when evaluated as
 CommonJS. This includes the following:
 
-- `import` statements (but _not_ `import()` expressions, which are valid in
+* `import` statements (but _not_ `import()` expressions, which are valid in
   CommonJS).
-- `export` statements.
-- `import.meta` references.
-- `await` at the top level of a module.
-- Lexical redeclarations of the CommonJS wrapper variables (`require`, `module`,
+* `export` statements.
+* `import.meta` references.
+* `await` at the top level of a module.
+* Lexical redeclarations of the CommonJS wrapper variables (`require`, `module`,
   `exports`, `__dirname`, `__filename`).
 
 ### Modules loaders
@@ -150,36 +150,36 @@ Node.js has two systems for resolving a specifier and loading modules.
 
 There is the CommonJS module loader:
 
-- It is fully synchronous.
-- It is responsible for handling `require()` calls.
-- It is monkey patchable.
-- It supports [folders as modules][].
-- When resolving a specifier, if no exact match is found, it will try to add
+* It is fully synchronous.
+* It is responsible for handling `require()` calls.
+* It is monkey patchable.
+* It supports [folders as modules][].
+* When resolving a specifier, if no exact match is found, it will try to add
   extensions (`.js`, `.json`, and finally `.node`) and then attempt to resolve
   [folders as modules][].
-- It treats `.json` as JSON text files.
-- `.node` files are interpreted as compiled addon modules loaded with
+* It treats `.json` as JSON text files.
+* `.node` files are interpreted as compiled addon modules loaded with
   `process.dlopen()`.
-- It treats all files that lack `.json` or `.node` extensions as JavaScript
+* It treats all files that lack `.json` or `.node` extensions as JavaScript
   text files.
-- It can only be used to [load ECMAScript modules from CommonJS modules][] if
+* It can only be used to [load ECMAScript modules from CommonJS modules][] if
   the module graph is synchronous (that contains no top-level `await`).
   When used to load a JavaScript text file that is not an ECMAScript module,
   the file will be loaded as a CommonJS module.
 
 There is the ECMAScript module loader:
 
-- It is asynchronous, unless it's being used to load modules for `require()`.
-- It is responsible for handling `import` statements and `import()` expressions.
-- It is not monkey patchable, can be customized using [loader hooks][].
-- It does not support folders as modules, directory indexes (e.g.
+* It is asynchronous, unless it's being used to load modules for `require()`.
+* It is responsible for handling `import` statements and `import()` expressions.
+* It is not monkey patchable, can be customized using [loader hooks][].
+* It does not support folders as modules, directory indexes (e.g.
   `'./startup/index.js'`) must be fully specified.
-- It does no extension searching. A file extension must be provided
+* It does no extension searching. A file extension must be provided
   when the specifier is a relative or absolute file URL.
-- It can load JSON modules, but an import type attribute is required.
-- It accepts only `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
+* It can load JSON modules, but an import type attribute is required.
+* It accepts only `.js`, `.mjs`, and `.cjs` extensions for JavaScript text
   files.
-- It can be used to load JavaScript CommonJS modules. Such modules
+* It can be used to load JavaScript CommonJS modules. Such modules
   are passed through the `cjs-module-lexer` to try to identify named exports,
   which are available if they can be determined through static analysis.
   Imported CommonJS modules have their URLs converted to absolute
@@ -231,12 +231,12 @@ import 'commonjs-package/src/index.mjs';
 The `.mjs` and `.cjs` extensions can be used to mix types within the same
 package:
 
-- Within a `"type": "module"` package, Node.js can be instructed to
+* Within a `"type": "module"` package, Node.js can be instructed to
   interpret a particular file as [CommonJS][] by naming it with a `.cjs`
   extension (since both `.js` and `.mjs` files are treated as ES modules within
   a `"module"` package).
 
-- Within a `"type": "commonjs"` package, Node.js can be instructed to
+* Within a `"type": "commonjs"` package, Node.js can be instructed to
   interpret a particular file as an [ES module][] by naming it with an `.mjs`
   extension (since both `.js` and `.cjs` files are treated as CommonJS within a
   `"commonjs"` package).
@@ -451,8 +451,8 @@ keys) must be relative URL strings starting with `./`.
 {
   "name": "my-package",
   "exports": {
-    ".": "./dist/main.js", // Correct
-    "./feature": "./lib/feature.js" // Correct
+    ".": "./dist/main.js",          // Correct
+    "./feature": "./lib/feature.js", // Correct
     // "./origin-relative": "/dist/main.js", // Incorrect: Must start with ./
     // "./absolute": "file:///dev/null", // Incorrect: Must start with ./
     // "./outside": "../common/util.js" // Incorrect: Must start with ./
@@ -462,9 +462,9 @@ keys) must be relative URL strings starting with `./`.
 
 Reasons for this behavior include:
 
-- **Security:** Prevents exporting arbitrary files from outside the
+* **Security:** Prevents exporting arbitrary files from outside the
   package's own directory.
-- **Encapsulation:** Ensures all exported paths are resolved relative to
+* **Encapsulation:** Ensures all exported paths are resolved relative to
   the package root, making the package self-contained.
 
 ##### No path traversal or invalid segments
@@ -675,28 +675,28 @@ For example, a package that wants to provide different ES module exports for
 Node.js implements the following conditions, listed in order from most
 specific to least specific as conditions should be defined:
 
-- `"node-addons"` - similar to `"node"` and matches for any Node.js environment.
+* `"node-addons"` - similar to `"node"` and matches for any Node.js environment.
   This condition can be used to provide an entry point which uses native C++
   addons as opposed to an entry point which is more universal and doesn't rely
   on native addons. This condition can be disabled via the
   [`--no-addons` flag][].
-- `"node"` - matches for any Node.js environment. Can be a CommonJS or ES
+* `"node"` - matches for any Node.js environment. Can be a CommonJS or ES
   module file. _In most cases explicitly calling out the Node.js platform is
   not necessary._
-- `"import"` - matches when the package is loaded via `import` or
+* `"import"` - matches when the package is loaded via `import` or
   `import()`, or via any top-level import or resolve operation by the
   ECMAScript module loader. Applies regardless of the module format of the
   target file. _Always mutually exclusive with `"require"`._
-- `"require"` - matches when the package is loaded via `require()`. The
+* `"require"` - matches when the package is loaded via `require()`. The
   referenced file should be loadable with `require()` although the condition
   matches regardless of the module format of the target file. Expected
   formats include CommonJS, JSON, native addons, and ES modules. _Always mutually
   exclusive with `"import"`._
-- `"module-sync"` - matches no matter the package is loaded via `import`,
+* `"module-sync"` - matches no matter the package is loaded via `import`,
   `import()` or `require()`. The format is expected to be ES modules that does
   not contain top-level await in its module graph - if it does,
   `ERR_REQUIRE_ASYNC_MODULE` will be thrown when the module is `require()`-ed.
-- `"default"` - the generic fallback that always matches. Can be a CommonJS
+* `"default"` - the generic fallback that always matches. Can be a CommonJS
   or ES module file. _This condition should always come last._
 
 Within the [`"exports"`][] object, key order is significant. During condition
@@ -811,14 +811,14 @@ Since custom package conditions require clear definitions to ensure correct
 usage, a list of common known package conditions and their strict definitions
 is provided below to assist with ecosystem coordination.
 
-- `"types"` - can be used by typing systems to resolve the typing file for
+* `"types"` - can be used by typing systems to resolve the typing file for
   the given export. _This condition should always be included first._
-- `"browser"` - any web browser environment.
-- `"development"` - can be used to define a development-only environment
+* `"browser"` - any web browser environment.
+* `"development"` - can be used to define a development-only environment
   entry point, for example to provide additional debugging context such as
   better error messages when running in a development mode. _Must always be
   mutually exclusive with `"production"`._
-- `"production"` - can be used to define a production environment entry
+* `"production"` - can be used to define a production environment entry
   point. _Must always be mutually exclusive with `"development"`._
 
 For other runtimes, platform-specific condition key definitions are maintained
@@ -828,16 +828,16 @@ New conditions definitions may be added to this list by creating a pull request
 to the [Node.js documentation for this section][]. The requirements for listing
 a new condition definition here are that:
 
-- The definition should be clear and unambiguous for all implementers.
-- The use case for why the condition is needed should be clearly justified.
-- There should exist sufficient existing implementation usage.
-- The condition name should not conflict with another condition definition or
+* The definition should be clear and unambiguous for all implementers.
+* The use case for why the condition is needed should be clearly justified.
+* There should exist sufficient existing implementation usage.
+* The condition name should not conflict with another condition definition or
   condition in wide usage.
-- The listing of the condition definition should provide a coordination
+* The listing of the condition definition should provide a coordination
   benefit to the ecosystem that wouldn't otherwise be possible. For example,
   this would not necessarily be the case for company-specific or
   application-specific conditions.
-- The condition should be such that a Node.js user would expect it to be in
+* The condition should be such that a Node.js user would expect it to be in
   Node.js core documentation. The `"types"` condition is a good example: It
   doesn't really belong in the [Runtime Keys][] proposal but is a good fit
   here in the Node.js docs.
@@ -941,15 +941,15 @@ additional fields which are ignored by Node.js and not documented here.
 
 The following fields in `package.json` files are used in Node.js:
 
-- [`"name"`][] - Relevant when using named imports within a package. Also used
+* [`"name"`][] - Relevant when using named imports within a package. Also used
   by package managers as the name of the package.
-- [`"main"`][] - The default module when loading the package, if exports is not
+* [`"main"`][] - The default module when loading the package, if exports is not
   specified, and in versions of Node.js prior to the introduction of exports.
-- [`"type"`][] - The package type determining whether to load `.js` files as
+* [`"type"`][] - The package type determining whether to load `.js` files as
   CommonJS or ES modules.
-- [`"exports"`][] - Package exports and conditional exports. When present,
+* [`"exports"`][] - Package exports and conditional exports. When present,
   limits which submodules can be loaded from within the package.
-- [`"imports"`][] - Package imports, for use by modules within the package
+* [`"imports"`][] - Package imports, for use by modules within the package
   itself.
 
 ### `"name"`
@@ -966,7 +966,7 @@ changes:
     description: Remove the `--experimental-resolve-self` option.
 -->
 
-- Type: {string}
+* Type: {string}
 
 ```json
 {
@@ -987,7 +987,7 @@ The `"name"` field can be used in addition to the [`"exports"`][] field to
 added: v0.4.0
 -->
 
-- Type: {string}
+* Type: {string}
 
 ```json
 {
@@ -996,7 +996,7 @@ added: v0.4.0
 ```
 
 The `"main"` field defines the entry point of a package when imported by name
-via a `node_modules` lookup. Its value is a path.
+via a `node_modules` lookup.  Its value is a path.
 
 When a package has an [`"exports"`][] field, this will take precedence over the
 `"main"` field when importing the package by name.
@@ -1021,7 +1021,7 @@ changes:
     description: Unflag `--experimental-modules`.
 -->
 
-- Type: {string}
+* Type: {string}
 
 The `"type"` field defines the module format that Node.js uses for all
 `.js` files that have that `package.json` file as their nearest parent.
@@ -1032,7 +1032,7 @@ Files ending with `.js` are loaded as ES modules when the nearest parent
 
 The nearest parent `package.json` is defined as the first `package.json` found
 when searching in the current folder, that folder's parent, and so on up
-until a node_modules folder or the volume root is reached.
+until a node\_modules folder or the volume root is reached.
 
 ```json
 // package.json
@@ -1094,7 +1094,7 @@ changes:
     description: Implement conditional exports.
 -->
 
-- Type: {Object|string|string\[]}
+* Type: {Object|string|string\[]}
 
 ```json
 {
@@ -1123,7 +1123,7 @@ added:
  - v12.19.0
 -->
 
-- Type: {Object}
+* Type: {Object}
 
 ```json
 // package.json

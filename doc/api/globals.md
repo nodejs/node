@@ -2,6 +2,8 @@
 
 <!--introduced_in=v0.10.0-->
 
+<!-- llm_description=Lists built-in global objects and functions available in the Node.js runtime. -->
+
 <!-- type=misc -->
 
 > Stability: 2 - Stable
