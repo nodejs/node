@@ -1,5 +1,7 @@
 # Usage and example
 
+<!-- llm_description=Overview of basic Node.js usage via CLI. Illustrates how to run scripts and provides a simple web server example. -->
+
 ## Usage
 
 <!--introduced_in=v0.10.0-->
