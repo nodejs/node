@@ -2,6 +2,8 @@
 
 <!--introduced_in=v0.10.0-->
 
+<!-- llm_description=Provides functionality for creating HTTP servers and clients, enabling the handling of HTTP requests and responses. -->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/http.js -->

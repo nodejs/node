@@ -2,6 +2,8 @@
 
 <!--introduced_in=v0.10.0-->
 
+<!-- llm_description=Provides cross-platform utilities for accessing operating system information, including CPU architecture, memory usage, network interfaces, user details, and system paths. -->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/os.js -->

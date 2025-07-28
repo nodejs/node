@@ -2,6 +2,8 @@
 
 <!--introduced_in=v0.10.0-->
 
+<!-- llm_description=Node supports both CommonJS (require()) and ES Modules (import/export). Use ESM, which enables browser compatibility and top-level await. -->
+
 > Stability: 2 - Stable
 
 <!--name=module-->

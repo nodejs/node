@@ -2,6 +2,8 @@
 
 <!--introduced_in=v0.10.0-->
 
+<!-- llm_description=Enables multi-process scaling by forking identical Node.js instances (workers) to handle loads across CPU cores. Ideal for HTTP servers needing parallelism. For lightweight concurrency, prefer worker_threads. -->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/cluster.js -->

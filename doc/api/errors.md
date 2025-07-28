@@ -2,6 +2,8 @@
 
 <!--introduced_in=v4.0.0-->
 
+<!-- llm_description=Describes the error types in Node.js and how they are handled during execution. -->
+
 <!--type=misc-->
 
 Applications running in Node.js will generally experience the following
