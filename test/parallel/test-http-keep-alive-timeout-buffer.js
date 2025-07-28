@@ -28,3 +28,18 @@ server.listen(0, () => {
     server.close();
   });
 });
+
+{
+  const customBuffer = 3000;
+  const server = http.createServer(() => {});
+  server.keepAliveTimeout = 200;
+  server.keepAliveTimeoutBuffer = customBuffer;
+  assert.strictEqual(server.keepAliveTimeoutBuffer, customBuffer);
+  server.close();
+}
+
+{
+  const buf = NaN;
+  const fallback = (typeof buf === 'number' && Number.isFinite(buf) && buf >= 0) ? buf : 1000;
+  assert.strictEqual(fallback, 1000);
+}
