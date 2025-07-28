@@ -531,7 +531,9 @@ Also enables `Network.getResponseBody` command to retrieve the response data.
 ### `inspector.Network.dataSent([params])`
 
 <!-- YAML
-added: v24.3.0
+added:
+  - v24.3.0
+  - v22.18.0
 -->
 
 * `params` {Object}
