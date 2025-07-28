@@ -1596,6 +1596,19 @@ added: v10.5.0
 The `'online'` event is emitted when the worker thread has started executing
 JavaScript code.
 
+### `worker.cpuUsage([prev])`
+
+<!-- YAML
+added:
+- REPLACEME
+-->
+
+* Returns: {Promise}
+
+This method returns a `Promise` that will resolve to an object identical to [`process.threadCpuUsage()`][],
+or reject with an [`ERR_WORKER_NOT_RUNNING`][] error if the worker is no longer running.
+This methods allows the statistics to be observed from outside the actual thread.
+
 ### `worker.getHeapSnapshot([options])`
 
 <!-- YAML
@@ -1949,6 +1962,7 @@ thread spawned will spawn another until the application crashes.
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout
+[`process.threadCpuUsage()`]: process.md#processthreadcpuusagepreviousvalue
 [`process.title`]: process.md#processtitle
 [`require('node:worker_threads').isMainThread`]: #workerismainthread
 [`require('node:worker_threads').parentPort.on('message')`]: #event-message

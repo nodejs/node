@@ -78,6 +78,7 @@ namespace node {
   V(UDPWRAP)                                                                   \
   V(SIGINTWATCHDOG)                                                            \
   V(WORKER)                                                                    \
+  V(WORKERCPUUSAGE)                                                            \
   V(WORKERHEAPSNAPSHOT)                                                        \
   V(WORKERHEAPSTATISTICS)                                                      \
   V(WRITEWRAP)                                                                 \
