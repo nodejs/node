@@ -32,8 +32,6 @@ test-async-context-frame: PASS, FLAKY
 test-runner-run-watch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/56794
 test-fs-cp: PASS, FLAKY
-# https://github.com/nodejs/node/issues/59090
-test-inspector-network-fetch: PASS, FLAKY
 
 # https://github.com/nodejs/node/issues/56751
 test-without-async-context-frame: PASS, FLAKY
