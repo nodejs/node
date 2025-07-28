@@ -112,9 +112,20 @@ jobs:
             echo
             echo 'ERROR: The JavaScript lint validation failed (the errors are logged above).'
             echo '       Please fix the lint errors.'
-            echo '       Run:'
-            echo '          make lint-js-fix'
-            echo '       to fix the auto-fixable lint issues.'
+            if make lint-js-fix; then
+              echo '       Run:'
+              echo '          make lint-js-fix'
+              echo '       to fix the lint issues.'
+              git diff
+            elif git diff --quiet --exit-code; then
+              echo '       None of the issue is auto-fixable, so manual fixed for'
+              echo '       all of the issues are required.'
+            else
+              echo '       Run:'
+              echo '          make lint-js-fix'
+              echo '       to fix the auto-fixable lint issues'
+              echo '       note that however some manual fixes are also required.'
+            fi
             echo
             exit "$EXIT_CODE"
           fi
