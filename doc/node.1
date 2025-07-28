@@ -127,16 +127,10 @@ File name of the V8 CPU profile generated with
 .Fl -cpu-prof .
 .
 .It Fl -diagnostic-dir
-Set the directory for all diagnostic output files.
-Default is current working directory.
-Set the directory to which all diagnostic output files will be written to.
-Defaults to current working directory.
-.
-Affects the default output directory of:
-.Fl -cpu-prof-dir .
-.Fl -heap-prof-dir .
-.Fl -redirect-warnings .
-.
+.TP
+\fB--diagnostic-dir\fR
+Set the directory for all diagnostic output files (default: current working directory).
+
 .It Fl -disable-proto Ns = Ns Ar mode
 Disable the `Object.prototype.__proto__` property. If
 .Ar mode
