@@ -332,6 +332,16 @@ The file used to store localStorage data.
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.
 .
+.It Fl -max-old-space-size-percentage Ns = Ns Ar percentage
+Sets the max memory size of V8's old memory section as a percentage of available system memory.
+This flag takes precedence over
+.Fl -max-old-space-size
+when both are specified.
+The
+.Ar percentage
+parameter must be a number greater than 0 and up to 100, representing the percentage
+of available system memory to allocate to the V8 heap.
+.
 .It Fl -napi-modules
 This option is a no-op.
 It is kept for compatibility.
