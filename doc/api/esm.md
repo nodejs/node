@@ -334,8 +334,7 @@ fs.readFileSync === readFileSync;
 
 ## `import()` expressions
 
-[Dynamic `import()`][] provides a dynamic and asynchronous way to import modules,
-unlike the static `import from` statement.
+[Dynamic `import()`][] provides an asynchronous way to import modules.
 
 This makes it a common method for loading ES modules from a CommonJS context.
 It is supported in both CommonJS and ES modules and can load both module types.
