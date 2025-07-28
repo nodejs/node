@@ -279,8 +279,6 @@ For information about the governance of the Node.js project, see
   **Abdirahim Musse** <<abdirahim.musse@ibm.com>>
 * [addaleax](https://github.com/addaleax) -
   **Anna Henningsen** <<anna@addaleax.net>> (she/her)
-* [Aditi-1400](https://github.com/Aditi-1400) -
-  **Aditi Singh** <<aditisingh1400@gmail.com>> (she/her)
 * [aduh95](https://github.com/aduh95) -
   **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/aduh95)
 * [anonrig](https://github.com/anonrig) -
@@ -465,6 +463,8 @@ For information about the governance of the Node.js project, see
 
 ### Collaborator emeriti
 
+* [Aditi-1400](https://github.com/Aditi-1400) -
+  **Aditi Singh** <<aditisingh1400@gmail.com>> (she/her)
 * [ak239](https://github.com/ak239) -
   **Aleksei Koziatinskii** <<ak239spb@gmail.com>>
 * [andrasq](https://github.com/andrasq) -
