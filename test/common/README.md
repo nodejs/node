@@ -14,7 +14,7 @@ several other tasks:
   don't accidentally pollute the global namespace.
 
 * Some tests assume a default umask of `0o022`. To enforce this assumption,
-  the common module sets the unmask at startup. Tests that require a
+  the common module sets the umask at startup. Tests that require a
   different umask can override this setting after loading the module.
 
 * Some tests specify runtime flags (example, `--expose-internals`) via a
