@@ -3586,18 +3586,18 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `type`: {string} The intended use of the generated secret key. Currently
+* `type` {string} The intended use of the generated secret key. Currently
   accepted values are `'hmac'` and `'aes'`.
-* `options`: {Object}
-  * `length`: {number} The bit length of the key to generate. This must be a
+* `options` {Object}
+  * `length` {number} The bit length of the key to generate. This must be a
     value greater than 0.
     * If `type` is `'hmac'`, the minimum is 8, and the maximum length is
       2<sup>31</sup>-1. If the value is not a multiple of 8, the generated
       key will be truncated to `Math.floor(length / 8)`.
     * If `type` is `'aes'`, the length must be one of `128`, `192`, or `256`.
-* `callback`: {Function}
-  * `err`: {Error}
-  * `key`: {KeyObject}
+* `callback` {Function}
+  * `err` {Error}
+  * `key` {KeyObject}
 
 Asynchronously generates a new random secret key of the given `length`. The
 `type` will determine which validations will be performed on the `length`.
@@ -3661,30 +3661,30 @@ changes:
                  produce key objects if no encoding was specified.
 -->
 
-* `type`: {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
+* `type` {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
   `'ed448'`, `'x25519'`, `'x448'`, or `'dh'`.
-* `options`: {Object}
-  * `modulusLength`: {number} Key size in bits (RSA, DSA).
-  * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
-  * `hashAlgorithm`: {string} Name of the message digest (RSA-PSS).
-  * `mgf1HashAlgorithm`: {string} Name of the message digest used by
+* `options` {Object}
+  * `modulusLength` {number} Key size in bits (RSA, DSA).
+  * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
+  * `hashAlgorithm` {string} Name of the message digest (RSA-PSS).
+  * `mgf1HashAlgorithm` {string} Name of the message digest used by
     MGF1 (RSA-PSS).
-  * `saltLength`: {number} Minimal salt length in bytes (RSA-PSS).
-  * `divisorLength`: {number} Size of `q` in bits (DSA).
-  * `namedCurve`: {string} Name of the curve to use (EC).
-  * `prime`: {Buffer} The prime parameter (DH).
-  * `primeLength`: {number} Prime length in bits (DH).
-  * `generator`: {number} Custom generator (DH). **Default:** `2`.
-  * `groupName`: {string} Diffie-Hellman group name (DH). See
+  * `saltLength` {number} Minimal salt length in bytes (RSA-PSS).
+  * `divisorLength` {number} Size of `q` in bits (DSA).
+  * `namedCurve` {string} Name of the curve to use (EC).
+  * `prime` {Buffer} The prime parameter (DH).
+  * `primeLength` {number} Prime length in bits (DH).
+  * `generator` {number} Custom generator (DH). **Default:** `2`.
+  * `groupName` {string} Diffie-Hellman group name (DH). See
     [`crypto.getDiffieHellman()`][].
-  * `paramEncoding`: {string} Must be `'named'` or `'explicit'` (EC).
+  * `paramEncoding` {string} Must be `'named'` or `'explicit'` (EC).
     **Default:** `'named'`.
-  * `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
-  * `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
-* `callback`: {Function}
-  * `err`: {Error}
-  * `publicKey`: {string | Buffer | KeyObject}
-  * `privateKey`: {string | Buffer | KeyObject}
+  * `publicKeyEncoding` {Object} See [`keyObject.export()`][].
+  * `privateKeyEncoding` {Object} See [`keyObject.export()`][].
+* `callback` {Function}
+  * `err` {Error}
+  * `publicKey` {string | Buffer | KeyObject}
+  * `privateKey` {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. RSA, RSA-PSS, DSA, EC,
 Ed25519, Ed448, X25519, X448, and DH are currently supported.
@@ -3775,29 +3775,29 @@ changes:
                  produce key objects if no encoding was specified.
 -->
 
-* `type`: {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
+* `type` {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
   `'ed448'`, `'x25519'`, `'x448'`, or `'dh'`.
-* `options`: {Object}
-  * `modulusLength`: {number} Key size in bits (RSA, DSA).
-  * `publicExponent`: {number} Public exponent (RSA). **Default:** `0x10001`.
-  * `hashAlgorithm`: {string} Name of the message digest (RSA-PSS).
-  * `mgf1HashAlgorithm`: {string} Name of the message digest used by
+* `options` {Object}
+  * `modulusLength` {number} Key size in bits (RSA, DSA).
+  * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
+  * `hashAlgorithm` {string} Name of the message digest (RSA-PSS).
+  * `mgf1HashAlgorithm` {string} Name of the message digest used by
     MGF1 (RSA-PSS).
-  * `saltLength`: {number} Minimal salt length in bytes (RSA-PSS).
-  * `divisorLength`: {number} Size of `q` in bits (DSA).
-  * `namedCurve`: {string} Name of the curve to use (EC).
-  * `prime`: {Buffer} The prime parameter (DH).
-  * `primeLength`: {number} Prime length in bits (DH).
-  * `generator`: {number} Custom generator (DH). **Default:** `2`.
-  * `groupName`: {string} Diffie-Hellman group name (DH). See
+  * `saltLength` {number} Minimal salt length in bytes (RSA-PSS).
+  * `divisorLength` {number} Size of `q` in bits (DSA).
+  * `namedCurve` {string} Name of the curve to use (EC).
+  * `prime` {Buffer} The prime parameter (DH).
+  * `primeLength` {number} Prime length in bits (DH).
+  * `generator` {number} Custom generator (DH). **Default:** `2`.
+  * `groupName` {string} Diffie-Hellman group name (DH). See
     [`crypto.getDiffieHellman()`][].
-  * `paramEncoding`: {string} Must be `'named'` or `'explicit'` (EC).
+  * `paramEncoding` {string} Must be `'named'` or `'explicit'` (EC).
     **Default:** `'named'`.
-  * `publicKeyEncoding`: {Object} See [`keyObject.export()`][].
-  * `privateKeyEncoding`: {Object} See [`keyObject.export()`][].
+  * `publicKeyEncoding` {Object} See [`keyObject.export()`][].
+  * `privateKeyEncoding` {Object} See [`keyObject.export()`][].
 * Returns: {Object}
-  * `publicKey`: {string | Buffer | KeyObject}
-  * `privateKey`: {string | Buffer | KeyObject}
+  * `publicKey` {string | Buffer | KeyObject}
+  * `privateKey` {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. RSA, RSA-PSS, DSA, EC,
 Ed25519, Ed448, X25519, X448, and DH are currently supported.
@@ -3866,10 +3866,10 @@ it will be a buffer containing the data encoded as DER.
 added: v15.0.0
 -->
 
-* `type`: {string} The intended use of the generated secret key. Currently
+* `type` {string} The intended use of the generated secret key. Currently
   accepted values are `'hmac'` and `'aes'`.
-* `options`: {Object}
-  * `length`: {number} The bit length of the key to generate.
+* `options` {Object}
+  * `length` {number} The bit length of the key to generate.
     * If `type` is `'hmac'`, the minimum is 8, and the maximum length is
       2<sup>31</sup>-1. If the value is not a multiple of 8, the generated
       key will be truncated to `Math.floor(length / 8)`.
@@ -4010,10 +4010,10 @@ the process unresponsive.
 added: v15.0.0
 -->
 
-* `nameOrNid`: {string|number} The name or nid of the cipher to query.
-* `options`: {Object}
-  * `keyLength`: {number} A test key length.
-  * `ivLength`: {number} A test IV length.
+* `nameOrNid` {string|number} The name or nid of the cipher to query.
+* `options` {Object}
+  * `keyLength` {number} A test key length.
+  * `ivLength` {number} A test IV length.
 * Returns: {Object}
   * `name` {string} The name of the cipher
   * `nid` {number} The nid of the cipher

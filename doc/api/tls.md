@@ -193,7 +193,7 @@ the selected cipher's digest).
 
 It will be called first on the client:
 
-* hint: {string} optional message sent from the server to help the client
+* `hint` {string} optional message sent from the server to help the client
   decide which identity to use during negotiation.
   Always `null` if TLS 1.3 is used.
 * Returns: {Object} in the form
@@ -201,8 +201,8 @@ It will be called first on the client:
 
 Then on the server:
 
-* socket: {tls.TLSSocket} the server socket instance, equivalent to `this`.
-* identity: {string} identity parameter sent from the client.
+* `socket` {tls.TLSSocket} the server socket instance, equivalent to `this`.
+* `identity` {string} identity parameter sent from the client.
 * Returns: {Buffer|TypedArray|DataView} the PSK (or `null`).
 
 A return value of `null` stops the negotiation process and sends an
@@ -1729,7 +1729,7 @@ changes:
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
   * `pskCallback` {Function} For TLS-PSK negotiation, see [Pre-shared keys][].
-  * `ALPNProtocols`: {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
+  * `ALPNProtocols` {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
     TypedArray|DataView}
     An array of strings, `Buffer`s, `TypedArray`s, or `DataView`s, or a
     single `Buffer`, `TypedArray`, or `DataView` containing the supported ALPN
@@ -1738,7 +1738,7 @@ changes:
     next protocol name. Passing an array is usually much simpler, e.g.
     `['http/1.1', 'http/1.0']`. Protocols earlier in the list have higher
     preference than those later.
-  * `servername`: {string} Server name for the SNI (Server Name Indication) TLS
+  * `servername` {string} Server name for the SNI (Server Name Indication) TLS
     extension. It is the name of the host being connected to, and must be a host
     name, and not an IP address. It can be used by a multi-homed server to
     choose the correct certificate to present to the client, see the
@@ -1754,7 +1754,7 @@ changes:
     TLS connection. When a server offers a DH parameter with a size less
     than `minDHSize`, the TLS connection is destroyed and an error is thrown.
     **Default:** `1024`.
-  * `highWaterMark`: {number} Consistent with the readable stream `highWaterMark` parameter.
+  * `highWaterMark` {number} Consistent with the readable stream `highWaterMark` parameter.
     **Default:** `16 * 1024`.
   * `secureContext`: TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
@@ -2071,7 +2071,7 @@ changes:
     **Default:** none, see `minVersion`.
   * `sessionIdContext` {string} Opaque identifier used by servers to ensure
     session state is not shared between applications. Unused by clients.
-  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudorandom
+  * `ticketKeys` {Buffer} 48-bytes of cryptographically strong pseudorandom
     data. See [Session Resumption][] for more information.
   * `sessionTimeout` {number} The number of seconds after which a TLS session
     created by the server will no longer be resumable. See
@@ -2202,7 +2202,7 @@ changes:
 -->
 
 * `options` {Object}
-  * `ALPNProtocols`: {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
+  * `ALPNProtocols` {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
     TypedArray|DataView}
     An array of strings, `Buffer`s, `TypedArray`s, or `DataView`s, or a single
     `Buffer`, `TypedArray`, or `DataView` containing the supported ALPN
@@ -2210,7 +2210,7 @@ changes:
     e.g. `0x05hello0x05world`, where the first byte is the length of the next
     protocol name. Passing an array is usually much simpler, e.g.
     `['hello', 'world']`. (Protocols should be ordered by their priority.)
-  * `ALPNCallback`: {Function} If set, this will be called when a
+  * `ALPNCallback` {Function} If set, this will be called when a
     client opens a connection using the ALPN extension. One argument will
     be passed to the callback: an object containing `servername` and
     `protocols` fields, respectively containing the server name from
@@ -2249,7 +2249,7 @@ changes:
     If `callback` is called with a falsy `ctx` argument, the default secure
     context of the server will be used. If `SNICallback` wasn't provided the
     default callback with high-level API will be used (see below).
-  * `ticketKeys`: {Buffer} 48-bytes of cryptographically strong pseudorandom
+  * `ticketKeys` {Buffer} 48-bytes of cryptographically strong pseudorandom
     data. See [Session Resumption][] for more information.
   * `pskCallback` {Function} For TLS-PSK negotiation, see [Pre-shared keys][].
   * `pskIdentityHint` {string} optional hint to send to a client to help

@@ -1852,17 +1852,17 @@ original file if found, or an empty object if not.
 
 The object returned contains the following keys:
 
-* generatedLine: {number} The line offset of the start of the
+* `generatedLine` {number} The line offset of the start of the
   range in the generated source
-* generatedColumn: {number} The column offset of start of the
+* `generatedColumn` {number} The column offset of start of the
   range in the generated source
-* originalSource: {string} The file name of the original source,
+* `originalSource` {string} The file name of the original source,
   as reported in the SourceMap
-* originalLine: {number} The line offset of the start of the
+* `originalLine` {number} The line offset of the start of the
   range in the original source
-* originalColumn: {number} The column offset of start of the
+* `originalColumn` {number} The column offset of start of the
   range in the original source
-* name: {string}
+* `name` {string}
 
 The returned value represents the raw range as it appears in the
 SourceMap, based on zero-indexed offsets, _not_ 1-indexed line and
@@ -1896,13 +1896,13 @@ If the `lineNumber` and `columnNumber` provided are not found in any
 source map, then an empty object is returned. Otherwise, the
 returned object contains the following keys:
 
-* name: {string | undefined} The name of the range in the
+* `name` {string|undefined} The name of the range in the
   source map, if one was provided
-* fileName: {string} The file name of the original source, as
+* `fileName` {string} The file name of the original source, as
   reported in the SourceMap
-* lineNumber: {number} The 1-indexed lineNumber of the
+* `lineNumber` {number} The 1-indexed lineNumber of the
   corresponding call site in the original source
-* columnNumber: {number} The 1-indexed columnNumber of the
+* `columnNumber` {number} The 1-indexed columnNumber of the
   corresponding call site in the original source
 
 [CommonJS]: modules.md

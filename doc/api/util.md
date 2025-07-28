@@ -338,8 +338,8 @@ added: v22.15.0
 * `expected` {Array|string} The second value to compare
 
 * Returns: {Array} An array of difference entries. Each entry is an array with two elements:
-  * Index 0: {number} Operation code: `-1` for delete, `0` for no-op/unchanged, `1` for insert
-  * Index 1: {string} The value associated with the operation
+  * `0` {number} Operation code: `-1` for delete, `0` for no-op/unchanged, `1` for insert
+  * `1` {string} The value associated with the operation
 
 * Algorithm complexity: O(N\*D), where:
 
@@ -1295,19 +1295,19 @@ ignored, if not supported.
 * `reset` - Resets all (color) modifiers to their defaults
 * **bold** - Make text bold
 * _italic_ - Make text italic
-* <span style="border-bottom: 1px;">underline</span> - Make text underlined
+* <span style="border-bottom: 1px solid;">underline</span> - Make text underlined
 * ~~strikethrough~~ - Puts a horizontal line through the center of the text
   (Alias: `strikeThrough`, `crossedout`, `crossedOut`)
 * `hidden` - Prints the text, but makes it invisible (Alias: conceal)
 * <span style="opacity: 0.5;">dim</span> - Decreased color intensity (Alias:
   `faint`)
-* <span style="border-top: 1px">overlined</span> - Make text overlined
+* <span style="border-top: 1px solid;">overlined</span> - Make text overlined
 * blink - Hides and shows the text in an interval
-* <span style="filter: invert(100%)">inverse</span> - Swap foreground and
+* <span style="filter: invert(100%);">inverse</span> - Swap foreground and
   background colors (Alias: `swapcolors`, `swapColors`)
 * <span style="border-bottom: 1px double;">doubleunderline</span> - Make text
   double underlined (Alias: `doubleUnderline`)
-* <span style="border: 1px">framed</span> - Draw a frame around the text
+* <span style="border: 1px solid;">framed</span> - Draw a frame around the text
 
 #### Foreground colors
 

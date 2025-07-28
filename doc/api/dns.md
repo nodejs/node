@@ -852,14 +852,10 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-<!--lint disable no-undefined-references list-item-bullet-indent-->
-
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `records` <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type" class="type">\<string\[]\[]></a>
-
-<!--lint enable no-undefined-references list-item-bullet-indent-->
+  * `records` {string\[]}
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `records` argument passed to the `callback` function is a
