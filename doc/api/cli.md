@@ -1036,7 +1036,7 @@ Previously gated the entire `import.meta.resolve` feature.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.5.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -2962,7 +2962,7 @@ See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 ### `--use-env-proxy`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 > Stability: 1.1 - Active Development

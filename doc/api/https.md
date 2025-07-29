@@ -66,11 +66,11 @@ An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 <!-- YAML
 changes:
   - version:
-    - REPLACEME
+    - v24.5.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `proxyEnv`.
   - version:
-    - REPLACEME
+    - v24.5.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `defaultPort` and `protocol`.
   - version: v12.5.0
