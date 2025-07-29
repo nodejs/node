@@ -758,7 +758,7 @@ if (isMainThread) {
 ## `worker.locks`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -773,7 +773,7 @@ process. The API mirrors the semantics of the
 ### Class: `Lock`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 The `Lock` interface provides information about a lock that has been granted via
@@ -782,7 +782,7 @@ The `Lock` interface provides information about a lock that has been granted via
 #### `lock.name`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 * {string}
@@ -792,7 +792,7 @@ The name of the lock.
 #### `lock.mode`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 * {string}
@@ -802,7 +802,7 @@ The mode of the lock. Either `shared` or `exclusive`.
 ### Class: `LockManager`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 The `LockManager` interface provides methods for requesting and introspecting
@@ -823,7 +823,7 @@ This implementation matches the [browser `LockManager`][] API.
 #### `locks.request(name[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 * `name` {string}
@@ -867,7 +867,7 @@ locks.request('my_resource', async (lock) => {
 #### `locks.query()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 * Returns: {Promise}

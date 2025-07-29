@@ -117,11 +117,11 @@ http.get({
 added: v0.3.4
 changes:
   - version:
-    - REPLACEME
+    - v24.5.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `proxyEnv`.
   - version:
-    - REPLACEME
+    - v24.5.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `defaultPort` and `protocol`.
   - version:
@@ -4268,7 +4268,7 @@ A browser-compatible implementation of {WebSocket}.
 ## Built-in Proxy Support
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 > Stability: 1.1 - Active development
