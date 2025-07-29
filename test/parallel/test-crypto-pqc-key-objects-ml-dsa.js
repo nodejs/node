@@ -116,9 +116,9 @@ for (const [asymmetricKeyType, pubLen] of [
 {
   const format = 'jwk';
   const jwk = {
-    priv: '9_uqvxH0WKJFgfLyse1a1des2bwPgsHctl_jCt5AfEo',
     kty: 'AKP',
     alg: 'ML-DSA-44',
+    priv: '9_uqvxH0WKJFgfLyse1a1des2bwPgsHctl_jCt5AfEo',
     // eslint-disable-next-line @stylistic/js/max-len
     pub: 'SXghXj9P-DJ5eznNa_zLJxRxpa0mt86WlIid0EVEv1qraLBkC1UKevSZrjtgo1QUEN0oa3tP-HyYj8Onnc1zEnxsSoeC5A-PgywKgYuZP581wGPS-cbA2-5acsg-YUi_9fDkLR5YOTQQ3Iu952K1m8w0QDIBxZjecm32HgkD56CCC6ZyBOwfx9qcNUeO0aImya1igzL2_LRsqomogl9OuduWhtussAavGlAK7ZR4_4lmyjWcdeIc-z--iy42biV5d_tnopfNTJFlycBKinZu3h0lr4-ldl6apGDIyvSdZulhgj_j6jgEX-AgQZgS93ctx680GvROkBL7YI_3iXW3REWzVgS9HLasagEi2h6-RYQ9RzgUTODbei5fNRj3bNSqr8IKTZ08DCsRasN61TGwE3F7meoauw2NYkV51mhTxIafwhLWJrRA4C09Y-afrOtqk6a7Fiy21ObP95TGujXwThuwQSjKcUzTdCbD94ERhleZLqnPYEpb6_Jcc1OBY3kUJvCjoUhXwbW6PhWr533JDEFHoNCkPfhHS7vVCUFx4mQASkPLBud5arFSZU1uDStuiftJXfnQTWaMoJeA1N6rywB3xwLH__lHZQwEh4KnuYVuCeOMU1t8inuHI4EpZ4iTi2LrL0Cl6HadpHv-GENYwuPDVq9qg2Mo75o1X6wpPSN1J5KUDAATyR_0hurg4A1DlVpVWtykP5YWEmx_g5w4MZfEVwH-JJjEhJRxLKajxrjfG4XlnwwxPTznr1k1Mb7getKbLSbiMA3fvAgl1IjBIB8eFaISauFPpLPSpKHCVZrQYPIKSxMVdlXHgwm3CRrkR29GevCM5iSwRHQK6_HWfIQIlJ8H7uVQqXkNMvNmFldnfi3dj-oY6wMhs1ffP4RAsb5UTljvhJc6GoygBL_b0rv4aKcywDF8wa2P6B8gGFl6cVvWBQmWLJ-HL5RR68J_OmvJUm3PD-wwX3YigStd6thdTNlHOZhl4ysn8ulkFY3Rz2jEBV_nO6EXBLdOmxn_yX77qQ9yPcE64uC8iDTFWpQU1gmOF38od96oYD-T-whVl1NLD2bOvFVdd4UmWpb3Ui8AYzKzFBHNczAogQfplFmr8VABsgtWk8hW8csam70NADWK54SZOPQHeiOt1Mb488OZiDpX0FifEnCac78C_5uEiOPa8FAHpgUJ_XeXg83doDsAvrE1ZkrgFDwzT5pUTLyqh9eI1PAQKCoKmAbofcZM65o_qGvmnpN8fGVudOoHb0_Dqu_E2RBbaLcxsIe5jWmGmth4sb_4ANLFCmtt8T8sDmOdcYtQmhpUzg6rjDqeU76yq6fC15bGjT6Qc-EAgrUftFVwLw2UIGAbHmeAyFbSuJiMaUDJeYoZ3zxoID_DRCP9kN3ty-EQMHM9BZgXlH9dJ8ZUCAeH59h4PinM5LQuiS_kvP1iyT1Be6sYglV2dB7W_AziOcrrBiLfjazbUUpwqLm4_Yt_QwYJrAWfYyFOxkKxkT5qi2c1RNGBtiYjv8X_TRJDg0uxX_Hbq0Pc7yYezFQdFYIlRAvJcnc8PiOfhWtQZpCIYKTskg_Y2UfVvjydXYcGuIA2700PzR9ga-1VR7mv9UOLHe2x4ALiOO7Iz6KgOfVYMJ9dIC7f4HY9nrnLdhfKw5dcIf7RDhDqrkPyz8LLTuAuO-hGSwoP35XFkf0FQ8f1Cg5J_k-S3S2dCj8DXIRLcEJ9Qb5zvDofIPSmNKlvwJkqplDLBWlAow'
   };
@@ -134,7 +134,7 @@ for (const [asymmetricKeyType, pubLen] of [
                   { code: 'ERR_INVALID_ARG_TYPE', message: /The "key\.priv" property must be of type string/ });
     assert.throws(() => createPrivateKey({ format, key: { ...jwk, priv: Buffer.alloc(33).toString('base64url') } }),
                   { code: 'ERR_CRYPTO_INVALID_JWK' });
-    assert.throws(() => createPrivateKey({ format, key: { ...jwk, pub: Buffer.alloc(1313).toString('base64url') } }),
+    assert.throws(() => createPublicKey({ format, key: { ...jwk, pub: Buffer.alloc(1313).toString('base64url') } }),
                   { code: 'ERR_CRYPTO_INVALID_JWK' });
 
     assert.ok(createPrivateKey({ format, key: jwk }));
