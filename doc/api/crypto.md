@@ -3696,7 +3696,8 @@ changes:
 -->
 
 * `type` {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
-  `'ed448'`, `'x25519'`, `'x448'`, or `'dh'`.
+  `'ed448'`, `'x25519'`, `'x448'`, `'dh'`, `'ml-dsa-44'`[^openssl35],
+  `'ml-dsa-65'`[^openssl35], or `'ml-dsa-87'`[^openssl35].
 * `options` {Object}
   * `modulusLength` {number} Key size in bits (RSA, DSA).
   * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -5470,7 +5471,10 @@ changes:
 
 Calculates and returns the signature for `data` using the given private key and
 algorithm. If `algorithm` is `null` or `undefined`, then the algorithm is
-dependent upon the key type (especially Ed25519 and Ed448).
+dependent upon the key type.
+
+`algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
+ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPrivateKey()`][]. If it is an object, the following
@@ -5589,7 +5593,10 @@ changes:
 
 Verifies the given signature for `data` using the given key and algorithm. If
 `algorithm` is `null` or `undefined`, then the algorithm is dependent upon the
-key type (especially Ed25519 and Ed448).
+key type.
+
+`algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
+ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPublicKey()`][]. If it is an object, the following
