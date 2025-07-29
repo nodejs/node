@@ -1109,9 +1109,7 @@ changes:
 
 Type: End-of-Life
 
-The `util.isError()` API has been removed. Please use
-`Object.prototype.toString(arg) === '[object Error]' || arg instanceof Error`
-instead.
+The `util.isError()` API has been removed. Please use `Error.isError(arg)`.
 
 ### DEP0049: `util.isFunction()`
 
@@ -1192,7 +1190,7 @@ changes:
 Type: End-of-Life
 
 The `util.isNullOrUndefined()` API has been removed. Please use
-`arg === null || arg === undefined` instead.
+`arg === null` instead.
 
 ### DEP0052: `util.isNumber()`
 
