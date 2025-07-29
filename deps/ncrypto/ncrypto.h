@@ -820,6 +820,10 @@ class EVPKeyPointer final {
                                     const Buffer<const unsigned char>& data);
   static EVPKeyPointer NewRawPrivate(int id,
                                      const Buffer<const unsigned char>& data);
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+  static EVPKeyPointer NewRawSeed(int id,
+                                  const Buffer<const unsigned char>& data);
+#endif
   static EVPKeyPointer NewDH(DHPointer&& dh);
   static EVPKeyPointer NewRSA(RSAPointer&& rsa);
 

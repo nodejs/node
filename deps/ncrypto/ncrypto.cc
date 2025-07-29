@@ -1897,6 +1897,28 @@ EVPKeyPointer EVPKeyPointer::NewRawPrivate(
       EVP_PKEY_new_raw_private_key(id, nullptr, data.data, data.len));
 }
 
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+EVPKeyPointer EVPKeyPointer::NewRawSeed(
+    int id, const Buffer<const unsigned char>& data) {
+  if (id == 0) return {};
+
+  OSSL_PARAM params[] = {OSSL_PARAM_construct_octet_string(
+                             OSSL_PKEY_PARAM_ML_DSA_SEED,
+                             (void*)data.data,  // NOLINT(readability/casting)
+                             data.len),
+                         OSSL_PARAM_END};
+
+  EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(id, nullptr);
+  EVP_PKEY* pkey = nullptr;
+
+  if (ctx == nullptr || EVP_PKEY_fromdata_init(ctx) <= 0 ||
+      EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEYPAIR, params) <= 0)
+    return {};
+
+  return EVPKeyPointer(pkey);
+}
+#endif
+
 EVPKeyPointer EVPKeyPointer::NewDH(DHPointer&& dh) {
   if (!dh) return {};
   auto key = New();

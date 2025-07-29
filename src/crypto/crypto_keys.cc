@@ -620,7 +620,9 @@ Local<Function> KeyObjectHandle::Initialize(Environment* env) {
     SetProtoMethod(isolate, templ, "exportJwk", ExportJWK);
     SetProtoMethod(isolate, templ, "initECRaw", InitECRaw);
     SetProtoMethod(isolate, templ, "initEDRaw", InitEDRaw);
-    SetProtoMethod(isolate, templ, "initMlDsaPublicRaw", InitMlDsaPublicRaw);
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+    SetProtoMethod(isolate, templ, "initMlDsaRaw", InitMlDsaRaw);
+#endif
     SetProtoMethod(isolate, templ, "initJwk", InitJWK);
     SetProtoMethod(isolate, templ, "keyDetail", GetKeyDetail);
     SetProtoMethod(isolate, templ, "equals", Equals);
@@ -833,8 +835,8 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(true);
 }
 
-void KeyObjectHandle::InitMlDsaPublicRaw(
-    const FunctionCallbackInfo<Value>& args) {
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+void KeyObjectHandle::InitMlDsaRaw(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
   ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
@@ -843,8 +845,14 @@ void KeyObjectHandle::InitMlDsaPublicRaw(
   Utf8Value name(env->isolate(), args[0]);
 
   ArrayBufferOrViewContents<unsigned char> key_data(args[1]);
+  KeyType type = FromV8Value<KeyType>(args[2]);
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  typedef EVPKeyPointer (*new_key_fn)(
+      int, const ncrypto::Buffer<const unsigned char>&);
+  new_key_fn fn = type == kKeyTypePrivate ? EVPKeyPointer::NewRawSeed
+                                          : EVPKeyPointer::NewRawPublic;
 
   int id = GetNidFromName(*name);
 
@@ -852,17 +860,15 @@ void KeyObjectHandle::InitMlDsaPublicRaw(
     case EVP_PKEY_ML_DSA_44:
     case EVP_PKEY_ML_DSA_65:
     case EVP_PKEY_ML_DSA_87: {
-      auto pkey =
-          EVPKeyPointer::NewRawPublic(id,
-                                      ncrypto::Buffer<const unsigned char>{
-                                          .data = key_data.data(),
-                                          .len = key_data.size(),
-                                      });
+      auto pkey = fn(id,
+                     ncrypto::Buffer<const unsigned char>{
+                         .data = key_data.data(),
+                         .len = key_data.size(),
+                     });
       if (!pkey) {
         return args.GetReturnValue().Set(false);
       }
-      key->data_ =
-          KeyObjectData::CreateAsymmetric(kKeyTypePublic, std::move(pkey));
+      key->data_ = KeyObjectData::CreateAsymmetric(type, std::move(pkey));
       CHECK(key->data_);
       break;
     }
@@ -872,6 +878,7 @@ void KeyObjectHandle::InitMlDsaPublicRaw(
 
   args.GetReturnValue().Set(true);
 }
+#endif
 
 void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* self_handle;
