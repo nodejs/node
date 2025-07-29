@@ -28,6 +28,15 @@ constexpr const char* GetMlDsaAlgorithmName(int id) {
   }
 }
 
+/**
+ * Exports an ML-DSA key to JWK format.
+ *
+ * The resulting JWK object contains:
+ * - "kty": "AKP" (Asymmetric Key Pair - required)
+ * - "alg": "ML-DSA-XX" (Algorithm identifier - required for "AKP")
+ * - "pub": "<Base64URL-encoded raw public key>" (required)
+ * - "priv": <"Base64URL-encoded raw seed>" (required for private keys only)
+ */
 bool ExportJwkMlDsaKey(Environment* env,
                        const KeyObjectData& key,
                        Local<Object> target) {
