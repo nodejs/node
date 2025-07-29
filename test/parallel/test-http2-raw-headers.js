@@ -39,6 +39,16 @@ const http2 = require('http2');
       'a', 'c',
     ]).end();
 
+    assert.deepStrictEqual(req.sentHeaders, {
+      '__proto__': null,
+      ':path': '/foobar',
+      ':scheme': 'http',
+      ':authority': `localhost:${server.address().port}`,
+      ':method': 'GET',
+      'a': [ 'b', 'c' ],
+      'x-FOO': 'bar',
+    });
+
     req.on('response', common.mustCall((headers) => {
       assert.strictEqual(headers[':status'], 200);
       client.close();
