@@ -606,7 +606,7 @@ HTTP request has failed to load.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.5.0
 -->
 
 > Stability: 1.1 - Active Development
