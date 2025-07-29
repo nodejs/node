@@ -15,24 +15,27 @@ using v8::Value;
 namespace crypto {
 
 #if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+constexpr const char* GetMlDsaAlgorithmName(int id) {
+  switch (id) {
+    case EVP_PKEY_ML_DSA_44:
+      return "ML-DSA-44";
+    case EVP_PKEY_ML_DSA_65:
+      return "ML-DSA-65";
+    case EVP_PKEY_ML_DSA_87:
+      return "ML-DSA-87";
+    default:
+      return nullptr;
+  }
+}
+
 bool ExportJwkMlDsaKey(Environment* env,
                        const KeyObjectData& key,
                        Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& pkey = key.GetAsymmetricKey();
 
-  const char* alg = ([&] {
-    switch (pkey.id()) {
-      case EVP_PKEY_ML_DSA_44:
-        return "ML-DSA-44";
-      case EVP_PKEY_ML_DSA_65:
-        return "ML-DSA-65";
-      case EVP_PKEY_ML_DSA_87:
-        return "ML-DSA-87";
-      default:
-        UNREACHABLE();
-    }
-  })();
+  const char* alg = GetMlDsaAlgorithmName(pkey.id());
+  CHECK(alg);
 
   static constexpr auto trySetKey = [](Environment* env,
                                        DataPointer data,

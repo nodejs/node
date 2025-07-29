@@ -1909,11 +1909,14 @@ EVPKeyPointer EVPKeyPointer::NewRawSeed(
                          OSSL_PARAM_END};
 
   EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(id, nullptr);
-  EVP_PKEY* pkey = nullptr;
+  if (ctx == nullptr) return {};
 
+  EVP_PKEY* pkey = nullptr;
   if (ctx == nullptr || EVP_PKEY_fromdata_init(ctx) <= 0 ||
-      EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEYPAIR, params) <= 0)
+      EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEYPAIR, params) <= 0) {
+    EVP_PKEY_CTX_free(ctx);
     return {};
+  }
 
   return EVPKeyPointer(pkey);
 }
