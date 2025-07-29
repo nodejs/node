@@ -643,6 +643,9 @@ void KeyObjectHandle::RegisterExternalReferences(
   registry->Register(ExportJWK);
   registry->Register(InitECRaw);
   registry->Register(InitEDRaw);
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+  registry->Register(InitMlDsaRaw);
+#endif
   registry->Register(InitJWK);
   registry->Register(GetKeyDetail);
   registry->Register(Equals);
