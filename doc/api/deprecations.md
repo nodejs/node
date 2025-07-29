@@ -1086,7 +1086,8 @@ The `util.isDate()` API has been removed. Please use
 `arg instanceof Date` instead.
 
 Also for stronger approaches, consider using:
-`Date.prototype.toString.call(arg) === '[object Date]' && !isNaN(arg)` It's also can be used in a `try/catch` block to catch invalid date objects.
+`Date.prototype.toString.call(arg) === '[object Date]' && !isNaN(arg)`.
+This can also be used in a `try/catch` block to handle invalid date objects.
 
 ### DEP0048: `util.isError()`
 
