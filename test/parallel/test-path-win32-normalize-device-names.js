@@ -5,7 +5,7 @@ const assert = require('assert');
 const path = require('path');
 
 if (!common.isWindows) {
-  // common.skip('Windows only');
+  common.skip('Windows only');
 }
 
 const normalizeDeviceNameTests = [
