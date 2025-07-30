@@ -5,15 +5,21 @@
 // net.createConnection().
 
 const common = require('../common');
+console.log('require completed: common', Date.now());
 const assert = require('assert');
+console.log('require completed: assert', Date.now());
 const net = require('net');
+console.log('require completed: net', Date.now());
 const http = require('http');
+console.log('require completed: http', Date.now());
 const { internalBinding } = require('internal/test/binding');
+console.log('require completed: internal/test/binding', Date.now());
 const { UV_ENETUNREACH, UV_EADDRINUSE } = internalBinding('uv');
 const {
   newAsyncId,
   symbols: { async_id_symbol }
 } = require('internal/async_hooks');
+console.log('require completed: internal/async_hooks', Date.now());
 
 const config = {
   host: 'http://example.com',
@@ -57,14 +63,17 @@ const handleWithBind = {
 const agentWithoutBind = agentFactory(handleWithoutBind, 3);
 const agentWithBind = agentFactory(handleWithBind, 2);
 
+console.log('test initiated: test-1', Date.now());
 http.get({
   host: '127.0.0.1',
   port: 1,
   agent: agentWithoutBind,
 }).on('error', common.mustCall((err) => {
   assert.strictEqual(err.code, 'ENETUNREACH');
+  console.log('test completed: test-1', Date.now());
 }));
 
+console.log('test initiated: test-2', Date.now());
 http.request(config.host, {
   agent: agentWithoutBind,
   lookup(_0, _1, cb) {
@@ -72,8 +81,10 @@ http.request(config.host, {
   },
 }).on('error', common.mustCall((err) => {
   assert.strictEqual(err.code, 'ENETUNREACH');
+  console.log('test completed: test-2', Date.now());
 }));
 
+console.log('test initiated: test-3', Date.now());
 http.request(config.host, {
   agent: agentWithoutBind,
   lookup(_0, _1, cb) {
@@ -82,16 +93,20 @@ http.request(config.host, {
   family: 4,
 }).on('error', common.mustCall((err) => {
   assert.strictEqual(err.code, 'ENETUNREACH');
+  console.log('test completed: test-3', Date.now());
 }));
 
+console.log('test initiated: test-4', Date.now());
 http.request(config.host, {
   agent: agentWithBind,
   family: 4, // We specify 'family' so 'internalConnect' is invoked
   localPort: 2222 // Required to trigger _handle.bind()
 }).on('error', common.mustCall((err) => {
   assert.strictEqual(err.code, 'EADDRINUSE');
+  console.log('test completed: test-4', Date.now());
 }));
 
+console.log('test initiated: test-5', Date.now());
 http.request(config.host, {
   agent: agentWithBind,
   lookup(_0, _1, cb) {
@@ -100,4 +115,5 @@ http.request(config.host, {
   localPort: 2222, // Required to trigger _handle.bind()
 }).on('error', common.mustCall((err) => {
   assert.strictEqual(err.code, 'EADDRINUSE');
+  console.log('test completed: test-5', Date.now());
 }));
