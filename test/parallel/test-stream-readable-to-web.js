@@ -38,13 +38,13 @@ const assert = require('assert');
 
     assert(currentMemoryUsage <= 256 * 1024 * 1024);
   };
-  setInterval(reportMemoryUsage, 1000);
+  setInterval(reportMemoryUsage, common.platformTimeout(1000));
 
   // after 1 second we use Readable.toWeb
   // memory usage should stay pretty much the same since it's still a stream
   setTimeout(() => {
     randomWebStream = Readable.toWeb(randomNodeStream);
-  }, 1000);
+  }, common.platformTimeout(1000));
 
   // after 2 seconds we start consuming the stream
   // memory usage will grow, but the old chunks should be garbage-collected pretty quickly
@@ -53,10 +53,10 @@ const assert = require('assert');
     for await (const _ of randomWebStream) {
       // Do nothing, just let the stream flow
     }
-  }, 2000);
+  }, common.platformTimeout(2000));
 
   setTimeout(() => {
     // Test considered passed if we don't crash
     process.exit(0);
-  }, 5000);
+  }, common.platformTimeout(5000));
 }
