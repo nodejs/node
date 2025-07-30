@@ -3,7 +3,7 @@
 <!--introduced_in=v0.10.0-->
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Provides functionality for creating HTTP servers and clients, enabling the
   handling of HTTP requests and responses.
 -->

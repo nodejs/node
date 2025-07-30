@@ -3,7 +3,7 @@
 <!--introduced_in=v0.9.12-->
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Provides a CLI interface for debugging Node.js applications, including
   basic stepping and inspection.
 -->
