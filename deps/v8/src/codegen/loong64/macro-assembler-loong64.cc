@@ -1526,21 +1526,24 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
 }
 
 void MacroAssembler::MultiPush(RegList regs) {
-  int16_t stack_offset = 0;
+  int16_t num_to_push = regs.Count();
+  int16_t stack_offset = num_to_push * kSystemPointerSize;
 
+  Sub_d(sp, sp, Operand(stack_offset));
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
     if ((regs.bits() & (1 << i)) != 0) {
       stack_offset -= kSystemPointerSize;
       St_d(ToRegister(i), MemOperand(sp, stack_offset));
     }
   }
-  addi_d(sp, sp, stack_offset);
 }
 
 void MacroAssembler::MultiPush(RegList regs1, RegList regs2) {
   DCHECK((regs1 & regs2).is_empty());
-  int16_t stack_offset = 0;
+  int16_t num_to_push = regs1.Count() + regs2.Count();
+  int16_t stack_offset = num_to_push * kSystemPointerSize;
 
+  Sub_d(sp, sp, Operand(stack_offset));
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
     if ((regs1.bits() & (1 << i)) != 0) {
       stack_offset -= kSystemPointerSize;
@@ -1553,15 +1556,16 @@ void MacroAssembler::MultiPush(RegList regs1, RegList regs2) {
       St_d(ToRegister(i), MemOperand(sp, stack_offset));
     }
   }
-  addi_d(sp, sp, stack_offset);
 }
 
 void MacroAssembler::MultiPush(RegList regs1, RegList regs2, RegList regs3) {
   DCHECK((regs1 & regs2).is_empty());
   DCHECK((regs1 & regs3).is_empty());
   DCHECK((regs2 & regs3).is_empty());
-  int16_t stack_offset = 0;
+  int16_t num_to_push = regs1.Count() + regs2.Count() + regs3.Count();
+  int16_t stack_offset = num_to_push * kSystemPointerSize;
 
+  Sub_d(sp, sp, Operand(stack_offset));
   for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
     if ((regs1.bits() & (1 << i)) != 0) {
       stack_offset -= kSystemPointerSize;
@@ -1580,7 +1584,6 @@ void MacroAssembler::MultiPush(RegList regs1, RegList regs2, RegList regs3) {
       St_d(ToRegister(i), MemOperand(sp, stack_offset));
     }
   }
-  addi_d(sp, sp, stack_offset);
 }
 
 void MacroAssembler::MultiPop(RegList regs) {
@@ -3898,9 +3901,8 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   ASM_CODE_COMMENT(this);
-  addi_d(sp, fp, 2 * kSystemPointerSize);
-  Ld_d(ra, MemOperand(fp, 1 * kSystemPointerSize));
-  Ld_d(fp, MemOperand(fp, 0 * kSystemPointerSize));
+  Move(sp, fp);
+  Pop(ra, fp);
 }
 
 void MacroAssembler::EnterExitFrame(int stack_space,
