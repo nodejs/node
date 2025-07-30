@@ -2,7 +2,12 @@
 
 <!--introduced_in=v18.0.0-->
 
-<!-- llm_description=Built-in framework for writing and running JavaScript tests. It includes a command-line runner and offers comprehensive features such as mocking, snapshot testing, and code coverage analysis. -->
+<!-- YAML
+llm_description: >
+  Built-in framework for writing and running JavaScript tests. It includes a
+  command-line runner and offers comprehensive features such as mocking,
+  snapshot testing, and code coverage analysis.
+-->
 
 <!-- YAML
 added:

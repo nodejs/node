@@ -2,7 +2,11 @@
 
 <!--introduced_in=v8.5.0-->
 
-<!-- llm_description=Provides support for ECMAScript modules in Node.js, enabling standards-based module syntax (import/export) and interoperability with CommonJS. -->
+<!-- YAML
+llm_description: >
+  Provides support for ECMAScript modules in Node.js, enabling standards-based
+  module syntax (import/export) and interoperability with CommonJS.
+-->
 
 <!-- type=misc -->
 

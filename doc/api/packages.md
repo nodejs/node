@@ -4,7 +4,12 @@
 
 <!-- type=misc -->
 
-<!-- llm_description=Defines how Node.js resolves and loads modules via fields like type, exports, and imports. Controls module format, entry points, and package encapsulation. -->
+<!-- YAML
+llm_description: >
+  Defines how Node.js resolves and loads modules via fields like type,
+  exports, and imports. Controls module format, entry points, and package
+  encapsulation.
+-->
 
 <!-- YAML
 changes:
