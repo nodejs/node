@@ -179,6 +179,11 @@ then untrusted input must not lead to arbitrary JavaScript code execution.
   See <https://nodejs.org/api/modules.html#all-together>.
 * The `node:wasi` module does not currently provide the comprehensive file
   system security properties provided by some WASI runtimes.
+* The execution path is trusted. Additionally, Node.js path manipulation functions
+  such as `path.join()` and `path.normalize()` trust their input. Reports about issues
+  related to these functions that rely on unsanitized input are not considered vulnerabilities
+  requiring CVEs, as it's the user's responsibility to sanitize path inputs according to
+  their security requirements.
 
 Any unexpected behavior from the data manipulation from Node.js Internal
 functions may be considered a vulnerability if they are exploitable via
