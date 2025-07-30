@@ -3,7 +3,7 @@
 <!--introduced_in=v10.5.0-->
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Enables the use of threads to execute JavaScript in parallel. It is most
   useful for performing CPU-intensive operations without blocking the main
   application's event loop.

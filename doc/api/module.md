@@ -3,7 +3,7 @@
 <!--introduced_in=v12.20.0-->
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Provides utilities for interacting with Node.js modules, including support
   for module creation, resolution, customization hooks, and compile caching.
   Enables advanced module loading behavior.

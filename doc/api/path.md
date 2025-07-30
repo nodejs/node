@@ -3,7 +3,7 @@
 <!--introduced_in=v0.10.0-->
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Provides utilities for working with file and directory paths across
   different operating systems.
 -->

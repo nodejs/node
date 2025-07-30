@@ -3,7 +3,7 @@
 <!--introduced_in=v0.10.0-->
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Provides cross-platform utilities for accessing operating system information,
   including CPU architecture, memory usage, network interfaces, user details,
   and system paths.

@@ -18,7 +18,7 @@ changes:
 <!--introduced_in=v0.10.0-->
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Deprecated (avoid). Legacy API for error handling across async operations.
 -->
 

@@ -3,7 +3,7 @@
 <!--introduced_in=v0.10.0-->
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Provides an API for decoding Buffer objects into strings while preserving
   multi-byte UTF-8 and UTF-16 characters.
 -->

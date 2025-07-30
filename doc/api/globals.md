@@ -3,7 +3,7 @@
 <!--introduced_in=v0.10.0-->
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Lists built-in global objects and functions available in the Node.js runtime.
 -->
 

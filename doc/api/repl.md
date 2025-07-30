@@ -3,7 +3,7 @@
 <!--introduced_in=v0.10.0-->
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Provides an interactive Read-Eval-Print-Loop (REPL) implementation.
 -->
 

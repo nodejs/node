@@ -30,7 +30,7 @@ changes:
 > Stability: 2 - Stable
 
 <!-- YAML
-llm_description: >
+llmDescription: >
   Provides lightweight TypeScript support in Node.js via type stripping.
   Enables execution of .ts files without type checking or full compiler features.
 -->
