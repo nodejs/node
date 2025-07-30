@@ -8,6 +8,7 @@ llm_description: >
   useful for performing CPU-intensive operations without blocking the main
   application's event loop.
 -->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/worker_threads.js -->
