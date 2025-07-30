@@ -23,9 +23,12 @@ describe('test runner flag propagation', () => {
     ['--test-coverage-branches', '100', '100'],
     ['--test-coverage-functions', '100', '100'],
     ['--test-coverage-lines', '100', '100'],
-    // ['--test-coverage-exclude', 'test/**', 'test/**'],
-    // ['--test-coverage-include', 'src/**', 'src/**'],
+    ['--experimental-test-coverage', '', false],
+    ['--test-coverage-exclude', 'test/**', 'test/**'],
+    ['--test-coverage-include', 'src/**', 'src/**'],
     ['--test-update-snapshots', '', true],
+    ['--import', './index.js', './index.js'],
+    ['--require', './index.js', './index.js'],
   ];
 
   // Path to the static fixture
