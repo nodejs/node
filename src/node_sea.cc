@@ -123,6 +123,18 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
       written_total += WriteStringView(content, StringLogMode::kAddressOnly);
     }
   }
+
+  if (static_cast<bool>(sea.flags & SeaFlags::kIncludeExecArgv)) {
+    Debug("Write SEA resource exec argv size %zu\n", sea.exec_argv.size());
+    written_total += WriteArithmetic<size_t>(sea.exec_argv.size());
+    for (const auto& arg : sea.exec_argv) {
+      Debug("Write SEA resource exec arg %s at %p, size=%zu\n",
+            arg.data(),
+            arg.data(),
+            arg.size());
+      written_total += WriteStringView(arg, StringLogMode::kAddressAndContent);
+    }
+  }
   return written_total;
 }
 
@@ -185,7 +197,22 @@ SeaResource SeaDeserializer::Read() {
       assets.emplace(key, content);
     }
   }
-  return {flags, code_path, code, code_cache, assets};
+
+  std::vector<std::string_view> exec_argv;
+  if (static_cast<bool>(flags & SeaFlags::kIncludeExecArgv)) {
+    size_t exec_argv_size = ReadArithmetic<size_t>();
+    Debug("Read SEA resource exec args size %zu\n", exec_argv_size);
+    exec_argv.reserve(exec_argv_size);
+    for (size_t i = 0; i < exec_argv_size; ++i) {
+      std::string_view arg = ReadStringView(StringLogMode::kAddressAndContent);
+      Debug("Read SEA resource exec arg %s at %p, size=%zu\n",
+            arg.data(),
+            arg.data(),
+            arg.size());
+      exec_argv.emplace_back(arg);
+    }
+  }
+  return {flags, code_path, code, code_cache, assets, exec_argv};
 }
 
 std::string_view FindSingleExecutableBlob() {
@@ -269,8 +296,27 @@ std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv) {
   // entry point file path.
   if (IsSingleExecutable()) {
     static std::vector<char*> new_argv;
-    new_argv.reserve(argc + 2);
+    static std::vector<std::string> exec_argv_storage;
+
+    SeaResource sea_resource = FindSingleExecutableResource();
+
+    new_argv.clear();
+    exec_argv_storage.clear();
+
+    // Reserve space for argv[0], exec argv, original argv, and nullptr
+    new_argv.reserve(argc + sea_resource.exec_argv.size() + 2);
     new_argv.emplace_back(argv[0]);
+
+    // Insert exec argv from SEA config
+    if (!sea_resource.exec_argv.empty()) {
+      exec_argv_storage.reserve(sea_resource.exec_argv.size());
+      for (const auto& arg : sea_resource.exec_argv) {
+        exec_argv_storage.emplace_back(arg);
+        new_argv.emplace_back(exec_argv_storage.back().data());
+      }
+    }
+
+    // Add actual run time arguments.
     new_argv.insert(new_argv.end(), argv, argv + argc);
     new_argv.emplace_back(nullptr);
     argc = new_argv.size() - 1;
@@ -287,6 +333,7 @@ struct SeaConfig {
   std::string output_path;
   SeaFlags flags = SeaFlags::kDefault;
   std::unordered_map<std::string, std::string> assets;
+  std::vector<std::string> exec_argv;
 };
 
 std::optional<SeaConfig> ParseSingleExecutableConfig(
@@ -404,6 +451,30 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
 
       if (!result.assets.empty()) {
         result.flags |= SeaFlags::kIncludeAssets;
+      }
+    } else if (key == "execArgv") {
+      simdjson::ondemand::array exec_argv_array;
+      if (field.value().get_array().get(exec_argv_array)) {
+        FPrintF(stderr,
+                "\"execArgv\" field of %s is not an array of strings\n",
+                config_path);
+        return std::nullopt;
+      }
+      simdjson::ondemand::value exec_argv_value;
+      std::vector<std::string> exec_argv;
+      for (auto argv : exec_argv_array) {
+        std::string_view argv_str;
+        if (argv.get_string().get(argv_str)) {
+          FPrintF(stderr,
+                  "\"execArgv\" field of %s is not an array of strings\n",
+                  config_path);
+          return std::nullopt;
+        }
+        exec_argv.emplace_back(argv_str);
+      }
+      if (!exec_argv.empty()) {
+        result.flags |= SeaFlags::kIncludeExecArgv;
+        result.exec_argv = std::move(exec_argv);
       }
     }
   }
@@ -598,6 +669,10 @@ ExitCode GenerateSingleExecutableBlob(
   for (auto const& [key, content] : assets) {
     assets_view.emplace(key, content);
   }
+  std::vector<std::string_view> exec_argv_view;
+  for (const auto& arg : config.exec_argv) {
+    exec_argv_view.emplace_back(arg);
+  }
   SeaResource sea{
       config.flags,
       config.main_path,
@@ -605,7 +680,8 @@ ExitCode GenerateSingleExecutableBlob(
           ? std::string_view{snapshot_blob.data(), snapshot_blob.size()}
           : std::string_view{main_script.data(), main_script.size()},
       optional_sv_code_cache,
-      assets_view};
+      assets_view,
+      exec_argv_view};
 
   SeaSerializer serializer;
   serializer.Write(sea);
