@@ -5,14 +5,20 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
+if (!hasOpenSSL(3, 5))
+  common.skip('requires OpenSSL >= 3.5');
+
 const assert = require('assert');
+const crypto = require('crypto');
 const { subtle } = globalThis.crypto;
 
-const vectors = require('../fixtures/crypto/eddsa')();
+const vectors = require('../fixtures/crypto/ml-dsa')();
 
 async function testVerify({ name,
-                            publicKeyBuffer,
-                            privateKeyBuffer,
+                            publicKeyPem,
+                            privateKeyPem,
                             signature,
                             data }) {
   const [
@@ -23,24 +29,12 @@ async function testVerify({ name,
     rsaKeys,
     ecKeys,
   ] = await Promise.all([
-    subtle.importKey(
-      'spki',
-      publicKeyBuffer,
-      { name },
-      false,
-      ['verify']),
-    subtle.importKey(
-      'spki',
-      publicKeyBuffer,
-      { name },
-      false,
-      [ /* No usages */ ]),
-    subtle.importKey(
-      'pkcs8',
-      privateKeyBuffer,
-      { name },
-      false,
-      ['sign']),
+    crypto.createPublicKey(publicKeyPem)
+      .toCryptoKey(name, false, ['verify']),
+    crypto.createPublicKey(publicKeyPem)
+      .toCryptoKey(name, false, [ /* No usages */ ]),
+    crypto.createPrivateKey(privateKeyPem)
+      .toCryptoKey(name, false, ['sign']),
     subtle.generateKey(
       { name: 'HMAC', hash: 'SHA-256' },
       false,
@@ -125,8 +119,8 @@ async function testVerify({ name,
 }
 
 async function testSign({ name,
-                          publicKeyBuffer,
-                          privateKeyBuffer,
+                          publicKeyPem,
+                          privateKeyPem,
                           signature,
                           data }) {
   const [
@@ -136,18 +130,10 @@ async function testSign({ name,
     rsaKeys,
     ecKeys,
   ] = await Promise.all([
-    subtle.importKey(
-      'spki',
-      publicKeyBuffer,
-      { name },
-      false,
-      ['verify']),
-    subtle.importKey(
-      'pkcs8',
-      privateKeyBuffer,
-      { name },
-      false,
-      ['sign']),
+    crypto.createPublicKey(publicKeyPem)
+      .toCryptoKey(name, false, ['verify']),
+    crypto.createPrivateKey(privateKeyPem)
+      .toCryptoKey(name, false, ['sign']),
     subtle.generateKey(
       { name: 'HMAC', hash: 'SHA-256' },
       false,
@@ -218,33 +204,25 @@ async function testSign({ name,
   await Promise.all(variations);
 })().then(common.mustCall());
 
-// Ed448 context
+// ContextParams context not supported
 {
-  const vector = vectors.find(({ name }) => name === 'Ed448');
-  Promise.all([
-    subtle.importKey(
-      'pkcs8',
-      vector.privateKeyBuffer,
-      { name: 'Ed448' },
-      false,
-      ['sign']),
-    subtle.importKey(
-      'spki',
-      vector.publicKeyBuffer,
-      { name: 'Ed448' },
-      false,
-      ['verify']),
-  ]).then(async ([privateKey, publicKey]) => {
-    const sig = await subtle.sign({ name: 'Ed448', context: Buffer.alloc(0) }, privateKey, vector.data);
-    assert.deepStrictEqual(Buffer.from(sig), vector.signature);
-    assert.strictEqual(
-      await subtle.verify({ name: 'Ed448', context: Buffer.alloc(0) }, publicKey, sig, vector.data), true);
+  const vector = vectors[0];
+  const name = vector.name;
+  const publicKey = crypto.createPublicKey(vector.publicKeyPem)
+      .toCryptoKey(vector.name, false, ['verify']);
+  const privateKey = crypto.createPrivateKey(vector.privateKeyPem)
+        .toCryptoKey(vector.name, false, ['sign']);
 
-    await assert.rejects(subtle.sign({ name: 'Ed448', context: Buffer.alloc(1) }, privateKey, vector.data), {
-      message: /Non zero-length Ed448Params\.context is not supported/
+  (async () => {
+    const sig = await subtle.sign({ name, context: Buffer.alloc(0) }, privateKey, vector.data);
+    assert.strictEqual(
+      await subtle.verify({ name, context: Buffer.alloc(0) }, publicKey, sig, vector.data), true);
+
+    await assert.rejects(subtle.sign({ name, context: Buffer.alloc(1) }, privateKey, vector.data), {
+      message: /Non zero-length ContextParams\.context is not supported/
     });
-    await assert.rejects(subtle.verify({ name: 'Ed448', context: Buffer.alloc(1) }, publicKey, sig, vector.data), {
-      message: /Non zero-length Ed448Params\.context is not supported/
+    await assert.rejects(subtle.verify({ name, context: Buffer.alloc(1) }, publicKey, sig, vector.data), {
+      message: /Non zero-length ContextParams\.context is not supported/
     });
-  }).then(common.mustCall());
+  })().then(common.mustCall());
 }

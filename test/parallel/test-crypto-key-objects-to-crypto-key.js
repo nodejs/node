@@ -4,6 +4,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
 const assert = require('assert');
 const {
   createSecretKey,
@@ -176,6 +178,26 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
           assertCryptoKey(cryptoKey, key, algorithm, extractable, usages);
           assert.strictEqual(cryptoKey.algorithm.namedCurve, namedCurve);
         }
+      }
+    }
+  }
+}
+
+if (hasOpenSSL(3, 5)) {
+  for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
+    const { publicKey, privateKey } = generateKeyPairSync(name.toLowerCase());
+    assert.throws(() => {
+      privateKey.toCryptoKey(name, true, []);
+    }, {
+      name: 'SyntaxError',
+      message: 'Usages cannot be empty when importing a private key.'
+    });
+    for (const key of [publicKey, privateKey]) {
+      const usages = key.type === 'public' ? ['verify'] : ['sign'];
+      for (const extractable of [true, false]) {
+        const cryptoKey = key.toCryptoKey({ name }, extractable, usages);
+        assertCryptoKey(cryptoKey, key, name, extractable, usages);
+        assert.strictEqual(cryptoKey.algorithm.name, name);
       }
     }
   }
