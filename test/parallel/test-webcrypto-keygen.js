@@ -6,6 +6,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
 const assert = require('assert');
 const { types: { isCryptoKey } } = require('util');
 const {
@@ -156,6 +158,18 @@ const vectors = {
     ],
   },
 };
+
+if (hasOpenSSL(3, 5)) {
+  for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
+    vectors[name] = {
+      result: 'CryptoKeyPair',
+      usages: [
+        'sign',
+        'verify',
+      ],
+    };
+  }
+}
 
 // Test invalid algorithms
 {
@@ -680,6 +694,49 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
   ];
 
   const tests = kTests.map((args) => test(...args));
+
+  Promise.all(tests).then(common.mustCall());
+}
+
+// Test ML-DSA Key Generation
+if (hasOpenSSL(3, 5)) {
+  async function test(
+    name,
+    privateUsages,
+    publicUsages = privateUsages) {
+
+    let usages = privateUsages;
+    if (publicUsages !== privateUsages)
+      usages = usages.concat(publicUsages);
+
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name,
+    }, true, usages);
+
+    assert(publicKey);
+    assert(privateKey);
+    assert(isCryptoKey(publicKey));
+    assert(isCryptoKey(privateKey));
+
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(publicKey.toString(), '[object CryptoKey]');
+    assert.strictEqual(privateKey.toString(), '[object CryptoKey]');
+    assert.strictEqual(publicKey.extractable, true);
+    assert.strictEqual(privateKey.extractable, true);
+    assert.deepStrictEqual(publicKey.usages, publicUsages);
+    assert.deepStrictEqual(privateKey.usages, privateUsages);
+    assert.strictEqual(publicKey.algorithm.name, name);
+    assert.strictEqual(privateKey.algorithm.name, name);
+    assert.strictEqual(privateKey.algorithm, privateKey.algorithm);
+    assert.strictEqual(privateKey.usages, privateKey.usages);
+    assert.strictEqual(publicKey.algorithm, publicKey.algorithm);
+    assert.strictEqual(publicKey.usages, publicKey.usages);
+  }
+
+  const kTests = ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87'];
+
+  const tests = kTests.map((name) => test(name, ['sign'], ['verify']));
 
   Promise.all(tests).then(common.mustCall());
 }
