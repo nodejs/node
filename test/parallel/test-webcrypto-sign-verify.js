@@ -5,6 +5,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
 
@@ -146,4 +148,26 @@ const { subtle } = globalThis.crypto;
   if (!process.features.openssl_is_boringssl) {
     test('hello world').then(common.mustCall());
   }
+}
+
+// Test Sign/Verify ML-DSA
+if (hasOpenSSL(3, 5)) {
+  async function test(name, data) {
+    const ec = new TextEncoder();
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name,
+    }, true, ['sign', 'verify']);
+
+    const signature = await subtle.sign({
+      name,
+    }, privateKey, ec.encode(data));
+
+    assert(await subtle.verify({
+      name,
+    }, publicKey, signature, ec.encode(data)));
+  }
+
+  test('ML-DSA-44', 'hello world').then(common.mustCall());
+  test('ML-DSA-65', 'hello world').then(common.mustCall());
+  test('ML-DSA-87', 'hello world').then(common.mustCall());
 }

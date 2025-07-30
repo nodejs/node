@@ -120,6 +120,7 @@ const customTypesMap = {
   'EcdsaParams': 'webcrypto.html#class-ecdsaparams',
   'RsaPssParams': 'webcrypto.html#class-rsapssparams',
   'Ed448Params': 'webcrypto.html#class-ed448params',
+  'ContextParams': 'webcrypto.html#class-contextparams',
 
   'dgram.Socket': 'dgram.html#class-dgramsocket',
 
