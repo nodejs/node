@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include "util.h"
 #include "v8.h"
 
@@ -23,6 +24,8 @@ class JSONParser {
   std::optional<std::string> GetTopLevelStringField(std::string_view field);
   std::optional<bool> GetTopLevelBoolField(std::string_view field);
   std::optional<StringDict> GetTopLevelStringDict(std::string_view field);
+  std::optional<std::vector<std::string>> GetTopLevelStringList(
+      std::string_view field);
 
  private:
   // We might want a lighter-weight JSON parser for this use case. But for now
