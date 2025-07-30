@@ -210,11 +210,16 @@ Buffer<void> DataPointer::release() {
 }
 
 DataPointer DataPointer::resize(size_t len) {
+  if (secure_) return DataPointer();
   size_t actual_len = std::min(len_, len);
   auto buf = release();
+  // Handle the unexpected null pointer
+  if (buf.data == nullptr) {
+    return DataPointer(nullptr, 0, false);
+  }
+  // This scenario is unlikely
   if (actual_len == len_) {
-    // Retain the secure_ heap flag
-    return DataPointer(buf.data, actual_len, secure_);
+    return DataPointer(buf.data, actual_len, false);
   }
   // This should correctly handle secure memory based on input pointer
   void* new_data = OPENSSL_realloc(buf.data, actual_len);
@@ -223,14 +228,10 @@ DataPointer DataPointer::resize(size_t len) {
   if (new_data == nullptr && actual_len > 0) {
     // OPENSSL_realloc doesn't free automatically. Below is a code snippet showing correct use
     // https://github.com/openssl/openssl/blob/e7d5398aa1349cc575a5b80e0d6eb28e61cb4bfa/apps/engine.c#L72
-    if (secure_) {
-      OPENSSL_secure_clear_free(buf.data, len_);
-    } else {
-      OPENSSL_clear_free(buf.data, len_);
-    }
-    return DataPointer(nullptr, 0, secure_);
+    OPENSSL_clear_free(buf.data, len_);
+    return DataPointer(nullptr, 0, false);
   }
-  return DataPointer(new_data, actual_len, secure_);
+  return DataPointer(new_data, actual_len, false);
 }
 
 // ============================================================================
