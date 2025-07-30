@@ -2,7 +2,7 @@
 
 <!-- introduced_in=v23.8.0-->
 
-<!-- llmDescription=Provides an implementation of the QUIC protocol. -->
+<!-- llmDescription: Provides an implementation of the QUIC protocol. -->
 
 <!-- YAML
 added: v23.8.0

@@ -5,7 +5,7 @@
 
 <!--introduced_in=v0.10.0-->
 
-<!-- llmDescription=Entry point for the Node.js documentation index. -->
+<!-- llmDescription: Entry point for the Node.js documentation index. -->
 
 * [About this documentation](documentation.md)
 * [Usage and example](synopsis.md)
