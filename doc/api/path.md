@@ -2,7 +2,11 @@
 
 <!--introduced_in=v0.10.0-->
 
-<!-- llm_description=Provides utilities for working with file and directory paths across different operating systems. -->
+<!-- YAML
+llm_description: >
+  Provides utilities for working with file and directory paths across
+  different operating systems.
+-->
 
 > Stability: 2 - Stable
 

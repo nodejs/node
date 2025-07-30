@@ -2,7 +2,11 @@
 
 <!--introduced_in=v0.9.12-->
 
-<!-- llm_description=Provides a CLI interface for debugging Node.js applications, including basic stepping and inspection. -->
+<!-- YAML
+llm_description: >
+  Provides a CLI interface for debugging Node.js applications, including
+  basic stepping and inspection.
+-->
 
 > Stability: 2 - Stable
 

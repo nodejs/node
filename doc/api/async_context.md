@@ -6,7 +6,13 @@
 
 <!-- source_link=lib/async_hooks.js -->
 
-<!-- llm_description=Tracks asynchronous execution context. Enables storing and propagating state across async operations like callbacks and promises. Useful for request tracking, logging, or context management. Provides AsyncLocalStorage for scoped storage and AsyncResource for custom async context binding. -->
+<!-- YAML
+llm_description: >
+  Tracks asynchronous execution context. Enables storing and propagating state
+  across async operations like callbacks and promises. Useful for request
+  tracking, logging, or context management. Provides AsyncLocalStorage for
+  scoped storage and AsyncResource for custom async context binding.
+-->
 
 ## Introduction
 

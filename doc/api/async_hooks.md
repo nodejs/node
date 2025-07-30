@@ -2,7 +2,12 @@
 
 <!--introduced_in=v8.1.0-->
 
-<!-- llm_description=Low-level API to monitor asynchronous operations (timeouts, promises, callbacks). Primarily for advanced diagnostics or custom profiling tools. Avoid on production, use AsyncLocalStorage for most context-tracking needs. -->
+<!-- YAML
+llm_description: >
+  Low-level API to monitor asynchronous operations (timeouts, promises,
+  callbacks). Primarily for advanced diagnostics or custom profiling tools.
+  Avoid on production, use AsyncLocalStorage for most context-tracking needs.
+-->
 
 > Stability: 1 - Experimental. Please migrate away from this API, if you can.
 > We do not recommend using the [`createHook`][], [`AsyncHook`][], and

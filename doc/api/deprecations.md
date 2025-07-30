@@ -2,7 +2,10 @@
 
 <!--introduced_in=v7.7.0-->
 
-<!-- llm_description=Lists APIs that are deprecated and subject to removal in future releases. -->
+<!-- YAML
+llm_description: >
+  Lists APIs that are deprecated and subject to removal in future releases.
+-->
 
 <!-- type=misc -->
 

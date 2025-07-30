@@ -2,8 +2,10 @@
 
 <!--introduced_in=v0.10.0-->
 
-<!-- llm_description=Provides an interactive Read-Eval-Print-Loop (REPL) implementation. -->
-
+<!-- YAML
+llm_description: >
+  Provides an interactive Read-Eval-Print-Loop (REPL) implementation.
+-->
 > Stability: 2 - Stable
 
 <!-- source_link=lib/repl.js -->

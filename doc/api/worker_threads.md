@@ -2,8 +2,12 @@
 
 <!--introduced_in=v10.5.0-->
 
-<!-- llm_description=Enables the use of threads to execute JavaScript in parallel. It is most useful for performing CPU-intensive operations without blocking the main application's event loop. -->
-
+<!-- YAML
+llm_description: >
+  Enables the use of threads to execute JavaScript in parallel. It is most
+  useful for performing CPU-intensive operations without blocking the main
+  application's event loop.
+-->
 > Stability: 2 - Stable
 
 <!-- source_link=lib/worker_threads.js -->
