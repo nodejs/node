@@ -142,11 +142,11 @@ function spawnPromisified(...args) {
   });
 }
 
-exports.checkProxiedFetch = async function(envExtension, expectation) {
+exports.checkProxiedFetch = async function(envExtension, expectation, cliArgsExtension = []) {
   const fixtures = require('./fixtures');
   const { code, signal, stdout, stderr } = await spawnPromisified(
     process.execPath,
-    [fixtures.path('fetch-and-log.mjs')], {
+    [...cliArgsExtension, fixtures.path('fetch-and-log.mjs')], {
       env: {
         ...process.env,
         ...envExtension,
@@ -166,11 +166,11 @@ exports.checkProxiedFetch = async function(envExtension, expectation) {
   });
 };
 
-exports.runProxiedRequest = async function(envExtension) {
+exports.runProxiedRequest = async function(envExtension, cliArgsExtension = []) {
   const fixtures = require('./fixtures');
   return spawnPromisified(
     process.execPath,
-    [fixtures.path('request-and-log.js')], {
+    [...cliArgsExtension, fixtures.path('request-and-log.js')], {
       env: {
         ...process.env,
         ...envExtension,

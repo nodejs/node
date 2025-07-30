@@ -1,5 +1,5 @@
+#include "arm_arch.h"
 #ifndef	__KERNEL__
-# include "arm_arch.h"
 
 .private_extern	_OPENSSL_armv8_rsa_neonized
 #endif
@@ -9,6 +9,7 @@
 
 .align	5
 _bn_mul_mont:
+	AARCH64_SIGN_LINK_REGISTER
 Lbn_mul_mont:
 	tst	x5,#3
 	b.ne	Lmul_mont
@@ -221,11 +222,14 @@ Lcond_copy:
 	mov	x0,#1
 	ldp	x23,x24,[x29,#48]
 	ldr	x29,[sp],#64
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 
 .align	5
 bn_mul8x_mont_neon:
+	// Not adding AARCH64_SIGN_LINK_REGISTER here because bn_mul8x_mont_neon is jumped to
+	// only from bn_mul_mont which has already signed the return address.
 	stp	x29,x30,[sp,#-80]!
 	mov	x16,sp
 	stp	d8,d9,[sp,#16]
@@ -918,6 +922,7 @@ LCopy_2:
 	ldp	d10,d11,[sp,#32]
 	ldp	d8,d9,[sp,#16]
 	ldr	x29,[sp],#80
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret	// bx lr
 
 
@@ -927,7 +932,8 @@ __bn_sqr8x_mont:
 	cmp	x1,x2
 	b.ne	__bn_mul4x_mont
 Lsqr8x_mont:
-.long	0xd503233f		// paciasp
+	// Not adding AARCH64_SIGN_LINK_REGISTER here because __bn_sqr8x_mont is jumped to
+	// only from bn_mul_mont which has already signed the return address.
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -1678,13 +1684,15 @@ Lsqr8x_done:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldr	x29,[sp],#128
-.long	0xd50323bf		// autiasp
+	// x30 is loaded earlier
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 
 .align	5
 __bn_mul4x_mont:
-.long	0xd503233f		// paciasp
+	// Not adding AARCH64_SIGN_LINK_REGISTER here because __bn_mul4x_mont is jumped to
+	// only from bn_mul_mont (or __bn_sqr8x_mont from bn_mul_mont) which has already signed the return address.
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -2118,9 +2126,11 @@ Lmul4x_done:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldr	x29,[sp],#128
-.long	0xd50323bf		// autiasp
+	// x30 loaded earlier
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
+.section	__TEXT,__const
 .byte	77,111,110,116,103,111,109,101,114,121,32,77,117,108,116,105,112,108,105,99,97,116,105,111,110,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	4

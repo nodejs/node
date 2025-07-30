@@ -1,9 +1,9 @@
-.TH "SCRIPTS" "7" "June 2025" "NPM@11.4.2" ""
+.TH "SCRIPTS" "7" "July 2025" "NPM@11.5.1" ""
 .SH "NAME"
 \fBscripts\fR - How npm handles the "scripts" field
 .SS "Description"
 .P
-The \fB"scripts"\fR property of your \fBpackage.json\fR file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running \fBnpm run <stage>\fR or \fBnpm run <stage>\fR for short. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e.g. \fBpremyscript\fR, \fBmyscript\fR, \fBpostmyscript\fR). Scripts from dependencies can be run with \fBnpm explore <pkg> -- npm run <stage>\fR.
+The \fB"scripts"\fR property of your \fBpackage.json\fR file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running \fBnpm run <stage>\fR. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e.g. \fBpremyscript\fR, \fBmyscript\fR, \fBpostmyscript\fR). Scripts from dependencies can be run with \fBnpm explore <pkg> -- npm run <stage>\fR.
 .SS "Pre & Post Scripts"
 .P
 To create "pre" or "post" scripts for any scripts defined in the \fB"scripts"\fR section of the \fBpackage.json\fR, simply create another script \fIwith a matching name\fR and add "pre" or "post" to the beginning of them.

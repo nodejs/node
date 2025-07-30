@@ -16,6 +16,7 @@ declare namespace InternalWorkerBinding {
     getResourceLimits(): Float64Array;
     takeHeapSnapshot(): object;
     getHeapStatistics(): Promise<object>;
+    cpuUsage(): Promise<object>;
     loopIdleTime(): number;
     loopStartTime(): number;
   }

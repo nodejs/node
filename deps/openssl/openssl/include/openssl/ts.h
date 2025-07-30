@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,12 +30,14 @@
 # include <openssl/dh.h>
 # include <openssl/tserr.h>
 # include <openssl/ess.h>
+# include <openssl/x509.h>
+# include <openssl/x509v3.h>
+# ifndef OPENSSL_NO_STDIO
+#  include <stdio.h>
+# endif
 # ifdef  __cplusplus
 extern "C" {
 # endif
-
-# include <openssl/x509.h>
-# include <openssl/x509v3.h>
 
 typedef struct TS_msg_imprint_st TS_MSG_IMPRINT;
 typedef struct TS_req_st TS_REQ;
@@ -416,14 +418,31 @@ void TS_VERIFY_CTX_free(TS_VERIFY_CTX *ctx);
 void TS_VERIFY_CTX_cleanup(TS_VERIFY_CTX *ctx);
 int TS_VERIFY_CTX_set_flags(TS_VERIFY_CTX *ctx, int f);
 int TS_VERIFY_CTX_add_flags(TS_VERIFY_CTX *ctx, int f);
+# ifndef OPENSSL_NO_DEPRECATED_3_4
+OSSL_DEPRECATEDIN_3_4_FOR("Unclear semantics, replace with TS_VERIFY_CTX_set0_data().")
 BIO *TS_VERIFY_CTX_set_data(TS_VERIFY_CTX *ctx, BIO *b);
+# endif
+int TS_VERIFY_CTX_set0_data(TS_VERIFY_CTX *ctx, BIO *b);
+# ifndef OPENSSL_NO_DEPRECATED_3_4
+OSSL_DEPRECATEDIN_3_4_FOR("Unclear semantics, replace with TS_VERIFY_CTX_set0_imprint().")
 unsigned char *TS_VERIFY_CTX_set_imprint(TS_VERIFY_CTX *ctx,
                                          unsigned char *hexstr, long len);
+# endif
+int TS_VERIFY_CTX_set0_imprint(TS_VERIFY_CTX *ctx,
+                               unsigned char *hexstr, long len);
+# ifndef OPENSSL_NO_DEPRECATED_3_4
+OSSL_DEPRECATEDIN_3_4_FOR("Unclear semantics, replace with TS_VERIFY_CTX_set0_store().")
 X509_STORE *TS_VERIFY_CTX_set_store(TS_VERIFY_CTX *ctx, X509_STORE *s);
+# endif
+int TS_VERIFY_CTX_set0_store(TS_VERIFY_CTX *ctx, X509_STORE *s);
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define TS_VERIFY_CTS_set_certs(ctx, cert) TS_VERIFY_CTX_set_certs(ctx,cert)
 # endif
+# ifndef OPENSSL_NO_DEPRECATED_3_4
+OSSL_DEPRECATEDIN_3_4_FOR("Unclear semantics, replace with TS_VERIFY_CTX_set0_certs().")
 STACK_OF(X509) *TS_VERIFY_CTX_set_certs(TS_VERIFY_CTX *ctx, STACK_OF(X509) *certs);
+# endif
+int TS_VERIFY_CTX_set0_certs(TS_VERIFY_CTX *ctx, STACK_OF(X509) *certs);
 
 /*-
  * If ctx is NULL, it allocates and returns a new object, otherwise

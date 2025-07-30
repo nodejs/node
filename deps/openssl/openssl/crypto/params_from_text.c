@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -8,10 +8,11 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <string.h>
+#include "internal/common.h" /* for HAS_PREFIX */
 #include <openssl/ebcdic.h>
 #include <openssl/err.h>
 #include <openssl/params.h>
+#include <openssl/buffer.h>
 
 /*
  * When processing text to params, we're trying to be smart with numbers.
@@ -35,10 +36,7 @@ static int prepare_from_text(const OSSL_PARAM *paramdefs, const char *key,
      * ishex is used to translate legacy style string controls in hex format
      * to octet string parameters.
      */
-    *ishex = strncmp(key, "hex", 3) == 0;
-
-    if (*ishex)
-        key += 3;
+    *ishex = CHECK_AND_SKIP_PREFIX(key, "hex");
 
     p = *paramdef = OSSL_PARAM_locate_const(paramdefs, key);
     if (found != NULL)
@@ -200,6 +198,111 @@ static int construct_from_text(OSSL_PARAM *to, const OSSL_PARAM *paramdef,
     return 1;
 }
 
+/**
+ * OSSL_PARAM_print_to_bio - Print OSSL_PARAM array to a bio 
+ *
+ * @p:        Array of OSSL_PARAM structures containing keys and values.
+ * @bio:      Pointer to bio where the formatted output will be written.
+ * @print_values: If non-zero, prints both keys and values. If zero, only keys
+ *                are printed.
+ *
+ * This function iterates through the given array of OSSL_PARAM structures,
+ * printing each key to an in-memory buffer, and optionally printing its
+ * value based on the provided data type. Supported types include integers,
+ * strings, octet strings, and real numbers.
+ *
+ * Return:    1 on success, 0 on failure.
+ */
+int OSSL_PARAM_print_to_bio(const OSSL_PARAM *p, BIO *bio, int print_values)
+{
+    int64_t i;
+    uint64_t u;
+    BIGNUM *bn;
+#ifndef OPENSSL_SYS_UEFI
+    double d;
+    int dok;
+#endif
+    int ok = -1;
+
+    /*
+     * Iterate through each key in the array printing its key and value
+     */
+    for (; p->key != NULL; p++) {
+        ok = -1;
+        ok = BIO_printf(bio, "%s: ", p->key);
+
+        if (ok == -1)
+            goto end;
+
+        /*
+         * if printing of values was not requested, just move on
+         * to the next param, after adding a newline to the buffer
+         */
+        if (print_values == 0) {
+            BIO_printf(bio, "\n");
+            continue;
+        }
+
+        switch (p->data_type) {
+        case OSSL_PARAM_UNSIGNED_INTEGER:
+            if (p->data_size > sizeof(int64_t)) {
+                if (OSSL_PARAM_get_BN(p, &bn))
+                    ok = BN_print(bio, bn);
+                else
+                    ok = BIO_printf(bio, "error getting value\n");
+            } else {
+                if (OSSL_PARAM_get_uint64(p, &u))
+                    ok = BIO_printf(bio, "%llu\n", (unsigned long long int)u);
+                else
+                    ok = BIO_printf(bio, "error getting value\n");
+            }
+            break;
+        case OSSL_PARAM_INTEGER:
+            if (p->data_size > sizeof(int64_t)) {
+                if (OSSL_PARAM_get_BN(p, &bn))
+                    ok = BN_print(bio, bn);
+                else
+                    ok = BIO_printf(bio, "error getting value\n");
+            } else {
+                if (OSSL_PARAM_get_int64(p, &i))
+                    ok = BIO_printf(bio, "%lld\n", (long long int)i);
+                else
+                    ok = BIO_printf(bio, "error getting value\n");
+            }
+            break;
+        case OSSL_PARAM_UTF8_PTR:
+            ok = BIO_dump(bio, p->data, p->data_size);
+            break;
+        case OSSL_PARAM_UTF8_STRING:
+            ok = BIO_dump(bio, (char *)p->data, p->data_size);
+            break;
+        case OSSL_PARAM_OCTET_PTR:
+        case OSSL_PARAM_OCTET_STRING:
+            ok = BIO_dump(bio, (char *)p->data, p->data_size);
+            break;
+#ifndef OPENSSL_SYS_UEFI
+        case OSSL_PARAM_REAL:
+            dok = 0;
+            dok = OSSL_PARAM_get_double(p, &d);
+            if (dok == 1)
+                ok = BIO_printf(bio, "%f\n", d);
+            else
+                ok = BIO_printf(bio, "error getting value\n");
+            break;
+#endif
+        default:
+            ok = BIO_printf(bio, "unknown type (%u) of %zu bytes\n",
+                            p->data_type, p->data_size);
+            break;
+        }
+        if (ok == -1)
+            goto end;
+    }
+
+end:
+    return ok == -1 ? 0 : 1;
+}
+
 int OSSL_PARAM_allocate_from_text(OSSL_PARAM *to,
                                   const OSSL_PARAM *paramdefs,
                                   const char *key, const char *value,
@@ -219,10 +322,8 @@ int OSSL_PARAM_allocate_from_text(OSSL_PARAM *to,
                            &paramdef, &ishex, &buf_n, &tmpbn, found))
         goto err;
 
-    if ((buf = OPENSSL_zalloc(buf_n > 0 ? buf_n : 1)) == NULL) {
-        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+    if ((buf = OPENSSL_zalloc(buf_n > 0 ? buf_n : 1)) == NULL)
         goto err;
-    }
 
     ok = construct_from_text(to, paramdef, value, value_n, ishex,
                              buf, buf_n, tmpbn);

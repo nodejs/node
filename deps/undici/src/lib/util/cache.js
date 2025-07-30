@@ -32,7 +32,7 @@ function makeCacheKey (opts) {
 
 /**
  * @param {Record<string, string[] | string>}
- * @return {Record<string, string[] | string>}
+ * @returns {Record<string, string[] | string>}
  */
 function normaliseHeaders (opts) {
   let headers

@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -78,7 +78,7 @@ static int pkey_dsa_sign(EVP_PKEY_CTX *ctx, unsigned char *sig,
                          size_t *siglen, const unsigned char *tbs,
                          size_t tbslen)
 {
-    int ret;
+    int ret, md_size;
     unsigned int sltmp;
     DSA_PKEY_CTX *dctx = ctx->data;
     /*
@@ -88,8 +88,13 @@ static int pkey_dsa_sign(EVP_PKEY_CTX *ctx, unsigned char *sig,
      */
     DSA *dsa = (DSA *)EVP_PKEY_get0_DSA(ctx->pkey);
 
-    if (dctx->md != NULL && tbslen != (size_t)EVP_MD_get_size(dctx->md))
-        return 0;
+    if (dctx->md != NULL) {
+        md_size = EVP_MD_get_size(dctx->md);
+        if (md_size <= 0)
+            return 0;
+        if (tbslen != (size_t)md_size)
+            return 0;
+    }
 
     ret = DSA_sign(0, tbs, tbslen, sig, &sltmp, dsa);
 
@@ -103,7 +108,7 @@ static int pkey_dsa_verify(EVP_PKEY_CTX *ctx,
                            const unsigned char *sig, size_t siglen,
                            const unsigned char *tbs, size_t tbslen)
 {
-    int ret;
+    int ret, md_size;
     DSA_PKEY_CTX *dctx = ctx->data;
     /*
      * Discard const. Its marked as const because this may be a cached copy of
@@ -112,8 +117,13 @@ static int pkey_dsa_verify(EVP_PKEY_CTX *ctx,
      */
     DSA *dsa = (DSA *)EVP_PKEY_get0_DSA(ctx->pkey);
 
-    if (dctx->md != NULL && tbslen != (size_t)EVP_MD_get_size(dctx->md))
-        return 0;
+    if (dctx->md != NULL) {
+        md_size = EVP_MD_get_size(dctx->md);
+        if (md_size <= 0)
+            return 0;
+        if (tbslen != (size_t)md_size)
+            return 0;
+    }
 
     ret = DSA_verify(0, tbs, tbslen, sig, siglen, dsa);
 

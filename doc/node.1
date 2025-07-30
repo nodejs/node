@@ -223,9 +223,6 @@ Enable experimental ES module support in VM module.
 Enable experimental WebAssembly System Interface support. This
 flag is no longer required as WASI is enabled by default.
 .
-.It Fl -experimental-wasm-modules
-Enable experimental WebAssembly module support.
-.
 .It Fl -experimental-quic
 Enable the experimental QUIC support.
 .
@@ -337,6 +334,16 @@ The file used to store localStorage data.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.
+.
+.It Fl -max-old-space-size-percentage Ns = Ns Ar percentage
+Sets the max memory size of V8's old memory section as a percentage of available system memory.
+This flag takes precedence over
+.Fl -max-old-space-size
+when both are specified.
+The
+.Ar percentage
+parameter must be a number greater than 0 and up to 100, representing the percentage
+of available system memory to allocate to the V8 heap.
 .
 .It Fl -napi-modules
 This option is a no-op.
@@ -605,6 +612,9 @@ See
 .Ev SSL_CERT_DIR
 and
 .Ev SSL_CERT_FILE .
+.
+.It Fl -use-env-proxy
+Parse proxy settings from HTTP_PROXY/HTTPS_PROXY/NO_PROXY environment variables and apply the setting in global HTTP/HTTPS clients.
 .
 .It Fl -use-largepages Ns = Ns Ar mode
 Re-map the Node.js static code to large memory pages at startup. If supported on

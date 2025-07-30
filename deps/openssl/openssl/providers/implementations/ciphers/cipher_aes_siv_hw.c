@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -61,16 +61,20 @@ static int aes_siv_dupctx(void *in_vctx, void *out_vctx)
     PROV_AES_SIV_CTX *in = (PROV_AES_SIV_CTX *)in_vctx;
     PROV_AES_SIV_CTX *out = (PROV_AES_SIV_CTX *)out_vctx;
 
+    if (in->cbc != NULL && !EVP_CIPHER_up_ref(in->cbc))
+        return 0;
+    if (in->ctr != NULL && !EVP_CIPHER_up_ref(in->ctr)) {
+        EVP_CIPHER_free(in->cbc);
+        return 0;
+    }
+
     *out = *in;
     out->siv.cipher_ctx = NULL;
     out->siv.mac_ctx_init = NULL;
     out->siv.mac = NULL;
     if (!ossl_siv128_copy_ctx(&out->siv, &in->siv))
         return 0;
-    if (out->cbc != NULL)
-        EVP_CIPHER_up_ref(out->cbc);
-    if (out->ctr != NULL)
-        EVP_CIPHER_up_ref(out->ctr);
+
     return 1;
 }
 
@@ -120,8 +124,7 @@ static int aes_siv_cipher(void *vctx, unsigned char *out,
     return ossl_siv128_decrypt(sctx, in, out, len) > 0;
 }
 
-static const PROV_CIPHER_HW_AES_SIV aes_siv_hw =
-{
+static const PROV_CIPHER_HW_AES_SIV aes_siv_hw = {
     aes_siv_initkey,
     aes_siv_cipher,
     aes_siv_setspeed,

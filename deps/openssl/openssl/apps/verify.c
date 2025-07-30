@@ -234,8 +234,8 @@ int verify_main(int argc, char **argv)
  end:
     X509_VERIFY_PARAM_free(vpm);
     X509_STORE_free(store);
-    sk_X509_pop_free(untrusted, X509_free);
-    sk_X509_pop_free(trusted, X509_free);
+    OSSL_STACK_OF_X509_free(untrusted);
+    OSSL_STACK_OF_X509_free(trusted);
     sk_X509_CRL_pop_free(crls, X509_CRL_free);
     sk_OPENSSL_STRING_free(vfyopts);
     release_engine(e);
@@ -308,7 +308,7 @@ static int check(X509_STORE *ctx, const char *file,
                     BIO_printf(bio_out, " (untrusted)");
                 BIO_printf(bio_out, "\n");
             }
-            sk_X509_pop_free(chain, X509_free);
+            OSSL_STACK_OF_X509_free(chain);
         }
     } else {
         BIO_printf(bio_err,
@@ -352,7 +352,7 @@ static int cb(int ok, X509_STORE_CTX *ctx)
         switch (cert_error) {
         case X509_V_ERR_NO_EXPLICIT_POLICY:
             policies_print(ctx);
-            /* fall thru */
+            /* fall through */
         case X509_V_ERR_CERT_HAS_EXPIRED:
             /* Continue even if the leaf is a self-signed cert */
         case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:

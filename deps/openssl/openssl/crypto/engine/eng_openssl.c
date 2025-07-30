@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -422,7 +422,11 @@ static EVP_PKEY *openssl_load_privkey(ENGINE *eng, const char *key_id,
     EVP_PKEY *key;
     fprintf(stderr, "(TEST_ENG_OPENSSL_PKEY)Loading Private key %s\n",
             key_id);
+# if defined(OPENSSL_SYS_WINDOWS)
+    in = BIO_new_file(key_id, "rb");
+# else
     in = BIO_new_file(key_id, "r");
+# endif
     if (!in)
         return NULL;
     key = PEM_read_bio_PrivateKey(in, NULL, 0, NULL);
@@ -450,10 +454,8 @@ static int ossl_hmac_init(EVP_PKEY_CTX *ctx)
 {
     OSSL_HMAC_PKEY_CTX *hctx;
 
-    if ((hctx = OPENSSL_zalloc(sizeof(*hctx))) == NULL) {
-        ERR_raise(ERR_LIB_ENGINE, ERR_R_MALLOC_FAILURE);
+    if ((hctx = OPENSSL_zalloc(sizeof(*hctx))) == NULL)
         return 0;
-    }
     hctx->ktmp.type = V_ASN1_OCTET_STRING;
     hctx->ctx = HMAC_CTX_new();
     if (hctx->ctx == NULL) {

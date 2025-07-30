@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,6 +19,7 @@
 #include "crypto/sm2.h"
 #include "prov/provider_ctx.h"
 #include "prov/implementations.h"
+#include "prov/providercommon.h"
 #include "prov/provider_util.h"
 
 static OSSL_FUNC_asym_cipher_newctx_fn sm2_newctx;
@@ -190,7 +191,7 @@ static int sm2_set_ctx_params(void *vpsm2ctx, const OSSL_PARAM params[])
 
     if (psm2ctx == NULL)
         return 0;
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     if (!ossl_prov_digest_load_from_params(&psm2ctx->md, params,
@@ -229,5 +230,5 @@ const OSSL_DISPATCH ossl_sm2_asym_cipher_functions[] = {
       (void (*)(void))sm2_set_ctx_params },
     { OSSL_FUNC_ASYM_CIPHER_SETTABLE_CTX_PARAMS,
       (void (*)(void))sm2_settable_ctx_params },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };

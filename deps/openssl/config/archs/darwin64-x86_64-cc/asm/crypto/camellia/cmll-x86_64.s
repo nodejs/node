@@ -1129,6 +1129,7 @@ L$key_epilogue:
 	.byte	0xf3,0xc3
 
 
+.section	__DATA,__const
 .p2align	6
 L$Camellia_SIGMA:
 .long	0x3bcc908b, 0xa09e667f, 0x4caa73b2, 0xb67ae858
@@ -1648,6 +1649,7 @@ L$Camellia_SBOX:
 .long	0x008f8f8f,0xe300e3e3
 .long	0x00010101,0x40004040
 .long	0x003d3d3d,0x4f004f4f
+.text	
 .globl	_Camellia_cbc_encrypt
 
 .p2align	4

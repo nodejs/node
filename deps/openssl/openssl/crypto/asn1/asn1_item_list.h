@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -52,6 +52,7 @@ static ASN1_ITEM_EXP *asn1_item_list[] = {
     ASN1_ITEM_ref(CERTIFICATEPOLICIES),
 #ifndef OPENSSL_NO_CMS
     ASN1_ITEM_ref(CMS_ContentInfo),
+    ASN1_ITEM_ref(CMS_EnvelopedData),
     ASN1_ITEM_ref(CMS_ReceiptRequest),
 #endif
     ASN1_ITEM_ref(CRL_DIST_POINTS),
@@ -149,6 +150,7 @@ static ASN1_ITEM_EXP *asn1_item_list[] = {
     ASN1_ITEM_ref(SXNET),
     ASN1_ITEM_ref(ISSUER_SIGN_TOOL),
     ASN1_ITEM_ref(USERNOTICE),
+    ASN1_ITEM_ref(X509_ACERT),
     ASN1_ITEM_ref(X509_ALGORS),
     ASN1_ITEM_ref(X509_ALGOR),
     ASN1_ITEM_ref(X509_ATTRIBUTE),

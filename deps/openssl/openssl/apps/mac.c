@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -137,10 +137,9 @@ opthelp:
     }
 
     /* One argument, the MAC name. */
-    argc = opt_num_rest();
-    argv = opt_rest();
-    if (argc != 1)
+    if (!opt_check_rest_arg("MAC name"))
         goto opthelp;
+    argv = opt_rest();
 
     mac = EVP_MAC_fetch(app_get0_libctx(), argv[0], app_get0_propq());
     if (mac == NULL) {
@@ -218,7 +217,7 @@ opthelp:
         for (i = 0; i < (int)len; ++i)
             BIO_printf(out, "%02X", buf[i]);
         if (outfile == NULL)
-            BIO_printf(out,"\n");
+            BIO_printf(out, "\n");
     }
 
     ret = 0;

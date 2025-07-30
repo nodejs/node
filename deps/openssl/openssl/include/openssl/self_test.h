@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -30,8 +30,12 @@ extern "C" {
 # define OSSL_SELF_TEST_TYPE_INSTALL_INTEGRITY  "Install_Integrity"
 # define OSSL_SELF_TEST_TYPE_CRNG               "Continuous_RNG_Test"
 # define OSSL_SELF_TEST_TYPE_PCT                "Conditional_PCT"
+# define OSSL_SELF_TEST_TYPE_PCT_KAT            "Conditional_KAT"
+# define OSSL_SELF_TEST_TYPE_KAT_INTEGRITY      "KAT_Integrity"
 # define OSSL_SELF_TEST_TYPE_KAT_CIPHER         "KAT_Cipher"
 # define OSSL_SELF_TEST_TYPE_KAT_ASYM_CIPHER    "KAT_AsymmetricCipher"
+# define OSSL_SELF_TEST_TYPE_KAT_ASYM_KEYGEN    "KAT_AsymmetricKeyGeneration"
+# define OSSL_SELF_TEST_TYPE_KAT_KEM            "KAT_KEM"
 # define OSSL_SELF_TEST_TYPE_KAT_DIGEST         "KAT_Digest"
 # define OSSL_SELF_TEST_TYPE_KAT_SIGNATURE      "KAT_Signature"
 # define OSSL_SELF_TEST_TYPE_PCT_SIGNATURE      "PCT_Signature"
@@ -42,9 +46,14 @@ extern "C" {
 /* Test event sub categories */
 # define OSSL_SELF_TEST_DESC_NONE           "None"
 # define OSSL_SELF_TEST_DESC_INTEGRITY_HMAC "HMAC"
+# define OSSL_SELF_TEST_DESC_PCT_RSA        "RSA"
 # define OSSL_SELF_TEST_DESC_PCT_RSA_PKCS1  "RSA"
 # define OSSL_SELF_TEST_DESC_PCT_ECDSA      "ECDSA"
+# define OSSL_SELF_TEST_DESC_PCT_EDDSA      "EDDSA"
 # define OSSL_SELF_TEST_DESC_PCT_DSA        "DSA"
+# define OSSL_SELF_TEST_DESC_PCT_ML_DSA     "ML-DSA"
+# define OSSL_SELF_TEST_DESC_PCT_ML_KEM     "ML-KEM"
+# define OSSL_SELF_TEST_DESC_PCT_SLH_DSA    "SLH-DSA"
 # define OSSL_SELF_TEST_DESC_CIPHER_AES_GCM "AES_GCM"
 # define OSSL_SELF_TEST_DESC_CIPHER_AES_ECB "AES_ECB_Decrypt"
 # define OSSL_SELF_TEST_DESC_CIPHER_TDES    "TDES"
@@ -56,6 +65,10 @@ extern "C" {
 # define OSSL_SELF_TEST_DESC_SIGN_DSA       "DSA"
 # define OSSL_SELF_TEST_DESC_SIGN_RSA       "RSA"
 # define OSSL_SELF_TEST_DESC_SIGN_ECDSA     "ECDSA"
+# define OSSL_SELF_TEST_DESC_SIGN_EDDSA     "EDDSA"
+# define OSSL_SELF_TEST_DESC_SIGN_ML_DSA    "ML-DSA"
+# define OSSL_SELF_TEST_DESC_SIGN_SLH_DSA   "SLH-DSA"
+# define OSSL_SELF_TEST_DESC_KEM            "KEM"
 # define OSSL_SELF_TEST_DESC_DRBG_CTR       "CTR"
 # define OSSL_SELF_TEST_DESC_DRBG_HASH      "HASH"
 # define OSSL_SELF_TEST_DESC_DRBG_HMAC      "HMAC"
@@ -69,9 +82,16 @@ extern "C" {
 # define OSSL_SELF_TEST_DESC_KDF_SSHKDF     "SSHKDF"
 # define OSSL_SELF_TEST_DESC_KDF_TLS12_PRF  "TLS12_PRF"
 # define OSSL_SELF_TEST_DESC_KDF_KBKDF      "KBKDF"
+# define OSSL_SELF_TEST_DESC_KDF_KBKDF_KMAC "KBKDF_KMAC"
 # define OSSL_SELF_TEST_DESC_KDF_TLS13_EXTRACT  "TLS13_KDF_EXTRACT"
 # define OSSL_SELF_TEST_DESC_KDF_TLS13_EXPAND   "TLS13_KDF_EXPAND"
 # define OSSL_SELF_TEST_DESC_RNG            "RNG"
+# define OSSL_SELF_TEST_DESC_KEYGEN_ML_DSA  "ML-DSA"
+# define OSSL_SELF_TEST_DESC_KEYGEN_ML_KEM  "ML-KEM"
+# define OSSL_SELF_TEST_DESC_KEYGEN_SLH_DSA "SLH-DSA"
+# define OSSL_SELF_TEST_DESC_ENCAP_KEM      "KEM_Encap"
+# define OSSL_SELF_TEST_DESC_DECAP_KEM      "KEM_Decap"
+# define OSSL_SELF_TEST_DESC_DECAP_KEM_FAIL "KEM_Decap_Reject"
 
 void OSSL_SELF_TEST_set_callback(OSSL_LIB_CTX *libctx, OSSL_CALLBACK *cb,
                                  void *cbarg);

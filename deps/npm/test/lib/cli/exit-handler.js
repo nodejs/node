@@ -4,7 +4,7 @@ const EventEmitter = require('node:events')
 const os = require('node:os')
 const t = require('tap')
 const fsMiniPass = require('fs-minipass')
-const { output, time } = require('proc-log')
+const { output, time, log } = require('proc-log')
 const errorMessage = require('../../../lib/utils/error-message.js')
 const ExecCommand = require('../../../lib/commands/exec.js')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
@@ -705,5 +705,138 @@ t.test('do no fancy handling for shellouts', async t => {
     t.match(JSON.parse(outputs), {
       error: { code: 5, summary: '', detail: '' },
     })
+  })
+})
+
+t.test('container scenarios that trigger exit handler bug', async t => {
+  t.test('process.exit() called before exit handler cleanup', async (t) => {
+    // Simulates when npm process exits directly without going through proper cleanup
+
+    let exitHandlerNeverCalledLogged = false
+    let npmBugReportLogged = false
+
+    await mockExitHandler(t, {
+      config: { loglevel: 'notice' },
+    })
+
+    // Override log.error to capture the specific error messages
+    const originalLogError = log.error
+    log.error = (prefix, msg) => {
+      if (msg === 'Exit handler never called!') {
+        exitHandlerNeverCalledLogged = true
+      }
+      if (msg === 'This is an error with npm itself. Please report this error at:') {
+        npmBugReportLogged = true
+      }
+      return originalLogError(prefix, msg)
+    }
+
+    t.teardown(() => {
+      log.error = originalLogError
+    })
+
+    // This happens when containers are stopped/killed before npm can clean up properly
+    process.emit('exit', 1)
+
+    // Verify the bug is detected and logged correctly
+    t.equal(exitHandlerNeverCalledLogged, true, 'should log "Exit handler never called!" error')
+    t.equal(npmBugReportLogged, true, 'should log npm bug report message')
+  })
+
+  t.test('SIGTERM signal is handled properly', (t) => {
+    // This test verifies that our fix handles SIGTERM signals
+
+    const ExitHandler = tmock(t, '{LIB}/cli/exit-handler.js')
+    const exitHandler = new ExitHandler({ process })
+
+    const initialSigtermCount = process.listeners('SIGTERM').length
+    const initialSigintCount = process.listeners('SIGINT').length
+    const initialSighupCount = process.listeners('SIGHUP').length
+
+    // Register signal handlers
+    exitHandler.registerUncaughtHandlers()
+
+    const finalSigtermCount = process.listeners('SIGTERM').length
+    const finalSigintCount = process.listeners('SIGINT').length
+    const finalSighupCount = process.listeners('SIGHUP').length
+
+    // Verify the fix: signal handlers should be registered
+    t.ok(finalSigtermCount > initialSigtermCount, 'SIGTERM handler should be registered')
+    t.ok(finalSigintCount > initialSigintCount, 'SIGINT handler should be registered')
+    t.ok(finalSighupCount > initialSighupCount, 'SIGHUP handler should be registered')
+
+    // Clean up listeners to avoid affecting other tests
+    const sigtermListeners = process.listeners('SIGTERM')
+    const sigintListeners = process.listeners('SIGINT')
+    const sighupListeners = process.listeners('SIGHUP')
+
+    for (const listener of sigtermListeners) {
+      process.removeListener('SIGTERM', listener)
+    }
+    for (const listener of sigintListeners) {
+      process.removeListener('SIGINT', listener)
+    }
+    for (const listener of sighupListeners) {
+      process.removeListener('SIGHUP', listener)
+    }
+
+    t.end()
+  })
+
+  t.test('signal handler execution', async (t) => {
+    const ExitHandler = tmock(t, '{LIB}/cli/exit-handler.js')
+    const exitHandler = new ExitHandler({ process })
+
+    // Register signal handlers
+    exitHandler.registerUncaughtHandlers()
+
+    process.emit('SIGTERM')
+    process.emit('SIGINT')
+    process.emit('SIGHUP')
+
+    // Clean up listeners
+    process.removeAllListeners('SIGTERM')
+    process.removeAllListeners('SIGINT')
+    process.removeAllListeners('SIGHUP')
+
+    t.pass('signal handlers executed successfully')
+    t.end()
+  })
+
+  t.test('hanging async operation interrupted by signal', async (t) => {
+    // This test simulates the scenario where npm hangs on a long operation and receives SIGTERM/SIGKILL before it can complete
+
+    let exitHandlerNeverCalledLogged = false
+
+    const { exitHandler } = await mockExitHandler(t, {
+      config: { loglevel: 'notice' },
+    })
+
+    // Override log.error to detect the bug message
+    const originalLogError = log.error
+    log.error = (prefix, msg) => {
+      if (msg === 'Exit handler never called!') {
+        exitHandlerNeverCalledLogged = true
+      }
+      return originalLogError(prefix, msg)
+    }
+
+    t.teardown(() => {
+      log.error = originalLogError
+    })
+
+    // Track if exit handler was called properly
+    let exitHandlerCalled = false
+    exitHandler.exit = () => {
+      exitHandlerCalled = true
+    }
+
+    // Simulate sending signal to the process without proper cleanup
+    // This mimics what happens when a container is terminated
+    process.emit('exit', 1)
+
+    // Verify the bug conditions
+    t.equal(exitHandlerCalled, false, 'exit handler should not be called in this scenario')
+    t.equal(exitHandlerNeverCalledLogged, true, 'should detect and log the exit handler bug')
   })
 })

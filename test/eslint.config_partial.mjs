@@ -37,6 +37,10 @@ export default [
           message: 'Do not use a literal for the third argument of assert.deepStrictEqual()',
         },
         {
+          selector: "CallExpression:matches([callee.name='notDeepStrictEqual'], [callee.property.name='deepStrictEqual'])[arguments.2.type='Literal']",
+          message: 'Do not use a literal for the third argument of assert.notDeepStrictEqual()',
+        },
+        {
           selector: "CallExpression:matches([callee.name='doesNotThrow'], [callee.property.name='doesNotThrow'])",
           message: 'Do not use `assert.doesNotThrow()`. Write the code without the wrapper and add a comment instead.',
         },
@@ -49,8 +53,16 @@ export default [
           message: '`assert.rejects()` must be invoked with at least two arguments.',
         },
         {
+          selector: "CallExpression[callee.property.name='notStrictEqual'][arguments.2.type='Literal']",
+          message: 'Do not use a literal for the third argument of assert.notStrictEqual()',
+        },
+        {
           selector: "CallExpression[callee.property.name='strictEqual'][arguments.2.type='Literal']",
           message: 'Do not use a literal for the third argument of assert.strictEqual()',
+        },
+        {
+          selector: "CallExpression[callee.name='assert'][arguments.1.type='Literal']:not([arguments.1.raw=/['\"`].*/])",
+          message: 'Do not use a non-string literal for the second argument of assert()',
         },
         {
           selector: "CallExpression:matches([callee.name='throws'], [callee.property.name='throws'])[arguments.1.type='Literal']:not([arguments.1.regex])",

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -293,6 +293,14 @@ my $vpermdi	= sub {				# xxpermdi
     $dm = oct($dm) if ($dm =~ /^0/);
     "	.long	".sprintf "0x%X",(60<<26)|($vrt<<21)|($vra<<16)|($vrb<<11)|($dm<<8)|(10<<3)|7;
 };
+my $vxxlor	= sub {				# xxlor
+    my ($f, $vrt, $vra, $vrb) = @_;
+    "	.long	".sprintf "0x%X",(60<<26)|($vrt<<21)|($vra<<16)|($vrb<<11)|(146<<3)|6;
+};
+my $vxxlorc	= sub {				# xxlor
+    my ($f, $vrt, $vra, $vrb) = @_;
+    "	.long	".sprintf "0x%X",(60<<26)|($vrt<<21)|($vra<<16)|($vrb<<11)|(146<<3)|1;
+};
 
 # PowerISA 2.07 stuff
 sub vcrypto_op {
@@ -376,6 +384,15 @@ my $addex = sub {
     "	.long	".sprintf "0x%X",(31<<26)|($rt<<21)|($ra<<16)|($rb<<11)|($cy<<9)|(170<<1);
 };
 my $vmsumudm	= sub { vfour_vsr(@_, 35); };
+
+# PowerISA 3.1 stuff
+my $brd = sub {
+    my ($f, $ra, $rs) = @_;
+    "  .long   ".sprintf "0x%X",(31<<26)|($rs<<21)|($ra<<16)|(187<<1);
+};
+my $vsrq	= sub { vcrypto_op(@_, 517); };
+
+
 
 while($line=<>) {
 

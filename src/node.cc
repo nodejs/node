@@ -765,6 +765,13 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     v8_args.emplace_back("--harmony-import-attributes");
   }
 
+  if (!per_process::cli_options->per_isolate->max_old_space_size_percentage
+           .empty()) {
+    v8_args.emplace_back(
+        "--max_old_space_size=" +
+        per_process::cli_options->per_isolate->max_old_space_size);
+  }
+
   auto env_opts = per_process::cli_options->per_isolate->per_env;
   if (std::ranges::find(v8_args, "--abort-on-uncaught-exception") !=
           v8_args.end() ||
@@ -773,9 +780,7 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     env_opts->abort_on_uncaught_exception = true;
   }
 
-  if (env_opts->experimental_wasm_modules) {
-    v8_args.emplace_back("--js-source-phase-imports");
-  }
+  v8_args.emplace_back("--js-source-phase-imports");
 
 #ifdef __POSIX__
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the

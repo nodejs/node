@@ -129,7 +129,7 @@ BN_BLINDING *RSA_setup_blinding(RSA *rsa, BN_CTX *in_ctx)
     BN_CTX_start(ctx);
     e = BN_CTX_get(ctx);
     if (e == NULL) {
-        ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
         goto err;
     }
 
@@ -147,7 +147,7 @@ BN_BLINDING *RSA_setup_blinding(RSA *rsa, BN_CTX *in_ctx)
         BIGNUM *n = BN_new();
 
         if (n == NULL) {
-            ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
             goto err;
         }
         BN_with_flags(n, rsa->n, BN_FLG_CONSTTIME);

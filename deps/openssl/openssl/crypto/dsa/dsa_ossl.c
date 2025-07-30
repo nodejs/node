@@ -20,6 +20,7 @@
 #include <openssl/sha.h>
 #include "dsa_local.h"
 #include <openssl/asn1.h>
+#include "internal/deterministic_nonce.h"
 
 #define MIN_DSA_SIGN_QBITS   128
 #define MAX_DSA_SIGN_RETRIES 8
@@ -28,7 +29,9 @@ static DSA_SIG *dsa_do_sign(const unsigned char *dgst, int dlen, DSA *dsa);
 static int dsa_sign_setup_no_digest(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp,
                                     BIGNUM **rp);
 static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp,
-                          BIGNUM **rp, const unsigned char *dgst, int dlen);
+                          BIGNUM **rp, const unsigned char *dgst, int dlen,
+                          unsigned int nonce_type, const char *digestname,
+                          OSSL_LIB_CTX *libctx, const char *propq);
 static int dsa_do_verify(const unsigned char *dgst, int dgst_len,
                          DSA_SIG *sig, DSA *dsa);
 static int dsa_init(DSA *dsa);
@@ -70,7 +73,9 @@ const DSA_METHOD *DSA_OpenSSL(void)
     return &openssl_dsa_meth;
 }
 
-DSA_SIG *ossl_dsa_do_sign_int(const unsigned char *dgst, int dlen, DSA *dsa)
+DSA_SIG *ossl_dsa_do_sign_int(const unsigned char *dgst, int dlen, DSA *dsa,
+                              unsigned int nonce_type, const char *digestname,
+                              OSSL_LIB_CTX *libctx, const char *propq)
 {
     BIGNUM *kinv = NULL;
     BIGNUM *m, *blind, *blindm, *tmp;
@@ -110,7 +115,8 @@ DSA_SIG *ossl_dsa_do_sign_int(const unsigned char *dgst, int dlen, DSA *dsa)
         goto err;
 
  redo:
-    if (!dsa_sign_setup(dsa, ctx, &kinv, &ret->r, dgst, dlen))
+    if (!dsa_sign_setup(dsa, ctx, &kinv, &ret->r, dgst, dlen,
+                        nonce_type, digestname, libctx, propq))
         goto err;
 
     if (dlen > BN_num_bytes(dsa->params.q))
@@ -197,18 +203,22 @@ DSA_SIG *ossl_dsa_do_sign_int(const unsigned char *dgst, int dlen, DSA *dsa)
 
 static DSA_SIG *dsa_do_sign(const unsigned char *dgst, int dlen, DSA *dsa)
 {
-    return ossl_dsa_do_sign_int(dgst, dlen, dsa);
+    return ossl_dsa_do_sign_int(dgst, dlen, dsa,
+                                0, NULL, NULL, NULL);
 }
 
 static int dsa_sign_setup_no_digest(DSA *dsa, BN_CTX *ctx_in,
                                     BIGNUM **kinvp, BIGNUM **rp)
 {
-    return dsa_sign_setup(dsa, ctx_in, kinvp, rp, NULL, 0);
+    return dsa_sign_setup(dsa, ctx_in, kinvp, rp, NULL, 0,
+                          0, NULL, NULL, NULL);
 }
 
 static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
                           BIGNUM **kinvp, BIGNUM **rp,
-                          const unsigned char *dgst, int dlen)
+                          const unsigned char *dgst, int dlen,
+                          unsigned int nonce_type, const char *digestname,
+                          OSSL_LIB_CTX *libctx, const char *propq)
 {
     BN_CTX *ctx = NULL;
     BIGNUM *k, *kinv = NULL, *r = *rp;
@@ -258,14 +268,25 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
     /* Get random k */
     do {
         if (dgst != NULL) {
-            /*
-             * We calculate k from SHA512(private_key + H(message) + random).
-             * This protects the private key from a weak PRNG.
-             */
-            if (!ossl_bn_gen_dsa_nonce_fixed_top(k, dsa->params.q,
-                                                 dsa->priv_key, dgst,
-                                                 dlen, ctx))
-                goto err;
+            if (nonce_type == 1) {
+#ifndef FIPS_MODULE
+                if (!ossl_gen_deterministic_nonce_rfc6979(k, dsa->params.q,
+                                                          dsa->priv_key,
+                                                          dgst, dlen,
+                                                          digestname,
+                                                          libctx, propq))
+#endif
+                    goto err;
+            } else {
+                /*
+                 * We calculate k from SHA512(private_key + H(message) + random).
+                 * This protects the private key from a weak PRNG.
+                 */
+                if (!ossl_bn_gen_dsa_nonce_fixed_top(k, dsa->params.q,
+                                                     dsa->priv_key, dgst,
+                                                     dlen, ctx))
+                    goto err;
+            }
         } else if (!ossl_bn_priv_rand_range_fixed_top(k, dsa->params.q, 0, ctx))
             goto err;
     } while (ossl_bn_is_word_fixed_top(k, 0));

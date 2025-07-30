@@ -182,3 +182,5 @@ export declare const WebSocketError: {
   prototype: WebSocketError
   new (type: string, init?: WebSocketCloseInfo): WebSocketError
 }
+
+export declare const ping: (ws: WebSocket, body?: Buffer) => void

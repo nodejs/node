@@ -148,34 +148,41 @@ static X509_EXTENSION *do_ext_i2d(const X509V3_EXT_METHOD *method,
         ext_der = NULL;
         ext_len =
             ASN1_item_i2d(ext_struc, &ext_der, ASN1_ITEM_ptr(method->it));
-        if (ext_len < 0)
-            goto merr;
+        if (ext_len < 0) {
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+            goto err;
+        }
     } else {
         unsigned char *p;
 
         ext_len = method->i2d(ext_struc, NULL);
-        if (ext_len <= 0)
-            goto merr;
+        if (ext_len <= 0) {
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+            goto err;
+        }
         if ((ext_der = OPENSSL_malloc(ext_len)) == NULL)
-            goto merr;
+            goto err;
         p = ext_der;
         method->i2d(ext_struc, &p);
     }
-    if ((ext_oct = ASN1_OCTET_STRING_new()) == NULL)
-        goto merr;
+    if ((ext_oct = ASN1_OCTET_STRING_new()) == NULL) {
+        ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+        goto err;
+    }
     ext_oct->data = ext_der;
     ext_der = NULL;
     ext_oct->length = ext_len;
 
     ext = X509_EXTENSION_create_by_NID(NULL, ext_nid, crit, ext_oct);
-    if (!ext)
-        goto merr;
+    if (!ext) {
+        ERR_raise(ERR_LIB_X509V3, ERR_R_X509V3_LIB);
+        goto err;
+    }
     ASN1_OCTET_STRING_free(ext_oct);
 
     return ext;
 
- merr:
-    ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+ err:
     OPENSSL_free(ext_der);
     ASN1_OCTET_STRING_free(ext_oct);
     return NULL;
@@ -200,9 +207,8 @@ static int v3_check_critical(const char **value)
 {
     const char *p = *value;
 
-    if ((strlen(p) < 9) || strncmp(p, "critical,", 9))
+    if (!CHECK_AND_SKIP_PREFIX(p, "critical,"))
         return 0;
-    p += 9;
     while (ossl_isspace(*p))
         p++;
     *value = p;
@@ -215,11 +221,9 @@ static int v3_check_generic(const char **value)
     int gen_type = 0;
     const char *p = *value;
 
-    if ((strlen(p) >= 4) && strncmp(p, "DER:", 4) == 0) {
-        p += 4;
+    if (CHECK_AND_SKIP_PREFIX(p, "DER:")) {
         gen_type = 1;
-    } else if ((strlen(p) >= 5) && strncmp(p, "ASN1:", 5) == 0) {
-        p += 5;
+    } else if (CHECK_AND_SKIP_PREFIX(p, "ASN1:")) {
         gen_type = 2;
     } else
         return 0;
@@ -259,7 +263,7 @@ static X509_EXTENSION *v3_generic_extension(const char *ext, const char *value,
     }
 
     if ((oct = ASN1_OCTET_STRING_new()) == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
         goto err;
     }
 
@@ -311,13 +315,27 @@ int X509V3_EXT_add_nconf_sk(CONF *conf, X509V3_CTX *ctx, const char *section,
 {
     X509_EXTENSION *ext;
     STACK_OF(CONF_VALUE) *nval;
-    CONF_VALUE *val;
-    int i;
+    const CONF_VALUE *val;
+    int i, akid = -1, skid = -1;
 
     if ((nval = NCONF_get_section(conf, section)) == NULL)
         return 0;
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
         val = sk_CONF_VALUE_value(nval, i);
+        if (strcmp(val->name, "authorityKeyIdentifier") == 0)
+            akid = i;
+        else if (strcmp(val->name, "subjectKeyIdentifier") == 0)
+            skid = i;
+    }
+    for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
+        val = sk_CONF_VALUE_value(nval, i);
+        if (skid > akid && akid >= 0) {
+            /* make sure SKID is handled before AKID */
+            if (i == akid)
+                val = sk_CONF_VALUE_value(nval, skid);
+            else if (i == skid)
+                val = sk_CONF_VALUE_value(nval, akid);
+        }
         if ((ext = X509V3_EXT_nconf_int(conf, ctx, val->section,
                                         val->name, val->value)) == NULL)
             return 0;

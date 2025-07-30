@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -79,7 +79,9 @@ const char *OCSP_crl_reason_str(long s)
         {OCSP_REVOKED_STATUS_SUPERSEDED, "superseded"},
         {OCSP_REVOKED_STATUS_CESSATIONOFOPERATION, "cessationOfOperation"},
         {OCSP_REVOKED_STATUS_CERTIFICATEHOLD, "certificateHold"},
-        {OCSP_REVOKED_STATUS_REMOVEFROMCRL, "removeFromCRL"}
+        {OCSP_REVOKED_STATUS_REMOVEFROMCRL, "removeFromCRL"},
+        {OCSP_REVOKED_STATUS_PRIVILEGEWITHDRAWN, "privilegeWithdrawn"},
+        {OCSP_REVOKED_STATUS_AACOMPROMISE, "aACompromise"}
     };
     return table2string(s, reason_tbl);
 }

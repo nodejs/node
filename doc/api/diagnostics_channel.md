@@ -1107,35 +1107,35 @@ for the sync error and one for the async error.
 
 > Stability: 1 - Experimental
 
-`console.log`
+##### Event: `'console.log'`
 
 * `args` {any\[]}
 
 Emitted when `console.log()` is called. Receives and array of the arguments
 passed to `console.log()`.
 
-`console.info`
+##### Event: `'console.info'`
 
 * `args` {any\[]}
 
 Emitted when `console.info()` is called. Receives and array of the arguments
 passed to `console.info()`.
 
-`console.debug`
+##### Event: `'console.debug'`
 
 * `args` {any\[]}
 
 Emitted when `console.debug()` is called. Receives and array of the arguments
 passed to `console.debug()`.
 
-`console.warn`
+##### Event: `'console.warn'`
 
 * `args` {any\[]}
 
 Emitted when `console.warn()` is called. Receives and array of the arguments
 passed to `console.warn()`.
 
-`console.error`
+##### Event: `'console.error'`
 
 * `args` {any\[]}
 
@@ -1146,34 +1146,34 @@ passed to `console.error()`.
 
 > Stability: 1 - Experimental
 
-`http.client.request.created`
+##### Event: `'http.client.request.created'`
 
 * `request` {http.ClientRequest}
 
 Emitted when client creates a request object.
 Unlike `http.client.request.start`, this event is emitted before the request has been sent.
 
-`http.client.request.start`
+##### Event: `'http.client.request.start'`
 
 * `request` {http.ClientRequest}
 
 Emitted when client starts a request.
 
-`http.client.request.error`
+##### Event: `'http.client.request.error'`
 
 * `request` {http.ClientRequest}
 * `error` {Error}
 
 Emitted when an error occurs during a client request.
 
-`http.client.response.finish`
+##### Event: `'http.client.response.finish'`
 
 * `request` {http.ClientRequest}
 * `response` {http.IncomingMessage}
 
 Emitted when client receives a response.
 
-`http.server.request.start`
+##### Event: `'http.server.request.start'`
 
 * `request` {http.IncomingMessage}
 * `response` {http.ServerResponse}
@@ -1182,7 +1182,7 @@ Emitted when client receives a response.
 
 Emitted when server receives a request.
 
-`http.server.response.created`
+##### Event: `'http.server.response.created'`
 
 * `request` {http.IncomingMessage}
 * `response` {http.ServerResponse}
@@ -1190,7 +1190,7 @@ Emitted when server receives a request.
 Emitted when server creates a response.
 The event is emitted before the response is sent.
 
-`http.server.response.finish`
+##### Event: `'http.server.response.finish'`
 
 * `request` {http.IncomingMessage}
 * `response` {http.ServerResponse}
@@ -1203,28 +1203,28 @@ Emitted when server sends a response.
 
 > Stability: 1 - Experimental
 
-`http2.client.stream.created`
+##### Event: `'http2.client.stream.created'`
 
 * `stream` {ClientHttp2Stream}
 * `headers` {HTTP/2 Headers Object}
 
 Emitted when a stream is created on the client.
 
-`http2.client.stream.start`
+##### Event: `'http2.client.stream.start'`
 
 * `stream` {ClientHttp2Stream}
 * `headers` {HTTP/2 Headers Object}
 
 Emitted when a stream is started on the client.
 
-`http2.client.stream.error`
+##### Event: `'http2.client.stream.error'`
 
 * `stream` {ClientHttp2Stream}
 * `error` {Error}
 
 Emitted when an error occurs during the processing of a stream on the client.
 
-`http2.client.stream.finish`
+##### Event: `'http2.client.stream.finish'`
 
 * `stream` {ClientHttp2Stream}
 * `headers` {HTTP/2 Headers Object}
@@ -1232,35 +1232,35 @@ Emitted when an error occurs during the processing of a stream on the client.
 
 Emitted when a stream is received on the client.
 
-`http2.client.stream.close`
+##### Event: `'http2.client.stream.close'`
 
 * `stream` {ClientHttp2Stream}
 
 Emitted when a stream is closed on the client. The HTTP/2 error code used when
 closing the stream can be retrieved using the `stream.rstCode` property.
 
-`http2.server.stream.created`
+##### Event: `'http2.server.stream.created'`
 
 * `stream` {ServerHttp2Stream}
 * `headers` {HTTP/2 Headers Object}
 
 Emitted when a stream is created on the server.
 
-`http2.server.stream.start`
+##### Event: `'http2.server.stream.start'`
 
 * `stream` {ServerHttp2Stream}
 * `headers` {HTTP/2 Headers Object}
 
 Emitted when a stream is started on the server.
 
-`http2.server.stream.error`
+##### Event: `'http2.server.stream.error'`
 
 * `stream` {ServerHttp2Stream}
 * `error` {Error}
 
 Emitted when an error occurs during the processing of a stream on the server.
 
-`http2.server.stream.finish`
+##### Event: `'http2.server.stream.finish'`
 
 * `stream` {ServerHttp2Stream}
 * `headers` {HTTP/2 Headers Object}
@@ -1268,7 +1268,7 @@ Emitted when an error occurs during the processing of a stream on the server.
 
 Emitted when a stream is sent on the server.
 
-`http2.server.stream.close`
+##### Event: `'http2.server.stream.close'`
 
 * `stream` {ServerHttp2Stream}
 
@@ -1279,52 +1279,52 @@ closing the stream can be retrieved using the `stream.rstCode` property.
 
 > Stability: 1 - Experimental
 
-`module.require.start`
+##### Event: `'module.require.start'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `require()`. Module name.
-  * `parentFilename` - Name of the module that attempted to require(id).
+  * `id` Argument passed to `require()`. Module name.
+  * `parentFilename` Name of the module that attempted to require(id).
 
 Emitted when `require()` is executed. See [`start` event][].
 
-`module.require.end`
+##### Event: `'module.require.end'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `require()`. Module name.
-  * `parentFilename` - Name of the module that attempted to require(id).
+  * `id` Argument passed to `require()`. Module name.
+  * `parentFilename` Name of the module that attempted to require(id).
 
 Emitted when a `require()` call returns. See [`end` event][].
 
-`module.require.error`
+##### Event: `'module.require.error'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `require()`. Module name.
-  * `parentFilename` - Name of the module that attempted to require(id).
+  * `id` Argument passed to `require()`. Module name.
+  * `parentFilename` Name of the module that attempted to require(id).
 * `error` {Error}
 
 Emitted when a `require()` throws an error. See [`error` event][].
 
-`module.import.asyncStart`
+##### Event: `'module.import.asyncStart'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `import()`. Module name.
-  * `parentURL` - URL object of the module that attempted to import(id).
+  * `id` Argument passed to `import()`. Module name.
+  * `parentURL` URL object of the module that attempted to import(id).
 
 Emitted when `import()` is invoked. See [`asyncStart` event][].
 
-`module.import.asyncEnd`
+##### Event: `'module.import.asyncEnd'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `import()`. Module name.
-  * `parentURL` - URL object of the module that attempted to import(id).
+  * `id` Argument passed to `import()`. Module name.
+  * `parentURL` URL object of the module that attempted to import(id).
 
 Emitted when `import()` has completed. See [`asyncEnd` event][].
 
-`module.import.error`
+##### Event: `'module.import.error'`
 
 * `event` {Object} containing the following properties
-  * `id` - Argument passed to `import()`. Module name.
-  * `parentURL` - URL object of the module that attempted to import(id).
+  * `id` Argument passed to `import()`. Module name.
+  * `parentURL` URL object of the module that attempted to import(id).
 * `error` {Error}
 
 Emitted when a `import()` throws an error. See [`error` event][].
@@ -1333,32 +1333,32 @@ Emitted when a `import()` throws an error. See [`error` event][].
 
 > Stability: 1 - Experimental
 
-`net.client.socket`
+##### Event: `'net.client.socket'`
 
 * `socket` {net.Socket|tls.TLSSocket}
 
 Emitted when a new TCP or pipe client socket connection is created.
 
-`net.server.socket`
+##### Event: `'net.server.socket'`
 
 * `socket` {net.Socket}
 
 Emitted when a new TCP or pipe connection is received.
 
-`tracing:net.server.listen:asyncStart`
+##### Event: `'tracing:net.server.listen:asyncStart'`
 
 * `server` {net.Server}
 * `options` {Object}
 
 Emitted when [`net.Server.listen()`][] is invoked, before the port or pipe is actually setup.
 
-`tracing:net.server.listen:asyncEnd`
+##### Event: `'tracing:net.server.listen:asyncEnd'`
 
 * `server` {net.Server}
 
 Emitted when [`net.Server.listen()`][] has completed and thus the server is ready to accept connection.
 
-`tracing:net.server.listen:error`
+##### Event: `'tracing:net.server.listen:error'`
 
 * `server` {net.Server}
 * `error` {Error}
@@ -1369,7 +1369,7 @@ Emitted when [`net.Server.listen()`][] is returning an error.
 
 > Stability: 1 - Experimental
 
-`udp.socket`
+##### Event: `'udp.socket'`
 
 * `socket` {dgram.Socket}
 
@@ -1383,13 +1383,13 @@ Emitted when a new UDP socket is created.
 added: v16.18.0
 -->
 
-`child_process`
+##### Event: `'child_process'`
 
 * `process` {ChildProcess}
 
 Emitted when a new process is created.
 
-`execve`
+##### Event: `'execve'`
 
 * `execPath` {string}
 * `args` {string\[]}
@@ -1405,16 +1405,15 @@ Emitted when [`process.execve()`][] is invoked.
 added: v16.18.0
 -->
 
-`worker_threads`
+##### Event: `'worker_threads'`
 
-* `worker` [`Worker`][]
+* `worker` {Worker}
 
 Emitted when a new thread is created.
 
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`TracingChannel`]: #class-tracingchannel
-[`Worker`]: worker_threads.md#class-worker
 [`asyncEnd` event]: #asyncendevent
 [`asyncStart` event]: #asyncstartevent
 [`channel.bindStore(store)`]: #channelbindstorestore-transform

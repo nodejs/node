@@ -43,6 +43,16 @@ class ExitHandler {
   registerUncaughtHandlers () {
     this.#process.on('uncaughtException', this.#handleExit)
     this.#process.on('unhandledRejection', this.#handleExit)
+
+    // Handle signals that might bypass normal exit flow
+    // These signals can cause the process to exit without calling the exit handler
+    const signalsToHandle = ['SIGTERM', 'SIGINT', 'SIGHUP']
+    for (const signal of signalsToHandle) {
+      this.#process.on(signal, () => {
+        // Call the exit handler to ensure proper cleanup
+        this.#handleExit(new Error(`Process received ${signal}`))
+      })
+    }
   }
 
   exit (err) {
@@ -57,6 +67,17 @@ class ExitHandler {
     this.#process.off('exit', this.#handleProcesExitAndReset)
     this.#process.off('uncaughtException', this.#handleExit)
     this.#process.off('unhandledRejection', this.#handleExit)
+
+    const signalsToCleanup = ['SIGTERM', 'SIGINT', 'SIGHUP']
+    for (const signal of signalsToCleanup) {
+      try {
+        this.#process.off(signal, this.#handleExit)
+      } catch (err) {
+        // Ignore errors during cleanup - this is defensive programming for edge cases
+        // where the process object might be in an unexpected state during shutdown
+      }
+    }
+
     if (this.#loaded) {
       this.#npm.unload()
     }

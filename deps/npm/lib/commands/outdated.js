@@ -30,6 +30,7 @@ class Outdated extends ArboristWorkspaceCmd {
     'parseable',
     'global',
     'workspace',
+    'before',
   ]
 
   #tree

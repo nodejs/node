@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,7 +10,7 @@
 /* We need to use some engine deprecated APIs */
 #define OPENSSL_SUPPRESS_DEPRECATED
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "eng_local.h"
 #include <openssl/evp.h>
 #include "crypto/asn1.h"
@@ -196,16 +196,23 @@ const EVP_PKEY_ASN1_METHOD *ENGINE_pkey_asn1_find_str(ENGINE **pe,
     fstr.len = len;
 
     if (!RUN_ONCE(&engine_lock_init, do_engine_lock_init)) {
-        ERR_raise(ERR_LIB_ENGINE, ERR_R_MALLOC_FAILURE);
+        /* Maybe this should be raised in do_engine_lock_init() */
+        ERR_raise(ERR_LIB_ENGINE, ERR_R_CRYPTO_LIB);
         return NULL;
     }
 
-    if (!CRYPTO_THREAD_write_lock(global_engine_lock))
+    if (!CRYPTO_THREAD_read_lock(global_engine_lock))
         return NULL;
     engine_table_doall(pkey_asn1_meth_table, look_str_cb, &fstr);
     /* If found obtain a structural reference to engine */
-    if (fstr.e) {
-        fstr.e->struct_ref++;
+    if (fstr.e != NULL) {
+        int ref;
+
+        if (!CRYPTO_UP_REF(&fstr.e->struct_ref, &ref)) {
+            CRYPTO_THREAD_unlock(global_engine_lock);
+            ERR_raise(ERR_LIB_ENGINE, ERR_R_CRYPTO_LIB);
+            return NULL;
+        }
         ENGINE_REF_PRINT(fstr.e, 0, 1);
     }
     *pe = fstr.e;

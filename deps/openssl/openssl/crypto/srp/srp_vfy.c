@@ -191,10 +191,8 @@ SRP_user_pwd *SRP_user_pwd_new(void)
 {
     SRP_user_pwd *ret;
 
-    if ((ret = OPENSSL_malloc(sizeof(*ret))) == NULL) {
-        /* ERR_raise(ERR_LIB_SRP, ERR_R_MALLOC_FAILURE); */ /*ckerr_ignore*/
+    if ((ret = OPENSSL_malloc(sizeof(*ret))) == NULL)
         return NULL;
-    }
     ret->N = NULL;
     ret->g = NULL;
     ret->s = NULL;
@@ -396,7 +394,7 @@ static BIGNUM *SRP_gN_place_bn(STACK_OF(SRP_gN_cache) *gN_cache, char *ch)
 
 int SRP_VBASE_init(SRP_VBASE *vb, char *verifier_file)
 {
-    int error_code;
+    int error_code = SRP_ERR_MEMORY;
     STACK_OF(SRP_gN) *SRP_gN_tab = sk_SRP_gN_new_null();
     char *last_index = NULL;
     int i;
@@ -408,7 +406,15 @@ int SRP_VBASE_init(SRP_VBASE *vb, char *verifier_file)
     TXT_DB *tmpdb = NULL;
     BIO *in = BIO_new(BIO_s_file());
 
+    if (SRP_gN_tab == NULL)
+        goto err;
+
     error_code = SRP_ERR_OPEN_FILE;
+
+    if (verifier_file == NULL) {
+        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
+        goto err;
+    }
 
     if (in == NULL || BIO_read_filename(in, verifier_file) <= 0)
         goto err;
@@ -631,7 +637,7 @@ char *SRP_create_verifier_ex(const char *user, const char *pass, char **salt,
         if (N_bn_alloc == NULL)
             goto err;
         N_bn = N_bn_alloc;
-        if ((len = t_fromb64(tmp, sizeof(tmp) ,g)) <= 0)
+        if ((len = t_fromb64(tmp, sizeof(tmp), g)) <= 0)
             goto err;
         g_bn_alloc = BN_bin2bn(tmp, len, NULL);
         if (g_bn_alloc == NULL)

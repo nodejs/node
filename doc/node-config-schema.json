@@ -180,9 +180,6 @@
         "experimental-vm-modules": {
           "type": "boolean"
         },
-        "experimental-wasm-modules": {
-          "type": "boolean"
-        },
         "experimental-websocket": {
           "type": "boolean"
         },
@@ -271,6 +268,9 @@
         },
         "max-http-header-size": {
           "type": "number"
+        },
+        "max-old-space-size-percentage": {
+          "type": "string"
         },
         "network-family-autoselection": {
           "type": "boolean"
@@ -542,6 +542,9 @@
           "type": "string"
         },
         "use-bundled-ca": {
+          "type": "boolean"
+        },
+        "use-env-proxy": {
           "type": "boolean"
         },
         "use-largepages": {

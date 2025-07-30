@@ -87,6 +87,7 @@
 #  define CMS_R_NO_PUBLIC_KEY                              134
 #  define CMS_R_NO_RECEIPT_REQUEST                         168
 #  define CMS_R_NO_SIGNERS                                 135
+#  define CMS_R_OPERATION_UNSUPPORTED                      182
 #  define CMS_R_PEER_KEY_ERROR                             188
 #  define CMS_R_PRIVATE_KEY_DOES_NOT_MATCH_CERTIFICATE     136
 #  define CMS_R_RECEIPT_DECODE_ERROR                       169

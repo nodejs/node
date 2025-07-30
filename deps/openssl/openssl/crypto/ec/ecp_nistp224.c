@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2010-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -238,7 +238,6 @@ static const felem gmul[2][16][3] = {
 struct nistp224_pre_comp_st {
     felem g_pre_comp[2][16][3];
     CRYPTO_REF_COUNT references;
-    CRYPTO_RWLOCK *lock;
 };
 
 const EC_METHOD *EC_GFp_nistp224_method(void)
@@ -1238,16 +1237,11 @@ static NISTP224_PRE_COMP *nistp224_pre_comp_new(void)
 {
     NISTP224_PRE_COMP *ret = OPENSSL_zalloc(sizeof(*ret));
 
-    if (!ret) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+    if (ret == NULL)
         return ret;
-    }
 
-    ret->references = 1;
 
-    ret->lock = CRYPTO_THREAD_lock_new();
-    if (ret->lock == NULL) {
-        ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+    if (!CRYPTO_NEW_REF(&ret->references, 1)) {
         OPENSSL_free(ret);
         return NULL;
     }
@@ -1258,7 +1252,7 @@ NISTP224_PRE_COMP *EC_nistp224_pre_comp_dup(NISTP224_PRE_COMP *p)
 {
     int i;
     if (p != NULL)
-        CRYPTO_UP_REF(&p->references, &i, p->lock);
+        CRYPTO_UP_REF(&p->references, &i);
     return p;
 }
 
@@ -1269,13 +1263,13 @@ void EC_nistp224_pre_comp_free(NISTP224_PRE_COMP *p)
     if (p == NULL)
         return;
 
-    CRYPTO_DOWN_REF(&p->references, &i, p->lock);
-    REF_PRINT_COUNT("EC_nistp224", p);
+    CRYPTO_DOWN_REF(&p->references, &i);
+    REF_PRINT_COUNT("EC_nistp224", i, p);
     if (i > 0)
         return;
     REF_ASSERT_ISNT(i < 0);
 
-    CRYPTO_THREAD_lock_free(p->lock);
+    CRYPTO_FREE_REF(&p->references);
     OPENSSL_free(p);
 }
 
@@ -1487,10 +1481,8 @@ int ossl_ec_GFp_nistp224_points_mul(const EC_GROUP *group, EC_POINT *r,
             tmp_felems =
                 OPENSSL_malloc(sizeof(felem) * (num_points * 17 + 1));
         if ((secrets == NULL) || (pre_comp == NULL)
-            || (mixed && (tmp_felems == NULL))) {
-            ERR_raise(ERR_LIB_EC, ERR_R_MALLOC_FAILURE);
+            || (mixed && (tmp_felems == NULL)))
             goto err;
-        }
 
         /*
          * we treat NULL scalars as 0, and NULL points as points at infinity,
