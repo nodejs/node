@@ -99,6 +99,7 @@ This file documents various terms and definitions used throughout the Node.js co
   various aspects of the web ecosystem.
 * **WASI**: [Web Assembly System Interface][] - Interface for WebAssembly.
 * **WASM**: Web Assembly - Binary instruction format for a stack-based virtual machine.
+* **WDYT**: What Do You Think?
 * **WG**: Working Group - Autonomous teams in the project with specific focus areas.
 * **WHATWG**: [Web Hypertext Application Technology Working Group][] - Community developing web standards.
 * **WIP**: Work In Progress - Unfinished work that may be worth an early look.
