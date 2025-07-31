@@ -616,6 +616,13 @@ and
 .It Fl -use-env-proxy
 Parse proxy settings from HTTP_PROXY/HTTPS_PROXY/NO_PROXY environment variables and apply the setting in global HTTP/HTTPS clients.
 .
+.It Fl -use-system-ca
+Use the trusted CA certificates present in the system store, in addition to the certificates in the
+bundled Mozilla CA store and certificates from `NODE_EXTRA_CA_CERTS`. On Windows and macOS, it uses system APIs to
+integrate additional trusted certificates. On other platforms it is similar to `--use-openssl-ca` with the difference
+being that it caches the certificates on first load, and the system certificates are added in a complementary manner
+without replacing certificates from other sources. This flag supersedes `--use-openssl-ca`.
+.
 .It Fl -use-largepages Ns = Ns Ar mode
 Re-map the Node.js static code to large memory pages at startup. If supported on
 the target system, this will cause the Node.js static code to be moved onto 2
