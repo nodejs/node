@@ -621,7 +621,8 @@ class CompilationStateImpl {
   // Adds compilation units for another function to the
   // {CompilationUnitBuilder}. This function is the streaming compilation
   // equivalent to {InitializeCompilationUnits}.
-  void AddCompilationUnit(CompilationUnitBuilder* builder, int func_index);
+  void InitializeCompilationUnitForSingleFunction(
+      CompilationUnitBuilder* builder, int func_index);
 
   // Add the callback to be called on compilation events. Needs to be
   // set before {CommitCompilationUnits} is run to ensure that it receives all
@@ -727,10 +728,6 @@ class CompilationStateImpl {
   std::vector<WasmCode*> PublishCode(base::Vector<UnpublishedWasmCode> codes);
 
  private:
-  void AddCompilationUnitInternal(CompilationUnitBuilder* builder,
-                                  int function_index,
-                                  uint8_t function_progress);
-
   // Trigger callbacks according to the internal counters below
   // (outstanding_...).
   // Hold the {callbacks_mutex_} when calling this method.
@@ -799,10 +796,17 @@ class CompilationStateImpl {
   base::EnumSet<CompilationEvent> finished_events_;
 
   int outstanding_baseline_units_ = 0;
+
   // The amount of generated top tier code since the last
   // {kFinishedCompilationChunk} event.
   size_t bytes_since_last_chunk_ = 0;
-  std::vector<uint8_t> compilation_progress_;
+
+  // One byte per declared function, see bitfields defined below.
+  // This vector is initialized once to the right size, updates are *usually*
+  // protected by the {callbacks_mutes_}, with exceptions during
+  // initialization (see comment in
+  // {CompilationStateImpl::InitializeCompilationUnitForSingleFunction}).
+  base::OwnedVector<uint8_t> compilation_progress_;
 
   // The timestamp of the last top-tier compilation.
   // This field is updated on every publishing of top-tier code, and is reset
@@ -840,7 +844,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() const {
 }
 
 size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 464);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 456);
   size_t result = sizeof(CompilationStateImpl);
 
   {
@@ -3363,8 +3367,8 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
   }
 
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
-  compilation_state->AddCompilationUnit(compilation_unit_builder_.get(),
-                                        func_index);
+  compilation_state->InitializeCompilationUnitForSingleFunction(
+      compilation_unit_builder_.get(), func_index);
   return true;
 }
 
@@ -3639,6 +3643,13 @@ void CompilationStateImpl::ApplyCompilationHintToInitialProgress(
       break;
   }
 
+  if (new_top_tier == ExecutionTier::kLiftoff &&
+      new_baseline_tier == ExecutionTier::kTurbofan) {
+    // The top tier shouldn't be lower than the baseline tier (or it should be
+    // ::None).
+    new_top_tier = ExecutionTier::kTurbofan;
+  }
+
   progress = RequiredBaselineTierField::update(progress, new_baseline_tier);
   progress = RequiredTopTierField::update(progress, new_top_tier);
 
@@ -3760,8 +3771,9 @@ void CompilationStateImpl::InitializeCompilationProgress(
         RequiredBaselineTierField::encode(default_tiers.baseline_tier) |
         RequiredTopTierField::encode(default_tiers.top_tier) |
         ReachedTierField::encode(ExecutionTier::kNone);
-    compilation_progress_.assign(module->num_declared_functions,
-                                 default_progress);
+    DCHECK_NULL(compilation_progress_);
+    compilation_progress_ = base::OwnedVector<uint8_t>::New(
+        module->num_declared_functions, default_progress);
     if (default_tiers.baseline_tier != ExecutionTier::kNone) {
       outstanding_baseline_units_ += module->num_declared_functions;
     }
@@ -3801,9 +3813,24 @@ void CompilationStateImpl::InitializeCompilationProgress(
   TriggerOutstandingCallbacks();
 }
 
-void CompilationStateImpl::AddCompilationUnitInternal(
-    CompilationUnitBuilder* builder, int function_index,
-    uint8_t function_progress) {
+void CompilationStateImpl::InitializeCompilationUnitForSingleFunction(
+    CompilationUnitBuilder* builder, int function_index) {
+  if (v8_flags.wasm_jitless) return;
+
+  // Only during streaming compilation, we reach here without holding
+  // `callbacks_mutex_`.
+  // This avoids the observed overhead of taking the lock once per function.
+  // This is correct (data-race free), because the only mutation of
+  // `compilation_progress_` before reading it here without holding the lock is
+  // when initializing the compilation during parsing of the code section
+  // header (see `InitializeCompilationProgress` and
+  // `AsyncStreamingProcessor::ProcessCodeSectionHeader`), which must happen
+  // before processing functions.
+  // Also, this read here happens exactly once per function, only for the
+  // initial compilation, and all accesses to `compilation_progress_` thereafter
+  // are synchronized via `callbacks_mutex_`.
+  uint8_t function_progress = compilation_progress_[declared_function_index(
+      native_module_->module(), function_index)];
   ExecutionTier required_baseline_tier =
       CompilationStateImpl::RequiredBaselineTierField::decode(
           function_progress);
@@ -3823,38 +3850,19 @@ void CompilationStateImpl::AddCompilationUnitInternal(
 
 void CompilationStateImpl::InitializeCompilationUnits(
     std::unique_ptr<CompilationUnitBuilder> builder) {
-  if (!v8_flags.wasm_jitless) {
-    int offset = native_module_->module()->num_imported_functions;
-    {
-      base::MutexGuard guard(&callbacks_mutex_);
+  if (v8_flags.wasm_jitless) return;
 
-      for (size_t i = 0, e = compilation_progress_.size(); i < e; ++i) {
-        uint8_t function_progress = compilation_progress_[i];
-        int func_index = offset + static_cast<int>(i);
-        AddCompilationUnitInternal(builder.get(), func_index,
-                                   function_progress);
-      }
+  {
+    base::MutexGuard guard(&callbacks_mutex_);
+    const WasmModule* module = native_module_->module();
+    DCHECK_EQ(module->num_declared_functions, compilation_progress_.size());
+    int start = module->num_imported_functions;
+    int end = start + module->num_declared_functions;
+    for (int func_index = start; func_index < end; ++func_index) {
+      InitializeCompilationUnitForSingleFunction(builder.get(), func_index);
     }
   }
   builder->Commit();
-}
-
-void CompilationStateImpl::AddCompilationUnit(CompilationUnitBuilder* builder,
-                                              int func_index) {
-  int offset = native_module_->module()->num_imported_functions;
-  int progress_index = func_index - offset;
-  uint8_t function_progress = 0;
-  if (!v8_flags.wasm_jitless) {
-    // TODO(ahaas): This lock may cause overhead. If so, we could get rid of the
-    // lock as follows:
-    // 1) Make compilation_progress_ an array of atomic<uint8_t>, and access it
-    // lock-free.
-    // 2) Have a copy of compilation_progress_ that we use for initialization.
-    // 3) Just re-calculate the content of compilation_progress_.
-    base::MutexGuard guard(&callbacks_mutex_);
-    function_progress = compilation_progress_[progress_index];
-  }
-  AddCompilationUnitInternal(builder, func_index, function_progress);
 }
 
 void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
@@ -3872,7 +3880,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   auto* module = native_module_->module();
   {
     base::MutexGuard guard(&callbacks_mutex_);
-    DCHECK(compilation_progress_.empty());
+    DCHECK_NULL(compilation_progress_);
 
     // Initialize the compilation progress as if everything was
     // TurboFan-compiled.
@@ -3880,8 +3888,8 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
         RequiredBaselineTierField::encode(ExecutionTier::kLiftoff) |
         RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
         ReachedTierField::encode(ExecutionTier::kTurbofan);
-    compilation_progress_.assign(module->num_declared_functions,
-                                 kProgressAfterTurbofanDeserialization);
+    compilation_progress_ = base::OwnedVector<uint8_t>::New(
+        module->num_declared_functions, kProgressAfterTurbofanDeserialization);
 
     // Update compilation state for lazy functions.
     constexpr uint8_t kProgressForLazyFunctions =
@@ -4024,9 +4032,9 @@ void CompilationStateImpl::OnFinishedUnits(
       // This view on the compilation progress may differ from the actually
       // compiled code. Any lazily compiled function does not contribute to the
       // compilation progress but may publish code to the code manager.
-      int slot_index =
-          declared_function_index(native_module_->module(), code->index());
-      uint8_t function_progress = compilation_progress_[slot_index];
+      uint8_t& function_progress =
+          compilation_progress_[declared_function_index(
+              native_module_->module(), code->index())];
       ExecutionTier required_baseline_tier =
           RequiredBaselineTierField::decode(function_progress);
       ExecutionTier reached_tier = ReachedTierField::decode(function_progress);
@@ -4043,8 +4051,8 @@ void CompilationStateImpl::OnFinishedUnits(
 
       // Update function's compilation progress.
       if (code->tier() > reached_tier) {
-        compilation_progress_[slot_index] = ReachedTierField::update(
-            compilation_progress_[slot_index], code->tier());
+        function_progress =
+            ReachedTierField::update(function_progress, code->tier());
       }
       // Allow another top tier compilation if deopts are enabled and the
       // currently installed code object is a liftoff object.
@@ -4070,8 +4078,8 @@ void CompilationStateImpl::OnFinishedUnits(
         // inconsistent state and has actually led to crashes before (see
         // https://crbug.com/379086474).
         DCHECK_LE(required_baseline_tier, ExecutionTier::kLiftoff);
-        compilation_progress_[slot_index] = ReachedTierField::update(
-            compilation_progress_[slot_index], ExecutionTier::kLiftoff);
+        function_progress = ReachedTierField::update(function_progress,
+                                                     ExecutionTier::kLiftoff);
         compilation_unit_queues_.AllowAnotherTopTierJob(code->index());
       }
       DCHECK_LE(0, outstanding_baseline_units_);

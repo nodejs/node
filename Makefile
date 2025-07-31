@@ -220,7 +220,7 @@ testclean: ## Remove test artifacts.
 distclean: ## Remove all build and test artifacts.
 	$(RM) -r out
 	$(RM) config.gypi icu_config.gypi
-	$(RM) config.mk
+	$(RM) config.mk config.status
 	$(RM) -r $(NODE_EXE) $(NODE_G_EXE)
 	$(RM) -r node_modules
 	$(RM) -r deps/icu
@@ -1641,7 +1641,7 @@ HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 
 
 .PHONY: gen-openssl
 ifeq ($(HAS_DOCKER), 1)
-DOCKER_COMMAND ?= docker run -it -v $(PWD):/node
+DOCKER_COMMAND ?= docker run --rm -u $(shell id -u) -v $(PWD):/node
 IS_IN_WORKTREE = $(shell grep '^gitdir: ' $(PWD)/.git 2>/dev/null)
 GIT_WORKTREE_COMMON = $(shell git rev-parse --git-common-dir)
 DOCKER_COMMAND += $(if $(IS_IN_WORKTREE), -v $(GIT_WORKTREE_COMMON):$(GIT_WORKTREE_COMMON))

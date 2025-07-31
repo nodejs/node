@@ -1133,7 +1133,7 @@ Correctly predicted as caught
 
 Running test: testCase
 > Throwing from throwInAsyncDisposeFormSync, handling with dontHandleAsync
-Paused on caught exception
+Paused on uncaught promiseRejection
 [Symbol.dispose] (catch-prediction.js:188:6)
 throwInAsyncDisposeFormSync (catch-prediction.js:185:18)
 dontHandleAsync (catch-prediction.js:196:8)
@@ -1171,7 +1171,7 @@ Correctly predicted as uncaught
 
 Running test: testCase
 > Throwing from throwInAsyncDisposeFormSync, handling with awaitAndCreateInTry
-Paused on caught exception
+Paused on caught promiseRejection
 [Symbol.dispose] (catch-prediction.js:188:6)
 throwInAsyncDisposeFormSync (catch-prediction.js:185:18)
 awaitAndCreateInTry (catch-prediction.js:202:10)

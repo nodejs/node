@@ -1951,7 +1951,8 @@ std::ostream& operator<<(std::ostream& os, Simd256UnpackOp::Kind kind) {
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 void WasmAllocateArrayOp::PrintOptions(std::ostream& os) const {
-  os << '[' << array_type->element_type() << ']';
+  os << '[' << array_type->element_type()
+     << ", is_shared: " << (is_shared ? "true" : "false") << "]";
 }
 
 void ArrayGetOp::PrintOptions(std::ostream& os) const {

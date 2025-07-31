@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -32,15 +32,12 @@ OSSL_PROVIDER *ossl_provider_find(OSSL_LIB_CTX *libctx, const char *name,
                                   int noconfig);
 OSSL_PROVIDER *ossl_provider_new(OSSL_LIB_CTX *libctx, const char *name,
                                  OSSL_provider_init_fn *init_function,
-                                 int noconfig);
+                                 OSSL_PARAM *params, int noconfig);
 int ossl_provider_up_ref(OSSL_PROVIDER *prov);
 void ossl_provider_free(OSSL_PROVIDER *prov);
 
 /* Setters */
-int ossl_provider_set_fallback(OSSL_PROVIDER *prov);
 int ossl_provider_set_module_path(OSSL_PROVIDER *prov, const char *module_path);
-int ossl_provider_add_parameter(OSSL_PROVIDER *prov, const char *name,
-                                const char *value);
 
 int ossl_provider_is_child(const OSSL_PROVIDER *prov);
 int ossl_provider_set_child(OSSL_PROVIDER *prov, const OSSL_CORE_HANDLE *handle);
@@ -64,6 +61,9 @@ int ossl_provider_add_to_store(OSSL_PROVIDER *prov, OSSL_PROVIDER **actualprov,
 /* Return pointer to the provider's context */
 void *ossl_provider_ctx(const OSSL_PROVIDER *prov);
 
+/* Force loading of fallback providers if necessary */
+int ossl_provider_activate_fallbacks(OSSL_LIB_CTX *ctx);
+
 /* Iterate over all loaded providers */
 int ossl_provider_doall_activated(OSSL_LIB_CTX *,
                                   int (*cb)(OSSL_PROVIDER *provider,
@@ -75,7 +75,6 @@ const char *ossl_provider_name(const OSSL_PROVIDER *prov);
 const DSO *ossl_provider_dso(const OSSL_PROVIDER *prov);
 const char *ossl_provider_module_name(const OSSL_PROVIDER *prov);
 const char *ossl_provider_module_path(const OSSL_PROVIDER *prov);
-void *ossl_provider_prov_ctx(const OSSL_PROVIDER *prov);
 const OSSL_DISPATCH *ossl_provider_get0_dispatch(const OSSL_PROVIDER *prov);
 OSSL_LIB_CTX *ossl_provider_libctx(const OSSL_PROVIDER *prov);
 
@@ -88,6 +87,8 @@ int ossl_provider_get_capabilities(const OSSL_PROVIDER *prov,
                                    OSSL_CALLBACK *cb,
                                    void *arg);
 int ossl_provider_self_test(const OSSL_PROVIDER *prov);
+int ossl_provider_random_bytes(const OSSL_PROVIDER *prov, int which,
+                               void *buf, size_t n, unsigned int strength);
 const OSSL_ALGORITHM *ossl_provider_query_operation(const OSSL_PROVIDER *prov,
                                                     int operation_id,
                                                     int *no_cache);

@@ -218,9 +218,9 @@ config is given, this value will always be set to `legacy`.
 * Type: null or Date
 
 If passed to `npm install`, will rebuild the npm tree such that only
-versions that were available **on or before** the `--before` time get
-installed. If there's no versions available for the current set of direct
-dependencies, the command will error.
+versions that were available **on or before** the given date are installed.
+If there are no versions available for the current set of dependencies, the
+command will error.
 
 If the requested version is a `dist-tag` and the given tag does not pass the
 `--before` filter, the most recent version less than or equal to that tag
@@ -245,7 +245,7 @@ systems.
 
 #### `browser`
 
-* Default: OS X: `"open"`, Windows: `"start"`, Others: `"xdg-open"`
+* Default: macOS: `"open"`, Windows: `"start"`, Others: `"xdg-open"`
 * Type: null, Boolean, or String
 
 The browser that is called by npm commands to open websites.
@@ -698,10 +698,10 @@ library.
 * Default: false
 * Type: Boolean
 
-If true, npm will not exit with an error code when `run-script` is invoked
-for a script that isn't defined in the `scripts` section of `package.json`.
-This option can be used when it's desirable to optionally run a script when
-it's present and fail if the script fails. This is useful, for example, when
+If true, npm will not exit with an error code when `run` is invoked for a
+script that isn't defined in the `scripts` section of `package.json`. This
+option can be used when it's desirable to optionally run a script when it's
+present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.
 
@@ -715,9 +715,9 @@ This value is not exported to the environment for child processes.
 If true, npm does not run scripts specified in package.json files.
 
 Note that commands explicitly intended to run a particular script, such as
-`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
-will still run their intended script if `ignore-scripts` is set, but they
-will *not* run any pre- or post-scripts.
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
+run their intended script if `ignore-scripts` is set, but they will *not*
+run any pre- or post-scripts.
 
 
 
@@ -806,6 +806,15 @@ A module that will be loaded by the `npm init` command. See the
 documentation for the
 [init-package-json](https://github.com/npm/init-package-json) module for
 more information, or [npm init](/commands/npm-init).
+
+
+
+#### `init-private`
+
+* Default: false
+* Type: Boolean
+
+The value `npm init` should use by default for the package's private flag.
 
 
 
@@ -1236,7 +1245,8 @@ a semver. Like the `rc` in `1.2.0-rc.8`.
 
 #### `progress`
 
-* Default: `true` unless running in a known CI system
+* Default: `true` when not in CI and both stderr and stdout are TTYs and not
+  in a dumb terminal
 * Type: Boolean
 
 When set to `true`, npm will display a progress bar during time intensive
@@ -1355,7 +1365,7 @@ Ignored if `--save-peer` is set, since peerDependencies cannot be bundled.
 
 Save installed packages to a package.json file as `devDependencies`.
 
-
+This config can not be used with: `save-optional`, `save-peer`, `save-prod`
 
 #### `save-exact`
 
@@ -1374,7 +1384,7 @@ rather than using npm's default semver range operator.
 
 Save installed packages to a package.json file as `optionalDependencies`.
 
-
+This config can not be used with: `save-dev`, `save-peer`, `save-prod`
 
 #### `save-peer`
 
@@ -1383,7 +1393,7 @@ Save installed packages to a package.json file as `optionalDependencies`.
 
 Save installed packages to a package.json file as `peerDependencies`
 
-
+This config can not be used with: `save-dev`, `save-optional`, `save-prod`
 
 #### `save-prefix`
 
@@ -1412,7 +1422,7 @@ you want to move it to be a non-optional production dependency.
 This is the default behavior if `--save` is true, and neither `--save-dev`
 or `--save-optional` are true.
 
-
+This config can not be used with: `save-dev`, `save-optional`, `save-peer`
 
 #### `sbom-format`
 

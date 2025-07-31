@@ -235,6 +235,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   pthread_t thread_handle() { return thread_handle_; }
 #endif
 
+  void Iterate(RootVisitor* visitor);
+
   HeapAllocator* allocator() { return &heap_allocator_; }
 
  private:
@@ -396,6 +398,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<MarkingBarrier> marking_barrier_;
 
   GCCallbacksInSafepoint gc_epilogue_callbacks_;
+  GCRootsProvider* roots_provider_ = nullptr;
 
   HeapAllocator heap_allocator_;
 
@@ -412,6 +415,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class IsolateSafepointScope;
   friend class ParkedScope;
   friend class UnparkedScope;
+  friend class GCRootsProviderScope;
 };
 
 }  // namespace internal

@@ -406,10 +406,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     push_helper(rs...);
   }
 
-  template <>
-  void push_helper(Register r) {
-    StoreWord(r, MemOperand(sp, 0));
-  }
+  void push_helper() {}
 
  public:
   // Push a number of registers. The leftmost register first (to the highest
@@ -488,7 +485,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
         stack_offset += kSystemPointerSize;
       }
     }
-    addi(sp, sp, stack_offset);
+    AddWord(sp, sp, stack_offset);
   }
 
   void PushAll(DoubleRegList registers, int stack_slot_size = kDoubleSize) {
@@ -514,7 +511,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
         stack_offset += kDoubleSize;
       }
     }
-    addi(sp, sp, stack_offset);
+    AddWord(sp, sp, stack_offset);
   }
 
   // Push multiple registers on the stack.
@@ -554,10 +551,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     LoadWord(r, MemOperand(sp, sizeof...(rs) * kSystemPointerSize));
   }
 
-  template <>
-  void pop_helper(Register r) {
-    LoadWord(r, MemOperand(sp, 0));
-  }
+  void pop_helper() {}
 
  public:
   // Pop a number of registers. The leftmost register last (from the highest
@@ -682,11 +676,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     if (COMPRESS_POINTERS_BOOL) {
       sraiw(dst, src, kSmiShift);
     } else {
-      srai(dst, src, kSmiShift);
+      SraWord(dst, src, kSmiShift);
     }
 #elif V8_TARGET_ARCH_RISCV32
     DCHECK(SmiValuesAre31Bits());
-    srai(dst, src, kSmiShift);
+    SraWord(dst, src, kSmiShift);
 #endif
   }
 
@@ -792,8 +786,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     if (CpuFeatures::IsSupported(ZBB)) {
       sextb(rd, rs);
     } else {
-      slli(rd, rs, xlen - 8);
-      srai(rd, rd, xlen - 8);
+      SllWord(rd, rs, xlen - 8);
+      SraWord(rd, rd, xlen - 8);
     }
   }
 
@@ -801,8 +795,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     if (CpuFeatures::IsSupported(ZBB)) {
       sexth(rd, rs);
     } else {
-      slli(rd, rs, xlen - 16);
-      srai(rd, rd, xlen - 16);
+      SllWord(rd, rs, xlen - 16);
+      SraWord(rd, rd, xlen - 16);
     }
   }
 
@@ -816,8 +810,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     if (CpuFeatures::IsSupported(ZBA)) {
       zextw(rd, rs);
     } else {
-      slli(rd, rs, 32);
-      srli(rd, rd, 32);
+      Sll64(rd, rs, 32);
+      Srl64(rd, rd, 32);
     }
   }
   void Popcnt64(Register rd, Register rs, Register scratch);
@@ -1043,7 +1037,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void Move(Register dst_low, Register dst_high, FPURegister src) {
     fmv_x_d(dst_high, src);
     fmv_x_w(dst_low, src);
-    srli(dst_high, dst_high, 32);
+    Srl64(dst_high, dst_high, 32);
   }
 
   inline void Move(Register dst, FPURegister src) { fmv_x_d(dst, src); }
@@ -1059,7 +1053,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void ExtractHighWordFromF64(Register dst_high, FPURegister src) {
 #if V8_TARGET_ARCH_RISCV64
     fmv_x_d(dst_high, src);
-    srai(dst_high, dst_high, 32);
+    Sra64(dst_high, dst_high, 32);
 #elif V8_TARGET_ARCH_RISCV32
     // todo(riscv32): delete storedouble
     AddWord(sp, sp, Operand(-8));
@@ -1240,7 +1234,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #if V8_TARGET_ARCH_RISCV64
     if (SmiValuesAre32Bits()) {
       // Smi goes to upper 32
-      slli(dst, src, 32);
+      Sll64(dst, src, 32);
     } else {
       DCHECK(SmiValuesAre31Bits());
       // Smi is shifted left by 1
@@ -1250,7 +1244,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
     DCHECK(SmiValuesAre31Bits());
     // Smi is shifted left by 1
-    slli(dst, src, kSmiShift);
+    Sll32(dst, src, kSmiShift);
 #endif
   }
 
@@ -1322,7 +1316,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Loads a field containing an off-heap ("external") pointer and does
   // necessary decoding if sandbox is enabled.
   void LoadExternalPointerField(Register destination, MemOperand field_operand,
-                                ExternalPointerTag tag,
+                                ExternalPointerTagRange tag_range,
                                 Register isolate_root = no_reg);
 
 #if V8_TARGET_ARCH_RISCV64
@@ -1798,16 +1792,16 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 #if V8_TARGET_ARCH_RISCV64
     if (SmiValuesAre32Bits()) {
       // The int portion is upper 32-bits of 64-bit word.
-      srai(dst, src, (kSmiShift - scale) & 0x3F);
+      Sra64(dst, src, (kSmiShift - scale) & 0x3F);
     } else {
       DCHECK(SmiValuesAre31Bits());
       DCHECK_GE(scale, kSmiTagSize);
-      slliw(dst, src, scale - kSmiTagSize);
+      Sra32(dst, src, scale - kSmiTagSize);
     }
 #elif V8_TARGET_ARCH_RISCV32
     DCHECK(SmiValuesAre31Bits());
     DCHECK_GE(scale, kSmiTagSize);
-    slli(dst, src, scale - kSmiTagSize);
+    Sll32(dst, src, scale - kSmiTagSize);
 #endif
   }
 
@@ -1980,10 +1974,10 @@ void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
   Align(8);
   // Load the address from the jump table at index and jump to it
   auipc(scratch, 0);  // Load the current PC into scratch
-  slli(scratch2, index,
-       kSystemPointerSizeLog2);  // scratch2 = offset of indexth entry
-  add(scratch2, scratch2,
-      scratch);  // scratch2 = (saved PC) + (offset of indexth entry)
+  SllWord(scratch2, index,
+          kSystemPointerSizeLog2);  // scratch2 = offset of indexth entry
+  AddWord(scratch2, scratch2,
+          scratch);  // scratch2 = (saved PC) + (offset of indexth entry)
   LoadWord(scratch2,
            MemOperand(scratch2,
                       6 * kInstrSize));  // Add the size of these 6 instructions

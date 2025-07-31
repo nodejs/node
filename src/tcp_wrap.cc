@@ -28,6 +28,7 @@
 #include "node_buffer.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
+#include "permission/permission.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
@@ -245,6 +246,9 @@ void TCPWrap::Bind(
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
   Environment* env = wrap->env();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kNet, "");
+
   node::Utf8Value ip_address(env->isolate(), args[0]);
   int port;
   unsigned int flags = 0;
@@ -285,6 +289,9 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   Environment* env = wrap->env();
   int backlog;
   if (!args[0]->Int32Value(env->context()).To(&backlog)) return;
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kNet, "");
+
   int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
                       backlog,
                       OnConnection);
@@ -328,6 +335,9 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
 
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value ip_address(env->isolate(), args[1]);
+
+  ERR_ACCESS_DENIED_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, ip_address.ToStringView(), args);
 
   T addr;
   int err = uv_ip_addr(*ip_address, &addr);

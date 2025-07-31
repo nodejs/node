@@ -277,8 +277,8 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
 
   CSA_DCHECK(this, Word32BinaryNot(IsUndefined(iterator.object)));
 
-  TNode<Map> fast_iterator_result_map = CAST(
-      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX));
+  TNode<Map> fast_iterator_result_map = CAST(LoadContextElementNoCell(
+      native_context, Context::ITERATOR_RESULT_MAP_INDEX));
 
   Goto(&loop);
   BIND(&loop);
@@ -440,7 +440,7 @@ TNode<JSFunction> BaseCollectionsAssembler::GetConstructor(
       index = Context::JS_WEAK_SET_FUN_INDEX;
       break;
   }
-  return CAST(LoadContextElement(native_context, index));
+  return CAST(LoadContextElementNoCell(native_context, index));
 }
 
 TNode<JSFunction> BaseCollectionsAssembler::GetInitialAddFunction(
@@ -460,7 +460,7 @@ TNode<JSFunction> BaseCollectionsAssembler::GetInitialAddFunction(
       index = Context::WEAKSET_ADD_INDEX;
       break;
   }
-  return CAST(LoadContextElement(native_context, index));
+  return CAST(LoadContextElementNoCell(native_context, index));
 }
 
 int BaseCollectionsAssembler::GetTableOffset(Variant variant) {
@@ -517,7 +517,8 @@ TNode<Map> BaseCollectionsAssembler::GetInitialCollectionPrototype(
       initial_prototype_index = Context::INITIAL_WEAKSET_PROTOTYPE_MAP_INDEX;
       break;
   }
-  return CAST(LoadContextElement(native_context, initial_prototype_index));
+  return CAST(
+      LoadContextElementNoCell(native_context, initial_prototype_index));
 }
 
 TNode<BoolT> BaseCollectionsAssembler::HasInitialCollectionPrototype(
@@ -724,7 +725,7 @@ TNode<HeapObject> CollectionsBuiltinsAssembler::AllocateJSCollectionIterator(
       LoadObjectField(collection, JSCollection::kTableOffset);
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   const TNode<Map> iterator_map =
-      CAST(LoadContextElement(native_context, map_index));
+      CAST(LoadContextElementNoCell(native_context, map_index));
   const TNode<HeapObject> iterator =
       AllocateInNewSpace(IteratorType::kHeaderSize);
   StoreMapNoWriteBarrier(iterator, iterator_map);
@@ -884,14 +885,14 @@ void CollectionsBuiltinsAssembler::
   BIND(&extra_checks);
   // Check if the iterator object has the original %MapIteratorPrototype%.
   const TNode<NativeContext> native_context = LoadNativeContext(context);
-  const TNode<Object> initial_map_iter_proto = LoadContextElement(
+  const TNode<Object> initial_map_iter_proto = LoadContextElementNoCell(
       native_context, Context::INITIAL_MAP_ITERATOR_PROTOTYPE_INDEX);
   const TNode<HeapObject> map_iter_proto = LoadMapPrototype(iter_map);
   GotoIfNot(TaggedEqual(map_iter_proto, initial_map_iter_proto), if_false);
 
   // Check if the original MapIterator prototype has the original
   // %IteratorPrototype%.
-  const TNode<Object> initial_iter_proto = LoadContextElement(
+  const TNode<Object> initial_iter_proto = LoadContextElementNoCell(
       native_context, Context::INITIAL_ITERATOR_PROTOTYPE_INDEX);
   const TNode<HeapObject> iter_proto =
       LoadMapPrototype(LoadMap(map_iter_proto));
@@ -933,7 +934,7 @@ void CollectionsBuiltinsAssembler::BranchIfIterableWithOriginalValueSetIterator(
 
   BIND(&if_set);
   // Check if the set object has the original Set prototype.
-  const TNode<Object> initial_set_proto = LoadContextElement(
+  const TNode<Object> initial_set_proto = LoadContextElementNoCell(
       LoadNativeContext(context), Context::INITIAL_SET_PROTOTYPE_INDEX);
   const TNode<HeapObject> set_proto = LoadMapPrototype(iterable_map);
   GotoIfNot(TaggedEqual(set_proto, initial_set_proto), if_false);
@@ -947,14 +948,14 @@ void CollectionsBuiltinsAssembler::BranchIfIterableWithOriginalValueSetIterator(
 
   // Check if the iterator object has the original SetIterator prototype.
   const TNode<NativeContext> native_context = LoadNativeContext(context);
-  const TNode<Object> initial_set_iter_proto = LoadContextElement(
+  const TNode<Object> initial_set_iter_proto = LoadContextElementNoCell(
       native_context, Context::INITIAL_SET_ITERATOR_PROTOTYPE_INDEX);
   const TNode<HeapObject> set_iter_proto = LoadMapPrototype(iterable_map);
   GotoIfNot(TaggedEqual(set_iter_proto, initial_set_iter_proto), if_false);
 
   // Check if the original SetIterator prototype has the original
   // %IteratorPrototype%.
-  const TNode<Object> initial_iter_proto = LoadContextElement(
+  const TNode<Object> initial_iter_proto = LoadContextElementNoCell(
       native_context, Context::INITIAL_ITERATOR_PROTOTYPE_INDEX);
   const TNode<HeapObject> iter_proto =
       LoadMapPrototype(LoadMap(set_iter_proto));

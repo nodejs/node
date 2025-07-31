@@ -214,6 +214,9 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  auto cleanup =
+      OnScopeLeave([&]() { uv_free_interface_addresses(interfaces, count); });
+
   Local<Value> no_scope_id = Integer::New(isolate, -1);
   LocalVector<Value> result(isolate);
   result.reserve(count * 7);
@@ -268,7 +271,6 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  uv_free_interface_addresses(interfaces, count);
   args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
 }
 
@@ -457,11 +459,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetLoadAvg);
   registry->Register(GetUptime);
   registry->Register(GetTotalMemory);
-  registry->Register(FastGetTotalMemory);
-  registry->Register(fast_get_total_memory.GetTypeInfo());
+  registry->Register(fast_get_total_memory);
   registry->Register(GetFreeMemory);
-  registry->Register(FastGetFreeMemory);
-  registry->Register(fast_get_free_memory.GetTypeInfo());
+  registry->Register(fast_get_free_memory);
   registry->Register(GetCPUInfo);
   registry->Register(GetInterfaceAddresses);
   registry->Register(GetHomeDirectory);
@@ -469,8 +469,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetPriority);
   registry->Register(GetPriority);
   registry->Register(GetAvailableParallelism);
-  registry->Register(FastGetAvailableParallelism);
-  registry->Register(fast_get_available_parallelism.GetTypeInfo());
+  registry->Register(fast_get_available_parallelism);
   registry->Register(GetOSInformation);
 }
 

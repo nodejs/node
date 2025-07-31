@@ -142,6 +142,7 @@ class Reducer;
   V(FixedArrayMap, Map)                                            \
   V(FixedDoubleArrayMap, Map)                                      \
   V(WeakFixedArrayMap, Map)                                        \
+  V(ContextCellMap, Map)                                           \
   V(HeapNumberMap, Map)                                            \
   V(MinusOne, Number)                                              \
   V(NaN, Number)                                                   \
@@ -983,6 +984,8 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
 #undef SINGLETON_CONST_TEST_DECL
 
   Node* Allocate(AllocationType allocation, Node* size);
+  TNode<HeapNumber> AllocateHeapNumber(Node* value);
+
   TNode<Map> LoadMap(TNode<HeapObject> object);
   Node* LoadField(FieldAccess const&, Node* object);
   template <typename T>
@@ -1245,9 +1248,10 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   // separate classes. If, in the future, we encounter additional use cases that
   // return more than 1 value, we should merge these back into a single variadic
   // implementation.
+  template <typename Cond>
   class IfBuilder0 final {
    public:
-    IfBuilder0(JSGraphAssembler* gasm, TNode<Boolean> cond, bool negate_cond)
+    IfBuilder0(JSGraphAssembler* gasm, TNode<Cond> cond, bool negate_cond)
         : gasm_(gasm),
           cond_(cond),
           negate_cond_(negate_cond),
@@ -1291,7 +1295,16 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
       auto if_false = (hint_ == BranchHint::kTrue) ? gasm_->MakeDeferredLabel()
                                                    : gasm_->MakeLabel();
       auto merge = gasm_->MakeLabel();
-      gasm_->Branch(cond_, &if_true, &if_false);
+      if constexpr (std::is_same_v<Cond, Word32T>) {
+        gasm_->MachineBranch(cond_, &if_true, &if_false, hint_);
+      } else {
+        static_assert(std::is_same_v<Cond, Boolean>);
+        if (hint_ != BranchHint::kNone) {
+          gasm_->BranchWithHint(cond_, &if_true, &if_false, hint_);
+        } else {
+          gasm_->Branch(cond_, &if_true, &if_false);
+        }
+      }
 
       gasm_->Bind(&if_true);
       if (then_body_) then_body_();
@@ -1309,7 +1322,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
 
    private:
     JSGraphAssembler* const gasm_;
-    const TNode<Boolean> cond_;
+    const TNode<Cond> cond_;
     const bool negate_cond_;
     const Effect initial_effect_;
     const Control initial_control_;
@@ -1318,8 +1331,12 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
     VoidGenerator0 else_body_;
   };
 
-  IfBuilder0 If(TNode<Boolean> cond) { return {this, cond, false}; }
-  IfBuilder0 IfNot(TNode<Boolean> cond) { return {this, cond, true}; }
+  IfBuilder0<Boolean> If(TNode<Boolean> cond) { return {this, cond, false}; }
+  IfBuilder0<Boolean> IfNot(TNode<Boolean> cond) { return {this, cond, true}; }
+
+  IfBuilder0<Word32T> MachineIf(TNode<Word32T> cond) {
+    return {this, cond, false};
+  }
 
   template <typename T, typename Cond>
   class IfBuilder1 {

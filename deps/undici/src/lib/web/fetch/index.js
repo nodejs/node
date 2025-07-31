@@ -30,7 +30,6 @@ const {
   crossOriginResourcePolicyCheck,
   determineRequestsReferrer,
   coarsenedSharedCurrentTime,
-  createDeferredPromise,
   sameOrigin,
   isCancelled,
   isAborted,
@@ -61,8 +60,9 @@ const { Readable, pipeline, finished, isErrored, isReadable } = require('node:st
 const { addAbortListener, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require('./data-url')
 const { getGlobalDispatcher } = require('../../global')
-const { webidl } = require('./webidl')
+const { webidl } = require('../webidl')
 const { STATUS_CODES } = require('node:http')
+const { createDeferredPromise } = require('../../util/promise')
 const GET_OR_HEAD = ['GET', 'HEAD']
 
 const defaultUserAgent = typeof __UNDICI_IS_NODE__ !== 'undefined' || typeof esbuildDetection !== 'undefined'
@@ -507,257 +507,258 @@ function fetching ({
   }
 
   // 16. Run main fetch given fetchParams.
-  mainFetch(fetchParams)
-    .catch(err => {
-      fetchParams.controller.terminate(err)
-    })
+  mainFetch(fetchParams, false)
 
   // 17. Return fetchParam's controller
   return fetchParams.controller
 }
 
 // https://fetch.spec.whatwg.org/#concept-main-fetch
-async function mainFetch (fetchParams, recursive = false) {
-  // 1. Let request be fetchParams’s request.
-  const request = fetchParams.request
+async function mainFetch (fetchParams, recursive) {
+  try {
+    // 1. Let request be fetchParams’s request.
+    const request = fetchParams.request
 
-  // 2. Let response be null.
-  let response = null
+    // 2. Let response be null.
+    let response = null
 
-  // 3. If request’s local-URLs-only flag is set and request’s current URL is
-  // not local, then set response to a network error.
-  if (request.localURLsOnly && !urlIsLocal(requestCurrentURL(request))) {
-    response = makeNetworkError('local URLs only')
-  }
+    // 3. If request’s local-URLs-only flag is set and request’s current URL is
+    // not local, then set response to a network error.
+    if (request.localURLsOnly && !urlIsLocal(requestCurrentURL(request))) {
+      response = makeNetworkError('local URLs only')
+    }
 
-  // 4. Run report Content Security Policy violations for request.
-  // TODO
+    // 4. Run report Content Security Policy violations for request.
+    // TODO
 
-  // 5. Upgrade request to a potentially trustworthy URL, if appropriate.
-  tryUpgradeRequestToAPotentiallyTrustworthyURL(request)
+    // 5. Upgrade request to a potentially trustworthy URL, if appropriate.
+    tryUpgradeRequestToAPotentiallyTrustworthyURL(request)
 
-  // 6. If should request be blocked due to a bad port, should fetching request
-  // be blocked as mixed content, or should request be blocked by Content
-  // Security Policy returns blocked, then set response to a network error.
-  if (requestBadPort(request) === 'blocked') {
-    response = makeNetworkError('bad port')
-  }
-  // TODO: should fetching request be blocked as mixed content?
-  // TODO: should request be blocked by Content Security Policy?
+    // 6. If should request be blocked due to a bad port, should fetching request
+    // be blocked as mixed content, or should request be blocked by Content
+    // Security Policy returns blocked, then set response to a network error.
+    if (requestBadPort(request) === 'blocked') {
+      response = makeNetworkError('bad port')
+    }
+    // TODO: should fetching request be blocked as mixed content?
+    // TODO: should request be blocked by Content Security Policy?
 
-  // 7. If request’s referrer policy is the empty string, then set request’s
-  // referrer policy to request’s policy container’s referrer policy.
-  if (request.referrerPolicy === '') {
-    request.referrerPolicy = request.policyContainer.referrerPolicy
-  }
+    // 7. If request’s referrer policy is the empty string, then set request’s
+    // referrer policy to request’s policy container’s referrer policy.
+    if (request.referrerPolicy === '') {
+      request.referrerPolicy = request.policyContainer.referrerPolicy
+    }
 
-  // 8. If request’s referrer is not "no-referrer", then set request’s
-  // referrer to the result of invoking determine request’s referrer.
-  if (request.referrer !== 'no-referrer') {
-    request.referrer = determineRequestsReferrer(request)
-  }
+    // 8. If request’s referrer is not "no-referrer", then set request’s
+    // referrer to the result of invoking determine request’s referrer.
+    if (request.referrer !== 'no-referrer') {
+      request.referrer = determineRequestsReferrer(request)
+    }
 
-  // 9. Set request’s current URL’s scheme to "https" if all of the following
-  // conditions are true:
-  // - request’s current URL’s scheme is "http"
-  // - request’s current URL’s host is a domain
-  // - Matching request’s current URL’s host per Known HSTS Host Domain Name
-  //   Matching results in either a superdomain match with an asserted
-  //   includeSubDomains directive or a congruent match (with or without an
-  //   asserted includeSubDomains directive). [HSTS]
-  // TODO
+    // 9. Set request’s current URL’s scheme to "https" if all of the following
+    // conditions are true:
+    // - request’s current URL’s scheme is "http"
+    // - request’s current URL’s host is a domain
+    // - Matching request’s current URL’s host per Known HSTS Host Domain Name
+    //   Matching results in either a superdomain match with an asserted
+    //   includeSubDomains directive or a congruent match (with or without an
+    //   asserted includeSubDomains directive). [HSTS]
+    // TODO
 
-  // 10. If recursive is false, then run the remaining steps in parallel.
-  // TODO
+    // 10. If recursive is false, then run the remaining steps in parallel.
+    // TODO
 
-  // 11. If response is null, then set response to the result of running
-  // the steps corresponding to the first matching statement:
-  if (response === null) {
-    const currentURL = requestCurrentURL(request)
-    if (
-      // - request’s current URL’s origin is same origin with request’s origin,
-      //   and request’s response tainting is "basic"
-      (sameOrigin(currentURL, request.url) && request.responseTainting === 'basic') ||
-      // request’s current URL’s scheme is "data"
-      (currentURL.protocol === 'data:') ||
-      // - request’s mode is "navigate" or "websocket"
-      (request.mode === 'navigate' || request.mode === 'websocket')
-    ) {
-      // 1. Set request’s response tainting to "basic".
-      request.responseTainting = 'basic'
+    // 11. If response is null, then set response to the result of running
+    // the steps corresponding to the first matching statement:
+    if (response === null) {
+      const currentURL = requestCurrentURL(request)
+      if (
+        // - request’s current URL’s origin is same origin with request’s origin,
+        //   and request’s response tainting is "basic"
+        (sameOrigin(currentURL, request.url) && request.responseTainting === 'basic') ||
+        // request’s current URL’s scheme is "data"
+        (currentURL.protocol === 'data:') ||
+        // - request’s mode is "navigate" or "websocket"
+        (request.mode === 'navigate' || request.mode === 'websocket')
+      ) {
+        // 1. Set request’s response tainting to "basic".
+        request.responseTainting = 'basic'
 
-      // 2. Return the result of running scheme fetch given fetchParams.
-      response = await schemeFetch(fetchParams)
-
-    // request’s mode is "same-origin"
-    } else if (request.mode === 'same-origin') {
-      // 1. Return a network error.
-      response = makeNetworkError('request mode cannot be "same-origin"')
-
-    // request’s mode is "no-cors"
-    } else if (request.mode === 'no-cors') {
-      // 1. If request’s redirect mode is not "follow", then return a network
-      // error.
-      if (request.redirect !== 'follow') {
-        response = makeNetworkError(
-          'redirect mode cannot be "follow" for "no-cors" request'
-        )
-      } else {
-        // 2. Set request’s response tainting to "opaque".
-        request.responseTainting = 'opaque'
-
-        // 3. Return the result of running scheme fetch given fetchParams.
+        // 2. Return the result of running scheme fetch given fetchParams.
         response = await schemeFetch(fetchParams)
+
+      // request’s mode is "same-origin"
+      } else if (request.mode === 'same-origin') {
+        // 1. Return a network error.
+        response = makeNetworkError('request mode cannot be "same-origin"')
+
+      // request’s mode is "no-cors"
+      } else if (request.mode === 'no-cors') {
+        // 1. If request’s redirect mode is not "follow", then return a network
+        // error.
+        if (request.redirect !== 'follow') {
+          response = makeNetworkError(
+            'redirect mode cannot be "follow" for "no-cors" request'
+          )
+        } else {
+          // 2. Set request’s response tainting to "opaque".
+          request.responseTainting = 'opaque'
+
+          // 3. Return the result of running scheme fetch given fetchParams.
+          response = await schemeFetch(fetchParams)
+        }
+      // request’s current URL’s scheme is not an HTTP(S) scheme
+      } else if (!urlIsHttpHttpsScheme(requestCurrentURL(request))) {
+        // Return a network error.
+        response = makeNetworkError('URL scheme must be a HTTP(S) scheme')
+
+        // - request’s use-CORS-preflight flag is set
+        // - request’s unsafe-request flag is set and either request’s method is
+        //   not a CORS-safelisted method or CORS-unsafe request-header names with
+        //   request’s header list is not empty
+        //    1. Set request’s response tainting to "cors".
+        //    2. Let corsWithPreflightResponse be the result of running HTTP fetch
+        //    given fetchParams and true.
+        //    3. If corsWithPreflightResponse is a network error, then clear cache
+        //    entries using request.
+        //    4. Return corsWithPreflightResponse.
+        // TODO
+
+      // Otherwise
+      } else {
+        //    1. Set request’s response tainting to "cors".
+        request.responseTainting = 'cors'
+
+        //    2. Return the result of running HTTP fetch given fetchParams.
+        response = await httpFetch(fetchParams)
       }
-    // request’s current URL’s scheme is not an HTTP(S) scheme
-    } else if (!urlIsHttpHttpsScheme(requestCurrentURL(request))) {
-      // Return a network error.
-      response = makeNetworkError('URL scheme must be a HTTP(S) scheme')
-
-      // - request’s use-CORS-preflight flag is set
-      // - request’s unsafe-request flag is set and either request’s method is
-      //   not a CORS-safelisted method or CORS-unsafe request-header names with
-      //   request’s header list is not empty
-      //    1. Set request’s response tainting to "cors".
-      //    2. Let corsWithPreflightResponse be the result of running HTTP fetch
-      //    given fetchParams and true.
-      //    3. If corsWithPreflightResponse is a network error, then clear cache
-      //    entries using request.
-      //    4. Return corsWithPreflightResponse.
-      // TODO
-
-    // Otherwise
-    } else {
-      //    1. Set request’s response tainting to "cors".
-      request.responseTainting = 'cors'
-
-      //    2. Return the result of running HTTP fetch given fetchParams.
-      response = await httpFetch(fetchParams)
-    }
-  }
-
-  // 12. If recursive is true, then return response.
-  if (recursive) {
-    return response
-  }
-
-  // 13. If response is not a network error and response is not a filtered
-  // response, then:
-  if (response.status !== 0 && !response.internalResponse) {
-    // If request’s response tainting is "cors", then:
-    if (request.responseTainting === 'cors') {
-      // 1. Let headerNames be the result of extracting header list values
-      // given `Access-Control-Expose-Headers` and response’s header list.
-      // TODO
-      // 2. If request’s credentials mode is not "include" and headerNames
-      // contains `*`, then set response’s CORS-exposed header-name list to
-      // all unique header names in response’s header list.
-      // TODO
-      // 3. Otherwise, if headerNames is not null or failure, then set
-      // response’s CORS-exposed header-name list to headerNames.
-      // TODO
     }
 
-    // Set response to the following filtered response with response as its
-    // internal response, depending on request’s response tainting:
-    if (request.responseTainting === 'basic') {
-      response = filterResponse(response, 'basic')
-    } else if (request.responseTainting === 'cors') {
-      response = filterResponse(response, 'cors')
-    } else if (request.responseTainting === 'opaque') {
-      response = filterResponse(response, 'opaque')
-    } else {
-      assert(false)
-    }
-  }
-
-  // 14. Let internalResponse be response, if response is a network error,
-  // and response’s internal response otherwise.
-  let internalResponse =
-    response.status === 0 ? response : response.internalResponse
-
-  // 15. If internalResponse’s URL list is empty, then set it to a clone of
-  // request’s URL list.
-  if (internalResponse.urlList.length === 0) {
-    internalResponse.urlList.push(...request.urlList)
-  }
-
-  // 16. If request’s timing allow failed flag is unset, then set
-  // internalResponse’s timing allow passed flag.
-  if (!request.timingAllowFailed) {
-    response.timingAllowPassed = true
-  }
-
-  // 17. If response is not a network error and any of the following returns
-  // blocked
-  // - should internalResponse to request be blocked as mixed content
-  // - should internalResponse to request be blocked by Content Security Policy
-  // - should internalResponse to request be blocked due to its MIME type
-  // - should internalResponse to request be blocked due to nosniff
-  // TODO
-
-  // 18. If response’s type is "opaque", internalResponse’s status is 206,
-  // internalResponse’s range-requested flag is set, and request’s header
-  // list does not contain `Range`, then set response and internalResponse
-  // to a network error.
-  if (
-    response.type === 'opaque' &&
-    internalResponse.status === 206 &&
-    internalResponse.rangeRequested &&
-    !request.headers.contains('range', true)
-  ) {
-    response = internalResponse = makeNetworkError()
-  }
-
-  // 19. If response is not a network error and either request’s method is
-  // `HEAD` or `CONNECT`, or internalResponse’s status is a null body status,
-  // set internalResponse’s body to null and disregard any enqueuing toward
-  // it (if any).
-  if (
-    response.status !== 0 &&
-    (request.method === 'HEAD' ||
-      request.method === 'CONNECT' ||
-      nullBodyStatus.includes(internalResponse.status))
-  ) {
-    internalResponse.body = null
-    fetchParams.controller.dump = true
-  }
-
-  // 20. If request’s integrity metadata is not the empty string, then:
-  if (request.integrity) {
-    // 1. Let processBodyError be this step: run fetch finale given fetchParams
-    // and a network error.
-    const processBodyError = (reason) =>
-      fetchFinale(fetchParams, makeNetworkError(reason))
-
-    // 2. If request’s response tainting is "opaque", or response’s body is null,
-    // then run processBodyError and abort these steps.
-    if (request.responseTainting === 'opaque' || response.body == null) {
-      processBodyError(response.error)
-      return
+    // 12. If recursive is true, then return response.
+    if (recursive) {
+      return response
     }
 
-    // 3. Let processBody given bytes be these steps:
-    const processBody = (bytes) => {
-      // 1. If bytes do not match request’s integrity metadata,
-      // then run processBodyError and abort these steps. [SRI]
-      if (!bytesMatch(bytes, request.integrity)) {
-        processBodyError('integrity mismatch')
+    // 13. If response is not a network error and response is not a filtered
+    // response, then:
+    if (response.status !== 0 && !response.internalResponse) {
+      // If request’s response tainting is "cors", then:
+      if (request.responseTainting === 'cors') {
+        // 1. Let headerNames be the result of extracting header list values
+        // given `Access-Control-Expose-Headers` and response’s header list.
+        // TODO
+        // 2. If request’s credentials mode is not "include" and headerNames
+        // contains `*`, then set response’s CORS-exposed header-name list to
+        // all unique header names in response’s header list.
+        // TODO
+        // 3. Otherwise, if headerNames is not null or failure, then set
+        // response’s CORS-exposed header-name list to headerNames.
+        // TODO
+      }
+
+      // Set response to the following filtered response with response as its
+      // internal response, depending on request’s response tainting:
+      if (request.responseTainting === 'basic') {
+        response = filterResponse(response, 'basic')
+      } else if (request.responseTainting === 'cors') {
+        response = filterResponse(response, 'cors')
+      } else if (request.responseTainting === 'opaque') {
+        response = filterResponse(response, 'opaque')
+      } else {
+        assert(false)
+      }
+    }
+
+    // 14. Let internalResponse be response, if response is a network error,
+    // and response’s internal response otherwise.
+    let internalResponse =
+      response.status === 0 ? response : response.internalResponse
+
+    // 15. If internalResponse’s URL list is empty, then set it to a clone of
+    // request’s URL list.
+    if (internalResponse.urlList.length === 0) {
+      internalResponse.urlList.push(...request.urlList)
+    }
+
+    // 16. If request’s timing allow failed flag is unset, then set
+    // internalResponse’s timing allow passed flag.
+    if (!request.timingAllowFailed) {
+      response.timingAllowPassed = true
+    }
+
+    // 17. If response is not a network error and any of the following returns
+    // blocked
+    // - should internalResponse to request be blocked as mixed content
+    // - should internalResponse to request be blocked by Content Security Policy
+    // - should internalResponse to request be blocked due to its MIME type
+    // - should internalResponse to request be blocked due to nosniff
+    // TODO
+
+    // 18. If response’s type is "opaque", internalResponse’s status is 206,
+    // internalResponse’s range-requested flag is set, and request’s header
+    // list does not contain `Range`, then set response and internalResponse
+    // to a network error.
+    if (
+      response.type === 'opaque' &&
+      internalResponse.status === 206 &&
+      internalResponse.rangeRequested &&
+      !request.headers.contains('range', true)
+    ) {
+      response = internalResponse = makeNetworkError()
+    }
+
+    // 19. If response is not a network error and either request’s method is
+    // `HEAD` or `CONNECT`, or internalResponse’s status is a null body status,
+    // set internalResponse’s body to null and disregard any enqueuing toward
+    // it (if any).
+    if (
+      response.status !== 0 &&
+      (request.method === 'HEAD' ||
+        request.method === 'CONNECT' ||
+        nullBodyStatus.includes(internalResponse.status))
+    ) {
+      internalResponse.body = null
+      fetchParams.controller.dump = true
+    }
+
+    // 20. If request’s integrity metadata is not the empty string, then:
+    if (request.integrity) {
+      // 1. Let processBodyError be this step: run fetch finale given fetchParams
+      // and a network error.
+      const processBodyError = (reason) =>
+        fetchFinale(fetchParams, makeNetworkError(reason))
+
+      // 2. If request’s response tainting is "opaque", or response’s body is null,
+      // then run processBodyError and abort these steps.
+      if (request.responseTainting === 'opaque' || response.body == null) {
+        processBodyError(response.error)
         return
       }
 
-      // 2. Set response’s body to bytes as a body.
-      response.body = safelyExtractBody(bytes)[0]
+      // 3. Let processBody given bytes be these steps:
+      const processBody = (bytes) => {
+        // 1. If bytes do not match request’s integrity metadata,
+        // then run processBodyError and abort these steps. [SRI]
+        if (!bytesMatch(bytes, request.integrity)) {
+          processBodyError('integrity mismatch')
+          return
+        }
 
-      // 3. Run fetch finale given fetchParams and response.
+        // 2. Set response’s body to bytes as a body.
+        response.body = safelyExtractBody(bytes)[0]
+
+        // 3. Run fetch finale given fetchParams and response.
+        fetchFinale(fetchParams, response)
+      }
+
+      // 4. Fully read response’s body given processBody and processBodyError.
+      fullyReadBody(response.body, processBody, processBodyError)
+    } else {
+      // 21. Otherwise, run fetch finale given fetchParams and response.
       fetchFinale(fetchParams, response)
     }
-
-    // 4. Fully read response’s body given processBody and processBodyError.
-    await fullyReadBody(response.body, processBody, processBodyError)
-  } else {
-    // 21. Otherwise, run fetch finale given fetchParams and response.
-    fetchFinale(fetchParams, response)
+  } catch (err) {
+    fetchParams.controller.terminate(err)
   }
 }
 
@@ -1909,15 +1910,11 @@ async function httpNetworkFetch (
   //     cancelAlgorithm set to cancelAlgorithm.
   const stream = new ReadableStream(
     {
-      async start (controller) {
+      start (controller) {
         fetchParams.controller.controller = controller
       },
-      async pull (controller) {
-        await pullAlgorithm(controller)
-      },
-      async cancel (reason) {
-        await cancelAlgorithm(reason)
-      },
+      pull: pullAlgorithm,
+      cancel: cancelAlgorithm,
       type: 'bytes'
     }
   )
@@ -2055,7 +2052,7 @@ async function httpNetworkFetch (
 
   function dispatch ({ body }) {
     const url = requestCurrentURL(request)
-    /** @type {import('../..').Agent} */
+    /** @type {import('../../..').Agent} */
     const agent = fetchParams.controller.dispatcher
 
     return new Promise((resolve, reject) => agent.dispatch(
@@ -2104,12 +2101,11 @@ async function httpNetworkFetch (
 
         onHeaders (status, rawHeaders, resume, statusText) {
           if (status < 200) {
-            return
+            return false
           }
 
           /** @type {string[]} */
           let codings = []
-          let location = ''
 
           const headersList = new HeadersList()
 
@@ -2122,7 +2118,7 @@ async function httpNetworkFetch (
             // "All content-coding values are case-insensitive..."
             codings = contentEncoding.toLowerCase().split(',').map((x) => x.trim())
           }
-          location = headersList.get('location', true)
+          const location = headersList.get('location', true)
 
           this.body = new Readable({ read: resume })
 
@@ -2154,6 +2150,12 @@ async function httpNetworkFetch (
                 decoders.push(zlib.createBrotliDecompress({
                   flush: zlib.constants.BROTLI_OPERATION_FLUSH,
                   finishFlush: zlib.constants.BROTLI_OPERATION_FLUSH
+                }))
+              } else if (coding === 'zstd' && typeof zlib.createZstdDecompress === 'function') {
+                // Node.js v23.8.0+ and v22.15.0+ supports Zstandard
+                decoders.push(zlib.createZstdDecompress({
+                  flush: zlib.constants.ZSTD_e_continue,
+                  finishFlush: zlib.constants.ZSTD_e_end
                 }))
               } else {
                 decoders.length = 0

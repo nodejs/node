@@ -460,6 +460,27 @@ class ImmediatesPrinter {
     }
   }
 
+  void EffectHandlerTable(EffectHandlerTableImmediate& imm) {
+    const uint8_t* pc = imm.table;
+    for (uint32_t i = 0; i < imm.table_count; i++) {
+      uint8_t kind = owner_->read_u8<ValidationTag>(pc);
+      pc += 1;
+      auto [tag, length] = owner_->read_u32v<ValidationTag>(pc);
+      out_ << "(on ";
+      names()->PrintTagName(out_, tag);
+      out_ << " ";
+      pc += length;
+      if (kind == kOnSuspend) {
+        auto [target, tlen] = owner_->read_u32v<ValidationTag>(pc);
+        PrintDepthAsLabel(target);
+        pc += tlen;
+        out_ << ")";
+      } else {
+        out_ << " switch)";
+      }
+    }
+  }
+
   void CallIndirect(CallIndirectImmediate& imm) {
     PrintSignature(imm.sig_imm.index);
     if (imm.table_imm.index != 0) TableIndex(imm.table_imm);

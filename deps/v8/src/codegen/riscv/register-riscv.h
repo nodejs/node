@@ -25,6 +25,7 @@ namespace internal {
 // t3 t5 : scratch register used in scratch_register_list
 // t6 : call reg.
 // t0 t1 t2 t4:caller saved scratch register can be used in macroassembler and
+// t2: kMaglevExtraScratchRegister
 // builtin-riscv64
 #define ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V)  \
              V(a0)  V(a1)  V(a2)  V(a3) \

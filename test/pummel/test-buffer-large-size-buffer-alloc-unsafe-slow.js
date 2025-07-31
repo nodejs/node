@@ -7,12 +7,22 @@ common.skipIf32Bits();
 const assert = require('node:assert');
 const size = 2 ** 31;
 
+let largeBuffer;
+
 // Test Buffer.allocUnsafe with size larger than integer range
 try {
-  assert.throws(() => Buffer.allocUnsafeSlow(size).toString('utf8'), { code: 'ERR_STRING_TOO_LONG' });
+  largeBuffer = Buffer.allocUnsafeSlow(size);
 } catch (e) {
-  if (e.code !== 'ERR_MEMORY_ALLOCATION_FAILED') {
-    throw e;
+  if (
+    e.code === 'ERR_MEMORY_ALLOCATION_FAILED' ||
+    /Array buffer allocation failed/.test(e.message)
+  ) {
+    common.skip('insufficient space for Buffer.allocUnsafeSlow');
   }
-  common.skip('insufficient space for Buffer.allocUnsafeSlow');
+
+  throw e;
 }
+
+assert.throws(() => largeBuffer.toString('utf8'), {
+  code: 'ERR_STRING_TOO_LONG',
+});

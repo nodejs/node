@@ -18,12 +18,22 @@ const max_index_value = `value ${max_index}`;
 // newClosure is a handy function to get a fresh
 // closure unpolluted by IC feedback for a 2nd-order array builtin
 // test.
+
+let cache_break = 0;
+
 function newClosure(name, generic = false) {
   if (generic) {
     return new Function(
-      `result = Array.prototype.${name}.call(array, func, this_arg);`);
+      `
+      // ${cache_break++}
+      result = Array.prototype.${name}.call(array, func, this_arg);
+      `);
   }
-  return new Function(`result = array.${name}(func, this_arg);`);
+  return new Function(
+      `
+      // ${cache_break++}
+      result = array.${name}(func, this_arg);
+      `);
 }
 
 function MakeHoley(array) {

@@ -13,6 +13,7 @@
 #include "inspector/worker_agent.h"
 #include "inspector/worker_inspector.h"
 #include "inspector_io.h"
+#include "node.h"
 #include "node/inspector/protocol/Protocol.h"
 #include "node_errors.h"
 #include "node_internals.h"
@@ -122,12 +123,11 @@ static int StartDebugSignalHandler() {
   CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, &savemask));
   sigmask = savemask;
   pthread_t thread;
-  const int err = pthread_create(&thread, &attr,
-                                 StartIoThreadMain, nullptr);
-  // Restore original mask
-  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
+  const int err = pthread_create(&thread, &attr, StartIoThreadMain, nullptr);
   CHECK_EQ(0, pthread_attr_destroy(&attr));
   if (err != 0) {
+    // Restore original mask
+    CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
     fprintf(stderr, "node[%u]: pthread_create: %s\n",
             uv_os_getpid(), strerror(err));
     fflush(stderr);
@@ -136,6 +136,8 @@ static int StartDebugSignalHandler() {
     return -err;
   }
   RegisterSignalHandler(SIGUSR1, StartIoThreadWakeup);
+  // Restore original mask
+  CHECK_EQ(0, pthread_sigmask(SIG_SETMASK, &sigmask, nullptr));
   // Unblock SIGUSR1.  A pending SIGUSR1 signal will now be delivered.
   sigemptyset(&sigmask);
   sigaddset(&sigmask, SIGUSR1);
@@ -239,8 +241,18 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     }
     runtime_agent_ = std::make_unique<protocol::RuntimeAgent>();
     runtime_agent_->Wire(node_dispatcher_.get());
-    network_inspector_ =
-        std::make_unique<NetworkInspector>(env, inspector.get());
+    if (env->options()->experimental_inspector_network_resource) {
+      io_agent_ = std::make_unique<protocol::IoAgent>(
+          env->inspector_agent()->GetNetworkResourceManager());
+      io_agent_->Wire(node_dispatcher_.get());
+      network_inspector_ = std::make_unique<NetworkInspector>(
+          env,
+          inspector.get(),
+          env->inspector_agent()->GetNetworkResourceManager());
+    } else {
+      network_inspector_ =
+          std::make_unique<NetworkInspector>(env, inspector.get(), nullptr);
+    }
     network_inspector_->Wire(node_dispatcher_.get());
     if (env->options()->experimental_worker_inspection) {
       target_agent_ = std::make_shared<protocol::TargetAgent>();
@@ -406,6 +418,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   std::unique_ptr<protocol::WorkerAgent> worker_agent_;
   std::shared_ptr<protocol::TargetAgent> target_agent_;
   std::unique_ptr<NetworkInspector> network_inspector_;
+  std::shared_ptr<protocol::IoAgent> io_agent_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<UberDispatcher> node_dispatcher_;
@@ -1154,7 +1167,8 @@ std::unique_ptr<ParentInspectorHandle> Agent::GetParentHandle(
 
   CHECK_NOT_NULL(client_);
   if (!parent_handle_) {
-    return client_->getWorkerManager()->NewParentHandle(thread_id, url, name);
+    return client_->getWorkerManager()->NewParentHandle(
+        thread_id, url, name, GetNetworkResourceManager());
   } else {
     return parent_handle_->NewParentInspectorHandle(thread_id, url, name);
   }
@@ -1218,6 +1232,17 @@ std::shared_ptr<WorkerManager> Agent::GetWorkerManager() {
 
   CHECK_NOT_NULL(client_);
   return client_->getWorkerManager();
+}
+
+std::shared_ptr<NetworkResourceManager> Agent::GetNetworkResourceManager() {
+  if (parent_handle_) {
+    return parent_handle_->GetNetworkResourceManager();
+  } else if (network_resource_manager_) {
+    return network_resource_manager_;
+  } else {
+    network_resource_manager_ = std::make_shared<NetworkResourceManager>();
+    return network_resource_manager_;
+  }
 }
 
 std::string Agent::GetWsUrl() const {

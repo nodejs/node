@@ -188,19 +188,21 @@ function onTick () {
 }
 
 function refreshTimeout () {
-  // If the fastNowTimeout is already set, refresh it.
-  if (fastNowTimeout) {
+  // If the fastNowTimeout is already set and the Timer has the refresh()-
+  // method available, call it to refresh the timer.
+  // Some timer objects returned by setTimeout may not have a .refresh()
+  // method (e.g. mocked timers in tests).
+  if (fastNowTimeout?.refresh) {
     fastNowTimeout.refresh()
-  // fastNowTimeout is not instantiated yet, create a new Timer.
+    // fastNowTimeout is not instantiated yet or refresh is not availabe,
+    // create a new Timer.
   } else {
     clearTimeout(fastNowTimeout)
     fastNowTimeout = setTimeout(onTick, TICK_MS)
-
-    // If the Timer has an unref method, call it to allow the process to exit if
-    // there are no other active handles.
-    if (fastNowTimeout.unref) {
-      fastNowTimeout.unref()
-    }
+    // If the Timer has an unref method, call it to allow the process to exit,
+    // if there are no other active handles. When using fake timers or mocked
+    // environments (like Jest), .unref() may not be defined,
+    fastNowTimeout?.unref()
   }
 }
 

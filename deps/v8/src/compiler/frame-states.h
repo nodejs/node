@@ -110,6 +110,10 @@ class FrameStateFunctionInfo {
 
   int local_count() const { return local_count_; }
   uint16_t parameter_count() const { return parameter_count_; }
+  uint16_t parameter_count_without_receiver() const {
+    DCHECK_GT(parameter_count_, 0);
+    return parameter_count_ - 1;
+  }
   uint16_t max_arguments() const { return max_arguments_; }
   IndirectHandle<SharedFunctionInfo> shared_info() const {
     return shared_info_;
@@ -194,13 +198,20 @@ class FrameStateInfo final {
                             : info_->bytecode_array();
   }
   uint16_t parameter_count() const {
-    return info_ == nullptr ? 0 : info_->parameter_count();
+    DCHECK_NOT_NULL(info_);
+    return info_->parameter_count();
+  }
+  uint16_t parameter_count_without_receiver() const {
+    DCHECK_NOT_NULL(info_);
+    return info_->parameter_count_without_receiver();
   }
   uint16_t max_arguments() const {
-    return info_ == nullptr ? 0 : info_->max_arguments();
+    DCHECK_NOT_NULL(info_);
+    return info_->max_arguments();
   }
   int local_count() const {
-    return info_ == nullptr ? 0 : info_->local_count();
+    DCHECK_NOT_NULL(info_);
+    return info_->local_count();
   }
   int stack_count() const {
     return type() == FrameStateType::kUnoptimizedFunction ? 1 : 0;

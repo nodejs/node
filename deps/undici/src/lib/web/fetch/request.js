@@ -4,7 +4,6 @@
 
 const { extractBody, mixinBody, cloneBody, bodyUnusable } = require('./body')
 const { Headers, fill: fillHeaders, HeadersList, setHeadersGuard, getHeadersGuard, setHeadersList, getHeadersList } = require('./headers')
-const { FinalizationRegistry } = require('./dispatcher-weakref')()
 const util = require('../../core/util')
 const nodeUtil = require('node:util')
 const {
@@ -23,7 +22,7 @@ const {
   requestDuplex
 } = require('./constants')
 const { kEnumerableProperty, normalizedMethodRecordsBase, normalizedMethodRecords } = util
-const { webidl } = require('./webidl')
+const { webidl } = require('../webidl')
 const { URLSerializer } = require('./data-url')
 const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
@@ -109,8 +108,8 @@ class Request {
     const prefix = 'Request constructor'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    input = webidl.converters.RequestInfo(input, prefix, 'input')
-    init = webidl.converters.RequestInit(init, prefix, 'init')
+    input = webidl.converters.RequestInfo(input)
+    init = webidl.converters.RequestInit(init)
 
     // 1. Let request be null.
     let request = null
@@ -937,7 +936,7 @@ function cloneRequest (request) {
   // 2. If request’s body is non-null, set newRequest’s body to the
   // result of cloning request’s body.
   if (request.body != null) {
-    newRequest.body = cloneBody(newRequest, request.body)
+    newRequest.body = cloneBody(request.body)
   }
 
   // 3. Return newRequest.
@@ -993,8 +992,13 @@ Object.defineProperties(Request.prototype, {
 
 webidl.is.Request = webidl.util.MakeTypeAssertion(Request)
 
-// https://fetch.spec.whatwg.org/#requestinfo
-webidl.converters.RequestInfo = function (V, prefix, argument) {
+/**
+ * @param {*} V
+ * @returns {import('../../../types/fetch').Request|string}
+ *
+ * @see https://fetch.spec.whatwg.org/#requestinfo
+ */
+webidl.converters.RequestInfo = function (V) {
   if (typeof V === 'string') {
     return webidl.converters.USVString(V)
   }
@@ -1006,7 +1010,11 @@ webidl.converters.RequestInfo = function (V, prefix, argument) {
   return webidl.converters.USVString(V)
 }
 
-// https://fetch.spec.whatwg.org/#requestinit
+/**
+ * @param {*} V
+ * @returns {import('../../../types/fetch').RequestInit}
+ * @see https://fetch.spec.whatwg.org/#requestinit
+ */
 webidl.converters.RequestInit = webidl.dictionaryConverter([
   {
     key: 'method',

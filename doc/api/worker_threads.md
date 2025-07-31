@@ -166,7 +166,7 @@ added:
   - v22.14.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if this code is running inside of an internal [`Worker`][] thread (e.g the loader thread).
 
@@ -208,7 +208,7 @@ console.log(isInternalThread);  // false
 added: v10.5.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 Is `true` if this code is not running inside of a [`Worker`][] thread.
 
@@ -431,7 +431,7 @@ events using it.
 added: v10.5.0
 -->
 
-* {null|MessagePort}
+* Type: {null|MessagePort}
 
 If this thread is a [`Worker`][], this is a [`MessagePort`][]
 allowing communication with the parent thread. Messages sent using
@@ -642,7 +642,7 @@ added:
  - v12.16.0
 -->
 
-* {Object}
+* Type: {Object}
   * `maxYoungGenerationSizeMb` {number}
   * `maxOldGenerationSizeMb` {number}
   * `codeRangeSizeMb` {number}
@@ -660,7 +660,7 @@ If this is used in the main thread, its value is an empty object.
 added: v11.14.0
 -->
 
-* {symbol}
+* Type: {symbol}
 
 A special value that can be passed as the `env` option of the [`Worker`][]
 constructor, to indicate that the current thread and the Worker thread should
@@ -715,7 +715,7 @@ instances spawned from the current context.
 added: v10.5.0
 -->
 
-* {integer}
+* Type: {integer}
 
 An integer identifier for the current thread. On the corresponding worker object
 (if there is any), it is available as [`worker.threadId`][].
@@ -753,6 +753,153 @@ if (isMainThread) {
 } else {
   console.log(workerData);  // Prints 'Hello, world!'.
 }
+```
+
+## `worker.locks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* {LockManager}
+
+An instance of a [`LockManager`][LockManager] that can be used to coordinate
+access to resources that may be shared across multiple threads within the same
+process. The API mirrors the semantics of the
+[browser `LockManager`][]
+
+### Class: `Lock`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `Lock` interface provides information about a lock that has been granted via
+[`locks.request()`][locks.request()]
+
+#### `lock.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The name of the lock.
+
+#### `lock.mode`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The mode of the lock. Either `shared` or `exclusive`.
+
+### Class: `LockManager`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `LockManager` interface provides methods for requesting and introspecting
+locks. To obtain a `LockManager` instance use
+
+```mjs
+import { locks } from 'node:worker_threads';
+```
+
+```cjs
+'use strict';
+
+const { locks } = require('node:worker_threads');
+```
+
+This implementation matches the [browser `LockManager`][] API.
+
+#### `locks.request(name[, options], callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string}
+* `options` {Object}
+  * `mode` {string} Either `'exclusive'` or `'shared'`. **Default:** `'exclusive'`.
+  * `ifAvailable` {boolean} If `true`, the request will only be granted if the
+    lock is not already held. If it cannot be granted, `callback` will be
+    invoked with `null` instead of a `Lock` instance. **Default:** `false`.
+  * `steal` {boolean} If `true`, any existing locks with the same name are
+    released and the request is granted immediately, pre-empting any queued
+    requests. **Default:** `false`.
+  * `signal` {AbortSignal} that can be used to abort a
+    pending (but not yet granted) lock request.
+* `callback` {Function} Invoked once the lock is granted (or immediately with
+  `null` if `ifAvailable` is `true` and the lock is unavailable). The lock is
+  released automatically when the function returns, or—if the function returns
+  a promise—when that promise settles.
+* Returns: {Promise} Resolves once the lock has been released.
+
+```mjs
+import { locks } from 'node:worker_threads';
+
+await locks.request('my_resource', async (lock) => {
+  // The lock has been acquired.
+});
+// The lock has been released here.
+```
+
+```cjs
+'use strict';
+
+const { locks } = require('node:worker_threads');
+
+locks.request('my_resource', async (lock) => {
+  // The lock has been acquired.
+}).then(() => {
+  // The lock has been released here.
+});
+```
+
+#### `locks.query()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Resolves with a `LockManagerSnapshot` describing the currently held and pending
+locks for the current process.
+
+```mjs
+import { locks } from 'node:worker_threads';
+
+const snapshot = await locks.query();
+for (const lock of snapshot.held) {
+  console.log(`held lock: name ${lock.name}, mode ${lock.mode}`);
+}
+for (const pending of snapshot.pending) {
+  console.log(`pending lock: name ${pending.name}, mode ${pending.mode}`);
+}
+```
+
+```cjs
+'use strict';
+
+const { locks } = require('node:worker_threads');
+
+locks.query().then((snapshot) => {
+  for (const lock of snapshot.held) {
+    console.log(`held lock: name ${lock.name}, mode ${lock.mode}`);
+  }
+  for (const pending of snapshot.pending) {
+    console.log(`pending lock: name ${pending.name}, mode ${pending.mode}`);
+  }
+});
 ```
 
 ## Class: `BroadcastChannel extends EventTarget`
@@ -1274,7 +1421,9 @@ added:
   - v18.1.0
   - v16.17.0
 changes:
- - version: v24.0.0
+ - version:
+    - v24.0.0
+    - v22.17.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -1611,6 +1760,19 @@ added: v10.5.0
 The `'online'` event is emitted when the worker thread has started executing
 JavaScript code.
 
+### `worker.cpuUsage([prev])`
+
+<!-- YAML
+added:
+- REPLACEME
+-->
+
+* Returns: {Promise}
+
+This method returns a `Promise` that will resolve to an object identical to [`process.threadCpuUsage()`][],
+or reject with an [`ERR_WORKER_NOT_RUNNING`][] error if the worker is no longer running.
+This methods allows the statistics to be observed from outside the actual thread.
+
 ### `worker.getHeapSnapshot([options])`
 
 <!-- YAML
@@ -1641,7 +1803,9 @@ immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 ### `worker.getHeapStatistics()`
 
 <!-- YAML
-added: v24.0.0
+added:
+- v24.0.0
+- v22.16.0
 -->
 
 * Returns: {Promise}
@@ -1770,7 +1934,7 @@ added:
  - v12.16.0
 -->
 
-* {Object}
+* Type: {Object}
   * `maxYoungGenerationSizeMb` {number}
   * `maxOldGenerationSizeMb` {number}
   * `codeRangeSizeMb` {number}
@@ -1788,7 +1952,7 @@ If the worker has stopped, the return value is an empty object.
 added: v10.5.0
 -->
 
-* {stream.Readable}
+* Type: {stream.Readable}
 
 This is a readable stream which contains data written to [`process.stderr`][]
 inside the worker thread. If `stderr: true` was not passed to the
@@ -1801,7 +1965,7 @@ inside the worker thread. If `stderr: true` was not passed to the
 added: v10.5.0
 -->
 
-* {null|stream.Writable}
+* Type: {null|stream.Writable}
 
 If `stdin: true` was passed to the [`Worker`][] constructor, this is a
 writable stream. The data written to this stream will be made available in
@@ -1813,7 +1977,7 @@ the worker thread as [`process.stdin`][].
 added: v10.5.0
 -->
 
-* {stream.Readable}
+* Type: {stream.Readable}
 
 This is a readable stream which contains data written to [`process.stdout`][]
 inside the worker thread. If `stdout: true` was not passed to the
@@ -1845,7 +2009,7 @@ Returns a Promise for the exit code that is fulfilled when the
 added: v10.5.0
 -->
 
-* {integer}
+* Type: {integer}
 
 An integer identifier for the referenced thread. Inside the worker thread,
 it is available as [`require('node:worker_threads').threadId`][].
@@ -1860,6 +2024,21 @@ added: v10.5.0
 Calling `unref()` on a worker allows the thread to exit if this is the only
 active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again has no effect.
+
+### `worker[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: v24.2.0
+-->
+
+Calls [`worker.terminate()`][] when the dispose scope is exited.
+
+```js
+async function example() {
+  await using worker = new Worker('for (;;) {}', { eval: true });
+  // Worker is automatically terminate when the scope is exited.
+}
+```
 
 ## Notes
 
@@ -1918,6 +2097,7 @@ thread spawned will spawn another until the application crashes.
 [Addons worker support]: addons.md#worker-support
 [ECMAScript module loader]: esm.md#data-imports
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
+[LockManager]: #class-lockmanager
 [Signals events]: process.md#signal-events
 [Web Workers]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
 [`'close'` event]: #event-close
@@ -1956,6 +2136,7 @@ thread spawned will spawn another until the application crashes.
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout
+[`process.threadCpuUsage()`]: process.md#processthreadcpuusagepreviousvalue
 [`process.title`]: process.md#processtitle
 [`require('node:worker_threads').isMainThread`]: #workerismainthread
 [`require('node:worker_threads').parentPort.on('message')`]: #event-message
@@ -1973,7 +2154,9 @@ thread spawned will spawn another until the application crashes.
 [`worker.terminate()`]: #workerterminate
 [`worker.threadId`]: #workerthreadid_1
 [async-resource-worker-pool]: async_context.md#using-asyncresource-for-a-worker-thread-pool
+[browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
 [child processes]: child_process.md
 [contextified]: vm.md#what-does-it-mean-to-contextify-an-object
+[locks.request()]: #locksrequestname-options-callback
 [v8.serdes]: v8.md#serialization-api

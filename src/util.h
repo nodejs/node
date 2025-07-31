@@ -822,7 +822,11 @@ class PersistentToLocal {
 // computations.
 class FastStringKey {
  public:
-  constexpr explicit FastStringKey(std::string_view name);
+  // consteval ensures that the argument is a compile-time constant.
+  consteval explicit FastStringKey(std::string_view name);
+  // passing something that is not a compile-time constant needs explicit
+  // opt-in via this helper, as it defeats the purpose of FastStringKey.
+  static constexpr FastStringKey AllowDynamic(std::string_view name);
 
   struct Hash {
     constexpr size_t operator()(const FastStringKey& key) const;
@@ -832,6 +836,8 @@ class FastStringKey {
   constexpr std::string_view as_string_view() const;
 
  private:
+  constexpr explicit FastStringKey(std::string_view name, int dummy);
+
   static constexpr size_t HashImpl(std::string_view str);
 
   const std::string_view name_;
@@ -925,6 +931,16 @@ void SetMethodNoSideEffect(v8::Isolate* isolate,
                            v8::Local<v8::Template> that,
                            const std::string_view name,
                            v8::FunctionCallback callback);
+
+// Set the Symbol.dispose method on the prototype of the class.
+void SetProtoDispose(v8::Isolate* isolate,
+                     v8::Local<v8::FunctionTemplate> that,
+                     v8::FunctionCallback callback);
+
+// Set the Symbol.asyncDispose method on the prototype of the class.
+void SetProtoAsyncDispose(v8::Isolate* isolate,
+                          v8::Local<v8::FunctionTemplate> that,
+                          v8::FunctionCallback callback);
 
 enum class SetConstructorFunctionFlag {
   NONE,

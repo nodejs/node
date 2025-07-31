@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#23.11.1">23.11.1</a><br/>
 <a href="#23.11.0">23.11.0</a><br/>
 <a href="#23.10.0">23.10.0</a><br/>
 <a href="#23.9.0">23.9.0</a><br/>
@@ -50,6 +51,23 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="23.11.1"></a>
+
+## 2025-05-14, Version 23.11.1 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+src:
+
+* (CVE-2025-23166) fix error handling on async crypto operation
+
+### Commits
+
+* \[[`a271810ce2`](https://github.com/nodejs/node/commit/a271810ce2)] - **deps**: update c-ares to v1.34.5 (Node.js GitHub Bot) [#57792](https://github.com/nodejs/node/pull/57792)
+* \[[`a12107f0dd`](https://github.com/nodejs/node/commit/a12107f0dd)] - **(CVE-2025-23166)** **src**: fix error handling on async crypto operations (RafaelGSS) [nodejs-private/node-private#688](https://github.com/nodejs-private/node-private/pull/688)
 
 <a id="23.11.0"></a>
 

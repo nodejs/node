@@ -97,10 +97,10 @@ Maybe<void> HKDFTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool HKDFTraits::DeriveBits(
-    Environment* env,
-    const HKDFConfig& params,
-    ByteSource* out) {
+bool HKDFTraits::DeriveBits(Environment* env,
+                            const HKDFConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
   auto dp = ncrypto::hkdf(params.digest,
                           ncrypto::Buffer<const unsigned char>{
                               .data = reinterpret_cast<const unsigned char*>(

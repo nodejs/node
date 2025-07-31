@@ -216,3 +216,10 @@
 /src/node_options.* @nodejs/config
 /test/parallel/test-config-* @nodejs/config
 /test/parallel/test-dotenv-* @nodejs/config
+
+# Inspector
+/src/inspector/* @nodejs/inspector
+/src/inspector_* @nodejs/inspector
+/lib/internal/inspector/* @nodejs/inspector
+/lib/internal/inspector_* @nodejs/inspector
+/lib/inspector.js @nodejs/inspector

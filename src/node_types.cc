@@ -113,18 +113,15 @@ void InitializeTypes(Local<Object> target,
 void RegisterTypesExternalReferences(ExternalReferenceRegistry* registry) {
 #define V(type)                                                                \
   registry->Register(Is##type);                                                \
-  registry->Register(Is##type##FastApi);                                       \
-  registry->Register(fast_is_##type##_.GetTypeInfo());
+  registry->Register(fast_is_##type##_);
 
   VALUE_METHOD_MAP(V)
 #undef V
 
   registry->Register(IsAnyArrayBuffer);
-  registry->Register(IsAnyArrayBufferFastApi);
-  registry->Register(fast_is_any_array_buffer_.GetTypeInfo());
+  registry->Register(fast_is_any_array_buffer_);
   registry->Register(IsBoxedPrimitive);
-  registry->Register(IsBoxedPrimitiveFastApi);
-  registry->Register(fast_is_boxed_primitive_.GetTypeInfo());
+  registry->Register(fast_is_boxed_primitive_);
 }
 }  // namespace node
 

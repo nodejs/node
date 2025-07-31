@@ -112,7 +112,8 @@ Maybe<void> PBKDF2Traits::AdditionalConfig(
 
 bool PBKDF2Traits::DeriveBits(Environment* env,
                               const PBKDF2Config& params,
-                              ByteSource* out) {
+                              ByteSource* out,
+                              CryptoJobMode mode) {
   // Both pass and salt may be zero length here.
   auto dp = ncrypto::pbkdf2(params.digest,
                             ncrypto::Buffer<const char>{

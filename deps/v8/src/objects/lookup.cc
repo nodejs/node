@@ -399,13 +399,13 @@ void LookupIterator::PrepareForDataProperty(DirectHandle<Object> value) {
     to = GetMoreGeneralElementsKind(kind, to);
 
     if (kind != to) {
-      JSObject::TransitionElementsKind(holder_obj, to);
+      JSObject::TransitionElementsKind(isolate(), holder_obj, to);
     }
 
     // Copy the backing store if it is copy-on-write.
     if (IsSmiOrObjectElementsKind(to) || IsSealedElementsKind(to) ||
         IsNonextensibleElementsKind(to)) {
-      JSObject::EnsureWritableFastElements(holder_obj);
+      JSObject::EnsureWritableFastElements(isolate(), holder_obj);
     }
     return;
   }
@@ -527,7 +527,7 @@ void LookupIterator::ReconfigureDataProperty(DirectHandle<Object> value,
     DirectHandle<FixedArrayBase> elements(holder_obj->elements(isolate_),
                                           isolate());
     holder_obj->GetElementsAccessor(isolate_)->Reconfigure(
-        holder_obj, elements, number_, value, attributes);
+        isolate_, holder_obj, elements, number_, value, attributes);
     ReloadPropertyInformation<true>();
   } else if (holder_obj->HasFastProperties(isolate_)) {
     DirectHandle<Map> old_map(holder_obj->map(isolate_), isolate_);
@@ -761,7 +761,7 @@ void LookupIterator::Delete() {
   if (IsElement(*holder)) {
     DirectHandle<JSObject> object = Cast<JSObject>(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor(isolate_);
-    accessor->Delete(object, number_);
+    accessor->Delete(isolate_, object, number_);
   } else {
     DCHECK(!name()->IsPrivateName());
     bool is_prototype_map = holder->map(isolate_)->is_prototype_map();
@@ -867,7 +867,7 @@ void LookupIterator::TransitionToAccessorPair(DirectHandle<Object> pair,
     // TODO(verwaest): Move code into the element accessor.
     isolate_->CountUsage(v8::Isolate::kIndexAccessor);
     DirectHandle<NumberDictionary> dictionary =
-        JSObject::NormalizeElements(receiver);
+        JSObject::NormalizeElements(isolate_, receiver);
 
     dictionary = NumberDictionary::Set(isolate_, dictionary, array_index(),
                                        pair, receiver, details);
@@ -906,7 +906,8 @@ void LookupIterator::TransitionToAccessorPair(DirectHandle<Object> pair,
 }
 
 bool LookupIterator::HolderIsReceiver() const {
-  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
+  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY ||
+         state_ == TYPED_ARRAY_INDEX_NOT_FOUND);
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   return *receiver_ == *holder_;
@@ -1323,10 +1324,10 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       return LookupInRegularHolder<is_element>(map, holder);
     case ACCESSOR:
     case DATA:
+    case WASM_OBJECT:
       return NOT_FOUND;
     case TYPED_ARRAY_INDEX_NOT_FOUND:
     case JSPROXY:
-    case WASM_OBJECT:
     case TRANSITION:
       UNREACHABLE();
   }
@@ -1465,7 +1466,7 @@ bool LookupIterator::LookupCachedProperty(
   DCHECK_EQ(state(), LookupIterator::ACCESSOR);
   DCHECK(IsAccessorPair(*GetAccessors(), isolate_));
 
-  Tagged<Object> getter = accessor_pair->getter(isolate_);
+  Tagged<Object> getter = accessor_pair->getter();
   std::optional<Tagged<Name>> maybe_name =
       FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
   if (!maybe_name.has_value()) return false;
@@ -1555,7 +1556,7 @@ ConcurrentLookupIterator::TryGetOwnConstantElement(
   // - elements[i] (immutable if constant; be careful around dictionaries).
   // - holder.AsJSPrimitiveWrapper.value.AsString.length (immutable).
   // - holder.AsJSPrimitiveWrapper.value.AsString[i] (immutable).
-  // - single_character_string_table()->get().
+  // - roots.single_character_string(charcode).
 
   if (IsFrozenElementsKind(elements_kind)) {
     if (!IsFixedArray(elements)) return kGaveUp;
@@ -1623,13 +1624,10 @@ ConcurrentLookupIterator::Result ConcurrentLookupIterator::TryGetOwnChar(
 
   if (charcode > unibrow::Latin1::kMaxChar) return kGaveUp;
 
-  Tagged<Object> value =
-      isolate->factory()->single_character_string_table()->get(charcode,
-                                                               kRelaxedLoad);
+  ReadOnlyRoots roots(isolate);
+  Tagged<String> value = roots.single_character_string(charcode);
 
-  DCHECK_NE(value, ReadOnlyRoots(isolate).undefined_value());
-
-  *result_out = Cast<String>(value);
+  *result_out = value;
   return kPresent;
 }
 
@@ -1657,8 +1655,8 @@ ConcurrentLookupIterator::TryGetPropertyCell(
 
     std::optional<Tagged<Name>> maybe_cached_property_name =
         FunctionTemplateInfo::TryGetCachedPropertyName(
-            isolate, Cast<AccessorPair>(maybe_accessor_pair)
-                         ->getter(isolate, kAcquireLoad));
+            isolate,
+            Cast<AccessorPair>(maybe_accessor_pair)->getter(kAcquireLoad));
     if (!maybe_cached_property_name.has_value()) return {};
 
     maybe_cell = dict->TryFindPropertyCellForConcurrentLookupIterator(

@@ -69,9 +69,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLookupGlobalICTrampoline(TypeofMode typeof_mode);
   void GenerateLookupGlobalICBaseline(TypeofMode typeof_mode);
   void GenerateLookupContextTrampoline(TypeofMode typeof_mode,
-                                       ContextKind context_kind);
+                                       ContextMode context_mode);
   void GenerateLookupContextBaseline(TypeofMode typeof_mode,
-                                     ContextKind context_kind);
+                                     ContextMode context_mode);
 
   void GenerateKeyedStoreIC();
   void GenerateKeyedStoreICTrampoline();
@@ -382,7 +382,7 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                       TypeofMode typeof_mode);
   void LookupContext(LazyNode<Object> lazy_name, TNode<TaggedIndex> depth,
                      LazyNode<TaggedIndex> lazy_slot, TNode<Context> context,
-                     TypeofMode typeof_mode, ContextKind context_kind);
+                     TypeofMode typeof_mode, ContextMode context_mode);
 
   void GotoIfNotSameNumberBitPattern(TNode<Float64T> left,
                                      TNode<Float64T> right, Label* miss);

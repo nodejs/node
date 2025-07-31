@@ -12,7 +12,7 @@ const assert = require('assert');
 {
   const script = fixtures.path('debugger', 'three-lines.js');
 
-  const cli = startCLI(['--port=0', script]);
+  const cli = startCLI([script]);
 
   cli.waitForInitialBreak()
     .then(() => cli.waitForPrompt())

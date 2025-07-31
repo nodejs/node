@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -234,8 +234,7 @@ int s_time_main(int argc, char **argv)
     }
 
     /* No extra arguments. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
     if (cipher == NULL)
@@ -311,7 +310,6 @@ int s_time_main(int argc, char **argv)
     }
     totalTime += tm_Time_F(STOP); /* Add the time for this iteration */
 
-    i = (int)((long)time(NULL) - finishtime + maxtime);
     printf
         ("\n\n%d connections in %.2fs; %.2f connections/user sec, bytes read %ld\n",
          nConn, totalTime, ((double)nConn / totalTime), bytes_read);
@@ -325,8 +323,10 @@ int s_time_main(int argc, char **argv)
      */
 
  next:
-    if (!(perform & 2))
+    if (!(perform & 2)) {
+        ret = 0;
         goto end;
+    }
     printf("\n\nNow timing with session id reuse.\n");
 
     /* Get an SSL object so we can reuse the session id */
@@ -339,7 +339,7 @@ int s_time_main(int argc, char **argv)
         buf_len = BIO_snprintf(buf, sizeof(buf), fmt_http_get_cmd, www_path);
         if (buf_len <= 0 || SSL_write(scon, buf, buf_len) <= 0)
             goto end;
-        while ((i = SSL_read(scon, buf, sizeof(buf))) > 0)
+        while (SSL_read(scon, buf, sizeof(buf)) > 0)
             continue;
     }
     SSL_set_shutdown(scon, SSL_SENT_SHUTDOWN | SSL_RECEIVED_SHUTDOWN);

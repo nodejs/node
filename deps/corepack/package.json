@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.32.0",
+  "version": "0.34.0",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -10,27 +10,27 @@
     "url": "https://github.com/nodejs/corepack.git"
   },
   "engines": {
-    "node": "^18.17.1 || ^20.10.0 || >=22.11.0"
+    "node": "^20.10.0 || ^22.11.0 || >=24.0.0"
   },
   "exports": {
     "./package.json": "./package.json"
   },
   "license": "MIT",
-  "packageManager": "yarn@4.6.0+sha512.5383cc12567a95f1d668fbe762dfe0075c595b4bfff433be478dbbe24e05251a8e8c3eb992a986667c1d53b6c3a9c85b8398c35a960587fbd9fa3a0915406728",
+  "packageManager": "yarn@4.9.0+sha224.dce6c5df199861784bd9b0eecb2a228df97e3f18a02b1bb75ff98383",
   "devDependencies": {
     "@types/debug": "^4.1.5",
     "@types/node": "^20.4.6",
     "@types/proxy-from-env": "^1",
     "@types/semver": "^7.1.0",
     "@types/which": "^3.0.0",
-    "@yarnpkg/eslint-config": "^2.0.0",
+    "@yarnpkg/eslint-config": "^3.0.0",
     "@yarnpkg/fslib": "^3.0.0-rc.48",
     "@zkochan/cmd-shim": "^6.0.0",
     "better-sqlite3": "^11.7.2",
     "clipanion": "patch:clipanion@npm%3A3.2.1#~/.yarn/patches/clipanion-npm-3.2.1-fc9187f56c.patch",
     "debug": "^4.1.1",
     "esbuild": "^0.25.0",
-    "eslint": "^8.57.0",
+    "eslint": "^9.22.0",
     "proxy-from-env": "^1.1.0",
     "semver": "^7.6.3",
     "supports-color": "^10.0.0",

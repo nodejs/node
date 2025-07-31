@@ -48,4 +48,4 @@ function hook(code, filename) {
     assert.deepStrictEqual({ ...bar }, { $key: 'bar-esm' });
   }
 
-})().catch(common.mustNotCall());
+})().then(common.mustCall());

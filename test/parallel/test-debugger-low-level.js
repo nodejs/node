@@ -9,7 +9,7 @@ const assert = require('assert');
 
 // Debugger agent direct access.
 {
-  const cli = startCLI(['--port=0', fixtures.path('debugger/three-lines.js')]);
+  const cli = startCLI([fixtures.path('debugger/three-lines.js')]);
   const scriptPattern = /^\* (\d+): \S+debugger(?:\/|\\)three-lines\.js/m;
 
   async function testDebuggerLowLevel() {

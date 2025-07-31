@@ -46,6 +46,19 @@ declare namespace primordials {
   export import decodeURIComponent = globalThis.decodeURIComponent;
   export import encodeURI = globalThis.encodeURI;
   export import encodeURIComponent = globalThis.encodeURIComponent;
+  export const AtomicsAdd: typeof Atomics.add
+  export const AtomicsAnd: typeof Atomics.and
+  export const AtomicsCompareExchange: typeof Atomics.compareExchange
+  export const AtomicsExchange: typeof Atomics.exchange
+  export const AtomicsIsLockFree: typeof Atomics.isLockFree
+  export const AtomicsLoad: typeof Atomics.load
+  export const AtomicsNotify: typeof Atomics.notify
+  export const AtomicsOr: typeof Atomics.or
+  export const AtomicsStore: typeof Atomics.store
+  export const AtomicsSub: typeof Atomics.sub
+  export const AtomicsWait: typeof Atomics.wait
+  export const AtomicsWaitAsync: typeof Atomics.waitAsync
+  export const AtomicsXor: typeof Atomics.xor
   export const JSONParse: typeof JSON.parse
   export const JSONStringify: typeof JSON.stringify
   export const MathAbs: typeof Math.abs
@@ -151,7 +164,7 @@ declare namespace primordials {
   export import ArrayBuffer = globalThis.ArrayBuffer;
   export const ArrayBufferPrototype: typeof ArrayBuffer.prototype
   export const ArrayBufferIsView: typeof ArrayBuffer.isView
-  export const ArrayBufferPrototypeGetDetached: UncurryThis<typeof ArrayBuffer.prototype.detached>
+  export const ArrayBufferPrototypeGetDetached: UncurryGetter<typeof ArrayBuffer.prototype, 'detached'>;
   export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
   export const ArrayBufferPrototypeTransfer: UncurryThis<typeof ArrayBuffer.prototype.transfer>
   export const ArrayBufferPrototypeGetByteLength: UncurryGetter<typeof ArrayBuffer.prototype , "byteLength">;

@@ -46,7 +46,7 @@ struct DecodeRustPunycodeOptions {
 // DecodeRustPunycode is async-signal-safe with bounded runtime and a small
 // stack footprint, making it suitable for use in demangling Rust symbol names
 // from a signal handler.
-absl::Nullable<char*> DecodeRustPunycode(DecodeRustPunycodeOptions options);
+char* absl_nullable DecodeRustPunycode(DecodeRustPunycodeOptions options);
 
 }  // namespace debugging_internal
 ABSL_NAMESPACE_END

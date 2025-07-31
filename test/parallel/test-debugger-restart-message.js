@@ -14,7 +14,7 @@ const startCLI = require('../common/debugger');
 // Using `restart` should result in only one "Connect/For help" message.
 {
   const script = fixtures.path('debugger', 'three-lines.js');
-  const cli = startCLI(['--port=0', script]);
+  const cli = startCLI([script]);
 
   const listeningRegExp = /Debugger listening on/g;
 

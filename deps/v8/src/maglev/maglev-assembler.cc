@@ -60,10 +60,7 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 int char_code) {
   DCHECK_GE(char_code, 0);
   DCHECK_LT(char_code, String::kMaxOneByteCharCode);
-  Register table = result;
-  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedField(result, table,
-                  OFFSET_OF_DATA_START(FixedArray) + char_code * kTaggedSize);
+  LoadRoot(result, RootsTable::SingleCharacterStringIndex(char_code));
 }
 
 void MaglevAssembler::LoadDataField(const PolymorphicAccessInfo& access_info,
@@ -278,6 +275,16 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
         Move(dst, Smi::FromInt(int_value));
       } else {
         MoveHeapNumber(dst, int_value);
+      }
+      return;
+    }
+    case Opcode::kIntPtrConstant: {
+      intptr_t intptr_value = value->Cast<IntPtrConstant>()->value();
+      if (intptr_value <= std::numeric_limits<int>::max() &&
+          Smi::IsValid(static_cast<int>(intptr_value))) {
+        Move(dst, Smi::FromInt(static_cast<int>(intptr_value)));
+      } else {
+        MoveHeapNumber(dst, intptr_value);
       }
       return;
     }
@@ -665,38 +672,6 @@ void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
   CheckAndEmitDeferredWriteBarrier<kElement>(
       array, index, value, register_snapshot, kValueIsDecompressed,
       kValueCanBeSmi);
-}
-
-void MaglevAssembler::GenerateCheckConstTrackingLetCellFooter(Register context,
-                                                              Register data,
-                                                              int index,
-                                                              Label* done) {
-  Label smi_data, deopt;
-
-  // Load the const tracking let side data.
-  LoadTaggedField(
-      data, context,
-      Context::OffsetOfElementAt(Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX));
-
-  LoadTaggedField(data, data,
-                  FixedArray::OffsetOfElementAt(
-                      index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
-
-  // Load property.
-  JumpIfSmi(data, &smi_data, Label::kNear);
-  JumpIfRoot(data, RootIndex::kUndefinedValue, &deopt);
-  if (v8_flags.debug_code) {
-    AssertObjectType(data, CONTEXT_SIDE_PROPERTY_CELL_TYPE,
-                     AbortReason::kUnexpectedValue);
-  }
-  LoadTaggedField(data, data,
-                  ContextSidePropertyCell::kPropertyDetailsRawOffset);
-
-  // It must be different than kConst.
-  bind(&smi_data);
-  CompareTaggedAndJumpIf(data, ContextSidePropertyCell::Const(), kNotEqual,
-                         done, Label::kNear);
-  bind(&deopt);
 }
 
 void MaglevAssembler::TryMigrateInstance(Register object,

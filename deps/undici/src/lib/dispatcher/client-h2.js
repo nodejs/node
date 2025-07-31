@@ -295,11 +295,13 @@ function writeH2 (client, request) {
     if (Array.isArray(val)) {
       for (let i = 0; i < val.length; i++) {
         if (headers[key]) {
-          headers[key] += `,${val[i]}`
+          headers[key] += `, ${val[i]}`
         } else {
           headers[key] = val[i]
         }
       }
+    } else if (headers[key]) {
+      headers[key] += `, ${val}`
     } else {
       headers[key] = val
     }

@@ -8,6 +8,7 @@
 #include "src/execution/microtask-queue.h"
 #include "src/heap/combined-heap.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects-inl.h"
@@ -96,8 +97,8 @@ void ContextSerializer::Serialize(Tagged<Context>* o,
   // explicitly when it's loaded.
   // TODO(v8:10416): These mutations should not observably affect the running
   // context.
-  context_->set(Context::NEXT_CONTEXT_LINK,
-                ReadOnlyRoots(isolate()).undefined_value());
+  context_->SetNoCell(Context::NEXT_CONTEXT_LINK,
+                      ReadOnlyRoots(isolate()).undefined_value());
   DCHECK(!IsUndefined(context_->global_object()));
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
@@ -231,7 +232,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
         }
         Tagged<Code> sfi_code = closure->shared()->GetCode(isolate());
         if (!sfi_code.SafeEquals(closure->code(isolate()))) {
-          closure->UpdateCode(sfi_code);
+          closure->UpdateCode(isolate(), sfi_code);
         }
       }
     }
@@ -258,7 +259,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, &sink_);
   serializer.Serialize(slot_type);
-  if (IsJSApiWrapperObject(obj->map())) {
+  if (InstanceTypeChecker::IsJSApiWrapperObject(instance_type)) {
     SerializeApiWrapperFields(Cast<JSObject>(obj));
   }
 }
@@ -288,7 +289,7 @@ void ContextSerializer::SerializeApiWrapperFields(
     DirectHandle<JSObject> js_object) {
   DCHECK(IsJSApiWrapperObject(*js_object));
   auto* cpp_heap_pointer =
-      JSApiWrapper(*js_object)
+      CppHeapObjectWrapper(*js_object)
           .GetCppHeapWrappable(isolate(), kAnyCppHeapPointer);
   const auto& callback_data = serialize_embedder_fields_.api_wrapper_callback;
   if (callback_data.callback == nullptr && cpp_heap_pointer == nullptr) {

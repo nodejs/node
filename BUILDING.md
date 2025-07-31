@@ -122,6 +122,7 @@ platforms. This is true regardless of entries in the table below.
 | SmartOS          | x64              | >= 18                             | Tier 2       |                                      |
 | AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2       |                                      |
 | FreeBSD          | x64              | >= 13.2                           | Experimental |                                      |
+| OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                      |
 
 <!--lint disable final-definition-->
 

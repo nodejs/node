@@ -51,7 +51,8 @@ void PageMetadata::ReleaseFreeListCategories() {
   }
 }
 
-PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page) {
+PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page,
+                                            FreeMode free_mode) {
   DCHECK(old_page);
   MemoryChunk* chunk = old_page->Chunk();
   DCHECK(chunk->InNewSpace());
@@ -63,7 +64,7 @@ PageMetadata* PageMetadata::ConvertNewToOld(PageMetadata* old_page) {
   chunk->SetOldGenerationPageFlags(
       old_page->heap()->incremental_marking()->marking_mode(), OLD_SPACE);
   PageMetadata* new_page = old_space->InitializePage(old_page);
-  old_space->AddPromotedPage(new_page);
+  old_space->AddPromotedPage(new_page, free_mode);
   return new_page;
 }
 
@@ -81,71 +82,6 @@ void PageMetadata::MarkNeverAllocateForTesting() {
   chunk->SetFlagSlow(MemoryChunk::NEVER_ALLOCATE_ON_PAGE);
   chunk->SetFlagSlow(MemoryChunk::NEVER_EVACUATE);
   reinterpret_cast<PagedSpace*>(owner())->free_list()->EvictFreeListItems(this);
-}
-
-#ifdef DEBUG
-namespace {
-// Skips filler starting from the given filler until the end address.
-// Returns the first address after the skipped fillers.
-Address SkipFillers(PtrComprCageBase cage_base, Tagged<HeapObject> filler,
-                    Address end) {
-  Address addr = filler.address();
-  while (addr < end) {
-    filler = HeapObject::FromAddress(addr);
-    CHECK(IsFreeSpaceOrFiller(filler, cage_base));
-    addr = filler.address() + filler->Size(cage_base);
-  }
-  return addr;
-}
-}  // anonymous namespace
-#endif  // DEBUG
-
-size_t PageMetadata::ShrinkToHighWaterMark() {
-  // Shrinking only makes sense outside of the CodeRange, where we don't care
-  // about address space fragmentation.
-  VirtualMemory* reservation = reserved_memory();
-  if (!reservation->IsReserved()) return 0;
-
-  // Shrink pages to high water mark. The water mark points either to a filler
-  // or the area_end.
-  Tagged<HeapObject> filler = HeapObject::FromAddress(HighWaterMark());
-  if (filler.address() == area_end()) return 0;
-  PtrComprCageBase cage_base(heap()->isolate());
-  CHECK(IsFreeSpaceOrFiller(filler, cage_base));
-  // Ensure that no objects were allocated in [filler, area_end) region.
-  DCHECK_EQ(area_end(), SkipFillers(cage_base, filler, area_end()));
-  // Ensure that no objects will be allocated on this page.
-  DCHECK_EQ(0u, AvailableInFreeList());
-
-  // Ensure that slot sets are empty. Otherwise the buckets for the shrunk
-  // area would not be freed when deallocating this page.
-  DCHECK_NULL(slot_set<OLD_TO_NEW>());
-  DCHECK_NULL(slot_set<OLD_TO_NEW_BACKGROUND>());
-  DCHECK_NULL(slot_set<OLD_TO_OLD>());
-
-  Chunk()->SetFlagNonExecutable(MemoryChunk::SHRINK_TO_HIGH_WATER_MARK);
-
-  size_t unused = RoundDown(static_cast<size_t>(area_end() - filler.address()),
-                            MemoryAllocator::GetCommitPageSize());
-  if (unused > 0) {
-    DCHECK_EQ(0u, unused % MemoryAllocator::GetCommitPageSize());
-    if (v8_flags.trace_gc_verbose) {
-      PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
-                   reinterpret_cast<void*>(this),
-                   reinterpret_cast<void*>(area_end()),
-                   reinterpret_cast<void*>(area_end() - unused));
-    }
-    heap()->CreateFillerObjectAt(
-        filler.address(),
-        static_cast<int>(area_end() - filler.address() - unused));
-    heap()->memory_allocator()->PartialFreeMemory(
-        this, ChunkAddress() + size() - unused, unused, area_end() - unused);
-    if (filler.address() != area_end()) {
-      CHECK(IsFreeSpaceOrFiller(filler, cage_base));
-      CHECK_EQ(filler.address() + filler->Size(cage_base), area_end());
-    }
-  }
-  return unused;
 }
 
 void PageMetadata::CreateBlackArea(Address start, Address end) {

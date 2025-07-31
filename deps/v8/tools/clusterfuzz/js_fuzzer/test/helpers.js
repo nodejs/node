@@ -107,11 +107,24 @@ function assertExpectedResult(expectedPath, result) {
   assert.strictEqual(expected.join('\n'), result.trim());
 }
 
+function assertFile(expectedPath, actualPath) {
+  const actual = fs.readFileSync(actualPath, 'utf-8');
+  const absPath = path.join(BASE_DIR, expectedPath);
+  if (process.env.GENERATE) {
+    fs.writeFileSync(absPath, actual);
+    return;
+  }
+
+  const expected = fs.readFileSync(absPath, 'utf-8');
+  assert.strictEqual(expected, actual);
+}
+
 module.exports = {
   BASE_DIR: BASE_DIR,
   DB_DIR: DB_DIR,
   FUZZILLI_TEST_CORPUS: FUZZILLI_TEST_CORPUS,
   TEST_CORPUS: TEST_CORPUS,
+  assertFile: assertFile,
   assertExpectedPath: assertExpectedPath,
   assertExpectedResult: assertExpectedResult,
   cycleProbabilitiesFun: cycleProbabilitiesFun,

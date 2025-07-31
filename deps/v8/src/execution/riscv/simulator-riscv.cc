@@ -8377,7 +8377,12 @@ void Simulator::CallImpl(Address entry, CallArgument* args) {
               << " a2 (func/target) = 0x" << get_register(a2)
               << " a3 (receiver) = 0x" << get_register(a3) << " a4 (argc) = 0x"
               << get_register(a4) << " a5 (argv) = 0x" << get_register(a5)
-              << std::endl;
+              << " fa0 = 0x" << get_fpu_register(fa0) << " fa1 = 0x"
+              << get_fpu_register(fa1) << " fa2 = 0x" << get_fpu_register(fa2)
+              << " fa3 = 0x" << get_fpu_register(fa3) << " fa4 = 0x"
+              << get_fpu_register(fa4) << " fa5 = 0x" << get_fpu_register(fa5)
+              << " fa6 = 0x" << get_fpu_register(fa6) << " fa7 = 0x"
+              << get_fpu_register(fa7) << std::endl;
   }
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);

@@ -564,13 +564,11 @@ void VisitBinopImpl(InstructionSelectorT* selector, OpIndex binop_idx,
                     OpIndex left_node, OpIndex right_node,
                     RegisterRepresentation rep, InstructionCode opcode,
                     ImmediateMode operand_mode, FlagsContinuationT* cont) {
+  DCHECK(!cont->IsConditionalSet() && !cont->IsConditionalBranch());
   Arm64OperandGeneratorT g(selector);
   constexpr uint32_t kMaxFlagSetInputs = 3;
-  constexpr uint32_t kMaxCcmpOperands =
-      FlagsContinuationT::kMaxCompareChainSize * kNumCcmpOperands;
-  constexpr uint32_t kExtraCcmpInputs = 2;
-  constexpr uint32_t kMaxInputs =
-      kMaxFlagSetInputs + kMaxCcmpOperands + kExtraCcmpInputs;
+  constexpr uint32_t kMaxSelectInputs = 2;
+  constexpr uint32_t kMaxInputs = kMaxFlagSetInputs + kMaxSelectInputs;
   InstructionOperand inputs[kMaxInputs];
   size_t input_count = 0;
   InstructionOperand outputs[1];
@@ -581,10 +579,6 @@ void VisitBinopImpl(InstructionSelectorT* selector, OpIndex binop_idx,
   bool must_commute_cond = MustCommuteCondField::decode(properties);
   bool is_add_sub = IsAddSubField::decode(properties);
 
-  // We've already commuted the flags while searching for the pattern.
-  if (cont->IsConditionalSet() || cont->IsConditionalBranch()) {
-    can_commute = false;
-  }
   if (g.CanBeImmediate(right_node, operand_mode)) {
     inputs[input_count++] = g.UseRegister(left_node);
     inputs[input_count++] = g.UseImmediate(right_node);
@@ -635,30 +629,9 @@ void VisitBinopImpl(InstructionSelectorT* selector, OpIndex binop_idx,
     // overwriting the inputs.
     inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
     inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());
-  } else if (cont->IsConditionalSet() || cont->IsConditionalBranch()) {
-    DCHECK_LE(input_count, kMaxInputs);
-    auto& compares = cont->compares();
-    for (unsigned i = 0; i < cont->num_conditional_compares(); ++i) {
-      auto compare = compares[i];
-      inputs[input_count + kCcmpOffsetOfOpcode] = g.TempImmediate(compare.code);
-      inputs[input_count + kCcmpOffsetOfLhs] = g.UseRegisterAtEnd(compare.lhs);
-      if (g.CanBeImmediate(compare.rhs, kConditionalCompareImm)) {
-        inputs[input_count + kCcmpOffsetOfRhs] = g.UseImmediate(compare.rhs);
-      } else {
-        inputs[input_count + kCcmpOffsetOfRhs] =
-            g.UseRegisterAtEnd(compare.rhs);
-      }
-      inputs[input_count + kCcmpOffsetOfDefaultFlags] =
-          g.TempImmediate(compare.default_flags);
-      inputs[input_count + kCcmpOffsetOfCompareCondition] =
-          g.TempImmediate(compare.compare_condition);
-      input_count += kNumCcmpOperands;
-    }
-    inputs[input_count++] = g.TempImmediate(cont->final_condition());
-    inputs[input_count++] =
-        g.TempImmediate(static_cast<int32_t>(cont->num_conditional_compares()));
+  } else if (cont->IsBranch() && cont->hint() != BranchHint::kNone) {
+    opcode |= BranchHintField::encode(true);
   }
-
   DCHECK_NE(0u, input_count);
   DCHECK((output_count != 0) || IsComparisonField::decode(properties));
   DCHECK_GE(arraysize(inputs), input_count);
@@ -749,7 +722,7 @@ int32_t LeftShiftForReducedMultiply(InstructionSelectorT* selector,
 
 // Try to match Add(Mul(x, y), z) and emit Madd(x, y, z) for it.
 template <typename MultiplyOpmaskT>
-bool TryEmitMulitplyAdd(InstructionSelectorT* selector, OpIndex add,
+bool TryEmitMultiplyAdd(InstructionSelectorT* selector, OpIndex add,
                         OpIndex lhs, OpIndex rhs, InstructionCode madd_opcode) {
   const Operation& add_lhs = selector->Get(lhs);
   if (!add_lhs.Is<MultiplyOpmaskT>() || !selector->CanCover(add, lhs)) {
@@ -768,13 +741,13 @@ bool TryEmitMulitplyAdd(InstructionSelectorT* selector, OpIndex add,
 
 bool TryEmitMultiplyAddInt32(InstructionSelectorT* selector, OpIndex add,
                              OpIndex lhs, OpIndex rhs) {
-  return TryEmitMulitplyAdd<Opmask::kWord32Mul>(selector, add, lhs, rhs,
+  return TryEmitMultiplyAdd<Opmask::kWord32Mul>(selector, add, lhs, rhs,
                                                 kArm64Madd32);
 }
 
 bool TryEmitMultiplyAddInt64(InstructionSelectorT* selector, OpIndex add,
                              OpIndex lhs, OpIndex rhs) {
-  return TryEmitMulitplyAdd<Opmask::kWord64Mul>(selector, add, lhs, rhs,
+  return TryEmitMultiplyAdd<Opmask::kWord64Mul>(selector, add, lhs, rhs,
                                                 kArm64Madd);
 }
 
@@ -964,7 +937,7 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
     }
   }
 
-  if (base_op.Is<LoadRootRegisterOp>()) {
+  if (base_op.Is<LoadRootRegisterOp>() && is_index_constant) {
     DCHECK(is_index_constant);
     input_count = 1;
     inputs[0] = g.UseImmediate64(index_constant);
@@ -1468,6 +1441,9 @@ class CompareSequence {
         code, ccmp_condition, default_flags, ccmp_lhs, ccmp_rhs};
     ++num_ccmps_;
   }
+  bool IsFloatCmp() const {
+    return opcode() == kArm64Float32Cmp || opcode() == kArm64Float64Cmp;
+  }
 
  private:
   InstructionCode GetOpcode(RegisterRepresentation rep) const {
@@ -1476,6 +1452,10 @@ class CompareSequence {
         return kArm64Cmp32;
       case RegisterRepresentation::Word64():
         return kArm64Cmp;
+      case RegisterRepresentation::Float32():
+        return kArm64Float32Cmp;
+      case RegisterRepresentation::Float64():
+        return kArm64Float64Cmp;
       default:
         UNREACHABLE();
     }
@@ -1570,6 +1550,18 @@ static std::optional<FlagsCondition> GetFlagsCondition(
           return FlagsCondition::kUnsignedLessThan;
         case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
           return FlagsCondition::kUnsignedLessThanOrEqual;
+        default:
+          UNREACHABLE();
+      }
+    } else if (comparison->rep == RegisterRepresentation::Float32() ||
+               comparison->rep == RegisterRepresentation::Float64()) {
+      switch (comparison->kind) {
+        case ComparisonOp::Kind::kEqual:
+          return FlagsCondition::kEqual;
+        case ComparisonOp::Kind::kSignedLessThan:
+          return FlagsCondition::kFloatLessThan;
+        case ComparisonOp::Kind::kSignedLessThanOrEqual:
+          return FlagsCondition::kFloatLessThanOrEqual;
         default:
           UNREACHABLE();
       }
@@ -1831,6 +1823,56 @@ static std::optional<FlagsCondition> TryMatchConditionalCompareChainShared(
   return logic_nodes.back()->user_condition();
 }
 
+static void VisitCompareChain(InstructionSelectorT* selector, OpIndex left_node,
+                              OpIndex right_node, RegisterRepresentation rep,
+                              InstructionCode opcode,
+                              ImmediateMode operand_mode,
+                              FlagsContinuationT* cont) {
+  DCHECK(cont->IsConditionalSet() || cont->IsConditionalBranch());
+  Arm64OperandGeneratorT g(selector);
+  constexpr uint32_t kMaxFlagSetInputs = 2;
+  constexpr uint32_t kMaxCcmpOperands =
+      FlagsContinuationT::kMaxCompareChainSize * kNumCcmpOperands;
+  constexpr uint32_t kExtraCcmpInputs = 2;
+  constexpr uint32_t kMaxInputs =
+      kMaxFlagSetInputs + kMaxCcmpOperands + kExtraCcmpInputs;
+  InstructionOperand inputs[kMaxInputs];
+  size_t input_count = 0;
+
+  if (g.CanBeImmediate(right_node, operand_mode)) {
+    inputs[input_count++] = g.UseRegister(left_node);
+    inputs[input_count++] = g.UseImmediate(right_node);
+  } else {
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
+    inputs[input_count++] = g.UseRegister(right_node);
+  }
+
+  auto& compares = cont->compares();
+  for (unsigned i = 0; i < cont->num_conditional_compares(); ++i) {
+    auto compare = compares[i];
+    inputs[input_count + kCcmpOffsetOfOpcode] = g.TempImmediate(compare.code);
+    inputs[input_count + kCcmpOffsetOfLhs] = g.UseRegisterAtEnd(compare.lhs);
+    if ((compare.code == kArm64Cmp32 || compare.code == kArm64Cmp) &&
+        g.CanBeImmediate(compare.rhs, kConditionalCompareImm)) {
+      inputs[input_count + kCcmpOffsetOfRhs] = g.UseImmediate(compare.rhs);
+    } else {
+      inputs[input_count + kCcmpOffsetOfRhs] = g.UseRegisterAtEnd(compare.rhs);
+    }
+    inputs[input_count + kCcmpOffsetOfDefaultFlags] =
+        g.TempImmediate(compare.default_flags);
+    inputs[input_count + kCcmpOffsetOfCompareCondition] =
+        g.TempImmediate(compare.compare_condition);
+    input_count += kNumCcmpOperands;
+  }
+  inputs[input_count++] = g.TempImmediate(cont->final_condition());
+  inputs[input_count++] =
+      g.TempImmediate(static_cast<int32_t>(cont->num_conditional_compares()));
+
+  DCHECK_GE(arraysize(inputs), input_count);
+
+  selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs, cont);
+}
+
 static bool TryMatchConditionalCompareChainBranch(
     InstructionSelectorT* selector, Zone* zone, OpIndex node,
     FlagsContinuationT* cont) {
@@ -1848,9 +1890,11 @@ static bool TryMatchConditionalCompareChainBranch(
         sequence.ccmps(), sequence.num_ccmps(), condition, cont->true_block(),
         cont->false_block());
 
-    VisitBinopImpl(selector, sequence.cmp(), sequence.left(), sequence.right(),
-                   selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
-                   sequence.opcode(), kArithmeticImm, &new_cont);
+    ImmediateMode imm_mode =
+        sequence.IsFloatCmp() ? kNoImmediate : kArithmeticImm;
+    VisitCompareChain(selector, sequence.left(), sequence.right(),
+                      selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
+                      sequence.opcode(), imm_mode, &new_cont);
 
     return true;
   }
@@ -1868,9 +1912,11 @@ static bool TryMatchConditionalCompareChainSet(InstructionSelectorT* selector,
     FlagsContinuationT cont = FlagsContinuationT::ForConditionalSet(
         sequence.ccmps(), sequence.num_ccmps(), final_cond.value(), node);
 
-    VisitBinopImpl(selector, sequence.cmp(), sequence.left(), sequence.right(),
-                   selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
-                   sequence.opcode(), kArithmeticImm, &cont);
+    ImmediateMode imm_mode =
+        sequence.IsFloatCmp() ? kNoImmediate : kArithmeticImm;
+    VisitCompareChain(selector, sequence.left(), sequence.right(),
+                      selector->Get(sequence.cmp()).Cast<ComparisonOp>().rep,
+                      sequence.opcode(), imm_mode, &cont);
     return true;
   }
   return false;
@@ -2146,7 +2192,8 @@ void InstructionSelectorT::VisitStackPointerGreaterThan(
   kind = op.kind;
   value = op.stack_limit();
   InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
+      kArchStackPointerGreaterThan |
+      StackCheckField::encode(static_cast<StackCheckKind>(kind));
 
   Arm64OperandGeneratorT g(this);
 
@@ -2477,9 +2524,17 @@ RRR_OP_T_LIST(RRR_VISITOR)
 #undef RRR_VISITOR
 #undef RRR_OP_T_LIST
 
-void InstructionSelectorT::VisitWord32Ctz(OpIndex node) { UNREACHABLE(); }
+void InstructionSelectorT::VisitWord32Ctz(OpIndex node) {
+  DCHECK(CpuFeatures::IsSupported(CSSC));
 
-void InstructionSelectorT::VisitWord64Ctz(OpIndex node) { UNREACHABLE(); }
+  VisitRR(this, kArm64Ctz32, node);
+}
+
+void InstructionSelectorT::VisitWord64Ctz(OpIndex node) {
+  DCHECK(CpuFeatures::IsSupported(CSSC));
+
+  VisitRR(this, kArm64Ctz, node);
+}
 
 void InstructionSelectorT::VisitInt32Add(OpIndex node) {
   const WordBinopOp& add = this->Get(node).Cast<WordBinopOp>();
@@ -3233,6 +3288,10 @@ void EmitBranchOrDeoptimize(InstructionSelectorT* selector,
                             InstructionCode opcode, InstructionOperand value,
                             FlagsContinuationT* cont) {
   DCHECK(cont->IsBranch() || cont->IsDeoptimize());
+  if ((cont->IsBranch() && cont->hint() != BranchHint::kNone) ||
+      cont->IsDeoptimize()) {
+    opcode |= BranchHintField::encode(true);
+  }
   selector->EmitWithContinuation(opcode, value, cont);
 }
 
@@ -4612,8 +4671,7 @@ void InstructionSelectorT::VisitInt64AbsWithOverflow(OpIndex node) {
   V(I16x8RelaxedQ15MulRS, kArm64I16x8Q15MulRSatS) \
   V(I8x16SConvertI16x8, kArm64I8x16SConvertI16x8) \
   V(I8x16UConvertI16x8, kArm64I8x16UConvertI16x8) \
-  V(S128Or, kArm64S128Or)                         \
-  V(S128Xor, kArm64S128Xor)
+  V(S128Or, kArm64S128Or)
 
 #define SIMD_BINOP_LANE_SIZE_LIST(V)                   \
   V(F64x2Min, kArm64FMin, 64)                          \
@@ -5098,7 +5156,37 @@ bool SmlalHelper(InstructionSelectorT* selector, OpIndex node, int lane_size,
   return true;
 }
 
+template <typename OpmaskT>
+bool sha3helper(InstructionSelectorT* selector, OpIndex node,
+                InstructionCode sha3_code) {
+  Arm64OperandGeneratorT g(selector);
+  SimdBinopMatcherTurboshaft m(selector, node);
+  if (!m.InputMatches<OpmaskT>() ||
+      !selector->CanCover(node, m.matched_input())) {
+    return false;
+  }
+  const Operation& matched = selector->Get(m.matched_input());
+  selector->Emit(
+      sha3_code, g.DefineSameAsFirst(node), g.UseRegister(m.other_input()),
+      g.UseRegister(matched.input(0)), g.UseRegister(matched.input(1)));
+  return true;
+}
+
 }  // namespace
+
+void InstructionSelectorT::VisitS128Xor(OpIndex node) {
+  Arm64OperandGeneratorT g(this);
+
+  if (!CpuFeatures::IsSupported(SHA3)) {
+    return VisitRRR(this, kArm64S128Xor, node);
+  }
+
+  if (sha3helper<Opmask::kSimd128AndNot>(this, node, kArm64Bcax) ||
+      sha3helper<Opmask::kSimd128Xor>(this, node, kArm64Eor3))
+    return;
+
+  return VisitRRR(this, kArm64S128Xor, node);
+}
 
 void InstructionSelectorT::VisitI64x2Add(OpIndex node) {
   if (ShraHelper<Opmask::kSimd128I64x2ShrS>(
@@ -5714,6 +5802,10 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   if (CpuFeatures::IsSupported(FP16)) {
     flags |= MachineOperatorBuilder::kFloat16 |
              MachineOperatorBuilder::kFloat16RawBitsConversion;
+  }
+  if (CpuFeatures::IsSupported(CSSC)) {
+    flags |=
+        MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord64Ctz;
   }
   return flags;
 }

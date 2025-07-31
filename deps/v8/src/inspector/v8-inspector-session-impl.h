@@ -33,7 +33,7 @@ using protocol::Response;
 class V8InspectorSessionImpl : public V8InspectorSession,
                                public protocol::FrontendChannel {
  public:
-  static std::unique_ptr<V8InspectorSessionImpl> create(
+  static V8InspectorSessionImpl* create(
       V8InspectorImpl*, int contextGroupId, int sessionId,
       V8Inspector::Channel*, StringView state,
       v8_inspector::V8Inspector::ClientTrustLevel,
@@ -108,6 +108,10 @@ class V8InspectorSessionImpl : public V8InspectorSession,
     return m_clientTrustLevel;
   }
 
+  void setWeakThis(std::weak_ptr<V8InspectorSessionImpl> weakThis) {
+    m_weakThis = std::move(weakThis);
+  }
+
  private:
   V8InspectorSessionImpl(V8InspectorImpl*, int contextGroupId, int sessionId,
                          V8Inspector::Channel*, StringView state,
@@ -145,6 +149,20 @@ class V8InspectorSessionImpl : public V8InspectorSession,
       m_inspectedObjects;
   bool use_binary_protocol_ = false;
   V8Inspector::ClientTrustLevel m_clientTrustLevel = V8Inspector::kUntrusted;
+
+  // On each call to "dispatchProtocolMessage", the session turns the weakThis
+  // reference into a strong one, so nested run loops are not able to fully
+  // deconstruct the V8 session until we return from the
+  // "dispatchProtocolMessage" call (i.e. no freed "this" remains on the stack).
+  class KeepSessionAliveScope {
+   public:
+    explicit KeepSessionAliveScope(const V8InspectorSessionImpl& session)
+        : m_this(session.m_weakThis.lock()) {}
+
+   private:
+    std::shared_ptr<V8InspectorSessionImpl> m_this;
+  };
+  std::weak_ptr<V8InspectorSessionImpl> m_weakThis;
 };
 
 }  // namespace v8_inspector

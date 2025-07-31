@@ -583,26 +583,6 @@ MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env) {
   return env->platform();
 }
 
-MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    node::tracing::TracingController* tracing_controller) {
-  return CreatePlatform(
-      thread_pool_size,
-      static_cast<v8::TracingController*>(tracing_controller));
-}
-
-MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    v8::TracingController* tracing_controller) {
-  return MultiIsolatePlatform::Create(thread_pool_size,
-                                      tracing_controller)
-      .release();
-}
-
-void FreePlatform(MultiIsolatePlatform* platform) {
-  delete platform;
-}
-
 std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
     int thread_pool_size,
     v8::TracingController* tracing_controller,
@@ -787,13 +767,13 @@ MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
   Context::Scope context_scope(context);
 
   Local<ObjectTemplate> private_symbols = ObjectTemplate::New(isolate);
-  Local<Object> private_symbols_object;
 #define V(PropertyName, _)                                                     \
   private_symbols->Set(isolate, #PropertyName, isolate_data->PropertyName());
 
   PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
 #undef V
 
+  Local<Object> private_symbols_object;
   if (!private_symbols->NewInstance(context).ToLocal(&private_symbols_object) ||
       private_symbols_object->SetPrototypeV2(context, Null(isolate))
           .IsNothing()) {
@@ -801,6 +781,32 @@ MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
   }
 
   return scope.Escape(private_symbols_object);
+}
+
+MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
+                                               IsolateData* isolate_data) {
+  CHECK(isolate_data);
+  Isolate* isolate = context->GetIsolate();
+  EscapableHandleScope scope(isolate);
+  Context::Scope context_scope(context);
+
+  Local<ObjectTemplate> per_isolate_symbols = ObjectTemplate::New(isolate);
+#define V(PropertyName, _)                                                     \
+  per_isolate_symbols->Set(                                                    \
+      isolate, #PropertyName, isolate_data->PropertyName());
+
+  PER_ISOLATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+  Local<Object> per_isolate_symbols_object;
+  if (!per_isolate_symbols->NewInstance(context).ToLocal(
+          &per_isolate_symbols_object) ||
+      per_isolate_symbols_object->SetPrototypeV2(context, Null(isolate))
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  return scope.Escape(per_isolate_symbols_object);
 }
 
 Maybe<void> InitializePrimordials(Local<Context> context,
@@ -832,6 +838,12 @@ Maybe<void> InitializePrimordials(Local<Context> context,
     return Nothing<void>();
   }
 
+  Local<Object> per_isolate_symbols;
+  if (!InitializePerIsolateSymbols(context, isolate_data)
+           .ToLocal(&per_isolate_symbols)) {
+    return Nothing<void>();
+  }
+
   static const char* context_files[] = {"internal/per_context/primordials",
                                         "internal/per_context/domexception",
                                         "internal/per_context/messageport",
@@ -847,7 +859,8 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   builtin_loader.SetEagerCompile();
 
   for (const char** module = context_files; *module != nullptr; module++) {
-    Local<Value> arguments[] = {exports, primordials, private_symbols};
+    Local<Value> arguments[] = {
+        exports, primordials, private_symbols, per_isolate_symbols};
 
     if (builtin_loader
             .CompileAndCall(

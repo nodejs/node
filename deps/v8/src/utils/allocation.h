@@ -274,6 +274,11 @@ class VirtualMemory final {
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT bool RecommitPages(
       Address address, size_t size, PageAllocator::Permission access);
 
+  // Resizes the reservation starting at |address| to |new_size| and commits the
+  // additional memory range with the |access| permissions.
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT bool Resize(
+      Address address, size_t new_size, PageAllocator::Permission access);
+
   // Frees memory in the given [address, address + size) range. address and size
   // should be operating system page-aligned. The next write to this
   // memory area brings the memory transparently back. This should be treated as

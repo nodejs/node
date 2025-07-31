@@ -47,6 +47,83 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
+  util.styleText('red',
+                 'A' + util.styleText('blue', 'B', { validateStream: false }) + 'C',
+                 { validateStream: false }),
+  '\u001b[31mA\u001b[34mB\u001b[31mC\u001b[39m'
+);
+
+assert.strictEqual(
+  util.styleText('red',
+                 'red' +
+    util.styleText('blue', 'blue', { validateStream: false }) +
+    'red' +
+    util.styleText('blue', 'blue', { validateStream: false }) +
+    'red',
+                 { validateStream: false }
+  ),
+  '\x1B[31mred\x1B[34mblue\x1B[31mred\x1B[34mblue\x1B[31mred\x1B[39m'
+);
+
+assert.strictEqual(
+  util.styleText('red',
+                 'red' +
+    util.styleText('blue', 'blue', { validateStream: false }) +
+    'red' +
+    util.styleText('red', 'red', { validateStream: false }) +
+    'red' +
+    util.styleText('blue', 'blue', { validateStream: false }),
+                 { validateStream: false }
+  ),
+  '\x1b[31mred\x1b[34mblue\x1b[31mred\x1b[31mred\x1b[31mred\x1b[34mblue\x1b[39m\x1b[39m'
+);
+
+assert.strictEqual(
+  util.styleText('red',
+                 'A' + util.styleText(['bgRed', 'blue'], 'B', { validateStream: false }) +
+    'C', { validateStream: false }),
+  '\x1B[31mA\x1B[41m\x1B[34mB\x1B[31m\x1B[49mC\x1B[39m'
+);
+
+assert.strictEqual(
+  util.styleText('dim',
+                 'dim' +
+    util.styleText('bold', 'bold', { validateStream: false }) +
+  'dim', { validateStream: false }),
+  '\x1B[2mdim\x1B[1mbold\x1B[22m\x1B[2mdim\x1B[22m'
+);
+
+assert.strictEqual(
+  util.styleText('blue',
+                 'blue' +
+    util.styleText('red',
+                   'red' +
+      util.styleText('green', 'green', { validateStream: false }) +
+      'red', { validateStream: false }) +
+    'blue', { validateStream: false }),
+  '\x1B[34mblue\x1B[31mred\x1B[32mgreen\x1B[31mred\x1B[34mblue\x1B[39m'
+);
+
+assert.strictEqual(
+  util.styleText(
+    'red',
+    'red' +
+    util.styleText(
+      'blue',
+      'blue' + util.styleText('red', 'red', {
+        validateStream: false,
+      }) + 'blue',
+      {
+        validateStream: false,
+      }
+    ) + 'red', {
+      validateStream: false,
+    }
+  ),
+  '\x1b[31mred\x1b[34mblue\x1b[31mred\x1b[34mblue\x1b[31mred\x1b[39m'
+);
+
+assert.strictEqual(
   util.styleText(['bold', 'red'], 'test', { validateStream: false }),
   util.styleText(
     'bold',
@@ -74,6 +151,8 @@ assert.strictEqual(
   util.styleText('red', 'test', { validateStream: false }),
   styled,
 );
+
+assert.strictEqual(util.styleText('none', 'test'), 'test');
 
 const fd = common.getTTYfd();
 if (fd !== -1) {

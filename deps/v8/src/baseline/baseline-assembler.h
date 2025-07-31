@@ -208,11 +208,11 @@ class BaselineAssembler {
     kDefault,
     kForceDecompression,
   };
-  inline void LdaContextSlot(
+  inline void LdaContextSlotNoCell(
       Register context, uint32_t index, uint32_t depth,
       CompressionMode compression_mode = CompressionMode::kDefault);
-  inline void StaContextSlot(Register context, Register value, uint32_t index,
-                             uint32_t depth);
+  inline void StaContextSlotNoCell(Register context, Register value,
+                                   uint32_t index, uint32_t depth);
   inline void LdaModuleVariable(Register context, int cell_index,
                                 uint32_t depth);
   inline void StaModuleVariable(Register context, Register value,

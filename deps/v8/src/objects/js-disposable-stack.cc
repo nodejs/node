@@ -235,11 +235,11 @@ Maybe<bool> JSAsyncDisposableStack::NextDisposeAsyncIteration(
                 static_cast<int>(
                     JSDisposableStackBase::AsyncDisposableStackContextSlots::
                         kLength));
-        async_disposable_stack_context->set(
+        async_disposable_stack_context->SetNoCell(
             static_cast<int>(JSDisposableStackBase::
                                  AsyncDisposableStackContextSlots::kStack),
             *async_disposable_stack);
-        async_disposable_stack_context->set(
+        async_disposable_stack_context->SetNoCell(
             static_cast<int>(
                 JSDisposableStackBase::AsyncDisposableStackContextSlots::
                     kOuterPromise),

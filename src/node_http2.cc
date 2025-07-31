@@ -159,6 +159,12 @@ Http2Options::Http2Options(Http2State* http2_state, SessionType type) {
         buffer[IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS]);
   }
 
+  // Validate headers in accordance to RFC-9113
+  if (flags & (1 << IDX_OPTIONS_STRICT_HTTP_FIELD_WHITESPACE_VALIDATION)) {
+    nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation(
+        option, buffer[IDX_OPTIONS_STRICT_HTTP_FIELD_WHITESPACE_VALIDATION]);
+  }
+
   // The padding strategy sets the mechanism by which we determine how much
   // additional frame padding to apply to DATA and HEADERS frames. Currently
   // this is set on a per-session basis, but eventually we may switch to
@@ -2104,7 +2110,10 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
       [[likely]] {
     // Shrink to the actual amount of used data.
     std::unique_ptr<BackingStore> old_bs = std::move(bs);
-    bs = ArrayBuffer::NewBackingStore(env()->isolate(), nread);
+    bs = ArrayBuffer::NewBackingStore(
+        env()->isolate(),
+        nread,
+        BackingStoreInitializationMode::kUninitialized);
     memcpy(bs->Data(), old_bs->Data(), nread);
   } else {
     // This is a very unlikely case, and should only happen if the ReadStart()

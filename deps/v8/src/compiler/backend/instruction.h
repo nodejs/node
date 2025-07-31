@@ -961,6 +961,7 @@ class V8_EXPORT_PRIVATE Instruction final {
   FlagsCondition flags_condition() const {
     return FlagsConditionField::decode(opcode());
   }
+  bool branch_hinted() const { return BranchHintField::decode(opcode()); }
   int misc() const { return MiscField::decode(opcode()); }
   bool HasMemoryAccessMode() const {
     return compiler::HasMemoryAccessMode(arch_opcode());
@@ -1742,7 +1743,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
     return loop_end_;
   }
   inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
-  inline bool IsSwitchTarget() const { return switch_target_; }
+  inline bool IsTableSwitchTarget() const { return table_switch_target_; }
   inline bool ShouldAlignCodeTarget() const { return code_target_alignment_; }
   inline bool ShouldAlignLoopHeader() const { return loop_header_alignment_; }
   inline bool IsLoopHeaderInAssemblyOrder() const {
@@ -1775,7 +1776,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   void set_code_target_alignment(bool val) { code_target_alignment_ = val; }
   void set_loop_header_alignment(bool val) { loop_header_alignment_ = val; }
 
-  void set_switch_target(bool val) { switch_target_ = val; }
+  void set_table_switch_target(bool val) { table_switch_target_ = val; }
 
   bool needs_frame() const { return needs_frame_; }
   void mark_needs_frame() { needs_frame_ = true; }
@@ -1800,7 +1801,8 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   int32_t code_end_ = -1;    // end index of arch-specific code.
   const bool deferred_ : 1;  // Block contains deferred code.
   bool handler_ : 1;         // Block is a handler entry point.
-  bool switch_target_ : 1;
+  bool table_switch_target_ : 1;  // Block is a table switch target, implying an
+                                  //  indirect jump.
   bool code_target_alignment_ : 1;  // insert code target alignment before this
                                     // block
   bool loop_header_alignment_ : 1;  // insert loop header alignment before this

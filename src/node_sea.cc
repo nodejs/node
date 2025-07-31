@@ -41,6 +41,7 @@ using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Object;
 using v8::ScriptCompiler;
+using v8::ScriptOrigin;
 using v8::String;
 using v8::Value;
 
@@ -399,10 +400,9 @@ ExitCode GenerateSnapshotForSEA(const SeaConfig& config,
     return exit_code;
   }
   auto& persistents = snapshot.env_info.principal_realm.persistent_values;
-  auto it = std::find_if(
-      persistents.begin(), persistents.end(), [](const PropInfo& prop) {
-        return prop.name == "snapshot_deserialize_main";
-      });
+  auto it = std::ranges::find_if(persistents, [](const PropInfo& prop) {
+    return prop.name == "snapshot_deserialize_main";
+  });
   if (it == persistents.end()) {
     FPrintF(
         stderr,
@@ -460,16 +460,23 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
           FIXED_ONE_BYTE_STRING(isolate, "__filename"),
           FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
       });
+  ScriptOrigin script_origin(filename, 0, 0, true);
+  ScriptCompiler::Source script_source(content, script_origin);
+  MaybeLocal<Function> maybe_fn =
+      ScriptCompiler::CompileFunction(context,
+                                      &script_source,
+                                      parameters.size(),
+                                      parameters.data(),
+                                      0,
+                                      nullptr);
+  Local<Function> fn;
+  if (!maybe_fn.ToLocal(&fn)) {
+    return std::nullopt;
+  }
 
   // TODO(RaisinTen): Using the V8 code cache prevents us from using `import()`
   // in the SEA code. Support it.
   // Refs: https://github.com/nodejs/node/pull/48191#discussion_r1213271430
-  Local<Function> fn;
-  if (!contextify::CompileFunction(context, filename, content, &parameters)
-           .ToLocal(&fn)) {
-    return std::nullopt;
-  }
-
   std::unique_ptr<ScriptCompiler::CachedData> cache{
       ScriptCompiler::CreateCodeCacheForFunction(fn)};
   std::string code_cache(cache->data, cache->data + cache->length);

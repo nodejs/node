@@ -226,7 +226,7 @@ BUILTIN(TypedArrayPrototypeFill) {
   //   c. Set k to k + 1.
   // 20. Return O.
   RETURN_RESULT_OR_FAILURE(isolate, ElementsAccessor::ForKind(kind)->Fill(
-                                        array, obj_value, start, end));
+                                        isolate, array, obj_value, start, end));
 }
 
 BUILTIN(TypedArrayPrototypeIncludes) {
@@ -352,6 +352,15 @@ SimdutfBase64OptionsVector() {
           {"base64url", 9, simdutf::base64_options::base64_url}};
 }
 
+std::vector<
+    std::tuple<const char*, size_t, simdutf::last_chunk_handling_options>>
+SimdutfLastChunkHandlingOptionsVector() {
+  return {{"loose", 5, simdutf::last_chunk_handling_options::loose},
+          {"strict", 6, simdutf::last_chunk_handling_options::strict},
+          {"stop-before-partial", 19,
+           simdutf::last_chunk_handling_options::stop_before_partial}};
+}
+
 template <typename T>
 Maybe<T> MapOptionToEnum(
     Isolate* isolate, DirectHandle<String> option_string,
@@ -392,6 +401,72 @@ Maybe<T> MapOptionToEnum(
   return Nothing<T>();
 }
 
+Maybe<std::pair<simdutf::base64_options, simdutf::last_chunk_handling_options>>
+HandleOptionsBag(Isolate* isolate, DirectHandle<Object> options) {
+  simdutf::base64_options alphabet;
+  simdutf::last_chunk_handling_options last_chunk_handling;
+
+  // 1. Let alphabet be ? Get(opts, "alphabet").
+  DirectHandle<Object> opt_alphabet;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, opt_alphabet,
+      JSObject::ReadFromOptionsBag(
+          options, isolate->factory()->alphabet_string(), isolate),
+      (Nothing<std::pair<simdutf::base64_options,
+                         simdutf::last_chunk_handling_options>>()));
+
+  // 2. If alphabet is undefined, set alphabet to "base64".
+  if (IsUndefined(*opt_alphabet)) {
+    alphabet = simdutf::base64_default;
+  } else if (!IsString(*opt_alphabet)) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kInvalidOption, opt_alphabet));
+    return Nothing<std::pair<simdutf::base64_options,
+                             simdutf::last_chunk_handling_options>>();
+  } else {
+    // 3. If alphabet is neither "base64" nor "base64url", throw a TypeError
+    //    exception.
+    DirectHandle<String> alphabet_string = Cast<String>(opt_alphabet);
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, alphabet,
+        MapOptionToEnum(isolate, alphabet_string, SimdutfBase64OptionsVector()),
+        (Nothing<std::pair<simdutf::base64_options,
+                           simdutf::last_chunk_handling_options>>()));
+  }
+
+  // 4. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
+  DirectHandle<Object> opt_last_chunk_handling;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, opt_last_chunk_handling,
+      JSObject::ReadFromOptionsBag(
+          options, isolate->factory()->last_chunk_handling_string(), isolate),
+      (Nothing<std::pair<simdutf::base64_options,
+                         simdutf::last_chunk_handling_options>>()));
+
+  // 5. If lastChunkHandling is undefined, set lastChunkHandling to "loose".
+  if (IsUndefined(*opt_last_chunk_handling)) {
+    last_chunk_handling = simdutf::last_chunk_handling_options::loose;
+  } else if (!IsString(*opt_last_chunk_handling)) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kInvalidOption, opt_last_chunk_handling));
+    return Nothing<std::pair<simdutf::base64_options,
+                             simdutf::last_chunk_handling_options>>();
+  } else {
+    // 6. If lastChunkHandling is not one of "loose", "strict", or
+    //     "stop-before-partial", throw a TypeError exception.
+    DirectHandle<String> last_chunk_handling_string =
+        Cast<String>(opt_last_chunk_handling);
+
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, last_chunk_handling,
+        MapOptionToEnum(isolate, last_chunk_handling_string,
+                        SimdutfLastChunkHandlingOptionsVector()),
+        (Nothing<std::pair<simdutf::base64_options,
+                           simdutf::last_chunk_handling_options>>()));
+  }
+  return Just(std::make_pair(alphabet, last_chunk_handling));
+}
+
 MessageTemplate ToMessageTemplate(simdutf::error_code error) {
   switch (error) {
     case simdutf::error_code::INVALID_BASE64_CHARACTER:
@@ -408,9 +483,9 @@ MessageTemplate ToMessageTemplate(simdutf::error_code error) {
 template <typename T>
 Maybe<simdutf::result> ArrayBufferFromBase64(
     Isolate* isolate, T input_vector, size_t input_length,
-    size_t& output_length, simdutf::base64_options alphabet,
+    simdutf::base64_options alphabet,
     simdutf::last_chunk_handling_options last_chunk_handling,
-    DirectHandle<JSArrayBuffer>& buffer) {
+    DirectHandle<JSArrayBuffer>& buffer, size_t& output_length) {
   const char method_name[] = "Uint8Array.fromBase64";
 
   output_length = simdutf::maximal_binary_length_from_base64(
@@ -437,6 +512,25 @@ Maybe<simdutf::result> ArrayBufferFromBase64(
   return Just<simdutf::result>(simd_result);
 }
 
+template <typename T>
+simdutf::result ArrayBufferSetFromBase64(
+    T input_vector, size_t input_length, size_t array_length,
+    simdutf::base64_options alphabet,
+    simdutf::last_chunk_handling_options last_chunk_handling,
+    DirectHandle<JSTypedArray> typed_array, size_t& output_length) {
+  // TODO(rezvan): Add path for typed arrays backed by SharedArrayBuffer
+  if (typed_array->buffer()->is_shared()) {
+    UNIMPLEMENTED();
+  }
+  output_length = array_length;
+  simdutf::result simd_result = simdutf::base64_to_binary_safe(
+      reinterpret_cast<const T>(input_vector), input_length,
+      reinterpret_cast<char*>(typed_array->DataPtr()), output_length, alphabet,
+      last_chunk_handling);
+
+  return simd_result;
+}
+
 }  // namespace
 
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.frombase64
@@ -457,64 +551,11 @@ BUILTIN(Uint8ArrayFromBase64) {
   // 2. Let opts be ? GetOptionsObject(options).
   DirectHandle<Object> options = args.atOrUndefined(isolate, 2);
 
-  // 3. Let alphabet be ? Get(opts, "alphabet").
-  DirectHandle<Object> opt_alphabet;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, opt_alphabet,
-      JSObject::ReadFromOptionsBag(
-          options, isolate->factory()->alphabet_string(), isolate));
-
-  // 4. If alphabet is undefined, set alphabet to "base64".
-  simdutf::base64_options alphabet;
-  if (IsUndefined(*opt_alphabet)) {
-    alphabet = simdutf::base64_default;
-  } else if (!IsString(*opt_alphabet)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kInvalidOption, opt_alphabet));
-  } else {
-    // 5. If alphabet is neither "base64" nor "base64url", throw a TypeError
-    // exception.
-    DirectHandle<String> alphabet_string = Cast<String>(opt_alphabet);
-
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, alphabet,
-        MapOptionToEnum(isolate, alphabet_string,
-                        SimdutfBase64OptionsVector()));
-  }
-
-  // 6. Let lastChunkHandling be ? Get(opts, "lastChunkHandling").
-  DirectHandle<Object> opt_last_chunk_handling;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, opt_last_chunk_handling,
-      JSObject::ReadFromOptionsBag(
-          options, isolate->factory()->last_chunk_handling_string(), isolate));
-
-  // 7. If lastChunkHandling is undefined, set lastChunkHandling to "loose".
-  simdutf::last_chunk_handling_options last_chunk_handling;
-  if (IsUndefined(*opt_last_chunk_handling)) {
-    last_chunk_handling = simdutf::last_chunk_handling_options::loose;
-  } else if (!IsString(*opt_last_chunk_handling)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidOption, opt_last_chunk_handling));
-  } else {
-    // 8. If lastChunkHandling is not one of "loose", "strict", or
-    // "stop-before-partial", throw a TypeError exception.
-    DirectHandle<String> last_chunk_handling_string =
-        Cast<String>(opt_last_chunk_handling);
-
-    std::vector<
-        std::tuple<const char*, size_t, simdutf::last_chunk_handling_options>>
-        last_chunk_handling_vector = {
-            {"loose", 5, simdutf::last_chunk_handling_options::loose},
-            {"strict", 6, simdutf::last_chunk_handling_options::strict},
-            {"stop-before-partial", 19,
-             simdutf::last_chunk_handling_options::stop_before_partial}};
-    MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, last_chunk_handling,
-        MapOptionToEnum(isolate, last_chunk_handling_string,
-                        last_chunk_handling_vector));
-  }
+  // Steps 3-8 handled in HandleOptionsBag
+  std::pair<simdutf::base64_options, simdutf::last_chunk_handling_options>
+      options_pair;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, options_pair,
+                                           HandleOptionsBag(isolate, options));
 
   // 9. Let result be ? FromBase64(string, alphabet, lastChunkHandling).
   size_t input_length;
@@ -532,8 +573,8 @@ BUILTIN(Uint8ArrayFromBase64) {
           isolate, simd_result,
           ArrayBufferFromBase64(isolate,
                                 reinterpret_cast<const char*>(input_vector),
-                                input_length, output_length, alphabet,
-                                last_chunk_handling, buffer));
+                                input_length, options_pair.first,
+                                options_pair.second, buffer, output_length));
     } else {
       const base::uc16* input_vector = input_content.ToUC16Vector().data();
       input_length = input_content.ToUC16Vector().size();
@@ -541,8 +582,8 @@ BUILTIN(Uint8ArrayFromBase64) {
           isolate, simd_result,
           ArrayBufferFromBase64(isolate,
                                 reinterpret_cast<const char16_t*>(input_vector),
-                                input_length, output_length, alphabet,
-                                last_chunk_handling, buffer));
+                                input_length, options_pair.first,
+                                options_pair.second, buffer, output_length));
     }
   }
 
@@ -555,15 +596,121 @@ BUILTIN(Uint8ArrayFromBase64) {
 
   // 11. Let resultLength be the length of result.[[Bytes]].
   // 12. Let ta be ? AllocateTypedArray("Uint8Array", %Uint8Array%,
-  // "%Uint8Array.prototype%", resultLength).
+  //     "%Uint8Array.prototype%", resultLength).
   // 13. Set the value at each index of
-  // ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the
-  // corresponding index of result.[[Bytes]].
+  //     ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the
+  //     corresponding index of result.[[Bytes]].
   // 14. Return ta.
   DirectHandle<JSTypedArray> result_typed_array =
       isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
                                           output_length);
   return *result_typed_array;
+}
+
+// https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.setfrombase64
+BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
+  HandleScope scope(isolate);
+  const char method_name[] = "Uint8Array.prototype.setFromBase64";
+
+  // 1. Let into be the this value.
+  // 2. Perform ? ValidateUint8Array(into).
+  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
+  if (uint8array->GetElementsKind() != ElementsKind::UINT8_ELEMENTS) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  // 3. If string is not a String, throw a TypeError exception.
+  DirectHandle<Object> input = args.atOrUndefined(isolate, 1);
+  if (!IsString(*input)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kArgumentIsNonString,
+                              isolate->factory()->input_string()));
+  }
+
+  DirectHandle<String> input_string =
+      String::Flatten(isolate, Cast<String>(input));
+
+  // 4. Let opts be ? GetOptionsObject(options).
+  DirectHandle<Object> options = args.atOrUndefined(isolate, 2);
+
+  // Steps 5-10 handled in HandleOptionsBag
+  std::pair<simdutf::base64_options, simdutf::last_chunk_handling_options>
+      options_pair;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, options_pair,
+                                           HandleOptionsBag(isolate, options));
+
+  // 11. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(into, seq-cst).
+  // 12. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError
+  //     exception.
+  // 13. Let byteLength be TypedArrayLength(taRecord).
+  bool out_of_bounds = false;
+  size_t array_length = uint8array->GetLengthOrOutOfBounds(out_of_bounds);
+
+  if (out_of_bounds || uint8array->WasDetached()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  // 14. Let result be FromBase64(string, alphabet, lastChunkHandling,
+  //     byteLength).
+  // 15. Let bytes be result.[[Bytes]].
+  // 16. Let written be the length of bytes.
+  // 17. NOTE: FromBase64 does not invoke any user code, so the ArrayBuffer
+  //     backing into cannot have been detached or shrunk.
+  size_t input_length;
+  size_t output_length;
+  simdutf::result simd_result;
+  {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent input_content = input_string->GetFlatContent(no_gc);
+    if (input_content.IsOneByte()) {
+      const unsigned char* input_vector =
+          input_content.ToOneByteVector().data();
+      input_length = input_content.ToOneByteVector().size();
+      simd_result = ArrayBufferSetFromBase64(
+          reinterpret_cast<const char*>(input_vector), input_length,
+          array_length, options_pair.first, options_pair.second, uint8array,
+          output_length);
+    } else {
+      const base::uc16* input_vector = input_content.ToUC16Vector().data();
+      input_length = input_content.ToUC16Vector().size();
+      simd_result = ArrayBufferSetFromBase64(
+          reinterpret_cast<const char16_t*>(input_vector), input_length,
+          array_length, options_pair.first, options_pair.second, uint8array,
+          output_length);
+    }
+  }
+
+  // 18. Assert: written ≤ byteLength.
+  DCHECK_LE(output_length, array_length);
+  // 19. Perform SetUint8ArrayBytes(into, bytes).
+  // already done in ArrayBufferSetFromBase64.
+
+  // 20. If result.[[Error]] is not none, then
+  //    a. Throw result.[[Error]].
+  // the typed array length may be less than the required output length. In that
+  // case, the result has written in typed array to the available length and
+  // we should not throw here.
+  if (simd_result.error != simdutf::error_code::SUCCESS &&
+      simd_result.error != simdutf::error_code::OUTPUT_BUFFER_TOO_SMALL) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(ToMessageTemplate(simd_result.error)));
+  }
+
+  // 21. Let resultObject be OrdinaryObjectCreate(%Object.prototype%).
+  // 22. Perform ! CreateDataPropertyOrThrow(resultObject, "read",
+  //     𝔽(result.[[Read]])).
+  // 23. Perform ! CreateDataPropertyOrThrow(resultObject, "written",
+  //     𝔽(written)).
+  // 24. Return resultObject.
+  return *isolate->factory()->NewJSUint8ArraySetFromResult(
+      isolate->factory()->NewNumberFromSize(simd_result.count),
+      isolate->factory()->NewNumberFromSize(output_length));
 }
 
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.tobase64
@@ -735,11 +882,15 @@ BUILTIN(Uint8ArrayFromHex) {
       if (input_content.IsOneByte()) {
         base::Vector<const uint8_t> input_vector =
             input_content.ToOneByteVector();
-        result = ArrayBufferFromHex(input_vector, buffer, output_length);
+        result = ArrayBufferFromHex(
+            input_vector, static_cast<uint8_t*>(buffer->backing_store()),
+            output_length);
       } else {
         base::Vector<const base::uc16> input_vector =
             input_content.ToUC16Vector();
-        result = ArrayBufferFromHex(input_vector, buffer, output_length);
+        result = ArrayBufferFromHex(
+            input_vector, static_cast<uint8_t*>(buffer->backing_store()),
+            output_length);
       }
   }
 
@@ -757,6 +908,105 @@ BUILTIN(Uint8ArrayFromHex) {
       isolate->factory()->NewJSTypedArray(kExternalUint8Array, buffer, 0,
                                           output_length);
   return *result_typed_array;
+}
+
+// https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.setfromhex
+BUILTIN(Uint8ArrayPrototypeSetFromHex) {
+  HandleScope scope(isolate);
+  const char method_name[] = "Uint8Array.prototypr.setFromHex";
+
+  // 1. Let into be the this value.
+  // 2. Perform ? ValidateUint8Array(into).
+  CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
+  if (uint8array->GetElementsKind() != ElementsKind::UINT8_ELEMENTS) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  // 3. If string is not a String, throw a TypeError exception.
+  DirectHandle<Object> input = args.atOrUndefined(isolate, 1);
+  if (!IsString(*input)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kArgumentIsNonString,
+                              isolate->factory()->input_string()));
+  }
+
+  DirectHandle<String> input_string =
+      String::Flatten(isolate, Cast<String>(input));
+
+  // 4. Let taRecord be MakeTypedArrayWithBufferWitnessRecord(into, seq-cst).
+  // 5. If IsTypedArrayOutOfBounds(taRecord) is true, throw a TypeError
+  // exception.
+  // 6. Let byteLength be TypedArrayLength(taRecord).
+  bool out_of_bounds = false;
+  size_t array_length = uint8array->GetLengthOrOutOfBounds(out_of_bounds);
+
+  if (out_of_bounds || uint8array->WasDetached()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  method_name)));
+  }
+
+  size_t input_length = input_string->length();
+  if (input_length % 2 != 0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(MessageTemplate::kInvalidHexString));
+  }
+
+  size_t output_length = (input_length / 2);
+  output_length = std::min(output_length, array_length);
+
+  // TODO(rezvan): Add path for typed arrays backed by SharedArrayBuffer
+  if (uint8array->buffer()->is_shared()) {
+    UNIMPLEMENTED();
+  }
+
+  // 7. Let result be FromHex(string, byteLength).
+  // 8. Let bytes be result.[[Bytes]].
+  // 9. Let written be the length of bytes.
+  // 10. NOTE: FromHex does not invoke any user code, so the ArrayBuffer backing
+  // into cannot have been detached or shrunk.
+  // 11. Assert: written ≤ byteLength.
+  // 12. Perform SetUint8ArrayBytes(into, bytes).
+  bool result;
+  {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent input_content = input_string->GetFlatContent(no_gc);
+
+    if (input_content.IsOneByte()) {
+      base::Vector<const uint8_t> input_vector =
+          input_content.ToOneByteVector();
+      result = ArrayBufferFromHex(input_vector,
+                                  static_cast<uint8_t*>(uint8array->DataPtr()),
+                                  output_length);
+    } else {
+      base::Vector<const base::uc16> input_vector =
+          input_content.ToUC16Vector();
+      result = ArrayBufferFromHex(input_vector,
+                                  static_cast<uint8_t*>(uint8array->DataPtr()),
+                                  output_length);
+    }
+  }
+
+  // 13. If result.[[Error]] is not none, then
+  //     a. Throw result.[[Error]].
+  if (!result) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(MessageTemplate::kInvalidHexString));
+  }
+
+  // 14. Let resultObject be OrdinaryObjectCreate(%Object.prototype%).
+  // 15. Perform ! CreateDataPropertyOrThrow(resultObject, "read",
+  // 𝔽(result.[[Read]])).
+  // 16. Perform ! CreateDataPropertyOrThrow(resultObject, "written",
+  // 𝔽(written)).
+  // 17. Return resultObject.
+  return *isolate->factory()->NewJSUint8ArraySetFromResult(
+      isolate->factory()->NewNumberFromSize(output_length * 2),
+      isolate->factory()->NewNumberFromSize(output_length));
 }
 
 // https://tc39.es/proposal-arraybuffer-base64/spec/#sec-uint8array.prototype.tohex

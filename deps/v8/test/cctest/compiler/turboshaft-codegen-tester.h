@@ -505,20 +505,23 @@ class IntBinopWrapper {
   TurboshaftBinop op;
 };
 
-#define COMPARE_LIST(V)    \
-  V(TaggedEqual)           \
-  V(Word32Equal)           \
-  V(Int32LessThan)         \
-  V(Int32LessThanOrEqual)  \
-  V(Uint32LessThan)        \
-  V(Uint32LessThanOrEqual) \
-  V(Word64Equal)           \
-  V(Int64LessThan)         \
-  V(Int64LessThanOrEqual)  \
-  V(Uint64LessThan)        \
-  V(Uint64LessThanOrEqual) \
-  V(Float64Equal)          \
-  V(Float64LessThan)       \
+#define COMPARE_LIST(V)     \
+  V(TaggedEqual)            \
+  V(Word32Equal)            \
+  V(Int32LessThan)          \
+  V(Int32LessThanOrEqual)   \
+  V(Uint32LessThan)         \
+  V(Uint32LessThanOrEqual)  \
+  V(Word64Equal)            \
+  V(Int64LessThan)          \
+  V(Int64LessThanOrEqual)   \
+  V(Uint64LessThan)         \
+  V(Uint64LessThanOrEqual)  \
+  V(Float32Equal)           \
+  V(Float32LessThan)        \
+  V(Float32LessThanOrEqual) \
+  V(Float64Equal)           \
+  V(Float64LessThan)        \
   V(Float64LessThanOrEqual)
 
 enum class TurboshaftComparison {
@@ -577,6 +580,19 @@ class CompareWrapper {
         return static_cast<uint64_t>(a) < static_cast<uint64_t>(b);
       case TurboshaftComparison::kUint64LessThanOrEqual:
         return static_cast<uint64_t>(a) <= static_cast<uint64_t>(b);
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  bool Float32Compare(float a, float b) const {
+    switch (op) {
+      case TurboshaftComparison::kFloat32Equal:
+        return a == b;
+      case TurboshaftComparison::kFloat32LessThan:
+        return a < b;
+      case TurboshaftComparison::kFloat32LessThanOrEqual:
+        return a <= b;
       default:
         UNREACHABLE();
     }

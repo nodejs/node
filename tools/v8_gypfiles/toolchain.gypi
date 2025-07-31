@@ -40,9 +40,15 @@
     'ubsan_vptr%': 0,
     'has_valgrind%': 0,
     'coverage%': 0,
+
+    # Toolchain settings.
     'v8_target_arch%': '<(target_arch)',
     'v8_host_byteorder%': '<!("<(python)" -c "import sys; print(sys.byteorder)")',
     'force_dynamic_crt%': 0,
+
+    # Enable control-flow integrity features, such as pointer authentication
+    # for ARM64.
+    'v8_control_flow_integrity%': 0,
 
     # Setting 'v8_can_use_vfp32dregs' to 'true' will cause V8 to use the VFP
     # registers d16-d31 in the generated code, both in the snapshot and for the
@@ -86,10 +92,10 @@
     'binutils_dir%': '',
 
     'conditions': [
-      ['OS=="linux" and host_arch=="x64"', {
+      ['OS in "linux openharmony" and host_arch=="x64"', {
         'binutils_dir%': 'third_party/binutils/Linux_x64/Release/bin',
       }],
-      ['OS=="linux" and host_arch=="ia32"', {
+      ['OS in "linux openharmony" and host_arch=="ia32"', {
         'binutils_dir%': 'third_party/binutils/Linux_ia32/Release/bin',
       }],
     ],
@@ -98,10 +104,6 @@
     'gcmole%': 0,
   },
   'target_defaults': {
-    'include_dirs': [
-      '<(V8_ROOT)',
-      '<(V8_ROOT)/include',
-    ],
     'cflags!': ['-Wall', '-Wextra'],
     'conditions': [
       ['clang==0 and OS!="win"', {
@@ -530,7 +532,7 @@
           'V8_TARGET_OS_IOS',
         ]
       }],
-      ['OS=="linux"', {
+      ['OS=="linux" or OS=="openharmony"', {
         'defines': [
           'V8_HAVE_TARGET_OS',
           'V8_TARGET_OS_LINUX',
@@ -548,9 +550,7 @@
           'V8_TARGET_OS_WIN',
         ]
       }],
-      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
-        v8_target_arch=="ia32"', {
+      ['OS in "linux freebsd openbsd solaris netbsd mac android qnx openharmony" and v8_target_arch=="ia32"', {
         'cflags': [
           '-msse2',
           '-mfpmath=sse',
@@ -591,7 +591,7 @@
           'DEBUG',
         ],
         'conditions': [
-          ['OS=="linux" and v8_enable_backtrace==1', {
+          ['OS in "linux openharmony" and v8_enable_backtrace==1', {
             # Support for backtrace_symbols.
             'ldflags': [ '-rdynamic' ],
           }],
@@ -638,8 +638,7 @@
               'v8_enable_slow_dchecks%': 1,
             },
             'conditions': [
-              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix" or OS=="os400"', {
+              ['OS in "linux freebsd openbsd netbsd qnx aix os400 openharmony"', {
                 'cflags!': [
                   '-O3',
                   '-O2',
@@ -689,8 +688,7 @@
               'v8_enable_slow_dchecks%': 0,
             },
             'conditions': [
-              ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
-            OS=="qnx" or OS=="aix" or OS=="os400"', {
+              ['OS in "linux freebsd openbsd netbsd qnx aix os400 openharmony"', {
                 'cflags!': [
                   '-O0',
                   '-O1',
@@ -741,8 +739,7 @@
          # Temporary refs: https://github.com/nodejs/node/pull/23801
         'defines!': ['ENABLE_HANDLE_ZAPPING',],
         'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
-            or OS=="aix" or OS=="os400"', {
+          ['OS in "linux freebsd openbsd netbsd aix os400 openharmony"', {
             'cflags!': [
               '-Os',
             ],

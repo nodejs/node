@@ -92,8 +92,7 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
     }
   }
 
-  if (base_op.Is<LoadRootRegisterOp>()) {
-    DCHECK(g.IsIntegerConstant(index));
+  if (base_op.Is<LoadRootRegisterOp>() && g.IsIntegerConstant(index)) {
     input_count = 1;
     inputs[0] = g.UseImmediate64(*g.GetOptionalIntegerConstant(index.value()));
     opcode |= AddressingModeField::encode(kMode_Root);
@@ -673,12 +672,14 @@ void InstructionSelectorT::VisitUnalignedLoad(OpIndex node) {
 
 void InstructionSelectorT::VisitUnalignedStore(OpIndex node) {
   RiscvOperandGeneratorT g(this);
-  OpIndex base = this->input_at(node, 0);
-  OpIndex index = this->input_at(node, 1);
-  OpIndex value = this->input_at(node, 2);
-  UnalignedStoreRepresentation rep = UnalignedStoreRepresentationOf(node->op());
+  auto store_view = this->store_view(node);
+  OpIndex base = store_view.base();
+  OpIndex index = this->value(store_view.index());
+  OpIndex value = store_view.value();
+  UnalignedStoreRepresentation store_rep =
+      store_view.stored_rep().representation();
   ArchOpcode opcode;
-  switch (rep) {
+  switch (store_rep) {
     case MachineRepresentation::kFloat32:
       opcode = kRiscvUStoreFloat;
       break;
@@ -823,7 +824,8 @@ void InstructionSelectorT::VisitStackPointerGreaterThan(
   kind = op.kind;
   value = op.stack_limit();
   InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
+      kArchStackPointerGreaterThan |
+      StackCheckField::encode(static_cast<StackCheckKind>(kind));
 
   RiscvOperandGeneratorT g(this);
 

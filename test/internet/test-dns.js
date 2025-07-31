@@ -629,21 +629,6 @@ TEST(function test_lookup_ip_promise(done) {
 });
 
 
-TEST(async function test_lookup_null_all(done) {
-  assert.deepStrictEqual(await dnsPromises.lookup(null, { all: true }), []);
-
-  const req = dns.lookup(null, { all: true }, (err, ips) => {
-    assert.ifError(err);
-    assert.ok(Array.isArray(ips));
-    assert.strictEqual(ips.length, 0);
-
-    done();
-  });
-
-  checkWrap(req);
-});
-
-
 TEST(async function test_lookup_all_mixed(done) {
   function validateResult(result) {
     assert.ok(Array.isArray(result));

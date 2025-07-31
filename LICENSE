@@ -1545,9 +1545,9 @@ The externally maintained libraries used by Node.js are:
 - zlib, located at deps/zlib, is licensed as follows:
   """
     zlib.h -- interface of the 'zlib' general purpose compression library
-    version 1.3.0.1, August xxth, 2023
+    version 1.3.1, January 22nd, 2024
 
-    Copyright (C) 1995-2023 Jean-loup Gailly and Mark Adler
+    Copyright (C) 1995-2024 Jean-loup Gailly and Mark Adler
 
     This software is provided 'as-is', without any express or implied
     warranty.  In no event will the authors be held liable for any damages
@@ -2100,7 +2100,7 @@ The externally maintained libraries used by Node.js are:
 
 - inspector_protocol, located at deps/inspector_protocol, is licensed as follows:
   """
-    // Copyright 2016 The Chromium Authors. All rights reserved.
+    // Copyright 2016 The Chromium Authors.
     //
     // Redistribution and use in source and binary forms, with or without
     // modification, are permitted provided that the following conditions are

@@ -11,7 +11,7 @@ function createRedirectInterceptor ({ maxRedirections: defaultMaxRedirections } 
         return dispatch(opts, handler)
       }
 
-      const dispatchOpts = { ...rest, maxRedirections: 0 } // Stop sub dispatcher from also redirecting.
+      const dispatchOpts = { ...rest } // Stop sub dispatcher from also redirecting.
       const redirectHandler = new RedirectHandler(dispatch, maxRedirections, dispatchOpts, handler)
       return dispatch(dispatchOpts, redirectHandler)
     }

@@ -1002,28 +1002,7 @@ OptionalObjectRef ContextRef::get(JSHeapBroker* broker, int index) const {
   CHECK_LE(0, index);
   // Length is immutable after initialization.
   if (index >= object()->length(kRelaxedLoad)) return {};
-  return TryMakeRef(broker, object()->get(index));
-}
-
-OptionalObjectRef ContextRef::TryGetSideData(JSHeapBroker* broker,
-                                             int index) const {
-  if (!object()->IsScriptContext()) {
-    return {};
-  }
-
-  // No side data for slots which are not variables in the context.
-  if (index < Context::MIN_CONTEXT_EXTENDED_SLOTS) {
-    return {};
-  }
-
-  OptionalObjectRef maybe_side_data =
-      get(broker, Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
-  if (!maybe_side_data.has_value()) return {};
-  // The FixedArray itself will stay constant, but its contents may change while
-  // we compile in the background.
-  FixedArrayRef side_data_fixed_array = maybe_side_data.value().AsFixedArray();
-  return side_data_fixed_array.TryGet(
-      broker, index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
+  return TryMakeRef(broker, object()->get(index, kRelaxedLoad));
 }
 
 void JSHeapBroker::InitializeAndStartSerializing(
@@ -1038,8 +1017,6 @@ void JSHeapBroker::InitializeAndStartSerializing(
   refs_->Clear();
   refs_ =
       zone()->New<RefsMap>(kInitialRefsBucketCount, AddressMatcher(), zone());
-
-  CollectArrayAndObjectPrototypes();
 
   SetTargetNativeContextRef(target_native_context);
 }
@@ -1163,7 +1140,14 @@ bool MapRef::IsBooleanMap(JSHeapBroker* broker) const {
 }
 
 bool MapRef::IsThinStringMap() const {
+  // The check below only works for string maps.
+  DCHECK(IsStringMap());
   return InstanceTypeChecker::IsThinString(instance_type());
+}
+
+bool MapRef::IsStringWrapperMap() const {
+  return IsJSPrimitiveWrapperMap() &&
+         IsStringWrapperElementsKind(elements_kind());
 }
 
 bool MapRef::IsTwoByteStringMap() const {
@@ -1599,6 +1583,12 @@ uint64_t HeapNumberRef::value_as_bits() const {
   return object()->value_as_bits();
 }
 
+HEAP_ACCESSOR_C(ContextCell, ContextCell::State, state)
+
+OptionalObjectRef ContextCellRef::tagged_value(JSHeapBroker* broker) const {
+  return TryMakeRef(broker, object()->tagged_value());
+}
+
 JSReceiverRef JSBoundFunctionRef::bound_target_function(
     JSHeapBroker* broker) const {
   // Immutable after initialization.
@@ -1819,8 +1809,7 @@ bool JSTypedArrayRef::is_on_heap() const {
 }
 
 size_t JSTypedArrayRef::length() const {
-  CHECK(!is_on_heap());
-  // Immutable after initialization.
+  // Immutable after initialization (since this is not used for RAB/GSAB).
   return object()->length();
 }
 
@@ -1911,7 +1900,7 @@ MapRef NativeContextRef::GetFunctionMapFromIndex(JSHeapBroker* broker,
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   CHECK_LT(index, object()->length());
   return MakeRefAssumeMemoryFence(
-      broker, Cast<Map>(object()->get(index, kAcquireLoad)));
+      broker, Cast<Map>(object()->GetNoCell(index, kAcquireLoad)));
 }
 
 MapRef NativeContextRef::GetInitialJSArrayMap(JSHeapBroker* broker,
@@ -2442,6 +2431,16 @@ int SharedFunctionInfoRef::context_parameters_start() const {
 
 ScopeInfoRef SharedFunctionInfoRef::scope_info(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->scope_info(kAcquireLoad));
+}
+
+int SharedFunctionInfoRef::
+    internal_formal_parameter_count_with_receiver_deprecated() const {
+  return object()->internal_formal_parameter_count_with_receiver();
+}
+
+int SharedFunctionInfoRef::
+    internal_formal_parameter_count_without_receiver_deprecated() const {
+  return object()->internal_formal_parameter_count_without_receiver();
 }
 
 OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {

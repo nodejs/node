@@ -6,7 +6,7 @@
 // Also enable all features that are used in the randomly generated module. This
 // should stay in sync with `EnableExperimentalWasmFeatures` in
 // `test/fuzzer/wasm/fuzzer-common.cc`.
-// Flags: --wasm-staging
+// Flags: --wasm-staging --wasm-allow-mixed-eh-for-testing
 
 (function TestGenerateRandomModule() {
   print(arguments.callee.name);

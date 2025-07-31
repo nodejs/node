@@ -2,27 +2,27 @@
 // helper functions that generate all possible test parameters for
 // different situations.
 function getValidKeyData(algorithm) {
-    return validKeyData[algorithm.name];
+    return validKeyData[algorithm.name || algorithm];
 }
 
 function getBadKeyLengthData(algorithm) {
-    return badKeyLengthData[algorithm.name];
+    return badKeyLengthData[algorithm.name || algorithm];
 }
 
 function getMissingJWKFieldKeyData(algorithm) {
-    return missingJWKFieldKeyData[algorithm.name];
+    return missingJWKFieldKeyData[algorithm.name || algorithm];
 }
 
 function getMismatchedJWKKeyData(algorithm) {
-    return mismatchedJWKKeyData[algorithm.name];
+    return mismatchedJWKKeyData[algorithm.name || algorithm];
 }
 
 function getMismatchedKtyField(algorithm) {
-    return mismatchedKtyField[algorithm.name];
+    return mismatchedKtyField[algorithm.name || algorithm];
 }
 
 function getMismatchedCrvField(algorithm) {
-    return mismatchedCrvField[algorithm.name];
+    return mismatchedCrvField[algorithm.name || algorithm];
 }
 
 var validKeyData = {

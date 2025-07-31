@@ -139,7 +139,7 @@ DirectHandle<Object> UnicodeKeywordValue(Isolate* isolate,
   return isolate->factory()->NewStringFromAsciiChecked(value.c_str());
 }
 
-bool IsCheckRange(const std::string& str, size_t min, size_t max,
+bool IsCheckRange(std::string_view str, size_t min, size_t max,
                   bool(range_check_func)(char)) {
   if (!base::IsInRange(str.length(), min, max)) return false;
   for (size_t i = 0; i < str.length(); i++) {
@@ -147,51 +147,51 @@ bool IsCheckRange(const std::string& str, size_t min, size_t max,
   }
   return true;
 }
-bool IsAlpha(const std::string& str, size_t min, size_t max) {
+bool IsAlpha(std::string_view str, size_t min, size_t max) {
   return IsCheckRange(str, min, max, [](char c) -> bool {
     return base::IsInRange(c, 'a', 'z') || base::IsInRange(c, 'A', 'Z');
   });
 }
 
-bool IsDigit(const std::string& str, size_t min, size_t max) {
+bool IsDigit(std::string_view str, size_t min, size_t max) {
   return IsCheckRange(str, min, max, [](char c) -> bool {
     return base::IsInRange(c, '0', '9');
   });
 }
 
-bool IsAlphanum(const std::string& str, size_t min, size_t max) {
+bool IsAlphanum(std::string_view str, size_t min, size_t max) {
   return IsCheckRange(str, min, max, [](char c) -> bool {
     return base::IsInRange(c, 'a', 'z') || base::IsInRange(c, 'A', 'Z') ||
            base::IsInRange(c, '0', '9');
   });
 }
 
-bool IsUnicodeLanguageSubtag(const std::string& value) {
+bool IsUnicodeLanguageSubtag(std::string_view value) {
   // unicode_language_subtag = alpha{2,3} | alpha{5,8};
   return IsAlpha(value, 2, 3) || IsAlpha(value, 5, 8);
 }
 
-bool IsUnicodeScriptSubtag(const std::string& value) {
+bool IsUnicodeScriptSubtag(std::string_view value) {
   // unicode_script_subtag = alpha{4} ;
   return IsAlpha(value, 4, 4);
 }
 
-bool IsUnicodeRegionSubtag(const std::string& value) {
+bool IsUnicodeRegionSubtag(std::string_view value) {
   // unicode_region_subtag = (alpha{2} | digit{3});
   return IsAlpha(value, 2, 2) || IsDigit(value, 3, 3);
 }
 
-bool IsDigitAlphanum3(const std::string& value) {
+bool IsDigitAlphanum3(std::string_view value) {
   return value.length() == 4 && base::IsInRange(value[0], '0', '9') &&
          IsAlphanum(value.substr(1), 3, 3);
 }
 
-bool IsUnicodeVariantSubtag(const std::string& value) {
+bool IsUnicodeVariantSubtag(std::string_view value) {
   // unicode_variant_subtag = (alphanum{5,8} | digit alphanum{3}) ;
   return IsAlphanum(value, 5, 8) || IsDigitAlphanum3(value);
 }
 
-bool IsExtensionSingleton(const std::string& value) {
+bool IsExtensionSingleton(std::string_view value) {
   return IsAlphanum(value, 1, 1);
 }
 
@@ -203,8 +203,8 @@ int32_t weekdayFromEDaysOfWeek(icu::Calendar::EDaysOfWeek eDaysOfWeek) {
 
 // Implemented as iteration instead of recursion to avoid stack overflow for
 // very long input strings.
-bool JSLocale::Is38AlphaNumList(const std::string& in) {
-  std::string value = in;
+bool JSLocale::Is38AlphaNumList(std::string_view in) {
+  std::string_view value = in;
   while (true) {
     std::size_t found_dash = value.find('-');
     if (found_dash == std::string::npos) {
@@ -215,23 +215,28 @@ bool JSLocale::Is38AlphaNumList(const std::string& in) {
   }
 }
 
-bool JSLocale::Is3Alpha(const std::string& value) {
-  return IsAlpha(value, 3, 3);
-}
+bool JSLocale::Is3Alpha(std::string_view value) { return IsAlpha(value, 3, 3); }
 
 // TODO(ftang) Replace the following check w/ icu::LocaleBuilder
 // once ICU64 land in March 2019.
-bool JSLocale::StartsWithUnicodeLanguageId(const std::string& value) {
+bool JSLocale::StartsWithUnicodeLanguageId(std::string_view value) {
   // unicode_language_id =
   // unicode_language_subtag (sep unicode_script_subtag)?
   //   (sep unicode_region_subtag)? (sep unicode_variant_subtag)* ;
-  std::vector<std::string> tokens;
-  std::string token;
-  std::istringstream token_stream(value);
-  while (std::getline(token_stream, token, '-')) {
-    tokens.push_back(token);
+  if (value.empty()) return false;
+  std::vector<std::string_view> tokens;
+  size_t token_start = 0;
+  size_t token_end;
+  for (token_end = 0; token_end < value.size(); ++token_end) {
+    if (value[token_end] == '-') {
+      tokens.emplace_back(&value[token_start], token_end - token_start);
+      token_start = token_end + 1;
+    }
   }
-  if (tokens.empty()) return false;
+  if (token_start != token_end) {
+    tokens.emplace_back(&value[token_start], token_end - token_start);
+  }
+  DCHECK(!tokens.empty());
 
   // length >= 1
   if (!IsUnicodeLanguageSubtag(tokens[0])) return false;
@@ -774,7 +779,10 @@ DirectHandle<Object> JSLocale::Language(Isolate* isolate,
                                         DirectHandle<JSLocale> locale) {
   Factory* factory = isolate->factory();
   const char* language = locale->icu_locale()->raw()->getLanguage();
-  if (strlen(language) == 0) return factory->undefined_value();
+  constexpr const char kUnd[] = "und";
+  if (strlen(language) == 0) {
+    language = kUnd;
+  }
   return factory->NewStringFromAsciiChecked(language);
 }
 

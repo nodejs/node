@@ -6,7 +6,6 @@ const { IncomingMessage } = require('node:http')
 const stream = require('node:stream')
 const net = require('node:net')
 const { Blob } = require('node:buffer')
-const nodeUtil = require('node:util')
 const { stringify } = require('node:querystring')
 const { EventEmitter: EE } = require('node:events')
 const timers = require('../util/timers')
@@ -661,48 +660,6 @@ function addAbortListener (signal, listener) {
 }
 
 /**
- * @function
- * @param {string} value
- * @returns {string}
- */
-const toUSVString = (() => {
-  if (typeof String.prototype.toWellFormed === 'function') {
-    /**
-     * @param {string} value
-     * @returns {string}
-     */
-    return (value) => `${value}`.toWellFormed()
-  } else {
-    /**
-     * @param {string} value
-     * @returns {string}
-     */
-    return nodeUtil.toUSVString
-  }
-})()
-
-/**
- * @param {*} value
- * @returns {boolean}
- */
-// TODO: move this to webidl
-const isUSVString = (() => {
-  if (typeof String.prototype.isWellFormed === 'function') {
-    /**
-     * @param {*} value
-     * @returns {boolean}
-     */
-    return (value) => `${value}`.isWellFormed()
-  } else {
-    /**
-     * @param {*} value
-     * @returns {boolean}
-     */
-    return (value) => toUSVString(value) === `${value}`
-  }
-})()
-
-/**
  * @see https://tools.ietf.org/html/rfc7230#section-3.2.6
  * @param {number} c
  * @returns {boolean}
@@ -943,8 +900,6 @@ Object.setPrototypeOf(normalizedMethodRecords, null)
 module.exports = {
   kEnumerableProperty,
   isDisturbed,
-  toUSVString,
-  isUSVString,
   isBlobLike,
   parseOrigin,
   parseURL,

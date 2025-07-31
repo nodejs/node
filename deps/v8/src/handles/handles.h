@@ -394,7 +394,7 @@ static constexpr bool is_direct_handle_v = is_direct_handle<T>::value;
 
 // Direct handles should not be used without conservative stack scanning,
 // as this would break the correctness of the GC.
-static_assert(V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL);
+static_assert(v8_flags.conservative_stack_scanning.value());
 
 // ----------------------------------------------------------------------------
 // Base class for DirectHandle instantiations. Don't use directly.

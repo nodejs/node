@@ -42,7 +42,8 @@ class Request {
     reset,
     expectContinue,
     servername,
-    throwOnError
+    throwOnError,
+    maxRedirections
   }, handler) {
     if (typeof path !== 'string') {
       throw new InvalidArgumentError('path must be a string')
@@ -84,6 +85,10 @@ class Request {
 
     if (throwOnError != null) {
       throw new InvalidArgumentError('invalid throwOnError')
+    }
+
+    if (maxRedirections != null && maxRedirections !== 0) {
+      throw new InvalidArgumentError('maxRedirections is not supported, use the redirect interceptor')
     }
 
     this.headersTimeout = headersTimeout
@@ -194,6 +199,9 @@ class Request {
   }
 
   onBodySent (chunk) {
+    if (channels.bodyChunkSent.hasSubscribers) {
+      channels.bodyChunkSent.publish({ request: this, chunk })
+    }
     if (this[kHandler].onBodySent) {
       try {
         return this[kHandler].onBodySent(chunk)
@@ -252,6 +260,9 @@ class Request {
     assert(!this.aborted)
     assert(!this.completed)
 
+    if (channels.bodyChunkReceived.hasSubscribers) {
+      channels.bodyChunkReceived.publish({ request: this, chunk })
+    }
     try {
       return this[kHandler].onData(chunk)
     } catch (err) {

@@ -87,10 +87,7 @@ const util = require('util');
   for (const value of [null, { __proto__: null }, SourceTextModule.prototype]) {
     assert.throws(
       () => m[util.inspect.custom].call(value),
-      {
-        code: 'ERR_INVALID_ARG_TYPE',
-        message: /The "this" argument must be an instance of Module/,
-      },
+      { code: 'ERR_INVALID_THIS' },
     );
   }
 }

@@ -6,10 +6,16 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const http2 = require('http2');
 
+common.expectWarning(
+  'DeprecationWarning',
+  'Priority signaling has been deprecated as of RFC 9113.',
+  'DEP0194');
+
 const checkWeight = (actual, expect) => {
   const server = http2.createServer();
   server.on('stream', common.mustCall((stream, headers, flags) => {
-    assert.strictEqual(stream.state.weight, expect);
+    assert.strictEqual(stream.state.sumDependencyWeight, 0);
+    assert.strictEqual(stream.state.weight, 16);
     stream.respond();
     stream.end('test');
   }));

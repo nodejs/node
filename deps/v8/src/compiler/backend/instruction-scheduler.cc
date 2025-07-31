@@ -261,6 +261,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchStackCheckOffset:
     case kArchFramePointer:
     case kArchParentFramePointer:
+    case kArchRootPointer:
     case kArchStackSlot:  // Despite its name this opcode will produce a
                           // reference to a frame slot, so it is not affected
                           // by the arm64 dual stack issues mentioned below.

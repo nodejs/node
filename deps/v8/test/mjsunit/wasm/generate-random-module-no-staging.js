@@ -6,7 +6,7 @@
 // %WasmGenerateRandomModule is supposed to also work without that, such that it
 // can be used by fuzzers.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --wasm-allow-mixed-eh-for-testing
 
 (function TestGenerateRandomModule() {
   print(arguments.callee.name);

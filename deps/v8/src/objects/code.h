@@ -53,7 +53,7 @@ enum class LazyDeoptimizeReason : uint8_t;
 //  |           ...            |  <-- MS + handler_table_offset()
 //  |                          |  <-- MS + constant_pool_offset()
 //  |                          |  <-- MS + code_comments_offset()
-//  |                          |  <-- MS + builtin_jump_table_info_offset()
+//  |                          |  <-- MS + jump_table_info_offset()
 //  |                          |  <-- MS + unwinding_info_offset()
 //  +--------------------------+  <-- MetadataEnd()
 //
@@ -121,8 +121,8 @@ class Code : public ExposedTrustedObject {
   // [handler_table_offset]: The offset where the exception handler table
   // starts.
   DECL_PRIMITIVE_ACCESSORS(handler_table_offset, int)
-  // [builtin_jump_table_info offset]: Offset of the builtin jump table info.
-  DECL_PRIMITIVE_ACCESSORS(builtin_jump_table_info_offset, int32_t)
+  // [jump_table_info offset]: Offset of the jump table info.
+  DECL_PRIMITIVE_ACCESSORS(jump_table_info_offset, int32_t)
   // [unwinding_info_offset]: Offset of the unwinding info section.
   DECL_PRIMITIVE_ACCESSORS(unwinding_info_offset, int32_t)
   // [deoptimization_data]: Array containing data for deopt for non-baseline
@@ -247,9 +247,9 @@ class Code : public ExposedTrustedObject {
   inline int code_comments_size() const;
   inline bool has_code_comments() const;
 
-  inline Address builtin_jump_table_info() const;
-  inline int builtin_jump_table_info_size() const;
-  inline bool has_builtin_jump_table_info() const;
+  inline Address jump_table_info() const;
+  inline int jump_table_info_size() const;
+  inline bool has_jump_table_info() const;
 
   inline Address unwinding_info_start() const;
   inline Address unwinding_info_end() const;
@@ -410,8 +410,7 @@ class Code : public ExposedTrustedObject {
   V(kUnwindingInfoOffsetOffset, kInt32Size)                                    \
   V(kConstantPoolOffsetOffset, V8_EMBEDDED_CONSTANT_POOL_BOOL ? kIntSize : 0)  \
   V(kCodeCommentsOffsetOffset, kIntSize)                                       \
-  V(kBuiltinJumpTableInfoOffsetOffset,                                         \
-    V8_BUILTIN_JUMP_TABLE_INFO_BOOL ? kInt32Size : 0)                          \
+  V(kJumpTableInfoOffsetOffset, V8_JUMP_TABLE_INFO_BOOL ? kInt32Size : 0)      \
   /* This field is currently only used during deoptimization. If this space */ \
   /* is ever needed for other purposes, it would probably be possible to */    \
   /* obtain the parameter count from the BytecodeArray instead. */             \

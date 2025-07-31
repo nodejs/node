@@ -42,8 +42,11 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::LocalVector;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::ScriptCompiler;
+using v8::ScriptOrigin;
 using v8::SnapshotCreator;
 using v8::StartupData;
 using v8::String;
@@ -1488,9 +1491,18 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
           FIXED_ONE_BYTE_STRING(isolate, "__filename"),
           FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
       });
+
+  ScriptOrigin script_origin(filename, 0, 0, true);
+  ScriptCompiler::Source script_source(source, script_origin);
+  MaybeLocal<Function> maybe_fn =
+      ScriptCompiler::CompileFunction(context,
+                                      &script_source,
+                                      parameters.size(),
+                                      parameters.data(),
+                                      0,
+                                      nullptr);
   Local<Function> fn;
-  if (contextify::CompileFunction(context, filename, source, &parameters)
-          .ToLocal(&fn)) {
+  if (maybe_fn.ToLocal(&fn)) {
     args.GetReturnValue().Set(fn);
   }
 }

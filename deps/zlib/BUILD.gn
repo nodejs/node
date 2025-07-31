@@ -173,12 +173,15 @@ if (use_arm_neon_optimizations) {
   }
 }
 
-config("zlib_inflate_chunk_simd_config") {
+config("zlib_data_chunk_simd_config") {
   if (use_x86_x64_optimizations) {
     defines = [ "INFLATE_CHUNK_SIMD_SSE2" ]
 
     if (current_cpu == "x64") {
-      defines += [ "INFLATE_CHUNK_READ_64LE" ]
+      defines += [
+        "INFLATE_CHUNK_READ_64LE",
+        "DEFLATE_CHUNK_WRITE_64LE",
+      ]
     }
   }
 
@@ -186,12 +189,15 @@ config("zlib_inflate_chunk_simd_config") {
     defines = [ "INFLATE_CHUNK_SIMD_NEON" ]
 
     if (current_cpu == "arm64") {
-      defines += [ "INFLATE_CHUNK_READ_64LE" ]
+      defines += [
+        "INFLATE_CHUNK_READ_64LE",
+        "DEFLATE_CHUNK_WRITE_64LE",
+      ]
     }
   }
 }
 
-source_set("zlib_inflate_chunk_simd") {
+source_set("zlib_data_chunk_simd") {
   visibility = [ ":*" ]
 
   if (use_x86_x64_optimizations || use_arm_neon_optimizations) {
@@ -213,7 +219,7 @@ source_set("zlib_inflate_chunk_simd") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":zlib_warnings" ]
 
-  public_configs = [ ":zlib_inflate_chunk_simd_config" ]
+  public_configs = [ ":zlib_data_chunk_simd_config" ]
 
   public_deps = [ ":zlib_common_headers" ]
 }
@@ -336,7 +342,7 @@ component("zlib") {
   if (use_x86_x64_optimizations || use_arm_neon_optimizations) {
     deps += [
       ":zlib_adler32_simd",
-      ":zlib_inflate_chunk_simd",
+      ":zlib_data_chunk_simd",
       ":zlib_slide_hash_simd",
     ]
 

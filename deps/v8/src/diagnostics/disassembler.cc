@@ -18,6 +18,7 @@
 #include "src/codegen/code-comments.h"
 #include "src/codegen/code-reference.h"
 #include "src/codegen/external-reference-encoder.h"
+#include "src/codegen/jump-table-info.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -28,10 +29,6 @@
 #include "src/sandbox/js-dispatch-table.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/strings/string-stream.h"
-
-#ifdef V8_TARGET_ARCH_X64
-#include "src/codegen/x64/builtin-jump-table-info-x64.h"
-#endif  // V8_TARGET_ARCH_X64
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-code-manager.h"
@@ -311,14 +308,21 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   RelocIterator rit(code);
   CodeCommentsIterator cit(code.code_comments(), code.code_comments_size());
 
-#ifdef V8_TARGET_ARCH_X64
-  std::unique_ptr<BuiltinJumpTableInfoIterator> table_info_it = nullptr;
-  if (code.is_code() && code.as_code()->has_builtin_jump_table_info()) {
-    table_info_it = std::make_unique<BuiltinJumpTableInfoIterator>(
-        code.as_code()->builtin_jump_table_info(),
-        code.as_code()->builtin_jump_table_info_size());
+  std::unique_ptr<JumpTableInfoIterator> table_info_it = nullptr;
+  if constexpr (V8_JUMP_TABLE_INFO_BOOL) {
+    if (code.is_code() && code.as_code()->has_jump_table_info()) {
+      table_info_it = std::make_unique<JumpTableInfoIterator>(
+          code.as_code()->jump_table_info(),
+          code.as_code()->jump_table_info_size());
+#if V8_ENABLE_WEBASSEMBLY
+    } else if (code.is_wasm_code() &&
+               code.as_wasm_code()->has_jump_table_info()) {
+      table_info_it = std::make_unique<JumpTableInfoIterator>(
+          code.as_wasm_code()->jump_table_info(),
+          code.as_wasm_code()->jump_table_info_size());
+#endif  // V8_ENABLE_WEBASSEMBLY
+    }
   }
-#endif  // V8_TARGET_ARCH_X64
 
   int constants = -1;  // no constants being decoded at the start
 
@@ -351,17 +355,15 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
                  reinterpret_cast<intptr_t>(ptr),
                  static_cast<size_t>(ptr - begin));
         pc += sizeof(ptr);
-#ifdef V8_TARGET_ARCH_X64
       } else if (table_info_it && table_info_it->HasCurrent() &&
                  table_info_it->GetPCOffset() ==
                      static_cast<uint32_t>(pc - begin)) {
         int32_t target_pc_offset = table_info_it->GetTarget();
         static_assert(sizeof(target_pc_offset) ==
-                      BuiltinJumpTableInfoEntry::kTargetSize);
+                      JumpTableInfoEntry::kTargetSize);
         SNPrintF(decode_buffer, "jump table entry %08x", target_pc_offset);
-        pc += BuiltinJumpTableInfoEntry::kTargetSize;
+        pc += JumpTableInfoEntry::kTargetSize;
         table_info_it->Next();
-#endif  // V8_TARGET_ARCH_X64
       } else {
         decode_buffer[0] = '\0';
         pc += d.InstructionDecode(decode_buffer, pc);

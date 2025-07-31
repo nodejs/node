@@ -38,8 +38,8 @@ class CipherBase : public BaseObject {
   };
   enum AuthTagState {
     kAuthTagUnknown,
-    kAuthTagKnown,
-    kAuthTagPassedToOpenSSL
+    kAuthTagSetByUser,
+    kAuthTagComputed,
   };
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
@@ -64,10 +64,8 @@ class CipherBase : public BaseObject {
   bool SetAutoPadding(bool auto_padding);
 
   bool IsAuthenticatedMode() const;
-  bool SetAAD(
-      const ArrayBufferOrViewContents<unsigned char>& data,
-      int plaintext_len);
-  bool MaybePassAuthTagToOpenSSL();
+  bool SetAAD(const ArrayBufferOrViewContents<unsigned char>& data,
+              int plaintext_len);
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);

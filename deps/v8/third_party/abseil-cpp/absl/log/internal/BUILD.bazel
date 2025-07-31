@@ -68,9 +68,7 @@ cc_library(
     hdrs = ["check_op.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = [
-        "//absl/log:__pkg__",
-    ],
+    visibility = ["//absl/log:__pkg__"],
     deps = [
         ":nullguard",
         ":nullstream",

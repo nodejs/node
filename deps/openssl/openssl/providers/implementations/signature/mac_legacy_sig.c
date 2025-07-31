@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -60,10 +60,8 @@ static void *mac_newctx(void *provctx, const char *propq, const char *macname)
         return NULL;
 
     pmacctx->libctx = PROV_LIBCTX_OF(provctx);
-    if (propq != NULL && (pmacctx->propq = OPENSSL_strdup(propq)) == NULL) {
-        ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
+    if (propq != NULL && (pmacctx->propq = OPENSSL_strdup(propq)) == NULL)
         goto err;
-    }
 
     mac = EVP_MAC_fetch(pmacctx->libctx, macname, propq);
     if (mac == NULL)
@@ -258,7 +256,7 @@ MAC_SETTABLE_CTX_PARAMS(cmac, "CMAC")
           (void (*)(void))mac_set_ctx_params }, \
         { OSSL_FUNC_SIGNATURE_SETTABLE_CTX_PARAMS, \
           (void (*)(void))mac_##funcname##_settable_ctx_params }, \
-        { 0, NULL } \
+        OSSL_DISPATCH_END \
     };
 
 MAC_SIGNATURE_FUNCTIONS(hmac)
