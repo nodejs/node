@@ -66,7 +66,7 @@ class V8ProfilerConnection {
   virtual void WriteProfile(simdjson::ondemand::object* result);
 
   bool HasProfileId(uint64_t id) const {
-    return profile_ids_.find(id) != profile_ids_.end();
+    return profile_ids_.contains(id);
   }
 
   void RemoveProfileId(uint64_t id) { profile_ids_.erase(id); }
