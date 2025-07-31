@@ -1,0 +1,153 @@
+```
+twobet-app/
+├── App.js
+├── screens/
+│   ├── Accueil.js
+│   ├── Matchs.js
+│   ├── Historique.js
+│   └── Connexion.js
+├── components/
+│   └── PariForm.js
+├── utils/
+│   └── firebase.js
+```
+
+*Backend Express*
+```
+twobet-backend/
+├── server.js
+├── routes/
+│   ├── paris.js
+│   └── auth.js
+├── models/
+│   ├── Utilisateur.js
+│   └── Pari.js
+```
+
+---
+
+*Fichiers clés à copier*
+
+*App.js (navigation)*
+```jsx
+import React from 'react';
+import { NavigationContainer} from '@react-navigation/native';
+import { createNativeStackNavigator} from '@react-navigation/native-stack';
+
+import Accueil from './screens/Accueil';
+import Matchs from './screens/Matchs';
+import Historique from './screens/Historique';
+import Connexion from './screens/Connexion';
+
+const Stack = createNativeStackNavigator();
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Accueil">
+        <Stack.Screen name="Accueil" component={Accueil} />
+        <Stack.Screen name="Matchs" component={Matchs} />
+        <Stack.Screen name="Historique" component={Historique} />
+        <Stack.Screen name="Connexion" component={Connexion} />
+      </Stack.Navigator>
+    </NavigationContainer>
+);
+}
+```
+
+---
+
+*firebase.js (auth config)*
+```js
+import { initializeApp} from 'firebase/app';
+import { getAuth} from 'firebase/auth';
+
+const firebaseConfig = {
+  apiKey: "TA_CLE_API",
+  authDomain: "twobet.firebaseapp.com",
+  projectId: "twobet",
+  storageBucket: "twobet.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+```
+
+---
+
+*PariForm.js (formulaire de pari)*
+```jsx
+import React, { useState} from 'react';
+import { View, Text, TextInput, Button} from 'react-native';
+
+export default function PariForm({ matchId, cotes}) {
+  const [choix, setChoix] = useState('');
+  const [mise, setMise] = useState('');
+
+  const handlePari = async () => {
+    const res = await fetch('https://twobet-backend.com/api/paris/placer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ton_token'
+},
+      body: JSON.stringify({ matchId, choix, montant: parseInt(mise)})
+});
+    const data = await res.json();
+    alert(data.message || 'Pari envoyé!');
+};
+
+  return (
+    <View>
+      <Text>Choix du pari:</Text>
+      <TextInput value={choix} onChangeText={setChoix} />
+      <Text>Montant:</Text>
+      <TextInput value={mise} onChangeText={setMise} keyboardType="numeric" />
+      <Button title="Parier" onPress={handlePari} />
+    </View>
+);
+}
+```
+
+---
+
+*server.js (backend principal)*
+```js
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+mongoose.connect('mongodb://localhost:27017/twobet');
+
+app.use('/api/paris', require('./routes/paris'));
+app.use('/api/auth', require('./routes/auth'));
+
+app.listen(3000, () => console.log('Twobet backend lancé sur port 3000'));
+```
+
+---
+
+*Instructions pour lancer ton projet*
+
+*Frontend Expo*
+```bash
+expo init twobet-app
+cd twobet-app
+npm install firebase react-navigation react-native-paper
+expo start
+```
+
+*Backend Express*
+```bash
+mkdir twobet-backend
+cd twobet-backend
+npm init -y
+npm install express mongoose cors
+node server.js
+```
