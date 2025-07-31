@@ -534,11 +534,11 @@ void BlobBindingData::store_data_object(
 }
 
 void BlobBindingData::revoke_data_object(const std::string& uuid) {
-  if (data_objects_.find(uuid) == data_objects_.end()) {
+  if (!data_objects_.contains(uuid)) {
     return;
   }
   data_objects_.erase(uuid);
-  CHECK_EQ(data_objects_.find(uuid), data_objects_.end());
+  CHECK(!data_objects_.contains(uuid));
 }
 
 BlobBindingData::StoredDataObject BlobBindingData::get_data_object(

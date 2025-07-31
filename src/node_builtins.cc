@@ -307,7 +307,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
   if (should_eager_compile_) {
     options = ScriptCompiler::kEagerCompile;
   } else if (!to_eager_compile_.empty()) {
-    if (to_eager_compile_.find(id) != to_eager_compile_.end()) {
+    if (to_eager_compile_.contains(id)) {
       options = ScriptCompiler::kEagerCompile;
     }
   }
