@@ -20,7 +20,8 @@
 
 // @fileoverview Rule to require function names to match the name of the variable or property to which they
 // are assigned.
-// @author Annie Zhang, Pavel Strashkin
+// @author Annie Zhang
+// @author Pavel Strashkin
 
 'use strict';
 
