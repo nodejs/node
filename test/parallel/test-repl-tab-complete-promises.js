@@ -19,8 +19,7 @@ const completionTests = [
   { run: `const foo = { get name() { return Promise.reject(); } };`,
     send: `foo.name` },
   { run: 'const baz = { get bar() { return ""; } }; const getPropText = () => Promise.reject();',
-    send: 'baz[getPropText()].',
-    completeError: true },
+    send: 'baz[getPropText()].' },
   {
     send: 'const quux = { bar: { return Promise.reject(); } }; const getPropText = () => "bar"; quux[getPropText()].',
   },
@@ -46,7 +45,7 @@ async function runReplCompleteTests(tests) {
     assert.fail(`Unexpected domain error: ${err.message}`);
   });
 
-  for (const { send, run, completeError = false } of tests) {
+  for (const { send, run } of tests) {
     if (run) {
       await new Promise((resolve, reject) => {
         replServer.eval(run, replServer.context, '', (err) => {
@@ -59,23 +58,7 @@ async function runReplCompleteTests(tests) {
       });
     }
 
-    const onError = (e) => {
-      assert.fail(`Unexpected error: ${e.message}`);
-    };
-
-    let completeErrorPromise = Promise.resolve();
-
-    if (completeError) {
-      completeErrorPromise = new Promise((resolve) => {
-        const handleError = () => {
-          replServer._completeDomain.removeListener('error', handleError);
-          resolve();
-        };
-        replServer._completeDomain.on('error', common.mustCall(handleError));
-      });
-    } else {
-      replServer._completeDomain.on('error', onError);
-    }
+    const completeErrorPromise = Promise.resolve();
 
     await replServer.complete(
       send,
@@ -89,13 +72,5 @@ async function runReplCompleteTests(tests) {
 
     await completeErrorPromise;
 
-    if (!completeError) {
-      await new Promise((resolve) => {
-        setImmediate(() => {
-          replServer._completeDomain.removeListener('error', onError);
-          resolve();
-        });
-      });
-    }
   }
 }

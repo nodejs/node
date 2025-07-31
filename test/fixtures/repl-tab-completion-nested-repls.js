@@ -32,7 +32,7 @@ const putIn = new ArrayStream();
 const testMe = repl.start('', putIn);
 
 // Some errors are passed to the domain, but do not callback.
-testMe._completeDomain.on('error', function(err) {
+testMe._domain.on('error', function(err) {
   throw err;
 });
 
