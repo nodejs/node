@@ -781,6 +781,7 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   }
 
   v8_args.emplace_back("--js-source-phase-imports");
+  v8_args.emplace_back("--js-base-64");
 
 #ifdef __POSIX__
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
