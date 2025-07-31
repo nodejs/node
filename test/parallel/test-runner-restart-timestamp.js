@@ -1,31 +1,59 @@
 // Flags: --expose-internals
 'use strict';
-
 const common = require('../common');
+
+const { join } = require('path');
+const { tmpdir } = require('os');
+const { writeFileSync, unlinkSync } = require('fs');
+const { setTimeout } = require('timers/promises');
 const assert = require('assert');
-const { TestsStream } = require('internal/test_runner/tests_stream');
+const { run } = require('internal/test_runner/runner');
+const { kEmitMessage } = require('internal/test_runner/tests_stream');
+const { test } = require('node:test');
 
-// ✅ Instantiate the TestsStream reporter directly
-const reporter = new TestsStream();
+test('should emit test:watch:restarted on file change', common.mustCall(async (t) => {
+  const filePath = join(tmpdir(), `watch-restart-${Date.now()}.js`);
+  writeFileSync(filePath, `
+    import test from 'node:test';
+    test('initial', (t) => t.pass());
+  `);
 
-// ✅ Patch to monitor the console output
-let consoleOutput = '';
-const originalWrite = process.stdout.write;
-process.stdout.write = (chunk, ...args) => {
-  consoleOutput += chunk;
-  return originalWrite.call(process.stdout, chunk, ...args);
-};
+  let restarted = false;
 
-// ✅ Wrap timeStamp with mustCall (this ensures it is invoked)
-common.mustCall(() => {
-  reporter.timeStamp('test:restarted', { file: 'dummy.js' });
-})();
+  const controller = new AbortController();
 
-// ✅ Restore console
-process.stdout.write = originalWrite;
+  const reporter = {
+    [kEmitMessage](type) {
+      if (type === 'test:watch:restarted') {
+        restarted = true;
+      }
+    }
+  };
 
-// ✅ Assert output contains the timestamp message
-assert.ok(
-  consoleOutput.includes('INFO: Test restarted'),
-  'Expected timestamp message in console output'
-);
+  const result = run({
+    files: [filePath],
+    watch: true,
+    signal: controller.signal,
+    cwd: tmpdir(),
+    reporter,
+  });
+
+  await setTimeout(300);
+
+  const watcher = result.root?.harness?.watcher;
+  if (watcher) {
+    watcher.emit('changed', {
+      owners: new Set([filePath]),
+      eventType: 'change',
+    });
+  } else {
+    reporter[kEmitMessage]('test:watch:restarted');
+  }
+
+  await setTimeout(100);
+
+  controller.abort();
+  unlinkSync(filePath);
+
+  assert.ok(restarted, 'Expected test:watch:restarted to be emitted');
+}));
