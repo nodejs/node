@@ -1505,7 +1505,7 @@ Maybe<bool> SiblingGroup::Dispatch(
   RwLock::ScopedReadLock lock(group_mutex_);
 
   // The source MessagePortData is not part of this group.
-  if (ports_.find(source) == ports_.end()) {
+  if (!ports_.contains(source)) {
     if (error != nullptr)
       *error = "Source MessagePort is not entangled with this group.";
     return Nothing<bool>();
