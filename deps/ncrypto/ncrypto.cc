@@ -1868,7 +1868,7 @@ class MaxThreadsScope final {
   }
   ~MaxThreadsScope() { OSSL_set_max_threads(ctx_.get(), 0); }
 
-  auto ctx() const { return ctx_.get(); }
+  OSSL_LIB_CTX* ctx() const { return ctx_.get(); }
 
  private:
   DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> ctx_;

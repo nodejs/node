@@ -2955,6 +2955,8 @@ Does not perform any other validation checks on the certificate.
 added: REPLACEME
 -->
 
+> Stability: 1.2 - Release candidate
+
 * `password` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `keylen` {number}
@@ -3039,6 +3041,8 @@ randomBytes(16, (err, salt) => {
 <!-- YAML
 added: REPLACEME
 -->
+
+> Stability: 1.2 - Release candidate
 
 * `password` {string|Buffer|TypedArray|DataView}
 * `salt` {string|Buffer|TypedArray|DataView}
@@ -6385,7 +6389,7 @@ See the [list of SSL OP Flags][] for details.
 [`verify.verify()`]: #verifyverifyobject-signature-signatureencoding
 [`x509.fingerprint256`]: #x509fingerprint256
 [`x509.verify(publicKey)`]: #x509verifypublickey
-[argon2]: https://en.wikipedia.org/wiki/Argon2
+[argon2]: https://www.rfc-editor.org/rfc/rfc9106.html
 [caveats when using strings as inputs to cryptographic APIs]: #using-strings-as-inputs-to-cryptographic-apis
 [certificate object]: tls.md#certificate-object
 [encoding]: buffer.md#buffers-and-character-encodings
