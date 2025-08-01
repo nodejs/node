@@ -3613,7 +3613,7 @@ The name of the test.
 added: v20.12.0
 -->
 
-Indicates whether the test succeeded, this defaults to `true` in the `beforeEach` hook.
+Indicates whether the test succeeded, this defaults to `true` before the test is executed, eg. in a `beforeEach` hook.
 
 ### `context.error` {Error|null}
 
