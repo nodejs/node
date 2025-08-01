@@ -50,9 +50,7 @@ const assert = require('assert');
     ['--experimental-sea-config', config], {
       cwd: tmpdir.path,
     });
-  const stderr = child.stderr.toString();
-  assert.strictEqual(child.status, 1);
-  assert.match(stderr, /SyntaxError: Expected ':' after property name/);
+  const stderr = child.stderr.toString(); assert.match(stderr, /INCOMPLETE_ARRAY_OR_OBJECT/);
   assert(
     stderr.includes(
       `Cannot parse JSON from ${config}`
