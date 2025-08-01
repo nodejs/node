@@ -1258,14 +1258,6 @@ changes:
 
 Enable experimental WebAssembly System Interface (WASI) support.
 
-### `--experimental-webstorage`
-
-<!-- YAML
-added: v22.4.0
--->
-
-Enable experimental [`Web Storage`][] support.
-
 ### `--experimental-worker-inspection`
 
 <!-- YAML
@@ -1882,14 +1874,6 @@ added: v22.0.0
 -->
 
 Disable exposition of {WebSocket} on the global scope.
-
-### `--no-experimental-webstorage`
-
-<!-- YAML
-added: v22.4.0
--->
-
-Alias for `--no-webstorage`.
 
 ### `--no-extra-info-on-fatal-exception`
 
@@ -3451,11 +3435,6 @@ one is included in the list below.
 * `--experimental-transform-types`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
-<<<<<<< HEAD
-* `--experimental-webstorage`
-=======
-* `--experimental-wasm-modules`
->>>>>>> 06691b516a (doc: add --no-experimental-webstorage docs)
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
