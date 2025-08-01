@@ -186,7 +186,7 @@ added:
 > Stability: 1 - Experimental
 
  <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 ```js
@@ -208,7 +208,7 @@ blockList.fromJSON(JSON.stringify(data));
 > Stability: 1 - Experimental
 
  <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 * Returns Blocklist.rules

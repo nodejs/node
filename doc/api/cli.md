@@ -152,7 +152,9 @@ Error: Cannot load native addon because loading addons is disabled.
 <!-- YAML
 added: v20.0.0
 changes:
-  - version: v24.4.0
+  - version:
+      - v24.4.0
+      - v22.18.0
     pr-url: https://github.com/nodejs/node/pull/58853
     description: When spawning process with the permission model enabled.
                  The flags are inherit to the child Node.js process through
@@ -1074,7 +1076,7 @@ Previously gated the entire `import.meta.resolve` feature.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.5.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -1529,7 +1531,9 @@ forked processes, or clustered processes.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: v23.6.0
+  - version:
+      - v23.6.0
+      - v22.18.0
     pr-url: https://github.com/nodejs/node/pull/56350
     description: Add support for `-typescript` values.
   - version:
@@ -1859,7 +1863,9 @@ Disable the experimental [`node:sqlite`][] module.
 <!-- YAML
 added: v22.6.0
 changes:
-  - version: v23.6.0
+  - version:
+      - v23.6.0
+      - v22.18.0
     pr-url: https://github.com/nodejs/node/pull/56350
     description: Type stripping is enabled by default.
 -->
@@ -3018,7 +3024,7 @@ See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 ### `--use-env-proxy`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -3182,6 +3188,7 @@ node --watch index.js
 <!-- YAML
 added:
   - v24.4.0
+  - v22.18.0
 -->
 
 > Stability: 1.1 - Active Development

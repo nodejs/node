@@ -2,10 +2,14 @@
 
 <!-- YAML
 changes:
-  - version: v24.3.0
+  - version:
+     - v24.3.0
+     - v22.18.0
     pr-url: https://github.com/nodejs/node/pull/58643
     description: Type stripping no longer emits an experimental warning.
-  - version: v23.6.0
+  - version:
+     - v23.6.0
+     - v22.18.0
     pr-url: https://github.com/nodejs/node/pull/56350
     description: Type stripping is enabled by default.
   - version: v22.7.0
