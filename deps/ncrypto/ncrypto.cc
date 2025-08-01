@@ -1902,11 +1902,11 @@ EVPKeyPointer EVPKeyPointer::NewRawSeed(
     int id, const Buffer<const unsigned char>& data) {
   if (id == 0) return {};
 
-  OSSL_PARAM params[] = {OSSL_PARAM_construct_octet_string(
-                             OSSL_PKEY_PARAM_ML_DSA_SEED,
-                             const_cast<unsigned char*>(data.data),
-                             data.len),
-                         OSSL_PARAM_END};
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_ML_DSA_SEED,
+                                        const_cast<unsigned char*>(data.data),
+                                        data.len),
+      OSSL_PARAM_END};
 
   EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(id, nullptr);
   if (ctx == nullptr) return {};
