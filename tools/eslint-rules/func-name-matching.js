@@ -210,14 +210,7 @@ module.exports = {
     //--------------------------------------------------------------------------
 
     return {
-      VariableDeclarator(node) {
-        if (
-          !node.init ||
-          node.init.type !== 'FunctionExpression' ||
-          node.id.type !== 'Identifier'
-        ) {
-          return;
-        }
+      'VariableDeclarator[init.type="FunctionExpression"][id.type="Identifier"]'(node) {
         if (
           node.init.id &&
           shouldWarn(node.id.name, node.init.id.name)
@@ -226,14 +219,10 @@ module.exports = {
         }
       },
 
-      AssignmentExpression(node) {
+      'AssignmentExpression[right.type="FunctionExpression"][left.type=/^(Identifier|MemberExpression)$/]'(node) {
         if (
-          node.right.type !== 'FunctionExpression' ||
-          (node.left.computed &&
-            node.left.property.type !== 'Literal') ||
-          (!includeModuleExports && isModuleExports(node.left)) ||
-          (node.left.type !== 'Identifier' &&
-            node.left.type !== 'MemberExpression')
+          (node.left.computed && node.left.property.type !== 'Literal') ||
+          (!includeModuleExports && isModuleExports(node.left))
         ) {
           return;
         }
@@ -251,12 +240,7 @@ module.exports = {
         }
       },
 
-      'Property, PropertyDefinition[value]'(node) {
-        if (
-          !(node.value.type === 'FunctionExpression' && node.value.id)
-        ) {
-          return;
-        }
+      'Property[value.type="FunctionExpression"][value.id]'(node) {
 
         if (node.key.type === 'Identifier' && !node.computed) {
           const functionName = node.value.id.name;
