@@ -179,15 +179,11 @@ or a link to the public vote must be given in the pull request before it lands.
 All Collaborator objections are considered equal. There is no greater weight given to
 objections from TSC members than from any other Collaborator.
 
-Mistakes do happen from time-to-time. If a pull request is merged with an
-unresolved objection, corrective action must be taken. What corrective
-action to take will vary on the nature of that objection. Some might be
-simple to resolve just by opening a follow-up PR that addresses it; others
-may require a full revert. When in doubt, it's likely best to propose a full
-revert, but use your judgement as other options might be available. In every
-case it is most likely the correction will be fast-tracked. There are times,
-however, when taking a slower path may be preferable, or even necessary, to
-ensure appropriate consensus or stability moving forward.
+Mistakes do happen. If a pull request is merged with an unresolved objection,
+submit a fix. Simple issues may be fixed with a follow-up PR that addresses
+the concern. More difficult issues may require a full revert. Most corrections
+can be fast-tracked. If deemed necessary take a slower route to ensure stability
+and consensus.
 
 Collaborators objecting to a pull request can best ensure their objections
 are addressed by remaining actively engaged and responsive in the discussion.
