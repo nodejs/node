@@ -2342,7 +2342,7 @@ void Statement::Run(const FunctionCallbackInfo<Value>& args) {
     if (sqlite_status != SQLITE_OK) {
       Isolate* isolate = env->isolate();
       Local<Object> e;
-      if (!CreateSQLiteError(isolate, sqlite_status).ToLocal(&e)) {
+      if (!CreateSQLiteError(isolate, stmt->db_->Connection()).ToLocal(&e)) {
         return;
       }
       resolver->Reject(env->context(), e);
@@ -2890,6 +2890,7 @@ void DefineAsyncInterface(Isolate* isolate,
       Database::kInternalFieldCount);
 
   SetProtoMethod(isolate, db_async_tmpl, "close", Database::Close);
+  SetProtoMethod(isolate, db_async_tmpl, "prepare", Database::Prepare);
   SetProtoMethod(isolate, db_async_tmpl, "exec", Database::Exec);
   SetConstructorFunction(context, target, "Database", db_async_tmpl);
 }
