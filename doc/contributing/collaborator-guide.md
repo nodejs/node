@@ -186,7 +186,7 @@ can be fast-tracked. If deemed necessary take a slower route to ensure stability
 and consensus.
 
 Collaborators objecting to a pull request can best ensure their objections
-are addressed by remaining actively engaged and responsive in the discussion.
+are addressed by remaining engaged and responsive in the discussion.
 
 #### Helpful resources
 
