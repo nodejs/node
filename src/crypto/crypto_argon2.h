@@ -6,6 +6,7 @@
 #include "crypto/crypto_util.h"
 
 namespace node::crypto {
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 2
 #ifndef OPENSSL_NO_ARGON2
 
 // Argon2 is a password-based key derivation algorithm
@@ -76,6 +77,7 @@ struct Argon2Job {
 };
 
 #endif  // !OPENSSL_NO_ARGON2
+#endif
 }  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

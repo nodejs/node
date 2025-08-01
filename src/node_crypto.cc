@@ -59,11 +59,12 @@ namespace crypto {
   V(Verify)                                                                    \
   V(X509Certificate)
 
-#ifdef OPENSSL_NO_ARGON2
-#define ARGON2_NAMESPACE_LIST(V)
-#else
+#if !defined(OPENSSL_NO_ARGON2) && OPENSSL_VERSION_MAJOR >= 3 &&               \
+    OPENSSL_VERSION_MINOR >= 2
 #define ARGON2_NAMESPACE_LIST(V) V(Argon2Job)
-#endif  // OPENSSL_NO_ARGON2
+#else
+#define ARGON2_NAMESPACE_LIST(V)
+#endif  // !OPENSSL_NO_ARGON2 && OpenSSL >= 3.2
 
 #ifdef OPENSSL_NO_SCRYPT
 #define SCRYPT_NAMESPACE_LIST(V)

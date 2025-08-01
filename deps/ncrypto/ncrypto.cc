@@ -1,19 +1,21 @@
 #include "ncrypto.h"
 #include <openssl/asn1.h>
 #include <openssl/bn.h>
-#include <openssl/core_names.h>
 #include <openssl/dh.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
-#include <openssl/params.h>
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
-#include <openssl/thread.h>
 #include <openssl/x509v3.h>
 #include <algorithm>
 #include <cstring>
 #if OPENSSL_VERSION_MAJOR >= 3
+#include <openssl/params.h>
+#include <openssl/core_names.h>
 #include <openssl/provider.h>
+#if OPENSSL_VERSION_MINOR >= 2
+#include <openssl/thread.h>
+#endif
 #endif
 
 // EVP_PKEY_CTX_set_dsa_paramgen_q_bits was added in OpenSSL 1.1.1e.
@@ -1855,6 +1857,7 @@ DataPointer pbkdf2(const Digest& md,
   return {};
 }
 
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 2
 #ifndef OPENSSL_NO_ARGON2
 namespace {
 
@@ -1954,6 +1957,7 @@ DataPointer argon2(const Buffer<const char>& pass,
   return {};
 }
 #endif  // !OPENSSL_NO_ARGON2
+#endif
 
 // ============================================================================
 

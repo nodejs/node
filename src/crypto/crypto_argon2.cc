@@ -1,9 +1,9 @@
 #include "crypto/crypto_argon2.h"
 
-#include <openssl/core_names.h>
-
 namespace node::crypto {
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 2
 #ifndef OPENSSL_NO_ARGON2
+#include <openssl/core_names.h>
 
 using v8::FunctionCallbackInfo;
 using v8::JustVoid;
@@ -168,4 +168,5 @@ bool Argon2Traits::DeriveBits(Environment* env,
 }
 
 #endif  // !OPENSSL_NO_ARGON2
+#endif
 }  // namespace node::crypto
