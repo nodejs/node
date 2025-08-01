@@ -2,7 +2,7 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
-import { glob, globSync, Dirent } from 'node:fs';
+import { glob, globSync, Dirent, chmodSync } from 'node:fs';
 import { test, describe } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -517,4 +517,25 @@ describe('fsPromises glob - exclude', function() {
       assert.deepStrictEqual(actual.sort(), normalized);
     });
   }
+});
+
+describe('glob - with restricted directory', function() {
+  test('*', async () => {
+    const restrictedDir = tmpdir.resolve('restricted');
+    await mkdir(restrictedDir, { recursive: true });
+    chmodSync(restrictedDir, 0o000);
+    try {
+      const results = [];
+      for await (const match of asyncGlob('*', { cwd: restrictedDir })) {
+        results.push(match);
+      }
+      assert.ok(true, 'glob completed without throwing on readdir error');
+    } finally {
+      try {
+        chmodSync(restrictedDir, 0o755);
+      } catch {
+        // ignore
+      }
+    }
+  });
 });
