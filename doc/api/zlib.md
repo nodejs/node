@@ -750,6 +750,34 @@ The most important options are:
 * `ZSTD_c_compressionLevel`
   * Set compression parameters according to pre-defined cLevel table. Default
     level is ZSTD\_CLEVEL\_DEFAULT==3.
+* `ZSTD_c_strategy`
+  * Select the compression strategy. Default is `ZSTD_lazy2`.
+  * Possible values are listed in the strategy options section below.
+
+#### Strategy options
+
+The following constants can be used as values for the `ZSTD_c_strategy`
+parameter:
+
+* `zlib.constants.ZSTD_fast`
+* `zlib.constants.ZSTD_dfast`
+* `zlib.constants.ZSTD_greedy`
+* `zlib.constants.ZSTD_lazy`
+* `zlib.constants.ZSTD_lazy2`
+* `zlib.constants.ZSTD_btlazy2`
+* `zlib.constants.ZSTD_btopt`
+* `zlib.constants.ZSTD_btultra`
+* `zlib.constants.ZSTD_btultra2`
+
+Example:
+
+```js
+const stream = zlib.createZstdCompress({
+  params: {
+    [zlib.constants.ZSTD_c_strategy]: zlib.constants.ZSTD_btultra,
+  },
+});
+```
 
 #### Pledged Source Size
 
