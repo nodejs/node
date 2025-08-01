@@ -9,7 +9,7 @@ const {
 } = require('node:crypto');
 
 const bench = common.createBenchmark(main, {
-  sync: [0, 1],
+  mode: ['sync', 'async'],
   algorithm: ['argon2d', 'argon2i', 'argon2id'],
   iter: [1, 3],
   lanes: [2, 4, 8],
@@ -36,11 +36,11 @@ function measureAsync(n, pass, salt, options) {
     argon2(pass, salt, 64, options, done);
 }
 
-function main({ n, sync, ...options }) {
+function main({ n, mode, ...options }) {
   // Pass, salt, secret, ad & output length does not affect performance
   const pass = randomBytes(32);
   const salt = randomBytes(16);
-  if (sync)
+  if (mode === 'sync')
     measureSync(n, pass, salt, options);
   else
     measureAsync(n, pass, salt, options);
