@@ -22,23 +22,23 @@ for await (const mod of sources) {
   }
 }
 
-if (vectors.sign) vectors.verify = vectors.sign;
-if (vectors.encrypt) vectors.decrypt = vectors.encrypt;
+vectors.verify = vectors.sign;
+vectors.decrypt = vectors.encrypt;
 
-if (vectors.encrypt && vectors.exportKey) {
-  for (const enc of vectors.encrypt) {
-    for (const exp of vectors.exportKey) {
-      vectors.wrapKey.push([enc[0] && exp[0], enc[1], exp[1]]);
-    }
+for (const enc of vectors.encrypt) {
+  for (const exp of vectors.exportKey) {
+    vectors.wrapKey.push([enc[0] && exp[0], enc[1], exp[1]]);
   }
 }
 
-if (vectors.decrypt && vectors.importKey) {
-  for (const dec of vectors.decrypt) {
-    for (const imp of vectors.importKey) {
-      vectors.unwrapKey.push([dec[0] && imp[0], dec[1], imp[1]]);
-    }
+for (const dec of vectors.decrypt) {
+  for (const imp of vectors.importKey) {
+    vectors.unwrapKey.push([dec[0] && imp[0], dec[1], imp[1]]);
   }
+}
+
+for (const exportKey of vectors.exportKey) {
+  if (!exportKey[0]) vectors.getPublicKey.push(exportKey);
 }
 
 for (const operation of Object.keys(vectors)) {
