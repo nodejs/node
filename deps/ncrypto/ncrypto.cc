@@ -1904,7 +1904,7 @@ EVPKeyPointer EVPKeyPointer::NewRawSeed(
 
   OSSL_PARAM params[] = {OSSL_PARAM_construct_octet_string(
                              OSSL_PKEY_PARAM_ML_DSA_SEED,
-                             (void*)data.data,  // NOLINT(readability/casting)
+                             const_cast<unsigned char*>(data.data),
                              data.len),
                          OSSL_PARAM_END};
 
