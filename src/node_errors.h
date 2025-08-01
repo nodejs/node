@@ -50,7 +50,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_CONSTRUCT_CALL_INVALID, TypeError)                                     \
   V(ERR_CRYPTO_CUSTOM_ENGINE_NOT_SUPPORTED, Error)                             \
   V(ERR_CRYPTO_INITIALIZATION_FAILED, Error)                                   \
-  V(ERR_CRYPTO_INVALID_ARGON2_PARAMS, RangeError)                              \
+  V(ERR_CRYPTO_INVALID_ARGON2_PARAMS, TypeError)                              \
   V(ERR_CRYPTO_INVALID_AUTH_TAG, TypeError)                                    \
   V(ERR_CRYPTO_INVALID_COUNTER, TypeError)                                     \
   V(ERR_CRYPTO_INVALID_CURVE, TypeError)                                       \

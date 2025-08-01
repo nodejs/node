@@ -10,8 +10,8 @@
 #include <algorithm>
 #include <cstring>
 #if OPENSSL_VERSION_MAJOR >= 3
-#include <openssl/params.h>
 #include <openssl/core_names.h>
+#include <openssl/params.h>
 #include <openssl/provider.h>
 #if OPENSSL_VERSION_MINOR >= 2
 #include <openssl/thread.h>
