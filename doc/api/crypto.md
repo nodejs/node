@@ -2959,8 +2959,8 @@ added: REPLACEME
 * `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `keylen` {number}
 * `options` {Object}
-  * `algorithm` {string} Variant of Argon2, one of "ARGON2D", "ARGON2I" or
-    "ARGON2ID". **Default:** `"ARGON2ID"`.
+  * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or
+    `"argon2id"`. **Default:** `"argon2id"`.
   * `iter` {number} Number of iterations (passes). **Default:** `3`.
   * `lanes` {number} Parallelization parameter (number of threads). **Default:** `4`.
   * `memcost` {number} Memory cost in 1KiB blocks. **Default:** `65536`.
@@ -3044,8 +3044,8 @@ added: REPLACEME
 * `salt` {string|Buffer|TypedArray|DataView}
 * `keylen` {number}
 * `options` {Object}
-  * `algorithm` {string} Variant of Argon2, one of "ARGON2D", "ARGON2I" or
-    "ARGON2ID". **Default:** `"ARGON2ID"`.
+  * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or
+    `"argon2id"`. **Default:** `"argon2id"`.
   * `iter` {number} Number of iterations (passes). **Default:** `3`.
   * `lanes` {number} Parallelization parameter (number of threads). **Default:** `4`.
   * `memcost` {number} Memory cost in 1KiB blocks. **Default:** `65536`.

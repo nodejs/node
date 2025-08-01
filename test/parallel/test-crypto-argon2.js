@@ -4,6 +4,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
+if (!hasOpenSSL(3, 5))
+  common.skip('requires OpenSSL >= 3.2');
+
 const assert = require('node:assert');
 const crypto = require('node:crypto');
 
@@ -27,15 +32,15 @@ const defaults = { password, salt, keylen: 32, iter: 3, lanes: 4, memcost: 64 <<
 
 const good = [
   [
-    { algorithm: 'ARGON2D' },
+    { algorithm: 'argon2d' },
     'bf37a2a7530e053a8bd2784a9d50dc7de451e33bd581096922bc7f9ef66020ed',
   ],
   [
-    { algorithm: 'ARGON2I' },
+    { algorithm: 'argon2i' },
     '96334882febdd85eb9b2cf367479fbad2d5b87cf79f9076f51b23589560a2e0a',
   ],
   [
-    { algorithm: 'ARGON2ID' },
+    { algorithm: 'argon2id' },
     'fedd802b86b17230843c6d3f025c81d3f472fbf9daaf26897fa88844732167ec',
   ],
   [
@@ -89,7 +94,7 @@ const badargs = [
   },
   {
     args: [password, salt.subarray(0, 7)],
-    expected: { code: 'ERR_CRYPTO_INVALID_SALT_LENGTH', message: /salt length/ },
+    expected: { code: 'ERR_OUT_OF_RANGE', message: /"salt\.byteLength"/ },
   },
   {
     args: [password, salt],
@@ -126,7 +131,7 @@ for (const [overrides, expected] of good) {
 for (const [options, param] of bad) {
   const expected = {
     code: 'ERR_OUT_OF_RANGE',
-    message: new RegExp(`The value of "${param}" is out of range`),
+    message: new RegExp(`The value of "options\\.${param}" is out of range`),
   };
   assert.throws(() => crypto.argon2(password, salt, 32, options, () => {}),
                 expected);

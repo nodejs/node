@@ -256,7 +256,7 @@ bool testFipsEnabled() {
 #else
 #ifdef OPENSSL_FIPS
   return FIPS_selftest();
-#else   // OPENSSL_FIPS
+#else  // OPENSSL_FIPS
   return false;
 #endif  // OPENSSL_FIPS
 #endif
@@ -2613,7 +2613,7 @@ EVPKeyPointer::operator Dsa() const {
 
 bool EVPKeyPointer::validateDsaParameters() const {
   if (!pkey_) return false;
-  /* Validate DSA2 parameters from FIPS 186-4 */
+    /* Validate DSA2 parameters from FIPS 186-4 */
 #if OPENSSL_VERSION_MAJOR >= 3
   if (EVP_default_properties_is_fips_enabled(nullptr) && EVP_PKEY_DSA == id()) {
 #else

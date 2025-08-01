@@ -87,11 +87,11 @@ Maybe<void> Argon2Traits::AdditionalConfig(
   config->secret = isAsync ? secret.ToCopy() : secret.ToByteSource();
   config->ad = isAsync ? ad.ToCopy() : ad.ToByteSource();
 
-  if (algorithm.ToStringView() == "ARGON2I") {
+  if (algorithm.ToStringView() == "argon2i") {
     config->type = ncrypto::Argon2Type::ARGON2I;
-  } else if (algorithm.ToStringView() == "ARGON2D") {
+  } else if (algorithm.ToStringView() == "argon2d") {
     config->type = ncrypto::Argon2Type::ARGON2D;
-  } else if (algorithm.ToStringView() == "ARGON2ID") {
+  } else if (algorithm.ToStringView() == "argon2id") {
     config->type = ncrypto::Argon2Type::ARGON2ID;
   } else {
     THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
