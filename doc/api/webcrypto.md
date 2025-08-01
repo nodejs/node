@@ -114,6 +114,7 @@ Key Formats:
 
 Methods:
 
+* [`subtle.getPublicKey()`][]
 * [`SubtleCrypto.supports()`][]
 
 ## Secure Curves in the Web Cryptography API
@@ -477,36 +478,36 @@ const decrypted = new TextDecoder().decode(await crypto.subtle.decrypt(
 The table details the algorithms supported by the Node.js Web Crypto API
 implementation and the APIs supported for each:
 
-| Algorithm                    | `generateKey` | `exportKey` | `importKey` | `encrypt` | `decrypt` | `wrapKey` | `unwrapKey` | `deriveBits` | `deriveKey` | `sign` | `verify` | `digest` |
-| ---------------------------- | ------------- | ----------- | ----------- | --------- | --------- | --------- | ----------- | ------------ | ----------- | ------ | -------- | -------- |
-| `'AES-CBC'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
-| `'AES-CTR'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
-| `'AES-GCM'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
-| `'AES-KW'`                   | ✔             | ✔           | ✔           |           |           | ✔         | ✔           |              |             |        |          |          |
-| `'cSHAKE128'`[^modern-algos] |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'cSHAKE256'`[^modern-algos] |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'ECDH'`                     | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'ECDSA'`                    | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'Ed25519'`                  | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'Ed448'`[^secure-curves]    | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'HKDF'`                     |               | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'HMAC'`                     | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'ML-DSA-44'`[^modern-algos] | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'ML-DSA-65'`[^modern-algos] | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'ML-DSA-87'`[^modern-algos] | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'PBKDF2'`                   |               | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'RSA-OAEP'`                 | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
-| `'RSA-PSS'`                  | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'RSASSA-PKCS1-v1_5'`        | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
-| `'SHA-1'`                    |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'SHA-256'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'SHA-384'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'SHA-512'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'SHA3-256'`[^modern-algos]  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'SHA3-384'`[^modern-algos]  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'SHA3-512'`[^modern-algos]  |               |             |             |           |           |           |             |              |             |        |          | ✔        |
-| `'X25519'`                   | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
-| `'X448'`[^secure-curves]     | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
+| Algorithm                    | `generateKey` | `exportKey` | `importKey` | `encrypt` | `decrypt` | `wrapKey` | `unwrapKey` | `deriveBits` | `deriveKey` | `sign` | `verify` | `digest` | `getPublicKey` |
+| ---------------------------- | ------------- | ----------- | ----------- | --------- | --------- | --------- | ----------- | ------------ | ----------- | ------ | -------- | -------- | -------------- |
+| `'AES-CBC'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |                |
+| `'AES-CTR'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |                |
+| `'AES-GCM'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |                |
+| `'AES-KW'`                   | ✔             | ✔           | ✔           |           |           | ✔         | ✔           |              |             |        |          |          |                |
+| `'cSHAKE128'`[^modern-algos] |               |             |             |           |           |           |             |              |             |        |          | ✔        |                |
+| `'cSHAKE256'`[^modern-algos] |               |             |             |           |           |           |             |              |             |        |          | ✔        |                |
+| `'ECDH'`                     | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          | ✔              |
+| `'ECDSA'`                    | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          | ✔              |
+| `'Ed25519'`                  | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          | ✔              |
+| `'Ed448'`[^secure-curves]    | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          | ✔              |
+| `'HKDF'`                     |               | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |                |
+| `'HMAC'`                     | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |                |
+| `'ML-DSA-44'`[^modern-algos] | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          | ✔              |
+| `'ML-DSA-65'`[^modern-algos] | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          | ✔              |
+| `'ML-DSA-87'`[^modern-algos] | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          | ✔              |
+| `'PBKDF2'`                   |               | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |                |
+| `'RSA-OAEP'`                 | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          | ✔              |
+| `'RSA-PSS'`                  | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          | ✔              |
+| `'RSASSA-PKCS1-v1_5'`        | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          | ✔              |
+| `'SHA-1'`                    |               |             |             |           |           |           |             |              |             |        |          | ✔        |                |
+| `'SHA-256'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |                |
+| `'SHA-384'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |                |
+| `'SHA-512'`                  |               |             |             |           |           |           |             |              |             |        |          | ✔        |                |
+| `'SHA3-256'`[^modern-algos]  |               |             |             |           |           |           |             |              |             |        |          | ✔        |                |
+| `'SHA3-384'`[^modern-algos]  |               |             |             |           |           |           |             |              |             |        |          | ✔        |                |
+| `'SHA3-512'`[^modern-algos]  |               |             |             |           |           |           |             |              |             |        |          | ✔        |                |
+| `'X25519'`                   | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          | ✔              |
+| `'X448'`[^secure-curves]     | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          | ✔              |
 
 ## Class: `Crypto`
 
@@ -691,7 +692,7 @@ added: REPLACEME
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `operation` {string} "encrypt", "decrypt", "sign", "verify", "digest", "generateKey", "deriveKey", "deriveBits", "importKey", "exportKey", "wrapKey", or "unwrapKey"
+* `operation` {string} "encrypt", "decrypt", "sign", "verify", "digest", "generateKey", "deriveKey", "deriveBits", "importKey", "exportKey", "getPublicKey", "wrapKey", or "unwrapKey"
 * `algorithm` {string|Algorithm}
 * `lengthOrAdditionalAlgorithm` {null|number|string|Algorithm|undefined} Depending on the operation this is either ignored, the value of the length argument when operation is "deriveBits", the algorithm of key to be derived when operation is "deriveKey", the algorithm of key to be exported before wrapping when operation is "wrapKey", or the algorithm of key to be imported after unwrapping when operation is "unwrapKey". **Default:** `null` when operation is "deriveBits", `undefined` otherwise.
 * Returns: {boolean} Indicating whether the implementation supports the given operation
@@ -924,6 +925,20 @@ specification.
 | `'RSA-OAEP'`                 | ✔        | ✔         | ✔       |         |                |                |              |
 | `'RSA-PSS'`                  | ✔        | ✔         | ✔       |         |                |                |              |
 | `'RSASSA-PKCS1-v1_5'`        | ✔        | ✔         | ✔       |         |                |                |              |
+
+### `subtle.getPublicKey(key, keyUsages)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+* `key` {CryptoKey} A private key from which to derive the corresponding public key.
+* `keyUsages` {string\[]} See [Key usages][].
+* Returns: {Promise} Fulfills with a {CryptoKey} upon success.
+
+Derives the public key from a given private key.
 
 ### `subtle.generateKey(algorithm, extractable, keyUsages)`
 
@@ -2142,3 +2157,4 @@ The length (in bytes) of the random salt to use.
 [Secure Curves in the Web Cryptography API]: #secure-curves-in-the-web-cryptography-api
 [Web Crypto API]: https://www.w3.org/TR/WebCryptoAPI/
 [`SubtleCrypto.supports()`]: #static-method-subtlecryptosupportsoperation-algorithm-lengthoradditionalalgorithm
+[`subtle.getPublicKey()`]: #subtlegetpublickeykey-keyusages
