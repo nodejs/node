@@ -1168,6 +1168,7 @@ class X509View final {
   BIOPointer getValidFrom() const;
   BIOPointer getValidTo() const;
   std::optional<std::string_view> getSignatureAlgorithm() const;
+  std::optional<std::string> getSignatureAlgorithmOID() const;
   int64_t getValidFromTime() const;
   int64_t getValidToTime() const;
   DataPointer getSerialNumber() const;

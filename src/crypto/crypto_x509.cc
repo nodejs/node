@@ -225,12 +225,25 @@ MaybeLocal<Value> GetValidToDate(Environment* env, const X509View& view) {
   return Date::New(env->context(), validToTime * 1000.);
 }
 
-MaybeLocal<Value> GetSignatureAlgorithm(Environment* env, const X509View& view) {
+MaybeLocal<Value> GetSignatureAlgorithm(Environment* env,
+                                        const X509View& view) {
   auto algo = view.getSignatureAlgorithm();
   if (!algo.has_value()) [[unlikely]]
     return Undefined(env->isolate());
   Local<Value> ret;
   if (!ToV8Value(env, algo.value()).ToLocal(&ret)) {
+    return {};
+  }
+  return ret;
+}
+
+MaybeLocal<Value> GetSignatureAlgorithmOID(Environment* env,
+                                           const X509View& view) {
+  auto oid = view.getSignatureAlgorithmOID();
+  if (!oid.has_value()) [[unlikely]]
+    return Undefined(env->isolate());
+  Local<Value> ret;
+  if (!ToV8Value(env, oid.value()).ToLocal(&ret)) {
     return {};
   }
   return ret;
@@ -359,6 +372,16 @@ void SignatureAlgorithm(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
   if (GetSignatureAlgorithm(env, cert->view()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void SignatureAlgorithmOID(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  X509Certificate* cert;
+  ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
+  Local<Value> ret;
+  if (GetSignatureAlgorithmOID(env, cert->view()).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -845,6 +868,8 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethodNoSideEffect(isolate, tmpl, "validFromDate", ValidFromDate);
     SetProtoMethodNoSideEffect(isolate, tmpl, "signatureAlgorithm",
         SignatureAlgorithm);
+    SetProtoMethodNoSideEffect(isolate, tmpl, "signatureAlgorithmOid",
+        SignatureAlgorithmOID);
     SetProtoMethodNoSideEffect(
         isolate, tmpl, "fingerprint", Fingerprint<Digest::SHA1>);
     SetProtoMethodNoSideEffect(
@@ -1020,6 +1045,7 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(ValidToDate);
   registry->Register(ValidFromDate);
   registry->Register(SignatureAlgorithm);
+  registry->Register(SignatureAlgorithmOID);
   registry->Register(Fingerprint<Digest::SHA1>);
   registry->Register(Fingerprint<Digest::SHA256>);
   registry->Register(Fingerprint<Digest::SHA512>);

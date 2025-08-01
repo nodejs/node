@@ -1071,6 +1071,18 @@ std::optional<std::string_view> X509View::getSignatureAlgorithm() const {
   return std::string_view(ln);
 }
 
+std::optional<std::string> X509View::getSignatureAlgorithmOID() const {
+  if (cert_ == nullptr) return std::nullopt;
+  int nid = X509_get_signature_nid(cert_);
+  if (nid == NID_undef) return std::nullopt;
+  ASN1_OBJECT* obj = OBJ_nid2obj(nid);
+  if (obj == nullptr) return std::nullopt;
+  std::array<char, 128> buf{};
+  int len = OBJ_obj2txt(buf.data(), buf.size(), obj, 1);
+  if (len < 0 || static_cast<size_t>(len) >= buf.size()) return std::nullopt;
+  return std::string(buf.data(), static_cast<size_t>(len));
+}
+
 int64_t X509View::getValidToTime() const {
 #ifdef OPENSSL_IS_BORINGSSL
   // Boringssl does not implement ASN1_TIME_to_tm in a public way,

@@ -2941,9 +2941,19 @@ The date/time until which this certificate is valid, encapsulated in a `Date` ob
 added: REPLACEME
 -->
 
+* Type: {string|undefined}
+
+The algorithm used to sign the certificate or `undefined` if the signature algorithm is unknown by OpenSSL.
+
+### `x509.signatureAlgorithmOid`
+
+<!-- YAML
+added: REPLACEME
+-->
+
 * Type: {string}
 
-The algorithm used to sign the certificate.
+The OID of the algorithm used to sign the certificate.
 
 ### `x509.verify(publicKey)`
 

@@ -115,6 +115,7 @@ const der = Buffer.from(
   assert.strictEqual(x509.serialNumber.toUpperCase(), '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
 
   assert.strictEqual(x509.signatureAlgorithm, 'sha256WithRSAEncryption');
+  assert.strictEqual(x509.signatureAlgorithmOid, '1.2.840.113549.1.1.11');
 
   assert.deepStrictEqual(x509.raw, der);
 
