@@ -19,7 +19,7 @@ changes:
 
 <!--introduced_in=v8.4.0-->
 
-<!-- llmDescription: Enables HTTP/2 protocol support. -->
+<!-- llm_description: Enables HTTP/2 protocol support. -->
 
 > Stability: 2 - Stable
 

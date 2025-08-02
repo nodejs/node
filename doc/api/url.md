@@ -3,7 +3,7 @@
 <!--introduced_in=v0.10.0-->
 
 <!-- YAML
-llmDescription: >
+llm_description: >
   Provides utilities for parsing, constructing, and manipulating URLs.
 -->
 

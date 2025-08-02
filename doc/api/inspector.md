@@ -3,7 +3,7 @@
 <!--introduced_in=v8.0.0-->
 
 <!-- YAML
-llmDescription: >
+llm_description: >
   Enables programmatic interaction with the V8 Inspector for debugging and
   profiling.
 -->

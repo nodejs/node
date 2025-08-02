@@ -3,7 +3,7 @@
 <!--introduced_in=v0.1.25-->
 
 <!-- YAML
-llmDescription: >
+llm_description: >
   Parses and formats URL query strings, providing fast utilities for handling
   key-value pairs.
 -->

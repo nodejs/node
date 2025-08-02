@@ -1,7 +1,7 @@
 # Usage and example
 
 <!-- YAML
-llmDescription: >
+llm_description: >
   Overview of basic Node.js usage via CLI. Illustrates how to run scripts and
   provides a simple web server example.
 -->
