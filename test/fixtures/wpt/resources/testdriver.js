@@ -3,6 +3,26 @@
     var idCounter = 0;
     let testharness_context = null;
 
+    const features = (() => {
+        function getFeatures(scriptSrc) {
+            try {
+                const url = new URL(scriptSrc);
+                return url.searchParams.getAll('feature');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        return getFeatures(document?.currentScript?.src ?? '');
+    })();
+
+    function assertBidiIsEnabled(){
+        if (!features.includes('bidi')) {
+            throw new Error(
+                "`?feature=bidi` is missing when importing testdriver.js but the test is using WebDriver BiDi APIs");
+        }
+    }
+
     function getInViewCenterPoint(rect) {
         var left = Math.max(0, rect.left);
         var right = Math.min(window.innerWidth, rect.right);
@@ -49,6 +69,924 @@
      * @namespace {test_driver}
      */
     window.test_driver = {
+        /**
+         Represents `WebDriver BiDi <https://w3c.github.io/webdriver-bidi>`_ protocol.
+         */
+        bidi: {
+            /**
+             * @typedef {(String|WindowProxy)} Context A browsing context. Can
+             * be specified by its ID (a string) or using a `WindowProxy`
+             * object.
+             */
+            /**
+             * `bluetooth <https://webbluetoothcg.github.io/web-bluetooth>`_ module.
+             */
+            bluetooth: {
+                /**
+                 * Handle a bluetooth device prompt with the given params. Matches the
+                 * `bluetooth.handleRequestDevicePrompt
+                 * <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-handlerequestdeviceprompt-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.handleRequestDevicePrompt({
+                 *     prompt: "pmt-e0a234b",
+                 *     accept: true,
+                 *     device: "dvc-9b3b872"
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {string} params.prompt - The id of a bluetooth device prompt.
+                 * Matches the
+                 * `bluetooth.HandleRequestDevicePromptParameters:prompt <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-handlerequestdeviceprompt-command>`_
+                 * value.
+                 * @param {bool} params.accept - Whether to accept a bluetooth device prompt.
+                 * Matches the
+                 * `bluetooth.HandleRequestDevicePromptAcceptParameters:accept <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-handlerequestdeviceprompt-command>`_
+                 * value.
+                 * @param {string} params.device - The device id from a bluetooth device
+                 * prompt to be accepted. Matches the
+                 * `bluetooth.HandleRequestDevicePromptAcceptParameters:device <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-handlerequestdeviceprompt-command>`_
+                 * value.
+                 * @param {Context} [params.context] The optional context parameter specifies in
+                 * which browsing context the bluetooth device prompt should be handled. If not
+                 * provided, the current browsing context is used.
+                 * @returns {Promise} fulfilled after the bluetooth device prompt
+                 * is handled, or rejected if the operation fails.
+                 */
+                handle_request_device_prompt: function(params) {
+                    return window.test_driver_internal.bidi.bluetooth
+                        .handle_request_device_prompt(params);
+                },
+                /**
+                 * Creates a simulated bluetooth adapter with the given params. Matches the
+                 * `bluetooth.simulateAdapter <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateAdapter-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.simulate_adapter({
+                 *     state: "powered-on"
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {string} params.state The state of the simulated bluetooth adapter.
+                 * Matches the
+                 * `bluetooth.SimulateAdapterParameters:state <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateAdapter-command>`_
+                 * value.
+                 * @param {Context} [params.context] The optional context parameter specifies in
+                 * which browsing context the simulated bluetooth adapter should be set. If not
+                 * provided, the current browsing context is used.
+                 * @returns {Promise} fulfilled after the simulated bluetooth adapter is created
+                 * and set, or rejected if the operation fails.
+                 */
+                simulate_adapter: function (params) {
+                    return window.test_driver_internal.bidi.bluetooth.simulate_adapter(params);
+                },
+                /**
+                 * Disables the bluetooth simulation with the given params. Matches the
+                 * `bluetooth.disableSimulation <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-disableSimulation-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.disable_simulation();
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {Context} [params.context] The optional context parameter specifies in
+                 * which browsing context to disable the simulation for. If not provided, the
+                 * current browsing context is used.
+                 * @returns {Promise} fulfilled after the simulation is disabled, or rejected if
+                 * the operation fails.
+                 */
+                disable_simulation: function (params) {
+                    return window.test_driver_internal.bidi.bluetooth.disable_simulation(params);
+                },
+                /**
+                 * Creates a simulated bluetooth peripheral with the given params.
+                 * Matches the
+                 * `bluetooth.simulatePreconnectedPeripheral <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateconnectedperipheral-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.simulatePreconnectedPeripheral({
+                 *     "address": "09:09:09:09:09:09",
+                 *     "name": "Some Device",
+                 *     "manufacturerData": [{key: 17, data: "AP8BAX8="}],
+                 *     "knownServiceUuids": [
+                 *          "12345678-1234-5678-9abc-def123456789",
+                 *     ],
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {string} params.address - The address of the simulated
+                 * bluetooth peripheral. Matches the
+                 * `bluetooth.SimulatePreconnectedPeripheralParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateconnectedperipheral-command>`_
+                 * value.
+                 * @param {string} params.name - The name of the simulated bluetooth
+                 * peripheral. Matches the
+                 * `bluetooth.SimulatePreconnectedPeripheralParameters:name <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateconnectedperipheral-command>`_
+                 * value.
+                 * @param {Array.ManufacturerData} params.manufacturerData - The manufacturerData of the
+                 * simulated bluetooth peripheral. Matches the
+                 * `bluetooth.SimulatePreconnectedPeripheralParameters:manufacturerData <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateconnectedperipheral-command>`_
+                 * value.
+                 * @param {string} params.knownServiceUuids - The knownServiceUuids of
+                 * the simulated bluetooth peripheral. Matches the
+                 * `bluetooth.SimulatePreconnectedPeripheralParameters:knownServiceUuids <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateconnectedperipheral-command>`_
+                 * value.
+                 * @param {Context} [params.context] The optional context parameter
+                 * specifies in which browsing context the simulated bluetooth peripheral should be
+                 * set. If not provided, the current browsing context is used.
+                 * @returns {Promise} fulfilled after the simulated bluetooth peripheral is created
+                 * and set, or rejected if the operation fails.
+                 */
+                simulate_preconnected_peripheral: function(params) {
+                    return window.test_driver_internal.bidi.bluetooth
+                        .simulate_preconnected_peripheral(params);
+                },
+                /**
+                 * Simulates a GATT connection response for a given peripheral.
+                 * Matches the `bluetooth.simulateGattConnectionResponse
+                 * <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulategattconnectionresponse-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.simulate_gatt_connection_response({
+                 *     "address": "09:09:09:09:09:09",
+                 *     "code": 0x0
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {string} params.address - The address of the simulated
+                 * bluetooth peripheral. Matches the
+                 * `bluetooth.SimulateGattConnectionResponseParameters:peripheral <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulategattconnectionresponse-command>`_
+                 * value.
+                 * @param {number} params.code - The response code for a GATT connection attempted.
+                 * Matches the
+                 * `bluetooth.SimulateGattConnectionResponseParameters:code <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulategattconnectionresponse-command>`_
+                 * value.
+                 * @param {Context} [params.context] The optional context parameter specifies in
+                 * which browsing context the GATT connection response should be simulated. If not
+                 * provided, the current browsing context is used.
+                 * @returns {Promise} fulfilled after the GATT connection response
+                 * is simulated, or rejected if the operation fails.
+                 */
+                simulate_gatt_connection_response: function(params) {
+                    return window.test_driver_internal.bidi.bluetooth
+                        .simulate_gatt_connection_response(params);
+                },
+                /**
+                 * Simulates a GATT disconnection for a given peripheral.
+                 * Matches the `bluetooth.simulateGattDisconnection
+                 * <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulategattdisconnection-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.simulate_gatt_disconnection({
+                 *     "address": "09:09:09:09:09:09",
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {string} params.address - The address of the simulated
+                 * bluetooth peripheral. Matches the
+                 * `bluetooth.SimulateGattDisconnectionParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulategattdisconnection-command>`_
+                 * value.
+                 * @param {Context} [params.context] The optional context parameter specifies in
+                 * which browsing context the GATT disconnection should be simulated. If not
+                 * provided, the current browsing context is used.
+                 * @returns {Promise} fulfilled after the GATT disconnection
+                 * is simulated, or rejected if the operation fails.
+                 */
+                simulate_gatt_disconnection: function(params) {
+                    return window.test_driver_internal.bidi.bluetooth
+                        .simulate_gatt_disconnection(params);
+                },
+                /**
+                 * Simulates a GATT service.
+                 * Matches the `bluetooth.simulateService
+                 * <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateservice-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.simulate_service({
+                 *     "address": "09:09:09:09:09:09",
+                 *     "uuid": "0000180d-0000-1000-8000-00805f9b34fb",
+                 *     "type": "add"
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {string} params.address - The address of the simulated bluetooth peripheral this service belongs to.
+                 * Matches the
+                 * `bluetooth.SimulateServiceParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateservice-command>`_
+                 * value.
+                 * @param {string} params.uuid - The uuid of the simulated GATT service.
+                 * Matches the
+                 * `bluetooth.SimulateServiceParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateservice-command>`_
+                 * value.
+                 * @param {string} params.type - The type of the GATT service simulation, either "add" or "remove".
+                 * Matches the
+                 * `bluetooth.SimulateServiceParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulateservice-command>`_
+                 * value.
+                 * @param {Context} [params.context] The optional context parameter specifies in
+                 * which browsing context the GATT service should be simulated. If not
+                 * provided, the current browsing context is used.
+                 * @returns {Promise} fulfilled after the GATT service
+                 * is simulated, or rejected if the operation fails.
+                 */
+                simulate_service: function(params) {
+                    return window.test_driver_internal.bidi.bluetooth
+                        .simulate_service(params);
+                },
+                /**
+                 * Simulates a GATT characteristic.
+                 * Matches the `bluetooth.simulateCharacteristic
+                 * <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristic-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.simulate_characteristic({
+                 *     "address": "09:09:09:09:09:09",
+                 *    "serviceUuid": "0000180d-0000-1000-8000-00805f9b34fb",
+                 *    "characteristicUuid": "00002a21-0000-1000-8000-00805f9b34fb",
+                 *    "characteristicProperties": {
+                 *      "read": true,
+                 *      "write": true,
+                 *      "notify": true
+                 *    },
+                 *    "type": "add"
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {string} params.address - The address of the simulated bluetooth peripheral the characterisitc belongs to.
+                 * Matches the
+                 * `bluetooth.SimulateCharacteristicParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristic-command>`_
+                 * value.
+                 * @param {string} params.serviceUuid - The uuid of the simulated GATT service the characterisitc belongs to.
+                 * Matches the
+                 * `bluetooth.SimulateCharacteristicParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristic-command>`_
+                 * value.
+                * @param {string} params.characteristicUuid - The uuid of the simulated GATT characteristic.
+                * Matches the
+                * `bluetooth.SimulateCharacteristicParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristic-command>`_
+                * value.
+                * @param {string} params.characteristicProperties - The properties of the simulated GATT characteristic.
+                * Matches the
+                * `bluetooth.SimulateCharacteristicParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristic-command>`_
+                * value.
+                * @param {string} params.type - The type of the GATT characterisitc simulation, either "add" or "remove".
+                * Matches the
+                * `bluetooth.SimulateCharacteristicParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristic-command>`_
+                * value.
+                * @param {Context} [params.context] The optional context parameter specifies in
+                * which browsing context the GATT characteristic should be simulated. If not
+                * provided, the current browsing context is used.
+                * @returns {Promise} fulfilled after the GATT characteristic
+                * is simulated, or rejected if the operation fails.
+                */
+                simulate_characteristic: function(params) {
+                    return window.test_driver_internal.bidi.bluetooth
+                        .simulate_characteristic(params);
+                },
+                /**
+                 * Simulates a GATT characteristic response.
+                 * Matches the `bluetooth.simulateCharacteristicResponse
+                 * <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristicresponse-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.simulate_characteristic({
+                 *     "address": "09:09:09:09:09:09",
+                 *    "serviceUuid": "0000180d-0000-1000-8000-00805f9b34fb",
+                 *    "characteristicUuid": "00002a21-0000-1000-8000-00805f9b34fb",
+                 *    "type": "read",
+                 *    "code": 0,
+                 *    "data": [1, 2]
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {string} params.address - The address of the simulated
+                 * bluetooth peripheral. Matches the
+                 * `bluetooth.SimulateCharacteristicResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristicresponse-command>`_
+                 * value.
+                 * @param {string} params.serviceUuid - The uuid of the simulated GATT service the characterisitc belongs to.
+                 * Matches the
+                 * `bluetooth.SimulateCharacteristicResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristicresponse-command>`_
+                 * value.
+                * @param {string} params.characteristicUuid - The uuid of the simulated characteristic.
+                * Matches the
+                * `bluetooth.SimulateCharacteristicResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristicresponse-command>`_
+                * value.
+                * @param {string} params.type - The type of the simulated GATT characteristic operation."
+                * Can be "read", "write", "subscribe-to-notifications" or "unsubscribe-from-notifications".
+                * Matches the
+                * `bluetooth.SimulateCharacteristicResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristicresponse-command>`_
+                * value.
+                * @param {string} params.code - The simulated GATT characteristic response code.
+                * Matches the
+                * `bluetooth.SimulateCharacteristicResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristicresponse-command>`_
+                * value.*
+                * @param {string} params.data - The data along with the simulated GATT characteristic response.
+                * Matches the
+                * `bluetooth.SimulateCharacteristicResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatecharacteristicresponse-command>`_
+                * value.**
+                * @param {Context} [params.context] The optional context parameter specifies in
+                * which browsing context the GATT characteristic belongs to. If not
+                * provided, the current browsing context is used.
+                * @returns {Promise} fulfilled after the GATT characteristic
+                * is simulated, or rejected if the operation fails.
+                */
+                simulate_characteristic_response: function(params) {
+                    return window.test_driver_internal.bidi.bluetooth
+                        .simulate_characteristic_response(params);
+                },
+                /**
+                 * Simulates a GATT descriptor.
+                 * Matches the `bluetooth.simulateDescriptor
+                 * <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptor-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.simulate_descriptor({
+                 *     "address": "09:09:09:09:09:09",
+                 *    "serviceUuid": "0000180d-0000-1000-8000-00805f9b34fb",
+                 *    "characteristicUuid": "00002a21-0000-1000-8000-00805f9b34fb",
+                 *    "descriptorUuid": "00002901-0000-1000-8000-00805f9b34fb",
+                 *    "type": "add"
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {string} params.address - The address of the simulated bluetooth peripheral the descriptor belongs to.
+                 * Matches the
+                 * `bluetooth.SimulateDescriptorParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptor-command>`_
+                 * value.
+                 * @param {string} params.serviceUuid - The uuid of the simulated GATT service the descriptor belongs to.
+                 * Matches the
+                 * `bluetooth.SimulateDescriptorParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptor-command>`_
+                 * value.
+                * @param {string} params.characteristicUuid - The uuid of the simulated GATT characterisitc the descriptor belongs to.
+                 * Matches the
+                * `bluetooth.SimulateDescriptorParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptor-command>`_
+                * value.
+                * @param {string} params.descriptorUuid - The uuid of the simulated GATT descriptor.
+                *  Matches the
+                * `bluetooth.SimulateDescriptorParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptor-command>`_
+                * value.*
+                * @param {string} params.type - The type of the GATT descriptor simulation, either "add" or "remove".
+                * Matches the
+                * `bluetooth.SimulateDescriptorParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptor-command>`_
+                * value.
+                * @param {Context} [params.context] The optional context parameter specifies in
+                * which browsing context the GATT descriptor should be simulated. If not
+                * provided, the current browsing context is used.
+                * @returns {Promise} fulfilled after the GATT descriptor
+                * is simulated, or rejected if the operation fails.
+                */
+                simulate_descriptor: function(params) {
+                    return window.test_driver_internal.bidi.bluetooth
+                        .simulate_descriptor(params);
+                },
+                /**
+                 * Simulates a GATT descriptor response.
+                 * Matches the `bluetooth.simulateDescriptorResponse
+                 * <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptorresponse-command>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.bluetooth.simulate_descriptor_response({
+                 *     "address": "09:09:09:09:09:09",
+                 *    "serviceUuid": "0000180d-0000-1000-8000-00805f9b34fb",
+                 *    "characteristicUuid": "00002a21-0000-1000-8000-00805f9b34fb",
+                 *    "descriptorUuid": "00002901-0000-1000-8000-00805f9b34fb",
+                 *    "type": "read",
+                 *    "code": 0,
+                 *    "data": [1, 2]
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {string} params.address - The address of the simulated bluetooth peripheral the descriptor belongs to.
+                 * Matches the
+                 * `bluetooth.SimulateDescriptorResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptorresponse-command>`_
+                 * value.
+                 * @param {string} params.serviceUuid - The uuid of the simulated GATT service the descriptor belongs to.
+                 * Matches the
+                 * `bluetooth.SimulateDescriptorResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptorresponse-command>`_
+                 * value.
+                 * @param {string} params.characteristicUuid - The uuid of the simulated GATT characterisitc the descriptor belongs to.
+                 * Matches the
+                 * `bluetooth.SimulateDescriptorResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptorresponse-command>`_
+                 * value.
+                * @param {string} params.descriptorUuid - The uuid of the simulated GATT descriptor.
+                * Matches the
+                * `bluetooth.SimulateDescriptorResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptorresponse-command>`_
+                * value.
+                * @param {string} params.type - The type of the simulated GATT descriptor operation.
+                * Matches the
+                * `bluetooth.SimulateDescriptorResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptorresponse-command>`_
+                * value.
+                * @param {string} params.code - The simulated GATT descriptor response code.
+                * Matches the
+                * `bluetooth.SimulateDescriptorResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptorresponse-command>`_
+                * value.*
+                * @param {string} params.data - The data along with the simulated GATT descriptor response.
+                * Matches the
+                * `bluetooth.SimulateDescriptorResponseParameters:address <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-simulatedescriptorresponse-command>`_
+                * value.**
+                * @param {Context} [params.context] The optional context parameter specifies in
+                * which browsing context the GATT descriptor belongs to. If not
+                * provided, the current browsing context is used.
+                * @returns {Promise} fulfilled after the GATT descriptor response
+                * is simulated, or rejected if the operation fails.
+                */
+                simulate_descriptor_response: function(params) {
+                    return window.test_driver_internal.bidi.bluetooth
+                        .simulate_descriptor_response(params);
+                },
+                /**
+                 * `bluetooth.RequestDevicePromptUpdatedParameters <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-requestdevicepromptupdated-event>`_
+                 * event.
+                 */
+                request_device_prompt_updated: {
+                    /**
+                     * @typedef {object} RequestDevicePromptUpdated
+                     * `bluetooth.RequestDevicePromptUpdatedParameters <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-requestdevicepromptupdated-event>`_
+                     * event.
+                     */
+
+                    /**
+                     * Subscribes to the event. Events will be emitted only if
+                     * there is a subscription for the event. This method does
+                     * not add actual listeners. To listen to the event, use the
+                     * `on` or `once` methods. The buffered events will be
+                     * emitted before the command promise is resolved.
+                     *
+                     * @param {object} [params] Parameters for the subscription.
+                     * @param {null|Array.<(Context)>} [params.contexts] The
+                     * optional contexts parameter specifies which browsing
+                     * contexts to subscribe to the event on. It should be
+                     * either an array of Context objects, or null. If null, the
+                     * event will be subscribed to globally. If omitted, the
+                     * event will be subscribed to on the current browsing
+                     * context.
+                     * @returns {Promise<(function(): Promise<void>)>} Callback
+                     * for unsubscribing from the created subscription.
+                     */
+                    subscribe: async function(params = {}) {
+                        assertBidiIsEnabled();
+                        return window.test_driver_internal.bidi.bluetooth
+                            .request_device_prompt_updated.subscribe(params);
+                    },
+                    /**
+                     * Adds an event listener for the event.
+                     *
+                     * @param {function(RequestDevicePromptUpdated): void} callback The
+                     * callback to be called when the event is emitted. The
+                     * callback is called with the event object as a parameter.
+                     * @returns {function(): void} A function that removes the
+                     * added event listener when called.
+                     */
+                    on: function(callback) {
+                        assertBidiIsEnabled();
+                        return window.test_driver_internal.bidi.bluetooth
+                            .request_device_prompt_updated.on(callback);
+                    },
+                    /**
+                     * Adds an event listener for the event that is only called
+                     * once and removed afterward.
+                     *
+                     * @return {Promise<RequestDevicePromptUpdated>} The promise which
+                     * is resolved with the event object when the event is emitted.
+                     */
+                    once: function() {
+                        assertBidiIsEnabled();
+                        return new Promise(resolve => {
+                            const remove_handler =
+                                window.test_driver_internal.bidi.bluetooth
+                                    .request_device_prompt_updated.on(event => {
+                                    resolve(event);
+                                    remove_handler();
+                                });
+                        });
+                    },
+                },
+                /**
+                 * `bluetooth.GattConnectionAttemptedParameters <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-gattConnectionAttempted-event>`_
+                 * event.
+                 */
+                gatt_connection_attempted: {
+                    /**
+                     * @typedef {object} GattConnectionAttempted
+                     * `bluetooth.GattConnectionAttempted <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-gattConnectionAttempted-event>`_
+                     * event.
+                     */
+
+                    /**
+                     * Subscribes to the event. Events will be emitted only if
+                     * there is a subscription for the event. This method does
+                     * not add actual listeners. To listen to the event, use the
+                     * `on` or `once` methods. The buffered events will be
+                     * emitted before the command promise is resolved.
+                     *
+                     * @param {object} [params] Parameters for the subscription.
+                     * @param {null|Array.<(Context)>} [params.contexts] The
+                     * optional contexts parameter specifies which browsing
+                     * contexts to subscribe to the event on. It should be
+                     * either an array of Context objects, or null. If null, the
+                     * event will be subscribed to globally. If omitted, the
+                     * event will be subscribed to on the current browsing
+                     * context.
+                     * @returns {Promise<(function(): Promise<void>)>} Callback
+                     * for unsubscribing from the created subscription.
+                     */
+                    subscribe: async function(params = {}) {
+                        assertBidiIsEnabled();
+                        return window.test_driver_internal.bidi.bluetooth
+                            .gatt_connection_attempted.subscribe(params);
+                    },
+                    /**
+                     * Adds an event listener for the event.
+                     *
+                     * @param {function(GattConnectionAttempted): void} callback The
+                     * callback to be called when the event is emitted. The
+                     * callback is called with the event object as a parameter.
+                     * @returns {function(): void} A function that removes the
+                     * added event listener when called.
+                     */
+                    on: function(callback) {
+                        assertBidiIsEnabled();
+                        return window.test_driver_internal.bidi.bluetooth
+                            .gatt_connection_attempted.on(callback);
+                    },
+                    /**
+                     * Adds an event listener for the event that is only called
+                     * once and removed afterward.
+                     *
+                     * @return {Promise<GattConnectionAttempted>} The promise which
+                     * is resolved with the event object when the event is emitted.
+                     */
+                    once: function() {
+                        assertBidiIsEnabled();
+                        return new Promise(resolve => {
+                            const remove_handler =
+                                window.test_driver_internal.bidi.bluetooth
+                                    .gatt_connection_attempted.on(event => {
+                                    resolve(event);
+                                    remove_handler();
+                                });
+                        });
+                    },
+                },
+                /**
+                 * `bluetooth.CharacteristicEventGeneratedParameters <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-characteristiceventgenerated-event>`_
+                 * event.
+                 */
+                characteristic_event_generated: {
+                    /**
+                     * @typedef {object} CharacteristicEventGenerated
+                     * `bluetooth.CharacteristicEventGenerated <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-characteristiceventgenerated-event>`_
+                     * event.
+                     */
+
+                    /**
+                     * Subscribes to the event. Events will be emitted only if
+                     * there is a subscription for the event. This method does
+                     * not add actual listeners. To listen to the event, use the
+                     * `on` or `once` methods. The buffered events will be
+                     * emitted before the command promise is resolved.
+                     *
+                     * @param {object} [params] Parameters for the subscription.
+                     * @param {null|Array.<(Context)>} [params.contexts] The
+                     * optional contexts parameter specifies which browsing
+                     * contexts to subscribe to the event on. It should be
+                     * either an array of Context objects, or null. If null, the
+                     * event will be subscribed to globally. If omitted, the
+                     * event will be subscribed to on the current browsing
+                     * context.
+                     * @returns {Promise<(function(): Promise<void>)>} Callback
+                     * for unsubscribing from the created subscription.
+                     */
+                    subscribe: async function(params = {}) {
+                        assertBidiIsEnabled();
+                        return window.test_driver_internal.bidi.bluetooth
+                            .characteristic_event_generated.subscribe(params);
+                    },
+                    /**
+                     * Adds an event listener for the event.
+                     *
+                     * @param {function(CharacteristicEventGenerated): void} callback The
+                     * callback to be called when the event is emitted. The
+                     * callback is called with the event object as a parameter.
+                     * @returns {function(): void} A function that removes the
+                     * added event listener when called.
+                     */
+                    on: function(callback) {
+                        assertBidiIsEnabled();
+                        return window.test_driver_internal.bidi.bluetooth
+                            .characteristic_event_generated.on(callback);
+                    },
+                    /**
+                     * Adds an event listener for the event that is only called
+                     * once and removed afterward.
+                     *
+                     * @return {Promise<CharacteristicEventGenerated>} The promise which
+                     * is resolved with the event object when the event is emitted.
+                     */
+                    once: function() {
+                        assertBidiIsEnabled();
+                        return new Promise(resolve => {
+                            const remove_handler =
+                                window.test_driver_internal.bidi.bluetooth
+                                    .characteristic_event_generated.on(event => {
+                                    resolve(event);
+                                    remove_handler();
+                                });
+                        });
+                    },
+                },
+                /**
+                 * `bluetooth.DescriptorEventGeneratedParameters <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-descriptoreventgenerated-event>`_
+                 * event.
+                 */
+                descriptor_event_generated: {
+                    /**
+                     * @typedef {object} DescriptorEventGenerated
+                     * `bluetooth.DescriptorEventGenerated <https://webbluetoothcg.github.io/web-bluetooth/#bluetooth-descriptoreventgenerated-event>`_
+                     * event.
+                     */
+
+                    /**
+                     * Subscribes to the event. Events will be emitted only if
+                     * there is a subscription for the event. This method does
+                     * not add actual listeners. To listen to the event, use the
+                     * `on` or `once` methods. The buffered events will be
+                     * emitted before the command promise is resolved.
+                     *
+                     * @param {object} [params] Parameters for the subscription.
+                     * @param {null|Array.<(Context)>} [params.contexts] The
+                     * optional contexts parameter specifies which browsing
+                     * contexts to subscribe to the event on. It should be
+                     * either an array of Context objects, or null. If null, the
+                     * event will be subscribed to globally. If omitted, the
+                     * event will be subscribed to on the current browsing
+                     * context.
+                     * @returns {Promise<(function(): Promise<void>)>} Callback
+                     * for unsubscribing from the created subscription.
+                     */
+                    subscribe: async function(params = {}) {
+                        assertBidiIsEnabled();
+                        return window.test_driver_internal.bidi.bluetooth
+                            .descriptor_event_generated.subscribe(params);
+                    },
+                    /**
+                     * Adds an event listener for the event.
+                     *
+                     * @param {function(DescriptorEventGenerated): void} callback The
+                     * callback to be called when the event is emitted. The
+                     * callback is called with the event object as a parameter.
+                     * @returns {function(): void} A function that removes the
+                     * added event listener when called.
+                     */
+                    on: function(callback) {
+                        assertBidiIsEnabled();
+                        return window.test_driver_internal.bidi.bluetooth
+                            .descriptor_event_generated.on(callback);
+                    },
+                    /**
+                     * Adds an event listener for the event that is only called
+                     * once and removed afterward.
+                     *
+                     * @return {Promise<DescriptorEventGenerated>} The promise which
+                     * is resolved with the event object when the event is emitted.
+                     */
+                    once: function() {
+                        assertBidiIsEnabled();
+                        return new Promise(resolve => {
+                            const remove_handler =
+                                window.test_driver_internal.bidi.bluetooth
+                                    .descriptor_event_generated.on(event => {
+                                    resolve(event);
+                                    remove_handler();
+                                });
+                        });
+                    },
+                }
+            },
+            /**
+             * `emulation <https://www.w3.org/TR/webdriver-bidi/#module-emulation>`_ module.
+             */
+            emulation: {
+                /**
+                 * Overrides the geolocation coordinates for the specified
+                 * browsing contexts.
+                 * Matches the `emulation.setGeolocationOverride
+                 * <https://w3c.github.io/webdriver-bidi/#command-emulation-setGeolocationOverride>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.emulation.set_geolocation_override({
+                 *     coordinates: {
+                 *         latitude: 52.51,
+                 *         longitude: 13.39,
+                 *         accuracy: 0.5,
+                 *         altitude: 34,
+                 *         altitudeAccuracy: 0.75,
+                 *         heading: 180,
+                 *         speed: 2.77
+                 *     }
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {null|object} params.coordinates - The optional
+                 * geolocation coordinates to set. Matches the
+                 * `emulation.GeolocationCoordinates <https://w3c.github.io/webdriver-bidi/#commands-emulationsetgeolocationoverride>`_
+                 * value. If null or omitted and the `params.error` is set, the
+                 * emulation will be removed. Mutually exclusive with
+                 * `params.error`.
+                 * @param {object} params.error - The optional
+                 * geolocation error to emulate. Matches the
+                 * `emulation.GeolocationPositionError <https://w3c.github.io/webdriver-bidi/#commands-emulationsetgeolocationoverride>`_
+                 * value. Mutually exclusive with `params.coordinates`.
+                 * @param {null|Array.<(Context)>} [params.contexts] The
+                 * optional contexts parameter specifies which browsing contexts
+                 * to set the geolocation override on. It should be either an
+                 * array of Context objects (window or browsing context id), or
+                 * null. If null or omitted, the override will be set on the
+                 * current browsing context.
+                 * @returns {Promise<void>} Resolves when the geolocation
+                 * override is successfully set.
+                 */
+                set_geolocation_override: function (params) {
+                    // Ensure the bidi feature is enabled before calling the internal method
+                    assertBidiIsEnabled();
+                    return window.test_driver_internal.bidi.emulation.set_geolocation_override(
+                        params);
+                },
+                /**
+                 * Overrides the locale for the specified browsing contexts.
+                 * Matches the `emulation.setLocaleOverride
+                 * <https://www.w3.org/TR/webdriver-bidi/#commands-emulationsetlocaleoverride>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.emulation.set_locale_override({
+                 *     locale: 'de-DE'
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {null|string} params.locale - The optional
+                 * locale to set.
+                 * @param {null|Array.<(Context)>} [params.contexts] The
+                 * optional contexts parameter specifies which browsing contexts
+                 * to set the locale override on. It should be either an array
+                 * of Context objects (window or browsing context id), or null.
+                 * If null or omitted, the override will be set on the current
+                 * browsing context.
+                 * @returns {Promise<void>} Resolves when the locale override
+                 * is successfully set.
+                 */
+                set_locale_override: function (params) {
+                    assertBidiIsEnabled();
+                    return window.test_driver_internal.bidi.emulation.set_locale_override(
+                        params);
+                },
+                /**
+                 * Overrides the screen orientation for the specified browsing
+                 * contexts.
+                 * Matches the `emulation.setScreenOrientationOverride
+                 * <https://www.w3.org/TR/webdriver-bidi/#commands-emulationsetscreenorientationoverride>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.emulation.set_screen_orientation_override({
+                 *     screenOrientation: {
+                 *         natural: 'portrait',
+                 *         type: 'landscape-secondary'
+                 *     }
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {null|object} params.screenOrientation - The optional
+                 * screen orientation. Matches the
+                 * `emulation.ScreenOrientation <https://www.w3.org/TR/webdriver-bidi/#cddl-type-emulationscreenorientation>`_
+                 * type. If null or omitted, the override will be removed.
+                 * @param {null|Array.<(Context)>} [params.contexts] The
+                 * optional contexts parameter specifies which browsing contexts
+                 * to set the screen orientation override on. It should be
+                 * either an array of Context objects (window or browsing
+                 * context id), or null. If null or omitted, the override will
+                 * be set on the current browsing context.
+                 * @returns {Promise<void>} Resolves when the screen orientation
+                 * override is successfully set.
+                 */
+                set_screen_orientation_override: function (params) {
+                    // Ensure the bidi feature is enabled before calling the internal method
+                    assertBidiIsEnabled();
+                    return window.test_driver_internal.bidi.emulation.set_screen_orientation_override(
+                        params);
+                },
+            },
+            /**
+             * `log <https://www.w3.org/TR/webdriver-bidi/#module-log>`_ module.
+             */
+            log: {
+                entry_added: {
+                    /**
+                     * @typedef {object} LogEntryAdded `log.entryAdded <https://www.w3.org/TR/webdriver-bidi/#event-log-entryAdded>`_ event.
+                     */
+
+                    /**
+                     * Subscribes to the event. Events will be emitted only if
+                     * there is a subscription for the event. This method does
+                     * not add actual listeners. To listen to the event, use the
+                     * `on` or `once` methods. The buffered events will be
+                     * emitted before the command promise is resolved.
+                     *
+                     * @param {object} [params] Parameters for the subscription.
+                     * @param {null|Array.<(Context)>} [params.contexts] The
+                     * optional contexts parameter specifies which browsing
+                     * contexts to subscribe to the event on. It should be
+                     * either an array of Context objects, or null. If null, the
+                     * event will be subscribed to globally. If omitted, the
+                     * event will be subscribed to on the current browsing
+                     * context.
+                     * @returns {Promise<(function(): Promise<void>)>} Callback
+                     * for unsubscribing from the created subscription.
+                     */
+                    subscribe: async function (params = {}) {
+                        assertBidiIsEnabled();
+                        return window.test_driver_internal.bidi.log.entry_added.subscribe(params);
+                    },
+                    /**
+                     * Adds an event listener for the event.
+                     *
+                     * @param {function(LogEntryAdded): void} callback The
+                     * callback to be called when the event is emitted. The
+                     * callback is called with the event object as a parameter.
+                     * @returns {function(): void} A function that removes the
+                     * added event listener when called.
+                     */
+                    on: function (callback) {
+                        assertBidiIsEnabled();
+                        return window.test_driver_internal.bidi.log.entry_added.on(callback);
+                    },
+                    /**
+                     * Adds an event listener for the event that is only called
+                     * once and removed afterward.
+                     *
+                     * @return {Promise<LogEntryAdded>} The promise which is resolved
+                     * with the event object when the event is emitted.
+                     */
+                    once: function () {
+                        assertBidiIsEnabled();
+                        return new Promise(resolve => {
+                            const remove_handler = window.test_driver_internal.bidi.log.entry_added.on(
+                                event => {
+                                    resolve(event);
+                                    remove_handler();
+                                });
+                        });
+                    },
+                }
+            },
+            /**
+             * `permissions <https://www.w3.org/TR/permissions/>`_ module.
+             */
+            permissions: {
+                /**
+                 * Sets the state of a permission
+                 *
+                 * This function causes permission requests and queries for the status
+                 * of a certain permission type (e.g. "push", or "background-fetch") to
+                 * always return ``state`` for the specific origin.
+                 *
+                 * Matches the `permissions.setPermission <https://w3c.github.io/permissions/#webdriver-bidi-command-permissions-setPermission>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.permissions.set_permission({
+                 *     {name: "geolocation"},
+                 *     state: "granted",
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {PermissionDescriptor} params.descriptor - a `PermissionDescriptor
+                 *                               <https://w3c.github.io/permissions/#dom-permissiondescriptor>`_
+                 *                               or derived object.
+                 * @param {PermissionState} params.state - a `PermissionState
+                 *                          <https://w3c.github.io/permissions/#dom-permissionstate>`_
+                 *                          value.
+                 * @param {string} [params.origin] - an optional `origin` string to set the
+                 *                 permission for. If omitted, the permission is set for the
+                 *                 current window's origin.
+                 * @returns {Promise} fulfilled after the permission is set, or rejected if setting
+                 *                    the permission fails.
+                 */
+                set_permission: function (params) {
+                    assertBidiIsEnabled();
+                    return window.test_driver_internal.bidi.permissions.set_permission(
+                        params);
+                }
+            }
+        },
+
         /**
          * Set the context in which testharness.js is loaded
          *
@@ -112,8 +1050,8 @@
             let wait_click = new Promise(resolve => button.addEventListener("click", resolve));
 
             return test_driver.click(button)
-                .then(wait_click)
-                .then(function() {
+                .then(() => wait_click)
+                .then(() => {
                     button.remove();
 
                     if (typeof action === "function") {
@@ -124,11 +1062,10 @@
         },
 
         /**
-         * Triggers a user-initiated click
+         * Triggers a user-initiated mouse click.
          *
-         * If ``element`` isn't inside the
-         * viewport, it will be scrolled into view before the click
-         * occurs.
+         * If ``element`` isn't inside the viewport, it will be
+         * scrolled into view before the click occurs.
          *
          * If ``element`` is from a different browsing context, the
          * command will be run in that context.
@@ -322,7 +1259,7 @@
         /**
          * Minimizes the browser window.
          *
-         * Matches the the behaviour of the `Minimize
+         * Matches the behaviour of the `Minimize
          * <https://www.w3.org/TR/webdriver/#minimize-window>`_
          * WebDriver command
          *
@@ -355,6 +1292,25 @@
          */
         set_window_rect: function(rect, context=null) {
             return window.test_driver_internal.set_window_rect(rect, context);
+        },
+
+        /**
+         * Gets a rect with the size and position on the screen from the current window state.
+         *
+         * Matches the behaviour of the `Get Window Rect
+         * <https://www.w3.org/TR/webdriver/#get-window-rect>`_
+         * WebDriver command
+         *
+         * @param {WindowProxy} context - Browsing context in which
+         *                                to run the call, or null for the current
+         *                                browsing context.
+         *
+         * @returns {Promise} fulfilled after the window rect is returned, or rejected
+         * in cases the WebDriver command returns errors. Returns a
+         * `WindowRect <https://www.w3.org/TR/webdriver/#dfn-windowrect-object>`_
+         */
+        get_window_rect: function(context=null) {
+            return window.test_driver_internal.get_window_rect(context);
         },
 
         /**
@@ -647,7 +1603,7 @@
          *
          * This function places `Secure Payment
          * Confirmation <https://w3c.github.io/secure-payment-confirmation>`_ into
-         * an automated 'autoaccept' or 'autoreject' mode, to allow testing
+         * an automated 'autoAccept' or 'autoReject' mode, to allow testing
          * without user interaction with the transaction UX prompt.
          *
          * Matches the `Set SPC Transaction Mode
@@ -667,8 +1623,8 @@
          * @param {String} mode - The `transaction mode
          *                        <https://w3c.github.io/secure-payment-confirmation/#enumdef-transactionautomationmode>`_
          *                        to set. Must be one of "``none``",
-         *                        "``autoaccept``", or
-         *                        "``autoreject``".
+         *                        "``autoAccept``", or
+         *                        "``autoReject``".
          * @param {WindowProxy} context - Browsing context in which
          *                                to run the call, or null for the current
          *                                browsing context.
@@ -678,6 +1634,42 @@
          */
         set_spc_transaction_mode: function(mode, context=null) {
           return window.test_driver_internal.set_spc_transaction_mode(mode, context);
+        },
+
+        /**
+         * Sets the current registration automation mode for Register Protocol Handlers.
+         *
+         * This function places `Register Protocol Handlers
+         * <https://html.spec.whatwg.org/multipage/system-state.html#custom-handlers>`_ into
+         * an automated 'autoAccept' or 'autoReject' mode, to allow testing
+         * without user interaction with the transaction UX prompt.
+         *
+         * Matches the `Set Register Protocol Handler Mode
+         * <https://html.spec.whatwg.org/multipage/system-state.html#set-rph-registration-mode>`_
+         * WebDriver command.
+         *
+         * @example
+         * await test_driver.set_rph_registration_mode("autoAccept");
+         * test.add_cleanup(() => {
+         *   return test_driver.set_rph_registration_mode("none");
+         * });
+         *
+         * navigator.registerProtocolHandler('web+soup', 'soup?url=%s');
+         *
+         * @param {String} mode - The `registration mode
+         *                        <https://html.spec.whatwg.org/multipage/system-state.html#registerprotocolhandler()-automation-mode>`_
+         *                        to set. Must be one of "``none``",
+         *                        "``autoAccept``", or
+         *                        "``autoReject``".
+         * @param {WindowProxy} context - Browsing context in which
+         *                                to run the call, or null for the current
+         *                                browsing context.
+         *
+         * @returns {Promise} Fulfilled after the transaction mode has been set,
+         *                    or rejected if setting the mode fails.
+         */
+        set_rph_registration_mode: function(mode, context=null) {
+          return window.test_driver_internal.set_rph_registration_mode(mode, context);
         },
 
         /**
@@ -968,6 +1960,215 @@
          */
         get_virtual_sensor_information: function(sensor_type, context=null) {
             return window.test_driver_internal.get_virtual_sensor_information(sensor_type, context);
+        },
+
+        /**
+         * Overrides device posture set by hardware.
+         *
+         * Matches the `Set device posture
+         * <https://w3c.github.io/device-posture/#set-device-posture>`_
+         * WebDriver command.
+         *
+         * @param {String} posture - A `DevicePostureType
+         *                           <https://w3c.github.io/device-posture/#dom-deviceposturetype>`_
+         *                           either "continuous" or "folded".
+         * @param {WindowProxy} [context=null] - Browsing context in which to
+         *                                       run the call, or null for the
+         *                                       current browsing context.
+         *
+         * @returns {Promise} Fulfilled when device posture is set.
+         *                    Rejected in case the WebDriver command errors out
+         *                    (including if a device posture of the given type
+         *                    does not exist).
+         */
+        set_device_posture: function(posture, context=null) {
+            return window.test_driver_internal.set_device_posture(posture, context);
+        },
+
+        /**
+         * Removes device posture override and returns device posture control
+         * back to hardware.
+         *
+         * Matches the `Clear device posture
+         * <https://w3c.github.io/device-posture/#clear-device-posture>`_
+         * WebDriver command.
+         *
+         * @param {WindowProxy} [context=null] - Browsing context in which to
+         *                                       run the call, or null for the
+         *                                       current browsing context.
+         *
+         * @returns {Promise} Fulfilled after the device posture override has
+         *                    been removed. Rejected in case the WebDriver
+         *                    command errors out.
+         */
+        clear_device_posture: function(context=null) {
+            return window.test_driver_internal.clear_device_posture(context);
+        },
+
+        /**
+         * Runs the `bounce tracking timer algorithm
+         * <https://privacycg.github.io/nav-tracking-mitigations/#bounce-tracking-timer>`_,
+         * which removes all hosts from the stateful bounce tracking map, without
+         * regard for the bounce tracking grace period and returns a list of the
+         * deleted hosts.
+         *
+         * Matches the `Run Bounce Tracking Mitigations
+         * <https://privacycg.github.io/nav-tracking-mitigations/#run-bounce-tracking-mitigations-command>`_
+         * WebDriver command.
+         *
+         * @param {WindowProxy} [context=null] - Browsing context in which to
+         *                                       run the call, or null for the
+         *                                       current browsing context.
+         * @returns {Promise} Fulfilled after the bounce tracking timer
+         *                    algorithm has finished running. Returns an array
+         *                    of all hosts that were in the stateful bounce
+         *                    tracking map before deletion occurred.
+         */
+        run_bounce_tracking_mitigations: function (context = null) {
+            return window.test_driver_internal.run_bounce_tracking_mitigations(context);
+        },
+
+        /**
+         * Creates a virtual pressure source.
+         *
+         * Matches the `Create virtual pressure source
+         * <https://w3c.github.io/compute-pressure/#create-virtual-pressure-source>`_
+         * WebDriver command.
+         *
+         * @param {String} source_type - A `virtual pressure source type
+         *                               <https://w3c.github.io/compute-pressure/#dom-pressuresource>`_
+         *                               such as "cpu".
+         * @param {Object} [metadata={}] - Optional parameters described
+         *                                 in `Create virtual pressure source
+         *                                 <https://w3c.github.io/compute-pressure/#create-virtual-pressure-source>`_.
+         * @param {WindowProxy} [context=null] - Browsing context in which to
+         *                                       run the call, or null for the
+         *                                       current browsing context.
+         *
+         * @returns {Promise} Fulfilled when virtual pressure source is created.
+         *                    Rejected in case the WebDriver command errors out
+         *                    (including if a virtual pressure source of the
+         *                    same type already exists).
+         */
+        create_virtual_pressure_source: function(source_type, metadata={}, context=null) {
+            return window.test_driver_internal.create_virtual_pressure_source(source_type, metadata, context);
+        },
+
+        /**
+         * Causes a virtual pressure source to report a new reading.
+         *
+         * Matches the `Update virtual pressure source
+         * <https://w3c.github.io/compute-pressure/?experimental=1#update-virtual-pressure-source>`_
+         * WebDriver command.
+         *
+         * @param {String} source_type - A `virtual pressure source type
+         *                               <https://w3c.github.io/compute-pressure/#dom-pressuresource>`_
+         *                               such as "cpu".
+         * @param {String} sample - A `virtual pressure state
+         *                          <https://w3c.github.io/compute-pressure/#dom-pressurestate>`_
+         *                          such as "critical".
+         * @param {number} own_contribution_estimate - Optional, A `virtual own contribution estimate`
+         *                          <https://w3c.github.io/compute-pressure/?experimental=1#the-owncontributionestimate-attribute>`_
+         * @param {WindowProxy} [context=null] - Browsing context in which to
+         *                                       run the call, or null for the
+         *                                       current browsing context.
+         *
+         * @returns {Promise} Fulfilled after the reading update reaches the
+         *                    virtual pressure source. Rejected in case the
+         *                    WebDriver command errors out (including if a
+         *                    virtual pressure source of the given type does not
+         *                    exist).
+         */
+        update_virtual_pressure_source: function(source_type, sample, own_contribution_estimate, context=null) {
+            return window.test_driver_internal.update_virtual_pressure_source(source_type, sample, own_contribution_estimate, context);
+        },
+
+        /**
+         * Removes created virtual pressure source.
+         *
+         * Matches the `Delete virtual pressure source
+         * <https://w3c.github.io/compute-pressure/#delete-virtual-pressure-source>`_
+         * WebDriver command.
+         *
+         * @param {String} source_type - A `virtual pressure source type
+         *                               <https://w3c.github.io/compute-pressure/#dom-pressuresource>`_
+         *                               such as "cpu".
+         * @param {WindowProxy} [context=null] - Browsing context in which to
+         *                                       run the call, or null for the
+         *                                       current browsing context.
+         *
+         * @returns {Promise} Fulfilled after the virtual pressure source has
+         *                    been removed or if a pressure source of the given
+         *                    type does not exist. Rejected in case the
+         *                    WebDriver command errors out.
+         */
+        remove_virtual_pressure_source: function(source_type, context=null) {
+            return window.test_driver_internal.remove_virtual_pressure_source(source_type, context);
+        },
+
+        /**
+         * Sets which hashes are considered k-anonymous for the Protected
+         * Audience interest group with specified `owner` and `name`.
+         *
+         * Matches the `Set Protected Audience K-Anonymity
+         * <https://wicg.github.io/turtledove/#sctn-automation-set-protected-audience-k-anonymity>
+         * WebDriver command.
+         *
+         *  @param {String} owner - Origin of the owner of the interest group
+         *                          to modify
+         *  @param {String} name -  Name of the interest group to modify
+         *  @param {Array} hashes - An array of strings, each of which is a
+         *                          base64 ecoded hash to consider k-anonymous.
+         *
+         *  @returns {Promise} Fulfilled after the k-anonymity status for the
+         *                     specified Protected Audience interest group has
+         *                     been updated.
+         *
+         */
+        set_protected_audience_k_anonymity: function(owner, name, hashes, context = null) {
+            return window.test_driver_internal.set_protected_audience_k_anonymity(owner, name, hashes, context);
+        },
+
+        /**
+         * Overrides the display features provided by the hardware so the viewport segments
+         * can be emulated.
+         *
+         * Matches the `Set display features
+         * <https://drafts.csswg.org/css-viewport/#set-display-features>`_
+         * WebDriver command.
+         *
+         * @param {Array} features - An array of `DisplayFeatureOverride
+         *                           <https://drafts.csswg.org/css-viewport/#display-feature-override>`.
+         * @param {WindowProxy} [context=null] - Browsing context in which to
+         *                                       run the call, or null for the
+         *                                       current browsing context.
+         *
+         * @returns {Promise} Fulfilled when the display features are set.
+         *                    Rejected in case the WebDriver command errors out
+         *                    (including if the array is malformed).
+         */
+        set_display_features: function(features, context=null) {
+            return window.test_driver_internal.set_display_features(features, context);
+        },
+
+        /**
+         * Removes display features override and returns the control
+         * back to hardware.
+         *
+         * Matches the `Clear display features
+         * <https://drafts.csswg.org/css-viewport/#clear-display-features>`_
+         * WebDriver command.
+         *
+         * @param {WindowProxy} [context=null] - Browsing context in which to
+         *                                       run the call, or null for the
+         *                                       current browsing context.
+         *
+         * @returns {Promise} Fulfilled after the display features override has
+         *                    been removed. Rejected in case the WebDriver
+         *                    command errors out.
+         */
+        clear_display_features: function(context=null) {
+            return window.test_driver_internal.clear_display_features(context);
         }
     };
 
@@ -979,6 +2180,99 @@
          * implementation of one of the methods is not available.
          */
         in_automation: false,
+
+        bidi: {
+            bluetooth: {
+                handle_request_device_prompt: function() {
+                    throw new Error(
+                        'bidi.bluetooth.handle_request_device_prompt is not implemented by testdriver-vendor.js');
+                },
+                simulate_adapter: function () {
+                    throw new Error(
+                        "bidi.bluetooth.simulate_adapter is not implemented by testdriver-vendor.js");
+                },
+                disable_simulation: function () {
+                    throw new Error(
+                        "bidi.bluetooth.disable_simulation is not implemented by testdriver-vendor.js");
+                },
+                simulate_preconnected_peripheral: function() {
+                    throw new Error(
+                        'bidi.bluetooth.simulate_preconnected_peripheral is not implemented by testdriver-vendor.js');
+                },
+                request_device_prompt_updated: {
+                    async subscribe() {
+                        throw new Error(
+                            'bidi.bluetooth.request_device_prompt_updated.subscribe is not implemented by testdriver-vendor.js');
+                    },
+                    on() {
+                        throw new Error(
+                            'bidi.bluetooth.request_device_prompt_updated.on is not implemented by testdriver-vendor.js');
+                    }
+                },
+                gatt_connection_attempted: {
+                    async subscribe() {
+                        throw new Error(
+                            'bidi.bluetooth.gatt_connection_attempted.subscribe is not implemented by testdriver-vendor.js');
+                    },
+                    on() {
+                        throw new Error(
+                            'bidi.bluetooth.gatt_connection_attempted.on is not implemented by testdriver-vendor.js');
+                    }
+                },
+                characteristic_event_generated: {
+                    async subscribe() {
+                        throw new Error(
+                            'bidi.bluetooth.characteristic_event_generated.subscribe is not implemented by testdriver-vendor.js');
+                    },
+                    on() {
+                        throw new Error(
+                            'bidi.bluetooth.characteristic_event_generated.on is not implemented by testdriver-vendor.js');
+                    }
+                },
+                descriptor_event_generated: {
+                    async subscribe() {
+                        throw new Error(
+                            'bidi.bluetooth.descriptor_event_generated.subscribe is not implemented by testdriver-vendor.js');
+                    },
+                    on() {
+                        throw new Error(
+                            'bidi.bluetooth.descriptor_event_generated.on is not implemented by testdriver-vendor.js');
+                    }
+                }
+            },
+            emulation: {
+                set_geolocation_override: function (params) {
+                    throw new Error(
+                        "bidi.emulation.set_geolocation_override is not implemented by testdriver-vendor.js");
+                },
+                set_locale_override: function (params) {
+                    throw new Error(
+                        "bidi.emulation.set_locale_override is not implemented by testdriver-vendor.js");
+                },
+                set_screen_orientation_override: function (params) {
+                    throw new Error(
+                        "bidi.emulation.set_screen_orientation_override is not implemented by testdriver-vendor.js");
+                }
+            },
+            log: {
+                entry_added: {
+                    async subscribe() {
+                        throw new Error(
+                            "bidi.log.entry_added.subscribe is not implemented by testdriver-vendor.js");
+                    },
+                    on() {
+                        throw new Error(
+                            "bidi.log.entry_added.on is not implemented by testdriver-vendor.js");
+                    }
+                }
+            },
+            permissions: {
+                async set_permission() {
+                    throw new Error(
+                        "bidi.permissions.set_permission() is not implemented by testdriver-vendor.js");
+                }
+            }
+        },
 
         async click(element, coords) {
             if (this.in_automation) {
@@ -1000,6 +2294,14 @@
 
         async get_named_cookie(name, context=null) {
             throw new Error("get_named_cookie() is not implemented by testdriver-vendor.js");
+        },
+
+        async get_computed_role(element) {
+            throw new Error("get_computed_role is a testdriver.js function which cannot be run in this context.");
+        },
+
+        async get_computed_name(element) {
+            throw new Error("get_computed_name is a testdriver.js function which cannot be run in this context.");
         },
 
         async send_keys(element, keys) {
@@ -1044,6 +2346,10 @@
 
         async set_window_rect(rect, context=null) {
             throw new Error("set_window_rect() is not implemented by testdriver-vendor.js");
+        },
+
+        async get_window_rect(context=null) {
+            throw new Error("get_window_rect() is not implemented by testdriver-vendor.js");
         },
 
         async action_sequence(actions, context=null) {
@@ -1094,6 +2400,10 @@
             throw new Error("set_spc_transaction_mode() is not implemented by testdriver-vendor.js");
         },
 
+        set_rph_registration_mode: function(mode, context=null) {
+            return Promise.reject(new Error("unimplemented"));
+        },
+
         async cancel_fedcm_dialog(context=null) {
             throw new Error("cancel_fedcm_dialog() is not implemented by testdriver-vendor.js");
         },
@@ -1140,6 +2450,42 @@
 
         async get_virtual_sensor_information(sensor_type, context=null) {
             throw new Error("get_virtual_sensor_information() is not implemented by testdriver-vendor.js");
+        },
+
+        async set_device_posture(posture, context=null) {
+            throw new Error("set_device_posture() is not implemented by testdriver-vendor.js");
+        },
+
+        async clear_device_posture(context=null) {
+            throw new Error("clear_device_posture() is not implemented by testdriver-vendor.js");
+        },
+
+        async run_bounce_tracking_mitigations(context=null) {
+            throw new Error("run_bounce_tracking_mitigations() is not implemented by testdriver-vendor.js");
+        },
+
+        async create_virtual_pressure_source(source_type, metadata={}, context=null) {
+            throw new Error("create_virtual_pressure_source() is not implemented by testdriver-vendor.js");
+        },
+
+        async update_virtual_pressure_source(source_type, sample, own_contribution_estimate, context=null) {
+            throw new Error("update_virtual_pressure_source() is not implemented by testdriver-vendor.js");
+        },
+
+        async remove_virtual_pressure_source(source_type, context=null) {
+            throw new Error("remove_virtual_pressure_source() is not implemented by testdriver-vendor.js");
+        },
+
+        async set_protected_audience_k_anonymity(owner, name, hashes, context=null) {
+            throw new Error("set_protected_audience_k_anonymity() is not implemented by testdriver-vendor.js");
+        },
+
+        async set_display_features(features, context=null) {
+            throw new Error("set_display_features() is not implemented by testdriver-vendor.js");
+        },
+
+        async clear_display_features(context=null) {
+            throw new Error("clear_display_features() is not implemented by testdriver-vendor.js");
         }
     };
 })();
