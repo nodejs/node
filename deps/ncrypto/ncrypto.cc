@@ -8,6 +8,7 @@
 #include <openssl/rand.h>
 #include <openssl/x509v3.h>
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <string_view>
 #if OPENSSL_VERSION_MAJOR >= 3
