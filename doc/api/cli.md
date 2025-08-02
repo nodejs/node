@@ -3560,6 +3560,7 @@ V8 options that are allowed are:
 * `--expose-gc`
 * `--interpreted-frames-native-stack`
 * `--jitless`
+* `--max-heap-size`
 * `--max-old-space-size`
 * `--max-semi-space-size`
 * `--perf-basic-prof-only-functions`
