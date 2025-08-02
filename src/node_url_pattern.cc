@@ -76,7 +76,7 @@ std::optional<URLPatternRegexProvider::regex_type>
 URLPatternRegexProvider::create_instance(std::string_view pattern,
                                          bool ignore_case) {
   auto isolate = Isolate::GetCurrent();
-  auto env = Environment::GetCurrent(isolate);
+  auto env = Environment::GetCurrent(isolate->GetCurrentContext());
   int flags = RegExp::Flags::kUnicodeSets | RegExp::Flags::kDotAll;
   if (ignore_case) {
     flags |= static_cast<int>(RegExp::Flags::kIgnoreCase);
@@ -100,7 +100,7 @@ URLPatternRegexProvider::create_instance(std::string_view pattern,
 bool URLPatternRegexProvider::regex_match(std::string_view input,
                                           const regex_type& pattern) {
   auto isolate = Isolate::GetCurrent();
-  auto env = Environment::GetCurrent(isolate);
+  auto env = Environment::GetCurrent(isolate->GetCurrentContext());
   Local<String> local_input;
   if (!String::NewFromUtf8(
            isolate, input.data(), NewStringType::kNormal, input.size())
@@ -121,7 +121,7 @@ std::optional<std::vector<std::optional<std::string>>>
 URLPatternRegexProvider::regex_search(std::string_view input,
                                       const regex_type& global_pattern) {
   auto isolate = Isolate::GetCurrent();
-  auto env = Environment::GetCurrent(isolate);
+  auto env = Environment::GetCurrent(isolate->GetCurrentContext());
   Local<String> local_input;
   if (!String::NewFromUtf8(
            isolate, input.data(), NewStringType::kNormal, input.size())
