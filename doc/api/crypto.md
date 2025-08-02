@@ -2949,6 +2949,155 @@ Does not perform any other validation checks on the certificate.
 
 ## `node:crypto` module methods and properties
 
+### `crypto.argon2(password, salt, keylen, options, callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `password` {string|ArrayBuffer|Buffer|TypedArray|DataView}
+* `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must be at
+  least 8 bytes long.
+* `keylen` {number} The length of the key to generate. Must be greater than 4 and less
+  than `2**32-1`.
+* `options` {Object}
+  * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or
+    `"argon2id"`.
+  * `iterations` {number} Number of iterations (passes). Must be greater than 1 and
+    less than `2**32-1`.
+  * `parallelism` {number} Parallelization parameter (number of lanes and threads).
+    Must be greater than 1 and less than `2**24-1`.
+  * `memory` {number} Memory cost in 1KiB blocks. Must be greater than
+    `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
+    down to the nearest multiple of `4 * parallelism`.
+  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView} Random additional input,
+    similar to the salt, that should **NOT** be stored with the derived key. Also known
+    as a pepper. If used, must have a length not greater than `2**32-1` bytes.
+  * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional data to
+    be added to the hash, functionally equivalent to salt or secret, but meant for
+    non-random data. If used, must have a length not greater than `2**32-1` bytes.
+* `callback` {Function}
+  * `err` {Error}
+  * `derivedKey` {Buffer}
+
+Provides an asynchronous [argon2][] implementation. Argon2 is a password-based
+key derivation function that is designed to be expensive computationally and
+memory-wise in order to make brute-force attacks unrewarding.
+
+The `salt` should be as unique as possible. It is recommended that a salt is
+random and at least 16 bytes long. See [NIST SP 800-132][] for details.
+
+When passing strings for `password`, `salt`, `secret` or `associatedData`, please
+consider [caveats when using strings as inputs to cryptographic APIs][].
+
+The `callback` function is called with two arguments: `err` and `derivedKey`.
+`err` is an exception object when key derivation fails, otherwise `err` is
+`null`. `derivedKey` is passed to the callback as a [`Buffer`][].
+
+An exception is thrown when any of the input arguments specify invalid values
+or types.
+
+```mjs
+const {
+  argon2,
+  randomBytes,
+} = await import('node:crypto');
+
+const salt = randomBytes(16);
+argon2('password', salt, 64, { iterations: 3, parallelism: 4, memory: 65536 }, (err, derivedKey) => {
+  if (err) throw err;
+  console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
+});
+```
+
+```cjs
+const {
+  argon2,
+  randomBytes,
+} = require('node:crypto');
+
+randomBytes(16, (err, salt) => {
+  if (err) throw err;
+  argon2('password', salt, 64, { iterations: 3, parallelism: 4, memory: 65536 }, (err, derivedKey) => {
+    if (err) throw err;
+    console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
+  });
+});
+```
+
+### `crypto.argon2Sync(password, salt, keylen, options)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `password` {string|Buffer|TypedArray|DataView}
+* `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must be at
+  least 8 bytes long.
+* `keylen` {number} The length of the key to generate. Must be greater than 4 and less
+  than `2**32-1`.
+* `options` {Object}
+  * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or
+    `"argon2id"`.
+  * `iterations` {number} Number of iterations (passes). Must be greater than 1 and
+    less than `2**32-1`.
+  * `parallelism` {number} Parallelization parameter (number of lanes and threads).
+    Must be greater than 1 and less than `2**24-1`.
+  * `memory` {number} Memory cost in 1KiB blocks. Must be greater than
+    `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
+    down to the nearest multiple of `4 * parallelism`.
+  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView} Random additional input,
+    similar to the salt, that should **NOT** be stored with the derived key. Also known
+    as a pepper. If used, must have a length not greater than `2**32-1` bytes.
+  * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional data to
+    be added to the hash, functionally equivalent to salt or secret, but meant for
+    non-random data. If used, must have a length not greater than `2**32-1` bytes.
+* Returns: {Buffer}
+
+Provides a synchronous [argon2][] implementation. Argon2 is a password-based
+key derivation function that is designed to be expensive computationally and
+memory-wise in order to make brute-force attacks unrewarding.
+
+The `salt` should be as unique as possible. It is recommended that a salt is
+random and at least 16 bytes long. See [NIST SP 800-132][] for details.
+
+When passing strings for `password`, `salt`, `secret` or `associatedData`, please
+consider [caveats when using strings as inputs to cryptographic APIs][].
+
+An exception is thrown when key derivation fails, otherwise the derived key is
+returned as a [`Buffer`][].
+
+An exception is thrown when any of the input arguments specify invalid values
+or types.
+
+```mjs
+const {
+  argon2Sync,
+  randomBytes,
+} = await import('node:crypto');
+// Using the factory defaults.
+
+const salt = randomBytes(16);
+const key = argon2Sync('password', salt, 64, { iterations: 3, parallelism: 4, memory: 65536 });
+console.log(key.toString('hex'));  // '3745e48...08d59ae'
+```
+
+```cjs
+const {
+  argon2Sync,
+  randomBytes,
+} = require('node:crypto');
+// Using the factory defaults.
+
+const salt = randomBytes(16);
+const key = argon2Sync('password', salt, 64, { iterations: 3, parallelism: 4, memory: 65536 });
+console.log(key.toString('hex'));  // '3745e48...08d59ae'
+```
+
 ### `crypto.checkPrime(candidate[, options], callback)`
 
 <!-- YAML
@@ -6231,6 +6380,7 @@ See the [list of SSL OP Flags][] for details.
 [`verify.verify()`]: #verifyverifyobject-signature-signatureencoding
 [`x509.fingerprint256`]: #x509fingerprint256
 [`x509.verify(publicKey)`]: #x509verifypublickey
+[argon2]: https://www.rfc-editor.org/rfc/rfc9106.html
 [caveats when using strings as inputs to cryptographic APIs]: #using-strings-as-inputs-to-cryptographic-apis
 [certificate object]: tls.md#certificate-object
 [encoding]: buffer.md#buffers-and-character-encodings

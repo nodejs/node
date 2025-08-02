@@ -1,0 +1,47 @@
+'use strict';
+
+const common = require('../common.js');
+const assert = require('node:assert');
+const {
+  argon2,
+  argon2Sync,
+  randomBytes,
+} = require('node:crypto');
+
+const bench = common.createBenchmark(main, {
+  mode: ['sync', 'async'],
+  algorithm: ['argon2d', 'argon2i', 'argon2id'],
+  iterations: [1, 3],
+  parallelism: [2, 4, 8],
+  memory: [2 ** 11, 2 ** 16, 2 ** 21],
+  n: [50],
+});
+
+function measureSync(n, pass, salt, options) {
+  bench.start();
+  for (let i = 0; i < n; ++i)
+    argon2Sync(pass, salt, 64, options);
+  bench.end(n);
+}
+
+function measureAsync(n, pass, salt, options) {
+  let remaining = n;
+  function done(err) {
+    assert.ifError(err);
+    if (--remaining === 0)
+      bench.end(n);
+  }
+  bench.start();
+  for (let i = 0; i < n; ++i)
+    argon2(pass, salt, 64, options, done);
+}
+
+function main({ n, mode, ...options }) {
+  // Pass, salt, secret, ad & output length does not affect performance
+  const pass = randomBytes(32);
+  const salt = randomBytes(16);
+  if (mode === 'sync')
+    measureSync(n, pass, salt, options);
+  else
+    measureAsync(n, pass, salt, options);
+}
