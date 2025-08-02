@@ -98,6 +98,18 @@ all: \
   incorrect_san_correct_subject-key.pem \
   irrelevant_san_correct_subject-cert.pem \
   irrelevant_san_correct_subject-key.pem \
+  ml_dsa_44_private.pem \
+  ml_dsa_44_private_seed_only.pem \
+  ml_dsa_44_private_priv_only.pem \
+  ml_dsa_44_public.pem \
+  ml_dsa_65_private.pem \
+  ml_dsa_65_private_seed_only.pem \
+  ml_dsa_65_private_priv_only.pem \
+  ml_dsa_65_public.pem \
+  ml_dsa_87_private.pem \
+  ml_dsa_87_private_seed_only.pem \
+  ml_dsa_87_private_priv_only.pem \
+  ml_dsa_87_public.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -854,6 +866,42 @@ ed448_private.pem:
 
 ed448_public.pem: ed448_private.pem
 	openssl pkey -in ed448_private.pem -pubout -out ed448_public.pem
+
+ml_dsa_44_private.pem:
+	openssl genpkey -algorithm ml-dsa-44 -out ml_dsa_44_private.pem
+
+ml_dsa_44_private_seed_only.pem: ml_dsa_44_private.pem
+	openssl pkey -in ml_dsa_44_private.pem -provparam ml-dsa.output_formats=seed-only -out ml_dsa_44_private_seed_only.pem
+
+ml_dsa_44_private_priv_only.pem: ml_dsa_44_private.pem
+	openssl pkey -in ml_dsa_44_private.pem -provparam ml-dsa.output_formats=priv-only -out ml_dsa_44_private_priv_only.pem
+
+ml_dsa_44_public.pem: ml_dsa_44_private.pem
+	openssl pkey -in ml_dsa_44_private.pem -pubout -out ml_dsa_44_public.pem
+
+ml_dsa_65_private.pem:
+	openssl genpkey -algorithm ml-dsa-65 -out ml_dsa_65_private.pem
+
+ml_dsa_65_private_seed_only.pem: ml_dsa_65_private.pem
+	openssl pkey -in ml_dsa_65_private.pem -provparam ml-dsa.output_formats=seed-only -out ml_dsa_65_private_seed_only.pem
+
+ml_dsa_65_private_priv_only.pem: ml_dsa_65_private.pem
+	openssl pkey -in ml_dsa_65_private.pem -provparam ml-dsa.output_formats=priv-only -out ml_dsa_65_private_priv_only.pem
+
+ml_dsa_65_public.pem: ml_dsa_65_private.pem
+	openssl pkey -in ml_dsa_65_private.pem -pubout -out ml_dsa_65_public.pem
+
+ml_dsa_87_private.pem:
+	openssl genpkey -algorithm ml-dsa-87 -out ml_dsa_87_private.pem
+
+ml_dsa_87_private_seed_only.pem: ml_dsa_87_private.pem
+	openssl pkey -in ml_dsa_87_private.pem -provparam ml-dsa.output_formats=seed-only -out ml_dsa_87_private_seed_only.pem
+
+ml_dsa_87_private_priv_only.pem: ml_dsa_87_private.pem
+	openssl pkey -in ml_dsa_87_private.pem -provparam ml-dsa.output_formats=priv-only -out ml_dsa_87_private_priv_only.pem
+
+ml_dsa_87_public.pem: ml_dsa_87_private.pem
+	openssl pkey -in ml_dsa_87_private.pem -pubout -out ml_dsa_87_public.pem
 
 x448_private.pem:
 	openssl genpkey -algorithm x448 -out x448_private.pem

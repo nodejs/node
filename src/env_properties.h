@@ -115,6 +115,9 @@
   V(crypto_ec_string, "ec")                                                    \
   V(crypto_ed25519_string, "ed25519")                                          \
   V(crypto_ed448_string, "ed448")                                              \
+  V(crypto_ml_dsa_44_string, "ml-dsa-44")                                      \
+  V(crypto_ml_dsa_65_string, "ml-dsa-65")                                      \
+  V(crypto_ml_dsa_87_string, "ml-dsa-87")                                      \
   V(crypto_x25519_string, "x25519")                                            \
   V(crypto_x448_string, "x448")                                                \
   V(crypto_rsa_string, "rsa")                                                  \
@@ -220,6 +223,8 @@
   V(issuer_string, "issuer")                                                   \
   V(issuercert_string, "issuerCertificate")                                    \
   V(iterator_string, "Iterator")                                               \
+  V(jwk_akp_string, "AKP")                                                     \
+  V(jwk_alg_string, "alg")                                                     \
   V(jwk_crv_string, "crv")                                                     \
   V(jwk_d_string, "d")                                                         \
   V(jwk_dp_string, "dp")                                                       \
@@ -229,13 +234,15 @@
   V(jwk_ec_string, "EC")                                                       \
   V(jwk_g_string, "g")                                                         \
   V(jwk_k_string, "k")                                                         \
-  V(jwk_p_string, "p")                                                         \
-  V(jwk_q_string, "q")                                                         \
-  V(jwk_qi_string, "qi")                                                       \
   V(jwk_kty_string, "kty")                                                     \
   V(jwk_n_string, "n")                                                         \
   V(jwk_oct_string, "oct")                                                     \
   V(jwk_okp_string, "OKP")                                                     \
+  V(jwk_p_string, "p")                                                         \
+  V(jwk_priv_string, "priv")                                                   \
+  V(jwk_pub_string, "pub")                                                     \
+  V(jwk_q_string, "q")                                                         \
+  V(jwk_qi_string, "qi")                                                       \
   V(jwk_rsa_string, "RSA")                                                     \
   V(jwk_x_string, "x")                                                         \
   V(jwk_y_string, "y")                                                         \
