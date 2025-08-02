@@ -866,10 +866,10 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethodNoSideEffect(isolate, tmpl, "validFrom", ValidFrom);
     SetProtoMethodNoSideEffect(isolate, tmpl, "validToDate", ValidToDate);
     SetProtoMethodNoSideEffect(isolate, tmpl, "validFromDate", ValidFromDate);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "signatureAlgorithm",
-        SignatureAlgorithm);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "signatureAlgorithmOid",
-        SignatureAlgorithmOID);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "signatureAlgorithm", SignatureAlgorithm);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "signatureAlgorithmOid", SignatureAlgorithmOID);
     SetProtoMethodNoSideEffect(
         isolate, tmpl, "fingerprint", Fingerprint<Digest::SHA1>);
     SetProtoMethodNoSideEffect(
