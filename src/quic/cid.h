@@ -19,10 +19,10 @@ namespace node::quic {
 //
 // Each peer in a QUIC session generates one or more CIDs that the *other*
 // peer will use to identify the session. When a QUIC client initiates a
-// brand new session, it will initially generates a CID of its own (its
+// brand new session, it will initially generate a CID of its own (its
 // source CID) and a random placeholder CID for the server (the original
 // destination CID). When the server receives the initial packet, it will
-// generate its own source CID and use the clients source CID as the
+// generate its own source CID and use the client's source CID as the
 // server's destination CID.
 //
 //       Client                 Server
@@ -30,9 +30,9 @@ namespace node::quic {
 //     Source CID   <====> Destination CID
 //  Destination CID <====>   Source CID
 //
-// While the connection is being established, it is possible for either
-// peer to generate additional CIDs that are also associated with the
-// connection.
+// While the connection is being established, or even while the connection
+// is active, it is possible for either peer to generate additional CIDs that
+// are also associated with the connection.
 class CID final : public MemoryRetainer {
  public:
   static constexpr size_t kMinLength = NGTCP2_MIN_CIDLEN;
