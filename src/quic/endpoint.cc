@@ -751,14 +751,14 @@ void Endpoint::Send(const BaseObjectPtr<Packet>& packet) {
   // dropped. This can happen to any type of packet. We use this only in
   // testing to test various reliability issues.
   if (is_diagnostic_packet_loss(options_.tx_loss)) [[unlikely]] {
-    packet->Done(0);
+    packet->Done();
     // Simulating tx packet loss
     return;
   }
 #endif  // DEBUG
 
   if (is_closed() || is_closing() || packet->length() == 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return;
   }
   Debug(this, "Sending %s", packet->ToString());

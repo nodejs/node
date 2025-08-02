@@ -1698,7 +1698,7 @@ void Session::Send(const BaseObjectPtr<Packet>& packet) {
   DCHECK(!is_in_draining_period());
 
   if (!can_send_packets()) [[unlikely]] {
-    return packet->Done(UV_ECANCELED);
+    return packet->CancelPacket();
   }
 
   Debug(this, "Session is sending %s", packet->ToString());
@@ -1799,7 +1799,7 @@ uint64_t Session::SendDatagram(Store&& data) {
           // not fit. Since datagrams are best effort, we are going to abandon
           // the attempt and just return.
           CHECK_EQ(accepted, 0);
-          packet->Done(UV_ECANCELED);
+          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_WRITE_MORE: {
@@ -1809,13 +1809,13 @@ uint64_t Session::SendDatagram(Store&& data) {
         case NGTCP2_ERR_INVALID_STATE: {
           // The remote endpoint does not want to accept datagrams. That's ok,
           // just return 0.
-          packet->Done(UV_ECANCELED);
+          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_INVALID_ARGUMENT: {
           // The datagram is too large. That should have been caught above but
           // that's ok. We'll just abandon the attempt and return.
-          packet->Done(UV_ECANCELED);
+          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_PKT_NUM_EXHAUSTED: {
@@ -1829,7 +1829,7 @@ uint64_t Session::SendDatagram(Store&& data) {
           break;
         }
       }
-      packet->Done(UV_ECANCELED);
+      packet->CancelPacket();
       SetLastError(QuicError::ForTransport(nwrite));
       Close(CloseMethod::SILENT);
       return 0;
@@ -2260,7 +2260,7 @@ void Session::SendConnectionClose() {
                                                       uv_hrtime());
 
   if (nwrite < 0) [[unlikely]] {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return ErrorAndSilentClose();
   }
 

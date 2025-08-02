@@ -290,7 +290,7 @@ void Session::Application::SendPendingData() {
     // The stream_data is the next block of data from the application stream.
     if (GetStreamData(&stream_data) < 0) {
       Debug(session_, "Application failed to get stream data");
-      packet->Done(UV_ECANCELED);
+      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
       return session_->Close(CloseMethod::SILENT);
     }
@@ -357,7 +357,7 @@ void Session::Application::SendPendingData() {
           if (ndatalen >= 0 && !StreamCommit(&stream_data, ndatalen)) {
             Debug(session_,
                   "Failed to commit stream data while writing packets");
-            packet->Done(UV_ECANCELED);
+            packet->CancelPacket();;
             session_->SetLastError(
                 QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
             return session_->Close(CloseMethod::SILENT);
@@ -371,11 +371,11 @@ void Session::Application::SendPendingData() {
       Debug(session_,
             "Application encountered error while writing packet: %s",
             ngtcp2_strerror(nwrite));
-      packet->Done(UV_ECANCELED);
+      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(nwrite));
       return session_->Close(CloseMethod::SILENT);
     } else if (ndatalen >= 0 && !StreamCommit(&stream_data, ndatalen)) {
-      packet->Done(UV_ECANCELED);
+      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
       return session_->Close(CloseMethod::SILENT);
     }
@@ -394,7 +394,7 @@ void Session::Application::SendPendingData() {
         packet->Truncate(datalen);
         session_->Send(packet, path);
       } else {
-        packet->Done(UV_ECANCELED);
+        packet->CancelPacket();
       }
 
       return;

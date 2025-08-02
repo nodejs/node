@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "packet.h"
 #include <base_object-inl.h>
 #include <crypto/crypto_util.h>
@@ -260,7 +261,7 @@ BaseObjectPtr<Packet> Packet::CreateRetryPacket(
                                              vec.base,
                                              vec.len);
   if (nwrite <= 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return {};
   }
   packet->Truncate(static_cast<size_t>(nwrite));
@@ -281,7 +282,7 @@ BaseObjectPtr<Packet> Packet::CreateConnectionClosePacket(
   ssize_t nwrite = ngtcp2_conn_write_connection_close(
       conn, nullptr, nullptr, vec.base, vec.len, error, uv_hrtime());
   if (nwrite < 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return {};
   }
   packet->Truncate(static_cast<size_t>(nwrite));
@@ -312,7 +313,7 @@ BaseObjectPtr<Packet> Packet::CreateImmediateConnectionClosePacket(
       nullptr,
       0);
   if (nwrite <= 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return {};
   }
   packet->Truncate(static_cast<size_t>(nwrite));
@@ -349,7 +350,7 @@ BaseObjectPtr<Packet> Packet::CreateStatelessResetPacket(
   ssize_t nwrite = ngtcp2_pkt_write_stateless_reset(
       vec.base, pktlen, token, random, kRandlen);
   if (nwrite <= static_cast<ssize_t>(kMinStatelessResetLen)) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return {};
   }
 
@@ -407,7 +408,7 @@ BaseObjectPtr<Packet> Packet::CreateVersionNegotiationPacket(
                                            sv,
                                            arraysize(sv));
   if (nwrite <= 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return {};
   }
   packet->Truncate(static_cast<size_t>(nwrite));
@@ -417,4 +418,5 @@ BaseObjectPtr<Packet> Packet::CreateVersionNegotiationPacket(
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL
