@@ -1161,6 +1161,7 @@ may run into a 'ECONNRESET' error.
 
 ```mjs
 import http from 'node:http';
+const agent = new http.Agent({ keepAlive: true });
 
 // Server has a 5 seconds keep-alive timeout by default
 http
@@ -1182,6 +1183,7 @@ setInterval(() => {
 
 ```cjs
 const http = require('node:http');
+const agent = new http.Agent({ keepAlive: true });
 
 // Server has a 5 seconds keep-alive timeout by default
 http
