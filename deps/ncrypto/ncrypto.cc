@@ -1859,23 +1859,6 @@ DataPointer pbkdf2(const Digest& md,
 
 #if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 2
 #ifndef OPENSSL_NO_ARGON2
-namespace {
-
-class MaxThreadsScope final {
- public:
-  MaxThreadsScope(uint64_t threads) : ctx_{OSSL_LIB_CTX_new()} {
-    OSSL_set_max_threads(ctx_.get(), threads) == 1;
-  }
-  ~MaxThreadsScope() { OSSL_set_max_threads(ctx_.get(), 0); }
-
-  OSSL_LIB_CTX* ctx() const { return ctx_.get(); }
-
- private:
-  DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free> ctx_;
-};
-
-}  // namespace
-
 DataPointer argon2(const Buffer<const char>& pass,
                    const Buffer<const unsigned char>& salt,
                    const Buffer<const unsigned char>& secret,
@@ -1904,10 +1887,19 @@ DataPointer argon2(const Buffer<const char>& pass,
       return {};
   }
 
-  MaxThreadsScope mts{lanes};
+  // creates a new library context to avoid locking when running concurrently
+  auto ctx = DeleteFnPtr<OSSL_LIB_CTX, OSSL_LIB_CTX_free>{OSSL_LIB_CTX_new()};
+  if (!ctx) {
+    return {};
+  }
+
+  // required if threads > 1
+  if (lanes > 1 && OSSL_set_max_threads(ctx.get(), lanes) != 1) {
+    return {};
+  }
 
   auto kdf = DeleteFnPtr<EVP_KDF, EVP_KDF_free>{
-      EVP_KDF_fetch(mts.ctx(), algorithm.data(), nullptr)};
+      EVP_KDF_fetch(ctx.get(), algorithm.data(), nullptr)};
   if (!kdf) {
     return {};
   }
