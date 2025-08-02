@@ -4082,6 +4082,21 @@ Type: Runtime
 
 Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength` is deprecated.
 
+### DEP0199: `require('node:_http_*')`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59293
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The `node:_http_agent`, `node:_http_client`, `node:_http_common`, `node:_http_incoming`,
+`node:_http_outgoing` and `node:_http_server` modules are deprecated as they should be considered
+an internal nodejs implementation rather than a public facing API, use `node:http` instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
