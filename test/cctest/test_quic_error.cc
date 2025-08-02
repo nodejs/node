@@ -113,8 +113,6 @@ TEST(QuicError, InternalError) {
   CHECK_EQ(err.type(), QuicError::Type::TRANSPORT);
   CHECK_EQ(err.reason(), "a reason");
   CHECK_EQ(err.ToString(), "QuicError(transport) 1: a reason");
-
-  printf("%s\n", QuicError::INTERNAL_ERROR.ToString().c_str());
   CHECK_EQ(err, QuicError::INTERNAL_ERROR);
 }
 
