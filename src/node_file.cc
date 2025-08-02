@@ -1053,7 +1053,7 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsString());
+  CHECK(args[0]->IsString() || args[0]->IsArrayBufferView());
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
   ToNamespacedPath(env, &path);
