@@ -12,6 +12,7 @@
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
 
+#include <atomic>
 #include <cinttypes>
 
 namespace node {
@@ -115,13 +116,67 @@ using v8::Value;
         UNREACHABLE("Bad SQLite value");                                       \
     }                                                                          \
   } while (0)
+// TODO(@lluisemper) This is a copy of node::AbortError, use js native
+// AbortError constructor to allow instanceof checks in JS.
+class AbortError {
+ public:
+  static MaybeLocal<Object> New(
+      Isolate* isolate,
+      std::string_view message = "The operation was aborted",
+      Local<Value> cause = Local<Value>()) {
+    Local<String> js_msg;
+    Local<Object> error_obj;
+    Local<Context> context = isolate->GetCurrentContext();
+    Environment* env = Environment::GetCurrent(isolate);
+
+    if (!String::NewFromUtf8(isolate,
+                             message.data(),
+                             NewStringType::kNormal,
+                             static_cast<int>(message.size()))
+             .ToLocal(&js_msg) ||
+        !Exception::Error(js_msg)->ToObject(context).ToLocal(&error_obj)) {
+      return MaybeLocal<Object>();
+    }
+
+    Local<String> error_name;
+    if (!String::NewFromUtf8(isolate, "AbortError").ToLocal(&error_name)) {
+      return MaybeLocal<Object>();
+    }
+    if (error_obj->Set(context, env->name_string(), error_name).IsNothing()) {
+      return MaybeLocal<Object>();
+    }
+
+    Local<String> code_key;
+    Local<String> code_value;
+    if (!String::NewFromUtf8(isolate, "code").ToLocal(&code_key) ||
+        !String::NewFromUtf8(isolate, "ABORT_ERR").ToLocal(&code_value)) {
+      return MaybeLocal<Object>();
+    }
+    if (error_obj->Set(context, code_key, code_value).IsNothing()) {
+      return MaybeLocal<Object>();
+    }
+
+    if (!cause.IsEmpty() && !cause->IsUndefined()) {
+      if (error_obj->Set(context, env->cause_string(), cause).IsNothing()) {
+        return MaybeLocal<Object>();
+      }
+    }
+
+    return error_obj;
+  }
+};
 
 inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
-                                            const char* message) {
+                                            std::string_view message) {
   Local<String> js_msg;
   Local<Object> e;
   Environment* env = Environment::GetCurrent(isolate);
-  if (!String::NewFromUtf8(isolate, message).ToLocal(&js_msg) ||
+
+  if (!String::NewFromUtf8(isolate,
+                           message.data(),
+                           NewStringType::kNormal,
+                           static_cast<int>(message.size()))
+           .ToLocal(&js_msg) ||
       !Exception::Error(js_msg)
            ->ToObject(isolate->GetCurrentContext())
            .ToLocal(&e) ||
@@ -131,6 +186,7 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
           .IsNothing()) {
     return MaybeLocal<Object>();
   }
+
   return e;
 }
 
@@ -433,16 +489,21 @@ class BackupJob : public ThreadPoolWork {
                      std::string destination_name,
                      std::string dest_db,
                      int pages,
-                     Local<Function> progressFunc)
+                     Local<Function> progress_func,
+                     Local<Object> abort_signal = Local<Object>())
       : ThreadPoolWork(env, "node_sqlite3.BackupJob"),
         env_(env),
         source_(source),
         pages_(pages),
         source_db_(std::move(source_db)),
         destination_name_(std::move(destination_name)),
-        dest_db_(std::move(dest_db)) {
+        dest_db_(std::move(dest_db)),
+        is_aborted_(false) {
     resolver_.Reset(env->isolate(), resolver);
-    progressFunc_.Reset(env->isolate(), progressFunc);
+    progress_func_.Reset(env->isolate(), progress_func);
+    if (!abort_signal.IsEmpty()) {
+      abort_signal_.Reset(env->isolate(), abort_signal);
+    }
   }
 
   void ScheduleBackup() {
@@ -471,6 +532,10 @@ class BackupJob : public ThreadPoolWork {
   }
 
   void DoThreadPoolWork() override {
+    if (is_aborted_.load(std::memory_order_acquire)) {
+      backup_status_ = SQLITE_INTERRUPT;
+      return;
+    }
     backup_status_ = sqlite3_backup_step(backup_, pages_);
   }
 
@@ -478,6 +543,12 @@ class BackupJob : public ThreadPoolWork {
     HandleScope handle_scope(env()->isolate());
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(env()->isolate(), resolver_);
+
+    if (is_aborted_.load(std::memory_order_acquire) ||
+        backup_status_ == SQLITE_INTERRUPT) {
+      HandleAbortError(resolver);
+      return;
+    }
 
     if (!(backup_status_ == SQLITE_OK || backup_status_ == SQLITE_DONE ||
           backup_status_ == SQLITE_BUSY || backup_status_ == SQLITE_LOCKED)) {
@@ -489,7 +560,7 @@ class BackupJob : public ThreadPoolWork {
     int remaining_pages = sqlite3_backup_remaining(backup_);
     if (remaining_pages != 0) {
       Local<Function> fn =
-          Local<Function>::New(env()->isolate(), progressFunc_);
+          Local<Function>::New(env()->isolate(), progress_func_);
       if (!fn.IsEmpty()) {
         Local<Object> progress_info = Object::New(env()->isolate());
         if (progress_info
@@ -514,6 +585,14 @@ class BackupJob : public ThreadPoolWork {
           resolver->Reject(env()->context(), try_catch.Exception()).ToChecked();
           return;
         }
+      }
+      if (CheckAbortSignal()) {
+        // TODO(@lluisemper): BackupJob does not implement proper async context
+        //  tracking yet.
+        // Consider inheriting from AsyncWrap and using CallbackScope to
+        // propagate async context, similar to other ThreadPoolWork items.
+        HandleAbortError(resolver);
+        return;
       }
 
       // There's still work to do
@@ -548,6 +627,10 @@ class BackupJob : public ThreadPoolWork {
       sqlite3_close_v2(dest_);
       dest_ = nullptr;
     }
+
+    if (!abort_signal_.IsEmpty()) {
+      abort_signal_.Reset();
+    }
   }
 
  private:
@@ -573,12 +656,65 @@ class BackupJob : public ThreadPoolWork {
     resolver->Reject(env()->context(), e).ToChecked();
   }
 
+  inline MaybeLocal<Object> CreateAbortError(
+      Isolate* isolate,
+      std::string_view message = "The operation was aborted") {
+    Environment* env = Environment::GetCurrent(isolate);
+    HandleScope scope(isolate);
+    Local<Value> cause;
+
+    if (!abort_signal_.IsEmpty()) {
+      Local<Object> signal = abort_signal_.Get(isolate);
+      Local<String> reason_key = env->reason_string();
+
+      if (!signal->Get(isolate->GetCurrentContext(), reason_key)
+               .ToLocal(&cause)) {
+        cause = Local<Value>();
+      }
+    }
+
+    return AbortError::New(isolate, message, cause);
+  }
+
+  void HandleAbortError(Local<Promise::Resolver> resolver) {
+    Local<Object> e;
+    if (!CreateAbortError(env()->isolate()).ToLocal(&e)) {
+      Finalize();
+      return;
+    }
+
+    Finalize();
+    resolver->Reject(env()->context(), e).ToChecked();
+  }
+
+  bool CheckAbortSignal() {
+    if (abort_signal_.IsEmpty()) {
+      return false;
+    }
+
+    Isolate* isolate = env()->isolate();
+    HandleScope scope(isolate);
+    Local<Object> signal = abort_signal_.Get(isolate);
+
+    Local<Value> aborted_value;
+    if (signal->Get(env()->context(), env()->aborted_string())
+            .ToLocal(&aborted_value)) {
+      if (aborted_value->BooleanValue(isolate)) {
+        is_aborted_.store(true, std::memory_order_release);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   Environment* env() const { return env_; }
 
   Environment* env_;
   DatabaseSync* source_;
   Global<Promise::Resolver> resolver_;
-  Global<Function> progressFunc_;
+  Global<Function> progress_func_;
+  Global<Object> abort_signal_;
   sqlite3* dest_ = nullptr;
   sqlite3_backup* backup_ = nullptr;
   int pages_;
@@ -586,6 +722,7 @@ class BackupJob : public ThreadPoolWork {
   std::string source_db_;
   std::string destination_name_;
   std::string dest_db_;
+  std::atomic<bool> is_aborted_;
 };
 
 UserDefinedFunction::UserDefinedFunction(Environment* env,
@@ -1538,7 +1675,8 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   int rate = 100;
   std::string source_db = "main";
   std::string dest_db = "main";
-  Local<Function> progressFunc = Local<Function>();
+  Local<Function> progress_func = Local<Function>();
+  Local<Object> abort_signal = Local<Object>();
 
   if (args.Length() > 2) {
     if (!args[2]->IsObject()) {
@@ -1610,7 +1748,13 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
             "The \"options.progress\" argument must be a function.");
         return;
       }
-      progressFunc = progress_v.As<Function>();
+      progress_func = progress_v.As<Function>();
+    }
+
+    Local<Value> signal_v;
+    if (!options->Get(env->context(), env->signal_string())
+             .ToLocal(&signal_v)) {
+      return;
     }
   }
 
@@ -1627,7 +1771,8 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
                                  dest_path.value(),
                                  std::move(dest_db),
                                  rate,
-                                 progressFunc);
+                                 progress_func,
+                                 abort_signal);
   db->AddBackup(job);
   job->ScheduleBackup();
 }
