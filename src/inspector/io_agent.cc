@@ -27,7 +27,7 @@ DispatchResponse IoAgent::read(const String& in_handle,
   if (in_offset.has_value()) {
     offset = *in_offset;
     offset_was_specified = true;
-  } else if (offset_map_.find(url) != offset_map_.end()) {
+  } else if (offset_map_.contains(url)) {
     offset = offset_map_[url];
   }
   int size = 1 << 20;
