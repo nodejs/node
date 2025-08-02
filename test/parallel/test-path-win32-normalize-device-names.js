@@ -45,10 +45,18 @@ const normalizeDeviceNameTests = [
 
   { input: 'COM1:', expected: '.\\COM1:.' },
   { input: 'COM9:', expected: '.\\COM9:.' },
+  { input: 'COM¹:', expected: '.\\COM¹:.' },
+  { input: 'COM²:', expected: '.\\COM²:.' },
+  { input: 'COM³:', expected: '.\\COM³:.' },
   { input: 'COM1:.\\..\\..\\foo', expected: '.\\COM1:..\\..\\foo' },
+  { input: 'COM¹:.\\..\\..\\foo', expected: '.\\COM¹:..\\..\\foo' },
   { input: 'LPT1:', expected: '.\\LPT1:.' },
+  { input: 'LPT¹:', expected: '.\\LPT¹:.' },
+  { input: 'LPT²:', expected: '.\\LPT²:.' },
+  { input: 'LPT³:', expected: '.\\LPT³:.' },
   { input: 'LPT9:', expected: '.\\LPT9:.' },
   { input: 'LPT1:.\\..\\..\\foo', expected: '.\\LPT1:..\\..\\foo' },
+  { input: 'LPT¹:.\\..\\..\\foo', expected: '.\\LPT¹:..\\..\\foo' },
   { input: 'LpT5:/another/path', expected: '.\\LpT5:another\\path' },
 
   { input: 'C:\\foo', expected: 'C:\\foo' },
