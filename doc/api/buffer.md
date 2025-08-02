@@ -1979,7 +1979,7 @@ console.log(b.toString());
 // Fill a buffer with empty string
 const c = Buffer.allocUnsafe(5).fill('');
 
-console.log(c.fill(''));
+console.log(c);
 // Prints: <Buffer 00 00 00 00 00>
 ```
 
@@ -1996,7 +1996,7 @@ console.log(b.toString());
 // Fill a buffer with empty string
 const c = Buffer.allocUnsafe(5).fill('');
 
-console.log(c.fill(''));
+console.log(c);
 // Prints: <Buffer 00 00 00 00 00>
 ```
 
@@ -2084,7 +2084,7 @@ console.log(buf.includes(97));
 // Prints: true (97 is the decimal ASCII value for 'a')
 console.log(buf.includes(Buffer.from('a buffer example')));
 // Prints: false
-console.log(buf.includes(Buffer.from('a buffer example').slice(0, 8)));
+console.log(buf.includes(Buffer.from('a buffer example').subarray(0, 8)));
 // Prints: true
 console.log(buf.includes('this', 4));
 // Prints: false
@@ -2105,7 +2105,7 @@ console.log(buf.includes(97));
 // Prints: true (97 is the decimal ASCII value for 'a')
 console.log(buf.includes(Buffer.from('a buffer example')));
 // Prints: false
-console.log(buf.includes(Buffer.from('a buffer example').slice(0, 8)));
+console.log(buf.includes(Buffer.from('a buffer example').subarray(0, 8)));
 // Prints: true
 console.log(buf.includes('this', 4));
 // Prints: false
@@ -2160,7 +2160,7 @@ console.log(buf.indexOf(97));
 // Prints: 8 (97 is the decimal ASCII value for 'a')
 console.log(buf.indexOf(Buffer.from('a buffer example')));
 // Prints: -1
-console.log(buf.indexOf(Buffer.from('a buffer example').slice(0, 8)));
+console.log(buf.indexOf(Buffer.from('a buffer example').subarray(0, 8)));
 // Prints: 8
 
 const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'utf16le');
@@ -2186,7 +2186,7 @@ console.log(buf.indexOf(97));
 // Prints: 8 (97 is the decimal ASCII value for 'a')
 console.log(buf.indexOf(Buffer.from('a buffer example')));
 // Prints: -1
-console.log(buf.indexOf(Buffer.from('a buffer example').slice(0, 8)));
+console.log(buf.indexOf(Buffer.from('a buffer example').subarray(0, 8)));
 // Prints: 8
 
 const utf16Buffer = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'utf16le');
