@@ -11,9 +11,9 @@ const {
 const bench = common.createBenchmark(main, {
   mode: ['sync', 'async'],
   algorithm: ['argon2d', 'argon2i', 'argon2id'],
-  iter: [1, 3],
-  lanes: [2, 4, 8],
-  memcost: [2 ** 11, 2 ** 16, 2 ** 21],
+  iterations: [1, 3],
+  parallelism: [2, 4, 8],
+  memory: [2 ** 11, 2 ** 16, 2 ** 21],
   n: [50],
 });
 
