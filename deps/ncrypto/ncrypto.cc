@@ -1073,9 +1073,11 @@ std::optional<std::string_view> X509View::getSignatureAlgorithm() const {
 
 std::optional<std::string> X509View::getSignatureAlgorithmOID() const {
   if (cert_ == nullptr) return std::nullopt;
-  int nid = X509_get_signature_nid(cert_);
-  if (nid == NID_undef) return std::nullopt;
-  ASN1_OBJECT* obj = OBJ_nid2obj(nid);
+  const X509_ALGOR* alg = nullptr;
+  X509_get0_signature(nullptr, &alg, cert_);
+  if (alg == nullptr) return std::nullopt;
+  const ASN1_OBJECT* obj = nullptr;
+  X509_ALGOR_get0(&obj, nullptr, nullptr, alg);
   if (obj == nullptr) return std::nullopt;
   std::array<char, 128> buf{};
   int len = OBJ_obj2txt(buf.data(), buf.size(), obj, 1);

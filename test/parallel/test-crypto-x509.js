@@ -451,3 +451,17 @@ CWwQO8JZjJqFtqtuzy2n+gLCvqePgG/gmSqHOPm2ZbLW
     assert.deepStrictEqual(c2.validToDate, new Date('2050-01-02T00:00:01Z'));
   }
 }
+
+{
+  const certPem = `-----BEGIN CERTIFICATE-----
+MIGXMHugAwIBAgIBATANBgkrBgEEAYaNHwEFADASMRAwDgYDVQQDEwdVbmtub3du
+MB4XDTI0MDEwMTAwMDAwMFoXDTM0MDEwMTAwMDAwMFowEjEQMA4GA1UEAxMHVW5r
+bm93bjAaMA0GCSqGSIb3DQEBAQUAAwkAAAAAAAAAAAAwDQYJKwYBBAGGjR8BBQAD
+CQAAAAAAAAAAAA==
+-----END CERTIFICATE-----`;
+
+  const cert = new X509Certificate(certPem);
+
+  assert.strictEqual(cert.signatureAlgorithm, undefined);
+  assert.strictEqual(cert.signatureAlgorithmOid, '1.3.6.1.4.1.99999.1');
+}
