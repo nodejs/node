@@ -758,7 +758,7 @@ if (isMainThread) {
 ## `worker.locks`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 > Stability: 1 - Experimental
@@ -773,7 +773,7 @@ process. The API mirrors the semantics of the
 ### Class: `Lock`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 The `Lock` interface provides information about a lock that has been granted via
@@ -782,7 +782,7 @@ The `Lock` interface provides information about a lock that has been granted via
 #### `lock.name`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 * {string}
@@ -792,7 +792,7 @@ The name of the lock.
 #### `lock.mode`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 * {string}
@@ -802,7 +802,7 @@ The mode of the lock. Either `shared` or `exclusive`.
 ### Class: `LockManager`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 The `LockManager` interface provides methods for requesting and introspecting
@@ -823,7 +823,7 @@ This implementation matches the [browser `LockManager`][] API.
 #### `locks.request(name[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 * `name` {string}
@@ -867,7 +867,7 @@ locks.request('my_resource', async (lock) => {
 #### `locks.query()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 * Returns: {Promise}
@@ -1760,6 +1760,19 @@ added: v10.5.0
 The `'online'` event is emitted when the worker thread has started executing
 JavaScript code.
 
+### `worker.cpuUsage([prev])`
+
+<!-- YAML
+added:
+- REPLACEME
+-->
+
+* Returns: {Promise}
+
+This method returns a `Promise` that will resolve to an object identical to [`process.threadCpuUsage()`][],
+or reject with an [`ERR_WORKER_NOT_RUNNING`][] error if the worker is no longer running.
+This methods allows the statistics to be observed from outside the actual thread.
+
 ### `worker.getHeapSnapshot([options])`
 
 <!-- YAML
@@ -2015,7 +2028,9 @@ active handle in the event system. If the worker is already `unref()`ed calling
 ### `worker[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: v24.2.0
+added:
+ - v24.2.0
+ - v22.18.0
 -->
 
 Calls [`worker.terminate()`][] when the dispose scope is exited.
@@ -2123,6 +2138,7 @@ thread spawned will spawn another until the application crashes.
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout
+[`process.threadCpuUsage()`]: process.md#processthreadcpuusagepreviousvalue
 [`process.title`]: process.md#processtitle
 [`require('node:worker_threads').isMainThread`]: #workerismainthread
 [`require('node:worker_threads').parentPort.on('message')`]: #event-message

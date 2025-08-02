@@ -1,4 +1,4 @@
-// Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
+// Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
 //
 // Licensed under the Apache License 2.0 (the "License").  You may not use
 // this file except in compliance with the License.  You can obtain a copy
@@ -55,8 +55,8 @@
 
 // $output is the last argument if it looks like a file (it has an extension)
 // $flavour is the first argument if it doesn't look like a file
+#include "arm_arch.h"
 #ifndef	__KERNEL__
-# include "arm_arch.h"
 
 .hidden	OPENSSL_armcap_P
 #endif
@@ -67,6 +67,7 @@
 .type	sha256_block_data_order,%function
 .align	6
 sha256_block_data_order:
+	AARCH64_VALID_CALL_TARGET
 #ifndef	__KERNEL__
 	adrp	x16,OPENSSL_armcap_P
 	ldr	w16,[x16,#:lo12:OPENSSL_armcap_P]
@@ -75,7 +76,7 @@ sha256_block_data_order:
 	tst	w16,#ARMV7_NEON
 	b.ne	.Lneon_entry
 #endif
-.inst	0xd503233f				// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-128]!
 	add	x29,sp,#0
 
@@ -91,7 +92,8 @@ sha256_block_data_order:
 	ldp	w24,w25,[x0,#4*4]
 	add	x2,x1,x2,lsl#6	// end of input
 	ldp	w26,w27,[x0,#6*4]
-	adr	x30,.LK256
+	adrp	x30,.LK256
+	add	x30,x30,#:lo12:.LK256
 	stp	x0,x2,[x29,#96]
 
 .Loop:
@@ -1035,9 +1037,11 @@ sha256_block_data_order:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#128
-.inst	0xd50323bf				// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	sha256_block_data_order,.-sha256_block_data_order
+
+.section	.rodata
 
 .align	6
 .type	.LK256,%object
@@ -1063,16 +1067,20 @@ sha256_block_data_order:
 .byte	83,72,65,50,53,54,32,98,108,111,99,107,32,116,114,97,110,115,102,111,114,109,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2
+
+.text
 #ifndef	__KERNEL__
 .type	sha256_block_armv8,%function
 .align	6
 sha256_block_armv8:
 .Lv8_entry:
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
 	ld1	{v0.4s,v1.4s},[x0]
-	adr	x3,.LK256
+	adrp	x3,.LK256
+	add	x3,x3,#:lo12:.LK256
 
 .Loop_hw:
 	ld1	{v4.16b,v5.16b,v6.16b,v7.16b},[x1],#64
@@ -1209,12 +1217,15 @@ sha256_block_armv8:
 .type	sha256_block_neon,%function
 .align	4
 sha256_block_neon:
+	AARCH64_VALID_CALL_TARGET
 .Lneon_entry:
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later
 	stp	x29, x30, [sp, #-16]!
 	mov	x29, sp
 	sub	sp,sp,#16*4
 
-	adr	x16,.LK256
+	adrp	x16,.LK256
+	add	x16,x16,#:lo12:.LK256
 	add	x2,x1,x2,lsl#6	// len to point at the end of inp
 
 	ld1	{v0.16b},[x1], #16

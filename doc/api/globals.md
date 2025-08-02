@@ -771,7 +771,7 @@ console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 ### `navigator.locks`
 
 <!-- YAML
-added: REPLACEME
+added: v24.5.0
 -->
 
 > Stability: 1 - Experimental

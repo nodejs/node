@@ -42,6 +42,9 @@ static ossl_inline unsigned int constant_time_lt(unsigned int a,
 /* Convenience method for getting an 8-bit mask. */
 static ossl_inline unsigned char constant_time_lt_8(unsigned int a,
                                                     unsigned int b);
+/* Convenience method for uint32_t. */
+static ossl_inline uint32_t constant_time_lt_32(uint32_t a, uint32_t b);
+
 /* Convenience method for uint64_t. */
 static ossl_inline uint64_t constant_time_lt_64(uint64_t a, uint64_t b);
 
@@ -135,12 +138,28 @@ static ossl_inline unsigned char constant_time_lt_8(unsigned int a,
     return (unsigned char)constant_time_lt(a, b);
 }
 
+static ossl_inline uint32_t constant_time_lt_32(uint32_t a, uint32_t b)
+{
+    return constant_time_msb_32(a ^ ((a ^ b) | ((a - b) ^ b)));
+}
+
 static ossl_inline uint64_t constant_time_lt_64(uint64_t a, uint64_t b)
 {
     return constant_time_msb_64(a ^ ((a ^ b) | ((a - b) ^ b)));
 }
 
 #ifdef BN_ULONG
+static ossl_inline BN_ULONG value_barrier_bn(BN_ULONG a)
+{
+#if !defined(OPENSSL_NO_ASM) && defined(__GNUC__)
+    BN_ULONG r;
+    __asm__("" : "=r"(r) : "0"(a));
+#else
+    volatile BN_ULONG r = a;
+#endif
+    return r;
+}
+
 static ossl_inline BN_ULONG constant_time_msb_bn(BN_ULONG a)
 {
     return 0 - (a >> (sizeof(a) * 8 - 1));
@@ -160,6 +179,13 @@ static ossl_inline BN_ULONG constant_time_eq_bn(BN_ULONG a,
                                                 BN_ULONG b)
 {
     return constant_time_is_zero_bn(a ^ b);
+}
+
+static ossl_inline BN_ULONG constant_time_select_bn(BN_ULONG mask,
+                                                    BN_ULONG a,
+                                                    BN_ULONG b)
+{
+    return (value_barrier_bn(mask) & a) | (value_barrier_bn(~mask) & b);
 }
 #endif
 

@@ -223,3 +223,8 @@
 /lib/internal/inspector/* @nodejs/inspector
 /lib/internal/inspector_* @nodejs/inspector
 /lib/inspector.js @nodejs/inspector
+
+# path
+/lib/path.js @nodejs/path
+/lib/path/* @nodejs/path
+/test/parallel/test-path-* @nodejs/path

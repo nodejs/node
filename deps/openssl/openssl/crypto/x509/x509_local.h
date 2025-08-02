@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -157,3 +157,5 @@ DEFINE_STACK_OF(STACK_OF_X509_NAME_ENTRY)
 
 int ossl_x509_likely_issued(X509 *issuer, X509 *subject);
 int ossl_x509_signing_allowed(const X509 *issuer, const X509 *subject);
+int ossl_x509_store_ctx_get_by_subject(const X509_STORE_CTX *ctx, X509_LOOKUP_TYPE type,
+                                       const X509_NAME *name, X509_OBJECT *ret);

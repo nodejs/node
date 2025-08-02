@@ -773,8 +773,6 @@ By doing this, Node.js achieves a few things:
 added: v0.1.27
 -->
 
-<!-- type=var -->
-
 * Type: {string}
 
 The directory name of the current module. This is the same as the
@@ -794,8 +792,6 @@ console.log(path.dirname(__filename));
 <!-- YAML
 added: v0.0.1
 -->
-
-<!-- type=var -->
 
 * Type: {string}
 
@@ -834,8 +830,6 @@ References to `__filename` within `b.js` will return
 added: v0.1.12
 -->
 
-<!-- type=var -->
-
 * Type: {Object}
 
 A reference to the `module.exports` that is shorter to type.
@@ -848,8 +842,6 @@ See the section about the [exports shortcut][] for details on when to use
 added: v0.1.16
 -->
 
-<!-- type=var -->
-
 * Type: {module}
 
 A reference to the current module, see the section about the
@@ -861,8 +853,6 @@ a module exports and makes available through `require()`.
 <!-- YAML
 added: v0.1.13
 -->
-
-<!-- type=var -->
 
 * `id` {string} module name or path
 * Returns: {any} exported module content
@@ -1028,8 +1018,6 @@ Returns an array containing the paths searched during resolution of `request` or
 <!-- YAML
 added: v0.1.16
 -->
-
-<!-- type=var -->
 
 <!-- name=module -->
 

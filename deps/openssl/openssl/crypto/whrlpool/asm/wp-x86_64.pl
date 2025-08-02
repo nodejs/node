@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -236,6 +236,7 @@ $code.=<<___;
 .cfi_endproc
 .size	$func,.-$func
 
+.section .rodata align=64
 .align	64
 .type	$table,\@object
 $table:

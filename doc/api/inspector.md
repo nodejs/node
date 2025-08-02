@@ -79,7 +79,7 @@ session.on('inspectorNotification', (message) => console.log(message.method));
 
 It is also possible to subscribe only to notifications with specific method:
 
-#### Event: `<inspector-protocol-method>`;
+#### Event: `<inspector-protocol-method>`
 
 <!-- YAML
 added: v8.0.0
@@ -531,7 +531,9 @@ Also enables `Network.getResponseBody` command to retrieve the response data.
 ### `inspector.Network.dataSent([params])`
 
 <!-- YAML
-added: v24.3.0
+added:
+  - v24.3.0
+  - v22.18.0
 -->
 
 * `params` {Object}
@@ -604,7 +606,7 @@ HTTP request has failed to load.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.5.0
 -->
 
 > Stability: 1.1 - Active Development

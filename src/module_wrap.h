@@ -90,13 +90,17 @@ struct ModuleCacheKey : public MemoryRetainer {
 };
 
 class ModuleWrap : public BaseObject {
+  using ResolveCache =
+      std::unordered_map<ModuleCacheKey, uint32_t, ModuleCacheKey::Hash>;
+
  public:
   enum InternalFields {
     kModuleSlot = BaseObject::kInternalFieldCount,
     kURLSlot,
     kModuleSourceObjectSlot,
     kSyntheticEvaluationStepsSlot,
-    kContextObjectSlot,  // Object whose creation context is the target Context
+    kContextObjectSlot,   // Object whose creation context is the target Context
+    kLinkedRequestsSlot,  // Array of linked requests
     kInternalFieldCount
   };
 
@@ -112,9 +116,6 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Module> module,
       v8::Local<v8::Object> meta);
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("resolve_cache", resolve_cache_);
-  }
   static void HasTopLevelAwait(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   v8::Local<v8::Context> context() const;
@@ -122,12 +123,17 @@ class ModuleWrap : public BaseObject {
 
   SET_MEMORY_INFO_NAME(ModuleWrap)
   SET_SELF_SIZE(ModuleWrap)
+  SET_NO_MEMORY_INFO()
 
   bool IsNotIndicativeOfMemoryLeakAtExit() const override {
     // XXX: The garbage collection rules for ModuleWrap are *super* unclear.
     // Do these objects ever get GC'd? Are we just okay with leaking them?
     return true;
   }
+
+  bool IsLinked() const { return linked_; }
+
+  ModuleWrap* GetLinkedRequest(uint32_t index);
 
   static v8::Local<v8::PrimitiveArray> GetHostDefinedOptions(
       v8::Isolate* isolate, v8::Local<v8::Symbol> symbol);
@@ -199,13 +205,19 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Module> referrer);
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
+  // This method may throw a JavaScript exception, so the return type is
+  // wrapped in a Maybe.
+  static v8::Maybe<ModuleWrap*> ResolveModule(
+      v8::Local<v8::Context> context,
+      v8::Local<v8::String> specifier,
+      v8::Local<v8::FixedArray> import_attributes,
+      v8::Local<v8::Module> referrer);
+
   v8::Global<v8::Module> module_;
-  std::unordered_map<ModuleCacheKey,
-                     v8::Global<v8::Object>,
-                     ModuleCacheKey::Hash>
-      resolve_cache_;
+  ResolveCache resolve_cache_;
   contextify::ContextifyContext* contextify_context_ = nullptr;
   bool synthetic_ = false;
+  bool linked_ = false;
   int module_hash_;
 };
 

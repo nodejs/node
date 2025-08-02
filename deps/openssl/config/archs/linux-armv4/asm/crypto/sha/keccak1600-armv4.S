@@ -2043,6 +2043,7 @@ SHA3_squeeze:
 	mov	r4,r1
 	mov	r5,r2
 	mov	r12,r3
+	ldr	r0, [sp, #40]  @ next is after the 10 pushed registers (10*4)
 
 #ifdef	__thumb2__
 	mov	r9,#0x00ff00ff
@@ -2064,6 +2065,8 @@ SHA3_squeeze:
 	stmdb	sp!,{r6,r7,r8,r9}
 
 	mov	r14,r10
+	cmp	r0, #1
+	beq	.Lnext_block
 	b	.Loop_squeeze
 
 .align	4
@@ -2135,7 +2138,7 @@ SHA3_squeeze:
 
 	subs	r12,r12,#8		@ bsz -= 8
 	bhi	.Loop_squeeze
-
+.Lnext_block:
 	mov	r0,r14			@ original r10
 
 	bl	KeccakF1600

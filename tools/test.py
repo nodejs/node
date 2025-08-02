@@ -1605,7 +1605,7 @@ def ArgsToTestPaths(test_root, args, suites):
   if len(args) == 0 or 'default' in args:
     def_suites = [s for s in suites if s not in IGNORED_SUITES]
     args = [a for a in args if a != 'default'] + def_suites
-  subsystem_regex = re.compile(r'^[a-zA-Z-]*$')
+  subsystem_regex = re.compile(r'^[a-zA-Z0-9-]*$')
   check = lambda arg: subsystem_regex.match(arg) and (arg not in suites)
   mapped_args = ["*/test*-%s-*" % arg if check(arg) else arg for arg in args]
   paths = [SplitPath(NormalizePath(a)) for a in mapped_args]

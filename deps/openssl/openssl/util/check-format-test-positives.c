@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Siemens AG 2015-2022
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -15,11 +15,14 @@
  */
 
 /*
- * The '@'s after '*' are used for self-tests: they mark lines containing
- * a single flaw that should be reported. Normally it should be reported
- * while handling the given line, but in case of delayed checks there is a
- * following digit indicating the number of reports expected for this line.
+ * The '@'s after leading '*' in comment lines are used for self-tests:
+ * they mark lines containing a single issue that should be reported.
+ * Normally it should be reported while handling the given line,
+ * but in case of delayed checks there is a following digit
+ * indicating the number of reports expected for this line.
  */
+
+/* this line is between 81 and 100 chars long, to be reported with -strict-len */
 
 /* For each of the following set of lines the tool should complain once */
 /*@ tab character: 	 */
@@ -46,8 +49,7 @@
 */ /*@ multi-line comment end indent off by -1 (relative to comment start) */
 */ /*@ unexpected comment ending delimiter outside comment */
 /*- '-' for formatted comment not allowed in intra-line comment */
-/*@ comment line is 4 columns tooooooooooooooooo wide, reported unless sloppy-len */
-/*@ comment line is 5 columns toooooooooooooooooooooooooooooooooooooooooooooo wide */
+/*@ comment line is toooooooooooo wide by 1 char, or by 21 chars in case strict-len option is used */
 #if ~0              /*@ '#if' with constant condition */
  #endif             /*@ indent of preproc. directive off by 1 (must be 0) */
 #define X (1 +  1)  /*@0 extra space in body, reported unless sloppy-spc */
@@ -100,7 +102,7 @@ int f (int a,       /*@ space after fn before '(', reported unless sloppy-spc */
            b,       /*@ expr indent as on line above, accepted if sloppy-hang */
     b, /*@ expr indent off -8 but @ extra indent accepted if sloppy-hang */
    "again aligned" /*@ expr indent off by -9 (left of stmt indent, */ "right",
-            abc == /*@ .. so reported also with sloppy-hang; this line is too long */ 456
+            abc == /*@ .. so reported also with sloppy-hang; this line is too long by 6 or 26 chars */ 456
 # define MAC(A) (A) /*@ nesting indent of preprocessor directive off by 1 */
              ? 1    /*@ hanging expr indent off by 1 */
               : 2); /*@ hanging expr indent off by 2, or 1 for leading ':' */

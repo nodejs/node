@@ -1,3 +1,4 @@
+import { AsyncContextFrameBinding } from './internalBinding/async_context_frame';
 import { AsyncWrapBinding } from './internalBinding/async_wrap';
 import { BlobBinding } from './internalBinding/blob';
 import { ConfigBinding } from './internalBinding/config';
@@ -7,11 +8,13 @@ import { HttpParserBinding } from './internalBinding/http_parser';
 import { InspectorBinding } from './internalBinding/inspector';
 import { FsBinding } from './internalBinding/fs';
 import { FsDirBinding } from './internalBinding/fs_dir';
+import { ICUBinding } from './internalBinding/icu';
 import { LocksBinding } from './internalBinding/locks';
 import { MessagingBinding } from './internalBinding/messaging';
 import { OptionsBinding } from './internalBinding/options';
 import { OSBinding } from './internalBinding/os';
 import { ProcessBinding } from './internalBinding/process';
+import { SeaBinding } from './internalBinding/sea';
 import { SerdesBinding } from './internalBinding/serdes';
 import { SymbolsBinding } from './internalBinding/symbols';
 import { TimersBinding } from './internalBinding/timers';
@@ -25,6 +28,7 @@ import { ModulesBinding } from './internalBinding/modules';
 import { ZlibBinding } from './internalBinding/zlib';
 
 interface InternalBindingMap {
+  async_context_frame: AsyncContextFrameBinding;
   async_wrap: AsyncWrapBinding;
   blob: BlobBinding;
   config: ConfigBinding;
@@ -33,6 +37,7 @@ interface InternalBindingMap {
   fs: FsBinding;
   fs_dir: FsDirBinding;
   http_parser: HttpParserBinding;
+  icu: ICUBinding;
   inspector: InspectorBinding;
   locks: LocksBinding;
   messaging: MessagingBinding;
@@ -40,6 +45,7 @@ interface InternalBindingMap {
   options: OptionsBinding;
   os: OSBinding;
   process: ProcessBinding;
+  sea: SeaBinding;
   serdes: SerdesBinding;
   symbols: SymbolsBinding;
   timers: TimersBinding;
@@ -65,6 +71,7 @@ declare global {
     | Int8Array
     | Int16Array
     | Int32Array
+    | Float16Array
     | Float32Array
     | Float64Array
     | BigUint64Array

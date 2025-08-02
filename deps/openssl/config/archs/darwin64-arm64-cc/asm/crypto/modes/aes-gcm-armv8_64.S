@@ -7,6 +7,7 @@
 
 .align	4
 _aes_gcm_enc_128_kernel:
+	AARCH64_VALID_CALL_TARGET
 	cbz	x1, L128_enc_ret
 	stp	x19, x20, [sp, #-112]!
 	mov	x16, x4
@@ -989,6 +990,7 @@ L128_enc_ret:
 
 .align	4
 _aes_gcm_dec_128_kernel:
+	AARCH64_VALID_CALL_TARGET
 	cbz	x1, L128_dec_ret
 	stp	x19, x20, [sp, #-112]!
 	mov	x16, x4
@@ -1981,6 +1983,7 @@ L128_dec_ret:
 
 .align	4
 _aes_gcm_enc_192_kernel:
+	AARCH64_VALID_CALL_TARGET
 	cbz	x1, L192_enc_ret
 	stp	x19, x20, [sp, #-112]!
 	mov	x16, x4
@@ -3038,6 +3041,7 @@ L192_enc_ret:
 
 .align	4
 _aes_gcm_dec_192_kernel:
+	AARCH64_VALID_CALL_TARGET
 	cbz	x1, L192_dec_ret
 	stp	x19, x20, [sp, #-112]!
 	mov	x16, x4
@@ -4105,6 +4109,7 @@ L192_dec_ret:
 
 .align	4
 _aes_gcm_enc_256_kernel:
+	AARCH64_VALID_CALL_TARGET
 	cbz	x1, L256_enc_ret
 	stp	x19, x20, [sp, #-112]!
 	mov	x16, x4
@@ -5229,6 +5234,7 @@ L256_enc_ret:
 
 .align	4
 _aes_gcm_dec_256_kernel:
+	AARCH64_VALID_CALL_TARGET
 	cbz	x1, L256_dec_ret
 	stp	x19, x20, [sp, #-112]!
 	mov	x16, x4
@@ -6383,6 +6389,7 @@ L256_dec_ret:
 	mov	w0, #0x0
 	ret
 
+.section	__TEXT,__const
 .byte	71,72,65,83,72,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2

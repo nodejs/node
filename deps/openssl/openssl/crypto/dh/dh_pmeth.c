@@ -55,10 +55,8 @@ static int pkey_dh_init(EVP_PKEY_CTX *ctx)
 {
     DH_PKEY_CTX *dctx;
 
-    if ((dctx = OPENSSL_zalloc(sizeof(*dctx))) == NULL) {
-        ERR_raise(ERR_LIB_DH, ERR_R_MALLOC_FAILURE);
+    if ((dctx = OPENSSL_zalloc(sizeof(*dctx))) == NULL)
         return 0;
-    }
     dctx->prime_len = 2048;
     dctx->subprime_len = -1;
     dctx->generator = 2;
@@ -445,10 +443,8 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
         ret = 0;
         if ((Zlen = DH_size(dh)) <= 0)
             return 0;
-        if ((Z = OPENSSL_malloc(Zlen)) == NULL) {
-            ERR_raise(ERR_LIB_DH, ERR_R_MALLOC_FAILURE);
+        if ((Z = OPENSSL_malloc(Zlen)) == NULL)
             return 0;
-        }
         if (DH_compute_key_padded(Z, dhpubbn, dh) <= 0)
             goto err;
         if (!DH_KDF_X9_42(key, *keylen, Z, Zlen, dctx->kdf_oid,
