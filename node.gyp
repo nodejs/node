@@ -187,6 +187,8 @@
       'src/udp_wrap.cc',
       'src/util.cc',
       'src/uv.cc',
+      'src/quic/cid.cc',
+      'src/quic/data.cc',
       # headers to make for a more pleasant IDE experience
       'src/aliased_buffer.h',
       'src/aliased_buffer-inl.h',
@@ -323,6 +325,10 @@
       'src/udp_wrap.h',
       'src/util.h',
       'src/util-inl.h',
+      'src/quic/cid.h',
+      'src/quic/data.h',
+      'src/quic/defs.h',
+      'src/quic/guard.h',
     ],
     'node_crypto_sources': [
       'src/crypto/crypto_aes.cc',
@@ -379,8 +385,6 @@
     'node_quic_sources': [
       'src/quic/application.cc',
       'src/quic/bindingdata.cc',
-      'src/quic/cid.cc',
-      'src/quic/data.cc',
       'src/quic/endpoint.cc',
       'src/quic/http3.cc',
       'src/quic/logstream.cc',
@@ -394,8 +398,6 @@
       'src/quic/transportparams.cc',
       'src/quic/application.h',
       'src/quic/bindingdata.h',
-      'src/quic/cid.h',
-      'src/quic/data.h',
       'src/quic/endpoint.h',
       'src/quic/http3.h',
       'src/quic/logstream.h',

@@ -523,12 +523,12 @@ int ngtcp2_transport_params_decode_versioned(int transport_params_version,
   }
 
   /* Set default values */
-  memset(params, 0, sizeof(*params));
-  params->max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE;
-  params->ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT;
-  params->max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY;
-  params->active_connection_id_limit =
-    NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT;
+  *params = (ngtcp2_transport_params){
+    .max_udp_payload_size = NGTCP2_DEFAULT_MAX_RECV_UDP_PAYLOAD_SIZE,
+    .ack_delay_exponent = NGTCP2_DEFAULT_ACK_DELAY_EXPONENT,
+    .max_ack_delay = NGTCP2_DEFAULT_MAX_ACK_DELAY,
+    .active_connection_id_limit = NGTCP2_DEFAULT_ACTIVE_CONNECTION_ID_LIMIT,
+  };
 
   p = end = data;
 
