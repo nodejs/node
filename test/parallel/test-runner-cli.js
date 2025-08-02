@@ -431,7 +431,7 @@ for (const isolation of ['none', 'process']) {
 }
 
 {
-  // Should not propagate --experimental-config-file option to sub test in isolation process
+  // Should propagate --experimental-config-file option to sub test in isolation process
   const fixturePath = join(testFixtures, 'options-propagation');
   const args = [
     '--test-reporter=tap',
