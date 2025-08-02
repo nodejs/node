@@ -3,7 +3,7 @@
 <!--introduced_in=v7.7.0-->
 
 <!-- YAML
-llmDescription: >
+llm_description: >
   Lists APIs that are deprecated and subject to removal in future releases.
 -->
 

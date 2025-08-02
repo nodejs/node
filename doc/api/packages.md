@@ -5,7 +5,7 @@
 <!-- type=misc -->
 
 <!-- YAML
-llmDescription: >
+llm_description: >
   Defines how Node.js resolves and loads modules via fields like type,
   exports, and imports. Controls module format, entry points, and package
   encapsulation.

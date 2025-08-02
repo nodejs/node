@@ -3,7 +3,7 @@
 <!--introduced_in=v22.5.0-->
 
 <!-- YAML
-llmDescription: >
+llm_description: >
   Provides synchronous APIs for working with SQLite databases, including
   querying, transactions, backups, and change tracking. Enables in-process,
   file-based SQL storage.
