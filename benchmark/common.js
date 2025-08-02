@@ -81,7 +81,7 @@ class Benchmark {
         if (typeof value === 'number') {
           if (key === 'dur' || key === 'duration') {
             value = 0.05;
-          } else if (key === 'memcost') {
+          } else if (key === 'memory') {
             // minimum Argon2 memcost with 1 lane is 8
             value = 8;
           } else if (value > 1) {
