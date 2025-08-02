@@ -1,14 +1,13 @@
-# This file is used by GN for building, which is NOT the build system used for
-# building official binaries.
-# Please take a look at node.gyp if you are making changes to build system.
+# This GN file is NOT used for building official Node.js binaries.
+# If you want to change the main build system, edit "node.gyp" instead.
 
 import("node.gni")
 import("$node_v8_path/gni/snapshot_toolchain.gni")
 import("$node_v8_path/gni/v8.gni")
 
-# The actual configurations are put inside a template in unofficial.gni to
-# prevent accidental edits from contributors.
+# Configurations are defined in a template to avoid accidental contributor edits.
 template("node_gn_build") {
+
   config("node_features") {
     defines = []
     if (is_component_build) {
@@ -17,28 +16,12 @@ template("node_gn_build") {
         "USING_V8_SHARED",
       ]
     }
-    if (node_use_openssl) {
-      defines += [ "HAVE_OPENSSL=1" ]
-    } else {
-      defines += [ "HAVE_OPENSSL=0" ]
-    }
-    if (node_use_amaro) {
-      defines += [ "HAVE_AMARO=1" ]
-    } else {
-      defines += [ "HAVE_AMARO=0" ]
-    }
-    if (node_use_v8_platform) {
-      defines += [ "NODE_USE_V8_PLATFORM=1" ]
-    } else {
-      defines += [ "NODE_USE_V8_PLATFORM=0" ]
-    }
-    if (node_enable_inspector) {
-      defines += [ "HAVE_INSPECTOR=1" ]
-    } else {
-      defines += [ "HAVE_INSPECTOR=0" ]
-    }
+    defines += [ node_use_openssl ? "HAVE_OPENSSL=1" : "HAVE_OPENSSL=0" ]
+    defines += [ node_use_amaro ? "HAVE_AMARO=1" : "HAVE_AMARO=0" ]
+    defines += [ node_use_v8_platform ? "NODE_USE_V8_PLATFORM=1" : "NODE_USE_V8_PLATFORM=0" ]
+    defines += [ node_enable_inspector ? "HAVE_INSPECTOR=1" : "HAVE_INSPECTOR=0" ]
     if (node_use_node_code_cache) {
-      defines += [ "NODE_USE_NODE_CODE_CACHE=1"]
+      defines += [ "NODE_USE_NODE_CODE_CACHE=1" ]
     }
     if (v8_enable_i18n_support) {
       defines += [ "NODE_HAVE_I18N_SUPPORT=1" ]
@@ -89,11 +72,8 @@ template("node_gn_build") {
       "-Wno-unused-function",
     ]
 
-    if (current_cpu == "x86") {
-      node_arch = "ia32"
-    } else {
-      node_arch = target_cpu
-    }
+    # Set architecture and platform strings for defines
+    node_arch = (current_cpu == "x86") ? "ia32" : target_cpu
     if (target_os == "win") {
       node_platform = "win32"
     } else if (target_os == "mac") {
@@ -101,9 +81,10 @@ template("node_gn_build") {
     } else {
       node_platform = target_os
     }
+
     defines = [
-      "NODE_ARCH=\"$node_arch\"",
-      "NODE_PLATFORM=\"$node_platform\"",
+      "NODE_ARCH=\"${node_arch}\"",
+      "NODE_PLATFORM=\"${node_platform}\"",
       "NODE_REPORT"
     ]
 
@@ -116,17 +97,17 @@ template("node_gn_build") {
       defines += [ "__POSIX__" ]
     }
     if (node_tag != "") {
-      defines += [ "NODE_TAG=\"$node_tag\"" ]
+      defines += [ "NODE_TAG=\"${node_tag}\"" ]
     }
     if (node_v8_options != "") {
-      defines += [ "NODE_V8_OPTIONS=\"$node_v8_options\"" ]
+      defines += [ "NODE_V8_OPTIONS=\"${node_v8_options}\"" ]
     }
     if (node_release_urlbase != "") {
-      defines += [ "NODE_RELEASE_URLBASE=\"$node_release_urlbase\"" ]
+      defines += [ "NODE_RELEASE_URLBASE=\"${node_release_urlbase}\"" ]
     }
     if (node_use_openssl) {
       defines += [
-        "NODE_OPENSSL_SYSTEM_CERT_PATH=\"$node_openssl_system_ca_path\"",
+        "NODE_OPENSSL_SYSTEM_CERT_PATH=\"${node_openssl_system_ca_path}\"",
       ]
     }
   }
@@ -217,7 +198,6 @@ template("node_gn_build") {
 
   executable(target_name) {
     forward_variables_from(invoker, "*")
-
     sources = [ "src/node_main.cc" ]
     deps = [
       ":libnode",
@@ -238,11 +218,8 @@ template("node_gn_build") {
     output_name = "node"
 
     if (is_apple) {
-      # Default optimization on apple adds "-dead_strip" to ldflags, which would
-      # strip exported V8 and NAPI symbols, has to remove it to make native
-      # modules work.
-      # There is almost no performance penalty since we are only removing
-      # optimization on the node_main.cc.
+      # Default Apple optimization ("-dead_strip") strips exported V8/NAPI symbols,
+      # breaking native modules. Remove it here for node_main.cc.
       configs -= [ "//build/config/compiler:default_optimization" ]
     }
   }
@@ -258,18 +235,13 @@ template("node_gn_build") {
         deps = [ ":libnode" ]
       }
 
-      # This config disables a link time optimization "ICF", which may merge
-      # different functions into one if the function signature and body of them are
-      # identical.
-      #
-      # ICF breaks 1:1 mappings of the external references for V8 snapshot, so we
-      # disable it while taking a V8 snapshot.
+      # Disable ICF (Identical Code Folding) for accurate V8 external references.
       config("disable_icf") {
-        visibility = [ ":*" ]  # Only targets in this file can depend on this.
+        visibility = [ ":*" ]
         if (is_win) {
-          ldflags = [ "/OPT:NOICF" ]  # link.exe, but also lld-link.exe.
+          ldflags = [ "/OPT:NOICF" ]
         } else if (is_apple && !use_lld) {
-          ldflags = [ "-Wl,-no_deduplicate" ]  # ld64.
+          ldflags = [ "-Wl,-no_deduplicate" ]
         } else if ((!is_apple && use_gold) || use_lld) {
           ldflags = [ "-Wl,--icf=none" ]
         }
@@ -282,9 +254,7 @@ template("node_gn_build") {
       sources = []
       data = []
 
-      mksnapshot_dir = get_label_info(":node_mksnapshot($v8_snapshot_toolchain)",
-                                      "root_out_dir")
-
+      mksnapshot_dir = get_label_info(":node_mksnapshot($v8_snapshot_toolchain)", "root_out_dir")
       outputs = [ "$target_gen_dir/node_snapshot.cc" ]
       args = [
         "./" + rebase_path(mksnapshot_dir + "/node_mksnapshot", root_build_dir),
@@ -328,26 +298,22 @@ template("node_gn_build") {
 
     node_deps_files = gypi_values.deps_files + node_builtin_shareable_builtins
     node_library_files = exec_script("./tools/search_files.py",
-                                     [ rebase_path(".", root_build_dir),
-                                       rebase_path("lib", root_build_dir),
-                                       "js" ],
-                                     "list lines")
+      [ rebase_path(".", root_build_dir),
+        rebase_path("lib", root_build_dir),
+        "js" ],
+      "list lines")
 
     inputs = node_library_files +
              node_deps_files +
              [ "$target_gen_dir/config.gypi" ]
     outputs = [ "$target_gen_dir/node_javascript.cc" ]
 
-    # Get the path to node_js2c executable of the host toolchain.
-    if (host_os == "win") {
-      host_executable_suffix = ".exe"
-    } else {
-      host_executable_suffix = ""
-    }
+    # Determine correct node_js2c host executable
+    host_executable_suffix = (host_os == "win") ? ".exe" : ""
     node_js2c_path =
-        get_label_info(":node_js2c($host_toolchain)", "root_out_dir") + "/" +
-        get_label_info(":node_js2c($host_toolchain)", "name") +
-        host_executable_suffix
+      get_label_info(":node_js2c($host_toolchain)", "root_out_dir") + "/" +
+      get_label_info(":node_js2c($host_toolchain)", "name") +
+      host_executable_suffix
 
     args = [ rebase_path(node_js2c_path),
              rebase_path("$target_gen_dir/node_javascript.cc"),
@@ -370,10 +336,10 @@ template("node_gn_build") {
 
     sources = [ "src/node_snapshot_stub.cc" ]
     sources += exec_script("./tools/search_files.py",
-                           [ rebase_path(".", root_build_dir),
-                             rebase_path("test/cctest", root_build_dir),
-                             "cc" ],
-                           "list lines")
+      [ rebase_path(".", root_build_dir),
+        rebase_path("test/cctest", root_build_dir),
+        "cc" ],
+      "list lines")
 
     if (node_use_openssl) {
       deps += [ "deps/ncrypto" ]
