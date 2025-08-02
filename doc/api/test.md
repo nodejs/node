@@ -3607,6 +3607,23 @@ added:
 
 The name of the test.
 
+### `context.passed` {boolean}
+
+<!-- YAML
+added: v20.12.0
+-->
+
+Indicates whether the test succeeded, this defaults to `true` before the test is executed, e.g. in a `beforeEach` hook.
+
+### `context.error` {Error|null}
+
+<!-- YAML
+added: v20.12.0
+-->
+
+The failure reason for this test, if a non `Error` object was thrown it will be wrapped and available via the `cause`
+property.
+
 ### `context.plan(count[,options])`
 
 <!-- YAML
