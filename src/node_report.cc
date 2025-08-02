@@ -649,9 +649,7 @@ static void PrintResourceUsage(JSONWriter* writer) {
   }
 
   uint64_t constrained_memory = uv_get_constrained_memory();
-  if (constrained_memory) {
-    writer->json_keyvalue("constrained_memory", constrained_memory);
-  }
+  writer->json_keyvalue("constrained_memory", constrained_memory);
 
   uint64_t available_memory = uv_get_available_memory();
   writer->json_keyvalue("available_memory", available_memory);

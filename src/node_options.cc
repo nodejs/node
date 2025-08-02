@@ -135,9 +135,13 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
   // Use uint64_t for the result to prevent data loss on 32-bit systems.
   uint64_t available_memory =
       (constrained_memory > 0 && constrained_memory != UINT64_MAX)
-          ? constrained_memory
+          ? std::min(total_memory, constrained_memory)
           : total_memory;
 
+  if (available_memory == 0) {
+    errors->push_back("the available memory can not be calculated");
+    return;
+  }
   // Convert to MB and calculate the percentage
   uint64_t memory_mb = available_memory / (1024 * 1024);
   uint64_t calculated_mb = static_cast<size_t>(memory_mb * percentage / 100.0);
