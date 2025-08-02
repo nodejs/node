@@ -2958,20 +2958,26 @@ added: REPLACEME
 > Stability: 1.2 - Release candidate
 
 * `password` {string|ArrayBuffer|Buffer|TypedArray|DataView}
-* `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView}
-* `keylen` {number}
+* `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must be at
+  least 8 bytes long.
+* `keylen` {number} The length of the key to generate. Must be greater than 4 and less
+  than `2**32-1`.
 * `options` {Object}
   * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or
     `"argon2id"`.
-  * `iterations` {number} Number of iterations (passes).
+  * `iterations` {number} Number of iterations (passes). Must be greater than 1 and
+    less than `2**32-1`.
   * `parallelism` {number} Parallelization parameter (number of lanes and threads).
-  * `memory` {number} Memory cost in 1KiB blocks.
+    Must be greater than 1 and less than `2**24-1`.
+  * `memory` {number} Memory cost in 1KiB blocks. Must be greater than
+    `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
+    down to the nearest multiple of `4 * parallelism`.
   * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView} Random additional input,
     similar to the salt, that should **NOT** be stored with the derived key. Also known
-    as a pepper.
+    as a pepper. If used, must have a length not greater than `2**32-1` bytes.
   * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional data to
     be added to the hash, functionally equivalent to salt or secret, but meant for
-    non-random data.
+    non-random data. If used, must have a length not greater than `2**32-1` bytes.
 * `callback` {Function}
   * `err` {Error}
   * `derivedKey` {Buffer}
@@ -3030,20 +3036,26 @@ added: REPLACEME
 > Stability: 1.2 - Release candidate
 
 * `password` {string|Buffer|TypedArray|DataView}
-* `salt` {string|Buffer|TypedArray|DataView}
-* `keylen` {number}
+* `salt` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must be at
+  least 8 bytes long.
+* `keylen` {number} The length of the key to generate. Must be greater than 4 and less
+  than `2**32-1`.
 * `options` {Object}
   * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or
     `"argon2id"`.
-  * `iterations` {number} Number of iterations (passes).
+  * `iterations` {number} Number of iterations (passes). Must be greater than 1 and
+    less than `2**32-1`.
   * `parallelism` {number} Parallelization parameter (number of lanes and threads).
-  * `memory` {number} Memory cost in 1KiB blocks.
+    Must be greater than 1 and less than `2**24-1`.
+  * `memory` {number} Memory cost in 1KiB blocks. Must be greater than
+    `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
+    down to the nearest multiple of `4 * parallelism`.
   * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView} Random additional input,
     similar to the salt, that should **NOT** be stored with the derived key. Also known
-    as a pepper.
+    as a pepper. If used, must have a length not greater than `2**32-1` bytes.
   * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional data to
     be added to the hash, functionally equivalent to salt or secret, but meant for
-    non-random data.
+    non-random data. If used, must have a length not greater than `2**32-1` bytes.
 * Returns: {Buffer}
 
 Provides a synchronous [argon2][] implementation. Argon2 is a password-based
