@@ -154,4 +154,46 @@ std::optional<JSONParser::StringDict> JSONParser::GetTopLevelStringDict(
   return result;
 }
 
+std::optional<std::vector<std::string>> JSONParser::GetTopLevelStringList(
+    std::string_view field) {
+  Isolate* isolate = isolate_.get();
+  v8::Locker locker(isolate);
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope handle_scope(isolate);
+  Local<Context> context = context_.Get(isolate);
+  Context::Scope context_scope(context);
+  Local<Object> content_object = content_.Get(isolate);
+  Local<Value> value;
+  bool has_field;
+  // It's not a real script, so don't print the source line.
+  errors::PrinterTryCatch bootstrapCatch(
+      isolate, errors::PrinterTryCatch::kDontPrintSourceLine);
+  Local<Value> field_local;
+  if (!ToV8Value(context, field, isolate).ToLocal(&field_local)) {
+    return std::nullopt;
+  }
+  if (!content_object->Has(context, field_local).To(&has_field)) {
+    return std::nullopt;
+  }
+  if (!has_field) {
+    return std::vector<std::string>();
+  }
+  if (!content_object->Get(context, field_local).ToLocal(&value) ||
+      !value->IsArray()) {
+    return std::nullopt;
+  }
+  Local<Array> array = value.As<Array>();
+  std::vector<std::string> result;
+  uint32_t length = array->Length();
+  for (uint32_t i = 0; i < length; ++i) {
+    Local<Value> element;
+    if (!array->Get(context, i).ToLocal(&element) || !element->IsString()) {
+      return std::nullopt;
+    }
+    Utf8Value element_utf8(isolate, element);
+    result.emplace_back(element_utf8.ToString());
+  }
+  return result;
+}
+
 }  // namespace node
