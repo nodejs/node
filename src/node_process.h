@@ -90,8 +90,6 @@ class BindingData : public SnapshotableObject {
 
   static void SlowBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args);
-
  private:
   // Buffer length in uint32.
   static constexpr size_t kHrTimeBufferLength = 3;
