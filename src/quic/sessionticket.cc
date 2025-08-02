@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "sessionticket.h"
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -44,7 +45,10 @@ Maybe<SessionTicket> SessionTicket::FromV8Value(Environment* env,
     return Nothing<SessionTicket>();
   }
 
-  Store content(value.As<ArrayBufferView>());
+  auto view = value.As<ArrayBufferView>();
+  Store content(view->Buffer()->GetBackingStore(),
+                view->ByteLength(),
+                view->ByteOffset());
   ngtcp2_vec vec = content;
 
   ValueDeserializer des(env->isolate(), vec.base, vec.len);
@@ -76,8 +80,16 @@ Maybe<SessionTicket> SessionTicket::FromV8Value(Environment* env,
     return Nothing<SessionTicket>();
   }
 
-  return Just(SessionTicket(Store(ticket.As<ArrayBufferView>()),
-                            Store(transport_params.As<ArrayBufferView>())));
+  auto ticketview = ticket.As<ArrayBufferView>();
+  auto transport_params_view = transport_params.As<ArrayBufferView>();
+
+  return Just(SessionTicket(
+      Store(ticketview->Buffer()->GetBackingStore(),
+            ticketview->ByteLength(),
+            ticketview->ByteOffset()),
+      Store(transport_params_view->Buffer()->GetBackingStore(),
+            transport_params_view->ByteLength(),
+            transport_params_view->ByteOffset())));
 }
 
 MaybeLocal<Object> SessionTicket::encode(Environment* env) const {
@@ -172,4 +184,5 @@ SessionTicket::AppData::Status SessionTicket::AppData::Extract(SSL* ssl) {
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL
