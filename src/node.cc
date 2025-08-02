@@ -868,6 +868,7 @@ static ExitCode InitializeNodeWithArgsInternal(
   // default value.
   V8::SetFlagsFromString("--rehash-snapshot");
 
+#if HAVE_OPENSSL
   // TODO(joyeecheung): make this a per-env option and move the normalization
   // into HandleEnvOptions.
   std::string use_system_ca;
@@ -875,6 +876,7 @@ static ExitCode InitializeNodeWithArgsInternal(
       use_system_ca == "1") {
     per_process::cli_options->use_system_ca = true;
   }
+#endif  // HAVE_OPENSSL
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
   std::string node_options;
