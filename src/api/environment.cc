@@ -512,8 +512,17 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 
 NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     Environment* env, ThreadId thread_id, const char* url, const char* name) {
-  CHECK_NOT_NULL(env);
   if (name == nullptr) name = "";
+  std::string name_str(name);
+  return GetInspectorParentHandle(env, thread_id, url, name_str);
+}
+
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* env,
+    ThreadId thread_id,
+    const char* url,
+    const std::string& name) {
+  CHECK_NOT_NULL(env);
   CHECK_NE(thread_id.id, static_cast<uint64_t>(-1));
   if (!env->should_create_inspector()) {
     return nullptr;
