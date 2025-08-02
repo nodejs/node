@@ -272,6 +272,11 @@ export CXX=g++-12
 make -j4
 ```
 
+> \[!IMPORTANT]
+> If you face a compilation error during this process such as
+> `error: no matching conversion for functional-style cast from 'unsigned int' to 'TypeIndex'`
+> Make sure to use a `g++` or `clang` version compatible with C++20.
+
 We can speed up the builds by using [Ninja](https://ninja-build.org/). For more
 information, see
 [Building Node.js with Ninja](doc/contributing/building-node-with-ninja.md).
