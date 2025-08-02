@@ -751,7 +751,7 @@ The most important options are:
   * Set compression parameters according to pre-defined cLevel table. Default
     level is ZSTD\_CLEVEL\_DEFAULT==3.
 * `ZSTD_c_strategy`
-  * Select the compression strategy. Default is `ZSTD_lazy2`.
+  * Select the compression strategy.
   * Possible values are listed in the strategy options section below.
 
 #### Strategy options
