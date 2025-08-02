@@ -390,6 +390,7 @@
   V(table_string, "table")                                                     \
   V(target_string, "target")                                                   \
   V(thread_id_string, "threadId")                                              \
+  V(thread_name_string, "threadName")                                          \
   V(ticketkeycallback_string, "onticketkeycallback")                           \
   V(timeout_string, "timeout")                                                 \
   V(time_to_first_byte_string, "timeToFirstByte")                              \
