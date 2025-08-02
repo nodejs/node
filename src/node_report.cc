@@ -235,9 +235,9 @@ static void WriteNodeReport(Isolate* isolate,
     env->ForEachWorker([&](Worker* w) {
       expected_results += w->RequestInterrupt([&](Environment* env) {
         std::ostringstream os;
-
-        GetNodeReport(
-            env, "Worker thread subreport", trigger, Local<Value>(), os);
+        std::string name =
+            "Worker thread subreport [" + std::string(w->name()) + "]";
+        GetNodeReport(env, name.c_str(), trigger, Local<Value>(), os);
 
         Mutex::ScopedLock lock(workers_mutex);
         worker_infos.emplace_back(os.str());
