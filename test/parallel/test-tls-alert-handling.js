@@ -43,7 +43,8 @@ const errorHandler = common.mustCall((err) => {
 
   assert.strictEqual(err.code, expectedErrorCode);
   assert.strictEqual(err.library, 'SSL routines');
-  if (!hasOpenSSL3) assert.strictEqual(err.function, 'ssl3_get_record');
+  if (!hasOpenSSL3 && !process.features.openssl_is_boringssl)
+    assert.strictEqual(err.function, 'ssl3_get_record');
   assert.match(err.reason, expectedErrorReason);
   errorReceived = true;
   if (canCloseServer())
@@ -105,7 +106,7 @@ function sendBADTLSRecord() {
     }
     assert.strictEqual(err.code, expectedErrorCode);
     assert.strictEqual(err.library, 'SSL routines');
-    if (!hasOpenSSL3)
+    if (!hasOpenSSL3 && !process.features.openssl_is_boringssl)
       assert.strictEqual(err.function, 'ssl3_read_bytes');
     assert.match(err.reason, expectedErrorReason);
   }));
