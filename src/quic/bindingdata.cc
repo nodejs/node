@@ -1,4 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "bindingdata.h"
 #include <base_object-inl.h>
 #include <env-inl.h>
@@ -49,10 +51,12 @@ void BindingData::CheckAllocatedSize(size_t previous_size) const {
 }
 
 void BindingData::IncreaseAllocatedSize(size_t size) {
+  CHECK_GE(current_ngtcp2_memory_ + size, current_ngtcp2_memory_);
   current_ngtcp2_memory_ += size;
 }
 
 void BindingData::DecreaseAllocatedSize(size_t size) {
+  CHECK_LE(current_ngtcp2_memory_ - size, current_ngtcp2_memory_);
   current_ngtcp2_memory_ -= size;
 }
 
@@ -220,4 +224,5 @@ void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

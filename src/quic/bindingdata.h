@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <base_object.h>
 #include <env.h>
@@ -26,12 +25,12 @@ class Packet;
 // The FunctionTemplates the BindingData will store for us.
 #define QUIC_CONSTRUCTORS(V)                                                   \
   V(endpoint)                                                                  \
+  V(http3application)                                                          \
   V(logstream)                                                                 \
   V(packet)                                                                    \
   V(session)                                                                   \
   V(stream)                                                                    \
-  V(udp)                                                                       \
-  V(http3application)
+  V(udp)
 
 // The callbacks are persistent v8::Function references that are set in the
 // quic::BindingState used to communicate data and events back out to the JS
@@ -39,19 +38,19 @@ class Packet;
 // internalBinding('quic') is first loaded.
 #define QUIC_JS_CALLBACKS(V)                                                   \
   V(endpoint_close, EndpointClose)                                             \
-  V(session_new, SessionNew)                                                   \
   V(session_close, SessionClose)                                               \
   V(session_datagram, SessionDatagram)                                         \
   V(session_datagram_status, SessionDatagramStatus)                            \
   V(session_handshake, SessionHandshake)                                       \
+  V(session_new, SessionNew)                                                   \
+  V(session_path_validation, SessionPathValidation)                            \
   V(session_ticket, SessionTicket)                                             \
   V(session_version_negotiation, SessionVersionNegotiation)                    \
-  V(session_path_validation, SessionPathValidation)                            \
+  V(stream_blocked, StreamBlocked)                                             \
   V(stream_close, StreamClose)                                                 \
   V(stream_created, StreamCreated)                                             \
-  V(stream_reset, StreamReset)                                                 \
   V(stream_headers, StreamHeaders)                                             \
-  V(stream_blocked, StreamBlocked)                                             \
+  V(stream_reset, StreamReset)                                                 \
   V(stream_trailers, StreamTrailers)
 
 // The various JS strings the implementation uses.
@@ -64,10 +63,10 @@ class Packet;
   V(application_provider, "provider")                                          \
   V(bbr, "bbr")                                                                \
   V(ca, "ca")                                                                  \
-  V(certs, "certs")                                                            \
   V(cc_algorithm, "cc")                                                        \
-  V(crl, "crl")                                                                \
+  V(certs, "certs")                                                            \
   V(ciphers, "ciphers")                                                        \
+  V(crl, "crl")                                                                \
   V(cubic, "cubic")                                                            \
   V(disable_stateless_reset, "disableStatelessReset")                          \
   V(enable_connect_protocol, "enableConnectProtocol")                          \
@@ -114,8 +113,8 @@ class Packet;
   V(qpack_max_dtable_capacity, "qpackMaxDTableCapacity")                       \
   V(reject_unauthorized, "rejectUnauthorized")                                 \
   V(reno, "reno")                                                              \
-  V(retry_token_expiration, "retryTokenExpiration")                            \
   V(reset_token_secret, "resetTokenSecret")                                    \
+  V(retry_token_expiration, "retryTokenExpiration")                            \
   V(rx_loss, "rxDiagnosticLoss")                                               \
   V(servername, "servername")                                                  \
   V(session, "Session")                                                        \
@@ -150,6 +149,9 @@ class BindingData final
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BindingData& Get(Environment* env);
+  static inline BindingData& Get(Realm* realm) {
+    return Get(realm->env());
+  }
 
   BindingData(Realm* realm, v8::Local<v8::Object> object);
   DISALLOW_COPY_AND_MOVE(BindingData)
@@ -179,6 +181,7 @@ class BindingData final
 
   bool in_ngtcp2_callback_scope = false;
   bool in_nghttp3_callback_scope = false;
+  size_t current_ngtcp2_memory_ = 0;
 
   // The following set up various storage and accessors for common strings,
   // construction templates, and callbacks stored on the BindingData. These
@@ -205,8 +208,6 @@ class BindingData final
   QUIC_JS_CALLBACKS(V)
 #undef V
 
-  size_t current_ngtcp2_memory_ = 0;
-
 #define V(name) v8::Global<v8::FunctionTemplate> name##_constructor_template_;
   QUIC_CONSTRUCTORS(V)
 #undef V
@@ -229,7 +230,7 @@ void IllegalConstructor(const v8::FunctionCallbackInfo<v8::Value>& args);
 // The ngtcp2 and nghttp3 callbacks have certain restrictions
 // that forbid re-entry. We provide the following scopes for
 // use in those to help protect against it.
-struct NgTcp2CallbackScope {
+struct NgTcp2CallbackScope final {
   Environment* env;
   explicit NgTcp2CallbackScope(Environment* env);
   DISALLOW_COPY_AND_MOVE(NgTcp2CallbackScope)
@@ -237,7 +238,7 @@ struct NgTcp2CallbackScope {
   static bool in_ngtcp2_callback(Environment* env);
 };
 
-struct NgHttp3CallbackScope {
+struct NgHttp3CallbackScope final {
   Environment* env;
   explicit NgHttp3CallbackScope(Environment* env);
   DISALLOW_COPY_AND_MOVE(NgHttp3CallbackScope)
@@ -268,5 +269,4 @@ struct CallbackScope final : public CallbackScopeBase {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
