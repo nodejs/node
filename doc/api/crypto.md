@@ -2949,7 +2949,7 @@ Does not perform any other validation checks on the certificate.
 
 ## `node:crypto` module methods and properties
 
-### `crypto.argon2(password, salt, keylen[, options], callback)`
+### `crypto.argon2(password, salt, keylen, options, callback)`
 
 <!-- YAML
 added: REPLACEME
@@ -2962,15 +2962,15 @@ added: REPLACEME
 * `keylen` {number}
 * `options` {Object}
   * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or
-    `"argon2id"`. **Default:** `"argon2id"`.
-  * `iter` {number} Number of iterations (passes). **Default:** `3`.
-  * `lanes` {number} Parallelization parameter (number of threads). **Default:** `4`.
-  * `memcost` {number} Memory cost in 1KiB blocks. **Default:** `65536`.
-  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView} Random additional
-    input, similar to the salt, that should **NOT** be stored with the derived
-    key. Also known as a pepper.
-  * `ad` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional data to be
-    added to the hash, functionally equivalent to salt or secret, but meant for
+    `"argon2id"`.
+  * `iterations` {number} Number of iterations (passes).
+  * `parallelism` {number} Parallelization parameter (number of lanes and threads).
+  * `memory` {number} Memory cost in 1KiB blocks.
+  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView} Random additional input,
+    similar to the salt, that should **NOT** be stored with the derived key. Also known
+    as a pepper.
+  * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional data to
+    be added to the hash, functionally equivalent to salt or secret, but meant for
     non-random data.
 * `callback` {Function}
   * `err` {Error}
@@ -2983,8 +2983,8 @@ memory-wise in order to make brute-force attacks unrewarding.
 The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
 
-When passing strings for `password`, `salt`, `secret` or `ad`, please consider
-[caveats when using strings as inputs to cryptographic APIs][].
+When passing strings for `password`, `salt`, `secret` or `associatedData`, please
+consider [caveats when using strings as inputs to cryptographic APIs][].
 
 The `callback` function is called with two arguments: `err` and `derivedKey`.
 `err` is an exception object when key derivation fails, otherwise `err` is
@@ -3000,13 +3000,7 @@ const {
 } = await import('node:crypto');
 
 const salt = randomBytes(16);
-// Using the factory defaults.
-argon2('password', salt, 64, (err, derivedKey) => {
-  if (err) throw err;
-  console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
-});
-// Using a custom iter parameter.
-argon2('password', salt, 64, { iter: 3 }, (err, derivedKey) => {
+argon2('password', salt, 64, { iterations: 3, parallelism: 4, memory: 65536 }, (err, derivedKey) => {
   if (err) throw err;
   console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
 });
@@ -3018,25 +3012,16 @@ const {
   randomBytes,
 } = require('node:crypto');
 
-// Using the factory defaults.
 randomBytes(16, (err, salt) => {
   if (err) throw err;
-  argon2('password', salt, 64, (err, derivedKey) => {
-    if (err) throw err;
-    console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
-  });
-});
-// Using a custom iter parameter.
-randomBytes(16, (err, salt) => {
-  if (err) throw err;
-  argon2('password', salt, 64, { iter: 3 }, (err, derivedKey) => {
+  argon2('password', salt, 64, { iterations: 3, parallelism: 4, memory: 65536 }, (err, derivedKey) => {
     if (err) throw err;
     console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
   });
 });
 ```
 
-### `crypto.argon2Sync(password, salt, keylen[, options])`
+### `crypto.argon2Sync(password, salt, keylen, options)`
 
 <!-- YAML
 added: REPLACEME
@@ -3049,16 +3034,16 @@ added: REPLACEME
 * `keylen` {number}
 * `options` {Object}
   * `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or
-    `"argon2id"`. **Default:** `"argon2id"`.
-  * `iter` {number} Number of iterations (passes). **Default:** `3`.
-  * `lanes` {number} Parallelization parameter (number of threads). **Default:** `4`.
-  * `memcost` {number} Memory cost in 1KiB blocks. **Default:** `65536`.
-  * `secret` {string|Buffer|TypedArray|DataView} Random additional input,
-    similar to the salt, that should **NOT** be stored with the derived key.
-    Also known as a pepper.
-  * `ad` {string|Buffer|TypedArray|DataView} Additional data to be added to the
-    hash, functionally equivalent to salt or secret, but meant for non-random
-    data.
+    `"argon2id"`.
+  * `iterations` {number} Number of iterations (passes).
+  * `parallelism` {number} Parallelization parameter (number of lanes and threads).
+  * `memory` {number} Memory cost in 1KiB blocks.
+  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView} Random additional input,
+    similar to the salt, that should **NOT** be stored with the derived key. Also known
+    as a pepper.
+  * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional data to
+    be added to the hash, functionally equivalent to salt or secret, but meant for
+    non-random data.
 * Returns: {Buffer}
 
 Provides a synchronous [argon2][] implementation. Argon2 is a password-based
@@ -3068,8 +3053,8 @@ memory-wise in order to make brute-force attacks unrewarding.
 The `salt` should be as unique as possible. It is recommended that a salt is
 random and at least 16 bytes long. See [NIST SP 800-132][] for details.
 
-When passing strings for `password`, `salt`, `secret` or `ad`, please consider
-[caveats when using strings as inputs to cryptographic APIs][].
+When passing strings for `password`, `salt`, `secret` or `associatedData`, please
+consider [caveats when using strings as inputs to cryptographic APIs][].
 
 An exception is thrown when key derivation fails, otherwise the derived key is
 returned as a [`Buffer`][].
@@ -3085,11 +3070,8 @@ const {
 // Using the factory defaults.
 
 const salt = randomBytes(16);
-const key1 = argon2Sync('password', salt, 64);
-console.log(key1.toString('hex'));  // '3745e48...08d59ae'
-// Using a custom iter parameter.
-const key2 = argon2Sync('password', salt, 64, { iter: 3 });
-console.log(key2.toString('hex'));  // '3745e48...aa39b34'
+const key = argon2Sync('password', salt, 64, { iterations: 3, parallelism: 4, memory: 65536 });
+console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```
 
 ```cjs
@@ -3100,11 +3082,8 @@ const {
 // Using the factory defaults.
 
 const salt = randomBytes(16);
-const key1 = argon2Sync('password', salt, 64);
-console.log(key1.toString('hex'));  // '3745e48...08d59ae'
-// Using a custom iter parameter.
-const key2 = argon2Sync('password', salt, 64, { iter: 3 });
-console.log(key2.toString('hex'));  // '3745e48...aa39b34'
+const key = argon2Sync('password', salt, 64, { iterations: 3, parallelism: 4, memory: 65536 });
+console.log(key.toString('hex'));  // '3745e48...08d59ae'
 ```
 
 ### `crypto.checkPrime(candidate[, options], callback)`
