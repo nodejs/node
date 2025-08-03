@@ -26,4 +26,20 @@ module.exports = {
       ],
     },
   },
+  'getRandomValues.any.js': {
+    'fail': {
+      'note': 'https://github.com/nodejs/node/issues/58987',
+      'expected': [
+        'Large length: Int8Array',
+        'Large length: Int16Array',
+        'Large length: Int32Array',
+        'Large length: BigInt64Array',
+        'Large length: Uint8Array',
+        'Large length: Uint8ClampedArray',
+        'Large length: Uint16Array',
+        'Large length: Uint32Array',
+        'Large length: BigUint64Array',
+      ],
+    },
+  },
 };
