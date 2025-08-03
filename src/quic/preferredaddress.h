@@ -33,8 +33,7 @@ class PreferredAddress final {
   }
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
-  static inline void Initialize(Realm* realm,
-                                v8::Local<v8::Object> target) {
+  static inline void Initialize(Realm* realm, v8::Local<v8::Object> target) {
     return Initialize(realm->env(), target);
   }
 

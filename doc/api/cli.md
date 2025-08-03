@@ -1134,6 +1134,16 @@ If the ES module being `require()`'d contains top-level `await`, this flag
 allows Node.js to evaluate the module, try to locate the
 top-level awaits, and print their location to help users find them.
 
+### `--experimental-quic`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+Enable experimental support for the QUIC protocol.
+
 ### `--experimental-require-module`
 
 <!-- YAML
@@ -1814,6 +1824,16 @@ added: v21.2.0
 > Stability: 1 - Experimental
 
 Disable exposition of [Navigator API][] on the global scope.
+
+### `--no-experimental-quic`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+Use this flag to disable QUIC.
 
 ### `--no-experimental-repl-await`
 

@@ -45,10 +45,10 @@ Maybe<SessionTicket> SessionTicket::FromV8Value(Environment* env,
     return Nothing<SessionTicket>();
   }
 
-  auto view = value.As<ArrayBufferView>();
-  Store content(view->Buffer()->GetBackingStore(),
-                view->ByteLength(),
-                view->ByteOffset());
+  Store content;
+  if (!Store::From(value.As<ArrayBufferView>()).To(&content)) {
+    return Nothing<SessionTicket>();
+  }
   ngtcp2_vec vec = content;
 
   ValueDeserializer des(env->isolate(), vec.base, vec.len);
@@ -61,35 +61,32 @@ Maybe<SessionTicket> SessionTicket::FromV8Value(Environment* env,
   Local<Value> ticket;
   Local<Value> transport_params;
 
-  errors::TryCatchScope tryCatch(env);
-
   if (!des.ReadValue(env->context()).ToLocal(&ticket) ||
-      !des.ReadValue(env->context()).ToLocal(&transport_params) ||
-      !ticket->IsArrayBufferView() || !transport_params->IsArrayBufferView()) {
-    if (tryCatch.HasCaught()) {
-      // Any errors thrown we want to catch and suppress. The only
-      // error we want to expose to the user is that the ticket format
-      // is invalid.
-      if (!tryCatch.HasTerminated()) {
-        THROW_ERR_INVALID_ARG_VALUE(env, "The ticket format is invalid.");
-        tryCatch.ReThrow();
-      }
-      return Nothing<SessionTicket>();
-    }
-    THROW_ERR_INVALID_ARG_VALUE(env, "The ticket format is invalid.");
+      !des.ReadValue(env->context()).ToLocal(&transport_params)) {
+    return Nothing<SessionTicket>();
+  }
+  if (!ticket->IsArrayBufferView()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "The ticket must be an ArrayBufferView");
+    return Nothing<SessionTicket>();
+  }
+  if (!transport_params->IsArrayBufferView()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env, "The transport parameters must be an ArrayBufferView");
     return Nothing<SessionTicket>();
   }
 
-  auto ticketview = ticket.As<ArrayBufferView>();
-  auto transport_params_view = transport_params.As<ArrayBufferView>();
+  Store ticket_store;
+  Store transport_params_store;
+  if (!Store::From(ticket.As<ArrayBufferView>()).To(&ticket_store)) {
+    return Nothing<SessionTicket>();
+  }
+  if (!Store::From(transport_params.As<ArrayBufferView>())
+           .To(&transport_params_store)) {
+    return Nothing<SessionTicket>();
+  }
 
-  return Just(SessionTicket(
-      Store(ticketview->Buffer()->GetBackingStore(),
-            ticketview->ByteLength(),
-            ticketview->ByteOffset()),
-      Store(transport_params_view->Buffer()->GetBackingStore(),
-            transport_params_view->ByteLength(),
-            transport_params_view->ByteOffset())));
+  return Just(SessionTicket(std::move(ticket_store),
+                            std::move(transport_params_store)));
 }
 
 MaybeLocal<Object> SessionTicket::encode(Environment* env) const {

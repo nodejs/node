@@ -16,7 +16,7 @@ TEST(QuicError, NoError) {
   CHECK_EQ(err.reason(), "");
   CHECK_EQ(err, QuicError::TRANSPORT_NO_ERROR);
 
-  CHECK_EQ(QuicError::TransportError::NO_ERROR, QuicError::QUIC_NO_ERROR);
+  CHECK_EQ(QuicError::TransportError::NO_ERROR_, QuicError::QUIC_NO_ERROR);
   CHECK_EQ(QuicError::Http3Error::H3_NO_ERROR, QuicError::HTTP3_NO_ERROR_CODE);
 
   QuicError err2("a reason");

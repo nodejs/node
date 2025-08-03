@@ -37,13 +37,17 @@ NgHeaders<T>::NgHeaders(Environment* env, v8::Local<v8::Array> headers) {
   nv_t* const nva = reinterpret_cast<nv_t*>(start);
 
   CHECK_LE(header_contents + header_string_len, *buf_ + buf_.length());
-  CHECK_EQ(header_string.As<v8::String>()->WriteOneByte(
-               env->isolate(),
-               reinterpret_cast<uint8_t*>(header_contents),
-               0,
-               header_string_len,
-               v8::String::NO_NULL_TERMINATION),
-           header_string_len);
+  // TODO(@jasnell): V8 has deprecated WriteOneByte in favor of
+  // WriteOneByteV2. However, using the new method here causes
+  // a crash in the test suite due to the internal DCHECK(IsOneByte())
+  // called in WriteOneByteV2. We will need to investigate replacing
+  // this with WriteOneByteV2 once that issue is resolved.
+  header_string.As<v8::String>()->WriteOneByte(
+      env->isolate(),
+      reinterpret_cast<uint8_t*>(header_contents),
+      0,
+      header_string_len,
+      v8::String::NO_NULL_TERMINATION);
 
   size_t n = 0;
   char* p;

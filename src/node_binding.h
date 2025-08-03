@@ -10,6 +10,7 @@
 #include "node.h"
 #define NAPI_EXPERIMENTAL
 #include "node_api.h"
+#include "quic/guard.h"
 #include "uv.h"
 
 enum {
@@ -30,7 +31,7 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
 #define NODE_BUILTIN_ICU_BINDINGS(V)
 #endif
 
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL && OPENSSL_NO_QUIC != 1
 #define NODE_BUILTIN_QUIC_BINDINGS(V) V(quic)
 #else
 #define NODE_BUILTIN_QUIC_BINDINGS(V)
