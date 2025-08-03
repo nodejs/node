@@ -10,7 +10,6 @@ const {
 } = require('./util')
 const { FormData, setFormDataState } = require('./formdata')
 const { webidl } = require('../webidl')
-const { Blob } = require('node:buffer')
 const assert = require('node:assert')
 const { isErrored, isDisturbed } = require('node:stream')
 const { isArrayBuffer } = require('node:util/types')
