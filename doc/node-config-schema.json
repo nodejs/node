@@ -159,6 +159,9 @@
         "experimental-print-required-tla": {
           "type": "boolean"
         },
+        "experimental-quic": {
+          "type": "boolean"
+        },
         "experimental-repl-await": {
           "type": "boolean"
         },

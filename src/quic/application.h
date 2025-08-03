@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "base_object.h"
 #include "bindingdata.h"
@@ -22,6 +21,8 @@ class Session::Application : public MemoryRetainer {
   DISALLOW_COPY_AND_MOVE(Application)
 
   virtual bool Start();
+
+  virtual error_code GetNoErrorCode() const = 0;
 
   // Session will forward all received stream data immediately on to the
   // Application. The only additional processing the Session does is to
@@ -121,9 +122,15 @@ class Session::Application : public MemoryRetainer {
   virtual bool StreamCommit(StreamData* data, size_t datalen) = 0;
   virtual bool ShouldSetFin(const StreamData& data) = 0;
 
-  inline Environment* env() const { return session_->env(); }
-  inline Session& session() { return *session_; }
-  inline const Session& session() const { return *session_; }
+  inline Environment* env() const { return session().env(); }
+  inline Session& session() {
+    CHECK_NOT_NULL(session_);
+    return *session_;
+  }
+  inline const Session& session() const {
+    CHECK_NOT_NULL(session_);
+    return *session_;
+  }
 
  private:
   BaseObjectPtr<Packet> CreateStreamDataPacket();
@@ -135,7 +142,7 @@ class Session::Application : public MemoryRetainer {
                        size_t max_packet_size,
                        const StreamData& stream_data);
 
-  Session* session_;
+  Session* session_ = nullptr;
 };
 
 struct Session::Application::StreamData final {
@@ -161,5 +168,4 @@ struct Session::Application::StreamData final {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

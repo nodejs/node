@@ -149,9 +149,7 @@ class BindingData final
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BindingData& Get(Environment* env);
-  static inline BindingData& Get(Realm* realm) {
-    return Get(realm->env());
-  }
+  static inline BindingData& Get(Realm* realm) { return Get(realm->env()); }
 
   BindingData(Realm* realm, v8::Local<v8::Object> object);
   DISALLOW_COPY_AND_MOVE(BindingData)

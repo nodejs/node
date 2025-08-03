@@ -57,7 +57,7 @@ const hasCrypto = Boolean(process.versions.openssl) &&
 const hasInspector = Boolean(process.features.inspector);
 const hasSQLite = Boolean(process.versions.sqlite);
 
-const hasQuic = hasCrypto && !!process.config.variables.node_quic;
+const hasQuic = hasCrypto && !!process.features.quic;
 
 /**
  * Parse test metadata from the specified file.

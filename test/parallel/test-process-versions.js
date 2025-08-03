@@ -14,6 +14,8 @@ const expected_keys = [
   'v8',
   'zlib',
   'nghttp2',
+  'nghttp3',
+  'ngtcp2',
   'napi',
   'llhttp',
   'uvwasi',

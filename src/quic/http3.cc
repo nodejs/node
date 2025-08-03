@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "http3.h"
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
@@ -175,6 +176,8 @@ class Http3ApplicationImpl final : public Session::Application {
         conn_(InitializeConnection()) {
     session->set_priority_supported();
   }
+
+  error_code GetNoErrorCode() const override { return NGHTTP3_H3_NO_ERROR; }
 
   bool Start() override {
     CHECK(!started_);
@@ -966,6 +969,25 @@ class Http3ApplicationImpl final : public Session::Application {
     return NGTCP2_SUCCESS;
   }
 
+  static int on_receive_origin(nghttp3_conn* conn,
+                               const uint8_t* origin,
+                               size_t originlen,
+                               void* conn_user_data) {
+    // TODO(@jasnell): Handle the origin callback. This is called
+    // when a single origin in an ORIGIN frame is received.
+    return NGTCP2_SUCCESS;
+  }
+
+  static int on_end_origin(nghttp3_conn* conn, void* conn_user_data) {
+    // TODO(@jasnell): Handle the end of origin callback. This is called
+    // when the end of an ORIGIN frame is received.
+    return NGTCP2_SUCCESS;
+  }
+
+  static void on_rand(uint8_t* dest, size_t destlen) {
+    CHECK(ncrypto::CSPRNG(dest, destlen));
+  }
+
   static constexpr nghttp3_callbacks kCallbacks = {on_acked_stream_data,
                                                    on_stream_close,
                                                    on_receive_data,
@@ -980,7 +1002,10 @@ class Http3ApplicationImpl final : public Session::Application {
                                                    on_end_stream,
                                                    on_reset_stream,
                                                    on_shutdown,
-                                                   on_receive_settings};
+                                                   on_receive_settings,
+                                                   on_receive_origin,
+                                                   on_end_origin,
+                                                   on_rand};
 };
 
 std::unique_ptr<Session::Application> Http3Application::Create(
@@ -991,5 +1016,5 @@ std::unique_ptr<Session::Application> Http3Application::Create(
 
 }  // namespace quic
 }  // namespace node
-
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

@@ -51,7 +51,6 @@ class CID final : public MemoryRetainer {
 
   CID(const CID& other);
   CID& operator=(const CID& other);
-  DISALLOW_MOVE(CID)
 
   struct Hash final {
     size_t operator()(const CID& cid) const;

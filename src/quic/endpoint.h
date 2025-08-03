@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <aliased_struct.h>
 #include <async_wrap.h>
@@ -417,5 +416,4 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

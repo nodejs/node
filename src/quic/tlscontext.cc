@@ -1,6 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
-#include "tlscontext.h"
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
 #include <crypto/crypto_util.h>
@@ -9,13 +9,14 @@
 #include <memory_tracker-inl.h>
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
-#include <ngtcp2/ngtcp2_crypto_quictls.h>
+#include <ngtcp2/ngtcp2_crypto_ossl.h>
 #include <node_sockaddr-inl.h>
 #include <openssl/ssl.h>
 #include <v8.h>
 #include "bindingdata.h"
 #include "defs.h"
 #include "session.h"
+#include "tlscontext.h"
 #include "transportparams.h"
 
 namespace node {
@@ -28,6 +29,8 @@ using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
 using ncrypto::X509Pointer;
 using v8::ArrayBuffer;
+using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -42,14 +45,33 @@ namespace quic {
 // ============================================================================
 
 namespace {
-// TODO(@jasnell): One time initialization. ngtcp2 says this is optional but
-// highly recommended to deal with some perf regression. Unfortunately doing
-// this breaks some existing tests and we need to understand the potential
-// impact of calling this.
+// Performance optimization recommended by ngtcp2. Need to investigate why
+// this causes some tests to fail.
 // auto _ = []() {
-//   CHECK_EQ(ngtcp2_crypto_quictls_init(), 0);
+//   if (ngtcp2_crypto_ossl_init() != 0) {
+//     assert(0);
+//     abort();
+//   }
+
 //   return 0;
 // }();
+
+// Temporarily wraps an SSL pointer but does not take ownership.
+// Use by a few of the TLSSession methods that need access to the SSL*
+// pointer held by the OSSLContext but cannot take ownership of it.
+class SSLPointerRef final {
+ public:
+  inline SSLPointerRef(SSL* ssl) : temp_(ssl) { CHECK(temp_); }
+  inline ~SSLPointerRef() { release(); }
+  DISALLOW_COPY_AND_MOVE(SSLPointerRef)
+  inline operator const SSLPointer&() const { return temp_; }
+  inline const SSLPointer* operator->() const { return &temp_; }
+  inline const SSLPointer& operator*() const { return temp_; }
+  inline void release() { temp_.release(); }
+
+ private:
+  SSLPointer temp_;
+};
 
 void EnableTrace(Environment* env, BIOPointer* bio, SSL* ssl) {
 #if HAVE_SSL_TRACE
@@ -113,13 +135,23 @@ bool SetOption(Environment* env,
         }
       } else if constexpr (std::is_same<T, Store>::value) {
         if (item->IsArrayBufferView()) {
-          (options->*member).emplace_back(item.As<v8::ArrayBufferView>());
+          Store store;
+          if (!Store::From(item.As<v8::ArrayBufferView>()).To(&store)) {
+            return false;
+          }
+          (options->*member).push_back(std::move(store));
         } else if (item->IsArrayBuffer()) {
-          (options->*member).emplace_back(item.As<ArrayBuffer>());
+          Store store;
+          if (!Store::From(item.As<ArrayBuffer>()).To(&store)) {
+            return false;
+          }
+          (options->*member).push_back(std::move(store));
         } else {
           Utf8Value namestr(env->isolate(), name);
           THROW_ERR_INVALID_ARG_TYPE(
-              env, "%s value must be an array buffer", *namestr);
+              env,
+              "%s value must be an array buffer or array buffer view",
+              *namestr);
           return false;
         }
       }
@@ -138,13 +170,23 @@ bool SetOption(Environment* env,
       }
     } else if constexpr (std::is_same<T, Store>::value) {
       if (value->IsArrayBufferView()) {
-        (options->*member).emplace_back(value.As<v8::ArrayBufferView>());
+        Store store;
+        if (!Store::From(value.As<v8::ArrayBufferView>()).To(&store)) {
+          return false;
+        }
+        (options->*member).push_back(std::move(store));
       } else if (value->IsArrayBuffer()) {
-        (options->*member).emplace_back(value.As<ArrayBuffer>());
+        Store store;
+        if (!Store::From(value.As<ArrayBuffer>()).To(&store)) {
+          return false;
+        }
+        (options->*member).push_back(std::move(store));
       } else {
         Utf8Value namestr(env->isolate(), name);
         THROW_ERR_INVALID_ARG_TYPE(
-            env, "%s value must be an array buffer", *namestr);
+            env,
+            "%s value must be an array buffer or array buffer view",
+            *namestr);
         return false;
       }
     }
@@ -152,6 +194,106 @@ bool SetOption(Environment* env,
   return true;
 }
 }  // namespace
+
+OSSLContext::OSSLContext() {
+  CHECK_EQ(ngtcp2_crypto_ossl_ctx_new(&ctx_, nullptr), 0);
+}
+
+OSSLContext::~OSSLContext() {
+  reset();
+}
+
+void OSSLContext::reset() {
+  if (ctx_) {
+    SSL_set_app_data(*this, nullptr);
+    ngtcp2_conn_set_tls_native_handle(connection_, nullptr);
+    ngtcp2_crypto_ossl_ctx_del(ctx_);
+    ctx_ = nullptr;
+    connection_ = nullptr;
+  }
+}
+
+OSSLContext::operator SSL*() const {
+  return ngtcp2_crypto_ossl_ctx_get_ssl(ctx_);
+}
+
+OSSLContext::operator ngtcp2_crypto_ossl_ctx*() const {
+  return ctx_;
+}
+
+void OSSLContext::Initialize(SSL* ssl,
+                             ngtcp2_crypto_conn_ref* ref,
+                             ngtcp2_conn* connection,
+                             SSL_CTX* ssl_ctx) {
+  CHECK(ssl);
+  ngtcp2_crypto_ossl_ctx_set_ssl(ctx_, ssl);
+  SSL_set_app_data(*this, ref);
+  // TODO(@jasnell): Later when BoringSSL is also supported, the native
+  // handle will be different. The ngtcp2_crypto_ossl.h impl requires
+  // that the native handle be set to the ngtcp2_crypto_ossl_ctx. So
+  // this will need to be updated to support both cases.
+  ngtcp2_conn_set_tls_native_handle(connection, ctx_);
+  connection_ = connection;
+}
+
+std::string OSSLContext::get_cipher_name() const {
+  return SSL_get_cipher_name(*this);
+}
+
+std::string OSSLContext::get_selected_alpn() const {
+  const unsigned char* alpn = nullptr;
+  unsigned int len;
+  SSL_get0_alpn_selected(*this, &alpn, &len);
+  return std::string(alpn, alpn + len);
+}
+
+std::string_view OSSLContext::get_negotiated_group() const {
+  auto name = SSL_get0_group_name(*this);
+  if (name == nullptr) return "";
+  return name;
+}
+
+bool OSSLContext::set_alpn_protocols(std::string_view protocols) const {
+  return SSL_set_alpn_protos(
+             *this,
+             reinterpret_cast<const unsigned char*>(protocols.data()),
+             protocols.size()) == 0;
+}
+
+bool OSSLContext::set_hostname(std::string_view hostname) const {
+  if (!hostname.empty()) {
+    SSL_set_tlsext_host_name(*this, hostname.data());
+  } else {
+    SSL_set_tlsext_host_name(*this, "localhost");
+  }
+  return true;
+}
+
+bool OSSLContext::set_early_data_enabled() const {
+  return SSL_set_quic_tls_early_data_enabled(*this, 1) == 1;
+}
+
+bool OSSLContext::set_transport_params(const ngtcp2_vec& tp) const {
+  return SSL_set_quic_tls_transport_params(*this, tp.base, tp.len) == 1;
+}
+
+bool OSSLContext::get_early_data_accepted() const {
+  return SSL_get_early_data_status(*this) == SSL_EARLY_DATA_ACCEPTED;
+}
+
+bool OSSLContext::ConfigureServer() const {
+  if (ngtcp2_crypto_ossl_configure_server_session(*this) != 0) return false;
+  SSL_set_accept_state(*this);
+  return set_early_data_enabled();
+}
+
+bool OSSLContext::ConfigureClient() const {
+  if (ngtcp2_crypto_ossl_configure_client_session(*this) != 0) return false;
+  SSL_set_connect_state(*this);
+  return true;
+}
+
+// ============================================================================
 
 std::shared_ptr<TLSContext> TLSContext::CreateClient(const Options& options) {
   return std::make_shared<TLSContext>(Side::CLIENT, options);
@@ -186,9 +328,9 @@ int TLSContext::OnSelectAlpn(SSL* ssl,
   // here. Note that this will not fail the TLS handshake, so we have to check
   // later if the ALPN matches the expected identifier or not.
   //
-  // We might eventually want to support the ability to negotiate multiple
-  // possible ALPN's on a single endpoint/session but for now, we only support
-  // one.
+  // TODO(@jasnell): We might eventually want to support the ability to
+  // negotiate multiple possible ALPN's on a single endpoint/session but for
+  // now, we only support one.
   if (SSL_select_next_proto(
           const_cast<unsigned char**>(out),
           outlen,
@@ -215,11 +357,16 @@ int TLSContext::OnNewSession(SSL* ssl, SSL_SESSION* sess) {
     // ticket.
     size_t size = i2d_SSL_SESSION(sess, nullptr);
 
-    // If size is 0 or the size is greater than our max, let's ignore it
+    // If size is 0, the size is greater than our max, or there is not
+    // enough memory to allocate the backing store, then we ignore it
     // and continue without emitting the sessionticket event.
     if (size > 0 && size <= crypto::SecureContext::kMaxSessionSize) {
-      auto ticket =
-          ArrayBuffer::NewBackingStore(session.env()->isolate(), size);
+      auto ticket = ArrayBuffer::NewBackingStore(
+          session.env()->isolate(),
+          size,
+          BackingStoreInitializationMode::kUninitialized,
+          BackingStoreOnFailureMode::kReturnNull);
+      if (!ticket) return 0;
       auto data = reinterpret_cast<unsigned char*>(ticket->Data());
       if (i2d_SSL_SESSION(sess, &data) > 0) {
         session.EmitSessionTicket(Store(std::move(ticket), size));
@@ -254,20 +401,31 @@ SSLCtxPointer TLSContext::Initialize() {
     case Side::SERVER: {
       static constexpr unsigned char kSidCtx[] = "Node.js QUIC Server";
       ctx = SSLCtxPointer::NewServer();
-      CHECK_EQ(ngtcp2_crypto_quictls_configure_server_context(ctx.get()), 0);
-      CHECK_EQ(SSL_CTX_set_max_early_data(ctx.get(), UINT32_MAX), 1);
+      if (!ctx) [[unlikely]] {
+        validation_error_ = "Failed to create SSL_CTX for server";
+        return {};
+      }
+
+      if (SSL_CTX_set_max_early_data(ctx.get(), UINT32_MAX) != 1) {
+        validation_error_ = "Failed to set max early data";
+        return {};
+      }
       SSL_CTX_set_options(ctx.get(),
                           (SSL_OP_ALL & ~SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS) |
                               SSL_OP_SINGLE_ECDH_USE |
                               SSL_OP_CIPHER_SERVER_PREFERENCE |
                               SSL_OP_NO_ANTI_REPLAY);
+
       SSL_CTX_set_mode(ctx.get(), SSL_MODE_RELEASE_BUFFERS);
       SSL_CTX_set_alpn_select_cb(ctx.get(), OnSelectAlpn, this);
-      CHECK_EQ(SSL_CTX_set_session_id_context(
-                   ctx.get(), kSidCtx, sizeof(kSidCtx) - 1),
-               1);
 
-      if (options_.verify_client) {
+      if (SSL_CTX_set_session_id_context(
+              ctx.get(), kSidCtx, sizeof(kSidCtx) - 1) != 1) {
+        validation_error_ = "Failed to set session ID context";
+        return {};
+      }
+
+      if (options_.verify_client) [[likely]] {
         SSL_CTX_set_verify(ctx.get(),
                            SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE |
                                SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
@@ -285,7 +443,6 @@ SSLCtxPointer TLSContext::Initialize() {
     }
     case Side::CLIENT: {
       ctx = SSLCtxPointer::NewClient();
-      CHECK_EQ(ngtcp2_crypto_quictls_configure_client_context(ctx.get()), 0);
 
       SSL_CTX_set_session_cache_mode(
           ctx.get(), SSL_SESS_CACHE_CLIENT | SSL_SESS_CACHE_NO_INTERNAL);
@@ -499,61 +656,70 @@ TLSSession::TLSSession(Session* session,
                        const std::optional<SessionTicket>& maybeSessionTicket)
     : ref_({connection, this}),
       context_(std::move(context)),
-      session_(session),
-      ssl_(Initialize(maybeSessionTicket)) {
+      session_(session) {
   Debug(session_, "Created new TLS session for %s", session->config().dcid);
-}
-
-TLSSession::~TLSSession() {
-  if (ssl_) {
-    SSL_set_app_data(ssl_.get(), nullptr);
+  Initialize(maybeSessionTicket);
+  if (!ossl_context_) [[unlikely]] {
+    Debug(session_,
+          "Failed to initialize TLS session: %s",
+          validation_error_.empty() ? "unknown error" : validation_error_);
   }
 }
 
 TLSSession::operator SSL*() const {
-  CHECK(ssl_);
-  return ssl_.get();
+  return ossl_context_;
 }
 
 bool TLSSession::early_data_was_accepted() const {
   CHECK_NE(ngtcp2_conn_get_handshake_completed(*session_), 0);
-  return SSL_get_early_data_status(*this) == SSL_EARLY_DATA_ACCEPTED;
+  return ossl_context_.get_early_data_accepted();
 }
 
-SSLPointer TLSSession::Initialize(
+void TLSSession::Initialize(
     const std::optional<SessionTicket>& maybeSessionTicket) {
   auto& ctx = context();
   auto& options = ctx.options();
-  SSLPointer ssl(SSL_new(ctx));
-  SSL_set_app_data(ssl.get(), &ref_);
-  ngtcp2_conn_set_tls_native_handle(*session_, ssl.get());
+  auto ssl = SSLPointer::New(ctx);
+  if (!ssl) [[unlikely]] {
+    validation_error_ = "Failed to create SSL session";
+    ossl_context_.reset();
+    return;
+  }
 
   // Enable tracing if the `--trace-tls` command line flag is used.
   if (session_->env()->options()->trace_tls || options.enable_tls_trace)
       [[unlikely]] {
-    EnableTrace(session_->env(), &bio_trace_, *this);
+    EnableTrace(session_->env(), &bio_trace_, ssl);
   }
+
+  ossl_context_.Initialize(ssl.release(), &ref_, session(), ctx);
 
   switch (ctx.side()) {
     case Side::SERVER: {
-      SSL_set_accept_state(ssl.get());
-      SSL_set_quic_early_data_enabled(ssl.get(), 1);
+      if (!ossl_context_.ConfigureServer()) [[unlikely]] {
+        validation_error_ = "Failed to configure server session";
+        ossl_context_.reset();
+        return;
+      }
       break;
     }
     case Side::CLIENT: {
-      SSL_set_connect_state(ssl.get());
-      if (SSL_set_alpn_protos(
-              ssl.get(),
-              reinterpret_cast<const unsigned char*>(options.protocol.data()),
-              options.protocol.size()) != 0) {
-        validation_error_ = "Invalid ALPN";
-        return SSLPointer();
+      if (!ossl_context_.ConfigureClient()) [[unlikely]] {
+        validation_error_ = "Failed to configure client session";
+        ossl_context_.reset();
+        return;
+      };
+
+      if (!ossl_context_.set_alpn_protocols(options.protocol)) {
+        validation_error_ = "Failed to set ALPN protocols";
+        ossl_context_.reset();
+        return;
       }
 
-      if (!options.servername.empty()) {
-        SSL_set_tlsext_host_name(ssl.get(), options.servername.data());
-      } else {
-        SSL_set_tlsext_host_name(ssl.get(), "localhost");
+      if (!ossl_context_.set_hostname(options.servername)) {
+        validation_error_ = "Failed to set server name";
+        ossl_context_.reset();
+        return;
       }
 
       if (maybeSessionTicket.has_value()) {
@@ -568,7 +734,11 @@ SSLPointer TLSSession::Initialize(
           ngtcp2_vec rtp = sessionTicket.transport_params();
           if (ngtcp2_conn_decode_and_set_0rtt_transport_params(
                   *session_, rtp.base, rtp.len) == 0) {
-            SSL_set_quic_early_data_enabled(ssl.get(), 1);
+            if (!ossl_context_.set_early_data_enabled()) {
+              validation_error_ = "Failed to enable early data";
+              ossl_context_.reset();
+              return;
+            }
             session_->SetStreamOpenAllowed();
           }
         }
@@ -581,16 +751,19 @@ SSLPointer TLSSession::Initialize(
   TransportParams tp(ngtcp2_conn_get_local_transport_params(*session_));
   Store store = tp.Encode(session_->env());
   if (store && store.length() > 0) {
-    ngtcp2_vec vec = store;
-    SSL_set_quic_transport_params(ssl.get(), vec.base, vec.len);
+    if (!ossl_context_.set_transport_params(store)) {
+      validation_error_ = "Failed to set transport parameters";
+      ossl_context_.reset();
+      return;
+    }
   }
-
-  return ssl;
 }
 
 std::optional<TLSSession::PeerIdentityValidationError>
 TLSSession::VerifyPeerIdentity(Environment* env) {
-  int err = ssl_.verifyPeerCertificate().value_or(X509_V_ERR_UNSPECIFIED);
+  // We are just temporarily wrapping the ssl, not taking ownership.
+  SSLPointerRef ssl(ossl_context_);
+  int err = ssl->verifyPeerCertificate().value_or(X509_V_ERR_UNSPECIFIED);
   if (err == X509_V_OK) return std::nullopt;
   Local<Value> reason;
   Local<Value> code;
@@ -604,44 +777,47 @@ TLSSession::VerifyPeerIdentity(Environment* env) {
 }
 
 MaybeLocal<Object> TLSSession::cert(Environment* env) const {
-  return crypto::X509Certificate::GetCert(env, ssl_);
+  SSLPointerRef ssl(ossl_context_);
+  return crypto::X509Certificate::GetCert(env, ssl);
 }
 
 MaybeLocal<Object> TLSSession::peer_cert(Environment* env) const {
+  // We are just temporarily wrapping the ssl, not taking ownership.
+  SSLPointerRef ssl(ossl_context_);
   crypto::X509Certificate::GetPeerCertificateFlag flag =
       context_->side() == Side::SERVER
           ? crypto::X509Certificate::GetPeerCertificateFlag::SERVER
           : crypto::X509Certificate::GetPeerCertificateFlag::NONE;
-  return crypto::X509Certificate::GetPeerCert(env, ssl_, flag);
+  return crypto::X509Certificate::GetPeerCert(env, ssl, flag);
 }
 
 MaybeLocal<Object> TLSSession::ephemeral_key(Environment* env) const {
-  return crypto::GetEphemeralKey(env, ssl_);
+  // We are just temporarily wrapping the ssl, not taking ownership.
+  SSLPointerRef ssl(ossl_context_);
+  return crypto::GetEphemeralKey(env, ssl);
 }
 
 MaybeLocal<Value> TLSSession::cipher_name(Environment* env) const {
-  auto name = ssl_.getCipherName();
-  if (!name.has_value()) return Undefined(env->isolate());
-  return OneByteString(env->isolate(), name.value());
+  CHECK(ossl_context_);
+  auto name = ossl_context_.get_cipher_name();
+  return OneByteString(env->isolate(), name);
 }
 
 MaybeLocal<Value> TLSSession::cipher_version(Environment* env) const {
-  auto version = ssl_.getCipherVersion();
+  SSLPointerRef ssl(ossl_context_);
+  auto version = ssl->getCipherVersion();
   if (!version.has_value()) return Undefined(env->isolate());
   return OneByteString(env->isolate(), version.value());
 }
 
 const std::string_view TLSSession::servername() const {
-  return ssl_.getServerName().value_or(std::string_view());
+  SSLPointerRef ssl(ossl_context_);
+  return ssl->getServerName().value_or(std::string_view());
 }
 
-const std::string_view TLSSession::protocol() const {
-  const unsigned char* alpn_buf = nullptr;
-  unsigned int alpnlen;
-  SSL_get0_alpn_selected(ssl_.get(), &alpn_buf, &alpnlen);
-  return alpnlen ? std::string_view(reinterpret_cast<const char*>(alpn_buf),
-                                    alpnlen)
-                 : std::string_view();
+const std::string TLSSession::protocol() const {
+  CHECK(ossl_context_);
+  return ossl_context_.get_selected_alpn();
 }
 
 bool TLSSession::InitiateKeyUpdate() {
@@ -658,7 +834,11 @@ ngtcp2_conn* TLSSession::connection(ngtcp2_crypto_conn_ref* ref) {
   return static_cast<TLSSession*>(ref->user_data)->session();
 }
 
+void TLSSession::MemoryInfo(MemoryTracker* tracker) const {
+  tracker->TrackField("context", context_);
+}
+
 }  // namespace quic
 }  // namespace node
-
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL
