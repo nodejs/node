@@ -34,7 +34,7 @@ class TransportParams final {
   static constexpr uint64_t DEFAULT_MAX_STREAMS_UNI = 3;
   static constexpr uint64_t DEFAULT_ACTIVE_CONNECTION_ID_LIMIT = 2;
 
-  struct Config {
+  struct Config final {
     Side side;
     const CID& ocid;
     const CID& retry_scid;
@@ -43,7 +43,7 @@ class TransportParams final {
            const CID& retry_scid = CID::kInvalid);
   };
 
-  struct Options : public MemoryRetainer {
+  struct Options final : public MemoryRetainer {
     int transportParamsVersion = QUIC_TRANSPORT_PARAMS_V1;
 
     // Set only on server Sessions, the preferred address communicates the IP

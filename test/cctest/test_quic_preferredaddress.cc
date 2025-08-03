@@ -12,10 +12,10 @@
 #include <string>
 #include <unordered_map>
 
+using node::SocketAddress;
 using node::quic::CID;
 using node::quic::Path;
 using node::quic::PreferredAddress;
-using node::SocketAddress;
 
 TEST(PreferredAddress, Basic) {
   const auto cid = CID::Factory::random().Generate();
