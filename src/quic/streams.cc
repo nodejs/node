@@ -1,4 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "streams.h"
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
@@ -237,7 +239,7 @@ struct Stream::Impl {
   static void StopSending(const FunctionCallbackInfo<Value>& args) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    uint64_t code = NGTCP2_APP_NOERROR;
+    uint64_t code = 0;
     CHECK_IMPLIES(!args[0]->IsUndefined(), args[0]->IsBigInt());
     if (!args[0]->IsUndefined()) {
       bool unused = false;  // not used but still necessary.
@@ -262,7 +264,7 @@ struct Stream::Impl {
   static void ResetStream(const FunctionCallbackInfo<Value>& args) {
     Stream* stream;
     ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-    uint64_t code = NGTCP2_APP_NOERROR;
+    uint64_t code = 0;
     CHECK_IMPLIES(!args[0]->IsUndefined(), args[0]->IsBigInt());
     if (!args[0]->IsUndefined()) {
       bool lossless = false;  // not used but still necessary.
@@ -818,7 +820,8 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
       stats_(env()->isolate()),
       state_(env()->isolate()),
       session_(std::move(session)),
-      inbound_(DataQueue::Create()) {
+      inbound_(DataQueue::Create()),
+      headers_(env()->isolate()) {
   MakeWeak();
   state_->id = id;
   state_->pending = 0;
@@ -853,7 +856,8 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
       session_(std::move(session)),
       inbound_(DataQueue::Create()),
       maybe_pending_stream_(
-          std::make_unique<PendingStream>(direction, this, session_)) {
+          std::make_unique<PendingStream>(direction, this, session_)),
+      headers_(env()->isolate()) {
   MakeWeak();
   state_->id = -1;
   state_->pending = 1;
@@ -1310,4 +1314,5 @@ void Stream::Unschedule() {
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

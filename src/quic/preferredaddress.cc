@@ -1,16 +1,16 @@
 #if HAVE_OPENSSL
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
-#include "cid.h"
-#include "preferredaddress.h"
 #include <env-inl.h>
-#include <node_realm-inl.h>
 #include <ngtcp2/ngtcp2.h>
 #include <node_errors.h>
+#include <node_realm-inl.h>
 #include <node_sockaddr-inl.h>
 #include <util-inl.h>
 #include <uv.h>
 #include <v8.h>
+#include "cid.h"
+#include "preferredaddress.h"
 
 namespace node {
 
@@ -30,10 +30,8 @@ std::optional<const PreferredAddress::AddressInfo> get_address_info(
   if constexpr (FAMILY == AF_INET) {
     if (!paddr.ipv4_present) return std::nullopt;
     address.port = paddr.ipv4.sin_port;
-    if (uv_inet_ntop(FAMILY,
-                     &paddr.ipv4.sin_addr,
-                     address.host,
-                     sizeof(address.host)) ==
+    if (uv_inet_ntop(
+            FAMILY, &paddr.ipv4.sin_addr, address.host, sizeof(address.host)) ==
         0) {
       address.address = address.host;
     }
@@ -131,9 +129,8 @@ void PreferredAddress::Set(ngtcp2_transport_params* params,
 
 Maybe<PreferredAddress::Policy> PreferredAddress::tryGetPolicy(
     Environment* env, Local<Value> value) {
-  return value->IsUndefined()
-    ? Just(Policy::USE_PREFERRED)
-    : Just(FromV8Value<Policy>(value));
+  return value->IsUndefined() ? Just(Policy::USE_PREFERRED)
+                              : Just(FromV8Value<Policy>(value));
 }
 
 void PreferredAddress::Initialize(Environment* env, Local<v8::Object> target) {

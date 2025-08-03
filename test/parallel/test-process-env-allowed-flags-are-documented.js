@@ -131,9 +131,7 @@ assert(undocumented.delete('--no-verify-base-objects'));
 assert(undocumented.delete('--trace-promises'));
 assert(undocumented.delete('--no-trace-promises'));
 assert(undocumented.delete('--experimental-quic'));
-if (common.hasQuic) {
-  assert(undocumented.delete('--no-experimental-quic'));
-}
+assert(undocumented.delete('--no-experimental-quic'));
 
 // Remove negated versions of the flags.
 for (const flag of undocumented) {

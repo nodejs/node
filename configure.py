@@ -852,12 +852,6 @@ parser.add_argument('--without-siphash',
 
 # End dummy list.
 
-parser.add_argument('--with-quic',
-    action='store_true',
-    dest='quic',
-    default=None,
-    help='build with QUIC support')
-
 parser.add_argument('--without-ssl',
     action='store_true',
     dest='without_ssl',
@@ -1835,7 +1829,6 @@ def configure_openssl(o):
   variables['node_shared_ngtcp2'] = b(options.shared_ngtcp2)
   variables['node_shared_nghttp3'] = b(options.shared_nghttp3)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
-  variables['node_quic'] = b(options.quic)
   variables['node_fipsinstall'] = b(False)
 
   if options.openssl_no_asm:
@@ -1896,10 +1889,6 @@ def configure_openssl(o):
 
   if options.openssl_is_fips and not options.shared_openssl:
     variables['node_fipsinstall'] = b(True)
-
-  variables['openssl_quic'] = b(options.quic)
-  if options.quic:
-    o['defines'] += ['NODE_OPENSSL_HAS_QUIC']
 
   configure_library('openssl', o)
 
