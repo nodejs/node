@@ -2,6 +2,7 @@
 #include "node_dotenv.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "path.h"
 #include "util-inl.h"
 #include "v8-fast-api-calls.h"
 
@@ -249,6 +250,42 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  std::string path = ".env";
+  if (args.Length() == 1) {
+    BufferValue path_value(args.GetIsolate(), args[0]);
+    ToNamespacedPath(env, &path_value);
+    path = path_value.ToString();
+  }
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path);
+
+  Dotenv dotenv{};
+
+  switch (dotenv.ParsePath(path)) {
+    case dotenv.ParseResult::Valid: {
+      Local<Object> obj;
+      if (dotenv.ToObject(env).ToLocal(&obj)) {
+        args.GetReturnValue().Set(obj);
+      }
+      break;
+    }
+    case dotenv.ParseResult::InvalidContent: {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "Contents of '%s' should be a valid string.", path.c_str());
+      break;
+    }
+    case dotenv.ParseResult::FileError: {
+      env->ThrowUVException(UV_ENOENT, "open", nullptr, path.c_str());
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
 static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -444,6 +481,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GuessHandleType);
   registry->Register(fast_guess_handle_type_);
   registry->Register(ParseEnv);
+  registry->Register(LoadEnvFile);
   registry->Register(IsInsideNodeModules);
   registry->Register(DefineLazyProperties);
   registry->Register(DefineLazyPropertiesGetter);
@@ -546,6 +584,7 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "getCallSites", GetCallSites);
   SetMethod(context, target, "sleep", Sleep);
   SetMethod(context, target, "parseEnv", ParseEnv);
+  SetMethod(context, target, "loadEnvFile", LoadEnvFile);
 
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
