@@ -839,6 +839,7 @@ void Environment::set_process_exit_handler(
     return PropertyName##_.Get(isolate_);                                      \
   }                                                                            \
   inline void IsolateData::set_##PropertyName(v8::Local<TypeName> value) {     \
+    CHECK(PropertyName##_.IsEmpty());                                          \
     PropertyName##_.Set(isolate_, value);                                      \
   }
   PER_ISOLATE_TEMPLATE_PROPERTIES(V)
