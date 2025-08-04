@@ -9,7 +9,7 @@
 namespace node {
 namespace shadow_realm {
 
-class ShadowRealm : public Realm {
+class ShadowRealm final : public Realm {
  public:
   static ShadowRealm* New(Environment* env);
 
