@@ -157,7 +157,7 @@ class Realm : public MemoryRetainer {
   CleanupQueue cleanup_queue_;
 };
 
-class PrincipalRealm : public Realm {
+class PrincipalRealm final : public Realm {
  public:
   PrincipalRealm(Environment* env,
                  v8::Local<v8::Context> context,
