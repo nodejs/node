@@ -2335,7 +2335,6 @@ added:
     trusted store.
   * When [`NODE_EXTRA_CA_CERTS`][] is used, this would also include certificates loaded from the specified
     file.
-
 * `"system"`: return the CA certificates that are loaded from the system's trusted store, according
   to rules set by [`--use-system-ca`][]. This can be used to get the certificates from the system
   when [`--use-system-ca`][] is not enabled.
