@@ -2321,8 +2321,8 @@ added:
   If an object, it may contain:
   * `type` {string} The type of CA certificates to return. One of `"default"`, `"system"`, `"bundled"`, or `"extra"`.
     **Default:** `"default"`.
-  * `as` {string} The format of returned certificates. One of:
-    * `"buffer"` (default): Returns an array of certificate data as `Buffer` objects.
+  * `as` {string} The format of returned certificates. **Default**: `"buffer"`.
+    * `"buffer"`: Returns an array of certificate data as `Buffer` objects.
     * `"x509"`: Returns an array of \[`X509Certificate`]\[] instances.
 
 * Returns: {Array.\<Buffer|X509Certificate>}
