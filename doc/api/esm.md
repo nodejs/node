@@ -336,7 +336,7 @@ fs.readFileSync === readFileSync;
 
 [Dynamic `import()`][] provides an asynchronous way to import modules.
 
-This makes it a common method for loading ES modules from a CommonJS context.
+This makes it a common method for loading ES modules from a [CommonJS][] context.
 It is supported in both CommonJS and ES modules and can load both module types.
 
 Note, however, that [Dynamic `import()`][] is not the only way to load an ES module in a CommonJS module.
