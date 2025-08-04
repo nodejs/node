@@ -2316,16 +2316,16 @@ added:
   - v22.15.0
 -->
 
-* `options` {string|Object|undefined}\
-  Optional. If a string, it is treated as the `type` of certificates to return.\
+* `options` {string|Object|undefined}
+  Optional. If a string, it is treated as the `type` of certificates to return.
   If an object, it may contain:
-  * `type` {string} The type of CA certificates to return. One of `"default"`, `"system"`, `"bundled"`, or `"extra"`.\
+  * `type` {string} The type of CA certificates to return. One of `"default"`, `"system"`, `"bundled"`, or `"extra"`.
     **Default:** `"default"`.
   * `as` {string} The format of returned certificates. One of:
     * `"buffer"` (default): Returns an array of certificate data as `Buffer` objects.
-    * `"x509"`: Returns an array of \[`X509Certificate`]\[] instances.
+    * `"x509"`: Returns an array of [`X509Certificate`][] instances.
 
-* Returns: {Array.\<Buffer|X509Certificate>}\
+* Returns: {Array.<Buffer|X509Certificate>}
   An array of certificates in the specified format.
 
 * `"default"`: return the CA certificates that will be used by the Node.js TLS clients by default.
