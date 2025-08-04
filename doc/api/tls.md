@@ -2340,7 +2340,6 @@ added:
   when [`--use-system-ca`][] is not enabled.
 * `"bundled"`: return the CA certificates from the bundled Mozilla CA store. This would be the same
   as [`tls.rootCertificates`][].
-
 * `"extra"`: return the CA certificates loaded from [`NODE_EXTRA_CA_CERTS`][]. It's an empty array if
   [`NODE_EXTRA_CA_CERTS`][] is not set.
 
