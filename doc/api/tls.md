@@ -2338,7 +2338,6 @@ added:
 * `"system"`: return the CA certificates that are loaded from the system's trusted store, according
   to rules set by [`--use-system-ca`][]. This can be used to get the certificates from the system
   when [`--use-system-ca`][] is not enabled.
-
 * `"bundled"`: return the CA certificates from the bundled Mozilla CA store. This would be the same
   as [`tls.rootCertificates`][].
 
