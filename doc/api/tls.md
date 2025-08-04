@@ -2308,7 +2308,7 @@ const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];
 tls.setDefaultCACertificates([...currentCerts, ...additionalCerts]);
 ```
 
-## `tls.getCACertificates([type])`
+## `tls.getCACertificates([options])`
 
 <!-- YAML
 added:
@@ -2316,13 +2316,17 @@ added:
   - v22.15.0
 -->
 
-* `type` {string|undefined} The type of CA certificates that will be returned. Valid values
-  are `"default"`, `"system"`, `"bundled"` and `"extra"`.
-  **Default:** `"default"`.
-* Returns: {string\[]} An array of PEM-encoded certificates. The array may contain duplicates
-  if the same certificate is repeatedly stored in multiple sources.
+* `options` {string|Object|undefined}\
+  Optional. If a string, it is treated as the `type` of certificates to return.\
+  If an object, it may contain:
+  * `type` {string} The type of CA certificates to return. One of `"default"`, `"system"`, `"bundled"`, or `"extra"`.\
+    **Default:** `"default"`.
+  * `as` {string} The format of returned certificates. One of:
+    * `"buffer"` (default): Returns an array of certificate data as `Buffer` objects.
+    * `"x509"`: Returns an array of \[`X509Certificate`]\[] instances.
 
-Returns an array containing the CA certificates from various sources, depending on `type`:
+* Returns: {Array.\<Buffer|X509Certificate>}\
+  An array of certificates in the specified format.
 
 * `"default"`: return the CA certificates that will be used by the Node.js TLS clients by default.
   * When [`--use-bundled-ca`][] is enabled (default), or [`--use-openssl-ca`][] is not enabled,
@@ -2331,11 +2335,14 @@ Returns an array containing the CA certificates from various sources, depending 
     trusted store.
   * When [`NODE_EXTRA_CA_CERTS`][] is used, this would also include certificates loaded from the specified
     file.
+
 * `"system"`: return the CA certificates that are loaded from the system's trusted store, according
   to rules set by [`--use-system-ca`][]. This can be used to get the certificates from the system
   when [`--use-system-ca`][] is not enabled.
+
 * `"bundled"`: return the CA certificates from the bundled Mozilla CA store. This would be the same
   as [`tls.rootCertificates`][].
+
 * `"extra"`: return the CA certificates loaded from [`NODE_EXTRA_CA_CERTS`][]. It's an empty array if
   [`NODE_EXTRA_CA_CERTS`][] is not set.
 
