@@ -331,21 +331,29 @@ class KVStore {
 };
 
 // Convenience wrapper around v8::String::NewFromOneByte().
-inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
-                                           const char* data,
-                                           int length = -1);
+inline v8::Local<v8::String> OneByteString(
+    v8::Isolate* isolate,
+    const char* data,
+    int length = -1,
+    v8::NewStringType type = v8::NewStringType::kNormal);
 
 // For the people that compile with -funsigned-char.
-inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
-                                           const signed char* data,
-                                           int length = -1);
+inline v8::Local<v8::String> OneByteString(
+    v8::Isolate* isolate,
+    const signed char* data,
+    int length = -1,
+    v8::NewStringType type = v8::NewStringType::kNormal);
 
-inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
-                                           const unsigned char* data,
-                                           int length = -1);
+inline v8::Local<v8::String> OneByteString(
+    v8::Isolate* isolate,
+    const unsigned char* data,
+    int length = -1,
+    v8::NewStringType type = v8::NewStringType::kNormal);
 
-inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
-                                           std::string_view str);
+inline v8::Local<v8::String> OneByteString(
+    v8::Isolate* isolate,
+    std::string_view str,
+    v8::NewStringType type = v8::NewStringType::kNormal);
 
 // Used to be a macro, hence the uppercase name.
 template <std::size_t N>
@@ -353,7 +361,7 @@ template <std::size_t N>
 inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(v8::Isolate* isolate,
                                                    const char (&data)[N]) {
   CHECK_EQ(data[N - 1], '\0');
-  return OneByteString(isolate, data, N - 1);
+  return OneByteString(isolate, data, N - 1, v8::NewStringType::kInternalized);
 }
 
 // tolower() is locale-sensitive.  Use ToLower() instead.
