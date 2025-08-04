@@ -114,6 +114,22 @@ jobs:
           NODE=$(command -v node) make lint-md
         env:
           NODE_RELEASED_VERSIONS: ${{ steps.get-released-versions.outputs.NODE_RELEASED_VERSIONS }}
+  lint-nix:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: '*.nix'
+          sparse-checkout-cone-mode: false
+      - uses: cachix/install-nix-action@7be5dee1421f63d07e71ce6e0a9f8a4b07c2a487  # v31.6.1
+      - name: Lint Nix files
+        run: nix-shell -I nixpkgs=./nixpkgs.nix -p 'nixfmt-tree' --run 'treefmt --quiet --fail-on-change'
+      - if: ${{ failure() }}
+        name: Show diff
+        run: git --no-pager diff
+
   lint-py:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
