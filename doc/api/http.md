@@ -414,6 +414,20 @@ changes:
 An object which contains arrays of sockets currently in use by the
 agent. Do not modify.
 
+### `agent.keepAliveTimeoutBuffer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number} Timeout in milliseconds. **Default:** `1000` (1 second).
+
+The buffer time that is subtracted from the server's keep-alive timeout value to reduce the likelihood of
+ECONNRESET errors. When a server sends a 'keep-alive' timeout hint in its response headers,
+the agent will subtract this buffer value from the hint to determine the actual socket timeout.
+
+This option only affects sockets that receive a keep-alive timeout hint from the server.
+
 ## Class: `http.ClientRequest`
 
 <!-- YAML
