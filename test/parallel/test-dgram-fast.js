@@ -13,13 +13,12 @@ function testFastDgram() {
 
   server.bind(0, common.mustCall(() => {
     client.connect(server.address().port, common.mustCall(() => {
-      // Send some packets to queue them up (using --test-udp-no-try-send flag)
       client.send('Hello');
       client.send('World');
-      
+
       assert.strictEqual(typeof client.getSendQueueSize(), 'number');
       assert.strictEqual(typeof client.getSendQueueCount(), 'number');
-      
+
       client.close();
       server.close();
     }));
