@@ -259,7 +259,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     result.emplace_back(OneByteString(isolate, ip));
     result.emplace_back(OneByteString(isolate, netmask));
     result.emplace_back(family);
-    result.emplace_back(FIXED_ONE_BYTE_STRING(isolate, mac));
+    result.emplace_back(OneByteString(isolate, mac.data(), mac.size() - 1));
     result.emplace_back(
         Boolean::New(env->isolate(), interfaces[i].is_internal));
     if (interfaces[i].address.address4.sin_family == AF_INET6) {
