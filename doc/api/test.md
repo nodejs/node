@@ -3613,7 +3613,7 @@ The name of the test.
 added: v20.12.0
 -->
 
-Indicates whether the test succeeded, this defaults to `true` before the test is executed, e.g. in a `beforeEach` hook.
+Indicates whether the test succeeded, this defaults to `false` before the test is executed, e.g. in a `beforeEach` hook.
 
 ### `context.error` {Error|null}
 
@@ -3621,8 +3621,7 @@ Indicates whether the test succeeded, this defaults to `true` before the test is
 added: v20.12.0
 -->
 
-The failure reason for this test, if a non `Error` object was thrown it will be wrapped and available via the `cause`
-property.
+The failure reason for the test/case; if anything other than an instance of `Error` was thrown, that will be wrapped and available via `context.error.cause`.
 
 ### `context.plan(count[,options])`
 
