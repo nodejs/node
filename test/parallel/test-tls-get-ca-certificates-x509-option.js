@@ -20,4 +20,3 @@ function testX509Option() {
 
 testX509Option();
 
-console.log('Test passed: getCACertificates with as: "x509"');
