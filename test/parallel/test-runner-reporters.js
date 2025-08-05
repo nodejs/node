@@ -196,10 +196,8 @@ describe('node:test reporters', { concurrency: true }, () => {
     const file = tmpdir.resolve(`${tmpFiles++}.xml`);
     const child = spawnSync(process.execPath,
                             ['--test', '--test-reporter', 'junit', '--test-reporter-destination', file, testFile]);
-
     assert.strictEqual(child.stderr.toString(), '');
     assert.strictEqual(child.stdout.toString(), '');
-    
     const fileContents = fs.readFileSync(file, 'utf8');
     assert.match(fileContents, /<testsuite .*name="nested".*tests="2".*failures="1".*skipped="0".*>/);
     assert.match(fileContents, /<testcase .*name="failing".*>\s*<failure .*type="testCodeFailure".*message="error".*>/);
