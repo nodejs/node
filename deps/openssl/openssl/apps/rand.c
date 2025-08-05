@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1998-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -199,7 +199,7 @@ int rand_main(int argc, char **argv)
         int chunk;
 
         chunk = scaled_num > buflen ? (int)buflen : (int)scaled_num;
-        r = RAND_bytes(buf, chunk);
+        r = RAND_bytes_ex(app_get0_libctx(), buf, chunk, 0);
         if (r <= 0)
             goto end;
         if (format != FORMAT_TEXT) {

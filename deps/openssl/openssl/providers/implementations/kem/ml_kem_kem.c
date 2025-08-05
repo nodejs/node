@@ -171,7 +171,7 @@ static int ml_kem_encapsulate(void *vctx, unsigned char *ctext, size_t *clen,
         return 1;
     }
     if (shsec == NULL) {
-        ERR_raise_data(ERR_LIB_PROV, PROV_R_OUTPUT_BUFFER_TOO_SMALL,
+        ERR_raise_data(ERR_LIB_PROV, PROV_R_NULL_OUTPUT_BUFFER,
                        "NULL shared-secret buffer");
         goto end;
     }
