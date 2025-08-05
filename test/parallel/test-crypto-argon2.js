@@ -5,8 +5,8 @@ if (!common.hasCrypto)
 
 const { hasOpenSSL } = require('../common/crypto');
 
-if (!hasOpenSSL(3, 5))
-  common.skip('requires OpenSSL >= 3.5');
+if (!hasOpenSSL(3, 2))
+  common.skip('requires OpenSSL >= 3.2');
 
 const assert = require('node:assert');
 const crypto = require('node:crypto');
