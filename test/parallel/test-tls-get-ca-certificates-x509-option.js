@@ -19,4 +19,3 @@ function testX509Option() {
 }
 
 testX509Option();
-
