@@ -57,9 +57,9 @@ Maybe<void> Argon2Traits::AdditionalConfig(
 
   ArrayBufferOrViewContents<char> pass(args[offset]);
   ArrayBufferOrViewContents<char> salt(args[offset + 1]);
-  Utf8Value algorithm(env->isolate(), args[offset + 2]);
-  ArrayBufferOrViewContents<char> secret(args[offset + 3]);
-  ArrayBufferOrViewContents<char> ad(args[offset + 4]);
+  ArrayBufferOrViewContents<char> secret(args[offset + 6]);
+  ArrayBufferOrViewContents<char> ad(args[offset + 7]);
+  Utf8Value type_(env->isolate(), args[offset + 8]);
 
   if (!pass.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "pass is too large");
@@ -87,37 +87,37 @@ Maybe<void> Argon2Traits::AdditionalConfig(
   config->secret = isAsync ? secret.ToCopy() : secret.ToByteSource();
   config->ad = isAsync ? ad.ToCopy() : ad.ToByteSource();
 
-  if (algorithm.ToStringView() == "argon2i") {
+  if (type_.ToStringView() == "argon2i") {
     config->type = ncrypto::Argon2Type::ARGON2I;
-  } else if (algorithm.ToStringView() == "argon2d") {
+  } else if (type_.ToStringView() == "argon2d") {
     config->type = ncrypto::Argon2Type::ARGON2D;
-  } else if (algorithm.ToStringView() == "argon2id") {
+  } else if (type_.ToStringView() == "argon2id") {
     config->type = ncrypto::Argon2Type::ARGON2ID;
   } else {
     THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
     return Nothing<void>();
   }
 
+  CHECK(args[offset + 2]->IsUint32());  // lanes
+  CHECK(args[offset + 3]->IsUint32());  // keylen
+  CHECK(args[offset + 4]->IsUint32());  // memcost
   CHECK(args[offset + 5]->IsUint32());  // iter
-  CHECK(args[offset + 6]->IsUint32());  // lanes
-  CHECK(args[offset + 7]->IsUint32());  // memcost
-  CHECK(args[offset + 8]->IsUint32());  // keylen
 
+  config->lanes = args[offset + 2].As<Uint32>()->Value();
+  config->keylen = args[offset + 3].As<Uint32>()->Value();
+  config->memcost = args[offset + 4].As<Uint32>()->Value();
   config->iter = args[offset + 5].As<Uint32>()->Value();
-  config->lanes = args[offset + 6].As<Uint32>()->Value();
-  config->memcost = args[offset + 7].As<Uint32>()->Value();
-  config->keylen = args[offset + 8].As<Uint32>()->Value();
 
   if (!ncrypto::argon2(config->pass,
                        config->salt,
+                       config->lanes,
+                       config->keylen,
+                       config->memcost,
+                       config->iter,
+                       config->version,
                        config->secret,
                        config->ad,
-                       config->type,
-                       config->iter,
-                       config->lanes,
-                       config->memcost,
-                       config->version,
-                       config->keylen)) {
+                       config->type)) {
     THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
     return Nothing<void>();
   }
@@ -146,7 +146,12 @@ bool Argon2Traits::DeriveBits(Environment* env,
           .data = config.salt.data<unsigned char>(),
           .len = config.salt.size(),
       },
-      ncrypto::Buffer{
+      config.lanes,
+      config.keylen,
+      config.memcost,
+      config.iter,
+      config.version,
+        ncrypto::Buffer{
           .data = config.secret.data<unsigned char>(),
           .len = config.secret.size(),
       },
@@ -154,12 +159,7 @@ bool Argon2Traits::DeriveBits(Environment* env,
           .data = config.ad.data<unsigned char>(),
           .len = config.ad.size(),
       },
-      config.type,
-      config.iter,
-      config.lanes,
-      config.memcost,
-      config.version,
-      config.keylen);
+      config.type);
 
   if (!dp) return false;
   DCHECK(!dp.isSecure());

@@ -1861,14 +1861,14 @@ DataPointer pbkdf2(const Digest& md,
 #ifndef OPENSSL_NO_ARGON2
 DataPointer argon2(const Buffer<const char>& pass,
                    const Buffer<const unsigned char>& salt,
+                   uint32_t lanes,
+                   size_t length,
+                   uint32_t memcost,
+                   uint32_t iter,
+                   uint32_t version,
                    const Buffer<const unsigned char>& secret,
                    const Buffer<const unsigned char>& ad,
-                   Argon2Type type,
-                   uint32_t iter,
-                   uint32_t lanes,
-                   uint32_t memcost,
-                   uint32_t version,
-                   size_t length) {
+                   Argon2Type type) {
   ClearErrorOnReturn clearErrorOnReturn;
 
   std::string_view algorithm;
@@ -1917,12 +1917,12 @@ DataPointer argon2(const Buffer<const char>& pass,
       OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass.data), pass.len));
   params.push_back(OSSL_PARAM_construct_octet_string(
       OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt.data), salt.len));
-  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &iter));
   params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &lanes));
   params.push_back(
       OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes));
   params.push_back(
       OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &memcost));
+  params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &iter));
 
   if (ad.len != 0) {
     params.push_back(OSSL_PARAM_construct_octet_string(

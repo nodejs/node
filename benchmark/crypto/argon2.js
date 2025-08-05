@@ -11,20 +11,20 @@ const {
 const bench = common.createBenchmark(main, {
   mode: ['sync', 'async'],
   algorithm: ['argon2d', 'argon2i', 'argon2id'],
-  iterations: [1, 3],
+  passes: [1, 3],
   parallelism: [2, 4, 8],
   memory: [2 ** 11, 2 ** 16, 2 ** 21],
   n: [50],
 });
 
-function measureSync(n, pass, salt, options) {
+function measureSync(n, message, nonce, options) {
   bench.start();
   for (let i = 0; i < n; ++i)
-    argon2Sync(pass, salt, 64, options);
+    argon2Sync({ ...options, message, nonce, tagLength: 64 });
   bench.end(n);
 }
 
-function measureAsync(n, pass, salt, options) {
+function measureAsync(n, message, nonce, options) {
   let remaining = n;
   function done(err) {
     assert.ifError(err);
@@ -33,15 +33,15 @@ function measureAsync(n, pass, salt, options) {
   }
   bench.start();
   for (let i = 0; i < n; ++i)
-    argon2(pass, salt, 64, options, done);
+    argon2({ ...options, message, nonce, tagLength: 64 }, done);
 }
 
 function main({ n, mode, ...options }) {
-  // Pass, salt, secret, ad & output length does not affect performance
-  const pass = randomBytes(32);
-  const salt = randomBytes(16);
+  // Message, nonce, secret, associated data & tag length do not affect performance
+  const message = randomBytes(32);
+  const nonce = randomBytes(16);
   if (mode === 'sync')
-    measureSync(n, pass, salt, options);
+    measureSync(n, message, nonce, options);
   else
-    measureAsync(n, pass, salt, options);
+    measureAsync(n, message, nonce, options);
 }
