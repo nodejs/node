@@ -242,7 +242,8 @@ static int ch_init(QUIC_CHANNEL *ch)
         goto err;
 
     if ((ch->ackm = ossl_ackm_new(get_time, ch, &ch->statm,
-                                  ch->cc_method, ch->cc_data)) == NULL)
+                                  ch->cc_method, ch->cc_data,
+                                  ch->is_server)) == NULL)
         goto err;
 
     if (!ossl_quic_stream_map_init(&ch->qsm, get_stream_limit, ch,
