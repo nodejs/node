@@ -428,12 +428,6 @@ OSSL_STORE_INFO *OSSL_STORE_load(OSSL_STORE_CTX *ctx)
     if (ctx->loader != NULL)
         OSSL_TRACE(STORE, "Loading next object\n");
 
-    if (ctx->cached_info != NULL
-        && sk_OSSL_STORE_INFO_num(ctx->cached_info) == 0) {
-        sk_OSSL_STORE_INFO_free(ctx->cached_info);
-        ctx->cached_info = NULL;
-    }
-
     if (ctx->cached_info != NULL) {
         v = sk_OSSL_STORE_INFO_shift(ctx->cached_info);
     } else {
@@ -556,14 +550,23 @@ int OSSL_STORE_error(OSSL_STORE_CTX *ctx)
 
 int OSSL_STORE_eof(OSSL_STORE_CTX *ctx)
 {
-    int ret = 1;
+    int ret = 0;
 
-    if (ctx->fetched_loader != NULL)
-        ret = ctx->loader->p_eof(ctx->loader_ctx);
+    if (ctx->cached_info != NULL
+        && sk_OSSL_STORE_INFO_num(ctx->cached_info) == 0) {
+        sk_OSSL_STORE_INFO_free(ctx->cached_info);
+        ctx->cached_info = NULL;
+    }
+
+    if (ctx->cached_info == NULL) {
+        ret = 1;
+        if (ctx->fetched_loader != NULL)
+            ret = ctx->loader->p_eof(ctx->loader_ctx);
 #ifndef OPENSSL_NO_DEPRECATED_3_0
-    if (ctx->fetched_loader == NULL)
-        ret = ctx->loader->eof(ctx->loader_ctx);
+        if (ctx->fetched_loader == NULL)
+            ret = ctx->loader->eof(ctx->loader_ctx);
 #endif
+    }
     return ret != 0;
 }
 

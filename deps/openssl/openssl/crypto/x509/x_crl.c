@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -289,6 +289,7 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 static int setup_idp(X509_CRL *crl, ISSUING_DIST_POINT *idp)
 {
     int idp_only = 0;
+    int ret = 0;
 
     /* Set various flags according to IDP */
     crl->idp_flags |= IDP_PRESENT;
@@ -320,7 +321,17 @@ static int setup_idp(X509_CRL *crl, ISSUING_DIST_POINT *idp)
         crl->idp_reasons &= CRLDP_ALL_REASONS;
     }
 
-    return DIST_POINT_set_dpname(idp->distpoint, X509_CRL_get_issuer(crl));
+    ret = DIST_POINT_set_dpname(idp->distpoint, X509_CRL_get_issuer(crl));
+
+    /*
+     * RFC5280 specifies that if onlyContainsUserCerts, onlyContainsCACerts,
+     * indirectCRL, and OnlyContainsAttributeCerts are all FALSE, there must
+     * be either a distributionPoint field or an onlySomeReasons field present.
+     */
+    if (crl->idp_flags == IDP_PRESENT && idp->distpoint == NULL)
+        crl->idp_flags |= IDP_INVALID;
+
+    return ret;
 }
 
 ASN1_SEQUENCE_ref(X509_CRL, crl_cb) = {

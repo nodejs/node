@@ -1429,16 +1429,8 @@ int ossl_quic_handle_frames(QUIC_CHANNEL *ch, OSSL_QRX_PKT *qpacket)
     uint32_t enc_level;
     size_t dgram_len = qpacket->datagram_len;
 
-    /*
-     * ok has three states:
-     * -1 error with ackm_data uninitialized
-     *  0 error with ackm_data initialized
-     *  1 success (ackm_data initialized)
-     */
-    int ok = -1;                  /* Assume the worst */
-
     if (ch == NULL)
-        goto end;
+        return 0;
 
     ch->did_crypto_frame = 0;
 
@@ -1456,9 +1448,8 @@ int ossl_quic_handle_frames(QUIC_CHANNEL *ch, OSSL_QRX_PKT *qpacket)
          * Retry and Version Negotiation packets should not be passed to this
          * function.
          */
-        goto end;
+        return 0;
 
-    ok = 0; /* Still assume the worst */
     ackm_data.pkt_space = ossl_quic_enc_level_to_pn_space(enc_level);
 
     /*
@@ -1480,18 +1471,9 @@ int ossl_quic_handle_frames(QUIC_CHANNEL *ch, OSSL_QRX_PKT *qpacket)
                                   enc_level,
                                   qpacket->time,
                                   &ackm_data))
-        goto end;
+        return 0;
 
-    ok = 1;
- end:
-    /*
-     * ASSUMPTION: If this function is called at all, |qpacket| is
-     * a legitimate packet, even if its contents aren't.
-     * Therefore, we call ossl_ackm_on_rx_packet() unconditionally, as long as
-     * |ackm_data| has at least been initialized.
-     */
-    if (ok >= 0)
-        ossl_ackm_on_rx_packet(ch->ackm, &ackm_data);
+    ossl_ackm_on_rx_packet(ch->ackm, &ackm_data);
 
-    return ok > 0;
+    return 1;
 }
