@@ -158,6 +158,9 @@ slh_hmsg_sha2(SLH_DSA_HASH_CTX *hctx, const uint8_t *r, const uint8_t *pk_seed,
     int sz = EVP_MD_get_size(hctx->key->md_big);
     size_t seed_len = (size_t)sz + 2 * n;
 
+    if (sz <= 0)
+        return 0;
+
     memcpy(seed, r, n);
     memcpy(seed + n, pk_seed, n);
     return digest_4(hctx->md_big_ctx, r, n, pk_seed, n, pk_root, n, msg, msg_len,

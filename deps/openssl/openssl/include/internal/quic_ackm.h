@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,7 @@ OSSL_ACKM *ossl_ackm_new(OSSL_TIME (*now)(void *arg),
                          void *now_arg,
                          OSSL_STATM *statm,
                          const OSSL_CC_METHOD *cc_method,
-                         OSSL_CC_DATA *cc_data);
+                         OSSL_CC_DATA *cc_data, int is_server);
 void ossl_ackm_free(OSSL_ACKM *ackm);
 
 void ossl_ackm_set_loss_detection_deadline_callback(OSSL_ACKM *ackm,

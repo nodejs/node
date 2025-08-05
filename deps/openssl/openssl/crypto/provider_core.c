@@ -2419,6 +2419,11 @@ static int core_pop_error_to_mark(const OSSL_CORE_HANDLE *handle)
     return ERR_pop_to_mark();
 }
 
+static int core_count_to_mark(const OSSL_CORE_HANDLE *handle)
+{
+    return ERR_count_to_mark();
+}
+
 static void core_indicator_get_callback(OPENSSL_CORE_CTX *libctx,
                                         OSSL_INDICATOR_CALLBACK **cb)
 {
@@ -2600,6 +2605,7 @@ static const OSSL_DISPATCH core_dispatch_[] = {
     { OSSL_FUNC_CORE_CLEAR_LAST_ERROR_MARK,
       (void (*)(void))core_clear_last_error_mark },
     { OSSL_FUNC_CORE_POP_ERROR_TO_MARK, (void (*)(void))core_pop_error_to_mark },
+    { OSSL_FUNC_CORE_COUNT_TO_MARK, (void (*)(void))core_count_to_mark },
     { OSSL_FUNC_BIO_NEW_FILE, (void (*)(void))ossl_core_bio_new_file },
     { OSSL_FUNC_BIO_NEW_MEMBUF, (void (*)(void))ossl_core_bio_new_mem_buf },
     { OSSL_FUNC_BIO_READ_EX, (void (*)(void))ossl_core_bio_read_ex },
