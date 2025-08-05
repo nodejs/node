@@ -61,6 +61,8 @@ describe('errors output', { concurrency: !process.env.TEST_PARALLEL }, () => {
     { name: 'errors/events_unhandled_error_sameline.js', transform: errTransform },
     { name: 'errors/events_unhandled_error_subclass.js', transform: errTransform },
     { name: 'errors/if-error-has-good-stack.js', transform: errTransform },
+    { name: 'errors/nexttick_throw.js', transform: errTransform },
+    { name: 'errors/node_run_non_existent.js', transform: errTransform },
     { name: 'errors/throw_custom_error.js', transform: errTransform },
     { name: 'errors/throw_error_with_getter_throw.js', transform: errTransform },
     { name: 'errors/throw_in_eval_anonymous.js', transform: errTransform },
