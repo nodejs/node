@@ -460,10 +460,12 @@ void *evp_keymgmt_gen(const EVP_KEYMGMT *keymgmt, void *genctx,
         return NULL;
     }
 
+    ERR_set_mark();
     ret = keymgmt->gen(genctx, cb, cbarg);
-    if (ret == NULL)
+    if (ret == NULL && ERR_count_to_mark() == 0)
         ERR_raise_data(ERR_LIB_EVP, EVP_R_PROVIDER_KEYMGMT_FAILURE,
                        "%s key generation:%s", keymgmt->type_name, desc);
+    ERR_clear_last_mark();
     return ret;
 }
 
