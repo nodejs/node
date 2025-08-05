@@ -440,13 +440,14 @@ This behavior is intentional for server-side environments where CORS restriction
 * https://fetch.spec.whatwg.org/#garbage-collection
 
 The [Fetch Standard](https://fetch.spec.whatwg.org) allows users to skip consuming the response body by relying on
-[garbage collection](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_Management#garbage_collection) to release connection resources. Undici does not do the same. Therefore, it is important to always either consume or cancel the response body.
+[garbage collection](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_Management#garbage_collection) to release connection resources.
 
 Garbage collection in Node is less aggressive and deterministic
 (due to the lack of clear idle periods that browsers have through the rendering refresh rate)
 which means that leaving the release of connection resources to the garbage collector can lead
 to excessive connection usage, reduced performance (due to less connection re-use), and even
 stalls or deadlocks when running out of connections.
+Therefore, __it is important to always either consume or cancel the response body anyway__.
 
 ```js
 // Do
@@ -459,7 +460,15 @@ for await (const chunk of body) {
 const { headers } = await fetch(url);
 ```
 
-The same applies for `request` too:
+However, if you want to get only headers, it might be better to use `HEAD` request method. Usage of this method will obviate the need for consumption or cancelling of the response body. See [MDN - HTTP - HTTP request methods - HEAD](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD) for more details.
+
+```js
+const headers = await fetch(url, { method: 'HEAD' })
+  .then(res => res.headers)
+```
+
+Note that consuming the response body is _mandatory_ for `request`:
+
 ```js
 // Do
 const { body, headers } = await request(url);
@@ -467,13 +476,6 @@ await res.body.dump(); // force consumption of body
 
 // Do not
 const { headers } = await request(url);
-```
-
-However, if you want to get only headers, it might be better to use `HEAD` request method. Usage of this method will obviate the need for consumption or cancelling of the response body. See [MDN - HTTP - HTTP request methods - HEAD](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD) for more details.
-
-```js
-const headers = await fetch(url, { method: 'HEAD' })
-  .then(res => res.headers)
 ```
 
 #### Forbidden and Safelisted Header Names
