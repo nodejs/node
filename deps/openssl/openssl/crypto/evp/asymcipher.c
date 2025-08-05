@@ -261,10 +261,12 @@ int EVP_PKEY_encrypt(EVP_PKEY_CTX *ctx,
 
     cipher = ctx->op.ciph.cipher;
     desc = cipher->description != NULL ? cipher->description : "";
+    ERR_set_mark();
     ret = cipher->encrypt(ctx->op.ciph.algctx, out, outlen, (out == NULL ? 0 : *outlen), in, inlen);
-    if (ret <= 0)
+    if (ret <= 0 && ERR_count_to_mark() == 0)
         ERR_raise_data(ERR_LIB_EVP, EVP_R_PROVIDER_ASYM_CIPHER_FAILURE,
                        "%s encrypt:%s", cipher->type_name, desc);
+    ERR_clear_last_mark();
     return ret;
 
  legacy:
@@ -309,10 +311,12 @@ int EVP_PKEY_decrypt(EVP_PKEY_CTX *ctx,
 
     cipher = ctx->op.ciph.cipher;
     desc = cipher->description != NULL ? cipher->description : "";
+    ERR_set_mark();
     ret = cipher->decrypt(ctx->op.ciph.algctx, out, outlen, (out == NULL ? 0 : *outlen), in, inlen);
-    if (ret <= 0)
+    if (ret <= 0 && ERR_count_to_mark() == 0)
         ERR_raise_data(ERR_LIB_EVP, EVP_R_PROVIDER_ASYM_CIPHER_FAILURE,
                        "%s decrypt:%s", cipher->type_name, desc);
+    ERR_clear_last_mark();
 
     return ret;
 
