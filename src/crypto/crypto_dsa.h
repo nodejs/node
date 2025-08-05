@@ -36,29 +36,6 @@ struct DsaKeyGenTraits final {
 
 using DsaKeyPairGenJob = KeyGenJob<KeyPairGenTraits<DsaKeyGenTraits>>;
 
-struct DSAKeyExportConfig final : public MemoryRetainer {
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(DSAKeyExportConfig)
-  SET_SELF_SIZE(DSAKeyExportConfig)
-};
-
-struct DSAKeyExportTraits final {
-  static constexpr const char* JobName = "DSAKeyExportJob";
-  using AdditionalParameters = DSAKeyExportConfig;
-
-  static v8::Maybe<void> AdditionalConfig(
-      const v8::FunctionCallbackInfo<v8::Value>& args,
-      unsigned int offset,
-      DSAKeyExportConfig* config);
-
-  static WebCryptoKeyExportStatus DoExport(const KeyObjectData& key_data,
-                                           WebCryptoKeyFormat format,
-                                           const DSAKeyExportConfig& params,
-                                           ByteSource* out);
-};
-
-using DSAKeyExportJob = KeyExportJob<DSAKeyExportTraits>;
-
 bool GetDsaKeyDetail(Environment* env,
                      const KeyObjectData& key,
                      v8::Local<v8::Object> target);
