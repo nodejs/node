@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -48,6 +48,7 @@ static OSSL_FUNC_core_vset_error_fn *c_vset_error;
 static OSSL_FUNC_core_set_error_mark_fn *c_set_error_mark;
 static OSSL_FUNC_core_clear_last_error_mark_fn *c_clear_last_error_mark;
 static OSSL_FUNC_core_pop_error_to_mark_fn *c_pop_error_to_mark;
+static OSSL_FUNC_core_count_to_mark_fn *c_count_to_mark;
 #endif
 
 /* Parameters we provide to the core */
@@ -234,6 +235,9 @@ int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
         case OSSL_FUNC_CORE_POP_ERROR_TO_MARK:
             set_func(c_pop_error_to_mark, OSSL_FUNC_core_pop_error_to_mark(tmp));
             break;
+        case OSSL_FUNC_CORE_COUNT_TO_MARK:
+            set_func(c_count_to_mark, OSSL_FUNC_core_count_to_mark(in));
+            break;
         }
     }
 #endif
@@ -300,5 +304,10 @@ int ERR_clear_last_mark(void)
 int ERR_pop_to_mark(void)
 {
     return c_pop_error_to_mark(NULL);
+}
+
+int ERR_count_to_mark(void)
+{
+    return c_count_to_mark != NULL ? c_count_to_mark(NULL) : 0;
 }
 #endif
