@@ -33,6 +33,7 @@ using v8::Local;
 using v8::Locker;
 using v8::Maybe;
 using v8::Name;
+using v8::NewStringType;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -89,6 +90,15 @@ Worker::Worker(Environment* env,
                 Number::New(env->isolate(), static_cast<double>(thread_id_.id)))
       .Check();
 
+  object()
+      ->Set(env->context(),
+            env->thread_name_string(),
+            String::NewFromUtf8(env->isolate(),
+                                name_.data(),
+                                NewStringType::kNormal,
+                                name_.size())
+                .ToLocalChecked())
+      .Check();
   // Without this check, to use the permission model with
   // workers (--allow-worker) one would need to pass --allow-inspector as well
   if (env->permission()->is_granted(
@@ -365,7 +375,8 @@ void Worker::Run() {
             std::move(exec_argv_),
             static_cast<EnvironmentFlags::Flags>(environment_flags_),
             thread_id_,
-            std::move(inspector_parent_handle_)));
+            std::move(inspector_parent_handle_),
+            name_));
         if (is_stopped()) return;
         CHECK_NOT_NULL(env_);
         env_->set_env_vars(std::move(env_vars_));
@@ -1237,6 +1248,16 @@ void CreateWorkerPerContextProperties(Local<Object> target,
       ->Set(env->context(),
             env->thread_id_string(),
             Number::New(isolate, static_cast<double>(env->thread_id())))
+      .Check();
+
+  target
+      ->Set(env->context(),
+            env->thread_name_string(),
+            String::NewFromUtf8(isolate,
+                                env->thread_name().data(),
+                                NewStringType::kNormal,
+                                env->thread_name().size())
+                .ToLocalChecked())
       .Check();
 
   target
