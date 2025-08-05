@@ -721,6 +721,17 @@ An integer identifier for the current thread. On the corresponding worker object
 (if there is any), it is available as [`worker.threadId`][].
 This value is unique for each [`Worker`][] instance inside a single process.
 
+## `worker.threadName`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string|null}
+
+A string identifier for the current thread or null if the thread is not running.
+On the corresponding worker object (if there is any), it is available as [`worker.threadName`][].
+
 ## `worker.workerData`
 
 <!-- YAML
@@ -2011,6 +2022,17 @@ An integer identifier for the referenced thread. Inside the worker thread,
 it is available as [`require('node:worker_threads').threadId`][].
 This value is unique for each `Worker` instance inside a single process.
 
+### `worker.threadName`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string|null}
+
+A string identifier for the referenced thread or null if the thread is not running.
+Inside the worker thread, it is available as [`require('node:worker_threads').threadName`][].
+
 ### `worker.unref()`
 
 <!-- YAML
@@ -2139,6 +2161,7 @@ thread spawned will spawn another until the application crashes.
 [`require('node:worker_threads').parentPort.postMessage()`]: #workerpostmessagevalue-transferlist
 [`require('node:worker_threads').parentPort`]: #workerparentport
 [`require('node:worker_threads').threadId`]: #workerthreadid
+[`require('node:worker_threads').threadName`]: #workerthreadname
 [`require('node:worker_threads').workerData`]: #workerworkerdata
 [`trace_events`]: tracing.md
 [`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshotoptions
@@ -2149,6 +2172,7 @@ thread spawned will spawn another until the application crashes.
 [`worker.postMessage()`]: #workerpostmessagevalue-transferlist
 [`worker.terminate()`]: #workerterminate
 [`worker.threadId`]: #workerthreadid_1
+[`worker.threadName`]: #workerthreadname_1
 [async-resource-worker-pool]: async_context.md#using-asyncresource-for-a-worker-thread-pool
 [browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort

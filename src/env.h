@@ -660,7 +660,8 @@ class Environment final : public MemoryRetainer {
               const std::vector<std::string>& exec_args,
               const EnvSerializeInfo* env_info,
               EnvironmentFlags::Flags flags,
-              ThreadId thread_id);
+              ThreadId thread_id,
+              std::string_view thread_name = "");
   void InitializeMainContext(v8::Local<v8::Context> context,
                              const EnvSerializeInfo* env_info);
   ~Environment() override;
@@ -807,6 +808,7 @@ class Environment final : public MemoryRetainer {
   inline bool should_start_debug_signal_handler() const;
   inline bool no_browser_globals() const;
   inline uint64_t thread_id() const;
+  inline std::string_view thread_name() const;
   inline worker::Worker* worker_context() const;
   Environment* worker_parent_env() const;
   inline void add_sub_worker_context(worker::Worker* context);
@@ -1176,6 +1178,7 @@ class Environment final : public MemoryRetainer {
 
   uint64_t flags_;
   uint64_t thread_id_;
+  std::string thread_name_;
   std::unordered_set<worker::Worker*> sub_worker_contexts_;
 
 #if HAVE_INSPECTOR

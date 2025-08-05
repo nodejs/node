@@ -703,6 +703,10 @@ inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }
 
+inline std::string_view Environment::thread_name() const {
+  return thread_name_;
+}
+
 inline worker::Worker* Environment::worker_context() const {
   return isolate_data()->worker_context();
 }
