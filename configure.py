@@ -1117,18 +1117,20 @@ def try_check_compiler(cc, lang):
 
   with proc:
     proc.stdin.write(b'__clang__ __GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__ '
-                     b'__clang_major__ __clang_minor__ __clang_patchlevel__')
+                     b'__clang_major__ __clang_minor__ __clang_patchlevel__ '
+                     b'__APPLE__')
 
     if sys.platform == 'zos':
-      values = (to_utf8(proc.communicate()[0]).split('\n')[-2].split() + ['0'] * 7)[0:7]
+      values = (to_utf8(proc.communicate()[0]).split('\n')[-2].split() + ['0'] * 7)[0:8]
     else:
-      values = (to_utf8(proc.communicate()[0]).split() + ['0'] * 7)[0:7]
+      values = (to_utf8(proc.communicate()[0]).split() + ['0'] * 7)[0:8]
 
   is_clang = values[0] == '1'
   gcc_version = tuple(map(int, values[1:1+3]))
   clang_version = tuple(map(int, values[4:4+3])) if is_clang else None
+  is_apple = values[7] == '1'
 
-  return (True, is_clang, clang_version, gcc_version)
+  return (True, is_clang, clang_version, gcc_version, is_apple)
 
 
 #
@@ -1292,18 +1294,18 @@ def check_compiler(o):
         o['variables']['openssl_no_asm'] = 1
     return
 
-  ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
+  ok, is_clang, clang_version, gcc_version, is_apple = try_check_compiler(CXX, 'c++')
   o['variables']['clang'] = B(is_clang)
   version_str = ".".join(map(str, clang_version if is_clang else gcc_version))
-  print_verbose(f"Detected {'clang ' if is_clang else ''}C++ compiler (CXX={CXX}) version: {version_str}")
+  print_verbose(f"Detected {'Apple ' if is_apple else ''}{'clang ' if is_clang else ''}C++ compiler (CXX={CXX}) version: {version_str}")
   if not ok:
     warn(f'failed to autodetect C++ compiler version (CXX={CXX})')
-  elif clang_version < (19, 1, 0) if is_clang else gcc_version < (12, 2, 0):
-    warn(f'C++ compiler (CXX={CXX}, {version_str}) too old, need g++ 12.2.0 or clang++ 19.1.0')
+  elif (is_apple and clang_version < (17, 0, 0) or not is_apple and clang_version < (19, 1, 0)) if is_clang else gcc_version < (12, 2, 0):
+    warn(f'C++ compiler (CXX={CXX}, {version_str}) too old, need g++ 12.2.0, clang++ 19.1.0, or Apple clang++ 17.0.0')
 
-  ok, is_clang, clang_version, gcc_version = try_check_compiler(CC, 'c')
+  ok, is_clang, clang_version, gcc_version, is_apple = try_check_compiler(CC, 'c')
   version_str = ".".join(map(str, clang_version if is_clang else gcc_version))
-  print_verbose(f"Detected {'clang ' if is_clang else ''}C compiler (CC={CC}) version: {version_str}")
+  print_verbose(f"Detected {'Apple ' if is_apple else ''}{'clang ' if is_clang else ''}C compiler (CC={CC}) version: {version_str}")
   if not ok:
     warn(f'failed to autodetect C compiler version (CC={CC})')
   elif not is_clang and gcc_version < (4, 2, 0):
@@ -1481,7 +1483,7 @@ def configure_zos(o):
 
 def clang_version_ge(version_checked):
   for compiler in [(CC, 'c'), (CXX, 'c++')]:
-    _, is_clang, clang_version, _1 = (
+    _, is_clang, clang_version, _1, _2 = (
       try_check_compiler(compiler[0], compiler[1])
     )
     if is_clang and clang_version >= version_checked:
@@ -1490,7 +1492,7 @@ def clang_version_ge(version_checked):
 
 def gcc_version_ge(version_checked):
   for compiler in [(CC, 'c'), (CXX, 'c++')]:
-    _, is_clang, _1, gcc_version = (
+    _, is_clang, _1, gcc_version, _2 = (
       try_check_compiler(compiler[0], compiler[1])
     )
     if is_clang or gcc_version < version_checked:
