@@ -2315,8 +2315,10 @@ added:
   - v23.10.0
   - v22.15.0
 changes:
-  - Added support for the `as` option to specify the return format of certificates (`buffer` or `x509`).
-  - Updated the default return format to be `buffer`.
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59349
+    description: Added optional `options.type` parameter to `getCACertificates()`.
 -->
 
 * `options` {string|Object|undefined}
