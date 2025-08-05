@@ -31,7 +31,7 @@ if (process.env.NODE_TEST_FORK_PORT) {
     method: 'POST',
     host: '127.0.0.1',
     port: +process.env.NODE_TEST_FORK_PORT,
-  }, process.exit);
+  }, () => process.exit(0));
   req.write('BAM');
   req.end();
 } else {
