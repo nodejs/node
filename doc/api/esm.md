@@ -1018,7 +1018,9 @@ The resolver can throw the following errors:
 > 5. Otherwise,
 >    1. If _packageSpecifier_ does not contain a _"/"_ separator, then
 >       1. Throw an _Invalid Module Specifier_ error.
->    2. Set _packageName_ to the substring of _packageSpecifier_
+>    2. If _"/"_ separator is the first character of _packageSpecifier_, then
+>       1. Throw an _Invalid Module Specifier_ error.
+>    3. Set _packageName_ to the substring of _packageSpecifier_
 >       until the second _"/"_ separator or the end of the string.
 > 6. If _packageName_ starts with _"."_ or contains _"\\"_ or _"%"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
