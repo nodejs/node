@@ -826,6 +826,11 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
     env_opts->abort_on_uncaught_exception = true;
   }
 
+  // Support stable Phase 5 WebAssembly proposals
+  v8_args.emplace_back("--experimental-wasm-imported-strings");
+  v8_args.emplace_back("--experimental-wasm-memory64");
+  v8_args.emplace_back("--experimental-wasm-exnref");
+
 #ifdef __POSIX__
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
   // performance penalty of frequent EINTR wakeups when the profiler is running.
