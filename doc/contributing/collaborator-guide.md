@@ -154,10 +154,13 @@ requirements. If a pull request meets all requirements except the
 
 Collaborators can object to a pull request by using the "Request
 Changes" GitHub feature. Dissent comments alone don't constitute an
-objection. Any pull request objection must include a clear reason for that
-objection, and the objector must remain responsive for further discussion
-towards consensus about the direction of the pull request. Where possible,
-provide a set of actionable steps alongside the objection.
+objection, nor do dissenting comments made in any associated issue.
+A blocking objection to a change must be made in the pull request that
+specifically proposes that change. Any pull request objection must include
+a clear reason for that objection, and the objector must remain responsive
+for further discussion towards consensus about the direction of the pull
+request. Where possible, provide a set of actionable steps alongside the
+objection.
 
 If the objection is not clear to others, another collaborator can ask an
 objecting collaborator to explain their objection or to provide actionable
@@ -168,7 +171,22 @@ dismiss the objection.
 Pull requests with outstanding objections must remain open until all
 objections are satisfied. If reaching consensus is not possible, a
 collaborator can escalate the issue to the TSC by pinging `@nodejs/tsc` and
-adding the `tsc-agenda` label to the issue.
+adding the `tsc-agenda` label to the issue. The change cannot proceed without
+either reaching consensus or a TSC decision to dismiss the objection(s). If the
+TSC does choose to dismiss any objections, a clear explanation of the reasoning
+or a link to the public vote must be given in the pull request before it lands.
+
+All Collaborator objections are considered equal. There is no greater weight given to
+objections from TSC members than from any other Collaborator.
+
+Mistakes do happen. If a pull request is merged with an unresolved objection,
+submit a fix. Simple issues may be fixed with a follow-up PR that addresses
+the concern. More difficult issues may require a full revert. Most corrections
+can be fast-tracked. If deemed necessary take a slower route to ensure stability
+and consensus.
+
+Collaborators objecting to a pull request can best ensure their objections
+are addressed by remaining engaged and responsive in the discussion.
 
 #### Helpful resources
 
