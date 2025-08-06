@@ -386,6 +386,8 @@ const QuicError QuicError::FromConnectionClose(ngtcp2_conn* session) {
 QUIC_TRANSPORT_ERRORS(V)
 #undef V
 
+const QuicError QuicError::TRANSPORT_NO_ERROR =
+    ForTransport(TransportError::NO_ERROR_);
 const QuicError QuicError::HTTP3_NO_ERROR = ForApplication(NGHTTP3_H3_NO_ERROR);
 const QuicError QuicError::VERSION_NEGOTIATION = ForVersionNegotiation();
 const QuicError QuicError::IDLE_CLOSE = ForIdleClose();

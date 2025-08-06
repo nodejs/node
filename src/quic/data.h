@@ -108,7 +108,6 @@ class Store final : public MemoryRetainer {
 
 // Periodically, these need to be updated to match the latest ngtcp2 defs.
 #define QUIC_TRANSPORT_ERRORS(V)                                               \
-  V(NO_ERROR)                                                                  \
   V(INTERNAL_ERROR)                                                            \
   V(CONNECTION_REFUSED)                                                        \
   V(FLOW_CONTROL_ERROR)                                                        \
@@ -155,6 +154,10 @@ class QuicError final : public MemoryRetainer {
  public:
   // The known error codes for the transport namespace.
   enum class TransportError : error_code {
+    // NO_ERROR has to be treated specially since it is a macro on
+    // some Windows cases and results in a compile error if we leave
+    // it as is.
+    NO_ERROR_ = NGTCP2_NO_ERROR,
 #define V(name) name = NGTCP2_##name,
     QUIC_TRANSPORT_ERRORS(V)
 #undef V
@@ -273,6 +276,7 @@ class QuicError final : public MemoryRetainer {
 
   static const QuicError FromConnectionClose(ngtcp2_conn* session);
 
+  static const QuicError TRANSPORT_NO_ERROR;
 #define V(name) static const QuicError TRANSPORT_##name;
   QUIC_TRANSPORT_ERRORS(V)
 #undef V
