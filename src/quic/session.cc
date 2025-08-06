@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "session.h"
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
@@ -800,9 +801,14 @@ struct Session::Impl final : public MemoryRetainer {
 
     DCHECK(args[0]->IsArrayBufferView());
     SendPendingDataScope send_scope(session);
-    args.GetReturnValue().Set(BigInt::New(
-        env->isolate(),
-        session->SendDatagram(Store(args[0].As<ArrayBufferView>()))));
+
+    Store store;
+    if (!Store::From(args[0].As<ArrayBufferView>()).To(&store)) {
+      return;
+    }
+
+    args.GetReturnValue().Set(
+        BigInt::New(env->isolate(), session->SendDatagram(std::move(store))));
   }
 
   // Internal ngtcp2 callbacks
@@ -1151,6 +1157,15 @@ struct Session::Impl final : public MemoryRetainer {
     return NGTCP2_SUCCESS;
   }
 
+  static int on_begin_path_validation(ngtcp2_conn* conn,
+                                      uint32_t flags,
+                                      const ngtcp2_path* path,
+                                      const ngtcp2_path* fallback_path,
+                                      void* user_data) {
+    // TODO(@jasnell): Implement?
+    return NGTCP2_SUCCESS;
+  }
+
   static constexpr ngtcp2_callbacks CLIENT = {
       ngtcp2_crypto_client_initial_cb,
       nullptr,
@@ -1191,7 +1206,8 @@ struct Session::Impl final : public MemoryRetainer {
       ngtcp2_crypto_version_negotiation_cb,
       on_receive_rx_key,
       nullptr,
-      on_early_data_rejected};
+      on_early_data_rejected,
+      on_begin_path_validation};
 
   static constexpr ngtcp2_callbacks SERVER = {
       nullptr,
@@ -1233,7 +1249,8 @@ struct Session::Impl final : public MemoryRetainer {
       ngtcp2_crypto_version_negotiation_cb,
       nullptr,
       on_receive_tx_key,
-      on_early_data_rejected};
+      on_early_data_rejected,
+      on_begin_path_validation};
 };
 
 #undef NGTCP2_CALLBACK_SCOPE
@@ -1342,7 +1359,7 @@ Session::QuicConnectionPointer Session::InitConnection() {
       CHECK_EQ(ngtcp2_conn_server_new(&conn,
                                       config().dcid,
                                       config().scid,
-                                      path,
+                                      &path,
                                       config().version,
                                       &Impl::SERVER,
                                       &config().settings,
@@ -1356,7 +1373,7 @@ Session::QuicConnectionPointer Session::InitConnection() {
       CHECK_EQ(ngtcp2_conn_client_new(&conn,
                                       config().dcid,
                                       config().scid,
-                                      path,
+                                      &path,
                                       config().version,
                                       &Impl::CLIENT,
                                       &config().settings,
@@ -1602,7 +1619,7 @@ bool Session::Receive(Store&& store,
   // session is not destroyed before we try doing anything with it
   // (like updating stats, sending pending data, etc).
   int err = ngtcp2_conn_read_pkt(
-      *this, path, nullptr, vec.base, vec.len, uv_hrtime());
+      *this, &path, nullptr, vec.base, vec.len, uv_hrtime());
 
   switch (err) {
     case 0: {
@@ -1698,7 +1715,7 @@ void Session::Send(const BaseObjectPtr<Packet>& packet) {
   DCHECK(!is_in_draining_period());
 
   if (!can_send_packets()) [[unlikely]] {
-    return packet->Done(UV_ECANCELED);
+    return packet->CancelPacket();
   }
 
   Debug(this, "Session is sending %s", packet->ToString());
@@ -1799,7 +1816,7 @@ uint64_t Session::SendDatagram(Store&& data) {
           // not fit. Since datagrams are best effort, we are going to abandon
           // the attempt and just return.
           CHECK_EQ(accepted, 0);
-          packet->Done(UV_ECANCELED);
+          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_WRITE_MORE: {
@@ -1809,13 +1826,13 @@ uint64_t Session::SendDatagram(Store&& data) {
         case NGTCP2_ERR_INVALID_STATE: {
           // The remote endpoint does not want to accept datagrams. That's ok,
           // just return 0.
-          packet->Done(UV_ECANCELED);
+          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_INVALID_ARGUMENT: {
           // The datagram is too large. That should have been caught above but
           // that's ok. We'll just abandon the attempt and return.
-          packet->Done(UV_ECANCELED);
+          packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_PKT_NUM_EXHAUSTED: {
@@ -1829,7 +1846,7 @@ uint64_t Session::SendDatagram(Store&& data) {
           break;
         }
       }
-      packet->Done(UV_ECANCELED);
+      packet->CancelPacket();
       SetLastError(QuicError::ForTransport(nwrite));
       Close(CloseMethod::SILENT);
       return 0;
@@ -2069,7 +2086,7 @@ void Session::ShutdownStream(int64_t id, QuicError error) {
                               id,
                               error.type() == QuicError::Type::APPLICATION
                                   ? error.code()
-                                  : NGTCP2_APP_NOERROR);
+                                  : application().GetNoErrorCode());
 }
 
 void Session::ShutdownStreamWrite(int64_t id, QuicError code) {
@@ -2081,7 +2098,7 @@ void Session::ShutdownStreamWrite(int64_t id, QuicError code) {
                                     id,
                                     code.type() == QuicError::Type::APPLICATION
                                         ? code.code()
-                                        : NGTCP2_APP_NOERROR);
+                                        : application().GetNoErrorCode());
 }
 
 void Session::StreamDataBlocked(int64_t id) {
@@ -2260,7 +2277,7 @@ void Session::SendConnectionClose() {
                                                       uv_hrtime());
 
   if (nwrite < 0) [[unlikely]] {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return ErrorAndSilentClose();
   }
 
@@ -2845,4 +2862,5 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

@@ -16,7 +16,7 @@ TEST(QuicError, NoError) {
   CHECK_EQ(err.reason(), "");
   CHECK_EQ(err, QuicError::TRANSPORT_NO_ERROR);
 
-  CHECK_EQ(QuicError::TransportError::NO_ERROR, QuicError::QUIC_NO_ERROR);
+  CHECK_EQ(QuicError::TransportError::NO_ERROR_, QuicError::QUIC_NO_ERROR);
   CHECK_EQ(QuicError::Http3Error::H3_NO_ERROR, QuicError::HTTP3_NO_ERROR_CODE);
 
   QuicError err2("a reason");
@@ -113,8 +113,6 @@ TEST(QuicError, InternalError) {
   CHECK_EQ(err.type(), QuicError::Type::TRANSPORT);
   CHECK_EQ(err.reason(), "a reason");
   CHECK_EQ(err.ToString(), "QuicError(transport) 1: a reason");
-
-  printf("%s\n", QuicError::INTERNAL_ERROR.ToString().c_str());
   CHECK_EQ(err, QuicError::INTERNAL_ERROR);
 }
 

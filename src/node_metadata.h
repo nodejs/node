@@ -8,7 +8,8 @@
 
 #if HAVE_OPENSSL
 #include <openssl/crypto.h>
-#if NODE_OPENSSL_HAS_QUIC
+#include <quic/guard.h>
+#ifndef OPENSSL_NO_QUIC
 #include <openssl/quic.h>
 #endif
 #endif  // HAVE_OPENSSL
@@ -77,7 +78,7 @@ namespace node {
 #define NODE_VERSIONS_KEY_INTL(V)
 #endif  // NODE_HAVE_I18N_SUPPORT
 
-#ifdef OPENSSL_INFO_QUIC
+#ifndef OPENSSL_NO_QUIC
 #define NODE_VERSIONS_KEY_QUIC(V)                                             \
   V(ngtcp2)                                                                   \
   V(nghttp3)

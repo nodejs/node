@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <env.h>
 #include <memory_tracker.h>
@@ -35,7 +34,7 @@ class TransportParams final {
   static constexpr uint64_t DEFAULT_MAX_STREAMS_UNI = 3;
   static constexpr uint64_t DEFAULT_ACTIVE_CONNECTION_ID_LIMIT = 2;
 
-  struct Config {
+  struct Config final {
     Side side;
     const CID& ocid;
     const CID& retry_scid;
@@ -44,7 +43,7 @@ class TransportParams final {
            const CID& retry_scid = CID::kInvalid);
   };
 
-  struct Options : public MemoryRetainer {
+  struct Options final : public MemoryRetainer {
     int transportParamsVersion = QUIC_TRANSPORT_PARAMS_V1;
 
     // Set only on server Sessions, the preferred address communicates the IP
@@ -162,5 +161,4 @@ class TransportParams final {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

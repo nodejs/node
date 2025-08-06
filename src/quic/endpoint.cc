@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "endpoint.h"
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
@@ -156,7 +157,10 @@ bool SetOption(Environment* env,
           env, "The %s option must be an ArrayBufferView", *nameStr);
       return false;
     }
-    Store store(value.As<ArrayBufferView>());
+    Store store;
+    if (!Store::From(value.As<ArrayBufferView>()).To(&store)) {
+      return false;
+    }
     if (store.length() != TokenSecret::QUIC_TOKENSECRET_LEN) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
@@ -751,14 +755,14 @@ void Endpoint::Send(const BaseObjectPtr<Packet>& packet) {
   // dropped. This can happen to any type of packet. We use this only in
   // testing to test various reliability issues.
   if (is_diagnostic_packet_loss(options_.tx_loss)) [[unlikely]] {
-    packet->Done(0);
+    packet->Done();
     // Simulating tx packet loss
     return;
   }
 #endif  // DEBUG
 
   if (is_closed() || is_closing() || packet->length() == 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return;
   }
   Debug(this, "Sending %s", packet->ToString());
@@ -1765,5 +1769,5 @@ void Endpoint::Ref(const FunctionCallbackInfo<Value>& args) {
 
 }  // namespace quic
 }  // namespace node
-
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

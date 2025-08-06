@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <base_object.h>
 #include <env.h>
@@ -20,7 +19,7 @@
 
 namespace node::quic {
 
-struct PathDescriptor {
+struct PathDescriptor final {
   uint32_t version;
   const CID& dcid;
   const CID& scid;
@@ -136,7 +135,8 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
       const PathDescriptor& path_descriptor);
 
   // Called when the packet is done being sent.
-  void Done(int status);
+  void Done(int status = 0);
+  inline void CancelPacket() { Done(UV_ECANCELED); }
 
  private:
   static BaseObjectPtr<Packet> FromFreeList(Environment* env,
@@ -151,5 +151,4 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

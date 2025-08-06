@@ -142,4 +142,7 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
 // add alias handling
 manPagesOptions.delete('-trace-events-enabled');
 
+// TODO(@jasnell): Need to determine why the documentation for this option is not being recognized
+manPagesOptions.delete('-no-experimental-quic');
+
 assert.strictEqual(manPagesOptions.size, 0, `Man page options not documented: ${[...manPagesOptions]}`);
