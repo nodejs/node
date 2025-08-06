@@ -149,15 +149,15 @@ T Store::convert() const {
 }
 
 Store::operator uv_buf_t() const {
-  return convert<uv_buf_t, typeof(*uv_buf_t::base)>();
+  return convert<uv_buf_t, char>();
 }
 
 Store::operator ngtcp2_vec() const {
-  return convert<ngtcp2_vec, typeof(*ngtcp2_vec::base)>();
+  return convert<ngtcp2_vec, uint8_t>();
 }
 
 Store::operator nghttp3_vec() const {
-  return convert<nghttp3_vec, typeof(*ngtcp2_vec::base)>();
+  return convert<nghttp3_vec, uint8_t>();
 }
 
 void Store::MemoryInfo(MemoryTracker* tracker) const {
