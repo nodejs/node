@@ -1897,6 +1897,31 @@ EVPKeyPointer EVPKeyPointer::NewRawPrivate(
       EVP_PKEY_new_raw_private_key(id, nullptr, data.data, data.len));
 }
 
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+EVPKeyPointer EVPKeyPointer::NewRawSeed(
+    int id, const Buffer<const unsigned char>& data) {
+  if (id == 0) return {};
+
+  OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_ML_DSA_SEED,
+                                        const_cast<unsigned char*>(data.data),
+                                        data.len),
+      OSSL_PARAM_END};
+
+  EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(id, nullptr);
+  if (ctx == nullptr) return {};
+
+  EVP_PKEY* pkey = nullptr;
+  if (ctx == nullptr || EVP_PKEY_fromdata_init(ctx) <= 0 ||
+      EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEYPAIR, params) <= 0) {
+    EVP_PKEY_CTX_free(ctx);
+    return {};
+  }
+
+  return EVPKeyPointer(pkey);
+}
+#endif
+
 EVPKeyPointer EVPKeyPointer::NewDH(DHPointer&& dh) {
   if (!dh) return {};
   auto key = New();
@@ -1942,7 +1967,16 @@ EVP_PKEY* EVPKeyPointer::release() {
 
 int EVPKeyPointer::id(const EVP_PKEY* key) {
   if (key == nullptr) return 0;
-  return EVP_PKEY_id(key);
+  int type = EVP_PKEY_id(key);
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+  // https://github.com/openssl/openssl/issues/27738#issuecomment-3013215870
+  if (type == -1) {
+    if (EVP_PKEY_is_a(key, "ML-DSA-44")) return EVP_PKEY_ML_DSA_44;
+    if (EVP_PKEY_is_a(key, "ML-DSA-65")) return EVP_PKEY_ML_DSA_65;
+    if (EVP_PKEY_is_a(key, "ML-DSA-87")) return EVP_PKEY_ML_DSA_87;
+  }
+#endif
+  return type;
 }
 
 int EVPKeyPointer::base_id(const EVP_PKEY* key) {
@@ -1997,6 +2031,31 @@ DataPointer EVPKeyPointer::rawPublicKey() const {
   }
   return {};
 }
+
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+DataPointer EVPKeyPointer::rawSeed() const {
+  if (!pkey_) return {};
+  switch (id()) {
+    case EVP_PKEY_ML_DSA_44:
+    case EVP_PKEY_ML_DSA_65:
+    case EVP_PKEY_ML_DSA_87:
+      break;
+    default:
+      unreachable();
+  }
+
+  size_t seed_len = 32;
+  if (auto data = DataPointer::Alloc(seed_len)) {
+    const Buffer<unsigned char> buf = data;
+    size_t len = data.size();
+    if (EVP_PKEY_get_octet_string_param(
+            get(), OSSL_PKEY_PARAM_ML_DSA_SEED, buf.data, len, &seed_len) != 1)
+      return {};
+    return data;
+  }
+  return {};
+}
+#endif
 
 DataPointer EVPKeyPointer::rawPrivateKey() const {
   if (!pkey_) return {};
@@ -2453,7 +2512,18 @@ bool EVPKeyPointer::isRsaVariant() const {
 bool EVPKeyPointer::isOneShotVariant() const {
   if (!pkey_) return false;
   int type = id();
-  return type == EVP_PKEY_ED25519 || type == EVP_PKEY_ED448;
+  switch (type) {
+    case EVP_PKEY_ED25519:
+    case EVP_PKEY_ED448:
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+    case EVP_PKEY_ML_DSA_44:
+    case EVP_PKEY_ML_DSA_65:
+    case EVP_PKEY_ML_DSA_87:
+#endif
+      return true;
+    default:
+      return false;
+  }
 }
 
 bool EVPKeyPointer::isSigVariant() const {
