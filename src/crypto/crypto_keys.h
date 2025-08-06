@@ -152,6 +152,9 @@ class KeyObjectHandle : public BaseObject {
   static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InitECRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InitEDRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+  static void InitMlDsaRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif
   static void InitJWK(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetKeyDetail(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Equals(const v8::FunctionCallbackInfo<v8::Value>& args);

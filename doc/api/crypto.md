@@ -1916,6 +1916,9 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA keys.
   - version:
     - v14.5.0
     - v12.19.0
@@ -2021,6 +2024,9 @@ Other key details might be exposed via this API using additional attributes.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA keys.
   - version:
      - v13.9.0
      - v12.17.0
@@ -2055,6 +2061,9 @@ types are:
 * `'ed25519'` (OID 1.3.101.112)
 * `'ed448'` (OID 1.3.101.113)
 * `'dh'` (OID 1.2.840.113549.1.3.1)
+* `'ml-dsa-44'`[^openssl35] (OID 2.16.840.1.101.3.4.3.17)
+* `'ml-dsa-65'`[^openssl35] (OID 2.16.840.1.101.3.4.3.18)
+* `'ml-dsa-87'`[^openssl35] (OID 2.16.840.1.101.3.4.3.19)
 
 This property is `undefined` for unrecognized `KeyObject` types and symmetric
 keys.
@@ -3403,6 +3412,9 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA keys.
   - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37254
     description: The key can also be a JWK object.
@@ -3439,6 +3451,9 @@ of the passphrase is limited to 1024 bytes.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA keys.
   - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37254
     description: The key can also be a JWK object.
@@ -3648,6 +3663,9 @@ underlying hash function. See [`crypto.createHmac()`][] for more information.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA key pairs.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -3678,7 +3696,8 @@ changes:
 -->
 
 * `type` {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
-  `'ed448'`, `'x25519'`, `'x448'`, or `'dh'`.
+  `'ed448'`, `'x25519'`, `'x448'`, `'dh'`, `'ml-dsa-44'`[^openssl35],
+  `'ml-dsa-65'`[^openssl35], or `'ml-dsa-87'`[^openssl35].
 * `options` {Object}
   * `modulusLength` {number} Key size in bits (RSA, DSA).
   * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -3767,6 +3786,9 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA key pairs.
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/39927
     description: Add ability to define `RSASSA-PSS-params` sequence parameters
@@ -3792,7 +3814,8 @@ changes:
 -->
 
 * `type` {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
-  `'ed448'`, `'x25519'`, `'x448'`, or `'dh'`.
+  `'ed448'`, `'x25519'`, `'x448'`, `'dh'`, `'ml-dsa-44'`[^openssl35],
+  `'ml-dsa-65'`[^openssl35], or `'ml-dsa-87'`[^openssl35].
 * `options` {Object}
   * `modulusLength` {number} Key size in bits (RSA, DSA).
   * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -3816,7 +3839,7 @@ changes:
   * `privateKey` {string | Buffer | KeyObject}
 
 Generates a new asymmetric key pair of the given `type`. RSA, RSA-PSS, DSA, EC,
-Ed25519, Ed448, X25519, X448, and DH are currently supported.
+Ed25519, Ed448, X25519, X448, DH, and ML-DSA[^openssl35] are currently supported.
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -5416,6 +5439,9 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA signing.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -5445,7 +5471,10 @@ changes:
 
 Calculates and returns the signature for `data` using the given private key and
 algorithm. If `algorithm` is `null` or `undefined`, then the algorithm is
-dependent upon the key type (especially Ed25519 and Ed448).
+dependent upon the key type.
+
+`algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
+ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPrivateKey()`][]. If it is an object, the following
@@ -5526,6 +5555,9 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA signature verification.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -5561,7 +5593,10 @@ changes:
 
 Verifies the given signature for `data` using the given key and algorithm. If
 `algorithm` is `null` or `undefined`, then the algorithm is dependent upon the
-key type (especially Ed25519 and Ed448).
+key type.
+
+`algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
+ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPublicKey()`][]. If it is an object, the following
@@ -6149,6 +6184,8 @@ See the [list of SSL OP Flags][] for details.
     process.</td>
   </tr>
 </table>
+
+[^openssl35]: Requires OpenSSL >= 3.5
 
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
 [CCM mode]: #ccm-mode
