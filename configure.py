@@ -1205,7 +1205,7 @@ def get_gas_version(cc):
   warn(f'Could not recognize `gas`: {gas_ret}')
   return '0.0'
 
-def get_openssl_version():
+def get_openssl_version(o):
   """Parse OpenSSL version from opensslv.h header file.
 
   Returns the version as a number matching OPENSSL_VERSION_NUMBER format:
@@ -1219,6 +1219,9 @@ def get_openssl_version():
       args = ['-I', 'deps/openssl/openssl/include'] + args
     elif options.shared_openssl_includes:
       args = ['-I', options.shared_openssl_includes] + args
+    else:
+      for dir in o['include_dirs']:
+        args = ['-I', dir] + args
 
     proc = subprocess.Popen(
       shlex.split(CC) + args,
@@ -1887,9 +1890,9 @@ def configure_openssl(o):
   if options.quic:
     o['defines'] += ['NODE_OPENSSL_HAS_QUIC']
 
-  o['variables']['openssl_version'] = get_openssl_version()
-
   configure_library('openssl', o)
+
+  o['variables']['openssl_version'] = get_openssl_version(o)
 
 def configure_sqlite(o):
   o['variables']['node_use_sqlite'] = b(not options.without_sqlite)
