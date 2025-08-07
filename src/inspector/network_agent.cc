@@ -208,6 +208,35 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
       .build();
 }
 
+std::unique_ptr<protocol::Network::WebSocketResponse> createWebSocketResponse(
+    v8::Local<v8::Context> context, Local<Object> response) {
+  HandleScope handle_scope(context->GetIsolate());
+  int status;
+  if (!ObjectGetInt(context, response, "status").To(&status)) {
+    return {};
+  }
+  protocol::String statusText;
+  if (!ObjectGetProtocolString(context, response, "statusText")
+           .To(&statusText)) {
+    return {};
+  }
+  Local<Object> headers_obj;
+  if (!ObjectGetObject(context, response, "headers").ToLocal(&headers_obj)) {
+    return {};
+  }
+  std::unique_ptr<protocol::Network::Headers> headers =
+      createHeadersFromObject(context, headers_obj);
+  if (!headers) {
+    return {};
+  }
+
+  return protocol::Network::WebSocketResponse::create()
+      .setStatus(status)
+      .setStatusText(statusText)
+      .setHeaders(std::move(headers))
+      .build();
+}
+
 NetworkAgent::NetworkAgent(
     NetworkInspector* inspector,
     v8_inspector::V8Inspector* v8_inspector,
@@ -223,6 +252,64 @@ NetworkAgent::NetworkAgent(
   event_notifier_map_["loadingFinished"] = &NetworkAgent::loadingFinished;
   event_notifier_map_["dataSent"] = &NetworkAgent::dataSent;
   event_notifier_map_["dataReceived"] = &NetworkAgent::dataReceived;
+  event_notifier_map_["webSocketCreated"] = &NetworkAgent::webSocketCreated;
+  event_notifier_map_["webSocketClosed"] = &NetworkAgent::webSocketClosed;
+  event_notifier_map_["webSocketHandshakeResponseReceived"] =
+      &NetworkAgent::webSocketHandshakeResponseReceived;
+}
+
+void NetworkAgent::webSocketCreated(v8::Local<v8::Context> context,
+                                    v8::Local<v8::Object> params) {
+  protocol::String request_id;
+  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    return;
+  }
+  protocol::String url;
+  if (!ObjectGetProtocolString(context, params, "url").To(&url)) {
+    return;
+  }
+  std::unique_ptr<protocol::Network::Initiator> initiator =
+      protocol::Network::Initiator::create()
+          .setType(protocol::Network::Initiator::TypeEnum::Script)
+          .setStack(
+              v8_inspector_->captureStackTrace(true)->buildInspectorObject(0))
+          .build();
+  frontend_->webSocketCreated(request_id, url, std::move(initiator));
+}
+
+void NetworkAgent::webSocketClosed(v8::Local<v8::Context> context,
+                                   v8::Local<v8::Object> params) {
+  protocol::String request_id;
+  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    return;
+  }
+  double timestamp;
+  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    return;
+  }
+  frontend_->webSocketClosed(request_id, timestamp);
+}
+
+void NetworkAgent::webSocketHandshakeResponseReceived(
+    v8::Local<v8::Context> context, v8::Local<v8::Object> params) {
+  protocol::String request_id;
+  if (!ObjectGetProtocolString(context, params, "requestId").To(&request_id)) {
+    return;
+  }
+  double timestamp;
+  if (!ObjectGetDouble(context, params, "timestamp").To(&timestamp)) {
+    return;
+  }
+  Local<Object> response_obj;
+  if (!ObjectGetObject(context, params, "response").ToLocal(&response_obj)) {
+    return;
+  }
+  auto response = createWebSocketResponse(context, response_obj);
+  if (!response) {
+    return;
+  }
+  frontend_->webSocketHandshakeResponseReceived(
+      request_id, timestamp, std::move(response));
 }
 
 void NetworkAgent::emitNotification(v8::Local<v8::Context> context,
