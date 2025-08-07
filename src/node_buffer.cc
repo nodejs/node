@@ -290,7 +290,7 @@ MaybeLocal<Uint8Array> New(Isolate* isolate,
                            Local<ArrayBuffer> ab,
                            size_t byte_offset,
                            size_t length) {
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (env == nullptr) {
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
     return MaybeLocal<Uint8Array>();
@@ -349,7 +349,7 @@ MaybeLocal<Object> New(Isolate* isolate,
 MaybeLocal<Object> New(Isolate* isolate, size_t length) {
   EscapableHandleScope handle_scope(isolate);
   Local<Object> obj;
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (env == nullptr) {
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
     return MaybeLocal<Object>();
@@ -390,7 +390,7 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 
 MaybeLocal<Object> Copy(Isolate* isolate, const char* data, size_t length) {
   EscapableHandleScope handle_scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (env == nullptr) {
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
     return MaybeLocal<Object>();
@@ -435,7 +435,7 @@ MaybeLocal<Object> New(Isolate* isolate,
                        FreeCallback callback,
                        void* hint) {
   EscapableHandleScope handle_scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (env == nullptr) {
     callback(data, hint);
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
@@ -479,7 +479,7 @@ MaybeLocal<Object> New(Environment* env,
 // necessarily isolate's ArrayBuffer::Allocator.
 MaybeLocal<Object> New(Isolate* isolate, char* data, size_t length) {
   EscapableHandleScope handle_scope(isolate);
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (env == nullptr) {
     free(data);
     THROW_ERR_BUFFER_CONTEXT_NOT_AVAILABLE(isolate);
