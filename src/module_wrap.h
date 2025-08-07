@@ -93,16 +93,14 @@ struct ModuleCacheKey : public MemoryRetainer {
 };
 
 class ModuleWrap : public BaseObject {
-  using ResolveCache =
-      std::unordered_map<ModuleCacheKey, uint32_t, ModuleCacheKey::Hash>;
-
  public:
   enum InternalFields {
     kModuleSlot = BaseObject::kInternalFieldCount,
     kModuleSourceObjectSlot,
     kSyntheticEvaluationStepsSlot,
     kContextObjectSlot,   // Object whose creation context is the target Context
-    kLinkedRequestsSlot,  // Array of linked requests
+    kLinkedRequestsSlot,  // Array of linked requests, each is a ModuleWrap JS
+                          // wrapper object.
     kInternalFieldCount
   };
 
@@ -133,8 +131,6 @@ class ModuleWrap : public BaseObject {
   }
 
   bool IsLinked() const { return linked_; }
-
-  ModuleWrap* GetLinkedRequest(uint32_t index);
 
   static v8::Local<v8::PrimitiveArray> GetHostDefinedOptions(
       v8::Isolate* isolate, v8::Local<v8::Symbol> symbol);
@@ -196,27 +192,22 @@ class ModuleWrap : public BaseObject {
 
   static v8::MaybeLocal<v8::Module> ResolveModuleCallback(
       v8::Local<v8::Context> context,
-      v8::Local<v8::String> specifier,
-      v8::Local<v8::FixedArray> import_attributes,
+      size_t module_request_index,
       v8::Local<v8::Module> referrer);
   static v8::MaybeLocal<v8::Object> ResolveSourceCallback(
       v8::Local<v8::Context> context,
-      v8::Local<v8::String> specifier,
-      v8::Local<v8::FixedArray> import_attributes,
+      size_t module_request_index,
       v8::Local<v8::Module> referrer);
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
   // This method may throw a JavaScript exception, so the return type is
   // wrapped in a Maybe.
-  static v8::Maybe<ModuleWrap*> ResolveModule(
-      v8::Local<v8::Context> context,
-      v8::Local<v8::String> specifier,
-      v8::Local<v8::FixedArray> import_attributes,
-      v8::Local<v8::Module> referrer);
+  static v8::Maybe<ModuleWrap*> ResolveModule(v8::Local<v8::Context> context,
+                                              size_t module_request_index,
+                                              v8::Local<v8::Module> referrer);
 
   std::string url_;
   v8::Global<v8::Module> module_;
-  ResolveCache resolve_cache_;
   contextify::ContextifyContext* contextify_context_ = nullptr;
   bool synthetic_ = false;
   bool linked_ = false;
@@ -224,6 +215,11 @@ class ModuleWrap : public BaseObject {
   // nullopt value.
   std::optional<bool> has_async_graph_ = std::nullopt;
   int module_hash_;
+  // Corresponds to the ModuleWrap* of the wrappers in kLinkedRequestsSlot.
+  // These are populated during Link(), and are only valid after that as
+  // convenient shortcuts, but do not hold the ModuleWraps alive. The actual
+  // strong references come from the array in kLinkedRequestsSlot.
+  std::vector<ModuleWrap*> linked_module_wraps_;
 };
 
 }  // namespace loader
