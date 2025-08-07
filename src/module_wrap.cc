@@ -165,15 +165,6 @@ ModuleWrap::ModuleWrap(Realm* realm,
   }
   MakeWeak();
   module_.SetWeak();
-
-  HandleScope scope(realm->isolate());
-  Local<Context> context = realm->context();
-  Local<FixedArray> requests = module->GetModuleRequests();
-  for (int i = 0; i < requests->Length(); i++) {
-    ModuleCacheKey module_cache_key = ModuleCacheKey::From(
-        context, requests->Get(context, i).As<ModuleRequest>());
-    resolve_cache_[module_cache_key] = i;
-  }
 }
 
 ModuleWrap::~ModuleWrap() {
@@ -664,29 +655,55 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Local<FixedArray> requests =
       dependent->module_.Get(isolate)->GetModuleRequests();
   Local<Array> modules = args[0].As<Array>();
-  CHECK_EQ(modules->Length(), static_cast<uint32_t>(requests->Length()));
+  int request_count = requests->Length();
+  CHECK_EQ(modules->Length(), static_cast<uint32_t>(request_count));
 
-  for (int i = 0; i < requests->Length(); i++) {
+  // Track the duplicated module requests. For example if a modulelooks like
+  // this:
+  //
+  // import { foo } from 'mod' with { type: 'json' };
+  // import { bar } from 'mod' with { type: 'json' };
+  // import { baz } from 'mod2';
+  //
+  // The first two module requests are identical. The map would look like
+  // { mod_key: 0, mod2_key: 2 } in this case, so that module request 0 and
+  // module request 1 would be mapped to mod_key and both should resolve to the
+  // module identified by module request 0 (the first one with this identity),
+  // and module request 2 should resolve the module identified by index 2.
+  std::unordered_map<ModuleCacheKey, int, ModuleCacheKey::Hash>
+      module_request_map;
+  Local<Value> current_module;
+  Local<Value> first_seen_module;
+  for (int i = 0; i < request_count; i++) {
+    // TODO(joyeecheung): merge this with the serializeKey() in module_map.js.
+    // This currently doesn't sort the import attributes.
     ModuleCacheKey module_cache_key = ModuleCacheKey::From(
         context, requests->Get(context, i).As<ModuleRequest>());
-    DCHECK(dependent->resolve_cache_.contains(module_cache_key));
-
-    Local<Value> module_i;
-    Local<Value> module_cache_i;
-    uint32_t coalesced_index = dependent->resolve_cache_[module_cache_key];
-    if (!modules->Get(context, i).ToLocal(&module_i) ||
-        !modules->Get(context, coalesced_index).ToLocal(&module_cache_i) ||
-        !module_i->StrictEquals(module_cache_i)) {
-      // If the module is different from the one of the same request, throw an
-      // error.
-      THROW_ERR_MODULE_LINK_MISMATCH(
-          realm->env(),
-          "Module request '%s' at index %d must be linked "
-          "to the same module requested at index %d",
-          module_cache_key.ToString(),
-          i,
-          coalesced_index);
-      return;
+    auto it = module_request_map.find(module_cache_key);
+    if (it == module_request_map.end()) {
+      // This is the first request with this identity, record it - any mismatch
+      // for this would only be found in subsequent requests, so no need to
+      // check here.
+      module_request_map[module_cache_key] = i;
+    } else {  // This identity has been seen before, check for mismatch.
+      int first_seen_index = it->second;
+      // Check that the module is the same as the one resolved by the first
+      // request with this identity.
+      if (!modules->Get(context, i).ToLocal(&current_module) ||
+          !modules->Get(context, first_seen_index)
+               .ToLocal(&first_seen_module) ||
+          !current_module->StrictEquals(first_seen_module)) {
+        // If the module is different from the one of the same request, throw an
+        // error.
+        THROW_ERR_MODULE_LINK_MISMATCH(
+            realm->env(),
+            "Module request '%s' at index %d must be linked "
+            "to the same module requested at index %d",
+            module_cache_key.ToString(),
+            i,
+            first_seen_index);
+        return;
+      }
     }
   }
 
@@ -1013,11 +1030,10 @@ void ModuleWrap::HasAsyncGraph(Local<Name> property,
 // static
 MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
     Local<Context> context,
-    Local<String> specifier,
-    Local<FixedArray> import_attributes,
+    size_t module_request_index,
     Local<Module> referrer) {
   ModuleWrap* resolved_module;
-  if (!ResolveModule(context, specifier, import_attributes, referrer)
+  if (!ResolveModule(context, module_request_index, referrer)
            .To(&resolved_module)) {
     return {};
   }
@@ -1028,11 +1044,10 @@ MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
 // static
 MaybeLocal<Object> ModuleWrap::ResolveSourceCallback(
     Local<Context> context,
-    Local<String> specifier,
-    Local<FixedArray> import_attributes,
+    size_t module_request_index,
     Local<Module> referrer) {
   ModuleWrap* resolved_module;
-  if (!ResolveModule(context, specifier, import_attributes, referrer)
+  if (!ResolveModule(context, module_request_index, referrer)
            .To(&resolved_module)) {
     return {};
   }
@@ -1053,12 +1068,22 @@ MaybeLocal<Object> ModuleWrap::ResolveSourceCallback(
   return module_source_object.As<Object>();
 }
 
+static std::string GetSpecifierFromModuleRequest(Local<Context> context,
+                                                 Local<Module> referrer,
+                                                 size_t module_request_index) {
+  Local<ModuleRequest> raw_request =
+      referrer->GetModuleRequests()
+          ->Get(context, static_cast<int>(module_request_index))
+          .As<ModuleRequest>();
+  Local<String> specifier = raw_request->GetSpecifier();
+  Utf8Value specifier_utf8(Isolate::GetCurrent(), specifier);
+  return specifier_utf8.ToString();
+}
+
 // static
-Maybe<ModuleWrap*> ModuleWrap::ResolveModule(
-    Local<Context> context,
-    Local<String> specifier,
-    Local<FixedArray> import_attributes,
-    Local<Module> referrer) {
+Maybe<ModuleWrap*> ModuleWrap::ResolveModule(Local<Context> context,
+                                             size_t module_request_index,
+                                             Local<Module> referrer) {
   Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
@@ -1068,31 +1093,24 @@ Maybe<ModuleWrap*> ModuleWrap::ResolveModule(
   // Check that the referrer is not yet been instantiated.
   DCHECK(referrer->GetStatus() <= Module::kInstantiated);
 
-  ModuleCacheKey cache_key =
-      ModuleCacheKey::From(context, specifier, import_attributes);
-
   ModuleWrap* dependent = ModuleWrap::GetFromModule(env, referrer);
   if (dependent == nullptr) {
+    std::string specifier =
+        GetSpecifierFromModuleRequest(context, referrer, module_request_index);
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is from invalid module", cache_key.specifier);
+        env, "request for '%s' is from invalid module", specifier);
     return Nothing<ModuleWrap*>();
   }
   if (!dependent->IsLinked()) {
+    std::string specifier =
+        GetSpecifierFromModuleRequest(context, referrer, module_request_index);
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env,
-        "request for '%s' is from a module not been linked",
-        cache_key.specifier);
+        env, "request for '%s' is from a module not been linked", specifier);
     return Nothing<ModuleWrap*>();
   }
 
-  auto it = dependent->resolve_cache_.find(cache_key);
-  if (it == dependent->resolve_cache_.end()) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is not in cache", cache_key.specifier);
-    return Nothing<ModuleWrap*>();
-  }
-
-  ModuleWrap* module_wrap = dependent->GetLinkedRequest(it->second);
+  ModuleWrap* module_wrap =
+      dependent->GetLinkedRequest(static_cast<uint32_t>(module_request_index));
   CHECK_NOT_NULL(module_wrap);
   return Just(module_wrap);
 }

@@ -91,7 +91,7 @@ function testLinkMismatch() {
   }, {
     code: 'ERR_MODULE_LINK_MISMATCH',
     // Test that ModuleCacheKey::ToString() is used in the error message.
-    message: `Module request 'ModuleCacheKey("bar")' at index 0 must be linked to the same module requested at index 1`
+    message: `Module request 'ModuleCacheKey("bar")' at index 1 must be linked to the same module requested at index 0`
   });
 }
 
