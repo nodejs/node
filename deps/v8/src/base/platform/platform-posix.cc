@@ -80,7 +80,19 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-#if defined(V8_OS_SOLARIS)
+/*
+ * NOTE: illumos starting with illumos#14418 (pushed April 20th, 2022)
+ * prototypes madvise(3C) properly with a `void *` first argument.
+ * The only way to detect this outside of configure-time checking is to
+ * check for the existence of MEMCNTL_SHARED, which gets defined for the first
+ * time in illumos#14418 under the same circumstances save _STRICT_POSIX, which
+ * thankfully neither Solaris nor illumos builds of Node or V8 do.
+ *
+ * If some future illumos push changes the MEMCNTL_SHARED assumptions made
+ * above, the illumos check below will have to be revisited.  This check
+ * will work on both pre-and-post illumos#14418 illumos environments.
+ */
+#if defined(V8_OS_SOLARIS) && !(defined(__illumos__) && defined(MEMCNTL_SHARED))
 #if (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE > 2) || defined(__EXTENSIONS__)
 extern "C" int madvise(caddr_t, size_t, int);
 #else
