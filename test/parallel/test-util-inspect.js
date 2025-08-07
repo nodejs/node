@@ -2318,11 +2318,11 @@ assert.strictEqual(
   );
   rejection.catch(() => {});
 
-  // Verify that aliases do not show up as key while checking `inspect.colors`.
+  // Verify that aliases should show up as key while checking `inspect.colors`.
   const colors = Object.keys(inspect.colors);
   const aliases = Object.getOwnPropertyNames(inspect.colors)
                   .filter((c) => !colors.includes(c));
-  assert(!colors.includes('grey'));
+  assert(colors.includes('grey'));
   assert(colors.includes('gray'));
   // Verify that all aliases are correctly mapped.
   for (const alias of aliases) {
