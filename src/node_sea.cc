@@ -304,15 +304,10 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
 
   SeaConfig result;
 
-  size_t json_length = config.size();
-  config.resize(json_length + simdjson::SIMDJSON_PADDING);
-  simdjson::padded_string_view json_view(
-      config.data(), json_length, config.size());
-
   simdjson::ondemand::parser parser;
   simdjson::ondemand::document document;
   simdjson::ondemand::object main_object;
-  simdjson::error_code error = parser.iterate(json_view).get(document);
+  simdjson::error_code error = parser.iterate(simdjson::pad(config)).get(document);
 
   if (!error) {
     error = document.get_object().get(main_object);
