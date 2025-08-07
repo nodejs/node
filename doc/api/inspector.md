@@ -602,6 +602,48 @@ This feature is only available with the `--experimental-network-inspection` flag
 Broadcasts the `Network.loadingFailed` event to connected frontends. This event indicates that
 HTTP request has failed to load.
 
+### `inspector.Network.webSocketCreated([params])`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.webSocketCreated` event to connected frontends. This event indicates that
+a WebSocket connection has been initiated.
+
+### `inspector.Network.webSocketHandshakeResponseReceived([params])`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.webSocketHandshakeResponseReceived` event to connected frontends.
+This event indicates that the WebSocket handshake response has been received.
+
+### `inspector.Network.webSocketClosed([params])`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.webSocketClosed` event to connected frontends.
+This event indicates that a WebSocket connection has been closed.
+
 ### `inspector.NetworkResources.put`
 
 <!-- YAML
