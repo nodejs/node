@@ -105,6 +105,7 @@ const customTypesMap = {
   'HkdfParams': 'webcrypto.html#class-hkdfparams',
   'KeyAlgorithm': 'webcrypto.html#class-keyalgorithm',
   'Pbkdf2Params': 'webcrypto.html#class-pbkdf2params',
+  'Argon2Params': 'webcrypto.html#class-argon2params',
   'HmacKeyAlgorithm': 'webcrypto.html#class-hmackeyalgorithm',
   'HmacKeyGenParams': 'webcrypto.html#class-hmackeygenparams',
   'AesKeyAlgorithm': 'webcrypto.html#class-aeskeyalgorithm',

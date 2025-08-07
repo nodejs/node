@@ -3,6 +3,9 @@
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59544
+    description: Argon2 algorithms are now supported.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59539
     description: AES-OCB algorithm is now supported.
   - version: REPLACEME
@@ -108,15 +111,18 @@ WICG proposal:
 Algorithms:
 
 * `'AES-OCB'`[^openssl30]
+* `'Argon2d'`[^openssl32]
+* `'Argon2i'`[^openssl32]
+* `'Argon2id'`[^openssl32]
 * `'ChaCha20-Poly1305'`
 * `'cSHAKE128'`
 * `'cSHAKE256'`
 * `'ML-DSA-44'`[^openssl35]
 * `'ML-DSA-65'`[^openssl35]
 * `'ML-DSA-87'`[^openssl35]
-* `'ML-KEM-1024'`[^openssl35]
 * `'ML-KEM-512'`[^openssl35]
 * `'ML-KEM-768'`[^openssl35]
+* `'ML-KEM-1024'`[^openssl35]
 * `'SHA3-256'`
 * `'SHA3-384'`
 * `'SHA3-512'`
@@ -506,6 +512,9 @@ implementation and the APIs supported for each:
 | `'AES-GCM'`                          | ✔                          | ✔                        | ✔                        |                             |
 | `'AES-KW'`                           | ✔                          | ✔                        | ✔                        |                             |
 | `'AES-OCB'`                          | ✔                          | ✔                        | ✔                        |                             |
+| `'Argon2d'`                          |                            |                          | ✔                        |                             |
+| `'Argon2i'`                          |                            |                          | ✔                        |                             |
+| `'Argon2id'`                         |                            |                          | ✔                        |                             |
 | `'ChaCha20-Poly1305'`[^modern-algos] | ✔                          | ✔                        | ✔                        |                             |
 | `'ECDH'`                             | ✔                          | ✔                        | ✔                        | ✔                           |
 | `'ECDSA'`                            | ✔                          | ✔                        | ✔                        | ✔                           |
@@ -545,6 +554,9 @@ implementation and the APIs supported for each:
 | `'AES-GCM'`                          | ✔          |                    |                        | ✔            |                   |        |
 | `'AES-KW'`                           |            |                    |                        | ✔            |                   |        |
 | `'AES-OCB'`                          | ✔          |                    |                        | ✔            |                   |        |
+| `'Argon2d'`                          |            |                    | ✔                      |              |                   |        |
+| `'Argon2i'`                          |            |                    | ✔                      |              |                   |        |
+| `'Argon2id'`                         |            |                    | ✔                      |              |                   |        |
 | `'ChaCha20-Poly1305'`[^modern-algos] | ✔          |                    |                        | ✔            |                   |        |
 | `'cSHAKE128'`[^modern-algos]         |            |                    |                        |              |                   | ✔      |
 | `'cSHAKE256'`[^modern-algos]         |            |                    |                        |              |                   | ✔      |
@@ -714,6 +726,9 @@ Valid key usages depend on the key algorithm (identified by
 | `'AES-GCM'`                          | ✔          |                    |                        | ✔            |                   |
 | `'AES-KW'`                           |            |                    |                        | ✔            |                   |
 | `'AES-OCB'`                          | ✔          |                    |                        | ✔            |                   |
+| `'Argon2d'`                          |            |                    | ✔                      |              |                   |
+| `'Argon2i'`                          |            |                    | ✔                      |              |                   |
+| `'Argon2id'`                         |            |                    | ✔                      |              |                   |
 | `'ChaCha20-Poly1305'`[^modern-algos] | ✔          |                    |                        | ✔            |                   |
 | `'ECDH'`                             |            |                    | ✔                      |              |                   |
 | `'ECDSA'`                            |            | ✔                  |                        |              |                   |
@@ -864,6 +879,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59544
+    description: Argon2 algorithms are now supported.
   - version:
     - v22.5.0
     - v20.17.0
@@ -880,7 +898,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm` {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
+* `algorithm` {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|Argon2Params}
 * `baseKey` {CryptoKey}
 * `length` {number|null} **Default:** `null`
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
@@ -900,6 +918,9 @@ containing the generated data.
 
 The algorithms currently supported include:
 
+* `'Argon2d'`[^modern-algos]
+* `'Argon2i'`[^modern-algos]
+* `'Argon2id'`[^modern-algos]
 * `'ECDH'`
 * `'HKDF'`
 * `'PBKDF2'`
@@ -911,6 +932,9 @@ The algorithms currently supported include:
 <!-- YAML
 added: v15.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59544
+    description: Argon2 algorithms are now supported.
   - version:
     - v18.4.0
     - v16.17.0
@@ -920,7 +944,7 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm` {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
+* `algorithm` {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params|Argon2Params}
 * `baseKey` {CryptoKey}
 * `derivedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams}
 * `extractable` {boolean}
@@ -940,6 +964,9 @@ generate raw keying material, then passing the result into the
 
 The algorithms currently supported include:
 
+* `'Argon2d'`[^modern-algos]
+* `'Argon2i'`[^modern-algos]
+* `'Argon2id'`[^modern-algos]
 * `'ECDH'`
 * `'HKDF'`
 * `'PBKDF2'`
@@ -1235,7 +1262,7 @@ as the given `format` to create a {CryptoKey} instance using the provided
 `algorithm`, `extractable`, and `keyUsages` arguments. If the import is
 successful, the returned promise will be resolved with the created {CryptoKey}.
 
-If importing a `'PBKDF2'` key, `extractable` must be `false`.
+If importing KDF algorithm keys, `extractable` must be `false`.
 
 The algorithms currently supported include:
 
@@ -1246,6 +1273,9 @@ The algorithms currently supported include:
 | `'AES-GCM'`                          |          |           | ✔       | ✔       | ✔              |                |              |
 | `'AES-KW'`                           |          |           | ✔       | ✔       | ✔              |                |              |
 | `'AES-OCB'`[^modern-algos]           |          |           | ✔       |         | ✔              |                |              |
+| `'Argon2d'`[^modern-algos]           |          |           |         |         | ✔              |                |              |
+| `'Argon2i'`[^modern-algos]           |          |           |         |         | ✔              |                |              |
+| `'Argon2id'`[^modern-algos]          |          |           |         |         | ✔              |                |              |
 | `'ChaCha20-Poly1305'`[^modern-algos] |          |           | ✔       |         | ✔              |                |              |
 | `'ECDH'`                             | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
 | `'ECDSA'`                            | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
@@ -1665,6 +1695,90 @@ added: v15.0.0
 
 * Type: {string} Must be one of `'AES-CBC'`, `'AES-CTR'`, `'AES-GCM'`, or
   `'AES-KW'`
+
+### Class: `Argon2Params`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `argon2Params.associatedData`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ArrayBuffer|TypedArray|DataView|Buffer}
+
+Represents the optional associated data.
+
+#### `argon2Params.memory`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+Represents the memory size in kibibytes. It must be at least 8 times the degree of parallelism.
+
+#### `argon2Params.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be one of `'Argon2d'`, `'Argon2i'`, or `'Argon2id'`.
+
+#### `argon2Params.nonce`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ArrayBuffer|TypedArray|DataView|Buffer}
+
+Represents the nonce, which is a salt for password hashing applications.
+
+#### `argon2Params.parallelism`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+Represents the degree of parallelism.
+
+#### `argon2Params.passes`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+Represents the number of passes.
+
+#### `argon2Params.secretValue`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ArrayBuffer|TypedArray|DataView|Buffer}
+
+Represents the optional secret value.
+
+#### `argon2Params.version`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number}
+
+Represents the Argon2 version number. The default and currently only defined version is `19` (`0x13`).
 
 ### Class: `ContextParams`
 
@@ -2419,6 +2533,8 @@ The length (in bytes) of the random salt to use.
 [^modern-algos]: See [Modern Algorithms in the Web Cryptography API][]
 
 [^openssl30]: Requires OpenSSL >= 3.0
+
+[^openssl32]: Requires OpenSSL >= 3.2
 
 [^openssl35]: Requires OpenSSL >= 3.5
 
