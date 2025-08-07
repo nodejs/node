@@ -307,7 +307,8 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   simdjson::ondemand::parser parser;
   simdjson::ondemand::document document;
   simdjson::ondemand::object main_object;
-  simdjson::error_code error = parser.iterate(simdjson::pad(config)).get(document);
+  simdjson::error_code error =
+      parser.iterate(simdjson::pad(config)).get(document);
 
   if (!error) {
     error = document.get_object().get(main_object);
