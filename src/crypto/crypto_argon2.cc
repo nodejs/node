@@ -151,7 +151,7 @@ bool Argon2Traits::DeriveBits(Environment* env,
       config.memcost,
       config.iter,
       config.version,
-        ncrypto::Buffer{
+      ncrypto::Buffer{
           .data = config.secret.data<unsigned char>(),
           .len = config.secret.size(),
       },
