@@ -2949,7 +2949,7 @@ Does not perform any other validation checks on the certificate.
 
 ## `node:crypto` module methods and properties
 
-### `crypto.argon2(options, callback)`
+### `crypto.argon2(algorithm, parameters, callback)`
 
 <!-- YAML
 added: REPLACEME
@@ -2957,31 +2957,32 @@ added: REPLACEME
 
 > Stability: 1.2 - Release candidate
 
-* `options` {Object}
-  * `message` {string|ArrayBuffer|Buffer|TypedArray|DataView}
-  * `nonce` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must be at
-    least 8 bytes long.
-  * `parallelism` {number} Parallelization parameter (number of lanes and threads).
-    Must be greater than 1 and less than `2**24-1`.
-  * `tagLength` {number} The length of the key to generate. Must be greater than 4 and
+* `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or `"argon2id"`.
+* `parameters` {Object}
+  * `message` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, this is the password for password
+    hashing applications of Argon2.
+  * `nonce` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, must be at
+    least 8 bytes long. This is the salt for password hashing applications of Argon2.
+  * `parallelism` {number} REQUIRED, degree of parallelism determines how many computational chains (lanes)
+    can be run. Must be greater than 1 and less than `2**24-1`.
+  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be greater than 4 and
     less than `2**32-1`.
-  * `memory` {number} Memory cost in 1KiB blocks. Must be greater than
+  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be greater than
     `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
     down to the nearest multiple of `4 * parallelism`.
-  * `passes` {number} Number of passes (iterations). Must be greater than 1 and less
+  * `passes` {number} REQUIRED, number of passes (iterations). Must be greater than 1 and less
     than `2**32-1`.
-  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView} Random additional input,
-    similar to the salt, that should **NOT** be stored with the derived key. Also known
-    as a pepper. If used, must have a length not greater than `2**32-1` bytes.
-  * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional data to
+  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Random additional input,
+    similar to the salt, that should **NOT** be stored with the derived key. This is known as pepper in
+    password hashing applications. If used, must have a length not greater than `2**32-1` bytes.
+  * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Additional data to
     be added to the hash, functionally equivalent to salt or secret, but meant for
     non-random data. If used, must have a length not greater than `2**32-1` bytes.
-  * `type` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or `"argon2id"`.
 * `callback` {Function}
   * `err` {Error}
   * `derivedKey` {Buffer}
 
-Provides an asynchronous [argon2][] implementation. Argon2 is a password-based
+Provides an asynchronous [Argon2][] implementation. Argon2 is a password-based
 key derivation function that is designed to be expensive computationally and
 memory-wise in order to make brute-force attacks unrewarding.
 
@@ -2999,34 +3000,42 @@ An exception is thrown when any of the input arguments specify invalid values
 or types.
 
 ```mjs
-const {
-  argon2,
-  randomBytes,
-} = await import('node:crypto');
+const { argon2, randomBytes } = await import('node:crypto');
 
-const nonce = randomBytes(16);
-argon2({ message: 'password', nonce, parallelism: 4, tagLength: 64,  memory: 65536, passes: 3 }, (err, derivedKey) => {
+const parameters = {
+  message: 'password',
+  nonce: randomBytes(16),
+  parallelism: 4,
+  tagLength: 64,
+  memory: 65536,
+  passes: 3,
+};
+
+argon2('argon2id', parameters, (err, derivedKey) => {
   if (err) throw err;
-  console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
+  console.log(derivedKey.toString('hex'));  // 'af91dad...9520f15'
 });
 ```
 
 ```cjs
-const {
-  argon2,
-  randomBytes,
-} = require('node:crypto');
+const { argon2, randomBytes } = require('node:crypto');
 
-randomBytes(16, (err, nonce) => {
+const parameters = {
+  message: 'password',
+  nonce: randomBytes(16),
+  parallelism: 4,
+  tagLength: 64,
+  memory: 65536,
+  passes: 3,
+};
+
+argon2('argon2id', parameters, (err, derivedKey) => {
   if (err) throw err;
-  argon2({ message: 'password', nonce, parallelism: 4, tagLength: 64,  memory: 65536, passes: 3 }, (err, derivedKey) => {
-    if (err) throw err;
-    console.log(derivedKey.toString('hex'));  // '0de3036...22afcc5'
-  });
+  console.log(derivedKey.toString('hex'));  // 'af91dad...9520f15'
 });
 ```
 
-### `crypto.argon2Sync(password, salt, keylen, options)`
+### `crypto.argon2Sync(algorithm, parameters)`
 
 <!-- YAML
 added: REPLACEME
@@ -3034,29 +3043,30 @@ added: REPLACEME
 
 > Stability: 1.2 - Release candidate
 
-* `options` {Object}
-  * `message` {string|ArrayBuffer|Buffer|TypedArray|DataView}
-  * `nonce` {string|ArrayBuffer|Buffer|TypedArray|DataView} The salt value. Must be at
-    least 8 bytes long.
-  * `parallelism` {number} Parallelization parameter (number of lanes and threads).
-    Must be greater than 1 and less than `2**24-1`.
-  * `tagLength` {number} The length of the key to generate. Must be greater than 4 and
+* `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or `"argon2id"`.
+* `parameters` {Object}
+  * `message` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, this is the password for password
+    hashing applications of Argon2.
+  * `nonce` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, must be at
+    least 8 bytes long. This is the salt for password hashing applications of Argon2.
+  * `parallelism` {number} REQUIRED, degree of parallelism determines how many computational chains (lanes)
+    can be run. Must be greater than 1 and less than `2**24-1`.
+  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be greater than 4 and
     less than `2**32-1`.
-  * `memory` {number} Memory cost in 1KiB blocks. Must be greater than
+  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be greater than
     `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
     down to the nearest multiple of `4 * parallelism`.
-  * `passes` {number} Number of passes (iterations). Must be greater than 1 and less
+  * `passes` {number} REQUIRED, number of passes (iterations). Must be greater than 1 and less
     than `2**32-1`.
-  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView} Random additional input,
-    similar to the salt, that should **NOT** be stored with the derived key. Also known
-    as a pepper. If used, must have a length not greater than `2**32-1` bytes.
-  * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView} Additional data to
+  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Random additional input,
+    similar to the salt, that should **NOT** be stored with the derived key. This is known as pepper in
+    password hashing applications. If used, must have a length not greater than `2**32-1` bytes.
+  * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Additional data to
     be added to the hash, functionally equivalent to salt or secret, but meant for
     non-random data. If used, must have a length not greater than `2**32-1` bytes.
-  * `type` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or `"argon2id"`.
 * Returns: {Buffer}
 
-Provides a synchronous [argon2][] implementation. Argon2 is a password-based
+Provides a synchronous [Argon2][] implementation. Argon2 is a password-based
 key derivation function that is designed to be expensive computationally and
 memory-wise in order to make brute-force attacks unrewarding.
 
@@ -3073,25 +3083,35 @@ An exception is thrown when any of the input arguments specify invalid values
 or types.
 
 ```mjs
-const {
-  argon2Sync,
-  randomBytes,
-} = await import('node:crypto');
+const { argon2Sync, randomBytes } = await import('node:crypto');
 
-const nonce = randomBytes(16);
-const key = argon2Sync({ message: 'password', nonce, parallelism: 4, tagLength: 64,  memory: 65536, passes: 3 });
-console.log(key.toString('hex'));  // '3745e48...08d59ae'
+const parameters = {
+  message: 'password',
+  nonce: randomBytes(16),
+  parallelism: 4,
+  tagLength: 64,
+  memory: 65536,
+  passes: 3,
+};
+
+const derivedKey = argon2Sync('argon2id', parameters);
+console.log(derivedKey.toString('hex'));  // 'af91dad...9520f15'
 ```
 
 ```cjs
-const {
-  argon2Sync,
-  randomBytes,
-} = require('node:crypto');
+const { argon2Sync, randomBytes } = require('node:crypto');
 
-const nonce = randomBytes(16);
-const key = argon2Sync({ message: 'password', nonce, parallelism: 4, tagLength: 64,  memory: 65536, passes: 3 });
-console.log(key.toString('hex'));  // '3745e48...08d59ae'
+const parameters = {
+  message: 'password',
+  nonce: randomBytes(16),
+  parallelism: 4,
+  tagLength: 64,
+  memory: 65536,
+  passes: 3,
+};
+
+const derivedKey = argon2Sync('argon2id', parameters);
+console.log(derivedKey.toString('hex'));  // 'af91dad...9520f15'
 ```
 
 ### `crypto.checkPrime(candidate[, options], callback)`

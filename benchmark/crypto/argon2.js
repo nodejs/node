@@ -17,14 +17,14 @@ const bench = common.createBenchmark(main, {
   n: [50],
 });
 
-function measureSync(n, message, nonce, options) {
+function measureSync(n, algorithm, message, nonce, options) {
   bench.start();
   for (let i = 0; i < n; ++i)
-    argon2Sync({ ...options, message, nonce, tagLength: 64 });
+    argon2Sync(algorithm, { ...options, message, nonce, tagLength: 64 });
   bench.end(n);
 }
 
-function measureAsync(n, message, nonce, options) {
+function measureAsync(n, algorithm, message, nonce, options) {
   let remaining = n;
   function done(err) {
     assert.ifError(err);
@@ -33,15 +33,15 @@ function measureAsync(n, message, nonce, options) {
   }
   bench.start();
   for (let i = 0; i < n; ++i)
-    argon2({ ...options, message, nonce, tagLength: 64 }, done);
+    argon2(algorithm, { ...options, message, nonce, tagLength: 64 }, done);
 }
 
-function main({ n, mode, ...options }) {
+function main({ n, mode, algorithm, ...options }) {
   // Message, nonce, secret, associated data & tag length do not affect performance
   const message = randomBytes(32);
   const nonce = randomBytes(16);
   if (mode === 'sync')
-    measureSync(n, message, nonce, options);
+    measureSync(n, algorithm, message, nonce, options);
   else
-    measureAsync(n, message, nonce, options);
+    measureAsync(n, algorithm, message, nonce, options);
 }
