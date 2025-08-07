@@ -1923,7 +1923,7 @@ incoming data, after it has finished writing the last response, before a socket
 will be destroyed.
 
 This timeout value is combined with the
-\[`server.keepAliveTimeoutBuffer`]\[] option to determine the actual socket
+[`server.keepAliveTimeoutBuffer`][] option to determine the actual socket
 timeout, calculated as:
 socketTimeout = keepAliveTimeout + keepAliveTimeoutBuffer
 If the server receives new data before the keep-alive timeout has fired, it
@@ -4331,6 +4331,7 @@ A browser-compatible implementation of {WebSocket}.
 [`response.writeHead()`]: #responsewriteheadstatuscode-statusmessage-headers
 [`server.close()`]: #serverclosecallback
 [`server.headersTimeout`]: #serverheaderstimeout
+[`server.keepAliveTimeoutBuffer`]: #serverkeepalivetimeoutbuffer
 [`server.keepAliveTimeout`]: #serverkeepalivetimeout
 [`server.listen()`]: net.md#serverlisten
 [`server.requestTimeout`]: #serverrequesttimeout
