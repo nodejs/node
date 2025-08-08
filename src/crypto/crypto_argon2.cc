@@ -60,7 +60,7 @@ Maybe<void> Argon2Traits::AdditionalConfig(
   ArrayBufferOrViewContents<char> salt(args[offset + 1]);
   ArrayBufferOrViewContents<char> secret(args[offset + 6]);
   ArrayBufferOrViewContents<char> ad(args[offset + 7]);
-  Utf8Value type_(env->isolate(), args[offset + 8]);
+  Utf8Value algorithm(env->isolate(), args[offset + 8]);
 
   if (!pass.CheckSizeInt32()) [[unlikely]] {
     THROW_ERR_OUT_OF_RANGE(env, "pass is too large");
@@ -88,11 +88,11 @@ Maybe<void> Argon2Traits::AdditionalConfig(
   config->secret = isAsync ? secret.ToCopy() : secret.ToByteSource();
   config->ad = isAsync ? ad.ToCopy() : ad.ToByteSource();
 
-  if (type_.ToStringView() == "argon2i") {
+  if (algorithm == "argon2i") {
     config->type = ncrypto::Argon2Type::ARGON2I;
-  } else if (type_.ToStringView() == "argon2d") {
+  } else if (algorithm == "argon2d") {
     config->type = ncrypto::Argon2Type::ARGON2D;
-  } else if (type_.ToStringView() == "argon2id") {
+  } else if (algorithm == "argon2id") {
     config->type = ncrypto::Argon2Type::ARGON2ID;
   } else {
     THROW_ERR_CRYPTO_INVALID_ARGON2_PARAMS(env);
