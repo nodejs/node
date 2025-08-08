@@ -325,6 +325,7 @@
     'node_crypto_sources': [
       'src/crypto/crypto_aes.cc',
       'src/crypto/crypto_bio.cc',
+      'src/crypto/crypto_chacha20_poly1305.cc',
       'src/crypto/crypto_common.cc',
       'src/crypto/crypto_dsa.cc',
       'src/crypto/crypto_hkdf.cc',
