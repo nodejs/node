@@ -12,16 +12,19 @@ export const vectors = {
     [pqc, 'ML-DSA-44'],
     [pqc, 'ML-DSA-65'],
     [pqc, 'ML-DSA-87'],
+    [true, 'ChaCha20-Poly1305'],
   ],
   'importKey': [
     [pqc, 'ML-DSA-44'],
     [pqc, 'ML-DSA-65'],
     [pqc, 'ML-DSA-87'],
+    [true, 'ChaCha20-Poly1305'],
   ],
   'exportKey': [
     [pqc, 'ML-DSA-44'],
     [pqc, 'ML-DSA-65'],
     [pqc, 'ML-DSA-87'],
+    [true, 'ChaCha20-Poly1305'],
   ],
   'getPublicKey': [
     [true, 'RSA-OAEP'],
@@ -38,5 +41,13 @@ export const vectors = {
     [false, 'AES-CBC'],
     [false, 'AES-GCM'],
     [false, 'AES-KW'],
+    [false, 'ChaCha20-Poly1305'],
   ],
+  'encrypt': [
+    [true, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(12) }],
+    [false, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(16) }],
+    [true, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(12), tagLength: 128 }],
+    [false, { name: 'ChaCha20-Poly1305', iv: Buffer.alloc(12), tagLength: 64 }],
+    [false, 'ChaCha20-Poly1305'],
+  ]
 };

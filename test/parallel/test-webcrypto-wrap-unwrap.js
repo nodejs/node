@@ -39,6 +39,14 @@ const kWrappingData = {
     },
     pair: false
   },
+  'ChaCha20-Poly1305': {
+    wrap: {
+      iv: new Uint8Array(12),
+      additionalData: new Uint8Array(16),
+      tagLength: 128
+    },
+    pair: false
+  },
   'AES-KW': {
     generate: { length: 128 },
     wrap: { },
@@ -172,6 +180,13 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
+        name: 'ChaCha20-Poly1305'
+      },
+      usages: ['encrypt', 'decrypt'],
+      pair: false,
+    },
+    {
+      algorithm: {
         name: 'AES-KW',
         length: 128
       },
@@ -235,6 +250,7 @@ async function generateKeysToWrap() {
 function getFormats(key) {
   switch (key.type) {
     case 'secret': {
+      if (key.algorithm.name === 'ChaCha20-Poly1305') return ['raw-secret', 'jwk'];
       return ['raw-secret', 'raw', 'jwk'];
     };
     case 'public': {

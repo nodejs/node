@@ -136,7 +136,7 @@ async function prepareKeys() {
         },
         keys.X448.privateKey,
         ...otherArgs),
-      { message: 'algorithm.public must be an X448 key' });
+      { message: 'key algorithm mismatch' });
   }
 
   {

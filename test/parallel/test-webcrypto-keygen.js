@@ -59,6 +59,15 @@ const vectors = {
       'unwrapKey',
     ],
   },
+  'ChaCha20-Poly1305': {
+    result: 'CryptoKey',
+    usages: [
+      'encrypt',
+      'decrypt',
+      'wrapKey',
+      'unwrapKey',
+    ],
+  },
   'AES-KW': {
     algorithm: { length: 256 },
     result: 'CryptoKey',

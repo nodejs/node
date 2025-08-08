@@ -462,19 +462,19 @@ const opts = { prefix, context };
   });
 }
 
-// AesGcmParams
+// AeadParams
 {
   for (const good of [
     { name: 'AES-GCM', iv: Buffer.alloc(0) },
     { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 64 },
     { name: 'AES-GCM', iv: Buffer.alloc(0), tagLength: 64, additionalData: Buffer.alloc(0) },
   ]) {
-    assert.deepStrictEqual(converters.AesGcmParams({ ...good, filtered: 'out' }, opts), good);
+    assert.deepStrictEqual(converters.AeadParams({ ...good, filtered: 'out' }, opts), good);
 
-    assert.throws(() => converters.AesGcmParams({ ...good, iv: undefined }, opts), {
+    assert.throws(() => converters.AeadParams({ ...good, iv: undefined }, opts), {
       name: 'TypeError',
       code: 'ERR_MISSING_OPTION',
-      message: `${prefix}: ${context} can not be converted to 'AesGcmParams' because 'iv' is required in 'AesGcmParams'.`,
+      message: `${prefix}: ${context} can not be converted to 'AeadParams' because 'iv' is required in 'AeadParams'.`,
     });
   }
 }
