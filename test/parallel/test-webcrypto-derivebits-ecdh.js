@@ -218,7 +218,7 @@ async function prepareKeys() {
       name: 'ECDH',
       public: publicKey
     }, keys['P-521'].privateKey, null), {
-      message: 'algorithm.public must be an ECDH key'
+      message: 'key algorithm mismatch'
     });
   }
 
