@@ -19,6 +19,12 @@ test-fs-read-stream-concurrent-reads: PASS, FLAKY
 # https://github.com/nodejs/build/issues/3043
 test-snapshot-incompatible: SKIP
 
+# This test is newly added, and it will fail on main branch after
+# landing any changes to public API surface that did not account
+# this test. After it's being adopted, remove this mark.
+# https://github.com/nodejs/node/pull/58793
+test-api-surface: PASS, FLAKY
+
 [$system==win32]
 # https://github.com/nodejs/node/issues/54808
 test-async-context-frame: PASS, FLAKY
