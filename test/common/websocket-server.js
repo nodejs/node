@@ -8,12 +8,10 @@ const crypto = require('crypto');
 class WebSocketServer {
   constructor({
     port = 0,
-    responseError = false,
   }) {
     this.port = port;
     this.server = http.createServer();
     this.clients = new Set();
-    this.responseError = responseError;
 
     this.server.on('upgrade', this.handleUpgrade.bind(this));
   }
@@ -51,12 +49,6 @@ class WebSocketServer {
         return;
       }
 
-      if (this.responseError) {
-        socket.write(Buffer.from([0x88, 0x00])); // close frame
-        socket.end();
-        this.clients.delete(socket);
-        return;
-      }
       socket.write(this.encodeMessage('Hello from server!'));
     });
 
