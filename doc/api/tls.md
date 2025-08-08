@@ -2,6 +2,12 @@
 
 <!--introduced_in=v0.10.0-->
 
+<!-- YAML
+llm_description: >
+  Implements Transport Layer Security (TLS) and Secure Socket Layer (SSL)
+  protocols using OpenSSL.
+-->
+
 > Stability: 2 - Stable
 
 <!-- source_link=lib/tls.js -->
