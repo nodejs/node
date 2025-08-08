@@ -2982,7 +2982,9 @@ The following values are valid for `mode`:
 ### `--use-system-ca`
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 changes:
   - version: v23.9.0
     pr-url: https://github.com/nodejs/node/pull/57009
