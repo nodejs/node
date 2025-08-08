@@ -25,13 +25,16 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
 
 {
   for (const length of [128, 192, 256]) {
-    const aes = createSecretKey(randomBytes(length >> 3));
-    for (const algorithm of ['AES-CTR', 'AES-CBC', 'AES-GCM', 'AES-KW']) {
+    const key = createSecretKey(randomBytes(length >> 3));
+    const algorithms = ['AES-CTR', 'AES-CBC', 'AES-GCM', 'AES-KW'];
+    if (length === 256)
+      algorithms.push('ChaCha20-Poly1305');
+    for (const algorithm of algorithms) {
       const usages = algorithm === 'AES-KW' ? ['wrapKey', 'unwrapKey'] : ['encrypt', 'decrypt'];
       for (const extractable of [true, false]) {
-        const cryptoKey = aes.toCryptoKey(algorithm, extractable, usages);
-        assertCryptoKey(cryptoKey, aes, algorithm, extractable, usages);
-        assert.strictEqual(cryptoKey.algorithm.length, length);
+        const cryptoKey = key.toCryptoKey(algorithm, extractable, usages);
+        assertCryptoKey(cryptoKey, key, algorithm, extractable, usages);
+        assert.strictEqual(cryptoKey.algorithm.length, algorithm !== 'ChaCha20-Poly1305' ? length : undefined);
       }
     }
   }
