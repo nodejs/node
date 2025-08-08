@@ -5,6 +5,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
 
@@ -187,6 +189,17 @@ async function generateKeysToWrap() {
     },
   ];
 
+  if (hasOpenSSL(3, 5)) {
+    for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
+      parameters.push({
+        algorithm: { name },
+        privateUsages: ['sign'],
+        publicUsages: ['verify'],
+        pair: true,
+      });
+    }
+  }
+
   const allkeys = await Promise.all(parameters.map(async (params) => {
     const usages = 'usages' in params ?
       params.usages :
@@ -220,10 +233,28 @@ async function generateKeysToWrap() {
 }
 
 function getFormats(key) {
-  switch (key.key.type) {
-    case 'secret': return ['raw', 'jwk'];
-    case 'public': return ['spki', 'jwk'];
-    case 'private': return ['pkcs8', 'jwk'];
+  switch (key.type) {
+    case 'secret': {
+      return ['raw-secret', 'raw', 'jwk'];
+    };
+    case 'public': {
+      switch (key.algorithm.name.slice(0, 2)) {
+        case 'EC': // ECDSA, ECDH
+          return ['spki', 'jwk', 'raw', 'raw-public'];
+        case 'ML': // ML-DSA
+          return ['jwk', 'raw-public'];
+        default:
+          return ['spki', 'jwk'];
+      }
+    }
+    case 'private': {
+      switch (key.algorithm.name.slice(0, 2)) {
+        case 'ML': // ML-DSA
+          return ['jwk', 'raw-seed'];
+        default:
+          return ['pkcs8', 'jwk'];
+      }
+    }
   }
 }
 
@@ -285,7 +316,7 @@ function testWrapping(name, keys) {
   } = kWrappingData[name];
 
   keys.forEach((key) => {
-    getFormats(key).forEach((format) => {
+    getFormats(key.key).forEach((format) => {
       variations.push(testWrap(wrappingKey, unwrappingKey, key, wrap, format));
     });
   });
