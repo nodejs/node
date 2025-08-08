@@ -128,18 +128,24 @@ All enum data types defined in Node-API should be considered as a fixed size
 work with bit operators like bit-OR (`|`) as a bit value. Unless otherwise
 documented, an enum type should be considered to be extensible.
 
-An enum value will not be removed or renamed.
+A new enum value will be added at the end of the enum definition. An enum value
+will not be removed or renamed.
 
 For an enum type returned from a Node-API function, or provided as an out
 parameter of a Node-API function, the value is an integer value and an addon
-should handle unknown values. For example, when checking `napi_status` in
-switch statements, an addon should include a default branch, as new status
-codes may be introduced in newer Node.js versions
+should handle unknown values. New values are allowed to be introduced without
+a version guard. For example, when checking `napi_status` in switch statements,
+an addon should include a default branch, as new status codes may be introduced
+in newer Node.js versions.
 
 For an enum type used in an in-parameter, the result of passing an unknown
 integer value to Node-API functions is undefined unless otherwise documented.
-For example, `napi_get_all_property_names` can be extended with new enum value
-of `napi_key_filter`.
+A new value is added with a version guard to indicate the Node-API version in
+which it was introduced. For example, `napi_get_all_property_names` can be
+extended with new enum value of `napi_key_filter`.
+
+For an enum type used in both in-parameters and out-parameters, new values are
+allowed to be introduced without a version guard.
 
 ## Building
 
