@@ -63,5 +63,5 @@ const test_sharedarraybuffer = require(`./build/${common.buildType}/test_shareda
 {
   assert.throws(() => {
     test_sharedarraybuffer.TestGetSharedArrayBufferInfo({});
-  }, Error);
+  }, { name: 'Error', message: 'Invalid argument' });
 }
