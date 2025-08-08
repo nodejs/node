@@ -1857,8 +1857,8 @@ DataPointer pbkdf2(const Digest& md,
   return {};
 }
 
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 2
-#ifndef OPENSSL_NO_ARGON2
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 2 &&                \
+    !defined(OPENSSL_NO_ARGON2)
 DataPointer argon2(const Buffer<const char>& pass,
                    const Buffer<const unsigned char>& salt,
                    uint32_t lanes,
@@ -1948,7 +1948,6 @@ DataPointer argon2(const Buffer<const char>& pass,
 
   return {};
 }
-#endif  // !OPENSSL_NO_ARGON2
 #endif
 
 // ============================================================================

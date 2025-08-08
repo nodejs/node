@@ -1539,7 +1539,8 @@ DataPointer pbkdf2(const Digest& md,
                    uint32_t iterations,
                    size_t length);
 
-#ifndef OPENSSL_NO_ARGON2
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 2 &&                \
+    !defined(OPENSSL_NO_ARGON2)
 enum class Argon2Type { ARGON2I, ARGON2D, ARGON2ID };
 
 DataPointer argon2(const Buffer<const char>& pass,
@@ -1552,7 +1553,7 @@ DataPointer argon2(const Buffer<const char>& pass,
                    const Buffer<const unsigned char>& secret,
                    const Buffer<const unsigned char>& ad,
                    Argon2Type type);
-#endif  // !OPENSSL_NO_ARGON2
+#endif
 
 // ============================================================================
 // Version metadata
