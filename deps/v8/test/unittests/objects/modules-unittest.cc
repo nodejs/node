@@ -1259,4 +1259,334 @@ TEST_F(ModuleTest, AsyncEvaluatingInEvaluateEntryPoint) {
   CHECK_EQ(v8::Promise::kFulfilled, promise1->State());
 }
 
+// Test data for index-based module resolution
+static std::vector<v8::Global<Module>> index_modules_global;
+
+MaybeLocal<Module> ResolveByIndexCallback(Local<Context> context,
+                                          size_t module_request_index,
+                                          Local<Module> referrer) {
+  Isolate* isolate = Isolate::GetCurrent();
+  if (module_request_index < index_modules_global.size()) {
+    return index_modules_global[module_request_index].Get(isolate);
+  } else {
+    isolate->ThrowException(
+        String::NewFromUtf8(isolate, "module index out of bounds")
+            .ToLocalChecked());
+    return MaybeLocal<Module>();
+  }
+}
+
+TEST_F(ModuleTest, ModuleInstantiationByIndex) {
+  HandleScope scope(isolate());
+  v8::TryCatch try_catch(isolate());
+
+  // Clear any previous modules
+  for (auto& module : index_modules_global) {
+    module.Reset();
+  }
+  index_modules_global.clear();
+
+  Local<Module> module;
+  {
+    Local<String> source_text = NewString(
+        "import './dep1.js';\n"
+        "export {} from './dep2.js';");
+    ScriptOrigin origin = ModuleOrigin(NewString("main.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    module = ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+
+    Local<FixedArray> module_requests = module->GetModuleRequests();
+    CHECK_EQ(2, module_requests->Length());
+
+    // Verify the requests are in expected order
+    Local<ModuleRequest> module_request_0 =
+        module_requests->Get(context(), 0).As<ModuleRequest>();
+    CHECK(
+        NewString("./dep1.js")->StrictEquals(module_request_0->GetSpecifier()));
+
+    Local<ModuleRequest> module_request_1 =
+        module_requests->Get(context(), 1).As<ModuleRequest>();
+    CHECK(
+        NewString("./dep2.js")->StrictEquals(module_request_1->GetSpecifier()));
+  }
+
+  // Create dependency modules to be resolved by index
+  {
+    Local<String> source_text = NewString("export const x = 42;");
+    ScriptOrigin origin = ModuleOrigin(NewString("dep1.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> dep1 =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    index_modules_global.emplace_back(isolate(), dep1);
+  }
+
+  {
+    Local<String> source_text = NewString("export const y = 24;");
+    ScriptOrigin origin = ModuleOrigin(NewString("dep2.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> dep2 =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    index_modules_global.emplace_back(isolate(), dep2);
+  }
+
+  // Instantiate using index-based callback
+  CHECK(
+      module->InstantiateModule(context(), ResolveByIndexCallback).FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+
+  // Verify evaluation works
+  MaybeLocal<Value> result = module->Evaluate(context());
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
+  Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+
+  CHECK(!try_catch.HasCaught());
+
+  // Clean up
+  for (auto& mod : index_modules_global) {
+    mod.Reset();
+  }
+  index_modules_global.clear();
+}
+
+TEST_F(ModuleTest, ModuleInstantiationByIndexFailure) {
+  HandleScope scope(isolate());
+  v8::TryCatch try_catch(isolate());
+
+  // Clear any previous modules
+  for (auto& module : index_modules_global) {
+    module.Reset();
+  }
+  index_modules_global.clear();
+
+  Local<Module> module;
+  {
+    Local<String> source_text = NewString(
+        "import './dep1.js';\n"
+        "import './dep2.js';\n"
+        "import './dep3.js';");
+    ScriptOrigin origin = ModuleOrigin(NewString("main.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    module = ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+
+    Local<FixedArray> module_requests = module->GetModuleRequests();
+    CHECK_EQ(3, module_requests->Length());
+  }
+
+  // Only provide 2 modules, so index 2 will fail
+  {
+    Local<String> source_text = NewString("export const x = 1;");
+    ScriptOrigin origin = ModuleOrigin(NewString("dep1.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> dep1 =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    index_modules_global.emplace_back(isolate(), dep1);
+  }
+
+  {
+    Local<String> source_text = NewString("export const y = 2;");
+    ScriptOrigin origin = ModuleOrigin(NewString("dep2.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> dep2 =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    index_modules_global.emplace_back(isolate(), dep2);
+  }
+
+  // Instantiation should fail when trying to resolve index 2
+  {
+    v8::TryCatch inner_try_catch(isolate());
+    CHECK(module->InstantiateModule(context(), ResolveByIndexCallback)
+              .IsNothing());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()->StrictEquals(
+        NewString("module index out of bounds")));
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  }
+
+  CHECK(!try_catch.HasCaught());
+
+  // Clean up
+  for (auto& mod : index_modules_global) {
+    mod.Reset();
+  }
+  index_modules_global.clear();
+}
+
+TEST_F(ModuleTest, ModuleInstantiationByIndexWithImportAttributes) {
+  bool prev_import_attributes = i::v8_flags.harmony_import_attributes;
+  i::v8_flags.harmony_import_attributes = true;
+  HandleScope scope(isolate());
+  v8::TryCatch try_catch(isolate());
+
+  // Clear any previous modules
+  for (auto& module : index_modules_global) {
+    module.Reset();
+  }
+  index_modules_global.clear();
+
+  Local<Module> module;
+  {
+    Local<String> source_text = NewString(
+        "import './foo.js' with { };\n"
+        "export {} from './bar.js' with { type: 'json' };");
+    ScriptOrigin origin = ModuleOrigin(NewString("main.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    module = ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+
+    Local<FixedArray> module_requests = module->GetModuleRequests();
+    CHECK_EQ(2, module_requests->Length());
+
+    // Verify first request (no attributes)
+    Local<ModuleRequest> module_request_0 =
+        module_requests->Get(context(), 0).As<ModuleRequest>();
+    CHECK(
+        NewString("./foo.js")->StrictEquals(module_request_0->GetSpecifier()));
+    CHECK_EQ(0, module_request_0->GetImportAttributes()->Length());
+
+    // Verify second request (with attributes)
+    Local<ModuleRequest> module_request_1 =
+        module_requests->Get(context(), 1).As<ModuleRequest>();
+    CHECK(
+        NewString("./bar.js")->StrictEquals(module_request_1->GetSpecifier()));
+    Local<FixedArray> import_attributes_1 =
+        module_request_1->GetImportAttributes();
+    CHECK_EQ(3, import_attributes_1->Length());
+    Local<String> attribute_key =
+        import_attributes_1->Get(context(), 0).As<String>();
+    CHECK(NewString("type")->StrictEquals(attribute_key));
+    Local<String> attribute_value =
+        import_attributes_1->Get(context(), 1).As<String>();
+    CHECK(NewString("json")->StrictEquals(attribute_value));
+  }
+
+  // Create dependency modules
+  {
+    Local<String> source_text = NewString("export const foo = 'hello';");
+    ScriptOrigin origin = ModuleOrigin(NewString("foo.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> foo_module =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    index_modules_global.emplace_back(isolate(), foo_module);
+  }
+
+  {
+    Local<String> source_text = NewString("export const bar = 'world';");
+    ScriptOrigin origin = ModuleOrigin(NewString("bar.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> bar_module =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    index_modules_global.emplace_back(isolate(), bar_module);
+  }
+
+  // Instantiate using index-based callback
+  CHECK(
+      module->InstantiateModule(context(), ResolveByIndexCallback).FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+
+  // Verify evaluation works
+  MaybeLocal<Value> result = module->Evaluate(context());
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
+  Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+
+  CHECK(!try_catch.HasCaught());
+  i::v8_flags.harmony_import_attributes = prev_import_attributes;
+
+  // Clean up
+  for (auto& mod : index_modules_global) {
+    mod.Reset();
+  }
+  index_modules_global.clear();
+}
+
+TEST_F(ModuleTest, ModuleInstantiationByIndexComparedToSpecifier) {
+  HandleScope scope(isolate());
+  v8::TryCatch try_catch(isolate());
+
+  // Test that both methods produce equivalent results
+  Local<Module> module_by_specifier, module_by_index;
+
+  // Create identical modules for both tests
+  Local<String> source_text = NewString(
+      "import './dep1.js';\n"
+      "export const result = 'test';");
+
+  {
+    ScriptOrigin origin = ModuleOrigin(NewString("main1.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    module_by_specifier =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+  }
+
+  {
+    ScriptOrigin origin = ModuleOrigin(NewString("main2.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    module_by_index =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+  }
+
+  // Create dependency for specifier-based resolution
+  {
+    Local<String> dep_source = NewString("export const dep = 'dependency';");
+    ScriptOrigin dep_origin = ModuleOrigin(NewString("dep1.js"), isolate());
+    ScriptCompiler::Source dep_source_obj(dep_source, dep_origin);
+    Local<Module> dep1 =
+        ScriptCompiler::CompileModule(isolate(), &dep_source_obj)
+            .ToLocalChecked();
+    dep1_global.Reset(isolate(), dep1);
+  }
+
+  // Create dependency for index-based resolution
+  {
+    Local<String> dep_source = NewString("export const dep = 'dependency';");
+    ScriptOrigin dep_origin = ModuleOrigin(NewString("dep1.js"), isolate());
+    ScriptCompiler::Source dep_source_obj(dep_source, dep_origin);
+    Local<Module> dep1 =
+        ScriptCompiler::CompileModule(isolate(), &dep_source_obj)
+            .ToLocalChecked();
+
+    // Clear previous modules and add this one
+    for (auto& module : index_modules_global) {
+      module.Reset();
+    }
+    index_modules_global.clear();
+    index_modules_global.emplace_back(isolate(), dep1);
+  }
+
+  // Instantiate both modules
+  CHECK(module_by_specifier->InstantiateModule(context(), ResolveCallback)
+            .FromJust());
+  CHECK(module_by_index->InstantiateModule(context(), ResolveByIndexCallback)
+            .FromJust());
+
+  // Both should be instantiated
+  CHECK_EQ(Module::kInstantiated, module_by_specifier->GetStatus());
+  CHECK_EQ(Module::kInstantiated, module_by_index->GetStatus());
+
+  // Both should evaluate successfully
+  MaybeLocal<Value> result1 = module_by_specifier->Evaluate(context());
+  MaybeLocal<Value> result2 = module_by_index->Evaluate(context());
+
+  CHECK_EQ(Module::kEvaluated, module_by_specifier->GetStatus());
+  CHECK_EQ(Module::kEvaluated, module_by_index->GetStatus());
+
+  Local<Promise> promise1 = Local<Promise>::Cast(result1.ToLocalChecked());
+  Local<Promise> promise2 = Local<Promise>::Cast(result2.ToLocalChecked());
+
+  CHECK_EQ(promise1->State(), v8::Promise::kFulfilled);
+  CHECK_EQ(promise2->State(), v8::Promise::kFulfilled);
+
+  CHECK(!try_catch.HasCaught());
+
+  // Clean up
+  dep1_global.Reset();
+  for (auto& mod : index_modules_global) {
+    mod.Reset();
+  }
+  index_modules_global.clear();
+}
+
 }  // anonymous namespace
