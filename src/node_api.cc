@@ -218,6 +218,7 @@ class ThreadSafeFunction : public node::AsyncResource {
         dispatch_state(kDispatchIdle),
         context(context_),
         max_queue_size(max_queue_size_),
+        waiting_task_size(0),
         env(env_),
         finalize_data(finalize_data_),
         finalize_cb(finalize_cb_),
@@ -238,12 +239,14 @@ class ThreadSafeFunction : public node::AsyncResource {
   napi_status Push(void* data, napi_threadsafe_function_call_mode mode) {
     node::Mutex::ScopedLock lock(this->mutex);
 
-    while (queue.size() >= max_queue_size && max_queue_size > 0 &&
+    while (max_queue_size > 0 && queue.size() >= max_queue_size &&
            !is_closing) {
       if (mode == napi_tsfn_nonblocking) {
         return napi_queue_full;
       }
+      waiting_task_size++;
       cond->Wait(lock);
+      waiting_task_size--;
     }
 
     if (is_closing) {
@@ -385,7 +388,7 @@ class ThreadSafeFunction : public node::AsyncResource {
           data = queue.front();
           queue.pop();
           popped_value = true;
-          if (size == max_queue_size && max_queue_size > 0) {
+          if (waiting_task_size > 0) {
             cond->Signal(lock);
           }
           size--;
@@ -518,6 +521,7 @@ class ThreadSafeFunction : public node::AsyncResource {
   // means we don't need the mutex to read them.
   void* context;
   size_t max_queue_size;
+  size_t waiting_task_size;
 
   // These are variables accessed only from the loop thread.
   v8impl::Persistent<v8::Function> ref;
