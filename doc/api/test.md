@@ -1932,7 +1932,7 @@ added:
   - v18.13.0
 -->
 
-* Returns: {integer} The number of times that this mock has been invoked.
+* Returns: {number} The number of times that this mock has been invoked.
 
 This function returns the number of times that this mock has been invoked. This
 function is more efficient than checking `ctx.calls.length` because `ctx.calls`
@@ -1987,7 +1987,7 @@ added:
 
 * `implementation` {Function|AsyncFunction} The function to be used as the
   mock's implementation for the invocation number specified by `onCall`.
-* `onCall` {integer} The invocation number that will use `implementation`. If
+* `onCall` {number} The invocation number that will use `implementation`. If
   the specified invocation has already occurred then an exception is thrown.
   **Default:** The number of the next invocation.
 
@@ -2090,7 +2090,7 @@ the mocked property. Each entry in the array is an object with the following pro
 
 ### `ctx.accessCount()`
 
-* Returns: {integer} The number of times that the property was accessed (read or written).
+* Returns: {number} The number of times that the property was accessed (read or written).
 
 This function returns the number of times that the property was accessed.
 This function is more efficient than checking `ctx.accesses.length` because
@@ -2106,7 +2106,7 @@ This function is used to change the value returned by the mocked property getter
 
 * `value` {any} The value to be used as the mock's
   implementation for the invocation number specified by `onAccess`.
-* `onAccess` {integer} The invocation number that will use `value`. If
+* `onAccess` {number} The invocation number that will use `value`. If
   the specified invocation has already occurred then an exception is thrown.
   **Default:** The number of the next invocation.
 
@@ -2177,7 +2177,7 @@ added:
   behavior of `original`. **Default:** The function specified by `original`.
 * `options` {Object} Optional configuration options for the mock function. The
   following properties are supported:
-  * `times` {integer} The number of times that the mock will use the behavior of
+  * `times` {number} The number of times that the mock will use the behavior of
     `implementation`. Once the mock function has been called `times` times, it
     will automatically restore the behavior of `original`. This value must be an
     integer greater than zero. **Default:** `Infinity`.
@@ -2245,7 +2245,7 @@ added:
     This option cannot be used with the `setter` option. **Default:** false.
   * `setter` {boolean} If `true`, `object[methodName]` is treated as a setter.
     This option cannot be used with the `getter` option. **Default:** false.
-  * `times` {integer} The number of times that the mock will use the behavior of
+  * `times` {number} The number of times that the mock will use the behavior of
     `implementation`. Once the mocked method has been called `times` times, it
     will automatically restore the original behavior. This value must be an
     integer greater than zero. **Default:** `Infinity`.

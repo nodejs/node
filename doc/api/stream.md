@@ -909,7 +909,7 @@ added:
  - v12.16.0
 -->
 
-* Type: {integer}
+* Type: {number}
 
 Number of times [`writable.uncork()`][stream-uncork] needs to be
 called in order to fully uncork the stream.
@@ -3536,7 +3536,7 @@ added:
 -->
 
 * `objectMode` {boolean}
-* Returns: {integer}
+* Returns: {number}
 
 Returns the default highWaterMark used by streams.
 Defaults to `65536` (64 KiB), or `16` for `objectMode`.
@@ -3550,7 +3550,7 @@ added:
 -->
 
 * `objectMode` {boolean}
-* `value` {integer} highWaterMark value
+* `value` {number} highWaterMark value
 
 Sets the default highWaterMark used by streams.
 

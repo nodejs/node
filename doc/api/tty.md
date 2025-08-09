@@ -267,7 +267,7 @@ added:
  - v10.16.0
 -->
 
-* `count` {integer} The number of colors that are requested (minimum 2).
+* `count` {number} The number of colors that are requested (minimum 2).
   **Default:** 16.
 * `env` {Object} An object containing the environment variables to check. This
   enables simulating the usage of a specific terminal. **Default:**

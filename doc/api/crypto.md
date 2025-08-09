@@ -2321,8 +2321,8 @@ changes:
 
 * `privateKey` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
   * `dsaEncoding` {string}
-  * `padding` {integer}
-  * `saltLength` {integer}
+  * `padding` {number}
+  * `saltLength` {number}
 * `outputEncoding` {string} The [encoding][] of the return value.
 * Returns: {Buffer | string}
 
@@ -2339,7 +2339,7 @@ object, the following additional properties can be passed:
   format of the generated signature. It can be one of the following:
   * `'der'` (default): DER-encoded ASN.1 signature structure encoding `(r, s)`.
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
-* `padding` {integer} Optional padding value for RSA, one of the following:
+* `padding` {number} Optional padding value for RSA, one of the following:
 
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
@@ -2348,7 +2348,7 @@ object, the following additional properties can be passed:
   used to sign the message as specified in section 3.1 of [RFC 4055][], unless
   an MGF1 hash function has been specified as part of the key in compliance with
   section 3.3 of [RFC 4055][].
-* `saltLength` {integer} Salt length for when padding is
+* `saltLength` {number} Salt length for when padding is
   `RSA_PKCS1_PSS_PADDING`. The special value
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
@@ -2451,8 +2451,8 @@ changes:
 
 * `object` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject|CryptoKey}
   * `dsaEncoding` {string}
-  * `padding` {integer}
-  * `saltLength` {integer}
+  * `padding` {number}
+  * `saltLength` {number}
 * `signature` {string|ArrayBuffer|Buffer|TypedArray|DataView}
 * `signatureEncoding` {string} The [encoding][] of the `signature` string.
 * Returns: {boolean} `true` or `false` depending on the validity of the
@@ -2470,7 +2470,7 @@ object, the following additional properties can be passed:
   format of the signature. It can be one of the following:
   * `'der'` (default): DER-encoded ASN.1 signature structure encoding `(r, s)`.
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
-* `padding` {integer} Optional padding value for RSA, one of the following:
+* `padding` {number} Optional padding value for RSA, one of the following:
 
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
@@ -2479,7 +2479,7 @@ object, the following additional properties can be passed:
   used to verify the message as specified in section 3.1 of [RFC 4055][], unless
   an MGF1 hash function has been specified as part of the key in compliance with
   section 3.3 of [RFC 4055][].
-* `saltLength` {integer} Salt length for when padding is
+* `saltLength` {number} Salt length for when padding is
   `RSA_PKCS1_PSS_PADDING`. The special value
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_AUTO` (default) causes it to be
@@ -5109,8 +5109,8 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `min` {integer} Start of random range (inclusive). **Default:** `0`.
-* `max` {integer} End of random range (exclusive).
+* `min` {number} Start of random range (inclusive). **Default:** `0`.
+* `max` {number} End of random range (exclusive).
 * `callback` {Function} `function(err, n) {}`.
 
 Return a random integer `n` such that `min <= n < max`.  This
@@ -5484,14 +5484,14 @@ additional properties can be passed:
   format of the generated signature. It can be one of the following:
   * `'der'` (default): DER-encoded ASN.1 signature structure encoding `(r, s)`.
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
-* `padding` {integer} Optional padding value for RSA, one of the following:
+* `padding` {number} Optional padding value for RSA, one of the following:
 
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
   `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to sign the message as specified in section 3.1 of [RFC 4055][].
-* `saltLength` {integer} Salt length for when padding is
+* `saltLength` {number} Salt length for when padding is
   `RSA_PKCS1_PSS_PADDING`. The special value
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
@@ -5606,14 +5606,14 @@ additional properties can be passed:
   format of the signature. It can be one of the following:
   * `'der'` (default): DER-encoded ASN.1 signature structure encoding `(r, s)`.
   * `'ieee-p1363'`: Signature format `r || s` as proposed in IEEE-P1363.
-* `padding` {integer} Optional padding value for RSA, one of the following:
+* `padding` {number} Optional padding value for RSA, one of the following:
 
   * `crypto.constants.RSA_PKCS1_PADDING` (default)
   * `crypto.constants.RSA_PKCS1_PSS_PADDING`
 
   `RSA_PKCS1_PSS_PADDING` will use MGF1 with the same hash function
   used to sign the message as specified in section 3.1 of [RFC 4055][].
-* `saltLength` {integer} Salt length for when padding is
+* `saltLength` {number} Salt length for when padding is
   `RSA_PKCS1_PSS_PADDING`. The special value
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the

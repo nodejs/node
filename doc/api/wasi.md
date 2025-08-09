@@ -173,11 +173,11 @@ changes:
     specified rather than terminating the process. Setting this option to
     `false` will cause the Node.js process to exit with the specified
     exit code instead.  **Default:** `true`.
-  * `stdin` {integer} The file descriptor used as standard input in the
+  * `stdin` {number} The file descriptor used as standard input in the
     WebAssembly application. **Default:** `0`.
-  * `stdout` {integer} The file descriptor used as standard output in the
+  * `stdout` {number} The file descriptor used as standard output in the
     WebAssembly application. **Default:** `1`.
-  * `stderr` {integer} The file descriptor used as standard error in the
+  * `stderr` {number} The file descriptor used as standard error in the
     WebAssembly application. **Default:** `2`.
   * `version` {string} The version of WASI requested. Currently the only
     supported versions are `unstable` and `preview1`. This option is

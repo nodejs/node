@@ -592,7 +592,7 @@ added: v17.0.0
 added: v17.0.0
 -->
 
-* `dir` {integer}
+* `dir` {number}
   * `-1`: to the left from cursor
   * `1`: to the right from cursor
   * `0`: the entire line
@@ -635,8 +635,8 @@ The `rl.commit()` method sends all the pending actions to the associated
 added: v17.0.0
 -->
 
-* `x` {integer}
-* `y` {integer}
+* `x` {number}
+* `y` {number}
 * Returns: this
 
 The `rl.cursorTo()` method adds to the internal list of pending action an action
@@ -650,8 +650,8 @@ was passed to the constructor.
 added: v17.0.0
 -->
 
-* `dx` {integer}
-* `dy` {integer}
+* `dx` {number}
+* `dy` {number}
 * Returns: this
 
 The `rl.moveCursor()` method adds to the internal list of pending action an
@@ -710,7 +710,7 @@ added: v17.0.0
     can both form a complete key sequence using the input read so far and can
     take additional input to complete a longer key sequence).
     **Default:** `500`.
-  * `tabSize` {integer} The number of spaces a tab is equal to (minimum 1).
+  * `tabSize` {number} The number of spaces a tab is equal to (minimum 1).
     **Default:** `8`.
   * `signal` {AbortSignal} Allows closing the interface using an AbortSignal.
 * Returns: {readlinePromises.Interface}
@@ -975,7 +975,7 @@ changes:
     can both form a complete key sequence using the input read so far and can
     take additional input to complete a longer key sequence).
     **Default:** `500`.
-  * `tabSize` {integer} The number of spaces a tab is equal to (minimum 1).
+  * `tabSize` {number} The number of spaces a tab is equal to (minimum 1).
     **Default:** `8`.
   * `signal` {AbortSignal} Allows closing the interface using an AbortSignal.
     Aborting the signal will internally call `close` on the interface.

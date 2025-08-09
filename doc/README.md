@@ -126,7 +126,7 @@ professionalism across all documents.
 * Clearly describe parameters and return values, including types and defaults.
   * Example:
     ```markdown
-    * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.
+    * `byteOffset` {number} Index of first byte to expose. **Default:** `0`.
     ```
 
 ***
@@ -187,7 +187,7 @@ professionalism across all documents.
   ```
   Example:
   ```markdown
-  * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.
+  * `byteOffset` {number} Index of first byte to expose. **Default:** `0`.
   ```
 * **Returns:**
   ```markdown

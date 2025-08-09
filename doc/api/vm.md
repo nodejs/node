@@ -183,7 +183,7 @@ changes:
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
-  * `timeout` {integer} Specifies the number of milliseconds to execute `code`
+  * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
   * `breakOnSigint` {boolean} If `true`, receiving `SIGINT`
@@ -252,7 +252,7 @@ changes:
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
-  * `timeout` {integer} Specifies the number of milliseconds to execute `code`
+  * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
   * `breakOnSigint` {boolean} If `true`, receiving `SIGINT`
@@ -330,7 +330,7 @@ changes:
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
-  * `timeout` {integer} Specifies the number of milliseconds to execute `code`
+  * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
   * `breakOnSigint` {boolean} If `true`, receiving `SIGINT`
@@ -592,7 +592,7 @@ in the ECMAScript specification.
 ### `module.evaluate([options])`
 
 * `options` {Object}
-  * `timeout` {integer} Specifies the number of milliseconds to evaluate
+  * `timeout` {number} Specifies the number of milliseconds to evaluate
     before terminating execution. If execution is interrupted, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
   * `breakOnSigint` {boolean} If `true`, receiving `SIGINT`
@@ -768,9 +768,9 @@ changes:
     `vm.createContext()` method, to compile and evaluate this `Module` in.
     If no context is specified, the module is evaluated in the current
     execution context.
-  * `lineOffset` {integer} Specifies the line number offset that is displayed
+  * `lineOffset` {number} Specifies the line number offset that is displayed
     in stack traces produced by this `Module`. **Default:** `0`.
-  * `columnOffset` {integer} Specifies the first-line column number offset that
+  * `columnOffset` {number} Specifies the first-line column number offset that
     is displayed in stack traces produced by this `Module`. **Default:** `0`.
   * `initializeImportMeta` {Function} Called during evaluation of this `Module`
     to initialize the `import.meta`.
@@ -1398,7 +1398,7 @@ changes:
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
-  * `timeout` {integer} Specifies the number of milliseconds to execute `code`
+  * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
   * `breakOnSigint` {boolean} If `true`, receiving `SIGINT`
@@ -1487,7 +1487,7 @@ changes:
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
-  * `timeout` {integer} Specifies the number of milliseconds to execute `code`
+  * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
   * `breakOnSigint` {boolean} If `true`, receiving `SIGINT`
@@ -1595,7 +1595,7 @@ changes:
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
     to the stack trace. **Default:** `true`.
-  * `timeout` {integer} Specifies the number of milliseconds to execute `code`
+  * `timeout` {number} Specifies the number of milliseconds to execute `code`
     before terminating execution. If execution is terminated, an [`Error`][]
     will be thrown. This value must be a strictly positive integer.
   * `breakOnSigint` {boolean} If `true`, receiving `SIGINT`

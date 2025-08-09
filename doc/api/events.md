@@ -642,7 +642,7 @@ console.log(myEE.eventNames());
 added: v1.0.0
 -->
 
-* Returns: {integer}
+* Returns: {number}
 
 Returns the current max listener value for the `EventEmitter` which is either
 set by [`emitter.setMaxListeners(n)`][] or defaults to
@@ -662,7 +662,7 @@ changes:
 
 * `eventName` {string|symbol} The name of the event being listened for
 * `listener` {Function} The event handler function
-* Returns: {integer}
+* Returns: {number}
 
 Returns the number of listeners listening for the event named `eventName`.
 If `listener` is provided, it will return how many times the listener is found
@@ -1012,7 +1012,7 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 added: v0.3.5
 -->
 
-* `n` {integer}
+* `n` {number}
 * Returns: {EventEmitter}
 
 By default `EventEmitter`s will print a warning if more than `10` listeners are
@@ -1682,11 +1682,11 @@ changes:
 * `options` {Object}
   * `signal` {AbortSignal} Can be used to cancel awaiting events.
   * `close` {string\[]} Names of events that will end the iteration.
-  * `highWaterMark` {integer} **Default:** `Number.MAX_SAFE_INTEGER`
+  * `highWaterMark` {number} **Default:** `Number.MAX_SAFE_INTEGER`
     The high watermark. The emitter is paused every time the size of events
     being buffered is higher than it. Supported only on emitters implementing
     `pause()` and `resume()` methods.
-  * `lowWaterMark` {integer} **Default:** `1`
+  * `lowWaterMark` {number} **Default:** `1`
     The low watermark. The emitter is resumed every time the size of events
     being buffered is lower than it. Supported only on emitters implementing
     `pause()` and `resume()` methods.

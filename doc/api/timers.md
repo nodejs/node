@@ -162,7 +162,7 @@ added:
   - v12.19.0
 -->
 
-* Returns: {integer} a number that can be used to reference this `timeout`
+* Returns: {number} a number that can be used to reference this `timeout`
 
 Coerce a `Timeout` to a primitive. The primitive can be used to
 clear the `Timeout`. The primitive can only be used in the

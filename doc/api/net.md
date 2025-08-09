@@ -669,7 +669,7 @@ changes:
                  connections. Previously, it was interpreted as `Infinity`.
 -->
 
-* Type: {integer}
+* Type: {number}
 
 When the number of connections reaches the `server.maxConnections` threshold:
 
@@ -986,7 +986,7 @@ deprecated:
 
 > Stability: 0 - Deprecated: Use [`writable.writableLength`][] instead.
 
-* Type: {integer}
+* Type: {number}
 
 This property shows the number of characters buffered for writing. The buffer
 may contain strings whose length after encoding is not yet known. So this number
@@ -1009,7 +1009,7 @@ Users who experience large or growing `bufferSize` should attempt to
 added: v0.5.3
 -->
 
-* Type: {integer}
+* Type: {number}
 
 The amount of received bytes.
 
@@ -1019,7 +1019,7 @@ The amount of received bytes.
 added: v0.5.3
 -->
 
-* Type: {integer}
+* Type: {number}
 
 The amount of bytes sent.
 
@@ -1254,7 +1254,7 @@ connects on `'192.168.1.1'`, the value of `socket.localAddress` would be
 added: v0.9.6
 -->
 
-* Type: {integer}
+* Type: {number}
 
 The numeric representation of the local port. For example, `80` or `21`.
 
@@ -1332,7 +1332,7 @@ the socket is destroyed (for example, if the client disconnected).
 added: v0.5.10
 -->
 
-* Type: {integer}
+* Type: {number}
 
 The numeric representation of the remote port. For example, `80` or `21`. Value may be `undefined` if
 the socket is destroyed (for example, if the client disconnected).
@@ -1927,7 +1927,7 @@ added: v0.3.0
 -->
 
 * `input` {string}
-* Returns: {integer}
+* Returns: {number}
 
 Returns `6` if `input` is an IPv6 address. Returns `4` if `input` is an IPv4
 address in [dot-decimal notation][] with no leading zeroes. Otherwise, returns

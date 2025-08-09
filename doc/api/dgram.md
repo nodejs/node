@@ -238,7 +238,7 @@ changes:
                  function to the method call.
 -->
 
-* `port` {integer}
+* `port` {number}
 * `address` {string}
 * `callback` {Function} with no parameters. Called when binding is complete.
 
@@ -314,10 +314,10 @@ added: v0.11.14
 -->
 
 * `options` {Object} Required. Supports the following properties:
-  * `port` {integer}
+  * `port` {number}
   * `address` {string}
   * `exclusive` {boolean}
-  * `fd` {integer}
+  * `fd` {number}
 * `callback` {Function}
 
 For UDP sockets, causes the `dgram.Socket` to listen for datagram
@@ -395,7 +395,7 @@ socket has closed.
 added: v12.0.0
 -->
 
-* `port` {integer}
+* `port` {number}
 * `address` {string}
 * `callback` {Function} Called when the connection is completed or on error.
 
@@ -564,9 +564,9 @@ changes:
 -->
 
 * `msg` {Buffer|TypedArray|DataView|string|Array} Message to be sent.
-* `offset` {integer} Offset in the buffer where the message starts.
-* `length` {integer} Number of bytes in the message.
-* `port` {integer} Destination port.
+* `offset` {number} Offset in the buffer where the message starts.
+* `length` {number} Number of bytes in the message.
+* `port` {number} Destination port.
 * `address` {string} Destination host name or IP address.
 * `callback` {Function} Called when the message has been sent.
 
@@ -837,7 +837,7 @@ This method throws `EBADF` if called on an unbound socket.
 added: v0.3.8
 -->
 
-* `ttl` {integer}
+* `ttl` {number}
 
 Sets the `IP_MULTICAST_TTL` socket option. While TTL generally stands for
 "Time to Live", in this context it specifies the number of IP hops that a
@@ -855,7 +855,7 @@ This method throws `EBADF` if called on an unbound socket.
 added: v8.7.0
 -->
 
-* `size` {integer}
+* `size` {number}
 
 Sets the `SO_RCVBUF` socket option. Sets the maximum socket receive buffer
 in bytes.
@@ -868,7 +868,7 @@ This method throws [`ERR_SOCKET_BUFFER_SIZE`][] if called on an unbound socket.
 added: v8.7.0
 -->
 
-* `size` {integer}
+* `size` {number}
 
 Sets the `SO_SNDBUF` socket option. Sets the maximum socket send buffer
 in bytes.
@@ -881,7 +881,7 @@ This method throws [`ERR_SOCKET_BUFFER_SIZE`][] if called on an unbound socket.
 added: v0.1.101
 -->
 
-* `ttl` {integer}
+* `ttl` {number}
 
 Sets the `IP_TTL` socket option. While TTL generally stands for "Time to Live",
 in this context it specifies the number of IP hops that a packet is allowed to

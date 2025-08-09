@@ -274,9 +274,9 @@ an `Http2Session`.
 added: v8.4.0
 -->
 
-* `type` {integer} The frame type.
-* `code` {integer} The error code.
-* `id` {integer} The stream id (or `0` if the frame isn't associated with a
+* `type` {number} The frame type.
+* `code` {number} The error code.
+* `id` {number} The stream id (or `0` if the frame isn't associated with a
   stream).
 
 The `'frameError'` event is emitted when an error occurs while attempting to
@@ -786,7 +786,7 @@ changes:
   right away if the session is already connected.
   * `err` {Error|null}
   * `settings` {HTTP/2 Settings Object} The updated `settings` object.
-  * `duration` {integer}
+  * `duration` {number}
 
 Updates the current local settings for this `Http2Session` and sends a new
 `SETTINGS` frame to the connected HTTP/2 peer.
@@ -1296,9 +1296,9 @@ an `Http2Stream`.
 added: v8.4.0
 -->
 
-* `type` {integer} The frame type.
-* `code` {integer} The error code.
-* `id` {integer} The stream id (or `0` if the frame isn't associated with a
+* `type` {number} The frame type.
+* `code` {number} The error code.
+* `id` {number} The stream id (or `0` if the frame isn't associated with a
   stream).
 
 The `'frameError'` event is emitted when an error occurs while attempting to
@@ -2879,10 +2879,10 @@ changes:
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
-  * `maxSessionInvalidFrames` {integer} Sets the maximum number of invalid
+  * `maxSessionInvalidFrames` {number} Sets the maximum number of invalid
     frames that will be tolerated before the session is closed.
     **Default:** `1000`.
-  * `maxSessionRejectedStreams` {integer} Sets the maximum number of rejected
+  * `maxSessionRejectedStreams` {number} Sets the maximum number of rejected
     upon creation streams that will be tolerated before the session is closed.
     Each rejection is associated with an `NGHTTP2_ENHANCE_YOUR_CALM`
     error that should tell the peer to not open any more streams, continuing
@@ -3065,10 +3065,10 @@ changes:
     streams for the remote peer as if a `SETTINGS` frame had been received. Will
     be overridden if the remote peer sets its own value for
     `maxConcurrentStreams`. **Default:** `100`.
-  * `maxSessionInvalidFrames` {integer} Sets the maximum number of invalid
+  * `maxSessionInvalidFrames` {number} Sets the maximum number of invalid
     frames that will be tolerated before the session is closed.
     **Default:** `1000`.
-  * `maxSessionRejectedStreams` {integer} Sets the maximum number of rejected
+  * `maxSessionRejectedStreams` {number} Sets the maximum number of rejected
     upon creation streams that will be tolerated before the session is closed.
     Each rejection is associated with an `NGHTTP2_ENHANCE_YOUR_CALM`
     error that should tell the peer to not open any more streams, continuing
