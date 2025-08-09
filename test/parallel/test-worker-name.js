@@ -17,7 +17,7 @@ if (!isMainThread) {
 const assert = require('assert');
 
 if (isMainThread) {
-  const name = 'Hello Thread';
+  const name = 'Hello\0Thread';
   const expectedTitle = `[worker 1] ${name}`;
   const worker = new Worker(fixtures.path('worker-name.js'), {
     name,
