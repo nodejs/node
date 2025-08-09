@@ -108,6 +108,7 @@ function doTest() {
       '-connect', `localhost:${common.PORT}`,
       '-sess_in', sessionFileName,
       '-sess_out', sessionFileName,
+      '-reconnect',
     ];
     const client = spawn(opensslCli, flags, {
       stdio: ['ignore', 'pipe', 'ignore']
@@ -119,6 +120,11 @@ function doTest() {
     });
     client.on('exit', (code) => {
       let connectionType;
+      console.log(' ----- [COMMAND] ---');
+      console.log(`${opensslCli}, ${flags.join(' ')}`);
+      console.log(' ----- [STDOUT] ---');
+      console.log(clientOutput);
+
       const grepConnectionType = (line) => {
         const matches = line.match(/(New|Reused), /);
         if (matches) {
