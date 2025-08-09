@@ -9,6 +9,19 @@ if (!common.isWindows) {
 }
 
 const normalizeDeviceNameTests = [
+  // UNC paths: \\server\share\... is a Windows UNC path, where 'server' is the network server name and 'share'
+  // is the shared folder. These are used for network file access and are subject to reserved device name
+  // checks after the share.
+  { input: '\\\\server\\share\\COM1:', expected: '\\\\server\\share\\COM1:' },
+  { input: '\\\\server\\share\\PRN:', expected: '\\\\server\\share\\PRN:' },
+  { input: '\\\\server\\share\\AUX:', expected: '\\\\server\\share\\AUX:' },
+  { input: '\\\\server\\share\\LPT1:', expected: '\\\\server\\share\\LPT1:' },
+  { input: '\\\\server\\share\\COM1:\\foo\\bar', expected: '\\\\server\\share\\COM1:\\foo\\bar' },
+  { input: '\\\\server\\share\\path\\COM1:', expected: '\\\\server\\share\\path\\COM1:' },
+  { input: '\\\\server\\share\\COM1:..\\..\\..\\..\\Windows', expected: '\\\\server\\share\\Windows' },
+  { input: '\\\\server\\share\\path\\to\\LPT9:..\\..\\..\\..\\..\\..\\..\\..\\..\\file.txt',
+    expected: '\\\\server\\share\\file.txt' },
+
   { input: 'CON', expected: 'CON' },
   { input: 'con', expected: 'con' },
   { input: 'CON:', expected: '.\\CON:.' },
@@ -81,6 +94,8 @@ const normalizeDeviceNameTests = [
   // Test cases from original vulnerability reports or similar scenarios
   { input: 'COM1:.\\..\\..\\foo.js', expected: '.\\COM1:..\\..\\foo.js' },
   { input: 'LPT1:.\\..\\..\\another.txt', expected: '.\\LPT1:..\\..\\another.txt' },
+  // UNC paths
+  { input: '\\\\?\\COM1:.\\..\\..\\foo2.js', expected: '\\\\?\\COM1:\\foo2.js' },
 
   // Paths with device names not at the beginning
   { input: 'C:\\CON', expected: 'C:\\CON' },
