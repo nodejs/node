@@ -121,6 +121,32 @@ must use Node-API exclusively by restricting itself to using
 and by checking, for all external libraries that it uses, that the external
 library makes ABI stability guarantees similar to Node-API.
 
+### Enum values in ABI stability
+
+All enum data types defined in Node-API should be considered as a fixed size
+`int32_t` value. Bit flag enum types should be explicitly documented, and they
+work with bit operators like bit-OR (`|`) as a bit value. Unless otherwise
+documented, an enum type should be considered to be extensible.
+
+A new enum value will be added at the end of the enum definition. An enum value
+will not be removed or renamed.
+
+For an enum type returned from a Node-API function, or provided as an out
+parameter of a Node-API function, the value is an integer value and an addon
+should handle unknown values. New values are allowed to be introduced without
+a version guard. For example, when checking `napi_status` in switch statements,
+an addon should include a default branch, as new status codes may be introduced
+in newer Node.js versions.
+
+For an enum type used in an in-parameter, the result of passing an unknown
+integer value to Node-API functions is undefined unless otherwise documented.
+A new value is added with a version guard to indicate the Node-API version in
+which it was introduced. For example, `napi_get_all_property_names` can be
+extended with new enum value of `napi_key_filter`.
+
+For an enum type used in both in-parameters and out-parameters, new values are
+allowed to be introduced without a version guard.
+
 ## Building
 
 Unlike modules written in JavaScript, developing and deploying Node.js
@@ -2203,7 +2229,7 @@ typedef enum {
 } napi_key_filter;
 ```
 
-Property filter bits. They can be or'ed to build a composite filter.
+Property filter bit flag. This works with bit operators to build a composite filter.
 
 #### `napi_key_conversion`
 
@@ -4417,11 +4443,11 @@ typedef enum {
 } napi_property_attributes;
 ```
 
-`napi_property_attributes` are flags used to control the behavior of properties
-set on a JavaScript object. Other than `napi_static` they correspond to the
-attributes listed in [Section property attributes][]
+`napi_property_attributes` are bit flags used to control the behavior of
+properties set on a JavaScript object. Other than `napi_static` they
+correspond to the attributes listed in [Section property attributes][]
 of the [ECMAScript Language Specification][].
-They can be one or more of the following bitflags:
+They can be one or more of the following bit flags:
 
 * `napi_default`: No explicit attributes are set on the property. By default, a
   property is read only, not enumerable and not configurable.
