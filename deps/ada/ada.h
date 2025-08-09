@@ -1,4 +1,4 @@
-/* auto-generated on 2025-07-16 22:15:14 -0400. Do not edit! */
+/* auto-generated on 2025-07-27 12:29:50 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -947,7 +947,7 @@ constexpr uint8_t WWW_FORM_URLENCODED_PERCENT_ENCODE[32] = {
     // 50     51     52     53     54     55     56     57
     0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
     // 58     59     5A     5B     5C     5D     5E     5F
-    0x00 | 0x00 | 0x00 | 0x08 | 0x00 | 0x20 | 0x40 | 0x00,
+    0x00 | 0x00 | 0x00 | 0x08 | 0x10 | 0x20 | 0x40 | 0x00,
     // 60     61     62     63     64     65     66     67
     0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
     // 68     69     6A     6B     6C     6D     6E     6F
@@ -6641,6 +6641,7 @@ inline std::ostream &operator<<(std::ostream &out, const ada::url &u) {
   out.protocol_end = uint32_t(get_protocol().size());
 
   // Trailing index is always the next character of the current one.
+  // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
   size_t running_index = out.protocol_end;
 
   if (host.has_value()) {
@@ -10514,14 +10515,14 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "3.2.6"
+#define ADA_VERSION "3.2.7"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 3,
   ADA_VERSION_MINOR = 2,
-  ADA_VERSION_REVISION = 6,
+  ADA_VERSION_REVISION = 7,
 };
 
 }  // namespace ada
