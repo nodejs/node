@@ -59,23 +59,6 @@ const vectors = {
       'unwrapKey',
     ],
   },
-  'ChaCha20-Poly1305': {
-    result: 'CryptoKey',
-    usages: [
-      'encrypt',
-      'decrypt',
-      'wrapKey',
-      'unwrapKey',
-    ],
-  },
-  'AES-KW': {
-    algorithm: { length: 256 },
-    result: 'CryptoKey',
-    usages: [
-      'wrapKey',
-      'unwrapKey',
-    ],
-  },
   'HMAC': {
     algorithm: { length: 256, hash: 'SHA-256' },
     result: 'CryptoKey',
@@ -145,13 +128,6 @@ const vectors = {
       'verify',
     ],
   },
-  'Ed448': {
-    result: 'CryptoKeyPair',
-    usages: [
-      'sign',
-      'verify',
-    ],
-  },
   'X25519': {
     result: 'CryptoKeyPair',
     usages: [
@@ -159,14 +135,43 @@ const vectors = {
       'deriveBits',
     ],
   },
-  'X448': {
+};
+
+if (!process.features.openssl_is_boringssl) {
+  vectors.Ed448 = {
+    result: 'CryptoKeyPair',
+    usages: [
+      'sign',
+      'verify',
+    ],
+  };
+  vectors.X448 = {
     result: 'CryptoKeyPair',
     usages: [
       'deriveKey',
       'deriveBits',
     ],
-  },
-};
+  };
+  vectors['AES-KW'] = {
+    algorithm: { length: 256 },
+    result: 'CryptoKey',
+    usages: [
+      'wrapKey',
+      'unwrapKey',
+    ],
+  };
+  vectors['ChaCha20-Poly1305'] = {
+    result: 'CryptoKey',
+    usages: [
+      'encrypt',
+      'decrypt',
+      'wrapKey',
+      'unwrapKey',
+    ],
+  };
+} else {
+  common.printSkipMessage('Skipping unsupported test cases');
+}
 
 if (hasOpenSSL(3, 5)) {
   for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
@@ -422,15 +427,23 @@ if (hasOpenSSL(3, 5)) {
       ['sign'],
       ['verify'],
     ],
-    [
-      'RSA-OAEP',
-      1024,
-      Buffer.from([3]),
-      'SHA3-256',
-      ['decrypt', 'unwrapKey'],
-      ['encrypt', 'wrapKey'],
-    ],
   ];
+
+
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+      [
+        'RSA-OAEP',
+        1024,
+        Buffer.from([3]),
+        'SHA3-256',
+        ['decrypt', 'unwrapKey'],
+        ['encrypt', 'wrapKey'],
+      ],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported SHA-3 test case');
+  }
 
   const tests = kTests.map((args) => test(...args));
 
@@ -564,9 +577,16 @@ if (hasOpenSSL(3, 5)) {
     [ 'AES-CBC', 256, ['encrypt', 'decrypt']],
     [ 'AES-GCM', 128, ['encrypt', 'decrypt']],
     [ 'AES-GCM', 256, ['encrypt', 'decrypt']],
-    [ 'AES-KW', 128, ['wrapKey', 'unwrapKey']],
-    [ 'AES-KW', 256, ['wrapKey', 'unwrapKey']],
   ];
+
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+      [ 'AES-KW', 128, ['wrapKey', 'unwrapKey']],
+      [ 'AES-KW', 256, ['wrapKey', 'unwrapKey']],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported AES-KW test cases');
+  }
 
   const tests = Promise.all(kTests.map((args) => test(...args)));
 
@@ -620,12 +640,20 @@ if (hasOpenSSL(3, 5)) {
     [ undefined, 'SHA-256', ['sign', 'verify']],
     [ undefined, 'SHA-384', ['sign', 'verify']],
     [ undefined, 'SHA-512', ['sign', 'verify']],
-    [ undefined, 'SHA3-256', ['sign', 'verify']],
-    [ undefined, 'SHA3-384', ['sign', 'verify']],
-    [ undefined, 'SHA3-512', ['sign', 'verify']],
     [ 128, 'SHA-256', ['sign', 'verify']],
     [ 1024, 'SHA-512', ['sign', 'verify']],
   ];
+
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+
+      [ undefined, 'SHA3-256', ['sign', 'verify']],
+      [ undefined, 'SHA3-384', ['sign', 'verify']],
+      [ undefined, 'SHA3-512', ['sign', 'verify']],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+  }
 
   const tests = Promise.all(kTests.map((args) => test(...args)));
 
@@ -685,21 +713,28 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
       ['verify'],
     ],
     [
-      'Ed448',
-      ['sign'],
-      ['verify'],
-    ],
-    [
       'X25519',
       ['deriveKey', 'deriveBits'],
       [],
     ],
-    [
-      'X448',
-      ['deriveKey', 'deriveBits'],
-      [],
-    ],
   ];
+
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+      [
+        'Ed448',
+        ['sign'],
+        ['verify'],
+      ],
+      [
+        'X448',
+        ['deriveKey', 'deriveBits'],
+        [],
+      ],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported Curve448 test cases');
+  }
 
   const tests = kTests.map((args) => test(...args));
 

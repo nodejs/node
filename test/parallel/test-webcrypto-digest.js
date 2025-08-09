@@ -8,19 +8,26 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const { Buffer } = require('buffer');
 const { subtle } = globalThis.crypto;
-const { createHash } = require('crypto');
+const { createHash, getHashes } = require('crypto');
 
 const kTests = [
   ['SHA-1', ['sha1'], 160],
   ['SHA-256', ['sha256'], 256],
   ['SHA-384', ['sha384'], 384],
   ['SHA-512', ['sha512'], 512],
-  ['SHA3-256', ['sha3-256'], 256],
-  ['SHA3-384', ['sha3-384'], 384],
-  ['SHA3-512', ['sha3-512'], 512],
-  [{ name: 'cSHAKE128', length: 256 }, ['shake128', { outputLength: 256 >> 3 }], 256],
-  [{ name: 'cSHAKE256', length: 512 }, ['shake256', { outputLength: 512 >> 3 }], 512],
 ];
+
+if (!process.features.openssl_is_boringssl) {
+  kTests.push(
+    [{ name: 'cSHAKE128', length: 256 }, ['shake128', { outputLength: 256 >> 3 }], 256],
+    [{ name: 'cSHAKE256', length: 512 }, ['shake256', { outputLength: 512 >> 3 }], 512],
+    ['SHA3-256', ['sha3-256'], 256],
+    ['SHA3-384', ['sha3-384'], 384],
+    ['SHA3-512', ['sha3-512'], 512],
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported test cases');
+}
 
 // Empty hash just works, not checking result
 subtle.digest('SHA-512', Buffer.alloc(0))
@@ -247,14 +254,16 @@ function applyXOF(name) {
 })().then(common.mustCall());
 
 // CShake edge cases
-(async () => {
-  assert.deepStrictEqual(
-    new Uint8Array(await subtle.digest({ name: 'cSHAKE128', length: 0 }, Buffer.alloc(1))),
-    new Uint8Array(0),
-  );
+if (getHashes().includes('shake128')) {
+  (async () => {
+    assert.deepStrictEqual(
+      new Uint8Array(await subtle.digest({ name: 'cSHAKE128', length: 0 }, Buffer.alloc(1))),
+      new Uint8Array(0),
+    );
 
-  await assert.rejects(subtle.digest({ name: 'cSHAKE128', length: 7 }, Buffer.alloc(1)), {
-    name: 'NotSupportedError',
-    message: 'Unsupported CShakeParams length',
-  });
-})().then(common.mustCall());
+    await assert.rejects(subtle.digest({ name: 'cSHAKE128', length: 7 }, Buffer.alloc(1)), {
+      name: 'NotSupportedError',
+      message: 'Unsupported CShakeParams length',
+    });
+  })().then(common.mustCall());
+}
