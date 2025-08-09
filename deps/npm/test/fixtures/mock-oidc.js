@@ -39,10 +39,11 @@ const mockOidc = async (t, {
   config = {},
   packageJson = {},
   load = {},
-  mockGithubOidcOptions = null,
-  mockOidcTokenExchangeOptions = null,
+  mockGithubOidcOptions = false,
+  mockOidcTokenExchangeOptions = false,
   publishOptions = {},
   provenance = false,
+  oidcVisibilityOptions = false,
 }) => {
   const github = oidcOptions.github ?? false
   const gitlab = oidcOptions.gitlab ?? false
@@ -113,9 +114,17 @@ const mockOidc = async (t, {
     })
   }
 
+  if (oidcVisibilityOptions) {
+    registry.getVisibility({ spec: packageName, visibility: oidcVisibilityOptions })
+  }
+
   registry.publish(packageName, publishOptions)
 
-  if ((github || gitlab) && provenance) {
+  /**
+   * this will nock / mock all the successful requirements for provenance and
+   * assumes when a test has "provenance true" that these calls are expected
+   */
+  if (provenance) {
     registry.getVisibility({ spec: packageName, visibility: { public: true } })
     mockProvenance(t, {
       oidcURL: ACTIONS_ID_TOKEN_REQUEST_URL,
