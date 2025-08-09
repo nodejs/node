@@ -552,21 +552,21 @@ test('correctly prints the coverage report of files contained in parent director
 });
 
 test('should respect /* node:coverage */ comments', skipIfNoInspector, () => {
-  let report = [
-  '# start of coverage report',
-  '# ---------------------------------------------------------------------------------',
-  '# file                             | line % | branch % | funcs % | uncovered lines',
-  '# ---------------------------------------------------------------------------------',
-  '# test                             |        |          |         | ',
-  '#  fixtures                        |        |          |         | ',
-  '#   test-runner                    |        |          |         | ',
-  '#    coverage                      |        |          |         | ',
-  '#     coverage-control-comments.js | 100.00 |   100.00 |  100.00 | ',
-  '# ---------------------------------------------------------------------------------',
-  '# all files                        | 100.00 |   100.00 |  100.00 | ',
-  '# ---------------------------------------------------------------------------------',
-  '# end of coverage report',
-].join('\n');
+  const report = [
+    '# start of coverage report',
+    '# ---------------------------------------------------------------------------------',
+    '# file                             | line % | branch % | funcs % | uncovered lines',
+    '# ---------------------------------------------------------------------------------',
+    '# test                             |        |          |         | ',
+    '#  fixtures                        |        |          |         | ',
+    '#   test-runner                    |        |          |         | ',
+    '#    coverage                      |        |          |         | ',
+    '#     coverage-control-comments.js | 100.00 |   100.00 |  100.00 | ',
+    '# ---------------------------------------------------------------------------------',
+    '# all files                        | 100.00 |   100.00 |  100.00 | ',
+    '# ---------------------------------------------------------------------------------',
+    '# end of coverage report',
+  ].join('\n');
 
   if (common.isWindows) {
     return report.replaceAll('/', '\\');
