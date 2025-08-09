@@ -41,9 +41,13 @@ const net = require('net');
   receiveSocket.bind(0, common.localhostIPv4, common.mustCall(() => {
     const addressInfo = receiveSocket.address();
     const client = dgram.createSocket('udp4');
-    client.send('hello', addressInfo.port, addressInfo.address, common.mustCall((err) => {
-      assert.ok(!err);
-      client.close();
-    }));
+    client.send(
+      'hello',
+      addressInfo.port,
+      addressInfo.address,
+      common.mustSucceed(() => {
+        client.close();
+      })
+    );
   }));
 }
