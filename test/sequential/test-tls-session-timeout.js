@@ -108,7 +108,6 @@ function doTest() {
       '-connect', `localhost:${common.PORT}`,
       '-sess_in', sessionFileName,
       '-sess_out', sessionFileName,
-      '-reconnect',
     ];
     const client = spawn(opensslCli, flags, {
       stdio: ['ignore', 'pipe', 'ignore']
@@ -124,6 +123,13 @@ function doTest() {
       console.log(`${opensslCli}, ${flags.join(' ')}`);
       console.log(' ----- [STDOUT] ---');
       console.log(clientOutput);
+      console.log(' ----- [SESSION FILE] ---');
+      if (fs.existsSync(sessionFileName)) {
+        const sessionData = fs.readFileSync(sessionFileName);
+        console.log(`Session file size: ${sessionData.length} bytes`);
+      } else {
+        console.log('Session file does not exist');
+      }
 
       const grepConnectionType = (line) => {
         const matches = line.match(/(New|Reused), /);
@@ -152,15 +158,17 @@ function doTest() {
   server.listen(common.PORT, () => {
     Client((connectionType) => {
       assert.strictEqual(connectionType, 'New');
-      Client((connectionType) => {
-        assert.strictEqual(connectionType, 'Reused');
-        setTimeout(() => {
-          Client((connectionType) => {
-            assert.strictEqual(connectionType, 'New');
-            server.close();
-          });
-        }, (SESSION_TIMEOUT + 1) * 1000);
-      });
+      setTimeout(() => {
+        Client((connectionType) => {
+          assert.strictEqual(connectionType, 'Reused');
+          setTimeout(() => {
+            Client((connectionType) => {
+              assert.strictEqual(connectionType, 'New');
+              server.close();
+            });
+          }, (SESSION_TIMEOUT + 1) * 1000);
+        });
+      }, 100);  // Wait a bit to ensure the session ticket is saved. 
     });
   });
 }
