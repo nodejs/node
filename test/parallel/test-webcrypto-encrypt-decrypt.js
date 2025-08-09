@@ -57,7 +57,7 @@ const { subtle } = globalThis.crypto;
 }
 
 // Test Encrypt/Decrypt RSA-OAEP w/ SHA-3
-{
+if (!process.features.openssl_is_boringssl) {
   const buf = globalThis.crypto.getRandomValues(new Uint8Array(50));
 
   async function test() {

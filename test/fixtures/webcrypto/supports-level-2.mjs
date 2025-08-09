@@ -11,6 +11,8 @@ const [ECDH, X448, X25519] = await Promise.all([
   subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']),
 ]);
 
+const boringSSL = process.features.openssl_is_boringssl;
+
 export const vectors = {
   'encrypt': [
     [false, 'Invalid'],
@@ -79,7 +81,7 @@ export const vectors = {
     [false, { name: 'AES-CBC', length: 25 }],
     [true, { name: 'AES-GCM', length: 128 }],
     [false, { name: 'AES-GCM', length: 25 }],
-    [true, { name: 'AES-KW', length: 128 }],
+    [!boringSSL, { name: 'AES-KW', length: 128 }],
     [false, { name: 'AES-KW', length: 25 }],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
@@ -189,7 +191,7 @@ export const vectors = {
     [true, 'AES-CTR'],
     [true, 'AES-CBC'],
     [true, 'AES-GCM'],
-    [true, 'AES-KW'],
+    [!boringSSL, 'AES-KW'],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
     [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
@@ -211,18 +213,18 @@ export const vectors = {
     [true, 'AES-CTR'],
     [true, 'AES-CBC'],
     [true, 'AES-GCM'],
-    [true, 'AES-KW'],
+    [!boringSSL, 'AES-KW'],
     [true, 'Ed25519'],
     [true, 'X25519'],
   ],
   'wrapKey': [
     [false, 'AES-KW'],
-    [true, 'AES-KW', 'AES-CTR'],
-    [true, 'AES-KW', 'HMAC'],
+    [!boringSSL, 'AES-KW', 'AES-CTR'],
+    [!boringSSL, 'AES-KW', 'HMAC'],
   ],
   'unwrapKey': [
     [false, 'AES-KW'],
-    [true, 'AES-KW', 'AES-CTR'],
+    [!boringSSL, 'AES-KW', 'AES-CTR'],
   ],
   'unsupported operation': [
     [false, ''],

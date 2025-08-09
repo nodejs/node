@@ -123,13 +123,11 @@ const { subtle } = globalThis.crypto;
       name: 'Ed25519',
     }, publicKey, signature, ec.encode(data)));
   }
-  if (!process.features.openssl_is_boringssl) {
-    test('hello world').then(common.mustCall());
-  }
+  test('hello world').then(common.mustCall());
 }
 
 // Test Sign/Verify Ed448
-{
+if (!process.features.openssl_is_boringssl) {
   async function test(data) {
     const ec = new TextEncoder();
     const { publicKey, privateKey } = await subtle.generateKey({
@@ -145,9 +143,9 @@ const { subtle } = globalThis.crypto;
     }, publicKey, signature, ec.encode(data)));
   }
 
-  if (!process.features.openssl_is_boringssl) {
-    test('hello world').then(common.mustCall());
-  }
+  test('hello world').then(common.mustCall());
+} else {
+  common.printSkipMessage('Skipping unsupported Ed448 test case');
 }
 
 // Test Sign/Verify ML-DSA

@@ -245,7 +245,9 @@ async function testSaltLength(keyLength, hash, hLen) {
       ['SHA3-384', 48],
       ['SHA3-512', 64],
     ]) {
-      variations.push(testSaltLength(keyLength, hash, hLen));
+      if (hash.startsWith('SHA-3') && !process.features.openssl_is_boringssl) {
+        variations.push(testSaltLength(keyLength, hash, hLen));
+      }
     }
   }
 

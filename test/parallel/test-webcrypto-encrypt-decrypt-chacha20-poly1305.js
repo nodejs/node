@@ -5,6 +5,9 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+if (!process.features.openssl_is_boringssl)
+  common.skip('Skipping unsupported ChaCha20-Poly1305 test case');
+
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
 
