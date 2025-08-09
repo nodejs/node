@@ -96,7 +96,7 @@ the IPC channel is closed.
 added: v0.1.7
 -->
 
-* `code` {integer}
+* `code` {number}
 
 The `'exit'` event is emitted when the Node.js process is about to exit as a
 result of either:
@@ -1099,8 +1099,8 @@ added: v6.1.0
 * `previousValue` {Object} A previous return value from calling
   `process.cpuUsage()`
 * Returns: {Object}
-  * `user` {integer}
-  * `system` {integer}
+  * `user` {number}
+  * `system` {number}
 
 The `process.cpuUsage()` method returns the user and system CPU time usage of
 the current process, in an object with properties `user` and `system`, whose
@@ -2453,7 +2453,7 @@ Android).
 added: v0.1.28
 -->
 
-* Returns: {integer}
+* Returns: {number}
 
 The `process.getuid()` method returns the numeric user identity of the process.
 (See getuid(2).)
@@ -2751,11 +2751,11 @@ changes:
 -->
 
 * Returns: {Object}
-  * `rss` {integer}
-  * `heapTotal` {integer}
-  * `heapUsed` {integer}
-  * `external` {integer}
-  * `arrayBuffers` {integer}
+  * `rss` {number}
+  * `heapTotal` {number}
+  * `heapUsed` {number}
+  * `external` {number}
+  * `arrayBuffers` {number}
 
 Returns an object describing the memory usage of the Node.js process measured in
 bytes.
@@ -2822,7 +2822,7 @@ added:
   - v14.18.0
 -->
 
-* Returns: {integer}
+* Returns: {number}
 
 The `process.memoryUsage.rss()` method returns an integer representing the
 Resident Set Size (RSS) in bytes.
@@ -3153,7 +3153,7 @@ process.permission.has('fs.read');
 added: v0.1.15
 -->
 
-* Type: {integer}
+* Type: {number}
 
 The `process.pid` property returns the PID of the process.
 
@@ -3215,7 +3215,7 @@ added:
   - v6.13.0
 -->
 
-* Type: {integer}
+* Type: {number}
 
 The `process.ppid` property returns the PID of the parent of the
 current process.
@@ -3637,42 +3637,42 @@ added: v12.6.0
 * Returns: {Object} the resource usage for the current process. All of these
   values come from the `uv_getrusage` call which returns
   a [`uv_rusage_t` struct][uv_rusage_t].
-  * `userCPUTime` {integer} maps to `ru_utime` computed in microseconds.
+  * `userCPUTime` {number} maps to `ru_utime` computed in microseconds.
     It is the same value as [`process.cpuUsage().user`][process.cpuUsage].
-  * `systemCPUTime` {integer} maps to `ru_stime` computed in microseconds.
+  * `systemCPUTime` {number} maps to `ru_stime` computed in microseconds.
     It is the same value as [`process.cpuUsage().system`][process.cpuUsage].
-  * `maxRSS` {integer} maps to `ru_maxrss` which is the maximum resident set
+  * `maxRSS` {number} maps to `ru_maxrss` which is the maximum resident set
     size used in kilobytes.
-  * `sharedMemorySize` {integer} maps to `ru_ixrss` but is not supported by
+  * `sharedMemorySize` {number} maps to `ru_ixrss` but is not supported by
     any platform.
-  * `unsharedDataSize` {integer} maps to `ru_idrss` but is not supported by
+  * `unsharedDataSize` {number} maps to `ru_idrss` but is not supported by
     any platform.
-  * `unsharedStackSize` {integer} maps to `ru_isrss` but is not supported by
+  * `unsharedStackSize` {number} maps to `ru_isrss` but is not supported by
     any platform.
-  * `minorPageFault` {integer} maps to `ru_minflt` which is the number of
+  * `minorPageFault` {number} maps to `ru_minflt` which is the number of
     minor page faults for the process, see
     [this article for more details][wikipedia_minor_fault].
-  * `majorPageFault` {integer} maps to `ru_majflt` which is the number of
+  * `majorPageFault` {number} maps to `ru_majflt` which is the number of
     major page faults for the process, see
     [this article for more details][wikipedia_major_fault]. This field is not
     supported on Windows.
-  * `swappedOut` {integer} maps to `ru_nswap` but is not supported by any
+  * `swappedOut` {number} maps to `ru_nswap` but is not supported by any
     platform.
-  * `fsRead` {integer} maps to `ru_inblock` which is the number of times the
+  * `fsRead` {number} maps to `ru_inblock` which is the number of times the
     file system had to perform input.
-  * `fsWrite` {integer} maps to `ru_oublock` which is the number of times the
+  * `fsWrite` {number} maps to `ru_oublock` which is the number of times the
     file system had to perform output.
-  * `ipcSent` {integer} maps to `ru_msgsnd` but is not supported by any
+  * `ipcSent` {number} maps to `ru_msgsnd` but is not supported by any
     platform.
-  * `ipcReceived` {integer} maps to `ru_msgrcv` but is not supported by any
+  * `ipcReceived` {number} maps to `ru_msgrcv` but is not supported by any
     platform.
-  * `signalsCount` {integer} maps to `ru_nsignals` but is not supported by any
+  * `signalsCount` {number} maps to `ru_nsignals` but is not supported by any
     platform.
-  * `voluntaryContextSwitches` {integer} maps to `ru_nvcsw` which is the
+  * `voluntaryContextSwitches` {number} maps to `ru_nvcsw` which is the
     number of times a CPU context switch resulted due to a process voluntarily
     giving up the processor before its time slice was completed (usually to
     await availability of a resource). This field is not supported on Windows.
-  * `involuntaryContextSwitches` {integer} maps to `ru_nivcsw` which is the
+  * `involuntaryContextSwitches` {number} maps to `ru_nivcsw` which is the
     number of times a CPU context switch resulted due to a higher priority
     process becoming runnable or because the current process exceeded its
     time slice. This field is not supported on Windows.
@@ -4215,8 +4215,8 @@ added: v23.9.0
 * `previousValue` {Object} A previous return value from calling
   `process.threadCpuUsage()`
 * Returns: {Object}
-  * `user` {integer}
-  * `system` {integer}
+  * `user` {number}
+  * `system` {number}
 
 The `process.threadCpuUsage()` method returns the user and system CPU time usage of
 the current worker thread, in an object with properties `user` and `system`, whose

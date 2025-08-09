@@ -715,7 +715,7 @@ instances spawned from the current context.
 added: v10.5.0
 -->
 
-* Type: {integer}
+* Type: {number}
 
 An integer identifier for the current thread. On the corresponding worker object
 (if there is any), it is available as [`worker.threadId`][].
@@ -1726,7 +1726,7 @@ exception. In that case, the worker is terminated.
 added: v10.5.0
 -->
 
-* `exitCode` {integer}
+* `exitCode` {number}
 
 The `'exit'` event is emitted once the worker has stopped. If the worker
 exited by calling [`process.exit()`][], the `exitCode` parameter is the
@@ -2020,7 +2020,7 @@ Returns a Promise for the exit code that is fulfilled when the
 added: v10.5.0
 -->
 
-* Type: {integer}
+* Type: {number}
 
 An integer identifier for the referenced thread. Inside the worker thread,
 it is available as [`require('node:worker_threads').threadId`][].

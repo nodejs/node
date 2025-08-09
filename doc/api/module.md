@@ -483,7 +483,7 @@ added: v22.8.0
 * `cacheDir` {string|undefined} Optional path to specify the directory where the compile cache
   will be stored/retrieved.
 * Returns: {Object}
-  * `status` {integer} One of the [`module.constants.compileCacheStatus`][]
+  * `status` {number} One of the [`module.constants.compileCacheStatus`][]
   * `message` {string|undefined} If Node.js cannot enable the compile cache, this contains
     the error message. Only set if `status` is `module.constants.compileCacheStatus.FAILED`.
   * `directory` {string|undefined} If the compile cache is enabled, this contains the directory

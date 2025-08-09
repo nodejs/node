@@ -153,11 +153,11 @@ changes:
 Create a new resolver.
 
 * `options` {Object}
-  * `timeout` {integer} Query timeout in milliseconds, or `-1` to use the
+  * `timeout` {number} Query timeout in milliseconds, or `-1` to use the
     default timeout.
-  * `tries` {integer} The number of tries the resolver will try contacting
+  * `tries` {number} The number of tries the resolver will try contacting
     each name server before giving up. **Default:** `4`
-  * `maxTimeout` {integer} The max retry timeout, in milliseconds.
+  * `maxTimeout` {number} The max retry timeout, in milliseconds.
     **Default:** `0`, disabled.
 
 ### `resolver.cancel()`
@@ -277,7 +277,7 @@ changes:
 * `callback` {Function}
   * `err` {Error}
   * `address` {string} A string representation of an IPv4 or IPv6 address.
-  * `family` {integer} `4` or `6`, denoting the family of `address`, or `0` if
+  * `family` {number} `4` or `6`, denoting the family of `address`, or `0` if
     the address is not an IPv4 or IPv6 address. `0` is a likely indicator of a
     bug in the name resolution service used by the operating system.
 
@@ -1099,7 +1099,7 @@ changes:
 
 * `hostname` {string}
 * `options` {integer | Object}
-  * `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
+  * `family` {number} The record family. Must be `4`, `6`, or `0`. The value
     `0` indicates that either an IPv4 or IPv6 address is returned. If the
     value `0` is used with `{ all: true }` (see below), either one of or both
     IPv4 and IPv6 addresses are returned, depending on the system's DNS

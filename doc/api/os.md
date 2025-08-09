@@ -38,7 +38,7 @@ added:
   - v18.14.0
 -->
 
-* Returns: {integer}
+* Returns: {number}
 
 Returns an estimate of the default amount of parallelism a program should use.
 Always returns a value greater than zero.
@@ -186,7 +186,7 @@ Possible values are `'BE'` for big endian and `'LE'` for little endian.
 added: v0.3.3
 -->
 
-* Returns: {integer}
+* Returns: {number}
 
 Returns the amount of free system memory in bytes as an integer.
 
@@ -196,9 +196,9 @@ Returns the amount of free system memory in bytes as an integer.
 added: v10.10.0
 -->
 
-* `pid` {integer} The process ID to retrieve scheduling priority for.
+* `pid` {number} The process ID to retrieve scheduling priority for.
   **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Returns the scheduling priority for the process specified by `pid`. If `pid` is
 not provided or is `0`, the priority of the current process is returned.
@@ -381,9 +381,9 @@ On POSIX systems, the operating system release is determined by calling
 added: v10.10.0
 -->
 
-* `pid` {integer} The process ID to set scheduling priority for.
+* `pid` {number} The process ID to set scheduling priority for.
   **Default:** `0`.
-* `priority` {integer} The scheduling priority to assign to the process.
+* `priority` {number} The scheduling priority to assign to the process.
 
 Attempts to set the scheduling priority for the process specified by `pid`. If
 `pid` is not provided or is `0`, the process ID of the current process is used.
@@ -434,7 +434,7 @@ unless it's explicitly overridden by the users.
 added: v0.3.3
 -->
 
-* Returns: {integer}
+* Returns: {number}
 
 Returns the total amount of system memory in bytes as an integer.
 
@@ -463,7 +463,7 @@ changes:
                  component on Windows.
 -->
 
-* Returns: {integer}
+* Returns: {number}
 
 Returns the system uptime in number of seconds.
 

@@ -794,17 +794,17 @@ Each zlib-based class takes an `options` object. No options are required.
 Some options are only relevant when compressing and are
 ignored by the decompression classes.
 
-* `flush` {integer} **Default:** `zlib.constants.Z_NO_FLUSH`
-* `finishFlush` {integer} **Default:** `zlib.constants.Z_FINISH`
-* `chunkSize` {integer} **Default:** `16 * 1024`
-* `windowBits` {integer}
-* `level` {integer} (compression only)
-* `memLevel` {integer} (compression only)
-* `strategy` {integer} (compression only)
+* `flush` {number} **Default:** `zlib.constants.Z_NO_FLUSH`
+* `finishFlush` {number} **Default:** `zlib.constants.Z_FINISH`
+* `chunkSize` {number} **Default:** `16 * 1024`
+* `windowBits` {number}
+* `level` {number} (compression only)
+* `memLevel` {number} (compression only)
+* `strategy` {number} (compression only)
 * `dictionary` {Buffer|TypedArray|DataView|ArrayBuffer} (deflate/inflate only,
   empty dictionary by default)
 * `info` {boolean} (If `true`, returns an object with `buffer` and `engine`.)
-* `maxOutputLength` {integer} Limits output size when using
+* `maxOutputLength` {number} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 
 See the [`deflateInit2` and `inflateInit2`][] documentation for more
@@ -826,11 +826,11 @@ changes:
 
 Each Brotli-based class takes an `options` object. All options are optional.
 
-* `flush` {integer} **Default:** `zlib.constants.BROTLI_OPERATION_PROCESS`
-* `finishFlush` {integer} **Default:** `zlib.constants.BROTLI_OPERATION_FINISH`
-* `chunkSize` {integer} **Default:** `16 * 1024`
+* `flush` {number} **Default:** `zlib.constants.BROTLI_OPERATION_PROCESS`
+* `finishFlush` {number} **Default:** `zlib.constants.BROTLI_OPERATION_FINISH`
+* `chunkSize` {number} **Default:** `16 * 1024`
 * `params` {Object} Key-value object containing indexed [Brotli parameters][].
-* `maxOutputLength` {integer} Limits output size when using
+* `maxOutputLength` {number} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 * `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
 
@@ -1030,8 +1030,8 @@ writes and will only produce output when data is being read from the stream.
 added: v0.11.4
 -->
 
-* `level` {integer}
-* `strategy` {integer}
+* `level` {number}
+* `strategy` {number}
 * `callback` {Function}
 
 This function is only available for zlib-based streams, i.e. not Brotli.
@@ -1062,11 +1062,11 @@ added:
 
 Each Zstd-based class takes an `options` object. All options are optional.
 
-* `flush` {integer} **Default:** `zlib.constants.ZSTD_e_continue`
-* `finishFlush` {integer} **Default:** `zlib.constants.ZSTD_e_end`
-* `chunkSize` {integer} **Default:** `16 * 1024`
+* `flush` {number} **Default:** `zlib.constants.ZSTD_e_continue`
+* `finishFlush` {number} **Default:** `zlib.constants.ZSTD_e_end`
+* `chunkSize` {number} **Default:** `16 * 1024`
 * `params` {Object} Key-value object containing indexed [Zstd parameters][].
-* `maxOutputLength` {integer} Limits output size when using
+* `maxOutputLength` {number} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
 * `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
 * `dictionary` {Buffer} Optional dictionary used to
@@ -1127,9 +1127,9 @@ added:
 
 * `data` {string|Buffer|TypedArray|DataView} When `data` is a string,
   it will be encoded as UTF-8 before being used for computation.
-* `value` {integer} An optional starting value. It must be a 32-bit unsigned
+* `value` {number} An optional starting value. It must be a 32-bit unsigned
   integer. **Default:** `0`
-* Returns: {integer} A 32-bit unsigned integer containing the checksum.
+* Returns: {number} A 32-bit unsigned integer containing the checksum.
 
 Computes a 32-bit [Cyclic Redundancy Check][] checksum of `data`. If
 `value` is specified, it is used as the starting value of the checksum,

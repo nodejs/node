@@ -339,7 +339,7 @@ changes:
   * `port` {number} Port of remote server
   * `localAddress` {string} Local interface to bind for network connections
     when issuing the request
-  * `family` {integer} Must be 4 or 6 if this doesn't equal `undefined`.
+  * `family` {number} Must be 4 or 6 if this doesn't equal `undefined`.
 * Returns: {string}
 
 Get a unique name for a set of request options, to determine whether a
@@ -638,9 +638,9 @@ added: v10.0.0
 
 * `info` {Object}
   * `httpVersion` {string}
-  * `httpVersionMajor` {integer}
-  * `httpVersionMinor` {integer}
-  * `statusCode` {integer}
+  * `httpVersionMajor` {number}
+  * `httpVersionMinor` {number}
+  * `statusCode` {number}
   * `statusMessage` {string}
   * `headers` {Object}
   * `rawHeaders` {string\[]}

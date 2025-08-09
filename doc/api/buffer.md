@@ -683,7 +683,7 @@ changes:
                  zero-filled buffer.
 -->
 
-* `size` {integer} The desired length of the new `Buffer`.
+* `size` {number} The desired length of the new `Buffer`.
 * `fill` {string|Buffer|Uint8Array|integer} A value to pre-fill the new `Buffer`
   with. **Default:** `0`.
 * `encoding` {string} If `fill` is a string, this is its encoding.
@@ -782,7 +782,7 @@ changes:
     description: Passing a negative `size` will now throw an error.
 -->
 
-* `size` {integer} The desired length of the new `Buffer`.
+* `size` {number} The desired length of the new `Buffer`.
 * Returns: {Buffer}
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
@@ -853,7 +853,7 @@ changes:
                  for invalid input arguments.
 -->
 
-* `size` {integer} The desired length of the new `Buffer`.
+* `size` {number} The desired length of the new `Buffer`.
 * Returns: {Buffer}
 
 Allocates a new `Buffer` of `size` bytes. If `size` is larger than
@@ -937,7 +937,7 @@ changes:
   value to calculate the length of.
 * `encoding` {string} If `string` is a string, this is its encoding.
   **Default:** `'utf8'`.
-* Returns: {integer} The number of bytes contained within `string`.
+* Returns: {number} The number of bytes contained within `string`.
 
 Returns the byte length of a string when encoded using `encoding`.
 This is not the same as [`String.prototype.length`][], which does not account
@@ -983,7 +983,7 @@ changes:
 
 * `buf1` {Buffer|Uint8Array}
 * `buf2` {Buffer|Uint8Array}
-* Returns: {integer} Either `-1`, `0`, or `1`, depending on the result of the
+* Returns: {number} Either `-1`, `0`, or `1`, depending on the result of the
   comparison. See [`buf.compare()`][] for details.
 
 Compares `buf1` to `buf2`, typically for the purpose of sorting arrays of
@@ -1026,7 +1026,7 @@ changes:
 
 * `list` {Buffer\[] | Uint8Array\[]} List of `Buffer` or {Uint8Array}
   instances to concatenate.
-* `totalLength` {integer} Total length of the `Buffer` instances in `list`
+* `totalLength` {number} Total length of the `Buffer` instances in `list`
   when concatenated.
 * Returns: {Buffer}
 
@@ -1098,8 +1098,8 @@ added:
 -->
 
 * `view` {TypedArray} The {TypedArray} to copy.
-* `offset` {integer} The starting offset within `view`. **Default:** `0`.
-* `length` {integer} The number of elements from `view` to copy.
+* `offset` {number} The starting offset within `view`. **Default:** `0`.
+* `length` {number} The number of elements from `view` to copy.
   **Default:** `view.length - offset`.
 * Returns: {Buffer}
 
@@ -1161,8 +1161,8 @@ added: v5.10.0
 * `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An {ArrayBuffer},
   {SharedArrayBuffer}, for example the `.buffer` property of a
   {TypedArray}.
-* `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.
-* `length` {integer} Number of bytes to expose.
+* `byteOffset` {number} Index of first byte to expose. **Default:** `0`.
+* `length` {number} Number of bytes to expose.
   **Default:** `arrayBuffer.byteLength - byteOffset`.
 * Returns: {Buffer}
 
@@ -1320,7 +1320,7 @@ added: v8.2.0
 
 * `object` {Object} An object supporting `Symbol.toPrimitive` or `valueOf()`.
 * `offsetOrEncoding` {integer|string} A byte-offset or encoding.
-* `length` {integer} A length.
+* `length` {number} A length.
 * Returns: {Buffer}
 
 For objects whose `valueOf()` function returns a value not strictly equal to
@@ -1500,14 +1500,14 @@ console.log(Buffer.isEncoding(''));
 added: v0.11.3
 -->
 
-* Type: {integer} **Default:** `8192`
+* Type: {number} **Default:** `8192`
 
 This is the size (in bytes) of pre-allocated internal `Buffer` instances used
 for pooling. This value may be modified.
 
 ### `buf[index]`
 
-* `index` {integer}
+* `index` {number}
 
 The index operator `[index]` can be used to get and set the octet at position
 `index` in `buf`. The values refer to individual bytes, so the legal value
@@ -1585,7 +1585,7 @@ console.log(buffer.buffer === arrayBuffer);
 
 ### `buf.byteOffset`
 
-* Type: {integer} The `byteOffset` of the `Buffer`'s underlying `ArrayBuffer` object.
+* Type: {number} The `byteOffset` of the `Buffer`'s underlying `ArrayBuffer` object.
 
 When setting `byteOffset` in `Buffer.from(ArrayBuffer, byteOffset, length)`,
 or sometimes when allocating a `Buffer` smaller than `Buffer.poolSize`, the
@@ -1637,15 +1637,15 @@ changes:
 
 * `target` {Buffer|Uint8Array} A `Buffer` or {Uint8Array} with which to
   compare `buf`.
-* `targetStart` {integer} The offset within `target` at which to begin
+* `targetStart` {number} The offset within `target` at which to begin
   comparison. **Default:** `0`.
-* `targetEnd` {integer} The offset within `target` at which to end comparison
+* `targetEnd` {number} The offset within `target` at which to end comparison
   (not inclusive). **Default:** `target.length`.
-* `sourceStart` {integer} The offset within `buf` at which to begin comparison.
+* `sourceStart` {number} The offset within `buf` at which to begin comparison.
   **Default:** `0`.
-* `sourceEnd` {integer} The offset within `buf` at which to end comparison
+* `sourceEnd` {number} The offset within `buf` at which to end comparison
   (not inclusive). **Default:** [`buf.length`][].
-* Returns: {integer}
+* Returns: {number}
 
 Compares `buf` with `target` and returns a number indicating whether `buf`
 comes before, after, or is the same as `target` in sort order.
@@ -1741,13 +1741,13 @@ added: v0.1.90
 -->
 
 * `target` {Buffer|Uint8Array} A `Buffer` or {Uint8Array} to copy into.
-* `targetStart` {integer} The offset within `target` at which to begin
+* `targetStart` {number} The offset within `target` at which to begin
   writing. **Default:** `0`.
-* `sourceStart` {integer} The offset within `buf` from which to begin copying.
+* `sourceStart` {number} The offset within `buf` from which to begin copying.
   **Default:** `0`.
-* `sourceEnd` {integer} The offset within `buf` at which to stop copying (not
+* `sourceEnd` {number} The offset within `buf` at which to stop copying (not
   inclusive). **Default:** [`buf.length`][].
-* Returns: {integer} The number of bytes copied.
+* Returns: {number} The number of bytes copied.
 
 Copies data from a region of `buf` to a region in `target`, even if the `target`
 memory region overlaps with `buf`.
@@ -1955,9 +1955,9 @@ changes:
 
 * `value` {string|Buffer|Uint8Array|integer} The value with which to fill `buf`.
   Empty value (string, Uint8Array, Buffer) is coerced to `0`.
-* `offset` {integer} Number of bytes to skip before starting to fill `buf`.
+* `offset` {number} Number of bytes to skip before starting to fill `buf`.
   **Default:** `0`.
-* `end` {integer} Where to stop filling `buf` (not inclusive). **Default:**
+* `end` {number} Where to stop filling `buf` (not inclusive). **Default:**
   [`buf.length`][].
 * `encoding` {string} The encoding for `value` if `value` is a string.
   **Default:** `'utf8'`.
@@ -2061,7 +2061,7 @@ added: v5.3.0
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`. If negative, then
+* `byteOffset` {number} Where to begin searching in `buf`. If negative, then
   offset is calculated from the end of `buf`. **Default:** `0`.
 * `encoding` {string} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`.
@@ -2128,12 +2128,12 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`. If negative, then
+* `byteOffset` {number} Where to begin searching in `buf`. If negative, then
   offset is calculated from the end of `buf`. **Default:** `0`.
 * `encoding` {string} If `value` is a string, this is the encoding used to
   determine the binary representation of the string that will be searched for in
   `buf`. **Default:** `'utf8'`.
-* Returns: {integer} The index of the first occurrence of `value` in `buf`, or
+* Returns: {number} The index of the first occurrence of `value` in `buf`, or
   `-1` if `buf` does not contain `value`.
 
 If `value` is:
@@ -2300,13 +2300,13 @@ changes:
 -->
 
 * `value` {string|Buffer|Uint8Array|integer} What to search for.
-* `byteOffset` {integer} Where to begin searching in `buf`. If negative, then
+* `byteOffset` {number} Where to begin searching in `buf`. If negative, then
   offset is calculated from the end of `buf`. **Default:**
   `buf.length - 1`.
 * `encoding` {string} If `value` is a string, this is the encoding used to
   determine the binary representation of the string that will be searched for in
   `buf`. **Default:** `'utf8'`.
-* Returns: {integer} The index of the last occurrence of `value` in `buf`, or
+* Returns: {number} The index of the last occurrence of `value` in `buf`, or
   `-1` if `buf` does not contain `value`.
 
 Identical to [`buf.indexOf()`][], except the last occurrence of `value` is found
@@ -2426,7 +2426,7 @@ If `value` is an empty string or empty `Buffer`, `byteOffset` will be returned.
 added: v0.1.90
 -->
 
-* Type: {integer}
+* Type: {number}
 
 Returns the number of bytes in `buf`.
 
@@ -2480,7 +2480,7 @@ added:
  - v10.20.0
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {bigint}
 
@@ -2497,7 +2497,7 @@ added:
  - v10.20.0
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {bigint}
 
@@ -2521,7 +2521,7 @@ changes:
     description: This function is also available as `buf.readBigUint64BE()`.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {bigint}
 
@@ -2562,7 +2562,7 @@ changes:
     description: This function is also available as `buf.readBigUint64LE()`.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {bigint}
 
@@ -2600,7 +2600,7 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {number}
 
@@ -2635,7 +2635,7 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 8`. **Default:** `0`.
 * Returns: {number}
 
@@ -2674,7 +2674,7 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {number}
 
@@ -2709,7 +2709,7 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
 * Returns: {number}
 
@@ -2748,9 +2748,9 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 1`. **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads a signed 8-bit integer from `buf` at the specified `offset`.
 
@@ -2793,9 +2793,9 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads a signed, big-endian 16-bit integer from `buf` at the specified `offset`.
 
@@ -2830,9 +2830,9 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads a signed, little-endian 16-bit integer from `buf` at the specified
 `offset`.
@@ -2872,9 +2872,9 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads a signed, big-endian 32-bit integer from `buf` at the specified `offset`.
 
@@ -2909,9 +2909,9 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads a signed, little-endian 32-bit integer from `buf` at the specified
 `offset`.
@@ -2951,11 +2951,11 @@ changes:
                  and `byteLength` to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to read. Must satisfy
+* `byteLength` {number} Number of bytes to read. Must satisfy
   `0 < byteLength <= 6`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
 and interprets the result as a big-endian, two's complement signed value
@@ -2998,11 +2998,11 @@ changes:
                  and `byteLength` to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to read. Must satisfy
+* `byteLength` {number} Number of bytes to read. Must satisfy
   `0 < byteLength <= 6`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
 and interprets the result as a little-endian, two's complement signed value
@@ -3042,9 +3042,9 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 1`. **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads an unsigned 8-bit integer from `buf` at the specified `offset`.
 
@@ -3092,9 +3092,9 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads an unsigned, big-endian 16-bit integer from `buf` at the specified
 `offset`.
@@ -3139,9 +3139,9 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads an unsigned, little-endian 16-bit integer from `buf` at the specified
 `offset`.
@@ -3190,9 +3190,9 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads an unsigned, big-endian 32-bit integer from `buf` at the specified
 `offset`.
@@ -3233,9 +3233,9 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads an unsigned, little-endian 32-bit integer from `buf` at the specified
 `offset`.
@@ -3280,11 +3280,11 @@ changes:
                  and `byteLength` to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to read. Must satisfy
+* `byteLength` {number} Number of bytes to read. Must satisfy
   `0 < byteLength <= 6`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
 and interprets the result as an unsigned big-endian integer supporting
@@ -3330,11 +3330,11 @@ changes:
                  and `byteLength` to `uint32` anymore.
 -->
 
-* `offset` {integer} Number of bytes to skip before starting to read. Must
+* `offset` {number} Number of bytes to skip before starting to read. Must
   satisfy `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to read. Must satisfy
+* `byteLength` {number} Number of bytes to read. Must satisfy
   `0 < byteLength <= 6`.
-* Returns: {integer}
+* Returns: {number}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
 and interprets the result as an unsigned, little-endian integer supporting
@@ -3366,8 +3366,8 @@ console.log(buf.readUIntLE(0, 6).toString(16));
 added: v3.0.0
 -->
 
-* `start` {integer} Where the new `Buffer` will start. **Default:** `0`.
-* `end` {integer} Where the new `Buffer` will end (not inclusive).
+* `start` {number} Where the new `Buffer` will start. **Default:** `0`.
+* `end` {number} Where the new `Buffer` will end (not inclusive).
   **Default:** [`buf.length`][].
 * Returns: {Buffer}
 
@@ -3491,8 +3491,8 @@ changes:
                  calculations with them.
 -->
 
-* `start` {integer} Where the new `Buffer` will start. **Default:** `0`.
-* `end` {integer} Where the new `Buffer` will end (not inclusive).
+* `start` {number} Where the new `Buffer` will start. **Default:** `0`.
+* `end` {number} Where the new `Buffer` will end (not inclusive).
   **Default:** [`buf.length`][].
 * Returns: {Buffer}
 
@@ -3774,8 +3774,8 @@ added: v0.1.90
 -->
 
 * `encoding` {string} The character encoding to use. **Default:** `'utf8'`.
-* `start` {integer} The byte offset to start decoding at. **Default:** `0`.
-* `end` {integer} The byte offset to stop decoding at (not inclusive).
+* `start` {number} The byte offset to start decoding at. **Default:** `0`.
+* `end` {number} The byte offset to stop decoding at (not inclusive).
   **Default:** [`buf.length`][].
 * Returns: {string}
 
@@ -3912,12 +3912,12 @@ added: v0.1.90
 -->
 
 * `string` {string} String to write to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write `string`.
+* `offset` {number} Number of bytes to skip before starting to write `string`.
   **Default:** `0`.
-* `length` {integer} Maximum number of bytes to write (written bytes will not
+* `length` {number} Maximum number of bytes to write (written bytes will not
   exceed `buf.length - offset`). **Default:** `buf.length - offset`.
 * `encoding` {string} The character encoding of `string`. **Default:** `'utf8'`.
-* Returns: {integer} Number of bytes written.
+* Returns: {number} Number of bytes written.
 
 Writes `string` to `buf` at `offset` according to the character encoding in
 `encoding`. The `length` parameter is the number of bytes to write. If `buf` did
@@ -3969,9 +3969,9 @@ added:
 -->
 
 * `value` {bigint} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as big-endian.
 
@@ -4008,9 +4008,9 @@ added:
 -->
 
 * `value` {bigint} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as little-endian.
 
@@ -4053,9 +4053,9 @@ changes:
 -->
 
 * `value` {bigint} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as big-endian.
 
@@ -4098,9 +4098,9 @@ changes:
 -->
 
 * `value` {bigint} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy: `0 <= offset <= buf.length - 8`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as little-endian
 
@@ -4140,9 +4140,9 @@ changes:
 -->
 
 * `value` {number} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 8`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as big-endian. The `value`
 must be a JavaScript number. Behavior is undefined when `value` is anything
@@ -4182,9 +4182,9 @@ changes:
 -->
 
 * `value` {number} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 8`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as little-endian. The `value`
 must be a JavaScript number. Behavior is undefined when `value` is anything
@@ -4224,9 +4224,9 @@ changes:
 -->
 
 * `value` {number} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as big-endian. Behavior is
 undefined when `value` is anything other than a JavaScript number.
@@ -4265,9 +4265,9 @@ changes:
 -->
 
 * `value` {number} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as little-endian. Behavior is
 undefined when `value` is anything other than a JavaScript number.
@@ -4305,10 +4305,10 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 1`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset`. `value` must be a valid
 signed 8-bit integer. Behavior is undefined when `value` is anything other than
@@ -4351,10 +4351,10 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as big-endian.  The `value`
 must be a valid signed 16-bit integer. Behavior is undefined when `value` is
@@ -4395,10 +4395,10 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as little-endian.  The `value`
 must be a valid signed 16-bit integer. Behavior is undefined when `value` is
@@ -4439,10 +4439,10 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as big-endian. The `value`
 must be a valid signed 32-bit integer. Behavior is undefined when `value` is
@@ -4483,10 +4483,10 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as little-endian. The `value`
 must be a valid signed 32-bit integer. Behavior is undefined when `value` is
@@ -4527,12 +4527,12 @@ changes:
                  and `byteLength` to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to write. Must satisfy
+* `byteLength` {number} Number of bytes to write. Must satisfy
   `0 < byteLength <= 6`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`
 as big-endian. Supports up to 48 bits of accuracy. Behavior is undefined when
@@ -4571,12 +4571,12 @@ changes:
                  and `byteLength` to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to write. Must satisfy
+* `byteLength` {number} Number of bytes to write. Must satisfy
   `0 < byteLength <= 6`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`
 as little-endian. Supports up to 48 bits of accuracy. Behavior is undefined
@@ -4620,10 +4620,10 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 1`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset`. `value` must be a
 valid unsigned 8-bit integer. Behavior is undefined when `value` is anything
@@ -4675,10 +4675,10 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as big-endian. The `value`
 must be a valid unsigned 16-bit integer. Behavior is undefined when `value`
@@ -4726,10 +4726,10 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 2`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as little-endian. The `value`
 must be a valid unsigned 16-bit integer. Behavior is undefined when `value` is
@@ -4777,10 +4777,10 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as big-endian. The `value`
 must be a valid unsigned 32-bit integer. Behavior is undefined when `value`
@@ -4826,10 +4826,10 @@ changes:
                  to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - 4`. **Default:** `0`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `value` to `buf` at the specified `offset` as little-endian. The `value`
 must be a valid unsigned 32-bit integer. Behavior is undefined when `value` is
@@ -4875,12 +4875,12 @@ changes:
                  and `byteLength` to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to write. Must satisfy
+* `byteLength` {number} Number of bytes to write. Must satisfy
   `0 < byteLength <= 6`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`
 as big-endian. Supports up to 48 bits of accuracy. Behavior is undefined
@@ -4926,12 +4926,12 @@ changes:
                  and `byteLength` to `uint32` anymore.
 -->
 
-* `value` {integer} Number to be written to `buf`.
-* `offset` {integer} Number of bytes to skip before starting to write. Must
+* `value` {number} Number to be written to `buf`.
+* `offset` {number} Number of bytes to skip before starting to write. Must
   satisfy `0 <= offset <= buf.length - byteLength`.
-* `byteLength` {integer} Number of bytes to write. Must satisfy
+* `byteLength` {number} Number of bytes to write. Must satisfy
   `0 < byteLength <= 6`.
-* Returns: {integer} `offset` plus the number of bytes written.
+* Returns: {number} `offset` plus the number of bytes written.
 
 Writes `byteLength` bytes of `value` to `buf` at the specified `offset`
 as little-endian. Supports up to 48 bits of accuracy. Behavior is undefined
@@ -5011,8 +5011,8 @@ changes:
 
 * `arrayBuffer` {ArrayBuffer|SharedArrayBuffer} An {ArrayBuffer},
   {SharedArrayBuffer} or the `.buffer` property of a {TypedArray}.
-* `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.
-* `length` {integer} Number of bytes to expose.
+* `byteOffset` {number} Index of first byte to expose. **Default:** `0`.
+* `length` {number} Number of bytes to expose.
   **Default:** `arrayBuffer.byteLength - byteOffset`.
 
 See
@@ -5066,7 +5066,7 @@ changes:
 > Stability: 0 - Deprecated: Use [`Buffer.alloc()`][] instead (also see
 > [`Buffer.allocUnsafe()`][]).
 
-* `size` {integer} The desired length of the new `Buffer`.
+* `size` {number} The desired length of the new `Buffer`.
 
 See [`Buffer.alloc()`][] and [`Buffer.allocUnsafe()`][]. This variant of the
 constructor is equivalent to [`Buffer.alloc()`][].
@@ -5251,7 +5251,7 @@ Throws if the `input` is a detached array buffer.
 added: v0.5.4
 -->
 
-* Type: {integer} **Default:** `50`
+* Type: {number} **Default:** `50`
 
 Returns the maximum number of bytes that will be returned when
 `buf.inspect()` is called. This can be overridden by user modules. See
@@ -5263,7 +5263,7 @@ Returns the maximum number of bytes that will be returned when
 added: v3.0.0
 -->
 
-* Type: {integer} The largest size allowed for a single `Buffer` instance.
+* Type: {number} The largest size allowed for a single `Buffer` instance.
 
 An alias for [`buffer.constants.MAX_LENGTH`][].
 
@@ -5273,7 +5273,7 @@ An alias for [`buffer.constants.MAX_LENGTH`][].
 added: v3.0.0
 -->
 
-* Type: {integer} The largest length allowed for a single `string` instance.
+* Type: {number} The largest length allowed for a single `string` instance.
 
 An alias for [`buffer.constants.MAX_STRING_LENGTH`][].
 
@@ -5367,7 +5367,7 @@ changes:
       2<sup>32</sup> - 1 on 64-bit architectures.
 -->
 
-* Type: {integer} The largest size allowed for a single `Buffer` instance.
+* Type: {number} The largest size allowed for a single `Buffer` instance.
 
 On 32-bit architectures, this value currently is 2<sup>30</sup> - 1 (about 1
 GiB).
@@ -5384,7 +5384,7 @@ This value is also available as [`buffer.kMaxLength`][].
 added: v8.2.0
 -->
 
-* Type: {integer} The largest length allowed for a single `string` instance.
+* Type: {number} The largest length allowed for a single `string` instance.
 
 Represents the largest `length` that a `string` primitive can have, counted
 in UTF-16 code units.
