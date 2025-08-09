@@ -165,6 +165,23 @@
           },
         },
       }],
+      ['clang==1', {
+        'cflags_cc': [
+          '-Wno-nullability-completeness',
+        ],
+        'xcode_settings': {
+          'OTHER_CFLAGS': [
+            '-Wno-nullability-completeness',
+          ],
+        },
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'AdditionalOptions': [
+              '-Wno-nullability-completeness',
+            ],
+          },
+        },
+      }],
       ['v8_target_arch=="arm"', {
         'defines': [
           'V8_TARGET_ARCH_ARM',
