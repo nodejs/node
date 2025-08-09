@@ -108,9 +108,10 @@ function doTest() {
       '-connect', `localhost:${common.PORT}`,
       '-sess_in', sessionFileName,
       '-sess_out', sessionFileName,
+      '-CAfile', fixtures.path('keys', 'rsa_cert.crt'),
     ];
     const client = spawn(opensslCli, flags, {
-      stdio: ['ignore', 'pipe', 'ignore']
+      stdio: ['ignore', 'pipe', 'inherit']
     });
 
     let clientOutput = '';
@@ -119,6 +120,18 @@ function doTest() {
     });
     client.on('exit', (code) => {
       let connectionType;
+      console.log(' ----- [COMMAND] ---');
+      console.log(`${opensslCli}, ${flags.join(' ')}`);
+      console.log(' ----- [STDOUT] ---');
+      console.log(clientOutput);
+      console.log(' ----- [SESSION FILE] ---');
+      try {
+        const stat = fs.statSync(sessionFileName);
+        console.log(`Session file size: ${stat.size} bytes`);
+      } catch (err) {
+        console.log('Error reading session file:', err);
+      }
+
       const grepConnectionType = (line) => {
         const matches = line.match(/(New|Reused), /);
         if (matches) {
@@ -146,15 +159,17 @@ function doTest() {
   server.listen(common.PORT, () => {
     Client((connectionType) => {
       assert.strictEqual(connectionType, 'New');
-      Client((connectionType) => {
-        assert.strictEqual(connectionType, 'Reused');
-        setTimeout(() => {
-          Client((connectionType) => {
-            assert.strictEqual(connectionType, 'New');
-            server.close();
-          });
-        }, (SESSION_TIMEOUT + 1) * 1000);
-      });
+      setTimeout(() => {
+        Client((connectionType) => {
+          assert.strictEqual(connectionType, 'Reused');
+          setTimeout(() => {
+            Client((connectionType) => {
+              assert.strictEqual(connectionType, 'New');
+              server.close();
+            });
+          }, (SESSION_TIMEOUT + 1) * 1000);
+        });
+      }, 100);  // Wait a bit to ensure the session ticket is saved.
     });
   });
 }
