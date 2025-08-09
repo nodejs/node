@@ -18,19 +18,26 @@ const kTests = [
           '64ea51fae5b3307cfe9706',
     result: '2768409dfab99ec23b8c89b93ff5880295f76176088f89e43dfebe7ea1950008'
   },
-  {
-    name: 'X448',
-    size: 56,
-    pkcs8: '3046020100300506032b656f043a043858c7d29a3eb519b29d00cfb191bb64fc6' +
+];
+
+if (!process.features.openssl_is_boringssl) {
+  kTests.push(
+    {
+      name: 'X448',
+      size: 56,
+      pkcs8: '3046020100300506032b656f043a043858c7d29a3eb519b29d00cfb191bb64fc6' +
            'd8a42d8f17176272b89f2272d1819295c6525c0829671b052ef0727530f188e31' +
            'd0cc53bf26929e',
-    spki: '3042300506032b656f033900b604a1d1a5cd1d9426d561ef630a9eb16cbe69d5b9' +
+      spki: '3042300506032b656f033900b604a1d1a5cd1d9426d561ef630a9eb16cbe69d5b9' +
           'ca615edc53633efb52ea31e6e6a0a1dbacc6e76cbce6482d7e4ba3d55d9e802765' +
           'ce6f',
-    result: 'f0f6c5f17f94f4291eab7178866d37ec8906dd6c514143dc85be7cf28deff39b' +
+      result: 'f0f6c5f17f94f4291eab7178866d37ec8906dd6c514143dc85be7cf28deff39b' +
             '726e0f6dcf810eb594dca97b4882bd44c43ea7dc67f49a4e',
-  },
-];
+    }
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported X448 test case');
+}
 
 async function prepareKeys() {
   const keys = {};
@@ -153,9 +160,9 @@ async function prepareKeys() {
     // Missing public property
     await assert.rejects(
       subtle.deriveBits(
-        { name: 'X448' },
-        keys.X448.privateKey,
-        8 * keys.X448.size),
+        { name: 'X25519' },
+        keys.X25519.privateKey,
+        8 * keys.X25519.size),
       { code: 'ERR_MISSING_OPTION' });
   }
 
@@ -164,15 +171,15 @@ async function prepareKeys() {
     await assert.rejects(
       subtle.deriveBits(
         {
-          name: 'X448',
+          name: 'X25519',
           public: { message: 'Not a CryptoKey' }
         },
-        keys.X448.privateKey,
-        8 * keys.X448.size),
+        keys.X25519.privateKey,
+        8 * keys.X25519.size),
       { code: 'ERR_INVALID_ARG_TYPE' });
   }
 
-  {
+  if (keys.X25519 && keys.X448) {
     // Mismatched types
     await assert.rejects(
       subtle.deriveBits(
@@ -188,9 +195,9 @@ async function prepareKeys() {
   {
     // Base key is not a private key
     await assert.rejects(subtle.deriveBits({
-      name: 'X448',
-      public: keys.X448.publicKey
-    }, keys.X448.publicKey, null), {
+      name: 'X25519',
+      public: keys.X25519.publicKey
+    }, keys.X25519.publicKey, null), {
       name: 'InvalidAccessError'
     });
   }
@@ -198,9 +205,9 @@ async function prepareKeys() {
   {
     // Base key is not a private key
     await assert.rejects(subtle.deriveBits({
-      name: 'X448',
-      public: keys.X448.privateKey
-    }, keys.X448.publicKey, null), {
+      name: 'X25519',
+      public: keys.X25519.privateKey
+    }, keys.X25519.publicKey, null), {
       name: 'InvalidAccessError'
     });
   }
@@ -215,9 +222,9 @@ async function prepareKeys() {
       false, ['encrypt']);
 
     await assert.rejects(subtle.deriveBits({
-      name: 'X448',
+      name: 'X25519',
       public: key
-    }, keys.X448.publicKey, null), {
+    }, keys.X25519.publicKey, null), {
       name: 'InvalidAccessError'
     });
   }

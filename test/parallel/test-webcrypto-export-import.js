@@ -295,7 +295,7 @@ const { createPrivateKey, createPublicKey, createSecretKey } = require('crypto')
 }
 
 // SHA-3 hashes and JWK "alg"
-{
+if (!process.features.openssl_is_boringssl) {
   const rsa = fixtures.readKey('rsa_private_2048.pem');
   const privateKey = createPrivateKey(rsa);
   const publicKey = createPublicKey(privateKey);

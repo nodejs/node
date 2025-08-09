@@ -17,10 +17,17 @@ const hashes = [
   'SHA-256',
   'SHA-384',
   'SHA-512',
-  'SHA3-256',
-  'SHA3-384',
-  'SHA3-512',
 ];
+
+if (!process.features.openssl_is_boringssl) {
+  hashes.push(
+    'SHA3-256',
+    'SHA3-384',
+    'SHA3-512',
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+}
 
 const keyData = {
   1024: {
