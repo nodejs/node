@@ -1572,7 +1572,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-#### `pbkdb2Params.hash`
+#### `pbkdf2Params.hash`
 
 <!-- YAML
 added: v15.0.0
