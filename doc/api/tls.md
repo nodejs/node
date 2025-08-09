@@ -2308,21 +2308,30 @@ const additionalCerts = ['-----BEGIN CERTIFICATE-----\n...'];
 tls.setDefaultCACertificates([...currentCerts, ...additionalCerts]);
 ```
 
-## `tls.getCACertificates([type])`
+## `tls.getCACertificates([options])`
 
 <!-- YAML
 added:
   - v23.10.0
   - v22.15.0
+changes:
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59349
+    description: Added optional `options.type` parameter to `getCACertificates()`.
 -->
 
-* `type` {string|undefined} The type of CA certificates that will be returned. Valid values
-  are `"default"`, `"system"`, `"bundled"` and `"extra"`.
-  **Default:** `"default"`.
-* Returns: {string\[]} An array of PEM-encoded certificates. The array may contain duplicates
-  if the same certificate is repeatedly stored in multiple sources.
+* `options` {string|Object|undefined}
+  Optional. If a string, it is treated as the `type` of certificates to return.
+  If an object, it may contain:
+  * `type` {string} The type of CA certificates to return. One of `"default"`, `"system"`, `"bundled"`, or `"extra"`.
+    **Default:** `"default"`.
+  * `as` {string} The format of returned certificates. **Default**: `"buffer"`.
+    * `"buffer"`: Returns an array of certificate data as `Buffer` objects.
+    * `"x509"`: Returns an array of \[`X509Certificate`]\[] instances.
 
-Returns an array containing the CA certificates from various sources, depending on `type`:
+* Returns: {Array.\<Buffer|X509Certificate>}
+  An array of certificates in the specified format.
 
 * `"default"`: return the CA certificates that will be used by the Node.js TLS clients by default.
   * When [`--use-bundled-ca`][] is enabled (default), or [`--use-openssl-ca`][] is not enabled,
@@ -2458,6 +2467,7 @@ added:
 [Session Resumption]: #session-resumption
 [Stream]: stream.md#stream
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
+[X509Certificate]: https://nodejs.org/api/crypto.html#class-x509certificate
 [`'newSession'`]: #event-newsession
 [`'resumeSession'`]: #event-resumesession
 [`'secureConnect'`]: #event-secureconnect
