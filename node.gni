@@ -42,6 +42,9 @@ declare_args() {
   # The variable is called "openssl" for parity with node's GYP build.
   node_use_openssl = true
 
+  # Build node with SQLite support.
+  node_use_sqlite = true
+
   # Use the specified path to system CA (PEM format) in addition to
   # the BoringSSL supplied CA store or compiled-in Mozilla CA copy.
   node_openssl_system_ca_path = ""
