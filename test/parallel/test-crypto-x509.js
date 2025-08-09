@@ -114,6 +114,9 @@ const der = Buffer.from(
   assert.strictEqual(x509.keyUsage, undefined);
   assert.strictEqual(x509.serialNumber.toUpperCase(), '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
 
+  assert.strictEqual(x509.signatureAlgorithm, 'sha256WithRSAEncryption');
+  assert.strictEqual(x509.signatureAlgorithmOid, '1.2.840.113549.1.1.11');
+
   assert.deepStrictEqual(x509.raw, der);
 
   if (!process.features.openssl_is_boringssl) {
@@ -447,4 +450,18 @@ CWwQO8JZjJqFtqtuzy2n+gLCvqePgG/gmSqHOPm2ZbLW
     assert.deepStrictEqual(c2.validFromDate, new Date('2049-12-26T00:00:01Z'));
     assert.deepStrictEqual(c2.validToDate, new Date('2050-01-02T00:00:01Z'));
   }
+}
+
+{
+  const certPem = `-----BEGIN CERTIFICATE-----
+MIGXMHugAwIBAgIBATANBgkrBgEEAYaNHwEFADASMRAwDgYDVQQDEwdVbmtub3du
+MB4XDTI0MDEwMTAwMDAwMFoXDTM0MDEwMTAwMDAwMFowEjEQMA4GA1UEAxMHVW5r
+bm93bjAaMA0GCSqGSIb3DQEBAQUAAwkAAAAAAAAAAAAwDQYJKwYBBAGGjR8BBQAD
+CQAAAAAAAAAAAA==
+-----END CERTIFICATE-----`;
+
+  const cert = new X509Certificate(certPem);
+
+  assert.strictEqual(cert.signatureAlgorithm, undefined);
+  assert.strictEqual(cert.signatureAlgorithmOid, '1.3.6.1.4.1.99999.1');
 }
