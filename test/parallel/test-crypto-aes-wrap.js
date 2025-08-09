@@ -53,6 +53,11 @@ const key3 = Buffer.from('29c9eab5ed5ad44134a1437fe2e673b4d88a5b7c72e68454fea087
     text: '12345678123456781234567812345678123'
   },
 ].forEach(({ algorithm, key, iv, text }) => {
+  if (!crypto.getCiphers().includes(algorithm)) {
+    common.printSkipMessage(`Skipping unsupported ${algorithm} test case`);
+    return;
+  }
+
   const cipher = crypto.createCipheriv(algorithm, key, iv);
   const decipher = crypto.createDecipheriv(algorithm, key, iv);
   const msg = decipher.update(cipher.update(text, 'utf8'), 'buffer', 'utf8');
