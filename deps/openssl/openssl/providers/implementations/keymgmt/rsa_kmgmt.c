@@ -25,6 +25,7 @@
 #include "prov/provider_ctx.h"
 #include "crypto/rsa.h"
 #include "crypto/cryptlib.h"
+#include "internal/fips.h"
 #include "internal/param_build_set.h"
 
 static OSSL_FUNC_keymgmt_new_fn rsa_newdata;
@@ -196,6 +197,23 @@ static int rsa_import(void *keydata, int selection, const OSSL_PARAM params[])
         ok = ok && ossl_rsa_fromdata(rsa, params, include_private);
     }
 
+#ifdef FIPS_MODULE
+    if (ok > 0 && !ossl_fips_self_testing()) {
+        const BIGNUM *n, *e, *d, *dp, *dq, *iq, *p, *q;
+
+        RSA_get0_key(rsa, &n, &e, &d);
+        RSA_get0_crt_params(rsa, &dp, &dq, &iq);
+        p = RSA_get0_p(rsa);
+        q = RSA_get0_q(rsa);
+
+        /* Check for the public key */
+        if (n != NULL && e != NULL)
+            /* Check for private key in straightforward or CRT form */
+            if (d != NULL || (p != NULL && q != NULL && dp != NULL
+                              && dq != NULL && iq != NULL))
+                ok = ossl_rsa_key_pairwise_test(rsa);
+    }
+#endif  /* FIPS_MODULE */
     return ok;
 }
 

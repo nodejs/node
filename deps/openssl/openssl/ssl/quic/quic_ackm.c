@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -536,6 +536,9 @@ struct ossl_ackm_st {
     /* Set to 1 when the handshake is confirmed. */
     char            handshake_confirmed;
 
+    /* Set to 1 when attached to server channel */
+    char            is_server;
+
     /* Set to 1 when the peer has completed address validation. */
     char            peer_completed_addr_validation;
 
@@ -855,7 +858,13 @@ static OSSL_TIME ackm_get_pto_time_and_space(OSSL_ACKM *ackm, int *space)
     }
 
     for (i = QUIC_PN_SPACE_INITIAL; i < QUIC_PN_SPACE_NUM; ++i) {
-        if (ackm->ack_eliciting_bytes_in_flight[i] == 0)
+        /*
+         * RFC 9002 section 6.2.2.1 keep probe timeout armed until
+         * handshake is confirmed (client sees HANDSHAKE_DONE message
+         * from server).
+         */
+        if (ackm->ack_eliciting_bytes_in_flight[i] == 0 &&
+            (ackm->handshake_confirmed == 1 || ackm->is_server == 1))
             continue;
 
         if (i == QUIC_PN_SPACE_APP) {
@@ -875,10 +884,18 @@ static OSSL_TIME ackm_get_pto_time_and_space(OSSL_ACKM *ackm, int *space)
             }
         }
 
-        t = ossl_time_add(ackm->time_of_last_ack_eliciting_pkt[i], duration);
-        if (ossl_time_compare(t, pto_timeout) < 0) {
-            pto_timeout = t;
-            pto_space   = i;
+        /*
+         * Only re-arm timer if stack has sent at least one ACK eliciting frame.
+         * If stack has sent no ACK eliciting frame at given encryption level then
+         * particular timer is zero and we must not attempt to set it. Timer keeps
+         * time since epoch (Jan 1 1970) and we must not set timer to past.
+         */
+        if (!ossl_time_is_zero(ackm->time_of_last_ack_eliciting_pkt[i])) {
+            t = ossl_time_add(ackm->time_of_last_ack_eliciting_pkt[i], duration);
+            if (ossl_time_compare(t, pto_timeout) < 0) {
+                pto_timeout = t;
+                pto_space   = i;
+            }
         }
     }
 
@@ -1021,7 +1038,8 @@ OSSL_ACKM *ossl_ackm_new(OSSL_TIME (*now)(void *arg),
                          void *now_arg,
                          OSSL_STATM *statm,
                          const OSSL_CC_METHOD *cc_method,
-                         OSSL_CC_DATA *cc_data)
+                         OSSL_CC_DATA *cc_data,
+                         int is_server)
 {
     OSSL_ACKM *ackm;
     int i;
@@ -1045,6 +1063,7 @@ OSSL_ACKM *ossl_ackm_new(OSSL_TIME (*now)(void *arg),
     ackm->statm     = statm;
     ackm->cc_method = cc_method;
     ackm->cc_data   = cc_data;
+    ackm->is_server = (char)is_server;
 
     ackm->rx_max_ack_delay = ossl_ms2time(QUIC_DEFAULT_MAX_ACK_DELAY);
     ackm->tx_max_ack_delay = DEFAULT_TX_MAX_ACK_DELAY;

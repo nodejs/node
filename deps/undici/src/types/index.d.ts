@@ -13,6 +13,7 @@ import Agent from './agent'
 import MockClient from './mock-client'
 import MockPool from './mock-pool'
 import MockAgent from './mock-agent'
+import { SnapshotAgent } from './snapshot-agent'
 import { MockCallHistory, MockCallHistoryLog } from './mock-call-history'
 import mockErrors from './mock-errors'
 import ProxyAgent from './proxy-agent'
@@ -33,7 +34,7 @@ export * from './content-type'
 export * from './cache'
 export { Interceptable } from './mock-interceptor'
 
-export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, interceptors, MockClient, MockPool, MockAgent, MockCallHistory, MockCallHistoryLog, mockErrors, ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent, H2CClient }
+export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, interceptors, MockClient, MockPool, MockAgent, SnapshotAgent, MockCallHistory, MockCallHistoryLog, mockErrors, ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent, H2CClient }
 export default Undici
 
 declare namespace Undici {
@@ -58,6 +59,7 @@ declare namespace Undici {
   const MockClient: typeof import('./mock-client').default
   const MockPool: typeof import('./mock-pool').default
   const MockAgent: typeof import('./mock-agent').default
+  const SnapshotAgent: typeof import('./snapshot-agent').SnapshotAgent
   const MockCallHistory: typeof import('./mock-call-history').MockCallHistory
   const MockCallHistoryLog: typeof import('./mock-call-history').MockCallHistoryLog
   const mockErrors: typeof import('./mock-errors').default

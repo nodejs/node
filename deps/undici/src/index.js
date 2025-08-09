@@ -18,6 +18,7 @@ const MockClient = require('./lib/mock/mock-client')
 const { MockCallHistory, MockCallHistoryLog } = require('./lib/mock/mock-call-history')
 const MockAgent = require('./lib/mock/mock-agent')
 const MockPool = require('./lib/mock/mock-pool')
+const SnapshotAgent = require('./lib/mock/snapshot-agent')
 const mockErrors = require('./lib/mock/mock-errors')
 const RetryHandler = require('./lib/handler/retry-handler')
 const { getGlobalDispatcher, setGlobalDispatcher } = require('./lib/global')
@@ -178,6 +179,7 @@ module.exports.MockCallHistory = MockCallHistory
 module.exports.MockCallHistoryLog = MockCallHistoryLog
 module.exports.MockPool = MockPool
 module.exports.MockAgent = MockAgent
+module.exports.SnapshotAgent = SnapshotAgent
 module.exports.mockErrors = mockErrors
 
 const { EventSource } = require('./lib/web/eventsource/eventsource')

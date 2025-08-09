@@ -157,7 +157,7 @@ Depending on the host platform, the selection of toolchains may vary.
 | ---------------- | -------------------------------------------------------------- |
 | Linux            | GCC >= 12.2                                                    |
 | Windows          | Visual Studio >= 2022 with the Windows 10 SDK on a 64-bit host |
-| macOS            | Xcode >= 16.1 (Apple LLVM >= 17)                               |
+| macOS            | Xcode >= 16.3 (Apple LLVM >= 19)                               |
 
 ### Official binary platforms and toolchains
 
@@ -249,7 +249,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 13 for macOS
+* Xcode Command Line Tools >= 16.3 for macOS
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
 
@@ -637,7 +637,7 @@ Refs:
 * The current [version of Python][Python versions] from the
   [Microsoft Store](https://apps.microsoft.com/store/search?publisher=Python+Software+Foundation)
 * The "Desktop development with C++" workload from
-  [Visual Studio 2022 (17.6 or newer)](https://visualstudio.microsoft.com/downloads/)
+  [Visual Studio 2022 (17.13 or newer)](https://visualstudio.microsoft.com/downloads/)
   or the "C++ build tools" workload from the
   [Build Tools](https://aka.ms/vs/17/release/vs_buildtools.exe),
   with the default optional components. Starting with Node.js v24, ClangCL is required to compile
@@ -659,9 +659,7 @@ Optional requirements to build the MSI installer package:
 
 Optional requirements for compiling for Windows on ARM (ARM64):
 
-* Visual Studio 17.6.0 or newer
-  > **Note:** There is [a bug](https://github.com/nodejs/build/issues/3739) in `17.10.x`
-  > preventing Node.js from compiling.
+* Visual Studio 17.13.0 or newer
 * Visual Studio optional components
   * Visual C++ compilers and libraries for ARM64
   * Visual C++ ATL for ARM64

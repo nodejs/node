@@ -17,6 +17,7 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/self_test.h>
+#include "internal/fips.h"
 #include "internal/param_build_set.h"
 #include <openssl/param_build.h>
 #include "crypto/ecx.h"
@@ -91,6 +92,15 @@ static void *s390x_ecx_keygen448(struct ecx_gen_ctx *gctx);
 static void *s390x_ecd_keygen25519(struct ecx_gen_ctx *gctx);
 static void *s390x_ecd_keygen448(struct ecx_gen_ctx *gctx);
 #endif
+
+#ifdef FIPS_MODULE
+static int ecd_fips140_pairwise_test(const ECX_KEY *ecx, int type, int self_test);
+#endif  /* FIPS_MODULE */
+
+static ossl_inline int ecx_key_type_is_ed(ECX_KEY_TYPE type)
+{
+    return type == ECX_KEY_TYPE_ED25519 || type == ECX_KEY_TYPE_ED448;
+}
 
 static void *x25519_new_key(void *provctx)
 {
@@ -208,6 +218,14 @@ static int ecx_import(void *keydata, int selection, const OSSL_PARAM params[])
     include_private = selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY ? 1 : 0;
     ok = ok && ossl_ecx_key_fromdata(key, params, include_private);
 
+#ifdef FIPS_MODULE
+    if (ok > 0 && ecx_key_type_is_ed(key->type) && !ossl_fips_self_testing())
+        if (key->haspubkey && key->privkey != NULL) {
+            ok = ecd_fips140_pairwise_test(key, key->type, 1);
+            if (ok <= 0)
+                ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+        }
+#endif  /* FIPS_MODULE */
     return ok;
 }
 
@@ -703,8 +721,7 @@ static void *ecx_gen(struct ecx_gen_ctx *gctx)
     }
 #ifndef FIPS_MODULE
     if (gctx->dhkem_ikm != NULL && gctx->dhkem_ikmlen != 0) {
-        if (gctx->type == ECX_KEY_TYPE_ED25519
-                || gctx->type == ECX_KEY_TYPE_ED448)
+        if (ecx_key_type_is_ed(gctx->type))
             goto err;
         if (!ossl_ecx_dhkem_derive_private(key, privkey,
                                            gctx->dhkem_ikm, gctx->dhkem_ikmlen))
@@ -968,7 +985,7 @@ static int ecx_validate(const void *keydata, int selection, int type,
     if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != OSSL_KEYMGMT_SELECT_KEYPAIR)
         return ok;
 
-    if (type == ECX_KEY_TYPE_ED25519 || type == ECX_KEY_TYPE_ED448)
+    if (ecx_key_type_is_ed(type))
         ok = ok && ecd_key_pairwise_check(ecx, type);
     else
         ok = ok && ecx_key_pairwise_check(ecx, type);

@@ -1526,6 +1526,14 @@ uint32_t FastWriteString(Local<Value> receiver,
                          uint32_t max_length,
                          // NOLINTNEXTLINE(runtime/references)
                          FastApiCallbackOptions& options) {
+  // Just a heads up... this is a v8 fast api function. The use of
+  // FastOneByteString has some caveats. Specifically, a GC occurring
+  // between the time the FastOneByteString is created and the time
+  // we use it below can cause the FastOneByteString to become invalid
+  // and produce garbage data. This is not a problem here because we
+  // are not performing any allocations or other operations that would
+  // trigger a GC before the FastOneByteString is used. Take care when
+  // modifying this code to ensure that no operations would trigger a GC.
   HandleScope handle_scope(options.isolate);
   SPREAD_BUFFER_ARG(dst_obj, dst);
   CHECK(offset <= dst_length);

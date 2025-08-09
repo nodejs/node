@@ -253,6 +253,10 @@ OSSL_CORE_MAKE_FUNC(int, provider_up_ref,
 OSSL_CORE_MAKE_FUNC(int, provider_free,
                     (const OSSL_CORE_HANDLE *prov, int deactivate))
 
+/* Additional error functions provided by the core */
+# define OSSL_FUNC_CORE_COUNT_TO_MARK          120
+OSSL_CORE_MAKE_FUNC(int, core_count_to_mark, (const OSSL_CORE_HANDLE *prov))
+
 /* Functions provided by the provider to the Core, reserved numbers 1024-1535 */
 # define OSSL_FUNC_PROVIDER_TEARDOWN           1024
 OSSL_CORE_MAKE_FUNC(void, provider_teardown, (void *provctx))

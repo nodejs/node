@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -123,6 +123,10 @@ extern const char *ossl_rsa_mp_coeff_names[];
 ASN1_STRING *ossl_rsa_ctx_to_pss_string(EVP_PKEY_CTX *pkctx);
 int ossl_rsa_pss_to_ctx(EVP_MD_CTX *ctx, EVP_PKEY_CTX *pkctx,
                         const X509_ALGOR *sigalg, EVP_PKEY *pkey);
+
+# ifdef FIPS_MODULE
+int ossl_rsa_key_pairwise_test(RSA *rsa);
+# endif /* FIPS_MODULE */
 
 # if defined(FIPS_MODULE) && !defined(OPENSSL_NO_ACVP_TESTS)
 int ossl_rsa_acvp_test_gen_params_new(OSSL_PARAM **dst, const OSSL_PARAM src[]);

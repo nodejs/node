@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,10 +19,12 @@
 #include <openssl/core_names.h>
 #include <openssl/bn.h>
 #include <openssl/err.h>
+#include <openssl/self_test.h>
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
 #include "crypto/dh.h"
+#include "internal/fips.h"
 #include "internal/sizes.h"
 
 static OSSL_FUNC_keymgmt_new_fn dh_newdata;
@@ -207,6 +209,18 @@ static int dh_import(void *keydata, int selection, const OSSL_PARAM params[])
             selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY ? 1 : 0;
 
         ok = ok && ossl_dh_key_fromdata(dh, params, include_private);
+#ifdef FIPS_MODULE
+        /*
+         * FIPS 140-3 IG 10.3.A additional comment 1 mandates that a pairwise
+         * consistency check be undertaken on key import.  The required test
+         * is described in SP 800-56Ar3 5.6.2.1.4.
+         */
+        if (ok > 0 && !ossl_fips_self_testing()) {
+            ok = ossl_dh_check_pairwise(dh, 1);
+            if (ok <= 0)
+                ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+        }
+#endif  /* FIPS_MODULE */
     }
 
     return ok;
@@ -440,7 +454,7 @@ static int dh_validate(const void *keydata, int selection, int checktype)
 
     if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR)
             == OSSL_KEYMGMT_SELECT_KEYPAIR)
-        ok = ok && ossl_dh_check_pairwise(dh);
+        ok = ok && ossl_dh_check_pairwise(dh, 0);
     return ok;
 }
 

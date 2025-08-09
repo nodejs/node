@@ -209,7 +209,7 @@ class Realm : public MemoryRetainer {
   CppgcWrapperList cppgc_wrapper_list_;
 };
 
-class PrincipalRealm : public Realm {
+class PrincipalRealm final : public Realm {
  public:
   PrincipalRealm(Environment* env,
                  v8::Local<v8::Context> context,

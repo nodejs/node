@@ -1,5 +1,3 @@
-// Ported from https://github.com/nodejs/undici/pull/907
-
 'use strict'
 
 const assert = require('node:assert')
@@ -50,23 +48,32 @@ class BodyReadable extends Readable {
 
     this[kAbort] = abort
 
-    /**
-     * @type {Consume | null}
-     */
+    /** @type {Consume | null} */
     this[kConsume] = null
+
+    /** @type {number} */
     this[kBytesRead] = 0
-    /**
-     * @type {ReadableStream|null}
-     */
+
+    /** @type {ReadableStream|null} */
     this[kBody] = null
+
+    /** @type {boolean} */
     this[kUsed] = false
+
+    /** @type {string} */
     this[kContentType] = contentType
+
+    /** @type {number|null} */
     this[kContentLength] = Number.isFinite(contentLength) ? contentLength : null
 
-    // Is stream being consumed through Readable API?
-    // This is an optimization so that we avoid checking
-    // for 'data' and 'readable' listeners in the hot path
-    // inside push().
+    /**
+     * Is stream being consumed through Readable API?
+     * This is an optimization so that we avoid checking
+     * for 'data' and 'readable' listeners in the hot path
+     * inside push().
+     *
+     * @type {boolean}
+     */
     this[kReading] = false
   }
 
@@ -96,7 +103,7 @@ class BodyReadable extends Readable {
   }
 
   /**
-   * @param {string} event
+   * @param {string|symbol} event
    * @param {(...args: any[]) => void} listener
    * @returns {this}
    */
@@ -109,7 +116,7 @@ class BodyReadable extends Readable {
   }
 
   /**
-   * @param {string} event
+   * @param {string|symbol} event
    * @param {(...args: any[]) => void} listener
    * @returns {this}
    */
@@ -147,12 +154,14 @@ class BodyReadable extends Readable {
    * @returns {boolean}
    */
   push (chunk) {
-    this[kBytesRead] += chunk ? chunk.length : 0
-
-    if (this[kConsume] && chunk !== null) {
-      consumePush(this[kConsume], chunk)
-      return this[kReading] ? super.push(chunk) : true
+    if (chunk) {
+      this[kBytesRead] += chunk.length
+      if (this[kConsume]) {
+        consumePush(this[kConsume], chunk)
+        return this[kReading] ? super.push(chunk) : true
+      }
     }
+
     return super.push(chunk)
   }
 
@@ -339,8 +348,22 @@ function isUnusable (bodyReadable) {
 }
 
 /**
+ * @typedef {'text' | 'json' | 'blob' | 'bytes' | 'arrayBuffer'} ConsumeType
+ */
+
+/**
+ * @template {ConsumeType} T
+ * @typedef {T extends 'text' ? string :
+ *           T extends 'json' ? unknown :
+ *           T extends 'blob' ? Blob :
+ *           T extends 'arrayBuffer' ? ArrayBuffer :
+ *           T extends 'bytes' ? Uint8Array :
+ *           never
+ * } ConsumeReturnType
+ */
+/**
  * @typedef {object} Consume
- * @property {string} type
+ * @property {ConsumeType} type
  * @property {BodyReadable} stream
  * @property {((value?: any) => void)} resolve
  * @property {((err: Error) => void)} reject
@@ -349,9 +372,10 @@ function isUnusable (bodyReadable) {
  */
 
 /**
+ * @template {ConsumeType} T
  * @param {BodyReadable} stream
- * @param {string} type
- * @returns {Promise<any>}
+ * @param {T} type
+ * @returns {Promise<ConsumeReturnType<T>>}
  */
 function consume (stream, type) {
   assert(!stream[kConsume])
@@ -361,9 +385,7 @@ function consume (stream, type) {
       const rState = stream._readableState
       if (rState.destroyed && rState.closeEmitted === false) {
         stream
-          .on('error', err => {
-            reject(err)
-          })
+          .on('error', reject)
           .on('close', () => {
             reject(new TypeError('unusable'))
           })
@@ -438,7 +460,7 @@ function consumeStart (consume) {
 /**
  * @param {Buffer[]} chunks
  * @param {number} length
- * @param {BufferEncoding} encoding
+ * @param {BufferEncoding} [encoding='utf8']
  * @returns {string}
  */
 function chunksDecode (chunks, length, encoding) {

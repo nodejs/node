@@ -149,15 +149,15 @@ T Store::convert() const {
 }
 
 Store::operator uv_buf_t() const {
-  return convert<uv_buf_t, typeof(*uv_buf_t::base)>();
+  return convert<uv_buf_t, char>();
 }
 
 Store::operator ngtcp2_vec() const {
-  return convert<ngtcp2_vec, typeof(*ngtcp2_vec::base)>();
+  return convert<ngtcp2_vec, uint8_t>();
 }
 
 Store::operator nghttp3_vec() const {
-  return convert<nghttp3_vec, typeof(*ngtcp2_vec::base)>();
+  return convert<nghttp3_vec, uint8_t>();
 }
 
 void Store::MemoryInfo(MemoryTracker* tracker) const {
@@ -386,6 +386,8 @@ const QuicError QuicError::FromConnectionClose(ngtcp2_conn* session) {
 QUIC_TRANSPORT_ERRORS(V)
 #undef V
 
+const QuicError QuicError::TRANSPORT_NO_ERROR =
+    ForTransport(TransportError::NO_ERROR_);
 const QuicError QuicError::HTTP3_NO_ERROR = ForApplication(NGHTTP3_H3_NO_ERROR);
 const QuicError QuicError::VERSION_NEGOTIATION = ForVersionNegotiation();
 const QuicError QuicError::IDLE_CLOSE = ForIdleClose();

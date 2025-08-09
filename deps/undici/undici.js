@@ -1019,7 +1019,6 @@ var require_util = __commonJS({
     var { IncomingMessage } = require("node:http");
     var stream = require("node:stream");
     var net = require("node:net");
-    var { Blob: Blob2 } = require("node:buffer");
     var { stringify } = require("node:querystring");
     var { EventEmitter: EE } = require("node:events");
     var timers = require_timers();
@@ -1074,7 +1073,7 @@ var require_util = __commonJS({
     function isBlobLike(object) {
       if (object === null) {
         return false;
-      } else if (object instanceof Blob2) {
+      } else if (object instanceof Blob) {
         return true;
       } else if (typeof object !== "object") {
         return false;
@@ -4365,7 +4364,7 @@ var require_webidl = __commonJS({
     webidl.is.ReadableStream = webidl.util.MakeTypeAssertion(ReadableStream);
     webidl.is.Blob = webidl.util.MakeTypeAssertion(Blob);
     webidl.is.URLSearchParams = webidl.util.MakeTypeAssertion(URLSearchParams);
-    webidl.is.File = webidl.util.MakeTypeAssertion(globalThis.File ?? require("node:buffer").File);
+    webidl.is.File = webidl.util.MakeTypeAssertion(File);
     webidl.is.URL = webidl.util.MakeTypeAssertion(URL);
     webidl.is.AbortSignal = webidl.util.MakeTypeAssertion(AbortSignal);
     webidl.is.MessagePort = webidl.util.MakeTypeAssertion(MessagePort);
@@ -5472,9 +5471,7 @@ var require_formdata = __commonJS({
     var { iteratorMixin } = require_util2();
     var { kEnumerableProperty } = require_util();
     var { webidl } = require_webidl();
-    var { File: NativeFile } = require("node:buffer");
     var nodeUtil = require("node:util");
-    var File = globalThis.File ?? NativeFile;
     var FormData = class _FormData {
       static {
         __name(this, "FormData");
@@ -5643,8 +5640,6 @@ var require_formdata_parser = __commonJS({
     var { makeEntry } = require_formdata();
     var { webidl } = require_webidl();
     var assert = require("node:assert");
-    var { File: NodeFile } = require("node:buffer");
-    var File = globalThis.File ?? NodeFile;
     var formDataNameBuffer = Buffer.from('form-data; name="');
     var filenameBuffer = Buffer.from("filename");
     var dd = Buffer.from("--");
@@ -5946,7 +5941,6 @@ var require_body = __commonJS({
     } = require_util2();
     var { FormData, setFormDataState } = require_formdata();
     var { webidl } = require_webidl();
-    var { Blob: Blob2 } = require("node:buffer");
     var assert = require("node:assert");
     var { isErrored, isDisturbed } = require("node:stream");
     var { isArrayBuffer } = require("node:util/types");
@@ -6141,7 +6135,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             } else if (mimeType) {
               mimeType = serializeAMimeType(mimeType);
             }
-            return new Blob2([bytes], { type: mimeType });
+            return new Blob([bytes], { type: mimeType });
           }, instance, getInternalState);
         },
         arrayBuffer() {
@@ -8787,7 +8781,7 @@ var require_global2 = __commonJS({
 var require_proxy_agent = __commonJS({
   "lib/dispatcher/proxy-agent.js"(exports2, module2) {
     "use strict";
-    var { kProxy, kClose, kDestroy, kDispatch, kConnector } = require_symbols();
+    var { kProxy, kClose, kDestroy, kDispatch } = require_symbols();
     var { URL: URL2 } = require("node:url");
     var Agent = require_agent();
     var Pool = require_pool();
@@ -8812,56 +8806,59 @@ var require_proxy_agent = __commonJS({
     __name(defaultFactory, "defaultFactory");
     var noop = /* @__PURE__ */ __name(() => {
     }, "noop");
-    var ProxyClient = class extends DispatcherBase {
-      static {
-        __name(this, "ProxyClient");
+    function defaultAgentFactory(origin, opts) {
+      if (opts.connections === 1) {
+        return new Client(origin, opts);
       }
-      #client = null;
-      constructor(origin, opts) {
-        if (typeof origin === "string") {
-          origin = new URL2(origin);
-        }
-        if (origin.protocol !== "http:" && origin.protocol !== "https:") {
-          throw new InvalidArgumentError("ProxyClient only supports http and https protocols");
-        }
+      return new Pool(origin, opts);
+    }
+    __name(defaultAgentFactory, "defaultAgentFactory");
+    var Http1ProxyWrapper = class extends DispatcherBase {
+      static {
+        __name(this, "Http1ProxyWrapper");
+      }
+      #client;
+      constructor(proxyUrl, { headers = {}, connect, factory }) {
         super();
-        this.#client = new Client(origin, opts);
+        if (!proxyUrl) {
+          throw new InvalidArgumentError("Proxy URL is mandatory");
+        }
+        this[kProxyHeaders] = headers;
+        if (factory) {
+          this.#client = factory(proxyUrl, { connect });
+        } else {
+          this.#client = new Client(proxyUrl, { connect });
+        }
+      }
+      [kDispatch](opts, handler) {
+        const onHeaders = handler.onHeaders;
+        handler.onHeaders = function(statusCode, data, resume) {
+          if (statusCode === 407) {
+            if (typeof handler.onError === "function") {
+              handler.onError(new InvalidArgumentError("Proxy Authentication Required (407)"));
+            }
+            return;
+          }
+          if (onHeaders) onHeaders.call(this, statusCode, data, resume);
+        };
+        const {
+          origin,
+          path = "/",
+          headers = {}
+        } = opts;
+        opts.path = origin + path;
+        if (!("host" in headers) && !("Host" in headers)) {
+          const { host } = new URL2(origin);
+          headers.host = host;
+        }
+        opts.headers = { ...this[kProxyHeaders], ...headers };
+        return this.#client[kDispatch](opts, handler);
       }
       async [kClose]() {
-        await this.#client.close();
+        return this.#client.close();
       }
-      async [kDestroy]() {
-        await this.#client.destroy();
-      }
-      async [kDispatch](opts, handler) {
-        const { method, origin } = opts;
-        if (method === "CONNECT") {
-          this.#client[kConnector](
-            {
-              origin,
-              port: opts.port || defaultProtocolPort(opts.protocol),
-              path: opts.host,
-              signal: opts.signal,
-              headers: {
-                ...this[kProxyHeaders],
-                host: opts.host
-              },
-              servername: this[kProxyTls]?.servername || opts.servername
-            },
-            (err, socket) => {
-              if (err) {
-                handler.callback(err);
-              } else {
-                handler.callback(null, { socket, statusCode: 200 });
-              }
-            }
-          );
-          return;
-        }
-        if (typeof origin === "string") {
-          opts.origin = new URL2(origin);
-        }
-        return this.#client.dispatch(opts, handler);
+      async [kDestroy](err) {
+        return this.#client.destroy(err);
       }
     };
     var ProxyAgent = class extends DispatcherBase {
@@ -8884,6 +8881,7 @@ var require_proxy_agent = __commonJS({
         this[kRequestTls] = opts.requestTls;
         this[kProxyTls] = opts.proxyTls;
         this[kProxyHeaders] = opts.headers || {};
+        this[kTunnelProxy] = proxyTunnel;
         if (opts.auth && opts.token) {
           throw new InvalidArgumentError("opts.auth cannot be used in combination with opts.token");
         } else if (opts.auth) {
@@ -8893,18 +8891,24 @@ var require_proxy_agent = __commonJS({
         } else if (username && password) {
           this[kProxyHeaders]["proxy-authorization"] = `Basic ${Buffer.from(`${decodeURIComponent(username)}:${decodeURIComponent(password)}`).toString("base64")}`;
         }
-        const factory = !proxyTunnel && protocol === "http:" ? (origin2, options) => {
-          if (origin2.protocol === "http:") {
-            return new ProxyClient(origin2, options);
-          }
-          return new Client(origin2, options);
-        } : void 0;
         const connect = buildConnector({ ...opts.proxyTls });
         this[kConnectEndpoint] = buildConnector({ ...opts.requestTls });
-        this[kClient] = clientFactory(url, { connect, factory });
-        this[kTunnelProxy] = proxyTunnel;
+        const agentFactory = opts.factory || defaultAgentFactory;
+        const factory = /* @__PURE__ */ __name((origin2, options) => {
+          const { protocol: protocol2 } = new URL2(origin2);
+          if (!this[kTunnelProxy] && protocol2 === "http:" && this[kProxy].protocol === "http:") {
+            return new Http1ProxyWrapper(this[kProxy].uri, {
+              headers: this[kProxyHeaders],
+              connect,
+              factory: agentFactory
+            });
+          }
+          return agentFactory(origin2, options);
+        }, "factory");
+        this[kClient] = clientFactory(url, { connect });
         this[kAgent] = new Agent({
           ...opts,
+          factory,
           connect: /* @__PURE__ */ __name(async (opts2, callback) => {
             let requestedPath = opts2.host;
             if (!opts2.port) {
@@ -8955,9 +8959,6 @@ var require_proxy_agent = __commonJS({
           const { host } = new URL2(opts.origin);
           headers.host = host;
         }
-        if (!this.#shouldConnect(new URL2(opts.origin))) {
-          opts.path = opts.origin + opts.path;
-        }
         return this[kAgent].dispatch(
           {
             ...opts,
@@ -8986,18 +8987,6 @@ var require_proxy_agent = __commonJS({
       async [kDestroy]() {
         await this[kAgent].destroy();
         await this[kClient].destroy();
-      }
-      #shouldConnect(uri) {
-        if (typeof uri === "string") {
-          uri = new URL2(uri);
-        }
-        if (this[kTunnelProxy]) {
-          return true;
-        }
-        if (uri.protocol !== "http:" || this[kProxy].protocol !== "http:") {
-          return true;
-        }
-        return false;
       }
     };
     function buildHeaders(headers) {
@@ -14273,7 +14262,7 @@ var require_readable = __commonJS({
         }
       }
       /**
-       * @param {string} event
+       * @param {string|symbol} event
        * @param {(...args: any[]) => void} listener
        * @returns {this}
        */
@@ -14285,7 +14274,7 @@ var require_readable = __commonJS({
         return super.on(event, listener);
       }
       /**
-       * @param {string} event
+       * @param {string|symbol} event
        * @param {(...args: any[]) => void} listener
        * @returns {this}
        */
@@ -14317,10 +14306,12 @@ var require_readable = __commonJS({
        * @returns {boolean}
        */
       push(chunk) {
-        this[kBytesRead] += chunk ? chunk.length : 0;
-        if (this[kConsume] && chunk !== null) {
-          consumePush(this[kConsume], chunk);
-          return this[kReading] ? super.push(chunk) : true;
+        if (chunk) {
+          this[kBytesRead] += chunk.length;
+          if (this[kConsume]) {
+            consumePush(this[kConsume], chunk);
+            return this[kReading] ? super.push(chunk) : true;
+          }
         }
         return super.push(chunk);
       }
@@ -14473,9 +14464,7 @@ var require_readable = __commonJS({
         if (isUnusable(stream)) {
           const rState = stream._readableState;
           if (rState.destroyed && rState.closeEmitted === false) {
-            stream.on("error", (err) => {
-              reject(err);
-            }).on("close", () => {
+            stream.on("error", reject).on("close", () => {
               reject(new TypeError("unusable"));
             });
           } else {

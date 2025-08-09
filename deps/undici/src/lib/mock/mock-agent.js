@@ -17,7 +17,8 @@ const {
   kMockAgentAddCallHistoryLog,
   kMockAgentMockCallHistoryInstance,
   kMockAgentAcceptsNonStandardSearchParameters,
-  kMockCallHistoryAddLog
+  kMockCallHistoryAddLog,
+  kIgnoreTrailingSlash
 } = require('./mock-symbols')
 const MockClient = require('./mock-client')
 const MockPool = require('./mock-pool')
@@ -37,6 +38,7 @@ class MockAgent extends Dispatcher {
     this[kIsMockActive] = true
     this[kMockAgentIsCallHistoryEnabled] = mockOptions?.enableCallHistory ?? false
     this[kMockAgentAcceptsNonStandardSearchParameters] = mockOptions?.acceptNonStandardSearchParameters ?? false
+    this[kIgnoreTrailingSlash] = mockOptions?.ignoreTrailingSlash ?? false
 
     // Instantiate Agent and encapsulate
     if (opts?.agent && typeof opts.agent.dispatch !== 'function') {
@@ -54,11 +56,15 @@ class MockAgent extends Dispatcher {
   }
 
   get (origin) {
-    let dispatcher = this[kMockAgentGet](origin)
+    const originKey = this[kIgnoreTrailingSlash]
+      ? origin.replace(/\/$/, '')
+      : origin
+
+    let dispatcher = this[kMockAgentGet](originKey)
 
     if (!dispatcher) {
-      dispatcher = this[kFactory](origin)
-      this[kMockAgentSet](origin, dispatcher)
+      dispatcher = this[kFactory](originKey)
+      this[kMockAgentSet](originKey, dispatcher)
     }
     return dispatcher
   }
