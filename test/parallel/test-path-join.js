@@ -110,6 +110,14 @@ joinTests.push([
       [['c:.', 'file'], 'c:file'],
       [['c:', '/'], 'c:\\'],
       [['c:', 'file'], 'c:\\file'],
+      // UNC path join tests (Windows)
+      [['\\server\\share', 'file.txt'], '\\server\\share\\file.txt'],
+      [['\\server\\share', 'folder', 'another.txt'], '\\server\\share\\folder\\another.txt'],
+      [['\\server\\share', 'COM1:'], '\\server\\share\\COM1:'],
+      [['\\server\\share', 'path', 'LPT1:'], '\\server\\share\\path\\LPT1:'],
+      [['\\fileserver\\public\\uploads', 'CON:..\\..\\..\\private\\db.conf'],
+       '\\fileserver\\public\\uploads\\CON:..\\..\\..\\private\\db.conf'],
+
       // Path traversal in previous versions of Node.js.
       [['./upload', '/../C:/Windows'], '.\\C:\\Windows'],
       [['upload', '../', 'C:foo'], '.\\C:foo'],
