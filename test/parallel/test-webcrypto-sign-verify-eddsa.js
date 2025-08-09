@@ -219,7 +219,7 @@ async function testSign({ name,
 })().then(common.mustCall());
 
 // Ed448 context
-{
+if (!process.features.openssl_is_boringssl) {
   const vector = vectors.find(({ name }) => name === 'Ed448');
   Promise.all([
     subtle.importKey(
@@ -247,4 +247,6 @@ async function testSign({ name,
       message: /Non zero-length Ed448Params\.context is not supported/
     });
   }).then(common.mustCall());
+} else {
+  common.printSkipMessage('Skipping unsupported Ed448 test case');
 }

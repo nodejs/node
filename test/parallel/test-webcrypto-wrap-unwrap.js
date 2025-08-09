@@ -39,20 +39,25 @@ const kWrappingData = {
     },
     pair: false
   },
-  'ChaCha20-Poly1305': {
+};
+
+if (!process.features.openssl_is_boringssl) {
+  kWrappingData['AES-KW'] = {
+    generate: { length: 128 },
+    wrap: { },
+    pair: false
+  };
+  kWrappingData['ChaCha20-Poly1305'] = {
     wrap: {
       iv: new Uint8Array(12),
       additionalData: new Uint8Array(16),
       tagLength: 128
     },
     pair: false
-  },
-  'AES-KW': {
-    generate: { length: 128 },
-    wrap: { },
-    pair: false
-  }
-};
+  };
+} else {
+  common.printSkipMessage('Skipping unsupported AES-KW test case');
+}
 
 function generateWrappingKeys() {
   return Promise.all(Object.keys(kWrappingData).map(async (name) => {
@@ -133,23 +138,7 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
-        name: 'Ed448',
-      },
-      privateUsages: ['sign'],
-      publicUsages: ['verify'],
-      pair: true,
-    },
-    {
-      algorithm: {
         name: 'X25519',
-      },
-      privateUsages: ['deriveBits'],
-      publicUsages: [],
-      pair: true,
-    },
-    {
-      algorithm: {
-        name: 'X448',
       },
       privateUsages: ['deriveBits'],
       publicUsages: [],
@@ -187,14 +176,6 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
-        name: 'AES-KW',
-        length: 128
-      },
-      usages: ['wrapKey', 'unwrapKey'],
-      pair: false,
-    },
-    {
-      algorithm: {
         name: 'HMAC',
         length: 128,
         hash: 'SHA-256'
@@ -203,6 +184,19 @@ async function generateKeysToWrap() {
       pair: false,
     },
   ];
+
+  if (!process.features.openssl_is_boringssl) {
+    parameters.push({
+      algorithm: {
+        name: 'AES-KW',
+        length: 128
+      },
+      usages: ['wrapKey', 'unwrapKey'],
+      pair: false,
+    });
+  } else {
+    common.printSkipMessage('Skipping unsupported AES-KW test case');
+  }
 
   if (hasOpenSSL(3, 5)) {
     for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
@@ -213,6 +207,29 @@ async function generateKeysToWrap() {
         pair: true,
       });
     }
+  }
+
+  if (!process.features.openssl_is_boringssl) {
+    parameters.push(
+      {
+        algorithm: {
+          name: 'Ed448',
+        },
+        privateUsages: ['sign'],
+        publicUsages: ['verify'],
+        pair: true,
+      },
+      {
+        algorithm: {
+          name: 'X448',
+        },
+        privateUsages: ['deriveBits'],
+        publicUsages: [],
+        pair: true,
+      },
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported Curve test cases');
   }
 
   const allkeys = await Promise.all(parameters.map(async (params) => {

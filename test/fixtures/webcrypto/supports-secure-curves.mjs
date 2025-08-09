@@ -1,38 +1,41 @@
 const { subtle } = globalThis.crypto;
 
-const [X448, X25519] = await Promise.all([
-  subtle.generateKey('X448', false, ['deriveBits', 'deriveKey']),
-  subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']),
-]);
+const boringSSL = process.features.openssl_is_boringssl;
+
+const X25519 = await subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']);
+let X448;
+if (!boringSSL) {
+  X448 = await subtle.generateKey('X448', false, ['deriveBits', 'deriveKey'])
+}
 
 export const vectors = {
   'generateKey': [
-    [true, 'X448'],
-    [true, 'Ed448'],
+    [!boringSSL, 'X448'],
+    [!boringSSL, 'Ed448'],
   ],
   'deriveKey': [
-    [true,
-     { name: 'X448', public: X448.publicKey },
+    [!boringSSL,
+     { name: 'X448', public: X448?.publicKey },
      { name: 'AES-CBC', length: 128 }],
-    [true,
-     { name: 'X448', public: X448.publicKey },
+    [!boringSSL,
+     { name: 'X448', public: X448?.publicKey },
      { name: 'HMAC', hash: 'SHA-256' }],
-    [true,
-     { name: 'X448', public: X448.publicKey },
+    [!boringSSL,
+     { name: 'X448', public: X448?.publicKey },
      'HKDF'],
   ],
   'deriveBits': [
-    [true, { name: 'X448', public: X448.publicKey }],
+    [!boringSSL, { name: 'X448', public: X448?.publicKey }],
     [false, { name: 'X448', public: X25519.publicKey }],
-    [false, { name: 'X448', public: X448.privateKey }],
+    [false, { name: 'X448', public: X448?.privateKey }],
     [false, 'X448'],
   ],
   'importKey': [
-    [true, 'X448'],
-    [true, 'Ed448'],
+    [!boringSSL, 'X448'],
+    [!boringSSL, 'Ed448'],
   ],
   'exportKey': [
-    [true, 'Ed448'],
-    [true, 'X448'],
+    [!boringSSL, 'Ed448'],
+    [!boringSSL, 'X448'],
   ],
 };

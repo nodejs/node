@@ -81,13 +81,20 @@ const { KeyObject } = require('crypto');
      'e36cf2cf943d8f3a88adb80f478745c336ac811b1a86d03a7d10eb0b6b52295c'],
     ['hello', 'there', 'my friend', 'SHA-512',
      '1e42d43fcacba361716f65853bd5f3c479f679612f0180eab3c51ed6c9d2b47d'],
-    ['hello', 'there', 'my friend', 'SHA3-256',
-     '2a49a3b6fb219117af9e251c6c65f16600cbca13bd0be6e70d96b0b9fa4cf3fd'],
-    ['hello', 'there', 'my friend', 'SHA3-384',
-     '0437bb59b95f2db2c7684c0b439028cb0fdd6f0f5d03b9f489066a87ae147221'],
-    ['hello', 'there', 'my friend', 'SHA3-512',
-     '3bbc469d38214371921e52c6f147e96cb7eb370421a81f53dea8b4851dfb8bce'],
   ];
+
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+      ['hello', 'there', 'my friend', 'SHA3-256',
+       '2a49a3b6fb219117af9e251c6c65f16600cbca13bd0be6e70d96b0b9fa4cf3fd'],
+      ['hello', 'there', 'my friend', 'SHA3-384',
+       '0437bb59b95f2db2c7684c0b439028cb0fdd6f0f5d03b9f489066a87ae147221'],
+      ['hello', 'there', 'my friend', 'SHA3-512',
+       '3bbc469d38214371921e52c6f147e96cb7eb370421a81f53dea8b4851dfb8bce'],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+  }
 
   const tests = Promise.all(kTests.map((args) => test(...args)));
 
@@ -239,8 +246,10 @@ const { KeyObject } = require('crypto');
     assert.deepStrictEqual(raw1, raw2);
   }
 
+  test('X25519').then(common.mustCall());
   if (!process.features.openssl_is_boringssl) {
-    test('X25519').then(common.mustCall());
     test('X448').then(common.mustCall());
+  } else {
+    common.printSkipMessage('Skipping unsupported X448 test case');
   }
 }
