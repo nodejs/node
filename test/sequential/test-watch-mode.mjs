@@ -108,9 +108,20 @@ async function runWriteSucceed({
   let stderr = '';
   const stdout = [];
 
+  let watchedFiles = [];
+  let currentWatchedFileIndex = 0;
+  const isWatchingMultpileFiles = Array.isArray(watchedFile) && watchedFile.length > 1;
+  const isWatchingSingleFile = !isWatchingMultpileFiles;
+
+  if (isWatchingMultpileFiles) {
+    watchedFiles = watchedFile;
+    restarts = watchedFiles.length + 1;
+  }
+
   child.stderr.on('data', (data) => {
     stderr += data;
   });
+
 
   try {
     // Break the chunks into lines
@@ -120,11 +131,22 @@ async function runWriteSucceed({
       }
       if (data.startsWith(completed)) {
         completes++;
-        if (completes === restarts) {
-          break;
-        }
-        if (completes === 1) {
-          cancelRestarts = restart(watchedFile);
+        if (isWatchingSingleFile) {
+          if (completes === restarts) {
+            break;
+          }
+          if (completes === 1) {
+            cancelRestarts = restart(watchedFile);
+          }
+        } else {
+          if (completes === restarts) {
+            break;
+          }
+          if (completes < restarts) {
+            cancelRestarts();
+            const currentlyWatchedFile = watchedFiles[currentWatchedFileIndex++];
+            cancelRestarts = restart(currentlyWatchedFile);
+          }
         }
       }
 
@@ -790,5 +812,51 @@ process.on('message', (message) => {
       'Received: second message',
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
+  });
+
+  it('should watch files from a given glob pattern --watch-path=./**/*.js', async () => {
+
+    const tmpDirForGlobTest = tmpdir.resolve('glob-test-dir');
+    mkdirSync(tmpDirForGlobTest);
+
+    const globPattern = path.resolve(tmpDirForGlobTest, '**/*.js');
+
+    const directory1 = path.join(tmpDirForGlobTest, 'directory1');
+    const directory2 = path.join(tmpDirForGlobTest, 'directory2');
+
+    mkdirSync(directory1);
+    mkdirSync(directory2);
+
+    const tmpJsFile1 = createTmpFile('', '.js', directory1);
+    const tmpJsFile2 = createTmpFile('', '.js', directory1);
+    const tmpJsFile3 = createTmpFile('', '.js', directory2);
+    const tmpJsFile4 = createTmpFile('', '.js', directory2);
+    const tmpJsFile5 = createTmpFile('', '.js', directory2);
+
+    const mainJsFile = createTmpFile('console.log(\'running\')', '.js', tmpDirForGlobTest);
+
+    const args = ['--watch-path', globPattern, mainJsFile];
+    const watchedFiles = [tmpJsFile1, tmpJsFile2, tmpJsFile3, tmpJsFile4, tmpJsFile5];
+
+    const { stderr, stdout } = await runWriteSucceed({
+      args,
+      watchedFile: watchedFiles,
+    });
+
+    function expectRepeatedCompletes(n) {
+      const expectedStdout = [];
+      for (let i = 0; i < n; i++) {
+        if (i !== 0) {
+          expectedStdout.push(`Restarting ${inspect((mainJsFile))}`);
+        }
+        expectedStdout.push('running');
+        expectedStdout.push(`Completed running ${inspect(mainJsFile)}. Waiting for file changes before restarting...`);
+      }
+      return expectedStdout;
+    }
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, expectRepeatedCompletes(6));
+
   });
 });
