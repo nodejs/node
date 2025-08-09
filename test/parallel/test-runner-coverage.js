@@ -550,3 +550,41 @@ test('correctly prints the coverage report of files contained in parent director
   assert(result.stdout.toString().includes(report));
   assert.strictEqual(result.status, 0);
 });
+
+test('should respect /* node:coverage */ comments', skipIfNoInspector, () => {
+  let report = [
+  '# start of coverage report',
+  '# ---------------------------------------------------------------------------------',
+  '# file                             | line % | branch % | funcs % | uncovered lines',
+  '# ---------------------------------------------------------------------------------',
+  '# test                             |        |          |         | ',
+  '#  fixtures                        |        |          |         | ',
+  '#   test-runner                    |        |          |         | ',
+  '#    coverage                      |        |          |         | ',
+  '#     coverage-control-comments.js | 100.00 |   100.00 |  100.00 | ',
+  '# ---------------------------------------------------------------------------------',
+  '# all files                        | 100.00 |   100.00 |  100.00 | ',
+  '# ---------------------------------------------------------------------------------',
+  '# end of coverage report',
+].join('\n');
+
+  if (common.isWindows) {
+    return report.replaceAll('/', '\\');
+  }
+
+  const fixture = fixtures.path('test-runner', 'coverage', 'coverage-control-comments.js');
+  const args = [
+    '--test',
+    '--experimental-test-coverage',
+    '--test-coverage-exclude=!test/**',
+    '--test-reporter',
+    'tap',
+    fixture,
+  ];
+
+  const result = spawnSync(process.execPath, args);
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
+});
