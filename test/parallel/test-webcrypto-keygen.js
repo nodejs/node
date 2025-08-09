@@ -6,6 +6,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
 const assert = require('assert');
 const { types: { isCryptoKey } } = require('util');
 const {
@@ -53,14 +55,6 @@ const vectors = {
     usages: [
       'encrypt',
       'decrypt',
-      'wrapKey',
-      'unwrapKey',
-    ],
-  },
-  'AES-KW': {
-    algorithm: { length: 256 },
-    result: 'CryptoKey',
-    usages: [
       'wrapKey',
       'unwrapKey',
     ],
@@ -134,21 +128,7 @@ const vectors = {
       'verify',
     ],
   },
-  'Ed448': {
-    result: 'CryptoKeyPair',
-    usages: [
-      'sign',
-      'verify',
-    ],
-  },
   'X25519': {
-    result: 'CryptoKeyPair',
-    usages: [
-      'deriveKey',
-      'deriveBits',
-    ],
-  },
-  'X448': {
     result: 'CryptoKeyPair',
     usages: [
       'deriveKey',
@@ -157,16 +137,61 @@ const vectors = {
   },
 };
 
+if (!process.features.openssl_is_boringssl) {
+  vectors.Ed448 = {
+    result: 'CryptoKeyPair',
+    usages: [
+      'sign',
+      'verify',
+    ],
+  };
+  vectors.X448 = {
+    result: 'CryptoKeyPair',
+    usages: [
+      'deriveKey',
+      'deriveBits',
+    ],
+  };
+  vectors['AES-KW'] = {
+    algorithm: { length: 256 },
+    result: 'CryptoKey',
+    usages: [
+      'wrapKey',
+      'unwrapKey',
+    ],
+  };
+  vectors['ChaCha20-Poly1305'] = {
+    result: 'CryptoKey',
+    usages: [
+      'encrypt',
+      'decrypt',
+      'wrapKey',
+      'unwrapKey',
+    ],
+  };
+} else {
+  common.printSkipMessage('Skipping unsupported test cases');
+}
+
+if (hasOpenSSL(3, 5)) {
+  for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
+    vectors[name] = {
+      result: 'CryptoKeyPair',
+      usages: [
+        'sign',
+        'verify',
+      ],
+    };
+  }
+}
+
 // Test invalid algorithms
 {
   async function test(algorithm) {
     return assert.rejects(
       // The extractable and usages values are invalid here also,
       // but the unrecognized algorithm name should be caught first.
-      subtle.generateKey(algorithm, 7, []), {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      });
+      subtle.generateKey(algorithm, 7, []), { name: 'NotSupportedError' });
   }
 
   const tests = [
@@ -359,10 +384,7 @@ const vectors = {
         modulusLength,
         publicExponent,
         hash
-      }, true, usages), {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      });
+      }, true, usages), { name: 'NotSupportedError' });
     }));
 
     await Promise.all(['', {}, 1, false].map((usages) => {
@@ -393,27 +415,35 @@ const vectors = {
       'RSASSA-PKCS1-v1_5',
       1024,
       Buffer.from([1, 0, 1]),
-      'SHA-256',
+      'SHA-1',
       ['sign'],
       ['verify'],
     ],
     [
       'RSA-PSS',
-      2048,
+      1024,
       Buffer.from([1, 0, 1]),
-      'SHA-512',
+      'SHA-256',
       ['sign'],
       ['verify'],
     ],
-    [
-      'RSA-OAEP',
-      1024,
-      Buffer.from([3]),
-      'SHA-384',
-      ['decrypt', 'unwrapKey'],
-      ['encrypt', 'wrapKey'],
-    ],
   ];
+
+
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+      [
+        'RSA-OAEP',
+        1024,
+        Buffer.from([3]),
+        'SHA3-256',
+        ['decrypt', 'unwrapKey'],
+        ['encrypt', 'wrapKey'],
+      ],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported SHA-3 test case');
+  }
 
   const tests = kTests.map((args) => test(...args));
 
@@ -547,9 +577,16 @@ const vectors = {
     [ 'AES-CBC', 256, ['encrypt', 'decrypt']],
     [ 'AES-GCM', 128, ['encrypt', 'decrypt']],
     [ 'AES-GCM', 256, ['encrypt', 'decrypt']],
-    [ 'AES-KW', 128, ['wrapKey', 'unwrapKey']],
-    [ 'AES-KW', 256, ['wrapKey', 'unwrapKey']],
   ];
+
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+      [ 'AES-KW', 128, ['wrapKey', 'unwrapKey']],
+      [ 'AES-KW', 256, ['wrapKey', 'unwrapKey']],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported AES-KW test cases');
+  }
 
   const tests = Promise.all(kTests.map((args) => test(...args)));
 
@@ -571,6 +608,9 @@ const vectors = {
         case 'SHA-256': length = 512; break;
         case 'SHA-384': length = 1024; break;
         case 'SHA-512': length = 1024; break;
+        case 'SHA3-256': length = 1088; break;
+        case 'SHA3-384': length = 832; break;
+        case 'SHA3-512': length = 576; break;
       }
     }
 
@@ -590,7 +630,6 @@ const vectors = {
     [1, false, null].forEach(async (hash) => {
       await assert.rejects(
         subtle.generateKey({ name: 'HMAC', length, hash }, true, usages), {
-          message: /Unrecognized algorithm name/,
           name: 'NotSupportedError',
         });
     });
@@ -604,6 +643,17 @@ const vectors = {
     [ 128, 'SHA-256', ['sign', 'verify']],
     [ 1024, 'SHA-512', ['sign', 'verify']],
   ];
+
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+
+      [ undefined, 'SHA3-256', ['sign', 'verify']],
+      [ undefined, 'SHA3-384', ['sign', 'verify']],
+      [ undefined, 'SHA3-512', ['sign', 'verify']],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported SHA-3 test cases');
+  }
 
   const tests = Promise.all(kTests.map((args) => test(...args)));
 
@@ -663,23 +713,73 @@ assert.throws(() => new CryptoKey(), { code: 'ERR_ILLEGAL_CONSTRUCTOR' });
       ['verify'],
     ],
     [
-      'Ed448',
-      ['sign'],
-      ['verify'],
-    ],
-    [
       'X25519',
-      ['deriveKey', 'deriveBits'],
-      [],
-    ],
-    [
-      'X448',
       ['deriveKey', 'deriveBits'],
       [],
     ],
   ];
 
+  if (!process.features.openssl_is_boringssl) {
+    kTests.push(
+      [
+        'Ed448',
+        ['sign'],
+        ['verify'],
+      ],
+      [
+        'X448',
+        ['deriveKey', 'deriveBits'],
+        [],
+      ],
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported Curve448 test cases');
+  }
+
   const tests = kTests.map((args) => test(...args));
+
+  Promise.all(tests).then(common.mustCall());
+}
+
+// Test ML-DSA Key Generation
+if (hasOpenSSL(3, 5)) {
+  async function test(
+    name,
+    privateUsages,
+    publicUsages = privateUsages) {
+
+    let usages = privateUsages;
+    if (publicUsages !== privateUsages)
+      usages = usages.concat(publicUsages);
+
+    const { publicKey, privateKey } = await subtle.generateKey({
+      name,
+    }, true, usages);
+
+    assert(publicKey);
+    assert(privateKey);
+    assert(isCryptoKey(publicKey));
+    assert(isCryptoKey(privateKey));
+
+    assert.strictEqual(publicKey.type, 'public');
+    assert.strictEqual(privateKey.type, 'private');
+    assert.strictEqual(publicKey.toString(), '[object CryptoKey]');
+    assert.strictEqual(privateKey.toString(), '[object CryptoKey]');
+    assert.strictEqual(publicKey.extractable, true);
+    assert.strictEqual(privateKey.extractable, true);
+    assert.deepStrictEqual(publicKey.usages, publicUsages);
+    assert.deepStrictEqual(privateKey.usages, privateUsages);
+    assert.strictEqual(publicKey.algorithm.name, name);
+    assert.strictEqual(privateKey.algorithm.name, name);
+    assert.strictEqual(privateKey.algorithm, privateKey.algorithm);
+    assert.strictEqual(privateKey.usages, privateKey.usages);
+    assert.strictEqual(publicKey.algorithm, publicKey.algorithm);
+    assert.strictEqual(publicKey.usages, publicKey.usages);
+  }
+
+  const kTests = ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87'];
+
+  const tests = kTests.map((name) => test(name, ['sign'], ['verify']));
 
   Promise.all(tests).then(common.mustCall());
 }

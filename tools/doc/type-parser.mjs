@@ -98,7 +98,7 @@ const customTypesMap = {
   'AesCtrParams': 'webcrypto.html#class-aesctrparams',
   'AesCbcParams': 'webcrypto.html#class-aescbcparams',
   'AesDerivedKeyParams': 'webcrypto.html#class-aesderivedkeyparams',
-  'AesGcmParams': 'webcrypto.html#class-aesgcmparams',
+  'AeadParams': 'webcrypto.html#class-aeadparams',
   'EcdhKeyDeriveParams': 'webcrypto.html#class-ecdhkeyderiveparams',
   'HkdfParams': 'webcrypto.html#class-hkdfparams',
   'KeyAlgorithm': 'webcrypto.html#class-keyalgorithm',
@@ -120,6 +120,8 @@ const customTypesMap = {
   'EcdsaParams': 'webcrypto.html#class-ecdsaparams',
   'RsaPssParams': 'webcrypto.html#class-rsapssparams',
   'Ed448Params': 'webcrypto.html#class-ed448params',
+  'ContextParams': 'webcrypto.html#class-contextparams',
+  'CShakeParams': 'webcrypto.html#class-cshakeparams',
 
   'dgram.Socket': 'dgram.html#class-dgramsocket',
 

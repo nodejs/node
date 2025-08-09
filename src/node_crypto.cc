@@ -38,6 +38,7 @@ namespace crypto {
 
 #define CRYPTO_NAMESPACE_LIST_BASE(V)                                          \
   V(AES)                                                                       \
+  V(ChaCha20Poly1305)                                                          \
   V(CipherBase)                                                                \
   V(DiffieHellman)                                                             \
   V(DSAAlg)                                                                    \

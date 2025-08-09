@@ -88,21 +88,28 @@ const testVectors = [
     publicUsages: ['verify']
   },
   {
-    name: 'Ed448',
-    privateUsages: ['sign'],
-    publicUsages: ['verify']
-  },
-  {
     name: 'X25519',
     privateUsages: ['deriveKey', 'deriveBits'],
     publicUsages: []
   },
-  {
-    name: 'X448',
-    privateUsages: ['deriveKey', 'deriveBits'],
-    publicUsages: []
-  },
 ];
+
+if (!process.features.openssl_is_boringssl) {
+  testVectors.push(
+    {
+      name: 'Ed448',
+      privateUsages: ['sign'],
+      publicUsages: ['verify']
+    },
+    {
+      name: 'X448',
+      privateUsages: ['deriveKey', 'deriveBits'],
+      publicUsages: []
+    },
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported Curve448 test cases');
+}
 
 async function testImportSpki({ name, publicUsages }, extractable) {
   const key = await subtle.importKey(
