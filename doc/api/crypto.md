@@ -2677,16 +2677,6 @@ added: v15.6.0
 Checks whether the public key for this certificate is consistent with
 the given private key.
 
-### `x509.extKeyUsage`
-
-<!-- YAML
-added: v15.6.0
--->
-
-* Type: {string\[]}
-
-An array detailing the key extended usages for this certificate.
-
 ### `x509.fingerprint`
 
 <!-- YAML
@@ -2777,6 +2767,16 @@ added: v15.9.0
 
 The issuer certificate or `undefined` if the issuer certificate is not
 available.
+
+### `x509.keyUsage`
+
+<!-- YAML
+added: v15.6.0
+-->
+
+* Type: {string\[]}
+
+An array detailing the key extended usages for this certificate.
 
 ### `x509.publicKey`
 
