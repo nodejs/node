@@ -124,11 +124,11 @@ function doTest() {
       console.log(' ----- [STDOUT] ---');
       console.log(clientOutput);
       console.log(' ----- [SESSION FILE] ---');
-      if (fs.existsSync(sessionFileName)) {
-        const sessionData = fs.readFileSync(sessionFileName);
-        console.log(`Session file size: ${sessionData.length} bytes`);
-      } else {
-        console.log('Session file does not exist');
+      try {
+        const stat = fs.statSync(sessionFileName);
+        console.log(`Session file size: ${stat.size} bytes`);
+      } catch (err) {
+        console.log('Error reading session file:', err);
       }
 
       const grepConnectionType = (line) => {
