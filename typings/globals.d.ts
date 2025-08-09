@@ -4,6 +4,7 @@ import { BlobBinding } from './internalBinding/blob';
 import { ConfigBinding } from './internalBinding/config';
 import { ConstantsBinding } from './internalBinding/constants';
 import { DebugBinding } from './internalBinding/debug';
+import { EncodingBinding } from './internalBinding/encoding_binding';
 import { HttpParserBinding } from './internalBinding/http_parser';
 import { InspectorBinding } from './internalBinding/inspector';
 import { FsBinding } from './internalBinding/fs';
@@ -34,6 +35,7 @@ interface InternalBindingMap {
   config: ConfigBinding;
   constants: ConstantsBinding;
   debug: DebugBinding;
+  encoding_binding: EncodingBinding;
   fs: FsBinding;
   fs_dir: FsDirBinding;
   http_parser: HttpParserBinding;
