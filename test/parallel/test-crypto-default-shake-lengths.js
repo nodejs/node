@@ -5,7 +5,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const crypto = require('crypto');
-if (!crypto.getCiphers().includes('shake128')) {
+if (!crypto.getHashes().includes('shake128')) {
   common.skip('unsupported shake128 test');
 }
 
