@@ -108,9 +108,10 @@ function doTest() {
       '-connect', `localhost:${common.PORT}`,
       '-sess_in', sessionFileName,
       '-sess_out', sessionFileName,
+      '-CAfile', fixtures.path('keys', 'rsa_cert.crt'),
     ];
     const client = spawn(opensslCli, flags, {
-      stdio: ['ignore', 'pipe', 'ignore']
+      stdio: ['ignore', 'pipe', 'inherit']
     });
 
     let clientOutput = '';
@@ -168,7 +169,7 @@ function doTest() {
             });
           }, (SESSION_TIMEOUT + 1) * 1000);
         });
-      }, 100);  // Wait a bit to ensure the session ticket is saved. 
+      }, 100);  // Wait a bit to ensure the session ticket is saved.
     });
   });
 }
