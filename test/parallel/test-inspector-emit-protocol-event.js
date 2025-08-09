@@ -27,6 +27,7 @@ const EXPECTED_EVENTS = {
           url: 'https://nodejs.org/en',
           method: 'GET',
           headers: {},
+          hasPostData: false,
         },
         timestamp: 1000,
         wallTime: 1000,
