@@ -781,6 +781,7 @@ changes:
     previews or not. **Default:** `true` with the default eval function and
     `false` in case a custom eval function is used. If `terminal` is falsy, then
     there are no previews and the value of `preview` has no effect.
+  * `subprompt` {string} The prompt to display for multiline input. **Default:** `'| '`.
 * Returns: {repl.REPLServer}
 
 The `repl.start()` method creates and starts a [`repl.REPLServer`][] instance.
