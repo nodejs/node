@@ -1,4 +1,4 @@
-/* auto-generated on 2025-07-16 22:15:14 -0400. Do not edit! */
+/* auto-generated on 2025-07-27 12:29:50 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -9511,12 +9511,14 @@ bool is_label_valid(const std::u32string_view label) {
       for (size_t i = 0; i <= last_non_nsm_char; i++) {
         const direction d = find_direction(label[i]);
 
+        // NOLINTBEGIN(bugprone-assignment-in-if-condition)
         // In an RTL label, if an EN is present, no AN may be present, and vice
         // versa.
         if ((d == direction::EN && ((has_en = true) && has_an)) ||
             (d == direction::AN && ((has_an = true) && has_en))) {
           return false;
         }
+        // NOLINTEND(bugprone-assignment-in-if-condition)
 
         if (!(d == direction::R || d == direction::AL || d == direction::AN ||
               d == direction::EN || d == direction::ES || d == direction::CS ||
@@ -10908,6 +10910,7 @@ bool percent_encode(const std::string_view input, const uint8_t character_set[],
   }
   ada_log("percent_encode appending ", std::distance(input.begin(), pointer),
           " bytes");
+  // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
   out.append(input.data(), std::distance(input.begin(), pointer));
   ada_log("percent_encode processing ", std::distance(pointer, input.end()),
           " bytes");
@@ -10942,6 +10945,7 @@ bool to_ascii(std::optional<std::string>& out, const std::string_view plain,
 std::string percent_encode(const std::string_view input,
                            const uint8_t character_set[], size_t index) {
   std::string out;
+  // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
   out.append(input.data(), index);
   auto pointer = input.begin() + index;
   for (; pointer != input.end(); pointer++) {
@@ -12008,6 +12012,7 @@ ada_warn_unused std::string to_string(ada::state state) {
 
 #include <numeric>
 #include <algorithm>
+#include <iterator>
 #include <ranges>
 #include <string>
 #include <string_view>
@@ -12570,6 +12575,7 @@ ada_really_inline void url::parse_path(std::string_view input) {
   if (has_search()) {
     answer.append(",\n");
     answer.append("\t\"query\":\"");
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     helpers::encode_json(query.value(), back);
     answer.append("\"");
   }
@@ -13316,6 +13322,7 @@ result_type parse_url_impl(std::string_view user_input,
 
         // If c is U+002F (/), then set state to relative slash state.
         if ((input_position != input_size) &&
+            // NOLINTNEXTLINE(bugprone-branch-clone)
             (url_data[input_position] == '/')) {
           ada_log(
               "RELATIVE_SCHEME if c is U+002F (/), then set state to relative "
@@ -13848,6 +13855,7 @@ template url_aggregator parse_url<url_aggregator>(
 /* end file src/parser.cpp */
 /* begin file src/url_components.cpp */
 
+#include <iterator>
 #include <string>
 
 namespace ada {
@@ -13897,6 +13905,7 @@ namespace ada {
 /* end file src/url_components.cpp */
 /* begin file src/url_aggregator.cpp */
 
+#include <iterator>
 #include <ranges>
 #include <string>
 #include <string_view>
