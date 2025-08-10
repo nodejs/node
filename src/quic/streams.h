@@ -147,13 +147,8 @@ class Stream final : public AsyncWrap,
 
   static Stream* From(void* stream_user_data);
 
-  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env);
-  static void InitPerIsolate(IsolateData* data,
-                             v8::Local<v8::ObjectTemplate> target);
-  static void InitPerContext(Realm* realm, v8::Local<v8::Object> target);
-  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+  JS_CONSTRUCTOR(Stream);
+  JS_BINDING_INIT_BOILERPLATE();
 
   // Creates a new non-pending stream.
   static BaseObjectPtr<Stream> Create(

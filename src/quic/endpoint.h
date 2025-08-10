@@ -24,7 +24,7 @@ namespace node::quic {
 class Endpoint final : public AsyncWrap, public Packet::Listener {
  public:
   static constexpr uint64_t DEFAULT_MAX_CONNECTIONS =
-      std::min<uint64_t>(kMaxSizeT, static_cast<uint64_t>(kMaxSafeJsInteger));
+      std::min<uint64_t>(kMaxSizeT, kMaxSafeJsInteger);
   static constexpr uint64_t DEFAULT_MAX_CONNECTIONS_PER_HOST = 100;
   static constexpr uint64_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE =
       (DEFAULT_MAX_CONNECTIONS_PER_HOST * 10);
@@ -143,13 +143,8 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     std::string ToString() const;
   };
 
-  bool HasInstance(Environment* env, v8::Local<v8::Value> value);
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env);
-  static void InitPerIsolate(IsolateData* data,
-                             v8::Local<v8::ObjectTemplate> target);
-  static void InitPerContext(Realm* realm, v8::Local<v8::Object> target);
-  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+  JS_CONSTRUCTOR(Endpoint);
+  JS_BINDING_INIT_BOILERPLATE();
 
   Endpoint(Environment* env,
            v8::Local<v8::Object> object,
@@ -300,7 +295,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   void MaybeDestroy();
 
   // Specifies the general reason the endpoint is being destroyed.
-  enum class CloseContext {
+  enum class CloseContext : uint8_t {
     CLOSE,
     BIND_FAILURE,
     START_FAILURE,
@@ -330,7 +325,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
   // Create a new Endpoint.
   // @param Endpoint::Options options - Options to configure the Endpoint.
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  JS_METHOD(New);
 
   // Methods on the Endpoint instance:
 
@@ -341,31 +336,30 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // the Session.
   // @param v8::ArrayBufferView remote_transport_params - The remote transport
   // params.
-  static void DoConnect(const v8::FunctionCallbackInfo<v8::Value>& args);
+  JS_METHOD(DoConnect);
 
   // Start listening as a QUIC server
   // @param Session::Options options - Options to configure the Session.
-  static void DoListen(const v8::FunctionCallbackInfo<v8::Value>& args);
+  JS_METHOD(DoListen);
 
   // Mark the Endpoint as busy, temporarily pausing handling of new initial
   // packets.
   // @param bool on - If true, mark the Endpoint as busy.
-  static void MarkBusy(const v8::FunctionCallbackInfo<v8::Value>& args);
+  JS_METHOD(MarkBusy);
   static void FastMarkBusy(v8::Local<v8::Object> receiver, bool on);
 
   // DoCloseGracefully is the signal that endpoint should close. Any packets
   // that are already in the queue or in flight will be allowed to finish, but
   // the EndpoingWrap will be otherwise no longer able to receive or send
   // packets.
-  static void DoCloseGracefully(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+  JS_METHOD(DoCloseGracefully);
 
   // Get the local address of the Endpoint.
   // @return node::SocketAddress - The local address of the Endpoint.
-  static void LocalAddress(const v8::FunctionCallbackInfo<v8::Value>& args);
+  JS_METHOD(LocalAddress);
 
   // Ref() causes a listening Endpoint to keep the event loop active.
-  static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
+  JS_METHOD(Ref);
   static void FastRef(v8::Local<v8::Object> receiver, bool on);
 
   void Receive(const uv_buf_t& buf, const SocketAddress& from);

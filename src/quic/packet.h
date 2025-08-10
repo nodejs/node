@@ -49,8 +49,7 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
   struct Data;
 
  public:
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env);
+  JS_CONSTRUCTOR(Packet);
 
   class Listener {
    public:

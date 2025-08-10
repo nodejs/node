@@ -29,8 +29,6 @@ using ncrypto::SSLPointer;
 using ncrypto::SSLSessionPointer;
 using ncrypto::X509Pointer;
 using v8::ArrayBuffer;
-using v8::BackingStoreInitializationMode;
-using v8::BackingStoreOnFailureMode;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -361,12 +359,7 @@ int TLSContext::OnNewSession(SSL* ssl, SSL_SESSION* sess) {
     // enough memory to allocate the backing store, then we ignore it
     // and continue without emitting the sessionticket event.
     if (size > 0 && size <= crypto::SecureContext::kMaxSessionSize) {
-      auto ticket = ArrayBuffer::NewBackingStore(
-          session.env()->isolate(),
-          size,
-          BackingStoreInitializationMode::kUninitialized,
-          BackingStoreOnFailureMode::kReturnNull);
-      if (!ticket) return 0;
+      JS_TRY_ALLOCATE_BACKING_OR_RETURN(session.env(), ticket, size, 0);
       auto data = reinterpret_cast<unsigned char*>(ticket->Data());
       if (i2d_SSL_SESSION(sess, &data) > 0) {
         session.EmitSessionTicket(Store(std::move(ticket), size));
