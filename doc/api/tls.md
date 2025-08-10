@@ -2344,11 +2344,14 @@ changes:
     trusted store.
   * When [`NODE_EXTRA_CA_CERTS`][] is used, this would also include certificates loaded from the specified
     file.
+
 * `"system"`: return the CA certificates that are loaded from the system's trusted store, according
   to rules set by [`--use-system-ca`][]. This can be used to get the certificates from the system
   when [`--use-system-ca`][] is not enabled.
+
 * `"bundled"`: return the CA certificates from the bundled Mozilla CA store. This would be the same
   as [`tls.rootCertificates`][].
+
 * `"extra"`: return the CA certificates loaded from [`NODE_EXTRA_CA_CERTS`][]. It's an empty array if
   [`NODE_EXTRA_CA_CERTS`][] is not set.
 
