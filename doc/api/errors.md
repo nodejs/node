@@ -2095,7 +2095,7 @@ urlSearchParams.has.call(buf, 'foo');
 ### `ERR_INVALID_TUPLE`
 
 An element in the `iterable` provided to the [WHATWG][WHATWG URL API]
-[`URLSearchParams` constructor][`new URLSearchParams(iterable)`] did not
+[`URLSearchParams` constructor][] [`new URLSearchParams(iterable)`][] did not
 represent a `[name, value]` tuple – that is, if an element is not iterable, or
 does not consist of exactly two elements.
 
@@ -2127,8 +2127,8 @@ An invalid URI was passed.
 
 ### `ERR_INVALID_URL`
 
-An invalid URL was passed to the [WHATWG][WHATWG URL API] [`URL`
-constructor][`new URL(input)`] or the legacy [`url.parse()`][] to be parsed.
+An invalid URL was passed to the [WHATWG][WHATWG URL API] [`URL` constructor][]
+[`new URL(input)`][] or the legacy [`url.parse()`][] to be parsed.
 The thrown error object typically has an additional property `'input'` that
 contains the URL that failed to parse.
 
@@ -2136,8 +2136,8 @@ contains the URL that failed to parse.
 
 ### `ERR_INVALID_URL_PATTERN`
 
-An invalid URLPattern was passed to the [WHATWG][WHATWG URL API] \[`URLPattern`
-constructor]\[`new URLPattern(input)`] to be parsed.
+An invalid URLPattern was passed to the [WHATWG][WHATWG URL API] [`URLPattern` constructor][]
+[`new URLPattern(input)`][] to be parsed.
 
 <a id="ERR_INVALID_URL_SCHEME"></a>
 
@@ -4321,6 +4321,9 @@ An error occurred trying to allocate memory. This should never happen.
 [`Object.setPrototypeOf`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/setPrototypeOf
 [`REPL`]: repl.md
 [`ServerResponse`]: http.md#class-httpserverresponse
+[`URLPattern` constructor]: url.md#class-urlpattern
+[`URLSearchParams` constructor]: url.md#class-urlsearchparams
+[`URL` constructor]: url.md#class-url
 [`Writable`]: stream.md#class-streamwritable
 [`child_process`]: child_process.md
 [`cipher.getAuthTag()`]: crypto.md#ciphergetauthtag
@@ -4352,6 +4355,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`net.Socket.write()`]: net.md#socketwritedata-encoding-callback
 [`net`]: net.md
 [`new URL(input)`]: url.md#new-urlinput-base
+[`new URLPattern(input)`]: url.md#new-urlpatternstring-baseurl-options
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
