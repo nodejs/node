@@ -1957,6 +1957,36 @@ this matches its values.
 
 If the worker has stopped, the return value is an empty object.
 
+### `worker.startCpuProfile(name)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* name: {string}
+* Returns: {Promise}
+
+Starting a CPU profile with the given `name`, then return a Promise that fulfills
+with an error or an object which has a `stop` method. Calling the `stop` method will
+stop collecting the profile, then return a Promise that fulfills with an error or the
+profile data.
+
+```cjs
+const { Worker } = require('node:worker_threads');
+
+const worker = new Worker(`
+  const { parentPort } = require('worker_threads');
+  parentPort.on('message', () => {});
+  `, { eval: true });
+
+worker.on('online', async () => {
+  const handle = await worker.startCpuProfile('demo');
+  const profile = await handle.stop();
+  console.log(profile);
+  worker.terminate();
+});
+```
+
 ### `worker.stderr`
 
 <!-- YAML

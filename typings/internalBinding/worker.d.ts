@@ -17,6 +17,7 @@ declare namespace InternalWorkerBinding {
     takeHeapSnapshot(): object;
     getHeapStatistics(): Promise<object>;
     cpuUsage(): Promise<object>;
+    startCpuProfile(name): Promise<object>;
     loopIdleTime(): number;
     loopStartTime(): number;
   }

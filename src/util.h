@@ -26,6 +26,7 @@
 
 #include "uv.h"
 #include "v8-inspector.h"
+#include "v8-profiler.h"
 #include "v8.h"
 
 #include "node.h"
@@ -45,6 +46,7 @@
 #include <optional>
 #include <ranges>
 #include <set>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -1009,6 +1011,25 @@ v8::Maybe<int32_t> GetValidatedFd(Environment* env, v8::Local<v8::Value> input);
 v8::Maybe<int> GetValidFileMode(Environment* env,
                                 v8::Local<v8::Value> input,
                                 uv_fs_type type);
+
+class JSONOutputStream final : public v8::OutputStream {
+ public:
+  JSONOutputStream() = default;
+
+  int GetChunkSize() override { return 65536; }
+
+  void EndOfStream() override {}
+
+  WriteResult WriteAsciiChunk(char* data, const int size) override {
+    out_stream_.write(data, size);
+    return kContinue;
+  }
+
+  std::ostringstream& out_stream() { return out_stream_; }
+
+ private:
+  std::ostringstream out_stream_;
+};
 
 #ifdef _WIN32
 // Returns true if OS==Windows and filename ends in .bat or .cmd,
