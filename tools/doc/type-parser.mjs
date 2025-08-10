@@ -345,6 +345,7 @@ const customTypesMap = {
   'LockManager': 'worker_threads.html#class-lockmanager',
   'LockManagerSnapshot': 'https://developer.mozilla.org/en-US/docs/Web/API/LockManagerSnapshot',
   'CPUProfileHandle': 'v8.html#class-cpuprofilehandle',
+  'SyncCPUProfileHandle': 'v8.html#class-synccpuprofilehandle',
 };
 
 const arrayPart = /(?:\[])+$/;
