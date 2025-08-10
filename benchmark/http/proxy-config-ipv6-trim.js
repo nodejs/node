@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
     'localhost',
     'www.example.proxy',
   ],
-  n: [1e6]
+  n: [1e3]
 }, {
   flags: ['--expose-internals'],
 });
