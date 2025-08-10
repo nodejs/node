@@ -50,6 +50,7 @@
 #include "uv.h"
 #include "v8-external-memory-accounter.h"
 #include "v8.h"
+#include "v8-profiler.h"
 
 #if HAVE_OPENSSL
 #include <openssl/evp.h>
@@ -1011,6 +1012,8 @@ class Environment final : public MemoryRetainer {
   inline void set_heap_prof_interval(uint64_t interval);
   inline uint64_t heap_prof_interval() const;
 
+  v8::CpuProfiler* cpu_profiler();
+
 #endif  // HAVE_INSPECTOR
 
   inline const EmbedderPreloadCallback& embedder_preload() const;
@@ -1244,6 +1247,8 @@ class Environment final : public MemoryRetainer {
   // track of the BackingStore for a given pointer.
   std::unordered_map<char*, std::unique_ptr<v8::BackingStore>>
       released_allocated_buffers_;
+
+  v8::CpuProfiler* cpu_profiler_ = nullptr;
 };
 
 }  // namespace node
