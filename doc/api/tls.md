@@ -2326,12 +2326,16 @@ changes:
   If an object, it may contain:
   * `type` {string} The type of CA certificates to return. One of `"default"`, `"system"`, `"bundled"`, or `"extra"`.
     **Default:** `"default"`.
-  * `as` {string} The format of returned certificates. **Default**: `"buffer"`.
+  * `format` {string} The format of returned certificates. One of `"string"`, `"buffer"`, or `"x509"`.
+    **Default**: `"string"`.
+    * `"string"`: Returns PEM-encoded strings by default. See `encoding` for DER.
     * `"buffer"`: Returns an array of certificate data as `Buffer` objects.
-    * `"x509"`: Returns an array of \[`X509Certificate`]\[] instances.
+    * `"x509"`: Returns an array of [`X509Certificate`][x509certificate] instances.
+  * `encoding` {string} When `format` is `"string"`, the encoding of the returned strings.
+    One of `"pem"` (PEM-encoded) or `"der"` (base64 DER). **Default:** `"pem"`.
 
-* Returns: {Array.\<Buffer|X509Certificate>}
-  An array of certificates in the specified format.
+* Returns: {Array}
+  An array of certificate data in the specified format (Buffer or X509Certificate).
 
 * `"default"`: return the CA certificates that will be used by the Node.js TLS clients by default.
   * When [`--use-bundled-ca`][] is enabled (default), or [`--use-openssl-ca`][] is not enabled,
@@ -2465,7 +2469,6 @@ added: v0.11.3
 [Session Resumption]: #session-resumption
 [Stream]: stream.md#stream
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
-[X509Certificate]: https://nodejs.org/api/crypto.html#class-x509certificate
 [`'newSession'`]: #event-newsession
 [`'resumeSession'`]: #event-resumesession
 [`'secureConnect'`]: #event-secureconnect
@@ -2513,3 +2516,4 @@ added: v0.11.3
 [cipher list format]: https://www.openssl.org/docs/man1.1.1/man1/ciphers.html#CIPHER-LIST-FORMAT
 [forward secrecy]: https://en.wikipedia.org/wiki/Perfect_forward_secrecy
 [perfect forward secrecy]: #perfect-forward-secrecy
+[x509certificate]: https://nodejs.org/api/crypto.html#class-x509certificate
