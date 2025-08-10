@@ -841,6 +841,12 @@ This currently only affects requests sent over
 .Ar fetch() .
 Support for other built-in http and https methods is under way.
 .
+.It Ev NODE_USE_SYSTEM_CA
+Similar to
+.Fl -use-system-ca .
+Use the trusted CA certificates present in the system store, in addition to the certificates in the
+bundled Mozilla CA store and certificates from `NODE_EXTRA_CA_CERTS`.
+.
 .It Ev NODE_V8_COVERAGE Ar dir
 When set, Node.js writes JavaScript code coverage information to
 .Ar dir .
