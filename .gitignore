@@ -167,3 +167,5 @@ __pycache__
 
 # === Rules for C++ development ===
 compile_commands.json
+
+.fake
