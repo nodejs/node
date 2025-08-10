@@ -8,6 +8,7 @@ const bench = common.createBenchmark(main, {
   hostname: [
     '127.0.0.1',
     'localhost',
+    'localhost:123',
     'www.example.com',
     'example.com',
     'myexample.com',
@@ -16,6 +17,8 @@ const bench = common.createBenchmark(main, {
     '',
     '*',
     '126.255.255.1-127.0.0.255',
+    'localhost',
+    'localhost:123',
     '127.0.0.1',
     'example.com',
     '.example.com',
