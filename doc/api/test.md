@@ -3621,7 +3621,8 @@ Indicates whether the test succeeded, this defaults to `false` before the test i
 added: v20.12.0
 -->
 
-The failure reason for the test/case; if anything other than an instance of `Error` was thrown, that will be wrapped and available via `context.error.cause`.
+The failure reason for the test/case; if anything other than an instance of `Error` was thrown, that will be wrapped
+and available via `context.error.cause`.
 
 ### `context.plan(count[,options])`
 
