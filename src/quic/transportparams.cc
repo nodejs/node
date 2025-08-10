@@ -15,9 +15,6 @@
 
 namespace node {
 
-using v8::ArrayBuffer;
-using v8::BackingStoreInitializationMode;
-using v8::BackingStoreOnFailureMode;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -195,14 +192,7 @@ Store TransportParams::Encode(Environment* env, int version) const {
     return {};
   }
 
-  auto result = ArrayBuffer::NewBackingStore(
-      env->isolate(),
-      size,
-      BackingStoreInitializationMode::kUninitialized,
-      BackingStoreOnFailureMode::kReturnNull);
-  if (!result) {
-    return {};
-  }
+  JS_TRY_ALLOCATE_BACKING_OR_RETURN(env, result, size, {});
 
   auto ret = ngtcp2_transport_params_encode_versioned(
       static_cast<uint8_t*>(result->Data()), size, version, &params_);

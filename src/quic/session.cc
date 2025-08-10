@@ -37,13 +37,9 @@
 namespace node {
 
 using v8::Array;
-using v8::ArrayBuffer;
 using v8::ArrayBufferView;
-using v8::BackingStoreInitializationMode;
 using v8::BigInt;
 using v8::Boolean;
-using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Int32;
 using v8::Integer;
@@ -55,9 +51,7 @@ using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::PropertyAttribute;
 using v8::String;
-using v8::Uint32;
 using v8::Undefined;
 using v8::Value;
 
@@ -319,7 +313,7 @@ bool SetOption(Environment* env,
                                       "The cc_algorithm option is invalid");
           return false;
       }
-      algo = static_cast<ngtcp2_cc_algo>(num->Value());
+      algo = FromV8Value<ngtcp2_cc_algo>(num);
     }
     options->*member = algo;
   }
@@ -653,7 +647,7 @@ struct Session::Impl final : public MemoryRetainer {
 
   // JavaScript APIs
 
-  static void Destroy(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(Destroy) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -663,7 +657,7 @@ struct Session::Impl final : public MemoryRetainer {
     session->Destroy();
   }
 
-  static void GetRemoteAddress(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(GetRemoteAddress) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -678,7 +672,7 @@ struct Session::Impl final : public MemoryRetainer {
             ->object());
   }
 
-  static void GetCertificate(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(GetCertificate) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -692,7 +686,7 @@ struct Session::Impl final : public MemoryRetainer {
       args.GetReturnValue().Set(ret);
   }
 
-  static void GetEphemeralKeyInfo(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(GetEphemeralKeyInfo) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -707,7 +701,7 @@ struct Session::Impl final : public MemoryRetainer {
       args.GetReturnValue().Set(ret);
   }
 
-  static void GetPeerCertificate(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(GetPeerCertificate) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -721,7 +715,7 @@ struct Session::Impl final : public MemoryRetainer {
       args.GetReturnValue().Set(ret);
   }
 
-  static void GracefulClose(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(GracefulClose) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -733,7 +727,7 @@ struct Session::Impl final : public MemoryRetainer {
     session->Close(CloseMethod::GRACEFUL);
   }
 
-  static void SilentClose(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(SilentClose) {
     // This is exposed for testing purposes only!
     auto env = Environment::GetCurrent(args);
     Session* session;
@@ -746,7 +740,7 @@ struct Session::Impl final : public MemoryRetainer {
     session->Close(CloseMethod::SILENT);
   }
 
-  static void UpdateKey(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(UpdateKey) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -763,7 +757,7 @@ struct Session::Impl final : public MemoryRetainer {
     args.GetReturnValue().Set(session->tls_session().InitiateKeyUpdate());
   }
 
-  static void OpenStream(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(OpenStream) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -782,7 +776,7 @@ struct Session::Impl final : public MemoryRetainer {
     }
 
     SendPendingDataScope send_scope(session);
-    auto direction = static_cast<Direction>(args[0].As<Uint32>()->Value());
+    auto direction = FromV8Value<Direction>(args[0]);
     Local<Object> stream;
     if (session->OpenStream(direction, std::move(data_source)).ToLocal(&stream))
         [[likely]] {
@@ -790,7 +784,7 @@ struct Session::Impl final : public MemoryRetainer {
     }
   }
 
-  static void SendDatagram(const FunctionCallbackInfo<Value>& args) {
+  JS_METHOD(SendDatagram) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
@@ -1276,23 +1270,12 @@ Session::SendPendingDataScope::~SendPendingDataScope() {
 }
 
 // ============================================================================
-bool Session::HasInstance(Environment* env, Local<Value> value) {
-  return GetConstructorTemplate(env)->HasInstance(value);
-}
-
 BaseObjectPtr<Session> Session::Create(
     Endpoint* endpoint,
     const Config& config,
     TLSContext* tls_context,
     const std::optional<SessionTicket>& ticket) {
-  Local<Object> obj;
-  if (!GetConstructorTemplate(endpoint->env())
-           ->InstanceTemplate()
-           ->NewInstance(endpoint->env()->context())
-           .ToLocal(&obj)) {
-    return {};
-  }
-
+  JS_NEW_INSTANCE_OR_RETURN(endpoint->env(), obj, {});
   return MakeDetachedBaseObject<Session>(
       endpoint, obj, config, tls_context, ticket);
 }
@@ -1311,27 +1294,23 @@ Session::Session(Endpoint* endpoint,
   DCHECK(impl_);
   MakeWeak();
   Debug(this, "Session created.");
-
-  const auto defineProperty = [&](auto name, auto value) {
-    object
-        ->DefineOwnProperty(
-            env()->context(), name, value, PropertyAttribute::ReadOnly)
-        .Check();
-  };
-
-  defineProperty(env()->state_string(), impl_->state_.GetArrayBuffer());
-  defineProperty(env()->stats_string(), impl_->stats_.GetArrayBuffer());
-
   auto& binding = BindingData::Get(env());
+
+  JS_DEFINE_READONLY_PROPERTY(
+      env(), object, env()->stats_string(), impl_->stats_.GetArrayBuffer());
+  JS_DEFINE_READONLY_PROPERTY(
+      env(), object, env()->state_string(), impl_->state_.GetArrayBuffer());
 
   if (config.options.qlog) [[unlikely]] {
     qlog_stream_ = LogStream::Create(env());
-    defineProperty(binding.qlog_string(), qlog_stream_->object());
+    JS_DEFINE_READONLY_PROPERTY(
+        env(), object, binding.qlog_string(), qlog_stream_->object());
   }
 
   if (config.options.tls_options.keylog) [[unlikely]] {
     keylog_stream_ = LogStream::Create(env());
-    defineProperty(binding.keylog_string(), keylog_stream_->object());
+    JS_DEFINE_READONLY_PROPERTY(
+        env(), object, binding.keylog_string(), keylog_stream_->object());
   }
 
   UpdateDataStats();
@@ -2348,10 +2327,7 @@ void Session::DatagramReceived(const uint8_t* data,
   Debug(this, "Session is receiving datagram of size %zu", datalen);
   auto& stats_ = impl_->stats_;
   STAT_INCREMENT(Stats, datagrams_received);
-  auto backing = ArrayBuffer::NewBackingStore(
-      env()->isolate(),
-      datalen,
-      BackingStoreInitializationMode::kUninitialized);
+  JS_TRY_ALLOCATE_BACKING(env(), backing, datalen)
   memcpy(backing->Data(), data, datalen);
   EmitDatagram(Store(std::move(backing), datalen), flag);
 }
@@ -2777,28 +2753,19 @@ void Session::EmitKeylog(const char* line) {
 
 // ============================================================================
 
-Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
-  auto& state = BindingData::Get(env);
-  auto tmpl = state.session_constructor_template();
-  if (tmpl.IsEmpty()) {
-    auto isolate = env->isolate();
-    tmpl = NewFunctionTemplate(isolate, IllegalConstructor);
-    tmpl->SetClassName(state.session_string());
-    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
 #define V(name, key, no_side_effect)                                           \
   if (no_side_effect) {                                                        \
-    SetProtoMethodNoSideEffect(isolate, tmpl, #key, Impl::name);               \
+    SetProtoMethodNoSideEffect(env->isolate(), tmpl, #key, Impl::name);        \
   } else {                                                                     \
-    SetProtoMethod(isolate, tmpl, #key, Impl::name);                           \
+    SetProtoMethod(env->isolate(), tmpl, #key, Impl::name);                    \
   }
-    SESSION_JS_METHODS(V)
-
+JS_CONSTRUCTOR_IMPL(Session, session_constructor_template, {
+  JS_ILLEGAL_CONSTRUCTOR();
+  JS_INHERIT(AsyncWrap);
+  JS_CLASS(session);
+  SESSION_JS_METHODS(V)
+})
 #undef V
-    state.set_session_constructor_template(tmpl);
-  }
-  return tmpl;
-}
 
 void Session::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 #define V(name, _, __) registry->Register(Impl::name);
@@ -2823,9 +2790,9 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
   PreferredAddress::Initialize(realm->env(), target);
 
   static constexpr auto STREAM_DIRECTION_BIDIRECTIONAL =
-      static_cast<uint32_t>(Direction::BIDIRECTIONAL);
+      static_cast<uint8_t>(Direction::BIDIRECTIONAL);
   static constexpr auto STREAM_DIRECTION_UNIDIRECTIONAL =
-      static_cast<uint32_t>(Direction::UNIDIRECTIONAL);
+      static_cast<uint8_t>(Direction::UNIDIRECTIONAL);
   static constexpr auto QUIC_PROTO_MAX = NGTCP2_PROTO_VER_MAX;
   static constexpr auto QUIC_PROTO_MIN = NGTCP2_PROTO_VER_MIN;
 

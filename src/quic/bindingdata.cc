@@ -17,7 +17,6 @@
 namespace node {
 
 using v8::Function;
-using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Local;
 using v8::Object;
@@ -144,7 +143,7 @@ QUIC_JS_CALLBACKS(V)
 
 #undef V
 
-void BindingData::SetCallbacks(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(BindingData::SetCallbacks) {
   auto env = Environment::GetCurrent(args);
   auto isolate = env->isolate();
   auto& state = Get(env);
@@ -166,7 +165,7 @@ void BindingData::SetCallbacks(const FunctionCallbackInfo<Value>& args) {
 #undef V
 }
 
-void BindingData::FlushPacketFreelist(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(BindingData::FlushPacketFreelist) {
   auto env = Environment::GetCurrent(args);
   auto& state = Get(env);
   state.packet_freelist.clear();
@@ -217,7 +216,7 @@ CallbackScopeBase::~CallbackScopeBase() {
   }
 }
 
-void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(IllegalConstructor) {
   THROW_ERR_ILLEGAL_CONSTRUCTOR(Environment::GetCurrent(args));
 }
 
