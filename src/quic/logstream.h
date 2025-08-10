@@ -7,6 +7,7 @@
 #include <env.h>
 #include <stream_base.h>
 #include <list>
+#include "defs.h"
 
 namespace node::quic {
 
@@ -14,8 +15,7 @@ namespace node::quic {
 // and Keylog diagnostic data (one instance for each).
 class LogStream final : public AsyncWrap, public StreamBase {
  public:
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env);
+  JS_CONSTRUCTOR(LogStream);
 
   static BaseObjectPtr<LogStream> Create(Environment* env);
 

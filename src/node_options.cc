@@ -551,10 +551,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-quic",
-            "" /* undocumented until its development */,
 #ifndef OPENSSL_NO_QUIC
+            "experimental QUIC support",
             &EnvironmentOptions::experimental_quic,
 #else
+            "" /* undocumented when no-op */,
             NoOp{},
 #endif
             kAllowedInEnvvar);
