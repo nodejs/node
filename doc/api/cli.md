@@ -1825,16 +1825,6 @@ added: v21.2.0
 
 Disable exposition of [Navigator API][] on the global scope.
 
-### `--no-experimental-quic`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1.1 - Active Development
-
-Use this flag to disable QUIC.
-
 ### `--no-experimental-repl-await`
 
 <!-- YAML
@@ -3447,6 +3437,7 @@ one is included in the list below.
 * `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-print-required-tla`
+* `--experimental-quic`
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`

@@ -167,15 +167,14 @@ class BindingData final
 
   // Installs the set of JavaScript callback functions that are used to
   // bridge out to the JS API.
-  static void SetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
+  JS_METHOD(SetCallbacks);
+
+  // Purge the packet free list to free up memory.
+  JS_METHOD(FlushPacketFreelist);
 
   std::vector<BaseObjectPtr<BaseObject>> packet_freelist;
 
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
-
-  // Purge the packet free list to free up memory.
-  static void FlushPacketFreelist(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   bool in_ngtcp2_callback_scope = false;
   bool in_nghttp3_callback_scope = false;
@@ -223,7 +222,7 @@ class BindingData final
 #undef V
 };
 
-void IllegalConstructor(const v8::FunctionCallbackInfo<v8::Value>& args);
+JS_METHOD_IMPL(IllegalConstructor);
 
 // The ngtcp2 and nghttp3 callbacks have certain restrictions
 // that forbid re-entry. We provide the following scopes for

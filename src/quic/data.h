@@ -156,9 +156,6 @@ class QuicError final : public MemoryRetainer {
     // it as is.
     NO_ERROR_ = NGTCP2_NO_ERROR,
 #define V(name) name = NGTCP2_##name,
-    // The NO_ERROR here has to be treated as a special case since there
-    // is a NO_ERROR macro defined in Windows that conflicts.
-    NO_ERROR_ = NGTCP2_NO_ERROR,
     QUIC_TRANSPORT_ERRORS(V)
 #undef V
   };

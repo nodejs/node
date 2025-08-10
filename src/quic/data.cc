@@ -375,8 +375,6 @@ QuicError QuicError::FromConnectionClose(ngtcp2_conn* session) {
   return QuicError(ngtcp2_conn_get_ccerr(session));
 }
 
-const QuicError QuicError::TRANSPORT_NO_ERROR =
-    ForTransport(TransportError::NO_ERROR_);
 #define V(name)                                                                \
   const QuicError QuicError::TRANSPORT_##name =                                \
       ForTransport(TransportError::name);
