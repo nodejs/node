@@ -29,7 +29,7 @@
 #endif  // OPENSSL_FIPS
 
 // Define OPENSSL_WITH_PQC for post-quantum cryptography support
-#if OPENSSL_VERSION_NUMBER >= 0x3050000fL
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
 #define OPENSSL_WITH_PQC 1
 #include <openssl/core_names.h>
 #endif
