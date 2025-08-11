@@ -7704,7 +7704,7 @@ Type of file system.
 ### Class: `fs.Utf8Stream`
 
 <!-- YAML
-added: REPLACEME
+added: v24.6.0
 -->
 
 > Stability: 1 - Experimental

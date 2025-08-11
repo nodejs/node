@@ -3652,7 +3652,7 @@ When both are set, `--use-env-proxy` takes precedence.
 ### `NODE_USE_SYSTEM_CA=1`
 
 <!-- YAML
-added: REPLACEME
+added: v24.6.0
 -->
 
 Node.js uses the trusted CA certificates present in the system store along with

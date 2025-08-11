@@ -724,7 +724,7 @@ This value is unique for each [`Worker`][] instance inside a single process.
 ## `worker.threadName`
 
 <!-- YAML
-added: REPLACEME
+added: v24.6.0
 -->
 
 * {string|null}
@@ -1773,7 +1773,7 @@ JavaScript code.
 
 <!-- YAML
 added:
-- REPLACEME
+- v24.6.0
 -->
 
 * Returns: {Promise}
@@ -2025,7 +2025,7 @@ This value is unique for each `Worker` instance inside a single process.
 ### `worker.threadName`
 
 <!-- YAML
-added: REPLACEME
+added: v24.6.0
 -->
 
 * {string|null}
