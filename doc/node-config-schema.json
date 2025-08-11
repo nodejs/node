@@ -446,6 +446,9 @@
             }
           ]
         },
+        "test-rerun": {
+          "type": "string"
+        },
         "test-shard": {
           "type": "string"
         },
@@ -697,6 +700,9 @@
               "type": "array"
             }
           ]
+        },
+        "test-rerun": {
+          "type": "string"
         },
         "test-shard": {
           "type": "string"
