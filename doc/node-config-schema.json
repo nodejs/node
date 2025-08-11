@@ -446,6 +446,9 @@
             }
           ]
         },
+        "test-rerun-failures": {
+          "type": "string"
+        },
         "test-shard": {
           "type": "string"
         },
@@ -697,6 +700,9 @@
               "type": "array"
             }
           ]
+        },
+        "test-rerun-failures": {
+          "type": "string"
         },
         "test-shard": {
           "type": "string"
