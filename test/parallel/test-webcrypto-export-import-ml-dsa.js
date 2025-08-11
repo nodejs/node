@@ -13,35 +13,57 @@ if (!hasOpenSSL(3, 5))
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
 
+const fixtures = require('../common/fixtures');
+
+function getKeyFileName(type, suffix) {
+  return `${type.replaceAll('-', '_')}_${suffix}.pem`;
+}
+
+function toDer(pem) {
+  const der = pem.replace(/(?:-----(?:BEGIN|END) (?:PRIVATE|PUBLIC) KEY-----|\s)/g, '');
+  return Buffer.alloc(Buffer.byteLength(der, 'base64'), der, 'base64');
+}
+
+/* eslint-disable @stylistic/js/max-len */
 const keyData = {
   'ML-DSA-44': {
+    pkcs8_seed_only: toDer(fixtures.readKey(getKeyFileName('ml-dsa-44', 'private_seed_only'), 'ascii')),
+    pkcs8: toDer(fixtures.readKey(getKeyFileName('ml-dsa-44', 'private'), 'ascii')),
+    pkcs8_priv_only: toDer(fixtures.readKey(getKeyFileName('ml-dsa-44', 'private_priv_only'), 'ascii')),
+    spki: toDer(fixtures.readKey(getKeyFileName('ml-dsa-44', 'public'), 'ascii')),
     jwk: {
       kty: 'AKP',
       alg: 'ML-DSA-44',
-      // eslint-disable-next-line @stylistic/js/max-len
-      pub: 'gtP6UVGz71mY6VgeI-VIcelf_Dr6FrqOpyU_uU3Vm6NsWHuLd5RhxYdMdi-yZLV2auTSvjL-vaHIdnAatD1bw_ggrvPSIGFdEL4MCM6XTvEovOP_vk9KUBf9w44YZhV5VYezSpJxlT7eYPmCp_yHu2Se6bIqmCBgibi5-ZBhwBM6W4Aojq2a6G-a4M5aH4tBNT7nemoOEiqgteqDWx-xaduFjRShqTzn5OT6TXn1hNIeavnUuTDgxnveA5z_SrIQs_IVMlzgN2a1nnPr0rjO4WLhpNk3vMZ4zqeqQ2iIXMauh0yAM9zI9kR3AIshIg6oWXF7_bq7RXdPobaIWzAhVdhqllyhKnwKhY-mPbYvHz7h1G7lhye1QOwC63gtBxlZ64KAi73nTnxKlaWRFm96gSKBwNZuZVxNLUkpNDmGWZVBjXlnPCCaZ8CYSM2kiuRUJcZaQnS9JJmvf-ZYsZdQvG-crEVGq56MwjUSJtuSPFYdwD5k7Pz1BVJADmI9ushzFVFo8pgfGGkxR9fStg_gVpD4rwnB3-DmiXeRtIcsxkFGzhjUorLauAP1ZQSYqCHZc3OCtLV77bBaGc0I8Xbu-QbF82Cm1xepulXF1MqbroGUqH-sWZn6_7dy8pg1gAXvED-rTZVACr90HnxIcfzRMWpUpbbUk7H1ywA6qHMIXJXKsNjo2gqkae5PVRCskf1NLZ4z8xyDiCC3vkw9_Hd4dUGUhhLwifFOoHuffZg3a5Sxinc4DHW2qyClZ7iN-QfJ00Uz0wZPts1Acwl1dfo2B7UAFpYeL9YlVehQgJvAcfsrffwvSVIWt9XHBmydABVJctrwz-p4s4EJNSK-tXrpgGS6w4uo7_6gDoZyukLYLJOy-YBhMSUrdJg4RhnjezTekV8huCk6qq4oj1JNAzOjKjc-X-CHnhIsyNjxfjcrO2SVntJLMDJWr52eyxcyhKmrmcjJaL39dE21WxGIcAdFAvD9IoAL6fuaSpOwxi2XTDBmXBJwWmdHY2HXGUma2RlfMNe0el-XcPxgAyv1nbypBW1pcK3k9e82mrE0ldNYwPifaZZp9ebQpYJ5Snj6m59twNCGFmiKUn3N67seCEkxzUeLnxcHTGmpQxIt5y53VHY535npd-H0dxRMnISTSrQ2tVtf-vQPU5QW_ldcqiYHRBSNv2Art8NDjYJZQU4qvvRyox5mhH94g3Xoiq5N3lFBtUtBIrMCNFxGHye8sNaOjJcimWBqZdoM1bScDflqnR1W_tOnIlLHJzrNtKHDObdtHbWf0K30Y93g239CZ_pSz7JsKmu2h5CnXRYMKxYY8tzwje222rlvqh8XcDHFBOHGDFT3etQvD7hD1_XaglYwNm_UIl1XRjQuYTNIvekUHFoA7GDOBfE17Txdbir1Ne_QUt_tufBuU5p8CuWbJMWKq50Dt0Oj6GT6eK7rfELsJWrqezcKzXQzm4xTXLKdfx1Lz_INsekVZUu4963VPubqNir0zBGFScznG_zUeGlMIYyLUGxqk7BPXLql_xaaeLblx8HfeMSRi6k4Cw0OFHX6Vy6sPIk5r00D6_ROD6DN8bcExC_3bF8K2qCrg914EY4pZ9BjgVqKVGvp2HWPpgQqvQCq6M5C_FKVhtfsd3f1flO3_xu08R2edvfL-1bSqCy9zEUpEc5vGBfKLY3DnTU5dG5V-xZNwqjWrZKDNQVf5wOyl-PZlWlp3DI36PH5NNlktUy0rMXkT-X-Odjy5xGbFQ',
-      priv: '1Z0s934w8QPUceWNuRN5dfrhQb5_4GxQYICWnBFxnOE',
+      pub: 'fYmD1Rx_jkoW9KG7Bs_5zyYEiWEZs15tYBxNdKq9NircZnvZBwwwaGbj0UsxJNc4Dyfp2IFAZZPO3rFCSUdpXHPrGRHwIVMzwiwfu2V7V02xoheW4mrkPThA3JRJSmNdsx6YGu37MaeJkIk6AlUexo46JfGrkRXZp_IyZxiL_L2dPrfwx-32j7WFI5sBadp7cDWfNkJjdQwW4puTe5Rw7h16GHb-DMOAKpfeMHujh7IYHuLCU6lVi90j1m8Ru0dxdmeQ1eY1vDnO7fNQKfzOLhpUNnj7BBZ24GTqFc-SN5HDCSCsSGKScTYYBwiSVTdSGG1GNqIiN2FgE4z1Jj6JFVB_OIUnl4sKbb3m8kB0BwtUPbkC0FVokGRUEGt6ba1Pc_IMpB5Gs3g9PFREI_C9o1yVW3NS2PzH_Vk4Tpf0N1K1kzIK_3IqekLfyqXmVDNsOovsS7Sw9TdmdWUNGRmhXFKRkex5VjpMIx7OwBGsYJCc4FhauWdrVtbkvHGggSpsla73ZcA4Vzh7aq47LMv0KS2YLp-DMn7SEohPHGg74118eLLn88yptxwtwt1dBFj8BKUfPrytuN1EIRQy34hwbkBLN9wDqhgn3Z3fvksRvmgN_4ZQ8YjeD-H3OFh5WJ_Rd66wHSl-YFat-_JF4UPcdlkNUbxPvDi5VL909Pe3VlwEZhT5otdtXQX4U3dUfqWKEh2kN0Q2lo8wbf3OMmBOFTfyX0eYa_5088ZnJvvliefn-TCDyc6WlcZrNqwBOF8N8-IN3b_8RPq-RuV8-mK-M83Hi4ElQB7Z44eZMmfUwFrozEG4Wq2K6MwQ_edG4dWeUVMCloTpGDFOtlLQlDoAN4m_sS2Lbwm_3ra29noUcK8_j10yy-hENE2Yluh1pIL-GoWZj3uYO-rEKVbszaagdE0DJ_uQcHUdNnBHKn64-cQ6xihXzxaeHx9OxkWWMKbzLtKpuYDK_X7EVvm8YTjl_oTsr2SWT2usjNJko32DhRV-OXLKKHo5FJpCy2bGFLXGG26CglUvgZQ2dyXiWeGVNKffOv1cQ5R_RlU2MpLiZ1bigy9hh4lu_XAHLfjQfhf71jeMuF4nEBWV-YOAjDTaDB2hcGqv_XcGXcmLWHqOWgc5Mb6lkb2zYs_oyOskmyFx6C0P7UrV8kCiN4zbuTqZNdNjlWL_QJUmU3vk6CpNa0XN1M3sLjZpOEsaqgRVPLcIDH-juVhyWiymuxe-8yNCOFSKxhscew08EQ9DEckP_iIA8qU2gcreHtvAS5VA5Emz1K2ypYe6oS3ogP-CX4nOAEfvjsb1HHJoclgiwjL1BtCLFgOE-0vn1M-nVOE6WbHGHoNKMJMHP2a3HQC7DmDfSOw5P6Cj5X7QVqhCY6tAGZWEPu3hUssp7K5UJePEdBn_LrErt4ucyXW6y1PAA2Fn8EuHaRyf2ggibDGnzq8E15m_R4LMvZAuGR0bN9jBTlm_x4ZQMqFwKkIdllkN1QTErazOyNsgU6fhA_20h5EIYT6-LqXr_Otj3Kp8MkJB9c3XNGoo5sbHTQCt0VNOHoxCFP_swiAJLtm743eOsI1M6naWLIqPagSCioosAvJYowypJQGvM-N3hBu8KUr0f911KRN7WqTAXTOHZ_vvTqcWKet0dFdh1EHuP3TrU8hSMciaphGvuK93T3gaWuJ6lcCkQndWvEo9S6FQB7eLU_ALKOQ3ROybUUkXgfyTkWDPxbHdeJCgMRv6Ig1PShPyxYb4ig',
+      priv: '273AhMPiZWLlSQCY41yi1fMj6xavGH0btB23zMhI1uY',
     },
   },
   'ML-DSA-65': {
+    pkcs8_seed_only: toDer(fixtures.readKey(getKeyFileName('ml-dsa-65', 'private_seed_only'), 'ascii')),
+    pkcs8: toDer(fixtures.readKey(getKeyFileName('ml-dsa-65', 'private'), 'ascii')),
+    pkcs8_priv_only: toDer(fixtures.readKey(getKeyFileName('ml-dsa-65', 'private_priv_only'), 'ascii')),
+    spki: toDer(fixtures.readKey(getKeyFileName('ml-dsa-65', 'public'), 'ascii')),
     jwk: {
       kty: 'AKP',
       alg: 'ML-DSA-65',
-      // eslint-disable-next-line @stylistic/js/max-len
-      pub: 'gMe-7J_WYur_NsxzG0iYWqh0LHtK8rbArEnvuNwNHYVmB1gLqnMjYMeK7_ScIGigoMddrW0Rjy7iv1srvbIpsx75K0ifzIqtf8z-gjguZCKWLihbt58KuhPmwPmTUmYtW-oztmVGpAMk5oH6dhxAyPJQO8hP5ZIh78e4bcRjYeyA3yCvQtT4tpDRtCDBnXA7mvdDLmitQI0-rvHtA3638EHZmbho1FxAf_BrmdLdUZR3d9-KlEN-7NWRkn52VYGitaG14SXcCorKvaxfo01v0v-BqAeLxBFzwa93NZKVQKrjHx0m8wXKJGkZ7qQPC1HSm40HGps7kxRNjSDL0T7pOwEZorCqL5n1W6GWzMY0NCm5B_t7hQdZenBkSarWJjHKDiRTWpKygDOQLwqKXUjX42Y5kKh4N2H2iXqsCyb5b2p3D8CzXn5OMkTFHARpP4lGr88m22zq_r6f_L-Q_cW0gWhFILxyUQdzwQYtDfVIJVvdrkCEwCyN66nPKQR9b393j1uunJh4iSfV9SVgL3Ok1P5UT7h65cufsaikMNEnsN4XAtUXtFivUkxLFJwSJZMnZpZnVpzgIJWYnmqrHoRhPiHK1JtH9o1XxQcnGpYWDiW6_-WLycpfSbo4pRNkMjr-fGv7xmdXejQELByZMDxcM-QY3B_BRK7gTgmhr-_hjwg6B4x5MUQXKFeON2qmqYqcelkLWi3q-8UuGm5WIRF3u0ODHxqo896wVnq6nTbgycrLfvLUT_AM2qAAxR-w4SfQ6KZxGeGidNe6dFN4TacW8-NbsMzGTuyhzWsZxLIG8kTyveyNMFwqOYMj2mpPTcg52tRu2izczeFQqXiFhRVGATt-KXGMjmfaKavGkf2SUMcTSJqnTHJaZv7QmMNosgXYinkQAz4XyOfwsi8fgXVyfbh_05o2roM6AiEDff3aqD-m0Vp1d-AFHLxYDkRFvuW9BxbQe24sTopODF6hn42Hh_ZQF2EU1cIqFGzecPV1XGeGfP6Df0rO78701LOw1PemGXCsU30Mn1sIK1fmbqK8gHyZwP9mwS6WjxX5ByIMS_iyqQwWvzcFI3d4h5vYCKC9o0uetorwpvcv8SRTR7959qvPF6eYFO8OgvckB1Ydq6KREMpphL7-EXb1Ot-wxm8v9X2ZhUvTtV-LPxx-pq17qmcAM_ifwinktBrbvGifxGJ7Ku4ZFO7RtuCCB7FOWucGXGsHfs7LMwHdF8XRmTeci-XsG983zAKGYDxyulLD81TGrO2o9ongsG4XIAH9y85ebnfCG9QKfOSdPBxtk8nSJXVb4gSOpioeyt0WSnNBxiUyqOUKTLsrzmK4FZPvEQgZhJSbamoE6_MNkuJ40FOmH28Xb56WETJNJjibd9Mj0d6_ozq0ykpAdHLTDO1EHGIVImEqDQlCyp2zQRun4SVH7MDP8zZpSI2g6GlofDT2A5Yft4OPX6VTX3uaePxIOPmZr1MrBiRNrP9NboJQ_uw6X9pWFCu93jts7XQWnVubfKPcDDHFzZhUMy1y7GaZxqxuW0AlI60XrVElqR_RPa6o2LVd1_CAMWPPj3UAIOoZ4tfkDUo_Ss9HStkDV6gswh9whvTCOW-Nt7C4z3dunvtiT4chxq_0d3_xHzqY7xAnbENIdIIVDWhRUQI53_ThwBVGGpKzijNj_IZxFfz0R4pDyp4msYII8jIe4K87bZ0SuKf2MTLL_sI7E0Rqv-kGasONULQGkVoEMqprOS7BY4P7VrADU_riVLBeasJ3gZ0rh9YaN7GkUDsYa0Lp2Ts_NKIOjH3pZOY8MYyuv2bIfgWE4zYVlmmxyACC2K8EwQQe0QArx2DZAKQ6k-MwrwidGRQfe4dJ0-XCYD5947Zx44sTLmYri00awyuCk_o9NG_KLOZU8mpLUmFFQazh2wEsyY0fYgtK95hZfGLsVcci5LPQPl_B8WhgFoKNXxqGAqht7-8YXwGEdUxT68EvAPFXFuQKyOZu4_q64ApPxe1YWTDntePR1_bhOLlK8as0zZB8iJEeZDTVRmTA5CknGDfIt5rSA1_jcSfteXecNk4xTH_iU4CPSpePUES79kQGVG82cD6sQ03N8Y_buP0GDpViZJOB187hh3NhosghozMoqFnFUgcQaYpMxqMYyVEZczaJdQbWnEWdb1ygfmosfRxceHFF9Sb7-SwE8jRXa_5QMTOhu1nohV27Zownoq0Bd9bqBLMNYsuUOa-s6frJkOZVVvr97v6qJMaq9r8Ol-1dXQag1pca-JdNvGizHFp8a1qGY9b7ywgku5MdyL6THA4KCRvgM7Mj1gQ8sQBF9iMtNSn1BVqdjDxaYITe5J77DBqO4piGzTqonhHhxtRFDYmkk9hSe_GkF_ZMqrBtpcQkI1Xl0vHIJc6i8y2rOe_XCYO_cAQYhgBOz6sF6OCSkYkz82ygaM6HEGE16tTT7HPD47uy1iO3kR3yIq43yeqUByfAp8Y2V4t2rKGG7Lfpne1tnXpO53wEeLWiwlQ6--J-DCfoZLTT9PrKhGbh_z7329QRQWfKXTtWD39qA5IjK458oUBSqVpEN5kXXFA08dEIqEAn3YQW3mDTzRliA_3SOycOV0I',
-      priv: 'wS0n9kCle6HZA6M7BXlaAyCvUUqeMiEqaiiN4Y0KPM0',
+      pub: 'hxPP5LvG83t2fJyfA1TUssJK_ydrzryrCHGZuKFxmnl5Y3sxHRCPW_JpHEoiIgR6kgELnwibZnueax1zFerTOTA7o0NwXHFiaEB-8AmqJI93DkvtbUOSTCixa3admQBKW_PtgMCVtaEVuuvCuOEFhOyuZkyfvnpBwUKOkz3t-O1wpgrSmf-rdPXOEv8YcsSn-xfLYPSLzPCnt7gnIX_fwtkgnXjref-QqjFKlKZE2e7MkmHeViJ4iGy78r3UzVhBHsmFGC0ZNc8-iT3muH5Sn0SXmNq-F2EoerWLIAsPxL2KE6UrqPAwTbHn1B5sAGWvhsVVLlFPI1s1JLVLBNRJ5vhif525xNIpMAMuAZrteD827pve3zQo9_GHjWgykj9VzM9PEcVmVqxZ5u41kUXsM4PWZF29Oh2sYsmJ2LdiJ9RcA91vRLG2DqEYm-V5JwIz8uxL17DUsEC7zYthvtqGASq05CbfPTBev33rQUv4H0Etz99U89WooTk0FisHDz1uEUilU_VY1tN5byIDitXNf0jnz3SIHDUUZARn7ll0YwO0jtksT68sQW3Liy6Exhlp1td0so2qZUrbVZasjyCOVuibwbwvrdpP3QRsoG5UqkAqk8Rm2iCpdQSg87pswOscgA8AC8TczGHNfXc9PqzAmbsEPKvmZuE60HLGzqpRqFULf3nyYUQUqbdmKJsKQ29LXeDVbyy3-fkTUDuYqNC2tBY7PkzHJSA9Z4hDC_BHEFxcelibScSNyf7y4lDVWnuJMXpQ0WRh3UkUPa007IerhixwxvBvFXQR-ytYinixvjirlcEF1wQI1DzE8KjOXYYuFPS4Yl8HeZHQ-64Q0RuxlKIRP3YvjZWh4IDVvEVs5ZLzZPbE3Twe0N5a7iCu0BzZWTeHNbcMoViFyJTpec2w3vVHeI4PJB-5HeI8xuh-9y8ytTau8QtMe4thoROoajizDQLrkw3e6ryJJ3R84i0oni4vmZWyLDilwcLqPOkQJCIDMjq7exdmVX5t3DtAW4F6Coz0z3sf7tGlSMVxA7izCoVbG0y2_l1P2h7fWBuEPT7PWlMdPqu9Pj5jqXY6jJ0nkaR_pp7dDhO1HKae5edcBYunHZqVQQjRZ_DvKzbPrDk5t6Xq9fdSkiAeP3B4qn5uU-nx7OaX7DRoVEnbbiEDynIRPSEY-Ts3alPJtBv8zuzaGNyX05Z9MyZ0w-VlC-WxOBdVEsIAp_4uJ3kQ3UsfE9DLJH8WPuDI4t4i2VnNNyFlI0XSUocc_0rWgqp2I1UzSzkVbklwkuFywPI645u4G2XAlfdd_wpjFGC-IUPXgpeSfspPwW15sBP-ITS-gwtvfzQVLpRS0euzN97xo_GMhNPZ4bW-YyZt8z_R8bsQ8ktfoP-5RUV-yzYDt0tA01QJsZdBLf5J_H7qP8l4c8V4hPe_CFL032obbxmAnVPAP69u2SaMBlL8azjk4wGVFQpQp1JqMJCao2W8ZImCVegkPZxhGbx0nkgVfyFx4ihMeDNM288JbGC4CGON8C02Q84rQzhwzZE83Y9rSe1Bb0fUMHMu6ihD5jLdeltuBL4ZdJlKgL24KZK5o5pq4_l9SyzGAjB1KAQnClNOB1SxV89CtILu-65wb17s0z3qw2-NF0B6UVlGQFebjbSyLQv2ARaETh_8cBiPugVMgBIV3K1KBwNyWejyI1ZDCssvIZHJCF2SRW3HmJerTiB23eGHFYKSLdxW7LEzoHIc2xZEc3pwR43gavjeoL0pNc-HNFV_c19wiH7Tnw3IHld_FfTqAIPnqKMNIY7D_D0DmFNTOdnzcipqKxUB0Avc-wr8Fz0gjeRpLH2iDSCJWtvWjoeYvHTktGsblDAM5j9xznwEvZfQvj8fTUnFxl3clkD6e9V1jrDQDkXfOtl-bDIv9PtMwamfJFu-z2ubF-gKytUewPNo10uhwr2TDNdUayCZDR2T3HoRLN8goIw2bFoPJ98LoPcSukEvKABjH0DiHNeqFELNZPx_uCx5N-YFkUZxHWA1QUoGhqQ3REtcT3c-SZf_TDFOPvws6bmwt4lcWpLmubOAJLFt6J8m8HCkVUshRdFzvHQm_0JEvA3JtyXZzvsPUv5njdk0nxTZktvsnqX054RQk5x8U-lBY-bK3uMOoFnHju45LMoHCUgGJi22eUm7nLGZEh84ZAbNlPLXpfavXvPJh21OW5EOAeuQ-yWNHY2xbmAiHNnb-J2VpZc1Vy82sxn8umFtKduuQuIQMOsf4qHqj5MzDY_1NjrM4Wm7XAiLC4MpQ22w9PWNQXSZWvo2fj8WUnfEibpgyRkoD2P25GRQqsRJ3-Ykl5bm_2Vfe6i3oXHOwQwZwKGXfAqXyo4iU1UI7e-qC4sj5U64oB_A_NSBaJJrZoQ2fVeGTnFxA4QMMoWCT0VlwBXK0B3jht8Xal3WcI-i9ctQB1-GrmwwgG2ttePHt1IKy69bSZE3FLkFicaHg6VxypG6ef8rVsmMrfpTATOnF5_iEaLNY9428HHGW0iz4vXwaE-MkYy7NK2KMPFiCB0ec9OjIROwayK4LREv4qknWHnVQRSm25Rr9DcVFXKj16Au7X1hv7TuVH7h25U',
+      priv: '1X9VEr_iXMRwBvnSytEmHrtA-DpD6FWAUqMrDNlJVBg',
     },
   },
   'ML-DSA-87': {
+    pkcs8_seed_only: toDer(fixtures.readKey(getKeyFileName('ml-dsa-87', 'private_seed_only'), 'ascii')),
+    pkcs8: toDer(fixtures.readKey(getKeyFileName('ml-dsa-87', 'private'), 'ascii')),
+    pkcs8_priv_only: toDer(fixtures.readKey(getKeyFileName('ml-dsa-87', 'private_priv_only'), 'ascii')),
+    spki: toDer(fixtures.readKey(getKeyFileName('ml-dsa-87', 'public'), 'ascii')),
     jwk: {
       kty: 'AKP',
       alg: 'ML-DSA-87',
-      // eslint-disable-next-line @stylistic/js/max-len
-      pub: 'R21Wwut7jawo2a2nJrqIk5cm9ay478z7u01197SY4kVDB7FBYqb3XNFrLIlV8N7Adx8MVKu99A0QdmnaoCN133FDlIU8ys9Q92Px9AaUjVWaRoKFLBSwaP-WF3jGckZwBIm5kScwbkQlK60CKlrOpdwobXYKR-2zXH0bDKSTl2kfx6N9uRPm1tYv0ELyRhVGWFG1-OFcN2ir9Tt8Nd4zfPPdpkj938K4Wytoc9V13iqwsYTKMOFBE4RE28Mq_Wx1XYUu1UOCKjYznHUwUQsqTeA62o_IPQapxfcz0wsIqU1ZSdqWvkxFmRXw7kKspvVjgpZEsY6Qj9105-dup8jeOVpWhdwqQ-2tyJtwCorgWlY9UycHXdX0XZlyGYFsI9HZO6oA0LsI8aaZeFEuGwZKoXmkABkyQt6db8kLgua5nowy3Jm5FfZ3aqGukZiS35E98oVSodRywnzDdugQ9KZ_Nt0UTUVzfm-qJFBuw24Ahsf4dRqappZPgA6szFZLa3u7sdFah9HbsYT_PoLLwJ9RzBtS0HdhZr5UHKpcGP96iIxl88tz56NEWNrzMB0XpHDx4wrS8Qdn9Sm3oWnfQFkC61u4vuLSPNDpqQlJfCKac75_-bxxDoB7Pv7KbAJisyBgRgaiilCOWHNF28K_x8dIT_meop4TTbBZzh1tuy_uV0z2sIu-YV9f6ZntDLcLgYCILEqFAWTuXhouFwRes1DwAluIgI9TCfGGPHJ6IFIaenY7-igcJqy2nGulL8gJqiVg8zh1HSOx9puqvYn_GJj7i_kgu7uSDsrpsGSxoKsnVRQ7SGpWmTOvT1lE0-5N6ETAop1jGFzKvW570_NlAcWXoLPnm4qYBKyEs2pAUe8V1bS5xxTL6dkkz1G2w3rAr4iEzpCj_iFHmeapcP4bdsPcHJjSikKZN5kLsgqXWCq1ofTRk2JbkMKgsjiVrU2Yno_2lWm7qYWlsUf5MG4P6fLkuYE8nIb1HGSa52zWa_s0s537IWaGoJloaH2I1rT8KXNx8-JEtyobkqLvwlgkcVHAtIiMD3owGc_3QD9kvVVFV2d104OU_dVPsP4GRvAyCGbyjdB4XheciXgTRKDJunM7_-sKr-8Bn_5vU0QRlzeJsb4bxczppYYz5zcWodcYtfbIcXbwkjLMMO0LkCL7ri59kGbwYxnmDhVfhUxqLmlTbB9_mFm7JlJ9G6ZTQB_zGxmYYQpm8iSPP4fQO-KsqSky-wqfC75K7Xyghu1jAZp5M2cpxQsclUG64MCUOEYpSODSlrkdnkkjc8O-ll8tgj9JuknAl5rqVvyRHLmIPLaKVXMrMxDdyiJWc2niIWSqrg-XPiFda9S92HNV82qyj_QBrMxAuIGNFI3Nrup7MYlVAVFGQkkAAvfbuxbOZB0SBr9a8k3q_Urb65aXnJxo-CGddeyDKe4jUXAp6CB8X9KIFyzIYBTxf7rp-4WcsnLi7_mpNK0BiTKfgeHMKD7c8cygyFft2AMnHDfVH30R9LbTTf_4HGT_UQhlhw3dUaECGrrqJ87dbNBxDK0_5DNa3NUxNIB4uo3VYRaJToV3yCmIZSPy3_REUXLNqMzodMDWsy6FUIV_mi8D2sh6C8iy0tXuAcIjDJTsiHV5w85_yQpZ-KnYJz5Bxn1CtakKf8szA1WQ0ZSxvd0KN6hr-NG-9YKtaqUddWWor9uyNA26x6oKl12GWTCjNI369OJ5s8x0at4Sf6ie8jXUljDmn4JCzwMhAg5T1cu18OIxiiqhGj7lMVHL0CH9uUVy7a6pAzvcSrx5frclHa49Ztj8Op7DOpjBQrkEh_u6Qx4b8Y1PzcjoeZHUrCBnBqKKxD17lchEntc6Mioc1WRrff-pQ1wuHd9vZMKYqMe9_REHeaEq7spmYT8_n1SK9H2zcraeKOflmlNKkDqRtj_uKJvuYIKvIx-9ZgHuXxpoQLlQpSmQvpfZsX2CN8t87TFwPaMIu3OQsA73awnFIDCfESG7RmmC93Nh0R0OlSOU5AgVwoQWzYnOJS4ondQ9DE5dF49XEG49L6zrl2Ka5BXWHwjN357Jx_X-9wyfwwOpUqzJuYrG_CayF_uKqtF-BibLMV0eYdsOdk5icTFJPbBMY_Hkjsg0YtOgchMx3CuGEgU0fK06iGm-lSzvtAlx4OP14PXxcQJDcvRfvumH-AD8NKjHYMFH8LiUPz8FVj-onWx8ikTuSPpjjAEshDp7C3KP0Ck6lloPe6cPIcgs4RB_YNfLPMErIDmxHfiIDjCDKZR5X-NBw-D1P3DIOqi9Ma1AeaMWK-AErHgwz6tz5OLySoC7DbWevXF2bUZhvQuts851HXXDtQ1Is2hiKTqSNFz1s0PRnQRuw-L_CxuNn7R16Q9fakfNCzeE8ucgtYKe8eiLPMNWTLaOr6bgrooTLxFBXWJ8Cy0HC4GQPXSi7p1IJLjk6EST1eBUYym_fq01K8-mD0R25gOVoHgKD5KQs6by0DYGRqZiyd5OwuwF97T3C-oDOoUtHsKvWzsD0b0kyMAwXfUs_kXhcA33y2hV9Hw0CX7aaNkny_9inkgze81BpwO0e_wn3iIqGvJXhRKJ8hSMWzfg7pQnZH6FmgNUXMlon3OWwOXx4UurJBdm7FfsMW49ScV3K050a-DCficbTScYho7cWTUFbAGrytJSwYSSbCdInimycblYmtDKQigwP35HQFOBvbarD6MBP9CHcbvdRaorffBEICEiMry63wxKjkfBv3HYnyGvPp0sAEFujf3kr9pRez8hGNicbw-AC_CusUX-1hZcWfNZiaI-GICBsI894oMVSAs0WHbrQWdqZq8S0SnM1USTFuatTSyrg0NjnPYmPl__-xvYsidSW3xk5jF9Rb4UG9et8wSjqv6ltd192ibcjlYRoUoaMt1T49A83fuHLCZuUYhgV9iB-H5Ysak8b7xJWJpK-ZxVqL8VdEIDLdG0a9Wjedu5NtZ_EWpYj_b2PsJ8lxhGdb58kkunYU7vXShuqfyXhHMRmBuxlHoN3_6tjqmzPtJ91oWU6zi-Ep_n3gohl4SzJbLMl00rJEadlxL7TNiLpAZXAF2ybPC1WrLx-4dRXIQeWnsoZvgrzKvmZWKoVFpWbTWFwUOgcE93z6UhPezw-S2h5fmWsHfGFqMt_Z45DR-NTQqGQAWuO3XaHCaWqpxneIqo8Z5rTrc1w4KH8dsva8AJWrrw7QHmfU6foLllGv04lR73Kf4fVIvUmDhu0FJ1uEulu24cA0AH7-uZcWxIDDQSwDeU79GlxbIYAW8hUOA7Z1iQ6xF4akOIKMqOxRuVRHi8GvmF2r2avSPaltYoHQR5G-EYNIR5bRcE1BNaxN0hhVMyX5UbKCXOkiT4HDU4ckJ_pWjZDT7HhlckpmwPrJXnf-0NT1DqzR-bMeZQQhWljfSsQ3cwThRtiBSqVYOPBIAeYVfpBBLQFvAMgANE',
-      priv: 'i4_fRfJesALZ5T9fxzvpXvFtAbSsyAGdaMU-DzQsr5g',
+      pub: 'DZXqaBATRN0GRtigxzkLxp7C9fFYxI7Gl-tdfXqJHbzVCTTvRfRwZcu3YmpsUYXBdX2pVsQ51QlqxMslKBRmfNCanBLcfd57qoEIb0K6GIKZGHxlsr9aXNjEGcKMo0ICon0LYTvTWrl72Oz-2yEA_abPK3_dBUFGAYQ6kOQhAHcT1CMmTTck23PnEd5WUpYfZOA9giFX9dNVrrdFWczj_vDOty81ObNKsxfVWT1nG7c60UCJxb2c2tMrBx3rp7Hfc_aOg54W5KHocJi0Eai0ok4buySTe0UCSCUTkeoCcdiABgOFBiXRYzpm3Lz4uot6hSgFpuh67fE9Zpgtn64vfI-O1mgcPrPPpd3yA92Jrq-dvXuM55w1RmA_hha3U5Sh2vm0tD1U57q945UppFReIv_8NAKBkxQ_vHil7ySm-m7IAM-sTUY86_IqMZqisxoz7Ff7ZR2vIiUm3-L0ow4B8uPsCv2ZlUoVXvMF6XQiOHsgqgP1rfH8DmfmPFudwiXrAW6wEmi10skPmkN92aC3TPG6nmaNryQ7f8J82yVmGxW9U7zMbg21qNkRGBi_1YwEt6D8V2pUWv5U1a4p4-Ma0f4uQG4g0odM-WGomlh7pZWZf3sffiPXk9wBrGisxtCJuaB5vtkheWxpEfWqnhc3QdOWfrsRg6P1h7M95SNVW0U8A38wwrqPOpzEnckCVdCrZz2b2KVln6a4twfINg1-3lEZR4rkEmTaTYlLFlXzbRFWBBPGATxeRxhQ_9N5VhHi7STWPFD5HIJyVqz436bbVvM6Py_oldT_xt_tWlPc0w4Pesy2CgaCPlJCnx6cjEg_sRBUcRkBoHqa7aZj4JFFm9bzEaiJ2MKfkHVT4xdbEimMHsD0HkIQpg5-zoB2Jsqgc6Qi3L57hZi-Q1V0G2lmdZ5WZkQ2m5hxle4hHtAmghgynK2p0qzDWHScxHcdd2sInYqQgMYbnvs04YYKWpIfndCUBs9q_EONN5tn8gfSwHEKlQ-KpplEL5kc-99h2uaZsxRlJOF6_z8EZ-aKaKY8jvoAV0g4kZJH5UKy_MkBiva6r-zXUmo88qJjXQatOOSdfvJUTiZiSfcpBQqF9SSDD9WWsgInaOCKO_fAFf9fuacXDMEj0esUx1YrVEe_77S5uObg-UrK405U1JhKJJvd7o8xQKxenv5BJdsbbyYQDbSSe9BrCqeHEgmfRHTXdSvl_3QOP0Ej-dT8YJJHZ1lrujU7Zg5f5Kg99tU5GdLMbHX2kt4F2a0NX09HikEemvUg4NLPhjOihfVkChr-zdF69nfsnTiaQrMgpIcl9jttN99_8Gju-LU8OWbb92m9RLxAUFP115v22f77YPoILm92IjMZMkxEhGneoclWhnudkyR7YoTBjCnT5b7AC9_05uls637FmVf7Ck8-MF4gLil3dstXi4g24bitYhxxqWwiqF4vsDouSGUnuKCMwx3TLsII_xk77TjpQP4vpLdYM3tn94AVlTMMhnI-OZkVJk-_mIbywCwRHlQb5nzVCc0BWlM1kb9PJys2IfciS8LWEoxeq9moDX5w72yJKoLN3CWpD3VdJAiW79zUaySw-IeW0XaHnlze5fYnOozG8lIeyQ9sMZasMiFovGnR3b7jyMtA38U33v16fouWuBILOu0m_QOpRDI9i3rjRM6hdC48zCtNSzc1_1VPYkWDSFK1oVAjdd8-2rjyqdPeUwnqD26VA9_d3R7x8ThrazdbRC8U1hr9jpqNHuZ4LGYu3Ui8wB-lSt9QMaHz517MY_zBEoNGyvbQWtlM7mvLu12KoMM7nvGrPJnvD-HmxTqsVQolD8_lIV5ao72yiKDpArVr6RuV4PpI0j_Wy4-yDCuwBW0gjnB9GvCwOTeByYXJT6Ul7dgHck4BbF3IyFgvmY--ceWr5mBrbAC9LJP_4Wf5O6ul3hFrhiG6zSV4zzBYLnEwfW6LNLEZjZKgmBYiC5s1xlxYWDdcQ5FGmLQ9uEDkr4VItXQWvIIdeBQPyujxmd965Mig9-Sa7SCyV_3wH8fQnGlvU-jJMGL0zvzB2gcu7hMLMagUBj1AKXj-UxpbX1i95f2TOiZDwMeCCszgvCjQ21XKg07TBXrrOiFcgcADgdo-HJr7O1T3ozOIulq1PDM7QZH6i3wDD0j3b0NCdqKCWqhfLXz2-FszyUHmA_GCzOLVzrLT2DcGWIcQbkvF0yZPgTyqKArKa8qytOerdH6oCJ0bRl96855sMVjuUdyVLX7XW_rVTwsOwV0gVAx8SrzovtDFeHRNl7BQKMsyQ1BjWu25jqKJ598vAi3LCZv0kMdiC24qPdgZU4e2aUkco11EnD6nJgdqsVFxufCl4BD_D9g5Wy42fJt4ZgNPAcbUf341KERyReeBEQj-qlPB3IUTIXcJw68GScebhxb0W_tGKMBC6-ip4QfNW7UTxUxVxmCV7h0yRnBBlkuUR1eYQwWRmEPjKd3dLHvgHtr266NQmE1tnKtJlsdPKb0ztrI9vogsENsgGNFQ2tHoeX8vqxcagGznlPVPfc3DlqjBSeTFQaPWvmCQHVKgxkbvffKzFQyFvXEqt6bGGtkwBoRJ_IIwtSeWQ2nFPBe3rlyKrtSnQFIMibJbbYvPVE03Cld9R61r-GGDSQz4aXekLzePEVwnxpe4mWJGco7ctQyE73PekL1uo2g0bRK-KgaE878OiLRBo5T7c633xEf2hMy9532M2GVdTZuoE0LL-wpAh9GmNdvJZc7g2sINvwZi778v2WHcYEKqXvdmrX-Shyh3QkzgIGZrDzM4UlxxUWaXfZ0Z6PNguk7Jafqf3xuUe9Z8zfAJl5c_VA3k8dn7IRg99hRsh-TGBCzqzgjJq4p4XMWP2QuxFTGSgHRe2GSCFzd5-lPjrj76ZyT3MPUxQe_bV2VE-Oys3MT-VkCCM8jFCANXdrfltG6jSiUZ2uJUWNqdNnxPglmmyrgff_m-5CyIRWYXQsIdZGspqdjzb4F6RbBKfL2PQlM6zUfo9JNmE8YQq815Nxkex8vDOrImnew312fZA6rRjr9_uE4lEbw3U7PFlCKBUPvPnsdgedjKYhiS0xU6iS1NDKOvYhcrkCkiU67EmFD4U0-OCv9Kpbb5bIxTJuv405NxJBElAMVI-ya0ns7D4-xUPn05E7PhtGZT0eHwItjT6omThTsTHwB_bQqYfNrjrObO1l1go2hQ-cUadZYsG5l47CB5RlFhANtaC8tiq4KJi48TmEEApB_0VwOI4EmI7SR0oaqx3HRXZfeGevCx2yC9aCYM4HqcyqP2g_1HwsOYzwq4XDEbK5Yl1dtYABxPoo7t8FBq2sSmfrBJWFv_nvreb_DPwbfoSeCy9knqvOktSQRrPMmo-nNGpandBvjmrjSk3EdeziAP7XNre5I-bn_2voDxkzGFtUM-wzlL379ASRGej8FkNWaOyqGP6Anq5PSJ',
+      priv: 'LZSOlEPbU9S5_mSsMULffTyxZu6qKEOQ1nfEi2NCscg',
     }
   },
 };
+/* eslint-enable @stylistic/js/max-len */
 
 const testVectors = [
   {
@@ -60,6 +82,156 @@ const testVectors = [
     publicUsages: ['verify']
   },
 ];
+
+async function testImportSpki({ name, publicUsages }, extractable) {
+  const key = await subtle.importKey(
+    'spki',
+    keyData[name].spki,
+    { name },
+    extractable,
+    publicUsages);
+  assert.strictEqual(key.type, 'public');
+  assert.strictEqual(key.extractable, extractable);
+  assert.deepStrictEqual(key.usages, publicUsages);
+  assert.deepStrictEqual(key.algorithm.name, name);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
+
+  if (extractable) {
+    // Test the roundtrip
+    const spki = await subtle.exportKey('spki', key);
+    assert.strictEqual(
+      Buffer.from(spki).toString('hex'),
+      keyData[name].spki.toString('hex'));
+  } else {
+    await assert.rejects(
+      subtle.exportKey('spki', key), {
+        message: /key is not extractable/
+      });
+  }
+
+  // Bad usage
+  await assert.rejects(
+    subtle.importKey(
+      'spki',
+      keyData[name].spki,
+      { name },
+      extractable,
+      ['wrapKey']),
+    { message: /Unsupported key usage/ });
+}
+
+async function testImportPkcs8({ name, privateUsages }, extractable) {
+  const key = await subtle.importKey(
+    'pkcs8',
+    keyData[name].pkcs8,
+    { name },
+    extractable,
+    privateUsages);
+  assert.strictEqual(key.type, 'private');
+  assert.strictEqual(key.extractable, extractable);
+  assert.deepStrictEqual(key.usages, privateUsages);
+  assert.deepStrictEqual(key.algorithm.name, name);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
+
+  if (extractable) {
+    // Test the roundtrip
+    const pkcs8 = await subtle.exportKey('pkcs8', key);
+    assert.strictEqual(
+      Buffer.from(pkcs8).toString('hex'),
+      keyData[name].pkcs8_seed_only.toString('hex'));
+  } else {
+    await assert.rejects(
+      subtle.exportKey('pkcs8', key), {
+        message: /key is not extractable/
+      });
+  }
+
+  await assert.rejects(
+    subtle.importKey(
+      'pkcs8',
+      keyData[name].pkcs8,
+      { name },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
+}
+
+async function testImportPkcs8SeedOnly({ name, privateUsages }, extractable) {
+  const key = await subtle.importKey(
+    'pkcs8',
+    keyData[name].pkcs8_seed_only,
+    { name },
+    extractable,
+    privateUsages);
+  assert.strictEqual(key.type, 'private');
+  assert.strictEqual(key.extractable, extractable);
+  assert.deepStrictEqual(key.usages, privateUsages);
+  assert.deepStrictEqual(key.algorithm.name, name);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
+
+  if (extractable) {
+    // Test the roundtrip
+    const pkcs8 = await subtle.exportKey('pkcs8', key);
+    assert.strictEqual(
+      Buffer.from(pkcs8).toString('hex'),
+      keyData[name].pkcs8_seed_only.toString('hex'));
+  } else {
+    await assert.rejects(
+      subtle.exportKey('pkcs8', key), {
+        message: /key is not extractable/
+      });
+  }
+
+  await assert.rejects(
+    subtle.importKey(
+      'pkcs8',
+      keyData[name].pkcs8_seed_only,
+      { name },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
+}
+
+async function testImportPkcs8PrivOnly({ name, privateUsages }, extractable) {
+  const key = await subtle.importKey(
+    'pkcs8',
+    keyData[name].pkcs8_priv_only,
+    { name },
+    extractable,
+    privateUsages);
+  assert.strictEqual(key.type, 'private');
+  assert.strictEqual(key.extractable, extractable);
+  assert.deepStrictEqual(key.usages, privateUsages);
+  assert.deepStrictEqual(key.algorithm.name, name);
+  assert.strictEqual(key.algorithm, key.algorithm);
+  assert.strictEqual(key.usages, key.usages);
+
+  if (extractable) {
+    await assert.rejects(subtle.exportKey('pkcs8', key), (err) => {
+      assert.strictEqual(err.name, 'OperationError');
+      assert.strictEqual(err.cause.code, 'ERR_CRYPTO_OPERATION_FAILED');
+      assert.strictEqual(err.cause.message, 'key does not have an available seed');
+      return true;
+    });
+  } else {
+    await assert.rejects(
+      subtle.exportKey('pkcs8', key), {
+        message: /key is not extractable/
+      });
+  }
+
+  await assert.rejects(
+    subtle.importKey(
+      'pkcs8',
+      keyData[name].pkcs8_seed_only,
+      { name },
+      extractable,
+      [/* empty usages */]),
+    { name: 'SyntaxError', message: 'Usages cannot be empty when importing a private key.' });
+}
 
 async function testImportJwk({ name, publicUsages, privateUsages }, extractable) {
 
@@ -317,6 +489,10 @@ async function testImportRawSeed({ name, privateUsages }, extractable) {
   const tests = [];
   for (const vector of testVectors) {
     for (const extractable of [true, false]) {
+      tests.push(testImportSpki(vector, extractable));
+      tests.push(testImportPkcs8(vector, extractable));
+      tests.push(testImportPkcs8SeedOnly(vector, extractable));
+      tests.push(testImportPkcs8PrivOnly(vector, extractable));
       tests.push(testImportJwk(vector, extractable));
       tests.push(testImportRawSeed(vector, extractable));
       tests.push(testImportRawPublic(vector, extractable));
