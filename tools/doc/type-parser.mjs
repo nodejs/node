@@ -122,7 +122,6 @@ const customTypesMap = {
   'HmacImportParams': 'webcrypto.html#class-hmacimportparams',
   'EcdsaParams': 'webcrypto.html#class-ecdsaparams',
   'RsaPssParams': 'webcrypto.html#class-rsapssparams',
-  'Ed448Params': 'webcrypto.html#class-ed448params',
   'ContextParams': 'webcrypto.html#class-contextparams',
   'CShakeParams': 'webcrypto.html#class-cshakeparams',
   'KmacImportParams': 'webcrypto.html#class-kmacimportparams',
