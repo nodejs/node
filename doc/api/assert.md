@@ -1759,8 +1759,10 @@ changes:
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error|Function} Postfix `printf`-like arguments in case
-  it's used as format string. If a function is used, the function is called. If
-  that function call fails, the default message is generated instead.
+  it's used as format string.
+  If message is a function, it is called in case of a comparison failure. The
+  function receives the `actual` and `expected` arguments and has to return a
+  string that is going to be used as error message.
   `printf`-like format strings and functions are beneficial for performance
   reasons in case arguments are passed through. In addition, it allows nice
   formatting with ease.
@@ -1800,7 +1802,7 @@ assert.strictEqual(1, '1', new TypeError('Inputs are not identical'));
 
 assert.strictEqual(apples, oranges, () => {
   // Do 'heavy' computations
-  return 'My error string'
+  return 'My error string';
 });
 // AssertionError [ERR_ASSERTION]: apples 1 !== oranges 2
 ```
