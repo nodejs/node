@@ -671,7 +671,7 @@ console.log(values.random);
     ]);
   });
 
-  it('should run when `--watch --inspect`', async () => {
+  it('should run when `--watch --inspect`', { skip: !process.features.inspector }, async () => {
     const file = createTmpFile();
     const args = ['--watch', '--inspect', file];
     const { stdout, stderr } = await runWriteSucceed({ file, watchedFile: file, watchFlag: null, args });
