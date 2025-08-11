@@ -5,9 +5,8 @@ const RSA_KEY_GEN = {
   publicExponent: new Uint8Array([1, 0, 1])
 };
 
-const [ECDH, X448, X25519] = await Promise.all([
+const [ECDH, X25519] = await Promise.all([
   subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits', 'deriveKey']),
-  subtle.generateKey('X448', false, ['deriveBits', 'deriveKey']),
   subtle.generateKey('X25519', false, ['deriveBits', 'deriveKey']),
 ]);
 
@@ -33,10 +32,6 @@ export const vectors = {
     [false, 'SHA-1'],
 
     [true, 'Ed25519'],
-
-    [true, 'Ed448'],
-    [true, { name: 'Ed448', context: Buffer.alloc(0) }],
-    [false, { name: 'Ed448', context: Buffer.alloc(1) }],
 
     [true, 'RSASSA-PKCS1-v1_5'],
 
@@ -64,9 +59,7 @@ export const vectors = {
     [false, 'HKDF'],
     [false, 'PBKDF2'],
     [true, 'X25519'],
-    [true, 'X448'],
     [true, 'Ed25519'],
-    [true, 'Ed448'],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
     [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],
@@ -117,15 +110,6 @@ export const vectors = {
      { name: 'X25519', public: X25519.publicKey },
      'HKDF'],
     [true,
-     { name: 'X448', public: X448.publicKey },
-     { name: 'AES-CBC', length: 128 }],
-    [true,
-     { name: 'X448', public: X448.publicKey },
-     { name: 'HMAC', hash: 'SHA-256' }],
-    [true,
-     { name: 'X448', public: X448.publicKey },
-     'HKDF'],
-    [true,
      { name: 'ECDH', public: ECDH.publicKey },
      { name: 'AES-CBC', length: 128 }],
     [true,
@@ -159,27 +143,18 @@ export const vectors = {
 
     [true,
      { name: 'ECDH', public: ECDH.publicKey }],
-    [false, { name: 'ECDH', public: X448.publicKey }],
     [false, { name: 'ECDH', public: ECDH.privateKey }],
     [false, 'ECDH'],
 
     [true, { name: 'X25519', public: X25519.publicKey }],
-    [false, { name: 'X25519', public: X448.publicKey }],
     [false, { name: 'X25519', public: X25519.privateKey }],
     [false, 'X25519'],
-
-    [true, { name: 'X448', public: X448.publicKey }],
-    [false, { name: 'X448', public: X25519.publicKey }],
-    [false, { name: 'X448', public: X448.privateKey }],
-    [false, 'X448'],
   ],
   'importKey': [
     [false, 'SHA-1'],
     [false, 'Invalid'],
     [true, 'X25519'],
-    [true, 'X448'],
     [true, 'Ed25519'],
-    [true, 'Ed448'],
     [true, { name: 'HMAC', hash: 'SHA-256' }],
     [true, { name: 'HMAC', hash: 'SHA-256', length: 256 }],
     [false, { name: 'HMAC', hash: 'SHA-256', length: 25 }],

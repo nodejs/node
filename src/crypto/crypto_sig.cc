@@ -199,6 +199,10 @@ void CheckThrow(Environment* env, SignBase::Error error) {
     case SignBase::Error::MalformedSignature:
       return THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Malformed signature");
 
+    case SignBase::Error::ContextUnsupported:
+      return THROW_ERR_CRYPTO_OPERATION_FAILED(
+          env, "Context parameter is unsupported");
+
     case SignBase::Error::Init:
     case SignBase::Error::Update:
     case SignBase::Error::PrivateKey:
@@ -230,6 +234,24 @@ void CheckThrow(Environment* env, SignBase::Error error) {
 
 bool UseP1363Encoding(const EVPKeyPointer& key, const DSASigEnc dsa_encoding) {
   return key.isSigVariant() && dsa_encoding == DSASigEnc::P1363;
+}
+
+bool SupportsContextString(const EVPKeyPointer& key) {
+#if OPENSSL_VERSION_NUMBER < 0x3020000fL
+  return false;
+#else
+  switch (key.id()) {
+    case EVP_PKEY_ED448:
+#if OPENSSL_WITH_PQC
+    case EVP_PKEY_ML_DSA_44:
+    case EVP_PKEY_ML_DSA_65:
+    case EVP_PKEY_ML_DSA_87:
+#endif
+      return true;
+    default:
+      return false;
+  }
+#endif
 }
 }  // namespace
 
@@ -534,7 +556,8 @@ SignConfiguration::SignConfiguration(SignConfiguration&& other) noexcept
       flags(other.flags),
       padding(other.padding),
       salt_length(other.salt_length),
-      dsa_encoding(other.dsa_encoding) {}
+      dsa_encoding(other.dsa_encoding),
+      context_string(std::move(other.context_string)) {}
 
 SignConfiguration& SignConfiguration::operator=(
     SignConfiguration&& other) noexcept {
@@ -548,6 +571,7 @@ void SignConfiguration::MemoryInfo(MemoryTracker* tracker) const {
   if (job_mode == kCryptoJobAsync) {
     tracker->TrackFieldWithSize("data", data.size());
     tracker->TrackFieldWithSize("signature", signature.size());
+    tracker->TrackFieldWithSize("context_string", context_string.size());
   }
 }
 
@@ -615,8 +639,20 @@ Maybe<void> SignTraits::AdditionalConfig(
     }
   }
 
+  if (!args[offset + 10]->IsUndefined()) {  // Context string
+    ArrayBufferOrViewContents<char> context_string(args[offset + 10]);
+    if (context_string.size() > 255) [[unlikely]] {
+      THROW_ERR_OUT_OF_RANGE(env, "context string must be at most 255 bytes");
+      return Nothing<void>();
+    }
+    params->flags |= SignConfiguration::kHasContextString;
+    params->context_string = mode == kCryptoJobAsync
+                                 ? context_string.ToCopy()
+                                 : context_string.ToByteSource();
+  }
+
   if (params->mode == SignConfiguration::Mode::Verify) {
-    ArrayBufferOrViewContents<char> signature(args[offset + 10]);
+    ArrayBufferOrViewContents<char> signature(args[offset + 11]);
     if (!signature.CheckSizeInt32()) [[unlikely]] {
       THROW_ERR_OUT_OF_RANGE(env, "signature is too big");
       return Nothing<void>();
@@ -647,12 +683,34 @@ bool SignTraits::DeriveBits(Environment* env,
     return false;
   const auto& key = params.key.GetAsymmetricKey();
 
+  bool has_context = (params.flags & SignConfiguration::kHasContextString &&
+                      params.context_string.size() > 0);
+
+  if (has_context && !SupportsContextString(key)) {
+    if (can_throw) crypto::CheckThrow(env, SignBase::Error::ContextUnsupported);
+    return false;
+  }
+
   auto ctx = ([&] {
-    switch (params.mode) {
-      case SignConfiguration::Mode::Sign:
-        return context.signInit(key, params.digest);
-      case SignConfiguration::Mode::Verify:
-        return context.verifyInit(key, params.digest);
+    if (has_context) {
+      ncrypto::Buffer<const unsigned char> context_buf{
+          .data = params.context_string.data<unsigned char>(),
+          .len = params.context_string.size(),
+      };
+
+      switch (params.mode) {
+        case SignConfiguration::Mode::Sign:
+          return context.signInitWithContext(key, params.digest, context_buf);
+        case SignConfiguration::Mode::Verify:
+          return context.verifyInitWithContext(key, params.digest, context_buf);
+      }
+    } else {
+      switch (params.mode) {
+        case SignConfiguration::Mode::Sign:
+          return context.signInit(key, params.digest);
+        case SignConfiguration::Mode::Verify:
+          return context.verifyInit(key, params.digest);
+      }
     }
     UNREACHABLE();
   })();

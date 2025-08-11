@@ -4288,6 +4288,54 @@ std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInit(
   return ctx;
 }
 
+std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::signInitWithContext(
+    const EVPKeyPointer& key,
+    const Digest& digest,
+    const Buffer<const unsigned char>& context_string) {
+#ifdef OSSL_SIGNATURE_PARAM_CONTEXT_STRING
+  EVP_PKEY_CTX* ctx = nullptr;
+
+  const OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_octet_string(
+          OSSL_SIGNATURE_PARAM_CONTEXT_STRING,
+          const_cast<unsigned char*>(context_string.data),
+          context_string.len),
+      OSSL_PARAM_END};
+
+  if (!EVP_DigestSignInit_ex(
+          ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
+    return std::nullopt;
+  }
+  return ctx;
+#else
+  return std::nullopt;
+#endif
+}
+
+std::optional<EVP_PKEY_CTX*> EVPMDCtxPointer::verifyInitWithContext(
+    const EVPKeyPointer& key,
+    const Digest& digest,
+    const Buffer<const unsigned char>& context_string) {
+#ifdef OSSL_SIGNATURE_PARAM_CONTEXT_STRING
+  EVP_PKEY_CTX* ctx = nullptr;
+
+  const OSSL_PARAM params[] = {
+      OSSL_PARAM_construct_octet_string(
+          OSSL_SIGNATURE_PARAM_CONTEXT_STRING,
+          const_cast<unsigned char*>(context_string.data),
+          context_string.len),
+      OSSL_PARAM_END};
+
+  if (!EVP_DigestVerifyInit_ex(
+          ctx_.get(), &ctx, nullptr, nullptr, nullptr, key.get(), params)) {
+    return std::nullopt;
+  }
+  return ctx;
+#else
+  return std::nullopt;
+#endif
+}
+
 DataPointer EVPMDCtxPointer::signOneShot(
     const Buffer<const unsigned char>& buf) const {
   if (!ctx_) return {};
