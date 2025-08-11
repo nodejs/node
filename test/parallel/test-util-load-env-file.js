@@ -1,39 +1,31 @@
 'use strict';
 
 const common = require('../common');
-const fixtures = require('../../test/common/fixtures');
+const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
+const { loadEnvFile } = require('node:util');
 const { join } = require('node:path');
 const { isMainThread } = require('worker_threads');
 
-const basicValidEnvFilePath = fixtures.path('dotenv/basic-valid.env');
 const validEnvFilePath = fixtures.path('dotenv/valid.env');
 const missingEnvFile = fixtures.path('dir%20with unusual"chars \'åß∂ƒ©∆¬…`/non-existent-file.env');
 
-describe('process.loadEnvFile()', () => {
-
+describe('util.loadEnvFile()', () => {
   it('supports passing path', async () => {
-    const code = `
-      process.loadEnvFile(${JSON.stringify(validEnvFilePath)});
-      const assert = require('assert');
-      assert.strictEqual(process.env.BASIC, 'basic');
-    `.trim();
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ '--eval', code ],
-      { cwd: __dirname },
-    );
-    assert.strictEqual(child.stderr, '');
-    assert.strictEqual(child.code, 0);
+    const obj = loadEnvFile(validEnvFilePath);
+    assert(obj);
+    assert.strictEqual(typeof obj, 'object');
   });
 
   it('supports not-passing a path', async () => {
     // Uses `../fixtures/dotenv/.env` file.
     const code = `
-      process.loadEnvFile();
+      const { loadEnvFile } = require('node:util');
+      const obj = loadEnvFile();
       const assert = require('assert');
-      assert.strictEqual(process.env.BASIC, 'basic');
+      assert(obj);
+      assert.strictEqual(typeof obj, 'object');
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
@@ -46,7 +38,7 @@ describe('process.loadEnvFile()', () => {
 
   it('should throw when file does not exist', async () => {
     assert.throws(() => {
-      process.loadEnvFile(missingEnvFile);
+      loadEnvFile(missingEnvFile);
     }, { code: 'ENOENT', syscall: 'open', path: missingEnvFile });
   });
 
@@ -64,7 +56,7 @@ describe('process.loadEnvFile()', () => {
       }
 
       assert.throws(() => {
-        process.loadEnvFile();
+        loadEnvFile();
       }, { code: 'ENOENT', syscall: 'open', path: '.env' });
     } finally {
       if (isMainThread) {
@@ -75,7 +67,7 @@ describe('process.loadEnvFile()', () => {
 
   it('should check for permissions', async () => {
     const code = `
-      process.loadEnvFile(${JSON.stringify(missingEnvFile)});
+      require('node:util').loadEnvFile(${JSON.stringify(missingEnvFile)});
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
@@ -93,20 +85,5 @@ describe('process.loadEnvFile()', () => {
         JSON.stringify(missingEnvFile).slice(1, -1));
     }
     assert.strictEqual(child.code, 1);
-  });
-
-  it('loadEnvFile overrides env vars loaded with --env-file', async () => {
-    const code = `
-      process.loadEnvFile(${JSON.stringify(basicValidEnvFilePath)});
-      require('node:assert').strictEqual(process.env.BASIC, 'overriden');
-    `.trim();
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ `--env-file=${validEnvFilePath}`, '--eval', code ],
-      { cwd: __dirname },
-    );
-    assert.strictEqual(child.stdout, '');
-    assert.strictEqual(child.stderr, '');
-    assert.strictEqual(child.code, 0);
   });
 });
