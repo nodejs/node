@@ -939,9 +939,9 @@ specification.
 | `'Ed25519'`                          | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
 | `'Ed448'`[^secure-curves]            | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
 | `'HMAC'`                             |          |           | ✔       | ✔       | ✔              |                |              |
-| `'ML-DSA-44'`[^modern-algos]         |          |           | ✔       |         |                | ✔              | ✔            |
-| `'ML-DSA-65'`[^modern-algos]         |          |           | ✔       |         |                | ✔              | ✔            |
-| `'ML-DSA-87'`[^modern-algos]         |          |           | ✔       |         |                | ✔              | ✔            |
+| `'ML-DSA-44'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
+| `'ML-DSA-65'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
+| `'ML-DSA-87'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'RSA-OAEP'`                         | ✔        | ✔         | ✔       |         |                |                |              |
 | `'RSA-PSS'`                          | ✔        | ✔         | ✔       |         |                |                |              |
 | `'RSASSA-PKCS1-v1_5'`                | ✔        | ✔         | ✔       |         |                |                |              |
@@ -1070,9 +1070,9 @@ The algorithms currently supported include:
 | `'Ed448'`[^secure-curves]            | ✔        | ✔         | ✔       | ✔       |                | ✔              |              |
 | `'HDKF'`                             |          |           |         | ✔       | ✔              |                |              |
 | `'HMAC'`                             |          |           | ✔       | ✔       | ✔              |                |              |
-| `'ML-DSA-44'`[^modern-algos]         |          |           | ✔       |         |                | ✔              | ✔            |
-| `'ML-DSA-65'`[^modern-algos]         |          |           | ✔       |         |                | ✔              | ✔            |
-| `'ML-DSA-87'`[^modern-algos]         |          |           | ✔       |         |                | ✔              | ✔            |
+| `'ML-DSA-44'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
+| `'ML-DSA-65'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
+| `'ML-DSA-87'`[^modern-algos]         | ✔        | ✔         | ✔       |         |                | ✔              | ✔            |
 | `'PBKDF2'`                           |          |           |         | ✔       | ✔              |                |              |
 | `'RSA-OAEP'`                         | ✔        | ✔         | ✔       |         |                |                |              |
 | `'RSA-PSS'`                          | ✔        | ✔         | ✔       |         |                |                |              |
