@@ -1916,7 +1916,7 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA keys.
   - version:
@@ -2024,7 +2024,7 @@ Other key details might be exposed via this API using additional attributes.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA keys.
   - version:
@@ -3412,7 +3412,7 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA keys.
   - version: v15.12.0
@@ -3451,7 +3451,7 @@ of the passphrase is limited to 1024 bytes.
 <!-- YAML
 added: v11.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA keys.
   - version: v15.12.0
@@ -3663,7 +3663,7 @@ underlying hash function. See [`crypto.createHmac()`][] for more information.
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA key pairs.
   - version: v18.0.0
@@ -3786,7 +3786,7 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
-  - version: REPLACEME
+  - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA key pairs.
   - version: v16.10.0
@@ -5439,7 +5439,7 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA signing.
   - version: v18.0.0
@@ -5555,7 +5555,7 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA signature verification.
   - version: v18.0.0
