@@ -329,6 +329,15 @@ const tests = [
             '--experimental-test-coverage',
             '--test-coverage-exclude=!test/**']
   } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-with-mock.mjs',
+    flags: ['--disable-warning=ExperimentalWarning',
+            '--test-reporter=tap',
+            '--experimental-transform-types',
+            '--experimental-test-module-mocks',
+            '--experimental-test-coverage',
+            '--test-coverage-exclude=!test/**']
+  } : false,
 ]
 .filter(Boolean)
 .map(({ flags, name, tty, transform, cwd }) => ({
