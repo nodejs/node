@@ -10,7 +10,7 @@
 // This tests that Node.js can work with an existing CppHeap.
 
 // Mimic a class that does not know about Node.js.
-class CppGCed : public cppgc::GarbageCollected<CppGCed> {
+class CppGCed : public v8::Object::Wrappable {
  public:
   static int kConstructCount;
   static int kDestructCount;
