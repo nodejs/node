@@ -29,7 +29,7 @@ const { PassThrough } = require('stream');
   output.isTTY = true; // simulate TTY
   const rl = readline.createInterface({ input, output });
 
-  rl.question('Password? ', common.mustCall((pw) => {
+  rl.question('Password? ', { skipHistory: false }, common.mustCall((pw) => {
     assert.strictEqual(pw, 'normal-input');
     assert.partialDeepStrictEqual(rl.history, ['normal-input']);
     rl.close();
