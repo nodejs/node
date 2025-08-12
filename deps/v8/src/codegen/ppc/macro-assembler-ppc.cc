@@ -157,7 +157,7 @@ void MacroAssembler::LoadRootRelative(Register destination, int32_t offset) {
 }
 
 void MacroAssembler::StoreRootRelative(int32_t offset, Register value) {
-  StoreU64(value, MemOperand(kRootRegister, offset));
+  StoreU64(value, MemOperand(kRootRegister, offset), r0);
 }
 
 void MacroAssembler::LoadRootRegisterOffset(Register destination,

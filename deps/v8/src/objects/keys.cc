@@ -702,7 +702,7 @@ KeyAccumulator::FilterForEnumerableProperties(
 
   size_t length = accessor->GetCapacity(*result, result->elements());
   for (InternalIndex entry : InternalIndex::Range(length)) {
-    if (!accessor->HasEntry(*result, entry)) continue;
+    if (!accessor->HasEntry(isolate(), *result, entry)) continue;
 
     // args are invalid after args.Call(), create a new one in every iteration.
     // Query callbacks are not expected to have side effects.
@@ -739,7 +739,8 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
   PropertyCallbackArguments enum_args(isolate_, interceptor->data(), *receiver,
                                       *object, Just(kDontThrow));
 
-  if (IsUndefined(interceptor->enumerator(), isolate_)) {
+  DCHECK_EQ(interceptor->is_named(), type == kNamed);
+  if (!interceptor->has_enumerator()) {
     return Just(true);
   }
   DirectHandle<JSObjectOrUndefined> maybe_result;
@@ -759,8 +760,7 @@ Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
   // happened up to this point.
   enum_args.AcceptSideEffects();
 
-  if ((filter_ & ONLY_ENUMERABLE) &&
-      !IsUndefined(interceptor->query(), isolate_)) {
+  if ((filter_ & ONLY_ENUMERABLE) && interceptor->has_query()) {
     RETURN_NOTHING_IF_NOT_SUCCESSFUL(FilterForEnumerableProperties(
         receiver, object, interceptor, result, type));
   } else {

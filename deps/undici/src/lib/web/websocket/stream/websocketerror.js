@@ -1,6 +1,6 @@
 'use strict'
 
-const { webidl } = require('../../fetch/webidl')
+const { webidl } = require('../../webidl')
 const { validateCloseCodeAndReason } = require('../util')
 const { kConstruct } = require('../../../core/symbols')
 const { kEnumerableProperty } = require('../../../core/util')

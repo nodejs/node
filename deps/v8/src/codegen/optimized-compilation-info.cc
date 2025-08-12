@@ -246,6 +246,10 @@ void OptimizedCompilationInfo::SetTracingFlags(bool passes_filter) {
   if (v8_flags.turboshaft_trace_reduction) set_turboshaft_trace_reduction();
 }
 
+void OptimizedCompilationInfo::mark_cancelled() {
+  was_cancelled_.store(true, std::memory_order_relaxed);
+}
+
 OptimizedCompilationInfo::InlinedFunctionHolder::InlinedFunctionHolder(
     IndirectHandle<SharedFunctionInfo> inlined_shared_info,
     IndirectHandle<BytecodeArray> inlined_bytecode, SourcePosition pos)

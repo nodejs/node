@@ -31,6 +31,15 @@ declare namespace DiagnosticsChannel {
   export interface RequestBodySentMessage {
     request: Request;
   }
+
+  export interface RequestBodyChunkSentMessage {
+    request: Request;
+    chunk: Uint8Array | string;
+  }
+  export interface RequestBodyChunkReceivedMessage {
+    request: Request;
+    chunk: Buffer;
+  }
   export interface RequestHeadersMessage {
     request: Request;
     response: Response;

@@ -18,6 +18,7 @@
 /doc/contributing/**/* @nodejs/tsc
 /GOVERNANCE.md @nodejs/tsc
 /SECURITY.md @nodejs/tsc
+/BUILDING.md @nodejs/build @nodejs/tsc
 /LICENSE @nodejs/tsc
 /onboarding.md @nodejs/tsc
 
@@ -216,3 +217,15 @@
 /src/node_options.* @nodejs/config
 /test/parallel/test-config-* @nodejs/config
 /test/parallel/test-dotenv-* @nodejs/config
+
+# Inspector
+/src/inspector/* @nodejs/inspector
+/src/inspector_* @nodejs/inspector
+/lib/internal/inspector/* @nodejs/inspector
+/lib/internal/inspector_* @nodejs/inspector
+/lib/inspector.js @nodejs/inspector
+
+# path
+/lib/path.js @nodejs/path
+/lib/path/* @nodejs/path
+/test/parallel/test-path-* @nodejs/path

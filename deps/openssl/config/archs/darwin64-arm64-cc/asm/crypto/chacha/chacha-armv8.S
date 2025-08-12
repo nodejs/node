@@ -1,10 +1,12 @@
+#include "arm_arch.h"
 #ifndef	__KERNEL__
-# include "arm_arch.h"
 
 .private_extern	_OPENSSL_armcap_P
+
+
 #endif
 
-.text
+.section	__TEXT,__const
 
 .align	5
 Lsigma:
@@ -16,27 +18,29 @@ Lrot24:
 .byte	67,104,97,67,104,97,50,48,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,64,100,111,116,45,97,115,109,0
 .align	2
 
-.globl	_ChaCha20_ctr32
+.text
+
+.globl	_ChaCha20_ctr32_dflt
 
 .align	5
-_ChaCha20_ctr32:
-	cbz	x2,Labort
+_ChaCha20_ctr32_dflt:
+	AARCH64_SIGN_LINK_REGISTER
 	cmp	x2,#192
 	b.lo	Lshort
-
 #ifndef	__KERNEL__
 	adrp	x17,_OPENSSL_armcap_P@PAGE
 	ldr	w17,[x17,_OPENSSL_armcap_P@PAGEOFF]
+Lcheck_neon:
 	tst	w17,#ARMV7_NEON
 	b.ne	LChaCha20_neon
 #endif
 
 Lshort:
-.long	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	x5,Lsigma
+	adrp	x5,Lsigma@PAGE
+	add	x5,x5,Lsigma@PAGEOFF
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
@@ -244,8 +248,8 @@ Loop:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
-.long	0xd50323bf			// autiasp
 Labort:
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 .align	4
@@ -301,8 +305,43 @@ Loop_tail:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
-.long	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
+
+
+.globl	_ChaCha20_ctr32
+
+.align	5
+_ChaCha20_ctr32:
+	AARCH64_SIGN_LINK_REGISTER
+	cbz	x2,Labort
+	cmp	x2,#192
+	b.lo	Lshort
+#ifndef	__KERNEL__
+	adrp	x17,_OPENSSL_armcap_P@PAGE
+	ldr	w17,[x17,_OPENSSL_armcap_P@PAGEOFF]
+	tst	w17,#ARMV8_SVE
+	b.eq	Lcheck_neon
+	stp	x29,x30,[sp,#-16]!
+	sub	sp,sp,#16
+	// SVE handling will inevitably increment the counter
+	// Neon/Scalar code that follows to process tail data needs to
+	// use new counter, unfortunately the input counter buffer
+	// pointed to by ctr is meant to be read-only per API contract
+	// we have to copy the buffer to stack to be writable by SVE
+	ldp	x5,x6,[x4]
+	stp	x5,x6,[sp]
+	mov	x4,sp
+	bl	_ChaCha20_ctr32_sve
+	cbz	x2,1f
+	bl	_ChaCha20_ctr32_dflt
+1:
+	add	sp,sp,#16
+	ldp	x29,x30,[sp],#16
+	AARCH64_VALIDATE_LINK_REGISTER
+	ret
+#endif
+	b	Lshort
 
 
 #ifdef	__KERNEL__
@@ -311,12 +350,13 @@ Loop_tail:
 
 .align	5
 _ChaCha20_neon:
+	AARCH64_SIGN_LINK_REGISTER
 LChaCha20_neon:
-.long	0xd503233f			// paciasp
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	x5,Lsigma
+	adrp	x5,Lsigma@PAGE
+	add	x5,x5,Lsigma@PAGEOFF
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
@@ -747,7 +787,7 @@ Loop_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
-.long	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 .align	4
@@ -879,17 +919,18 @@ Ldone_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
-.long	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 
 .align	5
 ChaCha20_512_neon:
-.long	0xd503233f			// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 
-	adr	x5,Lsigma
+	adrp	x5,Lsigma@PAGE
+	add	x5,x5,Lsigma@PAGEOFF
 	stp	x19,x20,[sp,#16]
 	stp	x21,x22,[sp,#32]
 	stp	x23,x24,[sp,#48]
@@ -2029,6 +2070,6 @@ Ldone_512_neon:
 	ldp	x25,x26,[x29,#64]
 	ldp	x27,x28,[x29,#80]
 	ldp	x29,x30,[sp],#96
-.long	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 

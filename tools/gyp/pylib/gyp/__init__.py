@@ -489,7 +489,7 @@ def gyp_main(args):
 
     options, build_files_arg = parser.parse_args(args)
     if options.version:
-        import pkg_resources
+        import pkg_resources  # noqa: PLC0415
         print(f"v{pkg_resources.get_distribution('gyp-next').version}")
         return 0
     build_files = build_files_arg

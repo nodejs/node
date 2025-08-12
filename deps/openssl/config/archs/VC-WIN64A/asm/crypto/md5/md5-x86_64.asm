@@ -210,7 +210,7 @@ $L$loop:
 	lea	eax,[((-165796510))+r10*1+rax]
 	and	r11d,ecx
 	mov	r10d,DWORD[24+rsi]
-	or	r12d,r11d
+	add	eax,r11d
 	mov	r11d,ecx
 	add	eax,r12d
 	mov	r12d,ecx
@@ -221,7 +221,7 @@ $L$loop:
 	lea	edx,[((-1069501632))+r10*1+rdx]
 	and	r11d,ebx
 	mov	r10d,DWORD[44+rsi]
-	or	r12d,r11d
+	add	edx,r11d
 	mov	r11d,ebx
 	add	edx,r12d
 	mov	r12d,ebx
@@ -232,7 +232,7 @@ $L$loop:
 	lea	ecx,[643717713+r10*1+rcx]
 	and	r11d,eax
 	mov	r10d,DWORD[rsi]
-	or	r12d,r11d
+	add	ecx,r11d
 	mov	r11d,eax
 	add	ecx,r12d
 	mov	r12d,eax
@@ -243,7 +243,7 @@ $L$loop:
 	lea	ebx,[((-373897302))+r10*1+rbx]
 	and	r11d,edx
 	mov	r10d,DWORD[20+rsi]
-	or	r12d,r11d
+	add	ebx,r11d
 	mov	r11d,edx
 	add	ebx,r12d
 	mov	r12d,edx
@@ -254,7 +254,7 @@ $L$loop:
 	lea	eax,[((-701558691))+r10*1+rax]
 	and	r11d,ecx
 	mov	r10d,DWORD[40+rsi]
-	or	r12d,r11d
+	add	eax,r11d
 	mov	r11d,ecx
 	add	eax,r12d
 	mov	r12d,ecx
@@ -265,7 +265,7 @@ $L$loop:
 	lea	edx,[38016083+r10*1+rdx]
 	and	r11d,ebx
 	mov	r10d,DWORD[60+rsi]
-	or	r12d,r11d
+	add	edx,r11d
 	mov	r11d,ebx
 	add	edx,r12d
 	mov	r12d,ebx
@@ -276,7 +276,7 @@ $L$loop:
 	lea	ecx,[((-660478335))+r10*1+rcx]
 	and	r11d,eax
 	mov	r10d,DWORD[16+rsi]
-	or	r12d,r11d
+	add	ecx,r11d
 	mov	r11d,eax
 	add	ecx,r12d
 	mov	r12d,eax
@@ -287,7 +287,7 @@ $L$loop:
 	lea	ebx,[((-405537848))+r10*1+rbx]
 	and	r11d,edx
 	mov	r10d,DWORD[36+rsi]
-	or	r12d,r11d
+	add	ebx,r11d
 	mov	r11d,edx
 	add	ebx,r12d
 	mov	r12d,edx
@@ -298,7 +298,7 @@ $L$loop:
 	lea	eax,[568446438+r10*1+rax]
 	and	r11d,ecx
 	mov	r10d,DWORD[56+rsi]
-	or	r12d,r11d
+	add	eax,r11d
 	mov	r11d,ecx
 	add	eax,r12d
 	mov	r12d,ecx
@@ -309,7 +309,7 @@ $L$loop:
 	lea	edx,[((-1019803690))+r10*1+rdx]
 	and	r11d,ebx
 	mov	r10d,DWORD[12+rsi]
-	or	r12d,r11d
+	add	edx,r11d
 	mov	r11d,ebx
 	add	edx,r12d
 	mov	r12d,ebx
@@ -320,7 +320,7 @@ $L$loop:
 	lea	ecx,[((-187363961))+r10*1+rcx]
 	and	r11d,eax
 	mov	r10d,DWORD[32+rsi]
-	or	r12d,r11d
+	add	ecx,r11d
 	mov	r11d,eax
 	add	ecx,r12d
 	mov	r12d,eax
@@ -331,7 +331,7 @@ $L$loop:
 	lea	ebx,[1163531501+r10*1+rbx]
 	and	r11d,edx
 	mov	r10d,DWORD[52+rsi]
-	or	r12d,r11d
+	add	ebx,r11d
 	mov	r11d,edx
 	add	ebx,r12d
 	mov	r12d,edx
@@ -342,7 +342,7 @@ $L$loop:
 	lea	eax,[((-1444681467))+r10*1+rax]
 	and	r11d,ecx
 	mov	r10d,DWORD[8+rsi]
-	or	r12d,r11d
+	add	eax,r11d
 	mov	r11d,ecx
 	add	eax,r12d
 	mov	r12d,ecx
@@ -353,7 +353,7 @@ $L$loop:
 	lea	edx,[((-51403784))+r10*1+rdx]
 	and	r11d,ebx
 	mov	r10d,DWORD[28+rsi]
-	or	r12d,r11d
+	add	edx,r11d
 	mov	r11d,ebx
 	add	edx,r12d
 	mov	r12d,ebx
@@ -364,7 +364,7 @@ $L$loop:
 	lea	ecx,[1735328473+r10*1+rcx]
 	and	r11d,eax
 	mov	r10d,DWORD[48+rsi]
-	or	r12d,r11d
+	add	ecx,r11d
 	mov	r11d,eax
 	add	ecx,r12d
 	mov	r12d,eax
@@ -375,7 +375,7 @@ $L$loop:
 	lea	ebx,[((-1926607734))+r10*1+rbx]
 	and	r11d,edx
 	mov	r10d,DWORD[20+rsi]
-	or	r12d,r11d
+	add	ebx,r11d
 	mov	r11d,edx
 	add	ebx,r12d
 	mov	r12d,edx

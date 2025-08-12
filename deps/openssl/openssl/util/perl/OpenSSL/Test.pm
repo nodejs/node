@@ -10,6 +10,7 @@ package OpenSSL::Test;
 use strict;
 use warnings;
 
+use Carp;
 use Test::More 0.96;
 
 use Exporter;
@@ -557,8 +558,11 @@ operating system.
 =cut
 
 sub bldtop_dir {
-    return __bldtop_dir(@_);	# This caters for operating systems that have
+    my $d = __bldtop_dir(@_);	# This caters for operating systems that have
 				# a very distinct syntax for directories.
+
+    croak "$d isn't a directory" if -e $d && ! -d $d;
+    return $d;
 }
 
 =over 4
@@ -576,7 +580,10 @@ operating system.
 =cut
 
 sub bldtop_file {
-    return __bldtop_file(@_);
+    my $f = __bldtop_file(@_);
+
+    croak "$f isn't a file" if -e $f && ! -f $f;
+    return $f;
 }
 
 =over 4
@@ -594,8 +601,11 @@ operating system.
 =cut
 
 sub srctop_dir {
-    return __srctop_dir(@_);	# This caters for operating systems that have
+    my $d = __srctop_dir(@_);	# This caters for operating systems that have
 				# a very distinct syntax for directories.
+
+    croak "$d isn't a directory" if -e $d && ! -d $d;
+    return $d;
 }
 
 =over 4
@@ -613,7 +623,10 @@ operating system.
 =cut
 
 sub srctop_file {
-    return __srctop_file(@_);
+    my $f = __srctop_file(@_);
+
+    croak "$f isn't a file" if -e $f && ! -f $f;
+    return $f;
 }
 
 =over 4
@@ -630,7 +643,10 @@ operating system.
 =cut
 
 sub data_dir {
-    return __data_dir(@_);
+    my $d = __data_dir(@_);
+
+    croak "$d isn't a directory" if -e $d && ! -d $d;
+    return $d;
 }
 
 =over 4
@@ -647,15 +663,20 @@ file path as a string, adapted to the local operating system.
 =cut
 
 sub data_file {
-    return __data_file(@_);
+    my $f = __data_file(@_);
+
+    croak "$f isn't a file" if -e $f && ! -f $f;
+    return $f;
 }
 
 =over 4
 
-=item B<result_dir>
+=item B<result_dir LIST>
 
-C<result_dir> returns the directory where test output files should be placed
-as a string, adapted to the local operating system.
+LIST is a list of directories that make up a path from the result directory
+associated with the test (see L</DESCRIPTION> above).
+C<result_dir> returns the resulting directory as a string, adapted to the local
+operating system.
 
 =back
 
@@ -664,17 +685,20 @@ as a string, adapted to the local operating system.
 sub result_dir {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
-    return catfile($directories{RESULTS});
+    my $d = catdir($directories{RESULTS},@_);
+
+    croak "$d isn't a directory" if -e $d && ! -d $d;
+    return $d;
 }
 
 =over 4
 
-=item B<result_file FILENAME>
+=item B<result_file LIST, FILENAME>
 
-FILENAME is the name of a test output file.
-C<result_file> returns the path of the given file as a string,
-prepending to the file name the path to the directory where test output files
-should be placed, adapted to the local operating system.
+LIST is a list of directories that make up a path from the data directory
+associated with the test (see L</DESCRIPTION> above) and FILENAME is the name
+of a file located in that directory path.  C<result_file> returns the resulting
+file path as a string, adapted to the local operating system.
 
 =back
 
@@ -683,8 +707,10 @@ should be placed, adapted to the local operating system.
 sub result_file {
     BAIL_OUT("Must run setup() first") if (! $test_name);
 
-    my $f = pop;
-    return catfile(result_dir(),@_,$f);
+    my $f = catfile(result_dir(),@_);
+
+    croak "$f isn't a file" if -e $f && ! -f $f;
+    return $f;
 }
 
 =over 4

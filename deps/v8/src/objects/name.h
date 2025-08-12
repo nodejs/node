@@ -8,10 +8,8 @@
 #include <atomic>
 
 #include "src/base/bit-field.h"
-#include "src/common/globals.h"
 #include "src/objects/objects.h"
 #include "src/objects/primitive-heap-object.h"
-#include "src/utils/utils.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -149,12 +147,9 @@ V8_OBJECT class Name : public PrimitiveHeapObject {
   // Array index strings this short can keep their index in the hash field.
   static const int kMaxCachedArrayIndexLength = 7;
 
-  static const uint32_t kMaxArrayIndex = kMaxUInt32 - 1;
   // Maximum number of characters to consider when trying to convert a string
   // value into an array index.
   static const int kMaxArrayIndexSize = 10;
-  static_assert(TenToThe(kMaxArrayIndexSize) >= kMaxArrayIndex);
-  static_assert(TenToThe(kMaxArrayIndexSize - 1) < kMaxArrayIndex);
   // Maximum number of characters in a string that can possibly be an
   // "integer index" in the spec sense, i.e. a canonical representation of a
   // number in the range up to MAX_SAFE_INTEGER. We parse these into a size_t,

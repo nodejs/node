@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,12 +15,16 @@
 #define PORT            "4433"
 #define PROTOCOL        "tcp"
 
+#define SSL_VERSION_ALLOWS_RENEGOTIATION(s) \
+    (SSL_is_dtls(s) || (SSL_version(s) < TLS1_3_VERSION))
+
 typedef int (*do_server_cb)(int s, int stype, int prot, unsigned char *context);
+void get_sock_info_address(int asock, char **hostname, char **service);
 int report_server_accept(BIO *out, int asock, int with_address, int with_pid);
 int do_server(int *accept_sock, const char *host, const char *port,
               int family, int type, int protocol, do_server_cb cb,
-              unsigned char *context, int naccept, BIO *bio_s_out);
-
+              unsigned char *context, int naccept, BIO *bio_s_out,
+              int tfo);
 int verify_callback(int ok, X509_STORE_CTX *ctx);
 
 int set_cert_stuff(SSL_CTX *ctx, char *cert_file, char *key_file);
@@ -32,7 +36,8 @@ int ssl_print_groups(BIO *out, SSL *s, int noshared);
 int ssl_print_tmp_key(BIO *out, SSL *s);
 int init_client(int *sock, const char *host, const char *port,
                 const char *bindhost, const char *bindport,
-                int family, int type, int protocol);
+                int family, int type, int protocol, int tfo, int doconn,
+                BIO_ADDR **ba_ret);
 int should_retry(int i);
 void do_ssl_shutdown(SSL *ssl);
 
@@ -79,6 +84,7 @@ int ssl_load_stores(SSL_CTX *ctx, const char *vfyCApath,
 void ssl_ctx_security_debug(SSL_CTX *ctx, int verbose);
 int set_keylog_file(SSL_CTX *ctx, const char *keylog_file);
 void print_ca_names(BIO *bio, SSL *s);
+void ssl_print_secure_renegotiation_notes(BIO *bio, SSL *s);
 
 #ifndef OPENSSL_NO_SRP
 /* The client side SRP context that we pass to all SRP related callbacks */

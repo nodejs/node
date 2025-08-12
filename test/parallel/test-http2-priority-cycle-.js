@@ -7,6 +7,11 @@ const assert = require('assert');
 const http2 = require('http2');
 const Countdown = require('../common/countdown');
 
+common.expectWarning(
+  'DeprecationWarning',
+  'http2Stream.priority is longer supported after priority signalling was deprecated in RFC 9113',
+  'DEP0194');
+
 const server = http2.createServer();
 const largeBuffer = Buffer.alloc(1e4);
 

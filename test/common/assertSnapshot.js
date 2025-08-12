@@ -16,6 +16,10 @@ function replaceStackTrace(str, replacement = '$1*$7$8\n') {
   return str.replace(stackFramesRegexp, replacement);
 }
 
+function replaceInternalStackTrace(str) {
+  return str.replaceAll(/(\W+).*node:internal.*/g, '$1*');
+}
+
 function replaceWindowsLineEndings(str) {
   return str.replace(windowNewlineRegexp, '');
 }
@@ -24,8 +28,11 @@ function replaceWindowsPaths(str) {
   return common.isWindows ? str.replaceAll(path.win32.sep, path.posix.sep) : str;
 }
 
-function replaceFullPaths(str) {
-  return str.replaceAll('\\\'', "'").replaceAll(path.resolve(__dirname, '../..'), '');
+function transformProjectRoot(replacement = '') {
+  const projectRoot = path.resolve(__dirname, '../..');
+  return (str) => {
+    return str.replaceAll('\\\'', "'").replaceAll(projectRoot, replacement);
+  };
 }
 
 function transform(...args) {
@@ -94,11 +101,12 @@ async function spawnAndAssert(filename, transform = (x) => x, { tty = false, ...
 module.exports = {
   assertSnapshot,
   getSnapshotPath,
-  replaceFullPaths,
   replaceNodeVersion,
   replaceStackTrace,
+  replaceInternalStackTrace,
   replaceWindowsLineEndings,
   replaceWindowsPaths,
   spawnAndAssert,
   transform,
+  transformProjectRoot,
 };

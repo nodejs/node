@@ -1,6 +1,8 @@
 import { URL } from 'url'
 import Pool from './pool'
 import Dispatcher from './dispatcher'
+import TClientStats from './client-stats'
+import TPoolStats from './pool-stats'
 
 export default Agent
 
@@ -12,20 +14,18 @@ declare class Agent extends Dispatcher {
   destroyed: boolean
   /** Dispatches a request. */
   dispatch (options: Agent.DispatchOptions, handler: Dispatcher.DispatchHandler): boolean
+  /** Aggregate stats for a Agent by origin. */
+  readonly stats: Record<string, TClientStats | TPoolStats>
 }
 
 declare namespace Agent {
   export interface Options extends Pool.Options {
     /** Default: `(origin, opts) => new Pool(origin, opts)`. */
     factory?(origin: string | URL, opts: Object): Dispatcher;
-    /** Integer. Default: `0` */
-    maxRedirections?: number;
 
     interceptors?: { Agent?: readonly Dispatcher.DispatchInterceptor[] } & Pool.Options['interceptors']
   }
 
   export interface DispatchOptions extends Dispatcher.DispatchOptions {
-    /** Integer. */
-    maxRedirections?: number;
   }
 }

@@ -819,6 +819,8 @@ class V8_EXPORT Symbol : public Name {
   static Local<Symbol> GetToPrimitive(Isolate* isolate);
   static Local<Symbol> GetToStringTag(Isolate* isolate);
   static Local<Symbol> GetUnscopables(Isolate* isolate);
+  static Local<Symbol> GetDispose(Isolate* isolate);
+  static Local<Symbol> GetAsyncDispose(Isolate* isolate);
 
   V8_INLINE static Symbol* Cast(Data* data) {
 #ifdef V8_ENABLE_CHECKS

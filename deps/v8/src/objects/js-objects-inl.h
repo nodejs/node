@@ -13,6 +13,8 @@
 #include "src/common/globals.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/objects/cpp-heap-external-object.h"
+#include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/elements.h"
 #include "src/objects/embedder-data-slot-inl.h"
@@ -163,20 +165,21 @@ RELAXED_ACCESSORS(JSReceiver, raw_properties_or_hash, Tagged<Object>,
                   kPropertiesOrHashOffset)
 
 void JSObject::EnsureCanContainHeapObjectElements(
-    DirectHandle<JSObject> object) {
-  JSObject::ValidateElements(*object);
+    Isolate* isolate, DirectHandle<JSObject> object) {
+  JSObject::ValidateElements(isolate, *object);
   ElementsKind elements_kind = object->map()->elements_kind();
   if (!IsObjectElementsKind(elements_kind)) {
     if (IsHoleyElementsKind(elements_kind)) {
-      TransitionElementsKind(object, HOLEY_ELEMENTS);
+      TransitionElementsKind(isolate, object, HOLEY_ELEMENTS);
     } else {
-      TransitionElementsKind(object, PACKED_ELEMENTS);
+      TransitionElementsKind(isolate, object, PACKED_ELEMENTS);
     }
   }
 }
 
 template <typename TSlot>
-void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
+void JSObject::EnsureCanContainElements(Isolate* isolate,
+                                        DirectHandle<JSObject> object,
                                         TSlot objects, uint32_t count,
                                         EnsureElementsMode mode) {
   static_assert(std::is_same<TSlot, FullObjectSlot>::value ||
@@ -221,11 +224,12 @@ void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
     }
   }
   if (target_kind != current_kind) {
-    TransitionElementsKind(object, target_kind);
+    TransitionElementsKind(isolate, object, target_kind);
   }
 }
 
-void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
+void JSObject::EnsureCanContainElements(Isolate* isolate,
+                                        DirectHandle<JSObject> object,
                                         DirectHandle<FixedArrayBase> elements,
                                         uint32_t length,
                                         EnsureElementsMode mode) {
@@ -237,22 +241,22 @@ void JSObject::EnsureCanContainElements(DirectHandle<JSObject> object,
       mode = DONT_ALLOW_DOUBLE_ELEMENTS;
     }
     ObjectSlot objects = Cast<FixedArray>(elements)->RawFieldOfFirstElement();
-    EnsureCanContainElements(object, objects, length, mode);
+    EnsureCanContainElements(isolate, object, objects, length, mode);
     return;
   }
 
   DCHECK(mode == ALLOW_COPIED_DOUBLE_ELEMENTS);
   if (object->GetElementsKind() == HOLEY_SMI_ELEMENTS) {
-    TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
+    TransitionElementsKind(isolate, object, HOLEY_DOUBLE_ELEMENTS);
   } else if (object->GetElementsKind() == PACKED_SMI_ELEMENTS) {
     auto double_array = Cast<FixedDoubleArray>(elements);
     for (uint32_t i = 0; i < length; ++i) {
       if (double_array->is_the_hole(i)) {
-        TransitionElementsKind(object, HOLEY_DOUBLE_ELEMENTS);
+        TransitionElementsKind(isolate, object, HOLEY_DOUBLE_ELEMENTS);
         return;
       }
     }
-    TransitionElementsKind(object, PACKED_DOUBLE_ELEMENTS);
+    TransitionElementsKind(isolate, object, PACKED_DOUBLE_ELEMENTS);
   }
 }
 
@@ -644,50 +648,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
                            kExternalObjectValueTag)
 
-JSApiWrapper::JSApiWrapper(Tagged<JSObject> object) : object_(object) {
-  DCHECK(IsJSApiWrapperObject(object));
-}
-
-template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
-void* JSApiWrapper::GetCppHeapWrappable(
-    IsolateForPointerCompression isolate) const {
-  return reinterpret_cast<void*>(
-      object_->ReadCppHeapPointerField<lower_bound, upper_bound>(
-          kCppHeapWrappableOffset, isolate));
-}
-
-void* JSApiWrapper::GetCppHeapWrappable(
-    IsolateForPointerCompression isolate,
-    CppHeapPointerTagRange tag_range) const {
-  return reinterpret_cast<void*>(object_->ReadCppHeapPointerField(
-      kCppHeapWrappableOffset, isolate, tag_range));
-}
-
-template <CppHeapPointerTag tag>
-void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                       void* instance) {
-  object_->WriteLazilyInitializedCppHeapPointerField<tag>(
-      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
-      reinterpret_cast<Address>(instance));
-  WriteBarrier::ForCppHeapPointer(
-      object_,
-      object_->RawCppHeapPointerField(
-          JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset),
-      instance);
-}
-
-void JSApiWrapper::SetCppHeapWrappable(IsolateForPointerCompression isolate,
-                                       void* instance, CppHeapPointerTag tag) {
-  object_->WriteLazilyInitializedCppHeapPointerField(
-      JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset, isolate,
-      reinterpret_cast<Address>(instance), tag);
-  WriteBarrier::ForCppHeapPointer(
-      object_,
-      object_->RawCppHeapPointerField(
-          JSAPIObjectWithEmbedderSlots::kCppHeapWrappableOffset),
-      instance);
-}
-
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
   return shared_info() == Smi::zero();
 }
@@ -1042,6 +1002,9 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
 
 ACCESSORS(JSIteratorResult, value, Tagged<Object>, kValueOffset)
 ACCESSORS(JSIteratorResult, done, Tagged<Object>, kDoneOffset)
+
+ACCESSORS(JSUint8ArraySetFromResult, read, Tagged<Object>, kReadOffset)
+ACCESSORS(JSUint8ArraySetFromResult, written, Tagged<Object>, kWrittenOffset)
 
 // If the fast-case backing storage takes up much more memory than a dictionary
 // backing storage would, the object should have slow elements.

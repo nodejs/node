@@ -255,6 +255,12 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   TickCounter& tick_counter() { return tick_counter_; }
 
+  bool was_cancelled() const {
+    return was_cancelled_.load(std::memory_order_relaxed);
+  }
+
+  void mark_cancelled();
+
   BasicBlockProfilerData* profiler_data() const { return profiler_data_; }
   void set_profiler_data(BasicBlockProfilerData* profiler_data) {
     profiler_data_ = profiler_data;
@@ -328,6 +334,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   std::unique_ptr<char[]> trace_turbo_filename_;
 
   TickCounter tick_counter_;
+
+  std::atomic<bool> was_cancelled_ = false;
 
   // 1) PersistentHandles created via PersistentHandlesScope inside of
   //    CompilationHandleScope

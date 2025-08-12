@@ -35,33 +35,12 @@ const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
 
-const key = fixtures.readKey('rsa_private.pem');
-const cert = fixtures.readKey('rsa_cert.crt');
-
-{
-  // Node.js should not allow setting negative timeouts since new versions of
-  // OpenSSL do not handle those as users might expect
-
-  for (const sessionTimeout of [-1, -100, -(2 ** 31)]) {
-    assert.throws(() => {
-      tls.createServer({
-        key: key,
-        cert: cert,
-        ca: [cert],
-        sessionTimeout,
-        maxVersion: 'TLSv1.2',
-      });
-    }, {
-      code: 'ERR_OUT_OF_RANGE',
-      message: 'The value of "options.sessionTimeout" is out of range. It ' +
-               `must be >= 0 && <= ${2 ** 31 - 1}. Received ${sessionTimeout}`,
-    });
-  }
-}
-
 if (!opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
 }
+
+const key = fixtures.readKey('rsa_private.pem');
+const cert = fixtures.readKey('rsa_cert.crt');
 
 doTest();
 
@@ -77,7 +56,7 @@ function doTest() {
   const fs = require('fs');
   const spawn = require('child_process').spawn;
 
-  const SESSION_TIMEOUT = 1;
+  const SESSION_TIMEOUT = 5;
 
   const options = {
     key: key,
@@ -85,32 +64,26 @@ function doTest() {
     ca: [cert],
     sessionTimeout: SESSION_TIMEOUT,
     maxVersion: 'TLSv1.2',
+    sessionIdContext: 'test-session-timeout',
   };
 
-  // We need to store a sample session ticket in the fixtures directory because
-  // `s_client` behaves incorrectly if we do not pass in both the `-sess_in`
-  // and the `-sess_out` flags, and the `-sess_in` argument must point to a
-  // file containing a proper serialization of a session ticket.
-  // To avoid a source control diff, we copy the ticket to a temporary file.
-
-  const sessionFileName = (function() {
-    const ticketFileName = 'tls-session-ticket.txt';
-    const tmpPath = tmpdir.resolve(ticketFileName);
-    fs.writeFileSync(tmpPath, fixtures.readSync(ticketFileName));
-    return tmpPath;
-  }());
-
-  // Expects a callback -- cb(connectionType : enum ['New'|'Reused'])
-
-  function Client(cb) {
+  const sessionFileName = tmpdir.resolve('tls-session-ticket.txt');
+  // Expects a callback -- cb()
+  function Client(port, sessIn, sessOut, expectedType, cb) {
     const flags = [
       's_client',
-      '-connect', `localhost:${common.PORT}`,
-      '-sess_in', sessionFileName,
-      '-sess_out', sessionFileName,
+      '-connect', `localhost:${port}`,
+      '-CAfile', fixtures.path('keys', 'rsa_cert.crt'),
+      '-servername', 'localhost',
     ];
+    if (sessIn) {
+      flags.push('-sess_in', sessIn);
+    }
+    if (sessOut) {
+      flags.push('-sess_out', sessOut);
+    }
     const client = spawn(opensslCli, flags, {
-      stdio: ['ignore', 'pipe', 'ignore']
+      stdio: ['ignore', 'pipe', 'inherit']
     });
 
     let clientOutput = '';
@@ -119,6 +92,20 @@ function doTest() {
     });
     client.on('exit', (code) => {
       let connectionType;
+      // Log the output for debugging purposes. Don't remove them or otherwise
+      // the CI output is useless when this test flakes.
+      console.log(' ----- [COMMAND] ---');
+      console.log(`${opensslCli}, ${flags.join(' ')}`);
+      console.log(' ----- [STDOUT] ---');
+      console.log(clientOutput);
+      console.log(' ----- [SESSION FILE] ---');
+      try {
+        const stat = fs.statSync(sessionFileName);
+        console.log(`Session file size: ${stat.size} bytes`);
+      } catch (err) {
+        console.log('Error reading session file:', err);
+      }
+
       const grepConnectionType = (line) => {
         const matches = line.match(/(New|Reused), /);
         if (matches) {
@@ -131,6 +118,7 @@ function doTest() {
         throw new Error('unexpected output from openssl client');
       }
       assert.strictEqual(code, 0);
+      assert.strictEqual(connectionType, expectedType);
       cb(connectionType);
     });
   }
@@ -143,18 +131,18 @@ function doTest() {
     cleartext.end();
   });
 
-  server.listen(common.PORT, () => {
-    Client((connectionType) => {
-      assert.strictEqual(connectionType, 'New');
-      Client((connectionType) => {
-        assert.strictEqual(connectionType, 'Reused');
-        setTimeout(() => {
-          Client((connectionType) => {
-            assert.strictEqual(connectionType, 'New');
-            server.close();
-          });
-        }, (SESSION_TIMEOUT + 1) * 1000);
-      });
+  server.listen(0, () => {
+    const port = server.address().port;
+    Client(port, undefined, sessionFileName, 'New', () => {
+      setTimeout(() => {
+        Client(port, sessionFileName, sessionFileName, 'Reused', () => {
+          setTimeout(() => {
+            Client(port, sessionFileName, sessionFileName, 'New', () => {
+              server.close();
+            });
+          }, (SESSION_TIMEOUT + 1) * 1000);
+        });
+      }, 100);  // Wait a bit to ensure the session ticket is saved.
     });
   });
 }

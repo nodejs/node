@@ -44,7 +44,7 @@ extern runtime WasmI64AtomicWait(
 extern runtime WasmArrayCopy(Context, WasmArray, Smi, WasmArray, Smi, Smi):
     JSAny;
 extern runtime WasmAllocateDescriptorStruct(
-    Context, WasmTrustedInstanceData, Map, Smi): WasmStruct;
+    Context, WasmTrustedInstanceData, Map, Smi, Object): WasmStruct;
 extern runtime WasmArrayNewSegment(
     Context, WasmTrustedInstanceData, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewSegmentWtf8(
@@ -83,6 +83,7 @@ extern runtime WasmLiftoffDeoptFinish(NoContext, WasmTrustedInstanceData):
     Undefined;
 
 extern runtime PropagateException(NoContext): JSAny;
+extern runtime AllocateInSharedHeap(Context, Smi, Smi): HeapObject;
 }
 
 extern operator '.wasm_exported_function_data' macro
@@ -502,12 +503,24 @@ builtin WasmAllocateStructWithRtt(rtt: Map, instanceSize: int32): HeapObject {
   return result;
 }
 
-builtin WasmAllocateDescriptorStruct(map: Map, typeIndex: int32): WasmStruct {
+builtin WasmAllocateDescriptorStruct(
+    map: Map, typeIndex: int32, firstField: Object): WasmStruct {
   // TODO(42204563): Figure out support for shared objects.
   const trustedData: WasmTrustedInstanceData = LoadInstanceDataFromFrame();
   const result: WasmStruct = runtime::WasmAllocateDescriptorStruct(
       LoadContextFromInstanceData(trustedData), trustedData, map,
-      SmiTag(Convert<intptr>(typeIndex)));
+      SmiTag(Convert<intptr>(typeIndex)), firstField);
+  return result;
+}
+
+builtin WasmAllocateSharedStructWithRtt(rtt: Map, instanceSize: int32):
+    HeapObject {
+  const result: HeapObject = runtime::AllocateInSharedHeap(
+      LoadContextFromFrame(), SmiFromInt32(instanceSize), SmiConstant(0));
+  *UnsafeConstCast(&result.map) = rtt;
+  // TODO(ishell): consider removing properties_or_hash field from
+  // WasmObjects.
+  %RawDownCast<WasmStruct>(result).properties_or_hash = kEmptyFixedArray;
   return result;
 }
 
@@ -520,6 +533,23 @@ builtin WasmAllocateArray_Uninitialized(
           Convert<intptr>(length) * Convert<intptr>(elementSize)) +
       Convert<intptr>(kWasmArrayHeaderSize);
   const result: HeapObject = unsafe::Allocate(instanceSize);
+  *UnsafeConstCast(&result.map) = rtt;
+  // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
+  %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;
+  %RawDownCast<WasmArray>(result).length = length;
+  return %RawDownCast<WasmArray>(result);
+}
+
+builtin WasmAllocateSharedArray_Uninitialized(
+    rtt: Map, length: uint32, elementSize: uint32): WasmArray {
+  // instanceSize = RoundUp(elementSize * length, kObjectAlignment)
+  //              + WasmArray::kHeaderSize
+  const instanceSize: intptr =
+      torque_internal::AlignTagged(
+          Convert<intptr>(length) * Convert<intptr>(elementSize)) +
+      Convert<intptr>(kWasmArrayHeaderSize);
+  const result: HeapObject = runtime::AllocateInSharedHeap(
+      LoadContextFromFrame(), SmiFromIntPtr(instanceSize), SmiConstant(0));
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmArray>(result).properties_or_hash = kEmptyFixedArray;
@@ -790,7 +820,7 @@ transitioning builtin WasmGetOwnProperty(
           receiver, receiver.map, receiver.instanceType, uniqueName)
           otherwise Found, NotFound, NotFound;
     } label Found {
-      tail GetPropertyWithReceiver(
+      return GetPropertyWithReceiver(
           receiver, uniqueName, receiver, SmiConstant(kReturnUndefined));
     }
   } label NotFound deferred {
@@ -1198,9 +1228,12 @@ builtin ThrowDataViewOutOfBounds(): JSAny {
   runtime::WasmThrowRangeError(context, SmiConstant(error));
 }
 
+extern builtin WasmStringAdd_CheckNone(
+    implicit context: Context)(String, String): String;
+
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
-  tail StringAdd_CheckNone(a, b);
+  tail WasmStringAdd_CheckNone(a, b);
 }
 
 extern builtin StringEqual(NoContext, String, String, intptr): Boolean;
@@ -1560,5 +1593,9 @@ builtin WasmFastApiCallTypeCheckAndUpdateIC(
     const error = MessageTemplate::kIllegalInvocation;
     runtime::WasmThrowTypeError(context, SmiConstant(error), Convert<Smi>(0));
   }
+}
+
+builtin WasmStringIndexOf(s: String, searchString: String, start: Smi): Smi {
+  return AbstractStringIndexOf(s, searchString, SmiMax(start, 0));
 }
 }  // namespace wasm

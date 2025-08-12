@@ -258,15 +258,17 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
   Node* promise = effect =
       graph()->NewNode(javascript()->CreatePromise(), context, effect);
 
-  // Create the JSAsyncFunctionObject based on the SharedFunctionInfo
+  // Create the JSAsyncFunctionObject based on the BytecodeArray
   // extracted from the top-most frame in {frame_state}.
-  SharedFunctionInfoRef shared = MakeRef(
-      broker(),
-      FrameStateInfoOf(frame_state->op()).shared_info().ToHandleChecked());
-  DCHECK(shared.is_compiled());
-  int register_count =
-      shared.internal_formal_parameter_count_without_receiver() +
-      shared.GetBytecodeArray(broker()).register_count();
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
+  Handle<BytecodeArray> bytecode_array =
+      state_info.bytecode_array().ToHandleChecked();
+  DCHECK_EQ(state_info.shared_info()
+                .ToHandleChecked()
+                ->internal_formal_parameter_count_without_receiver(),
+            bytecode_array->parameter_count_without_receiver());
+  int register_count = bytecode_array->parameter_count_without_receiver() +
+                       bytecode_array->register_count();
   MapRef fixed_array_map = broker()->fixed_array_map();
   AllocationBuilder ab(jsgraph(), broker(), effect, control);
   if (!ab.CanAllocateArray(register_count, fixed_array_map)) {
@@ -1329,17 +1331,15 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
     Node* script_context =
         jsgraph()->ConstantNoHole(feedback.script_context(), broker());
     Node* value;
-    if ((v8_flags.script_context_mutable_heap_number ||
-         v8_flags.const_tracking_let) &&
-        !feedback.immutable()) {
+    if (v8_flags.script_context_cells && !feedback.immutable()) {
       // We collect feedback only for mutable context slots.
-      value = effect = graph()->NewNode(
-          javascript()->LoadScriptContext(0, feedback.slot_index()),
-          script_context, effect, control);
+      value = effect = control =
+          graph()->NewNode(javascript()->LoadContext(0, feedback.slot_index()),
+                           script_context, effect, control);
     } else {
       value = effect =
-          graph()->NewNode(javascript()->LoadContext(0, feedback.slot_index(),
-                                                     feedback.immutable()),
+          graph()->NewNode(javascript()->LoadContextNoCell(
+                               0, feedback.slot_index(), feedback.immutable()),
                            script_context, effect);
     }
     ReplaceWithValue(node, value, effect, control);
@@ -1371,15 +1371,14 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
     Node* control = n.control();
     Node* script_context =
         jsgraph()->ConstantNoHole(feedback.script_context(), broker());
-    if (v8_flags.script_context_mutable_heap_number ||
-        v8_flags.const_tracking_let) {
-      effect = control = graph()->NewNode(
-          javascript()->StoreScriptContext(0, feedback.slot_index()), value,
-          script_context, effect, control);
-    } else {
-      effect =
+    if (v8_flags.script_context_cells) {
+      effect = control =
           graph()->NewNode(javascript()->StoreContext(0, feedback.slot_index()),
                            value, script_context, effect, control);
+    } else {
+      effect = graph()->NewNode(
+          javascript()->StoreContextNoCell(0, feedback.slot_index()), value,
+          script_context, effect, control);
     }
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);

@@ -47,7 +47,6 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
       refs_(zone()->New<RefsMap>(kMinimalRefsBucketCount, AddressMatcher(),
                                  zone())),
       root_index_map_(isolate),
-      array_and_object_prototypes_(zone()),
       tracing_enabled_(tracing_enabled),
       code_kind_(code_kind),
       feedback_(zone()),
@@ -118,28 +117,6 @@ void JSHeapBroker::SetTargetNativeContextRef(
   target_native_context_ = MakeRef(this, *native_context);
 }
 
-void JSHeapBroker::CollectArrayAndObjectPrototypes() {
-  DisallowGarbageCollection no_gc;
-  CHECK_EQ(mode(), kSerializing);
-  CHECK(array_and_object_prototypes_.empty());
-
-  Tagged<Object> maybe_context = isolate()->heap()->native_contexts_list();
-  while (!IsUndefined(maybe_context, isolate())) {
-    Tagged<Context> context = Cast<Context>(maybe_context);
-    Tagged<Object> array_prot =
-        context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
-    Tagged<Object> object_prot =
-        context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
-    array_and_object_prototypes_.emplace(
-        CanonicalPersistentHandle(Cast<JSObject>(array_prot)));
-    array_and_object_prototypes_.emplace(
-        CanonicalPersistentHandle(Cast<JSObject>(object_prot)));
-    maybe_context = context->next_context_link();
-  }
-
-  CHECK(!array_and_object_prototypes_.empty());
-}
-
 StringRef JSHeapBroker::GetTypedArrayStringTag(ElementsKind kind) {
   DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(kind));
   switch (kind) {
@@ -159,19 +136,9 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(JSObjectRef object) const {
 }
 
 bool JSHeapBroker::IsArrayOrObjectPrototype(Handle<JSObject> object) const {
-  if (mode() == kDisabled) {
-    return isolate()->IsInCreationContext(
-               *object, Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
-           object->map(isolate_)->instance_type() == JS_OBJECT_PROTOTYPE_TYPE;
-  }
-  CHECK(!array_and_object_prototypes_.empty());
-  return array_and_object_prototypes_.find(object) !=
-         array_and_object_prototypes_.end();
-}
-
-ObjectData* JSHeapBroker::TryGetOrCreateData(Tagged<Object> object,
-                                             GetOrCreateDataFlags flags) {
-  return TryGetOrCreateData(CanonicalPersistentHandle(object), flags);
+  return isolate()->IsInCreationContext(
+             *object, Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
+         object->map(isolate_)->instance_type() == JS_OBJECT_PROTOTYPE_TYPE;
 }
 
 ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object,
@@ -179,11 +146,6 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object,
   ObjectData* return_value = TryGetOrCreateData(object, flags | kCrashOnError);
   DCHECK_NOT_NULL(return_value);
   return return_value;
-}
-
-ObjectData* JSHeapBroker::GetOrCreateData(Tagged<Object> object,
-                                          GetOrCreateDataFlags flags) {
-  return GetOrCreateData(CanonicalPersistentHandle(object), flags);
 }
 
 bool JSHeapBroker::StackHasOverflowed() const {
@@ -879,7 +841,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
     Tagged<Map> transition_target;
 
     // Don't generate elements kind transitions from stable maps.
-    if (!map.is_stable() && possible_transition_targets.begin() != possible_transition_targets.end()) {
+    if (!map.is_stable()) {
       // The lock is needed for UnusedPropertyFields (called deep inside
       // FindElementsKindTransitionedMap).
       MapUpdaterGuardIfNeeded mumd_scope(this);
@@ -905,7 +867,7 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
 
   ElementAccessFeedback* result =
       zone()->New<ElementAccessFeedback>(zone(), keyed_mode, slot_kind);
-  for (auto entry : transition_groups) {
+  for (auto& entry : transition_groups) {
     result->AddGroup(std::move(entry.second));
   }
 

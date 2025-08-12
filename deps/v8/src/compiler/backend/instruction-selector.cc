@@ -116,15 +116,16 @@ InstructionSelectorT::InstructionSelectorT(
 
 std::optional<BailoutReason> InstructionSelectorT::SelectInstructions() {
   // Mark the inputs of all phis in loop headers as used.
-  ZoneVector<Block*> blocks = this->rpo_order(schedule());
+  ZoneVector<Block*> blocks = rpo_order(schedule());
   for (const Block* block : blocks) {
-    if (!this->IsLoopHeader(block)) continue;
-    DCHECK_LE(2u, this->PredecessorCount(block));
-    for (OpIndex node : this->nodes(block)) {
-      if (!this->IsPhi(node)) continue;
+    if (!IsLoopHeader(block)) continue;
+    DCHECK_LE(2u, PredecessorCount(block));
+    for (OpIndex node : nodes(block)) {
+      const PhiOp* phi = TryCast<PhiOp>(node);
+      if (!phi) continue;
 
       // Mark all inputs as used.
-      for (OpIndex input : this->inputs(node)) {
+      for (OpIndex input : phi->inputs()) {
         MarkAsUsed(input);
       }
     }
@@ -313,16 +314,66 @@ Instruction* InstructionSelectorT::Emit(Instruction* instr) {
   return instr;
 }
 
+namespace {
+bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
+  DCHECK(user.valid());
+  DCHECK(value.valid());
+  const Operation& value_op = graph->Get(value);
+  const Operation& user_op = graph->Get(user);
+  size_t use_count = base::count_if(
+      user_op.inputs(), [value](OpIndex input) { return input == value; });
+  if (V8_UNLIKELY(use_count == 0)) {
+    // We have a special case here:
+    //
+    //         value
+    //           |
+    // TruncateWord64ToWord32
+    //           |
+    //         user
+    //
+    // If emitting user performs the truncation implicitly, we end up calling
+    // CanCover with value and user such that user might have no (direct) uses
+    // of value. There are cases of other unnecessary operations that can lead
+    // to the same situation (e.g. bitwise and, ...). In this case, we still
+    // cover if value has only a single use and this is one of the direct
+    // inputs of user, which also only has a single use (in user).
+    // TODO(nicohartmann@): We might generalize this further if we see use
+    // cases.
+    if (!value_op.saturated_use_count.IsOne()) return false;
+    for (auto input : user_op.inputs()) {
+      const Operation& input_op = graph->Get(input);
+      const size_t indirect_use_count = base::count_if(
+          input_op.inputs(), [value](OpIndex input) { return input == value; });
+      if (indirect_use_count > 0) {
+        return input_op.saturated_use_count.IsOne();
+      }
+    }
+    return false;
+  }
+  if (value_op.Is<ProjectionOp>()) {
+    // Projections always have a Tuple use, but it shouldn't count as a use as
+    // far as is_exclusive_user_of is concerned, since no instructions are
+    // emitted for the TupleOp, which is just a Turboshaft "meta operation".
+    // We thus increase the use_count by 1, to attribute the TupleOp use to
+    // the current operation.
+    use_count++;
+  }
+  DCHECK_LE(use_count, graph->Get(value).saturated_use_count.Get());
+  return (value_op.saturated_use_count.Get() == use_count) &&
+         !value_op.saturated_use_count.IsSaturated();
+}
+}  // namespace
+
 bool InstructionSelectorT::CanCover(OpIndex user, OpIndex node) const {
   // 1. Both {user} and {node} must be in the same basic block.
-  if (this->block(schedule(), node) != current_block_) {
+  if (block(schedule(), node) != current_block_) {
     return false;
   }
 
-  const Operation& op = this->Get(node);
+  const Operation& op = Get(node);
   // 2. If node does not produce anything, it can be covered.
   if (op.Effects().produces.bits() == 0) {
-    return this->is_exclusive_user_of(user, node);
+    return is_exclusive_user_of(schedule(), user, node);
   }
 
   // 3. Otherwise, the {node}'s effect level must match the {user}'s.
@@ -331,7 +382,7 @@ bool InstructionSelectorT::CanCover(OpIndex user, OpIndex node) const {
   }
 
   // 4. Only {node} must have value edges pointing to {user}.
-  return this->is_exclusive_user_of(user, node);
+  return is_exclusive_user_of(schedule(), user, node);
 }
 
 bool InstructionSelectorT::CanCoverProtectedLoad(OpIndex user,
@@ -455,7 +506,7 @@ void InstructionSelectorT::SetRename(OpIndex node, OpIndex rename) {
 
 int InstructionSelectorT::GetVirtualRegister(OpIndex node) {
   DCHECK(node.valid());
-  size_t const id = this->id(node);
+  size_t const id = node.id();
   DCHECK_LT(id, virtual_registers_.size());
   int virtual_register = virtual_registers_[id];
   if (virtual_register == InstructionOperand::kInvalidVirtualRegister) {
@@ -479,12 +530,12 @@ InstructionSelectorT::GetVirtualRegistersForTesting() const {
 
 bool InstructionSelectorT::IsDefined(OpIndex node) const {
   DCHECK(node.valid());
-  return defined_.Contains(this->id(node));
+  return defined_.Contains(node.id());
 }
 
 void InstructionSelectorT::MarkAsDefined(OpIndex node) {
   DCHECK(node.valid());
-  defined_.Add(this->id(node));
+  defined_.Add(node.id());
 }
 
 bool InstructionSelectorT::IsUsed(OpIndex node) const {
@@ -493,7 +544,7 @@ bool InstructionSelectorT::IsUsed(OpIndex node) const {
     return false;
   }
   if (Get(node).IsRequiredWhenUnused()) return true;
-  return used_.Contains(this->id(node));
+  return used_.Contains(node.id());
 }
 
 bool InstructionSelectorT::IsReallyUsed(OpIndex node) const {
@@ -501,17 +552,17 @@ bool InstructionSelectorT::IsReallyUsed(OpIndex node) const {
   if (!ShouldSkipOptimizationStep() && ShouldSkipOperation(this->Get(node))) {
     return false;
   }
-  return used_.Contains(this->id(node));
+  return used_.Contains(node.id());
 }
 
 void InstructionSelectorT::MarkAsUsed(OpIndex node) {
   DCHECK(node.valid());
-  used_.Add(this->id(node));
+  used_.Add(node.id());
 }
 
 int InstructionSelectorT::GetEffectLevel(OpIndex node) const {
   DCHECK(node.valid());
-  size_t const id = this->id(node);
+  size_t const id = node.id();
   DCHECK_LT(id, effect_level_.size());
   return effect_level_[id];
 }
@@ -525,7 +576,7 @@ int InstructionSelectorT::GetEffectLevel(OpIndex node,
 
 void InstructionSelectorT::SetEffectLevel(OpIndex node, int effect_level) {
   DCHECK(node.valid());
-  size_t const id = this->id(node);
+  size_t const id = node.id();
   DCHECK_LT(id, effect_level_.size());
   effect_level_[id] = effect_level;
 }
@@ -655,50 +706,6 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGeneratorT* g,
 }
 
 }  // namespace
-
-class TurbofanStateObjectDeduplicator {
- public:
-  explicit TurbofanStateObjectDeduplicator(Zone* zone) : objects_(zone) {}
-  static const size_t kNotDuplicated = SIZE_MAX;
-
-  size_t GetObjectId(Node* node) {
-    DCHECK(node->opcode() == IrOpcode::kTypedObjectState ||
-           node->opcode() == IrOpcode::kObjectId ||
-           node->opcode() == IrOpcode::kArgumentsElementsState);
-    for (size_t i = 0; i < objects_.size(); ++i) {
-      if (objects_[i] == node) return i;
-      // ObjectId nodes are the Turbofan way to express objects with the same
-      // identity in the deopt info. So they should always be mapped to
-      // previously appearing TypedObjectState nodes.
-      if (HasObjectId(objects_[i]) && HasObjectId(node) &&
-          ObjectIdOf(objects_[i]->op()) == ObjectIdOf(node->op())) {
-        return i;
-      }
-    }
-    DCHECK(node->opcode() == IrOpcode::kTypedObjectState ||
-           node->opcode() == IrOpcode::kArgumentsElementsState);
-    return kNotDuplicated;
-  }
-
-  size_t InsertObject(Node* node) {
-    DCHECK(node->opcode() == IrOpcode::kTypedObjectState ||
-           node->opcode() == IrOpcode::kObjectId ||
-           node->opcode() == IrOpcode::kArgumentsElementsState);
-    size_t id = objects_.size();
-    objects_.push_back(node);
-    return id;
-  }
-
-  size_t size() const { return objects_.size(); }
-
- private:
-  static bool HasObjectId(Node* node) {
-    return node->opcode() == IrOpcode::kTypedObjectState ||
-           node->opcode() == IrOpcode::kObjectId;
-  }
-
-  ZoneVector<Node*> objects_;
-};
 
 enum class ObjectType { kRegularObject, kStringConcat };
 
@@ -1365,7 +1372,7 @@ bool InstructionSelectorT::IsSourcePositionUsed(OpIndex node) {
     }
 #endif  // V8_ENABLE_WASM_DEINTERLEAVED_MEM_OPS
 #endif
-    if (additional_protected_instructions_->Contains(this->id(node))) {
+    if (additional_protected_instructions_->Contains(node.id())) {
       return true;
     }
     return false;
@@ -1439,16 +1446,17 @@ void InstructionSelectorT::VisitBlock(const Block* block) {
 
     SourcePosition source_position;
 #if V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
-    if (V8_UNLIKELY(this->Get(node)
-                        .template Is<Opmask::kSimd128F64x2PromoteLowF32x4>())) {
+    if (const Simd128UnaryOp* op =
+            TryCast<Opmask::kSimd128F64x2PromoteLowF32x4>(node);
+        V8_UNLIKELY(op)) {
       // On x64 there exists an optimization that folds
       // `kF64x2PromoteLowF32x4` and `kS128Load64Zero` together into a single
       // instruction. If the instruction causes an out-of-bounds memory
       // access exception, then the stack trace has to show the source
       // position of the `kS128Load64Zero` and not of the
       // `kF64x2PromoteLowF32x4`.
-      if (this->CanOptimizeF64x2PromoteLowF32x4(node)) {
-        node = this->input_at(node, 0);
+      if (CanOptimizeF64x2PromoteLowF32x4(node)) {
+        node = op->input();
       }
     }
 #endif  // V8_ENABLE_WEBASSEMBLY && V8_TARGET_ARCH_X64
@@ -1472,10 +1480,10 @@ void InstructionSelectorT::VisitBlock(const Block* block) {
   for (OpIndex node : base::Reversed(this->nodes(block))) {
     int current_node_end = current_num_instructions();
 
-      if (protected_loads_to_remove_->Contains(this->id(node)) &&
-          !IsReallyUsed(node)) {
-        MarkAsDefined(node);
-      }
+    if (protected_loads_to_remove_->Contains(node.id()) &&
+        !IsReallyUsed(node)) {
+      MarkAsDefined(node);
+    }
 
     if (!IsUsed(node)) {
       // Skip nodes that are unused, while marking them as Defined so that it's
@@ -1490,8 +1498,8 @@ void InstructionSelectorT::VisitBlock(const Block* block) {
       if (!FinishEmittedInstructions(node, current_node_end)) return;
     }
     if (trace_turbo_ == InstructionSelector::kEnableTraceTurboJson) {
-      instr_origins_[this->id(node)] = {current_num_instructions(),
-                                        current_node_end};
+      instr_origins_[node.id()] = {current_num_instructions(),
+                                   current_node_end};
     }
   }
 
@@ -1593,9 +1601,8 @@ void InstructionSelectorT::VisitLoadParentFramePointer(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitLoadRootRegister(OpIndex node) {
-  // Do nothing. Following loads/stores from this operator will use kMode_Root
-  // to load/store from an offset of the root register.
-  UNREACHABLE();
+  OperandGenerator g(this);
+  Emit(kArchRootPointer, g.DefineAsRegister(node));
 }
 
 void InstructionSelectorT::VisitFloat64Acos(OpIndex node) {
@@ -1682,6 +1689,13 @@ void InstructionSelectorT::VisitFloat64Tanh(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tanh);
 }
 
+void InstructionSelectorT::MarkAsTableSwitchTarget(
+    const turboshaft::Block* block) {
+  sequence()
+      ->InstructionBlockAt(this->rpo_number(block))
+      ->set_table_switch_target(true);
+}
+
 void InstructionSelectorT::EmitTableSwitch(
     const SwitchInfo& sw, InstructionOperand const& index_operand) {
   OperandGenerator g(this);
@@ -1697,6 +1711,13 @@ void InstructionSelectorT::EmitTableSwitch(
     DCHECK_LE(0u, value);
     DCHECK_LT(value + 2, input_count);
     inputs[value + 2] = g.Label(c.branch);
+    MarkAsTableSwitchTarget(c.branch);
+  }
+  // If the default operand still exists in the cases, to fill gaps, then we
+  // need to mark the default block as table switch target.
+  if (std::find(&inputs[2], &inputs[input_count], default_operand) !=
+      &inputs[input_count]) {
+    MarkAsTableSwitchTarget(sw.default_branch());
   }
   Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
@@ -1956,16 +1977,16 @@ void InstructionSelectorT::VisitOsrValue(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitPhi(OpIndex node) {
-  const int input_count = this->value_input_count(node);
-  DCHECK_EQ(input_count, this->PredecessorCount(current_block_));
+  const Operation& op = Get(node);
+  DCHECK_EQ(op.input_count, PredecessorCount(current_block_));
   PhiInstruction* phi = instruction_zone()->template New<PhiInstruction>(
       instruction_zone(), GetVirtualRegister(node),
-      static_cast<size_t>(input_count));
-  sequence()->InstructionBlockAt(this->rpo_number(current_block_))->AddPhi(phi);
-  for (int i = 0; i < input_count; ++i) {
-    OpIndex input = this->input_at(node, i);
+      static_cast<size_t>(op.input_count));
+  sequence()->InstructionBlockAt(rpo_number(current_block_))->AddPhi(phi);
+  for (size_t i = 0; i < op.input_count; ++i) {
+    OpIndex input = op.input(i);
     MarkAsUsed(input);
-    phi->SetInput(static_cast<size_t>(i), GetVirtualRegister(input));
+    phi->SetInput(i, GetVirtualRegister(input));
   }
 }
 
@@ -2360,8 +2381,13 @@ void InstructionSelectorT::VisitBranch(OpIndex branch_node, Block* tbranch,
   const BranchOp& branch = Cast<BranchOp>(branch_node);
   TryPrepareScheduleFirstProjection(branch.condition());
 
+#if V8_ENABLE_WEBASSEMBLY
+  FlagsContinuation cont = FlagsContinuation::ForHintedBranch(
+      kNotEqual, tbranch, fbranch, branch.hint);
+#else
   FlagsContinuation cont =
       FlagsContinuation::ForBranch(kNotEqual, tbranch, fbranch);
+#endif  // V8_ENABLE_WEBASSEMBLY
   VisitWordCompareZero(branch_node, branch.condition(), &cont);
 }
 
@@ -2399,16 +2425,16 @@ void InstructionSelectorT::TryPrepareScheduleFirstProjection(
     return;
   }
 
-  DCHECK_EQ(this->value_input_count(maybe_projection), 1);
-  OpIndex node = this->input_at(maybe_projection, 0);
-  if (this->block(schedule_, node) != current_block_) {
+  DCHECK_EQ(projection->input_count, 1);
+  OpIndex node = projection->input();
+  if (block(schedule_, node) != current_block_) {
     // The projection input is not in the current block, so it shouldn't be
     // emitted now, so we don't need to eagerly schedule its Projection[0].
     return;
   }
 
-  auto* binop = this->Get(node).template TryCast<OverflowCheckedBinopOp>();
-  auto* unop = this->Get(node).template TryCast<OverflowCheckedUnaryOp>();
+  auto* binop = TryCast<OverflowCheckedBinopOp>(node);
+  auto* unop = TryCast<OverflowCheckedUnaryOp>(node);
   if (binop == nullptr && unop == nullptr) return;
   if (binop) {
     DCHECK(binop->kind == OverflowCheckedBinopOp::Kind::kSignedAdd ||
@@ -2424,7 +2450,7 @@ void InstructionSelectorT::TryPrepareScheduleFirstProjection(
     return;
   }
 
-  if (this->block(schedule_, result.value()) != current_block_) {
+  if (block(schedule_, result.value()) != current_block_) {
     // {result} wasn't planned to be scheduled in {current_block_}. To
     // avoid adding checks to see if it can still be scheduled now, we
     // just bail out.
@@ -2440,9 +2466,8 @@ void InstructionSelectorT::TryPrepareScheduleFirstProjection(
   for (OpIndex use : turboshaft_uses(result.value())) {
     // We ignore TupleOp uses, since TupleOp don't lead to emitted machine
     // instructions and are just Turboshaft "meta operations".
-    if (!this->Get(use).template Is<TupleOp>() && !IsDefined(use) &&
-        this->block(schedule_, use) == current_block_ &&
-        !this->Get(use).template Is<PhiOp>()) {
+    if (!Is<TupleOp>(use) && !IsDefined(use) &&
+        block(schedule_, use) == current_block_ && !Is<PhiOp>(use)) {
       return;
     }
   }
@@ -2470,34 +2495,33 @@ void InstructionSelectorT::VisitDeoptimizeIf(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitSelect(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 3);
+  const SelectOp& select = Cast<SelectOp>(node);
+  DCHECK_EQ(select.input_count, 3);
   FlagsContinuation cont = FlagsContinuation::ForSelect(
-      kNotEqual, node, this->input_at(node, 1), this->input_at(node, 2));
-  VisitWordCompareZero(node, this->input_at(node, 0), &cont);
+      kNotEqual, node, select.vtrue(), select.vfalse());
+  VisitWordCompareZero(node, select.cond(), &cont);
 }
 
-void InstructionSelectorT::VisitTrapIf(OpIndex node, TrapId trap_id) {
+void InstructionSelectorT::VisitTrapIf(OpIndex node) {
+#if V8_ENABLE_WEBASSEMBLY
+  const TrapIfOp& trap_if = Cast<TrapIfOp>(node);
   // FrameStates are only used for wasm traps inlined in JS. In that case the
   // trap node will be lowered (replaced) before instruction selection.
   // Therefore any TrapIf node has only one input.
-  DCHECK_EQ(this->value_input_count(node), 1);
-  FlagsContinuation cont = FlagsContinuation::ForTrap(kNotEqual, trap_id);
-  VisitWordCompareZero(node, this->input_at(node, 0), &cont);
-}
-
-void InstructionSelectorT::VisitTrapUnless(OpIndex node, TrapId trap_id) {
-  // FrameStates are only used for wasm traps inlined in JS. In that case the
-  // trap node will be lowered (replaced) before instruction selection.
-  // Therefore any TrapUnless node has only one input.
-  DCHECK_EQ(this->value_input_count(node), 1);
-  FlagsContinuation cont = FlagsContinuation::ForTrap(kEqual, trap_id);
-  VisitWordCompareZero(node, this->input_at(node, 0), &cont);
+  DCHECK_EQ(trap_if.input_count, 1);
+  FlagsContinuation cont = FlagsContinuation::ForTrap(
+      trap_if.negated ? kEqual : kNotEqual, trap_if.trap_id);
+  VisitWordCompareZero(node, trap_if.condition(), &cont);
+#else
+  UNREACHABLE();
+#endif
 }
 
 void InstructionSelectorT::EmitIdentity(OpIndex node) {
-  MarkAsUsed(this->input_at(node, 0));
+  const Operation& op = Get(node);
+  MarkAsUsed(op.input(0));
   MarkAsDefined(node);
-  SetRename(node, this->input_at(node, 0));
+  SetRename(node, op.input(0));
 }
 
 void InstructionSelectorT::VisitDeoptimize(DeoptimizeReason reason,
@@ -2525,16 +2549,17 @@ void InstructionSelectorT::VisitUnreachable(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitStaticAssert(OpIndex node) {
-  DCHECK_EQ(this->value_input_count(node), 1);
-  OpIndex asserted = this->input_at(node, 0);
+  const StaticAssertOp& op = Cast<StaticAssertOp>(node);
+  DCHECK_EQ(op.input_count, 1);
+  OpIndex asserted = op.condition();
   UnparkedScopeIfNeeded scope(broker_);
   AllowHandleDereference allow_handle_dereference;
     StdoutStream os;
-    os << this->Get(asserted);
+    os << Get(asserted);
     FATAL(
         "Expected Turbofan static assert to hold, but got non-true input:\n  "
         "%s",
-        this->Get(node).template Cast<StaticAssertOp>().source);
+        op.source);
 }
 
 void InstructionSelectorT::VisitComment(OpIndex node) {
@@ -2549,9 +2574,10 @@ void InstructionSelectorT::VisitComment(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitRetain(OpIndex node) {
+  const RetainOp& retain = Cast<RetainOp>(node);
   OperandGenerator g(this);
-  DCHECK_EQ(this->value_input_count(node), 1);
-  Emit(kArchNop, g.NoOutput(), g.UseAny(this->input_at(node, 0)));
+  DCHECK_EQ(retain.input_count, 1);
+  Emit(kArchNop, g.NoOutput(), g.UseAny(retain.retained()));
 }
 
 void InstructionSelectorT::VisitControl(const Block* block) {
@@ -2638,7 +2664,7 @@ void InstructionSelectorT::VisitControl(const Block* block) {
   if (trace_turbo_ == InstructionSelector::kEnableTraceTurboJson) {
     DCHECK(node.valid());
     int instruction_start = static_cast<int>(instructions_.size());
-    instr_origins_[this->id(node)] = {instruction_start, instruction_end};
+    instr_origins_[node.id()] = {instruction_start, instruction_end};
   }
 }
 
@@ -3378,13 +3404,8 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
     case Opcode::kDeoptimizeIf:
       return VisitDeoptimizeIf(node);
 #if V8_ENABLE_WEBASSEMBLY
-    case Opcode::kTrapIf: {
-      const TrapIfOp& trap_if = op.Cast<TrapIfOp>();
-      if (trap_if.negated) {
-        return VisitTrapUnless(node, trap_if.trap_id);
-      }
-      return VisitTrapIf(node, trap_if.trap_id);
-    }
+    case Opcode::kTrapIf:
+      return VisitTrapIf(node);
 #endif  // V8_ENABLE_WEBASSEMBLY
     case Opcode::kCatchBlockBegin:
       MarkAsTagged(node);
@@ -3792,6 +3813,7 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
       return VisitLoadStackPointer(node);
 
     case Opcode::kSetStackPointer:
+      this->frame_->set_invalidates_sp();
       return VisitSetStackPointer(node);
 
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3834,7 +3856,7 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64(OpIndex node,
   // large functions.
   const int kMaxRecursionDepth = 100;
 
-  if (this->IsPhi(node)) {
+  if (const PhiOp* phi = TryCast<PhiOp>(node)) {
     if (recursion_depth == 0) {
       if (phi_states_.empty()) {
         // This vector is lazily allocated because the majority of compilations
@@ -3844,7 +3866,7 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64(OpIndex node,
       }
     }
 
-    Upper32BitsState current = phi_states_[this->id(node)];
+    Upper32BitsState current = phi_states_[node.id()];
     if (current != Upper32BitsState::kNotYetChecked) {
       return current == Upper32BitsState::kZero;
     }
@@ -3858,11 +3880,10 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64(OpIndex node,
     // Optimistically mark the current node as zero-extended so that we skip it
     // if we recursively visit it again due to a cycle. If this optimistic guess
     // is wrong, it will be corrected in MarkNodeAsNotZeroExtended.
-    phi_states_[this->id(node)] = Upper32BitsState::kZero;
+    phi_states_[node.id()] = Upper32BitsState::kZero;
 
-    int input_count = this->value_input_count(node);
-    for (int i = 0; i < input_count; ++i) {
-      OpIndex input = this->input_at(node, i);
+    for (int i = 0; i < phi->input_count; ++i) {
+      OpIndex input = phi->input(i);
       if (!ZeroExtendsWord32ToWord64(input, recursion_depth + 1)) {
         MarkNodeAsNotZeroExtended(node);
         return false;
@@ -3875,8 +3896,8 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64(OpIndex node,
 }
 
 void InstructionSelectorT::MarkNodeAsNotZeroExtended(OpIndex node) {
-  if (phi_states_[this->id(node)] == Upper32BitsState::kMayBeNonZero) return;
-  phi_states_[this->id(node)] = Upper32BitsState::kMayBeNonZero;
+  if (phi_states_[node.id()] == Upper32BitsState::kMayBeNonZero) return;
+  phi_states_[node.id()] = Upper32BitsState::kMayBeNonZero;
   ZoneVector<OpIndex> worklist(zone_);
   worklist.push_back(node);
   while (!worklist.empty()) {
@@ -3885,8 +3906,8 @@ void InstructionSelectorT::MarkNodeAsNotZeroExtended(OpIndex node) {
     // We may have previously marked some uses of this node as zero-extended,
     // but that optimistic guess was proven incorrect.
     for (OpIndex use : turboshaft_uses(node)) {
-      if (phi_states_[this->id(use)] == Upper32BitsState::kZero) {
-        phi_states_[this->id(use)] = Upper32BitsState::kMayBeNonZero;
+      if (phi_states_[use.id()] == Upper32BitsState::kZero) {
+        phi_states_[use.id()] = Upper32BitsState::kMayBeNonZero;
         worklist.push_back(use);
       }
     }

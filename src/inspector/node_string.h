@@ -3,13 +3,16 @@
 #ifndef SRC_INSPECTOR_NODE_STRING_H_
 #define SRC_INSPECTOR_NODE_STRING_H_
 
+#include <cstring>
+#include <sstream>
+#include <string>
 #include "crdtp/protocol_core.h"
 #include "util.h"
 #include "v8-inspector.h"
 
-#include <cstring>
-#include <sstream>
-#include <string>
+namespace node::inspector::protocol {
+class Binary;
+}
 
 namespace crdtp {
 
@@ -17,6 +20,14 @@ template <>
 struct ProtocolTypeTraits<std::string> {
   static bool Deserialize(DeserializerState* state, std::string* value);
   static void Serialize(const std::string& value, std::vector<uint8_t>* bytes);
+};
+
+template <>
+struct ProtocolTypeTraits<node::inspector::protocol::Binary> {
+  static bool Deserialize(DeserializerState* state,
+                          node::inspector::protocol::Binary* value);
+  static void Serialize(const node::inspector::protocol::Binary& value,
+                        std::vector<uint8_t>* bytes);
 };
 
 }  // namespace crdtp
@@ -55,18 +66,32 @@ struct StringUtil {
 };
 
 // A read-only sequence of uninterpreted bytes with reference-counted storage.
-// Though the templates for generating the protocol bindings reference
-// this type, js_protocol.pdl doesn't have a field of type 'binary', so
-// therefore it's unnecessary to provide an implementation here.
 class Binary {
  public:
-  const uint8_t* data() const { UNREACHABLE(); }
-  size_t size() const { UNREACHABLE(); }
-  String toBase64() const { UNREACHABLE(); }
-  static Binary fromBase64(const std::string_view base64, bool* success) {
-    UNREACHABLE();
+  Binary() : bytes_(std::make_shared<std::vector<uint8_t>>()) {}
+
+  const uint8_t* data() const { return bytes_->data(); }
+  size_t size() const { return bytes_->size(); }
+
+  String toBase64() const;
+
+  static Binary concat(const std::vector<Binary>& binaries);
+
+  static Binary fromBase64(const String& base64, bool* success);
+  static Binary fromUint8Array(v8::Local<v8::Uint8Array> data);
+  static Binary fromSpan(const uint8_t* data, size_t size) {
+    return Binary::fromSpan(crdtp::span<uint8_t>(data, size));
   }
-  static Binary fromSpan(const uint8_t* data, size_t size) { UNREACHABLE(); }
+  static Binary fromSpan(crdtp::span<uint8_t> span) {
+    return Binary(
+        std::make_shared<std::vector<uint8_t>>(span.begin(), span.end()));
+  }
+
+ private:
+  std::shared_ptr<std::vector<uint8_t>> bytes_;
+
+  explicit Binary(std::shared_ptr<std::vector<uint8_t>> bytes)
+      : bytes_(bytes) {}
 };
 
 }  // namespace protocol

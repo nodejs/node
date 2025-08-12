@@ -18,9 +18,9 @@ interface EventSource extends EventTarget {
   readonly CLOSED: 2
   readonly CONNECTING: 0
   readonly OPEN: 1
-  onerror: (this: EventSource, ev: ErrorEvent) => any
-  onmessage: (this: EventSource, ev: MessageEvent) => any
-  onopen: (this: EventSource, ev: Event) => any
+  onerror: ((this: EventSource, ev: ErrorEvent) => any) | null
+  onmessage: ((this: EventSource, ev: MessageEvent) => any) | null
+  onopen: ((this: EventSource, ev: Event) => any) | null
   readonly readyState: 0 | 1 | 2
   readonly url: string
   readonly withCredentials: boolean

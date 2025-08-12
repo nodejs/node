@@ -1344,14 +1344,21 @@ void Assembler::AdjustBaseAndOffset(MemOperand* src, Register scratch,
   src->rm_ = scratch;
 }
 
-int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
-                                         intptr_t pc_delta) {
+int Assembler::RelocateInternalReference(
+    RelocInfo::Mode rmode, Address pc, intptr_t pc_delta,
+    WritableJitAllocation* jit_allocation) {
   if (RelocInfo::IsInternalReference(rmode)) {
-    intptr_t* p = reinterpret_cast<intptr_t*>(pc);
-    if (*p == kEndOfJumpChain) {
+    intptr_t internal_ref = ReadUnalignedValue<intptr_t>(pc);
+    if (internal_ref == kEndOfJumpChain) {
       return 0;  // Number of instructions patched.
     }
-    *p += pc_delta;
+    internal_ref += pc_delta;
+    if (jit_allocation) {
+      jit_allocation->WriteUnalignedValue(pc, internal_ref);
+    } else {
+      WriteUnalignedValue<intptr_t>(pc, internal_ref);
+    }
+
     return 2;  // Number of instructions patched.
   }
   Instr instr = instr_at(pc);
@@ -1359,7 +1366,7 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
   if (IsLui(instr)) {
     uintptr_t target_address = target_constant_address_at(pc) + pc_delta;
     DEBUG_PRINTF("\ttarget_address 0x%" PRIxPTR "\n", target_address);
-    set_target_value_at(pc, target_address);
+    set_target_value_at(pc, target_address, jit_allocation);
 #if V8_TARGET_ARCH_RISCV64
 #ifdef RISCV_USE_SV39
     return 6;  // Number of instructions patched.
@@ -1374,8 +1381,9 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
   }
 }
 
-void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
-                                          intptr_t pc_delta) {
+void Assembler::RelocateRelativeReference(
+    RelocInfo::Mode rmode, Address pc, intptr_t pc_delta,
+    WritableJitAllocation* jit_allocation) {
   Instr instr = instr_at(pc);
   Instr instr1 = instr_at(pc + 1 * kInstrSize);
   DCHECK(RelocInfo::IsRelativeCodeTarget(rmode) ||
@@ -1384,7 +1392,7 @@ void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
     int32_t imm;
     imm = BrachlongOffset(instr, instr1);
     imm -= pc_delta;
-    PatchBranchlongOffset(pc, instr, instr1, imm);
+    PatchBranchlongOffset(pc, instr, instr1, imm, jit_allocation);
     return;
   } else {
     UNREACHABLE();
@@ -1424,6 +1432,11 @@ void Assembler::GrowBuffer() {
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
+  // None of our relocation types are pc relative pointing outside the code
+  // buffer nor pc absolute pointing inside the code buffer, so there is no need
+  // to relocate any emitted relocation entries.
+
+  // Relocate internal references.
   // Relocate runtime entries.
   base::Vector<uint8_t> instructions{buffer_start_,
                                      static_cast<size_t>(pc_offset())};
@@ -1434,8 +1447,6 @@ void Assembler::GrowBuffer() {
       RelocateInternalReference(rmode, it.rinfo()->pc(), pc_delta);
     }
   }
-
-  DCHECK(!overflow());
 }
 
 void Assembler::db(uint8_t data) {
@@ -1460,6 +1471,7 @@ void Assembler::dd(Label* label) {
   uintptr_t data;
   if (!is_buffer_growth_blocked()) CheckBuffer();
   if (label->is_bound()) {
+    internal_reference_positions_.insert(pc_offset());
     data = reinterpret_cast<uintptr_t>(buffer_start_ + label->pos());
   } else {
     data = jump_address(label);

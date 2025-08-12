@@ -20,7 +20,12 @@ const { AbortError } = require('../core/errors.js')
  */
 function needsRevalidation (result, cacheControlDirectives) {
   if (cacheControlDirectives?.['no-cache']) {
-    // Always revalidate requests with the no-cache directive
+    // Always revalidate requests with the no-cache request directive
+    return true
+  }
+
+  if (result.cacheControlDirectives?.['no-cache'] && !Array.isArray(result.cacheControlDirectives['no-cache'])) {
+    // Always revalidate requests with unqualified no-cache response directive
     return true
   }
 
@@ -233,7 +238,7 @@ function handleResult (
     }
 
     let headers = {
-      ...normaliseHeaders(opts),
+      ...opts.headers,
       'if-modified-since': new Date(result.cachedAt).toUTCString()
     }
 
@@ -296,11 +301,11 @@ module.exports = (opts = {}) => {
   assertCacheMethods(methods, 'opts.methods')
 
   if (typeof cacheByDefault !== 'undefined' && typeof cacheByDefault !== 'number') {
-    throw new TypeError(`exepcted opts.cacheByDefault to be number or undefined, got ${typeof cacheByDefault}`)
+    throw new TypeError(`expected opts.cacheByDefault to be number or undefined, got ${typeof cacheByDefault}`)
   }
 
   if (typeof type !== 'undefined' && type !== 'shared' && type !== 'private') {
-    throw new TypeError(`exepcted opts.type to be shared, private, or undefined, got ${typeof type}`)
+    throw new TypeError(`expected opts.type to be shared, private, or undefined, got ${typeof type}`)
   }
 
   const globalOpts = {
@@ -317,6 +322,11 @@ module.exports = (opts = {}) => {
       if (!opts.origin || safeMethodsToNotCache.includes(opts.method)) {
         // Not a method we want to cache or we don't have the origin, skip
         return dispatch(opts, handler)
+      }
+
+      opts = {
+        ...opts,
+        headers: normaliseHeaders(opts)
       }
 
       const reqCacheControl = opts.headers?.['cache-control']

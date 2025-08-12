@@ -41,9 +41,7 @@ class V8HeapCompressionSchemeImpl {
   V8_INLINE static Address DecompressTaggedSigned(Tagged_t raw_value);
 
   // Decompresses any tagged value, preserving both weak- and smi- tags.
-  template <typename TOnHeapAddress>
-  V8_INLINE static Address DecompressTagged(TOnHeapAddress on_heap_addr,
-                                            Tagged_t raw_value);
+  V8_INLINE static Address DecompressTagged(Tagged_t raw_value);
 
   // Given a 64bit raw value, found on the stack, calls the callback function
   // with all possible pointers that may be "contained" in compressed form in
@@ -51,8 +49,7 @@ class V8HeapCompressionSchemeImpl {
   // (half-computed) results.
   template <typename ProcessPointerCallback>
   V8_INLINE static void ProcessIntermediatePointers(
-      PtrComprCageBase cage_base, Address raw_value,
-      ProcessPointerCallback callback);
+      Address raw_value, ProcessPointerCallback callback);
 
   // Process-wide cage base value used for decompression.
   V8_INLINE static void InitBase(Address base);
@@ -165,13 +162,8 @@ class ExternalCodeCompressionScheme {
   // object, or a marker bit pattern).
   V8_INLINE static constexpr Tagged_t CompressAny(Address tagged);
 
-  // Decompresses smi value.
-  V8_INLINE static Address DecompressTaggedSigned(Tagged_t raw_value);
-
   // Decompresses any tagged value, preserving both weak- and smi- tags.
-  template <typename TOnHeapAddress>
-  V8_INLINE static Address DecompressTagged(TOnHeapAddress on_heap_addr,
-                                            Tagged_t raw_value);
+  V8_INLINE static Address DecompressTagged(Tagged_t raw_value);
 
   // Process-wide cage base value used for decompression.
   V8_INLINE static void InitBase(Address base);
@@ -183,8 +175,7 @@ class ExternalCodeCompressionScheme {
   // (half-computed) results.
   template <typename ProcessPointerCallback>
   V8_INLINE static void ProcessIntermediatePointers(
-      PtrComprCageBase cage_base, Address raw_value,
-      ProcessPointerCallback callback);
+      Address raw_value, ProcessPointerCallback callback);
 
  private:
   // These non-inlined accessors to base_ field are used in component builds

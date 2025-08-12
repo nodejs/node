@@ -126,7 +126,7 @@ void BindingData::Deserialize(Local<Context> context,
 
 v8::CFunction BindingData::fast_get_libuv_now_(
     v8::CFunction::Make(FastGetLibuvNow));
-v8::CFunction BindingData::fast_schedule_timers_(
+v8::CFunction BindingData::fast_schedule_timer_(
     v8::CFunction::Make(FastScheduleTimer));
 v8::CFunction BindingData::fast_toggle_timer_ref_(
     v8::CFunction::Make(FastToggleTimerRef));
@@ -144,7 +144,7 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                 target,
                 "scheduleTimer",
                 SlowScheduleTimer,
-                &fast_schedule_timers_);
+                &fast_schedule_timer_);
   SetFastMethod(isolate,
                 target,
                 "toggleTimerRef",
@@ -185,20 +185,16 @@ void BindingData::RegisterTimerExternalReferences(
   registry->Register(SetupTimers);
 
   registry->Register(SlowGetLibuvNow);
-  registry->Register(FastGetLibuvNow);
-  registry->Register(fast_get_libuv_now_.GetTypeInfo());
+  registry->Register(fast_get_libuv_now_);
 
   registry->Register(SlowScheduleTimer);
-  registry->Register(FastScheduleTimer);
-  registry->Register(fast_schedule_timers_.GetTypeInfo());
+  registry->Register(fast_schedule_timer_);
 
   registry->Register(SlowToggleTimerRef);
-  registry->Register(FastToggleTimerRef);
-  registry->Register(fast_toggle_timer_ref_.GetTypeInfo());
+  registry->Register(fast_toggle_timer_ref_);
 
   registry->Register(SlowToggleImmediateRef);
-  registry->Register(FastToggleImmediateRef);
-  registry->Register(fast_toggle_immediate_ref_.GetTypeInfo());
+  registry->Register(fast_toggle_immediate_ref_);
 }
 
 }  // namespace timers

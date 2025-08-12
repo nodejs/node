@@ -69,7 +69,6 @@ declare namespace MockInterceptor {
     headers?: Headers | Record<string, string>;
     origin?: string;
     body?: BodyInit | Dispatcher.DispatchOptions['body'] | null;
-    maxRedirections?: number;
   }
 
   export type MockResponseDataHandler<TData extends object = object> = (
@@ -84,6 +83,8 @@ declare namespace MockInterceptor {
 interface Interceptable extends Dispatcher {
   /** Intercepts any matching requests that use the same origin as this mock client. */
   intercept(options: MockInterceptor.Options): MockInterceptor;
+  /** Clean up all the prepared mocks. */
+  cleanMocks (): void
 }
 
 export {

@@ -950,8 +950,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // Insert inlined extra arguments if required. The callees formal parameter
   // count have to match the number of arguments passed to the call.
   int parameter_count = bytecode_array.parameter_count_without_receiver();
-  DCHECK_EQ(parameter_count,
-            shared_info->internal_formal_parameter_count_without_receiver());
+  DCHECK_EQ(
+      parameter_count,
+      shared_info
+          ->internal_formal_parameter_count_without_receiver_deprecated());
   DCHECK_EQ(parameter_count, start.FormalParameterCountWithoutReceiver());
   if (call.argument_count() != parameter_count) {
     frame_state = CreateArtificialFrameState(

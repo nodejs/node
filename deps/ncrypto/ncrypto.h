@@ -30,6 +30,9 @@
 
 #if OPENSSL_VERSION_MAJOR >= 3
 #define OSSL3_CONST const
+#if OPENSSL_VERSION_MINOR >= 5
+#include <openssl/core_names.h>
+#endif
 #else
 #define OSSL3_CONST
 #endif
@@ -278,8 +281,13 @@ class Digest final {
   const EVP_MD* md_ = nullptr;
 };
 
+// Computes a fixed-length digest.
 DataPointer hashDigest(const Buffer<const unsigned char>& data,
                        const EVP_MD* md);
+// Computes a variable-length digest for XOF algorithms (e.g. SHAKE128).
+DataPointer xofHashDigest(const Buffer<const unsigned char>& data,
+                          const EVP_MD* md,
+                          size_t length);
 
 class Cipher final {
  public:
@@ -812,6 +820,10 @@ class EVPKeyPointer final {
                                     const Buffer<const unsigned char>& data);
   static EVPKeyPointer NewRawPrivate(int id,
                                      const Buffer<const unsigned char>& data);
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+  static EVPKeyPointer NewRawSeed(int id,
+                                  const Buffer<const unsigned char>& data);
+#endif
   static EVPKeyPointer NewDH(DHPointer&& dh);
   static EVPKeyPointer NewRSA(RSAPointer&& rsa);
 
@@ -904,6 +916,10 @@ class EVPKeyPointer final {
   DataPointer rawPublicKey() const;
   DataPointer rawPrivateKey() const;
   BIOPointer derPublicKey() const;
+
+#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+  DataPointer rawSeed() const;
+#endif
 
   Result<BIOPointer, bool> writePrivateKey(
       const PrivateKeyEncodingConfig& config) const;

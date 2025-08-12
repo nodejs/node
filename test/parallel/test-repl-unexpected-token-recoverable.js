@@ -11,7 +11,7 @@ const args = [ '-i' ];
 const child = spawn(process.execPath, args);
 
 const input = 'const foo = "bar\\\nbaz"';
-// Match '...' as well since it marks a multi-line statement
+// Match '|' as well since it marks a multi-line statement
 const expectOut = /> \| undefined\n/;
 
 child.stderr.setEncoding('utf8');

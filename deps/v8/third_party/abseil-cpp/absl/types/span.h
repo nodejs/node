@@ -66,7 +66,8 @@
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
-#include "absl/base/port.h"    // TODO(strel): remove this include
+#include "absl/base/port.h"  // TODO(strel): remove this include
+#include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/meta/type_traits.h"
 #include "absl/types/internal/span.h"
 
@@ -498,7 +499,7 @@ class ABSL_ATTRIBUTE_VIEW Span {
   template <typename H>
   friend H AbslHashValue(H h, Span v) {
     return H::combine(H::combine_contiguous(std::move(h), v.data(), v.size()),
-                      v.size());
+                      hash_internal::WeaklyMixedInteger{v.size()});
   }
 
  private:
@@ -724,12 +725,12 @@ ABSL_INTERNAL_CONSTEXPR_SINCE_CXX20 bool operator>=(Span<T> a, const U& b) {
 //   }
 //
 template <int&... ExplicitArgumentBarrier, typename T>
-constexpr Span<T> MakeSpan(absl::Nullable<T*> ptr, size_t size) noexcept {
+constexpr Span<T> MakeSpan(T* absl_nullable ptr, size_t size) noexcept {
   return Span<T>(ptr, size);
 }
 
 template <int&... ExplicitArgumentBarrier, typename T>
-Span<T> MakeSpan(absl::Nullable<T*> begin, absl::Nullable<T*> end) noexcept {
+Span<T> MakeSpan(T* absl_nullable begin, T* absl_nullable end) noexcept {
   ABSL_HARDENING_ASSERT(begin <= end);
   return Span<T>(begin, static_cast<size_t>(end - begin));
 }
@@ -770,14 +771,14 @@ constexpr Span<T> MakeSpan(T (&array)[N]) noexcept {
 //   ProcessInts(absl::MakeConstSpan(std::vector<int>{ 0, 0, 0 }));
 //
 template <int&... ExplicitArgumentBarrier, typename T>
-constexpr Span<const T> MakeConstSpan(absl::Nullable<T*> ptr,
+constexpr Span<const T> MakeConstSpan(T* absl_nullable ptr,
                                       size_t size) noexcept {
   return Span<const T>(ptr, size);
 }
 
 template <int&... ExplicitArgumentBarrier, typename T>
-Span<const T> MakeConstSpan(absl::Nullable<T*> begin,
-                            absl::Nullable<T*> end) noexcept {
+Span<const T> MakeConstSpan(T* absl_nullable begin,
+                            T* absl_nullable end) noexcept {
   ABSL_HARDENING_ASSERT(begin <= end);
   return Span<const T>(begin, end - begin);
 }

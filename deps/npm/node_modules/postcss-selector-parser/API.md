@@ -254,7 +254,7 @@ if (next && next.type !== 'combinator') {
 }
 ```
 
-### `node.replaceWith(node)`
+### `node.replaceWith(node[,...nodeN])`
 
 Replace a node with another.
 
@@ -267,6 +267,8 @@ attr.replaceWith(className);
 Arguments:
 
 * `node`: The node to substitute the original with.
+...
+* `nodeN`: The node to substitute the original with.
 
 ### `node.remove()`
 
@@ -531,7 +533,7 @@ Arguments:
 
 * `node`: The node to add.
 
-### `container.insertBefore(old, new)` & `container.insertAfter(old, new)`
+### `container.insertBefore(old, new[, ...newNodes])` & `container.insertAfter(old, new[, ...newNodes])`
 
 Add a node before or after an existing node in a container:
 

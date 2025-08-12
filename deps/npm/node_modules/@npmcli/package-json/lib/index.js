@@ -41,6 +41,7 @@ class PackageJson {
     'binRefs',
     'bundleDependencies',
     'bundleDependenciesFalse',
+    'fixName',
     'fixNameField',
     'fixVersionField',
     'fixRepositoryField',

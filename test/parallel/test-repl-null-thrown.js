@@ -19,6 +19,5 @@ replserver.emit('line', 'process.nextTick(() => { throw null; })');
 replserver.emit('line', '.exit');
 
 setTimeout(() => {
-  console.log(text);
   assert(text.includes('Uncaught null'));
 }, 0);

@@ -61,7 +61,7 @@ class BindingData : public SnapshotableObject {
 
  private:
   static v8::CFunction fast_get_libuv_now_;
-  static v8::CFunction fast_schedule_timers_;
+  static v8::CFunction fast_schedule_timer_;
   static v8::CFunction fast_toggle_timer_ref_;
   static v8::CFunction fast_toggle_immediate_ref_;
 };

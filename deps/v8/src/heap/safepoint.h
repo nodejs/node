@@ -192,6 +192,7 @@ class GlobalSafepoint final {
     for (Isolate* current = clients_head_; current;
          current = current->global_safepoint_next_client_isolate_) {
       DCHECK(!current->is_shared_space_isolate());
+      SetCurrentIsolateScope current_isolate_scope{current};
       callback(current);
     }
   }

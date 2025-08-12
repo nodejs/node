@@ -100,7 +100,8 @@ CallKnownJSFunction::CallKnownJSFunction(
           IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
               dispatch_handle)
 #else
-          shared_function_info.internal_formal_parameter_count_with_receiver()
+          shared_function_info
+              .internal_formal_parameter_count_with_receiver_deprecated()
 #endif
       ) {
   set_input(kClosureIndex, closure);

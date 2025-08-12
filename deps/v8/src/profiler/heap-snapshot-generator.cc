@@ -1683,27 +1683,30 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
     // Add context allocated locals.
     for (auto it : ScopeInfo::IterateLocalNames(scope_info, no_gc)) {
       int idx = scope_info->ContextHeaderLength() + it->index();
-      SetContextReference(entry, it->name(), context->get(idx),
+      SetContextReference(entry, it->name(), context->get(idx, kRelaxedLoad),
                           Context::OffsetOfElementAt(idx));
     }
     if (scope_info->HasContextAllocatedFunctionName()) {
       Tagged<String> name = Cast<String>(scope_info->FunctionName());
       int idx = scope_info->FunctionContextSlotIndex(name);
       if (idx >= 0) {
-        SetContextReference(entry, name, context->get(idx),
+        SetContextReference(entry, name, context->get(idx, kRelaxedLoad),
                             Context::OffsetOfElementAt(idx));
       }
     }
   }
 
   SetInternalReference(
-      entry, "scope_info", context->get(Context::SCOPE_INFO_INDEX),
+      entry, "scope_info",
+      context->get(Context::SCOPE_INFO_INDEX, kRelaxedLoad),
       FixedArray::OffsetOfElementAt(Context::SCOPE_INFO_INDEX));
-  SetInternalReference(entry, "previous", context->get(Context::PREVIOUS_INDEX),
+  SetInternalReference(entry, "previous",
+                       context->get(Context::PREVIOUS_INDEX, kRelaxedLoad),
                        FixedArray::OffsetOfElementAt(Context::PREVIOUS_INDEX));
   if (context->has_extension()) {
     SetInternalReference(
-        entry, "extension", context->get(Context::EXTENSION_INDEX),
+        entry, "extension",
+        context->get(Context::EXTENSION_INDEX, kRelaxedLoad),
         FixedArray::OffsetOfElementAt(Context::EXTENSION_INDEX));
   }
 
@@ -1713,7 +1716,7 @@ void V8HeapExplorer::ExtractContextReferences(HeapEntry* entry,
     for (size_t i = 0; i < arraysize(native_context_names); i++) {
       int index = native_context_names[i].index;
       const char* name = native_context_names[i].name;
-      SetInternalReference(entry, name, context->get(index),
+      SetInternalReference(entry, name, context->get(index, kRelaxedLoad),
                            FixedArray::OffsetOfElementAt(index));
     }
 
@@ -1871,9 +1874,9 @@ void V8HeapExplorer::ExtractAccessorInfoReferences(
 void V8HeapExplorer::ExtractAccessorPairReferences(
     HeapEntry* entry, Tagged<AccessorPair> accessors) {
   SetInternalReference(entry, "getter", accessors->getter(),
-                       AccessorPair::kGetterOffset);
+                       offsetof(AccessorPair, getter_));
   SetInternalReference(entry, "setter", accessors->setter(),
-                       AccessorPair::kSetterOffset);
+                       offsetof(AccessorPair, setter_));
 }
 
 void V8HeapExplorer::ExtractJSWeakRefReferences(HeapEntry* entry,
@@ -1982,14 +1985,14 @@ void V8HeapExplorer::ExtractPrototypeInfoReferences(
 
 void V8HeapExplorer::ExtractAllocationSiteReferences(
     HeapEntry* entry, Tagged<AllocationSite> site) {
-  SetInternalReference(entry, "transition_info",
-                       site->transition_info_or_boilerplate(),
-                       AllocationSite::kTransitionInfoOrBoilerplateOffset);
+  SetInternalReference(
+      entry, "transition_info", site->transition_info_or_boilerplate(),
+      offsetof(AllocationSite, transition_info_or_boilerplate_));
   SetInternalReference(entry, "nested_site", site->nested_site(),
-                       AllocationSite::kNestedSiteOffset);
+                       offsetof(AllocationSite, nested_site_));
   TagObject(site->dependent_code(), "(dependent code)", HeapEntry::kCode);
   SetInternalReference(entry, "dependent_code", site->dependent_code(),
-                       AllocationSite::kDependentCodeOffset);
+                       offsetof(AllocationSite, dependent_code_));
 }
 
 void V8HeapExplorer::ExtractArrayBoilerplateDescriptionReferences(
@@ -2622,7 +2625,7 @@ bool V8HeapExplorer::IsEssentialObject(Tagged<Object> object) {
 bool V8HeapExplorer::IsEssentialHiddenReference(Tagged<Object> parent,
                                                 int field_offset) {
   if (IsAllocationSite(parent) &&
-      field_offset == AllocationSite::kWeakNextOffset)
+      field_offset == offsetof(AllocationSiteWithWeakNext, weak_next_))
     return false;
   if (IsContext(parent) &&
       field_offset == Context::OffsetOfElementAt(Context::NEXT_CONTEXT_LINK))

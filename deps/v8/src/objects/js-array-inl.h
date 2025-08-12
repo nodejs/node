@@ -46,9 +46,9 @@ bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
   return new_length > kMaxFastArrayLength;
 }
 
-void JSArray::SetContent(DirectHandle<JSArray> array,
+void JSArray::SetContent(Isolate* isolate, DirectHandle<JSArray> array,
                          DirectHandle<FixedArrayBase> storage) {
-  EnsureCanContainElements(array, storage, storage->length(),
+  EnsureCanContainElements(isolate, array, storage, storage->length(),
                            ALLOW_COPIED_DOUBLE_ELEMENTS);
 #ifdef DEBUG
   ReadOnlyRoots roots = GetReadOnlyRoots();

@@ -1,4 +1,4 @@
-/* auto-generated on 2025-04-24 20:04:09 -0400. Do not edit! */
+/* auto-generated on 2025-07-27 12:29:50 -0400. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -429,6 +429,10 @@ namespace ada {
 
 #if defined(__aarch64__) || defined(_M_ARM64)
 #define ADA_NEON 1
+#endif
+
+#if defined(__loongarch_sx)
+#define ADA_LSX 1
 #endif
 
 #ifndef __has_cpp_attribute
@@ -943,7 +947,7 @@ constexpr uint8_t WWW_FORM_URLENCODED_PERCENT_ENCODE[32] = {
     // 50     51     52     53     54     55     56     57
     0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
     // 58     59     5A     5B     5C     5D     5E     5F
-    0x00 | 0x00 | 0x00 | 0x08 | 0x00 | 0x20 | 0x40 | 0x00,
+    0x00 | 0x00 | 0x00 | 0x08 | 0x10 | 0x20 | 0x40 | 0x00,
     // 60     61     62     63     64     65     66     67
     0x01 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
     // 68     69     6A     6B     6C     6D     6E     6F
@@ -1122,7 +1126,7 @@ enum class encoding_type {
 /**
  * Convert a encoding_type to string.
  */
-ada_warn_unused std::string to_string(encoding_type type);
+ada_warn_unused std::string_view to_string(encoding_type type);
 
 }  // namespace ada
 
@@ -4115,7 +4119,6 @@ void swap(expected<T, E> &lhs,
 #endif
 /* end file include/ada/expected.h */
 
-#if ADA_INCLUDE_URL_PATTERN
 /* begin file include/ada/url_pattern_regex.h */
 /**
  * @file url_search_params.h
@@ -4131,6 +4134,7 @@ void swap(expected<T, E> &lhs,
 #include <regex>
 #endif  // ADA_USE_UNSAFE_STD_REGEX_PROVIDER
 
+#if ADA_INCLUDE_URL_PATTERN
 namespace ada::url_pattern_regex {
 
 template <typename T>
@@ -4175,7 +4179,7 @@ class std_regex_provider final {
 #endif  // ADA_USE_UNSAFE_STD_REGEX_PROVIDER
 
 }  // namespace ada::url_pattern_regex
-
+#endif  // ADA_INCLUDE_URL_PATTERN
 #endif  // ADA_URL_PATTERN_REGEX_H
 /* end file include/ada/url_pattern_regex.h */
 /* begin file include/ada/url_pattern_init.h */
@@ -4204,11 +4208,13 @@ enum class errors : uint8_t { type_error };
 #include <string_view>
 #include <string>
 #include <optional>
+#include <iostream>
 
 #if ADA_TESTING
 #include <iostream>
 #endif  // ADA_TESTING
 
+#if ADA_INCLUDE_URL_PATTERN
 namespace ada {
 
 // Important: C++20 allows us to use concept rather than `using` or `typedef
@@ -4231,6 +4237,17 @@ struct url_pattern_init {
     url,
     pattern,
   };
+
+  friend std::ostream& operator<<(std::ostream& os, process_type type) {
+    switch (type) {
+      case process_type::url:
+        return os << "url";
+      case process_type::pattern:
+        return os << "pattern";
+      default:
+        return os << "unknown";
+    }
+  }
 
   // All strings must be valid UTF-8.
   // @see https://urlpattern.spec.whatwg.org/#process-a-urlpatterninit
@@ -4312,10 +4329,9 @@ struct url_pattern_init {
   std::optional<std::string> base_url{};
 };
 }  // namespace ada
-
+#endif  // ADA_INCLUDE_URL_PATTERN
 #endif  // ADA_URL_PATTERN_INIT_H
 /* end file include/ada/url_pattern_init.h */
-#endif  // ADA_INCLUDE_URL_PATTERN
 
 /**
  * @private
@@ -4378,7 +4394,6 @@ tl::expected<url_pattern<regex_provider>, errors> parse_url_pattern_impl(
 #ifndef ADA_PARSER_INL_H
 #define ADA_PARSER_INL_H
 
-#if ADA_INCLUDE_URL_PATTERN
 /* begin file include/ada/url_pattern.h */
 /**
  * @file url_pattern.h
@@ -5014,9 +5029,6 @@ inline std::ostream &operator<<(std::ostream &out, const ada::url &u);
 #endif  // ADA_URL_H
 /* end file include/ada/url.h */
 
-#if ADA_INCLUDE_URL_PATTERN
-#endif  // ADA_INCLUDE_URL_PATTERN
-
 namespace ada {
 
 template <class result_type = ada::url_aggregator>
@@ -5088,6 +5100,7 @@ std::string href_from_file(std::string_view path);
 #include <iostream>
 #endif  // ADA_TESTING
 
+#if ADA_INCLUDE_URL_PATTERN
 namespace ada {
 
 enum class url_pattern_part_type : uint8_t {
@@ -5420,9 +5433,8 @@ class url_pattern {
    */
   bool ignore_case_ = false;
 };
-
 }  // namespace ada
-
+#endif  // ADA_INCLUDE_URL_PATTERN
 #endif
 /* end file include/ada/url_pattern.h */
 /* begin file include/ada/url_pattern_helpers.h */
@@ -5438,6 +5450,7 @@ class url_pattern {
 #include <tuple>
 #include <vector>
 
+#if ADA_INCLUDE_URL_PATTERN
 namespace ada {
 enum class errors : uint8_t;
 }
@@ -5769,10 +5782,9 @@ std::string generate_segment_wildcard_regexp(
     url_pattern_compile_component_options options);
 
 }  // namespace ada::url_pattern_helpers
-
+#endif  // ADA_INCLUDE_URL_PATTERN
 #endif
 /* end file include/ada/url_pattern_helpers.h */
-#endif  // ADA_INCLUDE_URL_PATTERN
 
 #include <string>
 #include <string_view>
@@ -6629,6 +6641,7 @@ inline std::ostream &operator<<(std::ostream &out, const ada::url &u) {
   out.protocol_end = uint32_t(get_protocol().size());
 
   // Trailing index is always the next character of the current one.
+  // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
   size_t running_index = out.protocol_end;
 
   if (host.has_value()) {
@@ -8915,7 +8928,6 @@ url_search_params_entries_iter::next() {
 #endif  // ADA_URL_SEARCH_PARAMS_INL_H
 /* end file include/ada/url_search_params-inl.h */
 
-#if ADA_INCLUDE_URL_PATTERN
 /* begin file include/ada/url_pattern-inl.h */
 /**
  * @file url_pattern-inl.h
@@ -8929,6 +8941,7 @@ url_search_params_entries_iter::next() {
 #include <string_view>
 #include <utility>
 
+#if ADA_INCLUDE_URL_PATTERN
 namespace ada {
 
 inline bool url_pattern_init::operator==(const url_pattern_init& other) const {
@@ -9397,7 +9410,7 @@ result<std::optional<url_pattern_result>> url_pattern<regex_provider>::match(
 }
 
 }  // namespace ada
-
+#endif  // ADA_INCLUDE_URL_PATTERN
 #endif
 /* end file include/ada/url_pattern-inl.h */
 /* begin file include/ada/url_pattern_helpers-inl.h */
@@ -9412,8 +9425,9 @@ result<std::optional<url_pattern_result>> url_pattern<regex_provider>::match(
 #include <string_view>
 
 
+#if ADA_INCLUDE_URL_PATTERN
 namespace ada::url_pattern_helpers {
-#ifdef ADA_TESTING
+#if defined(ADA_TESTING) || defined(ADA_LOGGING)
 inline std::string to_string(token_type type) {
   switch (type) {
     case token_type::INVALID_CHAR:
@@ -9440,7 +9454,7 @@ inline std::string to_string(token_type type) {
       ada::unreachable();
   }
 }
-#endif  // ADA_TESTING
+#endif  // defined(ADA_TESTING) || defined(ADA_LOGGING)
 
 template <url_pattern_regex::regex_concept regex_provider>
 constexpr void constructor_string_parser<regex_provider>::rewind() {
@@ -10488,10 +10502,9 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 }
 
 }  // namespace ada::url_pattern_helpers
-
+#endif  // ADA_INCLUDE_URL_PATTERN
 #endif
 /* end file include/ada/url_pattern_helpers-inl.h */
-#endif  // ADA_INCLUDE_URL_PATTERN
 
 // Public API
 /* begin file include/ada/ada_version.h */
@@ -10502,14 +10515,14 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "3.2.3"
+#define ADA_VERSION "3.2.7"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 3,
   ADA_VERSION_MINOR = 2,
-  ADA_VERSION_REVISION = 3,
+  ADA_VERSION_REVISION = 7,
 };
 
 }  // namespace ada
@@ -10523,8 +10536,6 @@ enum {
 #ifndef ADA_IMPLEMENTATION_INL_H
 #define ADA_IMPLEMENTATION_INL_H
 
-#if ADA_INCLUDE_URL_PATTERN
-#endif  // ADA_INCLUDE_URL_PATTERN
 
 
 #include <variant>

@@ -32,7 +32,7 @@
 static uv_fs_event_t fs_event;
 static const char file_prefix[] = "fsevent-";
 static const int fs_event_file_count = 16;
-#if defined(__APPLE__) || defined(_WIN32)
+#if (defined(__APPLE__) && !defined(__TSAN__)) || defined(_WIN32)
 static const char file_prefix_in_subdir[] = "subdir";
 static int fs_multievent_cb_called;
 #endif
@@ -250,7 +250,7 @@ static void fs_event_cb_dir_multi_file(uv_fs_event_t* handle,
   }
 }
 
-#if defined(__APPLE__) || defined(_WIN32)
+#if (defined(__APPLE__) && !defined(__TSAN__)) || defined(_WIN32)
 static const char* fs_event_get_filename_in_subdir(int i) {
   snprintf(fs_event_filename,
            sizeof(fs_event_filename),

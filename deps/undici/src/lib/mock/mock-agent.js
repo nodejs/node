@@ -16,11 +16,13 @@ const {
   kMockAgentIsCallHistoryEnabled,
   kMockAgentAddCallHistoryLog,
   kMockAgentMockCallHistoryInstance,
-  kMockCallHistoryAddLog
+  kMockAgentAcceptsNonStandardSearchParameters,
+  kMockCallHistoryAddLog,
+  kIgnoreTrailingSlash
 } = require('./mock-symbols')
 const MockClient = require('./mock-client')
 const MockPool = require('./mock-pool')
-const { matchValue, buildAndValidateMockOptions } = require('./mock-utils')
+const { matchValue, normalizeSearchParams, buildAndValidateMockOptions } = require('./mock-utils')
 const { InvalidArgumentError, UndiciError } = require('../core/errors')
 const Dispatcher = require('../dispatcher/dispatcher')
 const PendingInterceptorsFormatter = require('./pending-interceptors-formatter')
@@ -35,6 +37,8 @@ class MockAgent extends Dispatcher {
     this[kNetConnect] = true
     this[kIsMockActive] = true
     this[kMockAgentIsCallHistoryEnabled] = mockOptions?.enableCallHistory ?? false
+    this[kMockAgentAcceptsNonStandardSearchParameters] = mockOptions?.acceptNonStandardSearchParameters ?? false
+    this[kIgnoreTrailingSlash] = mockOptions?.ignoreTrailingSlash ?? false
 
     // Instantiate Agent and encapsulate
     if (opts?.agent && typeof opts.agent.dispatch !== 'function') {
@@ -52,11 +56,15 @@ class MockAgent extends Dispatcher {
   }
 
   get (origin) {
-    let dispatcher = this[kMockAgentGet](origin)
+    const originKey = this[kIgnoreTrailingSlash]
+      ? origin.replace(/\/$/, '')
+      : origin
+
+    let dispatcher = this[kMockAgentGet](originKey)
 
     if (!dispatcher) {
-      dispatcher = this[kFactory](origin)
-      this[kMockAgentSet](origin, dispatcher)
+      dispatcher = this[kFactory](originKey)
+      this[kMockAgentSet](originKey, dispatcher)
     }
     return dispatcher
   }
@@ -67,7 +75,17 @@ class MockAgent extends Dispatcher {
 
     this[kMockAgentAddCallHistoryLog](opts)
 
-    return this[kAgent].dispatch(opts, handler)
+    const acceptNonStandardSearchParameters = this[kMockAgentAcceptsNonStandardSearchParameters]
+
+    const dispatchOpts = { ...opts }
+
+    if (acceptNonStandardSearchParameters && dispatchOpts.path) {
+      const [path, searchParams] = dispatchOpts.path.split('?')
+      const normalizedSearchParams = normalizeSearchParams(searchParams, acceptNonStandardSearchParameters)
+      dispatchOpts.path = `${path}?${normalizedSearchParams}`
+    }
+
+    return this[kAgent].dispatch(dispatchOpts, handler)
   }
 
   async close () {
@@ -147,7 +165,7 @@ class MockAgent extends Dispatcher {
   }
 
   [kMockAgentSet] (origin, dispatcher) {
-    this[kClients].set(origin, dispatcher)
+    this[kClients].set(origin, { count: 0, dispatcher })
   }
 
   [kFactory] (origin) {
@@ -159,9 +177,9 @@ class MockAgent extends Dispatcher {
 
   [kMockAgentGet] (origin) {
     // First check if we can immediately find it
-    const client = this[kClients].get(origin)
-    if (client) {
-      return client
+    const result = this[kClients].get(origin)
+    if (result?.dispatcher) {
+      return result.dispatcher
     }
 
     // If the origin is not a string create a dummy parent pool and return to user
@@ -172,11 +190,11 @@ class MockAgent extends Dispatcher {
     }
 
     // If we match, create a pool and assign the same dispatches
-    for (const [keyMatcher, nonExplicitDispatcher] of Array.from(this[kClients])) {
-      if (nonExplicitDispatcher && typeof keyMatcher !== 'string' && matchValue(keyMatcher, origin)) {
+    for (const [keyMatcher, result] of Array.from(this[kClients])) {
+      if (result && typeof keyMatcher !== 'string' && matchValue(keyMatcher, origin)) {
         const dispatcher = this[kFactory](origin)
         this[kMockAgentSet](origin, dispatcher)
-        dispatcher[kDispatches] = nonExplicitDispatcher[kDispatches]
+        dispatcher[kDispatches] = result.dispatcher[kDispatches]
         return dispatcher
       }
     }
@@ -190,7 +208,7 @@ class MockAgent extends Dispatcher {
     const mockAgentClients = this[kClients]
 
     return Array.from(mockAgentClients.entries())
-      .flatMap(([origin, scope]) => scope[kDispatches].map(dispatch => ({ ...dispatch, origin })))
+      .flatMap(([origin, result]) => result.dispatcher[kDispatches].map(dispatch => ({ ...dispatch, origin })))
       .filter(({ pending }) => pending)
   }
 

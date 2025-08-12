@@ -1983,7 +1983,7 @@ struct implement<Global> {
   using type = RefImpl<Global, i::WasmGlobalObject>;
 };
 
-WASM_EXPORT void Global::destroy() { delete (this); }
+WASM_EXPORT void Global::destroy() { delete impl(this); }
 
 WASM_EXPORT auto Global::copy() const -> own<Global> {
   return impl(this)->copy();

@@ -1270,13 +1270,6 @@ CppHeap::CreateCppMarkingStateForMutatorThread() {
       marker()->To<UnifiedHeapMarker>().GetMutatorMarkingState());
 }
 
-CppHeap::PauseConcurrentMarkingScope::PauseConcurrentMarkingScope(
-    CppHeap* cpp_heap) {
-  if (cpp_heap && cpp_heap->marker()) {
-    pause_scope_.emplace(*cpp_heap->marker());
-  }
-}
-
 void CppHeap::CollectGarbage(cppgc::internal::GCConfig config) {
   if (!IsGCAllowed()) {
     return;

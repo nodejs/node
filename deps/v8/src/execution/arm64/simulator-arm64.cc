@@ -1833,7 +1833,8 @@ void Simulator::VisitUnconditionalBranch(Instruction* instr) {
 }
 
 void Simulator::VisitConditionalBranch(Instruction* instr) {
-  DCHECK(instr->Mask(ConditionalBranchMask) == B_cond);
+  DCHECK(instr->Mask(ConditionalBranchMask) == B_cond ||
+         instr->Mask(ConditionalBranchMask) == BC_cond);
   if (ConditionPassed(static_cast<Condition>(instr->ConditionBranch()))) {
     set_pc(instr->ImmPCOffsetTarget());
   }
@@ -3095,6 +3096,24 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
       set_xreg(dst, CountLeadingSignBits(xreg(src), kXRegSizeInBits));
       break;
     }
+    case CTZ_w:
+      set_wreg(dst, CountTrailingZeros(wreg(src), kWRegSizeInBits));
+      break;
+    case CTZ_x:
+      set_xreg(dst, CountTrailingZeros(xreg(src), kXRegSizeInBits));
+      break;
+    case CNT_w:
+      set_wreg(dst, CountSetBits(wreg(src), kWRegSizeInBits));
+      break;
+    case CNT_x:
+      set_xreg(dst, CountSetBits(xreg(src), kXRegSizeInBits));
+      break;
+    case ABS_w:
+      set_wreg(dst, Abs(wreg(src)));
+      break;
+    case ABS_x:
+      set_xreg(dst, Abs(xreg(src)));
+      break;
     default:
       UNIMPLEMENTED();
   }
@@ -5503,7 +5522,7 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
     // The immediate is implied by the number of vector registers used.
     addr_base +=
         (rm == 31) ? RegisterSizeInBytesFromFormat(vf) * count : xreg(rm);
-    set_xreg(instr->Rn(), addr_base);
+    set_xreg(instr->Rn(), addr_base, Reg31IsStackPointer);
   } else {
     DCHECK_EQ(addr_mode, Offset);
   }
@@ -5741,7 +5760,8 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
   if (addr_mode == PostIndex) {
     int rm = instr->Rm();
     int lane_size = LaneSizeInBytesFromFormat(vf);
-    set_xreg(instr->Rn(), addr + ((rm == 31) ? (scale * lane_size) : xreg(rm)));
+    set_xreg(instr->Rn(), addr + ((rm == 31) ? (scale * lane_size) : xreg(rm)),
+             Reg31IsStackPointer);
   }
 }
 
@@ -6542,6 +6562,29 @@ void Simulator::VisitNEONTable(Instruction* instr) {
   }
 }
 
+void Simulator::VisitNEONSHA3(Instruction* instr) {
+  NEONFormatDecoder nfd(instr);
+  VectorFormat vf = nfd.GetVectorFormat();
+
+  SimVRegister& rd = vreg(instr->Rd());
+  SimVRegister& rn = vreg(instr->Rn());
+  SimVRegister& rm = vreg(instr->Rm());
+  SimVRegister& ra = vreg(instr->Ra());
+  SimVRegister temp;
+
+  switch (instr->Mask(NEONSHA3Mask)) {
+    case NEON_BCAX:
+      bic(vf, temp, rm, ra);
+      eor(vf, rd, rn, temp);
+      break;
+    case NEON_EOR3:
+      eor(vf, temp, rm, ra);
+      eor(vf, rd, rn, temp);
+      break;
+    default:
+      UNIMPLEMENTED();
+  }
+}
 void Simulator::VisitNEONPerm(Instruction* instr) {
   NEONFormatDecoder nfd(instr);
   VectorFormat vf = nfd.GetVectorFormat();

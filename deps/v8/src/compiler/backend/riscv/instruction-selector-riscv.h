@@ -591,13 +591,13 @@ void InstructionSelectorT::VisitFloat32Equal(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitFloat32LessThan(OpIndex node) {
-  FlagsContinuationT cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
+  FlagsContinuationT cont = FlagsContinuation::ForSet(kFloatLessThan, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 void InstructionSelectorT::VisitFloat32LessThanOrEqual(OpIndex node) {
   FlagsContinuationT cont =
-      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
+      FlagsContinuation::ForSet(kFloatLessThanOrEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
@@ -607,13 +607,13 @@ void InstructionSelectorT::VisitFloat64Equal(OpIndex node) {
 }
 
 void InstructionSelectorT::VisitFloat64LessThan(OpIndex node) {
-  FlagsContinuationT cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
+  FlagsContinuationT cont = FlagsContinuation::ForSet(kFloatLessThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 void InstructionSelectorT::VisitFloat64LessThanOrEqual(OpIndex node) {
   FlagsContinuationT cont =
-      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
+      FlagsContinuation::ForSet(kFloatLessThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 

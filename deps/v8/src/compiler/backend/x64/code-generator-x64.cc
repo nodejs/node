@@ -29,6 +29,7 @@
 #include "src/heap/mutable-page-metadata.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/smi.h"
+#include "src/roots/roots-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
@@ -1747,6 +1748,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchFramePointer:
       __ movq(i.OutputRegister(), rbp);
       break;
+    case kArchParentFramePointer:
+      if (frame_access_state()->has_frame()) {
+        __ movq(i.OutputRegister(), Operand(rbp, 0));
+      } else {
+        __ movq(i.OutputRegister(), rbp);
+      }
+      break;
+    case kArchRootPointer:
+      __ movq(i.OutputRegister(), kRootRegister);
+      break;
 #if V8_ENABLE_WEBASSEMBLY
     case kArchStackPointer:
       __ movq(i.OutputRegister(), rsp);
@@ -1759,13 +1770,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
-    case kArchParentFramePointer:
-      if (frame_access_state()->has_frame()) {
-        __ movq(i.OutputRegister(), Operand(rbp, 0));
-      } else {
-        __ movq(i.OutputRegister(), rbp);
-      }
-      break;
     case kArchStackPointerGreaterThan: {
       // Potentially apply an offset to the current stack pointer before the
       // comparison to consider the size difference of an optimized frame versus

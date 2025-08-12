@@ -125,12 +125,20 @@ namespace {
 // Some platforms use a special .opd section to store function pointers.
 const char kOpdSectionName[] = ".opd";
 
-#if (defined(__powerpc__) && !(_CALL_ELF > 1)) || defined(__ia64)
+#if defined(__powerpc64__) && defined(_CALL_ELF)
+#if _CALL_ELF <= 1
+#define ABSL_INTERNAL_HAVE_PPC64_ELFV1_ABI 1
+#endif
+#endif
+#if defined(ABSL_INTERNAL_HAVE_PPC64_ELFV1_ABI) || defined(__ia64)
 // Use opd section for function descriptors on these platforms, the function
 // address is the first word of the descriptor.
-enum { kPlatformUsesOPDSections = 1 };
-#else  // not PPC or IA64
-enum { kPlatformUsesOPDSections = 0 };
+//
+// https://maskray.me/blog/2023-02-26-linker-notes-on-power-isa notes that
+// opd sections are used on 64-bit PowerPC with the ELFv1 ABI.
+inline constexpr bool kPlatformUsesOPDSections = true;
+#else
+inline constexpr bool kPlatformUsesOPDSections = false;
 #endif
 
 // This works for PowerPC & IA64 only.  A function descriptor consist of two
@@ -1451,11 +1459,11 @@ static bool MaybeInitializeObjFile(ObjFile *obj) {
       }
       phoff += phentsize;
 
-#if defined(__powerpc__) && !(_CALL_ELF > 1)
-      // On the PowerPC ELF v1 ABI, function pointers actually point to function
-      // descriptors. These descriptors are stored in an .opd section, which is
-      // mapped read-only. We thus need to look at all readable segments, not
-      // just the executable ones.
+#ifdef ABSL_INTERNAL_HAVE_PPC64_ELFV1_ABI
+      // On the PowerPC 64-bit ELFv1 ABI, function pointers actually point to
+      // function descriptors. These descriptors are stored in an .opd section,
+      // which is mapped read-only. We thus need to look at all readable
+      // segments, not just the executable ones.
       constexpr int interesting = PF_R;
 #else
       constexpr int interesting = PF_X | PF_R;
@@ -1762,3 +1770,5 @@ extern "C" bool AbslInternalGetFileMappingHint(const void **start,
   return absl::debugging_internal::GetFileMappingHint(start, end, offset,
                                                       filename);
 }
+
+#undef ABSL_INTERNAL_HAVE_PPC64_ELFV1_ABI

@@ -489,6 +489,15 @@ class Node {
     return false
   }
 
+  shouldOmit (omitSet) {
+    return (
+      this.peer && omitSet.has('peer') ||
+      this.dev && omitSet.has('dev') ||
+      this.optional && omitSet.has('optional') ||
+      this.devOptional && omitSet.has('optional') && omitSet.has('dev')
+    )
+  }
+
   getBundler (path = []) {
     // made a cycle, definitely not bundled!
     if (path.includes(this)) {

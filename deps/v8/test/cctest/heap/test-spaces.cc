@@ -351,9 +351,7 @@ TEST(PagedNewSpace) {
   MainAllocator allocator(heap->main_thread_local_heap(), new_space.get(),
                           MainAllocator::IsNewGeneration::kYes,
                           &allocation_info);
-  CHECK(new_space->MaximumCapacity());
-  CHECK(new_space->EnsureCurrentCapacity());
-  CHECK_LT(0, new_space->TotalCapacity());
+  GrowNewSpaceToMaximumCapacity(heap);
 
   size_t successful_allocations = 0;
   while (true) {
@@ -571,7 +569,7 @@ HEAP_TEST(Regress791582) {
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   MainAllocator* new_space_allocator = heap->allocator()->new_space_allocator();
-  GrowNewSpace(heap);
+  GrowNewSpaceToMaximumCapacity(heap);
 
   int until_page_end =
       static_cast<int>(heap->NewSpaceLimit() - heap->NewSpaceTop());
@@ -604,118 +602,6 @@ HEAP_TEST(Regress791582) {
     heap->CreateFillerObjectAt(obj.address(), 256);
   }
   new_space_allocator->RemoveAllocationObserver(&observer);
-}
-
-TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
-  v8_flags.stress_incremental_marking = false;
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  heap::SealCurrentObjects(CcTest::heap());
-
-  // Prepare page that only contains a single object and a trailing FreeSpace
-  // filler.
-  DirectHandle<FixedArray> array =
-      isolate->factory()->NewFixedArray(128, AllocationType::kOld);
-  PageMetadata* page = PageMetadata::FromHeapObject(*array);
-
-  // Reset space so high water mark is consistent.
-  PagedSpace* old_space = CcTest::heap()->old_space();
-  CcTest::heap()->FreeMainThreadLinearAllocationAreas();
-  old_space->ResetFreeList();
-
-  Tagged<HeapObject> filler =
-      HeapObject::FromAddress(array->address() + array->Size());
-  CHECK(IsFreeSpace(filler));
-  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
-  size_t should_have_shrunk = RoundDown(
-      static_cast<size_t>(MemoryChunkLayout::AllocatableMemoryInDataPage() -
-                          array->Size()),
-      CommitPageSize());
-  CHECK_EQ(should_have_shrunk, shrunk);
-}
-
-TEST(ShrinkPageToHighWaterMarkNoFiller) {
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  heap::SealCurrentObjects(CcTest::heap());
-
-  const int kFillerSize = 0;
-  DirectHandleVector<FixedArray> arrays(isolate);
-  heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize, &arrays);
-  DirectHandle<FixedArray> array = arrays.back();
-  PageMetadata* page = PageMetadata::FromHeapObject(*array);
-  CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
-
-  // Reset space so high water mark and fillers are consistent.
-  PagedSpace* old_space = CcTest::heap()->old_space();
-  CcTest::heap()->FreeMainThreadLinearAllocationAreas();
-  old_space->ResetFreeList();
-
-  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
-  CHECK_EQ(0u, shrunk);
-}
-
-TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  heap::SealCurrentObjects(CcTest::heap());
-
-  const int kFillerSize = kTaggedSize;
-  DirectHandleVector<FixedArray> arrays(isolate);
-  heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize, &arrays);
-  DirectHandle<FixedArray> array = arrays.back();
-  PageMetadata* page = PageMetadata::FromHeapObject(*array);
-  CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
-
-  // Reset space so high water mark and fillers are consistent.
-  PagedSpace* old_space = CcTest::heap()->old_space();
-  CcTest::heap()->FreeMainThreadLinearAllocationAreas();
-  old_space->ResetFreeList();
-
-  Tagged<HeapObject> filler =
-      HeapObject::FromAddress(array->address() + array->Size());
-  CHECK_EQ(filler->map(),
-           ReadOnlyRoots(CcTest::heap()).one_pointer_filler_map());
-
-  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
-  CHECK_EQ(0u, shrunk);
-}
-
-TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
-  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  heap::SealCurrentObjects(CcTest::heap());
-
-  const int kFillerSize = 2 * kTaggedSize;
-  DirectHandleVector<FixedArray> arrays(isolate);
-  heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize, &arrays);
-  DirectHandle<FixedArray> array = arrays.back();
-  PageMetadata* page = PageMetadata::FromHeapObject(*array);
-  CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
-
-  // Reset space so high water mark and fillers are consistent.
-  PagedSpace* old_space = CcTest::heap()->old_space();
-  CcTest::heap()->FreeMainThreadLinearAllocationAreas();
-  old_space->ResetFreeList();
-
-  Tagged<HeapObject> filler =
-      HeapObject::FromAddress(array->address() + array->Size());
-  CHECK_EQ(filler->map(),
-           ReadOnlyRoots(CcTest::heap()).two_pointer_filler_map());
-
-  size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
-  CHECK_EQ(0u, shrunk);
 }
 
 namespace {

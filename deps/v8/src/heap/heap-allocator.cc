@@ -9,7 +9,12 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-allocator-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/large-page-metadata.h"
+#include "src/heap/large-spaces.h"
+#include "src/heap/page-metadata.h"
 #include "src/logging/counters.h"
+#include "src/objects/heap-object.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -172,6 +177,36 @@ AllocationResult HeapAllocator::RetryAllocateRaw(
       AllocateRaw(size_in_bytes, allocation, origin, alignment);
   local_heap_->SetRetryOfFailedAllocation(false);
   return result;
+}
+
+bool HeapAllocator::TryResizeLargeObject(Tagged<HeapObject> object,
+                                         size_t old_object_size,
+                                         size_t new_object_size) {
+  if (V8_UNLIKELY(!v8_flags.resize_large_object)) {
+    return false;
+  }
+
+  PageMetadata* page = PageMetadata::FromHeapObject(object);
+  Space* space = page->owner();
+  if (space->identity() != NEW_LO_SPACE && space->identity() != LO_SPACE) {
+    return false;
+  }
+  DCHECK(page->IsLargePage());
+  DCHECK_EQ(page->area_size(), old_object_size);
+  CHECK_GT(new_object_size, old_object_size);
+  if (!heap_->memory_allocator()->ResizeLargePage(
+          LargePageMetadata::cast(page), old_object_size, new_object_size)) {
+    if (V8_UNLIKELY(v8_flags.trace_resize_large_object)) {
+      heap_->isolate()->PrintWithTimestamp(
+          "resizing large object failed: allocation could not be extended\n");
+    }
+    return false;
+  }
+
+  LargeObjectSpace* large_space = static_cast<LargeObjectSpace*>(page->owner());
+  large_space->UpdateAccountingAfterResizingObject(old_object_size,
+                                                   new_object_size);
+  return true;
 }
 
 void HeapAllocator::MakeLinearAllocationAreasIterable() {

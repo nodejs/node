@@ -62,10 +62,9 @@ void WriteBarrier::MarkingSlowFromTracedHandle(Tagged<HeapObject> value) {
 }
 
 // static
-void WriteBarrier::MarkingSlowFromCppHeapWrappable(Heap* heap,
-                                                   Tagged<JSObject> host,
-                                                   CppHeapPointerSlot slot,
-                                                   void* object) {
+void WriteBarrier::MarkingSlowFromCppHeapWrappable(
+    Heap* heap, Tagged<CppHeapPointerWrapperObjectT> host,
+    CppHeapPointerSlot slot, void* object) {
   // Note: this is currently a combined barrier for marking both the
   // CppHeapPointerTable entry and the referenced object (if any).
 

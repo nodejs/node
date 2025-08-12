@@ -1,12 +1,4 @@
-{
-    "statements": [
-      "CallExpression/a2.json"
-    ],
-    "superStatements": [
-      "CallExpression/a1.json"
-    ],
-    "all": [
-      "CallExpression/a1.json",
-      "CallExpression/a2.json"
-    ]
-}
+[
+  {"path": "CallExpression/a1.json", "super": true, "tc": true},
+  {"path": "CallExpression/a2.json", "super": false}
+]

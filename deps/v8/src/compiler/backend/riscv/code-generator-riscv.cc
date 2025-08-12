@@ -1044,6 +1044,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Move(i.OutputRegister(), fp);
       }
       break;
+    case kArchRootPointer:
+      __ mv(i.OutputRegister(), kRootRegister);
+      break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
                            i.InputDoubleRegister(0), DetermineStubCallMode());
@@ -1492,8 +1495,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           !__ IsSingleZeroRegSet()) {
         __ LoadFPRImmediate(kSingleRegZero, 0.0f);
       }
-      // compare result set to kScratchReg
-      __ CompareF32(kScratchReg, cc, left, right);
+      switch (FlagsModeField::decode(instr->opcode())) {
+        case kFlags_set:
+          __ CompareF32(i.OutputRegister(), cc, left, right);
+          break;
+        default:
+          __ CompareF32(kScratchReg, cc, left, right);
+          break;
+      }
     } break;
     case kRiscvAddS:
       // TODO(plind): add special case: combine mult & add.
@@ -1554,8 +1563,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           !__ IsDoubleZeroRegSet()) {
         __ LoadFPRImmediate(kDoubleRegZero, 0.0);
       }
-      // compare result set to kScratchReg
-      __ CompareF64(kScratchReg, cc, left, right);
+      switch (FlagsModeField::decode(instr->opcode())) {
+        case kFlags_set:
+          __ CompareF64(i.OutputRegister(), cc, left, right);
+          break;
+        default:
+          __ CompareF64(kScratchReg, cc, left, right);
+          break;
+      }
     } break;
 #if V8_TARGET_ARCH_RISCV32
     case kRiscvAddPair:
@@ -4298,29 +4313,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     return;
   } else if (instr->arch_opcode() == kRiscvCmpD ||
              instr->arch_opcode() == kRiscvCmpS) {
-    if (instr->arch_opcode() == kRiscvCmpD) {
-      FPURegister left = i.InputOrZeroDoubleRegister(0);
-      FPURegister right = i.InputOrZeroDoubleRegister(1);
-      if ((left == kDoubleRegZero || right == kDoubleRegZero) &&
-          !__ IsDoubleZeroRegSet()) {
-        __ LoadFPRImmediate(kDoubleRegZero, 0.0);
-      }
-    } else {
-      FPURegister left = i.InputOrZeroSingleRegister(0);
-      FPURegister right = i.InputOrZeroSingleRegister(1);
-      if ((left == kSingleRegZero || right == kSingleRegZero) &&
-          !__ IsSingleZeroRegSet()) {
-        __ LoadFPRImmediate(kSingleRegZero, 0.0f);
-      }
-    }
     bool predicate;
     FlagsConditionToConditionCmpFPU(&predicate, condition);
     // RISCV compare returns 0 or 1, do nothing when predicate; otherwise
-    // toggle kScratchReg (i.e., 0 -> 1, 1 -> 0)
-    if (predicate) {
-      __ Move(result, kScratchReg);
-    } else {
-      __ Xor(result, kScratchReg, 1);
+    // toggle result (i.e., 0 -> 1, 1 -> 0)
+    if (!predicate) {
+      __ Xor(result, result, 1);
     }
     return;
   } else {

@@ -36,6 +36,9 @@ $ cp -R lib/* ../node/deps/ngtcp2/ngtcp2/lib/
 $ cp -R crypto/* ../node/deps/ngtcp2/ngtcp2/crypto/
 ```
 
+Be sure to also update the `ngtcp2.gyp` file to reflect any changes in
+the source files or include directories.
+
 ### Updating nghttp3
 
 To update nghttp3, replace `v0.7.0` with the desired git tag:
@@ -47,3 +50,6 @@ $ autoreconf -i
 $ ./configure --prefix=$PWD/build --enable-lib-only
 $ cp -R lib/* ../node/deps/ngtcp2/nghttp3/lib/
 ```
+
+Be sure to also update the `ngtcp2.gyp` file to reflect any changes in
+the source files or include directories.

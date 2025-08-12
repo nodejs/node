@@ -140,6 +140,14 @@ class FlagsContinuationT final {
                               false_block);
   }
 
+  static FlagsContinuationT ForHintedBranch(FlagsCondition condition,
+                                            turboshaft::Block* true_block,
+                                            turboshaft::Block* false_block,
+                                            BranchHint hint) {
+    return FlagsContinuationT(kFlags_branch, condition, true_block, false_block,
+                              hint);
+  }
+
   // Creates a new flags continuation from the given conditional compare chain
   // and true/false blocks.
   static FlagsContinuationT ForConditionalBranch(
@@ -245,6 +253,10 @@ class FlagsContinuationT final {
     DCHECK(IsBranch() || IsConditionalBranch());
     return false_block_;
   }
+  BranchHint hint() const {
+    DCHECK(IsBranch());
+    return hint_;
+  }
   turboshaft::OpIndex true_value() const {
     DCHECK(IsSelect());
     return true_value_;
@@ -325,6 +337,19 @@ class FlagsContinuationT final {
         true_block_(true_block),
         false_block_(false_block) {
     DCHECK(mode == kFlags_branch);
+    DCHECK_NOT_NULL(true_block);
+    DCHECK_NOT_NULL(false_block);
+  }
+
+  FlagsContinuationT(FlagsMode mode, FlagsCondition condition,
+                     turboshaft::Block* true_block,
+                     turboshaft::Block* false_block, BranchHint hint)
+      : mode_(mode),
+        condition_(condition),
+        true_block_(true_block),
+        false_block_(false_block),
+        hint_(hint) {
+    DCHECK_EQ(mode, kFlags_branch);
     DCHECK_NOT_NULL(true_block);
     DCHECK_NOT_NULL(false_block);
   }
@@ -412,6 +437,7 @@ class FlagsContinuationT final {
   TrapId trap_id_;                  // Only valid if mode_ == kFlags_trap.
   turboshaft::OpIndex true_value_;  // Only valid if mode_ == kFlags_select.
   turboshaft::OpIndex false_value_;  // Only valid if mode_ == kFlags_select.
+  BranchHint hint_ = BranchHint::kNone;
 };
 
 // This struct connects nodes of parameters which are going to be pushed on the
@@ -648,6 +674,12 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   auto InputsImpl(const Op& op, std::index_sequence<Is...>) {
     return std::make_tuple(op.input(Is)...);
   }
+  template <size_t InputCount>
+  auto Inputs(turboshaft::OpIndex node) {
+    const turboshaft::Operation& op = Get(node);
+    DCHECK_EQ(InputCount, op.input_count);
+    return InputsImpl(op, std::make_index_sequence<InputCount>());
+  }
 
   // When we want to do branch-if-overflow fusion, we need to be mindful of the
   // 1st projection of the OverflowBinop:
@@ -662,14 +694,14 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   // though it has a required_when_unused effect.
   void SetProtectedLoadToRemove(turboshaft::OpIndex node) {
     DCHECK(this->IsProtectedLoad(node));
-    protected_loads_to_remove_->Add(this->id(node));
+    protected_loads_to_remove_->Add(node.id());
   }
 
   // Records that this node embeds a ProtectedLoad as operand, and so it is
   // itself a "protected" instruction, for which we'll need to record the source
   // position.
   void MarkAsProtected(turboshaft::OpIndex node) {
-    additional_protected_instructions_->Add(this->id(node));
+    additional_protected_instructions_->Add(node.id());
   }
 
   void UpdateSourcePosition(Instruction* instruction, turboshaft::OpIndex node);
@@ -696,6 +728,8 @@ class InstructionSelectorT final : public TurboshaftAdapter {
                        InstructionOperand const& index_operand);
   void EmitBinarySearchSwitch(const SwitchInfo& sw,
                               InstructionOperand const& value_operand);
+
+  void MarkAsTableSwitchTarget(const turboshaft::Block* block);
 
   void TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);
@@ -1053,8 +1087,7 @@ class InstructionSelectorT final : public TurboshaftAdapter {
   void VisitCall(turboshaft::OpIndex call, turboshaft::Block* handler = {});
   void VisitDeoptimizeIf(turboshaft::OpIndex node);
   void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
-  void VisitTrapIf(turboshaft::OpIndex node, TrapId trap_id);
-  void VisitTrapUnless(turboshaft::OpIndex node, TrapId trap_id);
+  void VisitTrapIf(turboshaft::OpIndex node);
   void VisitTailCall(turboshaft::OpIndex call);
   void VisitGoto(turboshaft::Block* target);
   void VisitBranch(turboshaft::OpIndex input, turboshaft::Block* tbranch,

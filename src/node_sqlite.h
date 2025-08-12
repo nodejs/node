@@ -39,12 +39,40 @@ class DatabaseOpenConfiguration {
 
   inline int get_timeout() { return timeout_; }
 
+  inline void set_use_big_ints(bool flag) { use_big_ints_ = flag; }
+
+  inline bool get_use_big_ints() const { return use_big_ints_; }
+
+  inline void set_return_arrays(bool flag) { return_arrays_ = flag; }
+
+  inline bool get_return_arrays() const { return return_arrays_; }
+
+  inline void set_allow_bare_named_params(bool flag) {
+    allow_bare_named_params_ = flag;
+  }
+
+  inline bool get_allow_bare_named_params() const {
+    return allow_bare_named_params_;
+  }
+
+  inline void set_allow_unknown_named_params(bool flag) {
+    allow_unknown_named_params_ = flag;
+  }
+
+  inline bool get_allow_unknown_named_params() const {
+    return allow_unknown_named_params_;
+  }
+
  private:
   std::string location_;
   bool read_only_ = false;
   bool enable_foreign_keys_ = true;
   bool enable_dqs_ = false;
   int timeout_ = 0;
+  bool use_big_ints_ = false;
+  bool return_arrays_ = false;
+  bool allow_bare_named_params_ = true;
+  bool allow_unknown_named_params_ = false;
 };
 
 class StatementSync;
@@ -64,6 +92,7 @@ class DatabaseSync : public BaseObject {
   static void IsTransactionGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Location(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -81,6 +110,14 @@ class DatabaseSync : public BaseObject {
   void FinalizeBackups();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
+  bool use_big_ints() const { return open_config_.get_use_big_ints(); }
+  bool return_arrays() const { return open_config_.get_return_arrays(); }
+  bool allow_bare_named_params() const {
+    return open_config_.get_allow_bare_named_params();
+  }
+  bool allow_unknown_named_params() const {
+    return open_config_.get_allow_unknown_named_params();
+  }
   sqlite3* Connection();
 
   // In some situations, such as when using custom functions, it is possible
@@ -194,6 +231,7 @@ class Session : public BaseObject {
   template <Sqlite3ChangesetGenFunc sqliteChangesetFunc>
   static void Changeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Dispose(const v8::FunctionCallbackInfo<v8::Value>& args);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<Session> Create(Environment* env,

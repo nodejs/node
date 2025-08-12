@@ -339,8 +339,8 @@ V8_OBJECT class ProtectedFixedArray
   // Allocate a new ProtectedFixedArray of the given capacity, initialized with
   // Smi::zero().
   template <class IsolateT>
-  static inline Handle<ProtectedFixedArray> New(IsolateT* isolate,
-                                                int capacity);
+  static inline Handle<ProtectedFixedArray> New(IsolateT* isolate, int capacity,
+                                                bool shared = false);
 
   DECL_PRINTER(ProtectedFixedArray)
   DECL_VERIFIER(ProtectedFixedArray)

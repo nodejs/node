@@ -231,7 +231,6 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(CipherBase::kInternalFieldCount);
 
-  SetProtoMethod(isolate, t, "initiv", InitIv);
   SetProtoMethod(isolate, t, "update", Update);
   SetProtoMethod(isolate, t, "final", Final);
   SetProtoMethod(isolate, t, "setAutoPadding", SetAutoPadding);
@@ -274,7 +273,6 @@ void CipherBase::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(New);
 
-  registry->Register(InitIv);
   registry->Register(Update);
   registry->Register(Final);
   registry->Register(SetAutoPadding);
@@ -300,7 +298,39 @@ void CipherBase::RegisterExternalReferences(
 void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
-  new CipherBase(env, args.This(), args[0]->IsTrue() ? kCipher : kDecipher);
+  CHECK_EQ(args.Length(), 5);
+
+  CipherBase* cipher =
+      new CipherBase(env, args.This(), args[0]->IsTrue() ? kCipher : kDecipher);
+
+  const Utf8Value cipher_type(env->isolate(), args[1]);
+
+  // The argument can either be a KeyObjectHandle or a byte source
+  // (e.g. ArrayBuffer, TypedArray, etc). Whichever it is, grab the
+  // raw bytes and proceed...
+  const ByteSource key_buf = ByteSource::FromSecretKeyBytes(env, args[2]);
+
+  if (key_buf.size() > INT_MAX) [[unlikely]] {
+    return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
+  }
+
+  ArrayBufferOrViewContents<unsigned char> iv_buf(
+      !args[3]->IsNull() ? args[3] : Local<Value>());
+
+  if (!iv_buf.CheckSizeInt32()) [[unlikely]] {
+    return THROW_ERR_OUT_OF_RANGE(env, "iv is too big");
+  }
+  // Don't assign to cipher->auth_tag_len_ directly; the value might not
+  // represent a valid length at this point.
+  unsigned int auth_tag_len;
+  if (args[4]->IsUint32()) {
+    auth_tag_len = args[4].As<Uint32>()->Value();
+  } else {
+    CHECK(args[4]->IsInt32() && args[4].As<Int32>()->Value() == -1);
+    auth_tag_len = kNoAuthTagLength;
+  }
+
+  cipher->InitIv(*cipher_type, key_buf, iv_buf, auth_tag_len);
 }
 
 void CipherBase::CommonInit(const char* cipher_type,
@@ -389,43 +419,6 @@ void CipherBase::InitIv(const char* cipher_type,
       iv_buf.data(),
       iv_buf.size(),
       auth_tag_len);
-}
-
-void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
-  CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
-  Environment* env = cipher->env();
-
-  CHECK_GE(args.Length(), 4);
-
-  const Utf8Value cipher_type(env->isolate(), args[0]);
-
-  // The argument can either be a KeyObjectHandle or a byte source
-  // (e.g. ArrayBuffer, TypedArray, etc). Whichever it is, grab the
-  // raw bytes and proceed...
-  const ByteSource key_buf = ByteSource::FromSecretKeyBytes(env, args[1]);
-
-  if (key_buf.size() > INT_MAX) [[unlikely]] {
-    return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
-  }
-
-  ArrayBufferOrViewContents<unsigned char> iv_buf(
-      !args[2]->IsNull() ? args[2] : Local<Value>());
-
-  if (!iv_buf.CheckSizeInt32()) [[unlikely]] {
-    return THROW_ERR_OUT_OF_RANGE(env, "iv is too big");
-  }
-  // Don't assign to cipher->auth_tag_len_ directly; the value might not
-  // represent a valid length at this point.
-  unsigned int auth_tag_len;
-  if (args[3]->IsUint32()) {
-    auth_tag_len = args[3].As<Uint32>()->Value();
-  } else {
-    CHECK(args[3]->IsInt32() && args[3].As<Int32>()->Value() == -1);
-    auth_tag_len = kNoAuthTagLength;
-  }
-
-  cipher->InitIv(*cipher_type, key_buf, iv_buf, auth_tag_len);
 }
 
 bool CipherBase::InitAuthenticated(const char* cipher_type,
@@ -521,9 +514,9 @@ void CipherBase::GetAuthTag(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
 
   // Only callable after Final and if encrypting.
-  if (cipher->ctx_ ||
-      cipher->kind_ != kCipher ||
-      cipher->auth_tag_len_ == kNoAuthTagLength) {
+  if (cipher->ctx_ || cipher->kind_ != kCipher ||
+      cipher->auth_tag_len_ == kNoAuthTagLength ||
+      cipher->auth_tag_state_ != kAuthTagComputed) {
     return;
   }
 
@@ -584,27 +577,14 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
 
   cipher->auth_tag_len_ = tag_len;
-  cipher->auth_tag_state_ = kAuthTagKnown;
-  CHECK_LE(cipher->auth_tag_len_, sizeof(cipher->auth_tag_));
+  CHECK_LE(cipher->auth_tag_len_, ncrypto::Cipher::MAX_AUTH_TAG_LENGTH);
 
-  memset(cipher->auth_tag_, 0, sizeof(cipher->auth_tag_));
-  auth_tag.CopyTo(cipher->auth_tag_, cipher->auth_tag_len_);
+  if (!cipher->ctx_.setAeadTag({auth_tag.data(), cipher->auth_tag_len_})) {
+    return args.GetReturnValue().Set(false);
+  }
+  cipher->auth_tag_state_ = kAuthTagSetByUser;
 
   args.GetReturnValue().Set(true);
-}
-
-bool CipherBase::MaybePassAuthTagToOpenSSL() {
-  if (auth_tag_state_ == kAuthTagKnown) {
-    ncrypto::Buffer<const char> buffer{
-        .data = auth_tag_,
-        .len = auth_tag_len_,
-    };
-    if (!ctx_.setAeadTag(buffer)) {
-      return false;
-    }
-    auth_tag_state_ = kAuthTagPassedToOpenSSL;
-  }
-  return true;
 }
 
 bool CipherBase::SetAAD(
@@ -626,10 +606,6 @@ bool CipherBase::SetAAD(
     }
 
     if (!CheckCCMMessageLength(plaintext_len)) {
-      return false;
-    }
-
-    if (kind_ == kDecipher && !MaybePassAuthTagToOpenSSL()) {
       return false;
     }
 
@@ -677,12 +653,6 @@ CipherBase::UpdateResult CipherBase::Update(
     return kErrorMessageSize;
   }
 
-  // Pass the authentication tag to OpenSSL if possible. This will only happen
-  // once, usually on the first update.
-  if (kind_ == kDecipher && IsAuthenticatedMode()) {
-    CHECK(MaybePassAuthTagToOpenSSL());
-  }
-
   const int block_size = ctx_.getBlockSize();
   CHECK_GT(block_size, 0);
   if (len + block_size > INT_MAX) return kErrorState;
@@ -715,7 +685,10 @@ CipherBase::UpdateResult CipherBase::Update(
     *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
   } else if (static_cast<size_t>(buf_len) != (*out)->ByteLength()) {
     std::unique_ptr<BackingStore> old_out = std::move(*out);
-    *out = ArrayBuffer::NewBackingStore(env()->isolate(), buf_len);
+    *out = ArrayBuffer::NewBackingStore(
+        env()->isolate(),
+        buf_len,
+        BackingStoreInitializationMode::kUninitialized);
     memcpy((*out)->Data(), old_out->Data(), buf_len);
   }
 
@@ -781,16 +754,11 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
       static_cast<size_t>(ctx_.getBlockSize()),
       BackingStoreInitializationMode::kUninitialized);
 
-  if (kind_ == kDecipher &&
-      Cipher::FromCtx(ctx_).isSupportedAuthenticatedMode()) {
-    MaybePassAuthTagToOpenSSL();
-  }
-
 #if (OPENSSL_VERSION_NUMBER < 0x30000000L)
   // OpenSSL v1.x doesn't verify the presence of the auth tag so do
   // it ourselves, see https://github.com/nodejs/node/issues/45874.
   if (kind_ == kDecipher && ctx_.isChaCha20Poly1305() &&
-      auth_tag_state_ != kAuthTagPassedToOpenSSL) {
+      auth_tag_state_ != kAuthTagSetByUser) {
     return false;
   }
 #endif
@@ -811,7 +779,10 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
       *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
     } else if (static_cast<size_t>(out_len) != (*out)->ByteLength()) {
       std::unique_ptr<BackingStore> old_out = std::move(*out);
-      *out = ArrayBuffer::NewBackingStore(env()->isolate(), out_len);
+      *out = ArrayBuffer::NewBackingStore(
+          env()->isolate(),
+          out_len,
+          BackingStoreInitializationMode::kUninitialized);
       memcpy((*out)->Data(), old_out->Data(), out_len);
     }
 
@@ -825,6 +796,9 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
       }
       ok = ctx_.getAeadTag(auth_tag_len_,
                            reinterpret_cast<unsigned char*>(auth_tag_));
+      if (ok) {
+        auth_tag_state_ = kAuthTagComputed;
+      }
     }
   }
 
@@ -887,7 +861,10 @@ bool PublicKeyCipher::Cipher(
   if (buf.size() == 0) {
     *out = ArrayBuffer::NewBackingStore(env->isolate(), 0);
   } else {
-    *out = ArrayBuffer::NewBackingStore(env->isolate(), buf.size());
+    *out = ArrayBuffer::NewBackingStore(
+        env->isolate(),
+        buf.size(),
+        BackingStoreInitializationMode::kUninitialized);
     memcpy((*out)->Data(), buf.get(), buf.size());
   }
 

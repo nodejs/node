@@ -303,7 +303,7 @@ static void error(const char *msg) {
 #ifdef USE_MMAP /* MMAP version, Miguel Albrecht <malbrech@eso.org> */
 
 /* Try compressing the input file at once using mmap. Return Z_OK if
- * if success, Z_ERRNO otherwise.
+ * success, Z_ERRNO otherwise.
  */
 static int gz_compress_mmap(FILE *in, gzFile out) {
     int len;

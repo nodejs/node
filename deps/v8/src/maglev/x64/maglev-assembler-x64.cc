@@ -87,10 +87,9 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
     Assert(below_equal, AbortReason::kUnexpectedValue);
   }
   DCHECK_NE(char_code, scratch);
-  Register table = scratch;
-  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedFieldByIndex(result, table, char_code, kTaggedSize,
-                         OFFSET_OF_DATA_START(FixedArray));
+  movq(result, MemOperand(kRootRegister, char_code, times_system_pointer_size,
+                          RootRegisterOffsetForRootIndex(
+                              RootIndex::kFirstSingleCharacterString)));
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,

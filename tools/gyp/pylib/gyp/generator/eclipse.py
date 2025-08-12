@@ -451,8 +451,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
     if params["options"].generator_output:
         raise NotImplementedError("--generator_output not implemented for eclipse")
 
-    user_config = params.get("generator_flags", {}).get("config", None)
-    if user_config:
+    if user_config := params.get("generator_flags", {}).get("config", None):
         GenerateOutputForConfig(target_list, target_dicts, data, params, user_config)
     else:
         config_names = target_dicts[target_list[0]]["configurations"]

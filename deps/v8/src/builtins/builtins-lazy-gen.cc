@@ -122,8 +122,8 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
   // If feedback cell isn't initialized, compile function
   GotoIf(IsUndefined(feedback_cell_value), &compile_function);
 
-  CSA_DCHECK(this, TaggedNotEqual(sfi_code, HeapConstantNoHole(BUILTIN_CODE(
-                                                isolate(), CompileLazy))));
+  CSA_DCHECK(this, SafeNotEqual(sfi_code, HeapConstantNoHole(BUILTIN_CODE(
+                                              isolate(), CompileLazy))));
   USE(sfi_code);
 #ifndef V8_ENABLE_LEAPTIERING
   // In the leaptiering case, the code is installed below, through the

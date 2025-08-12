@@ -770,14 +770,14 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 // Note: Symbols are not supported by `Error#toString()` which is called by
 // accessing the `stack` property.
 [
-  [404, '404 [RangeError]: foo', '[404]'],
+  [404, '404 [RangeError]: foo', '[RangeError: foo\n    404]'],
   [0, '0 [RangeError]: foo', '[RangeError: foo]'],
   [0n, '0 [RangeError]: foo', '[RangeError: foo]'],
   [null, 'null: foo', '[RangeError: foo]'],
   [undefined, 'RangeError: foo', '[RangeError: foo]'],
   [false, 'false [RangeError]: foo', '[RangeError: foo]'],
   ['', 'foo', '[RangeError: foo]'],
-  [[1, 2, 3], '1,2,3 [RangeError]: foo', '[[\n  1,\n  2,\n  3\n]]'],
+  [[1, 2, 3], '1,2,3 [RangeError]: foo', '[RangeError: foo\n    [\n      1,\n      2,\n      3\n    ]]'],
 ].forEach(([value, outputStart, stack]) => {
   let err = new RangeError('foo');
   err.name = value;
@@ -3457,6 +3457,34 @@ ${error.stack.split('\n').slice(1).join('\n')}`,
 
   assert.strictEqual(
     inspect(error),
-    '[[\n  Symbol(foo)\n]]'
+    '[Error\n    [\n      Symbol(foo)\n    ]]'
   );
+}
+
+{
+  const prepareStackTrace = Error.prepareStackTrace;
+
+  Error.prepareStackTrace = (error) => error;
+
+  const error = new Error('foo');
+
+  assert.strictEqual(inspect(error), '[Error: foo\n    [Circular *1]]');
+
+  Error.prepareStackTrace = prepareStackTrace;
+}
+
+{
+  const error = new Error('foo');
+  error.stack = error;
+
+  assert.strictEqual(inspect(error), '[Error: foo\n    [Circular *1]]');
+}
+
+{
+  const error = new Error('foo');
+  const error2 = new Error('bar');
+  error.stack = error2;
+  error2.stack = error;
+
+  assert.strictEqual(inspect(error), '[Error: foo\n    [Error: bar\n        [Circular *1]]]');
 }

@@ -57,7 +57,8 @@ class DumpHandler extends DecoratorHandler {
       return
     }
 
-    err = this.#controller.reason ?? err
+    // On network errors before connect, controller will be null
+    err = this.#controller?.reason ?? err
 
     super.onResponseError(controller, err)
   }

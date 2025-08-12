@@ -9,7 +9,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/numbers/conversions.h"
+#include "src/numbers/conversions-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -99,6 +99,18 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
     if (CanConsiderForInlining(broker(), function)) {
       out.bytecode[0] = function.shared(broker()).GetBytecodeArray(broker());
       out.num_functions = 1;
+
+      int input_count = node->InputCount();
+      for (int j = 2; j < input_count; ++j) {
+        Node* input = node->InputAt(j);
+        if (input->opcode() == IrOpcode::kNumberConstant) {
+          double value = OpParameter<double>(input->op());
+          if (!IsSmiDouble(value)) {
+            out.has_heapnumber_params = true;
+            break;
+          }
+        }
+      }
       return out;
     }
   }
@@ -299,7 +311,11 @@ void JSInliningHeuristic::Finalize() {
         candidate.total_size * v8_flags.reserve_inline_budget_scale_factor;
     int total_size =
         total_inlined_bytecode_size_ + static_cast<int>(size_of_candidate);
-    if (total_size > max_inlined_bytecode_size_cumulative_) {
+
+    // If the candidate requires boxing heap numbers, inline it more
+    // aggressively.
+    if (!candidate.has_heapnumber_params &&
+        total_size > max_inlined_bytecode_size_cumulative_) {
       info_->set_could_not_inline_all_candidates();
       // Try if any smaller functions are available to inline.
       continue;
@@ -705,13 +721,20 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
                                                bool small_function) {
   int num_calls = candidate.num_functions;
   Node* const node = candidate.node;
+
+  // If the candidate has heapnumber parameters, don't count its size in
+  // total_inlined_bytecode_size_.
+  const bool ignore_size = candidate.has_heapnumber_params;
+
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK_NE(node->opcode(), IrOpcode::kJSWasmCall);
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (num_calls == 1) {
     Reduction const reduction = inliner_.ReduceJSCall(node);
     if (reduction.Changed()) {
-      total_inlined_bytecode_size_ += candidate.bytecode[0].value().length();
+      if (!ignore_size) {
+        total_inlined_bytecode_size_ += candidate.bytecode[0].value().length();
+      }
     }
     return reduction;
   }
@@ -778,7 +801,9 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
       Node* call = calls[i];
       Reduction const reduction = inliner_.ReduceJSCall(call);
       if (reduction.Changed()) {
-        total_inlined_bytecode_size_ += candidate.bytecode[i]->length();
+        if (!ignore_size) {
+          total_inlined_bytecode_size_ += candidate.bytecode[i]->length();
+        }
         // Killing the call node is not strictly necessary, but it is safer to
         // make sure we do not resurrect the node.
         call->Kill();
@@ -792,6 +817,12 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
 bool JSInliningHeuristic::CandidateCompare::operator()(
     const Candidate& left, const Candidate& right) const {
   constexpr bool kInlineLeftFirst = true, kInlineRightFirst = false;
+  if (left.has_heapnumber_params && !right.has_heapnumber_params) {
+    return kInlineLeftFirst;
+  } else if (right.has_heapnumber_params) {
+    return kInlineRightFirst;
+  }
+
   if (right.frequency.IsUnknown()) {
     if (left.frequency.IsUnknown()) {
       // If left and right are both unknown then the ordering is indeterminate,

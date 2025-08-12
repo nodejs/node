@@ -31,6 +31,7 @@
 #ifndef ABSL_DEBUGGING_STACKTRACE_H_
 #define ABSL_DEBUGGING_STACKTRACE_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "absl/base/attributes.h"
@@ -274,6 +275,24 @@ namespace debugging_internal {
 // working.
 extern bool StackTraceWorksForTest();
 }  // namespace debugging_internal
+
+namespace internal_stacktrace {
+extern bool ShouldFixUpStack();
+
+// Fixes up the stack trace of the current thread, in the first `depth` frames
+// of each buffer. The buffers need to be larger than `depth`, to accommodate
+// any newly inserted elements. `depth` is updated to reflect the new number of
+// elements valid across all the buffers. (It is therefore recommended that all
+// buffer sizes be equal.)
+//
+// The `frames` and `sizes` parameters denote the bounds of the stack frame
+// corresponding to each instruction pointer in the `pcs`.
+// Any elements inside these buffers may be zero or null, in which case that
+// information is assumed to be absent/unavailable.
+extern void FixUpStack(void** pcs, uintptr_t* frames, int* sizes,
+                       size_t capacity, size_t& depth);
+}  // namespace internal_stacktrace
+
 ABSL_NAMESPACE_END
 }  // namespace absl
 

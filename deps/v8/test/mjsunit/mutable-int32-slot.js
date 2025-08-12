@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --maglev
 // Flags: --maglev-function-context-specialization
-// Flags: --script-context-mutable-heap-int32
+// Flags: --script-context-cells
 
 // Reading slot and deopting via unoptimized code.
 let x = 0;

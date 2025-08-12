@@ -204,7 +204,7 @@ function runTest(assertCleaned) {
   const clean = opts.clean;
   const before = opts.before;
   const historySize = opts.env.NODE_REPL_HISTORY_SIZE;
-  const historyFile = opts.env.NODE_REPL_HISTORY;
+  const file = opts.env.NODE_REPL_HISTORY;
 
   if (before) before();
 
@@ -230,17 +230,17 @@ function runTest(assertCleaned) {
     prompt: prompt,
     useColors: false,
     terminal: true,
-    historySize: historySize
+    historySize
   });
 
-  repl.setupHistory(historyFile, function(err, repl) {
+  repl.setupHistory(file, function(err, repl) {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
       throw err;
     }
 
     repl.once('close', () => {
-      if (repl._flushing) {
+      if (repl.historyManager.isFlushing) {
         repl.once('flushHistory', onClose);
         return;
       }

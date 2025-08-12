@@ -19,6 +19,7 @@ namespace sqlite {
 
 using v8::Array;
 using v8::ArrayBuffer;
+using v8::BackingStoreInitializationMode;
 using v8::BigInt;
 using v8::Boolean;
 using v8::ConstructorBehavior;
@@ -103,7 +104,8 @@ using v8::Value;
             static_cast<size_t>(sqlite3_##from##_bytes(__VA_ARGS__));          \
         auto data = reinterpret_cast<const uint8_t*>(                          \
             sqlite3_##from##_blob(__VA_ARGS__));                               \
-        auto store = ArrayBuffer::NewBackingStore((isolate), size);            \
+        auto store = ArrayBuffer::NewBackingStore(                             \
+            (isolate), size, BackingStoreInitializationMode::kUninitialized);  \
         memcpy(store->Data(), data, size);                                     \
         auto ab = ArrayBuffer::New((isolate), std::move(store));               \
         (result) = Uint8Array::New(ab, 0, size);                               \
@@ -373,7 +375,10 @@ class CustomAggregate {
       result = Local<Value>::New(isolate, agg->value);
     }
 
-    JSValueToSQLiteResult(isolate, ctx, result);
+    if (!result.IsEmpty()) {
+      JSValueToSQLiteResult(isolate, ctx, result);
+    }
+
     if (is_final) {
       DestroyAggregateData(ctx);
     }
@@ -961,6 +966,66 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
 
       open_config.set_timeout(timeout_v.As<Int32>()->Value());
     }
+
+    Local<Value> read_bigints_v;
+    if (options->Get(env->context(), env->read_bigints_string())
+            .ToLocal(&read_bigints_v)) {
+      if (!read_bigints_v->IsUndefined()) {
+        if (!read_bigints_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              R"(The "options.readBigInts" argument must be a boolean.)");
+          return;
+        }
+        open_config.set_use_big_ints(read_bigints_v.As<Boolean>()->Value());
+      }
+    }
+
+    Local<Value> return_arrays_v;
+    if (options->Get(env->context(), env->return_arrays_string())
+            .ToLocal(&return_arrays_v)) {
+      if (!return_arrays_v->IsUndefined()) {
+        if (!return_arrays_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              R"(The "options.returnArrays" argument must be a boolean.)");
+          return;
+        }
+        open_config.set_return_arrays(return_arrays_v.As<Boolean>()->Value());
+      }
+    }
+
+    Local<Value> allow_bare_named_params_v;
+    if (options->Get(env->context(), env->allow_bare_named_params_string())
+            .ToLocal(&allow_bare_named_params_v)) {
+      if (!allow_bare_named_params_v->IsUndefined()) {
+        if (!allow_bare_named_params_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              R"(The "options.allowBareNamedParameters" )"
+              "argument must be a boolean.");
+          return;
+        }
+        open_config.set_allow_bare_named_params(
+            allow_bare_named_params_v.As<Boolean>()->Value());
+      }
+    }
+
+    Local<Value> allow_unknown_named_params_v;
+    if (options->Get(env->context(), env->allow_unknown_named_params_string())
+            .ToLocal(&allow_unknown_named_params_v)) {
+      if (!allow_unknown_named_params_v->IsUndefined()) {
+        if (!allow_unknown_named_params_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              R"(The "options.allowUnknownNamedParameters" )"
+              "argument must be a boolean.");
+          return;
+        }
+        open_config.set_allow_unknown_named_params(
+            allow_unknown_named_params_v.As<Boolean>()->Value());
+      }
+    }
   }
 
   new DatabaseSync(
@@ -998,6 +1063,14 @@ void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   int r = sqlite3_close_v2(db->connection_);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   db->connection_ = nullptr;
+}
+
+void DatabaseSync::Dispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::TryCatch try_catch(args.GetIsolate());
+  Close(args);
+  if (try_catch.HasCaught()) {
+    CHECK(try_catch.CanContinue());
+  }
 }
 
 void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
@@ -1759,12 +1832,11 @@ StatementSync::StatementSync(Environment* env,
     : BaseObject(env, object), db_(std::move(db)) {
   MakeWeak();
   statement_ = stmt;
-  // In the future, some of these options could be set at the database
-  // connection level and inherited by statements to reduce boilerplate.
-  return_arrays_ = false;
-  use_big_ints_ = false;
-  allow_bare_named_params_ = true;
-  allow_unknown_named_params_ = false;
+  use_big_ints_ = db_->use_big_ints();
+  return_arrays_ = db_->return_arrays();
+  allow_bare_named_params_ = db_->allow_bare_named_params();
+  allow_unknown_named_params_ = db_->allow_unknown_named_params();
+
   bare_named_params_ = std::nullopt;
 }
 
@@ -2572,6 +2644,7 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(
         isolate, tmpl, "patchset", Session::Changeset<sqlite3session_patchset>);
     SetProtoMethod(isolate, tmpl, "close", Session::Close);
+    SetProtoDispose(isolate, tmpl, Session::Dispose);
     env->set_sqlite_session_constructor_template(tmpl);
   }
   return tmpl;
@@ -2616,6 +2689,14 @@ void Session::Close(const FunctionCallbackInfo<Value>& args) {
   session->Delete();
 }
 
+void Session::Dispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::TryCatch try_catch(args.GetIsolate());
+  Close(args);
+  if (try_catch.HasCaught()) {
+    CHECK(try_catch.CanContinue());
+  }
+}
+
 void Session::Delete() {
   if (!database_ || !database_->connection_ || session_ == nullptr) return;
   sqlite3session_delete(session_);
@@ -2651,6 +2732,7 @@ static void Initialize(Local<Object> target,
 
   SetProtoMethod(isolate, db_tmpl, "open", DatabaseSync::Open);
   SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
+  SetProtoDispose(isolate, db_tmpl, DatabaseSync::Dispose);
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
   SetProtoMethod(isolate, db_tmpl, "function", DatabaseSync::CustomFunction);
@@ -2681,14 +2763,18 @@ static void Initialize(Local<Object> target,
                          target,
                          "StatementSync",
                          StatementSync::GetConstructorTemplate(env));
+  SetConstructorFunction(
+      context, target, "Session", Session::GetConstructorTemplate(env));
 
   target->Set(context, env->constants_string(), constants).Check();
 
   Local<Function> backup_function;
 
-  if (!Function::New(context, Backup).ToLocal(&backup_function)) {
+  if (!Function::New(context, Backup, Local<Value>(), 2)
+           .ToLocal(&backup_function)) {
     return;
   }
+  backup_function->SetName(env->backup_string());
 
   target->Set(context, env->backup_string(), backup_function).Check();
 }

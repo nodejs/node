@@ -53,7 +53,6 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
-using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
@@ -325,7 +324,8 @@ class ZstdCompressContext final : public ZstdContext {
   CompressionError ResetStream();
 
   // Zstd specific:
-  CompressionError Init(uint64_t pledged_src_size);
+  CompressionError Init(uint64_t pledged_src_size,
+                        std::string_view dictionary = {});
   CompressionError SetParameter(int key, int value);
 
   // Wrap ZSTD_freeCCtx to remove the return type.
@@ -350,7 +350,9 @@ class ZstdDecompressContext final : public ZstdContext {
   CompressionError ResetStream();
 
   // Zstd specific:
-  CompressionError Init(uint64_t pledged_src_size);
+  CompressionError Init(uint64_t pledged_src_size,
+                        std::string_view dictionary = {});
+
   CompressionError SetParameter(int key, int value);
 
   // Wrap ZSTD_freeDCtx to remove the return type.
@@ -688,8 +690,7 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
   static void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK(args[0]->IsInt32());
-    node_zlib_mode mode =
-        static_cast<node_zlib_mode>(args[0].As<Int32>()->Value());
+    node_zlib_mode mode = FromV8Value<node_zlib_mode>(args[0]);
     new ZlibStream(env, args.This(), mode);
   }
 
@@ -794,8 +795,7 @@ class BrotliCompressionStream final :
   static void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK(args[0]->IsInt32());
-    node_zlib_mode mode =
-        static_cast<node_zlib_mode>(args[0].As<Int32>()->Value());
+    node_zlib_mode mode = FromV8Value<node_zlib_mode>(args[0]);
     new BrotliCompressionStream(env, args.This(), mode);
   }
 
@@ -878,8 +878,10 @@ class ZstdStream final : public CompressionStream<CompressionContext> {
     Environment* env = Environment::GetCurrent(args);
     Local<Context> context = env->context();
 
-    CHECK(args.Length() == 4 &&
-          "init(params, pledgedSrcSize, writeResult, writeCallback)");
+    CHECK((args.Length() == 4 || args.Length() == 5) &&
+          "init(params, pledgedSrcSize, writeResult, writeCallback[, "
+          "dictionary])");
+
     ZstdStream* wrap;
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
@@ -907,7 +909,19 @@ class ZstdStream final : public CompressionStream<CompressionContext> {
     }
 
     AllocScope alloc_scope(wrap);
-    CompressionError err = wrap->context()->Init(pledged_src_size);
+    std::string_view dictionary;
+    ArrayBufferViewContents<char> contents;
+    if (args.Length() == 5 && !args[4]->IsUndefined()) {
+      if (!args[4]->IsArrayBufferView()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            wrap->env(), "dictionary must be an ArrayBufferView if provided");
+        return;
+      }
+      contents.ReadValue(args[4]);
+      dictionary = std::string_view(contents.data(), contents.length());
+    }
+
+    CompressionError err = wrap->context()->Init(pledged_src_size, dictionary);
     if (err.IsError()) {
       wrap->EmitError(err);
       THROW_ERR_ZLIB_INITIALIZATION_FAILED(wrap->env(), err.message);
@@ -1512,7 +1526,8 @@ CompressionError ZstdCompressContext::SetParameter(int key, int value) {
   return {};
 }
 
-CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size) {
+CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size,
+                                           std::string_view dictionary) {
   pledged_src_size_ = pledged_src_size;
   cctx_.reset(ZSTD_createCCtx());
   if (!cctx_) {
@@ -1520,6 +1535,17 @@ CompressionError ZstdCompressContext::Init(uint64_t pledged_src_size) {
                             "ERR_ZLIB_INITIALIZATION_FAILED",
                             -1);
   }
+
+  if (!dictionary.empty()) {
+    size_t ret = ZSTD_CCtx_loadDictionary(
+        cctx_.get(), dictionary.data(), dictionary.size());
+    if (ZSTD_isError(ret)) {
+      return CompressionError("Failed to load zstd dictionary",
+                              "ERR_ZLIB_DICTIONARY_LOAD_FAILED",
+                              -1);
+    }
+  }
+
   size_t result = ZSTD_CCtx_setPledgedSrcSize(cctx_.get(), pledged_src_size);
   if (ZSTD_isError(result)) {
     return CompressionError(
@@ -1552,12 +1578,23 @@ CompressionError ZstdDecompressContext::SetParameter(int key, int value) {
   return {};
 }
 
-CompressionError ZstdDecompressContext::Init(uint64_t pledged_src_size) {
+CompressionError ZstdDecompressContext::Init(uint64_t pledged_src_size,
+                                             std::string_view dictionary) {
   dctx_.reset(ZSTD_createDCtx());
   if (!dctx_) {
     return CompressionError("Could not initialize zstd instance",
                             "ERR_ZLIB_INITIALIZATION_FAILED",
                             -1);
+  }
+
+  if (!dictionary.empty()) {
+    size_t ret = ZSTD_DCtx_loadDictionary(
+        dctx_.get(), dictionary.data(), dictionary.size());
+    if (ZSTD_isError(ret)) {
+      return CompressionError("Failed to load zstd dictionary",
+                              "ERR_ZLIB_DICTIONARY_LOAD_FAILED",
+                              -1);
+    }
   }
   return {};
 }

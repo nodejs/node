@@ -171,7 +171,8 @@
     code: 'ERR_ASSERTION',
     actual: true,
     expected: false,
-    operator: 'strictEqual'
+    operator: 'strictEqual',
+    diff: 'simple'
   }
 
 *
@@ -285,6 +286,8 @@
       *
       *
       *
+      *
+      *
 
 *
  timed out async test (*ms)
@@ -354,7 +357,8 @@
     code: 'ERR_ASSERTION',
     actual: [Object],
     expected: [Object],
-    operator: 'deepEqual'
+    operator: 'deepEqual',
+    diff: 'simple'
   }
 
 *

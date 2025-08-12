@@ -33,6 +33,7 @@ const intrinsics = new Set([
   'Int8Array',
   'Uint16Array',
   'Int16Array',
+  'Float16Array',
   'Uint32Array',
   'Int32Array',
   'Float32Array',

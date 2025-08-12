@@ -5,7 +5,8 @@ const {
   kClients,
   kNeedDrain,
   kAddClient,
-  kGetDispatcher
+  kGetDispatcher,
+  kRemoveClient
 } = require('./pool-base')
 const Client = require('./client')
 const {
@@ -35,6 +36,7 @@ class Pool extends PoolBase {
     autoSelectFamily,
     autoSelectFamilyAttemptTimeout,
     allowH2,
+    clientTtl,
     ...options
   } = {}) {
     if (connections != null && (!Number.isFinite(connections) || connections < 0)) {
@@ -65,11 +67,19 @@ class Pool extends PoolBase {
 
     this[kConnections] = connections || null
     this[kUrl] = util.parseOrigin(origin)
-    this[kOptions] = { ...util.deepClone(options), connect, allowH2 }
+    this[kOptions] = { ...util.deepClone(options), connect, allowH2, clientTtl }
     this[kOptions].interceptors = options.interceptors
       ? { ...options.interceptors }
       : undefined
     this[kFactory] = factory
+
+    this.on('connect', (origin, targets) => {
+      if (clientTtl != null && clientTtl > 0) {
+        for (const target of targets) {
+          Object.assign(target, { ttl: Date.now() })
+        }
+      }
+    })
 
     this.on('connectionError', (origin, targets, error) => {
       // If a connection error occurs, we remove the client from the pool,
@@ -87,8 +97,12 @@ class Pool extends PoolBase {
   }
 
   [kGetDispatcher] () {
+    const clientTtlOption = this[kOptions].clientTtl
     for (const client of this[kClients]) {
-      if (!client[kNeedDrain]) {
+      // check ttl of client and if it's stale, remove it from the pool
+      if (clientTtlOption != null && clientTtlOption > 0 && client.ttl && ((Date.now() - client.ttl) > clientTtlOption)) {
+        this[kRemoveClient](client)
+      } else if (!client[kNeedDrain]) {
         return client
       }
     }

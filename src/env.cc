@@ -784,7 +784,8 @@ Environment::Environment(IsolateData* isolate_data,
                          const std::vector<std::string>& exec_args,
                          const EnvSerializeInfo* env_info,
                          EnvironmentFlags::Flags flags,
-                         ThreadId thread_id)
+                         ThreadId thread_id,
+                         std::string_view thread_name)
     : isolate_(isolate),
       external_memory_accounter_(new ExternalMemoryAccounter()),
       isolate_data_(isolate_data),
@@ -811,7 +812,8 @@ Environment::Environment(IsolateData* isolate_data,
       flags_(flags),
       thread_id_(thread_id.id == static_cast<uint64_t>(-1)
                      ? AllocateEnvironmentThreadId().id
-                     : thread_id.id) {
+                     : thread_id.id),
+      thread_name_(thread_name) {
   if (!is_main_thread()) {
     // If this is a Worker thread, we can always safely use the parent's
     // Isolate's code cache because of the shared read-only heap.
@@ -913,6 +915,7 @@ Environment::Environment(IsolateData* isolate_data,
     // unless explicitly allowed by the user
     if (!options_->allow_addons) {
       options_->allow_native_addons = false;
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kAddon);
     }
     flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
     permission()->Apply(this, {"*"}, permission::PermissionScope::kInspector);
@@ -928,6 +931,25 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
     }
 
+    // Implicit allow entrypoint to kFileSystemRead
+    if (!options_->has_eval_string && !options_->force_repl) {
+      std::string first_argv;
+      if (argv_.size() > 1) {
+        first_argv = argv_[1];
+      }
+
+      // Also implicit allow preloaded modules to kFileSystemRead
+      if (!options_->preload_cjs_modules.empty()) {
+        for (const std::string& mod : options_->preload_cjs_modules) {
+          options_->allow_fs_read.push_back(mod);
+        }
+      }
+
+      if (first_argv != "inspect") {
+        options_->allow_fs_read.push_back(first_argv);
+      }
+    }
+
     if (!options_->allow_fs_read.empty()) {
       permission()->Apply(this,
                           options_->allow_fs_read,
@@ -938,6 +960,10 @@ Environment::Environment(IsolateData* isolate_data,
       permission()->Apply(this,
                           options_->allow_fs_write,
                           permission::PermissionScope::kFileSystemWrite);
+    }
+
+    if (options_->allow_net) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kNet);
     }
   }
 }

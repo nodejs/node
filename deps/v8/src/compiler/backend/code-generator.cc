@@ -127,7 +127,7 @@ bool CodeGenerator::ShouldApplyOffsetToStackCheck(Instruction* instr,
   DCHECK_EQ(instr->arch_opcode(), kArchStackPointerGreaterThan);
 
   StackCheckKind kind =
-      static_cast<StackCheckKind>(MiscField::decode(instr->opcode()));
+      static_cast<StackCheckKind>(StackCheckField::decode(instr->opcode()));
   if (kind != StackCheckKind::kJSFunctionEntry) return false;
 
   uint32_t stack_check_offset = *offset = GetStackCheckOffset();
@@ -240,20 +240,6 @@ void CodeGenerator::AssembleCode() {
   }
 #endif
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (info->code_kind() == CodeKind::WASM_TO_JS_FUNCTION ||
-      info->builtin() == Builtin::kWasmToJsWrapperCSA ||
-      wasm::BuiltinLookup::IsWasmBuiltinId(info->builtin())) {
-    // By default the code generator can convert slot IDs to SP-relative memory
-    // operands depending on the offset if the encoding is more efficient.
-    // However the SP may switch to the central stack for wasm-to-js wrappers
-    // and wasm builtins, so disable this optimization there.
-    // TODO(thibaudm): Disable this more selectively, only wasm builtins that
-    // call JS builtins can switch, and only around the call site.
-    frame_access_state()->SetFPRelativeOnly(true);
-  }
-#endif
-
   offsets_info_.deopt_check = masm()->pc_offset();
   // We want to bailout only from JS functions, which are the only ones
   // that are optimized.
@@ -321,7 +307,7 @@ void CodeGenerator::AssembleCode() {
     masm()->bind(GetLabel(current_block_));
 
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-    if (block->IsSwitchTarget()) {
+    if (block->IsTableSwitchTarget()) {
       masm()->JumpTarget();
     }
 #endif
@@ -435,7 +421,7 @@ void CodeGenerator::AssembleCode() {
     }
   }
 
-  // The LinuxPerfJitLogger logs code up until here, excluding the safepoint
+  // The PerfJitLogger logs code up until here, excluding the safepoint
   // table. Resolve the unwinding info now so it is aware of the same code
   // size as reported by perf.
   unwinding_info_writer_.Finish(masm()->pc_offset());
@@ -761,6 +747,7 @@ RpoNumber CodeGenerator::ComputeBranchInfo(BranchInfo* branch,
   branch->condition = condition;
   branch->true_label = GetLabel(true_rpo);
   branch->false_label = GetLabel(false_rpo);
+  branch->hinted = static_cast<bool>(BranchHintField::decode(instr->opcode()));
   branch->fallthru = IsNextInAssemblyOrder(false_rpo);
   return RpoNumber::Invalid();
 }
@@ -848,6 +835,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       branch.condition = condition;
       branch.true_label = exit->label();
       branch.false_label = exit->continue_label();
+      branch.hinted = true;
       branch.fallthru = true;
       AssembleArchDeoptBranch(instr, &branch);
       masm()->bind(exit->continue_label());

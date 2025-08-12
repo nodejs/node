@@ -75,6 +75,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
   const int handler_table_offset = desc.handler_table_offset;
   const int constant_pool_offset = desc.constant_pool_offset;
   const int code_comments_offset = desc.code_comments_offset;
+  const int jump_table_info_offset = desc.jump_table_info_offset;
   const int instr_size = desc.instr_size;
   {
     WritableJitAllocation jit_allocation =
@@ -110,6 +111,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
                                 handler_table_offset,
                                 constant_pool_offset,
                                 code_comments_offset,
+                                jump_table_info_offset,
                                 instr_size,
                                 result.protected_instructions_data.as_vector(),
                                 reloc_info,
@@ -146,9 +148,7 @@ WasmCode* WasmImportWrapperCache::FindWrapper(WasmCodePointer call_target) {
       GetProcessWideWasmCodePointerTable()->GetEntrypointWithoutSignatureCheck(
           call_target));
   if (iter == codes_.end()) return nullptr;
-  WasmCodeRefScope::AddRef(iter->second);
-  if (iter->second->is_dying()) return nullptr;
-  return iter->second;
+  return WasmCodeRefScope::AddRefIfNotDying(iter->second);
 }
 
 WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
@@ -165,8 +165,8 @@ WasmCode* WasmImportWrapperCache::CompileWasmImportCallWrapper(
     // again whether another thread has just created the wrapper.
     wasm_code = cache_scope[key];
     if (wasm_code) {
-      WasmCodeRefScope::AddRef(wasm_code);
-      if (!wasm_code->is_dying()) return wasm_code;
+      wasm_code = WasmCodeRefScope::AddRefIfNotDying(wasm_code);
+      if (wasm_code) return wasm_code;
     }
 
     wasm_code = cache_scope.AddWrapper(key, std::move(result),
@@ -218,6 +218,9 @@ void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
   }
   code_allocator_->FreeCode(base::VectorOf(wrappers));
   for (WasmCode* wrapper : wrappers) {
+    // TODO(407003348): Drop this check if it doesn't trigger in the wild.
+    CHECK_EQ(wrapper->ref_count_bitfield_.load(std::memory_order_acquire),
+             WasmCode::kIsDyingMask);
     delete wrapper;
   }
   // Make sure nobody tries to access stale pointers.
@@ -232,9 +235,7 @@ WasmCode* WasmImportWrapperCache::MaybeGet(ImportCallKind kind,
 
   auto it = entry_map_.find({kind, type_index, expected_arity, suspend});
   if (it == entry_map_.end()) return nullptr;
-  WasmCodeRefScope::AddRef(it->second);
-  if (it->second->is_dying()) return nullptr;
-  return it->second;
+  return WasmCodeRefScope::AddRefIfNotDying(it->second);
 }
 
 WasmCode* WasmImportWrapperCache::Lookup(Address pc) const {

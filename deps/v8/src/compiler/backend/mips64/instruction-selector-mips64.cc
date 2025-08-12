@@ -351,14 +351,15 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   output_op = g.DefineAsRegister(output.valid() ? output : node);
 
   const Operation& base_op = selector->Get(base);
-  int64_t index_value;
-  if (base_op.Is<Opmask::kExternalConstant>() &&
-      selector->MatchSignedIntegralConstant(index, &index_value)) {
+  int64_t index_constant;
+  const bool is_index_constant =
+      selector->MatchSignedIntegralConstant(index, &index_constant);
+  if (base_op.Is<Opmask::kExternalConstant>() && is_index_constant) {
     const ConstantOp& constant_base = base_op.Cast<ConstantOp>();
     if (selector->CanAddressRelativeToRootsRegister(
             constant_base.external_reference())) {
       ptrdiff_t const delta =
-          index_value +
+          index_constant +
           MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               selector->isolate(), constant_base.external_reference());
       input_count = 1;
@@ -373,11 +374,9 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
     }
   }
 
-  if (base_op.Is<LoadRootRegisterOp>()) {
-    int64_t index_value;
-    CHECK(selector->MatchSignedIntegralConstant(index, &index_value));
+  if (base_op.Is<LoadRootRegisterOp>() && is_index_constant) {
     input_count = 1;
-    inputs[0] = g.UseImmediate64(index_value);
+    inputs[0] = g.UseImmediate64(index_constant);
     opcode |= AddressingModeField::encode(kMode_Root);
     selector->Emit(opcode, 1, &output_op, input_count, inputs);
     return;
@@ -1866,7 +1865,8 @@ void InstructionSelectorT::VisitStackPointerGreaterThan(
   kind = op.kind;
   value = op.stack_limit();
   InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
+      kArchStackPointerGreaterThan |
+      StackCheckField::encode(static_cast<StackCheckKind>(kind));
 
   Mips64OperandGeneratorT g(this);
 

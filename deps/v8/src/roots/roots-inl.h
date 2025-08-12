@@ -120,6 +120,10 @@ Tagged<Boolean> ReadOnlyRoots::boolean_value(bool value) const {
   return value ? Tagged<Boolean>(true_value()) : Tagged<Boolean>(false_value());
 }
 
+Tagged<String> ReadOnlyRoots::single_character_string(int code) const {
+  return Cast<String>(object_at(RootsTable::SingleCharacterStringIndex(code)));
+}
+
 Address ReadOnlyRoots::first_name_for_protector() const {
   return address_at(RootIndex::kFirstNameForProtector);
 }
@@ -147,7 +151,6 @@ Tagged<Object> ReadOnlyRoots::object_at(RootIndex root_index) const {
 Address ReadOnlyRoots::address_at(RootIndex root_index) const {
 #if V8_STATIC_ROOTS_BOOL
   return V8HeapCompressionScheme::DecompressTagged(
-      V8HeapCompressionScheme::base(),
       StaticReadOnlyRootsPointerTable[static_cast<int>(root_index)]);
 #else
   size_t index = static_cast<size_t>(root_index);

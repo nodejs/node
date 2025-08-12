@@ -10,7 +10,6 @@
 
 #include "include/v8-platform.h"
 #include "src/base/platform/time.h"
-#include "src/base/strings.h"
 #include "src/init/v8.h"
 #include "src/strings/char-predicates-inl.h"
 

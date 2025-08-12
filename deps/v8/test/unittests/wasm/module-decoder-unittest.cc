@@ -3620,9 +3620,7 @@ TEST_F(WasmModuleVerifyTest, InvalidSharedGlobal) {
 
   ModuleResult result = DecodeModule(base::ArrayVector(data));
 
-  EXPECT_NOT_OK(
-      result,
-      "invalid global flags 0x3 (enable via --experimental-wasm-shared)");
+  EXPECT_NOT_OK(result, "invalid global flags 0x3");
 }
 
 TEST_F(WasmModuleVerifyTest, ContTypesBasic) {

@@ -752,6 +752,8 @@ test('Additional tests', () => {
 
   assertNotDeepOrStrict(new Date(), new Date(2000, 3, 14));
 
+  assertDeepAndStrictEqual(new Date('foo'), new Date('bar'));
+
   assertDeepAndStrictEqual(/a/, /a/);
   assertDeepAndStrictEqual(/a/g, /a/g);
   assertDeepAndStrictEqual(/a/i, /a/i);

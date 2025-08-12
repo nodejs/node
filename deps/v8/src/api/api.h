@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/v8-container.h"
+#include "include/v8-cpp-heap-external.h"
 #include "include/v8-external.h"
 #include "include/v8-function-callback.h"
 #include "include/v8-proxy.h"
@@ -131,6 +132,7 @@ class RegisteredExtension {
   V(FixedArrayToLocal, FixedArray, FixedArray)                          \
   V(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)                  \
   V(ToLocal, ScriptOrModule, ScriptOrModule)                            \
+  V(CppHeapExternalToLocal, CppHeapExternalObject, CppHeapExternal)     \
   IF_WASM(V, ToLocal, WasmMemoryMapDescriptor, WasmMemoryMapDescriptor) \
   IF_WASM(V, ToLocal, WasmModuleObject, WasmModuleObject)
 
@@ -149,7 +151,8 @@ class RegisteredExtension {
   V(CallableToLocal)          \
   V(ToLocalPrimitive)         \
   V(FixedArrayToLocal)        \
-  V(PrimitiveArrayToLocal)
+  V(PrimitiveArrayToLocal)    \
+  V(CppHeapExternalToLocal)
 
 #define OPEN_HANDLE_LIST(V)                                    \
   V(Template, TemplateInfoWithProperties)                      \
@@ -206,6 +209,7 @@ class RegisteredExtension {
   V(ScriptOrModule, ScriptOrModule)                            \
   V(FixedArray, FixedArray)                                    \
   V(ModuleRequest, ModuleRequest)                              \
+  V(CppHeapExternal, CppHeapExternalObject)                    \
   IF_WASM(V, WasmMemoryMapDescriptor, WasmMemoryMapDescriptor) \
   IF_WASM(V, WasmMemoryObject, WasmMemoryObject)
 

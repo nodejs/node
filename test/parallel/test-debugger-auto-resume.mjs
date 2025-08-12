@@ -21,9 +21,7 @@ addLibraryPath(process.env);
   };
   env.NODE_INSPECT_RESUME_ON_START = '1';
 
-  const cli = startCLI(['--port=0', script], [], {
-    env,
-  });
+  const cli = startCLI([script], [], { env });
 
   await cli.waitForInitialBreak();
   deepStrictEqual(cli.breakInfo, {

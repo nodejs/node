@@ -25,7 +25,6 @@ const fn2 = asyncResource.bind((a, b) => {
   return executionAsyncId();
 });
 
-assert.strictEqual(fn2.asyncResource, asyncResource);
 assert.strictEqual(fn2.length, 2);
 
 setImmediate(() => {

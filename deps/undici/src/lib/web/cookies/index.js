@@ -2,7 +2,7 @@
 
 const { parseSetCookie } = require('./parse')
 const { stringify } = require('./util')
-const { webidl } = require('../fetch/webidl')
+const { webidl } = require('../webidl')
 const { Headers } = require('../fetch/headers')
 
 const brandChecks = webidl.brandCheckMultiple([Headers, globalThis.Headers].filter(Boolean))
