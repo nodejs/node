@@ -617,7 +617,7 @@ IsolateData::~IsolateData() {}
 // Deprecated API, embedders should use v8::Object::Wrap() directly instead.
 void SetCppgcReference(Isolate* isolate,
                        Local<Object> object,
-                       void* wrappable) {
+                       v8::Object::Wrappable* wrappable) {
   v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(
       isolate, object, wrappable);
 }
