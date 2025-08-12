@@ -814,7 +814,7 @@ process.on('message', (message) => {
     ]);
   });
 
-  it('should watch files from a given glob pattern --watch-path=./**/*.js', async () => {
+  it('should watch files from a given glob pattern --watch-pattern=./**/*.js', async () => {
 
     const tmpDirForGlobTest = tmpdir.resolve('glob-test-dir');
     mkdirSync(tmpDirForGlobTest);
@@ -835,7 +835,7 @@ process.on('message', (message) => {
 
     const mainJsFile = createTmpFile('console.log(\'running\')', '.js', tmpDirForGlobTest);
 
-    const args = ['--watch-path', globPattern, mainJsFile];
+    const args = ['--watch-pattern', globPattern, mainJsFile];
     const watchedFiles = [tmpJsFile1, tmpJsFile2, tmpJsFile3, tmpJsFile4, tmpJsFile5];
 
     const { stderr, stdout } = await runWriteSucceed({
