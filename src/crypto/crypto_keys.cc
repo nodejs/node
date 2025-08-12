@@ -177,7 +177,7 @@ bool ExportJWKAsymmetricKey(Environment* env,
       // Fall through
     case EVP_PKEY_X448:
       return ExportJWKEdKey(env, key, target);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
     case EVP_PKEY_ML_DSA_44:
       // Fall through
     case EVP_PKEY_ML_DSA_65:
@@ -280,7 +280,7 @@ int GetNidFromName(const char* name) {
     nid = EVP_PKEY_X25519;
   } else if (strcmp(name, "X448") == 0) {
     nid = EVP_PKEY_X448;
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
   } else if (strcmp(name, "ML-DSA-44") == 0) {
     nid = EVP_PKEY_ML_DSA_44;
   } else if (strcmp(name, "ML-DSA-65") == 0) {
@@ -620,7 +620,7 @@ Local<Function> KeyObjectHandle::Initialize(Environment* env) {
     SetProtoMethod(isolate, templ, "exportJwk", ExportJWK);
     SetProtoMethod(isolate, templ, "initECRaw", InitECRaw);
     SetProtoMethod(isolate, templ, "initEDRaw", InitEDRaw);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
     SetProtoMethod(isolate, templ, "initMlDsaRaw", InitMlDsaRaw);
 #endif
     SetProtoMethod(isolate, templ, "initJwk", InitJWK);
@@ -643,7 +643,7 @@ void KeyObjectHandle::RegisterExternalReferences(
   registry->Register(ExportJWK);
   registry->Register(InitECRaw);
   registry->Register(InitEDRaw);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
   registry->Register(InitMlDsaRaw);
 #endif
   registry->Register(InitJWK);
@@ -838,7 +838,7 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(true);
 }
 
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
 void KeyObjectHandle::InitMlDsaRaw(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   KeyObjectHandle* key;
@@ -971,7 +971,7 @@ Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
       return env()->crypto_x25519_string();
     case EVP_PKEY_X448:
       return env()->crypto_x448_string();
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
     case EVP_PKEY_ML_DSA_44:
       return env()->crypto_ml_dsa_44_string();
     case EVP_PKEY_ML_DSA_65:
@@ -1254,7 +1254,7 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatJWK);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_44);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_65);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_87);
