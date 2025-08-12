@@ -460,7 +460,6 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
                 config_path);
         return std::nullopt;
       }
-      simdjson::ondemand::value exec_argv_value;
       std::vector<std::string> exec_argv;
       for (auto argv : exec_argv_array) {
         std::string_view argv_str;
