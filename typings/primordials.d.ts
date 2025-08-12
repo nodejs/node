@@ -428,6 +428,8 @@ declare namespace primordials {
   export const StringPrototypeToWellFormed: UncurryThis<typeof String.prototype.toWellFormed>
   export const StringPrototypeValueOf: UncurryThis<typeof String.prototype.valueOf>
   export const StringPrototypeReplaceAll: UncurryThis<typeof String.prototype.replaceAll>
+  // export import SuppressedError = globalThis.SuppressedError;
+  // export const SuppressedErrorPrototype: typeof SuppressedError.prototype;
   export import Symbol = globalThis.Symbol;
   export const SymbolPrototype: typeof Symbol.prototype
   export const SymbolFor: typeof Symbol.for
