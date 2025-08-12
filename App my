@@ -1,0 +1,537 @@
+# Building an enhanced Vakil On-Demand starter with added mock features:
+# - Matching algorithm (proximity + rating + fee)
+# - Mock OTP authentication
+# - Mock payment & invoice generation (text file)
+# - KYC upload (saved in localStorage)
+# - Mock map (simple canvas showing markers & compute ETA/distance)
+# - Real-time simulation via polling/intervals
+# - Urdu localization toggle
+# - CSV export for bookings
+# This will produce a zip ready to run (React single-page app).
+
+import os, zipfile, json, textwrap, shutil, base64
+base = "/mnt/data/vakil_on_demand_enhanced"
+if os.path.exists(base):
+    shutil.rmtree(base)
+os.makedirs(os.path.join(base, "public"), exist_ok=True)
+os.makedirs(os.path.join(base, "src"), exist_ok=True)
+
+package_json = {
+  "name": "vakil-on-demand-enhanced",
+  "version": "1.0.0",
+  "private": True,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build"
+  }
+}
+
+index_html = """<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Vakil On-Demand (Enhanced Starter)</title>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+"""
+
+index_js = """import React from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './styles.css';
+
+const root = createRoot(document.getElementById('root'));
+root.render(<App />);
+"""
+
+app_js = r"""import React, { useState, useEffect, useRef } from 'react';
+import { SAMPLE_LAWYERS } from './data';
+import { haversine, exportCSV } from './utils';
+
+// Simple Urdu translations
+const URDU = {
+  title: "وکيل آن ڈیمانڈ",
+  role: "کردار",
+  client: "کلائنٹ",
+  lawyer: "وکيل",
+  admin: "ایڈمن",
+  searchPlaceholder: "شہر یا کی ورڈ تلاش کریں (مثلا فیملی لا)",
+  availableLawyers: "دستیاب وکلا",
+  viewProfile: "پروفائل دیکھیں",
+  book: "بک کریں",
+  bookings: "بکنگز",
+  accept: "قبول کریں",
+  complete: "مکمل کریں",
+  approve: "منظور کریں",
+  payment: "ادائیگی",
+  payNow: "اب ادائیگی کریں",
+  otp: "OTP",
+  sendOTP: "OTP بھیجیں",
+  verify: "تصدیق کریں",
+  uploadKYC: "KYC اپ لوڈ کریں"
+};
+
+function Header({role, setRole, urdu, setUrdu}){
+  return (
+    <header className="header">
+      <h1>{urdu? URDU.title : 'VakilOnDemand'}</h1>
+      <div style={{display:'flex',gap:10,alignItems:'center'}}>
+        <label className="small">{urdu? URDU.role : 'Role'}:</label>
+        <select value={role} onChange={e=>setRole(e.target.value)}>
+          <option value="client">{urdu? URDU.client : 'Client'}</option>
+          <option value="lawyer">{urdu? URDU.lawyer : 'Lawyer'}</option>
+          <option value="admin">{urdu? URDU.admin : 'Admin'}</option>
+        </select>
+        <label className="small"><input type="checkbox" checked={urdu} onChange={e=>setUrdu(e.target.checked)} /> Urdu</label>
+      </div>
+    </header>
+  );
+}
+
+function SearchBar({query, setQuery, specialty, setSpecialty, urdu}){
+  return (
+    <div className="searchbar">
+      <input placeholder={urdu? URDU.searchPlaceholder : "Search city or keyword (e.g., family law)"} value={query} onChange={e=>setQuery(e.target.value)} />
+      <select value={specialty} onChange={e=>setSpecialty(e.target.value)}>
+        <option value="">{urdu? "تمام اسپیشلٹیز" : "All Specialties"}</option>
+        <option value="family">Family Law</option>
+        <option value="criminal">Criminal Law</option>
+        <option value="corporate">Corporate Law</option>
+        <option value="immigration">Immigration</option>
+      </select>
+    </div>
+  );
+}
+
+function MapMock({center, lawyers, urdu}){
+  // Simple SVG map mock: shows center and lawyer markers, computes distance & ETA (walking/car mock)
+  const width = 600, height = 300;
+  const cx = width/2, cy = height/2;
+  // lat/lng to simple xy transform (mock)
+  const latRange = 0.1, lngRange = 0.1;
+  function toXY(lat, lng){
+    const x = cx + ((lng - center.lng)/lngRange) * (width/2);
+    const y = cy - ((lat - center.lat)/latRange) * (height/2);
+    return {x,y};
+  }
+
+  return (
+    <div className="panel">
+      <h4>{urdu? 'نقشہ (نمونہ)' : 'Map (mock)'}</h4>
+      <svg width={width} height={height} style={{background:'#e6eef8', borderRadius:8}}>
+        <rect x="0" y="0" width={width} height={height} rx="8" fill="#eef6ff" />
+        <circle cx={cx} cy={cy} r="6" fill="#0ea5e9" />
+        <text x={cx+10} y={cy+5} style={{fontSize:12}}>{urdu? 'آپکا مقام' : 'Your location'}</text>
+        {lawyers.map(l=>{
+          const p = toXY(l.coords.lat, l.coords.lng);
+          return (
+            <g key={l.id}>
+              <circle cx={p.x} cy={p.y} r="5" fill="#10b981" />
+              <text x={p.x+8} y={p.y+4} style={{fontSize:11}}>{l.name} ({Math.round(haversine(center.lat, center.lng, l.coords.lat, l.coords.lng))} km)</text>
+            </g>
+          );
+        })}
+      </svg>
+      <div style={{marginTop:8}} className="muted">{urdu? 'فاصلہ کیلومیٹر میں نمونہ' : 'Distances shown in km (mock ETA based on 40 km/h)'}.</div>
+    </div>
+  );
+}
+
+function LawyerCard({lawyer, onView, onBook, urdu}){
+  return (
+    <div className="card">
+      <div>
+        <div className="name">{lawyer.name}</div>
+        <div className="muted">{lawyer.specialty.join(', ')} • {lawyer.city}</div>
+        <div className="muted">Rating: {lawyer.rating} • Fee: PKR {lawyer.fee}</div>
+      </div>
+      <div className="card-actions">
+        <button onClick={()=>onView(lawyer.id)}>{urdu? 'پروفائل' : 'View'}</button>
+        <button onClick={()=>onBook(lawyer.id)}>{urdu? 'بک' : 'Book'}</button>
+      </div>
+    </div>
+  );
+}
+
+function AuthMock({onLogin, urdu}){
+  const [phone, setPhone] = useState('03');
+  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState('');
+  function send(){
+    setSent(true);
+    alert(urdu? 'OTP بھیج دیا گیا (mock): 1234' : 'Mock OTP sent: 1234');
+  }
+  function verify(){
+    if(code.trim()==='1234'){ onLogin({phone}); } else { alert(urdu? 'غلط OTP' : 'Wrong OTP'); }
+  }
+  return (
+    <div className="panel">
+      <h4>{urdu? 'لاگ ان (نمونہ)' : 'Login (mock)'}</h4>
+      <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="03XXXXXXXXX" />
+      {!sent? <button onClick={send}>{urdu? URDU.sendOTP : 'Send OTP'}</button> :
+        <div>
+          <input value={code} onChange={e=>setCode(e.target.value)} placeholder={urdu? URDU.otp : 'Enter OTP (1234)'} />
+          <button onClick={verify}>{urdu? URDU.verify : 'Verify'}</button>
+        </div>
+      }
+    </div>
+  );
+}
+
+function PaymentMock({booking, onPaid, urdu}){
+  const [card, setCard] = useState('');
+  function pay(){
+    // mock success
+    const updated = {...booking, paid:true, status:'paid'};
+    onPaid(updated);
+    // create simple invoice file
+    const invoice = `INVOICE\nBooking ID: ${booking.id}\nLawyer: ${booking.lawyerName}\nAmount: PKR ${booking.fee}\nDate: ${new Date().toLocaleString()}\n`;
+    const blob = new Blob([invoice], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `invoice_${booking.id}.txt`; a.click(); URL.revokeObjectURL(url);
+  }
+  return (
+    <div className="panel">
+      <h4>{urdu? URDU.payment : 'Payment (mock)'}</h4>
+      <div className="muted">Amount: PKR {booking.fee}</div>
+      <input value={card} onChange={e=>setCard(e.target.value)} placeholder={urdu? 'کارڈ نمبر' : 'Card number (mock)'} />
+      <button onClick={pay}>{urdu? URDU.payNow : 'Pay Now (mock)'}</button>
+    </div>
+  );
+}
+
+
+function ClientView({user, urdu}){
+  const [query, setQuery] = useState('');
+  const [specialty, setSpecialty] = useState('');
+  const [lawyers, setLawyers] = useState(()=>JSON.parse(localStorage.getItem('lod_lawyers')) || SAMPLE_LAWYERS);
+  const [bookings, setBookings] = useState(()=>JSON.parse(localStorage.getItem('lod_bookings')||'[]'));
+  const [selected, setSelected] = useState(null);
+  const [center, setCenter] = useState({lat:33.6844, lng:73.0479}); // Islamabad mock
+  const [showPaymentFor, setShowPaymentFor] = useState(null);
+
+  useEffect(()=>{ localStorage.setItem('lod_lawyers', JSON.stringify(lawyers)); }, [lawyers]);
+  useEffect(()=>{ localStorage.setItem('lod_bookings', JSON.stringify(bookings)); }, [bookings]);
+
+  function filtered(){
+    return lawyers.filter(l=> (specialty? l.specialty.includes(specialty): true) &&
+      (query? (l.city.toLowerCase().includes(query.toLowerCase()) || l.name.toLowerCase().includes(query.toLowerCase())) : true) &&
+      l.approved
+    );
+  }
+
+  function viewProfile(id){ const l = lawyers.find(x=>x.id===id); setSelected(l); }
+
+  function bookLawyer(id, instant=true){
+    const l = lawyers.find(x=>x.id===id);
+    const distance = Math.round(haversine(center.lat, center.lng, l.coords.lat, l.coords.lng));
+    const etaMinutes = Math.max(5, Math.round((distance / 40) * 60)); // 40 km/h mock
+    const booking = {
+      id: Date.now(),
+      lawyerId: l.id,
+      lawyerName: l.name,
+      clientName: user? user.phone : 'Guest',
+      status: 'requested',
+      time: new Date().toISOString(),
+      fee: l.fee,
+      location: 'Client Address (demo)',
+      distance_km: distance,
+      eta_min: etaMinutes,
+      paid: false
+    };
+    // matching: notify top 3 by score
+    const candidates = lawyers.filter(x=> x.approved && x.id!==l.id);
+    // compute scores
+    const scored = candidates.map(c=>{
+      const dist = haversine(center.lat, center.lng, c.coords.lat, c.coords.lng);
+      const proximityScore = Math.max(0, 1 - (dist/30)); // within 30km
+      const ratingScore = c.rating/5;
+      const feeScore = 1 - Math.min(1, c.fee/10000);
+      const score = proximityScore*0.4 + ratingScore*0.4 + feeScore*0.2;
+      return {...c, score};
+    }).sort((a,b)=>b.score-a.score);
+    // store booking and simulate notifying top 3 (for demo we'll just add booking)
+    setBookings([booking, ...bookings]);
+    alert(urdu? 'بکنگ کی درخواست بھیج دی گئی' : 'Booking requested. Switch to Lawyer role to accept.');
+    // auto-simulate an acceptance by target lawyer after random delay (demo)
+    setTimeout(()=>{
+      const updated = {...booking, status:'accepted'};
+      setBookings(prev => prev.map(b=> b.id===booking.id? updated : b));
+      alert((urdu? 'وکيل نے قبول کر لیا: ' : 'A lawyer accepted: ') + booking.lawyerName);
+    }, 3000 + Math.floor(Math.random()*4000));
+  }
+
+  function onPaid(updated){
+    setBookings(prev => prev.map(b=> b.id===updated.id? updated: b));
+    setShowPaymentFor(null);
+  }
+
+  return (
+    <div>
+      <SearchBar query={query} setQuery={setQuery} specialty={specialty} setSpecialty={setSpecialty} urdu={urdu} />
+      <div className="layout">
+        <div className="left">
+          <h3>{urdu? URDU.availableLawyers : 'Available Lawyers'}</h3>
+          {filtered().map(l=> <LawyerCard key={l.id} lawyer={l} onView={viewProfile} onBook={()=>bookLawyer(l.id)} urdu={urdu} />)}
+          <div style={{marginTop:12}} className="panel">
+            <h4>{urdu? 'فاسٹ میچنگ (نمونہ)' : 'Quick matching (demo)'}</h4>
+            <button onClick={()=>{
+              // match using algorithm across all approved lawyers and show top 3
+              const candidates = lawyers.filter(x=>x.approved);
+              const scored = candidates.map(c=>{
+                const dist = haversine(center.lat, center.lng, c.coords.lat, c.coords.lng);
+                const proximityScore = Math.max(0, 1 - (dist/30));
+                const ratingScore = c.rating/5;
+                const feeScore = 1 - Math.min(1, c.fee/10000);
+                const score = proximityScore*0.4 + ratingScore*0.4 + feeScore*0.2;
+                return {...c, score, dist};
+              }).sort((a,b)=>b.score-a.score).slice(0,3);
+              alert('Top matches:\\n' + scored.map(s=> `${s.name} — ${Math.round(s.dist)}km — score:${s.score.toFixed(2)}`).join('\\n'));
+            }}>{urdu? 'میچ تلاش کریں' : 'Find Match'}</button>
+          </div>
+        </div>
+        <div className="right">
+          <MapMock center={center} lawyers={lawyers.filter(l=>l.approved)} urdu={urdu} />
+          {selected? (
+            <div className="panel">
+              <h3>{selected.name}</h3>
+              <div className="muted">{selected.specialty.join(', ')} • {selected.city}</div>
+              <p>{selected.bio}</p>
+              <div><strong>Fee:</strong> PKR {selected.fee} • <strong>Rating:</strong> {selected.rating}</div>
+              <div style={{marginTop:8}}>
+                <button onClick={()=>bookLawyer(selected.id)}>{urdu? 'ابھی بک کریں' : 'Book Now'}</button>
+                <button style={{marginLeft:8}} onClick={()=>setShowPaymentFor({id:Date.now(), fee:selected.fee, lawyerName:selected.name})}>{urdu? 'نمونہ ادائیگی' : 'Mock Pay'}</button>
+              </div>
+            </div>
+          ) : (
+            <div className="panel muted">{urdu? 'پروفائل منتخب کریں' : 'Select a lawyer to see profile here.'}</div>
+          )}
+          <div className="panel">
+            <h4>{urdu? URDU.bookings : 'Your Bookings (demo)'}</h4>
+            <button onClick={()=>exportCSV(bookings, 'bookings_export.csv')}>Export CSV</button>
+            {bookings.length===0? <div className="muted">No bookings yet.</div> : bookings.map(b => (
+              <div key={b.id} className="booking">
+                <div><strong>{b.lawyerName}</strong> • {new Date(b.time).toLocaleString()}</div>
+                <div className="muted">Status: {b.status} • Dist: {b.distance_km} km • ETA: {b.eta_min} min</div>
+                <div style={{marginTop:6}}>
+                  {!b.paid && <button onClick={()=>setShowPaymentFor(b)}>{urdu? 'ادائیگی' : 'Pay'}</button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {showPaymentFor && <PaymentMock booking={showPaymentFor} onPaid={onPaid} urdu={urdu} />}
+    </div>
+  );
+}
+
+function LawyerDashboard({urdu}){
+  const [lawyers, setLawyers] = useState(()=>JSON.parse(localStorage.getItem('lod_lawyers')) || SAMPLE_LAWYERS);
+  const [bookings, setBookings] = useState(()=>JSON.parse(localStorage.getItem('lod_bookings')||'[]'));
+
+  useEffect(()=>{ localStorage.setItem('lod_lawyers', JSON.stringify(lawyers)); }, [lawyers]);
+  useEffect(()=>{ localStorage.setItem('lod_bookings', JSON.stringify(bookings)); }, [bookings]);
+
+  function accept(id){ setBookings(bookings.map(b=> b.id===id? {...b, status:'accepted'} : b)); alert(urdu? 'بکنگ قبول' : 'Booking accepted'); }
+  function complete(id){ setBookings(bookings.map(b=> b.id===id? {...b, status:'completed'} : b)); }
+  function uploadKYC(ev, id){
+    const file = ev.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const dataUrl = reader.result;
+      setLawyers(prev => prev.map(l=> l.id===id? {...l, kyc:dataUrl}: l));
+      alert(urdu? 'KYC اپ لوڈ ہوا (مقامی)' : 'KYC uploaded (local)');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  const myBookings = bookings.filter(b=> true);
+
+  return (
+    <div>
+      <h2>{urdu? 'وکيل ڈیش بورڈ (نمونہ)' : 'Lawyer Dashboard (demo)'}</h2>
+      <div className="panel">
+        <h4>Incoming Requests</h4>
+        {myBookings.filter(b=>b.status==='requested').length===0? <div className="muted">No new requests.</div> : myBookings.filter(b=>b.status==='requested').map(b=> (
+          <div key={b.id} className="booking">
+            <div><strong>{b.clientName}</strong> • {b.location}</div>
+            <div className="muted">Fee: PKR {b.fee} • Dist: {b.distance_km} km • ETA: {b.eta_min} min</div>
+            <div className="row">
+              <button onClick={()=>accept(b.id)}>{urdu? URDU.accept : 'Accept'}</button>
+              <button onClick={()=>complete(b.id)}>{urdu? URDU.complete : 'Complete'}</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="panel">
+        <h4>All Bookings</h4>
+        {myBookings.length===0? <div className="muted">No bookings.</div> : myBookings.map(b=> (
+          <div key={b.id} className="booking">
+            <div><strong>{b.lawyerName}</strong> • {b.clientName} • {new Date(b.time).toLocaleString()}</div>
+            <div className="muted">Status: {b.status} • Paid: {b.paid? 'Yes' : 'No'}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="panel">
+        <h4>{urdu? URDU.uploadKYC : 'Upload KYC (local)'}</h4>
+        { (JSON.parse(localStorage.getItem('lod_lawyers')) || []).map(l=> (
+          <div key={l.id} style={{marginBottom:8}} className="card">
+            <div>
+              <div className="name">{l.name}</div>
+              <div className="muted">{l.specialty.join(', ')}</div>
+            </div>
+            <div>
+              <input type="file" onChange={(e)=>uploadKYC(e, l.id)} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminView({urdu}){
+  const [lawyers, setLawyers] = useState(()=>JSON.parse(localStorage.getItem('lod_lawyers')) || SAMPLE_LAWYERS);
+  const [bookings, setBookings] = useState(()=>JSON.parse(localStorage.getItem('lod_bookings')||'[]'));
+
+  function approveLawyer(id){ setLawyers(lawyers.map(l=> l.id===id? {...l, approved:true}: l)); alert(urdu? 'منظور شد' : 'Approved'); }
+
+  return (
+    <div>
+      <div className="layout">
+        <div className="left">
+          <div className="panel">
+            <h4>Lawyer Applications</h4>
+            {lawyers.filter(l=>!l.approved).length===0? <div className="muted">No pending.</div> : lawyers.filter(l=>!l.approved).map(l=> (
+              <div key={l.id} className="card">
+                <div>
+                  <div className="name">{l.name}</div>
+                  <div className="muted">{l.specialty.join(', ')}</div>
+                </div>
+                <div><button onClick={()=>approveLawyer(l.id)}>{urdu? URDU.approve : 'Approve'}</button></div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="right">
+          <div className="panel">
+            <h4>Bookings Overview</h4>
+            <div className="muted">Total bookings: {bookings.length}</div>
+            <div className="muted">Approved lawyers: {lawyers.filter(l=>l.approved).length}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App(){
+  const [role, setRole] = useState('client');
+  const [user, setUser] = useState(()=> JSON.parse(localStorage.getItem('lod_user')||'null'));
+  const [urdu, setUrdu] = useState(false);
+
+  useEffect(()=>{ document.title = 'VakilOnDemand (Enhanced Demo)'; }, []);
+
+  function onLogin(u){ setUser(u); localStorage.setItem('lod_user', JSON.stringify(u)); }
+
+  return (
+    <div>
+      <Header role={role} setRole={setRole} urdu={urdu} setUrdu={setUrdu} />
+      <div className="container">
+        {!user? <AuthMock onLogin={onLogin} urdu={urdu} /> : (
+          role==='client' ? <ClientView user={user} urdu={urdu} /> : role==='lawyer' ? <LawyerDashboard urdu={urdu} /> : <AdminView urdu={urdu} />
+        )}
+      </div>
+      <footer className="footer">Demo app — local data only. You can edit code & extend features.</footer>
+    </div>
+  );
+}
+"""
+
+data_js = """export const SAMPLE_LAWYERS = [
+  { id: 1, name: 'Ayesha Khan', specialty: ['family','immigration'], city: 'Islamabad', rating: 4.7, fee: 5000, bio: 'Experienced family lawyer with 8 years practice.', approved: true, coords: {lat:33.6844, lng:73.0479} },
+  { id: 2, name: 'Bilal Ahmed', specialty: ['criminal'], city: 'Rawalpindi', rating: 4.5, fee: 4000, bio: 'Criminal defense specialist.', approved: true, coords: {lat:33.5975, lng:73.0479} },
+  { id: 3, name: 'Dr. Sana R.', specialty: ['corporate','contracts'], city: 'Lahore', rating: 4.9, fee: 8000, bio: 'Corporate lawyer with international experience.', approved: false, coords: {lat:31.5204, lng:74.3587} },
+  { id: 4, name: 'Imran Qureshi', specialty: ['family','criminal'], city: 'Islamabad', rating: 4.2, fee: 3500, bio: 'Local counsel for civil cases.', approved: true, coords: {lat:33.7000, lng:73.0667} }
+];
+"""
+
+utils_js = r"""export function haversine(lat1, lon1, lat2, lon2){
+  const toRad = x => x * Math.PI / 180;
+  const R = 6371; // km
+  const dLat = toRad(lat2-lat1);
+  const dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+export function exportCSV(data, filename='export.csv'){
+  const rows = [Object.keys(data[0]||{}) , ...data.map(d=> Object.values(d))];
+  const csv = rows.map(r=> r.map(c=> `\"${String(c).replace(/\"/g,'\"\"')}\"`).join(',')).join('\\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
+}
+"""
+
+styles_css = """body { margin:0; font-family: Inter, system-ui, Arial; background:#f3f4f6; color:#111827; }
+.header { background:#111827; color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
+.header h1 { margin:0; font-size:20px; }
+.container { max-width:1000px; margin:18px auto; padding:0 12px; }
+.searchbar { display:flex; gap:8px; margin:12px 0; }
+.searchbar input, .searchbar select, .panel input { padding:8px; border:1px solid #e5e7eb; border-radius:6px; flex:1; }
+.layout { display:grid; grid-template-columns:1fr 320px; gap:12px; }
+.card { background:#fff; padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 1px 2px rgba(0,0,0,0.04); margin-bottom:8px; }
+.card .name { font-weight:600; }
+.muted { color:#6b7280; font-size:13px; }
+.panel { background:#fff; padding:12px; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.04); margin-bottom:12px; }
+.card-actions button, .row button, .card button { padding:8px 10px; border-radius:6px; border:1px solid #d1d5db; background:transparent; cursor:pointer; }
+.booking { background:#fafafa; padding:8px; border-radius:6px; margin-bottom:8px; }
+.footer { text-align:center; color:#6b7280; padding:12px 0; }
+small { color:#6b7280; }
+"""
+
+readme = """# Vakil On-Demand (Enhanced Starter Web App)\n\nThis enhanced starter includes mock implementations for many features of an on-demand app (maps mock, matching, OTP mock, payments mock, KYC local upload, Urdu toggle, CSV export). It's still a demo with localStorage persistence only — no backend or real payments.\n\n## How to run\n1. Ensure Node.js and npm are installed.\n2. Extract the zip, run `npm install` then `npm start`.\n3. Open http://localhost:3000\n\n## Notes\n- Map is a visual mock (SVG) showing relative positions using coordinates in `src/data.js`.\n- Payments are mocked and produce a text invoice file.\n- OTP is mocked (enter 1234 to pass).\n- KYC uploads are stored in localStorage as data URLs — not secure.\n- For production you must add backend APIs, authentication, real maps, routing, and payment gateway.\n"""
+
+# write files
+with open(os.path.join(base, "package.json"), "w") as f:
+    json.dump(package_json, f, indent=2)
+with open(os.path.join(base, "public", "index.html"), "w") as f:
+    f.write(index_html)
+with open(os.path.join(base, "src", "index.js"), "w") as f:
+    f.write(index_js)
+with open(os.path.join(base, "src", "App.jsx"), "w") as f:
+    f.write(app_js)
+with open(os.path.join(base, "src", "data.js"), "w") as f:
+    f.write(data_js)
+with open(os.path.join(base, "src", "utils.js"), "w") as f:
+    f.write(utils_js)
+with open(os.path.join(base, "src", "styles.css"), "w") as f:
+    f.write(styles_css)
+with open(os.path.join(base, "README.md"), "w") as f:
+    f.write(readme)
+
+# create zip
+zip_path = "/mnt/data/vakil_on_demand_enhanced.zip"
+with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+    for folder, _, files in os.walk(base):
+        for file in files:
+            full = os.path.join(folder, file)
+            arcname = os.path.relpath(full, base)
+            z.write(full, arcname)
+
+print("Created enhanced starter zip at", zip_path)
