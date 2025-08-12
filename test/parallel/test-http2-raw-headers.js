@@ -8,19 +8,23 @@ const http2 = require('http2');
 
 {
   const server = http2.createServer();
-  server.on('stream', common.mustCall((stream, headers, flags, rawHeaders) => {
+  server.on('stream', common.mustCall((stream, _headers, _flags, rawHeaders) => {
     assert.deepStrictEqual(rawHeaders, [
       ':path', '/foobar',
       ':scheme', 'http',
       ':authority', `localhost:${server.address().port}`,
       ':method', 'GET',
       'a', 'b',
-      'x-foo', 'bar',
-      'a', 'c',
+      'x-foo', 'bar', // Lowercased as required for HTTP/2
+      'a', 'c', // Duplicate header order preserved
     ]);
-    stream.respond({
-      ':status': 200
-    });
+    stream.respond([
+      ':status', '200',
+      'x', '1',
+      'x-FOO', 'bar',
+      'x', '2',
+      'DATE', '0000',
+    ]);
     stream.end();
   }));
 
@@ -49,8 +53,14 @@ const http2 = require('http2');
       'x-FOO': 'bar',
     });
 
-    req.on('response', common.mustCall((headers) => {
-      assert.strictEqual(headers[':status'], 200);
+    req.on('response', common.mustCall((_headers, _flags, rawHeaders) => {
+      assert.deepStrictEqual(rawHeaders, [
+        ':status', '200',
+        'x', '1',
+        'x-foo', 'bar', // Lowercased as required for HTTP/2
+        'x', '2', // Duplicate header order preserved
+        'date', '0000', // Server doesn't automatically set its own value
+      ]);
       client.close();
       server.close();
     }));
