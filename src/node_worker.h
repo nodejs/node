@@ -62,6 +62,7 @@ class Worker : public AsyncWrap {
   bool is_stopped() const;
   const SnapshotData* snapshot_data() const { return snapshot_data_; }
   bool is_internal() const { return is_internal_; }
+  std::string_view name() const { return name_; }
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CloneParentEnvVars(
@@ -80,6 +81,7 @@ class Worker : public AsyncWrap {
   static void LoopStartTime(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetHeapStatistics(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CpuUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   bool CreateEnvMessagePort(Environment* env);

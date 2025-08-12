@@ -174,7 +174,8 @@
     code: 'ERR_ASSERTION',
     actual: true,
     expected: false,
-    operator: 'strictEqual'
+    operator: 'strictEqual',
+    diff: 'simple'
   }
 
 *
@@ -288,6 +289,8 @@
       *
       *
       *
+      *
+      *
 
 *
  timed out async test (*ms)
@@ -357,7 +360,8 @@
     code: 'ERR_ASSERTION',
     actual: { foo: 1, bar: 1, boo: [ 1 ], baz: { date: 1970-01-01T00:00:00.000Z, null: null, number: 1, string: 'Hello', undefined: undefined } },
     expected: { boo: [ 1 ], baz: { date: 1970-01-01T00:00:00.000Z, null: null, number: 1, string: 'Hello', undefined: undefined }, circular: <ref *1> { bar: 2, c: [Circular *1] } },
-    operator: 'deepEqual'
+    operator: 'deepEqual',
+    diff: 'simple'
   }
 
 *

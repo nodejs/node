@@ -15,6 +15,8 @@
 
 namespace v8::internal {
 
+class RootVisitor;
+
 class GCCallbacks final {
  public:
   using CallbackType = void (*)(v8::Isolate*, GCType, GCCallbackFlags, void*);
@@ -72,6 +74,25 @@ class GCCallbacks final {
   std::vector<CallbackData> callbacks_;
 };
 
+// This interface allows to extend the GC to consider more roots during a GC
+// cycle. This allows us to avoid the use of handles in C++ objects.
+//
+// During a GC the `Iterate()` method will be invoked with the GC's RootVisitor
+// passed in as argument. The implementer of this interface needs to invoke the
+// visitor on each unhandlified pointer in the object. The GC will both keep the
+// referenced object alive and also updates its address if the object gets
+// relocated. Note that in order to do so `Iterate()` may be invoked more than
+// once per GC.
+//
+// Note that an object implementing GCRootsProvider still needs to be registered
+// with a thread (=LocalHeap/LocalIsolate) using GCRootsProviderScope.
+class GCRootsProvider {
+ public:
+  virtual ~GCRootsProvider() {}
+
+  virtual void Iterate(RootVisitor* v) = 0;
+};
+
 class GCCallbacksInSafepoint final {
  public:
   using CallbackType = void (*)(void*);
@@ -121,6 +142,25 @@ class GCCallbacksInSafepoint final {
   }
 
   std::vector<CallbackData> callbacks_;
+};
+
+// GCRootsProviderScope registers a C++ object implementing the GCRootsProvider
+// with the current thread (=LocalHeap/LocalIsolate) for the duration of the
+// scope.
+//
+// In every GC happening inside this scope, the GC will invoke the registered
+// GCRootsProvider for all threads. See GCRootsProvider for more details.
+class GCRootsProviderScope final {
+ public:
+  GCRootsProviderScope(LocalIsolate* local_isolate, GCRootsProvider* provider);
+  GCRootsProviderScope(LocalHeap* local_heap, GCRootsProvider* provider);
+  ~GCRootsProviderScope();
+
+  GCRootsProviderScope(GCRootsProviderScope&) = delete;
+  GCRootsProviderScope(GCRootsProviderScope&&) = delete;
+
+ private:
+  LocalHeap* local_heap_;
 };
 
 }  // namespace v8::internal

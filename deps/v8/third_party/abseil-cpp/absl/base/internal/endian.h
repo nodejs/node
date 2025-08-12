@@ -157,27 +157,27 @@ inline int64_t ToHost(int64_t x) {
 }
 
 // Functions to do unaligned loads and stores in little-endian order.
-inline uint16_t Load16(absl::Nonnull<const void *> p) {
+inline uint16_t Load16(const void* absl_nonnull p) {
   return ToHost16(ABSL_INTERNAL_UNALIGNED_LOAD16(p));
 }
 
-inline void Store16(absl::Nonnull<void *> p, uint16_t v) {
+inline void Store16(void* absl_nonnull p, uint16_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE16(p, FromHost16(v));
 }
 
-inline uint32_t Load32(absl::Nonnull<const void *> p) {
+inline uint32_t Load32(const void* absl_nonnull p) {
   return ToHost32(ABSL_INTERNAL_UNALIGNED_LOAD32(p));
 }
 
-inline void Store32(absl::Nonnull<void *> p, uint32_t v) {
+inline void Store32(void* absl_nonnull p, uint32_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE32(p, FromHost32(v));
 }
 
-inline uint64_t Load64(absl::Nonnull<const void *> p) {
+inline uint64_t Load64(const void* absl_nonnull p) {
   return ToHost64(ABSL_INTERNAL_UNALIGNED_LOAD64(p));
 }
 
-inline void Store64(absl::Nonnull<void *> p, uint64_t v) {
+inline void Store64(void* absl_nonnull p, uint64_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE64(p, FromHost64(v));
 }
 
@@ -247,27 +247,27 @@ inline int64_t ToHost(int64_t x) {
 }
 
 // Functions to do unaligned loads and stores in big-endian order.
-inline uint16_t Load16(absl::Nonnull<const void *> p) {
+inline uint16_t Load16(const void* absl_nonnull p) {
   return ToHost16(ABSL_INTERNAL_UNALIGNED_LOAD16(p));
 }
 
-inline void Store16(absl::Nonnull<void *> p, uint16_t v) {
+inline void Store16(void* absl_nonnull p, uint16_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE16(p, FromHost16(v));
 }
 
-inline uint32_t Load32(absl::Nonnull<const void *> p) {
+inline uint32_t Load32(const void* absl_nonnull p) {
   return ToHost32(ABSL_INTERNAL_UNALIGNED_LOAD32(p));
 }
 
-inline void Store32(absl::Nonnull<void *>p, uint32_t v) {
+inline void Store32(void* absl_nonnull p, uint32_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE32(p, FromHost32(v));
 }
 
-inline uint64_t Load64(absl::Nonnull<const void *> p) {
+inline uint64_t Load64(const void* absl_nonnull p) {
   return ToHost64(ABSL_INTERNAL_UNALIGNED_LOAD64(p));
 }
 
-inline void Store64(absl::Nonnull<void *> p, uint64_t v) {
+inline void Store64(void* absl_nonnull p, uint64_t v) {
   ABSL_INTERNAL_UNALIGNED_STORE64(p, FromHost64(v));
 }
 

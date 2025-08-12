@@ -329,7 +329,8 @@ MaybeLocal<Object> New(Isolate* isolate,
     if (actual > 0) [[likely]] {
       if (actual < length) {
         std::unique_ptr<BackingStore> old_store = std::move(store);
-        store = ArrayBuffer::NewBackingStore(isolate, actual);
+        store = ArrayBuffer::NewBackingStore(
+            isolate, actual, BackingStoreInitializationMode::kUninitialized);
         memcpy(store->Data(), old_store->Data(), actual);
       }
       Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, std::move(store));
@@ -416,7 +417,7 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
 
   CHECK(bs);
 
-  memcpy(bs->Data(), data, length);
+  if (length > 0) memcpy(bs->Data(), data, length);
 
   Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
 
@@ -506,6 +507,17 @@ MaybeLocal<Object> New(Environment* env,
     }
   }
 
+#if defined(V8_ENABLE_SANDBOX)
+  // When v8 sandbox is enabled, external backing stores are not supported
+  // since all arraybuffer allocations are expected to be done by the isolate.
+  // Since this violates the contract of this function, let's free the data and
+  // throw an error.
+  free(data);
+  THROW_ERR_OPERATION_FAILED(
+      env->isolate(),
+      "Wrapping external data is not supported when the v8 sandbox is enabled");
+  return MaybeLocal<Object>();
+#else
   EscapableHandleScope handle_scope(env->isolate());
 
   auto free_callback = [](void* data, size_t length, void* deleter_data) {
@@ -520,6 +532,7 @@ MaybeLocal<Object> New(Environment* env,
   if (Buffer::New(env, ab, 0, length).ToLocal(&obj))
     return handle_scope.Escape(obj);
   return Local<Object>();
+#endif
 }
 
 namespace {
@@ -742,7 +755,7 @@ uint32_t FastByteLengthUtf8(
   Local<String> sourceStr = sourceValue.As<String>();
 
   if (!sourceStr->IsExternalOneByte()) {
-    return sourceStr->Utf8Length(isolate);
+    return sourceStr->Utf8LengthV2(isolate);
   }
   auto source = sourceStr->GetExternalOneByteStringResource();
   // For short inputs, the function call overhead to simdutf is maybe
@@ -1048,8 +1061,9 @@ void IndexOfBuffer(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding enc = static_cast<enum encoding>(args[3].As<Int32>()->Value());
 
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[0]);
-  THROW_AND_RETURN_UNLESS_BUFFER(Environment::GetCurrent(args), args[1]);
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[0]);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, args[1]);
   ArrayBufferViewContents<char> haystack_contents(args[0]);
   ArrayBufferViewContents<char> needle_contents(args[1]);
   int64_t offset_i64 = args[2].As<Integer>()->Value();
@@ -1512,6 +1526,14 @@ uint32_t FastWriteString(Local<Value> receiver,
                          uint32_t max_length,
                          // NOLINTNEXTLINE(runtime/references)
                          FastApiCallbackOptions& options) {
+  // Just a heads up... this is a v8 fast api function. The use of
+  // FastOneByteString has some caveats. Specifically, a GC occurring
+  // between the time the FastOneByteString is created and the time
+  // we use it below can cause the FastOneByteString to become invalid
+  // and produce garbage data. This is not a problem here because we
+  // are not performing any allocations or other operations that would
+  // trigger a GC before the FastOneByteString is used. Take care when
+  // modifying this code to ensure that no operations would trigger a GC.
   HandleScope handle_scope(options.isolate);
   SPREAD_BUFFER_ARG(dst_obj, dst);
   CHECK(offset <= dst_length);
@@ -1621,20 +1643,16 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetBufferPrototype);
 
   registry->Register(SlowByteLengthUtf8);
-  registry->Register(fast_byte_length_utf8.GetTypeInfo());
-  registry->Register(FastByteLengthUtf8);
+  registry->Register(fast_byte_length_utf8);
   registry->Register(SlowCopy);
-  registry->Register(fast_copy.GetTypeInfo());
-  registry->Register(FastCopy);
+  registry->Register(fast_copy);
   registry->Register(Compare);
-  registry->Register(FastCompare);
-  registry->Register(fast_compare.GetTypeInfo());
+  registry->Register(fast_compare);
   registry->Register(CompareOffset);
   registry->Register(Fill);
   registry->Register(IndexOfBuffer);
   registry->Register(SlowIndexOfNumber);
-  registry->Register(FastIndexOfNumber);
-  registry->Register(fast_index_of_number.GetTypeInfo());
+  registry->Register(fast_index_of_number);
   registry->Register(IndexOfString);
 
   registry->Register(Swap16);
@@ -1655,12 +1673,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SlowWriteString<ASCII>);
   registry->Register(SlowWriteString<LATIN1>);
   registry->Register(SlowWriteString<UTF8>);
-  registry->Register(FastWriteString<ASCII>);
-  registry->Register(fast_write_string_ascii.GetTypeInfo());
-  registry->Register(FastWriteString<LATIN1>);
-  registry->Register(fast_write_string_latin1.GetTypeInfo());
-  registry->Register(FastWriteString<UTF8>);
-  registry->Register(fast_write_string_utf8.GetTypeInfo());
+  registry->Register(fast_write_string_ascii);
+  registry->Register(fast_write_string_latin1);
+  registry->Register(fast_write_string_utf8);
   registry->Register(StringWrite<ASCII>);
   registry->Register(StringWrite<BASE64>);
   registry->Register(StringWrite<BASE64URL>);

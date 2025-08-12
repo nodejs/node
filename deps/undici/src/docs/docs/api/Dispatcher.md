@@ -841,9 +841,28 @@ try {
 Compose a new dispatcher from the current dispatcher and the given interceptors.
 
 > _Notes_:
-> - The order of the interceptors matters. The first interceptor will be the first to be called.
+> - The order of the interceptors matters. The last interceptor will be the first to be called.
 > - It is important to note that the `interceptor` function should return a function that follows the `Dispatcher.dispatch` signature.
 > - Any fork of the chain of `interceptors` can lead to unexpected results.
+>
+> **Interceptor Stack Visualization:**
+> ```
+> compose([interceptor1, interceptor2, interceptor3])
+>
+> Request Flow:
+> ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+> │   Request   │───▶│interceptor3 │───▶│interceptor2 │───▶│interceptor1 │───▶│  dispatcher │
+> └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘    │   .dispatch │
+>                           ▲                   ▲                   ▲         └─────────────┘
+>                           │                   │                   │                ▲
+>                    (called first)      (called second)     (called last)           │
+>                                                                                    │
+> ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
+> │  Response   │◀───│interceptor3 │◀───│interceptor2 │◀───│interceptor1 │◀─────────┘
+> └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+>
+> The interceptors are composed in reverse order due to function composition.
+> ```
 
 Arguments:
 
@@ -1084,8 +1103,8 @@ The `cache` interceptor implements client-side response caching as described in
 
 - `store` - The [`CacheStore`](/docs/docs/api/CacheStore.md) to store and retrieve responses from. Default is [`MemoryCacheStore`](/docs/docs/api/CacheStore.md#memorycachestore).
 - `methods` - The [**safe** HTTP methods](https://www.rfc-editor.org/rfc/rfc9110#section-9.2.1) to cache the response of.
-- `cacheByDefault` - The default expiration time to cache responses by if they don't have an explicit expiration. If this isn't present, responses without explicit expiration will not be cached. Default `undefined`.
-- `type` - The type of cache for Undici to act as. Can be `shared` or `private`. Default `shared`.
+- `cacheByDefault` - The default expiration time to cache responses by if they don't have an explicit expiration and cannot have an heuristic expiry computed. If this isn't present, responses neither with an explicit expiration nor heuristically cacheable will not be cached. Default `undefined`.
+- `type` - The [type of cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching#types_of_caches) for Undici to act as. Can be `shared` or `private`. Default `shared`. `private` implies privately cacheable responses will be cached and potentially shared with other users of your application.
 
 ## Instance Events
 

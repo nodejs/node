@@ -48,6 +48,7 @@ typedef struct nghttp3_map_bucket {
 typedef struct nghttp3_map {
   nghttp3_map_bucket *table;
   const nghttp3_mem *mem;
+  uint64_t seed;
   size_t size;
   size_t hashbits;
 } nghttp3_map;
@@ -55,7 +56,7 @@ typedef struct nghttp3_map {
 /*
  * nghttp3_map_init initializes the map |map|.
  */
-void nghttp3_map_init(nghttp3_map *map, const nghttp3_mem *mem);
+void nghttp3_map_init(nghttp3_map *map, uint64_t seed, const nghttp3_mem *mem);
 
 /*
  * nghttp3_map_free deallocates any resources allocated for |map|.

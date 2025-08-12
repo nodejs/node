@@ -41,7 +41,6 @@ if (v8_gcmole) {
       "../../third_party/icu/source/i18n/",
       "../../third_party/inspector_protocol/",
       "../../third_party/libc++/src/",
-      "../../third_party/rapidhash-v8/",
       "../../third_party/simdutf/",
       "../../third_party/siphash/",
       "../../third_party/utf8-decoder/",

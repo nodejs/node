@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class TrustedPointerPublishingScope;
+
 // Indirect pointers.
 //
 // An indirect pointer references a HeapObject (like a tagged pointer), but

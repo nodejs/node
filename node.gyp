@@ -120,6 +120,7 @@
       'src/node_http_parser.cc',
       'src/node_http2.cc',
       'src/node_i18n.cc',
+      'src/node_locks.cc',
       'src/node_main_instance.cc',
       'src/node_messaging.cc',
       'src/node_metadata.cc',
@@ -163,6 +164,8 @@
       'src/permission/permission.cc',
       'src/permission/wasi_permission.cc',
       'src/permission/worker_permission.cc',
+      'src/permission/net_permission.cc',
+      'src/permission/addon_permission.cc',
       'src/pipe_wrap.cc',
       'src/process_wrap.cc',
       'src/signal_wrap.cc',
@@ -184,6 +187,8 @@
       'src/udp_wrap.cc',
       'src/util.cc',
       'src/uv.cc',
+      'src/quic/cid.cc',
+      'src/quic/data.cc',
       # headers to make for a more pleasant IDE experience
       'src/aliased_buffer.h',
       'src/aliased_buffer-inl.h',
@@ -205,6 +210,7 @@
       'src/connect_wrap.h',
       'src/connection_wrap.h',
       'src/cppgc_helpers.h',
+      'src/cppgc_helpers.cc',
       'src/dataqueue/queue.h',
       'src/debug_utils.h',
       'src/debug_utils-inl.h',
@@ -248,6 +254,7 @@
       'src/node_http2_state.h',
       'src/node_i18n.h',
       'src/node_internals.h',
+      'src/node_locks.h',
       'src/node_main_instance.h',
       'src/node_mem.h',
       'src/node_mem-inl.h',
@@ -291,6 +298,8 @@
       'src/permission/permission.h',
       'src/permission/wasi_permission.h',
       'src/permission/worker_permission.h',
+      'src/permission/net_permission.h',
+      'src/permission/addon_permission.h',
       'src/pipe_wrap.h',
       'src/req_wrap.h',
       'src/req_wrap-inl.h',
@@ -316,6 +325,10 @@
       'src/udp_wrap.h',
       'src/util.h',
       'src/util-inl.h',
+      'src/quic/cid.h',
+      'src/quic/data.h',
+      'src/quic/defs.h',
+      'src/quic/guard.h',
     ],
     'node_crypto_sources': [
       'src/crypto/crypto_aes.cc',
@@ -329,6 +342,7 @@
       'src/crypto/crypto_cipher.cc',
       'src/crypto/crypto_context.cc',
       'src/crypto/crypto_ec.cc',
+      'src/crypto/crypto_ml_dsa.cc',
       'src/crypto/crypto_hmac.cc',
       'src/crypto/crypto_random.cc',
       'src/crypto/crypto_rsa.cc',
@@ -360,6 +374,7 @@
       'src/crypto/crypto_clienthello.h',
       'src/crypto/crypto_context.h',
       'src/crypto/crypto_ec.h',
+      'src/crypto/crypto_ml_dsa.h',
       'src/crypto/crypto_hkdf.h',
       'src/crypto/crypto_pbkdf2.h',
       'src/crypto/crypto_sig.h',
@@ -372,8 +387,6 @@
     'node_quic_sources': [
       'src/quic/application.cc',
       'src/quic/bindingdata.cc',
-      'src/quic/cid.cc',
-      'src/quic/data.cc',
       'src/quic/endpoint.cc',
       'src/quic/http3.cc',
       'src/quic/logstream.cc',
@@ -387,8 +400,6 @@
       'src/quic/transportparams.cc',
       'src/quic/application.h',
       'src/quic/bindingdata.h',
-      'src/quic/cid.h',
-      'src/quic/data.h',
       'src/quic/endpoint.h',
       'src/quic/http3.h',
       'src/quic/logstream.h',
@@ -507,7 +518,7 @@
       'target_name': 'node_text_start',
       'type': 'none',
       'conditions': [
-        [ 'OS in "linux freebsd solaris" and '
+        [ 'OS in "linux freebsd solaris openharmony" and '
           'target_arch=="x64"', {
           'type': 'static_library',
           'sources': [
@@ -625,7 +636,7 @@
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', '-Wl,-rpath,@loader_path/../lib'],
           },
           'conditions': [
-            ['OS=="linux"', {
+            ['OS=="linux" or OS=="openharmony"', {
                'ldflags': [
                  '-Wl,-rpath,\\$$ORIGIN/../lib'
                ],
@@ -730,7 +741,7 @@
             'src/node_snapshot_stub.cc'
           ],
         }],
-        [ 'OS in "linux freebsd" and '
+        [ 'OS in "linux freebsd openharmony" and '
           'target_arch=="x64"', {
           'dependencies': [ 'node_text_start' ],
           'ldflags+': [
@@ -955,7 +966,7 @@
           ],
           'defines': [ 'HAVE_SQLITE=1' ],
         }],
-        [ 'OS in "linux freebsd mac solaris" and '
+        [ 'OS in "linux freebsd mac solaris openharmony" and '
           'target_arch=="x64" and '
           'node_target_type=="executable"', {
           'defines': [ 'NODE_ENABLE_LARGE_CODE_PAGES=1' ],
@@ -1064,11 +1075,11 @@
         'test/fuzzers/fuzz_env.cc',
       ],
       'conditions': [
-        ['OS=="linux"', {
+        ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
         # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS!="linux" or ossfuzz!="true"', {
+        [ 'OS not in "linux openharmony" or ossfuzz!="true"', {
           'type': 'none',
         }],
         # Avoid excessive LTO
@@ -1107,11 +1118,11 @@
         'test/fuzzers/fuzz_ClientHelloParser.cc',
       ],
       'conditions': [
-        ['OS=="linux"', {
+        ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
         # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS!="linux" or ossfuzz!="true"', {
+        [ 'OS not in "linux openharmony" or ossfuzz!="true"', {
           'type': 'none',
         }],
         # Avoid excessive LTO
@@ -1152,11 +1163,11 @@
         'test/fuzzers/fuzz_strings.cc',
       ],
       'conditions': [
-        ['OS=="linux"', {
+        ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
         # Ensure that ossfuzz flag has been set and that we are on Linux
-        [ 'OS!="linux" or ossfuzz!="true"', {
+        [ 'OS not in "linux openharmony" or ossfuzz!="true"', {
           'type': 'none',
         }],
         # Avoid excessive LTO
@@ -1332,6 +1343,13 @@
       ]
     }, # overlapped-checker
     {
+      'target_name': 'nop',
+      'type': 'executable',
+      'sources': [
+        'test/nop/nop.c',
+      ]
+    }, # nop
+    {
       'target_name': 'node_js2c',
       'type': 'executable',
       'toolsets': ['host'],
@@ -1352,7 +1370,7 @@
         [ 'node_shared_libuv=="false"', {
           'dependencies': [ 'deps/uv/uv.gyp:libuv#host' ],
         }],
-        [ 'OS in "linux mac"', {
+        [ 'OS in "linux mac openharmony"', {
           'defines': ['NODE_JS2C_USE_STRING_LITERALS'],
         }],
         [ 'debug_node=="true"', {

@@ -2155,43 +2155,49 @@ template <typename Char>
 template <typename SinkChar>
 void JsonParser<Char>::DecodeString(SinkChar* sink, uint32_t start,
                                     uint32_t length) {
-  SinkChar* sink_start = sink;
   const Char* cursor = chars_ + start;
-  while (true) {
-    const Char* end = cursor + length - (sink - sink_start);
-    cursor = std::find_if(cursor, end, [&sink](Char c) {
-      if (c == '\\') return true;
-      *sink++ = c;
-      return false;
-    });
+  while (length > 0) {
+    // Copy everything until the first escape character
+    const Char* backslash_pos = std::find(cursor, cursor + length, '\\');
+    size_t to_copy = backslash_pos - cursor;
+    std::copy_n(cursor, to_copy, sink);
+    length -= to_copy;
+    cursor += to_copy;
+    sink += to_copy;
 
-    if (cursor == end) return;
+    if (length == 0) return;
 
     cursor++;
 
     switch (GetEscapeKind(character_json_scan_flags[*cursor])) {
       case EscapeKind::kSelf:
         *sink++ = *cursor;
+        length--;
         break;
 
       case EscapeKind::kBackspace:
         *sink++ = '\x08';
+        length--;
         break;
 
       case EscapeKind::kTab:
         *sink++ = '\x09';
+        length--;
         break;
 
       case EscapeKind::kNewLine:
         *sink++ = '\x0A';
+        length--;
         break;
 
       case EscapeKind::kFormFeed:
         *sink++ = '\x0C';
+        length--;
         break;
 
       case EscapeKind::kCarriageReturn:
         *sink++ = '\x0D';
+        length--;
         break;
 
       case EscapeKind::kUnicode: {
@@ -2202,9 +2208,12 @@ void JsonParser<Char>::DecodeString(SinkChar* sink, uint32_t start,
         if (value <=
             static_cast<base::uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
           *sink++ = value;
+          length--;
         } else {
+          SBXCHECK_GE(length, 2);
           *sink++ = unibrow::Utf16::LeadSurrogate(value);
           *sink++ = unibrow::Utf16::TrailSurrogate(value);
+          length -= 2;
         }
         break;
       }

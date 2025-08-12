@@ -165,6 +165,7 @@ experimental domain Network
       string url
       string method
       Headers headers
+      boolean hasPostData
 
   # HTTP response data.
   type Response extends object
@@ -173,15 +174,59 @@ experimental domain Network
       integer status
       string statusText
       Headers headers
+      string mimeType
+      string charset
 
   # Request / response headers as keys / values of JSON object.
   type Headers extends object
+
+  type LoadNetworkResourcePageResult extends object
+    properties
+      boolean success
+      optional IO.StreamHandle stream
 
   # Disables network tracking, prevents network events from being sent to the client.
   command disable
 
   # Enables network tracking, network events will now be delivered to the client.
   command enable
+
+  # Returns post data sent with the request. Returns an error when no data was sent with the request.
+  command getRequestPostData
+    parameters
+      # Identifier of the network request to get content for.
+      RequestId requestId
+    returns
+      # Request body string, omitting files from multipart requests
+      string postData
+
+  # Returns content served for the given request.
+  command getResponseBody
+    parameters
+      # Identifier of the network request to get content for.
+      RequestId requestId
+    returns
+      # Response body.
+      string body
+      # True, if content was sent as base64.
+      boolean base64Encoded
+
+  # Enables streaming of the response for the given requestId.
+  # If enabled, the dataReceived event contains the data that was received during streaming.
+  experimental command streamResourceContent
+    parameters
+      # Identifier of the request to stream.
+      RequestId requestId
+    returns
+      # Data that has been buffered until streaming is enabled.
+      binary bufferedData
+  # Fetches the resource and returns the content.
+  command loadNetworkResource
+    parameters
+      # URL of the resource to get content for.
+      string url
+    returns
+      LoadNetworkResourcePageResult resource
 
   # Fired when page is about to send HTTP request.
   event requestWillBeSent
@@ -226,6 +271,20 @@ experimental domain Network
       RequestId requestId
       # Timestamp.
       MonotonicTime timestamp
+
+  # Fired when data chunk was received over the network.
+  event dataReceived
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # Data chunk length.
+      integer dataLength
+      # Actual bytes received (might be less than dataLength for compressed encodings).
+      integer encodedDataLength
+      # Data that was received.
+      experimental optional binary data
 
 # Support for inspecting node process state.
 experimental domain NodeRuntime
@@ -274,3 +333,24 @@ experimental domain Target
     parameters
       boolean autoAttach
       boolean waitForDebuggerOnStart
+domain IO
+  type StreamHandle extends string
+  # Read a chunk of the stream
+  command read
+    parameters
+      # Handle of the stream to read.
+      StreamHandle handle
+      # Seek to the specified offset before reading (if not specified, proceed with offset
+      # following the last read). Some types of streams may only support sequential reads.
+      optional integer offset
+      # Maximum number of bytes to read (left upon the agent discretion if not specified).
+      optional integer size
+    returns
+      # Data that were read.
+      string data
+      # Set if the end-of-file condition occurred while reading.
+      boolean eof
+  command close
+    parameters
+      # Handle of the stream to close.
+      StreamHandle handle

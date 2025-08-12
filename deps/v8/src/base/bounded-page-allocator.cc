@@ -112,6 +112,52 @@ bool BoundedPageAllocator::AllocatePagesAt(Address address, size_t size,
   return true;
 }
 
+bool BoundedPageAllocator::ResizeAllocationAt(
+    void* address, size_t old_size, size_t new_size,
+    PageAllocator::Permission access) {
+  MutexGuard guard(&mutex_);
+
+  const Address address_at = reinterpret_cast<Address>(address);
+  DCHECK(IsAligned(old_size, commit_page_size_));
+  DCHECK(IsAligned(new_size, commit_page_size_));
+
+  if (new_size < old_size) {
+    // Shrinking is not supported at the moment.
+    return false;
+  } else if (new_size == old_size) {
+    // Nothing to do in this case.
+    return true;
+  }
+
+  DCHECK_LT(old_size, new_size);
+
+  const Address allocated_old_size = RoundUp(old_size, allocate_page_size_);
+  const Address allocated_new_size = RoundUp(new_size, allocate_page_size_);
+
+  if (allocated_old_size < allocated_new_size) {
+    if (!region_allocator_.TryGrowRegion(address_at, allocated_new_size)) {
+      allocation_status_ = AllocationStatus::kHintedAddressTakenOrNotFound;
+      return false;
+    }
+  }
+
+  if (!page_allocator_->SetPermissions(
+          reinterpret_cast<void*>(address_at + old_size), new_size - old_size,
+          access)) {
+    if (allocated_old_size < allocated_new_size) {
+      // This most likely means that we ran out of memory.
+      CHECK_EQ(region_allocator_.TrimRegion(address_at, allocated_old_size),
+               allocated_new_size - allocated_old_size);
+    }
+
+    allocation_status_ = AllocationStatus::kFailedToCommit;
+    return false;
+  }
+
+  allocation_status_ = AllocationStatus::kSuccess;
+  return true;
+}
+
 bool BoundedPageAllocator::ReserveForSharedMemoryMapping(void* ptr,
                                                          size_t size) {
   MutexGuard guard(&mutex_);

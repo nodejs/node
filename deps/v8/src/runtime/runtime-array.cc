@@ -20,7 +20,8 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   DirectHandle<JSObject> object = args.at<JSObject>(0);
   DirectHandle<Map> to_map = args.at<Map>(1);
   ElementsKind to_kind = to_map->elements_kind();
-  ElementsAccessor::ForKind(to_kind)->TransitionElementsKind(object, to_map);
+  ElementsAccessor::ForKind(to_kind)->TransitionElementsKind(isolate, object,
+                                                             to_map);
   return *object;
 }
 
@@ -29,7 +30,7 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKindWithKind) {
   DCHECK_EQ(2, args.length());
   DirectHandle<JSObject> object = args.at<JSObject>(0);
   ElementsKind to_kind = static_cast<ElementsKind>(args.smi_value_at(1));
-  JSObject::TransitionElementsKind(object, to_kind);
+  JSObject::TransitionElementsKind(isolate, object, to_kind);
   return *object;
 }
 
@@ -112,8 +113,8 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
       array, 0, 0, ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   ElementsKind old_kind = array->GetElementsKind();
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              ArrayConstructInitializeElements(array, &argv));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, ArrayConstructInitializeElements(isolate, array, &argv));
   if (!site.is_null()) {
     if ((old_kind != array->GetElementsKind() || !can_use_type_feedback ||
          !can_inline_array_constructor)) {
@@ -144,7 +145,7 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
   DirectHandle<JSObject> array = args.at<JSObject>(0);
   CHECK(!array->HasTypedArrayOrRabGsabTypedArrayElements());
   CHECK(!IsJSGlobalProxy(*array));
-  JSObject::NormalizeElements(array);
+  JSObject::NormalizeElements(isolate, array);
   return *array;
 }
 
@@ -177,7 +178,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
     bool has_grown;
     MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, has_grown,
-        object->GetElementsAccessor()->GrowCapacity(object, index));
+        object->GetElementsAccessor()->GrowCapacity(isolate, object, index));
     if (!has_grown) {
       return Smi::zero();
     }

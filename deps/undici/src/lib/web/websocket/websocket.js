@@ -1,6 +1,6 @@
 'use strict'
 
-const { webidl } = require('../fetch/webidl')
+const { webidl } = require('../webidl')
 const { URLSerializer } = require('../fetch/data-url')
 const { environmentSettingsObject } = require('../fetch/util')
 const { staticPropertyDescriptors, states, sentCloseFrameState, sendHints, opcodes } = require('./constants')
@@ -8,6 +8,7 @@ const {
   isConnecting,
   isEstablished,
   isClosing,
+  isClosed,
   isValidSubprotocol,
   fireEvent,
   utf8Decode,
@@ -21,6 +22,7 @@ const { getGlobalDispatcher } = require('../../global')
 const { types } = require('node:util')
 const { ErrorEvent, CloseEvent, createFastMessageEvent } = require('./events')
 const { SendQueue } = require('./sender')
+const { WebsocketFrameSend } = require('./frame')
 const { channels } = require('../../core/diagnostics')
 
 /**
@@ -33,6 +35,8 @@ const { channels } = require('../../core/diagnostics')
  * @property {(chunk: Buffer) => void} onSocketData
  * @property {(err: Error) => void} onSocketError
  * @property {() => void} onSocketClose
+ * @property {(body: Buffer) => void} onPing
+ * @property {(body: Buffer) => void} onPong
  *
  * @property {number} readyState
  * @property {import('stream').Duplex} socket
@@ -60,7 +64,7 @@ class WebSocket extends EventTarget {
   /** @type {Handler} */
   #handler = {
     onConnectionEstablished: (response, extensions) => this.#onConnectionEstablished(response, extensions),
-    onFail: (code, reason) => this.#onFail(code, reason),
+    onFail: (code, reason, cause) => this.#onFail(code, reason, cause),
     onMessage: (opcode, data) => this.#onMessage(opcode, data),
     onParserError: (err) => failWebsocketConnection(this.#handler, null, err.message),
     onParserDrain: () => this.#onParserDrain(),
@@ -79,6 +83,22 @@ class WebSocket extends EventTarget {
       this.#handler.socket.destroy()
     },
     onSocketClose: () => this.#onSocketClose(),
+    onPing: (body) => {
+      if (channels.ping.hasSubscribers) {
+        channels.ping.publish({
+          payload: body,
+          websocket: this
+        })
+      }
+    },
+    onPong: (body) => {
+      if (channels.pong.hasSubscribers) {
+        channels.pong.publish({
+          payload: body,
+          websocket: this
+        })
+      }
+    },
 
     readyState: states.CONNECTING,
     socket: null,
@@ -460,13 +480,22 @@ class WebSocket extends EventTarget {
 
     // 4. Fire an event named open at the WebSocket object.
     fireEvent('open', this)
+
+    if (channels.open.hasSubscribers) {
+      channels.open.publish({
+        address: response.socket.address(),
+        protocol: this.#protocol,
+        extensions: this.#extensions,
+        websocket: this
+      })
+    }
   }
 
-  #onFail (code, reason) {
+  #onFail (code, reason, cause) {
     if (reason) {
       // TODO: process.nextTick
       fireEvent('error', this, (type, init) => new ErrorEvent(type, init), {
-        error: new Error(reason),
+        error: new Error(reason, cause ? { cause } : undefined),
         message: reason
       })
     }
@@ -586,7 +615,33 @@ class WebSocket extends EventTarget {
       })
     }
   }
+
+  /**
+   * @param {WebSocket} ws
+   * @param {Buffer|undefined} buffer
+   */
+  static ping (ws, buffer) {
+    if (Buffer.isBuffer(buffer)) {
+      if (buffer.length > 125) {
+        throw new TypeError('A PING frame cannot have a body larger than 125 bytes.')
+      }
+    } else if (buffer !== undefined) {
+      throw new TypeError('Expected buffer payload')
+    }
+
+    // An endpoint MAY send a Ping frame any time after the connection is
+    // established and before the connection is closed.
+    const readyState = ws.#handler.readyState
+
+    if (isEstablished(readyState) && !isClosing(readyState) && !isClosed(readyState)) {
+      const frame = new WebsocketFrameSend(buffer)
+      ws.#handler.socket.write(frame.createFrame(opcodes.PING))
+    }
+  }
 }
+
+const { ping } = WebSocket
+Reflect.deleteProperty(WebSocket, 'ping')
 
 // https://websockets.spec.whatwg.org/#dom-websocket-connecting
 WebSocket.CONNECTING = WebSocket.prototype.CONNECTING = states.CONNECTING
@@ -682,5 +737,6 @@ webidl.converters.WebSocketSendData = function (V) {
 }
 
 module.exports = {
-  WebSocket
+  WebSocket,
+  ping
 }

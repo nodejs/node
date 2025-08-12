@@ -853,7 +853,7 @@
     },
 
     'conservative_stack_scanning': {
-      'gn_args': 'v8_enable_conservative_stack_scanning=true',
+      'gn_args': 'v8_enable_direct_handle=true',
     },
 
     'dcheck_always_on': {
@@ -953,7 +953,7 @@
     },
 
     'no_reclient': {
-      'gn_args': 'use_remoteexec=false',
+      'gn_args': 'use_remoteexec=false use_siso=false',
     },
 
     'no_sandbox': {
@@ -968,8 +968,11 @@
       'gn_args': 'v8_use_perfetto=true',
     },
 
+    # TODO(https://crbug.com/414724525): Temporarily use the reclient and siso
+    # configs synonym. In a follow up we'll drop the reclient parts and replace
+    # them with SISO configs.
     'reclient': {
-      'gn_args': 'use_remoteexec=true',
+      'gn_args': 'use_remoteexec=true use_siso=true',
     },
 
     'release': {

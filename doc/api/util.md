@@ -185,7 +185,7 @@ let log = debuglog('internals', (debug) => {
 added: v14.9.0
 -->
 
-* {boolean}
+* Type: {boolean}
 
 The `util.debuglog().enabled` getter is used to create a test that can be used
 in conditionals based on the existence of the `NODE_DEBUG` environment variable.
@@ -340,8 +340,8 @@ added:
 * `expected` {Array|string} The second value to compare
 
 * Returns: {Array} An array of difference entries. Each entry is an array with two elements:
-  * Index 0: {number} Operation code: `-1` for delete, `0` for no-op/unchanged, `1` for insert
-  * Index 1: {string} The value associated with the operation
+  * `0` {number} Operation code: `-1` for delete, `0` for no-op/unchanged, `1` for insert
+  * `1` {string} The value associated with the operation
 
 * Algorithm complexity: O(N\*D), where:
 
@@ -739,6 +739,16 @@ fs.access('file/that/does/not/exist', (err) => {
 });
 ```
 
+## `util.setTraceSigInt(enable)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `enable` {boolean}
+
+Enable or disable printing a stack trace on `SIGINT`. The API is only available on the main thread.
+
 ## `util.inherits(constructor, superConstructor)`
 
 <!-- YAML
@@ -973,8 +983,8 @@ The `util.inspect()` method returns a string representation of `object` that is
 intended for debugging. The output of `util.inspect` may change at any time
 and should not be depended upon programmatically. Additional `options` may be
 passed that alter the result.
-`util.inspect()` will use the constructor's name and/or `@@toStringTag` to make
-an identifiable tag for an inspected value.
+`util.inspect()` will use the constructor's name and/or `Symbol.toStringTag`
+property to make an identifiable tag for an inspected value.
 
 ```js
 class Foo {
@@ -1305,19 +1315,19 @@ ignored, if not supported.
 * `reset` - Resets all (color) modifiers to their defaults
 * **bold** - Make text bold
 * _italic_ - Make text italic
-* <span style="border-bottom: 1px;">underline</span> - Make text underlined
+* <span style="border-bottom: 1px solid;">underline</span> - Make text underlined
 * ~~strikethrough~~ - Puts a horizontal line through the center of the text
   (Alias: `strikeThrough`, `crossedout`, `crossedOut`)
 * `hidden` - Prints the text, but makes it invisible (Alias: conceal)
 * <span style="opacity: 0.5;">dim</span> - Decreased color intensity (Alias:
   `faint`)
-* <span style="border-top: 1px">overlined</span> - Make text overlined
+* <span style="border-top: 1px solid;">overlined</span> - Make text overlined
 * blink - Hides and shows the text in an interval
-* <span style="filter: invert(100%)">inverse</span> - Swap foreground and
+* <span style="filter: invert(100%);">inverse</span> - Swap foreground and
   background colors (Alias: `swapcolors`, `swapColors`)
 * <span style="border-bottom: 1px double;">doubleunderline</span> - Make text
   double underlined (Alias: `doubleUnderline`)
-* <span style="border: 1px">framed</span> - Draw a frame around the text
+* <span style="border: 1px solid;">framed</span> - Draw a frame around the text
 
 #### Foreground colors
 
@@ -1476,7 +1486,7 @@ changes:
     description: This is now defined as a shared symbol.
 -->
 
-* {symbol} that can be used to declare custom inspect functions.
+* Type: {symbol} that can be used to declare custom inspect functions.
 
 In addition to being accessible through `util.inspect.custom`, this
 symbol is [registered globally][global symbol registry] and can be
@@ -1619,7 +1629,7 @@ console.log(String(myMIME));
 
 ### `mime.type`
 
-* {string}
+* Type: {string}
 
 Gets and sets the type portion of the MIME.
 
@@ -1651,7 +1661,7 @@ console.log(String(myMIME));
 
 ### `mime.subtype`
 
-* {string}
+* Type: {string}
 
 Gets and sets the subtype portion of the MIME.
 
@@ -1683,7 +1693,7 @@ console.log(String(myMIME));
 
 ### `mime.essence`
 
-* {string}
+* Type: {string}
 
 Gets the essence of the MIME. This property is read only.
 Use `mime.type` or `mime.subtype` to alter the MIME.
@@ -1716,7 +1726,7 @@ console.log(String(myMIME));
 
 ### `mime.params`
 
-* {MIMEParams}
+* Type: {MIMEParams}
 
 Gets the [`MIMEParams`][] object representing the
 parameters of the MIME. This property is read-only. See
@@ -1884,7 +1894,7 @@ console.log(params.toString());
 
 Returns an iterator over the values of each name-value pair.
 
-### `mimeParams[@@iterator]()`
+### `mimeParams[Symbol.iterator]()`
 
 * Returns: {Iterator}
 
@@ -1955,10 +1965,12 @@ changes:
       times. If `true`, all values will be collected in an array. If
       `false`, values for the option are last-wins. **Default:** `false`.
     * `short` {string} A single character alias for the option.
-    * `default` {string | boolean | string\[] | boolean\[]} The default value to
-      be used if (and only if) the option does not appear in the arguments to be
-      parsed. It must be of the same type as the `type` property. When `multiple`
-      is `true`, it must be an array.
+    * `default` {string | boolean | string\[] | boolean\[]} The value to assign to
+      the option if it does not appear in the arguments to be parsed. The value
+      must match the type specified by the `type` property. If `multiple` is
+      `true`, it must be an array. No default value is applied when the option
+      does appear in the arguments to be parsed, even if the provided value
+      is falsy.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
@@ -2365,7 +2377,7 @@ changes:
     description: This is now defined as a shared symbol.
 -->
 
-* {symbol} that can be used to declare custom promisified variants of functions,
+* Type: {symbol} that can be used to declare custom promisified variants of functions,
   see [Custom promisified functions][].
 
 In addition to being accessible through `util.promisify.custom`, this
@@ -2408,6 +2420,11 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
+  - version:
+      - v24.2.0
+      - v22.17.0
+    pr-url: https://github.com/nodejs/node/pull/58437
+    description: Added the `'none'` format as a non-op format.
   - version:
     - v23.5.0
     - v22.13.0
@@ -2482,6 +2499,8 @@ console.log(
   util.styleText(['red', 'green'], 'text'), // green
 );
 ```
+
+The special format value `none` applies no additional styling to the text.
 
 The full list of formats can be found in [modifiers][].
 
@@ -2605,20 +2624,20 @@ If `textDecoder.fatal` is `true`, decoding errors that occur will result in a
 
 ### `textDecoder.encoding`
 
-* {string}
+* Type: {string}
 
 The encoding supported by the `TextDecoder` instance.
 
 ### `textDecoder.fatal`
 
-* {boolean}
+* Type: {boolean}
 
 The value will be `true` if decoding errors result in a `TypeError` being
 thrown.
 
 ### `textDecoder.ignoreBOM`
 
-* {boolean}
+* Type: {boolean}
 
 The value will be `true` if the decoding result will include the byte order
 mark.
@@ -2675,7 +2694,7 @@ const { read, written } = encoder.encodeInto(src, dest);
 
 ### `textEncoder.encoding`
 
-* {string}
+* Type: {string}
 
 The encoding supported by the `TextEncoder` instance. Always set to `'utf-8'`.
 
@@ -2739,7 +2758,9 @@ added:
  - v19.7.0
  - v18.16.0
 changes:
- - version: v24.0.0
+ - version:
+   - v24.0.0
+   - v22.16.0
    pr-url: https://github.com/nodejs/node/pull/57765
    description: Change stability index for this feature from Experimental to Stable.
 -->
@@ -3113,7 +3134,9 @@ For further information on `napi_create_external`, refer to
 ### `util.types.isFloat16Array(value)`
 
 <!-- YAML
-added: v24.0.0
+added:
+ - v24.0.0
+ - v22.16.0
 -->
 
 * `value` {any}
@@ -3319,7 +3342,13 @@ util.types.isModuleNamespaceObject(ns);  // Returns true
 
 <!-- YAML
 added: v10.0.0
+deprecated: v24.2.0
 -->
+
+> Stability: 0 - Deprecated: Use [`Error.isError`][] instead.
+
+**Note:** As of Node.js v24, `Error.isError()` is currently slower than `util.types.isNativeError()`.
+If performance is critical, consider benchmarking both in your environment.
 
 * `value` {any}
 * Returns: {boolean}
@@ -3707,6 +3736,7 @@ util.isArray({});
 [`'warning'`]: process.md#event-warning
 [`Array.isArray()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [`ArrayBuffer.isView()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer/isView
+[`Error.isError`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error/isError
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`MIMEparams`]: #class-utilmimeparams
 [`Object.assign()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign

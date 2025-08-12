@@ -1,10 +1,6 @@
-IF[{- $target{build_scheme}->[1] eq "VMS" -}]
- SCRIPTS{noinst}=local_shlib.com unlocal_shlib.com
- SOURCE[local_shlib.com]=local_shlib.com.in
- SOURCE[unlocal_shlib.com]=unlocal_shlib.com.in
-ELSIF[{- $target{build_scheme}->[1] eq "unix" -}]
- SCRIPTS{noinst}=shlib_wrap.sh
- SOURCE[shlib_wrap.sh]=shlib_wrap.sh.in
+IF[{- $target{build_scheme}->[1] eq "unix" -}]
+  SCRIPTS{noinst}=shlib_wrap.sh
+  SOURCE[shlib_wrap.sh]=shlib_wrap.sh.in
 ENDIF
 SCRIPTS{noinst}=wrap.pl
 SOURCE[wrap.pl]=wrap.pl.in

@@ -306,18 +306,18 @@ void KeyedStoreGenericAssembler::TryRewriteElements(
   {
     TNode<Map> packed_map = LoadJSArrayElementsMap(from_kind, native_context);
     GotoIf(TaggedNotEqual(receiver_map, packed_map), &check_holey_map);
-    var_target_map = CAST(
-        LoadContextElement(native_context, Context::ArrayMapIndex(to_kind)));
+    var_target_map = CAST(LoadContextElementNoCell(
+        native_context, Context::ArrayMapIndex(to_kind)));
     Goto(&perform_transition);
   }
 
   // Check if the receiver has the default |holey_from_kind| map.
   BIND(&check_holey_map);
   {
-    TNode<Object> holey_map = LoadContextElement(
+    TNode<Object> holey_map = LoadContextElementNoCell(
         native_context, Context::ArrayMapIndex(holey_from_kind));
     GotoIf(TaggedNotEqual(receiver_map, holey_map), bailout);
-    var_target_map = CAST(LoadContextElement(
+    var_target_map = CAST(LoadContextElementNoCell(
         native_context, Context::ArrayMapIndex(holey_to_kind)));
     Goto(&perform_transition);
   }
@@ -343,8 +343,8 @@ void KeyedStoreGenericAssembler::TryChangeToHoleyMapHelper(
   if (AllocationSite::ShouldTrack(packed_kind, holey_kind)) {
     TrapAllocationMemento(receiver, bailout);
   }
-  TNode<Map> holey_map = CAST(
-      LoadContextElement(native_context, Context::ArrayMapIndex(holey_kind)));
+  TNode<Map> holey_map = CAST(LoadContextElementNoCell(
+      native_context, Context::ArrayMapIndex(holey_kind)));
   StoreMap(receiver, holey_map);
   Goto(done);
 }
@@ -1108,7 +1108,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       GotoIf(IsAccessorInfo(accessor_pair), slow);
       CSA_DCHECK(this, IsAccessorPair(accessor_pair));
       TNode<HeapObject> setter =
-          CAST(LoadObjectField(accessor_pair, AccessorPair::kSetterOffset));
+          CAST(LoadAccessorPairSetter(CAST(accessor_pair)));
       TNode<Map> setter_map = LoadMap(setter);
       // FunctionTemplateInfo setters are not supported yet.
       GotoIf(IsFunctionTemplateInfoMap(setter_map), slow);

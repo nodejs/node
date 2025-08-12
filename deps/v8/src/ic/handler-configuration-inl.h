@@ -22,8 +22,6 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(LoadHandler, DataHandler)
-
 // Decodes kind from Smi-handler.
 LoadHandler::Kind LoadHandler::GetHandlerKind(Tagged<Smi> smi_handler) {
   return KindBits::decode(smi_handler.value());
@@ -131,8 +129,6 @@ DirectHandle<Smi> LoadHandler::LoadWasmArrayElement(Isolate* isolate,
                IsWasmArrayBits::encode(true) | WasmArrayTypeBits::encode(type);
   return direct_handle(Smi::FromInt(config), isolate);
 }
-
-OBJECT_CONSTRUCTORS_IMPL(StoreHandler, DataHandler)
 
 DirectHandle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
   int config = KindBits::encode(Kind::kGlobalProxy);

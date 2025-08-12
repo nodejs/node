@@ -32,6 +32,8 @@ using v8::Isolate;
 using v8::Local;
 using v8::Locker;
 using v8::Maybe;
+using v8::Name;
+using v8::NewStringType;
 using v8::Null;
 using v8::Number;
 using v8::Object;
@@ -88,6 +90,15 @@ Worker::Worker(Environment* env,
                 Number::New(env->isolate(), static_cast<double>(thread_id_.id)))
       .Check();
 
+  object()
+      ->Set(env->context(),
+            env->thread_name_string(),
+            String::NewFromUtf8(env->isolate(),
+                                name_.data(),
+                                NewStringType::kNormal,
+                                name_.size())
+                .ToLocalChecked())
+      .Check();
   // Without this check, to use the permission model with
   // workers (--allow-worker) one would need to pass --allow-inspector as well
   if (env->permission()->is_granted(
@@ -364,7 +375,8 @@ void Worker::Run() {
             std::move(exec_argv_),
             static_cast<EnvironmentFlags::Flags>(environment_flags_),
             thread_id_,
-            std::move(inspector_parent_handle_)));
+            std::move(inspector_parent_handle_),
+            name_));
         if (is_stopped()) return;
         CHECK_NOT_NULL(env_);
         env_->set_env_vars(std::move(env_vars_));
@@ -810,6 +822,81 @@ void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+class WorkerCpuUsageTaker : public AsyncWrap {
+ public:
+  WorkerCpuUsageTaker(Environment* env, Local<Object> obj)
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERCPUUSAGE) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WorkerCpuUsageTaker)
+  SET_SELF_SIZE(WorkerCpuUsageTaker)
+};
+
+void Worker::CpuUsage(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Environment* env = w->env();
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_cpu_usage_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  BaseObjectPtr<WorkerCpuUsageTaker> taker =
+      MakeDetachedBaseObject<WorkerCpuUsageTaker>(env, wrap);
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    auto cpu_usage_stats = std::make_unique<uv_rusage_t>();
+    int err = uv_getrusage_thread(cpu_usage_stats.get());
+
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         cpu_usage_stats = std::move(cpu_usage_stats),
+         err = err](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker.get());
+
+          Local<Value> argv[] = {
+              Null(isolate),
+              Undefined(isolate),
+          };
+
+          if (err) {
+            argv[0] = UVException(
+                isolate, err, "uv_getrusage_thread", nullptr, nullptr, nullptr);
+          } else {
+            Local<Name> names[] = {
+                FIXED_ONE_BYTE_STRING(isolate, "user"),
+                FIXED_ONE_BYTE_STRING(isolate, "system"),
+            };
+            Local<Value> values[] = {
+                Number::New(isolate,
+                            1e6 * cpu_usage_stats->ru_utime.tv_sec +
+                                cpu_usage_stats->ru_utime.tv_usec),
+                Number::New(isolate,
+                            1e6 * cpu_usage_stats->ru_stime.tv_sec +
+                                cpu_usage_stats->ru_stime.tv_usec),
+            };
+            argv[1] = Object::New(
+                isolate, Null(isolate), names, values, arraysize(names));
+          }
+
+          taker->MakeCallback(env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
 class WorkerHeapStatisticsTaker : public AsyncWrap {
  public:
   WorkerHeapStatisticsTaker(Environment* env, Local<Object> obj)
@@ -1101,6 +1188,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "loopIdleTime", Worker::LoopIdleTime);
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
     SetProtoMethod(isolate, w, "getHeapStatistics", Worker::GetHeapStatistics);
+    SetProtoMethod(isolate, w, "cpuUsage", Worker::CpuUsage);
 
     SetConstructorFunction(isolate, target, "Worker", w);
   }
@@ -1133,6 +1221,19 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
         wst->InstanceTemplate());
   }
 
+  {
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
+
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerCpuUsageTaker::kInternalFieldCount);
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+
+    Local<String> wst_string =
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerCpuUsageTaker");
+    wst->SetClassName(wst_string);
+    isolate_data->set_worker_cpu_usage_taker_template(wst->InstanceTemplate());
+  }
+
   SetMethod(isolate, target, "getEnvMessagePort", GetEnvMessagePort);
 }
 
@@ -1147,6 +1248,16 @@ void CreateWorkerPerContextProperties(Local<Object> target,
       ->Set(env->context(),
             env->thread_id_string(),
             Number::New(isolate, static_cast<double>(env->thread_id())))
+      .Check();
+
+  target
+      ->Set(env->context(),
+            env->thread_name_string(),
+            String::NewFromUtf8(isolate,
+                                env->thread_name().data(),
+                                NewStringType::kNormal,
+                                env->thread_name().size())
+                .ToLocalChecked())
       .Check();
 
   target
@@ -1199,6 +1310,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
   registry->Register(Worker::GetHeapStatistics);
+  registry->Register(Worker::CpuUsage);
 }
 
 }  // anonymous namespace

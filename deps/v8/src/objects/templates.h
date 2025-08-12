@@ -320,6 +320,9 @@ class ObjectTemplateInfo
   // chain till a function template that has an instance template is found.
   inline Tagged<ObjectTemplateInfo> GetParent(Isolate* isolate);
 
+  static void SealAndPrepareForPromotionToReadOnly(
+      Isolate* isolate, DirectHandle<ObjectTemplateInfo> info);
+
   using BodyDescriptor = StructBodyDescriptor;
 
  private:

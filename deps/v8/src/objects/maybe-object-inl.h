@@ -23,8 +23,8 @@ inline Tagged<ClearedWeakValue> ClearedValue(PtrComprCageBase cage_base) {
 #ifdef V8_COMPRESS_POINTERS
   // This is necessary to make pointer decompression computation also
   // suitable for cleared weak references.
-  value = V8HeapCompressionScheme::DecompressTagged(
-      cage_base, kClearedWeakHeapObjectLower32);
+  value =
+      V8HeapCompressionScheme::DecompressTagged(kClearedWeakHeapObjectLower32);
 #else
   value = kClearedWeakHeapObjectLower32;
 #endif
@@ -37,7 +37,6 @@ inline Tagged<ClearedWeakValue> ClearedTrustedValue() {
 #ifdef V8_COMPRESS_POINTERS
   return Tagged<ClearedWeakValue>(
       TrustedSpaceCompressionScheme::DecompressTagged(
-          TrustedSpaceCompressionScheme::base(),
           kClearedWeakHeapObjectLower32));
 #else
   return Tagged<ClearedWeakValue>(kClearedWeakHeapObjectLower32);

@@ -110,13 +110,12 @@ MaybeDirectHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::New(
   // ResolveLocale(%RelativeTimeFormat%.[[AvailableLocales]],
   //               requestedLocales, opt,
   //               %RelativeTimeFormat%.[[RelevantExtensionKeys]], localeData).
-  Maybe<Intl::ResolvedLocale> maybe_resolve_locale =
-      Intl::ResolveLocale(isolate, JSRelativeTimeFormat::GetAvailableLocales(),
-                          requested_locales, matcher, {"nu"});
-  if (maybe_resolve_locale.IsNothing()) {
+  Intl::ResolvedLocale r;
+  if (!Intl::ResolveLocale(isolate, JSRelativeTimeFormat::GetAvailableLocales(),
+                           requested_locales, matcher, {"nu"})
+           .To(&r)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
   }
-  Intl::ResolvedLocale r = maybe_resolve_locale.FromJust();
 
   UErrorCode status = U_ZERO_ERROR;
 
@@ -486,7 +485,7 @@ MaybeDirectHandle<JSArray> FormatToJSArray(
     MAYBE_RETURN(maybe_added, DirectHandle<JSArray>());
   }
 
-  JSObject::ValidateElements(*array);
+  JSObject::ValidateElements(isolate, *array);
   return array;
 }
 

@@ -77,7 +77,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
   Address last_memento_word_address = memento_address + kTaggedSize;
   // If the memento would be on another page, bail out immediately.
   if (!PageMetadata::OnSamePage(object_address, last_memento_word_address)) {
-    return AllocationMemento();
+    return {};
   }
 
   // If the page is being swept, treat it as if the memento was already swept
@@ -86,7 +86,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
     MemoryChunk* object_chunk = MemoryChunk::FromAddress(object_address);
     PageMetadata* object_page = PageMetadata::cast(object_chunk->Metadata());
     if (!object_page->SweepingDone()) {
-      return AllocationMemento();
+      return {};
     }
   }
 
@@ -98,7 +98,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
   MSAN_MEMORY_IS_INITIALIZED(candidate_map_slot.address(), kTaggedSize);
   if (!candidate_map_slot.Relaxed_ContainsMapValue(
           ReadOnlyRoots(heap).allocation_memento_map().ptr())) {
-    return AllocationMemento();
+    return {};
   }
 
   // Bailout if memento is below the age mark. This is only possible for pinned
@@ -106,7 +106,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
   // NEW_SPACE_BELOW_AGE_MARK page flags before checking mementos.
   if (!v8_flags.minor_ms &&
       heap->semi_space_new_space()->IsAddressBelowAgeMark(object_address)) {
-    return AllocationMemento();
+    return {};
   }
 
   Tagged<AllocationMemento> memento_candidate =
@@ -119,19 +119,19 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
     case kForGC:
       return memento_candidate;
     case kForRuntime:
-      if (memento_candidate.is_null()) return AllocationMemento();
+      if (memento_candidate.is_null()) return {};
       // Either the object is the last object in the new space, or there is
       // another object of at least word size (the header map word) following
       // it, so suffices to compare ptr and top here.
       top = heap->NewSpaceTop();
       DCHECK(memento_address >= heap->NewSpaceLimit() ||
              memento_address +
-                     ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize) <=
+                     ALIGN_TO_ALLOCATION_ALIGNMENT(sizeof(AllocationMemento)) <=
                  top);
       if ((memento_address != top) && memento_candidate->IsValid()) {
         return memento_candidate;
       }
-      return AllocationMemento();
+      return {};
     default:
       UNREACHABLE();
   }

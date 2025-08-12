@@ -41,7 +41,7 @@
         }],
         ['(OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="netbsd" \
            or OS=="openbsd" or OS=="solaris" or OS=="android" \
-           or OS=="qnx" or OS=="aix" or OS=="os400")', {
+           or OS=="qnx" or OS=="aix" or OS=="os400" or OS=="openharmony")', {
              'sources': [ '<(V8_ROOT)/src/d8/d8-posix.cc', ]
            }],
         [ 'OS=="win"', {

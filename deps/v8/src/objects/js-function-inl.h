@@ -59,10 +59,10 @@ bool JSFunction::ChecksTieringState(IsolateForSandbox isolate) {
   return code(isolate)->checks_tiering_state();
 }
 
-void JSFunction::CompleteInobjectSlackTrackingIfActive() {
+void JSFunction::CompleteInobjectSlackTrackingIfActive(Isolate* isolate) {
   if (!has_prototype_slot()) return;
   if (has_initial_map() && initial_map()->IsInobjectSlackTrackingInProgress()) {
-    MapUpdater::CompleteInobjectSlackTracking(GetIsolate(), initial_map());
+    MapUpdater::CompleteInobjectSlackTracking(isolate, initial_map());
   }
 }
 
@@ -92,10 +92,11 @@ void JSFunction::UpdateOptimizedCode(Isolate* isolate, Tagged<Code> code,
   // Required for being able to deoptimize this code.
   code->set_js_dispatch_handle(dispatch_handle());
 #endif  // V8_ENABLE_LEAPTIERING
-  UpdateCodeImpl(code, mode, false);
+  UpdateCodeImpl(isolate, code, mode, false);
 }
 
-void JSFunction::UpdateCodeImpl(Tagged<Code> value, WriteBarrierMode mode,
+void JSFunction::UpdateCodeImpl(Isolate* isolate, Tagged<Code> value,
+                                WriteBarrierMode mode,
                                 bool keep_tiering_request) {
   DisallowGarbageCollection no_gc;
 
@@ -114,8 +115,7 @@ void JSFunction::UpdateCodeImpl(Tagged<Code> value, WriteBarrierMode mode,
 
   if (V8_UNLIKELY(v8_flags.log_function_events)) {
     IsolateGroup::current()->js_dispatch_table()->SetTieringRequest(
-        dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution,
-        GetIsolate());
+        dispatch_handle(), TieringBuiltin::kFunctionLogNextExecution, isolate);
   }
 #else
   WriteCodePointerField(kCodeOffset, value);
@@ -127,18 +127,20 @@ void JSFunction::UpdateCodeImpl(Tagged<Code> value, WriteBarrierMode mode,
 #endif  // V8_ENABLE_LEAPTIERING
 }
 
-void JSFunction::UpdateCode(Tagged<Code> code, WriteBarrierMode mode) {
+void JSFunction::UpdateCode(Isolate* isolate, Tagged<Code> code,
+                            WriteBarrierMode mode) {
   // Optimized code must go through UpdateOptimized code, which sets a
   // back-reference in the code object to the dispatch handle for
   // deoptimization.
   CHECK(!code->is_optimized_code());
-  UpdateCodeImpl(code, mode, false);
+  UpdateCodeImpl(isolate, code, mode, false);
 }
 
-inline void JSFunction::UpdateCodeKeepTieringRequests(Tagged<Code> code,
+inline void JSFunction::UpdateCodeKeepTieringRequests(Isolate* isolate,
+                                                      Tagged<Code> code,
                                                       WriteBarrierMode mode) {
   CHECK(!code->is_optimized_code());
-  UpdateCodeImpl(code, mode, true);
+  UpdateCodeImpl(isolate, code, mode, true);
 }
 
 Tagged<Code> JSFunction::code(IsolateForSandbox isolate) const {
@@ -403,7 +405,7 @@ void JSFunction::ResetTieringRequests() {
 #endif  // V8_ENABLE_LEAPTIERING
 }
 
-void JSFunction::SetTieringInProgress(bool in_progress,
+void JSFunction::SetTieringInProgress(Isolate* isolate, bool in_progress,
                                       BytecodeOffset osr_offset) {
   if (!has_feedback_vector()) return;
   if (osr_offset.IsNone()) {
@@ -411,14 +413,14 @@ void JSFunction::SetTieringInProgress(bool in_progress,
     bool was_in_progress = tiering_in_progress();
     feedback_vector()->set_tiering_in_progress(in_progress);
     if (!in_progress && was_in_progress) {
-      SetInterruptBudget(GetIsolate(), BudgetModification::kReduce);
+      SetInterruptBudget(isolate, BudgetModification::kReduce);
     }
 #else
     if (in_progress) {
       feedback_vector()->set_tiering_state(TieringState::kInProgress);
     } else if (tiering_in_progress()) {
       feedback_vector()->reset_tiering_state();
-      SetInterruptBudget(GetIsolate(), BudgetModification::kReduce);
+      SetInterruptBudget(isolate, BudgetModification::kReduce);
     }
 #endif  // V8_ENABLE_LEAPTIERING
   } else {
@@ -589,7 +591,7 @@ void JSFunction::ResetIfCodeFlushed(
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
     ResetTieringRequests();
-    UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
+    UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
     raw_feedback_cell()->reset_feedback_vector(gc_notify_updated_slot);
     return;
   }
@@ -599,7 +601,7 @@ void JSFunction::ResetIfCodeFlushed(
   if (kBaselineCodeCanFlush && NeedsResetDueToFlushedBaselineCode(isolate)) {
     // Flush baseline code from the closure if required
     ResetTieringRequests();
-    UpdateCode(*BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
+    UpdateCode(isolate, *BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   }
 }
 

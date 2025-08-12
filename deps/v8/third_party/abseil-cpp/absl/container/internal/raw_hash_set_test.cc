@@ -14,8 +14,6 @@
 
 #include "absl/container/internal/raw_hash_set.h"
 
-#include <sys/types.h>
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -60,6 +58,7 @@
 #include "absl/container/internal/hashtable_control_bytes.h"
 #include "absl/container/internal/hashtable_debug.h"
 #include "absl/container/internal/hashtablez_sampler.h"
+#include "absl/container/internal/raw_hash_set_resize_impl.h"
 #include "absl/container/internal/test_allocator.h"
 #include "absl/container/internal/test_instance_tracker.h"
 #include "absl/container/node_hash_set.h"
@@ -80,8 +79,8 @@ namespace container_internal {
 
 struct RawHashSetTestOnlyAccess {
   template <typename C>
-  static auto GetCommon(const C& c) -> decltype(c.common()) {
-    return c.common();
+  static auto GetCommon(C&& c) -> decltype(std::forward<C>(c).common()) {
+    return std::forward<C>(c).common();
   }
   template <typename C>
   static auto GetSlots(const C& c) -> decltype(c.slot_array()) {
@@ -282,9 +281,14 @@ TEST(Util, NormalizeCapacity) {
 TEST(Util, GrowthAndCapacity) {
   // Verify that GrowthToCapacity gives the minimum capacity that has enough
   // growth.
-  for (size_t growth = 0; growth < 10000; ++growth) {
+  EXPECT_EQ(SizeToCapacity(0), 0);
+  EXPECT_EQ(SizeToCapacity(1), 1);
+  EXPECT_EQ(SizeToCapacity(2), 3);
+  EXPECT_EQ(SizeToCapacity(3), 3);
+  for (size_t growth = 1; growth < 10000; ++growth) {
     SCOPED_TRACE(growth);
-    size_t capacity = NormalizeCapacity(GrowthToLowerboundCapacity(growth));
+    size_t capacity = SizeToCapacity(growth);
+    ASSERT_TRUE(IsValidCapacity(capacity));
     // The capacity is large enough for `growth`.
     EXPECT_THAT(CapacityToGrowth(capacity), Ge(growth));
     // For (capacity+1) < kWidth, growth should equal capacity.
@@ -304,8 +308,8 @@ TEST(Util, GrowthAndCapacity) {
     SCOPED_TRACE(capacity);
     size_t growth = CapacityToGrowth(capacity);
     EXPECT_THAT(growth, Lt(capacity));
-    EXPECT_LE(GrowthToLowerboundCapacity(growth), capacity);
-    EXPECT_EQ(NormalizeCapacity(GrowthToLowerboundCapacity(growth)), capacity);
+    EXPECT_EQ(SizeToCapacity(growth), capacity);
+    EXPECT_EQ(NormalizeCapacity(SizeToCapacity(growth)), capacity);
   }
 }
 
@@ -2710,7 +2714,7 @@ std::vector<int> OrderOfIteration(const T& t) {
 // in seed.
 void GenerateIrrelevantSeeds(int cnt) {
   for (int i = cnt % 17; i > 0; --i) {
-    NextSeedBaseNumber();
+    NextSeed();
   }
 }
 
@@ -3174,6 +3178,20 @@ TYPED_TEST(SanitizerTest, PoisoningUnused) {
     for (size_t i = 0; i < t.capacity(); ++i) {
       EXPECT_EQ(slots + i != &v, __asan_address_is_poisoned(slots + i)) << i;
     }
+  }
+}
+
+TYPED_TEST(SanitizerTest, PoisoningUnusedOnGrowth) {
+  TypeParam t;
+  for (int64_t i = 0; i < 100; ++i) {
+    t.insert(i);
+
+    int64_t* slots = RawHashSetTestOnlyAccess::GetSlots(t);
+    int poisoned = 0;
+    for (size_t i = 0; i < t.capacity(); ++i) {
+      poisoned += static_cast<int>(__asan_address_is_poisoned(slots + i));
+    }
+    ASSERT_EQ(poisoned, t.capacity() - t.size());
   }
 }
 
@@ -4088,7 +4106,7 @@ TEST(Table, MaxValidSize) {
         ASSERT_FALSE(IsAboveValidSize(size_t{1} << 40, slot_size));
         ASSERT_GE(max_size, uint64_t{1} << 40);
       }
-      ASSERT_LT(NormalizeCapacity(GrowthToLowerboundCapacity(max_size)),
+      ASSERT_LT(SizeToCapacity(max_size),
                 uint64_t{1} << HashtableSize::kSizeBitCount);
       ASSERT_LT(absl::uint128(max_size) * slot_size, uint64_t{1} << 63);
     }
@@ -4101,8 +4119,7 @@ TEST(Table, MaxValidSize) {
     ASSERT_FALSE(IsAboveValidSize</*kSizeOfSizeT=*/4>(max_size, slot_size));
     ASSERT_TRUE(IsAboveValidSize</*kSizeOfSizeT=*/4>(max_size + 1, slot_size));
     ASSERT_LT(max_size, 1 << 30);
-    size_t max_capacity =
-        NormalizeCapacity(GrowthToLowerboundCapacity(max_size));
+    size_t max_capacity = SizeToCapacity(max_size);
     ASSERT_LT(max_capacity, (size_t{1} << 31) / slot_size);
     ASSERT_GT(max_capacity, (1 << 29) / slot_size);
     ASSERT_LT(max_capacity * slot_size, size_t{1} << 31);
@@ -4124,9 +4141,13 @@ TEST(Table, MaxSizeOverflow) {
                             "Hash table size overflow");
   EXPECT_DEATH_IF_SUPPORTED(t.rehash(slightly_overflow),
                             "Hash table size overflow");
+  IntTable non_empty_table;
+  non_empty_table.insert(0);
+  EXPECT_DEATH_IF_SUPPORTED(non_empty_table.reserve(slightly_overflow),
+                            "Hash table size overflow");
 }
 
-// TODO(b/397453582): Remove support for const hasher and ermove this test.
+// TODO(b/397453582): Remove support for const hasher and remove this test.
 TEST(Table, ConstLambdaHash) {
   int64_t multiplier = 17;
   // Make sure that code compiles and work OK with non-empty hasher with const
@@ -4145,6 +4166,64 @@ TEST(Table, ConstLambdaHash) {
   EXPECT_NE(t.find(1), t.end());
   EXPECT_NE(t.find(2), t.end());
   EXPECT_EQ(t.find(3), t.end());
+}
+
+struct ConstUint8Hash {
+  size_t operator()(uint8_t) const { return *value; }
+  size_t* value;
+};
+
+// This test is imitating growth of a very big table and triggers all buffer
+// overflows.
+// We try to insert all elements into the first probe group.
+// So the resize codepath in test does the following:
+// 1. Insert 16 elements into the first probe group. No other elements will be
+//    inserted into the first probe group.
+// 2. There will be enough elements to fill up the local buffer even for
+//    encoding with 4 bytes.
+// 3. After local buffer is full, we will fill up the control buffer till
+//    some point.
+// 4. Then a few times we will extend control buffer end.
+// 5. Finally we will catch up and go to overflow codepath.
+TEST(Table, GrowExtremelyLargeTable) {
+  constexpr size_t kTargetCapacity =
+#if defined(__wasm__) || defined(__asmjs__)
+      NextCapacity(ProbedItem4Bytes::kMaxNewCapacity);  // OOMs on WASM.
+#else
+      NextCapacity(ProbedItem8Bytes::kMaxNewCapacity);
+#endif
+
+  size_t hash = 0;
+  // In order to save memory we use 1 byte slot.
+  // There are not enough different values to achieve big capacity, so we
+  // artificially update growth info to force resize.
+  absl::flat_hash_set<uint8_t, ConstUint8Hash> t(63, ConstUint8Hash{&hash});
+  CommonFields& common = RawHashSetTestOnlyAccess::GetCommon(t);
+  // Assign value to the seed, so that H1 is always 0.
+  // That helps to test all buffer overflows in GrowToNextCapacity.
+  hash = common.seed().seed() << 7;
+  ASSERT_EQ(H1(t.hash_function()(75), common.seed()), 0);
+  uint8_t inserted_till = 210;
+  for (uint8_t i = 0; i < inserted_till; ++i) {
+    t.insert(i);
+  }
+  for (uint8_t i = 0; i < inserted_till; ++i) {
+    ASSERT_TRUE(t.contains(i));
+  }
+
+  for (size_t cap = t.capacity(); cap < kTargetCapacity;
+       cap = NextCapacity(cap)) {
+    ASSERT_EQ(t.capacity(), cap);
+    // Update growth info to force resize on the next insert.
+    common.growth_info().OverwriteManyEmptyAsFull(CapacityToGrowth(cap) -
+                                                  t.size());
+    t.insert(inserted_till++);
+    ASSERT_EQ(t.capacity(), NextCapacity(cap));
+    for (uint8_t i = 0; i < inserted_till; ++i) {
+      ASSERT_TRUE(t.contains(i));
+    }
+  }
+  EXPECT_EQ(t.capacity(), kTargetCapacity);
 }
 
 }  // namespace

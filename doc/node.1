@@ -85,6 +85,9 @@ Allow using native addons when using the permission model.
 .It Fl -allow-child-process
 Allow spawning process when using the permission model.
 .
+.It Fl -allow-net
+Allow network access when using the permission model.
+.
 .It Fl -allow-wasi
 Allow execution of WASI when using the permission model.
 .
@@ -220,11 +223,11 @@ Enable experimental ES module support in VM module.
 Enable experimental WebAssembly System Interface support. This
 flag is no longer required as WASI is enabled by default.
 .
-.It Fl -experimental-wasm-modules
-Enable experimental WebAssembly module support.
-.
 .It Fl -experimental-quic
 Enable the experimental QUIC support.
+.
+.It Fl -experimental-inspector-network-resource
+Enable experimental support for inspector network resources.
 .
 .It Fl -force-context-aware
 Disable loading native addons that are not context-aware.
@@ -331,6 +334,16 @@ The file used to store localStorage data.
 .
 .It Fl -max-http-header-size Ns = Ns Ar size
 Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.
+.
+.It Fl -max-old-space-size-percentage Ns = Ns Ar percentage
+Sets the max memory size of V8's old memory section as a percentage of available system memory.
+This flag takes precedence over
+.Fl -max-old-space-size
+when both are specified.
+The
+.Ar percentage
+parameter must be a number greater than 0 and up to 100, representing the percentage
+of available system memory to allocate to the V8 heap.
 .
 .It Fl -napi-modules
 This option is a no-op.
@@ -600,6 +613,16 @@ See
 and
 .Ev SSL_CERT_FILE .
 .
+.It Fl -use-env-proxy
+Parse proxy settings from HTTP_PROXY/HTTPS_PROXY/NO_PROXY environment variables and apply the setting in global HTTP/HTTPS clients.
+.
+.It Fl -use-system-ca
+Use the trusted CA certificates present in the system store, in addition to the certificates in the
+bundled Mozilla CA store and certificates from `NODE_EXTRA_CA_CERTS`. On Windows and macOS, it uses system APIs to
+integrate additional trusted certificates. On other platforms it is similar to `--use-openssl-ca` with the difference
+being that it caches the certificates on first load, and the system certificates are added in a complementary manner
+without replacing certificates from other sources. This flag supersedes `--use-openssl-ca`.
+.
 .It Fl -use-largepages Ns = Ns Ar mode
 Re-map the Node.js static code to large memory pages at startup. If supported on
 the target system, this will cause the Node.js static code to be moved onto 2
@@ -617,6 +640,19 @@ Print V8 command-line options.
 Set V8's thread pool size which will be used to allocate background jobs.
 If set to 0 then V8 will choose an appropriate size of the thread pool based on the number of online processors.
 If the value provided is larger than V8's maximum, then the largest value will be chosen.
+.
+.It Fl -watch
+Starts Node.js in watch mode. When in watch mode, changes in the watched files cause the Node.js process to restart.
+
+By default, watch mode will watch the entry point and any required or imported module. Use --watch-path to specify what paths to watch.
+.
+.It Fl -watch-path
+Starts Node.js in watch mode and specifies what paths to watch. When in watch mode, changes in the watched paths cause the Node.js process to restart.
+
+This will turn off watching of required or imported modules, even when used in combination with --watch.
+.
+.It Fl -watch-kill-signal
+Customizes the signal sent to the process on watch mode restarts.
 .
 .It Fl -zero-fill-buffers
 Automatically zero-fills all newly allocated Buffer instances.
@@ -677,11 +713,21 @@ disabled.
 .It Ev NO_COLOR
 Alias for NODE_DISABLE_COLORS
 .
+.It Ev NODE_COMPILE_CACHE Ar dir
+Enable the
+.Sy module compile cache
+for the Node.js instance.
+.
 .It Ev NODE_DEBUG Ar modules...
 Comma-separated list of core modules that should print debug information.
 .
 .It Ev NODE_DEBUG_NATIVE Ar modules...
 Comma-separated list of C++ core modules that should print debug information.
+.
+.It Ev NODE_DISABLE_COMPILE_CACHE
+Disable the
+.Sy module compile cache
+for the Node.js instance.
 .
 .It Ev NODE_DISABLE_COLORS
 When set to
@@ -738,6 +784,9 @@ When set to
 .Ar 1 ,
 emit pending deprecation warnings.
 .
+.It Ev NODE_PENDING_PIPE_INSTANCES
+Set the number of pending pipe instance handles when the pipe server is waiting for connections. This setting applies to Windows only.
+.
 .It Ev NODE_PRESERVE_SYMLINKS
 When set to
 .Ar 1 ,
@@ -771,10 +820,35 @@ the check for a supported platform is skipped during Node.js startup.
 Node.js might not execute correctly.
 Any issues encountered on unsupported platforms will not be fixed.
 .
+.It Ev NODE_TEST_CONTEXT
+When set to
+.Ar 'child'
+, test reporter options will be overridden and test output will be sent to stdout in the TAP format.
+If any other value is provided, Node.js makes no guarantees about the reporter format used or its stability.
+.
 .It Ev NODE_TLS_REJECT_UNAUTHORIZED
 When set to
 .Ar 0 ,
 TLS certificate validation is disabled.
+.
+.It Ev NODE_USE_ENV_PROXY
+When enabled, Node.js parses the
+.Ar HTTP_PROXY
+,
+.Ar HTTPS_PROXY
+and
+.Ar NO_PROXY
+environment variables during startup, and tunnels requests over the specified proxy.
+.Pp
+This currently only affects requests sent over
+.Ar fetch() .
+Support for other built-in http and https methods is under way.
+.
+.It Ev NODE_USE_SYSTEM_CA
+Similar to
+.Fl -use-system-ca .
+Use the trusted CA certificates present in the system store, in addition to the certificates in the
+bundled Mozilla CA store and certificates from `NODE_EXTRA_CA_CERTS`.
 .
 .It Ev NODE_V8_COVERAGE Ar dir
 When set, Node.js writes JavaScript code coverage information to

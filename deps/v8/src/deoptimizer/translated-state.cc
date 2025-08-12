@@ -63,11 +63,11 @@ void DeoptimizationFrameTranslationPrintSingleOpcode(
       int return_value_offset = 0;
       int return_value_count = 0;
       if (opcode == TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN) {
-        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 5);
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 6);
         return_value_offset = iterator.NextOperand();
         return_value_count = iterator.NextOperand();
       } else {
-        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 4);
       }
       Tagged<Object> shared_info = literal_array->get(shared_info_id);
       Tagged<Object> bytecode_array =
@@ -1875,7 +1875,7 @@ Address TranslatedState::DecompressIfNeeded(intptr_t value) {
       static_cast<uintptr_t>(value) <= std::numeric_limits<uint32_t>::max()) {
 #endif
     return V8HeapCompressionScheme::DecompressTagged(
-        isolate(), static_cast<uint32_t>(value));
+        static_cast<uint32_t>(value));
   } else {
     return value;
   }
@@ -2703,7 +2703,6 @@ TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
         // be shown in a stack trace.
         if (frames_[i].kind() ==
             TranslatedFrame::kJavaScriptBuiltinContinuation) {
-          DCHECK(frames_[i].shared_info()->IsDontAdaptArguments());
           DCHECK(frames_[i].shared_info()->IsApiFunction());
 
           // The argument count for this special case is always the second

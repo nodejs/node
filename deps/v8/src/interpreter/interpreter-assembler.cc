@@ -199,8 +199,8 @@ TNode<Context> InterpreterAssembler::GetContextAtDepth(TNode<Context> context,
   BIND(&context_search);
   {
     cur_depth = Unsigned(Int32Sub(cur_depth.value(), Int32Constant(1)));
-    cur_context =
-        CAST(LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
+    cur_context = CAST(
+        LoadContextElementNoCell(cur_context.value(), Context::PREVIOUS_INDEX));
 
     Branch(Word32Equal(cur_depth.value(), Int32Constant(0)), &context_found,
            &context_search);
@@ -1415,7 +1415,8 @@ void InterpreterAssembler::OnStackReplacement(
   // 3) Presence of cached OSR Sparkplug code.
 
   TVARIABLE(Object, maybe_target_code, SmiConstant(0));
-  Label osr_to_opt(this), osr_to_sparkplug(this);
+  Label baseline(this), maybe_osr_to_opt(this), osr_to_opt(this),
+      osr_to_sparkplug(this);
 
   // Case 1).
   {
@@ -1444,8 +1445,20 @@ void InterpreterAssembler::OnStackReplacement(
     static_assert(FeedbackVector::OsrUrgencyBits::kShift == 0);
     TNode<Int32T> osr_urgency = Word32And(
         osr_state, Int32Constant(FeedbackVector::OsrUrgencyBits::kMask));
-    GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_opt);
+    GotoIf(Uint32LessThan(loop_depth, osr_urgency), &maybe_osr_to_opt);
+    Goto(&baseline);
 
+    BIND(&maybe_osr_to_opt);
+    {
+      TNode<Uint16T> flags = LoadObjectField<Uint16T>(
+          feedback_vector, FeedbackVector::kFlagsOffset);
+      TNode<Word32T> in_progress = Word32And(
+          flags, Int32Constant(FeedbackVector::OsrTieringInProgressBit::kMask));
+      GotoIf(Word32Equal(in_progress, 0), &osr_to_opt);
+      Goto(&baseline);
+    }
+
+    BIND(&baseline);
     // Case 3).
     if (params == OnStackReplacementParams::kBaselineCodeIsCached) {
       Goto(&osr_to_sparkplug);

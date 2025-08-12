@@ -1,5 +1,5 @@
 /**
- * @fileoverview Prohibit the use of assert operators ( ===, !==, ==, != )
+ * @file Prohibit the use of assert operators ( ===, !==, ==, != )
  */
 
 'use strict';

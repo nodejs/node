@@ -236,6 +236,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     SetSourcePosition(gasm_.effect());
   }
 
+  // TODO(14616): Implement for shared types.
   Value ParseRefCast(Value input, bool null_succeeds) {
     auto [heap_index, length] = read_i33v<ValidationTag>(pc_);
     pc_ += length;

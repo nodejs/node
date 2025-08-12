@@ -74,6 +74,7 @@ enum class FeedbackSlotKind : uint8_t {
   kInstanceOf,
   kTypeOf,
   kCloneObject,
+  kStringAddAndInternalize,
   kJumpLoop,
 
   kLast = kJumpLoop  // Always update this if the list above changes.
@@ -671,6 +672,10 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
 
   FeedbackSlot AddJumpLoopSlot() {
     return AddSlot(FeedbackSlotKind::kJumpLoop);
+  }
+
+  FeedbackSlot AddStringAddAndInternalizeICSlot() {
+    return AddSlot(FeedbackSlotKind::kStringAddAndInternalize);
   }
 
 #ifdef OBJECT_PRINT

@@ -12,7 +12,7 @@
     "path": "console"
   },
   "dom/abort": {
-    "commit": "0143fe244b3d622441717ce630e0114eb204f9a7",
+    "commit": "dc928169ee38969433af668319a73ed9196ffbee",
     "path": "dom/abort"
   },
   "dom/events": {
@@ -52,7 +52,7 @@
     "path": "html/webappapis/timers"
   },
   "interfaces": {
-    "commit": "e90ece61d6e7ff84a0dc9c496588690e6a61cb17",
+    "commit": "e1b27be06b43787a001b7297c4e0fabdd276560f",
     "path": "interfaces"
   },
   "performance-timeline": {
@@ -64,7 +64,7 @@
     "path": "resource-timing"
   },
   "resources": {
-    "commit": "1e140d63ec885703ce24b3798abd81912696bb85",
+    "commit": "1d2c5fb36a6e477c8f915bde7eca027be6abe792",
     "path": "resources"
   },
   "streams": {
@@ -76,7 +76,7 @@
     "path": "url"
   },
   "urlpattern": {
-    "commit": "f07d05f49c679a62dd112e18aa07405859745952",
+    "commit": "84b75f08801c8cfe407c25614c49132075b8afab",
     "path": "urlpattern"
   },
   "user-timing": {
@@ -91,12 +91,16 @@
     "commit": "fd1b23eeaaf9a01555d4fa29cf79ed11a4c44a50",
     "path": "wasm/webapi"
   },
+  "web-locks": {
+    "commit": "10a122a6bc3670a44e0fa8b9a99f6aa9012d30f1",
+    "path": "web-locks"
+  },
   "WebCryptoAPI": {
-    "commit": "b48efd681ea3a5b0daa6b866c3bb54bec895037b",
+    "commit": "1d2c5fb36a6e477c8f915bde7eca027be6abe792",
     "path": "WebCryptoAPI"
   },
   "webidl/ecmascript-binding/es-exceptions": {
-    "commit": "a370aad338d6ed743abb4d2c6ae84a7f1058558c",
+    "commit": "2f96fa19966d6bc19e979a09479ac8a7aa337c54",
     "path": "webidl/ecmascript-binding/es-exceptions"
   },
   "webmessaging/broadcastchannel": {
@@ -104,7 +108,7 @@
     "path": "webmessaging/broadcastchannel"
   },
   "webstorage": {
-    "commit": "1291340aaaa6e73db43b412e47401eca3830c556",
+    "commit": "1d2c5fb36a6e477c8f915bde7eca027be6abe792",
     "path": "webstorage"
   }
 }

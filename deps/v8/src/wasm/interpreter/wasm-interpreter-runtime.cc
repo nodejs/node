@@ -137,9 +137,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
         CASE_ARG_TYPE(kWasmF32.kind(), float)
         CASE_ARG_TYPE(kWasmF64.kind(), double)
 #undef CASE_ARG_TYPE
-        case wasm::kWasmRefString.kind():
-        case wasm::kWasmAnyRef.kind(): {
-          const bool anyref = (kind == wasm::kWasmAnyRef.kind());
+        case wasm::kRef:
+        case wasm::kRefNull: {
           DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetParam(i)),
                     kSystemPointerSize);
           // MarkCompactCollector::RootMarkingVisitor requires ref slots to be
@@ -163,10 +162,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
             ref = isolate->factory()->wasm_null();
           }
 
-          wasm_args[i] = wasm::WasmValue(
-              ref,
-              anyref ? wasm::kWasmAnyRef
-                     : wasm::CanonicalValueType::Ref(wasm::HeapType::kString));
+          wasm_args[i] = wasm::WasmValue(ref, wasm::kWasmAnyRef);
           arg_buf_ptr += kSystemPointerSize;
           break;
         }
@@ -208,8 +204,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
         CASE_RET_TYPE(kWasmF32.kind(), float)
         CASE_RET_TYPE(kWasmF64.kind(), double)
 #undef CASE_RET_TYPE
-        case wasm::kWasmRefString.kind():
-        case wasm::kWasmAnyRef.kind(): {
+        case wasm::kRef:
+        case wasm::kRefNull: {
           DCHECK_EQ(wasm::ValueTypes::ElementSizeInBytes(sig->GetReturn(i)),
                     kSystemPointerSize);
           DirectHandle<Object> ref = wasm_rets[i].to_ref();
@@ -312,7 +308,7 @@ IndirectFunctionTableEntry::IndirectFunctionTableEntry(
 
 WasmInterpreterRuntime::WasmInterpreterRuntime(
     const WasmModule* module, Isolate* isolate,
-    DirectHandle<WasmInstanceObject> instance_object,
+    IndirectHandle<WasmInstanceObject> instance_object,
     WasmInterpreter::CodeMap* codemap)
     : isolate_(isolate),
       module_(module),
@@ -991,24 +987,12 @@ void WasmInterpreterRuntime::BeginExecution(
           p += sizeof(double);
           break;
         case kRef:
-        case kRefNull: {
-          DirectHandle<Object> ref = value.to_ref();
-          if (IsJSFunction(*ref, isolate_)) {
-            Tagged<SharedFunctionInfo> sfi = Cast<JSFunction>(ref)->shared();
-            if (sfi->HasWasmExportedFunctionData()) {
-              Tagged<WasmExportedFunctionData> wasm_exported_function_data =
-                  sfi->wasm_exported_function_data();
-              ref = direct_handle(
-                  wasm_exported_function_data->func_ref()->internal(isolate_),
-                  isolate_);
-            }
-          }
-          ref_args.push_back(ref);
+        case kRefNull:
+          ref_args.push_back(value.to_ref());
           base::WriteUnalignedValue<uint64_t>(reinterpret_cast<Address>(p),
                                               kSlotsZapValue);
           p += sizeof(WasmRef);
           break;
-        }
         case kS128:
         default:
           UNREACHABLE();
@@ -1078,15 +1062,21 @@ void WasmInterpreterRuntime::ContinueExecution(WasmInterpreterThread* thread,
 
   const uint8_t* code = nullptr;
   const FunctionSig* sig = nullptr;
+  const CanonicalSig* canonicalized_sig = nullptr;
   uint32_t return_count = 0;
   WasmBytecode* target_function = GetFunctionBytecode(start_function_index_);
   if (target_function) {
     sig = target_function->GetFunctionSignature();
+    canonicalized_sig = target_function->GetCanonicalFunctionSignature();
     return_count = target_function->return_count();
     ExecuteFunction(code, start_function_index_, target_function->args_count(),
                     0, 0, 0);
   } else {
     sig = module_->functions[start_function_index_].sig;
+    CanonicalTypeIndex canonical_sig_index = module_->canonical_sig_id(
+        module_->functions[start_function_index_].sig_index);
+    canonicalized_sig =
+        GetTypeCanonicalizer()->LookupFunctionSignature(canonical_sig_index);
     return_count = static_cast<uint32_t>(sig->return_count());
     ExecuteImportedFunction(code, start_function_index_,
                             static_cast<uint32_t>(sig->parameter_count()), 0, 0,
@@ -1108,7 +1098,9 @@ void WasmInterpreterRuntime::ContinueExecution(WasmInterpreterThread* thread,
         // {GetReturnValue}.
         function_result_.resize(return_count);
         for (size_t index = 0; index < return_count; index++) {
-          switch (sig->GetReturn(index).kind()) {
+          CanonicalValueType ret_value_type =
+              canonicalized_sig->GetReturn(index);
+          switch (ret_value_type.kind()) {
             case kI32:
               function_result_[index] =
                   WasmValue(base::ReadUnalignedValue<int32_t>(
@@ -1138,10 +1130,7 @@ void WasmInterpreterRuntime::ContinueExecution(WasmInterpreterThread* thread,
               DirectHandle<Object> ref =
                   ExtractWasmRef(ref_result_slot_index++);
               ref = WasmToJSObject(ref);
-              function_result_[index] = WasmValue(
-                  ref, sig->GetReturn(index).kind() == kRef
-                           ? CanonicalValueType::Ref(HeapType::kString)
-                           : kWasmAnyRef);
+              function_result_[index] = WasmValue(ref, ret_value_type);
               dst += sizeof(WasmRef) / kSlotSize;
               break;
             }
@@ -1755,9 +1744,11 @@ void WasmInterpreterRuntime::UpdateIndirectCallTable(
 bool WasmInterpreterRuntime::CheckIndirectCallSignature(
     uint32_t table_index, uint32_t entry_index, uint32_t sig_index) const {
   const WasmTable& table = module_->tables[table_index];
-  bool needs_type_check = !EquivalentTypes(
-      table.type.AsNonNull(), ValueType::Ref(ModuleTypeIndex({sig_index})),
-      module_, module_);
+  bool needs_type_check =
+      !EquivalentTypes(table.type.AsNonNull(),
+                       ValueType::Ref(ModuleTypeIndex({sig_index}), false,
+                                      RefTypeKind::kFunction),
+                       module_, module_);
   bool needs_null_check = table.type.is_nullable();
 
   // Copied from Liftoff.
@@ -2206,8 +2197,11 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(
 #else
   stack_handler.padding = 0;
 #endif
+  // {saved_c_entry_fp} can be null if we run the interpreter directly from the
+  // fuzzer, not from JS. In this case, we need to break the handler chain.
   isolate->thread_local_top()->handler_ =
-      reinterpret_cast<Address>(&stack_handler);
+      saved_c_entry_fp ? reinterpret_cast<Address>(&stack_handler)
+                       : kNullAddress;
   if (trap_handler::IsThreadInWasm()) {
     trap_handler::ClearThreadInWasm();
   }
@@ -2217,7 +2211,7 @@ void WasmInterpreterRuntime::CallWasmToJSBuiltin(
     Address result = generic_wasm_to_js_interpreter_wrapper_fn_.Call(
         (*js_function).ptr(), packed_args, isolate->isolate_root(), sig,
         saved_c_entry_fp, (*callable).ptr());
-    if (result != kNullAddress) {
+    if (result != WasmToJSInterpreterFrameConstants::kSuccess) {
       isolate->set_exception(Tagged<Object>(result));
       if (trap_handler::IsThreadInWasm()) {
         trap_handler::ClearThreadInWasm();
@@ -2542,21 +2536,11 @@ WasmRef WasmInterpreterRuntime::WasmJSToWasmObject(
 
 WasmRef WasmInterpreterRuntime::JSToWasmObject(WasmRef extern_ref,
                                                ValueType type) const {
-  wasm::CanonicalTypeIndex canonical_index;
-  if (type.has_index()) {
-    canonical_index =
-        module_->isorecursive_canonical_type_ids[type.ref_index().index];
-    type = wasm::ValueType::RefMaybeNull(ModuleTypeIndex({canonical_index}),
-                                         type.nullability());
-  }
+  DirectHandle<Object> result;
   const char* error_message;
-  {
-    DirectHandle<Object> result;
-    if (wasm::JSToWasmObject(isolate_, extern_ref, (CanonicalValueType)type,
-                             &error_message)
-            .ToHandle(&result)) {
-      return result;
-    }
+  if (wasm::JSToWasmObject(isolate_, module_, extern_ref, type, &error_message)
+          .ToHandle(&result)) {
+    return result;
   }
 
   {
@@ -2566,9 +2550,9 @@ WasmRef WasmInterpreterRuntime::JSToWasmObject(WasmRef extern_ref,
     if (v8_flags.wasm_jitless && trap_handler::IsThreadInWasm()) {
       trap_handler::ClearThreadInWasm();
     }
-    Tagged<Object> result = isolate_->Throw(*isolate_->factory()->NewTypeError(
+    Tagged<Object> error = isolate_->Throw(*isolate_->factory()->NewTypeError(
         MessageTemplate::kWasmTrapJSTypeError));
-    return direct_handle(result, isolate_);
+    return direct_handle(error, isolate_);
   }
 }
 
@@ -2633,8 +2617,7 @@ bool WasmInterpreterRuntime::SubtypeCheck(const WasmRef obj,
   }
 
   // Add Smi check if the source type may store a Smi (i31ref or JS Smi).
-  ValueType i31ref = ValueType::Ref(HeapType::kI31);
-  if (IsSubtypeOf(i31ref, obj_type, module_) && IsSmi(*obj)) {
+  if (IsSubtypeOf(kWasmRefI31, obj_type, module_) && IsSmi(*obj)) {
     return false;
   }
 

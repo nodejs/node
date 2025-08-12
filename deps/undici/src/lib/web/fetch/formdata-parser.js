@@ -1,14 +1,11 @@
 'use strict'
 
-const { isUSVString, bufferToLowerCasedHeaderName } = require('../../core/util')
+const { bufferToLowerCasedHeaderName } = require('../../core/util')
 const { utf8DecodeBytes } = require('./util')
 const { HTTP_TOKEN_CODEPOINTS, isomorphicDecode } = require('./data-url')
 const { makeEntry } = require('./formdata')
-const { webidl } = require('./webidl')
+const { webidl } = require('../webidl')
 const assert = require('node:assert')
-const { File: NodeFile } = require('node:buffer')
-
-const File = globalThis.File ?? NodeFile
 
 const formDataNameBuffer = Buffer.from('form-data; name="')
 const filenameBuffer = Buffer.from('filename')
@@ -200,8 +197,8 @@ function multipartFormDataParser (input, mimeType) {
     }
 
     // 5.12. Assert: name is a scalar value string and value is either a scalar value string or a File object.
-    assert(isUSVString(name))
-    assert((typeof value === 'string' && isUSVString(value)) || webidl.is.File(value))
+    assert(webidl.is.USVString(name))
+    assert((typeof value === 'string' && webidl.is.USVString(value)) || webidl.is.File(value))
 
     // 5.13. Create an entry with name and value, and append it to entry list.
     entryList.push(makeEntry(name, value, filename))

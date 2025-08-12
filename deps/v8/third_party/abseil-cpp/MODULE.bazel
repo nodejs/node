@@ -25,13 +25,13 @@ cc_configure = use_extension("@rules_cc//cc:extensions.bzl",
                              dev_dependency = True)
 use_repo(cc_configure, "local_config_cc")
 
-bazel_dep(name = "rules_cc", version = "0.0.17")
+bazel_dep(name = "rules_cc", version = "0.1.1")
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
-bazel_dep(name = "platforms", version = "0.0.10")
+bazel_dep(name = "platforms", version = "0.0.11")
 
 bazel_dep(
     name = "google_benchmark",
-    version = "1.8.5",
+    version = "1.9.2",
     dev_dependency = True,
 )
 
@@ -39,5 +39,5 @@ bazel_dep(
 # intended to be used by Abseil users depend on GoogleTest.
 bazel_dep(
     name = "googletest",
-    version = "1.16.0",
+    version = "1.16.0.bcr.1",
 )

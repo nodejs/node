@@ -13,8 +13,11 @@ const options = {
   cert: fixtures.readKey('agent1-cert.pem'),
   ca: fixtures.readKey('ca1-cert.pem'),
   minVersion: 'TLSv1.1',
-  ciphers: 'ALL@SECLEVEL=0'
 };
+
+if (!process.features.openssl_is_boringssl) {
+  options.ciphers = 'ALL@SECLEVEL=0';
+}
 
 const server = https.Server(options, (req, res) => {
   res.writeHead(200);
@@ -22,14 +25,19 @@ const server = https.Server(options, (req, res) => {
 });
 
 function getBaseOptions(port) {
-  return {
+  const baseOptions = {
     path: '/',
     port: port,
     ca: options.ca,
     rejectUnauthorized: true,
     servername: 'agent1',
-    ciphers: 'ALL@SECLEVEL=0'
   };
+
+  if (!process.features.openssl_is_boringssl) {
+    baseOptions.ciphers = 'ALL@SECLEVEL=0';
+  }
+
+  return baseOptions;
 }
 
 const updatedValues = new Map([

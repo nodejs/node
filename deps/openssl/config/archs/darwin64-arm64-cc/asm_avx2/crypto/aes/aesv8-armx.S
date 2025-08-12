@@ -3,17 +3,20 @@
 #if __ARM_MAX_ARCH__>=7
 
 .text
+.section	__TEXT,__const
 .align	5
 Lrcon:
 .long	0x01,0x01,0x01,0x01
 .long	0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d,0x0c0f0e0d	// rotate-n-splat
 .long	0x1b,0x1b,0x1b,0x1b
-
+.previous
 .globl	_aes_v8_set_encrypt_key
 
 .align	5
 _aes_v8_set_encrypt_key:
 Lenc_key:
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	mov	x3,#-1
@@ -29,7 +32,8 @@ Lenc_key:
 	tst	w1,#0x3f
 	b.ne	Lenc_key_abort
 
-	adr	x3,Lrcon
+	adrp	x3,Lrcon@PAGE
+	add	x3,x3,Lrcon@PAGEOFF
 	cmp	w1,#192
 
 	eor	v0.16b,v0.16b,v0.16b
@@ -185,7 +189,7 @@ Lenc_key_abort:
 
 .align	5
 _aes_v8_set_decrypt_key:
-.long	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	bl	Lenc_key
@@ -219,13 +223,14 @@ Loop_imc:
 	eor	x0,x0,x0		// return value
 Ldec_key_abort:
 	ldp	x29,x30,[sp],#16
-.long	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 .globl	_aes_v8_encrypt
 
 .align	5
 _aes_v8_encrypt:
+	AARCH64_VALID_CALL_TARGET
 	ldr	w3,[x2,#240]
 	ld1	{v0.4s},[x2],#16
 	ld1	{v2.16b},[x0]
@@ -255,6 +260,7 @@ Loop_enc:
 
 .align	5
 _aes_v8_decrypt:
+	AARCH64_VALID_CALL_TARGET
 	ldr	w3,[x2,#240]
 	ld1	{v0.4s},[x2],#16
 	ld1	{v2.16b},[x0]
@@ -284,6 +290,7 @@ Loop_dec:
 
 .align	5
 _aes_v8_ecb_encrypt:
+	AARCH64_VALID_CALL_TARGET
 	subs	x2,x2,#16
 	// Original input data size bigger than 16, jump to big size processing.
 	b.ne	Lecb_big_size
@@ -1030,6 +1037,8 @@ Lecb_Final_abort:
 
 .align	5
 _aes_v8_cbc_encrypt:
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	subs	x2,x2,#16
@@ -1501,10 +1510,735 @@ Lcbc_abort:
 	ldr	x29,[sp],#16
 	ret
 
+.globl	_aes_v8_ctr32_encrypt_blocks_unroll12_eor3
+
+.align	5
+_aes_v8_ctr32_encrypt_blocks_unroll12_eor3:
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
+	stp	x29,x30,[sp,#-80]!
+	stp	d8,d9,[sp, #16]
+	stp	d10,d11,[sp, #32]
+	stp	d12,d13,[sp, #48]
+	stp	d14,d15,[sp, #64]
+	add	x29,sp,#0
+
+	ldr	w5,[x3,#240]
+
+	ldr	w8, [x4, #12]
+#ifdef __AARCH64EB__
+	ld1	{v24.16b},[x4]
+#else
+	ld1	{v24.4s},[x4]
+#endif
+	ld1	{v2.4s,v3.4s},[x3]		// load key schedule...
+	sub	w5,w5,#4
+	cmp	x2,#2
+	add	x7,x3,x5,lsl#4	// pointer to last round key
+	sub	w5,w5,#2
+	add	x7, x7, #64
+	ld1	{v1.4s},[x7]
+	add	x7,x3,#32
+	mov	w6,w5
+#ifndef __AARCH64EB__
+	rev	w8, w8
+#endif
+
+	orr	v25.16b,v24.16b,v24.16b
+	add	w10, w8, #1
+	orr	v26.16b,v24.16b,v24.16b
+	add	w8, w8, #2
+	orr	v0.16b,v24.16b,v24.16b
+	rev	w10, w10
+	mov	v25.s[3],w10
+	b.ls	Lctr32_tail_unroll
+	cmp	x2,#6
+	rev	w12, w8
+	sub	x2,x2,#3		// bias
+	mov	v26.s[3],w12
+	b.lo	Loop3x_ctr32_unroll
+	cmp	x2,#9
+	orr	v27.16b,v24.16b,v24.16b
+	add	w11, w8, #1
+	orr	v28.16b,v24.16b,v24.16b
+	add	w13, w8, #2
+	rev	w11, w11
+	orr	v29.16b,v24.16b,v24.16b
+	add	w8, w8, #3
+	rev	w13, w13
+	mov	v27.s[3],w11
+	rev	w14, w8
+	mov	v28.s[3],w13
+	mov	v29.s[3],w14
+	sub	x2,x2,#3
+	b.lo	Loop6x_ctr32_unroll
+
+	// push regs to stack when 12 data chunks are interleaved
+	stp	x19,x20,[sp,#-16]!
+	stp	x21,x22,[sp,#-16]!
+	stp	x23,x24,[sp,#-16]!
+	stp	d8,d9,[sp,#-32]!
+	stp	d10,d11,[sp,#-32]!
+
+	add	w15,w8,#1
+	add	w19,w8,#2
+	add	w20,w8,#3
+	add	w21,w8,#4
+	add	w22,w8,#5
+	add	w8,w8,#6
+	orr	v30.16b,v24.16b,v24.16b
+	rev	w15,w15
+	orr	v31.16b,v24.16b,v24.16b
+	rev	w19,w19
+	orr	v8.16b,v24.16b,v24.16b
+	rev	w20,w20
+	orr	v9.16b,v24.16b,v24.16b
+	rev	w21,w21
+	orr	v10.16b,v24.16b,v24.16b
+	rev	w22,w22
+	orr	v11.16b,v24.16b,v24.16b
+	rev	w23,w8
+
+	sub	x2,x2,#6		// bias
+	mov	v30.s[3],w15
+	mov	v31.s[3],w19
+	mov	v8.s[3],w20
+	mov	v9.s[3],w21
+	mov	v10.s[3],w22
+	mov	v11.s[3],w23
+	b	Loop12x_ctr32_unroll
+
+.align	4
+Loop12x_ctr32_unroll:
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v2.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v2.16b
+	aesmc	v27.16b,v27.16b
+	aese	v28.16b,v2.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v2.16b
+	aesmc	v29.16b,v29.16b
+	aese	v30.16b,v2.16b
+	aesmc	v30.16b,v30.16b
+	aese	v31.16b,v2.16b
+	aesmc	v31.16b,v31.16b
+	aese	v8.16b,v2.16b
+	aesmc	v8.16b,v8.16b
+	aese	v9.16b,v2.16b
+	aesmc	v9.16b,v9.16b
+	aese	v10.16b,v2.16b
+	aesmc	v10.16b,v10.16b
+	aese	v11.16b,v2.16b
+	aesmc	v11.16b,v11.16b
+	ld1	{v2.4s},[x7],#16
+	subs	w6,w6,#2
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v3.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v3.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v3.16b
+	aesmc	v27.16b,v27.16b
+	aese	v28.16b,v3.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v3.16b
+	aesmc	v29.16b,v29.16b
+	aese	v30.16b,v3.16b
+	aesmc	v30.16b,v30.16b
+	aese	v31.16b,v3.16b
+	aesmc	v31.16b,v31.16b
+	aese	v8.16b,v3.16b
+	aesmc	v8.16b,v8.16b
+	aese	v9.16b,v3.16b
+	aesmc	v9.16b,v9.16b
+	aese	v10.16b,v3.16b
+	aesmc	v10.16b,v10.16b
+	aese	v11.16b,v3.16b
+	aesmc	v11.16b,v11.16b
+	ld1	{v3.4s},[x7],#16
+	b.gt	Loop12x_ctr32_unroll
+
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v2.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v2.16b
+	aesmc	v27.16b,v27.16b
+	aese	v28.16b,v2.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v2.16b
+	aesmc	v29.16b,v29.16b
+	aese	v30.16b,v2.16b
+	aesmc	v30.16b,v30.16b
+	aese	v31.16b,v2.16b
+	aesmc	v31.16b,v31.16b
+	aese	v8.16b,v2.16b
+	aesmc	v8.16b,v8.16b
+	aese	v9.16b,v2.16b
+	aesmc	v9.16b,v9.16b
+	aese	v10.16b,v2.16b
+	aesmc	v10.16b,v10.16b
+	aese	v11.16b,v2.16b
+	aesmc	v11.16b,v11.16b
+	ld1	{v2.4s},[x7],#16
+
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v3.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v3.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v3.16b
+	aesmc	v27.16b,v27.16b
+	aese	v28.16b,v3.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v3.16b
+	aesmc	v29.16b,v29.16b
+	aese	v30.16b,v3.16b
+	aesmc	v30.16b,v30.16b
+	aese	v31.16b,v3.16b
+	aesmc	v31.16b,v31.16b
+	aese	v8.16b,v3.16b
+	aesmc	v8.16b,v8.16b
+	aese	v9.16b,v3.16b
+	aesmc	v9.16b,v9.16b
+	aese	v10.16b,v3.16b
+	aesmc	v10.16b,v10.16b
+	aese	v11.16b,v3.16b
+	aesmc	v11.16b,v11.16b
+	ld1	{v3.4s},[x7],#16
+
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	add	w9,w8,#1
+	add	w10,w8,#2
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	add	w12,w8,#3
+	add	w11,w8,#4
+	aese	v26.16b,v2.16b
+	aesmc	v26.16b,v26.16b
+	add	w13,w8,#5
+	add	w14,w8,#6
+	rev	w9,w9
+	aese	v27.16b,v2.16b
+	aesmc	v27.16b,v27.16b
+	add	w15,w8,#7
+	add	w19,w8,#8
+	rev	w10,w10
+	rev	w12,w12
+	aese	v28.16b,v2.16b
+	aesmc	v28.16b,v28.16b
+	add	w20,w8,#9
+	add	w21,w8,#10
+	rev	w11,w11
+	rev	w13,w13
+	aese	v29.16b,v2.16b
+	aesmc	v29.16b,v29.16b
+	add	w22,w8,#11
+	add	w23,w8,#12
+	rev	w14,w14
+	rev	w15,w15
+	aese	v30.16b,v2.16b
+	aesmc	v30.16b,v30.16b
+	rev	w19,w19
+	rev	w20,w20
+	aese	v31.16b,v2.16b
+	aesmc	v31.16b,v31.16b
+	rev	w21,w21
+	rev	w22,w22
+	aese	v8.16b,v2.16b
+	aesmc	v8.16b,v8.16b
+	rev	w23,w23
+	aese	v9.16b,v2.16b
+	aesmc	v9.16b,v9.16b
+	aese	v10.16b,v2.16b
+	aesmc	v10.16b,v10.16b
+	aese	v11.16b,v2.16b
+	aesmc	v11.16b,v11.16b
+	ld1	{v2.4s},[x7],#16
+
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v3.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v3.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v3.16b
+	aesmc	v27.16b,v27.16b
+	ld1	{v4.16b,v5.16b,v6.16b,v7.16b},[x0],#64
+	aese	v28.16b,v3.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v3.16b
+	aesmc	v29.16b,v29.16b
+	aese	v30.16b,v3.16b
+	aesmc	v30.16b,v30.16b
+	aese	v31.16b,v3.16b
+	aesmc	v31.16b,v31.16b
+	ld1	{v16.16b,v17.16b,v18.16b,v19.16b},[x0],#64
+	aese	v8.16b,v3.16b
+	aesmc	v8.16b,v8.16b
+	aese	v9.16b,v3.16b
+	aesmc	v9.16b,v9.16b
+	aese	v10.16b,v3.16b
+	aesmc	v10.16b,v10.16b
+	aese	v11.16b,v3.16b
+	aesmc	v11.16b,v11.16b
+	ld1	{v20.16b,v21.16b,v22.16b,v23.16b},[x0],#64
+	ld1	{v3.4s},[x7],#16
+
+	mov	x7, x3
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v2.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v2.16b
+	aesmc	v27.16b,v27.16b
+	aese	v28.16b,v2.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v2.16b
+	aesmc	v29.16b,v29.16b
+	aese	v30.16b,v2.16b
+	aesmc	v30.16b,v30.16b
+	aese	v31.16b,v2.16b
+	aesmc	v31.16b,v31.16b
+	aese	v8.16b,v2.16b
+	aesmc	v8.16b,v8.16b
+	aese	v9.16b,v2.16b
+	aesmc	v9.16b,v9.16b
+	aese	v10.16b,v2.16b
+	aesmc	v10.16b,v10.16b
+	aese	v11.16b,v2.16b
+	aesmc	v11.16b,v11.16b
+	ld1	{v2.4s},[x7],#16	// re-pre-load rndkey[0]
+
+	aese	v24.16b,v3.16b
+.long	0xce016084	//eor3 v4.16b,v4.16b,v1.16b,v24.16b
+	orr	v24.16b,v0.16b,v0.16b
+	aese	v25.16b,v3.16b
+.long	0xce0164a5	//eor3 v5.16b,v5.16b,v1.16b,v25.16b
+	orr	v25.16b,v0.16b,v0.16b
+	aese	v26.16b,v3.16b
+.long	0xce0168c6	//eor3 v6.16b,v6.16b,v1.16b,v26.16b
+	orr	v26.16b,v0.16b,v0.16b
+	aese	v27.16b,v3.16b
+.long	0xce016ce7	//eor3 v7.16b,v7.16b,v1.16b,v27.16b
+	orr	v27.16b,v0.16b,v0.16b
+	aese	v28.16b,v3.16b
+.long	0xce017210	//eor3 v16.16b,v16.16b,v1.16b,v28.16b
+	orr	v28.16b,v0.16b,v0.16b
+	aese	v29.16b,v3.16b
+.long	0xce017631	//eor3 v17.16b,v17.16b,v1.16b,v29.16b
+	orr	v29.16b,v0.16b,v0.16b
+	aese	v30.16b,v3.16b
+.long	0xce017a52	//eor3 v18.16b,v18.16b,v1.16b,v30.16b
+	orr	v30.16b,v0.16b,v0.16b
+	aese	v31.16b,v3.16b
+.long	0xce017e73	//eor3 v19.16b,v19.16b,v1.16b,v31.16b
+	orr	v31.16b,v0.16b,v0.16b
+	aese	v8.16b,v3.16b
+.long	0xce012294	//eor3 v20.16b,v20.16b,v1.16b,v8.16b
+	orr	v8.16b,v0.16b,v0.16b
+	aese	v9.16b,v3.16b
+.long	0xce0126b5	//eor3 v21.16b,v21.16b,v1.16b,v9.16b
+	orr	v9.16b,v0.16b,v0.16b
+	aese	v10.16b,v3.16b
+.long	0xce012ad6	//eor3 v22.16b,v22.16b,v1.16b,v10.16b
+	orr	v10.16b,v0.16b,v0.16b
+	aese	v11.16b,v3.16b
+.long	0xce012ef7	//eor3 v23.16b,v23.16b,v1.16b,v11.16b
+	orr	v11.16b,v0.16b,v0.16b
+	ld1	{v3.4s},[x7],#16	// re-pre-load rndkey[1]
+
+	mov	v24.s[3],w9
+	mov	v25.s[3],w10
+	mov	v26.s[3],w12
+	mov	v27.s[3],w11
+	st1	{v4.16b,v5.16b,v6.16b,v7.16b},[x1],#64
+	mov	v28.s[3],w13
+	mov	v29.s[3],w14
+	mov	v30.s[3],w15
+	mov	v31.s[3],w19
+	st1	{v16.16b,v17.16b,v18.16b,v19.16b},[x1],#64
+	mov	v8.s[3],w20
+	mov	v9.s[3],w21
+	mov	v10.s[3],w22
+	mov	v11.s[3],w23
+	st1	{v20.16b,v21.16b,v22.16b,v23.16b},[x1],#64
+
+	mov	w6,w5
+
+	add	w8,w8,#12
+	subs	x2,x2,#12
+	b.hs	Loop12x_ctr32_unroll
+
+	// pop regs from stack when 12 data chunks are interleaved
+	ldp	d10,d11,[sp],#32
+	ldp	d8,d9,[sp],#32
+	ldp	x23,x24,[sp],#16
+	ldp	x21,x22,[sp],#16
+	ldp	x19,x20,[sp],#16
+
+	add	x2,x2,#12
+	cbz	x2,Lctr32_done_unroll
+	sub	w8,w8,#12
+
+	cmp	x2,#2
+	b.ls	Lctr32_tail_unroll
+
+	cmp	x2,#6
+	sub	x2,x2,#3		// bias
+	add	w8,w8,#3
+	b.lo	Loop3x_ctr32_unroll
+
+	sub	x2,x2,#3
+	add	w8,w8,#3
+	b.lo	Loop6x_ctr32_unroll
+
+.align	4
+Loop6x_ctr32_unroll:
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v2.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v2.16b
+	aesmc	v27.16b,v27.16b
+	aese	v28.16b,v2.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v2.16b
+	aesmc	v29.16b,v29.16b
+	ld1	{v2.4s},[x7],#16
+	subs	w6,w6,#2
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v3.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v3.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v3.16b
+	aesmc	v27.16b,v27.16b
+	aese	v28.16b,v3.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v3.16b
+	aesmc	v29.16b,v29.16b
+	ld1	{v3.4s},[x7],#16
+	b.gt	Loop6x_ctr32_unroll
+
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v2.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v2.16b
+	aesmc	v27.16b,v27.16b
+	aese	v28.16b,v2.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v2.16b
+	aesmc	v29.16b,v29.16b
+	ld1	{v2.4s},[x7],#16
+
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v3.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v3.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v3.16b
+	aesmc	v27.16b,v27.16b
+	aese	v28.16b,v3.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v3.16b
+	aesmc	v29.16b,v29.16b
+	ld1	{v3.4s},[x7],#16
+
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	add	w9,w8,#1
+	add	w10,w8,#2
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	add	w12,w8,#3
+	add	w11,w8,#4
+	aese	v26.16b,v2.16b
+	aesmc	v26.16b,v26.16b
+	add	w13,w8,#5
+	add	w14,w8,#6
+	rev	w9,w9
+	aese	v27.16b,v2.16b
+	aesmc	v27.16b,v27.16b
+	rev	w10,w10
+	rev	w12,w12
+	aese	v28.16b,v2.16b
+	aesmc	v28.16b,v28.16b
+	rev	w11,w11
+	rev	w13,w13
+	aese	v29.16b,v2.16b
+	aesmc	v29.16b,v29.16b
+	rev	w14,w14
+	ld1	{v2.4s},[x7],#16
+
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v3.16b
+	aesmc	v25.16b,v25.16b
+	ld1	{v4.16b,v5.16b,v6.16b,v7.16b},[x0],#64
+	aese	v26.16b,v3.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v3.16b
+	aesmc	v27.16b,v27.16b
+	ld1	{v16.16b,v17.16b},[x0],#32
+	aese	v28.16b,v3.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v3.16b
+	aesmc	v29.16b,v29.16b
+	ld1	{v3.4s},[x7],#16
+
+	mov	x7, x3
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v2.16b
+	aesmc	v26.16b,v26.16b
+	aese	v27.16b,v2.16b
+	aesmc	v27.16b,v27.16b
+	aese	v28.16b,v2.16b
+	aesmc	v28.16b,v28.16b
+	aese	v29.16b,v2.16b
+	aesmc	v29.16b,v29.16b
+	ld1	{v2.4s},[x7],#16	// re-pre-load rndkey[0]
+
+	aese	v24.16b,v3.16b
+.long	0xce016084	//eor3 v4.16b,v4.16b,v1.16b,v24.16b
+	aese	v25.16b,v3.16b
+.long	0xce0164a5	//eor3 v5.16b,v5.16b,v1.16b,v25.16b
+	aese	v26.16b,v3.16b
+.long	0xce0168c6	//eor3 v6.16b,v6.16b,v1.16b,v26.16b
+	aese	v27.16b,v3.16b
+.long	0xce016ce7	//eor3 v7.16b,v7.16b,v1.16b,v27.16b
+	aese	v28.16b,v3.16b
+.long	0xce017210	//eor3 v16.16b,v16.16b,v1.16b,v28.16b
+	aese	v29.16b,v3.16b
+.long	0xce017631	//eor3 v17.16b,v17.16b,v1.16b,v29.16b
+	ld1	{v3.4s},[x7],#16	// re-pre-load rndkey[1]
+
+	orr	v24.16b,v0.16b,v0.16b
+	orr	v25.16b,v0.16b,v0.16b
+	orr	v26.16b,v0.16b,v0.16b
+	orr	v27.16b,v0.16b,v0.16b
+	orr	v28.16b,v0.16b,v0.16b
+	orr	v29.16b,v0.16b,v0.16b
+
+	mov	v24.s[3],w9
+	mov	v25.s[3],w10
+	st1	{v4.16b,v5.16b,v6.16b,v7.16b},[x1],#64
+	mov	v26.s[3],w12
+	mov	v27.s[3],w11
+	st1	{v16.16b,v17.16b},[x1],#32
+	mov	v28.s[3],w13
+	mov	v29.s[3],w14
+
+	cbz	x2,Lctr32_done_unroll
+	mov	w6,w5
+
+	cmp	x2,#2
+	b.ls	Lctr32_tail_unroll
+
+	sub	x2,x2,#3		// bias
+	add	w8,w8,#3
+	b	Loop3x_ctr32_unroll
+
+.align	4
+Loop3x_ctr32_unroll:
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v2.16b
+	aesmc	v26.16b,v26.16b
+	ld1	{v2.4s},[x7],#16
+	subs	w6,w6,#2
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v3.16b
+	aesmc	v25.16b,v25.16b
+	aese	v26.16b,v3.16b
+	aesmc	v26.16b,v26.16b
+	ld1	{v3.4s},[x7],#16
+	b.gt	Loop3x_ctr32_unroll
+
+	aese	v24.16b,v2.16b
+	aesmc	v9.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v10.16b,v25.16b
+	ld1	{v4.16b,v5.16b,v6.16b},[x0],#48
+	orr	v24.16b,v0.16b,v0.16b
+	aese	v26.16b,v2.16b
+	aesmc	v26.16b,v26.16b
+	ld1	{v2.4s},[x7],#16
+	orr	v25.16b,v0.16b,v0.16b
+	aese	v9.16b,v3.16b
+	aesmc	v9.16b,v9.16b
+	aese	v10.16b,v3.16b
+	aesmc	v10.16b,v10.16b
+	aese	v26.16b,v3.16b
+	aesmc	v11.16b,v26.16b
+	ld1	{v3.4s},[x7],#16
+	orr	v26.16b,v0.16b,v0.16b
+	add	w9,w8,#1
+	aese	v9.16b,v2.16b
+	aesmc	v9.16b,v9.16b
+	aese	v10.16b,v2.16b
+	aesmc	v10.16b,v10.16b
+	add	w10,w8,#2
+	aese	v11.16b,v2.16b
+	aesmc	v11.16b,v11.16b
+	ld1	{v2.4s},[x7],#16
+	add	w8,w8,#3
+	aese	v9.16b,v3.16b
+	aesmc	v9.16b,v9.16b
+	aese	v10.16b,v3.16b
+	aesmc	v10.16b,v10.16b
+
+	rev	w9,w9
+	aese	v11.16b,v3.16b
+	aesmc	v11.16b,v11.16b
+	ld1	{v3.4s},[x7],#16
+	mov	v24.s[3], w9
+	mov	x7,x3
+	rev	w10,w10
+	aese	v9.16b,v2.16b
+	aesmc	v9.16b,v9.16b
+
+	aese	v10.16b,v2.16b
+	aesmc	v10.16b,v10.16b
+	mov	v25.s[3], w10
+	rev	w12,w8
+	aese	v11.16b,v2.16b
+	aesmc	v11.16b,v11.16b
+	mov	v26.s[3], w12
+
+	aese	v9.16b,v3.16b
+	aese	v10.16b,v3.16b
+	aese	v11.16b,v3.16b
+
+.long	0xce012484	//eor3 v4.16b,v4.16b,v1.16b,v9.16b
+	ld1	{v2.4s},[x7],#16	// re-pre-load rndkey[0]
+.long	0xce0128a5	//eor3 v5.16b,v5.16b,v1.16b,v10.16b
+	mov	w6,w5
+.long	0xce012cc6	//eor3 v6.16b,v6.16b,v1.16b,v11.16b
+	ld1	{v3.4s},[x7],#16	// re-pre-load rndkey[1]
+	st1	{v4.16b,v5.16b,v6.16b},[x1],#48
+
+	cbz	x2,Lctr32_done_unroll
+
+Lctr32_tail_unroll:
+	cmp	x2,#1
+	b.eq	Lctr32_tail_1_unroll
+
+Lctr32_tail_2_unroll:
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	ld1	{v2.4s},[x7],#16
+	subs	w6,w6,#2
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v3.16b
+	aesmc	v25.16b,v25.16b
+	ld1	{v3.4s},[x7],#16
+	b.gt	Lctr32_tail_2_unroll
+
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	ld1	{v2.4s},[x7],#16
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v3.16b
+	aesmc	v25.16b,v25.16b
+	ld1	{v3.4s},[x7],#16
+	ld1	{v4.16b,v5.16b},[x0],#32
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	ld1	{v2.4s},[x7],#16
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v3.16b
+	aesmc	v25.16b,v25.16b
+	ld1	{v3.4s},[x7],#16
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v25.16b,v2.16b
+	aesmc	v25.16b,v25.16b
+	aese	v24.16b,v3.16b
+	aese	v25.16b,v3.16b
+
+.long	0xce016084	//eor3 v4.16b,v4.16b,v1.16b,v24.16b
+.long	0xce0164a5	//eor3 v5.16b,v5.16b,v1.16b,v25.16b
+	st1	{v4.16b,v5.16b},[x1],#32
+	b	Lctr32_done_unroll
+
+Lctr32_tail_1_unroll:
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	ld1	{v2.4s},[x7],#16
+	subs	w6,w6,#2
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	ld1	{v3.4s},[x7],#16
+	b.gt	Lctr32_tail_1_unroll
+
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	ld1	{v2.4s},[x7],#16
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	ld1	{v3.4s},[x7],#16
+	ld1	{v4.16b},[x0]
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	ld1	{v2.4s},[x7],#16
+	aese	v24.16b,v3.16b
+	aesmc	v24.16b,v24.16b
+	ld1	{v3.4s},[x7],#16
+	aese	v24.16b,v2.16b
+	aesmc	v24.16b,v24.16b
+	aese	v24.16b,v3.16b
+
+.long	0xce016084	//eor3 v4.16b,v4.16b,v1.16b,v24.16b
+	st1	{v4.16b},[x1],#16
+
+Lctr32_done_unroll:
+	ldp	d8,d9,[sp, #16]
+	ldp	d10,d11,[sp, #32]
+	ldp	d12,d13,[sp, #48]
+	ldp	d14,d15,[sp, #64]
+	ldr	x29,[sp],#80
+	ret
+
 .globl	_aes_v8_ctr32_encrypt_blocks
 
 .align	5
 _aes_v8_ctr32_encrypt_blocks:
+	AARCH64_VALID_CALL_TARGET
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	ldr	w5,[x3,#240]
@@ -1854,6 +2588,7 @@ Lctr32_done:
 
 .align	5
 _aes_v8_xts_encrypt:
+	AARCH64_VALID_CALL_TARGET
 	cmp	x2,#16
 	// Original input data size bigger than 16, jump to big size processing.
 	b.ne	Lxts_enc_big_size
@@ -2495,6 +3230,7 @@ Lxts_enc_final_abort:
 
 .align	5
 _aes_v8_xts_decrypt:
+	AARCH64_VALID_CALL_TARGET
 	cmp	x2,#16
 	// Original input data size bigger than 16, jump to big size processing.
 	b.ne	Lxts_dec_big_size
@@ -3104,7 +3840,7 @@ Lxts_done:
 	cbnz	x2,Lxts_dec_1st_done
 	ld1	{v0.16b},[x0],#16
 
-	// Decrypt the last secod block to get the last plain text block
+	// Decrypt the last second block to get the last plain text block
 Lxts_dec_1st_done:
 	eor	v26.16b,v0.16b,v8.16b
 	ldr	w6,[x3,#240]

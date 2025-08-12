@@ -61,7 +61,7 @@ static void *v2i_POLICY_CONSTRAINTS(const X509V3_EXT_METHOD *method,
     int i;
 
     if ((pcons = POLICY_CONSTRAINTS_new()) == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
         return NULL;
     }
     for (i = 0; i < sk_CONF_VALUE_num(values); i++) {

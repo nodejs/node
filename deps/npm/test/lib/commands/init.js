@@ -459,3 +459,125 @@ t.test('workspaces', async t => {
     t.ok(exists.isFile(), 'bin ran, creating file inside workspace')
   })
 })
+
+t.test('npm init with init-private config set', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    config: { yes: true, 'init-private': true },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'package.json'))
+  t.equal(pkg.private, true, 'should set private to true when init-private is set')
+})
+
+t.test('npm init does not set private by default', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    config: { yes: true },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'package.json'))
+  t.strictSame(pkg.private, undefined, 'should not set private by default')
+})
+
+t.test('user‑set init-private IS forwarded', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    config: { yes: true, 'init-private': true },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'package.json'))
+  t.strictSame(pkg.private, true, 'should set private to true when init-private is set')
+})
+
+t.test('user‑set init-private IS forwarded when false', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    config: { yes: true, 'init-private': false },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'package.json'))
+  t.strictSame(pkg.private, false, 'should set private to false when init-private is false')
+})
+
+t.test('No init-private is respected in workspaces', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'top-level',
+      }),
+    },
+    config: { workspace: 'a', yes: true },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'a/package.json'))
+  t.strictSame(pkg.private, undefined, 'workspace package.json has no private field set')
+})
+
+t.test('init-private is respected in workspaces', async t => {
+  const { npm, prefix } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'top-level',
+      }),
+    },
+    config: { workspace: 'a', yes: true, 'init-private': true },
+    noLog: true,
+  })
+
+  await npm.exec('init', [])
+
+  const pkg = require(resolve(prefix, 'a/package.json'))
+  t.equal(pkg.private, true, 'workspace package.json has private field set')
+})
+
+t.test('create‑initializer path: init-private flag is forwarded via args', async t => {
+  const calls = []
+  const libexecStub = async opts => calls.push(opts)
+
+  const { npm } = await mockNpm(t, {
+    libnpmexec: libexecStub,
+    // user set the flag in their config
+    config: { yes: true, 'init-private': true },
+    noLog: true,
+  })
+
+  await npm.exec('init', ['create-bar'])
+
+  t.ok(calls[0].initPrivate, 'init-private included in options')
+
+  // Also verify the test for when isDefault returns true
+  calls.length = 0
+  npm.config.isDefault = () => true
+
+  await npm.exec('init', ['create-bar'])
+
+  t.equal(calls[0].initPrivate, undefined, 'init-private not included when using default')
+})
+
+t.test('create‑initializer path: false init-private is forwarded', async t => {
+  const calls = []
+  const libexecStub = async opts => calls.push(opts)
+
+  const { npm } = await mockNpm(t, {
+    libnpmexec: libexecStub,
+    // explicitly set to false
+    config: { yes: true, 'init-private': false },
+    noLog: true,
+  })
+
+  await npm.exec('init', ['create-baz'])
+
+  t.equal(calls[0].initPrivate, false, 'false init-private value is properly forwarded')
+})

@@ -690,7 +690,7 @@ async function tests() {
   const it = r[Symbol.asyncIterator]();
   const p = it.return();
   r.emit('close');
-  p.then(common.mustCall()).catch(common.mustNotCall());
+  p.then(common.mustCall());
 }
 
 {

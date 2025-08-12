@@ -21,6 +21,7 @@
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/contexts.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/elements.h"
@@ -177,7 +178,7 @@ void Object::VerifyMaybeObjectPointer(Isolate* isolate, Tagged<MaybeObject> p) {
 
 // static
 void Smi::SmiVerify(Tagged<Smi> obj, Isolate* isolate) {
-  CHECK(IsSmi(obj));
+  CHECK(IsSmi(Tagged<Object>(obj)));
   CHECK(!IsCallable(obj));
   CHECK(!IsConstructor(obj));
 }
@@ -227,6 +228,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
+    case SIMPLE_NAME_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case EPHEMERON_HASH_TABLE_TYPE:
       Cast<FixedArray>(*this)->FixedArrayVerify(isolate);
@@ -313,6 +315,18 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
+
+    case TUPLE2_TYPE:
+      Cast<Tuple2>(*this)->Tuple2Verify(isolate);
+      break;
+
+    case CLASS_POSITIONS_TYPE:
+      Cast<ClassPositions>(*this)->ClassPositionsVerify(isolate);
+      break;
+
+    case ACCESSOR_PAIR_TYPE:
+      Cast<AccessorPair>(*this)->AccessorPairVerify(isolate);
+      break;
 
     case ALLOCATION_SITE_TYPE:
       Cast<AllocationSite>(*this)->AllocationSiteVerify(isolate);
@@ -563,6 +577,11 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK(instance_size() == kVariableSizeSentinel ||
         (kTaggedSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm_struct = InstanceTypeChecker::IsWasmStruct(instance_type());
+#else
+  constexpr bool is_wasm_struct = false;
+#endif  // V8_ENABLE_WEBASSEMBLY
   if (IsContextMap(*this)) {
     // The map for the NativeContext is allocated before the NativeContext
     // itself, so it may happen that during a GC the native_context() is still
@@ -573,10 +592,12 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK_EQ(native_context_or_null(), map()->native_context_or_null());
   } else {
     if (IsUndefined(GetBackPointer(), isolate)) {
-      // Root maps must not have descriptors in the descriptor array that do not
-      // belong to the map.
-      CHECK_EQ(NumberOfOwnDescriptors(),
-               instance_descriptors(isolate)->number_of_descriptors());
+      if (!is_wasm_struct) {
+        // Root maps must not have descriptors in the descriptor array that do
+        // not belong to the map.
+        CHECK_EQ(NumberOfOwnDescriptors(),
+                 instance_descriptors(isolate)->number_of_descriptors());
+      }
     } else {
       // If there is a parent map it must be non-stable.
       Tagged<Map> parent = Cast<Map>(GetBackPointer());
@@ -604,7 +625,9 @@ void Map::MapVerify(Isolate* isolate) {
       }
     }
   }
-  SLOW_DCHECK(instance_descriptors(isolate)->IsSortedNoDuplicates());
+  if (!is_wasm_struct) {
+    SLOW_DCHECK(instance_descriptors(isolate)->IsSortedNoDuplicates());
+  }
   SLOW_DCHECK(TransitionsAccessor(isolate, *this).IsSortedNoDuplicates());
   SLOW_DCHECK(
       TransitionsAccessor(isolate, *this).IsConsistentWithBackPointers());
@@ -641,6 +664,17 @@ void Map::MapVerify(Isolate* isolate) {
     // Shared objects' maps must use the RO meta map.
     CHECK_EQ(map(), GetReadOnlyRoots().meta_map());
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (instance_type() == WASM_STRUCT_TYPE ||
+      instance_type() == WASM_ARRAY_TYPE) {
+    // Wasm structs are sometimes shared. In this case, the meta map of this map
+    // has to be the context-free RO meta map.
+    if (HeapLayout::InAnySharedSpace(*this)) {
+      CHECK_EQ(map(), GetReadOnlyRoots().meta_map());
+    }
+  }
+#endif
 
   if (IsJSObjectMap(*this)) {
     int header_end_offset = JSObject::GetHeaderSize(*this);
@@ -699,7 +733,7 @@ void Map::MapVerify(Isolate* isolate) {
       CHECK(IsJSFunction(maybe_constructor) ||
             IsFunctionTemplateInfo(maybe_constructor) ||
             // The above check might fail until empty function setup is done.
-            IsUndefined(isolate->raw_native_context()->get(
+            IsUndefined(isolate->raw_native_context()->GetNoCell(
                 Context::EMPTY_FUNCTION_INDEX)));
     }
   }
@@ -924,28 +958,6 @@ void Context::ContextVerify(Isolate* isolate) {
   for (int i = 0; i < length(); i++) {
     VerifyObjectField(isolate, OffsetOfElementAt(i));
   }
-  if (IsScriptContext()) {
-    Tagged<Object> side_data = get(CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
-    CHECK(IsFixedArray(side_data));
-    Tagged<FixedArray> side_data_array = Cast<FixedArray>(side_data);
-    // The array might not be empty if the script context is deserialized from
-    // snapshot. However, as long as the flags are enabled the feedback slots
-    // must be initialized properly.
-    if (v8_flags.script_context_mutable_heap_number ||
-        v8_flags.const_tracking_let) {
-      for (int i = 0; i < side_data_array->length(); i++) {
-        Tagged<Object> element = side_data_array->get(i);
-        if (IsSmi(element)) {
-          int value = element.ToSmi().value();
-          CHECK(ContextSidePropertyCell::kOther <= value);
-          CHECK(value <= ContextSidePropertyCell::kMutableHeapNumber);
-        } else {
-          // The slot contains `undefined` before the variable is initialized.
-          CHECK(IsUndefined(element) || IsContextSidePropertyCell(element));
-        }
-      }
-    }
-  }
 }
 
 void NativeContext::NativeContextVerify(Isolate* isolate) {
@@ -953,6 +965,17 @@ void NativeContext::NativeContextVerify(Isolate* isolate) {
   CHECK(retained_maps() == Smi::zero() || IsWeakArrayList(retained_maps()));
   CHECK_EQ(length(), NativeContext::NATIVE_CONTEXT_SLOTS);
   CHECK_EQ(kVariableSizeSentinel, map()->instance_size());
+}
+
+void ContextCell::ContextCellVerify(Isolate* isolate) {
+  Tagged<Object> dep_code = dependent_code();
+  Tagged<JSAny> tagged = tagged_value();
+  int state_as_int = static_cast<int>(state());
+  CHECK_GE(state_as_int, static_cast<int>(kConst));
+  CHECK_LE(state_as_int, static_cast<int>(kDetached));
+  CHECK(IsDependentCode(dep_code));
+  Object::VerifyPointer(isolate, dep_code);
+  Object::VerifyPointer(isolate, tagged);
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
@@ -1108,18 +1131,18 @@ void SloppyArgumentsElementsVerify(Isolate* isolate,
       if (!is_fast) continue;
       // Fast sloppy arguments elements are never holey. Either the element is
       // context-mapped or present in the arguments elements.
-      CHECK(accessor->HasElement(holder, i, arg_elements));
+      CHECK(accessor->HasElement(isolate, holder, i, arg_elements));
       continue;
     }
     int mappedIndex = Smi::ToInt(mapped);
     nofMappedParameters++;
     CHECK_LE(maxMappedIndex, mappedIndex);
     maxMappedIndex = mappedIndex;
-    Tagged<Object> value = context_object->get(mappedIndex);
+    Tagged<Object> value = context_object->GetNoCell(mappedIndex);
     CHECK(IsObject(value));
     // None of the context-mapped entries should exist in the arguments
     // elements.
-    CHECK(!accessor->HasElement(holder, i, arg_elements));
+    CHECK(!accessor->HasElement(isolate, holder, i, arg_elements));
   }
   CHECK_LE(nofMappedParameters, context_object->length());
   CHECK_LE(nofMappedParameters, arg_elements->length());
@@ -1135,13 +1158,15 @@ void JSArgumentsObject::JSArgumentsObjectVerify(Isolate* isolate) {
         isolate, Cast<SloppyArgumentsElements>(elements()), *this);
   }
   Tagged<NativeContext> native_context = map()->map()->native_context();
-  if (map() == native_context->get(Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
-      map() == native_context->get(Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
-      map() == native_context->get(Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
+  if (map() == native_context->GetNoCell(Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
+      map() == native_context->GetNoCell(
+                   Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
+      map() == native_context->GetNoCell(
+                   Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
     VerifyObjectField(isolate, JSSloppyArgumentsObject::kLengthOffset);
     VerifyObjectField(isolate, JSSloppyArgumentsObject::kCalleeOffset);
   } else if (map() ==
-             native_context->get(Context::STRICT_ARGUMENTS_MAP_INDEX)) {
+             native_context->GetNoCell(Context::STRICT_ARGUMENTS_MAP_INDEX)) {
     VerifyObjectField(isolate, JSStrictArgumentsObject::kLengthOffset);
   }
 }
@@ -1392,7 +1417,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
     CHECK(IsFeedbackMetadata(feedback_metadata()));
   }
 
-  if (HasBytecodeArray() && !IsDontAdaptArguments()) {
+  if (HasBytecodeArray()) {
     CHECK_EQ(GetBytecodeArray(isolate)->parameter_count(),
              internal_formal_parameter_count_with_receiver());
   }
@@ -1525,10 +1550,6 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   CheckDataIsCompatible(property_details(), value());
 }
 
-void ContextSidePropertyCell::ContextSidePropertyCellVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::ContextSidePropertyCellVerify(*this, isolate);
-}
-
 void TrustedObject::TrustedObjectVerify(Isolate* isolate) {
 #if defined(V8_ENABLE_SANDBOX)
   // All trusted objects must live in trusted space.
@@ -1547,7 +1568,9 @@ void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
   // Check that the self indirect pointer is consistent, i.e. points back to
   // this object.
   InstanceType instance_type = map()->instance_type();
-  IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
+  bool shared = HeapLayout::InAnySharedSpace(*this);
+  IndirectPointerTag tag =
+      IndirectPointerTagFromInstanceType(instance_type, shared);
   // We can't use ReadIndirectPointerField here because the tag is not a
   // compile-time constant.
   IndirectPointerSlot slot =
@@ -2524,30 +2547,41 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void DataHandler::DataHandlerVerify(Isolate* isolate) {
-  // Don't call TorqueGeneratedClassVerifiers::DataHandlerVerify because the
-  // Torque definition of this class includes all of the optional fields.
+void StructLayout::StructVerify(Isolate* isolate) {
+  Cast<Struct>(this)->StructVerify(isolate);
+}
 
-  // This assertion exists to encourage updating this verification function if
-  // new fields are added in the Torque class layout definition.
-  static_assert(DataHandler::kHeaderSize == 6 * kTaggedSize);
-
+void Tuple2::Tuple2Verify(Isolate* isolate) {
   StructVerify(isolate);
-  CHECK(IsDataHandler(*this));
-  Object::VerifyPointer(isolate, smi_handler(isolate));
+  CHECK(IsTuple2(this));
+  Object::VerifyPointer(isolate, value1_.load());
+  Object::VerifyPointer(isolate, value2_.load());
+}
+
+void AccessorPair::AccessorPairVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsAccessorPair(this));
+  Object::VerifyPointer(isolate, getter_.load());
+  Object::VerifyPointer(isolate, setter_.load());
+}
+
+void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsClassPositions(this));
+  CHECK(IsSmi(Tagged<Object>(start_.load())));
+  CHECK(IsSmi(Tagged<Object>(end_.load())));
+}
+
+void DataHandler::DataHandlerVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsDataHandler(this));
+  Object::VerifyPointer(isolate, smi_handler());
   CHECK_IMPLIES(!IsSmi(smi_handler()),
-                IsStoreHandler(*this) && IsCode(smi_handler()));
-  Object::VerifyPointer(isolate, validity_cell(isolate));
+                IsStoreHandler(this) && IsCode(smi_handler()));
+  Object::VerifyPointer(isolate, validity_cell());
   CHECK(IsSmi(validity_cell()) || IsCell(validity_cell()));
-  int data_count = data_field_count();
-  if (data_count >= 1) {
-    VerifyMaybeObjectField(isolate, kData1Offset);
-  }
-  if (data_count >= 2) {
-    VerifyMaybeObjectField(isolate, kData2Offset);
-  }
-  if (data_count >= 3) {
-    VerifyMaybeObjectField(isolate, kData3Offset);
+  for (int i = 0; i < data_field_count(); ++i) {
+    Object::VerifyMaybeObjectPointer(isolate, data()[i].load());
   }
 }
 
@@ -2562,11 +2596,20 @@ void StoreHandler::StoreHandlerVerify(Isolate* isolate) {
 }
 
 void AllocationSite::AllocationSiteVerify(Isolate* isolate) {
-  CHECK(IsAllocationSite(*this));
+  CHECK(IsAllocationSite(this));
   CHECK(IsDependentCode(dependent_code()));
-  CHECK(IsSmi(transition_info_or_boilerplate()) ||
-        IsJSObject(transition_info_or_boilerplate()));
+  if (PointsToLiteral()) {
+    CHECK(IsJSObject(transition_info_or_boilerplate_.load()));
+  } else {
+    CHECK(IsSmi(transition_info_or_boilerplate_.load()));
+  }
   CHECK(IsAllocationSite(nested_site()) || nested_site() == Smi::zero());
+}
+
+void AllocationMemento::AllocationMementoVerify(Isolate* isolate) {
+  StructVerify(isolate);
+  CHECK(IsAllocationMemento(this));
+  CHECK(IsAllocationSite(allocation_site_.load()));
 }
 
 void Script::ScriptVerify(Isolate* isolate) {

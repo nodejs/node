@@ -618,11 +618,59 @@ constexpr bool FastStringKey::operator==(const FastStringKey& other) const {
   return name_ == other.name_;
 }
 
-constexpr FastStringKey::FastStringKey(std::string_view name)
+consteval FastStringKey::FastStringKey(std::string_view name)
+    : FastStringKey(name, 0) {}
+
+constexpr FastStringKey FastStringKey::AllowDynamic(std::string_view name) {
+  return FastStringKey(name, 0);
+}
+
+constexpr FastStringKey::FastStringKey(std::string_view name, int dummy)
     : name_(name), cached_hash_(HashImpl(name)) {}
 
 constexpr std::string_view FastStringKey::as_string_view() const {
   return name_;
+}
+
+// Converts a V8 numeric value to a corresponding C++ primitive or enum type.
+template <typename T,
+          bool loose = false,
+          typename = std::enable_if_t<std::numeric_limits<T>::is_specialized ||
+                                      std::is_enum_v<T>>>
+T FromV8Value(v8::Local<v8::Value> value) {
+  if constexpr (std::is_enum_v<T>) {
+    using Underlying = std::underlying_type_t<T>;
+    return static_cast<T>(FromV8Value<Underlying, loose>(value));
+  } else if constexpr (std::is_integral_v<T> && std::is_unsigned_v<T>) {
+    static_assert(
+        std::numeric_limits<T>::max() <= std::numeric_limits<uint32_t>::max() &&
+            std::numeric_limits<T>::min() >=
+                std::numeric_limits<uint32_t>::min(),
+        "Type is out of unsigned integer range");
+    if constexpr (!loose) {
+      CHECK(value->IsUint32());
+    } else {
+      CHECK(value->IsNumber());
+    }
+    return static_cast<T>(value.As<v8::Uint32>()->Value());
+  } else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+    static_assert(
+        std::numeric_limits<T>::max() <= std::numeric_limits<int32_t>::max() &&
+            std::numeric_limits<T>::min() >=
+                std::numeric_limits<int32_t>::min(),
+        "Type is out of signed integer range");
+    if constexpr (!loose) {
+      CHECK(value->IsInt32());
+    } else {
+      CHECK(value->IsNumber());
+    }
+    return static_cast<T>(value.As<v8::Int32>()->Value());
+  } else {
+    static_assert(std::is_floating_point_v<T>,
+                  "Type must be arithmetic or enum.");
+    CHECK(value->IsNumber());
+    return static_cast<T>(value.As<v8::Number>()->Value());
+  }
 }
 
 #ifdef _WIN32

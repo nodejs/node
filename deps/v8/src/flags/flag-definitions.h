@@ -460,14 +460,14 @@ DEFINE_BOOL_READONLY(
     single_generation, V8_SINGLE_GENERATION_BOOL,
     "allocate all objects from young generation to old generation")
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-#define V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL true
-#else
-#define V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL false
-#endif
-DEFINE_BOOL_READONLY(conservative_stack_scanning,
-                     V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL,
+#ifdef V8_ENABLE_DIRECT_HANDLE
+// Direct handles require conservative stack scanning.
+DEFINE_BOOL_READONLY(conservative_stack_scanning, true,
                      "use conservative stack scanning")
+#else
+DEFINE_EXPERIMENTAL_FEATURE(conservative_stack_scanning,
+                            "use conservative stack scanning")
+#endif  // V8_ENABLE_DIRECT_HANDLE
 DEFINE_IMPLICATION(conservative_stack_scanning,
                    scavenger_conservative_object_pinning)
 DEFINE_NEG_IMPLICATION(conservative_stack_scanning, compact_with_stack)
@@ -483,11 +483,10 @@ DEFINE_BOOL_READONLY(direct_handle, V8_ENABLE_DIRECT_HANDLE_BOOL,
 // break the correctness of the GC.
 DEFINE_NEG_NEG_IMPLICATION(conservative_stack_scanning, direct_handle)
 
-DEFINE_EXPERIMENTAL_FEATURE(scavenger_conservative_object_pinning,
-                            "Objects reachable from the native stack during "
-                            "scavenge will be pinned and "
-                            "won't move.")
-DEFINE_IMPLICATION(scavenger_conservative_object_pinning, separate_gc_phases)
+DEFINE_BOOL(scavenger_conservative_object_pinning, false,
+            "Objects reachable from the native stack during "
+            "scavenge will be pinned and "
+            "won't move.")
 DEFINE_BOOL(
     stress_scavenger_conservative_object_pinning, false,
     "Treat some precise references as conservative references to stress "
@@ -508,7 +507,6 @@ DEFINE_IMPLICATION(stress_scavenger_conservative_object_pinning_random,
 DEFINE_BOOL(scavenger_precise_object_pinning, false,
             "Objects reachable from handles during scavenge "
             "will be pinned and won't move.")
-DEFINE_IMPLICATION(scavenger_precise_object_pinning, separate_gc_phases)
 
 DEFINE_BOOL(
     precise_object_pinning, false,
@@ -721,6 +719,9 @@ DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 DEFINE_BOOL(additive_safe_int_feedback, false,
             "Enable the use of AdditiveSafeInteger feedback")
 DEFINE_WEAK_IMPLICATION(future, additive_safe_int_feedback)
+// Additive safe ints are only used by TurboFan.
+DEFINE_NEG_IMPLICATION(jitless, additive_safe_int_feedback)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, additive_safe_int_feedback)
 #else
 DEFINE_BOOL_READONLY(additive_safe_int_feedback, false,
                      "Enable the use of AdditiveSafeInteger feedback")
@@ -734,22 +735,9 @@ DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                      "Use const tracking on dictionary properties")
 
-DEFINE_BOOL(const_tracking_let, true,
-            "Use const tracking on top-level `let` variables")
-
-DEFINE_BOOL(script_context_mutable_heap_number, true,
-            "Use mutable heap numbers in script contexts")
-
-#if defined(V8_31BIT_SMIS_ON_64BIT_ARCH) || defined(V8_TARGET_ARCH_32_BIT)
-#define SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
-DEFINE_BOOL(script_context_mutable_heap_int32, true,
-            "Use mutable heap int32 number in script contexts")
-DEFINE_WEAK_IMPLICATION(script_context_mutable_heap_int32,
-                        script_context_mutable_heap_number)
-#else
-DEFINE_BOOL_READONLY(script_context_mutable_heap_int32, false,
-                     "Use mutable heap int32 number in script contexts")
-#endif
+DEFINE_BOOL(script_context_cells, true,
+            "Use context cells in script contexts, ie, const tracking let and "
+            "mutable numbers")
 
 DEFINE_BOOL(empty_context_extension_dep, true,
             "Use compilation dependency to avoid dynamic checks for "
@@ -757,6 +745,10 @@ DEFINE_BOOL(empty_context_extension_dep, true,
 
 DEFINE_BOOL(json_stringify_fast_path, false, "Enable JSON.stringify fast-path")
 DEFINE_WEAK_IMPLICATION(future, json_stringify_fast_path)
+
+DEFINE_BOOL(cache_property_key_string_adds, false,
+            "Enable caching property keys created by concatenating strings")
+DEFINE_WEAK_IMPLICATION(future, cache_property_key_string_adds)
 
 #ifdef V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT
 DEFINE_BOOL(extensible_ro_snapshot, true,
@@ -827,7 +819,7 @@ DEFINE_BOOL(jitless, V8_LITE_MODE_BOOL,
 // Jitless V8 has a few implications:
 // Field type tracking is only used by TurboFan.
 DEFINE_NEG_IMPLICATION(jitless, track_field_types)
-DEFINE_NEG_IMPLICATION(jitless, script_context_mutable_heap_number)
+DEFINE_NEG_IMPLICATION(jitless, script_context_cells)
 // No code generation at runtime.
 DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 DEFINE_NEG_IMPLICATION(jitless, turbofan)
@@ -859,8 +851,7 @@ DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, validate_asm)
 #endif  // V8_ENABLE_WEBASSEMBLY
 // Field type tracking is only used by TurboFan, so can be disabled.
 DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, track_field_types)
-DEFINE_NEG_IMPLICATION(disable_optimizing_compilers,
-                       script_context_mutable_heap_number)
+DEFINE_NEG_IMPLICATION(disable_optimizing_compilers, script_context_cells)
 
 DEFINE_BOOL(memory_protection_keys, true,
             "protect code memory with PKU if available")
@@ -932,6 +923,7 @@ DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
 DEFINE_BOOL(trace_pretenuring_statistics, false,
             "trace allocation site pretenuring statistics")
+DEFINE_BOOL(trace_resize_large_object, false, "trace resizing of large objects")
 DEFINE_BOOL(track_field_types, true, "track field types")
 DEFINE_BOOL(trace_block_coverage, false,
             "trace collected block coverage information")
@@ -1581,7 +1573,7 @@ DEFINE_BOOL(
 DEFINE_WEAK_IMPLICATION(future, typed_array_length_loading)
 
 #if V8_ENABLE_WEBASSEMBLY
-DEFINE_NEG_IMPLICATION(experimental_wasm_shared, liftoff)
+DEFINE_IMPLICATION(experimental_wasm_shared, shared_heap)
 #endif
 
 #ifdef DEBUG
@@ -1618,6 +1610,8 @@ DEFINE_BOOL_READONLY(turboshaft_trace_emitted, false,
                      "trace emitted Turboshaft instructions")
 DEFINE_BOOL_READONLY(turboshaft_trace_intermediate_reductions, false,
                      "trace intermediate Turboshaft reduction steps")
+DEFINE_BOOL_READONLY(turboshaft_trace_load_elimination, false,
+                     "trace Turboshaft's late load elimination")
 #endif  // DEBUG
 
 DEFINE_BOOL(profile_guided_optimization, true, "profile guided optimization")
@@ -1782,14 +1776,21 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "Enable direct calls from wasm to fast API functions with bound "
     "call function to pass the the receiver as first parameter")
 
-DEFINE_BOOL(wasm_deopt, false, "enable deopts in optimized wasm functions")
-DEFINE_WEAK_IMPLICATION(future, wasm_deopt)
+#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || \
+    V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_S390X ||     \
+    (V8_TARGET_ARCH_MIPS64 && V8_TARGET_BIG_ENDIAN)
+DEFINE_EXPERIMENTAL_FEATURE(wasm_deopt,
+                            "enable deopts in optimized wasm functions")
+#else
+DEFINE_BOOL(wasm_deopt, true, "enable deopts in optimized wasm functions")
+#endif
+
 // Deopt only works in combination with feedback.
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_deopt)
 
 // Note that this limit doesn't guarantee an upper bound, as e.g. with multiple
 // frames of the same function on the stack, many more deopts can happen.
-DEFINE_SIZE_T(wasm_deopts_per_function_limit, 50,
+DEFINE_SIZE_T(wasm_deopts_per_function_limit, 10,
               "limit of wasm deopts for a single function after which no "
               "further deopt points are emitted in Turbofan")
 
@@ -1831,6 +1832,14 @@ DEFINE_EXPERIMENTAL_FEATURE(
 DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_skip_bounds_checks,
                             "skip array bounds checks (unsafe)")
 
+// Experimental variants of the Custom Descriptors prototype implementation.
+DEFINE_BOOL(wasm_explicit_prototypes, true,
+            "enable support for JS Prototypes as first field on Descriptor "
+            "structs (only with --experimental-wasm-custom-descriptors)")
+DEFINE_BOOL(wasm_implicit_prototypes, true,
+            "enable support for engine-created 'invisible' JS Prototypes "
+            "(only with --experimental-wasm-custom-descriptors)")
+
 DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 
 #define WASM_STAGING_IMPLICATION(feat, desc, val) \
@@ -1851,7 +1860,7 @@ DEFINE_NEG_NEG_IMPLICATION(wasm_bounds_checks, wasm_enforce_bounds_checks)
 DEFINE_BOOL(wasm_math_intrinsics, true,
             "intrinsify some Math imports into wasm")
 
-DEFINE_BOOL(wasm_inlining_call_indirect, false,
+DEFINE_BOOL(wasm_inlining_call_indirect, true,
             "enable speculative inlining of Wasm indirect calls")
 DEFINE_WEAK_IMPLICATION(future, wasm_inlining_call_indirect)
 // This doesn't make sense without and requires  the basic inlining machinery,
@@ -2041,6 +2050,13 @@ DEFINE_BOOL_READONLY(wasm_jitless, false,
 DEFINE_BOOL(wasm_jitless_if_available_for_testing, false, "")
 #endif  // V8_ENABLE_DRUMBRAKE
 
+DEFINE_BOOL(wasm_allow_mixed_eh_for_testing, false,
+            "Allow mixed legacy and new exception handling instructions in the "
+            "same wasm module")
+// %WasmGenerateRandomModule() can generate modules with a mix of old and new EH
+// instructions, and crashes if the module does not compile.
+// So always allow mixing old and new EH for fuzzing.
+DEFINE_IMPLICATION(fuzzing, wasm_allow_mixed_eh_for_testing)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 DEFINE_INT(stress_sampling_allocation_profiler, 0,
@@ -2066,8 +2082,6 @@ DEFINE_SIZE_T(
     "All three flags cannot be specified at the same time.")
 DEFINE_SIZE_T(initial_heap_size, 0, "initial size of the heap (in Mbytes)")
 DEFINE_SIZE_T(initial_old_space_size, 0, "initial old space size (in Mbytes)")
-DEFINE_BOOL(separate_gc_phases, true,
-            "young and full garbage collection phases are not overlapping")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 
 // TODO(12950): The next three flags only have an effect if
@@ -2272,13 +2286,13 @@ DEFINE_NEG_NEG_IMPLICATION(compact_with_stack, compact_code_space_with_stack)
 DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
-            "Stress GC compaction to flush out bugs (implies "
-            "--force_marking_deque_overflows)")
+            "Stress GC compaction to flush out bugs with moving objects")
+DEFINE_BOOL(resize_large_object, true, "Support resizing of large objects")
 DEFINE_BOOL(stress_compaction_random, false,
             "Stress GC compaction by selecting random percent of pages as "
             "evacuation candidates. Overrides stress_compaction.")
-DEFINE_IMPLICATION(stress_compaction, force_marking_deque_overflows)
 DEFINE_IMPLICATION(stress_compaction, gc_global)
+DEFINE_NEG_IMPLICATION(stress_compaction, resize_large_object)
 DEFINE_VALUE_IMPLICATION(stress_compaction, max_semi_space_size, (size_t)1)
 DEFINE_BOOL(flush_baseline_code, false,
             "flush of baseline code when it has not been executed recently")
@@ -2297,11 +2311,11 @@ DEFINE_BOOL(use_marking_progress_bar, true,
             "incremental marking is active.")
 DEFINE_BOOL(stress_per_context_marking_worklist, false,
             "Use per-context worklist for marking")
-DEFINE_BOOL(force_marking_deque_overflows, false,
-            "force overflows of marking deque by reducing it's size "
-            "to 64 words")
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
+
+DEFINE_BOOL(managed_zone_memory, false,
+            "Manage zone memory in V8 instead of using malloc().")
 
 DEFINE_BOOL(fuzzer_gc_analysis, false,
             "prints number of allocations and enables analysis mode for gc "
@@ -2319,6 +2333,9 @@ DEFINE_BOOL(
     "reclaim otherwise unreachable unmodified wrapper objects when possible")
 DEFINE_BOOL(parallel_reclaim_unmodified_wrappers, true,
             "reclaim wrapper objects in parallel")
+DEFINE_BOOL(discard_memory_pool_before_memory_pressure_gcs, false,
+            "discard the memory pool before invoking the GC on memory pressure "
+            "or last resort GCs")
 
 // These flags will be removed after experiments. Do not rely on them.
 DEFINE_BOOL(gc_experiment_less_compaction, false,
@@ -3042,7 +3059,6 @@ DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 DEFINE_BOOL(trace_minor_ms_parallel_marking, false,
             "trace parallel marking for the young generation")
 DEFINE_BOOL(minor_ms, false, "perform young generation mark sweep GCs")
-DEFINE_IMPLICATION(minor_ms, separate_gc_phases)
 DEFINE_IMPLICATION(minor_ms, page_promotion)
 
 DEFINE_BOOL(concurrent_minor_ms_marking, true,
@@ -3262,7 +3278,7 @@ DEFINE_IMPLICATION(prof, log_code)
 
 DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
 
-#if V8_OS_LINUX
+#if V8_OS_LINUX || V8_OS_DARWIN
 #define DEFINE_PERF_PROF_BOOL(nam, cmt) DEFINE_BOOL(nam, false, cmt)
 #define DEFINE_PERF_PROF_IMPLICATION DEFINE_IMPLICATION
 #else
@@ -3279,7 +3295,7 @@ DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
 #endif
 
 DEFINE_PERF_PROF_BOOL(perf_basic_prof,
-                      "Enable perf linux profiler (basic support).")
+                      "Enable basic support for perf profiler.")
 DEFINE_NEG_IMPLICATION(perf_basic_prof, compact_code_space)
 DEFINE_STRING(perf_basic_prof_path, DEFAULT_PERF_BASIC_PROF_PATH,
               "directory to write perf-<pid>.map symbol file to")
@@ -3288,8 +3304,8 @@ DEFINE_PERF_PROF_BOOL(
     "Only report function code ranges to perf (i.e. no stubs).")
 DEFINE_PERF_PROF_IMPLICATION(perf_basic_prof_only_functions, perf_basic_prof)
 
-DEFINE_PERF_PROF_BOOL(
-    perf_prof, "Enable perf linux profiler (experimental annotate support).")
+DEFINE_PERF_PROF_BOOL(perf_prof,
+                      "Enable experimental annotate support for perf profiler.")
 DEFINE_STRING(perf_prof_path, DEFAULT_PERF_PROF_PATH,
               "directory to write jit-<pid>.dump symbol file to")
 DEFINE_PERF_PROF_BOOL(
@@ -3474,11 +3490,6 @@ DEFINE_BOOL(parallel_pause_for_gc_in_background, true,
             "Use parallel threads in the atomic pause for background GCs")
 DEFINE_BOOL(incremental_marking_for_gc_in_background, true,
             "Use parallel threads in the atomic pause for background GCs")
-
-DEFINE_BOOL(update_allocation_limits_after_loading, true,
-            "force recomputation of allocation limites when leaving the "
-            "loading RAIL mode (either on a RAIL mode change or incremental "
-            "marking start).")
 
 DEFINE_EXPERIMENTAL_FEATURE(shared_heap,
                             "Enables a shared heap between isolates.")

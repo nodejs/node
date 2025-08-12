@@ -625,6 +625,8 @@ class MockPlatform final : public TestPlatform {
     }
 
     bool IdleTasksEnabled() override { return false; }
+    // The runner supports non-nestable tasks (as that's required by cctests)
+    // but they are never executed.
     bool NonNestableTasksEnabled() const override { return true; }
     bool NonNestableDelayedTasksEnabled() const override { return true; }
 

@@ -11,6 +11,7 @@ const { test, suite } = require('node:test');
 /**
  * Convenience wrapper around assert.deepStrictEqual that sets a null
  * prototype to the expected object.
+ * @returns {boolean}
  */
 function deepStrictEqual(t) {
   return (actual, expected, message) => {
@@ -537,5 +538,20 @@ test('session.close() - closing twice', (t) => {
   }, {
     name: 'Error',
     message: 'session is not open'
+  });
+});
+
+test('session supports ERM', (t) => {
+  const database = new DatabaseSync(':memory:');
+  let afterDisposeSession;
+  {
+    using session = database.createSession();
+    afterDisposeSession = session;
+    const changeset = session.changeset();
+    t.assert.ok(changeset instanceof Uint8Array);
+    t.assert.strictEqual(changeset.length, 0);
+  }
+  t.assert.throws(() => afterDisposeSession.changeset(), {
+    message: /session is not open/,
   });
 });

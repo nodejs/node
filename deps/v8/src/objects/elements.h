@@ -33,7 +33,7 @@ class ElementsAccessor {
 
   // Checks the elements of an object for consistency, asserting when a problem
   // is found.
-  virtual void Validate(Tagged<JSObject> obj) = 0;
+  virtual void Validate(Isolate* isolate, Tagged<JSObject> obj) = 0;
 
   // Returns true if a holder contains an element with the specified index
   // without iterating up the prototype chain. The first version takes the
@@ -45,16 +45,18 @@ class ElementsAccessor {
   // Note that only Dictionary elements have custom
   // PropertyAttributes associated, hence the |filter| argument is ignored for
   // all but DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
-  virtual bool HasElement(Tagged<JSObject> holder, uint32_t index,
-                          Tagged<FixedArrayBase> backing_store,
+  virtual bool HasElement(Isolate* isolate, Tagged<JSObject> holder,
+                          uint32_t index, Tagged<FixedArrayBase> backing_store,
                           PropertyFilter filter = ALL_PROPERTIES) = 0;
 
-  inline bool HasElement(Tagged<JSObject> holder, uint32_t index,
+  inline bool HasElement(Isolate* isolate, Tagged<JSObject> holder,
+                         uint32_t index,
                          PropertyFilter filter = ALL_PROPERTIES);
 
   // Note: this is currently not implemented for string wrapper and
   // typed array elements.
-  virtual bool HasEntry(Tagged<JSObject> holder, InternalIndex entry) = 0;
+  virtual bool HasEntry(Isolate* isolate, Tagged<JSObject> holder,
+                        InternalIndex entry) = 0;
 
   virtual Handle<Object> Get(Isolate* isolate, DirectHandle<JSObject> holder,
                              InternalIndex entry) = 0;
@@ -76,7 +78,7 @@ class ElementsAccessor {
   // have non-deletable elements can only be shrunk to the size of highest
   // element that is non-deletable.
   V8_WARN_UNUSED_RESULT virtual Maybe<bool> SetLength(
-      DirectHandle<JSArray> holder, uint32_t new_length) = 0;
+      Isolate* isolate, DirectHandle<JSArray> holder, uint32_t new_length) = 0;
 
   // Copy all indices that have elements from |object| into the given
   // KeyAccumulator. For Dictionary-based element-kinds we filter out elements
@@ -107,14 +109,15 @@ class ElementsAccessor {
       DirectHandle<JSObject> receiver, KeyAccumulator* accumulator,
       AddKeyConversion convert) = 0;
 
-  virtual void TransitionElementsKind(DirectHandle<JSObject> object,
+  virtual void TransitionElementsKind(Isolate* isolate,
+                                      DirectHandle<JSObject> object,
                                       DirectHandle<Map> map) = 0;
   V8_WARN_UNUSED_RESULT virtual Maybe<bool> GrowCapacityAndConvert(
-      DirectHandle<JSObject> object, uint32_t capacity) = 0;
+      Isolate* isolate, DirectHandle<JSObject> object, uint32_t capacity) = 0;
   // Unlike GrowCapacityAndConvert do not attempt to convert the backing store
   // and simply return false in this case.
   V8_WARN_UNUSED_RESULT virtual Maybe<bool> GrowCapacity(
-      DirectHandle<JSObject> object, uint32_t index) = 0;
+      Isolate* isolate, DirectHandle<JSObject> object, uint32_t index) = 0;
 
   static void InitializeOncePerProcess();
   static void TearDown();
@@ -138,7 +141,8 @@ class ElementsAccessor {
       Isolate* isolate, DirectHandle<JSObject> holder, InternalIndex entry,
       Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag tag) = 0;
 
-  V8_WARN_UNUSED_RESULT virtual Maybe<bool> Add(DirectHandle<JSObject> object,
+  V8_WARN_UNUSED_RESULT virtual Maybe<bool> Add(Isolate* isolate,
+                                                DirectHandle<JSObject> object,
                                                 uint32_t index,
                                                 DirectHandle<Object> value,
                                                 PropertyAttributes attributes,
@@ -149,28 +153,28 @@ class ElementsAccessor {
                                       uint32_t result_length);
 
   V8_WARN_UNUSED_RESULT virtual Maybe<uint32_t> Push(
-      DirectHandle<JSArray> receiver, BuiltinArguments* args,
+      Isolate* isolate, DirectHandle<JSArray> receiver, BuiltinArguments* args,
       uint32_t push_size) = 0;
 
   V8_WARN_UNUSED_RESULT virtual Maybe<uint32_t> Unshift(
-      DirectHandle<JSArray> receiver, BuiltinArguments* args,
+      Isolate* isolate, DirectHandle<JSArray> receiver, BuiltinArguments* args,
       uint32_t unshift_size) = 0;
 
   V8_WARN_UNUSED_RESULT virtual MaybeDirectHandle<Object> Pop(
-      DirectHandle<JSArray> receiver) = 0;
+      Isolate* isolate, DirectHandle<JSArray> receiver) = 0;
 
   V8_WARN_UNUSED_RESULT virtual MaybeDirectHandle<Object> Shift(
-      DirectHandle<JSArray> receiver) = 0;
+      Isolate* isolate, DirectHandle<JSArray> receiver) = 0;
 
   virtual DirectHandle<NumberDictionary> Normalize(
-      DirectHandle<JSObject> object) = 0;
+      Isolate* isolate, DirectHandle<JSObject> object) = 0;
 
   virtual size_t GetCapacity(Tagged<JSObject> holder,
                              Tagged<FixedArrayBase> backing_store) = 0;
 
   V8_WARN_UNUSED_RESULT virtual MaybeDirectHandle<Object> Fill(
-      DirectHandle<JSObject> receiver, DirectHandle<Object> obj_value,
-      size_t start, size_t end) = 0;
+      Isolate* isolate, DirectHandle<JSObject> receiver,
+      DirectHandle<Object> obj_value, size_t start, size_t end) = 0;
 
   // Check an Object's own elements for an element (using SameValueZero
   // semantics)
@@ -198,7 +202,8 @@ class ElementsAccessor {
                             DirectHandle<FixedArrayBase> destination,
                             int size) = 0;
 
-  virtual Tagged<Object> CopyElements(DirectHandle<JSAny> source,
+  virtual Tagged<Object> CopyElements(Isolate* isolate,
+                                      DirectHandle<JSAny> source,
                                       DirectHandle<JSObject> destination,
                                       size_t length, size_t offset) = 0;
 
@@ -227,13 +232,14 @@ class ElementsAccessor {
 
   virtual PropertyDetails GetDetails(Tagged<JSObject> holder,
                                      InternalIndex entry) = 0;
-  virtual void Reconfigure(DirectHandle<JSObject> object,
+  virtual void Reconfigure(Isolate* isolate, DirectHandle<JSObject> object,
                            DirectHandle<FixedArrayBase> backing_store,
                            InternalIndex entry, DirectHandle<Object> value,
                            PropertyAttributes attributes) = 0;
 
   // Deletes an element in an object.
-  virtual void Delete(DirectHandle<JSObject> holder, InternalIndex entry) = 0;
+  virtual void Delete(Isolate* isolate, DirectHandle<JSObject> holder,
+                      InternalIndex entry) = 0;
 
   // NOTE: this method violates the handlified function signature convention:
   // raw pointer parameter |source_holder| in the function that allocates.
@@ -249,7 +255,7 @@ class ElementsAccessor {
 };
 
 V8_WARN_UNUSED_RESULT MaybeDirectHandle<Object>
-ArrayConstructInitializeElements(DirectHandle<JSArray> array,
+ArrayConstructInitializeElements(Isolate* isolate, DirectHandle<JSArray> array,
                                  JavaScriptArguments* args);
 
 // Called directly from CSA.

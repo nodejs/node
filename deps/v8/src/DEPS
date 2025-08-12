@@ -129,7 +129,4 @@ specific_include_rules = {
   "snapshot\.cc": [
     "+src/heap/read-only-promotion.h",
   ],
-  "string-hasher-inl\.h": [
-    "+third_party/rapidhash-v8/rapidhash.h",
-  ]
 }

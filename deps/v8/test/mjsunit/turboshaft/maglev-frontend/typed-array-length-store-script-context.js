@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --turbolev --turbofan --no-always-turbofan
-// Flags: --typed-array-length-loading --script-context-mutable-heap-number
+// Flags: --typed-array-length-loading --script-context-cells
 
 let scriptContextSlot = 0;
 

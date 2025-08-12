@@ -16,6 +16,7 @@ Returns: `ProxyAgent`
 
 ### Parameter: `RetryHandlerOptions`
 
+- **throwOnError** `boolean` (optional) - Disable to prevent throwing error on last retry attept, useful if you need the body on errors from server or if you have custom error handler. Default: `true`
 - **retry** `(err: Error, context: RetryContext, callback: (err?: Error | null) => void) => void` (optional) - Function to be called after every retry. It should pass error if no more retries should be performed.
 - **maxRetries** `number` (optional) - Maximum number of retries. Default: `5`
 - **maxTimeout** `number` (optional) - Maximum number of milliseconds to wait before retrying. Default: `30000` (30 seconds)
@@ -39,7 +40,11 @@ import { Agent, RetryAgent } from 'undici'
 
 const agent = new RetryAgent(new Agent())
 
-const res = await agent.request('http://example.com')
+const res = await agent.request({
+  method: 'GET',
+  origin: 'http://example.com',
+  path: '/',
+})
 console.log(res.statusCode)
 console.log(await res.body.text())
 ```

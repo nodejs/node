@@ -297,7 +297,7 @@ void IsolateSafepoint::Iterate(RootVisitor* visitor) {
   AssertActive();
   for (LocalHeap* current = local_heaps_head_; current;
        current = current->next_) {
-    current->handles()->Iterate(visitor);
+    current->Iterate(visitor);
   }
 }
 

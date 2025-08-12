@@ -16,7 +16,7 @@
 # include <sys/stat.h>
 #endif
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "internal/cryptlib.h"
 
 #include <errno.h>
@@ -145,14 +145,14 @@ int RAND_load_file(const char *file, long bytes)
 # pragma environment restore
 #endif
 
-    for ( ; ; ) {
+    for (;;) {
         if (bytes > 0)
             n = (bytes <= RAND_LOAD_BUF_SIZE) ? (int)bytes : RAND_BUF_SIZE;
         else
             n = RAND_LOAD_BUF_SIZE;
         i = fread(buf, 1, n, in);
 #ifdef EINTR
-        if (ferror(in) && errno == EINTR){
+        if (ferror(in) && errno == EINTR) {
             clearerr(in);
             if (i == 0)
                 continue;

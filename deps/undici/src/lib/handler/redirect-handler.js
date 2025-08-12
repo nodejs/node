@@ -42,7 +42,8 @@ class RedirectHandler {
 
     this.dispatch = dispatch
     this.location = null
-    this.opts = { ...opts, maxRedirections: 0 } // opts must be a copy
+    const { maxRedirections: _, ...cleanOpts } = opts
+    this.opts = cleanOpts // opts must be a copy, exclude maxRedirections
     this.maxRedirections = maxRedirections
     this.handler = handler
     this.history = []
@@ -132,13 +133,22 @@ class RedirectHandler {
     const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)))
     const path = search ? `${pathname}${search}` : pathname
 
+    // Check for redirect loops by seeing if we've already visited this URL in our history
+    // This catches the case where Client/Pool try to handle cross-origin redirects but fail
+    // and keep redirecting to the same URL in an infinite loop
+    const redirectUrlString = `${origin}${path}`
+    for (const historyUrl of this.history) {
+      if (historyUrl.toString() === redirectUrlString) {
+        throw new InvalidArgumentError(`Redirect loop detected. Cannot redirect to ${origin}. This typically happens when using a Client or Pool with cross-origin redirects. Use an Agent for cross-origin redirects.`)
+      }
+    }
+
     // Remove headers referring to the original URL.
     // By default it is Host only, unless it's a 303 (see below), which removes also all Content-* headers.
     // https://tools.ietf.org/html/rfc7231#section-6.4
     this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin)
     this.opts.path = path
     this.opts.origin = origin
-    this.opts.maxRedirections = 0
     this.opts.query = null
   }
 

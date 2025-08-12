@@ -4,6 +4,8 @@ const {
   safeHTTPMethods
 } = require('../core/util')
 
+const { serializePathWithQuery } = require('../core/util')
+
 /**
  * @param {import('../../types/dispatcher.d.ts').default.DispatchOptions} opts
  */
@@ -12,19 +14,25 @@ function makeCacheKey (opts) {
     throw new Error('opts.origin is undefined')
   }
 
-  const headers = normaliseHeaders(opts)
+  let fullPath
+  try {
+    fullPath = serializePathWithQuery(opts.path || '/', opts.query)
+  } catch (error) {
+    // If fails (path already has query params), use as-is
+    fullPath = opts.path || '/'
+  }
 
   return {
     origin: opts.origin.toString(),
     method: opts.method,
-    path: opts.path,
-    headers
+    path: fullPath,
+    headers: opts.headers
   }
 }
 
 /**
  * @param {Record<string, string[] | string>}
- * @return {Record<string, string[] | string>}
+ * @returns {Record<string, string[] | string>}
  */
 function normaliseHeaders (opts) {
   let headers

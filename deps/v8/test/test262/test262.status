@@ -263,11 +263,6 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13174
-  'built-ins/RegExp/prototype/Symbol.replace/flags-tostring-error': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.replace/get-flags-err': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.replace/get-unicode-error': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
   'built-ins/Temporal/Duration/prototype/total/balance-negative-result': [FAIL],
   'intl402/Temporal/Duration/prototype/total/relativeto-string-datetime': [FAIL],
@@ -996,7 +991,6 @@
   'intl402/Temporal/PlainYearMonth/prototype/with/non-iso-calendar-fields': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/with/non-iso-calendar-fields': [FAIL],
 
-  'staging/Intl402/Temporal/old/islamic-calendars': [FAIL],
   'staging/Intl402/Temporal/old/persian-calendar': [FAIL],
 
   'built-ins/Temporal/Duration/prototype/round/round-and-balance-calendar-units-with-increment-disallowed': [FAIL],
@@ -1570,8 +1564,6 @@
   'annexB/language/comments/single-line-html-close-first-line-1': [SKIP],
   'annexB/language/comments/single-line-html-close-first-line-2': [SKIP],
   'annexB/language/comments/single-line-html-close-first-line-3': [SKIP],
-  'built-ins/ArrayBuffer/options-maxbytelength-compared-before-object-creation': [SKIP],
-  'built-ins/SharedArrayBuffer/options-maxbytelength-compared-before-object-creation': [SKIP],
   'built-ins/Temporal/Duration/compare/argument-duration-out-of-range': [SKIP],
   'built-ins/Temporal/Duration/compare/relativeto-plaindate-add24hourdaystonormalizedtimeduration-out-of-range': [SKIP],
   'built-ins/Temporal/Duration/from/argument-duration-out-of-range': [SKIP],
@@ -2145,29 +2137,6 @@
   'built-ins/Temporal/ZonedDateTime/prototype/toPlainDateTime/limits': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/toPlainDateTime/negative-epochnanoseconds': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/toPlainDateTime/pre-epoch': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/alphabet': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/descriptor': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/detached-buffer': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/illegal-characters': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/last-chunk-handling': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/length': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/name': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/nonconstructor': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/option-coercion': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/results': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/subarray': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/target-size': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/whitespace': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromBase64/writes-up-to-error': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromHex/descriptor': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromHex/illegal-characters': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromHex/length': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromHex/name': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromHex/nonconstructor': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromHex/results': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromHex/subarray': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromHex/target-size': [FAIL],
-  'built-ins/Uint8Array/prototype/setFromHex/writes-up-to-error': [FAIL],
   'intl402/Temporal/ZonedDateTime/from/zoneddatetime-sub-minute-offset': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/toPlainDateTime/basic': [FAIL],
   'intl402/Temporal/ZonedDateTime/prototype/toPlainDateTime/dst': [FAIL],
@@ -2192,19 +2161,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-canonical-invalid-index-prototype-chain-set': [SKIP],
-  'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-canonical-invalid-index-reflect-set': [SKIP],
-  'built-ins/TypedArrayConstructors/internals/Set/key-is-canonical-invalid-index-prototype-chain-set': [SKIP],
-  'built-ins/TypedArrayConstructors/internals/Set/key-is-canonical-invalid-index-reflect-set': [SKIP],
-}],
-# End roll-watcher patch
-####
-
-####
-# Roll-watcher patch
-[ALWAYS, {
-  'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds-receiver-is-not-object': [SKIP],
-  'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds-receiver-is-not-typed-array': [SKIP],
   'language/statements/with/get-mutable-binding-binding-deleted-in-get-unscopables-strict-mode': [SKIP],
   'language/statements/with/set-mutable-binding-binding-deleted-in-get-unscopables-strict-mode': [SKIP],
   'language/statements/with/set-mutable-binding-binding-deleted-with-typed-array-in-proto-chain-strict-mode': [SKIP],
@@ -2291,30 +2247,6 @@
 ####
 # Roll-watcher patch
 [ALWAYS, {
-  'built-ins/Date/prototype/setDate/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setDate/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setHours/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setHours/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setMilliseconds/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setMilliseconds/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setMinutes/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setMinutes/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setMonth/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setMonth/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setSeconds/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setSeconds/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setUTCDate/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setUTCDate/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setUTCHours/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setUTCHours/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setUTCMilliseconds/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setUTCMilliseconds/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setUTCMinutes/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setUTCMinutes/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setUTCMonth/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setUTCMonth/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
-  'built-ins/Date/prototype/setUTCSeconds/date-value-read-before-tonumber-when-date-is-invalid': [SKIP],
-  'built-ins/Date/prototype/setUTCSeconds/date-value-read-before-tonumber-when-date-is-valid': [SKIP],
   'intl402/DurationFormat/prototype/format/duration-out-of-range-3': [SKIP],
   'intl402/DurationFormat/prototype/format/duration-out-of-range-4': [SKIP],
 }],
@@ -2483,7 +2415,6 @@
   'staging/sm/lexical-environment/var-in-catch-body-annex-b-eval': [FAIL],
   'staging/sm/object/clear-dictionary-accessor-getset': [FAIL],
   'staging/sm/object/values-entries-typedarray': [FAIL],
-  'staging/sm/RegExp/replace-trace': [FAIL],
   'staging/sm/regress/regress-1507322-deep-weakmap': [FAIL],
   'staging/sm/regress/regress-563221': [FAIL],
   'staging/sm/regress/regress-592556-c35': [FAIL],
@@ -2680,6 +2611,20 @@
  'intl402/DurationFormat/prototype/formatToParts/temporal-duration-string-arg': [SKIP],
  'intl402/Locale/getters': [SKIP],
  'intl402/Temporal/Duration/prototype/toLocaleString/returns-same-results-as-DurationFormat': [SKIP],
+}],
+# end import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
+###
+
+####
+# import test262@4ba104a21c5f8ede20ee5105bc89fa9693c2bfe1
+[ALWAYS, {
+  'intl402/DateTimeFormat/canonicalize-timezone': [FAIL],
+  'intl402/Intl/supportedValuesOf/timeZones-include-non-continental': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-civil': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-rgsa': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-tbla': [FAIL],
+  'staging/Intl402/Temporal/old/islamic-calendars-islamic-umalqura': [FAIL],
 }],
 # end import test262@44d71fbe7dccabcc071cbe66cc4b105d896d3c2a
 ###

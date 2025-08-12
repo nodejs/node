@@ -23,13 +23,14 @@ using v8::Number;
 using v8::Object;
 using v8::Value;
 
-thread_local std::unordered_map<std::string_view, int> v8_fast_api_call_counts;
+thread_local std::unordered_map<FastStringKey, int, FastStringKey::Hash>
+    v8_fast_api_call_counts;
 
-void TrackV8FastApiCall(std::string_view key) {
+void TrackV8FastApiCall(FastStringKey key) {
   v8_fast_api_call_counts[key]++;
 }
 
-int GetV8FastApiCallCount(std::string_view key) {
+int GetV8FastApiCallCount(FastStringKey key) {
   return v8_fast_api_call_counts[key];
 }
 
@@ -40,7 +41,8 @@ void GetV8FastApiCallCount(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   Utf8Value utf8_key(env->isolate(), args[0]);
-  args.GetReturnValue().Set(GetV8FastApiCallCount(utf8_key.ToStringView()));
+  args.GetReturnValue().Set(GetV8FastApiCallCount(
+      FastStringKey::AllowDynamic(utf8_key.ToStringView())));
 }
 
 void SlowIsEven(const FunctionCallbackInfo<Value>& args) {

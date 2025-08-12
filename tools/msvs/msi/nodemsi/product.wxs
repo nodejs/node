@@ -41,7 +41,7 @@
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
 
     <!-- WiX 4 QueryWindowsWellKnownSIDs element replaces previously used PropertyRef. -->
-    <!-- It sets all properties with the WIX_ACCOUNT_ prefix eg. WIX_ACCOUNT_USERS, etc. -->
+    <!-- It sets all properties with the WIX_ACCOUNT_ prefix e.g. WIX_ACCOUNT_USERS, etc. -->
     <util:QueryWindowsWellKnownSIDs/>
 
     <Property Id="INSTALLDIR" Secure="yes">

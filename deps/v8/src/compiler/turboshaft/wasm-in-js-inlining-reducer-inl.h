@@ -658,6 +658,46 @@ class WasmInJsInliningInterface {
   }
   void ThrowRef(FullDecoder* decoder, Value* value) { Bailout(decoder); }
 
+  void ContNew(FullDecoder* decoder, const wasm::ContIndexImmediate& imm,
+               const Value& func_ref, Value* result) {
+    Bailout(decoder);
+  }
+
+  void ContBind(FullDecoder* decoder, const wasm::ContIndexImmediate& orig_imm,
+                Value input_cont, const Value args[],
+                const wasm::ContIndexImmediate& new_imm, Value* result) {
+    Bailout(decoder);
+  }
+
+  void Resume(FullDecoder* decoder, const wasm::ContIndexImmediate& imm,
+              base::Vector<wasm::HandlerCase> handlers, const Value args[],
+              const Value returns[]) {
+    Bailout(decoder);
+  }
+
+  void ResumeThrow(FullDecoder* decoder,
+                   const wasm::ContIndexImmediate& cont_imm,
+                   const TagIndexImmediate& exc_imm,
+                   base::Vector<wasm::HandlerCase> handlers, const Value args[],
+                   const Value returns[]) {
+    Bailout(decoder);
+  }
+
+  void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
+              const wasm::ContIndexImmediate& con_imm, const Value& cont_ref,
+              const Value args[], Value returns[]) {
+    Bailout(decoder);
+  }
+
+  void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
+               const Value args[], const Value returns[]) {
+    Bailout(decoder);
+  }
+
+  void EffectHandlerTable(FullDecoder* decoder, Control* block) {
+    Bailout(decoder);
+  }
+
   // TODO(dlehmann,353475584): Support traps in the inlinee.
 
   void Trap(FullDecoder* decoder, wasm::TrapReason reason) { Bailout(decoder); }
@@ -928,6 +968,12 @@ class WasmInJsInliningInterface {
                 bool null_succeeds) {
     Bailout(decoder);
   }
+  void BrOnCastDesc(FullDecoder* decoder, wasm::HeapType target_type,
+                    const Value& object, const Value& descriptor,
+                    Value* value_on_branch, uint32_t br_depth,
+                    bool null_succeeds) {
+    Bailout(decoder);
+  }
   void BrOnCastAbstract(FullDecoder* decoder, const Value& object,
                         wasm::HeapType type, Value* value_on_branch,
                         uint32_t br_depth, bool null_succeeds) {
@@ -936,6 +982,12 @@ class WasmInJsInliningInterface {
   void BrOnCastFail(FullDecoder* decoder, wasm::HeapType target_type,
                     const Value& object, Value* value_on_fallthrough,
                     uint32_t br_depth, bool null_succeeds) {
+    Bailout(decoder);
+  }
+  void BrOnCastDescFail(FullDecoder* decoder, wasm::HeapType target_type,
+                        const Value& object, const Value& descriptor,
+                        Value* value_on_fallthrough, uint32_t br_depth,
+                        bool null_succeeds) {
     Bailout(decoder);
   }
   void BrOnCastFailAbstract(FullDecoder* decoder, const Value& object,

@@ -5,6 +5,7 @@ changes:
   - version:
     - v23.5.0
     - v22.13.0
+    - v20.19.3
     pr-url: https://github.com/nodejs/node/pull/56142
     description: Algorithms `Ed25519` and `X25519` are now stable.
   - version:
@@ -441,7 +442,7 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* Type: {AesKeyGenParams|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams}
+* Type: {KeyAlgorithm|RsaHashedKeyAlgorithm|EcKeyAlgorithm|AesKeyAlgorithm|HmacKeyAlgorithm}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -555,9 +556,9 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* `algorithm`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
-* `key`: {CryptoKey}
-* `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
+* `algorithm` {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
+* `key` {CryptoKey}
+* `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 Using the method and parameters specified in `algorithm` and the keying
@@ -593,9 +594,9 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
-* `baseKey`: {CryptoKey}
-* `length`: {number|null} **Default:** `null`
+* `algorithm` {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
+* `baseKey` {CryptoKey}
+* `length` {number|null} **Default:** `null`
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -633,11 +634,11 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
-* `baseKey`: {CryptoKey}
-* `derivedKeyAlgorithm`: {string|AlgorithmIdentifier|HmacImportParams|AesDerivedKeyParams}
-* `extractable`: {boolean}
-* `keyUsages`: {string\[]} See [Key usages][].
+* `algorithm` {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
+* `baseKey` {CryptoKey}
+* `derivedKeyAlgorithm` {string|Algorithm|HmacImportParams|AesDerivedKeyParams}
+* `extractable` {boolean}
+* `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -665,8 +666,8 @@ The algorithms currently supported include:
 added: v15.0.0
 -->
 
-* `algorithm`: {string|AlgorithmIdentifier}
-* `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
+* `algorithm` {string|Algorithm}
+* `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 Using the method identified by `algorithm`, `subtle.digest()` attempts to
@@ -689,9 +690,9 @@ whose value is one of the above.
 added: v15.0.0
 -->
 
-* `algorithm`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
-* `key`: {CryptoKey}
-* `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
+* `algorithm` {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
+* `key` {CryptoKey}
+* `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 Using the method and parameters specified by `algorithm` and the keying
@@ -722,8 +723,8 @@ changes:
     description: Removed `'NODE-DSA'` JWK export.
 -->
 
-* `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
-* `key`: {CryptoKey}
+* `format` {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
+* `key` {CryptoKey}
 * Returns: {Promise} Fulfills with an {ArrayBuffer|Object} upon success.
 
 Exports the given key into the specified format, if supported.
@@ -761,12 +762,12 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {string|AlgorithmIdentifier|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams}
+* `algorithm` {string|Algorithm|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
-* `extractable`: {boolean}
-* `keyUsages`: {string\[]} See [Key usages][].
+* `extractable` {boolean}
+* `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey|CryptoKeyPair} upon success.
 
 Using the method and parameters provided in `algorithm`, `subtle.generateKey()`
@@ -810,17 +811,17 @@ changes:
     description: Removed `'NODE-DSA'` JWK import.
 -->
 
-* `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
-* `keyData`: {ArrayBuffer|TypedArray|DataView|Buffer|Object}
+* `format` {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
+* `keyData` {ArrayBuffer|TypedArray|DataView|Buffer|Object}
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {string|AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
+* `algorithm` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
-* `extractable`: {boolean}
-* `keyUsages`: {string\[]} See [Key usages][].
+* `extractable` {boolean}
+* `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
 
 The `subtle.importKey()` method attempts to interpret the provided `keyData`
@@ -865,9 +866,9 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {string|AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
-* `key`: {CryptoKey}
-* `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
+* `algorithm` {string|Algorithm|RsaPssParams|EcdsaParams|Ed448Params}
+* `key` {CryptoKey}
+* `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -892,19 +893,19 @@ The algorithms currently supported include:
 added: v15.0.0
 -->
 
-* `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
-* `wrappedKey`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* `unwrappingKey`: {CryptoKey}
+* `format` {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
+* `wrappedKey` {ArrayBuffer|TypedArray|DataView|Buffer}
+* `unwrappingKey` {CryptoKey}
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `unwrapAlgo`: {string|AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
-* `unwrappedKeyAlgo`: {string|AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
+* `unwrapAlgo` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
+* `unwrappedKeyAlgo` {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
-* `extractable`: {boolean}
-* `keyUsages`: {string\[]} See [Key usages][].
+* `extractable` {boolean}
+* `keyUsages` {string\[]} See [Key usages][].
 * Returns: {Promise} Fulfills with a {CryptoKey} upon success.
 
 In cryptography, "wrapping a key" refers to exporting and then encrypting the
@@ -955,10 +956,10 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {string|AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
-* `key`: {CryptoKey}
-* `signature`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
+* `algorithm` {string|Algorithm|RsaPssParams|EcdsaParams|Ed448Params}
+* `key` {CryptoKey}
+* `signature` {ArrayBuffer|TypedArray|DataView|Buffer}
+* `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with a {boolean} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -985,10 +986,10 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
-* `key`: {CryptoKey}
-* `wrappingKey`: {CryptoKey}
-* `wrapAlgo`: {string|AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
+* `format` {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
+* `key` {CryptoKey}
+* `wrappingKey` {CryptoKey}
+* `wrapAlgo` {string|Algorithm|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
@@ -1017,13 +1018,13 @@ The algorithm parameter objects define the methods and parameters used by
 the various {SubtleCrypto} methods. While described here as "classes", they
 are simple JavaScript dictionary objects.
 
-### Class: `AlgorithmIdentifier`
+### Class: `Algorithm`
 
 <!-- YAML
 added: v15.0.0
 -->
 
-#### `algorithmIdentifier.name`
+#### `Algorithm.name`
 
 <!-- YAML
 added: v15.0.0
@@ -1171,6 +1172,30 @@ added: v15.0.0
   This values must be one of `32`, `64`, `96`, `104`, `112`, `120`, or
   `128`. **Default:** `128`.
 
+### Class: `AesKeyAlgorithm`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `aesKeyAlgorithm.length`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {number}
+
+The length of the AES key in bits.
+
+#### `aesKeyAlgorithm.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
+
 ### Class: `AesKeyGenParams`
 
 <!-- YAML
@@ -1236,7 +1261,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1245,8 +1270,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `ecdsaParams.name`
 
@@ -1255,6 +1280,28 @@ added: v15.0.0
 -->
 
 * Type: {string} Must be `'ECDSA'`.
+
+### Class: `EcKeyAlgorithm`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `ecKeyAlgorithm.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
+
+#### `ecKeyAlgorithm.namedCurve`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
 
 ### Class: `EcKeyGenParams`
 
@@ -1343,7 +1390,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1352,8 +1399,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `hkdfParams.info`
 
@@ -1399,7 +1446,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1408,8 +1455,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `hmacImportParams.length`
 
@@ -1430,6 +1477,38 @@ added: v15.0.0
 
 * Type: {string} Must be `'HMAC'`.
 
+### Class: `HmacKeyAlgorithm`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `hmacKeyAlgorithm.hash`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {Algorithm}
+
+#### `hmacKeyAlgorithm.length`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {number}
+
+The length of the HMAC key in bits.
+
+#### `hmacKeyAlgorithm.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
+
 ### Class: `HmacKeyGenParams`
 
 <!-- YAML
@@ -1442,7 +1521,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1451,8 +1530,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `hmacKeyGenParams.length`
 
@@ -1474,19 +1553,33 @@ added: v15.0.0
 
 * Type: {string} Must be `'HMAC'`.
 
+### Class: `KeyAlgorithm`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `keyAlgorithm.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
+
 ### Class: `Pbkdf2Params`
 
 <!-- YAML
 added: v15.0.0
 -->
 
-#### `pbkdb2Params.hash`
+#### `pbkdf2Params.hash`
 
 <!-- YAML
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1495,8 +1588,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `pbkdf2Params.iterations`
 
@@ -1538,7 +1631,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1547,8 +1640,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `rsaHashedImportParams.name`
 
@@ -1558,6 +1651,48 @@ added: v15.0.0
 
 * Type: {string} Must be one of `'RSASSA-PKCS1-v1_5'`, `'RSA-PSS'`, or
   `'RSA-OAEP'`.
+
+### Class: `RsaHashedKeyAlgorithm`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `rsaHashedKeyAlgorithm.hash`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {Algorithm}
+
+#### `rsaHashedKeyAlgorithm.modulusLength`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {number}
+
+The length in bits of the RSA modulus.
+
+#### `rsaHashedKeyAlgorithm.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string}
+
+#### `rsaHashedKeyAlgorithm.publicExponent`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {Uint8Array}
+
+The RSA public exponent.
 
 ### Class: `RsaHashedKeyGenParams`
 
@@ -1571,7 +1706,7 @@ added: v15.0.0
 added: v15.0.0
 -->
 
-* Type: {string|Object}
+* Type: {string|Algorithm}
 
 If represented as a {string}, the value must be one of:
 
@@ -1580,8 +1715,8 @@ If represented as a {string}, the value must be one of:
 * `'SHA-384'`
 * `'SHA-512'`
 
-If represented as an {Object}, the object must have a `name` property
-whose value is one of the above listed values.
+If represented as an {Algorithm}, the object's `name` property
+must be one of the above listed values.
 
 #### `rsaHashedKeyGenParams.modulusLength`
 

@@ -6028,17 +6028,6 @@ v8::Intercepted ShouldNamedInterceptor(
   return v8::Intercepted::kYes;
 }
 
-v8::Intercepted ShouldIndexedInterceptor(
-    uint32_t, const v8::PropertyCallbackInfo<Value>& info) {
-  CheckReturnValue(info, FUNCTION_ADDR(ShouldIndexedInterceptor));
-  auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
-  if (!data->should_intercept) return v8::Intercepted::kNo;
-  // Side effects are allowed only when the property is present or throws.
-  ApiTestFuzzer::Fuzz();
-  info.GetReturnValue().Set(v8_num(data->value));
-  return v8::Intercepted::kYes;
-}
-
 }  // namespace
 
 THREADED_TEST(NonMaskingInterceptorOwnProperty) {

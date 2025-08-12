@@ -75,7 +75,7 @@ function run_test(algorithmNames, slowTest) {
             })
             .then(async function (result) {
                 if (resultType === "CryptoKeyPair") {
-                    await Promise.all([
+                    const [jwkPub,,, jwkPriv] = await Promise.all([
                         subtle.exportKey('jwk', result.publicKey),
                         subtle.exportKey('spki', result.publicKey),
                         result.publicKey.algorithm.name.startsWith('RSA') ? undefined : subtle.exportKey('raw', result.publicKey),
@@ -84,6 +84,15 @@ function run_test(algorithmNames, slowTest) {
                             subtle.exportKey('pkcs8', result.privateKey),
                         ] : [])
                     ]);
+
+                    if (extractable) {
+                        // Test that the JWK public key is a superset of the JWK private key.
+                        for (const [prop, value] of Object.entries(jwkPub)) {
+                            if (prop !== 'key_ops') {
+                                assert_equals(value, jwkPriv[prop], `Property ${prop} is equal in public and private JWK`);
+                            }
+                        }
+                    }
                 } else {
                     if (extractable) {
                         await Promise.all([

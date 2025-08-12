@@ -156,9 +156,8 @@ extern class ScopeInfo extends HeapObject {
 
   // If the scope is a class scope and it has static private methods that
   // may be accessed directly or through eval, one slot is reserved to hold
-  // the offset in the field storage of the hash table (or the slot index if
-  // local names are inlined) for the class variable.
-  saved_class_variable_info?[flags.has_saved_class_variable]: Smi;
+  // the name of the class variable or the slot index if locals are inlined.
+  saved_class_variable_info?[flags.has_saved_class_variable]: Smi|Name;
 
   // If the scope belongs to a named function expression this part contains
   // information about the function variable. It always occupies two array

@@ -1788,7 +1788,7 @@ INLINE static int fs__stat_handle(HANDLE handle, uv_stat_t* statbuf,
     SetLastError(pRtlNtStatusToDosError(nt_status));
     return -1;
   } else {
-    stat_info.VolumeSerialNumber.QuadPart = volume_info.VolumeSerialNumber;
+    stat_info.VolumeSerialNumber.LowPart = volume_info.VolumeSerialNumber;
   }
 
   stat_info.DeviceType = device_info.DeviceType;
@@ -1839,7 +1839,7 @@ INLINE static void fs__stat_assign_statbuf_null(uv_stat_t* statbuf) {
 
 INLINE static void fs__stat_assign_statbuf(uv_stat_t* statbuf,
     FILE_STAT_BASIC_INFORMATION stat_info, int do_lstat) {
-  statbuf->st_dev = stat_info.VolumeSerialNumber.QuadPart;
+  statbuf->st_dev = stat_info.VolumeSerialNumber.LowPart;
 
   /* Todo: st_mode should probably always be 0666 for everyone. We might also
    * want to report 0777 if the file is a .exe or a directory.
@@ -2580,14 +2580,29 @@ fchmod_cleanup:
 
 
 INLINE static int fs__utime_handle(HANDLE handle, double atime, double mtime) {
-  FILETIME filetime_a, filetime_m;
+  FILETIME filetime_as, *filetime_a = &filetime_as;
+  FILETIME filetime_ms, *filetime_m = &filetime_ms;
+  FILETIME now;
 
-  TIME_T_TO_FILETIME(atime, &filetime_a);
-  TIME_T_TO_FILETIME(mtime, &filetime_m);
+  if (uv__isinf(atime) || uv__isinf(mtime))
+    GetSystemTimeAsFileTime(&now);
 
-  if (!SetFileTime(handle, NULL, &filetime_a, &filetime_m)) {
+  if (uv__isinf(atime))
+    filetime_a = &now;
+  else if (uv__isnan(atime))
+    filetime_a = NULL;
+  else
+    TIME_T_TO_FILETIME(atime, filetime_a);
+
+  if (uv__isinf(mtime))
+    filetime_m = &now;
+  else if (uv__isnan(mtime))
+    filetime_m = NULL;
+  else
+    TIME_T_TO_FILETIME(mtime, filetime_m);
+
+  if (!SetFileTime(handle, NULL, filetime_a, filetime_m))
     return -1;
-  }
 
   return 0;
 }

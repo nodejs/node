@@ -170,12 +170,24 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
       return false;
     }
 
-    // The simulated ip will be in the second parameter register (%rsi).
+    // The simulated ip will be in the second parameter register.
+#if V8_HOST_ARCH_X64
     auto* simulated_ip_reg = CONTEXT_REG(rsi, RSI);
+#elif V8_HOST_ARCH_ARM64
+    auto* simulated_ip_reg = CONTEXT_REG(x1, 1);
+#else
+#error "Unsupported architecture."
+#endif
     if (!IsFaultAddressCovered(*simulated_ip_reg)) return false;
     TH_DCHECK(gLandingPad != 0);
 
+#if V8_HOST_ARCH_X64
     auto* return_reg = CONTEXT_REG(rax, RAX);
+#elif V8_HOST_ARCH_ARM64
+    auto* return_reg = CONTEXT_REG(x0, 0);
+#else
+#error "Unsupported architecture."
+#endif
     *return_reg = gLandingPad;
     // The fault_address that is set in non-simulator builds here is set in the
     // simulator directly.

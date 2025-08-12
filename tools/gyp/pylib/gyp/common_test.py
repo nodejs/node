@@ -7,6 +7,7 @@
 """Unit tests for the common.py file."""
 
 import os
+import subprocess
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
@@ -85,22 +86,34 @@ class TestGetFlavor(unittest.TestCase):
     @patch("os.close")
     @patch("os.unlink")
     @patch("tempfile.mkstemp")
-    def test_GetCrossCompilerPredefines(self, mock_mkstemp, mock_unlink, mock_close):
+    def test_GetCompilerPredefines(self, mock_mkstemp, mock_unlink, mock_close):
         mock_close.return_value = None
         mock_unlink.return_value = None
         mock_mkstemp.return_value = (0, "temp.c")
 
-        def mock_run(env, defines_stdout, expected_cmd):
+        def mock_run(env, defines_stdout, expected_cmd, throws=False):
             with patch("subprocess.run") as mock_run:
-                mock_process = MagicMock()
-                mock_process.returncode = 0
-                mock_process.stdout = TestGetFlavor.MockCommunicate(defines_stdout)
-                mock_run.return_value = mock_process
                 expected_input = "temp.c" if sys.platform == "win32" else "/dev/null"
+                if throws:
+                    mock_run.side_effect = subprocess.CalledProcessError(
+                        returncode=1,
+                        cmd=[
+                            *expected_cmd,
+                            "-dM", "-E", "-x", "c", expected_input
+                        ]
+                    )
+                else:
+                    mock_process = MagicMock()
+                    mock_process.returncode = 0
+                    mock_process.stdout = TestGetFlavor.MockCommunicate(defines_stdout)
+                    mock_run.return_value = mock_process
                 with patch.dict(os.environ, env):
-                    defines = gyp.common.GetCrossCompilerPredefines()
+                    try:
+                        defines = gyp.common.GetCompilerPredefines()
+                    except Exception as e:
+                        self.fail(f"GetCompilerPredefines raised an exception: {e}")
                     flavor = gyp.common.GetFlavor({})
-                if env.get("CC_target"):
+                if env.get("CC_target") or env.get("CC"):
                     mock_run.assert_called_with(
                         [
                             *expected_cmd,
@@ -109,6 +122,9 @@ class TestGetFlavor(unittest.TestCase):
                         shell=sys.platform == "win32",
                         capture_output=True, check=True)
                 return [defines, flavor]
+
+        [defines0, _] = mock_run({ "CC": "cl.exe" }, "", ["cl.exe"], True)
+        assert defines0 == {}
 
         [defines1, _] = mock_run({}, "", [])
         assert defines1 == {}

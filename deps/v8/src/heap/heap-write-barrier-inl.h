@@ -15,6 +15,7 @@
 #include "src/heap/marking-barrier.h"
 #include "src/heap/memory-chunk.h"
 #include "src/objects/compressed-slots-inl.h"
+#include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/maybe-object-inl.h"
 
@@ -348,7 +349,7 @@ void WriteBarrier::MarkingFromTracedHandle(Tagged<Object> value) {
 }
 
 // static
-void WriteBarrier::ForCppHeapPointer(Tagged<JSObject> host,
+void WriteBarrier::ForCppHeapPointer(Tagged<CppHeapPointerWrapperObjectT> host,
                                      CppHeapPointerSlot slot, void* value) {
   // Note: this is currently a combined barrier for marking both the
   // CppHeapPointerTable entry and the referenced object.
@@ -375,8 +376,8 @@ void WriteBarrier::ForCppHeapPointer(Tagged<JSObject> host,
 }
 
 // static
-void WriteBarrier::GenerationalBarrierForCppHeapPointer(Tagged<JSObject> host,
-                                                        void* value) {
+void WriteBarrier::GenerationalBarrierForCppHeapPointer(
+    Tagged<CppHeapPointerWrapperObjectT> host, void* value) {
   if (!value) {
     return;
   }

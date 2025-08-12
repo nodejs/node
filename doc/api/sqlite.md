@@ -78,7 +78,9 @@ console.log(query.all());
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: v24.0.0
+  - version:
+    - v24.0.0
+    - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57752
     description: Add `timeout` option.
   - version:
@@ -95,6 +97,12 @@ exposed by this class execute synchronously.
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version:
+      - v24.4.0
+      - v22.18.0
+    pr-url: https://github.com/nodejs/node/pull/58697
+    description: Add new SQLite database options.
 -->
 
 * `path` {string | Buffer | URL} The path of the database. A SQLite database can be
@@ -124,13 +132,23 @@ added: v22.5.0
   * `timeout` {number} The [busy timeout][] in milliseconds. This is the maximum amount of
     time that SQLite will wait for a database lock to be released before
     returning an error. **Default:** `0`.
+  * `readBigInts` {boolean} If `true`, integer fields are read as JavaScript `BigInt` values. If `false`,
+    integer fields are read as JavaScript numbers. **Default:** `false`.
+  * `returnArrays` {boolean} If `true`, query results are returned as arrays instead of objects.
+    **Default:** `false`.
+  * `allowBareNamedParameters` {boolean} If `true`, allows binding named parameters without the prefix
+    character (e.g., `foo` instead of `:foo`). **Default:** `true`.
+  * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters are ignored when binding.
+    If `false`, an exception is thrown for unknown named parameters. **Default:** `false`.
 
 Constructs a new `DatabaseSync` instance.
 
 ### `database.aggregate(name, options)`
 
 <!-- YAML
-added: v24.0.0
+added:
+ - v24.0.0
+ - v22.16.0
 -->
 
 Registers a new aggregate function with the SQLite database. This method is a wrapper around
@@ -246,7 +264,9 @@ loading extensions for security reasons.
 ### `database.location([dbName])`
 
 <!-- YAML
-added: v24.0.0
+added:
+  - v24.0.0
+  - v22.16.0
 -->
 
 * `dbName` {string} Name of the database. This can be `'main'` (the default primary database) or any other
@@ -306,15 +326,17 @@ added:
   - v22.15.0
 -->
 
-* {boolean} Whether the database is currently open or not.
+* Type: {boolean} Whether the database is currently open or not.
 
 ### `database.isTransaction`
 
 <!-- YAML
-added: v24.0.0
+added:
+  - v24.0.0
+  - v22.16.0
 -->
 
-* {boolean} Whether the database is currently within a transaction. This method
+* Type: {boolean} Whether the database is currently within a transaction. This method
   is a wrapper around [`sqlite3_get_autocommit()`][].
 
 ### `database.open()`
@@ -416,9 +438,11 @@ targetDb.applyChangeset(changeset);
 added:
   - v23.11.0
   - v22.15.0
+changes:
+ - version: v24.2.0
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Closes the database connection. If the database connection is already closed
 then this is a no-op.
@@ -508,25 +532,27 @@ the values in `namedParameters` and `anonymousParameters`.
 ### `statement.columns()`
 
 <!-- YAML
-added: v23.11.0
+added:
+  - v23.11.0
+  - v22.16.0
 -->
 
 * Returns: {Array} An array of objects. Each object corresponds to a column
   in the prepared statement, and contains the following properties:
 
-  * `column`: {string|null} The unaliased name of the column in the origin
+  * `column` {string|null} The unaliased name of the column in the origin
     table, or `null` if the column is the result of an expression or subquery.
     This property is the result of [`sqlite3_column_origin_name()`][].
-  * `database`: {string|null} The unaliased name of the origin database, or
+  * `database` {string|null} The unaliased name of the origin database, or
     `null` if the column is the result of an expression or subquery. This
     property is the result of [`sqlite3_column_database_name()`][].
-  * `name`: {string} The name assigned to the column in the result set of a
+  * `name` {string} The name assigned to the column in the result set of a
     `SELECT` statement. This property is the result of
     [`sqlite3_column_name()`][].
-  * `table`: {string|null} The unaliased name of the origin table, or `null` if
+  * `table` {string|null} The unaliased name of the origin table, or `null` if
     the column is the result of an expression or subquery. This property is the
     result of [`sqlite3_column_table_name()`][].
-  * `type`: {string|null} The declared data type of the column, or `null` if the
+  * `type` {string|null} The declared data type of the column, or `null` if the
     column is the result of an expression or subquery. This property is the
     result of [`sqlite3_column_decltype()`][].
 
@@ -539,7 +565,7 @@ prepared statement.
 added: v22.5.0
 -->
 
-* {string} The source SQL expanded to include parameter values.
+* Type: {string} The source SQL expanded to include parameter values.
 
 The source SQL text of the prepared statement with parameter
 placeholders replaced by the values that were used during the most recent
@@ -616,12 +642,12 @@ changes:
 * `...anonymousParameters` {null|number|bigint|string|Buffer|TypedArray|DataView} Zero or
   more values to bind to anonymous parameters.
 * Returns: {Object}
-  * `changes`: {number|bigint} The number of rows modified, inserted, or deleted
+  * `changes` {number|bigint} The number of rows modified, inserted, or deleted
     by the most recently completed `INSERT`, `UPDATE`, or `DELETE` statement.
     This field is either a number or a `BigInt` depending on the prepared
     statement's configuration. This property is the result of
     [`sqlite3_changes64()`][].
-  * `lastInsertRowid`: {number|bigint} The most recently inserted rowid. This
+  * `lastInsertRowid` {number|bigint} The most recently inserted rowid. This
     field is either a number or a `BigInt` depending on the prepared statement's
     configuration. This property is the result of
     [`sqlite3_last_insert_rowid()`][].
@@ -668,6 +694,19 @@ added:
 By default, if an unknown name is encountered while binding parameters, an
 exception is thrown. This method allows unknown named parameters to be ignored.
 
+### `statement.setReturnArrays(enabled)`
+
+<!-- YAML
+added:
+  - v24.0.0
+  - v22.16.0
+-->
+
+* `enabled` {boolean} Enables or disables the return of query results as arrays.
+
+When enabled, query results returned by the `all()`, `get()`, and `iterate()` methods will be returned as arrays instead
+of objects.
+
 ### `statement.setReadBigInts(enabled)`
 
 <!-- YAML
@@ -690,7 +729,7 @@ supported at all times.
 added: v22.5.0
 -->
 
-* {string} The source SQL used to create this prepared statement.
+* Type: {string} The source SQL used to create this prepared statement.
 
 The source SQL text of the prepared statement. This property is a
 wrapper around [`sqlite3_sql()`][].
@@ -714,7 +753,9 @@ exception.
 ## `sqlite.backup(sourceDb, path[, options])`
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.16.0
 changes:
   - version: v23.10.0
     pr-url: https://github.com/nodejs/node/pull/56991
@@ -780,7 +821,7 @@ added:
   - v22.13.0
 -->
 
-* {Object}
+* Type: {Object}
 
 An object containing commonly used constants for SQLite operations.
 

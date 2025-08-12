@@ -787,14 +787,15 @@ Maybe<int> ParseSoaReply(Environment* env,
 }
 }  // anonymous namespace
 
-ChannelWrap::ChannelWrap(
-      Environment* env,
-      Local<Object> object,
-      int timeout,
-      int tries)
+ChannelWrap::ChannelWrap(Environment* env,
+                         Local<Object> object,
+                         int timeout,
+                         int tries,
+                         int max_timeout)
     : AsyncWrap(env, object, PROVIDER_DNSCHANNEL),
       timeout_(timeout),
-      tries_(tries) {
+      tries_(tries),
+      max_timeout_(max_timeout) {
   MakeWeak();
 
   Setup();
@@ -808,13 +809,15 @@ void ChannelWrap::MemoryInfo(MemoryTracker* tracker) const {
 
 void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
-  CHECK_EQ(args.Length(), 2);
+  CHECK_EQ(args.Length(), 3);
   CHECK(args[0]->IsInt32());
   CHECK(args[1]->IsInt32());
+  CHECK(args[2]->IsInt32());
   const int timeout = args[0].As<Int32>()->Value();
   const int tries = args[1].As<Int32>()->Value();
+  const int max_timeout = args[2].As<Int32>()->Value();
   Environment* env = Environment::GetCurrent(args);
-  new ChannelWrap(env, args.This(), timeout, tries);
+  new ChannelWrap(env, args.This(), timeout, tries, max_timeout);
 }
 
 GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
@@ -879,9 +882,14 @@ void ChannelWrap::Setup() {
   }
 
   /* We do the call to ares_init_option for caller. */
-  const int optmask =
-      ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS |
-      ARES_OPT_SOCK_STATE_CB | ARES_OPT_TRIES;
+  int optmask = ARES_OPT_FLAGS | ARES_OPT_TIMEOUTMS | ARES_OPT_SOCK_STATE_CB |
+                ARES_OPT_TRIES | ARES_OPT_QUERY_CACHE;
+
+  if (max_timeout_ > 0) {
+    options.maxtimeout = max_timeout_;
+    optmask |= ARES_OPT_MAXTIMEOUTMS;
+  }
+
   r = ares_init_options(&channel_, &options, optmask);
 
   if (r != ARES_SUCCESS) {
@@ -902,8 +910,7 @@ void ChannelWrap::StartTimer() {
     return;
   }
   int timeout = timeout_;
-  if (timeout == 0) timeout = 1;
-  if (timeout < 0 || timeout > 1000) timeout = 1000;
+  if (timeout <= 0 || timeout > 1000) timeout = 1000;
   uv_timer_start(timer_handle_, AresTimeout, timeout, timeout);
 }
 
@@ -1566,6 +1573,8 @@ Maybe<int> SoaTraits::Parse(QuerySoaWrap* wrap,
 
   if (status != ARES_SUCCESS) return Just<int>(status);
 
+  auto cleanup = OnScopeLeave([&]() { ares_free_data(soa_out); });
+
   Local<Object> soa_record = Object::New(env->isolate());
 
   if (soa_record
@@ -1606,13 +1615,21 @@ Maybe<int> SoaTraits::Parse(QuerySoaWrap* wrap,
     return Nothing<int>();
   }
 
-  ares_free_data(soa_out);
-
   wrap->CallOnComplete(soa_record);
   return Just<int>(ARES_SUCCESS);
 }
 
 int ReverseTraits::Send(QueryReverseWrap* wrap, const char* name) {
+  permission::PermissionScope scope = permission::PermissionScope::kNet;
+  Environment* env_holder = wrap->env();
+
+  if (!env_holder->permission()->is_granted(env_holder, scope, name))
+      [[unlikely]] {
+    wrap->QueuePermissionModelResponseCallback(name);
+    // Error will be returned in the callback
+    return ARES_SUCCESS;
+  }
+
   int length, family;
   char address_buffer[sizeof(struct in6_addr)];
 
@@ -1851,6 +1868,10 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[4]->IsUint32());
   Local<Object> req_wrap_obj = args[0].As<Object>();
   node::Utf8Value hostname(env->isolate(), args[1]);
+
+  ERR_ACCESS_DENIED_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, hostname.ToStringView(), args);
+
   std::string ascii_hostname = ada::idna::to_ascii(hostname.ToStringView());
 
   int32_t flags = 0;
@@ -1925,10 +1946,18 @@ void GetNameInfo(const FunctionCallbackInfo<Value>& args) {
       TRACING_CATEGORY_NODE2(dns, native), "lookupService", req_wrap.get(),
       "ip", TRACE_STR_COPY(*ip), "port", port);
 
-  int err = req_wrap->Dispatch(uv_getnameinfo,
-                               AfterGetNameInfo,
-                               reinterpret_cast<struct sockaddr*>(&addr),
-                               NI_NAMEREQD);
+  int err = 0;
+  if (!env->permission()->is_granted(
+          env, permission::PermissionScope::kNet, ip.ToStringView()))
+      [[unlikely]] {
+    req_wrap->InsufficientPermissionError(*ip);
+  } else {
+    err = req_wrap->Dispatch(uv_getnameinfo,
+                             AfterGetNameInfo,
+                             reinterpret_cast<struct sockaddr*>(&addr),
+                             NI_NAMEREQD);
+  }
+
   if (err == 0)
     // Release ownership of the pointer allowing the ownership to be transferred
     USE(req_wrap.release());

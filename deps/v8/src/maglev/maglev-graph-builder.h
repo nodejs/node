@@ -352,6 +352,16 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
+  IntPtrConstant* GetIntPtrConstant(intptr_t constant) {
+    auto it = graph_->intptr().find(constant);
+    if (it == graph_->intptr().end()) {
+      IntPtrConstant* node = CreateNewConstantNode<IntPtrConstant>(0, constant);
+      graph_->intptr().emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
   Uint32Constant* GetUint32Constant(int constant) {
     auto it = graph_->uint32().find(constant);
     if (it == graph_->uint32().end()) {
@@ -597,7 +607,7 @@ class MaglevGraphBuilder {
     // same maglev osr code again, before reaching the turbofan OSR code in the
     // callee. The solution is to support osr from maglev without
     // deoptimization.
-    return !(graph_->is_osr() && is_inline());
+    return !is_inline();
   }
   bool MaglevIsTopTier() const { return !v8_flags.turbofan && v8_flags.maglev; }
   BasicBlock* CreateEdgeSplitBlock(BasicBlockRef& jump_targets,
@@ -1040,6 +1050,8 @@ class MaglevGraphBuilder {
       int i = 0;
       constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
       for (ValueNode* raw_input : raw_inputs) {
+        // TODO(marja): Here we might already have the empty type for the
+        // node. Generate a deopt and make callers handle it.
         inputs[i] = ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]);
         i++;
       }
@@ -1300,26 +1312,25 @@ class MaglevGraphBuilder {
   bool TrySpecializeLoadContextSlotToFunctionContext(
       ValueNode* context, int slot_index,
       ContextSlotMutability slot_mutability);
-  ValueNode* TrySpecializeLoadScriptContextSlot(ValueNode* context, int index);
+  ValueNode* TrySpecializeLoadContextSlot(ValueNode* context, int index);
   ValueNode* LoadAndCacheContextSlot(ValueNode* context, int offset,
                                      ContextSlotMutability slot_mutability,
-                                     ContextKind context_kind);
-  MaybeReduceResult TrySpecializeStoreScriptContextSlot(ValueNode* context,
-                                                        int index,
-                                                        ValueNode* value,
-                                                        Node** store);
+                                     ContextMode context_mode);
+  MaybeReduceResult TrySpecializeStoreContextSlot(ValueNode* context, int index,
+                                                  ValueNode* value,
+                                                  Node** store);
   ReduceResult StoreAndCacheContextSlot(ValueNode* context, int index,
                                         ValueNode* value,
-                                        ContextKind context_kind);
+                                        ContextMode context_mode);
   ValueNode* TryGetParentContext(ValueNode* node);
   void MinimizeContextChainDepth(ValueNode** context, size_t* depth);
   void EscapeContext();
   void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
                             ContextSlotMutability slot_mutability,
-                            ContextKind context_kind);
+                            ContextMode context_mode);
   ReduceResult BuildStoreContextSlot(ValueNode* context, size_t depth,
                                      int slot_index, ValueNode* value,
-                                     ContextKind context_kind);
+                                     ContextMode context_mode);
 
   void BuildStoreMap(ValueNode* object, compiler::MapRef map,
                      StoreMap::Kind kind);
@@ -2343,13 +2354,13 @@ class MaglevGraphBuilder {
       TaggedToFloat64ConversionType conversion_type);
 
   ReduceResult BuildCheckSmi(ValueNode* object, bool elidable = true);
-  void BuildCheckNumber(ValueNode* object);
-  void BuildCheckHeapObject(ValueNode* object);
-  void BuildCheckJSReceiver(ValueNode* object);
-  void BuildCheckJSReceiverOrNullOrUndefined(ValueNode* object);
-  void BuildCheckString(ValueNode* object);
-  void BuildCheckStringOrStringWrapper(ValueNode* object);
-  void BuildCheckSymbol(ValueNode* object);
+  ReduceResult BuildCheckNumber(ValueNode* object);
+  ReduceResult BuildCheckHeapObject(ValueNode* object);
+  ReduceResult BuildCheckJSReceiver(ValueNode* object);
+  ReduceResult BuildCheckJSReceiverOrNullOrUndefined(ValueNode* object);
+  ReduceResult BuildCheckString(ValueNode* object);
+  ReduceResult BuildCheckStringOrStringWrapper(ValueNode* object);
+  ReduceResult BuildCheckSymbol(ValueNode* object);
   ReduceResult BuildCheckMaps(
       ValueNode* object, base::Vector<const compiler::MapRef> maps,
       std::optional<ValueNode*> map = {},
@@ -2430,9 +2441,9 @@ class MaglevGraphBuilder {
 
   Node* BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset,
                               StoreTaggedMode store_mode);
-  void BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
-                                           int offset,
-                                           StoreTaggedMode store_mode);
+  Node* BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
+                                            int offset,
+                                            StoreTaggedMode store_mode);
   void BuildStoreTrustedPointerField(ValueNode* object, ValueNode* value,
                                      int offset, IndirectPointerTag tag,
                                      StoreTaggedMode store_mode);
@@ -2492,7 +2503,7 @@ class MaglevGraphBuilder {
   MaybeReduceResult TryBuildPropertySetterCall(
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       ValueNode* lookup_start_object, ValueNode* value);
-  bool TryBuildGetKeyedPropertyWithEnumeratedKey(
+  MaybeReduceResult TryBuildGetKeyedPropertyWithEnumeratedKey(
       ValueNode* object, const compiler::FeedbackSource& feedback_source,
       const compiler::ProcessedFeedback& processed_feedback);
   ReduceResult BuildGetKeyedProperty(
@@ -2540,8 +2551,14 @@ class MaglevGraphBuilder {
                                          ElementsKind elements_kind);
   ValueNode* BuildLoadTypedArrayElement(ValueNode* object, ValueNode* index,
                                         ElementsKind elements_kind);
+  ValueNode* BuildLoadConstantTypedArrayElement(
+      compiler::JSTypedArrayRef typed_array, ValueNode* index,
+      ElementsKind elements_kind);
   void BuildStoreTypedArrayElement(ValueNode* object, ValueNode* index,
                                    ElementsKind elements_kind);
+  void BuildStoreConstantTypedArrayElement(
+      compiler::JSTypedArrayRef typed_array, ValueNode* index,
+      ElementsKind elements_kind);
 
   MaybeReduceResult TryBuildElementAccessOnString(
       ValueNode* object, ValueNode* index,

@@ -40,6 +40,7 @@
 #  define DH_R_INVALID_PARAMETER_NID                       114
 #  define DH_R_INVALID_PUBKEY                              102
 #  define DH_R_INVALID_SECRET                              128
+#  define DH_R_INVALID_SIZE                                129
 #  define DH_R_KDF_PARAMETER_ERROR                         112
 #  define DH_R_KEYS_NOT_SET                                108
 #  define DH_R_MISSING_PUBKEY                              125

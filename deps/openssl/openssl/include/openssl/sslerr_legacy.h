@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -143,7 +143,6 @@ OSSL_DEPRECATEDIN_3_0 int ERR_load_SSL_strings(void);
 #  define SSL_F_SSL_ADD_SERVERHELLO_RENEGOTIATE_EXT        0
 #  define SSL_F_SSL_ADD_SERVERHELLO_TLSEXT                 0
 #  define SSL_F_SSL_ADD_SERVERHELLO_USE_SRTP_EXT           0
-#  define SSL_F_SSL_BAD_METHOD                             0
 #  define SSL_F_SSL_BUILD_CERT_CHAIN                       0
 #  define SSL_F_SSL_BYTES_TO_CIPHER_LIST                   0
 #  define SSL_F_SSL_CACHE_CIPHERLIST                       0

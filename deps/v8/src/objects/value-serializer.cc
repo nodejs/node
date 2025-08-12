@@ -594,8 +594,13 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
 
   // Eliminate callable and exotic objects, which should not be serialized.
   InstanceType instance_type = receiver->map()->instance_type();
-  if (IsCallable(*receiver) || (IsSpecialReceiverInstanceType(instance_type) &&
-                                instance_type != JS_SPECIAL_API_OBJECT_TYPE)) {
+  if (IsCallable(*receiver) ||
+      (IsSpecialReceiverInstanceType(instance_type) &&
+       instance_type != JS_SPECIAL_API_OBJECT_TYPE
+#if V8_ENABLE_WEBASSEMBLY
+       && instance_type != WASM_STRUCT_TYPE && instance_type != WASM_ARRAY_TYPE
+#endif
+       )) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
   }
 
@@ -649,8 +654,17 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
     case JS_DATA_VIEW_TYPE:
     case JS_RAB_GSAB_DATA_VIEW_TYPE:
       return WriteJSArrayBufferView(Cast<JSArrayBufferView>(*receiver));
-    case JS_ERROR_TYPE:
-      return WriteJSError(Cast<JSObject>(receiver));
+    case JS_ERROR_TYPE: {
+      DirectHandle<JSObject> js_error = Cast<JSObject>(receiver);
+      Maybe<bool> is_host_object = IsHostObject(js_error);
+      if (is_host_object.IsNothing()) {
+        return is_host_object;
+      }
+      if (is_host_object.FromJust()) {
+        return WriteHostObject(js_error);
+      }
+      return WriteJSError(js_error);
+    }
     case JS_SHARED_ARRAY_TYPE:
       return WriteJSSharedArray(Cast<JSSharedArray>(receiver));
     case JS_SHARED_STRUCT_TYPE:
@@ -663,6 +677,12 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(
       return WriteWasmModule(Cast<WasmModuleObject>(receiver));
     case WASM_MEMORY_OBJECT_TYPE:
       return WriteWasmMemory(Cast<WasmMemoryObject>(receiver));
+    case WASM_STRUCT_TYPE:
+    case WASM_ARRAY_TYPE:
+      if (HeapLayout::InAnySharedSpace(*receiver)) {
+        return WriteSharedObject(receiver);
+      }
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default:
       break;
@@ -1839,7 +1859,8 @@ MaybeDirectHandle<JSArray> ValueDeserializer::ReadSparseJSArray() {
   HandleScope scope(isolate_);
   DirectHandle<JSArray> array =
       isolate_->factory()->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND);
-  MAYBE_RETURN(JSArray::SetLength(array, length), MaybeDirectHandle<JSArray>());
+  MAYBE_RETURN(JSArray::SetLength(isolate_, array, length),
+               MaybeDirectHandle<JSArray>());
   AddObjectWithID(id, array);
 
   uint32_t num_properties;
@@ -2505,9 +2526,9 @@ MaybeDirectHandle<JSObject> ValueDeserializer::ReadHostObject() {
 // Copies a vector of property values into an object, given the map that should
 // be used.
 static void CommitProperties(
-    DirectHandle<JSObject> object, DirectHandle<Map> map,
+    Isolate* isolate, DirectHandle<JSObject> object, DirectHandle<Map> map,
     base::Vector<const DirectHandle<Object>> properties) {
-  JSObject::AllocateStorageForMap(object, map);
+  JSObject::AllocateStorageForMap(isolate, object, map);
   DCHECK(!object->map()->is_dictionary_map());
 
   DisallowGarbageCollection no_gc;
@@ -2546,7 +2567,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       if (!PeekTag().To(&tag)) return Nothing<uint32_t>();
       if (tag == end_tag) {
         ConsumeTag(end_tag);
-        CommitProperties(object, map, base::VectorOf(properties));
+        CommitProperties(isolate_, object, map, base::VectorOf(properties));
         CHECK_LT(properties.size(), std::numeric_limits<uint32_t>::max());
         return Just(static_cast<uint32_t>(properties.size()));
       }
@@ -2654,7 +2675,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       DCHECK(!transitioning);
       CHECK_LT(properties.size(), std::numeric_limits<uint32_t>::max());
       CHECK(!map->is_dictionary_map());
-      CommitProperties(object, map, base::VectorOf(properties));
+      CommitProperties(isolate_, object, map, base::VectorOf(properties));
       num_properties = static_cast<uint32_t>(properties.size());
 
       // We checked earlier that IsValidObjectKey(key).
@@ -2805,7 +2826,7 @@ ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {
 
         DirectHandle<JSArray> js_array =
             isolate_->factory()->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND);
-        MAYBE_RETURN_NULL(JSArray::SetLength(js_array, length));
+        MAYBE_RETURN_NULL(JSArray::SetLength(isolate_, js_array, length));
         size_t begin_properties =
             stack.size() - 2 * static_cast<size_t>(num_properties);
         if (num_properties &&

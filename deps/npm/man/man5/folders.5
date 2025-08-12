@@ -1,4 +1,4 @@
-.TH "FOLDERS" "5" "April 2025" "NPM@11.3.0" ""
+.TH "FOLDERS" "5" "July 2025" "NPM@11.5.1" ""
 .SH "NAME"
 \fBfolders\fR - Folder Structures Used by npm
 .SS "Description"
@@ -51,11 +51,6 @@ Man pages are not installed on Windows systems.
 See npm help cache. Cache files are stored in \fB~/.npm\fR on Posix, or \fB%LocalAppData%/npm-cache\fR on Windows.
 .P
 This is controlled by the \fB\fBcache\fR config\fR \fI\(la/using-npm/config#cache\(ra\fR param.
-.SS "Temp Files"
-.P
-Temporary files are stored by default in the folder specified by the \fB\fBtmp\fR config\fR \fI\(la/using-npm/config#tmp\(ra\fR, which defaults to the TMPDIR, TMP, or TEMP environment variables, or \fB/tmp\fR on Unix and \fBc:\[rs]windows\[rs]temp\fR on Windows.
-.P
-Temp files are given a unique folder under this root for each run of the program, and are deleted upon successful exit.
 .SS "More Information"
 .P
 When installing locally, npm first tries to find an appropriate \fBprefix\fR folder. This is so that \fBnpm install foo@1.2.3\fR will install to the sensible root of your package, even if you happen to have \fBcd\fRed into some other folder.

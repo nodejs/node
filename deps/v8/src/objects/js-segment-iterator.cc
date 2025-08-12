@@ -135,11 +135,10 @@ MaybeDirectHandle<JSReceiver> JSSegmentIterator::Next(
     DisallowHeapAllocation no_gc;
     // We can skip write barriers because {segment_data} is the last object
     // that was allocated.
-    raw->set_segment(
-        code <= unibrow::Latin1::kMaxChar
-            ? Cast<String>(factory->single_character_string_table()->get(code))
-            : *segment,
-        SKIP_WRITE_BARRIER);
+    raw->set_segment(code <= unibrow::Latin1::kMaxChar
+                         ? ReadOnlyRoots(isolate).single_character_string(code)
+                         : *segment,
+                     SKIP_WRITE_BARRIER);
     raw->set_index(
         Smi::IsValid(start_index) ? Smi::FromInt(start_index) : *index,
         SKIP_WRITE_BARRIER);

@@ -72,6 +72,8 @@
   V(ack_string, "ack")                                                         \
   V(address_string, "address")                                                 \
   V(aliases_string, "aliases")                                                 \
+  V(allow_bare_named_params_string, "allowBareNamedParameters")                \
+  V(allow_unknown_named_params_string, "allowUnknownNamedParameters")          \
   V(alpn_callback_string, "ALPNCallback")                                      \
   V(args_string, "args")                                                       \
   V(asn1curve_string, "asn1Curve")                                             \
@@ -96,6 +98,7 @@
   V(changes_string, "changes")                                                 \
   V(channel_string, "channel")                                                 \
   V(chunks_sent_since_last_write_string, "chunksSentSinceLastWrite")           \
+  V(client_id_string, "clientId")                                              \
   V(clone_unsupported_type_str, "Cannot clone object of unsupported type.")    \
   V(clone_transfer_needed_str,                                                 \
     "Object that needs transfer was found in message but not listed in "       \
@@ -112,6 +115,9 @@
   V(crypto_ec_string, "ec")                                                    \
   V(crypto_ed25519_string, "ed25519")                                          \
   V(crypto_ed448_string, "ed448")                                              \
+  V(crypto_ml_dsa_44_string, "ml-dsa-44")                                      \
+  V(crypto_ml_dsa_65_string, "ml-dsa-65")                                      \
+  V(crypto_ml_dsa_87_string, "ml-dsa-87")                                      \
   V(crypto_x25519_string, "x25519")                                            \
   V(crypto_x448_string, "x448")                                                \
   V(crypto_rsa_string, "rsa")                                                  \
@@ -191,6 +197,7 @@
   V(h2_string, "h2")                                                           \
   V(handle_string, "handle")                                                   \
   V(hash_algorithm_string, "hashAlgorithm")                                    \
+  V(held_string, "held")                                                       \
   V(help_text_string, "helpText")                                              \
   V(homedir_string, "homedir")                                                 \
   V(host_string, "host")                                                       \
@@ -216,6 +223,8 @@
   V(issuer_string, "issuer")                                                   \
   V(issuercert_string, "issuerCertificate")                                    \
   V(iterator_string, "Iterator")                                               \
+  V(jwk_akp_string, "AKP")                                                     \
+  V(jwk_alg_string, "alg")                                                     \
   V(jwk_crv_string, "crv")                                                     \
   V(jwk_d_string, "d")                                                         \
   V(jwk_dp_string, "dp")                                                       \
@@ -225,13 +234,15 @@
   V(jwk_ec_string, "EC")                                                       \
   V(jwk_g_string, "g")                                                         \
   V(jwk_k_string, "k")                                                         \
-  V(jwk_p_string, "p")                                                         \
-  V(jwk_q_string, "q")                                                         \
-  V(jwk_qi_string, "qi")                                                       \
   V(jwk_kty_string, "kty")                                                     \
   V(jwk_n_string, "n")                                                         \
   V(jwk_oct_string, "oct")                                                     \
   V(jwk_okp_string, "OKP")                                                     \
+  V(jwk_p_string, "p")                                                         \
+  V(jwk_priv_string, "priv")                                                   \
+  V(jwk_pub_string, "pub")                                                     \
+  V(jwk_q_string, "q")                                                         \
+  V(jwk_qi_string, "qi")                                                       \
   V(jwk_rsa_string, "RSA")                                                     \
   V(jwk_x_string, "x")                                                         \
   V(jwk_y_string, "y")                                                         \
@@ -252,6 +263,7 @@
   V(messageerror_string, "messageerror")                                       \
   V(mgf1_hash_algorithm_string, "mgf1HashAlgorithm")                           \
   V(minttl_string, "minttl")                                                   \
+  V(mode_string, "mode")                                                       \
   V(module_string, "module")                                                   \
   V(modulus_string, "modulus")                                                 \
   V(modulus_length_string, "modulusLength")                                    \
@@ -298,6 +310,7 @@
   V(path_string, "path")                                                       \
   V(pathname_string, "pathname")                                               \
   V(pending_handle_string, "pendingHandle")                                    \
+  V(pending_string, "pending")                                                 \
   V(permission_string, "permission")                                           \
   V(phase_string, "phase")                                                     \
   V(pid_string, "pid")                                                         \
@@ -324,6 +337,7 @@
   V(raw_string, "raw")                                                         \
   V(read_host_object_string, "_readHostObject")                                \
   V(readable_string, "readable")                                               \
+  V(read_bigints_string, "readBigInts")                                        \
   V(reason_string, "reason")                                                   \
   V(refresh_string, "refresh")                                                 \
   V(regexp_string, "regexp")                                                   \
@@ -363,6 +377,7 @@
   V(sni_context_string, "sni_context")                                         \
   V(source_string, "source")                                                   \
   V(source_map_url_string, "sourceMapURL")                                     \
+  V(source_url_string, "sourceURL")                                            \
   V(specifier_string, "specifier")                                             \
   V(stack_string, "stack")                                                     \
   V(standard_name_string, "standardName")                                      \
@@ -382,6 +397,7 @@
   V(table_string, "table")                                                     \
   V(target_string, "target")                                                   \
   V(thread_id_string, "threadId")                                              \
+  V(thread_name_string, "threadName")                                          \
   V(ticketkeycallback_string, "onticketkeycallback")                           \
   V(timeout_string, "timeout")                                                 \
   V(time_to_first_byte_string, "timeToFirstByte")                              \
@@ -445,6 +461,7 @@
   V(intervalhistogram_constructor_template, v8::FunctionTemplate)              \
   V(js_transferable_constructor_template, v8::FunctionTemplate)                \
   V(libuv_stream_wrap_ctor_template, v8::FunctionTemplate)                     \
+  V(lock_holder_constructor_template, v8::FunctionTemplate)                    \
   V(message_port_constructor_template, v8::FunctionTemplate)                   \
   V(module_wrap_constructor_template, v8::FunctionTemplate)                    \
   V(microtask_queue_ctor_template, v8::FunctionTemplate)                       \
@@ -466,6 +483,7 @@
   V(tcp_constructor_template, v8::FunctionTemplate)                            \
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(write_wrap_template, v8::ObjectTemplate)                                   \
+  V(worker_cpu_usage_taker_template, v8::ObjectTemplate)                       \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
   V(worker_heap_statistics_taker_template, v8::ObjectTemplate)                 \
   V(x509_constructor_template, v8::FunctionTemplate)

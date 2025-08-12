@@ -1,6 +1,6 @@
 {
 	"name": "binary-extensions",
-	"version": "3.0.0",
+	"version": "3.1.0",
 	"description": "List of binary file extensions",
 	"license": "MIT",
 	"repository": "sindresorhus/binary-extensions",

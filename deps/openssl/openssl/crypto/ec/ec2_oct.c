@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2022 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -272,7 +272,7 @@ int ossl_ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
     }
 
     /*
-     * The first octet is the point converison octet PC, see X9.62, page 4
+     * The first octet is the point conversion octet PC, see X9.62, page 4
      * and section 4.4.2.  It must be:
      *     0x00          for the point at infinity
      *     0x02 or 0x03  for compressed form

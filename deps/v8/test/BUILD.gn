@@ -9,6 +9,7 @@ group("gn_all") {
 
   data_deps = [
     "benchmarks:v8_benchmarks",
+    "filecheck:v8_filecheck",
     "fuzzer:v8_fuzzer",
     "intl:v8_intl",
     "message:v8_message",
@@ -92,6 +93,7 @@ group("v8_bot_default") {
   data_deps = [
     "cctest:cctest",
     "debugger:v8_debugger",
+    "filecheck:v8_filecheck",
     "fuzzer:v8_fuzzer",
     "inspector:inspector-test",
     "intl:v8_intl",
@@ -117,6 +119,7 @@ group("v8_default") {
   data_deps = [
     "cctest:cctest",
     "debugger:v8_debugger",
+    "filecheck:v8_filecheck",
     "fuzzer:v8_fuzzer",
     "inspector:inspector-test",
     "intl:v8_intl",
@@ -153,6 +156,7 @@ group("v8_d8_default") {
 
   data_deps = [
     "debugger:v8_debugger",
+    "filecheck:v8_filecheck",
     "intl:v8_intl",
     "message:v8_message",
     "mjsunit:v8_mjsunit",

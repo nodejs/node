@@ -256,6 +256,7 @@ TEST_F(ApiWasmTest, WasmEnableDisableImportedStrings) {
 }
 
 TEST_F(ApiWasmTest, WasmEnableDisableJSPI) {
+  FLAG_VALUE_SCOPE(experimental_wasm_jspi, false);
   Local<Context> context_local = Context::New(isolate());
   Context::Scope context_scope(context_local);
   i::DirectHandle<i::NativeContext> context =
@@ -277,6 +278,7 @@ TEST_F(ApiWasmTest, WasmEnableDisableJSPI) {
 }
 
 TEST_F(ApiWasmTest, WasmInstallJSPI) {
+  FLAG_VALUE_SCOPE(experimental_wasm_jspi, false);
   Local<Context> context_local = Context::New(isolate());
   Context::Scope context_scope(context_local);
   i::DirectHandle<i::NativeContext> context =

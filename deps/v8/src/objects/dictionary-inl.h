@@ -168,7 +168,7 @@ void Dictionary<Derived, Shape>::SetEntry(InternalIndex entry,
                                           Tagged<Object> value,
                                           PropertyDetails details) {
   DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
-  DCHECK(!IsName(key) || details.dictionary_index() > 0);
+  DCHECK(!IsName(key) || details.dictionary_index() > 0 || !Shape::kHasDetails);
   int index = DerivedHashTable::EntryToIndex(entry);
   DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = this->GetWriteBarrierMode(no_gc);
@@ -313,6 +313,10 @@ DirectHandle<Object> NumberDictionaryBaseShape::AsHandle(LocalIsolate* isolate,
 
 DirectHandle<Map> NumberDictionary::GetMap(RootsTable& roots) {
   return roots.number_dictionary_map();
+}
+
+DirectHandle<Map> SimpleNameDictionary::GetMap(RootsTable& roots) {
+  return roots.simple_name_dictionary_map();
 }
 
 DirectHandle<Map> SimpleNumberDictionary::GetMap(RootsTable& roots) {

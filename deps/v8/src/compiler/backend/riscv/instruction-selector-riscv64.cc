@@ -159,15 +159,16 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
   // If output is valid, use that as the output register. This is used when we
   // merge a conversion into the load.
   output_op = g.DefineAsRegister(output.valid() ? output : node);
-  int64_t index_value;
   const Operation& base_op = selector->Get(base);
-  if (base_op.Is<Opmask::kExternalConstant>() &&
-      selector->MatchSignedIntegralConstant(index, &index_value)) {
+  int64_t index_constant;
+  const bool is_index_constant =
+      selector->MatchSignedIntegralConstant(index, &index_constant);
+  if (base_op.Is<Opmask::kExternalConstant>() && is_index_constant) {
     const ConstantOp& constant_base = base_op.Cast<ConstantOp>();
     if (selector->CanAddressRelativeToRootsRegister(
             constant_base.external_reference())) {
       ptrdiff_t const delta =
-          index_value +
+          index_constant +
           MacroAssemblerBase::RootRegisterOffsetForExternalReference(
               selector->isolate(), constant_base.external_reference());
       input_count = 1;
@@ -182,11 +183,10 @@ void EmitLoad(InstructionSelectorT* selector, OpIndex node,
     }
   }
 
-  if (base_op.Is<LoadRootRegisterOp>()) {
-    int64_t index_value;
-    selector->MatchSignedIntegralConstant(index, &index_value);
+  if (base_op.Is<LoadRootRegisterOp>() && is_index_constant) {
+    DCHECK(is_index_constant);
     input_count = 1;
-    inputs[0] = g.UseImmediate64(index_value);
+    inputs[0] = g.UseImmediate64(index_constant);
     opcode |= AddressingModeField::encode(kMode_Root);
     selector->Emit(opcode, 1, &output_op, input_count, inputs);
     return;
@@ -1681,7 +1681,8 @@ void InstructionSelectorT::VisitStackPointerGreaterThan(
   kind = op.kind;
   value = op.stack_limit();
   InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
+      kArchStackPointerGreaterThan |
+      StackCheckField::encode(static_cast<StackCheckKind>(kind));
 
   RiscvOperandGeneratorT g(this);
 

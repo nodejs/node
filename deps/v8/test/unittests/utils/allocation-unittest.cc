@@ -179,5 +179,48 @@ TEST_F(AllocationTest, ReserveMemory) {
   v8::internal::FreePages(page_allocator, mem_addr, kAllocationSize);
 }
 
+TEST_F(AllocationTest, ResizeMemory) {
+  v8::PageAllocator* page_allocator = v8::internal::GetPlatformPageAllocator();
+  constexpr size_t kReservationSize = 10 * PageMetadata::kPageSize;
+  size_t page_size = v8::internal::AllocatePageSize();
+
+  VirtualMemory reservation(page_allocator, kReservationSize, nullptr,
+                            PageMetadata::kPageSize,
+                            PageAllocator::Permission::kReadWrite);
+
+  base::BoundedPageAllocator bpa(
+      page_allocator, reservation.address(), kReservationSize,
+      PageMetadata::kPageSize,
+      base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,
+      base::PageFreeingMode::kMakeInaccessible);
+
+  const Address allocate_at = bpa.begin() + 8 * PageMetadata::kPageSize;
+  CHECK(bpa.AllocatePagesAt(allocate_at, PageMetadata::kPageSize,
+                            PageAllocator::Permission::kReadWrite));
+  VirtualMemory allocation(&bpa, allocate_at, PageMetadata::kPageSize);
+  uint8_t* byte_address = reinterpret_cast<uint8_t*>(
+      allocate_at + PageMetadata::kPageSize - page_size);
+
+  // Not enough space to resize the allocation to 3 pages.
+  CHECK(!allocation.Resize(allocate_at, 3 * PageMetadata::kPageSize,
+                           PageAllocator::Permission::kReadWrite));
+  // Just enough space to resize the allocation to 2 pages.
+  CHECK(allocation.Resize(allocate_at, 2 * PageMetadata::kPageSize,
+                          PageAllocator::Permission::kReadWrite));
+  CHECK_EQ(*byte_address, 0);
+
+  // Update byte in allocation. This byte should be cleared during the following
+  // Release()/Resize() cycle.
+  *byte_address = 42;
+
+  // Shrink down to slightly below 1 page.
+  CHECK(allocation.Release(allocate_at + PageMetadata::kPageSize - page_size));
+  // Resize back to slightly below 2 pages.
+  CHECK(allocation.Resize(allocate_at, 2 * PageMetadata::kPageSize - page_size,
+                          PageAllocator::Permission::kReadWrite));
+  // Growing the allocation back again should still result in zero-initialized
+  // memory.
+  CHECK_EQ(*byte_address, 0);
+}
 }  // namespace internal
 }  // namespace v8

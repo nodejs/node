@@ -95,9 +95,8 @@ class DifferentialScriptMutator extends ScriptMutator {
   }
 
   get runnerClass() {
-    // Choose a setup with the Fuzzilli corpus in 1 of 3.
+    // Choose a setup with the Fuzzilli corpus in 1 of 2.
     return random.single([
-        runner.RandomCorpusRunner,
         runner.RandomCorpusRunner,
         runner.RandomCorpusRunnerWithFuzzilli,
     ]);

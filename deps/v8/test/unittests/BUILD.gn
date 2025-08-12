@@ -5,12 +5,7 @@
 import("../../gni/v8.gni")
 
 if (v8_enable_webassembly) {
-  # Specifies if the target build is a simulator build. Comparing target cpu
-  # with v8 target cpu to not affect simulator builds for making cross-compile
-  # snapshots.
-  target_is_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
-                        (current_cpu != v8_current_cpu && v8_multi_arch_build)
-  if (!target_is_simulator && v8_current_cpu == "x64") {
+  if (!v8_target_is_simulator && v8_current_cpu == "x64") {
     v8_enable_wasm_simd256_revec = true
   }
 }
@@ -336,6 +331,7 @@ v8_source_set("v8_unittests_sources") {
     "gay-shortest.cc",
     "gay-shortest.h",
     "heap/allocation-observer-unittest.cc",
+    "heap/conservative-stack-visitor-unittest.cc",
     "heap/cppgc-js/embedder-roots-handler-unittest.cc",
     "heap/cppgc-js/traced-reference-unittest.cc",
     "heap/cppgc-js/unified-heap-snapshot-unittest.cc",
@@ -347,11 +343,13 @@ v8_source_set("v8_unittests_sources") {
     "heap/gc-tracer-unittest.cc",
     "heap/global-handles-unittest.cc",
     "heap/global-safepoint-unittest.cc",
+    "heap/heap-allocator-unittest.cc",
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
     "heap/index-generator-unittest.cc",
+    "heap/inner-pointer-resolution-unittest.cc",
     "heap/iterators-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-factory-unittest.cc",
@@ -648,11 +646,6 @@ v8_source_set("v8_unittests_sources") {
     sources += [ "wasm/wasm-gdbserver-unittest.cc" ]
   }
 
-  if (v8_enable_conservative_stack_scanning) {
-    sources += [ "heap/conservative-stack-visitor-unittest.cc" ]
-    sources += [ "heap/inner-pointer-resolution-unittest.cc" ]
-  }
-
   if (v8_enable_i18n_support) {
     defines = [ "V8_INTL_SUPPORT" ]
     public_deps = [ v8_icu_path ]
@@ -681,7 +674,8 @@ v8_source_set("v8_unittests_sources") {
       sources +=
           [ "compiler/arm64/turboshaft-instruction-selector-arm64-unittest.cc" ]
     }
-    if (v8_enable_webassembly && current_cpu == "arm64") {
+    if (v8_enable_webassembly && current_cpu == "arm64" &&
+        !v8_target_is_simulator) {
       sources += [ "wasm/trap-handler-native-unittest.cc" ]
     }
   } else if (v8_current_cpu == "x86") {
@@ -769,11 +763,13 @@ v8_source_set("v8_unittests_sources") {
       sources += [ "wasm/trap-handler-win-unittest.cc" ]
     }
 
-    # Include this test only on simulator builds on x64 on Linux, Mac and
-    # Windows.
-    if (current_cpu == "x64" &&
-        (v8_current_cpu == "arm64" || v8_current_cpu == "loong64" ||
-         v8_current_cpu == "riscv64") && (is_linux || is_mac || is_win)) {
+    # Include this test on simulator builds on x64 on Linux, Mac and
+    # Windows, and on simulator builds on arm64 on Linux and Mac.
+    if ((current_cpu == "x64" &&
+         (v8_current_cpu == "arm64" || v8_current_cpu == "loong64" ||
+          v8_current_cpu == "riscv64") && (is_linux || is_mac || is_win)) ||
+        (current_cpu == "arm64" && (is_linux || is_mac) &&
+         v8_target_is_simulator)) {
       sources += [ "wasm/trap-handler-simulator-unittest.cc" ]
     }
   }

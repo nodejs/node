@@ -341,6 +341,7 @@ class ValueTypeBase {
   static const uint32_t kIsRefBit = value_type_impl::IsRefField::kMask;
   static const uint32_t kIsNullableBit =
       value_type_impl::IsNullableField::kMask;
+  static const uint32_t kIsSharedBit = value_type_impl::IsSharedField::kMask;
   static const uint32_t kHasIndexBit =
       value_type_impl::HasIndexOrSentinelField::kMask;
   static const uint32_t kRefKindBits = value_type_impl::RefTypeKindField::kMask;
@@ -1059,6 +1060,10 @@ class CanonicalValueType : public ValueTypeBase {
 
   constexpr bool operator==(CanonicalValueType other) const {
     return bit_field_ == other.bit_field_;
+  }
+
+  constexpr bool is_equal_except_index(CanonicalValueType other) const {
+    return (bit_field_ & ~kIndexBits) == (other.bit_field_ & ~kIndexBits);
   }
 
   constexpr bool IsFunctionType() const {

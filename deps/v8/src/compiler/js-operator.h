@@ -336,8 +336,9 @@ V8_EXPORT_PRIVATE const CallRuntimeParameters& CallRuntimeParametersOf(
     const Operator* op);
 
 // Defines the location of a context slot relative to a specific scope. This is
-// used as a parameter by JSLoadContext and JSStoreContext operators and allows
-// accessing a context-allocated variable without keeping track of the scope.
+// used as a parameter by JSLoadContextNoCell and JSStoreContextNoCell operators
+// and allows accessing a context-allocated variable without keeping track of
+// the scope.
 class ContextAccess final {
  public:
   ContextAccess(size_t depth, size_t index, bool immutable);
@@ -1064,10 +1065,10 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                               const FeedbackSource& feedback);
 
   const Operator* HasContextExtension(size_t depth);
-  const Operator* LoadContext(size_t depth, size_t index, bool immutable);
-  const Operator* LoadScriptContext(size_t depth, size_t index);
+  const Operator* LoadContextNoCell(size_t depth, size_t index, bool immutable);
+  const Operator* LoadContext(size_t depth, size_t index);
+  const Operator* StoreContextNoCell(size_t depth, size_t index);
   const Operator* StoreContext(size_t depth, size_t index);
-  const Operator* StoreScriptContext(size_t depth, size_t index);
 
   const Operator* LoadModule(int32_t cell_index);
   const Operator* StoreModule(int32_t cell_index);
@@ -1094,7 +1095,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   // Used to implement Ignition's SwitchOnGeneratorState bytecode.
   const Operator* GeneratorRestoreContinuation();
-  const Operator* GeneratorRestoreContext();
+  const Operator* GeneratorRestoreContextNoCell();
 
   // Used to implement Ignition's ResumeGenerator bytecode.
   const Operator* GeneratorRestoreRegister(int index);

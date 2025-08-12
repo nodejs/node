@@ -1178,15 +1178,16 @@ class ParserBase {
              scope()->scope_type() == REPL_MODE_SCOPE) &&
             !scope()->is_nonlinear());
   }
-  bool IsNextUsingKeyword(Token::Value token_after_using, bool is_await_using) {
+  bool IsNextUsingKeyword(bool is_await_using) {
     // using and await using declarations in for-of statements must be followed
-    // by a non-pattern ForBinding. In the case of synchronous `using`, `of` is
-    // disallowed as well with a negative lookahead.
+    // by a non-pattern ForBinding.
     //
     // `of`: for ( [lookahead ≠ using of] ForDeclaration[?Yield, ?Await, +Using]
     //       of AssignmentExpression[+In, ?Yield, ?Await] )
     //
     // If `using` is not considered a keyword, it is parsed as an identifier.
+    Token::Value token_after_using =
+        is_await_using ? PeekAheadAhead() : PeekAhead();
     if (v8_flags.js_explicit_resource_management) {
       switch (token_after_using) {
         case Token::kIdentifier:
@@ -1201,7 +1202,16 @@ class ParserBase {
         case Token::kAsync:
           return true;
         case Token::kOf:
-          return is_await_using;
+          if (is_await_using) {
+            return true;
+          } else {
+            // In the case of synchronous `using`, `of` is disallowed as well
+            // with a negative lookahead for for-of loops. But, cursedly,
+            // `using of` is allowed as the initializer of C-style for loops,
+            // e.g. `for (using of = null;;)` parses.
+            Token::Value token_after_of = PeekAheadAhead();
+            return token_after_of == Token::kAssign;
+          }
         case Token::kFutureStrictReservedWord:
         case Token::kEscapedStrictReservedWord:
           return is_sloppy(language_mode());
@@ -1220,12 +1230,12 @@ class ParserBase {
     //    LineTerminator here] ForBinding[?Yield, +Await, ~Pattern]
     return ((peek() == Token::kUsing &&
              !scanner()->HasLineTerminatorAfterNext() &&
-             IsNextUsingKeyword(PeekAhead(), /* is_await_using */ false)) ||
+             IsNextUsingKeyword(/* is_await_using */ false)) ||
             (is_await_allowed() && peek() == Token::kAwait &&
              !scanner()->HasLineTerminatorAfterNext() &&
              PeekAhead() == Token::kUsing &&
              !scanner()->HasLineTerminatorAfterNextNext() &&
-             IsNextUsingKeyword(PeekAheadAhead(), /* is_await_using */ true)));
+             IsNextUsingKeyword(/* is_await_using */ true)));
   }
   const PendingCompilationErrorHandler* pending_error_handler() const {
     return pending_error_handler_;
@@ -5278,12 +5288,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
   }
 
-  bool should_save_class_variable_index =
-      class_scope->should_save_class_variable_index();
-  if (!class_info.is_anonymous || should_save_class_variable_index) {
+  bool should_save_class_variable = class_scope->should_save_class_variable();
+  if (!class_info.is_anonymous || should_save_class_variable) {
     impl()->DeclareClassVariable(class_scope, name, &class_info,
                                  class_token_pos);
-    if (should_save_class_variable_index) {
+    if (should_save_class_variable) {
       class_scope->class_variable()->set_is_used();
       class_scope->class_variable()->ForceContextAllocation();
     }

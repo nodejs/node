@@ -45,8 +45,8 @@
 #include "src/base/export-template.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/cpu-features.h"
+#include "src/codegen/jump-table-info.h"
 #include "src/codegen/label.h"
-#include "src/codegen/x64/builtin-jump-table-info-x64.h"
 #include "src/codegen/x64/constants-x64.h"
 #include "src/codegen/x64/fma-instr.h"
 #include "src/codegen/x64/register-x64.h"
@@ -3079,7 +3079,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   friend class ConstPool;
 
-  BuiltinJumpTableInfoWriter builtin_jump_table_info_writer_;
+  JumpTableInfoWriter builtin_jump_table_info_writer_;
 
 #if defined(V8_OS_WIN_X64)
   std::unique_ptr<win64_unwindinfo::XdataEncoder> xdata_encoder_;

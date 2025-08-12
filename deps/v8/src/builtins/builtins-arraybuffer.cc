@@ -176,6 +176,12 @@ BUILTIN(ArrayBufferConstructor) {
     }
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_max_length,
                                        Object::ToInteger(isolate, max_length));
+    if (Object::NumberValue(*number_length) >
+        Object::NumberValue(*number_max_length)) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate,
+          NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
+    }
   }
   return ConstructBuffer(isolate, target, new_target, number_length,
                          number_max_length, InitializedFlag::kZeroInitialized);

@@ -274,6 +274,14 @@ struct is_complex_subtype<Derived, TrustedObject,
                               std::is_base_of<TrustedObjectLayout, Derived>>>>
     : public std::true_type {};
 
+class StructLayout;
+template <typename Derived>
+struct is_complex_subtype<Derived, Struct,
+                          std::enable_if_t<std::disjunction_v<
+                              std::is_base_of<Struct, Derived>,
+                              std::is_base_of<StructLayout, Derived>>>>
+    : public std::true_type {};
+
 template <typename Derived, typename... BaseTs>
 struct is_complex_subtype<Derived, Union<BaseTs...>>
     : public std::disjunction<is_subtype<Derived, BaseTs>...> {};

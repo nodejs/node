@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -25,6 +25,7 @@
 #include "prov/provider_ctx.h"
 #include "crypto/rsa.h"
 #include "crypto/cryptlib.h"
+#include "internal/fips.h"
 #include "internal/param_build_set.h"
 
 static OSSL_FUNC_keymgmt_new_fn rsa_newdata;
@@ -52,7 +53,6 @@ static OSSL_FUNC_keymgmt_query_operation_name_fn rsa_query_operation_name;
 static OSSL_FUNC_keymgmt_dup_fn rsa_dup;
 
 #define RSA_DEFAULT_MD "SHA256"
-#define RSA_PSS_DEFAULT_MD OSSL_DIGEST_NAME_SHA1
 #define RSA_POSSIBLE_SELECTIONS                                        \
     (OSSL_KEYMGMT_SELECT_KEYPAIR | OSSL_KEYMGMT_SELECT_OTHER_PARAMETERS)
 
@@ -197,6 +197,23 @@ static int rsa_import(void *keydata, int selection, const OSSL_PARAM params[])
         ok = ok && ossl_rsa_fromdata(rsa, params, include_private);
     }
 
+#ifdef FIPS_MODULE
+    if (ok > 0 && !ossl_fips_self_testing()) {
+        const BIGNUM *n, *e, *d, *dp, *dq, *iq, *p, *q;
+
+        RSA_get0_key(rsa, &n, &e, &d);
+        RSA_get0_crt_params(rsa, &dp, &dq, &iq);
+        p = RSA_get0_p(rsa);
+        q = RSA_get0_q(rsa);
+
+        /* Check for the public key */
+        if (n != NULL && e != NULL)
+            /* Check for private key in straightforward or CRT form */
+            if (d != NULL || (p != NULL && q != NULL && dp != NULL
+                              && dq != NULL && iq != NULL))
+                ok = ossl_rsa_key_pairwise_test(rsa);
+    }
+#endif  /* FIPS_MODULE */
     return ok;
 }
 
@@ -505,7 +522,7 @@ static int rsa_gen_set_params(void *genctx, const OSSL_PARAM params[])
     struct rsa_gen_ctx *gctx = genctx;
     const OSSL_PARAM *p;
 
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_RSA_BITS)) != NULL) {
@@ -715,7 +732,7 @@ const OSSL_DISPATCH ossl_rsa_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_EXPORT, (void (*)(void))rsa_export },
     { OSSL_FUNC_KEYMGMT_EXPORT_TYPES, (void (*)(void))rsa_export_types },
     { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))rsa_dup },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 const OSSL_DISPATCH ossl_rsapss_keymgmt_functions[] = {
@@ -740,5 +757,5 @@ const OSSL_DISPATCH ossl_rsapss_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_QUERY_OPERATION_NAME,
       (void (*)(void))rsa_query_operation_name },
     { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))rsa_dup },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };

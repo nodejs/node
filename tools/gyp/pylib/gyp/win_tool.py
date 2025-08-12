@@ -27,8 +27,7 @@ _LINK_EXE_OUT_ARG = re.compile("/OUT:(?P<out>.+)$", re.IGNORECASE)
 
 def main(args):
     executor = WinTool()
-    exit_code = executor.Dispatch(args)
-    if exit_code is not None:
+    if (exit_code := executor.Dispatch(args)) is not None:
         sys.exit(exit_code)
 
 

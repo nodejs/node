@@ -191,8 +191,6 @@ export interface ConstantsBinding {
     COPYFILE_FICLONE: 2;
     UV_FS_COPYFILE_FICLONE_FORCE: 4;
     COPYFILE_FICLONE_FORCE: 4;
-    EXTENSIONLESS_FORMAT_JAVASCRIPT: 0;
-    EXTENSIONLESS_FORMAT_WASM: 1;
   };
   crypto: {
     OPENSSL_VERSION_NUMBER: 269488319;
@@ -287,6 +285,11 @@ export interface ConstantsBinding {
     UNZIP: 7;
     BROTLI_DECODE: 8;
     BROTLI_ENCODE: 9;
+    ZSTD_COMPRESS: 10;
+    ZSTD_DECOMPRESS: 11;
+    ZSTD_e_continue: 0;
+    ZSTD_e_flush: 1;
+    ZSTD_e_end: 2;
     Z_MIN_WINDOWBITS: 8;
     Z_MAX_WINDOWBITS: 15;
     Z_DEFAULT_WINDOWBITS: 15;
@@ -388,5 +391,9 @@ export interface ConstantsBinding {
     TRACE_EVENT_PHASE_ENTER_CONTEXT: 40;
     TRACE_EVENT_PHASE_LEAVE_CONTEXT: 41;
     TRACE_EVENT_PHASE_LINK_IDS: 61;
+  };
+  internal: {
+    EXTENSIONLESS_FORMAT_JAVASCRIPT: 0;
+    EXTENSIONLESS_FORMAT_WASM: 1;
   };
 }

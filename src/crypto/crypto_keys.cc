@@ -1,12 +1,13 @@
 #include "crypto/crypto_keys.h"
-#include "crypto/crypto_common.h"
-#include "crypto/crypto_dsa.h"
-#include "crypto/crypto_ec.h"
-#include "crypto/crypto_dh.h"
-#include "crypto/crypto_rsa.h"
-#include "crypto/crypto_util.h"
 #include "async_wrap-inl.h"
 #include "base_object-inl.h"
+#include "crypto/crypto_common.h"
+#include "crypto/crypto_dh.h"
+#include "crypto/crypto_dsa.h"
+#include "crypto/crypto_ec.h"
+#include "crypto/crypto_ml_dsa.h"
+#include "crypto/crypto_rsa.h"
+#include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
@@ -176,6 +177,14 @@ bool ExportJWKAsymmetricKey(Environment* env,
       // Fall through
     case EVP_PKEY_X448:
       return ExportJWKEdKey(env, key, target);
+#if OPENSSL_WITH_PQC
+    case EVP_PKEY_ML_DSA_44:
+      // Fall through
+    case EVP_PKEY_ML_DSA_65:
+      // Fall through
+    case EVP_PKEY_ML_DSA_87:
+      return ExportJwkMlDsaKey(env, key, target);
+#endif
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
   return false;
@@ -261,7 +270,7 @@ bool ExportJWKInner(Environment* env,
                    env, key, result.As<Object>(), handleRsaPss);
 }
 
-int GetOKPCurveFromName(const char* name) {
+int GetNidFromName(const char* name) {
   int nid;
   if (strcmp(name, "Ed25519") == 0) {
     nid = EVP_PKEY_ED25519;
@@ -271,6 +280,14 @@ int GetOKPCurveFromName(const char* name) {
     nid = EVP_PKEY_X25519;
   } else if (strcmp(name, "X448") == 0) {
     nid = EVP_PKEY_X448;
+#if OPENSSL_WITH_PQC
+  } else if (strcmp(name, "ML-DSA-44") == 0) {
+    nid = EVP_PKEY_ML_DSA_44;
+  } else if (strcmp(name, "ML-DSA-65") == 0) {
+    nid = EVP_PKEY_ML_DSA_65;
+  } else if (strcmp(name, "ML-DSA-87") == 0) {
+    nid = EVP_PKEY_ML_DSA_87;
+#endif
   } else {
     nid = NID_undef;
   }
@@ -603,6 +620,9 @@ Local<Function> KeyObjectHandle::Initialize(Environment* env) {
     SetProtoMethod(isolate, templ, "exportJwk", ExportJWK);
     SetProtoMethod(isolate, templ, "initECRaw", InitECRaw);
     SetProtoMethod(isolate, templ, "initEDRaw", InitEDRaw);
+#if OPENSSL_WITH_PQC
+    SetProtoMethod(isolate, templ, "initMlDsaRaw", InitMlDsaRaw);
+#endif
     SetProtoMethod(isolate, templ, "initJwk", InitJWK);
     SetProtoMethod(isolate, templ, "keyDetail", GetKeyDetail);
     SetProtoMethod(isolate, templ, "equals", Equals);
@@ -623,6 +643,9 @@ void KeyObjectHandle::RegisterExternalReferences(
   registry->Register(ExportJWK);
   registry->Register(InitECRaw);
   registry->Register(InitEDRaw);
+#if OPENSSL_WITH_PQC
+  registry->Register(InitMlDsaRaw);
+#endif
   registry->Register(InitJWK);
   registry->Register(GetKeyDetail);
   registry->Register(Equals);
@@ -780,7 +803,7 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   Utf8Value name(env->isolate(), args[0]);
 
   ArrayBufferOrViewContents<unsigned char> key_data(args[1]);
-  KeyType type = static_cast<KeyType>(args[2].As<Int32>()->Value());
+  KeyType type = FromV8Value<KeyType>(args[2]);
 
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
@@ -789,7 +812,7 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
   new_key_fn fn = type == kKeyTypePrivate ? EVPKeyPointer::NewRawPrivate
                                           : EVPKeyPointer::NewRawPublic;
 
-  int id = GetOKPCurveFromName(*name);
+  int id = GetNidFromName(*name);
 
   switch (id) {
     case EVP_PKEY_X25519:
@@ -814,6 +837,51 @@ void KeyObjectHandle::InitEDRaw(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(true);
 }
+
+#if OPENSSL_WITH_PQC
+void KeyObjectHandle::InitMlDsaRaw(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.This());
+
+  CHECK(args[0]->IsString());
+  Utf8Value name(env->isolate(), args[0]);
+
+  ArrayBufferOrViewContents<unsigned char> key_data(args[1]);
+  KeyType type = FromV8Value<KeyType>(args[2]);
+
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  typedef EVPKeyPointer (*new_key_fn)(
+      int, const ncrypto::Buffer<const unsigned char>&);
+  new_key_fn fn = type == kKeyTypePrivate ? EVPKeyPointer::NewRawSeed
+                                          : EVPKeyPointer::NewRawPublic;
+
+  int id = GetNidFromName(*name);
+
+  switch (id) {
+    case EVP_PKEY_ML_DSA_44:
+    case EVP_PKEY_ML_DSA_65:
+    case EVP_PKEY_ML_DSA_87: {
+      auto pkey = fn(id,
+                     ncrypto::Buffer<const unsigned char>{
+                         .data = key_data.data(),
+                         .len = key_data.size(),
+                     });
+      if (!pkey) {
+        return args.GetReturnValue().Set(false);
+      }
+      key->data_ = KeyObjectData::CreateAsymmetric(type, std::move(pkey));
+      CHECK(key->data_);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+
+  args.GetReturnValue().Set(true);
+}
+#endif
 
 void KeyObjectHandle::Equals(const FunctionCallbackInfo<Value>& args) {
   KeyObjectHandle* self_handle;
@@ -903,6 +971,14 @@ Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
       return env()->crypto_x25519_string();
     case EVP_PKEY_X448:
       return env()->crypto_x448_string();
+#if OPENSSL_WITH_PQC
+    case EVP_PKEY_ML_DSA_44:
+      return env()->crypto_ml_dsa_44_string();
+    case EVP_PKEY_ML_DSA_65:
+      return env()->crypto_ml_dsa_65_string();
+    case EVP_PKEY_ML_DSA_87:
+      return env()->crypto_ml_dsa_87_string();
+#endif
     default:
       return Undefined(env()->isolate());
   }
@@ -1178,6 +1254,11 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kWebCryptoKeyFormatJWK);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ED448);
+#if OPENSSL_WITH_PQC
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_44);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_65);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_87);
+#endif
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);
   NODE_DEFINE_CONSTANT(target, kKeyEncodingPKCS1);

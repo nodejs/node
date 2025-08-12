@@ -546,3 +546,9 @@ for await (const data of body) {
   console.log('data', data.toString('utf8')) // data foo
 }
 ```
+
+### `MockPool.cleanMocks()`
+
+This method cleans up all the prepared mocks.
+
+Returns: `void`

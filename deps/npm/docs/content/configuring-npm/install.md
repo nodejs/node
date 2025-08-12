@@ -50,9 +50,9 @@ installer to install both Node.js and npm on your system.
 * [NodeSource installer](https://github.com/nodesource/distributions). If
   you use Linux, we recommend that you use a NodeSource installer.
 
-#### OS X or Windows Node installers
+#### macOS or Windows Node installers
 
-If you're using OS X or Windows, use one of the installers from the
+If you're using macOS or Windows, use one of the installers from the
 [Node.js download page](https://nodejs.org/en/download/). Be sure to
 install the version labeled **LTS**. Other versions have not yet been
 tested with npm.
@@ -69,10 +69,3 @@ installers:
 
 Or see [this page](https://nodejs.org/en/download/package-manager/) to
 install npm for Linux in the way many Linux developers prefer.
-
-#### Less-common operating systems
-
-For more information on installing Node.js on a variety of operating
-systems, see [this page][pkg-mgr].
-
-[pkg-mgr]: https://nodejs.org/en/download/package-manager/

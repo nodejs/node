@@ -85,6 +85,17 @@ extern class SharedFunctionInfo extends HeapObject {
   // value kDontAdaptArgumentsSentinel to indicate that arguments are passed
   // unaltered).
   // In contrast to [length], formal_parameter_count includes the receiver.
+  //
+  // NOTE: SharedFunctionInfo objects are located inside the sandbox, so an
+  // attacker able to corrupt in-sandbox memory can change this field
+  // arbitrarily. As such, it is not safe to use this field for invoking a
+  // JSFunction or computing the size of stack frames (or similar use-cases
+  // that involve accessing out-of-sandbox memory such as the stack). Instead,
+  // for such purposes, a trusted parameter count must be used, the source of
+  // which depends on the concrete use case. For example, a (trusted) parameter
+  // count can be obtained from a BytecodeArray (e.g. for interpreting
+  // bytecode), a Code object (e.g. for deoptimizing optimized code), or the
+  // JSDispatchTable (e.g. for invoking a JSFunction).
   formal_parameter_count: uint16;
   function_token_offset: uint16;
   // [expected_nof_properties]: Expected number of properties for the

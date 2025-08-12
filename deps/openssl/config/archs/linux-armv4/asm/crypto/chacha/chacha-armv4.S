@@ -1473,5 +1473,6 @@ ChaCha20_neon:
 	add	sp,sp,#4*(16+3)
 	ldmia	sp!,{r4,r5,r6,r7,r8,r9,r10,r11,pc}
 .size	ChaCha20_neon,.-ChaCha20_neon
-.comm	OPENSSL_armcap_P,4,4
+
+.hidden	OPENSSL_armcap_P
 #endif

@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "gtest/gtest.h"
+#include "absl/base/attributes.h"
 
 namespace {
 namespace macro_annotations {
@@ -90,6 +91,9 @@ TEST(PassThroughTest, PassesThroughPointerToMemberFunction) {
   EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
 }
 }  // namespace macro_annotations
+
+// Allow testing of the deprecated type alias annotations.
+ABSL_INTERNAL_DISABLE_DEPRECATED_DECLARATION_WARNING
 
 using ::absl::Nonnull;
 using ::absl::NullabilityUnknown;
@@ -197,4 +201,6 @@ TEST(NullableAdlTest, NullableAddsNothingToArgumentDependentLookup) {
   EXPECT_TRUE(DidAdlWin((util::MakeAdlWin*)nullptr));
   EXPECT_TRUE(DidAdlWin((Nullable<util::MakeAdlWin*>)nullptr));
 }
+
+ABSL_INTERNAL_RESTORE_DEPRECATED_DECLARATION_WARNING
 }  // namespace

@@ -7,7 +7,6 @@
 namespace node {
 
 using v8::Context;
-using v8::EscapableHandleScope;
 using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
@@ -360,41 +359,6 @@ MaybeLocal<Value> MakeSyncCallback(Isolate* isolate,
                                                async_context{0, 0},
                                                Undefined(isolate));
   return ret;
-}
-
-// Legacy MakeCallback()s
-
-Local<Value> MakeCallback(Isolate* isolate,
-                          Local<Object> recv,
-                          const char* method,
-                          int argc,
-                          Local<Value>* argv) {
-  EscapableHandleScope handle_scope(isolate);
-  return handle_scope.Escape(
-      MakeCallback(isolate, recv, method, argc, argv, {0, 0})
-          .FromMaybe(Local<Value>()));
-}
-
-Local<Value> MakeCallback(Isolate* isolate,
-                          Local<Object> recv,
-                          Local<String> symbol,
-                          int argc,
-                          Local<Value>* argv) {
-  EscapableHandleScope handle_scope(isolate);
-  return handle_scope.Escape(
-      MakeCallback(isolate, recv, symbol, argc, argv, {0, 0})
-          .FromMaybe(Local<Value>()));
-}
-
-Local<Value> MakeCallback(Isolate* isolate,
-                          Local<Object> recv,
-                          Local<Function> callback,
-                          int argc,
-                          Local<Value>* argv) {
-  EscapableHandleScope handle_scope(isolate);
-  return handle_scope.Escape(
-      MakeCallback(isolate, recv, callback, argc, argv, {0, 0})
-          .FromMaybe(Local<Value>()));
 }
 
 }  // namespace node

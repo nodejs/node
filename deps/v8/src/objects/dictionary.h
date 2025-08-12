@@ -230,6 +230,41 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) BaseNameDictionary
   using Dictionary<Derived, Shape>::FindInsertionEntry;
 };
 
+class SimpleNameDictionaryShape : public BaseNameDictionaryShape {
+ public:
+  static const bool kHasDetails = false;
+  static const bool kMatchNeedsHoleCheck = false;
+  static const int kPrefixSize = 0;
+  static const int kEntrySize = 2;
+
+  template <typename Dictionary>
+  static inline PropertyDetails DetailsAt(Tagged<Dictionary> dict,
+                                          InternalIndex entry) {
+    UNREACHABLE();
+  }
+
+  template <typename Dictionary>
+  static inline void DetailsAtPut(Tagged<Dictionary> dict, InternalIndex entry,
+                                  PropertyDetails value) {
+    UNREACHABLE();
+  }
+};
+
+EXTERN_DECLARE_DICTIONARY(SimpleNameDictionary, SimpleNameDictionaryShape)
+
+// A simple Name-to-Object dictionary.
+class SimpleNameDictionary
+    : public Dictionary<SimpleNameDictionary, SimpleNameDictionaryShape> {
+ public:
+  static inline DirectHandle<Map> GetMap(RootsTable& roots);
+
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Handle<SimpleNameDictionary>
+  Set(Isolate* isolate, Handle<SimpleNameDictionary> dictionary,
+      DirectHandle<Name> key, DirectHandle<Object> value);
+
+  static const int kEntryValueIndex = 1;
+};
+
 #define EXTERN_DECLARE_BASE_NAME_DICTIONARY(DERIVED, SHAPE)        \
   EXTERN_DECLARE_DICTIONARY(DERIVED, SHAPE)                        \
   extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) \
