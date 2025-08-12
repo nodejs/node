@@ -1897,7 +1897,7 @@ EVPKeyPointer EVPKeyPointer::NewRawPrivate(
       EVP_PKEY_new_raw_private_key(id, nullptr, data.data, data.len));
 }
 
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
 EVPKeyPointer EVPKeyPointer::NewRawSeed(
     int id, const Buffer<const unsigned char>& data) {
   if (id == 0) return {};
@@ -1968,7 +1968,7 @@ EVP_PKEY* EVPKeyPointer::release() {
 int EVPKeyPointer::id(const EVP_PKEY* key) {
   if (key == nullptr) return 0;
   int type = EVP_PKEY_id(key);
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
   // https://github.com/openssl/openssl/issues/27738#issuecomment-3013215870
   if (type == -1) {
     if (EVP_PKEY_is_a(key, "ML-DSA-44")) return EVP_PKEY_ML_DSA_44;
@@ -2032,7 +2032,7 @@ DataPointer EVPKeyPointer::rawPublicKey() const {
   return {};
 }
 
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
 DataPointer EVPKeyPointer::rawSeed() const {
   if (!pkey_) return {};
   switch (id()) {
@@ -2515,7 +2515,7 @@ bool EVPKeyPointer::isOneShotVariant() const {
   switch (type) {
     case EVP_PKEY_ED25519:
     case EVP_PKEY_ED448:
-#if OPENSSL_VERSION_MAJOR >= 3 && OPENSSL_VERSION_MINOR >= 5
+#if OPENSSL_WITH_PQC
     case EVP_PKEY_ML_DSA_44:
     case EVP_PKEY_ML_DSA_65:
     case EVP_PKEY_ML_DSA_87:
