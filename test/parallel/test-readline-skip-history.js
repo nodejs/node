@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const readline = require('readline');
 const { PassThrough } = require('stream');
@@ -11,12 +11,11 @@ const { PassThrough } = require('stream');
   const output = new PassThrough();
   const rl = readline.createInterface({ input, output });
 
-  rl.question('Password? ', { skipHistory: true }, (pw) => {
+  rl.question('Password? ', { skipHistory: true }, common.mustCall((pw) => {
     assert.strictEqual(pw, 'secret-pass');
-    assert.strictEqual(rl.history.includes('secret-pass'), false, 
-    'Password should not be in history');
+    assert.ok(!rl.history.includes('secret-pass'), 'Password should not be in history');
     rl.close();
-  });
+  }));
 
   // Simulate user typing "secret-pass" + Enter
   input.write('secret-pass\n');
@@ -30,12 +29,11 @@ const { PassThrough } = require('stream');
   output.isTTY = true; // simulate TTY
   const rl = readline.createInterface({ input, output });
 
-  rl.question('Password? ', (pw) => {
+  rl.question('Password? ', common.mustCall((pw) => {
     assert.strictEqual(pw, 'normal-input');
-    assert.strictEqual(rl.history.includes('normal-input'), true, 
-    'Input should be in history');
+    assert.partialDeepStrictEqual(rl.history, ['normal-input']);
     rl.close();
-  });
+  }));
 
   // Simulate user typing "normal-input" + Enter
   input.write('normal-input\n');
