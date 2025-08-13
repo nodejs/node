@@ -1044,6 +1044,134 @@ exports[`suite of snapshot tests > snapshot test 2`] = `
 Once the snapshot file is created, run the tests again without the
 `--test-update-snapshots` flag. The tests should pass now.
 
+### Inline snapshots
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Inline snapshots store the expected snapshot content directly within the test
+file as a template literal, rather than in an external `.snapshot` file. This
+makes it easier to see what the test expects and reduces the number of files in
+your project. Inline snapshots are particularly useful for small snapshots
+where having the expected value close to the test provides better readability.
+
+The `t.assert.inlineSnapshot()` function creates inline snapshot assertions.
+When called without a second argument, the function will insert the serialized
+value as a template literal directly into your source code when run with the
+[`--test-update-snapshots`][] flag.
+
+```mjs
+import { test } from 'node:test';
+
+test('inline snapshot test', (t) => {
+  const user = { name: 'Alice', age: 30 };
+
+  // Initially call without second argument
+  t.assert.inlineSnapshot(user);
+  t.assert.inlineSnapshot('hello world');
+});
+```
+
+```cjs
+const { test } = require('node:test');
+
+test('inline snapshot test', (t) => {
+  const user = { name: 'Alice', age: 30 };
+
+  // Initially call without second argument
+  t.assert.inlineSnapshot(user);
+  t.assert.inlineSnapshot('hello world');
+});
+```
+
+When first run without the `--test-update-snapshots` flag, the test will fail
+with a "Missing inline snapshots" error. Run the test with
+`--test-update-snapshots` to generate the snapshots:
+
+```bash
+node --test --test-update-snapshots test.js
+```
+
+After running with the update flag, your test file will be automatically
+modified to include the snapshot content:
+
+```mjs
+import { test } from 'node:test';
+
+test('inline snapshot test', (t) => {
+  const user = { name: 'Alice', age: 30 };
+
+  t.assert.inlineSnapshot(user, `
+{
+  "name": "Alice",
+  "age": 30
+}
+`);
+  t.assert.inlineSnapshot('hello world', `
+hello world
+`);
+});
+```
+
+```cjs
+const { test } = require('node:test');
+
+test('inline snapshot test', (t) => {
+  const user = { name: 'Alice', age: 30 };
+
+  t.assert.inlineSnapshot(user, `
+{
+  "name": "Alice",
+  "age": 30
+}
+`);
+  t.assert.inlineSnapshot('hello world', `
+hello world
+`);
+});
+```
+
+You can also provide an explicit second argument with a template literal
+containing the expected snapshot. This is useful when you want to write the
+expected value yourself or when updating specific snapshots:
+
+```js
+test('explicit inline snapshot', (t) => {
+  t.assert.inlineSnapshot({ status: 'ok' }, `
+{
+  "status": "ok"
+}
+`);
+});
+```
+
+If the inline snapshot content doesn't match the actual value, the test will
+fail with a snapshot mismatch error. Use `--test-update-snapshots` to update
+the snapshots to match the current values.
+
+#### Inline snapshot limitations
+
+Inline snapshots are currently in early development and have several limitations:
+
+* **Custom serializers for primitives**: Custom serializers configured via
+  `setDefaultSnapshotSerializers()` are only applied to complex objects (arrays,
+  objects) but not to primitive values (strings, numbers, booleans, null,
+  undefined). Primitive values are serialized using their natural string
+  representation to maintain readability in the source code.
+
+* **Destructured calls**: Inline snapshots are only detected when called as
+  `t.assert.inlineSnapshot()` or when destructured as
+  `const { inlineSnapshot } = t.assert; inlineSnapshot()`. Renamed destructured
+  calls like `const { inlineSnapshot: snap } = t.assert; snap()` are not
+  currently detected.
+
+* **Template literal expressions**: The expected value must be a plain template
+  literal without embedded expressions. Template literals containing `${...}`
+  expressions will cause the test to fail.
+
 ## Test reporters
 
 <!-- YAML
@@ -3556,6 +3684,55 @@ test('snapshot test with custom serialization', (t) => {
   });
 });
 ```
+
+#### `context.assert.inlineSnapshot(value[, expected])`
+
+<!-- YAML
+added: v24.0.0
+-->
+
+> Stability: 1.0 - Early development
+
+* `value` {any} A value to serialize to a string.
+* `expected` {string} Optional template literal containing the expected
+  serialized value. If Node.js was started with the [`--test-update-snapshots`][]
+  flag, this argument is ignored and the test file is automatically updated with
+  the serialized value. If not provided and not in update mode, the test will
+  fail with a "Missing inline snapshots" error.
+
+This function implements assertions for inline snapshot testing. Unlike
+`context.assert.snapshot()`, which stores snapshots in external `.snapshot`
+files, inline snapshots store the expected value directly in the test file as
+template literals.
+
+When run with [`--test-update-snapshots`][], the test runner will automatically
+modify the source code to insert or update the `expected` template literal.
+
+```js
+test('inline snapshot test', (t) => {
+  const user = { name: 'Alice', age: 30 };
+
+  // First run: call without expected value
+  t.assert.inlineSnapshot(user);
+
+  // After running with --test-update-snapshots, becomes:
+  // t.assert.inlineSnapshot(user, `
+  // {
+  //   "name": "Alice",
+  //   "age": 30
+  // }
+  // `);
+});
+
+test('inline snapshot with explicit expected value', (t) => {
+  t.assert.inlineSnapshot('hello', `
+hello
+`);
+});
+```
+
+**Note:** For current limitations and restrictions of inline snapshots, see
+[Inline snapshot limitations](#inline-snapshot-limitations).
 
 ### `context.diagnostic(message)`
 
