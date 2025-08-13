@@ -2980,8 +2980,10 @@ assert.strictEqual(
       '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)\n' +
       '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
       '\x1B[90m    ... collapsed 3 duplicate lines matching above lines ...\x1B[39m\n' +
+
       '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
       '\x1B[90m    ... collapsed 5 duplicate lines matching above 1 lines 5 times...\x1B[39m\n' +
+
       '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
       '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
       '    at Array.forEach (<anonymous>)\n' +
@@ -2991,10 +2993,96 @@ assert.strictEqual(
       '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
       '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
       '\x1B[90m    ... collapsed 10 duplicate lines matching above 5 lines 2 times...\x1B[39m\n' +
+
       '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
       '    at Array.forEach (<anonymous>)\n' +
       '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
       '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at /test/test-util-inspect.js:2239:9\n' +
+      '\x1B[90m    at getActual (node:assert:592:5)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 4 duplicate lines matching above 2 lines 2 times...\x1B[39m',
+  );
+
+  // Use a fake stack to verify the expected colored outcome.
+  const err2 = new Error('Hide duplicate frames in long stack');
+  err2.stack = [
+    'Error: Hide duplicate frames in long stack',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/foo/node_modules/bar/baz.js:2:7)',
+    '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
+
+    // 3
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Fancy (node:vm:697:32)',
+    '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+
+    // 6 * 1
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+    '    at Function.Module._load (node:internal/modules/cjs/loader:621:3)',
+
+    // 10
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)',
+    '    at require (node:internal/modules/helpers:14:16)',
+    '    at Array.forEach (<anonymous>)',
+    `    at foobar/test/parallel/test-util-inspect.js:2760:12`,
+    `    at Object.<anonymous> (foobar/node_modules/m/folder/file.js:2753:10)`,
+
+    // 2 * 2
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+    '    at /test/test-util-inspect.js:2239:9',
+    '    at getActual (node:assert:592:5)',
+  ].join('\n');
+
+  assert.strictEqual(
+    util.inspect(err2, { colors: true }),
+    'Error: Hide duplicate frames in long stack\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '    at A.<anonymous> (/foo/node_modules/\x1B[4mbar\x1B[24m/baz.js:2:7)\n' +
+      '\x1B[90m    at Module._compile (node:internal/modules/cjs/loader:827:30)\x1B[39m\n' +
+      '\x1B[90m    at Fancy (node:vm:697:32)\x1B[39m\n' +
+      '    at tryModuleLoad (node:internal/modules/cjs/foo:629:12)\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 3 duplicate lines matching above lines ...\x1B[39m\n' +
+      '\x1B[90m    at Function.Module._load (node:internal/modules/cjs/loader:621:3)\x1B[39m\n' +
+      '\x1B[90m    ... collapsed 6 duplicate lines matching above 1 lines 6 times...\x1B[39m\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '    at Module.require [as weird/name] (node:internal/aaaaa/loader:735:19)\n' +
+      '\x1B[90m    at require (node:internal/modules/helpers:14:16)\x1B[39m\n' +
+      '    at Array.forEach (<anonymous>)\n' +
+      '    at foobar/test/parallel/test-util-inspect.js:2760:12\n' +
+      '    at Object.<anonymous> (foobar/node_modules/\x1B[4mm\x1B[24m/folder/file.js:2753:10)\n' +
+      '\x1B[90m    ... collapsed 10 duplicate lines matching above lines ...\x1B[39m\n' +
       '    at /test/test-util-inspect.js:2239:9\n' +
       '\x1B[90m    at getActual (node:assert:592:5)\x1B[39m\n' +
       '\x1B[90m    ... collapsed 4 duplicate lines matching above 2 lines 2 times...\x1B[39m',
