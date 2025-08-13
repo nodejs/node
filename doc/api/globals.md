@@ -330,6 +330,9 @@ with the [`--no-experimental-websocket`][] CLI flag.
 <!-- YAML
 added: v18.0.0
 changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/59464
+   description: format now accepts `brotli` value.
  - version:
     - v23.11.0
     - v22.15.0
@@ -445,6 +448,9 @@ A browser-compatible implementation of {CustomEvent}.
 <!-- YAML
 added: v18.0.0
 changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/59464
+   description: format now accepts `brotli` value.
  - version:
     - v23.11.0
     - v22.15.0
