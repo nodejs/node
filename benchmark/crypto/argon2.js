@@ -1,12 +1,18 @@
 'use strict';
 
 const common = require('../common.js');
+const { hasOpenSSL } = require('../../test/common/crypto.js');
 const assert = require('node:assert');
 const {
   argon2,
   argon2Sync,
   randomBytes,
 } = require('node:crypto');
+
+if (!hasOpenSSL(3, 2)) {
+  console.log('Skipping: Argon2 requires OpenSSL >= 3.2');
+  process.exit(0);
+}
 
 const bench = common.createBenchmark(main, {
   mode: ['sync', 'async'],
