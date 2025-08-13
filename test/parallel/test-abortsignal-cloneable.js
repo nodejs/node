@@ -32,7 +32,7 @@ function deferred() {
 
   mc.port2.postMessage(ac.signal, [ac.signal]);
 
-  // Can be cloned/transferd multiple times and they all still work
+  // Can be cloned/transferred multiple times and they all still work
   mc.port2.postMessage(ac.signal, [ac.signal]);
 
   mc.port2.close();
