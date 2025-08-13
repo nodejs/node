@@ -13,7 +13,7 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/provider.h>
-#if OPENSSL_VERSION_MINOR >= 2
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
 #include <openssl/thread.h>
 #endif
 #endif
