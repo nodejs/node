@@ -122,6 +122,30 @@ all: \
   ml_kem_1024_private_seed_only.pem \
   ml_kem_1024_private_priv_only.pem \
   ml_kem_1024_public.pem \
+  slh_dsa_sha2_128s_private.pem \
+  slh_dsa_sha2_128s_public.pem \
+  slh_dsa_sha2_128f_private.pem \
+  slh_dsa_sha2_128f_public.pem \
+  slh_dsa_sha2_192s_private.pem \
+  slh_dsa_sha2_192s_public.pem \
+  slh_dsa_sha2_192f_private.pem \
+  slh_dsa_sha2_192f_public.pem \
+  slh_dsa_sha2_256s_private.pem \
+  slh_dsa_sha2_256s_public.pem \
+  slh_dsa_sha2_256f_private.pem \
+  slh_dsa_sha2_256f_public.pem \
+  slh_dsa_shake_128s_private.pem \
+  slh_dsa_shake_128s_public.pem \
+  slh_dsa_shake_128f_private.pem \
+  slh_dsa_shake_128f_public.pem \
+  slh_dsa_shake_192s_private.pem \
+  slh_dsa_shake_192s_public.pem \
+  slh_dsa_shake_192f_private.pem \
+  slh_dsa_shake_192f_public.pem \
+  slh_dsa_shake_256s_private.pem \
+  slh_dsa_shake_256s_public.pem \
+  slh_dsa_shake_256f_private.pem \
+  slh_dsa_shake_256f_public.pem \
 
 #
 # Create Certificate Authority: ca1
@@ -878,6 +902,78 @@ ed448_private.pem:
 
 ed448_public.pem: ed448_private.pem
 	openssl pkey -in ed448_private.pem -pubout -out ed448_public.pem
+
+slh_dsa_sha2_128s_private.pem:
+	openssl genpkey -algorithm slh-dsa-sha2-128s -out slh_dsa_sha2_128s_private.pem
+
+slh_dsa_sha2_128s_public.pem: slh_dsa_sha2_128s_private.pem
+	openssl pkey -in slh_dsa_sha2_128s_private.pem -pubout -out slh_dsa_sha2_128s_public.pem
+
+slh_dsa_sha2_128f_private.pem:
+	openssl genpkey -algorithm slh-dsa-sha2-128f -out slh_dsa_sha2_128f_private.pem
+
+slh_dsa_sha2_128f_public.pem: slh_dsa_sha2_128f_private.pem
+	openssl pkey -in slh_dsa_sha2_128f_private.pem -pubout -out slh_dsa_sha2_128f_public.pem
+
+slh_dsa_sha2_192s_private.pem:
+	openssl genpkey -algorithm slh-dsa-sha2-192s -out slh_dsa_sha2_192s_private.pem
+
+slh_dsa_sha2_192s_public.pem: slh_dsa_sha2_192s_private.pem
+	openssl pkey -in slh_dsa_sha2_192s_private.pem -pubout -out slh_dsa_sha2_192s_public.pem
+
+slh_dsa_sha2_192f_private.pem:
+	openssl genpkey -algorithm slh-dsa-sha2-192f -out slh_dsa_sha2_192f_private.pem
+
+slh_dsa_sha2_192f_public.pem: slh_dsa_sha2_192f_private.pem
+	openssl pkey -in slh_dsa_sha2_192f_private.pem -pubout -out slh_dsa_sha2_192f_public.pem
+
+slh_dsa_sha2_256s_private.pem:
+	openssl genpkey -algorithm slh-dsa-sha2-256s -out slh_dsa_sha2_256s_private.pem
+
+slh_dsa_sha2_256s_public.pem: slh_dsa_sha2_256s_private.pem
+	openssl pkey -in slh_dsa_sha2_256s_private.pem -pubout -out slh_dsa_sha2_256s_public.pem
+
+slh_dsa_sha2_256f_private.pem:
+	openssl genpkey -algorithm slh-dsa-sha2-256f -out slh_dsa_sha2_256f_private.pem
+
+slh_dsa_sha2_256f_public.pem: slh_dsa_sha2_256f_private.pem
+	openssl pkey -in slh_dsa_sha2_256f_private.pem -pubout -out slh_dsa_sha2_256f_public.pem
+
+slh_dsa_shake_128s_private.pem:
+	openssl genpkey -algorithm slh-dsa-shake-128s -out slh_dsa_shake_128s_private.pem
+
+slh_dsa_shake_128s_public.pem: slh_dsa_shake_128s_private.pem
+	openssl pkey -in slh_dsa_shake_128s_private.pem -pubout -out slh_dsa_shake_128s_public.pem
+
+slh_dsa_shake_128f_private.pem:
+	openssl genpkey -algorithm slh-dsa-shake-128f -out slh_dsa_shake_128f_private.pem
+
+slh_dsa_shake_128f_public.pem: slh_dsa_shake_128f_private.pem
+	openssl pkey -in slh_dsa_shake_128f_private.pem -pubout -out slh_dsa_shake_128f_public.pem
+
+slh_dsa_shake_192s_private.pem:
+	openssl genpkey -algorithm slh-dsa-shake-192s -out slh_dsa_shake_192s_private.pem
+
+slh_dsa_shake_192s_public.pem: slh_dsa_shake_192s_private.pem
+	openssl pkey -in slh_dsa_shake_192s_private.pem -pubout -out slh_dsa_shake_192s_public.pem
+
+slh_dsa_shake_192f_private.pem:
+	openssl genpkey -algorithm slh-dsa-shake-192f -out slh_dsa_shake_192f_private.pem
+
+slh_dsa_shake_192f_public.pem: slh_dsa_shake_192f_private.pem
+	openssl pkey -in slh_dsa_shake_192f_private.pem -pubout -out slh_dsa_shake_192f_public.pem
+
+slh_dsa_shake_256s_private.pem:
+	openssl genpkey -algorithm slh-dsa-shake-256s -out slh_dsa_shake_256s_private.pem
+
+slh_dsa_shake_256s_public.pem: slh_dsa_shake_256s_private.pem
+	openssl pkey -in slh_dsa_shake_256s_private.pem -pubout -out slh_dsa_shake_256s_public.pem
+
+slh_dsa_shake_256f_private.pem:
+	openssl genpkey -algorithm slh-dsa-shake-256f -out slh_dsa_shake_256f_private.pem
+
+slh_dsa_shake_256f_public.pem: slh_dsa_shake_256f_private.pem
+	openssl pkey -in slh_dsa_shake_256f_private.pem -pubout -out slh_dsa_shake_256f_public.pem
 
 ml_dsa_44_private.pem:
 	openssl genpkey -algorithm ml-dsa-44 -out ml_dsa_44_private.pem

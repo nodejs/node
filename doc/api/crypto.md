@@ -77,23 +77,35 @@ try {
 
 The following table lists the asymmetric key types recognized by the [`KeyObject`][] API:
 
-| Key Type                    | Description    | OID                     |
-| --------------------------- | -------------- | ----------------------- |
-| `'dh'`                      | Diffie-Hellman | 1.2.840.113549.1.3.1    |
-| `'dsa'`                     | DSA            | 1.2.840.10040.4.1       |
-| `'ec'`                      | Elliptic curve | 1.2.840.10045.2.1       |
-| `'ed25519'`                 | Ed25519        | 1.3.101.112             |
-| `'ed448'`                   | Ed448          | 1.3.101.113             |
-| `'ml-dsa-44'`[^openssl35]   | ML-DSA-44      | 2.16.840.1.101.3.4.3.17 |
-| `'ml-dsa-65'`[^openssl35]   | ML-DSA-65      | 2.16.840.1.101.3.4.3.18 |
-| `'ml-dsa-87'`[^openssl35]   | ML-DSA-87      | 2.16.840.1.101.3.4.3.19 |
-| `'ml-kem-1024'`[^openssl35] | ML-KEM-1024    | 2.16.840.1.101.3.4.4.3  |
-| `'ml-kem-512'`[^openssl35]  | ML-KEM-512     | 2.16.840.1.101.3.4.4.1  |
-| `'ml-kem-768'`[^openssl35]  | ML-KEM-768     | 2.16.840.1.101.3.4.4.2  |
-| `'rsa-pss'`                 | RSA PSS        | 1.2.840.113549.1.1.10   |
-| `'rsa'`                     | RSA            | 1.2.840.113549.1.1.1    |
-| `'x25519'`                  | X25519         | 1.3.101.110             |
-| `'x448'`                    | X448           | 1.3.101.111             |
+| Key Type                           | Description        | OID                         |
+| ---------------------------------- | ------------------ | --------------------------- |
+| `'dh'`                             | Diffie-Hellman     | 1.2.840.113549.1.3.1        |
+| `'dsa'`                            | DSA                | 1.2.840.10040.4.1           |
+| `'ec'`                             | Elliptic curve     | 1.2.840.10045.2.1           |
+| `'ed25519'`                        | Ed25519            | 1.3.101.112                 |
+| `'ed448'`                          | Ed448              | 1.3.101.113                 |
+| `'ml-dsa-44'`[^openssl35]          | ML-DSA-44          | 2.16.840.1.101.3.4.3.17     |
+| `'ml-dsa-65'`[^openssl35]          | ML-DSA-65          | 2.16.840.1.101.3.4.3.18     |
+| `'ml-dsa-87'`[^openssl35]          | ML-DSA-87          | 2.16.840.1.101.3.4.3.19     |
+| `'ml-kem-1024'`[^openssl35]        | ML-KEM-1024        | 2.16.840.1.101.3.4.4.3      |
+| `'ml-kem-512'`[^openssl35]         | ML-KEM-512         | 2.16.840.1.101.3.4.4.1      |
+| `'ml-kem-768'`[^openssl35]         | ML-KEM-768         | 2.16.840.1.101.3.4.4.2      |
+| `'rsa-pss'`                        | RSA PSS            | 1.2.840.113549.1.1.10       |
+| `'rsa'`                            | RSA                | 1.2.840.113549.1.1.1        |
+| `'slh-dsa-sha2-128f'`[^openssl35]  | SLH-DSA-SHA2-128f  | OID 2.16.840.1.101.3.4.3.21 |
+| `'slh-dsa-sha2-128s'`[^openssl35]  | SLH-DSA-SHA2-128s  | OID 2.16.840.1.101.3.4.3.22 |
+| `'slh-dsa-sha2-192f'`[^openssl35]  | SLH-DSA-SHA2-192f  | OID 2.16.840.1.101.3.4.3.23 |
+| `'slh-dsa-sha2-192s'`[^openssl35]  | SLH-DSA-SHA2-192s  | OID 2.16.840.1.101.3.4.3.24 |
+| `'slh-dsa-sha2-256f'`[^openssl35]  | SLH-DSA-SHA2-256f  | OID 2.16.840.1.101.3.4.3.25 |
+| `'slh-dsa-sha2-256s'`[^openssl35]  | SLH-DSA-SHA2-256s  | OID 2.16.840.1.101.3.4.3.26 |
+| `'slh-dsa-shake-128f'`[^openssl35] | SLH-DSA-SHAKE-128f | OID 2.16.840.1.101.3.4.3.27 |
+| `'slh-dsa-shake-128s'`[^openssl35] | SLH-DSA-SHAKE-128s | OID 2.16.840.1.101.3.4.3.28 |
+| `'slh-dsa-shake-192f'`[^openssl35] | SLH-DSA-SHAKE-192f | OID 2.16.840.1.101.3.4.3.29 |
+| `'slh-dsa-shake-192s'`[^openssl35] | SLH-DSA-SHAKE-192s | OID 2.16.840.1.101.3.4.3.30 |
+| `'slh-dsa-shake-256f'`[^openssl35] | SLH-DSA-SHAKE-256f | OID 2.16.840.1.101.3.4.3.31 |
+| `'slh-dsa-shake-256s'`[^openssl35] | SLH-DSA-SHAKE-256s | OID 2.16.840.1.101.3.4.3.32 |
+| `'x25519'`                         | X25519             | 1.3.101.110                 |
+| `'x448'`                           | X448               | 1.3.101.111                 |
 
 ## Class: `Certificate`
 
@@ -2047,6 +2059,9 @@ Other key details might be exposed via this API using additional attributes.
 added: v11.6.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59537
+    description: Add support for SLH-DSA keys.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59461
     description: Add support for ML-KEM keys.
   - version: v24.6.0
@@ -3676,6 +3691,9 @@ underlying hash function. See [`crypto.createHmac()`][] for more information.
 added: v10.12.0
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59537
+    description: Add support for SLH-DSA key pairs.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59461
     description: Add support for ML-KEM key pairs.
   - version: v24.6.0
@@ -3800,6 +3818,9 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59537
+    description: Add support for SLH-DSA key pairs.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59461
     description: Add support for ML-KEM key pairs.
@@ -5455,6 +5476,9 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59537
+    description: Add support for SLH-DSA signing.
   - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA signing.
@@ -5571,6 +5595,9 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59537
+    description: Add support for SLH-DSA signature verification.
   - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA signature verification.

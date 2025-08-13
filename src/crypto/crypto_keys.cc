@@ -984,6 +984,30 @@ Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
       return env()->crypto_ml_kem_768_string();
     case EVP_PKEY_ML_KEM_1024:
       return env()->crypto_ml_kem_1024_string();
+    case EVP_PKEY_SLH_DSA_SHA2_128F:
+      return env()->crypto_slh_dsa_sha2_128f_string();
+    case EVP_PKEY_SLH_DSA_SHA2_128S:
+      return env()->crypto_slh_dsa_sha2_128s_string();
+    case EVP_PKEY_SLH_DSA_SHA2_192F:
+      return env()->crypto_slh_dsa_sha2_192f_string();
+    case EVP_PKEY_SLH_DSA_SHA2_192S:
+      return env()->crypto_slh_dsa_sha2_192s_string();
+    case EVP_PKEY_SLH_DSA_SHA2_256F:
+      return env()->crypto_slh_dsa_sha2_256f_string();
+    case EVP_PKEY_SLH_DSA_SHA2_256S:
+      return env()->crypto_slh_dsa_sha2_256s_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_128F:
+      return env()->crypto_slh_dsa_shake_128f_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_128S:
+      return env()->crypto_slh_dsa_shake_128s_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_192F:
+      return env()->crypto_slh_dsa_shake_192f_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_192S:
+      return env()->crypto_slh_dsa_shake_192s_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_256F:
+      return env()->crypto_slh_dsa_shake_256f_string();
+    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+      return env()->crypto_slh_dsa_shake_256s_string();
 #endif
     default:
       return Undefined(env()->isolate());
@@ -1267,6 +1291,18 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_512);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_768);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_1024);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_128F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_128S);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_192F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_192S);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_256F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHA2_256S);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_128F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_128S);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_192F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_192S);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_256F);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_SLH_DSA_SHAKE_256S);
 #endif
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);
