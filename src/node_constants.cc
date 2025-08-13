@@ -1105,10 +1105,6 @@ NODE_DEFINE_CONSTANT(target, UV_FS_O_FILEMAP);
   NODE_DEFINE_CONSTANT(target, O_DIRECTORY);
 #endif
 
-#ifdef O_EXCL
-  NODE_DEFINE_CONSTANT(target, O_EXCL);
-#endif
-
 #ifdef O_NOATIME
   NODE_DEFINE_CONSTANT(target, O_NOATIME);
 #endif
