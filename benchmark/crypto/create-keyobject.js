@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
+const { hasOpenSSL } = require('../../test/common/crypto.js');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -21,11 +22,14 @@ const keyFixtures = {
   'ec': readKeyPair('ec_p256_public', 'ec_p256_private'),
   'rsa': readKeyPair('rsa_public_2048', 'rsa_private_2048'),
   'ed25519': readKeyPair('ed25519_public', 'ed25519_private'),
-  'ml-dsa-44': readKeyPair('ml_dsa_44_public', 'ml_dsa_44_private'),
 };
 
+if (hasOpenSSL(3, 5)) {
+  keyFixtures['ml-dsa-44'] = readKeyPair('ml_dsa_44_public', 'ml_dsa_44_private');
+}
+
 const bench = common.createBenchmark(main, {
-  keyType: ['rsa', 'ec', 'ed25519', 'ml-dsa-44'],
+  keyType: Object.keys(keyFixtures),
   keyFormat: ['pkcs8', 'spki', 'der-pkcs8', 'der-spki', 'jwk-public', 'jwk-private'],
   n: [1e3],
 });
