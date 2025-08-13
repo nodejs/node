@@ -2024,6 +2024,9 @@ Other key details might be exposed via this API using additional attributes.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59461
+    description: Add support for ML-KEM keys.
   - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA keys.
@@ -2064,6 +2067,9 @@ types are:
 * `'ml-dsa-44'`[^openssl35] (OID 2.16.840.1.101.3.4.3.17)
 * `'ml-dsa-65'`[^openssl35] (OID 2.16.840.1.101.3.4.3.18)
 * `'ml-dsa-87'`[^openssl35] (OID 2.16.840.1.101.3.4.3.19)
+* `'ml-kem-512'`[^openssl35] (OID 2.16.840.1.101.3.4.4.1)
+* `'ml-kem-768'`[^openssl35] (OID 2.16.840.1.101.3.4.4.2)
+* `'ml-kem-1024'`[^openssl35] (OID 2.16.840.1.101.3.4.4.3)
 
 This property is `undefined` for unrecognized `KeyObject` types and symmetric
 keys.
@@ -3663,6 +3669,9 @@ underlying hash function. See [`crypto.createHmac()`][] for more information.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59461
+    description: Add support for ML-KEM key pairs.
   - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA key pairs.
@@ -3786,6 +3795,9 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59461
+    description: Add support for ML-KEM key pairs.
   - version: v24.6.0
     pr-url: https://github.com/nodejs/node/pull/59259
     description: Add support for ML-DSA key pairs.
