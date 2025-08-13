@@ -122,7 +122,8 @@ const totalMemoryMB = Math.floor(os.totalmem() / 1024 / 1024);
 const uint64Max = 2 ** 64 - 1;
 const constrainedMemory = process.constrainedMemory();
 const constrainedMemoryMB = Math.floor(constrainedMemory / 1024 / 1024);
-const effectiveMemoryMB = constrainedMemory > 0 && constrainedMemory !== uint64Max ? constrainedMemoryMB : totalMemoryMB;
+const effectiveMemoryMB =
+  constrainedMemory > 0 && constrainedMemory !== uint64Max ? constrainedMemoryMB : totalMemoryMB;
 const margin = 10; // 10% margin
 testPercentages.forEach((percentage) => {
   const upperLimit = effectiveMemoryMB * ((percentage + margin) / 100);
