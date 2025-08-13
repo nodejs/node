@@ -104,7 +104,7 @@ Worker::Worker(Environment* env,
   if (env->permission()->is_granted(
           env, node::permission::PermissionScope::kInspector)) {
     inspector_parent_handle_ =
-        GetInspectorParentHandle(env, thread_id_, url.c_str(), name.c_str());
+        GetInspectorParentHandle(env, thread_id_, url, name);
   }
 
   argv_ = std::vector<std::string>{env->argv()[0]};
