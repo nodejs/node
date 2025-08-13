@@ -70,6 +70,7 @@ class DatabaseOpenConfiguration {
   bool enable_dqs_ = false;
   int timeout_ = 0;
   bool use_big_ints_ = false;
+  bool use_null_as_undefined_ = false;
   bool return_arrays_ = false;
   bool allow_bare_named_params_ = true;
   bool allow_unknown_named_params_ = false;
@@ -173,6 +174,7 @@ class StatementSync : public BaseObject {
   static void SetAllowUnknownNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetReadNullAsUndefined(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
   void Finalize();
   bool IsFinalized();
@@ -186,6 +188,7 @@ class StatementSync : public BaseObject {
   sqlite3_stmt* statement_;
   bool return_arrays_ = false;
   bool use_big_ints_;
+  bool use_null_as_undefined_ = false;
   bool allow_bare_named_params_;
   bool allow_unknown_named_params_;
   std::optional<std::map<std::string, std::string>> bare_named_params_;

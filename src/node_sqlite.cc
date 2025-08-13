@@ -41,6 +41,7 @@ using v8::MaybeLocal;
 using v8::Name;
 using v8::NewStringType;
 using v8::Null;
+using v8::Undefined;
 using v8::Number;
 using v8::Object;
 using v8::Promise;
@@ -67,7 +68,7 @@ using v8::Value;
     }                                                                          \
   } while (0)
 
-#define SQLITE_VALUE_TO_JS(from, isolate, use_big_int_args, result, ...)       \
+#define SQLITE_VALUE_TO_JS(from, isolate, use_big_int_args, use_null_as_undefined_, result, ...)       \
   do {                                                                         \
     switch (sqlite3_##from##_type(__VA_ARGS__)) {                              \
       case SQLITE_INTEGER: {                                                   \
@@ -96,7 +97,11 @@ using v8::Value;
         break;                                                                 \
       }                                                                        \
       case SQLITE_NULL: {                                                      \
-        (result) = Null((isolate));                                            \
+        if ((use_null_as_undefined_)) {                                        \
+          (result) = Undefined((isolate));                                     \
+        } else {                                                               \
+          (result) = Null((isolate));                                          \
+        }                                                                      \
         break;                                                                 \
       }                                                                        \
       case SQLITE_BLOB: {                                                      \
@@ -310,7 +315,7 @@ class CustomAggregate {
     for (int i = 0; i < argc; ++i) {
       sqlite3_value* value = argv[i];
       MaybeLocal<Value> js_val;
-      SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, js_val, value);
+      SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, false, js_val, value);
       if (js_val.IsEmpty()) {
         // Ignore the SQLite error because a JavaScript exception is pending.
         self->db_->SetIgnoreNextSQLiteError(true);
@@ -613,7 +618,7 @@ void UserDefinedFunction::xFunc(sqlite3_context* ctx,
   for (int i = 0; i < argc; ++i) {
     sqlite3_value* value = argv[i];
     MaybeLocal<Value> js_val = MaybeLocal<Value>();
-    SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, js_val, value);
+    SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, false, js_val, value);
     if (js_val.IsEmpty()) {
       // Ignore the SQLite error because a JavaScript exception is pending.
       self->db_->SetIgnoreNextSQLiteError(true);
@@ -2000,7 +2005,7 @@ MaybeLocal<Value> StatementSync::ColumnToValue(const int column) {
   Isolate* isolate = env()->isolate();
   MaybeLocal<Value> js_val = MaybeLocal<Value>();
   SQLITE_VALUE_TO_JS(
-      column, isolate, use_big_ints_, js_val, statement_, column);
+      column, isolate, use_big_ints_, use_null_as_undefined_, js_val, statement_, column);
   return js_val;
 }
 
@@ -2378,6 +2383,22 @@ void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
   stmt->use_big_ints_ = args[0]->IsTrue();
 }
 
+void StatementSync::SetReadNullAsUndefined(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+
+  if (!args[0]->IsBoolean()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(), "The \"readNullAsUndefined\" argument must be a boolean.");
+    return;
+  }
+
+  stmt->use_null_as_undefined_= args[0]->IsTrue();
+}
+
 void StatementSync::SetReturnArrays(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
@@ -2447,6 +2468,8 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
                    tmpl,
                    "setAllowUnknownNamedParameters",
                    StatementSync::SetAllowUnknownNamedParameters);
+    SetProtoMethod(
+      isolate, tmpl, "setReadNullAsUndefined", StatementSync::SetReadNullAsUndefined);
     SetProtoMethod(
         isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
     SetProtoMethod(
