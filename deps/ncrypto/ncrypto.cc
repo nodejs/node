@@ -1873,7 +1873,7 @@ DataPointer pbkdf2(const Digest& md,
   return {};
 }
 
-#if OPENSSL_VERSION_PREREQ(3, 2)
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
 #ifndef OPENSSL_NO_ARGON2
 DataPointer argon2(const Buffer<const char>& pass,
                    const Buffer<const unsigned char>& salt,
@@ -1930,7 +1930,9 @@ DataPointer argon2(const Buffer<const char>& pass,
   params.reserve(9);
 
   params.push_back(OSSL_PARAM_construct_octet_string(
-      OSSL_KDF_PARAM_PASSWORD, const_cast<char*>(pass.data), pass.len));
+      OSSL_KDF_PARAM_PASSWORD,
+      const_cast<char*>(pass.len > 0 ? pass.data : ""),
+      pass.len));
   params.push_back(OSSL_PARAM_construct_octet_string(
       OSSL_KDF_PARAM_SALT, const_cast<unsigned char*>(salt.data), salt.len));
   params.push_back(OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_THREADS, &lanes));

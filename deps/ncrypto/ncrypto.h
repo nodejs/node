@@ -1557,7 +1557,7 @@ DataPointer pbkdf2(const Digest& md,
                    uint32_t iterations,
                    size_t length);
 
-#if OPENSSL_VERSION_PREREQ(3, 2)
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
 #ifndef OPENSSL_NO_ARGON2
 enum class Argon2Type { ARGON2D, ARGON2I, ARGON2ID };
 

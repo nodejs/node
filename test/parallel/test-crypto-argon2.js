@@ -29,7 +29,7 @@ const associatedData = Buffer.alloc(12, 0x04);
 const defaults = { message, nonce, parallelism: 1, tagLength: 64, memory: 8, passes: 3 };
 
 const good = [
-  // test vectors from RFC 9106 https://www.rfc-editor.org/rfc/rfc9106.html#name-test-vectors
+  // Test vectors from RFC 9106 https://www.rfc-editor.org/rfc/rfc9106.html#name-test-vectors
   // and OpenSSL 3.2 https://github.com/openssl/openssl/blob/6dfa998f7ea150f9c6d4e4727cf6d5c82a68a8da/test/recipes/30-test_evp_data/evpkdf_argon2.txt
   //
   // OpenSSL defaults are:
@@ -56,7 +56,8 @@ const good = [
   [
     'argon2d',
     { message: '1234567890', nonce: 'saltsalt' },
-    'd16ad773b1c6400d3193bc3e66271603e9de72bace20af3f89c236f5434cdec99072ddfc6b9c77ea9f386c0e8d7cb0c37cec6ec3277a22c92d5be58ef67c7eaa',
+    'd16ad773b1c6400d3193bc3e66271603e9de72bace20af3f89c236f5434cdec9' +
+    '9072ddfc6b9c77ea9f386c0e8d7cb0c37cec6ec3277a22c92d5be58ef67c7eaa',
   ],
   [
     'argon2id',
@@ -66,7 +67,8 @@ const good = [
   [
     'argon2d',
     { message: '1234567890', nonce: 'saltsalt', parallelism: 2, memory: 65536 },
-    '5ca0ab135de1241454840172696c301c7b8fd99a788cd11cf9699044cadf7fca0a6e3762cb3043a71adf6553db3fd7925101b0ccf8868b098492a4addb2486bc',
+    '5ca0ab135de1241454840172696c301c7b8fd99a788cd11cf9699044cadf7fca' +
+    '0a6e3762cb3043a71adf6553db3fd7925101b0ccf8868b098492a4addb2486bc',
   ],
   [
     'argon2i',
@@ -81,7 +83,10 @@ const good = [
   [
     'argon2d',
     { message: '1234567890', nonce: 'saltsalt', parallelism: 2, tagLength: 128, memory: 65536 },
-    'a86c83a19f0b234ecba8c275d16d059153f961e4c39ec9b1be98b3e73d791789363682443ad594334048634e91c493affed0bc29fd329a0e553c00149d6db19af4e4a354aec14dbd575d78ba87d4a4bc4746666e7a4e6ee1572bbffc2eba308a2d825cb7b41fde3a95d5cff0dfa2d0fdd636b32aea8b4a3c532742d330bd1b90',
+    'a86c83a19f0b234ecba8c275d16d059153f961e4c39ec9b1be98b3e73d791789' +
+    '363682443ad594334048634e91c493affed0bc29fd329a0e553c00149d6db19a' +
+    'f4e4a354aec14dbd575d78ba87d4a4bc4746666e7a4e6ee1572bbffc2eba308a' +
+    '2d825cb7b41fde3a95d5cff0dfa2d0fdd636b32aea8b4a3c532742d330bd1b90',
   ],
 ];
 
@@ -117,7 +122,7 @@ for (const [algorithm, overrides, param] of bad) {
 for (const key of Object.keys(defaults)) {
   const expected = {
     code: 'ERR_INVALID_ARG_TYPE',
-    message: new RegExp(`"parameters.${key}"`),
+    message: new RegExp(`"parameters\\.${key}"`),
   };
   const parameters = { ...defaults };
   delete parameters[key];

@@ -60,7 +60,7 @@ namespace crypto {
   V(Verify)                                                                    \
   V(X509Certificate)
 
-#if !defined(OPENSSL_NO_ARGON2) && OPENSSL_VERSION_PREREQ(3, 2)
+#if !defined(OPENSSL_NO_ARGON2) && OPENSSL_VERSION_NUMBER >= 0x30200000L
 #define ARGON2_NAMESPACE_LIST(V) V(Argon2)
 #else
 #define ARGON2_NAMESPACE_LIST(V)
