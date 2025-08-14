@@ -49,8 +49,8 @@ describe('DatabaseSync.prototype.aggregate()', () => {
       }, {
         code: 'ERR_INVALID_ARG_TYPE',
         message: 'The "options.readNullAsUndefined" argument must be a boolean.',
-      })
-    })
+      });
+    });
 
     test('throws if options.varargs is not a boolean', (t) => {
       t.assert.throws(() => {

@@ -211,24 +211,24 @@ suite('DatabaseSync() constructor', () => {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: 'The "options.readNullAsUndefined" argument must be a boolean.',
-    })
+    });
   });
 
   test('SQL null can be read as undefined', (t) => {
-    const db = new DatabaseSync(nextDb(), { readNullAsUndefined: true});
+    const db = new DatabaseSync(nextDb(), { readNullAsUndefined: true });
     t.after(() => { db.close(); });
     const setup = db.exec(`
       CREATE TABLE data(is_null TEXT DEFAULT NULL) STRICT;
       INSERT INTO data(is_null) VALUES(NULL);
-    `)
+    `);
     t.assert.strictEqual(setup, undefined);
 
     const query = db.prepare('SELECT is_null FROM DATA');
-    t.assert.deepStrictEqual(query.get(),{ __proto__: null, is_null: null});
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: null });
     t.assert.strictEqual(query.setReadNullAsUndefined(true), undefined);
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: undefined});
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: undefined });
     t.assert.strictEqual(query.setReadNullAsUndefined(false), undefined);
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: null});
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: null });
   });
 
   test('throws if options.returnArrays is provided but is not a boolean', (t) => {

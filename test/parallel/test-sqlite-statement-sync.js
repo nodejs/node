@@ -282,16 +282,16 @@ suite('StatementSync.prototype.setReadNullAsUndefined', () => {
     const setup = db.exec(`
       CREATE TABLE data(is_null TEXT DEFAULT NULL) STRICT;
       INSERT INTO data(is_null) VALUES(NULL);
-    `)
+    `);
     t.assert.strictEqual(setup, undefined);
 
     const query = db.prepare('SELECT is_null FROM DATA');
-    t.assert.deepStrictEqual(query.get(),{ __proto__: null, is_null: null});
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: null });
     t.assert.strictEqual(query.setReadNullAsUndefined(true), undefined);
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: undefined});
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: undefined });
     t.assert.strictEqual(query.setReadNullAsUndefined(false), undefined);
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: null});
-  })
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: null });
+  });
 
   test('does not affect non-null values', (t) => {
     const db = new DatabaseSync(nextDb());
@@ -299,22 +299,21 @@ suite('StatementSync.prototype.setReadNullAsUndefined', () => {
     const setup = db.exec(`
       CREATE TABLE data(is_not_null TEXT) STRICT;
       INSERT INTO data(is_not_null) VALUES('This is not null');
-    `)
+    `);
     t.assert.strictEqual(setup, undefined);
 
     const query = db.prepare('SELECT is_not_null FROM DATA');
-    t.assert.deepStrictEqual(query.get(),{ __proto__: null, is_not_null: 'This is not null'});
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_not_null: 'This is not null' });
     t.assert.strictEqual(query.setReadNullAsUndefined(true), undefined);
-    console.log(query.get())
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_not_null: 'This is not null'});
-  })
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_not_null: 'This is not null' });
+  });
   test('throws when input is not a boolean', (t) => {
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
     const setup = db.exec(`
       CREATE TABLE data(is_not_null TEXT) STRICT;
       INSERT INTO data(is_not_null) VALUES('This is not null');
-    `)
+    `);
     t.assert.strictEqual(setup, undefined);
 
     const stmt = db.prepare('SELECT is_not_null FROM data');
