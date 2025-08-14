@@ -1065,6 +1065,27 @@ Key's Elliptic Curve is not registered for use in the
 Key's Asymmetric Key Type is not registered for use in the
 [JSON Web Key Types Registry][].
 
+<a id="ERR_CRYPTO_KEM_NOT_SUPPORTED"></a>
+
+### `ERR_CRYPTO_KEM_NOT_SUPPORTED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Attempted to use KEM operations while Node.js was not compiled with
+OpenSSL with KEM support.
+
+<a id="ERR_CRYPTO_KEY_REQUIRED"></a>
+
+### `ERR_CRYPTO_KEY_REQUIRED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A `key` was not provided.
+
 <a id="ERR_CRYPTO_OPERATION_FAILED"></a>
 
 ### `ERR_CRYPTO_OPERATION_FAILED`

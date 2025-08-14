@@ -66,6 +66,13 @@ namespace crypto {
 #define ARGON2_NAMESPACE_LIST(V)
 #endif  // !OPENSSL_NO_ARGON2 && OpenSSL >= 3.2
 
+// KEM functionality requires OpenSSL 3.0.0 or later
+#if OPENSSL_VERSION_MAJOR >= 3
+#define KEM_NAMESPACE_LIST(V) V(KEM)
+#else
+#define KEM_NAMESPACE_LIST(V)
+#endif
+
 #ifdef OPENSSL_NO_SCRYPT
 #define SCRYPT_NAMESPACE_LIST(V)
 #else
@@ -75,6 +82,7 @@ namespace crypto {
 #define CRYPTO_NAMESPACE_LIST(V)                                               \
   CRYPTO_NAMESPACE_LIST_BASE(V)                                                \
   ARGON2_NAMESPACE_LIST(V)                                                     \
+  KEM_NAMESPACE_LIST(V)                                                        \
   SCRYPT_NAMESPACE_LIST(V)
 
 void Initialize(Local<Object> target,
