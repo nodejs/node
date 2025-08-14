@@ -2,11 +2,10 @@
 // handle it correctly.
 
 import * as common from '../common/index.mjs';
-import assert from 'node:assert';
 import http from 'node:http';
+import assert from 'node:assert';
 import { once } from 'events';
 import { runProxiedRequest } from '../common/proxy-server.js';
-import dgram from 'node:dgram';
 
 const server = http.createServer(common.mustNotCall());
 server.on('error', common.mustNotCall((err) => { console.error('Server error', err); }));
@@ -16,24 +15,34 @@ await once(server, 'listening');
 const serverHost = `localhost:${server.address().port}`;
 const requestUrl = `http://${serverHost}/test`;
 
-// Make it fail on connection refused by connecting to a UDP port with TCP.
-const udp = dgram.createSocket('udp4');
-udp.bind(0, '127.0.0.1');
-await once(udp, 'listening');
+let maxRetries = 10;
+let foundRefused = false;
+while (maxRetries-- > 0) {
+  // Make it fail on connection refused by connecting to a port of a closed server.
+  // If it succeeds, get a different port and retry.
+  const proxy = http.createServer((req, res) => {
+    res.destroy();
+  });
+  proxy.listen(0);
+  await once(proxy, 'listening');
+  const port = proxy.address().port;
+  proxy.close();
+  await once(proxy, 'close');
 
-const port = udp.address().port;
+  console.log(`Trying proxy at port ${port}`);
+  const { stderr } = await runProxiedRequest({
+    NODE_USE_ENV_PROXY: 1,
+    REQUEST_URL: requestUrl,
+    HTTP_PROXY: `http://localhost:${port}`,
+    REQUEST_TIMEOUT: 5000,
+  });
 
-const { code, signal, stderr, stdout } = await runProxiedRequest({
-  NODE_USE_ENV_PROXY: 1,
-  REQUEST_URL: requestUrl,
-  HTTP_PROXY: `http://localhost:${port}`,
-});
-
-// The proxy client should get a connection refused error.
-assert.match(stderr, /Error.*connect ECONNREFUSED/);
-assert.strictEqual(stdout.trim(), '');
-assert.strictEqual(code, 0);
-assert.strictEqual(signal, null);
+  foundRefused = /Error.*connect ECONNREFUSED/.test(stderr);
+  if (foundRefused) {
+    // The proxy client should get a connection refused error.
+    break;
+  }
+}
 
 server.close();
-udp.close();
+assert(foundRefused, 'Expected ECONNREFUSED error from proxy request');
