@@ -255,6 +255,26 @@ suite('DatabaseSync() constructor', () => {
     t.assert.deepStrictEqual(query.get(), [1, 'one']);
   });
 
+  test('null to undefined in array rows with setReadNullAsUndefined()', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: null });
+
+    query.setReturnArrays(true);
+    query.setReadNullAsUndefined(true);
+    t.assert.deepStrictEqual(query.get(), [1, undefined]);
+
+    query.setReturnArrays(false);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: undefined });
+  });
+
   test('throws if options.allowBareNamedParameters is provided but is not a boolean', (t) => {
     t.assert.throws(() => {
       new DatabaseSync('foo', { allowBareNamedParameters: 42 });

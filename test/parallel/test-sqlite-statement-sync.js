@@ -287,10 +287,13 @@ suite('StatementSync.prototype.setReadNullAsUndefined', () => {
 
     const query = db.prepare('SELECT is_null FROM DATA');
     t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: null });
-    t.assert.strictEqual(query.setReadNullAsUndefined(true), undefined);
+    t.assert.strictEqual(Object.hasOwn(query.get(), 'is_null'), true);
+    t.assert.strictEqual('is_null' in query.get(), true);
+
+    query.setReadNullAsUndefined(true);
     t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: undefined });
-    t.assert.strictEqual(query.setReadNullAsUndefined(false), undefined);
-    t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: null });
+    t.assert.strictEqual(Object.hasOwn(query.get(), 'is_null'), true);
+    t.assert.strictEqual('is_null' in query.get(), true);
   });
 
   test('does not affect non-null values', (t) => {
@@ -304,6 +307,8 @@ suite('StatementSync.prototype.setReadNullAsUndefined', () => {
 
     const query = db.prepare('SELECT is_not_null FROM DATA');
     t.assert.deepStrictEqual(query.get(), { __proto__: null, is_not_null: 'This is not null' });
+    t.assert.strictEqual(
+      Object.hasOwn(query.get(), 'is_not_null'), true);
     t.assert.strictEqual(query.setReadNullAsUndefined(true), undefined);
     t.assert.deepStrictEqual(query.get(), { __proto__: null, is_not_null: 'This is not null' });
   });
@@ -430,6 +435,26 @@ suite('StatementSync.prototype.get() with array output', () => {
 
     query.setReturnArrays(false);
     t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
+  });
+
+  test('null to undefined in array rows with setReadNullAsUndefined()', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, NULL);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: null });
+
+    query.setReturnArrays(true);
+    query.setReadNullAsUndefined(true);
+    t.assert.deepStrictEqual(query.get(), [1, undefined]);
+
+    query.setReturnArrays(false);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: undefined });
   });
 
   test('returns array rows with BigInts when both flags are set', (t) => {
