@@ -104,7 +104,7 @@ describe('getOptionsAsFlagsFromBinding', () => {
     const flags = JSON.parse(result.stdout.trim());
 
     // Should contain flags from .env file (NODE_OPTIONS)
-    strictEqual(flags.includes('--secure-heap=8'), true);
+    strictEqual(flags.includes('--v8-pool-size=8'), true);
     // Should also contain command line flags
     strictEqual(flags.includes('--no-warnings'), true);
   });
