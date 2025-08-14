@@ -106,11 +106,12 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
 // addSourceSpecificMembership with invalid groupAddress should throw
 {
   const socket = setup();
+  const errCode = (common.isAndroid || common.isOpenBSD || common.isFreeBSD) ? 'ENOSYS' : 'EINVAL';
   assert.throws(() => {
     socket.addSourceSpecificMembership(multicastAddress, '0');
   }, {
-    code: 'EINVAL',
-    message: 'addSourceSpecificMembership EINVAL'
+    code: errCode,
+    message: `addSourceSpecificMembership ${errCode}`
   });
   socket.close();
 }
@@ -144,11 +145,12 @@ const setup = dgram.createSocket.bind(dgram, { type: 'udp4', reuseAddr: true });
 // dropSourceSpecificMembership with invalid UDP should throw
 {
   const socket = setup();
+  const errCode = (common.isAndroid || common.isOpenBSD || common.isFreeBSD) ? 'ENOSYS' : 'EINVAL';
   assert.throws(() => {
     socket.dropSourceSpecificMembership(multicastAddress, '0');
   }, {
-    code: 'EINVAL',
-    message: 'dropSourceSpecificMembership EINVAL'
+    code: errCode,
+    message: `dropSourceSpecificMembership ${errCode}`
   });
   socket.close();
 }
