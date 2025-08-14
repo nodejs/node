@@ -11,7 +11,6 @@
 #include "embedded_data.h"
 #include "encoding_binding.h"
 #include "env-inl.h"
-#include "simdjson.h"
 #include "node_blob.h"
 #include "node_builtins.h"
 #include "node_contextify.h"
@@ -27,6 +26,7 @@
 #include "node_url.h"
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
+#include "simdjson.h"
 #include "timers.h"
 
 #if HAVE_INSPECTOR
