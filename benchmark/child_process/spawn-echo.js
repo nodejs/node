@@ -5,6 +5,8 @@ const bench = common.createBenchmark(main, {
 });
 
 const spawn = require('child_process').spawn;
+const isWindows = process.platform === 'win32';
+
 function main({ n }) {
   bench.start();
   go(n, n);
@@ -14,7 +16,9 @@ function go(n, left) {
   if (--left === 0)
     return bench.end(n);
 
-  const child = spawn('echo', ['hello']);
+  const child = isWindows ?
+    spawn('cmd.exe', ['/c', 'echo', 'hello']) :
+    spawn('echo', ['hello']);
   child.on('exit', (code) => {
     if (code)
       process.exit(code);
