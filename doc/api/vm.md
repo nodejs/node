@@ -84,9 +84,9 @@ changes:
 * `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script. **Default:** `'evalmachine.<anonymous>'`.
-  * `lineOffset` {number} Specifies the line number offset that is displayed
+  * `lineOffset` {integer} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the first-line column number offset that
+  * `columnOffset` {integer} Specifies the first-line column number offset that
     is displayed in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
@@ -1110,9 +1110,9 @@ changes:
 * `options` {Object}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script. **Default:** `''`.
-  * `lineOffset` {number} Specifies the line number offset that is displayed
+  * `lineOffset` {integer} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the first-line column number offset that
+  * `columnOffset` {integer} Specifies the first-line column number offset that
     is displayed in stack traces produced by this script. **Default:** `0`.
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
@@ -1391,9 +1391,9 @@ changes:
 * `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script. **Default:** `'evalmachine.<anonymous>'`.
-  * `lineOffset` {number} Specifies the line number offset that is displayed
+  * `lineOffset` {integer} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the first-line column number offset that
+  * `columnOffset` {integer} Specifies the first-line column number offset that
     is displayed in stack traces produced by this script. **Default:** `0`.
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
@@ -1480,9 +1480,9 @@ changes:
 * `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script. **Default:** `'evalmachine.<anonymous>'`.
-  * `lineOffset` {number} Specifies the line number offset that is displayed
+  * `lineOffset` {integer} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the first-line column number offset that
+  * `columnOffset` {integer} Specifies the first-line column number offset that
     is displayed in stack traces produced by this script. **Default:** `0`.
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached
@@ -1588,9 +1588,9 @@ changes:
 * `options` {Object|string}
   * `filename` {string} Specifies the filename used in stack traces produced
     by this script. **Default:** `'evalmachine.<anonymous>'`.
-  * `lineOffset` {number} Specifies the line number offset that is displayed
+  * `lineOffset` {integer} Specifies the line number offset that is displayed
     in stack traces produced by this script. **Default:** `0`.
-  * `columnOffset` {number} Specifies the first-line column number offset that
+  * `columnOffset` {integer} Specifies the first-line column number offset that
     is displayed in stack traces produced by this script. **Default:** `0`.
   * `displayErrors` {boolean} When `true`, if an [`Error`][] occurs
     while compiling the `code`, the line of code causing the error is attached

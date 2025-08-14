@@ -255,7 +255,7 @@ changes:
     address is returned. If the value `0` is used with `{ all: true }` (see
     below), either one of or both IPv4 and IPv6 addresses are returned,
     depending on the system's DNS resolver. **Default:** `0`.
-  * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
+  * `hints` {integer} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the callback returns all resolved addresses in
     an array. Otherwise, returns a single address. **Default:** `false`.
@@ -377,7 +377,7 @@ changes:
 -->
 
 * `address` {string}
-* `port` {number}
+* `port` {integer}
 * `callback` {Function}
   * `err` {Error}
   * `hostname` {string} e.g. `example.com`
@@ -387,7 +387,7 @@ Resolves the given `address` and `port` into a host name and service using
 the operating system's underlying `getnameinfo` implementation.
 
 If `address` is not a valid IP address, a `TypeError` will be thrown.
-The `port` will be coerced to a number. If it is not a legal port, a `TypeError`
+The `port` will be coerced to a integer. If it is not a legal port, a `TypeError`
 will be thrown.
 
 On an error, `err` is an [`Error`][] object, where `err.code` is the error code.
@@ -1104,7 +1104,7 @@ changes:
     value `0` is used with `{ all: true }` (see below), either one of or both
     IPv4 and IPv6 addresses are returned, depending on the system's DNS
     resolver. **Default:** `0`.
-  * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
+  * `hints` {integer} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the `Promise` is resolved with all addresses in
     an array. Otherwise, returns a single address. **Default:** `false`.
@@ -1197,13 +1197,13 @@ added: v10.6.0
 -->
 
 * `address` {string}
-* `port` {number}
+* `port` {integer}
 
 Resolves the given `address` and `port` into a host name and service using
 the operating system's underlying `getnameinfo` implementation.
 
 If `address` is not a valid IP address, a `TypeError` will be thrown.
-The `port` will be coerced to a number. If it is not a legal port, a `TypeError`
+The `port` will be coerced to a integer. If it is not a legal port, a `TypeError`
 will be thrown.
 
 On error, the `Promise` is rejected with an [`Error`][] object, where `err.code`

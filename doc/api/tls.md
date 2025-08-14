@@ -224,9 +224,9 @@ To mitigate the risk, renegotiation is limited to three times every ten minutes.
 An `'error'` event is emitted on the [`tls.TLSSocket`][] instance when this
 threshold is exceeded. The limits are configurable:
 
-* `tls.CLIENT_RENEG_LIMIT` {number} Specifies the number of renegotiation
+* `tls.CLIENT_RENEG_LIMIT` {integer} Specifies the number of renegotiation
   requests. **Default:** `3`.
-* `tls.CLIENT_RENEG_WINDOW` {number} Specifies the time renegotiation window
+* `tls.CLIENT_RENEG_WINDOW` {integer} Specifies the time renegotiation window
   in seconds. **Default:** `600` (10 minutes).
 
 The default renegotiation limits should not be modified without a full
@@ -1089,7 +1089,7 @@ added:
  - v12.17.0
 -->
 
-* `length` {number} number of bytes to retrieve from keying material
+* `length` {integer} number of bytes to retrieve from keying material
 
 * `label` {string} an application specific label, typically this will be a
   value from the
@@ -1284,7 +1284,7 @@ the key type.
 
 For RSA keys, the following properties may be defined:
 
-* `bits` {number} The RSA bit size. Example: `1024`.
+* `bits` {integer} The RSA bit size. Example: `1024`.
 * `exponent` {string} The RSA exponent, as a string in hexadecimal number
   notation. Example: `'0x010001'`.
 * `modulus` {string} The RSA modulus, as a hexadecimal string. Example:
@@ -1294,7 +1294,7 @@ For RSA keys, the following properties may be defined:
 For EC keys, the following properties may be defined:
 
 * `pubkey` {Buffer} The public key.
-* `bits` {number} The key size in bits. Example: `256`.
+* `bits` {integer} The key size in bits. Example: `256`.
 * `asn1Curve` {string} (Optional) The ASN.1 name of the OID of the elliptic
   curve. Well-known curves are identified by an OID. While it is unusual, it is
   possible that the curve is identified by its mathematical properties, in which
@@ -1571,7 +1571,7 @@ from a TLS server's `ALPNCallback`.
 added: v0.11.11
 -->
 
-* `size` {number} The maximum TLS fragment size. The maximum value is `16384`.
+* `size` {integer} The maximum TLS fragment size. The maximum value is `16384`.
   **Default:** `16384`.
 * Returns: {boolean}
 
@@ -1684,7 +1684,7 @@ changes:
   * `enableTrace`: See [`tls.createServer()`][]
   * `host` {string} Host the client should connect to. **Default:**
     `'localhost'`.
-  * `port` {number} Port the client should connect to.
+  * `port` {integer} Port the client should connect to.
   * `path` {string} Creates Unix socket connection to path. If this option is
     specified, `host` and `port` are ignored.
   * `socket` {stream.Duplex} Establish secure connection on a given socket
@@ -1726,11 +1726,11 @@ changes:
     verification fails. The method should return `undefined` if the `servername`
     and `cert` are verified.
   * `session` {Buffer} A `Buffer` instance, containing TLS session.
-  * `minDHSize` {number} Minimum size of the DH parameter in bits to accept a
+  * `minDHSize` {integer} Minimum size of the DH parameter in bits to accept a
     TLS connection. When a server offers a DH parameter with a size less
     than `minDHSize`, the TLS connection is destroyed and an error is thrown.
     **Default:** `1024`.
-  * `highWaterMark` {number} Consistent with the readable stream `highWaterMark` parameter.
+  * `highWaterMark` {integer} Consistent with the readable stream `highWaterMark` parameter.
     **Default:** `16 * 1024`.
   * `secureContext`: TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
@@ -1861,7 +1861,7 @@ A path option, if specified, will take precedence over the path argument.
 added: v0.11.3
 -->
 
-* `port` {number} Default value for `options.port`.
+* `port` {integer} Default value for `options.port`.
 * `host` {string} Default value for `options.host`.
 * `options` {Object} See [`tls.connect()`][].
 * `callback` {Function} See [`tls.connect()`][].
@@ -2036,7 +2036,7 @@ changes:
     occur in an array. `object.passphrase` is optional. Encrypted PFX will be
     decrypted with `object.passphrase` if provided, or `options.passphrase` if
     it is not.
-  * `secureOptions` {number} Optionally affect the OpenSSL protocol behavior,
+  * `secureOptions` {integer} Optionally affect the OpenSSL protocol behavior,
     which is not usually necessary. This should be used carefully if at all!
     Value is a numeric bitmask of the `SSL_OP_*` options from
     [OpenSSL Options][].
@@ -2053,7 +2053,7 @@ changes:
     session state is not shared between applications. Unused by clients.
   * `ticketKeys` {Buffer} 48-bytes of cryptographically strong pseudorandom
     data. See [Session Resumption][] for more information.
-  * `sessionTimeout` {number} The number of seconds after which a TLS session
+  * `sessionTimeout` {integer} The number of seconds after which a TLS session
     created by the server will no longer be resumable. See
     [Session Resumption][] for more information. **Default:** `300`.
 
@@ -2145,7 +2145,7 @@ changes:
     called on new connections. Tracing can be enabled after the secure
     connection is established, but this option must be used to trace the secure
     connection setup. **Default:** `false`.
-  * `handshakeTimeout` {number} Abort the connection if the SSL/TLS handshake
+  * `handshakeTimeout` {integer} Abort the connection if the SSL/TLS handshake
     does not finish in the specified number of milliseconds.
     A `'tlsClientError'` is emitted on the `tls.Server` object whenever
     a handshake times out. **Default:** `120000` (120 seconds).
@@ -2155,7 +2155,7 @@ changes:
   * `requestCert` {boolean} If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. **Default:**
     `false`.
-  * `sessionTimeout` {number} The number of seconds after which a TLS session
+  * `sessionTimeout` {integer} The number of seconds after which a TLS session
     created by the server will no longer be resumable. See
     [Session Resumption][] for more information. **Default:** `300`.
   * `SNICallback(servername, callback)` {Function} A function that will be

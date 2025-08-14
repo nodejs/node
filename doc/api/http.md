@@ -156,17 +156,17 @@ changes:
     header is explicitly specified or when the `keepAlive` and `maxSockets`
     options are respectively set to `false` and `Infinity`, in which case
     `Connection: close` will be used. **Default:** `false`.
-  * `keepAliveMsecs` {number} When using the `keepAlive` option, specifies
+  * `keepAliveMsecs` {integer} When using the `keepAlive` option, specifies
     the [initial delay][]
     for TCP Keep-Alive packets. Ignored when the
     `keepAlive` option is `false` or `undefined`. **Default:** `1000`.
-  * `agentKeepAliveTimeoutBuffer` {number} Milliseconds to subtract from
+  * `agentKeepAliveTimeoutBuffer` {integer} Milliseconds to subtract from
     the server-provided `keep-alive: timeout=...` hint when determining socket
     expiration time. This buffer helps ensure the agent closes the socket
     slightly before the server does, reducing the chance of sending a request
     on a socket that’s about to be closed by the server.
     **Default:** `1000`.
-  * `maxSockets` {number} Maximum number of sockets to allow per host.
+  * `maxSockets` {integer} Maximum number of sockets to allow per host.
     If the same host opens multiple concurrent connections, each request
     will use new socket until the `maxSockets` value is reached.
     If the host attempts to open more connections than `maxSockets`,
@@ -175,11 +175,11 @@ changes:
     This makes sure there are at most `maxSockets` active connections at
     any point in time, from a given host.
     **Default:** `Infinity`.
-  * `maxTotalSockets` {number} Maximum number of sockets allowed for
+  * `maxTotalSockets` {integer} Maximum number of sockets allowed for
     all hosts in total. Each request will use a new socket
     until the maximum is reached.
     **Default:** `Infinity`.
-  * `maxFreeSockets` {number} Maximum number of sockets per host to leave open
+  * `maxFreeSockets` {integer} Maximum number of sockets per host to leave open
     in a free state. Only relevant if `keepAlive` is set to `true`.
     **Default:** `256`.
   * `scheduling` {string} Scheduling strategy to apply when picking
@@ -194,7 +194,7 @@ changes:
     the `'fifo'` scheduling will maximize the number of open sockets,
     while the `'lifo'` scheduling will keep it as low as possible.
     **Default:** `'lifo'`.
-  * `timeout` {number} Socket timeout in milliseconds.
+  * `timeout` {integer} Socket timeout in milliseconds.
     This will set the timeout when the socket is created.
   * `proxyEnv` {Object|undefined} Environment variables for proxy configuration.
     See [Built-in Proxy Support][] for details. **Default:** `undefined`
@@ -207,7 +207,7 @@ changes:
     * `http_proxy` {string|undefined} Same as `HTTP_PROXY`. If both are set, `http_proxy` takes precedence.
     * `https_proxy` {string|undefined} Same as `HTTPS_PROXY`. If both are set, `https_proxy` takes precedence.
     * `no_proxy` {string|undefined} Same as `NO_PROXY`. If both are set, `no_proxy` takes precedence.
-  * `defaultPort` {number} Default port to use when the port is not specified
+  * `defaultPort` {integer} Default port to use when the port is not specified
     in requests. **Default:** `80`.
   * `protocol` {string} The protocol to use for the agent. **Default:** `'http:'`.
 
@@ -346,7 +346,7 @@ changes:
 * `options` {Object} A set of options providing information for name generation
   * `host` {string} A domain name or IP address of the server to issue the
     request to
-  * `port` {number} Port of remote server
+  * `port` {integer} Port of remote server
   * `localAddress` {string} Local interface to bind for network connections
     when issuing the request
   * `family` {integer} Must be 4 or 6 if this doesn't equal `undefined`.
@@ -364,7 +364,7 @@ that determine socket reusability.
 added: v0.11.7
 -->
 
-* Type: {number}
+* Type: {integer}
 
 By default set to 256. For agents with `keepAlive` enabled, this
 sets the maximum number of sockets that will be left open in the free
@@ -376,7 +376,7 @@ state.
 added: v0.3.6
 -->
 
-* Type: {number}
+* Type: {integer}
 
 By default set to `Infinity`. Determines how many concurrent sockets the agent
 can have open per origin. Origin is the returned value of [`agent.getName()`][].
@@ -389,7 +389,7 @@ added:
   - v12.19.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 By default set to `Infinity`. Determines how many concurrent sockets the agent
 can have open. Unlike `maxSockets`, this parameter applies across all origins.
@@ -1101,7 +1101,7 @@ const hasContentType = request.hasHeader('content-type');
 
 ### `request.maxHeadersCount`
 
-* Type: {number} **Default:** `2000`
+* Type: {integer} **Default:** `2000`
 
 Limits maximum response headers count. If set to 0, no limit will be applied.
 
@@ -1309,7 +1309,7 @@ added: v0.5.9
 -->
 
 * `enable` {boolean}
-* `initialDelay` {number}
+* `initialDelay` {integer}
 
 Once a socket is assigned to this request and is connected
 [`socket.setKeepAlive()`][] will be called.
@@ -1324,7 +1324,7 @@ changes:
     description: Consistently set socket timeout only when the socket connects.
 -->
 
-* `timeout` {number} Milliseconds before a request times out.
+* `timeout` {integer} Milliseconds before a request times out.
 * `callback` {Function} Optional function to be called when a timeout occurs.
   Same as binding to the `'timeout'` event.
 * Returns: {http.ClientRequest}
@@ -1822,7 +1822,7 @@ changes:
     description: The default is now set to the minimum between 60000 (60 seconds) or `requestTimeout`.
 -->
 
-* Type: {number} **Default:** The minimum between [`server.requestTimeout`][] or `60000`.
+* Type: {integer} **Default:** The minimum between [`server.requestTimeout`][] or `60000`.
 
 Limit the amount of time the parser will wait to receive the complete HTTP
 headers.
@@ -1853,7 +1853,7 @@ added: v5.7.0
 added: v0.7.0
 -->
 
-* Type: {number} **Default:** `2000`
+* Type: {integer} **Default:** `2000`
 
 Limits maximum incoming headers count. If set to 0, no limit will be applied.
 
@@ -1868,7 +1868,7 @@ changes:
                  from no timeout to 300s (5 minutes).
 -->
 
-* Type: {number} **Default:** `300000`
+* Type: {integer} **Default:** `300000`
 
 Sets the timeout value in milliseconds for receiving the entire request from
 the client.
@@ -1890,7 +1890,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* `msecs` {number} **Default:** 0 (no timeout)
+* `msecs` {integer} **Default:** 0 (no timeout)
 * `callback` {Function}
 * Returns: {http.Server}
 
@@ -1911,7 +1911,7 @@ explicitly.
 added: v16.10.0
 -->
 
-* Type: {number} Requests per socket. **Default:** 0 (no limit)
+* Type: {integer} Requests per socket. **Default:** 0 (no limit)
 
 The maximum number of requests socket can handle
 before closing keep alive connection.
@@ -1932,7 +1932,7 @@ changes:
     description: The default timeout changed from 120s to 0 (no timeout).
 -->
 
-* Type: {number} Timeout in milliseconds. **Default:** 0 (no timeout)
+* Type: {integer} Timeout in milliseconds. **Default:** 0 (no timeout)
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
@@ -1948,7 +1948,7 @@ value only affects new connections to the server, not any existing connections.
 added: v8.0.0
 -->
 
-* Type: {number} Timeout in milliseconds. **Default:** `5000` (5 seconds).
+* Type: {integer} Timeout in milliseconds. **Default:** `5000` (5 seconds).
 
 The number of milliseconds of inactivity a server needs to wait for additional
 incoming data, after it has finished writing the last response, before a socket
@@ -1975,7 +1975,7 @@ affects new connections to the server, not any existing connections.
 added: REPLACEME
 -->
 
-* Type: {number} Timeout in milliseconds. **Default:** `1000` (1 second).
+* Type: {integer} Timeout in milliseconds. **Default:** `1000` (1 second).
 
 An additional buffer time added to the
 [`server.keepAliveTimeout`][] to extend the internal socket timeout.
@@ -2328,7 +2328,7 @@ is desired with potential future retrieval and modification, use
 added: v0.9.12
 -->
 
-* `msecs` {number}
+* `msecs` {integer}
 * `callback` {Function}
 * Returns: {http.ServerResponse}
 
@@ -2382,7 +2382,7 @@ type other than {net.Socket}.
 added: v0.4.0
 -->
 
-* Type: {number} **Default:** `200`
+* Type: {integer} **Default:** `200`
 
 When using implicit headers (not calling [`response.writeHead()`][] explicitly),
 this property controls the status code that will be sent to the client when
@@ -2581,7 +2581,7 @@ changes:
                  the range `[100, 999]`.
 -->
 
-* `statusCode` {number}
+* `statusCode` {integer}
 * `statusMessage` {string}
 * `headers` {Object|Array}
 * Returns: {http.ServerResponse}
@@ -2929,7 +2929,7 @@ received. Only populated at the `'end'` event.
 added: v0.5.9
 -->
 
-* `msecs` {number}
+* `msecs` {integer}
 * `callback` {Function}
 * Returns: {http.IncomingMessage}
 
@@ -2958,7 +2958,7 @@ type other than {net.Socket} or internally nulled.
 added: v0.1.1
 -->
 
-* Type: {number}
+* Type: {integer}
 
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
@@ -3383,7 +3383,7 @@ const server = http.createServer((req, res) => {
 added: v0.9.12
 -->
 
-* `msecs` {number}
+* `msecs` {integer}
 * `callback` {Function} Optional function to be called when a timeout
   occurs. Same as binding to the `timeout` event.
 * Returns: {this}
@@ -3422,7 +3422,7 @@ added:
   - v12.16.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The number of times `outgoingMessage.cork()` has been called.
 
@@ -3454,7 +3454,7 @@ Is `true` if all data has been flushed to the underlying system.
 added: v12.9.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The `highWaterMark` of the underlying socket if assigned. Otherwise, the default
 buffer level when [`writable.write()`][] starts returning false (`16384`).
@@ -3465,7 +3465,7 @@ buffer level when [`writable.write()`][] starts returning false (`16384`).
 added: v12.9.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 The number of buffered bytes.
 
@@ -3577,7 +3577,7 @@ changes:
     the complete HTTP headers from the client.
     See [`server.headersTimeout`][] for more information.
     **Default:** `60000`.
-  * `highWaterMark` {number} Optionally overrides all `socket`s'
+  * `highWaterMark` {integer} Optionally overrides all `socket`s'
     `readableHighWaterMark` and `writableHighWaterMark`. This affects
     `highWaterMark` property of both `IncomingMessage` and `ServerResponse`.
     **Default:** See [`stream.getDefaultHighWaterMark()`][].
@@ -3597,7 +3597,7 @@ changes:
     on the socket immediately after a new incoming connection is received,
     similarly on what is done in \[`socket.setKeepAlive([enable][, initialDelay])`]\[`socket.setKeepAlive(enable, initialDelay)`].
     **Default:** `false`.
-  * `keepAliveInitialDelay` {number} If set to a positive number, it sets the
+  * `keepAliveInitialDelay` {integer} If set to a positive number, it sets the
     initial delay before the first keepalive probe is sent on an idle socket.
     **Default:** `0`.
   * `keepAliveTimeout`: The number of milliseconds of inactivity a server
@@ -3605,7 +3605,7 @@ changes:
     the last response, before a socket will be destroyed.
     See [`server.keepAliveTimeout`][] for more information.
     **Default:** `5000`.
-  * `maxHeaderSize` {number} Optionally overrides the value of
+  * `maxHeaderSize` {integer} Optionally overrides the value of
     [`--max-http-header-size`][] for requests received by this server, i.e.
     the maximum length of request headers in bytes.
     **Default:** 16384 (16 KiB).
@@ -3809,7 +3809,7 @@ added:
  - v10.15.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 Read-only property specifying the maximum allowed size of HTTP headers in bytes.
 Defaults to 16 KiB. Configurable using the [`--max-http-header-size`][] CLI
@@ -3868,14 +3868,14 @@ changes:
     avoid creating a custom `Agent` class just to override the default
     `createConnection` function. See [`agent.createConnection()`][] for more
     details. Any [`Duplex`][] stream is a valid return value.
-  * `defaultPort` {number} Default port for the protocol. **Default:**
+  * `defaultPort` {integer} Default port for the protocol. **Default:**
     `agent.defaultPort` if an `Agent` is used, else `undefined`.
-  * `family` {number} IP address family to use when resolving `host` or
+  * `family` {integer} IP address family to use when resolving `host` or
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
   * `headers` {Object|Array} An object or an array of strings containing request
     headers. The array is in the same format as [`message.rawHeaders`][].
-  * `hints` {number} Optional [`dns.lookup()` hints][].
+  * `hints` {integer} Optional [`dns.lookup()` hints][].
   * `host` {string} A domain name or IP address of the server to issue the
     request to. **Default:** `'localhost'`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
@@ -3889,9 +3889,9 @@ changes:
     the duplicates. See [`message.headers`][] for more information.
     **Default:** `false`.
   * `localAddress` {string} Local interface to bind for network connections.
-  * `localPort` {number} Local port to connect from.
+  * `localPort` {integer} Local port to connect from.
   * `lookup` {Function} Custom lookup function. **Default:** [`dns.lookup()`][].
-  * `maxHeaderSize` {number} Optionally overrides the value of
+  * `maxHeaderSize` {integer} Optionally overrides the value of
     [`--max-http-header-size`][] (the maximum length of response headers in
     bytes) for responses received from the server.
     **Default:** 16384 (16 KiB).
@@ -3901,7 +3901,7 @@ changes:
     E.G. `'/index.html?page=12'`. An exception is thrown when the request path
     contains illegal characters. Currently, only spaces are rejected but that
     may change in the future. **Default:** `'/'`.
-  * `port` {number} Port of remote server. **Default:** `defaultPort` if set,
+  * `port` {integer} Port of remote server. **Default:** `defaultPort` if set,
     else `80`.
   * `protocol` {string} Protocol to use. **Default:** `'http:'`.
   * `setDefaultHeaders` {boolean}: Specifies whether or not to automatically add
@@ -3915,7 +3915,7 @@ changes:
     request.
   * `socketPath` {string} Unix domain socket. Cannot be used if one of `host`
     or `port` is specified, as those specify a TCP Socket.
-  * `timeout` {number}: A number specifying the socket timeout in milliseconds.
+  * `timeout` {integer}: A number specifying the socket timeout in milliseconds.
     This will set the timeout before the socket is connected.
   * `uniqueHeaders` {Array} A list of request headers that should be sent
     only once. If the header's value is an array, the items will be joined
@@ -4283,7 +4283,7 @@ added:
   - v16.18.0
 -->
 
-* `max` {number} **Default:** `1000`.
+* `max` {integer} **Default:** `1000`.
 
 Set the maximum number of idle HTTP parsers.
 

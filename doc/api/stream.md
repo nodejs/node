@@ -941,7 +941,7 @@ Is set to `true` immediately before the [`'finish'`][] event is emitted.
 added: v9.3.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 Return the value of `highWaterMark` passed when creating this `Writable`.
 
@@ -951,7 +951,7 @@ Return the value of `highWaterMark` passed when creating this `Writable`.
 added: v9.4.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 This property contains the number of bytes (or objects) in the queue
 ready to be written. The value provides introspection data regarding
@@ -1553,7 +1553,7 @@ closed until the Node.js process exits, regardless of the specified options.
 added: v0.9.4
 -->
 
-* `size` {number} Optional argument to specify how much data to read.
+* `size` {integer} Optional argument to specify how much data to read.
 * Returns: {string|Buffer|null|any}
 
 The `readable.read()` method reads data out of the internal buffer and
@@ -1726,7 +1726,7 @@ in the [Three states][] section.
 added: v9.3.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 Returns the value of `highWaterMark` passed when creating this `Readable`.
 
@@ -1736,7 +1736,7 @@ Returns the value of `highWaterMark` passed when creating this `Readable`.
 added: v9.4.0
 -->
 
-* Type: {number}
+* Type: {integer}
 
 This property contains the number of bytes (or objects) in the queue
 ready to be read. The value provides introspection data regarding
@@ -2135,9 +2135,9 @@ changes:
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
       abort the `fn` call early.
 * `options` {Object}
-  * `concurrency` {number} the maximum concurrent invocation of `fn` to call
+  * `concurrency` {integer} the maximum concurrent invocation of `fn` to call
     on the stream at once. **Default:** `1`.
-  * `highWaterMark` {number} how many items to buffer while waiting for user
+  * `highWaterMark` {integer} how many items to buffer while waiting for user
     consumption of the mapped items. **Default:** `concurrency * 2 - 1`.
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
@@ -2189,9 +2189,9 @@ changes:
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
       abort the `fn` call early.
 * `options` {Object}
-  * `concurrency` {number} the maximum concurrent invocation of `fn` to call
+  * `concurrency` {integer} the maximum concurrent invocation of `fn` to call
     on the stream at once. **Default:** `1`.
-  * `highWaterMark` {number} how many items to buffer while waiting for user
+  * `highWaterMark` {integer} how many items to buffer while waiting for user
     consumption of the filtered items. **Default:** `concurrency * 2 - 1`.
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
@@ -2242,7 +2242,7 @@ added:
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
       abort the `fn` call early.
 * `options` {Object}
-  * `concurrency` {number} the maximum concurrent invocation of `fn` to call
+  * `concurrency` {integer} the maximum concurrent invocation of `fn` to call
     on the stream at once. **Default:** `1`.
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
@@ -2343,7 +2343,7 @@ added:
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
       abort the `fn` call early.
 * `options` {Object}
-  * `concurrency` {number} the maximum concurrent invocation of `fn` to call
+  * `concurrency` {integer} the maximum concurrent invocation of `fn` to call
     on the stream at once. **Default:** `1`.
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
@@ -2394,7 +2394,7 @@ added:
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
       abort the `fn` call early.
 * `options` {Object}
-  * `concurrency` {number} the maximum concurrent invocation of `fn` to call
+  * `concurrency` {integer} the maximum concurrent invocation of `fn` to call
     on the stream at once. **Default:** `1`.
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
@@ -2446,7 +2446,7 @@ added:
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
       abort the `fn` call early.
 * `options` {Object}
-  * `concurrency` {number} the maximum concurrent invocation of `fn` to call
+  * `concurrency` {integer} the maximum concurrent invocation of `fn` to call
     on the stream at once. **Default:** `1`.
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
@@ -2498,7 +2498,7 @@ added:
     * `signal` {AbortSignal} aborted if the stream is destroyed allowing to
       abort the `fn` call early.
 * `options` {Object}
-  * `concurrency` {number} the maximum concurrent invocation of `fn` to call
+  * `concurrency` {integer} the maximum concurrent invocation of `fn` to call
     on the stream at once. **Default:** `1`.
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
@@ -2542,7 +2542,7 @@ added:
 
 > Stability: 1 - Experimental
 
-* `limit` {number} the number of chunks to drop from the readable.
+* `limit` {integer} the number of chunks to drop from the readable.
 * `options` {Object}
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
@@ -2566,7 +2566,7 @@ added:
 
 > Stability: 1 - Experimental
 
-* `limit` {number} the number of chunks to take from the readable.
+* `limit` {integer} the number of chunks to take from the readable.
 * `options` {Object}
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
@@ -3152,7 +3152,7 @@ changes:
 * `readableStream` {ReadableStream}
 * `options` {Object}
   * `encoding` {string}
-  * `highWaterMark` {number}
+  * `highWaterMark` {integer}
   * `objectMode` {boolean}
   * `signal` {AbortSignal}
 * Returns: {stream.Readable}
@@ -3193,14 +3193,14 @@ changes:
 * `streamReadable` {stream.Readable}
 * `options` {Object}
   * `strategy` {Object}
-    * `highWaterMark` {number} The maximum internal queue size (of the created
+    * `highWaterMark` {integer} The maximum internal queue size (of the created
       `ReadableStream`) before backpressure is applied in reading from the given
       `stream.Readable`. If no value is provided, it will be taken from the
       given `stream.Readable`.
     * `size` {Function} A function that size of the given chunk of data.
       If no value is provided, the size will be `1` for all the chunks.
       * `chunk` {any}
-      * Returns: {number}
+      * Returns: {integer}
 * Returns: {ReadableStream}
 
 ### `stream.Writable.fromWeb(writableStream[, options])`
@@ -3218,7 +3218,7 @@ changes:
 * `writableStream` {WritableStream}
 * `options` {Object}
   * `decodeStrings` {boolean}
-  * `highWaterMark` {number}
+  * `highWaterMark` {integer}
   * `objectMode` {boolean}
   * `signal` {AbortSignal}
 * Returns: {stream.Writable}
@@ -3308,7 +3308,7 @@ changes:
   * `allowHalfOpen` {boolean}
   * `decodeStrings` {boolean}
   * `encoding` {string}
-  * `highWaterMark` {number}
+  * `highWaterMark` {integer}
   * `objectMode` {boolean}
   * `signal` {AbortSignal}
 * Returns: {stream.Duplex}
@@ -3669,7 +3669,7 @@ changes:
 -->
 
 * `options` {Object}
-  * `highWaterMark` {number} Buffer level when
+  * `highWaterMark` {integer} Buffer level when
     [`stream.write()`][stream-write] starts returning `false`. **Default:**
     `65536` (64 KiB), or `16` for `objectMode` streams.
   * `decodeStrings` {boolean} Whether to encode `string`s passed to
@@ -4043,7 +4043,7 @@ changes:
 -->
 
 * `options` {Object}
-  * `highWaterMark` {number} The maximum [number of bytes][hwm-gotcha] to store
+  * `highWaterMark` {integer} The maximum [number of bytes][hwm-gotcha] to store
     in the internal buffer before ceasing to read from the underlying resource.
     **Default:** `65536` (64 KiB), or `16` for `objectMode` streams.
   * `encoding` {string} If specified, then buffers will be decoded to
@@ -4184,7 +4184,7 @@ class ReadStream extends Readable {
 added: v0.9.4
 -->
 
-* `size` {number} Number of bytes to read asynchronously
+* `size` {integer} Number of bytes to read asynchronously
 
 This function MUST NOT be called by application code directly. It should be
 implemented by child classes, and called by the internal `Readable` class
@@ -4402,9 +4402,9 @@ changes:
     stream. Has no effect if `objectMode` is `true`. **Default:** `false`.
   * `writableObjectMode` {boolean} Sets `objectMode` for writable side of the
     stream. Has no effect if `objectMode` is `true`. **Default:** `false`.
-  * `readableHighWaterMark` {number} Sets `highWaterMark` for the readable side
+  * `readableHighWaterMark` {integer} Sets `highWaterMark` for the readable side
     of the stream. Has no effect if `highWaterMark` is provided.
-  * `writableHighWaterMark` {number} Sets `highWaterMark` for the writable side
+  * `writableHighWaterMark` {integer} Sets `highWaterMark` for the writable side
     of the stream. Has no effect if `highWaterMark` is provided.
 
 <!-- eslint-disable no-useless-constructor -->

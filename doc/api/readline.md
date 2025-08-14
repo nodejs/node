@@ -473,7 +473,7 @@ process.stdin.on('keypress', (c, k) => {
 added: v0.1.98
 -->
 
-* Type: {number|undefined}
+* Type: {integer|undefined}
 
 The cursor position relative to `rl.line`.
 
@@ -491,8 +491,8 @@ added:
 -->
 
 * Returns: {Object}
-  * `rows` {number} the row of the prompt the cursor currently lands on
-  * `cols` {number} the screen column the cursor currently lands on
+  * `rows` {integer} the row of the prompt the cursor currently lands on
+  * `cols` {integer} the screen column the cursor currently lands on
 
 Returns the real position of the cursor in relation to the input
 prompt + string. Long input (wrapping) strings, as well as multiple
@@ -690,7 +690,7 @@ added: v17.0.0
     only if `terminal` is set to `true` by the user or by an internal `output`
     check, otherwise the history caching mechanism is not initialized at all.
     **Default:** `[]`.
-  * `historySize` {number} Maximum number of history lines retained. To disable
+  * `historySize` {integer} Maximum number of history lines retained. To disable
     the history set this value to `0`. This option makes sense only if
     `terminal` is set to `true` by the user or by an internal `output` check,
     otherwise the history caching mechanism is not initialized at all.
@@ -699,13 +699,13 @@ added: v17.0.0
     to the history list duplicates an older one, this removes the older line
     from the list. **Default:** `false`.
   * `prompt` {string} The prompt string to use. **Default:** `'> '`.
-  * `crlfDelay` {number} If the delay between `\r` and `\n` exceeds
+  * `crlfDelay` {integer} If the delay between `\r` and `\n` exceeds
     `crlfDelay` milliseconds, both `\r` and `\n` will be treated as separate
     end-of-line input. `crlfDelay` will be coerced to a number no less than
     `100`. It can be set to `Infinity`, in which case `\r` followed by `\n`
     will always be considered a single newline (which may be reasonable for
     [reading files][] with `\r\n` line delimiter). **Default:** `100`.
-  * `escapeCodeTimeout` {number} The duration `readlinePromises` will wait for a
+  * `escapeCodeTimeout` {integer} The duration `readlinePromises` will wait for a
     character (when reading an ambiguous key sequence in milliseconds one that
     can both form a complete key sequence using the input read so far and can
     take additional input to complete a longer key sequence).
@@ -872,7 +872,7 @@ changes:
 -->
 
 * `stream` {stream.Writable}
-* `dir` {number}
+* `dir` {integer}
   * `-1`: to the left from cursor
   * `1`: to the right from cursor
   * `0`: the entire line
@@ -955,7 +955,7 @@ changes:
     only if `terminal` is set to `true` by the user or by an internal `output`
     check, otherwise the history caching mechanism is not initialized at all.
     **Default:** `[]`.
-  * `historySize` {number} Maximum number of history lines retained. To disable
+  * `historySize` {integer} Maximum number of history lines retained. To disable
     the history set this value to `0`. This option makes sense only if
     `terminal` is set to `true` by the user or by an internal `output` check,
     otherwise the history caching mechanism is not initialized at all.
@@ -964,13 +964,13 @@ changes:
     to the history list duplicates an older one, this removes the older line
     from the list. **Default:** `false`.
   * `prompt` {string} The prompt string to use. **Default:** `'> '`.
-  * `crlfDelay` {number} If the delay between `\r` and `\n` exceeds
+  * `crlfDelay` {integer} If the delay between `\r` and `\n` exceeds
     `crlfDelay` milliseconds, both `\r` and `\n` will be treated as separate
     end-of-line input. `crlfDelay` will be coerced to a number no less than
     `100`. It can be set to `Infinity`, in which case `\r` followed by `\n`
     will always be considered a single newline (which may be reasonable for
     [reading files][] with `\r\n` line delimiter). **Default:** `100`.
-  * `escapeCodeTimeout` {number} The duration `readline` will wait for a
+  * `escapeCodeTimeout` {integer} The duration `readline` will wait for a
     character (when reading an ambiguous key sequence in milliseconds one that
     can both form a complete key sequence using the input read so far and can
     take additional input to complete a longer key sequence).
@@ -1063,8 +1063,8 @@ changes:
 -->
 
 * `stream` {stream.Writable}
-* `x` {number}
-* `y` {number}
+* `x` {integer}
+* `y` {integer}
 * `callback` {Function} Invoked once the operation completes.
 * Returns: {boolean} `false` if `stream` wishes for the calling code to wait for
   the `'drain'` event to be emitted before continuing to write additional data;
@@ -1089,8 +1089,8 @@ changes:
 -->
 
 * `stream` {stream.Writable}
-* `dx` {number}
-* `dy` {number}
+* `dx` {integer}
+* `dy` {integer}
 * `callback` {Function} Invoked once the operation completes.
 * Returns: {boolean} `false` if `stream` wishes for the calling code to wait for
   the `'drain'` event to be emitted before continuing to write additional data;

@@ -305,9 +305,9 @@ instance is destroyed.
 
 #### `init(asyncId, type, triggerAsyncId, resource)`
 
-* `asyncId` {number} A unique ID for the async resource.
+* `asyncId` {integer} A unique ID for the async resource.
 * `type` {string} The type of the async resource.
-* `triggerAsyncId` {number} The unique ID of the async resource in whose
+* `triggerAsyncId` {integer} The unique ID of the async resource in whose
   execution context this async resource was created.
 * `resource` {Object} Reference to the resource representing the async
   operation, needs to be released during _destroy_.
@@ -585,7 +585,7 @@ TCPSERVERWRAP(5)
 
 #### `before(asyncId)`
 
-* `asyncId` {number}
+* `asyncId` {integer}
 
 When an asynchronous operation is initiated (such as a TCP server receiving a
 new connection) or completes (such as writing data to disk) a callback is
@@ -602,7 +602,7 @@ it only once.
 
 #### `after(asyncId)`
 
-* `asyncId` {number}
+* `asyncId` {integer}
 
 Called immediately after the callback specified in `before` is completed.
 
@@ -612,7 +612,7 @@ handler runs.
 
 #### `destroy(asyncId)`
 
-* `asyncId` {number}
+* `asyncId` {integer}
 
 Called after the resource corresponding to `asyncId` is destroyed. It is also
 called asynchronously from the embedder API `emitDestroy()`.
@@ -631,7 +631,7 @@ tracking of `Promise` instances via the garbage collector.
 added: v8.6.0
 -->
 
-* `asyncId` {number}
+* `asyncId` {integer}
 
 Called when the `resolve` function passed to the `Promise` constructor is
 invoked (either directly or through other means of resolving a promise).
@@ -760,7 +760,7 @@ changes:
     description: Renamed from `currentId`.
 -->
 
-* Returns: {number} The `asyncId` of the current execution context. Useful to
+* Returns: {integer} The `asyncId` of the current execution context. Useful to
   track when something calls.
 
 ```mjs
@@ -806,7 +806,7 @@ See the section on [promise execution tracking][].
 
 ### `async_hooks.triggerAsyncId()`
 
-* Returns: {number} The ID of the resource responsible for calling the callback
+* Returns: {integer} The ID of the resource responsible for calling the callback
   that is currently being executed.
 
 ```js

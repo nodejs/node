@@ -236,7 +236,7 @@ changes:
 -->
 
 * `callback` {Function} The function to call when the timer elapses.
-* `delay` {number} The number of milliseconds to wait before calling the
+* `delay` {integer} The number of milliseconds to wait before calling the
   `callback`. **Default:** `1`.
 * `...args` {any} Optional arguments to pass when the `callback` is called.
 * Returns: {Timeout} for use with [`clearInterval()`][]
@@ -264,7 +264,7 @@ changes:
 -->
 
 * `callback` {Function} The function to call when the timer elapses.
-* `delay` {number} The number of milliseconds to wait before calling the
+* `delay` {integer} The number of milliseconds to wait before calling the
   `callback`. **Default:** `1`.
 * `...args` {any} Optional arguments to pass when the `callback` is called.
 * Returns: {Timeout} for use with [`clearTimeout()`][]
@@ -381,7 +381,7 @@ Cancels an `Immediate` object created by [`setImmediate()`][].
 added: v0.0.1
 -->
 
-* `timeout` {Timeout|string|number} A `Timeout` object as returned by [`setInterval()`][]
+* `timeout` {Timeout|string|integer} A `Timeout` object as returned by [`setInterval()`][]
   or the [primitive][] of the `Timeout` object as a string or a number.
 
 Cancels a `Timeout` object created by [`setInterval()`][].
@@ -392,7 +392,7 @@ Cancels a `Timeout` object created by [`setInterval()`][].
 added: v0.0.1
 -->
 
-* `timeout` {Timeout|string|number} A `Timeout` object as returned by [`setTimeout()`][]
+* `timeout` {Timeout|string|integer} A `Timeout` object as returned by [`setTimeout()`][]
   or the [primitive][] of the `Timeout` object as a string or a number.
 
 Cancels a `Timeout` object created by [`setTimeout()`][].
@@ -433,7 +433,7 @@ const {
 added: v15.0.0
 -->
 
-* `delay` {number} The number of milliseconds to wait before fulfilling the
+* `delay` {integer} The number of milliseconds to wait before fulfilling the
   promise. **Default:** `1`.
 * `value` {any} A value with which the promise is fulfilled.
 * `options` {Object}
@@ -507,7 +507,7 @@ Returns an async iterator that generates values in an interval of `delay` ms.
 If `ref` is `true`, you need to call `next()` of async iterator explicitly
 or implicitly to keep the event loop alive.
 
-* `delay` {number} The number of milliseconds to wait between iterations.
+* `delay` {integer} The number of milliseconds to wait between iterations.
   **Default:** `1`.
 * `value` {any} A value with which the iterator returns.
 * `options` {Object}
@@ -560,7 +560,7 @@ added:
 
 > Stability: 1 - Experimental
 
-* `delay` {number} The number of milliseconds to wait before resolving the
+* `delay` {integer} The number of milliseconds to wait before resolving the
   promise.
 * `options` {Object}
   * `ref` {boolean} Set to `false` to indicate that the scheduled `Timeout`
