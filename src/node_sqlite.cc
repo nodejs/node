@@ -259,6 +259,7 @@ class CustomAggregate {
   explicit CustomAggregate(Environment* env,
                            DatabaseSync* db,
                            bool use_bigint_args,
+                           bool use_null_as_undefined_args,
                            Local<Value> start,
                            Local<Function> step_fn,
                            Local<Function> inverse_fn,
@@ -266,6 +267,7 @@ class CustomAggregate {
       : env_(env),
         db_(db),
         use_bigint_args_(use_bigint_args),
+        use_null_as_undefined_args_(use_null_as_undefined_args),
         start_(env->isolate(), start),
         step_fn_(env->isolate(), step_fn),
         inverse_fn_(env->isolate(), inverse_fn),
@@ -315,7 +317,7 @@ class CustomAggregate {
     for (int i = 0; i < argc; ++i) {
       sqlite3_value* value = argv[i];
       MaybeLocal<Value> js_val;
-      SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, false, js_val, value);
+      SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, self->use_null_as_undefined_args_, js_val, value);
       if (js_val.IsEmpty()) {
         // Ignore the SQLite error because a JavaScript exception is pending.
         self->db_->SetIgnoreNextSQLiteError(true);
@@ -423,6 +425,7 @@ class CustomAggregate {
   Environment* env_;
   DatabaseSync* db_;
   bool use_bigint_args_;
+  bool use_null_as_undefined_args_;
   Global<Value> start_;
   Global<Function> step_fn_;
   Global<Function> inverse_fn_;
@@ -596,11 +599,14 @@ class BackupJob : public ThreadPoolWork {
 UserDefinedFunction::UserDefinedFunction(Environment* env,
                                          Local<Function> fn,
                                          DatabaseSync* db,
-                                         bool use_bigint_args)
+                                         bool use_bigint_args,
+                                         bool use_null_as_undefined_args
+                                        )
     : env_(env),
       fn_(env->isolate(), fn),
       db_(db),
-      use_bigint_args_(use_bigint_args) {}
+      use_bigint_args_(use_bigint_args),
+      use_null_as_undefined_args_(use_null_as_undefined_args) {}
 
 UserDefinedFunction::~UserDefinedFunction() {}
 
@@ -618,7 +624,7 @@ void UserDefinedFunction::xFunc(sqlite3_context* ctx,
   for (int i = 0; i < argc; ++i) {
     sqlite3_value* value = argv[i];
     MaybeLocal<Value> js_val = MaybeLocal<Value>();
-    SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, false, js_val, value);
+    SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, self->use_null_as_undefined_args_, js_val, value);
     if (js_val.IsEmpty()) {
       // Ignore the SQLite error because a JavaScript exception is pending.
       self->db_->SetIgnoreNextSQLiteError(true);
@@ -986,6 +992,20 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
+    Local<Value> read_null_as_undefined_v;
+    if (options->Get(env->context(), env->read_null_as_undefined_string())
+            .ToLocal(&read_null_as_undefined_v)) {
+      if (!read_null_as_undefined_v->IsUndefined()) {
+        if (!read_null_as_undefined_v->IsBoolean()) {
+          THROW_ERR_INVALID_ARG_TYPE(
+              env->isolate(),
+              R"(The "options.readNullAsUndefined" argument must be a boolean.)");
+          return;
+        }
+        open_config.set_use_null_as_undefined(read_null_as_undefined_v.As<Boolean>()->Value());
+      }
+    }
+
     Local<Value> return_arrays_v;
     if (options->Get(env->context(), env->return_arrays_string())
             .ToLocal(&return_arrays_v)) {
@@ -1131,6 +1151,7 @@ void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
 
   int fn_index = args.Length() < 3 ? 1 : 2;
   bool use_bigint_args = false;
+  bool use_null_as_undefined_args = false;
   bool varargs = false;
   bool deterministic = false;
   bool direct_only = false;
@@ -1239,7 +1260,7 @@ void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
   }
 
   UserDefinedFunction* user_data =
-      new UserDefinedFunction(env, fn, db, use_bigint_args);
+      new UserDefinedFunction(env, fn, db, use_bigint_args, use_null_as_undefined_args);
   int text_rep = SQLITE_UTF8;
 
   if (deterministic) {
@@ -1328,9 +1349,11 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
   }
 
   bool use_bigint_args = false;
+  bool use_null_as_undefined_args = false;
   bool varargs = false;
   bool direct_only = false;
   Local<Value> use_bigint_args_v;
+  Local<Value> use_null_as_undefined_args_v;
   Local<Function> inverseFunc = Local<Function>();
   if (!options
            ->Get(env->context(),
@@ -1347,6 +1370,23 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
       return;
     }
     use_bigint_args = use_bigint_args_v.As<Boolean>()->Value();
+  }
+
+  if (!options
+           ->Get(env->context(),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "useNullAsUndefined"))
+           .ToLocal(&use_null_as_undefined_args_v)) {
+    return;
+  }
+
+  if (!use_null_as_undefined_args_v->IsUndefined()) {
+    if (!use_null_as_undefined_args_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.useNullAsUndefined\" argument must be a boolean.");
+      return;
+    }
+    use_null_as_undefined_args = use_bigint_args_v.As<Boolean>()->Value();
   }
 
   Local<Value> varargs_v;
@@ -1437,6 +1477,7 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
                                          new CustomAggregate(env,
                                                              db,
                                                              use_bigint_args,
+                                                             use_null_as_undefined_args,
                                                              start_v,
                                                              stepFunction,
                                                              inverseFunc,

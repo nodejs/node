@@ -288,7 +288,6 @@ suite('StatementSync.prototype.setReadNullAsUndefined', () => {
     const query = db.prepare('SELECT is_null FROM DATA');
     t.assert.deepStrictEqual(query.get(),{ __proto__: null, is_null: null});
     t.assert.strictEqual(query.setReadNullAsUndefined(true), undefined);
-    console.log(query.get()); 
     t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: undefined});
     t.assert.strictEqual(query.setReadNullAsUndefined(false), undefined);
     t.assert.deepStrictEqual(query.get(), { __proto__: null, is_null: null});
@@ -306,6 +305,7 @@ suite('StatementSync.prototype.setReadNullAsUndefined', () => {
     const query = db.prepare('SELECT is_not_null FROM DATA');
     t.assert.deepStrictEqual(query.get(),{ __proto__: null, is_not_null: 'This is not null'});
     t.assert.strictEqual(query.setReadNullAsUndefined(true), undefined);
+    console.log(query.get())
     t.assert.deepStrictEqual(query.get(), { __proto__: null, is_not_null: 'This is not null'});
   })
   test('throws when input is not a boolean', (t) => {
@@ -379,8 +379,7 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
 
   test('BigInt is required for reading large integers', (t) => {
     const db = new DatabaseSync(nextDb());
-    t.after(() => { db.close(); });
-    const bad = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
+    t.after(() => { db.close(); }); const bad = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
     t.assert.throws(() => {
       bad.get();
     }, {

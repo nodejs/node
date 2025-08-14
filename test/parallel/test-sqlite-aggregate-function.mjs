@@ -43,6 +43,15 @@ describe('DatabaseSync.prototype.aggregate()', () => {
       });
     });
 
+    test('throws if options.readNullAsUndefined is provided but is not a boolean', (t) => {
+      t.assert.throws(() => {
+        new DatabaseSync('foo', { readNullAsUndefined: 42 });
+      }, {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: 'The "options.readNullAsUndefined" argument must be a boolean.',
+      })
+    })
+
     test('throws if options.varargs is not a boolean', (t) => {
       t.assert.throws(() => {
         db.aggregate('sum', {

@@ -43,6 +43,10 @@ class DatabaseOpenConfiguration {
 
   inline bool get_use_big_ints() const { return use_big_ints_; }
 
+  inline void set_use_null_as_undefined(bool flag) { use_null_as_undefined_ = flag; }
+
+  inline bool get_use_null_as_undefined() const { return use_null_as_undefined_; }
+
   inline void set_return_arrays(bool flag) { return_arrays_ = flag; }
 
   inline bool get_return_arrays() const { return return_arrays_; }
@@ -112,6 +116,7 @@ class DatabaseSync : public BaseObject {
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
   bool use_big_ints() const { return open_config_.get_use_big_ints(); }
+  bool use_null_as_undefined() const { return open_config_.get_use_null_as_undefined(); }
   bool return_arrays() const { return open_config_.get_return_arrays(); }
   bool allow_bare_named_params() const {
     return open_config_.get_allow_bare_named_params();
@@ -256,7 +261,9 @@ class UserDefinedFunction {
   UserDefinedFunction(Environment* env,
                       v8::Local<v8::Function> fn,
                       DatabaseSync* db,
-                      bool use_bigint_args);
+                      bool use_bigint_args,
+                      bool use_null_as_undefined_args
+                    );
   ~UserDefinedFunction();
   static void xFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv);
   static void xDestroy(void* self);
@@ -266,6 +273,7 @@ class UserDefinedFunction {
   v8::Global<v8::Function> fn_;
   DatabaseSync* db_;
   bool use_bigint_args_;
+  bool use_null_as_undefined_args_;
 };
 
 }  // namespace sqlite
