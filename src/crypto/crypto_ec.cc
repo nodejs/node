@@ -593,25 +593,42 @@ WebCryptoKeyExportStatus EC_Raw_Export(const KeyObjectData& key_data,
       return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
     const auto group = ECKeyPointer::GetGroup(ec_key);
     const auto point = ECKeyPointer::GetPublicKey(ec_key);
-    point_conversion_form_t form = POINT_CONVERSION_UNCOMPRESSED;
 
-    // Get the allocated data size...
-    size_t len = EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
-    if (len == 0)
-      return WebCryptoKeyExportStatus::FAILED;
+    // First, export using HYBRID format to preserve original encoding
+    size_t len = EC_POINT_point2oct(
+        group, point, POINT_CONVERSION_HYBRID, nullptr, 0, nullptr);
+    if (len == 0) return WebCryptoKeyExportStatus::FAILED;
     auto data = DataPointer::Alloc(len);
     size_t check_len =
         EC_POINT_point2oct(group,
                            point,
-                           form,
+                           POINT_CONVERSION_HYBRID,
                            static_cast<unsigned char*>(data.get()),
                            len,
                            nullptr);
-    if (check_len == 0)
-      return WebCryptoKeyExportStatus::FAILED;
-
+    if (check_len == 0) return WebCryptoKeyExportStatus::FAILED;
     CHECK_EQ(len, check_len);
-    *out = ByteSource::Allocated(data.release());
+
+    // If already uncompressed (first byte is 0x04), use the data as-is
+    if (static_cast<unsigned char*>(data.get())[0] == 0x04) {
+      *out = ByteSource::Allocated(data.release());
+    } else {
+      // Otherwise, convert to uncompressed format
+      size_t uncompressed_len = EC_POINT_point2oct(
+          group, point, POINT_CONVERSION_UNCOMPRESSED, nullptr, 0, nullptr);
+      if (uncompressed_len == 0) return WebCryptoKeyExportStatus::FAILED;
+      auto uncompressed_data = DataPointer::Alloc(uncompressed_len);
+      size_t uncompressed_check_len = EC_POINT_point2oct(
+          group,
+          point,
+          POINT_CONVERSION_UNCOMPRESSED,
+          static_cast<unsigned char*>(uncompressed_data.get()),
+          uncompressed_len,
+          nullptr);
+      if (uncompressed_check_len == 0) return WebCryptoKeyExportStatus::FAILED;
+      CHECK_EQ(uncompressed_len, uncompressed_check_len);
+      *out = ByteSource::Allocated(uncompressed_data.release());
+    }
   }
 
   return WebCryptoKeyExportStatus::OK;
