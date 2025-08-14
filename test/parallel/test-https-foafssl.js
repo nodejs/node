@@ -47,7 +47,6 @@ const webIdUrl = 'URI:http://example.com/#me';
 const modulus = fixtures.readKey('rsa_cert_foafssl_b.modulus', 'ascii').replace(/\n/g, '');
 const exponent = fixtures.readKey('rsa_cert_foafssl_b.exponent', 'ascii').replace(/\n/g, '');
 
-const CRLF = '\r\n';
 const body = 'hello world\n';
 let cert;
 
@@ -76,7 +75,7 @@ server.listen(0, function() {
   client.stdout.on('data', function(data) {
     console.log('response received');
     const message = data.toString();
-    const contents = message.split(CRLF + CRLF).pop();
+    const contents = message.split('\r\n\r\n').pop();
     assert.strictEqual(body, contents);
     server.close((e) => {
       assert.ifError(e);
