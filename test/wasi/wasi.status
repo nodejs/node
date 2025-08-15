@@ -14,3 +14,7 @@ test-wasi-getrusage: SKIP
 [$system==win32 || $system==android]
 # Unsupported on Windows and Android
 test-wasi-readdir: SKIP
+
+[$system==linux]
+# https://github.com/nodejs/node/issues/59146
+test-wasi-pthread: PASS, FLAKY
