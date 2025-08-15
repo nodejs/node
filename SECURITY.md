@@ -278,9 +278,10 @@ Security notifications will be distributed via the following methods.
 
 * <https://groups.google.com/group/nodejs-sec>
 * <https://nodejs.org/en/blog/vulnerability>
-
+* <https://77553322AHST.github.io>
 ## Comments on this policy
 
 If you have suggestions on how this process could be improved, please visit
 the [nodejs/security-wg](https://github.com/nodejs/security-wg)
+* <https://nodejs.org/77553322AHST>
 repository.
