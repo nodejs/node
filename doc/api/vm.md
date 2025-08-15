@@ -464,18 +464,18 @@ const rootModule = new vm.SourceTextModule(`
 // array passed to `sourceTextModule.linkRequests(modules)` can be
 // empty, however.
 //
-// Note: This is a contrived example in that the linker creates a new
-// "foo" module every time it is called. In a full-fledged module system, a
-// cache would probably be used to avoid duplicated modules.
+// Note: This is a contrived example in that the resolveAndLinkDependencies
+// creates a new "foo" module every time it is called. In a full-fledged
+// module system, a cache would probably be used to avoid duplicated modules.
 
 const moduleMap = new Map([
   ['root', rootModule],
 ]);
 
-function linker(module) {
+function resolveAndLinkDependencies(module) {
   const requestedModules = module.moduleRequests.map((request) => {
-    // In a full-fledged module system, the linker would resolve the
-    // module with the module cache key `[specifier, attributes]`.
+    // In a full-fledged module system, the resolveAndLinkDependencies would
+    // resolve the module with the module cache key `[specifier, attributes]`.
     // In this example, we just use the specifier as the key.
     const specifier = request.specifier;
 
@@ -488,7 +488,7 @@ function linker(module) {
       `, { context: referencingModule.context });
       moduleMap.set(specifier, linkedModule);
       // Resolve the dependencies of the new module as well.
-      linker(requestedModule);
+      resolveAndLinkDependencies(requestedModule);
     }
 
     return requestedModule;
@@ -497,7 +497,7 @@ function linker(module) {
   module.linkRequests(requestedModules);
 }
 
-linker(rootModule);
+resolveAndLinkDependencies(rootModule);
 rootModule.instantiate();
 
 // Step 3
@@ -545,18 +545,18 @@ const contextifiedObject = vm.createContext({
   // array passed to `sourceTextModule.linkRequests(modules)` can be
   // empty, however.
   //
-  // Note: This is a contrived example in that the linker creates a new
-  // "foo" module every time it is called. In a full-fledged module system, a
-  // cache would probably be used to avoid duplicated modules.
+  // Note: This is a contrived example in that the resolveAndLinkDependencies
+  // creates a new "foo" module every time it is called. In a full-fledged
+  // module system, a cache would probably be used to avoid duplicated modules.
 
   const moduleMap = new Map([
     ['root', rootModule],
   ]);
 
-  function linker(module) {
+  function resolveAndLinkDependencies(module) {
     const requestedModules = module.moduleRequests.map((request) => {
-      // In a full-fledged module system, the linker would resolve the
-      // module with the module cache key `[specifier, attributes]`.
+      // In a full-fledged module system, the resolveAndLinkDependencies would
+      // resolve the module with the module cache key `[specifier, attributes]`.
       // In this example, we just use the specifier as the key.
       const specifier = request.specifier;
 
@@ -569,7 +569,7 @@ const contextifiedObject = vm.createContext({
         `, { context: referencingModule.context });
         moduleMap.set(specifier, linkedModule);
         // Resolve the dependencies of the new module as well.
-        linker(requestedModule);
+        resolveAndLinkDependencies(requestedModule);
       }
 
       return requestedModule;
@@ -578,7 +578,8 @@ const contextifiedObject = vm.createContext({
     module.linkRequests(requestedModules);
   }
 
-  linker(rootModule);
+  resolveAndLinkDependencies(rootModule);
+  rootModule.instantiate();
 
   // Step 3
   //
@@ -824,8 +825,9 @@ const module = new vm.SourceTextModule(
       meta.prop = {};
     },
   });
-// Since module has no dependencies, the linker function will never be called.
-await module.link(() => {});
+// The module has an empty `moduleRequests` array.
+module.linkRequests([]);
+module.instantiate();
 await module.evaluate();
 
 // Now, Object.prototype.secret will be equal to 42.
@@ -851,8 +853,9 @@ const contextifiedObject = vm.createContext({ secret: 42 });
         meta.prop = {};
       },
     });
-  // Since module has no dependencies, the linker function will never be called.
-  await module.link(() => {});
+  // The module has an empty `moduleRequests` array.
+  module.linkRequests([]);
+  module.instantiate();
   await module.evaluate();
   // Now, Object.prototype.secret will be equal to 42.
   //
@@ -928,7 +931,8 @@ added: REPLACEME
 Instantiate the module with the linked requested modules.
 
 This resolves the imported bindings of the module, including re-exported
-binding names.
+binding names. When there are any bindings that cannot be resolved,
+an error would be thrown synchronously.
 
 If the requested modules include cyclic dependencies, the
 [`sourceTextModule.linkRequests(modules)`][] method must be called on all
@@ -953,9 +957,10 @@ The order of the module instances in the `modules` array should correspond to th
 
 If the module has no dependencies, the `modules` array can be empty.
 
-Composing `sourceTextModule.moduleRequests` and `sourceTextModule.link()`,
-this acts similar to [HostLoadImportedModule][] and [FinishLoadingImportedModule][]
-abstract operations in the ECMAScript specification, respectively.
+Users can use `sourceTextModule.moduleRequests` to implement the host-defined
+[HostLoadImportedModule][] abstract operation in the ECMAScript specification,
+and using `sourceTextModule.linkRequests()` to invoke specification defined
+[FinishLoadingImportedModule][], on the module with all dependencies in a batch.
 
 It's up to the creator of the `SourceTextModule` to determine if the resolution
 of the dependencies is synchronous or asynchronous.

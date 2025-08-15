@@ -75,7 +75,7 @@ void ModuleCacheKey::MemoryInfo(MemoryTracker* tracker) const {
 std::string ModuleCacheKey::ToString() const {
   std::string result = "ModuleCacheKey(\"" + specifier + "\"";
   if (!import_attributes.empty()) {
-    result += " [";
+    result += ", {";
     bool first = true;
     for (const auto& attr : import_attributes) {
       if (first) {
@@ -85,7 +85,7 @@ std::string ModuleCacheKey::ToString() const {
       }
       result += attr.first + ": " + attr.second;
     }
-    result += "]";
+    result += "}";
   }
   result += ")";
   return result;
