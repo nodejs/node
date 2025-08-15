@@ -311,7 +311,7 @@ experimental domain Network
       RequestId requestId
       # Timestamp.
       MonotonicTime timestamp
-    # Fired when WebSocket handshake response becomes available.
+  # Fired when WebSocket handshake response becomes available.
   event webSocketHandshakeResponseReceived
     parameters
       # Request identifier.
