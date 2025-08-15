@@ -94,9 +94,7 @@ if (common.isLinux || common.isMacOS || common.isWindows) {
     }));
 
     const interval = setInterval(() => {
-      fs.writeFile(path.join(dir, 'foo.txt'), 'foo', common.mustCall((err) => {
-        if (err) assert.fail(err);
-      }));
+      fs.writeFile(path.join(dir, 'foo.txt'), 'foo', common.mustSucceed());
     }, 1);
   }
 
