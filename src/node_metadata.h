@@ -3,7 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <array>
 #include <string>
+#include <utility>
 #include "node_version.h"
 
 #if HAVE_OPENSSL
@@ -98,6 +100,10 @@ namespace node {
   NODE_VERSIONS_KEY_QUIC(V)                                                    \
   NODE_VERSIONS_KEY_SQLITE(V)
 
+#define V(key) +1
+constexpr int NODE_VERSIONS_KEY_COUNT = NODE_VERSIONS_KEYS(V);
+#undef V
+
 class Metadata {
  public:
   Metadata();
@@ -118,6 +124,10 @@ class Metadata {
 #define V(key) std::string key;
     NODE_VERSIONS_KEYS(V)
 #undef V
+
+    std::array<std::pair<std::string_view, std::string_view>,
+               NODE_VERSIONS_KEY_COUNT>
+    pairs() const;
   };
 
   struct Release {
