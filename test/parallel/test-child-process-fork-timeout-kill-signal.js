@@ -27,11 +27,11 @@ const { getEventListeners } = require('events');
   // Verify timeout verification
   throws(() => fork(fixtures.path('child-process-stay-alive-forever.js'), {
     timeout: 'badValue',
-  }), /ERR_OUT_OF_RANGE/);
+  }), /ERR_INVALID_ARG_TYPE/);
 
   throws(() => fork(fixtures.path('child-process-stay-alive-forever.js'), {
     timeout: {},
-  }), /ERR_OUT_OF_RANGE/);
+  }), /ERR_INVALID_ARG_TYPE/);
 }
 
 {

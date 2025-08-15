@@ -39,6 +39,8 @@ const invalidArgTypeError = {
   name: 'TypeError'
 };
 
+const invalidRangeError = { code: 'ERR_OUT_OF_RANGE', name: 'RangeError' };
+
 assert.throws(function() {
   spawn(invalidcmd, 'this is not an array');
 }, invalidArgTypeError);
@@ -77,11 +79,11 @@ assert.throws(function() {
 
 assert.throws(function() {
   spawn(cmd, [], { uid: 2 ** 63 });
-}, invalidArgTypeError);
+}, invalidRangeError);
 
 assert.throws(function() {
   spawn(cmd, [], { gid: 2 ** 63 });
-}, invalidArgTypeError);
+}, invalidRangeError);
 
 // Argument types for combinatorics.
 const a = [];
