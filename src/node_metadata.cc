@@ -161,6 +161,28 @@ Metadata::Versions::Versions() {
   nbytes = NBYTES_VERSION;
 }
 
+std::array<std::pair<std::string_view, std::string_view>,
+           NODE_VERSIONS_KEY_COUNT>
+Metadata::Versions::pairs() const {
+  std::array<std::pair<std::string_view, std::string_view>,
+             NODE_VERSIONS_KEY_COUNT>
+      versions_array;
+  auto slot = versions_array.begin();
+
+#define V(key)                                                                 \
+  do {                                                                         \
+    *slot++ = std::pair<std::string_view, std::string_view>(                   \
+        #key, per_process::metadata.versions.key);                             \
+  } while (0);
+  NODE_VERSIONS_KEYS(V)
+#undef V
+
+  std::ranges::sort(versions_array,
+                    [](auto& a, auto& b) { return a.first < b.first; });
+
+  return versions_array;
+}
+
 Metadata::Release::Release() : name(NODE_RELEASE) {
 #if NODE_VERSION_IS_LTS
   lts = NODE_VERSION_LTS_CODENAME;

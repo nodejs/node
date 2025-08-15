@@ -239,13 +239,9 @@ std::unique_ptr<v8::ConvertableToTraceFormat> AsyncWrapArgs::Cast() const {
 std::unique_ptr<v8::ConvertableToTraceFormat> ProcessMeta::Cast() const {
   auto trace_process = tracing::TracedValue::Create();
   trace_process->BeginDictionary("versions");
-
-#define V(key)                                                                 \
-  trace_process->SetString(#key, per_process::metadata.versions.key.c_str());
-
-  NODE_VERSIONS_KEYS(V)
-#undef V
-
+  for (const auto& version : per_process::metadata.versions.pairs()) {
+    trace_process->SetString(version.first.data(), version.second.data());
+  }
   trace_process->EndDictionary();
 
   trace_process->SetString("arch", per_process::metadata.arch.c_str());
