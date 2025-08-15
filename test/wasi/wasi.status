@@ -6,3 +6,11 @@ prefix wasi
 
 [true] # This section applies to all platforms
 
+[$system==ibmi]
+# Unsupported on IBM i PASE
+test-wasi-clock_getres: SKIP
+test-wasi-getrusage: SKIP
+
+[$system==win32 || $system==android]
+# Unsupported on Windows and Android
+test-wasi-readdir: SKIP
