@@ -201,6 +201,27 @@ describe('Mock Timers Test Suite', () => {
         // Should not throw
       });
     });
+
+    it('interval cleared inside callback should only fire once', (t) => {
+      t.mock.timers.enable();
+      const calls = [];
+
+      setInterval(() => {
+        calls.push('foo');
+      }, 10);
+      const timerId = setInterval(() => {
+        calls.push('bar');
+        clearInterval(timerId);
+      }, 10);
+
+      t.mock.timers.tick(10);
+      t.mock.timers.tick(10);
+
+      assert.deepStrictEqual(
+        calls,
+        ['foo', 'bar', 'foo'],
+      );
+    });
   });
 
   describe('globals/timers', () => {
