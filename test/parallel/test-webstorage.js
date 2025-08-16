@@ -14,6 +14,19 @@ function nextLocalStorage() {
   return join(tmpdir.path, `${++cnt}.localstorage`);
 }
 
+test('constructor is illegal', async () => {
+  const cp = await spawnPromisified(process.execPath, [
+    '--experimental-webstorage',
+    '--localstorage-file', nextLocalStorage(),
+    '-e', 'new Storage',
+  ]);
+  assert.strictEqual(cp.code, 1);
+  assert.strictEqual(cp.signal, null);
+  assert.strictEqual(cp.stdout, '');
+  assert(cp.stderr.includes(`TypeError: Illegal constructor\n`));
+  assert(cp.stderr.includes(`code: 'ERR_ILLEGAL_CONSTRUCTOR'\n`));
+});
+
 test('disabled without --experimental-webstorage', async () => {
   for (const api of ['Storage', 'localStorage', 'sessionStorage']) {
     const cp = await spawnPromisified(process.execPath, ['-e', api]);
