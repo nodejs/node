@@ -3271,14 +3271,37 @@ void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
       parallel_move.LoadIntoRegister(LiftoffRegister{kCArgRegs[reg_args]}, arg);
       ++reg_args;
     } else {
-      int bias = 0;
-      // On BE machines values with less than 8 bytes are right justified.
-      // bias here is relative to the stack pointer.
-      if (arg.kind() == kI32 || arg.kind() == kF32) bias = -stack_bias;
       int offset =
           (kStackFrameExtraParamSlot + stack_args) * kSystemPointerSize;
-      MemOperand dst{sp, offset + bias};
-      liftoff::StoreToMemory(this, dst, arg, ip);
+      MemOperand dst{sp, offset};
+      Register scratch = ip;
+      if (arg.is_reg()) {
+        switch (arg.kind()) {
+          case kI16:
+            LoadS16(scratch, arg.reg().gp());
+            StoreU64(scratch, dst);
+            break;
+          case kI32:
+            LoadS32(scratch, arg.reg().gp());
+            StoreU64(scratch, dst);
+            break;
+          case kI64:
+            StoreU64(arg.reg().gp(), dst);
+            break;
+          default:
+            UNREACHABLE();
+        }
+      } else if (arg.is_const()) {
+        mov(scratch, Operand(static_cast<int64_t>(arg.i32_const())));
+        StoreU64(scratch, dst);
+      } else if (value_kind_size(arg.kind()) == 4) {
+        LoadS32(scratch, liftoff::GetStackSlot(arg.offset()), scratch);
+        StoreU64(scratch, dst);
+      } else {
+        DCHECK_EQ(8, value_kind_size(arg.kind()));
+        LoadU64(scratch, liftoff::GetStackSlot(arg.offset()), scratch);
+        StoreU64(scratch, dst);
+      }
       ++stack_args;
     }
   }
