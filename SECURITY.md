@@ -284,3 +284,8 @@ Security notifications will be distributed via the following methods.
 If you have suggestions on how this process could be improved, please visit
 the [nodejs/security-wg](https://github.com/nodejs/security-wg)
 repository.
+
+## Incident Response Plan
+
+In the event of a security incident, please refer to the
+[Security Incident Response Plan](https://github.com/nodejs/security-wg/blob/main/INCIDENT_RESPONSE_PLAN.md).
