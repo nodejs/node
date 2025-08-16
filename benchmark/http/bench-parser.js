@@ -16,7 +16,6 @@ function main({ len, n }) {
   const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
   const kOnBody = HTTPParser.kOnBody | 0;
   const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
-  const CRLF = '\r\n';
 
   function processHeader(header, n) {
     const parser = newParser(REQUEST);
@@ -43,12 +42,12 @@ function main({ len, n }) {
     return parser;
   }
 
-  let header = `GET /hello HTTP/1.1${CRLF}Content-Type: text/plain${CRLF}`;
+  let header = `GET /hello HTTP/1.1\r\nContent-Type: text/plain\r\n`;
 
   for (let i = 0; i < len; i++) {
-    header += `X-Filler${i}: ${Math.random().toString(36).substring(2)}${CRLF}`;
+    header += `X-Filler${i}: ${Math.random().toString(36).substring(2)}\r\n`;
   }
-  header += CRLF;
+  header += '\r\n';
 
   processHeader(Buffer.from(header), n);
 }
