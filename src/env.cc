@@ -1062,6 +1062,11 @@ Environment::~Environment() {
   }
 
   delete external_memory_accounter_;
+
+  if (!cpu_profiler_) {
+    cpu_profiler_->Dispose();
+    cpu_profiler_ = nullptr;
+  }
 }
 
 void Environment::InitializeLibuv() {
