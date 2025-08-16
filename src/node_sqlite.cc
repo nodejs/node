@@ -507,8 +507,7 @@ class BackupJob : public ThreadPoolWork {
 
         Local<Value> argv[] = {progress_info};
         TryCatch try_catch(env()->isolate());
-        fn->Call(env()->context(), Null(env()->isolate()), 1, argv)
-            .FromMaybe(Local<Value>());
+        USE(fn->Call(env()->context(), Null(env()->isolate()), 1, argv));
         if (try_catch.HasCaught()) {
           Finalize();
           resolver->Reject(env()->context(), try_catch.Exception()).ToChecked();
