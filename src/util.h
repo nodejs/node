@@ -346,17 +346,19 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            std::string_view str);
 
 // Used to be a macro, hence the uppercase name.
-template <int N>
-inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
-    v8::Isolate* isolate,
-    const char(&data)[N]) {
+template <std::size_t N>
+  requires(N > 0)
+inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(v8::Isolate* isolate,
+                                                   const char (&data)[N]) {
+  CHECK_EQ(data[N - 1], '\0');
   return OneByteString(isolate, data, N - 1);
 }
 
 template <std::size_t N>
+  requires(N > 0)
 inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
-    v8::Isolate* isolate,
-    const std::array<char, N>& arr) {
+    v8::Isolate* isolate, const std::array<char, N>& arr) {
+  CHECK_EQ(arr[N - 1], '\0');
   return OneByteString(isolate, arr.data(), N - 1);
 }
 
