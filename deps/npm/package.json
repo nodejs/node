@@ -1,5 +1,5 @@
 {
-  "version": "11.5.1",
+  "version": "11.5.2",
   "name": "npm",
   "description": "a package manager for JavaScript",
   "workspaces": [
