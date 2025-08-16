@@ -9,6 +9,7 @@
 #include <openssl/x509v3.h>
 #include <algorithm>
 #include <cstring>
+#include <vector>
 #if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/provider.h>
 #endif
