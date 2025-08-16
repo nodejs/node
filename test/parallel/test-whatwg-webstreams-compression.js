@@ -41,7 +41,7 @@ async function test(format) {
   ]);
 }
 
-Promise.all(['gzip', 'deflate', 'deflate-raw'].map((i) => test(i))).then(common.mustCall());
+Promise.all(['gzip', 'deflate', 'deflate-raw', 'brotli'].map((i) => test(i))).then(common.mustCall());
 
 [1, 'hello', false, {}].forEach((i) => {
   assert.throws(() => new CompressionStream(i), {
@@ -72,3 +72,27 @@ assert.throws(
     name: 'TypeError',
     message: /Cannot read private member/,
   });
+
+;(async () => {
+  const data = 'Hello, world';
+
+  const compressStream = new Blob([data]).stream().pipeThrough(new CompressionStream('brotli'));
+  const compressedData = await new Response(compressStream).bytes();
+
+  const decompressStream = new Blob([compressedData]).stream().pipeThrough(new DecompressionStream('brotli'));
+  const decompressedData = await new Response(decompressStream).text();
+
+  assert.strictEqual(data, decompressedData);
+})().then(common.mustCall());
+
+;(async () => {
+  const data = 'Hello, world';
+
+  const stream = new Blob([data]).stream()
+    .pipeThrough(new CompressionStream('brotli'))
+    .pipeThrough(new DecompressionStream('brotli'));
+
+  const output = await new Response(stream).text();
+
+  assert.strictEqual(data, output);
+})().then(common.mustCall());
