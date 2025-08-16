@@ -1106,7 +1106,7 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-* `pattern` {string|string\[]}
+* `pattern` {string|string\[]} The glob pattern(s) to match against.
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
@@ -1117,11 +1117,68 @@ changes:
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
   that match the pattern.
 
+Retrieves the files matching the specified pattern(s).
+
+#### Pattern Syntax
+
+The glob implementation supports the following pattern syntax:
+
+**Basic Wildcards:**
+* `*` - Matches any number of characters within a single path segment
+* `?` - Matches exactly one character
+* `[abc]` - Matches any character in the brackets
+* `[a-z]` - Matches any character in the range
+* `[!abc]` or `[^abc]` - Matches any character not in the brackets
+* `[!a-z]` or `[^a-z]` - Matches any character not in the range
+
+**Globstar:**
+* `**` - Matches zero or more directories recursively
+* `**/*.js` - Matches all `.js` files in any subdirectory
+
+**Brace Expansion:**
+* `{a,b,c}` - Matches any of the comma-separated patterns
+* `{1..5}` - Matches any number in the range (1, 2, 3, 4, 5)
+* `*.{js,ts}` - Matches files with `.js` or `.ts` extensions
+
+**Extended Glob Patterns:**
+* `+(pattern)` - Matches one or more occurrences of the pattern
+* `*(pattern)` - Matches zero or more occurrences of the pattern
+* `?(pattern)` - Matches zero or one occurrence of the pattern
+* `!(pattern)` - Matches anything except the pattern
+
+#### Examples
+
 ```mjs
 import { glob } from 'node:fs/promises';
 
-for await (const entry of glob('**/*.js'))
-  console.log(entry);
+// Basic patterns
+for await (const entry of glob('*.js'))
+  console.log(entry); // All .js files in current directory
+
+// Recursive search
+for await (const entry of glob('**/*.{js,ts}'))
+  console.log(entry); // All .js and .ts files in any subdirectory
+
+// Brace expansion
+for await (const entry of glob('src/{components,utils}/**/*.js'))
+  console.log(entry); // .js files in src/components or src/utils
+
+// Extended glob patterns
+for await (const entry of glob('test/**/*.+(spec|test).js'))
+  console.log(entry); // Test files ending with .spec.js or .test.js
+  // Note: This also matches files like 'foo.spectest.js'
+
+// More precise pattern using brace expansion
+for await (const entry of glob('test/**/*.{spec,test}.js'))
+  console.log(entry); // Only matches .spec.js or .test.js files
+
+// Excluding patterns
+for await (const entry of glob('**/*.js', { exclude: ['node_modules/**'] }))
+  console.log(entry); // All .js files except those in node_modules
+
+// Multiple patterns
+for await (const entry of glob(['src/**/*.js', 'lib/**/*.js']))
+  console.log(entry); // .js files in both src and lib directories
 ```
 
 ```cjs
@@ -1132,6 +1189,30 @@ const { glob } = require('node:fs/promises');
     console.log(entry);
 })();
 ```
+
+#### Platform Considerations
+
+* **Case sensitivity**: Glob patterns are case-insensitive on Windows and macOS,
+  case-sensitive on other platforms
+* **Path separators**: Forward slashes (`/`) are used in patterns regardless of
+  platform; they are automatically converted to the appropriate separator
+* **Returned paths**: Results use platform-specific path separators (`\` on Windows,
+  `/` on POSIX). Paths are relative to `options.cwd` if provided, otherwise
+  relative to the current working directory
+* **Symlinks**: Symbolic links are followed and their targets are included in results
+* **Hidden files**: Files starting with `.` are included in results when explicitly
+  matched, but not when using `*` or `**` patterns
+
+#### Performance Notes
+
+* Results are streamed as an async iterator, allowing for efficient memory usage
+  with large result sets
+* The implementation includes internal caching to avoid duplicate file system operations
+* For better performance with large directory trees, consider using more specific
+  patterns to reduce the search scope
+
+[`path.matchesGlob()`][] supports the same basic glob pattern syntax for
+in-memory path matching, but does not include the `exclude` option.
 
 ### `fsPromises.lchmod(path, mode)`
 
@@ -3203,8 +3284,7 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-* `pattern` {string|string\[]}
-
+* `pattern` {string|string\[]} The glob pattern(s) to match against.
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
@@ -3212,11 +3292,17 @@ changes:
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
-
 * `callback` {Function}
   * `err` {Error}
+  * `matches` {string\[]|Dirent\[]} An array of paths or Dirent objects that
+    match the pattern. String paths use platform-specific separators (`\` on
+    Windows, `/` on POSIX) and are relative to `options.cwd` if provided,
+    otherwise relative to the current working directory.
 
-* Retrieves the files matching the specified pattern.
+Retrieves the files matching the specified pattern(s).
+
+See `fsPromises.glob()` for detailed information about pattern syntax,
+examples, and behavior.
 
 ```mjs
 import { glob } from 'node:fs';
@@ -5760,7 +5846,7 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-* `pattern` {string|string\[]}
+* `pattern` {string|string\[]} The glob pattern(s) to match against.
 * `options` {Object}
   * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
@@ -5768,7 +5854,15 @@ changes:
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
-* Returns: {string\[]} paths of files that match the pattern.
+* Returns: {string\[]|Dirent\[]} An array of paths or Dirent objects that
+  match the pattern. String paths use platform-specific separators (`\` on
+  Windows, `/` on POSIX) and are relative to `options.cwd` if provided,
+  otherwise relative to the current working directory.
+
+Retrieves the files matching the specified pattern(s).
+
+See `fsPromises.glob()` for detailed information about pattern syntax,
+examples, and behavior.
 
 ```mjs
 import { globSync } from 'node:fs';
@@ -8757,6 +8851,7 @@ the file contents.
 [`fsPromises.utimes()`]: #fspromisesutimespath-atime-mtime
 [`inotify(7)`]: https://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue(2)`]: https://www.freebsd.org/cgi/man.cgi?query=kqueue&sektion=2
+[`path.matchesGlob()`]: path.md#pathmatchesglobpath-pattern
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [bigints]: https://tc39.github.io/proposal-bigint
 [caveats]: #caveats
