@@ -648,6 +648,8 @@ class OptionsParser {
   friend std::vector<std::string> MapAvailableNamespaces();
   friend void GetEnvOptionsInputType(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  friend void GetOptionsAsFlags(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 using StringVector = std::vector<std::string>;
