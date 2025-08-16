@@ -2837,7 +2837,7 @@ assert.strictEqual(
   // Use a fake stack to verify the expected colored outcome.
   const stack = [
     'Error: CWD is grayed out, even cwd that are percent encoded!',
-    '    at A.<anonymous> (/test/node_modules/foo/node_modules/bar/baz.js:2:7)',
+    '    at A.<anonymous> (/test/node_modules/foo/node_modules/@namespace/bar/baz.js:2:7)',
     '    at Module._compile (node:internal/modules/cjs/loader:827:30)',
     '    at Fancy (node:vm:697:32)',
     // This file is not an actual Node.js core file.
@@ -2862,7 +2862,7 @@ assert.strictEqual(
   }
   const escapedCWD = util.inspect(process.cwd()).slice(1, -1);
   util.inspect(err, { colors: true }).split('\n').forEach((line, i) => {
-    let expected = stack[i].replace(/node_modules\/([^/]+)/gi, (_, m) => {
+    let expected = stack[i].replace(/node_modules\/(@[^/]+\/[^/]+|[^/]+)/gi, (_, m) => {
       return `node_modules/\u001b[4m${m}\u001b[24m`;
     }).replaceAll(new RegExp(`(\\(?${escapedCWD}(\\\\|/))`, 'gi'), (_, m) => {
       return `\x1B[90m${m}\x1B[39m`;
