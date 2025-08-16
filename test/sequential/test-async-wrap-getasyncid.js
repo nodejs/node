@@ -46,6 +46,7 @@ const { getSystemErrorName } = require('util');
     delete providers.MESSAGEPORT;
     delete providers.WORKER;
     // TODO(danbev): Test for these
+    delete providers.ARGON2REQUEST;
     delete providers.JSUDPWRAP;
     delete providers.KEYPAIRGENREQUEST;
     delete providers.KEYGENREQUEST;
