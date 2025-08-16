@@ -373,6 +373,7 @@ class Cipher final {
   static const Cipher AES_128_KW;
   static const Cipher AES_192_KW;
   static const Cipher AES_256_KW;
+  static const Cipher CHACHA20_POLY1305;
 
   struct CipherParams {
     int padding;

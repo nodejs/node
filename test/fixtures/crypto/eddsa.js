@@ -1,5 +1,7 @@
 'use strict';
 
+const common = require('../../common');
+
 module.exports = function() {
   const pkcs8 = {
     'Ed25519': Buffer.from(
@@ -37,7 +39,13 @@ module.exports = function() {
       '025a2a5a572b9d23b0642f00', 'hex')
   }
 
-  const algorithms = ['Ed25519', 'Ed448'];
+  const algorithms = ['Ed25519'];
+
+  if (!process.features.openssl_is_boringssl) {
+    algorithms.push('Ed448')
+  } else {
+    common.printSkipMessage(`Skipping unsupported Ed448 test cases`);
+  }
 
   const vectors = algorithms.map((algorithm) => ({
     publicKeyBuffer: spki[algorithm],
