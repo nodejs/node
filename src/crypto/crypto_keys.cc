@@ -978,6 +978,12 @@ Local<Value> KeyObjectHandle::GetAsymmetricKeyType() const {
       return env()->crypto_ml_dsa_65_string();
     case EVP_PKEY_ML_DSA_87:
       return env()->crypto_ml_dsa_87_string();
+    case EVP_PKEY_ML_KEM_512:
+      return env()->crypto_ml_kem_512_string();
+    case EVP_PKEY_ML_KEM_768:
+      return env()->crypto_ml_kem_768_string();
+    case EVP_PKEY_ML_KEM_1024:
+      return env()->crypto_ml_kem_1024_string();
 #endif
     default:
       return Undefined(env()->isolate());
@@ -1258,6 +1264,9 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_44);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_65);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_DSA_87);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_512);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_768);
+  NODE_DEFINE_CONSTANT(target, EVP_PKEY_ML_KEM_1024);
 #endif
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X25519);
   NODE_DEFINE_CONSTANT(target, EVP_PKEY_X448);
