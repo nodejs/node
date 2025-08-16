@@ -763,8 +763,10 @@ changes:
 -->
 
 * `sourceDb` {DatabaseSync} The database to backup. The source database must be open.
+
 * `path` {string | Buffer | URL} The path where the backup will be created. If the file already exists,
   the contents will be overwritten.
+
 * `options` {Object} Optional configuration for the backup. The
   following properties are supported:
   * `source` {string} Name of the source database. This can be `'main'` (the default primary database) or any other
@@ -774,6 +776,11 @@ changes:
   * `rate` {number} Number of pages to be transmitted in each batch of the backup. **Default:** `100`.
   * `progress` {Function} Callback function that will be called with the number of pages copied and the total number of
     pages.
+  * `signal` {AbortSignal} An optional AbortSignal that can be used to abort the backup operation.\
+    If the signal is aborted, the backup operation will be cancelled and the Promise will reject with an `AbortError`.\
+    **Note:** Aborting is a best-effort mechanism; the backup may complete before the abort is processed due to race
+    conditions.
+
 * Returns: {Promise} A promise that resolves when the backup is completed and rejects if an error occurs.
 
 This method makes a database backup. This method abstracts the [`sqlite3_backup_init()`][], [`sqlite3_backup_step()`][]
@@ -811,6 +818,34 @@ const totalPagesTransferred = await backup(sourceDb, 'backup.db', {
 });
 
 console.log('Backup completed', totalPagesTransferred);
+```
+
+### Aborting a backup
+
+The backup operation can be cancelled using an `AbortSignal`:
+
+```cjs
+const { backup, DatabaseSync } = require('node:sqlite');
+
+(async () => {
+  const sourceDb = new DatabaseSync('source.db');
+
+  try {
+    await backup(sourceDb, 'backup.db', {
+      signal: AbortSignal.timeout(5000),
+      progress: ({ totalPages, remainingPages }) => {
+        console.log('Backup in progress', { totalPages, remainingPages });
+      },
+    });
+    console.log('Backup completed successfully');
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('Backup was cancelled:', error.message);
+    } else {
+      console.error('Backup failed:', error.message);
+    }
+  }
+})();
 ```
 
 ## `sqlite.constants`
