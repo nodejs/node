@@ -338,6 +338,7 @@
   V(read_host_object_string, "_readHostObject")                                \
   V(readable_string, "readable")                                               \
   V(read_bigints_string, "readBigInts")                                        \
+  V(read_null_as_undefined_string, "readNullAsUndefined")                      \
   V(reason_string, "reason")                                                   \
   V(refresh_string, "refresh")                                                 \
   V(regexp_string, "regexp")                                                   \
