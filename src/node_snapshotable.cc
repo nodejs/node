@@ -11,7 +11,6 @@
 #include "embedded_data.h"
 #include "encoding_binding.h"
 #include "env-inl.h"
-#include "json_parser.h"
 #include "node_blob.h"
 #include "node_builtins.h"
 #include "node_contextify.h"
@@ -27,6 +26,7 @@
 #include "node_url.h"
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
+#include "simdjson.h"
 #include "timers.h"
 
 #if HAVE_INSPECTOR
@@ -909,31 +909,60 @@ std::optional<SnapshotConfig> ReadSnapshotConfig(const char* config_path) {
     return std::nullopt;
   }
 
-  JSONParser parser;
-  if (!parser.Parse(config_content)) {
-    FPrintF(stderr, "Cannot parse JSON from %s\n", config_path);
+  SnapshotConfig result;
+
+  simdjson::ondemand::parser parser;
+  simdjson::ondemand::document document;
+  simdjson::ondemand::object main_object;
+  simdjson::error_code error =
+      parser.iterate(simdjson::pad(config_content)).get(document);
+
+  if (!error) {
+    error = document.get_object().get(main_object);
+  }
+  if (error) {
+    FPrintF(stderr,
+            "Cannot parse JSON from %s: %s\n",
+            config_path,
+            simdjson::error_message(error));
     return std::nullopt;
   }
 
-  SnapshotConfig result;
-  result.builder_script_path = parser.GetTopLevelStringField("builder");
+  for (auto field : main_object) {
+    std::string_view key;
+    if (field.unescaped_key().get(key)) {
+      FPrintF(stderr, "Cannot read key from %s\n", config_path);
+      return std::nullopt;
+    }
+    if (key == "builder") {
+      std::string builder_path;
+      if (field.value().get_string().get(builder_path) ||
+          builder_path.empty()) {
+        FPrintF(stderr,
+                "\"builder\" field of %s is not a non-empty string\n",
+                config_path);
+        return std::nullopt;
+      }
+      result.builder_script_path = builder_path;
+    } else if (key == "withoutCodeCache") {
+      bool without_code_cache_value = false;
+      if (field.value().get_bool().get(without_code_cache_value)) {
+        FPrintF(stderr,
+                "\"withoutCodeCache\" field of %s is not a boolean\n",
+                config_path);
+        return std::nullopt;
+      }
+      if (without_code_cache_value) {
+        result.flags |= SnapshotFlags::kWithoutCodeCache;
+      }
+    }
+  }
+
   if (!result.builder_script_path.has_value()) {
     FPrintF(stderr,
             "\"builder\" field of %s is not a non-empty string\n",
             config_path);
     return std::nullopt;
-  }
-
-  std::optional<bool> WithoutCodeCache =
-      parser.GetTopLevelBoolField("withoutCodeCache");
-  if (!WithoutCodeCache.has_value()) {
-    FPrintF(stderr,
-            "\"withoutCodeCache\" field of %s is not a boolean\n",
-            config_path);
-    return std::nullopt;
-  }
-  if (WithoutCodeCache.value()) {
-    result.flags |= SnapshotFlags::kWithoutCodeCache;
   }
 
   return result;
