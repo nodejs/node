@@ -234,6 +234,7 @@ class EnvironmentOptions : public Options {
   bool watch_mode_preserve_output = false;
   std::string watch_mode_kill_signal = "SIGTERM";
   std::vector<std::string> watch_mode_paths;
+  std::vector<std::string> watch_mode_paths_with_glob_patterns;
 
   bool syntax_check_only = false;
   bool has_eval_string = false;

@@ -649,6 +649,9 @@ By default, watch mode will watch the entry point and any required or imported m
 .It Fl -watch-path
 Starts Node.js in watch mode and specifies what paths to watch. When in watch mode, changes in the watched paths cause the Node.js process to restart.
 
+.It Fl -watch-pattern
+Starts Node.js in watch mode and can include glob patterns when specifying what paths to watch. When in watch mode, changes in the watched paths cause the Node.js process to restart.
+
 This will turn off watching of required or imported modules, even when used in combination with --watch.
 .
 .It Fl -watch-kill-signal

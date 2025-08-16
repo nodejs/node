@@ -1006,6 +1006,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "path to watch",
             &EnvironmentOptions::watch_mode_paths,
             kAllowedInEnvvar);
+  AddOption("--watch-pattern",
+            "paths to watch (can include a glob pattern)",
+            &EnvironmentOptions::watch_mode_paths_with_glob_patterns);
   AddOption("--watch-kill-signal",
             "kill signal to send to the process on watch mode restarts"
             "(default: SIGTERM)",
@@ -1016,6 +1019,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::watch_mode_preserve_output,
             kAllowedInEnvvar);
   Implies("--watch-path", "--watch");
+  Implies("--watch-pattern", "--watch");
   AddOption("--check",
             "syntax check script without executing",
             &EnvironmentOptions::syntax_check_only);
