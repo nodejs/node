@@ -72,49 +72,6 @@ void ModuleCacheKey::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("import_attributes", import_attributes);
 }
 
-template <int elements_per_attribute>
-ModuleCacheKey ModuleCacheKey::From(Local<Context> context,
-                                    Local<String> specifier,
-                                    Local<FixedArray> import_attributes) {
-  CHECK_EQ(import_attributes->Length() % elements_per_attribute, 0);
-  Isolate* isolate = context->GetIsolate();
-  std::size_t h1 = specifier->GetIdentityHash();
-  size_t num_attributes = import_attributes->Length() / elements_per_attribute;
-  ImportAttributeVector attributes;
-  attributes.reserve(num_attributes);
-
-  std::size_t h2 = 0;
-
-  for (int i = 0; i < import_attributes->Length();
-       i += elements_per_attribute) {
-    DCHECK(DataIsString(import_attributes->Get(context, i)));
-    DCHECK(DataIsString(import_attributes->Get(context, i + 1)));
-
-    Local<String> v8_key = import_attributes->Get(context, i).As<String>();
-    Local<String> v8_value =
-        import_attributes->Get(context, i + 1).As<String>();
-    Utf8Value key_utf8(isolate, v8_key);
-    Utf8Value value_utf8(isolate, v8_value);
-
-    attributes.emplace_back(key_utf8.ToString(), value_utf8.ToString());
-    h2 ^= v8_key->GetIdentityHash();
-    h2 ^= v8_value->GetIdentityHash();
-  }
-
-  // Combine the hashes using a simple XOR and bit shift to reduce
-  // collisions. Note that the hash does not guarantee uniqueness.
-  std::size_t hash = h1 ^ (h2 << 1);
-
-  Utf8Value utf8_specifier(isolate, specifier);
-  return ModuleCacheKey{utf8_specifier.ToString(), attributes, hash};
-}
-
-ModuleCacheKey ModuleCacheKey::From(Local<Context> context,
-                                    Local<ModuleRequest> v8_request) {
-  return From(
-      context, v8_request->GetSpecifier(), v8_request->GetImportAttributes());
-}
-
 ModuleWrap::ModuleWrap(Realm* realm,
                        Local<Object> object,
                        Local<Module> module,
@@ -141,15 +98,6 @@ ModuleWrap::ModuleWrap(Realm* realm,
   }
   MakeWeak();
   module_.SetWeak();
-
-  HandleScope scope(realm->isolate());
-  Local<Context> context = realm->context();
-  Local<FixedArray> requests = module->GetModuleRequests();
-  for (int i = 0; i < requests->Length(); i++) {
-    ModuleCacheKey module_cache_key = ModuleCacheKey::From(
-        context, requests->Get(context, i).As<ModuleRequest>());
-    resolve_cache_[module_cache_key] = i;
-  }
 }
 
 ModuleWrap::~ModuleWrap() {
@@ -991,11 +939,10 @@ void ModuleWrap::GetError(const FunctionCallbackInfo<Value>& args) {
 // static
 MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
     Local<Context> context,
-    Local<String> specifier,
-    Local<FixedArray> import_attributes,
+    size_t module_request_index,
     Local<Module> referrer) {
   ModuleWrap* resolved_module;
-  if (!ResolveModule(context, specifier, import_attributes, referrer)
+  if (!ResolveModule(context, module_request_index, referrer)
            .To(&resolved_module)) {
     return {};
   }
@@ -1006,11 +953,10 @@ MaybeLocal<Module> ModuleWrap::ResolveModuleCallback(
 // static
 MaybeLocal<Object> ModuleWrap::ResolveSourceCallback(
     Local<Context> context,
-    Local<String> specifier,
-    Local<FixedArray> import_attributes,
+    size_t module_request_index,
     Local<Module> referrer) {
   ModuleWrap* resolved_module;
-  if (!ResolveModule(context, specifier, import_attributes, referrer)
+  if (!ResolveModule(context, module_request_index, referrer)
            .To(&resolved_module)) {
     return {};
   }
@@ -1031,12 +977,22 @@ MaybeLocal<Object> ModuleWrap::ResolveSourceCallback(
   return module_source_object.As<Object>();
 }
 
+static std::string GetSpecifierFromModuleRequest(Local<Context> context,
+                                                 Local<Module> referrer,
+                                                 size_t module_request_index) {
+  Local<ModuleRequest> raw_request =
+      referrer->GetModuleRequests()
+          ->Get(context, static_cast<int>(module_request_index))
+          .As<ModuleRequest>();
+  Local<String> specifier = raw_request->GetSpecifier();
+  Utf8Value specifier_utf8(context->GetIsolate(), specifier);
+  return specifier_utf8.ToString();
+}
+
 // static
-Maybe<ModuleWrap*> ModuleWrap::ResolveModule(
-    Local<Context> context,
-    Local<String> specifier,
-    Local<FixedArray> import_attributes,
-    Local<Module> referrer) {
+Maybe<ModuleWrap*> ModuleWrap::ResolveModule(Local<Context> context,
+                                             size_t module_request_index,
+                                             Local<Module> referrer) {
   Isolate* isolate = context->GetIsolate();
   Environment* env = Environment::GetCurrent(context);
   if (env == nullptr) {
@@ -1046,31 +1002,24 @@ Maybe<ModuleWrap*> ModuleWrap::ResolveModule(
   // Check that the referrer is not yet been instantiated.
   DCHECK(referrer->GetStatus() <= Module::kInstantiated);
 
-  ModuleCacheKey cache_key =
-      ModuleCacheKey::From(context, specifier, import_attributes);
-
   ModuleWrap* dependent = ModuleWrap::GetFromModule(env, referrer);
   if (dependent == nullptr) {
+    std::string specifier =
+        GetSpecifierFromModuleRequest(context, referrer, module_request_index);
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is from invalid module", cache_key.specifier);
+        env, "request for '%s' is from invalid module", specifier);
     return Nothing<ModuleWrap*>();
   }
   if (!dependent->IsLinked()) {
+    std::string specifier =
+        GetSpecifierFromModuleRequest(context, referrer, module_request_index);
     THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env,
-        "request for '%s' is from a module not been linked",
-        cache_key.specifier);
+        env, "request for '%s' is from a module not been linked", specifier);
     return Nothing<ModuleWrap*>();
   }
 
-  auto it = dependent->resolve_cache_.find(cache_key);
-  if (it == dependent->resolve_cache_.end()) {
-    THROW_ERR_VM_MODULE_LINK_FAILURE(
-        env, "request for '%s' is not in cache", cache_key.specifier);
-    return Nothing<ModuleWrap*>();
-  }
-
-  ModuleWrap* module_wrap = dependent->GetLinkedRequest(it->second);
+  ModuleWrap* module_wrap =
+      dependent->GetLinkedRequest(static_cast<uint32_t>(module_request_index));
   CHECK_NOT_NULL(module_wrap);
   return Just(module_wrap);
 }
