@@ -38,7 +38,7 @@ Local<Value> current(Isolate* isolate) {
 }
 
 void set(Isolate* isolate, Local<Value> value) {
-  auto env = Environment::GetCurrent(isolate);
+  auto env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (!env->options()->async_context_frame) {
     return;
   }

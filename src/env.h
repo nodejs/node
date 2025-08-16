@@ -643,7 +643,6 @@ class Environment final : public MemoryRetainer {
   inline void PushAsyncCallbackScope();
   inline void PopAsyncCallbackScope();
 
-  static inline Environment* GetCurrent(v8::Isolate* isolate);
   static inline Environment* GetCurrent(v8::Local<v8::Context> context);
   static inline Environment* GetCurrent(
       const v8::FunctionCallbackInfo<v8::Value>& info);

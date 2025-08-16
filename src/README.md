@@ -344,8 +344,6 @@ Typical ways of accessing the current `Environment` in the Node.js code are:
   This requires that `context` has been associated with the `Environment`
   instance, e.g. is the main `Context` for the `Environment` or one of its
   `vm.Context`s.
-* Given an [`Isolate`][], using `Environment::GetCurrent(isolate)`. This looks
-  up the current [`Context`][] and then uses that.
 
 <a id="realm"></a>
 
