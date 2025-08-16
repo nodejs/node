@@ -99,7 +99,7 @@ const util = require('util');
   assert.strictEqual(
     util.inspect(m),
     `SyntheticModule {
-  status: 'unlinked',
+  status: 'linked',
   identifier: 'vm:module(0)',
   context: { foo: 'bar' }
 }`

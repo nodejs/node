@@ -72,6 +72,25 @@ void ModuleCacheKey::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("import_attributes", import_attributes);
 }
 
+std::string ModuleCacheKey::ToString() const {
+  std::string result = "ModuleCacheKey(\"" + specifier + "\"";
+  if (!import_attributes.empty()) {
+    result += ", {";
+    bool first = true;
+    for (const auto& attr : import_attributes) {
+      if (first) {
+        first = false;
+      } else {
+        result += ", ";
+      }
+      result += attr.first + ": " + attr.second;
+    }
+    result += "}";
+  }
+  result += ")";
+  return result;
+}
+
 template <int elements_per_attribute>
 ModuleCacheKey ModuleCacheKey::From(Local<Context> context,
                                     Local<String> specifier,
@@ -606,25 +625,37 @@ void ModuleWrap::GetModuleRequests(const FunctionCallbackInfo<Value>& args) {
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
+  Local<Context> context = realm->context();
 
   ModuleWrap* dependent;
   ASSIGN_OR_RETURN_UNWRAP(&dependent, args.This());
 
   CHECK_EQ(args.Length(), 1);
 
-  Local<Data> linked_requests =
-      args.This()->GetInternalField(kLinkedRequestsSlot);
-  if (linked_requests->IsValue() &&
-      !linked_requests.As<Value>()->IsUndefined()) {
-    // If the module is already linked, we should not link it again.
-    THROW_ERR_VM_MODULE_LINK_FAILURE(realm->env(), "module is already linked");
-    return;
-  }
-
   Local<FixedArray> requests =
       dependent->module_.Get(isolate)->GetModuleRequests();
   Local<Array> modules = args[0].As<Array>();
   CHECK_EQ(modules->Length(), static_cast<uint32_t>(requests->Length()));
+
+  for (int i = 0; i < requests->Length(); i++) {
+    ModuleCacheKey module_cache_key = ModuleCacheKey::From(
+        context, requests->Get(context, i).As<ModuleRequest>());
+    DCHECK(dependent->resolve_cache_.contains(module_cache_key));
+
+    Local<Value> module_i;
+    Local<Value> module_cache_i;
+    if (!modules->Get(context, i).ToLocal(&module_i) ||
+        !modules->Get(context, dependent->resolve_cache_[module_cache_key])
+             .ToLocal(&module_cache_i) ||
+        !module_i->StrictEquals(module_cache_i)) {
+      // If the module is different from the one of the same request, throw an
+      // error.
+      THROW_ERR_MODULE_LINK_MISMATCH(realm->env(),
+                                     "Module link conflict for key '%s'",
+                                     module_cache_key.ToString());
+      return;
+    }
+  }
 
   args.This()->SetInternalField(kLinkedRequestsSlot, modules);
   dependent->linked_ = true;
@@ -637,6 +668,12 @@ void ModuleWrap::Instantiate(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
   Local<Context> context = obj->context();
   Local<Module> module = obj->module_.Get(isolate);
+
+  if (!obj->IsLinked()) {
+    THROW_ERR_VM_MODULE_LINK_FAILURE(realm->env(), "module is not linked");
+    return;
+  }
+
   TryCatchScope try_catch(realm->env());
   USE(module->InstantiateModule(
       context, ResolveModuleCallback, ResolveSourceCallback));
