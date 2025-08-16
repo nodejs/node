@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "application.h"
 #include <async_wrap-inl.h>
 #include <debug_utils-inl.h>
@@ -42,6 +43,8 @@ Session::Application_Options::operator const nghttp3_settings() const {
       .qpack_blocked_streams = static_cast<size_t>(qpack_blocked_streams),
       .enable_connect_protocol = enable_connect_protocol,
       .h3_datagram = enable_datagrams,
+      // TODO(@jasnell): Support origin frames?
+      .origin_list = nullptr,
   };
 }
 
@@ -236,7 +239,9 @@ void Session::Application::SendPendingData() {
   PathStorage path;
   StreamData stream_data;
 
+  bool closed = false;
   auto update_stats = OnScopeLeave([&] {
+    if (closed) return;
     auto& s = session();
     if (!s.is_destroyed()) [[likely]] {
       s.UpdatePacketTxTime();
@@ -284,14 +289,16 @@ void Session::Application::SendPendingData() {
       Debug(session_, "Failed to create packet for stream data");
       // Doh! Could not create a packet. Time to bail.
       session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
+      closed = true;
       return session_->Close(CloseMethod::SILENT);
     }
 
     // The stream_data is the next block of data from the application stream.
     if (GetStreamData(&stream_data) < 0) {
       Debug(session_, "Application failed to get stream data");
-      packet->Done(UV_ECANCELED);
+      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
+      closed = true;
       return session_->Close(CloseMethod::SILENT);
     }
 
@@ -357,12 +364,24 @@ void Session::Application::SendPendingData() {
           if (ndatalen >= 0 && !StreamCommit(&stream_data, ndatalen)) {
             Debug(session_,
                   "Failed to commit stream data while writing packets");
-            packet->Done(UV_ECANCELED);
+            packet->CancelPacket();
             session_->SetLastError(
                 QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
+            closed = true;
             return session_->Close(CloseMethod::SILENT);
           }
           continue;
+        }
+        case NGTCP2_ERR_CALLBACK_FAILURE: {
+          // This case really should not happen. It indicates that the
+          // ngtcp2 callback failed for some reason. This would be a
+          // bug in our code.
+          Debug(session_, "Internal failure with ngtcp2 callback");
+          packet->CancelPacket();
+          session_->SetLastError(
+              QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
+          closed = true;
+          return session_->Close(CloseMethod::SILENT);
         }
       }
 
@@ -371,12 +390,14 @@ void Session::Application::SendPendingData() {
       Debug(session_,
             "Application encountered error while writing packet: %s",
             ngtcp2_strerror(nwrite));
-      packet->Done(UV_ECANCELED);
+      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(nwrite));
+      closed = true;
       return session_->Close(CloseMethod::SILENT);
     } else if (ndatalen >= 0 && !StreamCommit(&stream_data, ndatalen)) {
-      packet->Done(UV_ECANCELED);
+      packet->CancelPacket();
       session_->SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
+      closed = true;
       return session_->Close(CloseMethod::SILENT);
     }
 
@@ -394,7 +415,7 @@ void Session::Application::SendPendingData() {
         packet->Truncate(datalen);
         session_->Send(packet, path);
       } else {
-        packet->Done(UV_ECANCELED);
+        packet->CancelPacket();
       }
 
       return;
@@ -447,6 +468,8 @@ class DefaultApplication final : public Session::Application {
   // statement not being sorted with the using v8 statements at the top
   // of the namespace.
   using Application::Application;  // NOLINT
+
+  error_code GetNoErrorCode() const override { return 0; }
 
   bool ReceiveStreamData(int64_t stream_id,
                          const uint8_t* data,
@@ -612,4 +635,5 @@ std::unique_ptr<Session::Application> Session::SelectApplication(
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

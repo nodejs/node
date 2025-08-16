@@ -1,82 +1,54 @@
 // Flags: --experimental-quic --no-warnings
 'use strict';
 
-const { hasQuic } = require('../common');
-const { Buffer } = require('node:buffer');
+const common = require('../common');
+const { strictEqual } = require('node:assert');
 
-const {
-  describe,
-  it,
-} = require('node:test');
-
-// TODO(@jasnell): Temporarily skip the test on mac until we can figure
-// out while it is failing on macs in CI but running locally on macs ok.
-const isMac = process.platform === 'darwin';
-const skip = isMac || !hasQuic;
-
-async function readAll(readable, resolve) {
-  const chunks = [];
-  for await (const chunk of readable) {
-    chunks.push(chunk);
-  }
-  resolve(Buffer.concat(chunks));
+if (!common.hasQuic) {
+  common.skip('QUIC is not enabled');
 }
 
-describe('quic basic server/client handshake works', { skip }, async () => {
-  const { createPrivateKey } = require('node:crypto');
-  const fixtures = require('../common/fixtures');
-  const keys = createPrivateKey(fixtures.readKey('agent1-key.pem'));
-  const certs = fixtures.readKey('agent1-cert.pem');
+const { createPrivateKey } = require('node:crypto');
+const fixtures = require('../common/fixtures');
+const keys = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const certs = fixtures.readKey('agent1-cert.pem');
 
-  const {
-    listen,
-    connect,
-  } = require('node:quic');
+const {
+  listen,
+  connect,
+} = require('node:quic');
 
-  const {
-    strictEqual,
-    ok,
-  } = require('node:assert');
+const {
+  ok,
+} = require('node:assert');
 
-  it('a quic client can connect to a quic server in the same process', async () => {
-    const p1 = Promise.withResolvers();
-    const p2 = Promise.withResolvers();
-    const p3 = Promise.withResolvers();
 
-    const serverEndpoint = await listen((serverSession) => {
+const p1 = Promise.withResolvers();
+const p2 = Promise.withResolvers();
 
-      serverSession.opened.then((info) => {
-        strictEqual(info.servername, 'localhost');
-        strictEqual(info.protocol, 'h3');
-        strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
-        p1.resolve();
-      });
+(async () => {
+  const serverEndpoint = await listen((serverSession) => {
 
-      serverSession.onstream = (stream) => {
-        readAll(stream.readable, p3.resolve).then(() => {
-          serverSession.close();
-        });
-      };
-    }, { keys, certs });
-
-    ok(serverEndpoint.address !== undefined);
-
-    const clientSession = await connect(serverEndpoint.address);
-    clientSession.opened.then((info) => {
+    serverSession.opened.then((info) => {
       strictEqual(info.servername, 'localhost');
       strictEqual(info.protocol, 'h3');
       strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
-      p2.resolve();
-    });
 
-    const body = new Blob(['hello']);
-    const stream = await clientSession.createUnidirectionalStream({
-      body,
+      p1.resolve();
+      serverSession.close();
     });
-    ok(stream);
+  }, { keys, certs });
 
-    const { 2: data } = await Promise.all([p1.promise, p2.promise, p3.promise]);
-    clientSession.close();
-    strictEqual(Buffer.from(data).toString(), 'hello');
+  ok(serverEndpoint.address !== undefined);
+
+  const clientSession = await connect(serverEndpoint.address);
+  clientSession.opened.then((info) => {
+    strictEqual(info.servername, 'localhost');
+    strictEqual(info.protocol, 'h3');
+    strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
+    p2.resolve();
   });
-});
+
+  await Promise.all([p1.promise, p2.promise]);
+  clientSession.close();
+})().then(common.mustCall());

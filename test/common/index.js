@@ -56,7 +56,7 @@ const hasCrypto = Boolean(process.versions.openssl) &&
 
 const hasSQLite = Boolean(process.versions.sqlite);
 
-const hasQuic = hasCrypto && !!process.config.variables.node_quic;
+const hasQuic = hasCrypto && !!process.features.quic;
 
 function parseTestFlags(filename = process.argv[1]) {
   // The copyright notice is relatively big and the flags could come afterwards.

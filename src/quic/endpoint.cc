@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "endpoint.h"
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
@@ -26,8 +27,6 @@ namespace node {
 
 using v8::ArrayBufferView;
 using v8::BackingStore;
-using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Just;
@@ -37,7 +36,6 @@ using v8::Nothing;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
-using v8::PropertyAttribute;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -156,7 +154,10 @@ bool SetOption(Environment* env,
           env, "The %s option must be an ArrayBufferView", *nameStr);
       return false;
     }
-    Store store(value.As<ArrayBufferView>());
+    Store store;
+    if (!Store::From(value.As<ArrayBufferView>()).To(&store)) {
+      return false;
+    }
     if (store.length() != TokenSecret::QUIC_TOKENSECRET_LEN) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
@@ -280,27 +281,10 @@ std::string Endpoint::Options::ToString() const {
 
 class Endpoint::UDP::Impl final : public HandleWrap {
  public:
-  static Local<FunctionTemplate> GetConstructorTemplate(Environment* env) {
-    auto& state = BindingData::Get(env);
-    auto tmpl = state.udp_constructor_template();
-    if (tmpl.IsEmpty()) {
-      tmpl = NewFunctionTemplate(env->isolate(), IllegalConstructor);
-      tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
-      tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
-      tmpl->SetClassName(state.endpoint_udp_string());
-      state.set_udp_constructor_template(tmpl);
-    }
-    return tmpl;
-  }
+  JS_CONSTRUCTOR(Impl);
 
   static Impl* Create(Endpoint* endpoint) {
-    Local<Object> obj;
-    if (!GetConstructorTemplate(endpoint->env())
-             ->InstanceTemplate()
-             ->NewInstance(endpoint->env()->context())
-             .ToLocal(&obj)) {
-      return nullptr;
-    }
+    JS_NEW_INSTANCE_OR_RETURN(endpoint->env(), obj, nullptr);
     return new Impl(endpoint, obj);
   }
 
@@ -362,6 +346,12 @@ class Endpoint::UDP::Impl final : public HandleWrap {
 
   friend class UDP;
 };
+
+JS_CONSTRUCTOR_IMPL(Endpoint::UDP::Impl, udp_constructor_template, {
+  JS_ILLEGAL_CONSTRUCTOR();
+  JS_INHERIT(HandleWrap);
+  JS_CLASS(endpoint_udp);
+})
 
 Endpoint::UDP::UDP(Endpoint* endpoint) : impl_(Impl::Create(endpoint)) {
   DCHECK(impl_);
@@ -508,29 +498,18 @@ void Endpoint::UDP::MemoryInfo(MemoryTracker* tracker) const {
 
 // ============================================================================
 
-bool Endpoint::HasInstance(Environment* env, Local<Value> value) {
-  return GetConstructorTemplate(env)->HasInstance(value);
-}
-
-Local<FunctionTemplate> Endpoint::GetConstructorTemplate(Environment* env) {
-  auto& state = BindingData::Get(env);
-  auto tmpl = state.endpoint_constructor_template();
-  if (tmpl.IsEmpty()) {
-    auto isolate = env->isolate();
-    tmpl = NewFunctionTemplate(isolate, New);
-    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->SetClassName(state.endpoint_string());
-    tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
-    SetProtoMethod(isolate, tmpl, "listen", DoListen);
-    SetProtoMethod(isolate, tmpl, "closeGracefully", DoCloseGracefully);
-    SetProtoMethod(isolate, tmpl, "connect", DoConnect);
-    SetProtoMethod(isolate, tmpl, "markBusy", MarkBusy);
-    SetProtoMethod(isolate, tmpl, "ref", Ref);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "address", LocalAddress);
-    state.set_endpoint_constructor_template(tmpl);
-  }
-  return tmpl;
-}
+JS_CONSTRUCTOR_IMPL(Endpoint, endpoint_constructor_template, {
+  auto isolate = env->isolate();
+  JS_NEW_CONSTRUCTOR();
+  JS_INHERIT(AsyncWrap);
+  JS_CLASS(endpoint);
+  SetProtoMethod(isolate, tmpl, "listen", DoListen);
+  SetProtoMethod(isolate, tmpl, "closeGracefully", DoCloseGracefully);
+  SetProtoMethod(isolate, tmpl, "connect", DoConnect);
+  SetProtoMethod(isolate, tmpl, "markBusy", MarkBusy);
+  SetProtoMethod(isolate, tmpl, "ref", Ref);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "address", LocalAddress);
+})
 
 void Endpoint::InitPerIsolate(IsolateData* data, Local<ObjectTemplate> target) {
   // TODO(@jasnell): Implement the per-isolate state
@@ -572,17 +551,17 @@ void Endpoint::InitPerContext(Realm* realm, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_PACKET_LENGTH);
 
   static constexpr auto CLOSECONTEXT_CLOSE =
-      static_cast<int>(CloseContext::CLOSE);
+      static_cast<uint8_t>(CloseContext::CLOSE);
   static constexpr auto CLOSECONTEXT_BIND_FAILURE =
-      static_cast<int>(CloseContext::BIND_FAILURE);
+      static_cast<uint8_t>(CloseContext::BIND_FAILURE);
   static constexpr auto CLOSECONTEXT_LISTEN_FAILURE =
-      static_cast<int>(CloseContext::LISTEN_FAILURE);
+      static_cast<uint8_t>(CloseContext::LISTEN_FAILURE);
   static constexpr auto CLOSECONTEXT_RECEIVE_FAILURE =
-      static_cast<int>(CloseContext::RECEIVE_FAILURE);
+      static_cast<uint8_t>(CloseContext::RECEIVE_FAILURE);
   static constexpr auto CLOSECONTEXT_SEND_FAILURE =
-      static_cast<int>(CloseContext::SEND_FAILURE);
+      static_cast<uint8_t>(CloseContext::SEND_FAILURE);
   static constexpr auto CLOSECONTEXT_START_FAILURE =
-      static_cast<int>(CloseContext::START_FAILURE);
+      static_cast<uint8_t>(CloseContext::START_FAILURE);
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_CLOSE);
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_BIND_FAILURE);
   NODE_DEFINE_CONSTANT(target, CLOSECONTEXT_LISTEN_FAILURE);
@@ -624,15 +603,10 @@ Endpoint::Endpoint(Environment* env,
     Debug(this, "Endpoint created. Options %s", options.ToString());
   }
 
-  const auto defineProperty = [&](auto name, auto value) {
-    object
-        ->DefineOwnProperty(
-            env->context(), name, value, PropertyAttribute::ReadOnly)
-        .Check();
-  };
-
-  defineProperty(env->state_string(), state_.GetArrayBuffer());
-  defineProperty(env->stats_string(), stats_.GetArrayBuffer());
+  JS_DEFINE_READONLY_PROPERTY(
+      env, object, env->state_string(), state_.GetArrayBuffer());
+  JS_DEFINE_READONLY_PROPERTY(
+      env, object, env->stats_string(), stats_.GetArrayBuffer());
 }
 
 SocketAddress Endpoint::local_address() const {
@@ -751,14 +725,14 @@ void Endpoint::Send(const BaseObjectPtr<Packet>& packet) {
   // dropped. This can happen to any type of packet. We use this only in
   // testing to test various reliability issues.
   if (is_diagnostic_packet_loss(options_.tx_loss)) [[unlikely]] {
-    packet->Done(0);
+    packet->Done();
     // Simulating tx packet loss
     return;
   }
 #endif  // DEBUG
 
   if (is_closed() || is_closing() || packet->length() == 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return;
   }
   Debug(this, "Sending %s", packet->ToString());
@@ -1672,7 +1646,7 @@ void Endpoint::EmitClose(CloseContext context, int status) {
 // ======================================================================================
 // Endpoint JavaScript API
 
-void Endpoint::New(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::New) {
   DCHECK(args.IsConstructCall());
   auto env = Environment::GetCurrent(args);
   Options options;
@@ -1685,7 +1659,7 @@ void Endpoint::New(const FunctionCallbackInfo<Value>& args) {
   new Endpoint(env, args.This(), options);
 }
 
-void Endpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::DoConnect) {
   auto env = Environment::GetCurrent(args);
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
@@ -1719,7 +1693,7 @@ void Endpoint::DoConnect(const FunctionCallbackInfo<Value>& args) {
   if (session) args.GetReturnValue().Set(session->object());
 }
 
-void Endpoint::DoListen(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::DoListen) {
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   auto env = Environment::GetCurrent(args);
@@ -1730,19 +1704,19 @@ void Endpoint::DoListen(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void Endpoint::MarkBusy(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::MarkBusy) {
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   endpoint->MarkAsBusy(args[0]->IsTrue());
 }
 
-void Endpoint::DoCloseGracefully(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::DoCloseGracefully) {
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   endpoint->CloseGracefully();
 }
 
-void Endpoint::LocalAddress(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::LocalAddress) {
   auto env = Environment::GetCurrent(args);
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
@@ -1752,7 +1726,7 @@ void Endpoint::LocalAddress(const FunctionCallbackInfo<Value>& args) {
   if (addr) args.GetReturnValue().Set(addr->object());
 }
 
-void Endpoint::Ref(const FunctionCallbackInfo<Value>& args) {
+JS_METHOD_IMPL(Endpoint::Ref) {
   Endpoint* endpoint;
   ASSIGN_OR_RETURN_UNWRAP(&endpoint, args.This());
   auto env = Environment::GetCurrent(args);
@@ -1765,5 +1739,5 @@ void Endpoint::Ref(const FunctionCallbackInfo<Value>& args) {
 
 }  // namespace quic
 }  // namespace node
-
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <async_wrap.h>
 #include <base_object.h>
@@ -251,13 +250,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     std::string ToString() const;
   };
 
-  static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env);
-  static void InitPerIsolate(IsolateData* isolate_data,
-                             v8::Local<v8::ObjectTemplate> target);
-  static void InitPerContext(Realm* env, v8::Local<v8::Object> target);
-  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+  JS_CONSTRUCTOR(Session);
+  JS_BINDING_INIT_BOILERPLATE();
 
   static BaseObjectPtr<Session> Create(
       Endpoint* endpoint,
@@ -335,7 +329,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // A non-const variation to allow certain modifications.
   Config& config();
 
-  enum class CreateStreamOption {
+  enum class CreateStreamOption : uint8_t {
     NOTIFY,
     DO_NOT_NOTIFY,
   };
@@ -424,7 +418,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // defined there to manage it.
   void set_wrapped();
 
-  enum class CloseMethod {
+  enum class CloseMethod : uint8_t {
     // Immediate close with a roundtrip through JavaScript, causing all
     // currently opened streams to be closed. An attempt will be made to
     // send a CONNECTION_CLOSE frame to the peer. If closing while within
@@ -524,5 +518,4 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

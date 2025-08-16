@@ -1,28 +1,27 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <async_wrap.h>
 #include <base_object.h>
 #include <env.h>
 #include <stream_base.h>
-#include <deque>
+#include <list>
+#include "defs.h"
 
 namespace node::quic {
 
 // The LogStream is a utility that the QUIC impl uses to publish both QLog
 // and Keylog diagnostic data (one instance for each).
-class LogStream : public AsyncWrap, public StreamBase {
+class LogStream final : public AsyncWrap, public StreamBase {
  public:
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env);
+  JS_CONSTRUCTOR(LogStream);
 
   static BaseObjectPtr<LogStream> Create(Environment* env);
 
   LogStream(Environment* env, v8::Local<v8::Object> obj);
 
-  enum class EmitOption {
+  enum class EmitOption : uint8_t {
     NONE,
     FIN,
   };
@@ -61,10 +60,10 @@ class LogStream : public AsyncWrap, public StreamBase {
     uv_buf_t buf;
   };
   size_t total_ = 0;
+  std::list<Chunk> buffer_;
   bool fin_seen_ = false;
   bool ended_ = false;
   bool reading_ = false;
-  std::deque<Chunk> buffer_;
 
   // The value here is fairly arbitrary. Once we get everything
   // fully implemented and start working with this, we might
@@ -77,5 +76,4 @@ class LogStream : public AsyncWrap, public StreamBase {
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

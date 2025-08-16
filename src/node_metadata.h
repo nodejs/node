@@ -10,7 +10,8 @@
 
 #if HAVE_OPENSSL
 #include <openssl/crypto.h>
-#if NODE_OPENSSL_HAS_QUIC
+#include <quic/guard.h>
+#ifndef OPENSSL_NO_QUIC
 #include <openssl/quic.h>
 #endif
 #endif  // HAVE_OPENSSL
@@ -59,6 +60,8 @@ namespace node {
   V(simdutf)                                                                   \
   V(ada)                                                                       \
   V(nbytes)                                                                    \
+  V(ngtcp2)                                                                    \
+  V(nghttp3)                                                                   \
   NODE_VERSIONS_KEY_AMARO(V)                                                   \
   NODE_VERSIONS_KEY_UNDICI(V)                                                  \
   V(cjs_module_lexer)
@@ -79,14 +82,6 @@ namespace node {
 #define NODE_VERSIONS_KEY_INTL(V)
 #endif  // NODE_HAVE_I18N_SUPPORT
 
-#ifdef OPENSSL_INFO_QUIC
-#define NODE_VERSIONS_KEY_QUIC(V)                                             \
-  V(ngtcp2)                                                                   \
-  V(nghttp3)
-#else
-#define NODE_VERSIONS_KEY_QUIC(V)
-#endif
-
 #if HAVE_SQLITE
 #define NODE_VERSIONS_KEY_SQLITE(V) V(sqlite)
 #else
@@ -97,7 +92,6 @@ namespace node {
   NODE_VERSIONS_KEYS_BASE(V)                                                   \
   NODE_VERSIONS_KEY_CRYPTO(V)                                                  \
   NODE_VERSIONS_KEY_INTL(V)                                                    \
-  NODE_VERSIONS_KEY_QUIC(V)                                                    \
   NODE_VERSIONS_KEY_SQLITE(V)
 
 #define V(key) +1

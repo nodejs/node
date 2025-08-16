@@ -5,6 +5,7 @@
 
 #include <cinttypes>
 #include <vector>
+#include "quic/guard.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
@@ -135,7 +136,7 @@ class ExternalReferenceRegistry {
 #define EXTERNAL_REFERENCE_BINDING_LIST_CRYPTO(V)
 #endif  // HAVE_OPENSSL
 
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#if HAVE_OPENSSL && OPENSSL_NO_QUIC != 1
 #define EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V) V(quic)
 #else
 #define EXTERNAL_REFERENCE_BINDING_LIST_QUIC(V)

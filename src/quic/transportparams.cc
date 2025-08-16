@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "transportparams.h"
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -14,7 +15,6 @@
 
 namespace node {
 
-using v8::ArrayBuffer;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -182,26 +182,24 @@ TransportParams::TransportParams(const ngtcp2_vec& vec, int version)
 
 Store TransportParams::Encode(Environment* env, int version) const {
   if (ptr_ == nullptr) {
-    return Store();
+    return {};
   }
 
   // Preflight to see how much storage we'll need.
   ssize_t size =
       ngtcp2_transport_params_encode_versioned(nullptr, 0, version, &params_);
   if (size == 0) {
-    return Store();
+    return {};
   }
 
-  auto result = ArrayBuffer::NewBackingStore(
-      env->isolate(), size, v8::BackingStoreInitializationMode::kUninitialized);
+  JS_TRY_ALLOCATE_BACKING_OR_RETURN(env, result, size, {});
 
   auto ret = ngtcp2_transport_params_encode_versioned(
       static_cast<uint8_t*>(result->Data()), size, version, &params_);
 
-  if (ret != 0) {
-    return Store();
-  }
-
+  // The ret is the number of bytes written, or a negative error code.
+  if (ret < 0) return {};
+  CHECK_EQ(ret, size);
   return Store(std::move(result), static_cast<size_t>(size));
 }
 
@@ -291,4 +289,5 @@ void TransportParams::Initialize(Environment* env, Local<Object> target) {
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL
