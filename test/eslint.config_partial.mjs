@@ -12,6 +12,7 @@ export default [
       globals: {
         ...globals.node,
         CloseEvent: true,
+        ErrorEvent: true,
       },
     },
     rules: {
