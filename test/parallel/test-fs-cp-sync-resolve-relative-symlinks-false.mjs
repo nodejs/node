@@ -1,5 +1,5 @@
 // This tests that cpSync resolves relative symlinks when verbatimSymlinks is false.
-import { mustNotMutateObjectDeep } from '../common/index.mjs';
+import { mustNotMutateObjectDeep, isWindows } from '../common/index.mjs';
 import { nextdir } from '../common/fs.js';
 import assert from 'node:assert';
 import { cpSync, mkdirSync, writeFileSync, symlinkSync, readlinkSync } from 'node:fs';
@@ -18,4 +18,11 @@ mkdirSync(dest, mustNotMutateObjectDeep({ recursive: true }));
 
 cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true, verbatimSymlinks: false }));
 const link = readlinkSync(join(dest, 'bar.js'));
-assert.strictEqual(link, join(src, 'foo.js'));
+
+if (isWindows) {
+  // On Windows, readlinkSync() may return a path with uppercase drive letter,
+  // but paths are case-insensitive.
+  assert.strictEqual(link.toLowerCase(), join(src, 'foo.js').toLowerCase());
+} else {
+  assert.strictEqual(link, join(src, 'foo.js'));
+}
